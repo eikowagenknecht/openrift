@@ -1,19 +1,25 @@
 import type { AdminCardDetailResponse } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
-import { ChevronDownIcon, PlusIcon } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -30,7 +36,6 @@ import { useLanguages } from "@/hooks/use-languages";
 import { useMarkers } from "@/hooks/use-markers";
 import { useSets } from "@/hooks/use-sets";
 import { buildChannelTree, leafChannels } from "@/lib/distribution-channel-tree";
-import { cn } from "@/lib/utils";
 
 export function CreatePrintingPage({
   cardSlug,
@@ -171,322 +176,319 @@ export function CreatePrintingPage({
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold">
-          {source ? "Duplicate printing" : "Create new printing"}
-        </h2>
-        <p className="text-muted-foreground">
-          {source ? (
-            <>
-              Duplicating <span className="font-medium">{source.expectedPrintingId}</span> for{" "}
-              <span className="font-medium">{card.name}</span>. Update fields as needed.
-            </>
-          ) : (
-            <>
-              Manual entry for <span className="font-medium">{card.name}</span>. No source
-              candidates will be linked.
-            </>
-          )}
-        </p>
-      </div>
+    <div className="max-w-2xl">
+      <Card>
+        <CardHeader>
+          <CardTitle>{source ? "Duplicate printing" : "Create new printing"}</CardTitle>
+          <CardDescription>
+            {source ? (
+              <>
+                Duplicating <span className="font-medium">{source.expectedPrintingId}</span> for{" "}
+                <span className="font-medium">{card.name}</span>. Update fields as needed.
+              </>
+            ) : (
+              <>
+                Manual entry for <span className="font-medium">{card.name}</span>. No source
+                candidates will be linked.
+              </>
+            )}
+          </CardDescription>
+        </CardHeader>
 
-      <section className="space-y-4 rounded-md border p-4">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1">
-            <Label htmlFor="create-printing-shortcode">Short code *</Label>
-            <Input
-              id="create-printing-shortcode"
-              value={shortCode}
-              onChange={(e) => setShortCode(e.target.value)}
-              placeholder="e.g. OGN-202"
-              className="font-mono"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>Set *</Label>
-            <Select value={setId} onValueChange={(value) => value && setSetId(value)}>
-              <SelectTrigger className="w-full">
-                <SelectValue>
-                  {(value: string) => sets.find((s) => s.slug === value)?.name ?? value}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {sets.map((s) => (
-                  <SelectItem key={s.slug} value={s.slug}>
-                    {s.name} ({s.slug})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        <CardContent>
+          <FieldGroup>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="create-printing-shortcode">Short code *</FieldLabel>
+                <Input
+                  id="create-printing-shortcode"
+                  value={shortCode}
+                  onChange={(e) => setShortCode(e.target.value)}
+                  placeholder="e.g. OGN-202"
+                  className="font-mono"
+                />
+              </Field>
+              <Field>
+                <FieldLabel>Set *</FieldLabel>
+                <Select value={setId} onValueChange={(value) => value && setSetId(value)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue>
+                      {(value: string) => sets.find((s) => s.slug === value)?.name ?? value}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sets.map((s) => (
+                      <SelectItem key={s.slug} value={s.slug}>
+                        {s.name} ({s.slug})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="space-y-1">
-            <Label>Rarity</Label>
-            <Select value={rarity} onValueChange={(value) => value && setRarity(value)}>
-              <SelectTrigger className="w-full">
-                <SelectValue>{(value: string) => labels.rarities[value] ?? value}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {orders.rarities.map((slug) => (
-                  <SelectItem key={slug} value={slug}>
-                    {labels.rarities[slug] ?? slug}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label>Art variant</Label>
-            <Select value={artVariant} onValueChange={(value) => value && setArtVariant(value)}>
-              <SelectTrigger className="w-full">
-                <SelectValue>{(value: string) => labels.artVariants[value] ?? value}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {orders.artVariants.map((slug) => (
-                  <SelectItem key={slug} value={slug}>
-                    {labels.artVariants[slug] ?? slug}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label>Finish</Label>
-            <Select value={finish} onValueChange={(value) => value && setFinish(value)}>
-              <SelectTrigger className="w-full">
-                <SelectValue>{(value: string) => labels.finishes[value] ?? value}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {orders.finishes.map((slug) => (
-                  <SelectItem key={slug} value={slug}>
-                    {labels.finishes[slug] ?? slug}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field>
+                <FieldLabel>Rarity</FieldLabel>
+                <Select value={rarity} onValueChange={(value) => value && setRarity(value)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue>{(value: string) => labels.rarities[value] ?? value}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {orders.rarities.map((slug) => (
+                      <SelectItem key={slug} value={slug}>
+                        {labels.rarities[slug] ?? slug}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel>Art variant</FieldLabel>
+                <Select value={artVariant} onValueChange={(value) => value && setArtVariant(value)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue>
+                      {(value: string) => labels.artVariants[value] ?? value}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {orders.artVariants.map((slug) => (
+                      <SelectItem key={slug} value={slug}>
+                        {labels.artVariants[slug] ?? slug}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel>Finish</FieldLabel>
+                <Select value={finish} onValueChange={(value) => value && setFinish(value)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue>{(value: string) => labels.finishes[value] ?? value}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {orders.finishes.map((slug) => (
+                      <SelectItem key={slug} value={slug}>
+                        {labels.finishes[slug] ?? slug}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="space-y-1">
-            <Label>Language</Label>
-            <Select value={language} onValueChange={(value) => value && setLanguage(value)}>
-              <SelectTrigger className="w-full">
-                <SelectValue>
-                  {(value: string) => languages.find((l) => l.code === value)?.name ?? value}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {languages.map((l) => (
-                  <SelectItem key={l.code} value={l.code}>
-                    {l.name} ({l.code})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-end space-y-1 sm:col-start-3">
-            <Label className="flex items-center gap-2">
-              <Checkbox checked={isSigned} onCheckedChange={setIsSigned} />
-              <span>Signed</span>
-            </Label>
-          </div>
-        </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field>
+                <FieldLabel>Language</FieldLabel>
+                <Select value={language} onValueChange={(value) => value && setLanguage(value)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue>
+                      {(value: string) => languages.find((l) => l.code === value)?.name ?? value}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {languages.map((l) => (
+                      <SelectItem key={l.code} value={l.code}>
+                        {l.name} ({l.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field orientation="horizontal" className="sm:col-start-3 sm:self-end">
+                <Checkbox
+                  id="create-printing-signed"
+                  checked={isSigned}
+                  onCheckedChange={setIsSigned}
+                />
+                <FieldLabel htmlFor="create-printing-signed">Signed</FieldLabel>
+              </Field>
+            </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1">
-            <Label>Markers</Label>
-            <MultiSelectDropdown
-              options={markers.map((m) => ({ value: m.slug, label: m.label }))}
-              selected={selectedMarkerSlugs}
-              onChange={setSelectedMarkerSlugs}
-              emptyOptionsText="No markers defined"
-              placeholder="— select markers —"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>Distribution channels</Label>
-            <MultiSelectDropdown
-              options={channelOptions}
-              selected={selectedChannelSlugs}
-              onChange={setSelectedChannelSlugs}
-              emptyOptionsText="No channels defined"
-              placeholder="— select channels —"
-            />
-          </div>
-        </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel>Markers</FieldLabel>
+                <MultiSelectChips
+                  options={markers.map((m) => ({ value: m.slug, label: m.label }))}
+                  selected={selectedMarkerSlugs}
+                  onChange={setSelectedMarkerSlugs}
+                  emptyOptionsText="No markers defined"
+                  placeholder="— select markers —"
+                  searchPlaceholder="Search markers…"
+                />
+              </Field>
+              <Field>
+                <FieldLabel>Distribution channels</FieldLabel>
+                <MultiSelectChips
+                  options={channelOptions}
+                  selected={selectedChannelSlugs}
+                  onChange={setSelectedChannelSlugs}
+                  emptyOptionsText="No channels defined"
+                  placeholder="— select channels —"
+                  searchPlaceholder="Search channels…"
+                />
+              </Field>
+            </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1">
-            <Label htmlFor="create-printing-artist">Artist *</Label>
-            <Input
-              id="create-printing-artist"
-              value={artist}
-              onChange={(e) => setArtist(e.target.value)}
-              placeholder="e.g. Jane Doe"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="create-printing-public-code">Public code *</Label>
-            <Input
-              id="create-printing-public-code"
-              value={publicCode}
-              onChange={(e) => setPublicCode(e.target.value)}
-              placeholder="e.g. 202"
-              className="font-mono"
-            />
-          </div>
-        </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="create-printing-artist">Artist *</FieldLabel>
+                <Input
+                  id="create-printing-artist"
+                  value={artist}
+                  onChange={(e) => setArtist(e.target.value)}
+                  placeholder="e.g. Jane Doe"
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="create-printing-public-code">Public code *</FieldLabel>
+                <Input
+                  id="create-printing-public-code"
+                  value={publicCode}
+                  onChange={(e) => setPublicCode(e.target.value)}
+                  placeholder="e.g. 202"
+                  className="font-mono"
+                />
+              </Field>
+            </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1">
-            <Label htmlFor="create-printing-printed-name">Printed name</Label>
-            <Input
-              id="create-printing-printed-name"
-              value={printedName}
-              onChange={(e) => setPrintedName(e.target.value)}
-              placeholder="Leave blank to use card name"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="create-printing-printed-year">Printed year</Label>
-            <Input
-              id="create-printing-printed-year"
-              value={printedYear}
-              onChange={(e) => setPrintedYear(e.target.value)}
-              placeholder="e.g. 2025"
-              inputMode="numeric"
-            />
-          </div>
-        </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="create-printing-printed-name">Printed name</FieldLabel>
+                <Input
+                  id="create-printing-printed-name"
+                  value={printedName}
+                  onChange={(e) => setPrintedName(e.target.value)}
+                  placeholder="Leave blank to use card name"
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="create-printing-printed-year">Printed year</FieldLabel>
+                <Input
+                  id="create-printing-printed-year"
+                  value={printedYear}
+                  onChange={(e) => setPrintedYear(e.target.value)}
+                  placeholder="e.g. 2025"
+                  inputMode="numeric"
+                />
+              </Field>
+            </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1">
-            <Label htmlFor="create-printing-rules">Printed rules text</Label>
-            <Textarea
-              id="create-printing-rules"
-              value={printedRulesText}
-              onChange={(e) => setPrintedRulesText(e.target.value)}
-              rows={3}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="create-printing-effect">Printed effect text</Label>
-            <Textarea
-              id="create-printing-effect"
-              value={printedEffectText}
-              onChange={(e) => setPrintedEffectText(e.target.value)}
-              rows={3}
-            />
-          </div>
-        </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="create-printing-rules">Printed rules text</FieldLabel>
+                <Textarea
+                  id="create-printing-rules"
+                  value={printedRulesText}
+                  onChange={(e) => setPrintedRulesText(e.target.value)}
+                  rows={3}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="create-printing-effect">Printed effect text</FieldLabel>
+                <Textarea
+                  id="create-printing-effect"
+                  value={printedEffectText}
+                  onChange={(e) => setPrintedEffectText(e.target.value)}
+                  rows={3}
+                />
+              </Field>
+            </div>
 
-        <div className="space-y-1">
-          <Label htmlFor="create-printing-flavor">Flavor text</Label>
-          <Textarea
-            id="create-printing-flavor"
-            value={flavorText}
-            onChange={(e) => setFlavorText(e.target.value)}
-            rows={2}
-          />
-        </div>
+            <Field>
+              <FieldLabel htmlFor="create-printing-flavor">Flavor text</FieldLabel>
+              <Textarea
+                id="create-printing-flavor"
+                value={flavorText}
+                onChange={(e) => setFlavorText(e.target.value)}
+                rows={2}
+              />
+            </Field>
 
-        <div className="space-y-1">
-          <Label htmlFor="create-printing-image">Image URL</Label>
-          <Input
-            id="create-printing-image"
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            placeholder="https://…"
-          />
-        </div>
+            <Field>
+              <FieldLabel htmlFor="create-printing-image">Image URL</FieldLabel>
+              <Input
+                id="create-printing-image"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="https://…"
+              />
+            </Field>
 
-        {errorMsg && <p className="text-destructive">{errorMsg}</p>}
+            {errorMsg && (
+              <Alert variant="destructive">
+                <AlertDescription>{errorMsg}</AlertDescription>
+              </Alert>
+            )}
 
-        <div className="flex gap-2">
-          <Button disabled={!canSubmit} onClick={handleSubmit}>
-            <PlusIcon className="mr-1 size-4" />
-            Create printing
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => navigate({ to: "/admin/cards/$cardSlug", params: { cardSlug } })}
-          >
-            Cancel
-          </Button>
-        </div>
-      </section>
+            <div className="flex gap-2">
+              <Button disabled={!canSubmit} onClick={handleSubmit}>
+                <PlusIcon className="mr-1 size-4" />
+                Create printing
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => navigate({ to: "/admin/cards/$cardSlug", params: { cardSlug } })}
+              >
+                Cancel
+              </Button>
+            </div>
+          </FieldGroup>
+        </CardContent>
+      </Card>
     </div>
   );
 }
 
-function MultiSelectDropdown({
+function MultiSelectChips({
   options,
   selected,
   onChange,
   placeholder,
+  searchPlaceholder,
   emptyOptionsText,
 }: {
   options: { value: string; label: string }[];
   selected: string[];
   onChange: (next: string[]) => void;
   placeholder: string;
+  searchPlaceholder: string;
   emptyOptionsText: string;
 }) {
   if (options.length === 0) {
-    return <span className="text-muted-foreground">{emptyOptionsText}</span>;
+    return <span className="text-muted-foreground text-sm">{emptyOptionsText}</span>;
   }
-  const selectedSet = new Set(selected);
-  const triggerLabel = options
-    .filter((opt) => selectedSet.has(opt.value))
-    .map((opt) => opt.label)
-    .join(", ");
+  const items = options.map((opt) => opt.value);
+  const labelFor = (value: string) => options.find((opt) => opt.value === value)?.label ?? value;
+  const orderSelected = (next: string[]) => {
+    const nextSet = new Set(next);
+    return options.filter((opt) => nextSet.has(opt.value)).map((opt) => opt.value);
+  };
+  const ordered = orderSelected(selected);
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <button
-            type="button"
-            className="border-input bg-background flex h-9 w-full items-center gap-1 rounded-md border px-3 text-left text-sm"
-          />
-        }
-      >
-        <span
-          className={cn(
-            "min-w-0 flex-1 truncate",
-            selected.length === 0 && "text-muted-foreground",
+    <Combobox<string, true>
+      multiple
+      items={items}
+      value={ordered}
+      onValueChange={(next) => onChange(orderSelected(next))}
+      itemToStringLabel={labelFor}
+    >
+      <ComboboxChips>
+        {ordered.map((value) => (
+          <ComboboxChip key={value}>{labelFor(value)}</ComboboxChip>
+        ))}
+        <ComboboxChipsInput placeholder={ordered.length === 0 ? placeholder : searchPlaceholder} />
+      </ComboboxChips>
+      <ComboboxContent>
+        <ComboboxEmpty>No matches.</ComboboxEmpty>
+        <ComboboxList>
+          {(value: string) => (
+            <ComboboxItem key={value} value={value}>
+              {labelFor(value)}
+            </ComboboxItem>
           )}
-          title={triggerLabel || undefined}
-        >
-          {selected.length > 0 ? triggerLabel : placeholder}
-        </span>
-        <ChevronDownIcon className="size-3.5 shrink-0 opacity-50" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        {options.map(({ value, label }) => {
-          const isSelected = selectedSet.has(value);
-          return (
-            <DropdownMenuCheckboxItem
-              key={value}
-              checked={isSelected}
-              onSelect={(e) => e.preventDefault()}
-              onCheckedChange={() => {
-                const next = isSelected
-                  ? selected.filter((v) => v !== value)
-                  : options
-                      .filter((o) => selectedSet.has(o.value) || o.value === value)
-                      .map((o) => o.value);
-                onChange(next);
-              }}
-            >
-              {label}
-            </DropdownMenuCheckboxItem>
-          );
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
   );
 }
