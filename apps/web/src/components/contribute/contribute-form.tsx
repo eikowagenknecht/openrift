@@ -332,12 +332,10 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
           Submit your contribution
         </Button>
         <p className="text-muted-foreground text-sm">
-          A new tab opens on GitHub with everything filled in. If you don&apos;t already have a fork
-          of the data repo, GitHub will offer to create one in a single click. Then click
-          &ldquo;Propose changes&rdquo; at the bottom of the editor, and &ldquo;Create pull
-          request&rdquo; on the next page to confirm. If you have notes about this contribution
-          (e.g. where you spotted the card, art variant unconfirmed), add them to the pull request
-          description on GitHub. I&apos;ll review your submission before it goes live.
+          A new tab opens on GitHub with everything filled in. First time? GitHub will offer to
+          create your fork in one click. Click &ldquo;Propose changes&rdquo; at the bottom of the
+          editor, then &ldquo;Create pull request&rdquo; on the next page. Add any notes (where you
+          spotted the card, art variant unconfirmed, etc.) to the pull request description.
         </p>
       </div>
     </form>
@@ -513,8 +511,8 @@ function IntroBlock({ lockedSlug }: { lockedSlug?: string }) {
   }
   return (
     <p className="text-muted-foreground">
-      Fill in whatever details you have and leave the rest blank; even partial entries are useful,
-      and I&apos;ll tidy up the rest. Submitting opens a prefilled pull request on the{" "}
+      Fill in what you have and leave the rest blank. Partial entries are still useful. Submitting
+      opens a prefilled pull request on the{" "}
       <a
         href="https://github.com/openriftapp/openrift-data"
         target="_blank"
@@ -523,7 +521,7 @@ function IntroBlock({ lockedSlug }: { lockedSlug?: string }) {
       >
         openrift-data
       </a>{" "}
-      repo (GitHub will fork it for you in one click), and I&apos;ll review it before it goes live.
+      repo. I review every submission before it goes live.
     </p>
   );
 }
@@ -700,7 +698,7 @@ function PrintingCard({
         </FieldRow>
         <FieldRow
           label="Image URL"
-          hint="A link to the official image is preferred. The link should point directly to the image file itself. You can leave this empty and attach photos or scans to the GitHub PR later if you have any."
+          hint="Direct link to the official image (URL ending in .png, .jpg, etc.). Or leave blank and attach a photo or scan to the pull request after submitting."
           error={errorAt(`printings[${index.toString()}].imageUrl`)}
         >
           <InputGroup>

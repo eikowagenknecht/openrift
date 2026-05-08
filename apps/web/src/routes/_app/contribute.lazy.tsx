@@ -14,9 +14,8 @@ function ContributePage() {
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold">Add a card to OpenRift</h1>
         <p className="text-muted-foreground">
-          OpenRift is a small project, and extra hands are very welcome. If you spot a card
-          that&apos;s missing, you can help fill it in here. No GitHub account or experience
-          required.
+          Spotted a card that&apos;s missing? Fill in what you know below and submit. You&apos;ll
+          need a free GitHub account, but no coding or git experience.
         </p>
       </header>
       <ContributeForm initial={emptyFormState()} />
