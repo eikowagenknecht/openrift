@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/table";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useEnumOrders, useLanguageList } from "@/hooks/use-enums";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { publicPromoListQueryOptions } from "@/hooks/use-public-promos";
 import { useSession } from "@/lib/auth-session";
@@ -184,6 +185,20 @@ const GROUP_OPTIONS: { value: PromoGrouping; label: string }[] = [
   { value: "marker", label: "Marker" },
 ];
 
+function OwnedCountBridge({
+  enabled,
+  onChange,
+}: {
+  enabled: boolean;
+  onChange: (data: Record<string, number> | undefined) => void;
+}) {
+  const { data } = useOwnedCount(enabled);
+  useEffect(() => {
+    onChange(data);
+  }, [data, onChange]);
+  return null;
+}
+
 function PromosPage() {
   const { data } = useSuspenseQuery(publicPromoListQueryOptions);
   const { language: activeLanguage } = Route.useParams();
@@ -205,7 +220,15 @@ function PromosPage() {
   // controls only the *display*.
   const ownedFilterActive = filters.ownedFilter !== null;
   const fetchOwned = isLoggedIn && (showOwned || ownedFilterActive);
-  const { data: ownedCountByPrinting } = useOwnedCount(fetchOwned);
+  // useOwnedCount → useLiveQuery uses useSyncExternalStore without a server
+  // snapshot, which is invalid during SSR. Defer the call to a child that
+  // mounts only after hydration, and lift the result up via state. SSR renders
+  // the page without owned counts (and ignores any owned filter); the data
+  // pops in once the client takes over.
+  const hydrated = useHydrated();
+  const [ownedCountByPrinting, setOwnedCountByPrinting] = useState<
+    Record<string, number> | undefined
+  >();
   const ownedCounts = showOwned ? ownedCountByPrinting : undefined;
   const togglePromoOwned = () => {
     useDisplayStore.setState({ catalogMode: catalogMode === "off" ? "count" : "off" });
@@ -376,6 +399,7 @@ function PromosPage() {
 
   return (
     <div className={PAGE_PADDING}>
+      {hydrated && <OwnedCountBridge enabled={fetchOwned} onChange={setOwnedCountByPrinting} />}
       <div className="mb-6">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-bold">Promos</h1>
