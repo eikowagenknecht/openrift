@@ -6,6 +6,12 @@ import { useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+} from "@/components/ui/combobox";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -20,6 +26,13 @@ import { useCreateCard } from "@/hooks/use-admin-card-mutations";
 import { useEnumOrders } from "@/hooks/use-enums";
 
 type NumField = "might" | "energy" | "power" | "mightBonus";
+
+const NUM_FIELDS: { key: NumField; label: string }[] = [
+  { key: "might", label: "Might" },
+  { key: "energy", label: "Energy" },
+  { key: "power", label: "Power" },
+  { key: "mightBonus", label: "Might bonus" },
+];
 
 export function CreateCardPage() {
   const navigate = useNavigate();
@@ -38,8 +51,17 @@ export function CreateCardPage() {
     power: "",
     mightBonus: "",
   });
-  const [tagsText, setTagsText] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagDraft, setTagDraft] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const commitTagDraft = () => {
+    const trimmed = tagDraft.trim();
+    if (trimmed && !tags.includes(trimmed)) {
+      setTags([...tags, trimmed]);
+    }
+    setTagDraft("");
+  };
 
   const effectiveSlug = slugDirty ? slug : slugifyName(name);
   const canSubmit =
@@ -62,10 +84,8 @@ export function CreateCardPage() {
       return;
     }
     setErrorMsg(null);
-    const tags = tagsText
-      .split(",")
-      .map((t) => t.trim())
-      .filter((t) => t.length > 0);
+    const trimmedDraft = tagDraft.trim();
+    const finalTags = trimmedDraft && !tags.includes(trimmedDraft) ? [...tags, trimmedDraft] : tags;
 
     createCard.mutate(
       {
@@ -78,7 +98,7 @@ export function CreateCardPage() {
         ...(numeric.energy !== "" && { energy: parseNum(numeric.energy) }),
         ...(numeric.power !== "" && { power: parseNum(numeric.power) }),
         ...(numeric.mightBonus !== "" && { mightBonus: parseNum(numeric.mightBonus) }),
-        ...(tags.length > 0 && { tags }),
+        ...(finalTags.length > 0 && { tags: finalTags }),
       },
       {
         onSuccess: (result) => {
@@ -184,28 +204,47 @@ export function CreateCardPage() {
             </Field>
 
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              {(["might", "energy", "power", "mightBonus"] as NumField[]).map((key) => (
+              {NUM_FIELDS.map(({ key, label }) => (
                 <Field key={key}>
-                  <FieldLabel htmlFor={`create-card-${key}`}>{key}</FieldLabel>
+                  <FieldLabel htmlFor={`create-card-${key}`}>{label}</FieldLabel>
                   <Input
                     id={`create-card-${key}`}
                     type="number"
                     min={0}
                     value={numeric[key]}
                     onChange={(e) => setNumeric((prev) => ({ ...prev, [key]: e.target.value }))}
+                    className="[-moz-appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none"
                   />
                 </Field>
               ))}
             </div>
 
             <Field>
-              <FieldLabel htmlFor="create-card-tags">Tags (comma-separated)</FieldLabel>
-              <Input
-                id="create-card-tags"
-                value={tagsText}
-                onChange={(e) => setTagsText(e.target.value)}
-                placeholder="e.g. wish, reanimator"
-              />
+              <FieldLabel>Tags</FieldLabel>
+              <Combobox<string, true>
+                multiple
+                items={tags}
+                value={tags}
+                onValueChange={setTags}
+                inputValue={tagDraft}
+                onInputValueChange={setTagDraft}
+              >
+                <ComboboxChips>
+                  {tags.map((tag) => (
+                    <ComboboxChip key={tag}>{tag}</ComboboxChip>
+                  ))}
+                  <ComboboxChipsInput
+                    placeholder={tags.length === 0 ? "Press Enter or comma to add" : ""}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === ",") {
+                        event.preventDefault();
+                        commitTagDraft();
+                      }
+                    }}
+                    onBlur={commitTagDraft}
+                  />
+                </ComboboxChips>
+              </Combobox>
             </Field>
 
             {errorMsg && (

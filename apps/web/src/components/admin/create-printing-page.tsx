@@ -10,13 +10,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Combobox,
-  ComboboxChip,
-  ComboboxChips,
-  ComboboxChipsInput,
   ComboboxContent,
   ComboboxEmpty,
+  ComboboxInput,
   ComboboxItem,
   ComboboxList,
+  ComboboxTrigger,
 } from "@/components/ui/combobox";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -36,6 +35,7 @@ import { useLanguages } from "@/hooks/use-languages";
 import { useMarkers } from "@/hooks/use-markers";
 import { useSets } from "@/hooks/use-sets";
 import { buildChannelTree, leafChannels } from "@/lib/distribution-channel-tree";
+import { cn } from "@/lib/utils";
 
 export function CreatePrintingPage({
   cardSlug,
@@ -308,7 +308,7 @@ export function CreatePrintingPage({
             <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel>Markers</FieldLabel>
-                <MultiSelectChips
+                <MultiSelectDropdown
                   options={markers.map((m) => ({ value: m.slug, label: m.label }))}
                   selected={selectedMarkerSlugs}
                   onChange={setSelectedMarkerSlugs}
@@ -319,7 +319,7 @@ export function CreatePrintingPage({
               </Field>
               <Field>
                 <FieldLabel>Distribution channels</FieldLabel>
-                <MultiSelectChips
+                <MultiSelectDropdown
                   options={channelOptions}
                   selected={selectedChannelSlugs}
                   onChange={setSelectedChannelSlugs}
@@ -440,7 +440,7 @@ export function CreatePrintingPage({
   );
 }
 
-function MultiSelectChips({
+function MultiSelectDropdown({
   options,
   selected,
   onChange,
@@ -465,6 +465,7 @@ function MultiSelectChips({
     return options.filter((opt) => nextSet.has(opt.value)).map((opt) => opt.value);
   };
   const ordered = orderSelected(selected);
+  const summary = ordered.length === 0 ? placeholder : ordered.map((v) => labelFor(v)).join(", ");
   return (
     <Combobox<string, true>
       multiple
@@ -473,13 +474,17 @@ function MultiSelectChips({
       onValueChange={(next) => onChange(orderSelected(next))}
       itemToStringLabel={labelFor}
     >
-      <ComboboxChips>
-        {ordered.map((value) => (
-          <ComboboxChip key={value}>{labelFor(value)}</ComboboxChip>
-        ))}
-        <ComboboxChipsInput placeholder={ordered.length === 0 ? placeholder : searchPlaceholder} />
-      </ComboboxChips>
-      <ComboboxContent>
+      <ComboboxTrigger
+        render={<Button variant="outline" />}
+        className={cn(
+          "w-full justify-between font-normal",
+          ordered.length === 0 && "text-muted-foreground",
+        )}
+      >
+        <span className="truncate">{summary}</span>
+      </ComboboxTrigger>
+      <ComboboxContent className="w-72">
+        <ComboboxInput placeholder={searchPlaceholder} showTrigger={false} />
         <ComboboxEmpty>No matches.</ComboboxEmpty>
         <ComboboxList>
           {(value: string) => (
