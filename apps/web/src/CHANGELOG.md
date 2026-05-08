@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-05-08
+
+- feat: Promos sections now have a cleaner, centered header style that matches the Cards page
+- feat: The search and filter chips on the Promos page stay pinned to the top while you scroll
+- feat: A small clickable badge floats above the Promos grid showing which section you're in, and jumps back to its top when you tap it
+
 ## 2026-05-07
 
 - feat: The Channel filter is now a searchable dropdown that shows the full path of each channel (so the four different "Top 8" entries are easy to tell apart), instead of a long list of leaf labels

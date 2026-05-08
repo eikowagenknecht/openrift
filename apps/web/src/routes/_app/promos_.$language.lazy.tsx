@@ -8,8 +8,8 @@ import {
   useNavigate,
   useRouter,
 } from "@tanstack/react-router";
-import { ChevronDownIcon, ChevronRightIcon, PackageIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { PackageIcon } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
@@ -52,6 +52,7 @@ import { useOwnedCount } from "@/hooks/use-owned-count";
 import { publicPromoListQueryOptions } from "@/hooks/use-public-promos";
 import { useSession } from "@/lib/auth-session";
 import { catalogQueryOptions } from "@/lib/catalog-query";
+import { getHeaderHeight } from "@/lib/header-height";
 import { buildPromoTreeFromMatches } from "@/lib/promo-filters";
 import type { PromoGrouping, PromoSection } from "@/lib/promo-groupings";
 import { asPromoGrouping, groupByCard, groupByMarker, groupByYear } from "@/lib/promo-groupings";
@@ -75,12 +76,6 @@ function PromosRoute() {
   );
 }
 
-// /promos shares the global filter facets — only `owned` (logged-out) and
-// `price` (off-EN, since TCG/CM staging stores everything as EN) are gated
-// dynamically below. Set/domain/type/superType/artVariant/stat ranges are
-// all surfaced because cards have real data on those dimensions even on
-// promo printings. The "Promo" flag is always-true on this page (every
-// printing is a promo), so hide the chip.
 const PROMOS_BASE_HIDDEN_SECTIONS: ReadonlySet<string> = new Set(["promo"]);
 
 type ViewMode = "grid" | "list";
@@ -92,14 +87,10 @@ const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
 
 const COMPACT_LEAF_THRESHOLD = 4;
 
-// Mirrors both card grids below: cols 2 / 3@640 / 4@1280 / 6@1720 / 8@2160,
-// gap-4 (16px) between cells, p-1.5 (6px) inside each cell, inside _app's
-// CONTAINER_WIDTH cap (1280 → 1720@wide → 2160@xwide → 2560@xxwide), with
-// PAGE_PADDING (px-3 = -24px) and an `lg:w-52` sidebar (208px) plus
-// `gap-8` (32px) at lg+. Once the cap binds the per-cell size is constant,
-// so the wide breakpoints use fixed px values.
 const PROMOS_CARD_SIZES =
   "(min-width: 2560px) 261px, (min-width: 2160px) 211px, (min-width: 1720px) 217px, (min-width: 1280px) 230px, (min-width: 1024px) calc((100vw - 296px) / 3 - 12px), (min-width: 640px) calc((100vw - 56px) / 3 - 12px), calc((100vw - 40px) / 2 - 12px)";
+
+const BREADCRUMB_SEP = " › ";
 
 /**
  * A branch qualifies for compact-table rendering when every direct child is a
@@ -117,10 +108,6 @@ function isCompactBranch(node: ChannelNode): boolean {
   );
 }
 
-function formatLocalCount(printingCount: number): string {
-  return `${printingCount} ${printingCount === 1 ? "printing" : "printings"}`;
-}
-
 function formatLanguageAggregate(
   languageLabel: string,
   printingCount: number,
@@ -133,8 +120,9 @@ function formatLanguageAggregate(
 
 /**
  * Walk the channel tree and collect every channel that carries at least one
- * printing. Compact leaves anchor themselves on the first card/row of the
- * merged grid/table, so their toc entries still resolve via DOM lookup.
+ * printing. The TOC keeps the hierarchical layout (depth-indented) even though
+ * the content area renders sections flat — non-leaf entries scroll to a hidden
+ * anchor at the start of their first descendant section.
  *
  * @returns Flat list of toc items in render order.
  */
@@ -199,6 +187,79 @@ function OwnedCountBridge({
   return null;
 }
 
+interface ChannelRenderItem {
+  kind: "leaf" | "compact";
+  node: ChannelNode;
+  ancestors: string[];
+  /** Non-leaf parents introduced at this position; rendered as hidden anchors so the TOC can still scroll-target them. */
+  parentAnchorIds: string[];
+  /** Stable id for the visible section header. */
+  sectionId: string;
+  /** Full breadcrumb shown in the divider header and sticky pill. */
+  title: string;
+}
+
+function flattenChannelSections(nodes: ChannelNode[], languagePrefix: string): ChannelRenderItem[] {
+  const items: ChannelRenderItem[] = [];
+  let pending: string[] = [];
+
+  function walk(currentNodes: ChannelNode[], ancestors: string[]) {
+    for (const node of currentNodes) {
+      if (node.localPrintingCount === 0) {
+        continue;
+      }
+      const sectionId = `${languagePrefix}-ch-${node.channel.id}`;
+      const titleParts = [...ancestors, node.channel.label];
+      const title = titleParts.join(BREADCRUMB_SEP);
+      if (node.children.length === 0) {
+        items.push({
+          kind: "leaf",
+          node,
+          ancestors,
+          parentAnchorIds: pending,
+          sectionId,
+          title,
+        });
+        pending = [];
+      } else if (isCompactBranch(node)) {
+        items.push({
+          kind: "compact",
+          node,
+          ancestors,
+          parentAnchorIds: pending,
+          sectionId,
+          title,
+        });
+        pending = [];
+      } else {
+        pending = [...pending, sectionId];
+        walk(node.children, titleParts);
+      }
+    }
+  }
+
+  walk(nodes, []);
+  return items;
+}
+
+interface FlatRenderItem {
+  section: PromoSection;
+  sectionId: string;
+  title: string;
+}
+
+function buildFlatRenderItems(
+  sections: PromoSection[],
+  languagePrefix: string,
+  kind: FlatSectionKind,
+): FlatRenderItem[] {
+  return sections.map((section) => ({
+    section,
+    sectionId: flatSectionAnchor(languagePrefix, kind, section.id),
+    title: section.label,
+  }));
+}
+
 function PromosPage() {
   const { data } = useSuspenseQuery(publicPromoListQueryOptions);
   const { language: activeLanguage } = Route.useParams();
@@ -215,15 +276,12 @@ function PromosPage() {
   const catalogMode = useDisplayStore((s) => s.catalogMode);
   const showOwned = isLoggedIn && catalogMode !== "off";
   const { filters, ranges, filterState, groupDir, hasActiveFilters } = useFilterValues();
-  // The owned filter needs counts even when the count display is off, so
-  // request the data whenever the user is logged in. The toolbar toggle still
-  // controls only the *display*.
   const ownedFilterActive = filters.ownedFilter !== null;
   const fetchOwned = isLoggedIn && (showOwned || ownedFilterActive);
   // useOwnedCount → useLiveQuery uses useSyncExternalStore without a server
-  // snapshot, which is invalid during SSR. Defer the call to a child that
-  // mounts only after hydration, and lift the result up via state. SSR renders
-  // the page without owned counts (and ignores any owned filter); the data
+  // snapshot, which is invalid during SSR. Defer the call to OwnedCountBridge,
+  // which mounts only after hydration; the result is lifted up via state. SSR
+  // renders without owned counts (and ignores any owned filter) and the data
   // pops in once the client takes over.
   const hydrated = useHydrated();
   const [ownedCountByPrinting, setOwnedCountByPrinting] = useState<
@@ -244,14 +302,8 @@ function PromosPage() {
 
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
-  // Price filter behavior depends on the active language: TCG/CM staging
-  // stores all prices as if EN, so applying a price filter to non-EN promos
-  // would silently misrepresent matches. Hide the control off-EN and skip
-  // the filter even if the URL still carries priceMin/priceMax.
   const priceFilterEnabled = activeLanguage === "EN";
 
-  // Catalog provides setId → set metadata so the Set filter can render
-  // readable slugs/names. publicPromoListQueryOptions only carries setId.
   const { data: catalog } = useSuspenseQuery(catalogQueryOptions);
   const setIdToSlug = new Map(catalog.sets.map((s) => [s.id, s.slug] as const));
   const setSlugToName = new Map(catalog.sets.map((s) => [s.slug, s.name] as const));
@@ -266,26 +318,18 @@ function PromosPage() {
   const availableFilters = getAvailableFilters(activePrintings, {
     orders: enumOrders,
     sets: catalog.sets,
-    // Use the full channel registry so the breadcrumb walk in the channel
-    // combobox can resolve every parent — printings often link only to leaf
-    // channels, which would otherwise leave parents missing from the lookup.
     channels: data.channels,
     getPrice: (p) => display.prices.get(p.id, display.favoriteMarketplace),
   });
 
   const sortBy = filterState.sort as SortOption;
   const sortDir = filterState.sortDir as SortDirection;
-  // Pre-bind the sort closure so leaf and compact branches don't have to
-  // know about rarity ordering or the prices/marketplace plumbing.
   const sortPrintings = (printings: Printing[]) =>
     sortCards(printings, sortBy, {
       sortDir,
       rarityOrder: enumOrders.rarities,
       getPrice: (p) => display.prices.get(p.id, display.favoriteMarketplace),
     });
-  // Reuse the shared filterCards pipeline so /promos respects every facet
-  // (sets, types, domains, ranges, markers, channels) end-to-end. Price is
-  // zeroed off-EN since marketplace data is only meaningful for English.
   const cardFilters = {
     ...filters,
     languages: [activeLanguage],
@@ -310,9 +354,6 @@ function PromosPage() {
     }
     return count < 4;
   });
-  // Grouping is read from the global filter state, but /promos has its own
-  // enum (channel/card/year). asPromoGrouping coerces unknowns (e.g. when
-  // navigating from /cards with ?groupBy=type) back to the page default.
   const grouping = asPromoGrouping(filterState.groupBy);
 
   // Apply groupDir uniformly across all groupings — the channel tree reverses
@@ -320,7 +361,7 @@ function PromosPage() {
   // via their helpers. Mirrors how /cards' card-grid handles groupDir so the
   // toggle behaviour is consistent across pages.
   const channelTree = buildPromoTreeFromMatches(matchedPrintings, data.channels);
-  const activeTree =
+  const orderedChannelTree =
     grouping === "channel" ? (groupDir === "desc" ? channelTree.toReversed() : channelTree) : [];
   const cardSections = grouping === "card" ? groupByCard(matchedPrintings, groupDir) : undefined;
   const yearSections = grouping === "year" ? groupByYear(matchedPrintings, groupDir) : undefined;
@@ -335,6 +376,13 @@ function PromosPage() {
         ? "marker"
         : null;
 
+  const activePrefix = `lang-${activeLanguage}`;
+
+  const channelRenderItems =
+    grouping === "channel" ? flattenChannelSections(orderedChannelTree, activePrefix) : [];
+  const flatRenderItems =
+    flatSections && flatKind ? buildFlatRenderItems(flatSections, activePrefix, flatKind) : [];
+
   const hiddenFilterSections = priceFilterEnabled
     ? PROMOS_BASE_HIDDEN_SECTIONS
     : new Set([...PROMOS_BASE_HIDDEN_SECTIONS, "price"]);
@@ -344,17 +392,14 @@ function PromosPage() {
 
   const activeAggregate = computeLanguageAggregates(data.printings).get(activeLanguage);
 
-  const activePrefix = `lang-${activeLanguage}`;
-
   const tocItems: PageTocItem[] = [];
   if (grouping === "channel") {
-    collectChannelTocItems(activeTree, activePrefix, 0, tocItems);
+    collectChannelTocItems(orderedChannelTree, activePrefix, 0, tocItems);
   } else if (flatSections && flatKind) {
     tocItems.push(...collectFlatSectionTocItems(flatSections, activePrefix, flatKind));
   }
 
-  const hasContent =
-    grouping === "channel" ? activeTree.length > 0 : (flatSections ?? []).length > 0;
+  const hasContent = channelRenderItems.length > 0 || flatRenderItems.length > 0;
 
   const languageItems = presentLanguages.map((code) => ({
     value: code,
@@ -395,6 +440,78 @@ function PromosPage() {
       search: { printingId: printing.id },
     });
     window.open(href, "_blank", "noreferrer");
+  };
+
+  // Mirrors CardBrowserLayout: site header → sticky toolbar → sticky aboveGrid
+  // → floating pill / sections. We don't reuse CardBrowserLayout itself
+  // because /promos keeps the wide-breakpoint FilterPanelContent inline (not
+  // in a leftPane) and its own PageToc as the sidebar. The padding/backdrop
+  // classes, the offset stack, and the dual ResizeObservers all match /cards.
+  const headerHeight = getHeaderHeight();
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const aboveGridRef = useRef<HTMLDivElement>(null);
+  const [toolbarHeight, setToolbarHeight] = useState(0);
+  const [aboveGridHeight, setAboveGridHeight] = useState(0);
+  useLayoutEffect(() => {
+    const el = toolbarRef.current;
+    if (!el) {
+      return;
+    }
+    const observer = new ResizeObserver(([entry]) => {
+      const height = entry.borderBoxSize[0]?.blockSize ?? entry.contentRect.height;
+      setToolbarHeight(Math.round(height));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  useLayoutEffect(() => {
+    const el = aboveGridRef.current;
+    if (!el) {
+      return;
+    }
+    const observer = new ResizeObserver(([entry]) => {
+      const height = entry.borderBoxSize[0]?.blockSize ?? entry.contentRect.height;
+      setAboveGridHeight(Math.round(height));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  const toolbarOffset = headerHeight + toolbarHeight;
+  const stickyOffset = toolbarOffset + aboveGridHeight;
+
+  // Track which section the viewport is currently scrolled into, so the
+  // floating pill always reflects the current context. Active = the last
+  // section whose top has crossed the sticky threshold.
+  const sectionEntries: { id: string; label: string; count: number }[] =
+    grouping === "channel"
+      ? channelRenderItems.map((item) => ({
+          id: item.sectionId,
+          label: item.title,
+          count: item.node.localPrintingCount,
+        }))
+      : flatRenderItems.map((item) => ({
+          id: item.sectionId,
+          label: item.title,
+          count: item.section.printings.length,
+        }));
+  const activeSectionId = useActiveSection(sectionEntries, stickyOffset);
+  const activeSection = sectionEntries.find((entry) => entry.id === activeSectionId) ?? null;
+
+  const handlePillClick = () => {
+    if (!activeSection) {
+      return;
+    }
+    // oxlint-disable-next-line prefer-query-selector -- ids derive from channel ids that may start with a digit; getElementById skips CSS-escape gymnastics.
+    const el = document.getElementById(activeSection.id);
+    if (!el) {
+      return;
+    }
+    // Compute target manually rather than rely on scroll-margin-top, so the
+    // section.top lands at exactly stickyOffset (right below the sticky
+    // stack). Matches CardGrid's scrollToGroup; the h-0 pill above overlaps
+    // the section's divider header for ~28px just like /cards.
+    const top = el.getBoundingClientRect().top + globalThis.scrollY - stickyOffset;
+    globalThis.scrollTo({ top, behavior: "auto" });
   };
 
   return (
@@ -450,48 +567,59 @@ function PromosPage() {
         )}
       </div>
 
-      <div className="flex gap-8">
+      <div className="flex gap-6">
         <PageToc items={tocItems} className="lg:w-52" />
 
         <div className="min-w-0 flex-1">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <SearchBar
-              totalCards={activePrintings.length}
-              filteredCount={matchedPrintings.length}
+          <div
+            ref={toolbarRef}
+            className="bg-background/80 sticky z-20 -mx-3 px-3 pt-3 backdrop-blur-lg"
+            style={{ top: `${headerHeight}px` }}
+          >
+            <div className="mb-1.5 flex flex-wrap items-center gap-2 sm:mb-3">
+              <SearchBar
+                totalCards={activePrintings.length}
+                filteredCount={matchedPrintings.length}
+              />
+              <SortGroupControls
+                sortOptions={sortOptions}
+                sortBy={sortBy}
+                sortDir={sortDir}
+                onSortByChange={setSortBy}
+                onSortDirChange={setSortDir}
+                group={{
+                  options: GROUP_OPTIONS,
+                  value: grouping,
+                  dir: groupDir,
+                  onValueChange: (value) => setGroupBy(value as GroupByField),
+                  onDirChange: setGroupDir,
+                }}
+                view={{
+                  title: "View",
+                  value: viewMode,
+                  options: VIEW_OPTIONS,
+                  onChange: setViewMode,
+                }}
+              />
+              {isLoggedIn && (
+                <Button
+                  variant={showOwned ? "default" : "outline"}
+                  size="icon"
+                  onClick={togglePromoOwned}
+                  aria-label={showOwned ? "Hide owned counts" : "Show owned counts"}
+                  aria-pressed={showOwned}
+                  title={showOwned ? "Hide owned counts" : "Show owned counts"}
+                >
+                  <PackageIcon className="size-4" />
+                </Button>
+              )}
+              <FilterToggleButton />
+            </div>
+            <CollapsibleFilterPanel
+              availableFilters={availableFilters}
+              setDisplayLabel={setDisplayLabel}
+              hiddenSections={hiddenWithOwned}
             />
-            <SortGroupControls
-              sortOptions={sortOptions}
-              sortBy={sortBy}
-              sortDir={sortDir}
-              onSortByChange={setSortBy}
-              onSortDirChange={setSortDir}
-              group={{
-                options: GROUP_OPTIONS,
-                value: grouping,
-                dir: groupDir,
-                onValueChange: (value) => setGroupBy(value as GroupByField),
-                onDirChange: setGroupDir,
-              }}
-              view={{
-                title: "View",
-                value: viewMode,
-                options: VIEW_OPTIONS,
-                onChange: setViewMode,
-              }}
-            />
-            {isLoggedIn && (
-              <Button
-                variant={showOwned ? "default" : "outline"}
-                size="icon"
-                onClick={togglePromoOwned}
-                aria-label={showOwned ? "Hide owned counts" : "Show owned counts"}
-                aria-pressed={showOwned}
-                title={showOwned ? "Hide owned counts" : "Show owned counts"}
-              >
-                <PackageIcon className="size-4" />
-              </Button>
-            )}
-            <FilterToggleButton />
           </div>
 
           <div className="@wide:block hidden">
@@ -501,28 +629,78 @@ function PromosPage() {
               hiddenSections={hiddenWithOwned}
             />
           </div>
-          <CollapsibleFilterPanel
-            availableFilters={availableFilters}
-            setDisplayLabel={setDisplayLabel}
-            hiddenSections={hiddenWithOwned}
-          />
 
-          <ActiveFilters
-            availableFilters={availableFilters}
-            setDisplayLabel={setDisplayLabel}
-            hiddenSections={hiddenWithOwned}
-          />
+          <div
+            ref={aboveGridRef}
+            className="bg-background/80 sticky z-15 -mx-3 px-3 backdrop-blur-lg sm:rounded-b-xl"
+            style={{ top: `${toolbarOffset}px` }}
+          >
+            <ActiveFilters
+              availableFilters={availableFilters}
+              setDisplayLabel={setDisplayLabel}
+              hiddenSections={hiddenWithOwned}
+            />
+          </div>
+
+          {/* Floating section pill — h-0 keeps it out of the layout flow so the
+              grid keeps butting up against the sticky stack; the pill just
+              hovers over the first row of cards while a section is active.
+              z-20 keeps it above hovered cards (which elevate to z-10). */}
+          <div className="sticky z-20 h-0" style={{ top: `${stickyOffset}px` }}>
+            {activeSection && (
+              <div className="flex justify-center pt-2">
+                <button
+                  type="button"
+                  onClick={handlePillClick}
+                  className="bg-background/70 ring-border/70 hover:bg-background/90 cursor-pointer rounded-full px-3 py-1 text-sm shadow-sm ring-1 backdrop-blur"
+                >
+                  <span className="font-semibold">{activeSection.label}</span>{" "}
+                  <span className="text-muted-foreground tabular-nums">
+                    ({activeSection.count})
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
 
           {hasContent ? (
             grouping === "channel" ? (
-              <div className="space-y-8">
-                {activeTree.map((root) => (
-                  <ChannelBranch
-                    key={root.channel.id}
-                    node={root}
-                    depth={0}
-                    ancestors={[]}
-                    languagePrefix={activePrefix}
+              <div className="space-y-10">
+                {channelRenderItems.map((item) =>
+                  item.kind === "leaf" ? (
+                    <LeafSection
+                      key={item.sectionId}
+                      item={item}
+                      stickyOffset={stickyOffset}
+                      viewMode={viewMode}
+                      showImages={showImages}
+                      display={display}
+                      onCardClick={handleCardClick}
+                      ownedCounts={ownedCounts}
+                      sortPrintings={sortPrintings}
+                    />
+                  ) : (
+                    <CompactSection
+                      key={item.sectionId}
+                      item={item}
+                      stickyOffset={stickyOffset}
+                      viewMode={viewMode}
+                      showImages={showImages}
+                      display={display}
+                      onCardClick={handleCardClick}
+                      ownedCounts={ownedCounts}
+                      sortPrintings={sortPrintings}
+                    />
+                  ),
+                )}
+              </div>
+            ) : (
+              <div className="space-y-10">
+                {flatRenderItems.map((item) => (
+                  <FlatSection
+                    key={item.sectionId}
+                    item={item}
+                    stickyOffset={stickyOffset}
                     viewMode={viewMode}
                     showImages={showImages}
                     display={display}
@@ -531,23 +709,6 @@ function PromosPage() {
                     sortPrintings={sortPrintings}
                   />
                 ))}
-              </div>
-            ) : (
-              <div className="space-y-8">
-                {flatKind &&
-                  (flatSections ?? []).map((section) => (
-                    <FlatSection
-                      key={section.id}
-                      section={section}
-                      anchorId={flatSectionAnchor(activePrefix, flatKind, section.id)}
-                      viewMode={viewMode}
-                      showImages={showImages}
-                      display={display}
-                      onCardClick={handleCardClick}
-                      ownedCounts={ownedCounts}
-                      sortPrintings={sortPrintings}
-                    />
-                  ))}
               </div>
             )
           ) : (
@@ -571,337 +732,259 @@ function PromosPage() {
   );
 }
 
-interface BranchProps {
-  node: ChannelNode;
-  depth: number;
-  ancestors: string[];
-  languagePrefix: string;
+/**
+ * Tracks the currently-active section as the user scrolls. "Active" is the
+ * last section whose top has crossed the sticky threshold (header + toolbar);
+ * matches CardGrid's sticky-pill behavior.
+ *
+ * @returns The id of the active section, or null when scrolled above all of them.
+ */
+function useActiveSection(
+  entries: { id: string; label: string }[],
+  threshold: number,
+): string | null {
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const entriesRef = useRef(entries);
+  const thresholdRef = useRef(threshold);
+
+  useEffect(() => {
+    entriesRef.current = entries;
+    thresholdRef.current = threshold;
+  });
+
+  useEffect(() => {
+    const update = () => {
+      const list = entriesRef.current;
+      const limit = thresholdRef.current + 4;
+      let active: string | null = null;
+      for (const entry of list) {
+        // oxlint-disable-next-line prefer-query-selector -- ids derive from channel ids that may start with a digit; getElementById skips CSS-escape gymnastics.
+        const el = document.getElementById(entry.id);
+        if (!el) {
+          continue;
+        }
+        if (el.getBoundingClientRect().top <= limit) {
+          active = entry.id;
+        } else {
+          break;
+        }
+      }
+      setActiveId((prev) => (prev === active ? prev : active));
+    };
+    update();
+    globalThis.addEventListener("scroll", update, { passive: true });
+    return () => globalThis.removeEventListener("scroll", update);
+  }, []);
+
+  return activeId;
+}
+
+interface SectionDividerProps {
+  title: string;
+  count: number;
+  description?: string | null;
+}
+
+/**
+ * Centered title between two horizontal rules, mirroring CardGrid group
+ * headers. The description (if any) sits centered beneath, capped to a
+ * readable measure so multi-line markdown doesn't sprawl across the grid.
+ *
+ * @returns The divider header.
+ */
+function SectionDivider({ title, count, description }: SectionDividerProps) {
+  return (
+    <div className="mb-3">
+      <div className="flex items-center gap-3">
+        <div className="bg-border h-px flex-1" />
+        <div className="flex items-baseline gap-2 text-sm">
+          <span className="font-semibold">{title}</span>
+          <span className="text-muted-foreground tabular-nums">({count})</span>
+        </div>
+        <div className="bg-border h-px flex-1" />
+      </div>
+      {description && (
+        <MarkdownText
+          text={description}
+          className="text-muted-foreground mx-auto mt-1 max-w-2xl text-center text-sm"
+        />
+      )}
+    </div>
+  );
+}
+
+interface RenderedSectionProps {
+  stickyOffset: number;
   viewMode: ViewMode;
   showImages: boolean;
   display: CardThumbnailDisplay;
   onCardClick: (printing: Printing) => void;
-  /** Per-printing owned counts; undefined when the toggle is off or the user is logged out. */
   ownedCounts: Record<string, number> | undefined;
-  /** Pre-bound sort closure threaded down to each leaf and compact branch. */
   sortPrintings: (printings: Printing[]) => Printing[];
 }
 
-function ChannelBranch({
-  node,
-  depth,
-  ancestors,
-  languagePrefix,
-  viewMode,
-  showImages,
-  display,
-  onCardClick,
-  ownedCounts,
-  sortPrintings,
-}: BranchProps) {
-  const [open, setOpen] = useState(true);
-  if (node.localPrintingCount === 0) {
+function ParentAnchors({ ids, stickyOffset }: { ids: string[]; stickyOffset: number }) {
+  if (ids.length === 0) {
     return null;
   }
-  const isLeaf = node.children.length === 0;
-  // Compact mode collapses sparse child leaves onto a single row: a shared
-  // table in list view, side-by-side mini-grids in grid view. Applies whenever
-  // every direct child is a leaf with few enough printings.
-  const compact = !isLeaf && isCompactBranch(node);
-  const sectionId = `${languagePrefix}-ch-${node.channel.id}`;
-
-  if (isLeaf) {
-    return (
-      <ChannelLeafSection
-        node={node}
-        depth={depth}
-        ancestors={ancestors}
-        languagePrefix={languagePrefix}
-        viewMode={viewMode}
-        showImages={showImages}
-        display={display}
-        onCardClick={onCardClick}
-        ownedCounts={ownedCounts}
-        sortPrintings={sortPrintings}
-      />
-    );
-  }
-
-  const childAncestors = [...ancestors, node.channel.label];
-
   return (
-    <section id={sectionId} className="scroll-mt-16">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="hover:bg-muted/50 relative -mr-2 mb-2 flex w-full items-start gap-1 rounded py-1 pr-2 text-left md:-ml-6 md:block md:pl-6"
-        aria-expanded={open}
-      >
-        {open ? (
-          <ChevronDownIcon
-            aria-hidden
-            className="text-muted-foreground mt-1.5 size-4 shrink-0 md:absolute md:top-2 md:left-1 md:mt-0"
-          />
-        ) : (
-          <ChevronRightIcon
-            aria-hidden
-            className="text-muted-foreground mt-1.5 size-4 shrink-0 md:absolute md:top-2 md:left-1 md:mt-0"
-          />
-        )}
-        <div className="min-w-0">
-          <BranchHeading depth={depth} ancestors={ancestors}>
-            {node.channel.label}
-            <span className="text-muted-foreground ml-2 text-sm font-normal">
-              ({formatLocalCount(node.localPrintingCount)})
-            </span>
-          </BranchHeading>
-          {node.channel.description && (
-            <MarkdownText
-              text={node.channel.description}
-              className="text-muted-foreground text-sm"
-            />
-          )}
-        </div>
-      </button>
-      {open && (
-        <div>
-          {compact && viewMode === "list" ? (
-            <CompactBranchTable
-              node={node}
-              languagePrefix={languagePrefix}
-              onCardClick={onCardClick}
-              ownedCounts={ownedCounts}
-              sortPrintings={sortPrintings}
-            />
-          ) : compact && viewMode === "grid" ? (
-            <CompactBranchGrid
-              node={node}
-              languagePrefix={languagePrefix}
-              showImages={showImages}
-              display={display}
-              onCardClick={onCardClick}
-              ownedCounts={ownedCounts}
-              sortPrintings={sortPrintings}
-            />
-          ) : (
-            <div className="space-y-6">
-              {node.children.map((child) => (
-                <ChannelBranch
-                  key={child.channel.id}
-                  node={child}
-                  depth={depth + 1}
-                  ancestors={childAncestors}
-                  languagePrefix={languagePrefix}
-                  viewMode={viewMode}
-                  showImages={showImages}
-                  display={display}
-                  onCardClick={onCardClick}
-                  ownedCounts={ownedCounts}
-                  sortPrintings={sortPrintings}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </section>
+    <>
+      {ids.map((id) => (
+        <div key={id} id={id} aria-hidden style={{ scrollMarginTop: `${stickyOffset}px` }} />
+      ))}
+    </>
   );
 }
 
-const BREADCRUMB_SEP = " › ";
-
-function BranchHeading({
-  depth,
-  ancestors,
-  children,
-}: {
-  depth: number;
-  ancestors: string[];
-  children: React.ReactNode;
-}) {
-  const Tag = depth === 0 ? "h3" : depth === 1 ? "h4" : "h5";
-  const sizeClass = depth === 0 ? "text-lg font-semibold" : "text-base font-semibold";
-  return (
-    <Tag className={sizeClass}>
-      {ancestors.length > 0 && (
-        <span className="text-muted-foreground font-normal">
-          {ancestors.join(BREADCRUMB_SEP)}
-          {BREADCRUMB_SEP}
-        </span>
-      )}
-      {children}
-    </Tag>
-  );
-}
-
-function ChannelLeafSection({
-  node,
-  depth,
-  ancestors,
-  languagePrefix,
+function LeafSection({
+  item,
+  stickyOffset,
   viewMode,
   showImages,
   display,
   onCardClick,
   ownedCounts,
   sortPrintings,
-}: BranchProps) {
-  const [open, setOpen] = useState(true);
-  const sortedPrintings = sortPrintings(node.printings);
+}: { item: ChannelRenderItem } & RenderedSectionProps) {
+  const sortedPrintings = sortPrintings(item.node.printings);
   if (sortedPrintings.length === 0) {
     return null;
   }
-  const sectionId = `${languagePrefix}-ch-${node.channel.id}`;
   return (
-    <section id={sectionId} className="scroll-mt-16">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="hover:bg-muted/50 relative -mr-2 mb-3 flex w-full items-start gap-1 rounded py-1 pr-2 text-left md:-ml-6 md:block md:pl-6"
-      >
-        {open ? (
-          <ChevronDownIcon
-            aria-hidden
-            className="text-muted-foreground mt-1.5 size-4 shrink-0 md:absolute md:top-2 md:left-1 md:mt-0"
-          />
-        ) : (
-          <ChevronRightIcon
-            aria-hidden
-            className="text-muted-foreground mt-1.5 size-4 shrink-0 md:absolute md:top-2 md:left-1 md:mt-0"
-          />
-        )}
-        <div className="min-w-0">
-          <BranchHeading depth={depth} ancestors={ancestors}>
-            {node.channel.label}
-            <span className="text-muted-foreground ml-2 text-sm font-normal">
-              ({formatLocalCount(sortedPrintings.length)})
-            </span>
-          </BranchHeading>
-          {node.channel.description && (
-            <MarkdownText
-              text={node.channel.description}
-              className="text-muted-foreground text-sm"
-            />
-          )}
+    <section id={item.sectionId} style={{ scrollMarginTop: `${stickyOffset}px` }}>
+      <ParentAnchors ids={item.parentAnchorIds} stickyOffset={stickyOffset} />
+      <SectionDivider
+        title={item.title}
+        count={sortedPrintings.length}
+        description={item.node.channel.description}
+      />
+      {viewMode === "grid" ? (
+        <div className="wide:grid-cols-6 xwide:grid-cols-8 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
+          {sortedPrintings.map((printing) => {
+            const ownedCount = ownedCounts?.[printing.id] ?? 0;
+            return (
+              <CardThumbnail
+                key={printing.id}
+                printing={printing}
+                onClick={onCardClick}
+                showImages={showImages}
+                display={display}
+                sizes={PROMOS_CARD_SIZES}
+                belowLabel={<BelowLabel printing={printing} />}
+                aboveCard={ownedCounts ? <OwnedCountStrip count={ownedCount} /> : undefined}
+                dimmed={ownedCounts ? ownedCount === 0 : undefined}
+              />
+            );
+          })}
         </div>
-      </button>
-      {open &&
-        (viewMode === "grid" ? (
-          <div className="wide:grid-cols-6 xwide:grid-cols-8 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
-            {sortedPrintings.map((printing) => {
-              const ownedCount = ownedCounts?.[printing.id] ?? 0;
-              return (
-                <CardThumbnail
-                  key={printing.id}
-                  printing={printing}
-                  onClick={onCardClick}
-                  showImages={showImages}
-                  display={display}
-                  sizes={PROMOS_CARD_SIZES}
-                  belowLabel={<BelowLabel printing={printing} />}
-                  aboveCard={ownedCounts ? <OwnedCountStrip count={ownedCount} /> : undefined}
-                  dimmed={ownedCounts ? ownedCount === 0 : undefined}
-                />
-              );
-            })}
-          </div>
-        ) : (
-          <PromoListView
-            printings={sortedPrintings}
-            onRowClick={onCardClick}
-            ownedCounts={ownedCounts}
-          />
-        ))}
+      ) : (
+        <PromoListView
+          printings={sortedPrintings}
+          onRowClick={onCardClick}
+          ownedCounts={ownedCounts}
+        />
+      )}
     </section>
   );
 }
 
 function FlatSection({
-  section,
-  anchorId,
+  item,
+  stickyOffset,
   viewMode,
   showImages,
   display,
   onCardClick,
   ownedCounts,
   sortPrintings,
-}: {
-  section: PromoSection;
-  anchorId: string;
-  viewMode: ViewMode;
-  showImages: boolean;
-  display: CardThumbnailDisplay;
-  onCardClick: (printing: Printing) => void;
-  ownedCounts: Record<string, number> | undefined;
-  sortPrintings: (printings: Printing[]) => Printing[];
-}) {
-  const [open, setOpen] = useState(true);
-  const sortedPrintings = sortPrintings(section.printings);
+}: { item: FlatRenderItem } & RenderedSectionProps) {
+  const sortedPrintings = sortPrintings(item.section.printings);
   if (sortedPrintings.length === 0) {
     return null;
   }
   return (
-    <section id={anchorId} className="scroll-mt-16">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="hover:bg-muted/50 relative -mr-2 mb-3 flex w-full items-start gap-1 rounded py-1 pr-2 text-left md:-ml-6 md:block md:pl-6"
-      >
-        {open ? (
-          <ChevronDownIcon
-            aria-hidden
-            className="text-muted-foreground mt-1.5 size-4 shrink-0 md:absolute md:top-2 md:left-1 md:mt-0"
-          />
-        ) : (
-          <ChevronRightIcon
-            aria-hidden
-            className="text-muted-foreground mt-1.5 size-4 shrink-0 md:absolute md:top-2 md:left-1 md:mt-0"
-          />
-        )}
-        <div className="min-w-0">
-          <h3 className="text-lg font-semibold">
-            {section.label}
-            <span className="text-muted-foreground ml-2 text-sm font-normal">
-              ({formatLocalCount(sortedPrintings.length)})
-            </span>
-          </h3>
+    <section id={item.sectionId} style={{ scrollMarginTop: `${stickyOffset}px` }}>
+      <SectionDivider title={item.title} count={sortedPrintings.length} />
+      {viewMode === "grid" ? (
+        <div className="wide:grid-cols-6 xwide:grid-cols-8 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
+          {sortedPrintings.map((printing) => {
+            const ownedCount = ownedCounts?.[printing.id] ?? 0;
+            return (
+              <CardThumbnail
+                key={printing.id}
+                printing={printing}
+                onClick={onCardClick}
+                showImages={showImages}
+                display={display}
+                sizes={PROMOS_CARD_SIZES}
+                belowLabel={<BelowLabel printing={printing} />}
+                aboveCard={ownedCounts ? <OwnedCountStrip count={ownedCount} /> : undefined}
+                dimmed={ownedCounts ? ownedCount === 0 : undefined}
+              />
+            );
+          })}
         </div>
-      </button>
-      {open &&
-        (viewMode === "grid" ? (
-          <div className="wide:grid-cols-6 xwide:grid-cols-8 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
-            {sortedPrintings.map((printing) => {
-              const ownedCount = ownedCounts?.[printing.id] ?? 0;
-              return (
-                <CardThumbnail
-                  key={printing.id}
-                  printing={printing}
-                  onClick={onCardClick}
-                  showImages={showImages}
-                  display={display}
-                  sizes={PROMOS_CARD_SIZES}
-                  belowLabel={<BelowLabel printing={printing} />}
-                  aboveCard={ownedCounts ? <OwnedCountStrip count={ownedCount} /> : undefined}
-                  dimmed={ownedCounts ? ownedCount === 0 : undefined}
-                />
-              );
-            })}
-          </div>
-        ) : (
-          <PromoListView
-            printings={sortedPrintings}
-            onRowClick={onCardClick}
-            ownedCounts={ownedCounts}
-          />
-        ))}
+      ) : (
+        <PromoListView
+          printings={sortedPrintings}
+          onRowClick={onCardClick}
+          ownedCounts={ownedCounts}
+        />
+      )}
+    </section>
+  );
+}
+
+function CompactSection({
+  item,
+  stickyOffset,
+  viewMode,
+  showImages,
+  display,
+  onCardClick,
+  ownedCounts,
+  sortPrintings,
+}: { item: ChannelRenderItem } & RenderedSectionProps) {
+  // Compact: every direct child is a leaf with few printings. Render them as
+  // a single combined section anchored under the parent's breadcrumb. Each
+  // leaf still gets its own anchor (on the first card / row) so cross-route
+  // hash links keep working even though the leaf has no header of its own.
+  // localPrintingCount dedupes printings linked to multiple sibling channels;
+  // the pill in the toolbar uses the same source so the two counts match.
+  return (
+    <section id={item.sectionId} style={{ scrollMarginTop: `${stickyOffset}px` }}>
+      <ParentAnchors ids={item.parentAnchorIds} stickyOffset={stickyOffset} />
+      <SectionDivider
+        title={item.title}
+        count={item.node.localPrintingCount}
+        description={item.node.channel.description}
+      />
+      {viewMode === "list" ? (
+        <CompactBranchTable
+          node={item.node}
+          stickyOffset={stickyOffset}
+          onCardClick={onCardClick}
+          ownedCounts={ownedCounts}
+          sortPrintings={sortPrintings}
+        />
+      ) : (
+        <CompactBranchGrid
+          node={item.node}
+          stickyOffset={stickyOffset}
+          showImages={showImages}
+          display={display}
+          onCardClick={onCardClick}
+          ownedCounts={ownedCounts}
+          sortPrintings={sortPrintings}
+        />
+      )}
     </section>
   );
 }
 
 function CompactBranchGrid({
   node,
-  languagePrefix,
+  stickyOffset,
   showImages,
   display,
   onCardClick,
@@ -909,23 +992,19 @@ function CompactBranchGrid({
   sortPrintings,
 }: {
   node: ChannelNode;
-  languagePrefix: string;
+  stickyOffset: number;
   showImages: boolean;
   display: CardThumbnailDisplay;
   onCardClick: (printing: Printing) => void;
   ownedCounts: Record<string, number> | undefined;
   sortPrintings: (printings: Printing[]) => Printing[];
 }) {
-  // Flatten every leaf's printings into one grid that uses the normal card
-  // sizing, so compact mode is just rows-vs-cols: each card carries a small
-  // label telling you which sibling channel it came from. Tag the first card
-  // of each leaf with the leaf's section id so cross-route hash links still
-  // scroll to the right cell even though the leaf has no section of its own.
   const entries = node.children.flatMap((child) =>
     sortPrintings(child.printings).map((printing, printingIndex) => ({
       printing,
       leafLabel: child.channel.label,
-      anchorId: printingIndex === 0 ? `${languagePrefix}-ch-${child.channel.id}` : undefined,
+      anchorId:
+        printingIndex === 0 ? `lang-${printing.language}-ch-${child.channel.id}` : undefined,
     })),
   );
   const legend = node.children.filter(
@@ -934,9 +1013,12 @@ function CompactBranchGrid({
   return (
     <>
       {legend.length > 0 && (
-        <dl className="mb-3 space-y-0.5 text-sm">
+        <dl className="mx-auto mb-3 max-w-2xl space-y-0.5 text-sm">
           {legend.map((child) => (
-            <div key={child.channel.id} className="flex flex-wrap gap-x-2">
+            <div
+              key={child.channel.id}
+              className="flex flex-wrap items-baseline justify-center gap-x-2"
+            >
               <dt className="font-semibold">{child.channel.label}</dt>
               <dd className="text-muted-foreground min-w-0">
                 <MarkdownText text={child.channel.description ?? ""} />
@@ -952,7 +1034,7 @@ function CompactBranchGrid({
             <div
               key={`${leafLabel}-${printing.id}`}
               id={anchorId}
-              className={anchorId ? "scroll-mt-16" : undefined}
+              style={anchorId ? { scrollMarginTop: `${stickyOffset}px` } : undefined}
             >
               <div className="mb-1 px-1.5 font-semibold">{leafLabel}</div>
               <CardThumbnail
@@ -975,13 +1057,13 @@ function CompactBranchGrid({
 
 function CompactBranchTable({
   node,
-  languagePrefix,
+  stickyOffset,
   onCardClick,
   ownedCounts,
   sortPrintings,
 }: {
   node: ChannelNode;
-  languagePrefix: string;
+  stickyOffset: number;
   onCardClick: (printing: Printing) => void;
   ownedCounts: Record<string, number> | undefined;
   sortPrintings: (printings: Printing[]) => Printing[];
@@ -991,7 +1073,8 @@ function CompactBranchTable({
     sortPrintings(child.printings).map((printing, printingIndex) => ({
       printing,
       leafLabel: child.channel.label,
-      anchorId: printingIndex === 0 ? `${languagePrefix}-ch-${child.channel.id}` : undefined,
+      anchorId:
+        printingIndex === 0 ? `lang-${printing.language}-ch-${child.channel.id}` : undefined,
     })),
   );
   if (rows.length === 0) {
@@ -1019,7 +1102,8 @@ function CompactBranchTable({
                   <TableRow
                     id={anchorId}
                     onClick={() => onCardClick(printing)}
-                    className={cn("hover:bg-muted/50 cursor-pointer", anchorId && "scroll-mt-16")}
+                    className={cn("hover:bg-muted/50 cursor-pointer")}
+                    style={anchorId ? { scrollMarginTop: `${stickyOffset}px` } : undefined}
                   />
                 }
               >
@@ -1202,11 +1286,6 @@ function MarkerChips({ printing }: { printing: Printing }) {
   );
 }
 
-// Overlays the placeholder card art when no real image exists. The CardThumbnail
-// wrapper is `relative` and `p-1.5`, so `inset-x-1.5 top-1.5 aspect-card`
-// pins the overlay to the image area exactly. `pointer-events-none` on the
-// container lets clicks outside the link still hit the underlying card button
-// (which navigates to the card detail page).
 function SuggestImageOverlay({ printing }: { printing: Printing }) {
   if (printing.images.length > 0) {
     return null;
