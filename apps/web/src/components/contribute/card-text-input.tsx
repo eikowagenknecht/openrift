@@ -1,12 +1,22 @@
-import { ChevronDownIcon, HelpCircleIcon } from "lucide-react";
+import { HelpCircleIcon } from "lucide-react";
 import { useId, useRef, useState } from "react";
 
 import { CardText } from "@/components/cards/card-text";
+import { Button } from "@/components/ui/button";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxTrigger,
+} from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useKeywordStyles } from "@/hooks/use-keyword-styles";
-import { cn } from "@/lib/utils";
 
 const ENERGY_GLYPHS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 
@@ -181,60 +191,54 @@ const SHAPE_OPTIONS: { id: KeywordShape; label: string; sample: (name: string) =
 
 function KeywordPicker({ onInsert }: { onInsert: (token: string) => void }) {
   const styles = useKeywordStyles();
-  const [open, setOpen] = useState(false);
   const [shape, setShape] = useState<KeywordShape>("plain");
   const names = Object.keys(styles).toSorted((a, b) => a.localeCompare(b));
   const tokenFor = (name: string) =>
     SHAPE_OPTIONS.find((option) => option.id === shape)?.sample(name) ?? `[${name}]`;
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        className={cn(
-          "border-input bg-background hover:bg-accent inline-flex h-7 items-center gap-1.5 rounded-md border px-2 transition-colors",
-        )}
-      >
-        Keyword
-        <ChevronDownIcon className="size-3 opacity-60" />
-      </PopoverTrigger>
-      <PopoverContent align="start" className="max-h-96 w-64 overflow-auto p-2">
-        <div className="mb-2 flex flex-col gap-1">
-          <span className="text-muted-foreground">Shape</span>
-          <div className="flex flex-wrap gap-1">
+    <Combobox<string, false>
+      items={names}
+      value={null}
+      onValueChange={(name) => {
+        if (name) {
+          onInsert(tokenFor(name));
+        }
+      }}
+      itemToStringLabel={(name) => name}
+    >
+      <ComboboxTrigger render={<Button variant="outline" size="sm" />}>Keyword</ComboboxTrigger>
+      <ComboboxContent className="w-72">
+        <div className="flex flex-col gap-1.5 p-1">
+          <span className="text-muted-foreground px-1 text-xs">Shape</span>
+          <ToggleGroup
+            variant="outline"
+            size="sm"
+            value={[shape]}
+            onValueChange={([next]) => {
+              if (next === "plain" || next === "right" || next === "left" || next === "both") {
+                setShape(next);
+              }
+            }}
+            aria-label="Keyword shape"
+          >
             {SHAPE_OPTIONS.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => setShape(option.id)}
-                aria-pressed={shape === option.id}
-                className={cn(
-                  "border-input rounded-md border px-2 py-1 transition-colors",
-                  shape === option.id
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background hover:bg-accent",
-                )}
-              >
+              <ToggleGroupItem key={option.id} value={option.id} aria-label={option.label}>
                 <CardText text={option.sample("Tag")} interactive={false} />
-              </button>
+              </ToggleGroupItem>
             ))}
-          </div>
+          </ToggleGroup>
         </div>
-        <div className="flex flex-col">
-          {names.map((name) => (
-            <button
-              key={name}
-              type="button"
-              onClick={() => {
-                onInsert(tokenFor(name));
-                setOpen(false);
-              }}
-              className="hover:bg-accent flex w-full items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-left text-sm"
-            >
+        <ComboboxInput placeholder="Search keywords…" showTrigger={false} />
+        <ComboboxEmpty>No matches.</ComboboxEmpty>
+        <ComboboxList>
+          {(name: string) => (
+            <ComboboxItem key={name} value={name}>
               <CardText text={tokenFor(name)} interactive={false} />
-            </button>
-          ))}
-        </div>
-      </PopoverContent>
-    </Popover>
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
   );
 }
 
