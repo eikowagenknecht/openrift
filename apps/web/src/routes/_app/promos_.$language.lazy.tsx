@@ -567,61 +567,64 @@ function PromosPage() {
         )}
       </div>
 
-      <div className="flex gap-6">
+      <div
+        ref={toolbarRef}
+        className={cn(
+          "bg-background/80 sticky z-20 -mx-3 px-3 pt-3 backdrop-blur-lg",
+          aboveGridHeight === 0 && "sm:rounded-b-xl",
+        )}
+        style={{ top: `${headerHeight}px` }}
+      >
+        <div className="mb-1.5 flex flex-wrap items-center gap-2 sm:mb-3">
+          <SearchBar totalCards={activePrintings.length} filteredCount={matchedPrintings.length} />
+          <SortGroupControls
+            sortOptions={sortOptions}
+            sortBy={sortBy}
+            sortDir={sortDir}
+            onSortByChange={setSortBy}
+            onSortDirChange={setSortDir}
+            group={{
+              options: GROUP_OPTIONS,
+              value: grouping,
+              dir: groupDir,
+              onValueChange: (value) => setGroupBy(value as GroupByField),
+              onDirChange: setGroupDir,
+            }}
+            view={{
+              title: "View",
+              value: viewMode,
+              options: VIEW_OPTIONS,
+              onChange: setViewMode,
+            }}
+          />
+          {isLoggedIn && (
+            <Button
+              variant={showOwned ? "default" : "outline"}
+              size="icon"
+              onClick={togglePromoOwned}
+              aria-label={showOwned ? "Hide owned counts" : "Show owned counts"}
+              aria-pressed={showOwned}
+              title={showOwned ? "Hide owned counts" : "Show owned counts"}
+            >
+              <PackageIcon className="size-4" />
+            </Button>
+          )}
+          <FilterToggleButton />
+        </div>
+        <CollapsibleFilterPanel
+          availableFilters={availableFilters}
+          setDisplayLabel={setDisplayLabel}
+          hiddenSections={hiddenWithOwned}
+        />
+      </div>
+
+      <div
+        className="relative flex flex-1 items-stretch gap-6"
+        style={{ "--sticky-top": `${toolbarOffset}px` } as React.CSSProperties}
+      >
         <PageToc items={tocItems} className="lg:w-52" />
 
         <div className="min-w-0 flex-1">
-          <div
-            ref={toolbarRef}
-            className="bg-background/80 sticky z-20 -mx-3 px-3 pt-3 backdrop-blur-lg"
-            style={{ top: `${headerHeight}px` }}
-          >
-            <div className="mb-1.5 flex flex-wrap items-center gap-2 sm:mb-3">
-              <SearchBar
-                totalCards={activePrintings.length}
-                filteredCount={matchedPrintings.length}
-              />
-              <SortGroupControls
-                sortOptions={sortOptions}
-                sortBy={sortBy}
-                sortDir={sortDir}
-                onSortByChange={setSortBy}
-                onSortDirChange={setSortDir}
-                group={{
-                  options: GROUP_OPTIONS,
-                  value: grouping,
-                  dir: groupDir,
-                  onValueChange: (value) => setGroupBy(value as GroupByField),
-                  onDirChange: setGroupDir,
-                }}
-                view={{
-                  title: "View",
-                  value: viewMode,
-                  options: VIEW_OPTIONS,
-                  onChange: setViewMode,
-                }}
-              />
-              {isLoggedIn && (
-                <Button
-                  variant={showOwned ? "default" : "outline"}
-                  size="icon"
-                  onClick={togglePromoOwned}
-                  aria-label={showOwned ? "Hide owned counts" : "Show owned counts"}
-                  aria-pressed={showOwned}
-                  title={showOwned ? "Hide owned counts" : "Show owned counts"}
-                >
-                  <PackageIcon className="size-4" />
-                </Button>
-              )}
-              <FilterToggleButton />
-            </div>
-            <CollapsibleFilterPanel
-              availableFilters={availableFilters}
-              setDisplayLabel={setDisplayLabel}
-              hiddenSections={hiddenWithOwned}
-            />
-          </div>
-
           <div className="@wide:block hidden">
             <FilterPanelContent
               availableFilters={availableFilters}
