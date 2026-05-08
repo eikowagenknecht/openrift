@@ -166,6 +166,25 @@
           "refId": "A"
         }
       ],
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": { "regex": "^\\{p=.*\\}$", "renamePattern": "v" }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "fieldName": "v",
+                "config": { "id": "equal", "options": { "value": 0 } }
+              }
+            ],
+            "match": "any",
+            "type": "exclude"
+          }
+        }
+      ],
       "options": {
         "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }
       }
