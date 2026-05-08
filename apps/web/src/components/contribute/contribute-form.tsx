@@ -1,24 +1,30 @@
 import type { SetListResponse } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import {
-  CheckIcon,
-  ChevronDownIcon,
-  ExternalLinkIcon,
-  PlusIcon,
-  Trash2Icon,
-  XIcon,
-} from "lucide-react";
+import { ChevronDownIcon, ExternalLinkIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
 import { CardTextInput } from "@/components/contribute/card-text-input";
-import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxTrigger,
+} from "@/components/ui/combobox";
+import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -301,18 +307,18 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
       <LivePreview state={state} activePrinting={activePrinting} />
 
       {submitted && errors.length > 0 && (
-        <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm">
-          <p className="mb-1 font-semibold text-red-700 dark:text-red-400">
-            Fix the following before submitting:
-          </p>
-          <ul className="list-inside list-disc text-red-700 dark:text-red-400">
-            {errors.map((e) => (
-              <li key={e.path}>
-                <span className="font-mono">{e.path}</span>: {e.message}
-              </li>
-            ))}
-          </ul>
-        </div>
+        <Alert variant="destructive">
+          <AlertTitle>Fix the following before submitting:</AlertTitle>
+          <AlertDescription>
+            <ul className="list-inside list-disc">
+              {errors.map((e) => (
+                <li key={e.path}>
+                  <span className="font-mono">{e.path}</span>: {e.message}
+                </li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
       )}
 
       <div className="flex flex-col gap-2">
@@ -407,11 +413,12 @@ function CardLayoutHelp({
   const printingPublicCode = printing?.publicCode || "ABC-001/002";
   const printingArtist = printing?.artist || "Artist name";
   return (
-    <details className="border-border rounded-md border p-3">
-      <summary className="text-muted-foreground hover:text-foreground cursor-pointer text-sm select-none">
-        Where do these fields appear on a card?
-      </summary>
-      <div className="mt-4 grid gap-6 sm:grid-cols-[14rem_1fr] sm:items-start">
+    <Collapsible className="border-border rounded-md border p-3">
+      <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex w-full items-center justify-between gap-2 text-sm select-none">
+        <span>Where do these fields appear on a card?</span>
+        <ChevronDownIcon className="size-4 shrink-0 transition-transform data-[panel-open]:rotate-180" />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-4 grid gap-6 sm:grid-cols-[14rem_1fr] sm:items-start">
         <div className="w-56 justify-self-center sm:justify-self-start">
           <CardPlaceholderImage
             name={cardName}
@@ -446,8 +453,8 @@ function CardLayoutHelp({
             ))}
           </dl>
         </div>
-      </div>
-    </details>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -547,17 +554,19 @@ function PrintingCard({
   };
 
   return (
-    <div className="border-border rounded-md border p-4">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="font-medium">Printing {index + 1}</h3>
+    <Card>
+      <CardHeader>
+        <CardTitle>Printing {index + 1}</CardTitle>
         {onRemove && (
-          <Button type="button" variant="ghost" size="sm" onClick={onRemove}>
-            <Trash2Icon className="size-4" />
-            Remove
-          </Button>
+          <CardAction>
+            <Button type="button" variant="ghost" size="sm" onClick={onRemove}>
+              <Trash2Icon className="size-4" />
+              Remove
+            </Button>
+          </CardAction>
         )}
-      </div>
-      <div className="flex flex-col gap-4">
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-3">
           <FieldRow
             label="Code"
@@ -696,8 +705,8 @@ function PrintingCard({
             placeholder="https://..."
           />
         </FieldRow>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -715,15 +724,15 @@ function FieldRow({
   children: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <Label>
+    <Field data-invalid={error ? true : undefined}>
+      <FieldLabel>
         {label}
-        {required && <span className="text-red-500"> *</span>}
-      </Label>
+        {required && <span className="text-destructive"> *</span>}
+      </FieldLabel>
       {children}
-      {hint && !error && <p className="text-muted-foreground">{hint}</p>}
-      {error && <p className="text-red-600 dark:text-red-400">{error}</p>}
-    </div>
+      {hint && !error && <FieldDescription>{hint}</FieldDescription>}
+      {error && <FieldError>{error}</FieldError>}
+    </Field>
   );
 }
 
@@ -748,6 +757,7 @@ function NumberInput({
         const parsed = Number.parseInt(next, 10);
         onChange(Number.isNaN(parsed) ? null : parsed);
       }}
+      className="[-moz-appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none"
     />
   );
 }
@@ -798,43 +808,38 @@ function MultiSelectDropdown({
   options: { slug: string; label: string }[];
   placeholder: string;
 }) {
+  const items = options.map((opt) => opt.slug);
   const labelFor = (slug: string) => options.find((opt) => opt.slug === slug)?.label ?? slug;
-  const toggle = (slug: string) => {
-    onChange(value.includes(slug) ? value.filter((v) => v !== slug) : [...value, slug]);
-  };
   const summary = value.length === 0 ? placeholder : value.map((slug) => labelFor(slug)).join(", ");
   return (
-    <Popover>
-      <PopoverTrigger
+    <Combobox<string, true>
+      multiple
+      items={items}
+      value={value}
+      onValueChange={onChange}
+      itemToStringLabel={labelFor}
+    >
+      <ComboboxTrigger
+        render={<Button variant="outline" />}
         className={cn(
-          "border-input bg-background hover:bg-accent inline-flex w-full items-center justify-between gap-2 rounded-md border px-3 py-1.5 text-left transition-colors",
+          "w-full justify-between font-normal",
           value.length === 0 && "text-muted-foreground",
         )}
       >
         <span className="truncate">{summary}</span>
-        <ChevronDownIcon className="size-4 shrink-0 opacity-60" />
-      </PopoverTrigger>
-      <PopoverContent align="start" className="max-h-72 w-72 overflow-auto p-1">
-        {options.map((opt) => {
-          const selected = value.includes(opt.slug);
-          return (
-            <button
-              key={opt.slug}
-              type="button"
-              onClick={() => toggle(opt.slug)}
-              className={cn(
-                "hover:bg-accent flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm",
-              )}
-            >
-              <CheckIcon
-                className={cn("size-4 shrink-0", selected ? "opacity-100" : "opacity-0")}
-              />
-              <span>{opt.label}</span>
-            </button>
-          );
-        })}
-      </PopoverContent>
-    </Popover>
+      </ComboboxTrigger>
+      <ComboboxContent className="w-72">
+        <ComboboxInput placeholder="Search markers…" showTrigger={false} />
+        <ComboboxEmpty>No matches.</ComboboxEmpty>
+        <ComboboxList>
+          {(slug: string) => (
+            <ComboboxItem key={slug} value={slug}>
+              {labelFor(slug)}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
   );
 }
 
@@ -856,36 +861,29 @@ function ChipInput({
     setDraft("");
   };
   return (
-    <div className="border-input flex flex-wrap items-center gap-1.5 rounded-md border bg-transparent px-2 py-1.5">
-      {value.map((chip) => (
-        <Badge key={chip} variant="secondary" className="gap-1">
-          {chip}
-          <button
-            type="button"
-            onClick={() => onChange(value.filter((v) => v !== chip))}
-            className="hover:text-foreground"
-            aria-label={`Remove ${chip}`}
-          >
-            <XIcon className="size-3" />
-          </button>
-        </Badge>
-      ))}
-      <input
-        type="text"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === ",") {
-            e.preventDefault();
-            commit();
-          } else if (e.key === "Backspace" && draft === "" && value.length > 0) {
-            onChange(value.slice(0, -1));
-          }
-        }}
-        onBlur={commit}
-        placeholder={value.length === 0 ? placeholder : ""}
-        className="placeholder:text-muted-foreground min-w-24 flex-1 bg-transparent text-sm outline-none"
-      />
-    </div>
+    <Combobox<string, true>
+      multiple
+      items={value}
+      value={value}
+      onValueChange={onChange}
+      inputValue={draft}
+      onInputValueChange={setDraft}
+    >
+      <ComboboxChips>
+        {value.map((chip) => (
+          <ComboboxChip key={chip}>{chip}</ComboboxChip>
+        ))}
+        <ComboboxChipsInput
+          placeholder={value.length === 0 ? placeholder : ""}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === ",") {
+              event.preventDefault();
+              commit();
+            }
+          }}
+          onBlur={commit}
+        />
+      </ComboboxChips>
+    </Combobox>
   );
 }

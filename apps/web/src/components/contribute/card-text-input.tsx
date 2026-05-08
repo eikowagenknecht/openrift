@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useKeywordStyles } from "@/hooks/use-keyword-styles";
@@ -120,7 +121,7 @@ function SyntaxToolbar({ onInsert }: { onInsert: (token: string) => void }) {
           </span>
         </GlyphButton>
       ))}
-      <span className="bg-input mx-0.5 h-5 w-px" aria-hidden />
+      <Separator orientation="vertical" className="mx-0.5 h-5! self-center!" />
       {RUNE_GLYPHS.map((rune) => (
         <GlyphButton
           key={rune.token}
@@ -135,7 +136,7 @@ function SyntaxToolbar({ onInsert }: { onInsert: (token: string) => void }) {
           />
         </GlyphButton>
       ))}
-      <span className="bg-input mx-0.5 h-5 w-px" aria-hidden />
+      <Separator orientation="vertical" className="mx-0.5 h-5! self-center!" />
       {UTILITY_GLYPHS.map((g) => (
         <GlyphButton
           key={g.token}
@@ -150,7 +151,7 @@ function SyntaxToolbar({ onInsert }: { onInsert: (token: string) => void }) {
           />
         </GlyphButton>
       ))}
-      <span className="bg-input mx-0.5 h-5 w-px" aria-hidden />
+      <Separator orientation="vertical" className="mx-0.5 h-5! self-center!" />
       <KeywordPicker onInsert={onInsert} />
     </div>
   );
@@ -168,15 +169,16 @@ function GlyphButton({
   children: React.ReactNode;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
+      size="icon-sm"
       title={`${label} (${token})`}
       aria-label={label}
       onClick={() => onInsert(token)}
-      className="border-input hover:bg-accent inline-flex size-7 items-center justify-center rounded-md border bg-transparent transition-colors"
     >
       {children}
-    </button>
+    </Button>
   );
 }
 
