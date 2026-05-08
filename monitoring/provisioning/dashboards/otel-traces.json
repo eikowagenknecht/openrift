@@ -235,23 +235,8 @@
       "targets": [
         {
           "datasource": { "type": "tempo", "uid": "tempo" },
-          "queryType": "traceqlSearch",
-          "filters": [
-            {
-              "id": "service-name",
-              "tag": "service.name",
-              "operator": "=",
-              "value": ["openrift-api"],
-              "scope": "resource"
-            },
-            {
-              "id": "span-kind",
-              "tag": "kind",
-              "operator": "=",
-              "value": ["server"],
-              "scope": "intrinsic"
-            }
-          ],
+          "queryType": "traceql",
+          "query": "{ resource.service.name=\"openrift-api\" && kind=server }",
           "limit": 50,
           "tableType": "traces",
           "refId": "A"
@@ -268,23 +253,8 @@
       "targets": [
         {
           "datasource": { "type": "tempo", "uid": "tempo" },
-          "queryType": "traceqlSearch",
-          "filters": [
-            {
-              "id": "service-name",
-              "tag": "service.name",
-              "operator": "=",
-              "value": ["openrift-api"],
-              "scope": "resource"
-            },
-            {
-              "id": "status",
-              "tag": "status",
-              "operator": "=",
-              "value": ["error"],
-              "scope": "intrinsic"
-            }
-          ],
+          "queryType": "traceql",
+          "query": "{ resource.service.name=\"openrift-api\" && status=error }",
           "limit": 50,
           "tableType": "traces",
           "refId": "A"
