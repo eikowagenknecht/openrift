@@ -118,7 +118,7 @@
       "title": "Request rate by route",
       "type": "timeseries",
       "gridPos": { "h": 9, "w": 12, "x": 0, "y": 6 },
-      "datasource": { "type": "tempo", "uid": "tempo" },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
           "unit": "reqps",
@@ -129,21 +129,15 @@
             "stacking": { "mode": "normal", "group": "A" }
           }
         },
-        "overrides": [
-          {
-            "matcher": { "id": "byType", "options": "number" },
-            "properties": [
-              { "id": "displayName", "value": "${__field.labels[\"span.http.route\"]}" }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "targets": [
         {
-          "datasource": { "type": "tempo", "uid": "tempo" },
-          "queryType": "traceql",
-          "metricsQueryType": "range",
-          "query": "{ resource.service.name=\"openrift-api\" && kind=server } | rate() by (span.http.route)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (http_route) (rate(traces_spanmetrics_calls_total{service=\"openrift-api\", http_route!=\"\"}[$__rate_interval]))",
+          "legendFormat": "{{http_route}}",
+          "exemplar": true,
+          "range": true,
           "refId": "A"
         }
       ],
@@ -155,48 +149,23 @@
       "title": "p95 latency by route",
       "type": "timeseries",
       "gridPos": { "h": 9, "w": 12, "x": 12, "y": 6 },
-      "datasource": { "type": "tempo", "uid": "tempo" },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
           "unit": "s",
           "min": 0,
           "custom": { "fillOpacity": 5, "lineWidth": 2 }
         },
-        "overrides": [
-          {
-            "matcher": { "id": "byType", "options": "number" },
-            "properties": [
-              { "id": "displayName", "value": "${__field.labels[\"span.http.route\"]}" }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "targets": [
         {
-          "datasource": { "type": "tempo", "uid": "tempo" },
-          "queryType": "traceql",
-          "metricsQueryType": "range",
-          "query": "{ resource.service.name=\"openrift-api\" && kind=server } | quantile_over_time(duration, 0.95) by (span.http.route)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le, http_route) (rate(traces_spanmetrics_latency_bucket{service=\"openrift-api\", http_route!=\"\"}[$__rate_interval])))",
+          "legendFormat": "{{http_route}}",
+          "exemplar": true,
+          "range": true,
           "refId": "A"
-        }
-      ],
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": { "regex": "^\\{.*\\}$", "renamePattern": "v" }
-        },
-        {
-          "id": "filterByValue",
-          "options": {
-            "filters": [
-              {
-                "fieldName": "v",
-                "config": { "id": "equal", "options": { "value": 0 } }
-              }
-            ],
-            "match": "any",
-            "type": "exclude"
-          }
         }
       ],
       "options": {
@@ -207,7 +176,7 @@
       "title": "DB query rate by operation",
       "type": "timeseries",
       "gridPos": { "h": 9, "w": 12, "x": 0, "y": 15 },
-      "datasource": { "type": "tempo", "uid": "tempo" },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
           "unit": "reqps",
@@ -218,19 +187,15 @@
             "stacking": { "mode": "normal", "group": "A" }
           }
         },
-        "overrides": [
-          {
-            "matcher": { "id": "byType", "options": "number" },
-            "properties": [{ "id": "displayName", "value": "${__field.labels[\"name\"]}" }]
-          }
-        ]
+        "overrides": []
       },
       "targets": [
         {
-          "datasource": { "type": "tempo", "uid": "tempo" },
-          "queryType": "traceql",
-          "metricsQueryType": "range",
-          "query": "{ resource.service.name=\"openrift-api\" && span.db.system.name=\"postgresql\" } | rate() by (name)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (span_name) (rate(traces_spanmetrics_calls_total{service=\"openrift-api\", db_system_name=\"postgresql\"}[$__rate_interval]))",
+          "legendFormat": "{{span_name}}",
+          "exemplar": true,
+          "range": true,
           "refId": "A"
         }
       ],
@@ -242,46 +207,23 @@
       "title": "p95 DB duration by operation",
       "type": "timeseries",
       "gridPos": { "h": 9, "w": 12, "x": 12, "y": 15 },
-      "datasource": { "type": "tempo", "uid": "tempo" },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
           "unit": "s",
           "min": 0,
           "custom": { "fillOpacity": 5, "lineWidth": 2 }
         },
-        "overrides": [
-          {
-            "matcher": { "id": "byType", "options": "number" },
-            "properties": [{ "id": "displayName", "value": "${__field.labels[\"name\"]}" }]
-          }
-        ]
+        "overrides": []
       },
       "targets": [
         {
-          "datasource": { "type": "tempo", "uid": "tempo" },
-          "queryType": "traceql",
-          "metricsQueryType": "range",
-          "query": "{ resource.service.name=\"openrift-api\" && span.db.system.name=\"postgresql\" } | quantile_over_time(duration, 0.95) by (name)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le, span_name) (rate(traces_spanmetrics_latency_bucket{service=\"openrift-api\", db_system_name=\"postgresql\"}[$__rate_interval])))",
+          "legendFormat": "{{span_name}}",
+          "exemplar": true,
+          "range": true,
           "refId": "A"
-        }
-      ],
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": { "regex": "^\\{.*\\}$", "renamePattern": "v" }
-        },
-        {
-          "id": "filterByValue",
-          "options": {
-            "filters": [
-              {
-                "fieldName": "v",
-                "config": { "id": "equal", "options": { "value": 0 } }
-              }
-            ],
-            "match": "any",
-            "type": "exclude"
-          }
         }
       ],
       "options": {
