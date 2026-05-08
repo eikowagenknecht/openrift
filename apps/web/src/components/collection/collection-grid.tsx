@@ -52,6 +52,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
@@ -899,44 +907,46 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // copies fetch is still in flight.
   if (!isAddMode && copiesReady && stacks.length === 0) {
     return (
-      <div className="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-4">
+      <Empty className="flex-1">
         {topBarPortal}
-        <PackageIcon className="size-16 opacity-50" />
-        <p>No cards yet</p>
-        <p className="text-center">
-          Browse the card catalog and add cards to{" "}
-          {currentCollection?.name
-            ? `"${currentCollection.name}"`
-            : inboxName
-              ? `"${inboxName}"`
-              : "your collection"}
-          .
-        </p>
-        <Link
-          to="/help/$slug"
-          params={{ slug: "cards-printings-copies" }}
-          className="text-muted-foreground hover:text-foreground underline"
-        >
-          Learn about cards, printings &amp; copies
-        </Link>
-        <div className="flex flex-wrap justify-center gap-2">
-          {addTarget && (
-            <>
-              <Button variant="outline" onClick={() => setQuickAddOpen(true)}>
-                <ZapIcon className="mr-1 size-3.5" />
-                Quick add
-              </Button>
-              <Button onClick={startBrowsing}>
-                <LibraryBigIcon className="mr-1 size-3.5" />
-                Browse & add
-              </Button>
-            </>
-          )}
-          <Link to="/collections/import" className={buttonVariants({ variant: "outline" })}>
-            <DownloadIcon className="mr-1 size-3.5" />
-            Import from another tool
-          </Link>
-        </div>
+        <EmptyHeader>
+          <EmptyMedia>
+            <PackageIcon className="size-16 opacity-50" />
+          </EmptyMedia>
+          <EmptyTitle>No cards yet</EmptyTitle>
+          <EmptyDescription>
+            Browse the card catalog and add cards to{" "}
+            {currentCollection?.name
+              ? `"${currentCollection.name}"`
+              : inboxName
+                ? `"${inboxName}"`
+                : "your collection"}
+            .{" "}
+            <Link to="/help/$slug" params={{ slug: "cards-printings-copies" }}>
+              Learn about cards, printings &amp; copies
+            </Link>
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <div className="flex flex-wrap justify-center gap-2">
+            {addTarget && (
+              <>
+                <Button variant="outline" onClick={() => setQuickAddOpen(true)}>
+                  <ZapIcon className="mr-1 size-3.5" />
+                  Quick add
+                </Button>
+                <Button onClick={startBrowsing}>
+                  <LibraryBigIcon className="mr-1 size-3.5" />
+                  Browse & add
+                </Button>
+              </>
+            )}
+            <Link to="/collections/import" className={buttonVariants({ variant: "outline" })}>
+              <DownloadIcon className="mr-1 size-3.5" />
+              Import from another tool
+            </Link>
+          </div>
+        </EmptyContent>
         {addTarget && (
           <QuickAddPalette
             open={quickAddOpen}
@@ -967,7 +977,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             isInbox={currentCollection.isInbox}
           />
         )}
-      </div>
+      </Empty>
     );
   }
 
