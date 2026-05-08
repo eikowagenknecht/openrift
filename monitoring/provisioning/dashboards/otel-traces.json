@@ -267,7 +267,7 @@
   "schemaVersion": 39,
   "tags": ["api", "tracing", "otel"],
   "templating": { "list": [] },
-  "time": { "from": "now-1h", "to": "now" },
+  "time": { "from": "now-15m", "to": "now" },
   "title": "API Traces (OTel)",
   "uid": "openrift-otel-traces",
   "version": 1
