@@ -37,16 +37,21 @@ if (endpoint) {
   sdk.start();
 
   // Flush remaining spans on shutdown so a Ctrl-C in dev doesn't drop the
-  // last few seconds of traces.
-  const shutdown = async () => {
+  // last few seconds of traces. After flushing, restore the default handler
+  // and re-raise — registering a SIGINT/SIGTERM listener otherwise suppresses
+  // the runtime's default termination, leaving the process alive and holding
+  // its port (orphans accumulate across `bun run dev` cycles).
+  const shutdown = async (signal: NodeJS.Signals) => {
     try {
       await sdk?.shutdown();
     } catch {
       // best-effort
     }
+    process.removeAllListeners(signal);
+    process.kill(process.pid, signal);
   };
-  process.on("SIGTERM", () => void shutdown());
-  process.on("SIGINT", () => void shutdown());
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  process.on("SIGINT", () => void shutdown("SIGINT"));
 }
 
 export const tracingEnabled = sdk !== undefined;
