@@ -1,35 +1,14 @@
+import { Radio } from "@base-ui/react/radio";
 import { ArrowDownNarrowWideIcon, ArrowUpNarrowWideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { RadioGroup } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 
 export interface SortGroupOption<TValue extends string> {
   value: TValue;
   label: string;
-}
-
-interface RadioOptionProps {
-  selected: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}
-
-function RadioOption({ selected, onClick, children }: RadioOptionProps) {
-  return (
-    <button
-      type="button"
-      className={cn(
-        "rounded-md px-2.5 py-1 text-left text-sm transition-colors",
-        selected
-          ? "bg-accent text-accent-foreground font-medium"
-          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
-      )}
-      onClick={onClick}
-    >
-      {children}
-    </button>
-  );
 }
 
 function SortGroupSection({
@@ -136,28 +115,31 @@ export function SortGroupControls<
     group && (group.options.find((option) => option.value === group.value)?.label ?? group.value);
   const groupingActive = group !== undefined && (group.value as string) !== "none";
 
-  // In compact mode the option buttons need to wrap horizontally so they fit
-  // inside the mobile drawer; in the non-compact popover they stack vertically
-  // via SortGroupSection's `flex-col`. Wrapping with a div in both modes
-  // (even with no className) flattens the column layout because `<button>` is
-  // inline-block by default — render the radios as direct children when not
-  // compact, and wrap them with `flex-wrap` only when compact.
   const renderOptions = <TValue extends string>(
     options: SortGroupOption<TValue>[],
     selectedValue: TValue,
     onSelect: (value: TValue) => void,
-  ) => {
-    const radios = options.map((option) => (
-      <RadioOption
-        key={option.value}
-        selected={selectedValue === option.value}
-        onClick={() => onSelect(option.value)}
-      >
-        {option.label}
-      </RadioOption>
-    ));
-    return compact ? <div className="flex flex-wrap gap-1">{radios}</div> : radios;
-  };
+  ) => (
+    <RadioGroup
+      value={selectedValue}
+      onValueChange={(value) => onSelect(value as TValue)}
+      className={cn("gap-0.5", compact ? "flex flex-row flex-wrap gap-1" : "flex flex-col")}
+    >
+      {options.map((option) => (
+        <Radio.Root
+          key={option.value}
+          value={option.value}
+          className={cn(
+            "rounded-md px-2.5 py-1 text-left text-sm transition-colors outline-none",
+            "data-checked:bg-accent data-checked:text-accent-foreground data-checked:font-medium",
+            "data-unchecked:text-muted-foreground data-unchecked:hover:bg-accent/50 data-unchecked:hover:text-foreground",
+          )}
+        >
+          {option.label}
+        </Radio.Root>
+      ))}
+    </RadioGroup>
+  );
 
   const groupSection = group && (
     <SortGroupSection

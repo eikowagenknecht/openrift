@@ -1,4 +1,3 @@
-import { ContextMenu } from "@base-ui/react/context-menu";
 import type { Printing } from "@openrift/shared";
 import type { MouseEvent, ReactNode } from "react";
 import { useRef } from "react";
@@ -6,6 +5,12 @@ import { useRef } from "react";
 import { PrintingHoverPreview } from "@/components/cards/printing-hover-preview";
 import { PrintingOptionContent } from "@/components/cards/printing-option-content";
 import { usePrintingHover } from "@/components/cards/use-printing-hover";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { useCards } from "@/hooks/use-cards";
 import { useDeckBuilderActions } from "@/hooks/use-deck-builder";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -56,45 +61,38 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
   const hoveredPrinting = hoveredId ? printings.find((p) => p.id === hoveredId) : null;
 
   return (
-    <ContextMenu.Root onOpenChange={(open) => !open && reset()}>
-      <ContextMenu.Trigger
+    <ContextMenu onOpenChange={(open) => !open && reset()}>
+      <ContextMenuTrigger
         className="block select-none [-webkit-touch-callout:none]"
         render={<div />}
       >
         {children}
-      </ContextMenu.Trigger>
-      <ContextMenu.Portal>
-        <ContextMenu.Positioner className="isolate z-50 outline-none" sideOffset={4}>
-          <ContextMenu.Popup
-            ref={popupRef}
-            className="data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 ring-foreground/10 bg-popover text-popover-foreground z-50 max-h-[70vh] w-72 origin-(--transform-origin) overflow-y-auto rounded-lg p-1.5 shadow-md ring-1 outline-none"
-          >
-            <div className="text-muted-foreground text-2xs px-1.5 pt-1 pb-1.5 font-medium tracking-wide uppercase">
-              Change printing
-              {card.quantity > 1 && (
-                <span className="text-muted-foreground/70 ml-1 hidden normal-case md:inline">
-                  · shift-click to split 1
-                </span>
-              )}
-            </div>
-            <div className="flex flex-col gap-0.5">
-              {printings.map((printing) => (
-                <PrintingMenuItem
-                  key={printing.id}
-                  printing={printing}
-                  printings={printings}
-                  isActive={printing.id === card.preferredPrintingId}
-                  onSelect={handleSelect}
-                  onHoverEnter={onEnter}
-                  onHoverLeave={onLeave}
-                />
-              ))}
-            </div>
-          </ContextMenu.Popup>
-        </ContextMenu.Positioner>
-      </ContextMenu.Portal>
+      </ContextMenuTrigger>
+      <ContextMenuContent ref={popupRef} className="max-h-[70vh] w-72 overflow-y-auto">
+        <div className="text-muted-foreground text-2xs px-1.5 pt-1 pb-1.5 font-medium tracking-wide uppercase">
+          Change printing
+          {card.quantity > 1 && (
+            <span className="text-muted-foreground/70 ml-1 hidden normal-case md:inline">
+              · shift-click to split 1
+            </span>
+          )}
+        </div>
+        <div className="flex flex-col gap-0.5">
+          {printings.map((printing) => (
+            <PrintingMenuItem
+              key={printing.id}
+              printing={printing}
+              printings={printings}
+              isActive={printing.id === card.preferredPrintingId}
+              onSelect={handleSelect}
+              onHoverEnter={onEnter}
+              onHoverLeave={onLeave}
+            />
+          ))}
+        </div>
+      </ContextMenuContent>
       {hoveredPrinting && <PrintingHoverPreview printing={hoveredPrinting} anchorRef={popupRef} />}
-    </ContextMenu.Root>
+    </ContextMenu>
   );
 }
 
@@ -114,11 +112,8 @@ function PrintingMenuItem({
   onHoverLeave: () => void;
 }) {
   return (
-    <ContextMenu.Item
-      className={cn(
-        "focus:bg-accent flex cursor-default items-center gap-2 rounded-md px-1.5 py-1 text-sm outline-hidden select-none",
-        isActive && "bg-muted ring-border ring-1",
-      )}
+    <ContextMenuItem
+      className={cn(isActive && "bg-muted ring-border ring-1")}
       onClick={(event) => {
         event.stopPropagation();
         onSelect(printing, event);
@@ -135,6 +130,6 @@ function PrintingMenuItem({
       }}
     >
       <PrintingOptionContent printing={printing} siblings={printings} />
-    </ContextMenu.Item>
+    </ContextMenuItem>
   );
 }

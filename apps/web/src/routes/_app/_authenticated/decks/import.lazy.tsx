@@ -1,3 +1,4 @@
+import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion";
 import type { DeckFormat, DeckResponse, DeckZone, Printing } from "@openrift/shared";
 import { useDebouncedValue } from "@tanstack/react-pacer";
 import { useQuery } from "@tanstack/react-query";
@@ -5,7 +6,6 @@ import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   AlertTriangleIcon,
   CheckCircle2Icon,
-  ChevronDownIcon,
   ChevronRightIcon,
   Loader2Icon,
   SearchIcon,
@@ -15,6 +15,7 @@ import {
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { Accordion, AccordionContent, AccordionItem } from "@/components/ui/accordion";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -162,7 +163,7 @@ function DeckImportPage() {
   const [matchedEntries, setMatchedEntries] = useState<DeckMatchedEntry[]>([]);
   const [parseWarnings, setParseWarnings] = useState<string[]>([]);
   const [skippedIndices, setSkippedIndices] = useState<Set<number>>(new Set());
-  const [expandedIndices, setExpandedIndices] = useState<Set<number>>(new Set());
+  const [expandedValues, setExpandedValues] = useState<string[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
 
@@ -192,13 +193,13 @@ function DeckImportPage() {
     setSkippedIndices(new Set());
 
     // Auto-expand non-exact entries so the user sees what needs attention
-    const nonExact = new Set<number>();
+    const nonExact: string[] = [];
     for (let index = 0; index < sorted.length; index++) {
       if (sorted[index].status !== "exact") {
-        nonExact.add(index);
+        nonExact.push(String(index));
       }
     }
-    setExpandedIndices(nonExact);
+    setExpandedValues(nonExact);
 
     setStep("preview");
   };
@@ -232,18 +233,6 @@ function DeckImportPage() {
     setSkippedIndices((prev) => {
       const next = new Set(prev);
       next.delete(index);
-      return next;
-    });
-  };
-
-  const handleToggleExpand = (index: number) => {
-    setExpandedIndices((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) {
-        next.delete(index);
-      } else {
-        next.add(index);
-      }
       return next;
     });
   };
@@ -373,7 +362,7 @@ function DeckImportPage() {
         allPrintings={allPrintings}
         parseWarnings={parseWarnings}
         skippedIndices={skippedIndices}
-        expandedIndices={expandedIndices}
+        expandedValues={expandedValues}
         deckName={deckName}
         deckFormat={deckFormat}
         zoneOrder={zoneOrder}
@@ -388,7 +377,7 @@ function DeckImportPage() {
         onZoneChange={handleZoneChange}
         onSkip={handleSkip}
         onUnskip={handleUnskip}
-        onToggleExpand={handleToggleExpand}
+        onExpandedValuesChange={setExpandedValues}
         onDeckNameChange={setDeckName}
         onDeckFormatChange={setDeckFormat}
         onImport={handleImport}
@@ -537,7 +526,7 @@ function PreviewStep({
   allPrintings,
   parseWarnings,
   skippedIndices,
-  expandedIndices,
+  expandedValues,
   deckName,
   deckFormat,
   zoneOrder,
@@ -552,7 +541,7 @@ function PreviewStep({
   onZoneChange,
   onSkip,
   onUnskip,
-  onToggleExpand,
+  onExpandedValuesChange,
   onDeckNameChange,
   onDeckFormatChange,
   onImport,
@@ -562,7 +551,7 @@ function PreviewStep({
   allPrintings: Printing[];
   parseWarnings: string[];
   skippedIndices: Set<number>;
-  expandedIndices: Set<number>;
+  expandedValues: string[];
   deckName: string;
   deckFormat: DeckFormat;
   zoneOrder: DeckZone[];
@@ -577,7 +566,7 @@ function PreviewStep({
   onZoneChange: (index: number, zone: DeckZone) => void;
   onSkip: (index: number) => void;
   onUnskip: (index: number) => void;
-  onToggleExpand: (index: number) => void;
+  onExpandedValuesChange: (values: string[]) => void;
   onDeckNameChange: (name: string) => void;
   onDeckFormatChange: (format: DeckFormat) => void;
   onImport: () => void;
@@ -610,7 +599,12 @@ function PreviewStep({
       </div>
 
       {/* Entry list */}
-      <div className="divide-border divide-y rounded-md border">
+      <Accordion
+        multiple
+        value={expandedValues}
+        onValueChange={(value) => onExpandedValuesChange(value as string[])}
+        className="divide-border divide-y rounded-md border"
+      >
         {matchedEntries.map((entry, index) => (
           <DeckImportEntryRow
             key={`${entry.entry.shortCode ?? entry.entry.cardName ?? ""}-${entry.zone}-${index}`}
@@ -620,15 +614,13 @@ function PreviewStep({
             zoneOrder={zoneOrder}
             zoneLabels={zoneLabels}
             isSkipped={skippedIndices.has(index)}
-            isExpanded={expandedIndices.has(index)}
             onResolve={onResolve}
             onZoneChange={onZoneChange}
             onSkip={onSkip}
             onUnskip={onUnskip}
-            onToggleExpand={onToggleExpand}
           />
         ))}
-      </div>
+      </Accordion>
 
       {/* Parse warnings */}
       {parseWarnings.length > 0 && (
@@ -752,12 +744,10 @@ function DeckImportEntryRow({
   zoneOrder,
   zoneLabels,
   isSkipped,
-  isExpanded,
   onResolve,
   onZoneChange,
   onSkip,
   onUnskip,
-  onToggleExpand,
 }: {
   entry: DeckMatchedEntry;
   allPrintings: Printing[];
@@ -765,30 +755,31 @@ function DeckImportEntryRow({
   zoneOrder: DeckZone[];
   zoneLabels: Record<DeckZone, string>;
   isSkipped: boolean;
-  isExpanded: boolean;
   onResolve: (index: number, card: ResolvedCard) => void;
   onZoneChange: (index: number, zone: DeckZone) => void;
   onSkip: (index: number) => void;
   onUnskip: (index: number) => void;
-  onToggleExpand: (index: number) => void;
 }) {
   const [showSearch, setShowSearch] = useState(false);
   const { icon: StatusIcon, className: statusColor } = STATUS_CONFIG[entry.status];
-  const ChevronIcon = isExpanded ? ChevronDownIcon : ChevronRightIcon;
   const rawFieldEntries = Object.entries(entry.entry.rawFields);
   const displayName =
     entry.resolvedCard?.cardName ?? entry.entry.cardName ?? entry.entry.shortCode ?? "Unknown";
 
   return (
-    <div className={cn(isSkipped && "opacity-40")}>
+    <AccordionItem
+      value={String(index)}
+      className={cn("not-last:border-b-0", isSkipped && "opacity-40")}
+    >
       <div className="flex items-center gap-3 px-4 py-2.5 text-sm">
-        <button
-          type="button"
-          className="text-muted-foreground hover:text-foreground shrink-0"
-          onClick={() => onToggleExpand(index)}
-        >
-          <ChevronIcon className="size-4" />
-        </button>
+        <AccordionPrimitive.Header className="flex">
+          <AccordionPrimitive.Trigger
+            className="text-muted-foreground hover:text-foreground shrink-0 outline-none"
+            disabled={rawFieldEntries.length === 0}
+          >
+            <ChevronRightIcon className="size-4 transition-transform data-[panel-open]:rotate-90" />
+          </AccordionPrimitive.Trigger>
+        </AccordionPrimitive.Header>
 
         <StatusIcon className={cn("size-4 shrink-0", statusColor)} />
 
@@ -856,8 +847,8 @@ function DeckImportEntryRow({
         </div>
       </div>
 
-      {isExpanded && rawFieldEntries.length > 0 && (
-        <div className="bg-muted/30 border-border border-t px-4 py-2">
+      {rawFieldEntries.length > 0 && (
+        <AccordionContent className="bg-muted/30 border-border border-t px-4 py-2">
           <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
             {rawFieldEntries.map(([key, value]) => (
               <div key={key}>
@@ -866,9 +857,9 @@ function DeckImportEntryRow({
               </div>
             ))}
           </div>
-        </div>
+        </AccordionContent>
       )}
-    </div>
+    </AccordionItem>
   );
 }
 

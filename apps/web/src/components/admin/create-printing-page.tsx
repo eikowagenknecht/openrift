@@ -5,6 +5,7 @@ import { ChevronDownIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -288,14 +289,10 @@ export function CreatePrintingPage({
             </Select>
           </div>
           <div className="flex items-end space-y-1 sm:col-start-3">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={isSigned}
-                onChange={(e) => setIsSigned(e.target.checked)}
-              />
+            <Label className="flex items-center gap-2">
+              <Checkbox checked={isSigned} onCheckedChange={setIsSigned} />
               <span>Signed</span>
-            </label>
+            </Label>
           </div>
         </div>
 

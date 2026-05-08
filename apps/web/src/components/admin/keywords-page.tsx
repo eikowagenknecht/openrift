@@ -6,6 +6,7 @@ import type { AdminColumnDef } from "@/components/admin/admin-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -149,31 +150,28 @@ export function KeywordsPage() {
           return null;
         }
         return (
-          <input
-            type="checkbox"
+          <Checkbox
             checked={row.darkText}
-            onChange={(event) =>
+            onCheckedChange={(checked) =>
               updateStyle.mutate({
                 name: row.keyword,
                 color,
-                darkText: event.target.checked,
+                darkText: checked,
               })
             }
           />
         );
       },
       editCell: (draft, set) => (
-        <input
-          type="checkbox"
+        <Checkbox
           checked={draft.darkText}
-          onChange={(event) => set((prev) => ({ ...prev, darkText: event.target.checked }))}
+          onCheckedChange={(checked) => set((prev) => ({ ...prev, darkText: checked }))}
         />
       ),
       addCell: (draft, set) => (
-        <input
-          type="checkbox"
+        <Checkbox
           checked={draft.darkText}
-          onChange={(event) => set((prev) => ({ ...prev, darkText: event.target.checked }))}
+          onCheckedChange={(checked) => set((prev) => ({ ...prev, darkText: checked }))}
         />
       ),
     },

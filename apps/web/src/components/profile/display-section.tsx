@@ -1,8 +1,10 @@
+import { Radio } from "@base-ui/react/radio";
 import type { DefaultCardView, Theme } from "@openrift/shared";
 import { RotateCcwIcon } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { RadioGroup } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -143,8 +145,8 @@ function ResetButton({ onClick, label }: { onClick: () => void; label: string })
   );
 }
 
-const THEME_OPTIONS: { value: Theme | null; label: string }[] = [
-  { value: null, label: "Auto" },
+const THEME_OPTIONS: { value: Theme | "auto"; label: string }[] = [
+  { value: "auto", label: "Auto" },
   { value: "light", label: "Light" },
   { value: "dark", label: "Dark" },
 ];
@@ -157,23 +159,11 @@ function ThemePicker({
   onChange: (value: Theme | null) => void;
 }) {
   return (
-    <div className="bg-muted inline-flex items-center gap-0.5 rounded-md p-0.5">
-      {THEME_OPTIONS.map((option) => (
-        <button
-          key={option.value ?? "auto"}
-          type="button"
-          className={cn(
-            "rounded-sm px-2.5 py-1 text-sm font-medium transition-colors",
-            value === option.value
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-          onClick={() => onChange(option.value)}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
+    <SegmentedRadio
+      value={value ?? "auto"}
+      onValueChange={(next) => onChange(next === "auto" ? null : (next as Theme))}
+      options={THEME_OPTIONS}
+    />
   );
 }
 
@@ -190,22 +180,42 @@ function DefaultCardViewPicker({
   onChange: (value: DefaultCardView) => void;
 }) {
   return (
-    <div className="bg-muted inline-flex items-center gap-0.5 rounded-md p-0.5">
-      {DEFAULT_CARD_VIEW_OPTIONS.map((option) => (
-        <button
+    <SegmentedRadio
+      value={value}
+      onValueChange={(next) => onChange(next as DefaultCardView)}
+      options={DEFAULT_CARD_VIEW_OPTIONS}
+    />
+  );
+}
+
+function SegmentedRadio<TValue extends string>({
+  value,
+  onValueChange,
+  options,
+}: {
+  value: TValue;
+  onValueChange: (value: TValue) => void;
+  options: { value: TValue; label: string }[];
+}) {
+  return (
+    <RadioGroup
+      value={value}
+      onValueChange={(next) => onValueChange(next as TValue)}
+      className="bg-muted inline-flex w-fit flex-row items-center gap-0.5 rounded-md p-0.5"
+    >
+      {options.map((option) => (
+        <Radio.Root
           key={option.value}
-          type="button"
+          value={option.value}
           className={cn(
-            "rounded-sm px-2.5 py-1 text-sm font-medium transition-colors",
-            value === option.value
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
+            "rounded-sm px-2.5 py-1 text-sm font-medium transition-colors outline-none",
+            "data-checked:bg-background data-checked:text-foreground data-checked:shadow-sm",
+            "data-unchecked:text-muted-foreground data-unchecked:hover:text-foreground",
           )}
-          onClick={() => onChange(option.value)}
         >
           {option.label}
-        </button>
+        </Radio.Root>
       ))}
-    </div>
+    </RadioGroup>
   );
 }
