@@ -9,7 +9,7 @@ import {
   ComboboxTrigger,
 } from "@/components/ui/combobox";
 
-export interface MultiSelectOption {
+interface MultiSelectOption {
   /** Stored selection value (typically a slug). */
   value: string;
   /** Visible label rendered in the row. Long labels wrap onto multiple lines. */

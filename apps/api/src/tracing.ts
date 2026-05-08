@@ -53,5 +53,3 @@ if (endpoint) {
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
   process.on("SIGINT", () => void shutdown("SIGINT"));
 }
-
-export const tracingEnabled = sdk !== undefined;
