@@ -10,5 +10,5 @@ datasources:
     editable: false
     jsonData:
       exemplarTraceIdDestinations:
-        - name: trace_id
+        - name: traceID
           datasourceUid: tempo

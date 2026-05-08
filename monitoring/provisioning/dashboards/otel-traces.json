@@ -246,7 +246,9 @@
           "refId": "A"
         }
       ],
-      "options": {}
+      "options": {
+        "sortBy": [{ "displayName": "Start time", "desc": true }]
+      }
     },
     {
       "title": "Recent errored traces",
@@ -264,7 +266,9 @@
           "refId": "A"
         }
       ],
-      "options": {}
+      "options": {
+        "sortBy": [{ "displayName": "Start time", "desc": true }]
+      }
     }
   ],
   "refresh": "30s",
