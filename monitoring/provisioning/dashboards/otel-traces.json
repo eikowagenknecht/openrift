@@ -129,7 +129,14 @@
             "stacking": { "mode": "normal", "group": "A" }
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byType", "options": "number" },
+            "properties": [
+              { "id": "displayName", "value": "${__field.labels[\"span.http.route\"]}" }
+            ]
+          }
+        ]
       },
       "targets": [
         {
@@ -155,7 +162,14 @@
           "min": 0,
           "custom": { "fillOpacity": 5, "lineWidth": 2 }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byType", "options": "number" },
+            "properties": [
+              { "id": "displayName", "value": "${__field.labels[\"span.http.route\"]}" }
+            ]
+          }
+        ]
       },
       "targets": [
         {
@@ -169,7 +183,7 @@
       "transformations": [
         {
           "id": "renameByRegex",
-          "options": { "regex": "^\\{p=.*\\}$", "renamePattern": "v" }
+          "options": { "regex": "^\\{.*\\}$", "renamePattern": "v" }
         },
         {
           "id": "filterByValue",
@@ -183,10 +197,6 @@
             "match": "any",
             "type": "exclude"
           }
-        },
-        {
-          "id": "labelsToFields",
-          "options": { "mode": "columns", "valueLabel": "span.http.route" }
         }
       ],
       "options": {
@@ -208,7 +218,12 @@
             "stacking": { "mode": "normal", "group": "A" }
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byType", "options": "number" },
+            "properties": [{ "id": "displayName", "value": "${__field.labels[\"name\"]}" }]
+          }
+        ]
       },
       "targets": [
         {
@@ -234,7 +249,12 @@
           "min": 0,
           "custom": { "fillOpacity": 5, "lineWidth": 2 }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byType", "options": "number" },
+            "properties": [{ "id": "displayName", "value": "${__field.labels[\"name\"]}" }]
+          }
+        ]
       },
       "targets": [
         {
@@ -243,6 +263,25 @@
           "metricsQueryType": "range",
           "query": "{ resource.service.name=\"openrift-api\" && span.db.system.name=\"postgresql\" } | quantile_over_time(duration, 0.95) by (name)",
           "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": { "regex": "^\\{.*\\}$", "renamePattern": "v" }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "fieldName": "v",
+                "config": { "id": "equal", "options": { "value": 0 } }
+              }
+            ],
+            "match": "any",
+            "type": "exclude"
+          }
         }
       ],
       "options": {
