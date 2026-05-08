@@ -183,6 +183,10 @@
             "match": "any",
             "type": "exclude"
           }
+        },
+        {
+          "id": "labelsToFields",
+          "options": { "mode": "columns", "valueLabel": "span.http.route" }
         }
       ],
       "options": {
