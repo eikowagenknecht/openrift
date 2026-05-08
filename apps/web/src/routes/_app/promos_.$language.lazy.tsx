@@ -625,7 +625,7 @@ function PromosPage() {
         <PageToc items={tocItems} className="lg:w-52" />
 
         <div className="min-w-0 flex-1">
-          <div className="@wide:block hidden">
+          <div className="@wide:block bg-background/80 -mx-3 hidden px-3 pb-3 backdrop-blur-lg">
             <FilterPanelContent
               availableFilters={availableFilters}
               setDisplayLabel={setDisplayLabel}
