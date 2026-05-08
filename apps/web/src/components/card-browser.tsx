@@ -3,8 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { PackageIcon, PackagePlusIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useDeferredValue, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useDeferredValue, useState } from "react";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
@@ -32,6 +31,7 @@ import { Pane } from "@/components/layout/panes";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent } from "@/components/ui/popover";
 import { useCardData } from "@/hooks/use-card-data";
 import { useCardDeepLink } from "@/hooks/use-card-deep-link";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
@@ -93,37 +93,8 @@ export function CardBrowser() {
   const variantPopover = useAddModeStore((s) => s.variantPopover);
   const disposePicker = useAddModeStore((s) => s.disposePicker);
   const closeDisposePicker = useAddModeStore((s) => s.closeDisposePicker);
-  const variantPopoverRef = useRef<HTMLDivElement>(null);
-  const disposePickerRef = useRef<HTMLDivElement>(null);
 
   const [topPrintingOverrides, setTopPrintingOverrides] = useState<Map<string, string>>(new Map());
-
-  // Close variant popover on click outside
-  useEffect(() => {
-    if (!variantPopover) {
-      return;
-    }
-    const handleClick = (event: MouseEvent) => {
-      if (variantPopoverRef.current && !variantPopoverRef.current.contains(event.target as Node)) {
-        closeVariants();
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [variantPopover, closeVariants]);
-
-  useEffect(() => {
-    if (!disposePicker) {
-      return;
-    }
-    const handleClick = (event: MouseEvent) => {
-      if (disposePickerRef.current && !disposePickerRef.current.contains(event.target as Node)) {
-        closeDisposePicker();
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [disposePicker, closeDisposePicker]);
 
   const {
     filters,
@@ -261,6 +232,17 @@ export function CardBrowser() {
         : adjustedCount(displayPrinting.id, ownedCountByPrinting?.[displayPrinting.id] ?? 0)
       : undefined;
 
+    // In cards view the shown count aggregates owned variants; a blind minus
+    // would only touch the displayed printing, so route ambiguous removals
+    // through the variant popover to let the user pick.
+    const ownedVariantCount =
+      inCardsView && siblings
+        ? siblings.filter((s) => (ownedCountByPrinting?.[s.id] ?? 0) > 0).length
+        : 0;
+    const hasAmbiguousRemoval = ownedVariantCount > 1;
+    const onUndoAdd =
+      hasAmbiguousRemoval && handleOpenVariantsScoped ? handleOpenVariantsScoped : handleUndoAdd;
+
     if (ownedCount !== undefined) {
       aboveCard = handleQuickAdd ? (
         <CollectionAddStrip
@@ -268,7 +250,7 @@ export function CardBrowser() {
           ownedCount={ownedCount}
           hasVariants={inCardsView && (siblings?.length ?? 0) > 1}
           onQuickAdd={handleQuickAdd}
-          onUndoAdd={handleUndoAdd}
+          onUndoAdd={onUndoAdd}
           onOpenVariants={handleOpenVariantsScoped}
         />
       ) : (
@@ -429,41 +411,60 @@ export function CardBrowser() {
           if (!variantPrintings) {
             return null;
           }
-          return createPortal(
-            <div
-              ref={variantPopoverRef}
-              className="fixed z-[100]"
-              style={{ top: variantPopover.pos.top, left: variantPopover.pos.left }}
+          return (
+            <Popover
+              open
+              onOpenChange={(open, details) => {
+                if (!open) {
+                  closeVariants(
+                    details.reason === "outside-press" ? details.event.target : undefined,
+                  );
+                }
+              }}
             >
-              <VariantAddPopover
-                printings={variantPrintings}
-                ownedCounts={Object.fromEntries(
-                  variantPrintings.map((p) => [
-                    p.id,
-                    adjustedCount(p.id, ownedCountByPrinting?.[p.id] ?? 0),
-                  ]),
-                )}
-                onQuickAdd={handleQuickAdd}
-                onUndoAdd={handleUndoAdd}
-              />
-            </div>,
-            document.body,
+              <PopoverContent
+                anchor={variantPopover.anchorEl}
+                side="bottom"
+                align="center"
+                className="max-h-72 w-max max-w-[min(90vw,24rem)] min-w-56 gap-0 overflow-y-auto p-0"
+              >
+                <VariantAddPopover
+                  printings={variantPrintings}
+                  ownedCounts={Object.fromEntries(
+                    variantPrintings.map((p) => [
+                      p.id,
+                      adjustedCount(p.id, ownedCountByPrinting?.[p.id] ?? 0),
+                    ]),
+                  )}
+                  onQuickAdd={handleQuickAdd}
+                  onUndoAdd={handleUndoAdd}
+                />
+              </PopoverContent>
+            </Popover>
           );
         })()}
-      {disposePicker &&
-        createPortal(
-          <div
-            ref={disposePickerRef}
-            className="fixed z-[100]"
-            style={{ top: disposePicker.pos.top, left: disposePicker.pos.left }}
+      {disposePicker && (
+        <Popover
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              closeDisposePicker();
+            }
+          }}
+        >
+          <PopoverContent
+            anchor={disposePicker.anchorEl}
+            side="bottom"
+            align="center"
+            className="w-max max-w-[min(90vw,24rem)] min-w-56 gap-0 p-0"
           >
             <DisposePickerPopover
               printing={disposePicker.printing}
               onPick={handleDisposeFromCollection}
             />
-          </div>,
-          document.body,
-        )}
+          </PopoverContent>
+        </Popover>
+      )}
     </BrowserCardViewer>
   );
 }

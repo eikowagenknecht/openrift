@@ -8,7 +8,6 @@ import {
   SlidersHorizontalIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useState } from "react";
 
 import { SortGroupControls } from "@/components/filters/sort-group-controls";
 import { Button } from "@/components/ui/button";
@@ -21,6 +20,7 @@ import {
   DrawerFooter,
   DrawerHeader,
   DrawerTitle,
+  DrawerTrigger,
 } from "@/components/ui/drawer";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { cn } from "@/lib/utils";
@@ -304,37 +304,31 @@ export function MobileOptionsDrawer({
   children?: ReactNode;
   className?: string;
 }) {
-  const [sheetOpen, setSheetOpen] = useState(false);
-
   return (
-    <div className={className}>
-      <Button
-        variant="outline"
-        size="icon"
-        className="relative"
-        onClick={() => setSheetOpen(true)}
+    <Drawer>
+      <DrawerTrigger
+        render={
+          <Button variant="outline" size="icon" className={cn("relative", className)}>
+            <SlidersHorizontalIcon className="size-4" />
+          </Button>
+        }
         aria-label="Options"
-      >
-        <SlidersHorizontalIcon className="size-4" />
-      </Button>
-
-      <Drawer open={sheetOpen} onOpenChange={setSheetOpen}>
-        <DrawerContent className="pb-2">
-          <DrawerHeader className="sr-only">
-            <DrawerTitle>Options</DrawerTitle>
-            <DrawerDescription>Sort, display, and filter options</DrawerDescription>
-          </DrawerHeader>
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">
-            {children}
-          </div>
-          <DrawerFooter>
-            <DrawerClose asChild>
-              <Button className="w-full">{doneLabel ?? "Done"}</Button>
-            </DrawerClose>
-          </DrawerFooter>
-        </DrawerContent>
-      </Drawer>
-    </div>
+      />
+      <DrawerContent className="pb-2">
+        <DrawerHeader className="sr-only">
+          <DrawerTitle>Options</DrawerTitle>
+          <DrawerDescription>Sort, display, and filter options</DrawerDescription>
+        </DrawerHeader>
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">
+          {children}
+        </div>
+        <DrawerFooter>
+          <DrawerClose asChild>
+            <Button className="w-full">{doneLabel ?? "Done"}</Button>
+          </DrawerClose>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
   );
 }
 

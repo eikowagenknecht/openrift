@@ -102,14 +102,7 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
         if (!anchorEl) {
           return;
         }
-        const rect = anchorEl.getBoundingClientRect();
-        useAddModeStore.getState().openDisposePicker(printing, {
-          top: rect.bottom + 4,
-          left: Math.max(
-            8,
-            Math.min(rect.left + rect.width / 2 - 112, globalThis.innerWidth - 232),
-          ),
-        });
+        useAddModeStore.getState().openDisposePicker(printing, anchorEl);
       }
     : undefined;
 
@@ -133,7 +126,6 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
 
   const handleOpenVariants = addTarget
     ? (printing: Printing, anchorEl: HTMLElement, scopeToSet = false) => {
-        const rect = anchorEl.getBoundingClientRect();
         if (justClosedRef.current === printing.cardId) {
           justClosedRef.current = null;
           return;
@@ -144,17 +136,9 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
           justClosedRef.current = printing.cardId;
           return;
         }
-        useAddModeStore.getState().openVariants(
-          printing.cardId,
-          {
-            top: rect.bottom + 4,
-            left: Math.max(
-              8,
-              Math.min(rect.left + rect.width / 2 - 112, globalThis.innerWidth - 232),
-            ),
-          },
-          scopeToSet ? printing.setId : undefined,
-        );
+        useAddModeStore
+          .getState()
+          .openVariants(printing.cardId, anchorEl, scopeToSet ? printing.setId : undefined);
       }
     : undefined;
 
@@ -166,10 +150,10 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
    */
   const adjustedCount = (_printingId: string, baseCount: number) => baseCount;
 
-  /** Close the variant popover and mark it as just-closed to prevent reopen on click-through. */
-  const closeVariants = () => {
+  // The same press that closes the popover (mousedown outside the popup) is followed by a click on the anchor that would re-fire handleOpenVariants. Suppress that one click only when the press landed on the popover's own anchor — otherwise reopens after Esc / clicking elsewhere need an extra click.
+  const closeVariants = (pressTarget?: EventTarget | null) => {
     const current = useAddModeStore.getState().variantPopover;
-    if (current) {
+    if (current && pressTarget instanceof Node && current.anchorEl.contains(pressTarget)) {
       justClosedRef.current = current.cardId;
     }
     useAddModeStore.getState().closeVariants();

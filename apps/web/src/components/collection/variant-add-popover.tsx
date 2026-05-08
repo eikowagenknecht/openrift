@@ -1,8 +1,9 @@
 import type { Printing } from "@openrift/shared";
+import { MinusIcon, PlusIcon } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
-import { cn } from "@/lib/utils";
 
 interface VariantAddPopoverProps {
   printings: Printing[];
@@ -21,21 +22,22 @@ export function VariantAddPopover({
   const { labels } = useEnumOrders();
 
   return (
-    // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- popover content, not a standalone interactive element
-    <div
-      className="bg-background flex max-h-48 w-56 flex-col gap-0.5 overflow-y-auto rounded-lg border p-1.5 shadow-lg"
-      onClick={(e) => e.stopPropagation()}
-    >
-      {printings.map((printing) => {
-        const owned = ownedCounts?.[printing.id] ?? 0;
+    <>
+      <div className="px-2.5 pt-2 pb-0.5">
+        <p className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
+          Variants
+        </p>
+      </div>
+      <div className="px-1 pb-1">
+        {printings.map((printing) => {
+          const owned = ownedCounts?.[printing.id] ?? 0;
 
-        return (
-          <div key={printing.id} className="flex items-center gap-1 rounded px-1 py-0.5">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1">
-                <span className="text-muted-foreground text-2xs font-mono">
-                  {formatCardId(printing)}
-                </span>
+          return (
+            <div
+              key={printing.id}
+              className="flex items-center gap-2 rounded-md px-1.5 py-0.5 text-sm"
+            >
+              <div className="flex flex-1 items-center gap-1.5 whitespace-nowrap">
                 {hasMixedRarities && (
                   <img
                     src={`/images/rarities/${printing.rarity.toLowerCase()}-28x28.webp`}
@@ -43,52 +45,42 @@ export function VariantAddPopover({
                     title={printing.rarity}
                     width={28}
                     height={28}
-                    className="size-3"
+                    className="size-3.5 shrink-0"
                   />
                 )}
+                <span className="text-muted-foreground text-2xs shrink-0 font-mono">
+                  {formatCardId(printing)}
+                </span>
+                <span>{formatPrintingLabel(printing, printings, labels) || printing.setSlug}</span>
               </div>
-              <span className="text-2xs block truncate">
-                {formatPrintingLabel(printing, printings, labels) || printing.setSlug}
-              </span>
+              <div className="flex shrink-0 items-center gap-0.5">
+                <Button
+                  type="button"
+                  tabIndex={-1}
+                  size="icon-xs"
+                  variant="ghost"
+                  onClick={(event) => onUndoAdd(printing, event.currentTarget)}
+                  disabled={owned === 0}
+                  aria-label={`Remove ${printing.card.name}`}
+                >
+                  <MinusIcon />
+                </Button>
+                <span className="text-muted-foreground w-5 text-center tabular-nums">{owned}</span>
+                <Button
+                  type="button"
+                  tabIndex={-1}
+                  size="icon-xs"
+                  variant="ghost"
+                  onClick={() => onQuickAdd(printing)}
+                  aria-label={`Add ${printing.card.name}`}
+                >
+                  <PlusIcon />
+                </Button>
+              </div>
             </div>
-            <button
-              type="button"
-              tabIndex={-1}
-              onClick={(e) => {
-                e.stopPropagation();
-                onUndoAdd(printing, e.currentTarget);
-              }}
-              disabled={owned === 0}
-              className={cn(
-                "flex size-5 shrink-0 items-center justify-center rounded transition-colors",
-                owned > 0
-                  ? "text-muted-foreground hover:text-foreground hover:bg-muted"
-                  : "text-muted-foreground/30 cursor-not-allowed",
-              )}
-            >
-              <svg viewBox="0 0 16 16" fill="currentColor" className="size-3">
-                <path d="M3 7a1 1 0 0 0 0 2h10a1 1 0 1 0 0-2H3z" />
-              </svg>
-            </button>
-            <span className="text-muted-foreground w-5 text-center text-xs font-medium">
-              {owned}
-            </span>
-            <button
-              type="button"
-              tabIndex={-1}
-              onClick={(e) => {
-                e.stopPropagation();
-                onQuickAdd(printing);
-              }}
-              className="text-muted-foreground hover:text-foreground hover:bg-muted flex size-5 shrink-0 items-center justify-center rounded transition-colors"
-            >
-              <svg viewBox="0 0 16 16" fill="currentColor" className="size-3">
-                <path d="M8 2a1 1 0 0 1 1 1v4h4a1 1 0 1 1 0 2H9v4a1 1 0 1 1-2 0V9H3a1 1 0 0 1 0-2h4V3a1 1 0 0 1 1-1z" />
-              </svg>
-            </button>
-          </div>
-        );
-      })}
-    </div>
+          );
+        })}
+      </div>
+    </>
   );
 }

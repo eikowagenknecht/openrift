@@ -171,31 +171,37 @@ describe("useAddModeStore", () => {
       expect(useAddModeStore.getState().showAddedList).toBe(false);
     });
 
-    it("openVariants sets popover position", () => {
-      useAddModeStore.getState().openVariants("card-1", { top: 100, left: 200 });
+    it("openVariants stores the anchor element", () => {
+      const anchor = document.createElement("button");
+      useAddModeStore.getState().openVariants("card-1", anchor);
 
       const state = useAddModeStore.getState();
-      expect(state.variantPopover).toEqual({ cardId: "card-1", pos: { top: 100, left: 200 } });
+      expect(state.variantPopover).toEqual({
+        cardId: "card-1",
+        anchorEl: anchor,
+        setId: undefined,
+      });
     });
 
     it("closeVariants clears the popover", () => {
-      useAddModeStore.getState().openVariants("card-1", { top: 0, left: 0 });
+      useAddModeStore.getState().openVariants("card-1", document.createElement("button"));
       useAddModeStore.getState().closeVariants();
       expect(useAddModeStore.getState().variantPopover).toBeNull();
     });
 
-    it("openDisposePicker stores printing and position", () => {
+    it("openDisposePicker stores printing and anchor", () => {
       const printing = stubPrinting({ id: "p1" });
-      useAddModeStore.getState().openDisposePicker(printing, { top: 50, left: 60 });
+      const anchor = document.createElement("button");
+      useAddModeStore.getState().openDisposePicker(printing, anchor);
 
       const state = useAddModeStore.getState();
       expect(state.disposePicker?.printing.id).toBe("p1");
-      expect(state.disposePicker?.pos).toEqual({ top: 50, left: 60 });
+      expect(state.disposePicker?.anchorEl).toBe(anchor);
     });
 
     it("closeDisposePicker clears the picker", () => {
       const printing = stubPrinting({ id: "p1" });
-      useAddModeStore.getState().openDisposePicker(printing, { top: 0, left: 0 });
+      useAddModeStore.getState().openDisposePicker(printing, document.createElement("button"));
       useAddModeStore.getState().closeDisposePicker();
       expect(useAddModeStore.getState().disposePicker).toBeNull();
     });
@@ -206,8 +212,8 @@ describe("useAddModeStore", () => {
       const printing = stubPrinting({ id: "p1" });
       useAddModeStore.getState().recordAdd(printing, "copy-1");
       useAddModeStore.getState().toggleAddedList();
-      useAddModeStore.getState().openVariants("card-1", { top: 0, left: 0 });
-      useAddModeStore.getState().openDisposePicker(printing, { top: 0, left: 0 });
+      useAddModeStore.getState().openVariants("card-1", document.createElement("button"));
+      useAddModeStore.getState().openDisposePicker(printing, document.createElement("button"));
 
       useAddModeStore.getState().reset();
 

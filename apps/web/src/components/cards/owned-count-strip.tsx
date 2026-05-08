@@ -1,4 +1,7 @@
+import { PackageIcon } from "lucide-react";
+
 import { OwnedCollectionsPopover } from "@/components/cards/card-detail/owned-collections-popover";
+import { COUNT_PILL_BASE } from "@/components/cards/count-pill";
 import type { OwnedBreakdownVariant } from "@/hooks/use-owned-count";
 
 interface OwnedCountStripProps {
@@ -37,7 +40,10 @@ export function OwnedCountStrip({
           align="center"
         />
       ) : (
-        <span className="text-muted-foreground text-xs font-medium">&times;{count}</span>
+        <span className={COUNT_PILL_BASE}>
+          <PackageIcon className="size-3" />
+          <span>&times;{count}</span>
+        </span>
       )}
     </div>
   );

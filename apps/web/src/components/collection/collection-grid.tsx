@@ -13,7 +13,7 @@ import {
   XIcon,
   ZapIcon,
 } from "lucide-react";
-import { use, useEffect, useDeferredValue, useRef, useState } from "react";
+import { use, useEffect, useDeferredValue, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
@@ -60,6 +60,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { Popover, PopoverContent } from "@/components/ui/popover";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
@@ -320,34 +321,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
 
   // Fan-card sibling overrides (cards view, add mode)
   const [topPrintingOverrides, setTopPrintingOverrides] = useState<Map<string, string>>(new Map());
-  const variantPopoverRef = useRef<HTMLDivElement>(null);
-  const disposePickerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!variantPopover) {
-      return;
-    }
-    const handleClick = (event: MouseEvent) => {
-      if (variantPopoverRef.current && !variantPopoverRef.current.contains(event.target as Node)) {
-        closeVariants();
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [variantPopover, closeVariants]);
-
-  useEffect(() => {
-    if (!disposePicker) {
-      return;
-    }
-    const handleClick = (event: MouseEvent) => {
-      if (disposePickerRef.current && !disposePickerRef.current.contains(event.target as Node)) {
-        closeDisposePicker();
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [disposePicker, closeDisposePicker]);
 
   const startBrowsing = () => {
     if (selectMode) {
@@ -1084,16 +1057,21 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         )}
       </BrowserCardViewer>
 
-      {/* Variant add popover (portal, add mode only) */}
-      {variantPopover &&
-        variantPrintings &&
-        handleQuickAdd &&
-        handleUndoAdd &&
-        createPortal(
-          <div
-            ref={variantPopoverRef}
-            className="fixed z-[100]"
-            style={{ top: variantPopover.pos.top, left: variantPopover.pos.left }}
+      {/* Variant add popover (add mode only) */}
+      {variantPopover && variantPrintings && handleQuickAdd && handleUndoAdd && (
+        <Popover
+          open
+          onOpenChange={(open, details) => {
+            if (!open) {
+              closeVariants(details.reason === "outside-press" ? details.event.target : undefined);
+            }
+          }}
+        >
+          <PopoverContent
+            anchor={variantPopover.anchorEl}
+            side="bottom"
+            align="center"
+            className="max-h-72 w-max max-w-[min(90vw,24rem)] min-w-56 gap-0 overflow-y-auto p-0"
           >
             <VariantAddPopover
               printings={variantPrintings}
@@ -1106,25 +1084,33 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
               onQuickAdd={handleQuickAdd}
               onUndoAdd={handleUndoAdd}
             />
-          </div>,
-          document.body,
-        )}
+          </PopoverContent>
+        </Popover>
+      )}
 
       {/* Dispose picker popover (All Cards view, multi-collection minus) */}
-      {disposePicker &&
-        createPortal(
-          <div
-            ref={disposePickerRef}
-            className="fixed z-[100]"
-            style={{ top: disposePicker.pos.top, left: disposePicker.pos.left }}
+      {disposePicker && (
+        <Popover
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              closeDisposePicker();
+            }
+          }}
+        >
+          <PopoverContent
+            anchor={disposePicker.anchorEl}
+            side="bottom"
+            align="center"
+            className="w-max max-w-[min(90vw,24rem)] min-w-56 gap-0 p-0"
           >
             <DisposePickerPopover
               printing={disposePicker.printing}
               onPick={handleDisposeFromCollection}
             />
-          </div>,
-          document.body,
-        )}
+          </PopoverContent>
+        </Popover>
+      )}
 
       {/* Quick-add palette (browse/select modes) */}
       {!isAddMode && addTarget && (

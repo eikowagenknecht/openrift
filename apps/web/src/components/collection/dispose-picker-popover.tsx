@@ -46,33 +46,30 @@ export function DisposePickerPopover({ printing, onPick }: DisposePickerPopoverP
   }
 
   return (
-    // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- popover content, not a standalone interactive element
-    <div
-      className="bg-background flex w-56 flex-col gap-0.5 rounded-lg border p-1.5 shadow-lg"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div className="text-muted-foreground text-2xs px-2 pt-1 pb-1 font-medium">
-        Remove from which?
+    <>
+      <div className="px-2.5 pt-2 pb-0.5">
+        <p className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
+          Remove from
+        </p>
       </div>
-      {rows.map(({ collection, count }) => (
-        <button
-          key={collection.id}
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onPick(printing, collection.id);
-          }}
-          className="hover:bg-muted flex items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition-colors"
-        >
-          {collection.isInbox ? (
-            <InboxIcon className="size-3.5 shrink-0" />
-          ) : (
-            <BookOpenIcon className="size-3.5 shrink-0" />
-          )}
-          <span className="min-w-0 flex-1 truncate">{collection.name}</span>
-          <span className="text-muted-foreground">×{count}</span>
-        </button>
-      ))}
-    </div>
+      <div className="px-1 pb-1">
+        {rows.map(({ collection, count }) => (
+          <button
+            key={collection.id}
+            type="button"
+            onClick={() => onPick(printing, collection.id)}
+            className="hover:bg-accent flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-sm whitespace-nowrap transition-colors"
+          >
+            {collection.isInbox ? (
+              <InboxIcon className="size-3.5 shrink-0" />
+            ) : (
+              <BookOpenIcon className="size-3.5 shrink-0" />
+            )}
+            <span className="flex-1">{collection.name}</span>
+            <span className="text-muted-foreground tabular-nums">×{count}</span>
+          </button>
+        ))}
+      </div>
+    </>
   );
 }
