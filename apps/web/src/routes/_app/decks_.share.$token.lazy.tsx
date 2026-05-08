@@ -20,7 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useCloneSharedDeck, usePublicDeck } from "@/hooks/use-decks";
-import { useIsHydrated } from "@/hooks/use-is-hydrated";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -82,7 +82,7 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
   const marketplace = marketplaceOrder[0] ?? "cardtrader";
   const isMobile = useIsMobile();
-  const isHydrated = useIsHydrated();
+  const hydrated = useHydrated();
 
   // Everything the shell needs — builder cards, thumbnails, hover full-image
   // URLs, and card slugs — comes straight from the enriched payload. No
@@ -216,7 +216,7 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
         prices) and the user's copies, both of which require client-only
         hooks. Gate behind hydration so SSR never tries to evaluate them.
       */}
-      {isHydrated && (
+      {hydrated && (
         <Suspense fallback={null}>
           <SharedDeckOwnershipBridge
             builderCards={builderCards}

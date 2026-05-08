@@ -18,7 +18,7 @@ interface SharedDeckOwnershipBridgeProps {
  * Client-only sibling that computes `DeckOwnershipData` for the shared-deck
  * page and publishes it to the parent. Lives outside `DeckOverview` so the
  * shell stays mounted across hydration — only the `ownershipData` prop flips
- * from `undefined` to filled. Render this only when `useIsHydrated()` is
+ * from `undefined` to filled. Render this only when `useHydrated()` is
  * true, and wrap in a Suspense boundary since `useCards()` suspends on the
  * catalog fetch.
  *
