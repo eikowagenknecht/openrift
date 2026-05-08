@@ -3,6 +3,7 @@ import { useId, useRef, useState } from "react";
 
 import { CardText } from "@/components/cards/card-text";
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import {
   Combobox,
   ComboboxContent,
@@ -14,7 +15,6 @@ import {
 } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useKeywordStyles } from "@/hooks/use-keyword-styles";
@@ -105,53 +105,56 @@ export function CardTextInput({
 
 function SyntaxToolbar({ onInsert }: { onInsert: (token: string) => void }) {
   return (
-    <div className="border-input bg-muted/30 flex flex-wrap items-center gap-1.5 rounded-md border p-1.5">
-      {ENERGY_GLYPHS.map((n) => (
-        <GlyphButton
-          key={`energy_${n.toString()}`}
-          token={`:rb_energy_${n.toString()}:`}
-          label={`Insert ${n.toString()} energy`}
-          onInsert={onInsert}
-        >
-          <span
-            className="bg-foreground text-background text-2xs inline-flex size-4 items-center justify-center rounded-full font-bold"
-            aria-hidden
+    <div className="flex flex-wrap items-center gap-1.5">
+      <ButtonGroup aria-label="Energy glyphs">
+        {ENERGY_GLYPHS.map((n) => (
+          <GlyphButton
+            key={`energy_${n.toString()}`}
+            token={`:rb_energy_${n.toString()}:`}
+            label={`Insert ${n.toString()} energy`}
+            onInsert={onInsert}
           >
-            {n}
-          </span>
-        </GlyphButton>
-      ))}
-      <Separator orientation="vertical" className="mx-0.5 h-5! self-center!" />
-      {RUNE_GLYPHS.map((rune) => (
-        <GlyphButton
-          key={rune.token}
-          token={`:rb_${rune.token}:`}
-          label={`Insert ${rune.label} rune`}
-          onInsert={onInsert}
-        >
-          <img
-            src={`/images/glyphs/${rune.token.replaceAll("_", "-")}.svg`}
-            alt=""
-            className="size-4"
-          />
-        </GlyphButton>
-      ))}
-      <Separator orientation="vertical" className="mx-0.5 h-5! self-center!" />
-      {UTILITY_GLYPHS.map((g) => (
-        <GlyphButton
-          key={g.token}
-          token={`:rb_${g.token}:`}
-          label={`Insert ${g.label}`}
-          onInsert={onInsert}
-        >
-          <img
-            src={`/images/glyphs/${g.token.replaceAll("_", "-")}.svg`}
-            alt=""
-            className="size-4 brightness-0 dark:invert"
-          />
-        </GlyphButton>
-      ))}
-      <Separator orientation="vertical" className="mx-0.5 h-5! self-center!" />
+            <span
+              className="bg-foreground text-background text-2xs inline-flex size-4 items-center justify-center rounded-full font-bold"
+              aria-hidden
+            >
+              {n}
+            </span>
+          </GlyphButton>
+        ))}
+      </ButtonGroup>
+      <ButtonGroup aria-label="Rune glyphs">
+        {RUNE_GLYPHS.map((rune) => (
+          <GlyphButton
+            key={rune.token}
+            token={`:rb_${rune.token}:`}
+            label={`Insert ${rune.label} rune`}
+            onInsert={onInsert}
+          >
+            <img
+              src={`/images/glyphs/${rune.token.replaceAll("_", "-")}.svg`}
+              alt=""
+              className="size-4"
+            />
+          </GlyphButton>
+        ))}
+      </ButtonGroup>
+      <ButtonGroup aria-label="Utility glyphs">
+        {UTILITY_GLYPHS.map((g) => (
+          <GlyphButton
+            key={g.token}
+            token={`:rb_${g.token}:`}
+            label={`Insert ${g.label}`}
+            onInsert={onInsert}
+          >
+            <img
+              src={`/images/glyphs/${g.token.replaceAll("_", "-")}.svg`}
+              alt=""
+              className="size-4 brightness-0 dark:invert"
+            />
+          </GlyphButton>
+        ))}
+      </ButtonGroup>
       <KeywordPicker onInsert={onInsert} />
     </div>
   );

@@ -1,7 +1,7 @@
 import type { SetListResponse } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { ChevronDownIcon, ExternalLinkIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { ChevronDownIcon, ExternalLinkIcon, LinkIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/combobox";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import {
   Select,
   SelectContent,
@@ -647,15 +648,11 @@ function PrintingCard({
             />
           </FieldRow>
           <FieldRow label="Signed">
-            <div className="flex h-9 items-center gap-2">
-              <Switch
-                checked={printing.isSigned}
-                onCheckedChange={(checked) => onChange("isSigned", checked)}
-              />
-              <span className="text-muted-foreground text-sm">
-                {printing.isSigned ? "Yes" : "No"}
-              </span>
-            </div>
+            <Switch
+              checked={printing.isSigned}
+              onCheckedChange={(checked) => onChange("isSigned", checked)}
+              className="mt-1"
+            />
           </FieldRow>
         </div>
         <FieldRow label="Promo markers">
@@ -698,12 +695,17 @@ function PrintingCard({
           hint="A link to the official image is preferred. The link should point directly to the image file itself. You can leave this empty and attach photos or scans to the GitHub PR later if you have any."
           error={errorAt(`printings[${index.toString()}].imageUrl`)}
         >
-          <Input
-            type="url"
-            value={printing.imageUrl ?? ""}
-            onChange={(e) => onChange("imageUrl", e.target.value || null)}
-            placeholder="https://..."
-          />
+          <InputGroup>
+            <InputGroupAddon>
+              <LinkIcon />
+            </InputGroupAddon>
+            <InputGroupInput
+              type="url"
+              value={printing.imageUrl ?? ""}
+              onChange={(e) => onChange("imageUrl", e.target.value || null)}
+              placeholder="https://..."
+            />
+          </InputGroup>
         </FieldRow>
       </CardContent>
     </Card>
