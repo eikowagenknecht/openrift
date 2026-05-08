@@ -156,98 +156,102 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
 
       <CardLayoutHelp state={state} activePrinting={activePrinting} />
 
-      <section className="flex flex-col gap-4">
-        <h2 className="text-lg font-semibold">Card</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FieldRow label="Name" required error={errorAt("card.name")}>
-            <Input
-              value={state.card.name}
-              onChange={(e) => setCardField("name", e.target.value)}
-              placeholder="Ahri, Alluring"
-            />
-          </FieldRow>
-          <FieldRow label="Slug" error={errorAt("slug")}>
-            <Input value={state.slug} disabled readOnly placeholder="ahri-alluring" />
-          </FieldRow>
-        </div>
-        <FieldRow label="Domains">
-          <ToggleGroup
-            multiple
-            variant="outline"
-            value={state.card.domains}
-            onValueChange={(next) => setCardField("domains", next)}
-          >
-            {orders.domains.map((slug) => {
-              const selected = state.card.domains.includes(slug);
-              const disabled = !selected && domainDisabled.has(slug);
-              const iconSrc = domainIcons[slug];
-              const isColorless = slug === WellKnown.domain.COLORLESS;
-              return (
-                <ToggleGroupItem key={slug} value={slug} disabled={disabled}>
-                  {iconSrc && (
-                    <img
-                      src={iconSrc}
-                      alt=""
-                      className={cn("size-4 shrink-0", isColorless && "brightness-0 dark:invert")}
-                    />
-                  )}
-                  {labels.domains[slug]}
-                </ToggleGroupItem>
-              );
-            })}
-          </ToggleGroup>
-        </FieldRow>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FieldRow label="Type">
-            <SingleSelect
-              value={state.card.type}
-              onChange={(v) => setCardField("type", v)}
-              options={orders.cardTypes}
-              labels={labels.cardTypes}
-              placeholder="Pick a type"
-            />
-          </FieldRow>
-          <FieldRow label="Super types">
+      <Card>
+        <CardHeader>
+          <CardTitle>Card</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FieldRow label="Name" required error={errorAt("card.name")}>
+              <Input
+                value={state.card.name}
+                onChange={(e) => setCardField("name", e.target.value)}
+                placeholder="Ahri, Alluring"
+              />
+            </FieldRow>
+            <FieldRow label="Slug" error={errorAt("slug")}>
+              <Input value={state.slug} disabled readOnly placeholder="ahri-alluring" />
+            </FieldRow>
+          </div>
+          <FieldRow label="Domains">
             <ToggleGroup
               multiple
               variant="outline"
-              value={state.card.superTypes}
-              onValueChange={(next) => setCardField("superTypes", next)}
+              value={state.card.domains}
+              onValueChange={(next) => setCardField("domains", next)}
             >
-              {orders.superTypes.map((slug) => (
-                <ToggleGroupItem key={slug} value={slug}>
-                  {labels.superTypes[slug]}
-                </ToggleGroupItem>
-              ))}
+              {orders.domains.map((slug) => {
+                const selected = state.card.domains.includes(slug);
+                const disabled = !selected && domainDisabled.has(slug);
+                const iconSrc = domainIcons[slug];
+                const isColorless = slug === WellKnown.domain.COLORLESS;
+                return (
+                  <ToggleGroupItem key={slug} value={slug} disabled={disabled}>
+                    {iconSrc && (
+                      <img
+                        src={iconSrc}
+                        alt=""
+                        className={cn("size-4 shrink-0", isColorless && "brightness-0 dark:invert")}
+                      />
+                    )}
+                    {labels.domains[slug]}
+                  </ToggleGroupItem>
+                );
+              })}
             </ToggleGroup>
           </FieldRow>
-        </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FieldRow label="Type">
+              <SingleSelect
+                value={state.card.type}
+                onChange={(v) => setCardField("type", v)}
+                options={orders.cardTypes}
+                labels={labels.cardTypes}
+                placeholder="Pick a type"
+              />
+            </FieldRow>
+            <FieldRow label="Super types">
+              <ToggleGroup
+                multiple
+                variant="outline"
+                value={state.card.superTypes}
+                onValueChange={(next) => setCardField("superTypes", next)}
+              >
+                {orders.superTypes.map((slug) => (
+                  <ToggleGroupItem key={slug} value={slug}>
+                    {labels.superTypes[slug]}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </FieldRow>
+          </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
-          <FieldRow label="Might">
-            <NumberInput value={state.card.might} onChange={(v) => setCardField("might", v)} />
-          </FieldRow>
-          <FieldRow label="Energy">
-            <NumberInput value={state.card.energy} onChange={(v) => setCardField("energy", v)} />
-          </FieldRow>
-          <FieldRow label="Power">
-            <NumberInput value={state.card.power} onChange={(v) => setCardField("power", v)} />
-          </FieldRow>
-          <FieldRow label="Might bonus">
-            <NumberInput
-              value={state.card.mightBonus}
-              onChange={(v) => setCardField("mightBonus", v)}
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+            <FieldRow label="Might">
+              <NumberInput value={state.card.might} onChange={(v) => setCardField("might", v)} />
+            </FieldRow>
+            <FieldRow label="Energy">
+              <NumberInput value={state.card.energy} onChange={(v) => setCardField("energy", v)} />
+            </FieldRow>
+            <FieldRow label="Power">
+              <NumberInput value={state.card.power} onChange={(v) => setCardField("power", v)} />
+            </FieldRow>
+            <FieldRow label="Might bonus">
+              <NumberInput
+                value={state.card.mightBonus}
+                onChange={(v) => setCardField("mightBonus", v)}
+              />
+            </FieldRow>
+          </div>
+          <FieldRow label="Tags" hint="Press Enter or comma to add.">
+            <ChipInput
+              value={state.card.tags}
+              onChange={(v) => setCardField("tags", v)}
+              placeholder="Ahri"
             />
           </FieldRow>
-        </div>
-        <FieldRow label="Tags" hint="Press Enter or comma to add.">
-          <ChipInput
-            value={state.card.tags}
-            onChange={(v) => setCardField("tags", v)}
-            placeholder="Ahri"
-          />
-        </FieldRow>
-      </section>
+        </CardContent>
+      </Card>
 
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
@@ -468,28 +472,32 @@ function LivePreview({
 }) {
   const printing = state.printings[activePrinting] ?? state.printings[0];
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-lg font-semibold">Preview</h2>
-      <div className="w-full max-w-sm">
-        <CardPlaceholderImage
-          name={state.card.name}
-          domain={state.card.domains}
-          energy={state.card.energy}
-          might={state.card.might}
-          power={state.card.power}
-          type={state.card.type ?? undefined}
-          superTypes={state.card.superTypes}
-          tags={state.card.tags}
-          rulesText={printing?.printedRulesText ?? null}
-          effectText={printing?.printedEffectText ?? null}
-          mightBonus={state.card.mightBonus}
-          flavorText={printing?.flavorText ?? null}
-          rarity={printing?.rarity ?? undefined}
-          publicCode={printing?.publicCode ?? undefined}
-          artist={printing?.artist ?? undefined}
-        />
-      </div>
-    </section>
+    <Card>
+      <CardHeader>
+        <CardTitle>Preview</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="w-full max-w-sm">
+          <CardPlaceholderImage
+            name={state.card.name}
+            domain={state.card.domains}
+            energy={state.card.energy}
+            might={state.card.might}
+            power={state.card.power}
+            type={state.card.type ?? undefined}
+            superTypes={state.card.superTypes}
+            tags={state.card.tags}
+            rulesText={printing?.printedRulesText ?? null}
+            effectText={printing?.printedEffectText ?? null}
+            mightBonus={state.card.mightBonus}
+            flavorText={printing?.flavorText ?? null}
+            rarity={printing?.rarity ?? undefined}
+            publicCode={printing?.publicCode ?? undefined}
+            artist={printing?.artist ?? undefined}
+          />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

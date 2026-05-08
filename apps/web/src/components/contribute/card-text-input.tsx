@@ -251,7 +251,7 @@ function SyntaxHelpPopover() {
   return (
     <Popover>
       <PopoverTrigger
-        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+        render={<Button type="button" variant="ghost" size="sm" />}
         aria-label="Syntax help"
       >
         <HelpCircleIcon className="size-3.5" />
