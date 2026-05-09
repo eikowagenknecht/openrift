@@ -86,7 +86,7 @@
         "text": { "titleSize": 14, "valueSize": 32 },
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
       },
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 }
+      "gridPos": { "h": 4, "w": 5, "x": 0, "y": 0 }
     },
     {
       "type": "stat",
@@ -127,7 +127,7 @@
         "text": { "titleSize": 14, "valueSize": 32 },
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
       },
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 }
+      "gridPos": { "h": 4, "w": 5, "x": 5, "y": 0 }
     },
     {
       "type": "stat",
@@ -168,7 +168,7 @@
         "text": { "titleSize": 14, "valueSize": 32 },
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
       },
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 }
+      "gridPos": { "h": 4, "w": 5, "x": 10, "y": 0 }
     },
     {
       "type": "stat",
@@ -205,14 +205,17 @@
         "text": { "titleSize": 14, "valueSize": 32 },
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
       },
-      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 }
+      "gridPos": { "h": 4, "w": 5, "x": 15, "y": 0 }
     },
     {
-      "type": "gauge",
-      "title": "CPU % (5m)",
+      "type": "stat",
+      "title": "Root disk used",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
-        { "expr": "1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m]))", "refId": "A" }
+        {
+          "expr": "1 - (node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"tmpfs\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"tmpfs\"})",
+          "refId": "A"
+        }
       ],
       "fieldConfig": {
         "defaults": {
@@ -220,6 +223,7 @@
           "min": 0,
           "max": 1,
           "decimals": 0,
+          "color": { "mode": "thresholds" },
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -235,11 +239,12 @@
         "overrides": []
       },
       "options": {
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
+        "graphMode": "area",
+        "colorMode": "value",
+        "text": { "titleSize": 14, "valueSize": 32 },
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
       },
-      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 4 }
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 }
     },
     {
       "type": "gauge",
@@ -276,17 +281,52 @@
         "showThresholdMarkers": true,
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
       },
-      "gridPos": { "h": 5, "w": 8, "x": 8, "y": 4 }
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 4 }
     },
     {
-      "type": "gauge",
-      "title": "Root disk used",
+      "type": "timeseries",
+      "title": "Container memory",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "1 - (node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"tmpfs\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"tmpfs\"})",
-          "refId": "A"
+          "expr": "container_memory_usage_bytes{name=~\"openrift-.+\",name!~\"openrift-preview-.+\"}",
+          "refId": "A",
+          "legendFormat": "{{ name }}"
         }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 25,
+            "showPoints": "never",
+            "stacking": { "mode": "normal", "group": "A" }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "links": [
+        {
+          "title": "Open Containers dashboard",
+          "url": "/d/openrift-containers",
+          "targetBlank": false
+        }
+      ],
+      "gridPos": { "h": 8, "w": 18, "x": 6, "y": 4 }
+    },
+    {
+      "type": "gauge",
+      "title": "CPU %",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m]))", "refId": "A" }
       ],
       "fieldConfig": {
         "defaults": {
@@ -313,43 +353,29 @@
         "showThresholdMarkers": true,
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
       },
-      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 4 }
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 12 }
     },
     {
       "type": "timeseries",
-      "title": "Container memory",
+      "title": "Container CPU",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "container_memory_usage_bytes{name=\"openrift-api-1\"}",
+          "expr": "rate(container_cpu_usage_seconds_total{name=~\"openrift-.+\",name!~\"openrift-preview-.+\"}[5m])",
           "refId": "A",
-          "legendFormat": "api"
-        },
-        {
-          "expr": "container_memory_usage_bytes{name=\"openrift-web-1\"}",
-          "refId": "B",
-          "legendFormat": "web"
-        },
-        {
-          "expr": "container_memory_usage_bytes{name=\"openrift-proxy-1\"}",
-          "refId": "C",
-          "legendFormat": "proxy"
-        },
-        {
-          "expr": "container_memory_usage_bytes{name=\"openrift-db-1\"}",
-          "refId": "D",
-          "legendFormat": "db"
+          "legendFormat": "{{ name }}"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "bytes",
+          "unit": "percentunit",
           "color": { "mode": "palette-classic" },
           "custom": {
             "drawStyle": "line",
             "lineInterpolation": "smooth",
-            "fillOpacity": 10,
-            "showPoints": "never"
+            "fillOpacity": 25,
+            "showPoints": "never",
+            "stacking": { "mode": "normal", "group": "A" }
           }
         },
         "overrides": []
@@ -365,13 +391,116 @@
           "targetBlank": false
         }
       ],
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 9 }
+      "gridPos": { "h": 8, "w": 18, "x": 6, "y": 12 }
     },
     {
       "type": "row",
-      "title": "Dashboards",
+      "title": "Dashboards (new)",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 20 },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "API Metrics",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "vector(1)", "refId": "A", "instant": true }],
+      "fieldConfig": {
+        "defaults": {
+          "displayName": "API Metrics",
+          "color": { "mode": "fixed", "fixedColor": "green" },
+          "links": [{ "title": "Open dashboard", "url": "/d/openrift-api", "targetBlank": false }]
+        },
+        "overrides": []
+      },
+      "options": {
+        "textMode": "name",
+        "graphMode": "none",
+        "colorMode": "background_solid",
+        "justifyMode": "center",
+        "text": { "titleSize": 0, "valueSize": 22 },
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 21 }
+    },
+    {
+      "type": "stat",
+      "title": "API Traces",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "vector(1)", "refId": "A", "instant": true }],
+      "fieldConfig": {
+        "defaults": {
+          "displayName": "API Traces",
+          "color": { "mode": "fixed", "fixedColor": "green" },
+          "links": [
+            { "title": "Open dashboard", "url": "/d/openrift-traces", "targetBlank": false }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "textMode": "name",
+        "graphMode": "none",
+        "colorMode": "background_solid",
+        "justifyMode": "center",
+        "text": { "titleSize": 0, "valueSize": 22 },
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 21 }
+    },
+    {
+      "type": "stat",
+      "title": "Database",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "vector(1)", "refId": "A", "instant": true }],
+      "fieldConfig": {
+        "defaults": {
+          "displayName": "Database",
+          "color": { "mode": "fixed", "fixedColor": "green" },
+          "links": [
+            { "title": "Open dashboard", "url": "/d/openrift-database", "targetBlank": false }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "textMode": "name",
+        "graphMode": "none",
+        "colorMode": "background_solid",
+        "justifyMode": "center",
+        "text": { "titleSize": 0, "valueSize": 22 },
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 21 }
+    },
+    {
+      "type": "stat",
+      "title": "Infrastructure",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "vector(1)", "refId": "A", "instant": true }],
+      "fieldConfig": {
+        "defaults": {
+          "displayName": "Infrastructure",
+          "color": { "mode": "fixed", "fixedColor": "green" },
+          "links": [{ "title": "Open dashboard", "url": "/d/openrift-infra", "targetBlank": false }]
+        },
+        "overrides": []
+      },
+      "options": {
+        "textMode": "name",
+        "graphMode": "none",
+        "colorMode": "background_solid",
+        "justifyMode": "center",
+        "text": { "titleSize": 0, "valueSize": 22 },
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 21 }
+    },
+    {
+      "type": "row",
+      "title": "Dashboards (old)",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 },
       "panels": []
     },
     {
@@ -397,7 +526,7 @@
         "text": { "titleSize": 0, "valueSize": 22 },
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
       },
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 18 }
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 26 }
     },
     {
       "type": "stat",
@@ -422,7 +551,7 @@
         "text": { "titleSize": 0, "valueSize": 22 },
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
       },
-      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 18 }
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 26 }
     },
     {
       "type": "stat",
@@ -447,7 +576,7 @@
         "text": { "titleSize": 0, "valueSize": 22 },
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
       },
-      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 18 }
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 26 }
     },
     {
       "type": "stat",
@@ -476,7 +605,7 @@
         "text": { "titleSize": 0, "valueSize": 22 },
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
       },
-      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 18 }
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 26 }
     },
     {
       "type": "stat",
@@ -499,7 +628,7 @@
         "text": { "titleSize": 0, "valueSize": 22 },
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
       },
-      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 18 }
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 26 }
     },
     {
       "type": "stat",
@@ -524,7 +653,7 @@
         "text": { "titleSize": 0, "valueSize": 22 },
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
       },
-      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 18 }
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 26 }
     }
   ]
 }
