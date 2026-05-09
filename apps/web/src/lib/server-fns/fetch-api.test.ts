@@ -1,4 +1,12 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { context, propagation, trace } from "@opentelemetry/api";
+import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
+import { W3CTraceContextPropagator } from "@opentelemetry/core";
+import {
+  BasicTracerProvider,
+  InMemorySpanExporter,
+  SimpleSpanProcessor,
+} from "@opentelemetry/sdk-trace-base";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { fetchApi, fetchApiJson } from "./fetch-api";
 
@@ -148,6 +156,72 @@ describe("fetchApi", () => {
     await expect(fetchApi({ errorTitle: "Couldn't load", path: "/api/v1/x" })).rejects.toThrow(
       /<no body>$/u,
     );
+  });
+});
+
+describe("fetchApi traceparent injection", () => {
+  const exporter = new InMemorySpanExporter();
+  const provider = new BasicTracerProvider({
+    spanProcessors: [new SimpleSpanProcessor(exporter)],
+  });
+  const contextManager = new AsyncLocalStorageContextManager();
+
+  beforeAll(() => {
+    trace.setGlobalTracerProvider(provider);
+    context.setGlobalContextManager(contextManager.enable());
+    propagation.setGlobalPropagator(new W3CTraceContextPropagator());
+  });
+
+  afterAll(async () => {
+    contextManager.disable();
+    await provider.shutdown();
+    trace.disable();
+    context.disable();
+    propagation.disable();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    exporter.reset();
+  });
+
+  it("injects a W3C traceparent when called inside an active span", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      text: async () => "{}",
+      json: async () => ({}),
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const tracer = trace.getTracer("test");
+    await tracer.startActiveSpan("parent", async (span) => {
+      try {
+        await fetchApi({ errorTitle: "Couldn't load", path: "/api/v1/x" });
+      } finally {
+        span.end();
+      }
+    });
+
+    const [, init] = fetchMock.mock.calls[0];
+    expect(init.headers.traceparent).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-/u);
+  });
+
+  it("does not set traceparent when no span is active", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      text: async () => "{}",
+      json: async () => ({}),
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    await fetchApi({ errorTitle: "Couldn't load", path: "/api/v1/x" });
+
+    const [, init] = fetchMock.mock.calls[0];
+    expect(init.headers.traceparent).toBeUndefined();
   });
 });
 

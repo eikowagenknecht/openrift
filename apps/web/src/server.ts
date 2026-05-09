@@ -1,7 +1,11 @@
-// Must be the first import: initializes Sentry before any request handling.
-// See ./instrument.server.mjs for the "without --import flag" rationale.
+// Must be the first imports: initialize Sentry + OTel before any request
+// handling. See ./instrument.server.mjs for the "without --import flag"
+// rationale; tracing.server.ts is the OTel equivalent for trace export to
+// Tempo (no-op when OTEL_EXPORTER_OTLP_ENDPOINT is unset).
 // oxlint-disable-next-line import/no-unassigned-import -- side-effect instrumentation bootstrap
 import "./instrument.server.mjs";
+// oxlint-disable-next-line import/no-unassigned-import -- side-effect instrumentation bootstrap
+import "./tracing.server";
 import type { SitemapDataResponse } from "@openrift/shared";
 import { wrapFetchWithSentry } from "@sentry/tanstackstart-react";
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry";

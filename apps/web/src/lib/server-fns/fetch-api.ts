@@ -1,3 +1,5 @@
+import { context, propagation } from "@opentelemetry/api";
+
 import { API_URL } from "./api-url";
 
 interface FetchApiOptions {
@@ -42,6 +44,10 @@ export async function fetchApi(options: FetchApiOptions): Promise<Response> {
   if (body !== undefined) {
     headers["content-type"] = "application/json";
   }
+  // Inject W3C traceparent so the API can continue the trace started by the
+  // web server-side middleware. No-op when no span is active (OTel SDK not
+  // started, or this call is outside a request context).
+  propagation.inject(context.active(), headers);
   const res = await fetch(url, {
     method,
     headers,

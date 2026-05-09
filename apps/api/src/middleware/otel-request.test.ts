@@ -1,5 +1,6 @@
-import { context, trace } from "@opentelemetry/api";
+import { context, propagation, trace } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
+import { W3CTraceContextPropagator } from "@opentelemetry/core";
 import {
   BasicTracerProvider,
   InMemorySpanExporter,
@@ -19,6 +20,7 @@ const contextManager = new AsyncLocalStorageContextManager();
 beforeAll(() => {
   trace.setGlobalTracerProvider(provider);
   context.setGlobalContextManager(contextManager.enable());
+  propagation.setGlobalPropagator(new W3CTraceContextPropagator());
 });
 
 afterAll(async () => {
@@ -26,6 +28,7 @@ afterAll(async () => {
   await provider.shutdown();
   trace.disable();
   context.disable();
+  propagation.disable();
 });
 
 afterEach(() => {
@@ -61,6 +64,36 @@ describe("otelRequestMiddleware", () => {
 
     const spans = exporter.getFinishedSpans();
     expect(spans[0]?.attributes["http.route"]).toBe("<unmatched>");
+  });
+
+  it("links the span to an incoming W3C traceparent", async () => {
+    const incomingTraceId = "0af7651916cd43dd8448eb211c80319c";
+    const incomingSpanId = "b7ad6b7169203331";
+    const traceparent = `00-${incomingTraceId}-${incomingSpanId}-01`;
+
+    const app = new Hono();
+    app.use("/api/*", otelRequestMiddleware);
+    app.get("/api/cards/:cardSlug", (c) => c.json({ ok: true }));
+
+    const res = await app.request("/api/cards/abc-123", {
+      headers: { traceparent },
+    });
+    expect(res.status).toBe(200);
+
+    const spans = exporter.getFinishedSpans();
+    expect(spans[0]?.spanContext().traceId).toBe(incomingTraceId);
+    expect(spans[0]?.parentSpanContext?.spanId).toBe(incomingSpanId);
+  });
+
+  it("starts a fresh trace when no traceparent header is present", async () => {
+    const app = new Hono();
+    app.use("/api/*", otelRequestMiddleware);
+    app.get("/api/cards/:cardSlug", (c) => c.json({ ok: true }));
+
+    await app.request("/api/cards/abc-123");
+
+    const spans = exporter.getFinishedSpans();
+    expect(spans[0]?.parentSpanContext).toBeUndefined();
   });
 
   it("marks the span as ERROR on 5xx responses", async () => {

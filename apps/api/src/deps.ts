@@ -1,6 +1,7 @@
 import type { Kysely } from "kysely";
 
 import type { Database } from "./db/index.js";
+import { instrumentRepo } from "./db/instrumented-repo.js";
 import { adminsRepo } from "./repositories/admins.js";
 import { artVariantsRepo } from "./repositories/art-variants.js";
 import { candidateCardsRepo } from "./repositories/candidate-cards.js";
@@ -115,7 +116,10 @@ export interface Services {
 }
 
 export function createRepos(db: Kysely<Database>): Repos {
-  return {
+  // Each repo is wrapped via instrumentRepo so every method opens an OTel
+  // span named `repo.<name>.<method>`, parenting the Kysely `db.query`
+  // spans for clean repo-method attribution in traces.
+  const raw = {
     collectionEvents: collectionEventsRepo(db),
     admins: adminsRepo(db),
     artVariants: artVariantsRepo(db),
@@ -161,6 +165,12 @@ export function createRepos(db: Kysely<Database>): Repos {
     printingEvents: printingEventsRepo(db),
     jobRuns: jobRunsRepo(db),
   };
+  return Object.fromEntries(
+    Object.entries(raw).map(([name, repo]) => [
+      name,
+      instrumentRepo(name, repo as Record<string, unknown>),
+    ]),
+  ) as unknown as Repos;
 }
 
 export type Transact = <T>(fn: (repos: Repos) => Promise<T>) => Promise<T>;

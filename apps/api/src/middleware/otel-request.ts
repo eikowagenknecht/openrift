@@ -1,4 +1,11 @@
-import { context, SpanKind, SpanStatusCode, trace } from "@opentelemetry/api";
+import {
+  context,
+  propagation,
+  ROOT_CONTEXT,
+  SpanKind,
+  SpanStatusCode,
+  trace,
+} from "@opentelemetry/api";
 import {
   ATTR_HTTP_REQUEST_METHOD,
   ATTR_HTTP_RESPONSE_STATUS_CODE,
@@ -33,18 +40,44 @@ export const otelRequestMiddleware: MiddlewareHandler<{ Variables: Variables }> 
   // wildcard middleware mounts itself match (no leaf handler), the result
   // contains a `*` — treat that as unmatched so 404 traffic doesn't pollute
   // the http.route attribute with shapes like "/api/*".
+  //
+  // Exception: better-auth mounts as a single `/api/auth/*` wildcard
+  // handler but its endpoint set is bounded and stable (~20 paths). Use
+  // the raw path under `/api/auth/` so each better-auth endpoint shows up
+  // separately in metrics and traces.
   const matched = routePath(c, -1);
-  const route = matched && !matched.includes("*") ? matched : "<unmatched>";
-  const span = tracer.startSpan(`${c.req.method} ${route}`, {
-    kind: SpanKind.SERVER,
-    attributes: {
-      [ATTR_HTTP_REQUEST_METHOD]: c.req.method,
-      [ATTR_HTTP_ROUTE]: route,
-      [ATTR_URL_PATH]: c.req.path,
-    },
-  });
+  let route: string;
+  if (matched && !matched.includes("*")) {
+    route = matched;
+  } else if (c.req.path.startsWith("/api/auth/")) {
+    route = c.req.path;
+  } else {
+    route = "<unmatched>";
+  }
 
-  await context.with(trace.setSpan(context.active(), span), async () => {
+  // Extract any incoming W3C traceparent so the span links to the upstream
+  // trace (e.g. the web SSR span that issued this request). Falls back to
+  // ROOT_CONTEXT (a fresh trace) when no header is present.
+  const headers: Record<string, string> = {};
+  c.req.raw.headers.forEach((value, key) => {
+    headers[key] = value;
+  });
+  const parentCtx = propagation.extract(ROOT_CONTEXT, headers);
+
+  const span = tracer.startSpan(
+    `${c.req.method} ${route}`,
+    {
+      kind: SpanKind.SERVER,
+      attributes: {
+        [ATTR_HTTP_REQUEST_METHOD]: c.req.method,
+        [ATTR_HTTP_ROUTE]: route,
+        [ATTR_URL_PATH]: c.req.path,
+      },
+    },
+    parentCtx,
+  );
+
+  await context.with(trace.setSpan(parentCtx, span), async () => {
     try {
       await next();
       span.setAttribute(ATTR_HTTP_RESPONSE_STATUS_CODE, c.res.status);
