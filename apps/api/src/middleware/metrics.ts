@@ -23,7 +23,7 @@ interface MetricsOptions {
 interface Metrics {
   registerMetrics: MiddlewareHandler;
   printMetrics: (c: Context) => Promise<Response>;
-  registry: Registry;
+  registry: Registry<typeof Registry.OPENMETRICS_CONTENT_TYPE>;
 }
 
 /**
@@ -38,7 +38,7 @@ interface Metrics {
  * @returns The middleware, the /metrics handler, and the registry.
  */
 export const createMetricsMiddleware = (options: MetricsOptions = {}): Metrics => {
-  const registry = new Registry();
+  const registry = new Registry<typeof Registry.OPENMETRICS_CONTENT_TYPE>();
   registry.setContentType(Registry.OPENMETRICS_CONTENT_TYPE);
 
   if (options.collectDefaults ?? true) {
