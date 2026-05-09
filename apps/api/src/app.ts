@@ -1,4 +1,3 @@
-import { prometheus } from "@hono/prometheus";
 import { swaggerUI } from "@hono/swagger-ui";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { ApiErrorResponse } from "@openrift/shared";
@@ -18,6 +17,7 @@ import { createRepos, createTransact, services as defaultServices } from "./deps
 import { AppError, ERROR_CODES } from "./errors.js";
 import { defaultIo } from "./io.js";
 import type { Io } from "./io.js";
+import { createMetricsMiddleware } from "./middleware/metrics.js";
 import { otelRequestMiddleware } from "./middleware/otel-request.js";
 import { adminRoute } from "./routes/admin/index.js";
 import { collectionEventsRoute } from "./routes/authenticated/collection-events.js";
@@ -125,23 +125,23 @@ export function createApp(deps: AppDeps) {
     return c.json(body, 500);
   });
 
+  // Open an OTel `http.server` span per request and activate it in the OTel
+  // context, so child spans (notably the Kysely `db.query` spans) inherit it.
+  // Registered before metrics + deps + auth middlewares since they all run
+  // inside the span (metrics for exemplars, deps/auth for DB queries).
+  app.use("/api/*", otelRequestMiddleware);
+
   // ── Metrics ─────────────────────────────────────────────────────────────
   // Prometheus scrapes /metrics from inside the openrift_default Docker network.
   // The host port for the API is bound to 127.0.0.1 only, so /metrics is not
   // exposed publicly. registerMetrics wraps every request so health checks and
   // /metrics itself are counted; route labels use Hono's matched pattern
-  // (e.g. /api/v1/cards/:id) to keep cardinality bounded.
-  const { printMetrics, registerMetrics } = prometheus({
-    collectDefaultMetrics: true,
-  });
+  // (e.g. /api/v1/cards/:id) to keep cardinality bounded. Registered after
+  // otelRequestMiddleware so the active span is in scope and exemplars carry
+  // its trace ID — Grafana surfaces those as clickable jumps into Tempo.
+  const { printMetrics, registerMetrics } = createMetricsMiddleware();
   app.use("*", registerMetrics);
   app.get("/metrics", printMetrics);
-
-  // Open an OTel `http.server` span per request and activate it in the OTel
-  // context, so child spans (notably the Kysely `db.query` spans) inherit it.
-  // Registered before the deps and auth middlewares since both issue DB
-  // queries.
-  app.use("/api/*", otelRequestMiddleware);
 
   // ── Global middleware ───────────────────────────────────────────────────
   // CORS runs first so preflight OPTIONS requests are handled before any other work.
