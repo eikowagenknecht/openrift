@@ -421,32 +421,7 @@
         "text": { "titleSize": 0, "valueSize": 22 },
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
       },
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 21 }
-    },
-    {
-      "type": "stat",
-      "title": "API Traces",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "vector(1)", "refId": "A", "instant": true }],
-      "fieldConfig": {
-        "defaults": {
-          "displayName": "API Traces",
-          "color": { "mode": "fixed", "fixedColor": "green" },
-          "links": [
-            { "title": "Open dashboard", "url": "/d/openrift-traces", "targetBlank": false }
-          ]
-        },
-        "overrides": []
-      },
-      "options": {
-        "textMode": "name",
-        "graphMode": "none",
-        "colorMode": "background_solid",
-        "justifyMode": "center",
-        "text": { "titleSize": 0, "valueSize": 22 },
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
-      },
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 21 }
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 21 }
     },
     {
       "type": "stat",
@@ -471,7 +446,7 @@
         "text": { "titleSize": 0, "valueSize": 22 },
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
       },
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 21 }
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 21 }
     },
     {
       "type": "stat",
@@ -494,7 +469,7 @@
         "text": { "titleSize": 0, "valueSize": 22 },
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
       },
-      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 21 }
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 21 }
     },
     {
       "type": "row",

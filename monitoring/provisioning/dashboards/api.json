@@ -148,21 +148,29 @@
         {
           "expr": "histogram_quantile(0.50, sum by (le) (rate(http_request_duration_seconds_bucket{job=\"openrift-api\",${audience}}[5m])))",
           "legendFormat": "p50",
+          "exemplar": true,
           "refId": "A"
         },
         {
           "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{job=\"openrift-api\",${audience}}[5m])))",
           "legendFormat": "p95",
+          "exemplar": true,
           "refId": "B"
         },
         {
           "expr": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{job=\"openrift-api\",${audience}}[5m])))",
           "legendFormat": "p99",
+          "exemplar": true,
           "refId": "C"
         }
       ],
       "options": {
-        "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": ["mean", "max"],
+          "width": 420
+        }
       }
     },
     {
@@ -182,10 +190,10 @@
           "unit": "reqps",
           "min": 0,
           "custom": {
-            "fillOpacity": 30,
-            "lineWidth": 1,
+            "fillOpacity": 10,
+            "lineWidth": 2,
             "spanNulls": false,
-            "stacking": { "mode": "normal", "group": "A" }
+            "stacking": { "mode": "none", "group": "A" }
           }
         },
         "overrides": []
@@ -198,7 +206,12 @@
         }
       ],
       "options": {
-        "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": ["mean", "max"],
+          "width": 420
+        }
       }
     },
     {
@@ -234,7 +247,12 @@
         }
       ],
       "options": {
-        "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": ["mean", "max"],
+          "width": 420
+        }
       }
     },
     {
@@ -261,11 +279,17 @@
         {
           "expr": "histogram_quantile(0.95, sum by (le, route) (rate(http_request_duration_seconds_bucket{job=\"openrift-api\",${audience}}[5m]))) > 0",
           "legendFormat": "{{ route }}",
+          "exemplar": true,
           "refId": "A"
         }
       ],
       "options": {
-        "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": ["mean", "max"],
+          "width": 420
+        }
       }
     },
     {
@@ -350,15 +374,102 @@
     },
     {
       "type": "row",
-      "title": "Bun runtime",
+      "title": "Recent traces",
       "collapsed": false,
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 50 },
       "panels": []
     },
     {
+      "title": "Recent traces",
+      "type": "table",
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 51 },
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "targets": [
+        {
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceql",
+          "query": "{ resource.service.name=\"openrift-api\" && kind=server } with (most_recent=true)",
+          "limit": 50,
+          "tableType": "traces",
+          "refId": "A"
+        }
+      ],
+      "options": { "sortBy": [{ "displayName": "Start time", "desc": true }] },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "service": true,
+              "Service": true,
+              "serviceName": true,
+              "Service Name": true
+            },
+            "renameByName": {},
+            "indexByName": {}
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [{ "field": "startTime", "desc": true }]
+          }
+        }
+      ]
+    },
+    {
+      "title": "Recent errored traces",
+      "type": "table",
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 51 },
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "targets": [
+        {
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceql",
+          "query": "{ resource.service.name=\"openrift-api\" && status=error } with (most_recent=true)",
+          "limit": 50,
+          "tableType": "traces",
+          "refId": "A"
+        }
+      ],
+      "options": { "sortBy": [{ "displayName": "Start time", "desc": true }] },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "service": true,
+              "Service": true,
+              "serviceName": true,
+              "Service Name": true
+            },
+            "renameByName": {},
+            "indexByName": {}
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [{ "field": "startTime", "desc": true }]
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Bun runtime",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 61 },
+      "panels": []
+    },
+    {
       "title": "Event loop lag (p99)",
       "type": "timeseries",
-      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 51 },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 62 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -387,7 +498,7 @@
     {
       "title": "Heap used",
       "type": "timeseries",
-      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 51 },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 62 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -413,7 +524,7 @@
     {
       "title": "Resident memory (RSS)",
       "type": "stat",
-      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 51 },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 62 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
