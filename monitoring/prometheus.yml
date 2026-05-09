@@ -18,10 +18,14 @@ scrape_configs:
     static_configs:
       - targets: ["postgres-exporter:9187"]
 
-  # Hono API: per-route HTTP metrics + Node.js runtime metrics
+  # Hono API: per-route HTTP metrics + Node.js runtime metrics.
+  # Scrape both the prod docker-network hostname and host.docker.internal so
+  # the same config works whether the API runs in docker (prod, preview) or
+  # via `bun dev:api` on the host (local dev). The unused target shows as
+  # `down` in /targets, which is expected and harmless.
   - job_name: "openrift-api"
     static_configs:
-      - targets: ["api:3000"]
+      - targets: ["api:3000", "host.docker.internal:3000"]
 
   # Prometheus self-monitoring
   - job_name: "prometheus"

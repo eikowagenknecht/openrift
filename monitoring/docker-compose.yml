@@ -71,6 +71,11 @@ services:
     networks:
       - default
       - openrift
+    # `host.docker.internal` lets Prometheus reach `bun dev:api` running on
+    # the host during local development. On Linux it doesn't auto-resolve
+    # without this explicit host-gateway mapping.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./data/prometheus:/prometheus
