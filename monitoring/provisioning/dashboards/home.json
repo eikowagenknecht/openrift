@@ -12,43 +12,22 @@
   "links": [
     {
       "type": "link",
-      "title": "API Requests",
-      "url": "/d/openrift-api-requests",
+      "title": "API Metrics",
+      "url": "/d/openrift-api",
       "targetBlank": false,
       "icon": "external link"
     },
     {
       "type": "link",
-      "title": "OTel Traces",
-      "url": "/d/openrift-otel-traces",
+      "title": "Database",
+      "url": "/d/openrift-database",
       "targetBlank": false,
       "icon": "external link"
     },
     {
       "type": "link",
-      "title": "Postgres",
-      "url": "/d/openrift-postgres",
-      "targetBlank": false,
-      "icon": "external link"
-    },
-    {
-      "type": "link",
-      "title": "PG Stat Statements",
-      "url": "/d/openrift-pg-stat-statements",
-      "targetBlank": false,
-      "icon": "external link"
-    },
-    {
-      "type": "link",
-      "title": "Host",
-      "url": "/d/openrift-host",
-      "targetBlank": false,
-      "icon": "external link"
-    },
-    {
-      "type": "link",
-      "title": "Containers",
-      "url": "/d/openrift-containers",
+      "title": "Infrastructure",
+      "url": "/d/openrift-infra",
       "targetBlank": false,
       "icon": "external link"
     }
@@ -72,8 +51,8 @@
           },
           "links": [
             {
-              "title": "Open API Requests dashboard",
-              "url": "/d/openrift-api-requests",
+              "title": "Open API Metrics dashboard",
+              "url": "/d/openrift-api",
               "targetBlank": false
             }
           ]
@@ -113,8 +92,8 @@
           },
           "links": [
             {
-              "title": "Open API Requests dashboard",
-              "url": "/d/openrift-api-requests",
+              "title": "Open API Metrics dashboard",
+              "url": "/d/openrift-api",
               "targetBlank": false
             }
           ]
@@ -154,8 +133,8 @@
           },
           "links": [
             {
-              "title": "Open API Requests dashboard",
-              "url": "/d/openrift-api-requests",
+              "title": "Open API Metrics dashboard",
+              "url": "/d/openrift-api",
               "targetBlank": false
             }
           ]
@@ -191,8 +170,8 @@
           },
           "links": [
             {
-              "title": "Open Postgres dashboard",
-              "url": "/d/openrift-postgres",
+              "title": "Open Database dashboard",
+              "url": "/d/openrift-database",
               "targetBlank": false
             }
           ]
@@ -233,7 +212,11 @@
             ]
           },
           "links": [
-            { "title": "Open Host dashboard", "url": "/d/openrift-host", "targetBlank": false }
+            {
+              "title": "Open Infrastructure dashboard",
+              "url": "/d/openrift-infra",
+              "targetBlank": false
+            }
           ]
         },
         "overrides": []
@@ -271,7 +254,11 @@
             ]
           },
           "links": [
-            { "title": "Open Host dashboard", "url": "/d/openrift-host", "targetBlank": false }
+            {
+              "title": "Open Infrastructure dashboard",
+              "url": "/d/openrift-infra",
+              "targetBlank": false
+            }
           ]
         },
         "overrides": []
@@ -314,8 +301,8 @@
       },
       "links": [
         {
-          "title": "Open Containers dashboard",
-          "url": "/d/openrift-containers",
+          "title": "Open Infrastructure dashboard",
+          "url": "/d/openrift-infra",
           "targetBlank": false
         }
       ],
@@ -343,7 +330,11 @@
             ]
           },
           "links": [
-            { "title": "Open Host dashboard", "url": "/d/openrift-host", "targetBlank": false }
+            {
+              "title": "Open Infrastructure dashboard",
+              "url": "/d/openrift-infra",
+              "targetBlank": false
+            }
           ]
         },
         "overrides": []
@@ -386,8 +377,8 @@
       },
       "links": [
         {
-          "title": "Open Containers dashboard",
-          "url": "/d/openrift-containers",
+          "title": "Open Infrastructure dashboard",
+          "url": "/d/openrift-infra",
           "targetBlank": false
         }
       ],
@@ -395,7 +386,7 @@
     },
     {
       "type": "row",
-      "title": "Dashboards (new)",
+      "title": "Dashboards",
       "collapsed": false,
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 20 },
       "panels": []
@@ -470,165 +461,6 @@
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
       },
       "gridPos": { "h": 4, "w": 8, "x": 16, "y": 21 }
-    },
-    {
-      "type": "row",
-      "title": "Dashboards (old)",
-      "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 },
-      "panels": []
-    },
-    {
-      "type": "stat",
-      "title": "API Requests",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "vector(1)", "refId": "A", "instant": true }],
-      "fieldConfig": {
-        "defaults": {
-          "displayName": "API Requests",
-          "color": { "mode": "fixed", "fixedColor": "blue" },
-          "links": [
-            { "title": "Open dashboard", "url": "/d/openrift-api-requests", "targetBlank": false }
-          ]
-        },
-        "overrides": []
-      },
-      "options": {
-        "textMode": "name",
-        "graphMode": "none",
-        "colorMode": "background_solid",
-        "justifyMode": "center",
-        "text": { "titleSize": 0, "valueSize": 22 },
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
-      },
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 26 }
-    },
-    {
-      "type": "stat",
-      "title": "OTel Traces",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "vector(1)", "refId": "A", "instant": true }],
-      "fieldConfig": {
-        "defaults": {
-          "displayName": "OTel Traces",
-          "color": { "mode": "fixed", "fixedColor": "blue" },
-          "links": [
-            { "title": "Open dashboard", "url": "/d/openrift-otel-traces", "targetBlank": false }
-          ]
-        },
-        "overrides": []
-      },
-      "options": {
-        "textMode": "name",
-        "graphMode": "none",
-        "colorMode": "background_solid",
-        "justifyMode": "center",
-        "text": { "titleSize": 0, "valueSize": 22 },
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
-      },
-      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 26 }
-    },
-    {
-      "type": "stat",
-      "title": "Postgres",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "vector(1)", "refId": "A", "instant": true }],
-      "fieldConfig": {
-        "defaults": {
-          "displayName": "Postgres",
-          "color": { "mode": "fixed", "fixedColor": "blue" },
-          "links": [
-            { "title": "Open dashboard", "url": "/d/openrift-postgres", "targetBlank": false }
-          ]
-        },
-        "overrides": []
-      },
-      "options": {
-        "textMode": "name",
-        "graphMode": "none",
-        "colorMode": "background_solid",
-        "justifyMode": "center",
-        "text": { "titleSize": 0, "valueSize": 22 },
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
-      },
-      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 26 }
-    },
-    {
-      "type": "stat",
-      "title": "PG Stat Statements",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "vector(1)", "refId": "A", "instant": true }],
-      "fieldConfig": {
-        "defaults": {
-          "displayName": "PG Statements",
-          "color": { "mode": "fixed", "fixedColor": "blue" },
-          "links": [
-            {
-              "title": "Open dashboard",
-              "url": "/d/openrift-pg-stat-statements",
-              "targetBlank": false
-            }
-          ]
-        },
-        "overrides": []
-      },
-      "options": {
-        "textMode": "name",
-        "graphMode": "none",
-        "colorMode": "background_solid",
-        "justifyMode": "center",
-        "text": { "titleSize": 0, "valueSize": 22 },
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
-      },
-      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 26 }
-    },
-    {
-      "type": "stat",
-      "title": "Host",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "vector(1)", "refId": "A", "instant": true }],
-      "fieldConfig": {
-        "defaults": {
-          "displayName": "Host",
-          "color": { "mode": "fixed", "fixedColor": "blue" },
-          "links": [{ "title": "Open dashboard", "url": "/d/openrift-host", "targetBlank": false }]
-        },
-        "overrides": []
-      },
-      "options": {
-        "textMode": "name",
-        "graphMode": "none",
-        "colorMode": "background_solid",
-        "justifyMode": "center",
-        "text": { "titleSize": 0, "valueSize": 22 },
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
-      },
-      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 26 }
-    },
-    {
-      "type": "stat",
-      "title": "Containers",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "vector(1)", "refId": "A", "instant": true }],
-      "fieldConfig": {
-        "defaults": {
-          "displayName": "Containers",
-          "color": { "mode": "fixed", "fixedColor": "blue" },
-          "links": [
-            { "title": "Open dashboard", "url": "/d/openrift-containers", "targetBlank": false }
-          ]
-        },
-        "overrides": []
-      },
-      "options": {
-        "textMode": "name",
-        "graphMode": "none",
-        "colorMode": "background_solid",
-        "justifyMode": "center",
-        "text": { "titleSize": 0, "valueSize": 22 },
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
-      },
-      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 26 }
     }
   ]
 }
