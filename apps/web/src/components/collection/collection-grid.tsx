@@ -143,6 +143,12 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // narrow by language use the Language section in the filter panel.
   const languageFilter = filters.languages;
 
+  // Quick Add palette adds *new* cards, so it should only surface languages
+  // the user has enabled in their profile prefs — unlike the collection grid
+  // above, where we deliberately keep showing already-owned cards in any
+  // language. Empty pref means "show all".
+  const preferredLanguages = useDisplayStore((state) => state.languages);
+
   // "copies" is a collection-only UI concept — at the data level it behaves like "printings"
   const dataView = view === "copies" ? "printings" : view;
   const keywordReverseMap = useKeywordReverseMap();
@@ -866,6 +872,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             collectionName={currentCollection?.name ?? "Collection"}
             printingsByCardId={catalogPrintingsByCardId}
             ownedCountByPrinting={ownedCountByPrinting}
+            preferredLanguages={preferredLanguages}
           />
         )}
         {currentCollection && !currentCollection.isInbox && (
@@ -1042,6 +1049,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           collectionName={currentCollection?.name ?? "Collection"}
           printingsByCardId={catalogPrintingsByCardId}
           ownedCountByPrinting={ownedCountByPrinting}
+          preferredLanguages={preferredLanguages}
         />
       )}
     </>

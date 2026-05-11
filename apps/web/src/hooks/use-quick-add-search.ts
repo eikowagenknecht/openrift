@@ -13,17 +13,29 @@ interface QuickAddCardResult {
   ownedCount: number;
 }
 
+interface SearchCardsOptions {
+  ownedCountByPrinting?: Record<string, number>;
+  /**
+   * Optional allowlist of language codes — when provided, each card's
+   * printings are narrowed to this set and cards with no remaining printings
+   * are dropped. Used to honor the user's profile language preference in the
+   * Quick Add palette on routes that don't seed it into the URL filter.
+   */
+  preferredLanguages?: readonly string[];
+  limit?: number;
+}
+
 /**
  * Searches the catalog by card name and returns grouped, ranked results.
  * All filtering is client-side against the in-memory catalog.
- * @returns Up to `limit` card results ranked by match quality.
+ * @returns Up to `options.limit` card results ranked by match quality.
  */
 export function searchCards(
   query: string,
   printingsByCardId: Map<string, Printing[]>,
-  ownedCountByPrinting?: Record<string, number>,
-  limit = 8,
+  options: SearchCardsOptions = {},
 ): QuickAddCardResult[] {
+  const { ownedCountByPrinting, preferredLanguages, limit = 8 } = options;
   const trimmed = query.trim();
   if (trimmed.length === 0) {
     return [];
@@ -34,9 +46,15 @@ export function searchCards(
     return [];
   }
 
+  const languageAllowlist =
+    preferredLanguages && preferredLanguages.length > 0 ? new Set(preferredLanguages) : null;
+
   const results: { result: QuickAddCardResult; rank: number }[] = [];
 
-  for (const [cardId, printings] of printingsByCardId) {
+  for (const [cardId, allPrintings] of printingsByCardId) {
+    const printings = languageAllowlist
+      ? allPrintings.filter((p) => languageAllowlist.has(p.language))
+      : allPrintings;
     if (printings.length === 0) {
       continue;
     }

@@ -4,6 +4,7 @@
 
 - feat: The collection page's add mode now uses the same toolbar toggle as the Cards page, with cards going into the collection you're viewing
 - feat: The Cards page group-by dropdown now offers Distribution Channel, Year, and Marker — matching the Promos page — with trailing "(No distribution channel)", "Unknown year", and "Unmarked" sections for cards that don't match
+- fix: The Ctrl+K quick-add palette on a collection page now only suggests cards in the languages you've enabled in your profile preferences, instead of every language
 - fix: The Ctrl+K quick-add panel now scrolls to keep the highlighted printing in view as you arrow up and down inside an expanded card
 - fix: The Ctrl+K quick-add panel now starts fresh each time you open it, instead of remembering the search and selection from last time
 - fix: The Distribution Channel filter dropdown on the Cards page now shows the full breadcrumb path of each channel, so the four different "Top 8" entries are easy to tell apart, matching how the Promos page already did it

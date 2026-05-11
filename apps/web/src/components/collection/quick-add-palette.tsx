@@ -25,6 +25,14 @@ interface QuickAddPaletteProps {
   collectionName: string;
   printingsByCardId: Map<string, Printing[]>;
   ownedCountByPrinting?: Record<string, number>;
+  /**
+   * Allowlist of language codes the user wants to see in the palette. When
+   * provided, printings outside this list are filtered out. Routes that
+   * already seed `filters.languages` from the user pref (e.g. /cards) leave
+   * this undefined; routes that don't (e.g. /collections) pass the user pref
+   * so disabled languages don't surface here.
+   */
+  preferredLanguages?: readonly string[];
 }
 
 export function QuickAddPalette({
@@ -34,6 +42,7 @@ export function QuickAddPalette({
   collectionName,
   printingsByCardId,
   ownedCountByPrinting,
+  preferredLanguages,
 }: QuickAddPaletteProps) {
   const isMobile = useIsMobile();
 
@@ -49,6 +58,7 @@ export function QuickAddPalette({
                 collectionName={collectionName}
                 printingsByCardId={printingsByCardId}
                 ownedCountByPrinting={ownedCountByPrinting}
+                preferredLanguages={preferredLanguages}
                 isMobile
               />
             )}
@@ -71,6 +81,7 @@ export function QuickAddPalette({
             collectionName={collectionName}
             printingsByCardId={printingsByCardId}
             ownedCountByPrinting={ownedCountByPrinting}
+            preferredLanguages={preferredLanguages}
             isMobile={false}
           />
         )}
@@ -84,6 +95,7 @@ interface PaletteInnerProps {
   collectionName: string;
   printingsByCardId: Map<string, Printing[]>;
   ownedCountByPrinting?: Record<string, number>;
+  preferredLanguages?: readonly string[];
   isMobile: boolean;
 }
 
@@ -92,6 +104,7 @@ function PaletteInner({
   collectionName,
   printingsByCardId,
   ownedCountByPrinting,
+  preferredLanguages,
   isMobile,
 }: PaletteInnerProps) {
   const [query, setQuery] = useState("");
@@ -123,7 +136,10 @@ function PaletteInner({
   const addedItems = useAddModeStore((s) => s.addedItems);
   const { labels } = useEnumOrders();
 
-  const results = searchCards(query, printingsByCardId, ownedCountByPrinting);
+  const results = searchCards(query, printingsByCardId, {
+    ownedCountByPrinting,
+    preferredLanguages,
+  });
 
   // Derive the printing to preview (only when a printing list is expanded)
   const previewPrinting = expandedCardId
