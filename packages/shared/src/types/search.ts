@@ -34,7 +34,16 @@ export const SEARCH_PREFIX_MAP: Record<string, SearchField> = {
   id: "id",
 };
 
-export type GroupByField = "none" | "set" | "type" | "superType" | "domain" | "rarity";
+export type GroupByField =
+  | "none"
+  | "set"
+  | "type"
+  | "superType"
+  | "domain"
+  | "rarity"
+  | "channel"
+  | "year"
+  | "marker";
 
 export type SortOption = "id" | "name" | "energy" | "rarity" | "price";
 

@@ -27,6 +27,7 @@ import {
 import { useSidebar } from "@/components/ui/sidebar";
 import { useCollectionEvents } from "@/hooks/use-collection-events";
 import { useCollections } from "@/hooks/use-collections";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { usePrices } from "@/hooks/use-prices";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import { getTypeIconPath } from "@/lib/icons";
@@ -214,6 +215,10 @@ function EventCard({
   const config = ACTION_CONFIG[event.action];
   const Icon = config.icon;
   const totalPrice = price === undefined ? undefined : price * count;
+  const { labels } = useEnumOrders();
+  const cardTypeLabel = labels.cardTypes[event.cardType];
+  const superTypeLabels = event.cardSuperTypes.map((slug) => labels.superTypes[slug]);
+  const rarityLabel = labels.rarities[event.rarity];
 
   // Show collection for moves (from → to), or for adds/removes when no filter is active
   const isMove = event.action === "moved" && event.fromCollectionName && event.toCollectionName;
@@ -265,19 +270,19 @@ function EventCard({
           {typeIconPath && (
             <img
               src={typeIconPath}
-              alt={event.cardType}
+              alt={cardTypeLabel}
               title={
-                event.cardSuperTypes.length > 0
-                  ? `${event.cardSuperTypes.join(" ")} ${event.cardType}`
-                  : event.cardType
+                superTypeLabels.length > 0
+                  ? `${superTypeLabels.join(" ")} ${cardTypeLabel}`
+                  : cardTypeLabel
               }
               className="size-3.5 brightness-0 dark:invert"
             />
           )}
           <img
             src={`/images/rarities/${event.rarity.toLowerCase()}-28x28.webp`}
-            alt={event.rarity}
-            title={event.rarity}
+            alt={rarityLabel}
+            title={rarityLabel}
             className="size-3.5"
           />
           {totalPrice !== undefined && (

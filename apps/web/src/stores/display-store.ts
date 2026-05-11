@@ -104,6 +104,8 @@ interface DisplayState {
   setFiltersExpanded: (value: boolean) => void;
   catalogMode: "off" | "count" | "add";
   cycleCatalogMode: () => void;
+  displayMode: "grid" | "table";
+  setDisplayMode: (value: "grid" | "table") => void;
 
   // Layout state (derived from viewport, not persisted)
   physicalMax: number;
@@ -220,6 +222,8 @@ export const useDisplayStore = create<DisplayState>()(
           const next = { off: "count", count: "add", add: "off" } as const;
           return { catalogMode: next[state.catalogMode] };
         }),
+      displayMode: "grid" as const,
+      setDisplayMode: (value) => set({ displayMode: value }),
 
       physicalMax: 8,
       physicalMin: 1,
@@ -235,6 +239,7 @@ export const useDisplayStore = create<DisplayState>()(
         maxColumns: state.maxColumns,
         filtersExpanded: state.filtersExpanded,
         catalogMode: state.catalogMode,
+        displayMode: state.displayMode,
       }),
       merge: (persisted, current) => {
         const safe = sanitizeOverrides(persisted);
@@ -258,6 +263,10 @@ export const useDisplayStore = create<DisplayState>()(
               return "count";
             }
             return current.catalogMode;
+          })(),
+          displayMode: (() => {
+            const raw = (persisted as Record<string, unknown>)?.displayMode;
+            return raw === "grid" || raw === "table" ? raw : current.displayMode;
           })(),
         };
       },

@@ -1,5 +1,6 @@
 import type {
   CardFilters,
+  DistributionChannel,
   Marketplace,
   PriceLookup,
   Printing,
@@ -31,6 +32,8 @@ interface UseCollectionCardDataParams {
   /** Reverse map from translated keyword labels to canonical names, for cross-language search. */
   keywordReverseMap?: Map<string, string>;
   languageOrder?: string[];
+  /** Full channel registry so the filter UI can render breadcrumbs. */
+  channels?: readonly DistributionChannel[];
 }
 
 /**
@@ -50,6 +53,7 @@ export function useCollectionCardData({
   prices,
   keywordReverseMap,
   languageOrder,
+  channels,
 }: UseCollectionCardDataParams) {
   "use memo";
   const { stacks, totalCopies, isReady } = useStackedCopies(collectionId);
@@ -67,7 +71,11 @@ export function useCollectionCardData({
   const effectiveLanguageOrder =
     languageOrder && languageOrder.length > 0 ? languageOrder : defaultEffectiveLanguageOrder;
 
-  const availableFilters = getAvailableFilters(collectionPrintings, { orders, getPrice });
+  const availableFilters = getAvailableFilters(collectionPrintings, {
+    orders,
+    getPrice,
+    channels,
+  });
   availableFilters.supplementalSets = new Set(
     sets.filter((s) => s.setType === WellKnown.setType.SUPPLEMENTAL).map((s) => s.slug),
   );

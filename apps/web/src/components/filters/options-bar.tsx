@@ -1,8 +1,10 @@
 import type { AvailableFilters, FilterCounts, GroupByField, SortOption } from "@openrift/shared";
 import {
   CopyIcon,
+  LayoutGridIcon,
   MinusIcon,
   PlusIcon,
+  Rows3Icon,
   SquareIcon,
   SquareStackIcon,
   SlidersHorizontalIcon,
@@ -23,6 +25,7 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -43,7 +46,73 @@ const groupByOptions: { value: GroupByField; label: string }[] = [
   { value: "superType", label: "Supertype" },
   { value: "domain", label: "Domain" },
   { value: "rarity", label: "Rarity" },
+  { value: "channel", label: "Distribution Channel" },
+  { value: "year", label: "Year" },
+  { value: "marker", label: "Marker" },
 ];
+
+export function DisplayModeToggle({
+  compact,
+  className,
+}: {
+  compact?: boolean;
+  className?: string;
+}) {
+  const displayMode = useDisplayStore((state) => state.displayMode);
+  const setDisplayMode = useDisplayStore((state) => state.setDisplayMode);
+  const isMobile = useIsMobile();
+  if (isMobile) {
+    return null;
+  }
+  return (
+    <ButtonGroup aria-label="Display mode" className={className}>
+      {compact ? (
+        <Button
+          variant={displayMode === "grid" ? "default" : "outline"}
+          size="sm"
+          className="gap-1.5 text-xs"
+          onClick={() => setDisplayMode("grid")}
+        >
+          <LayoutGridIcon />
+          Grid
+        </Button>
+      ) : (
+        <Button
+          variant={displayMode === "grid" ? "default" : "outline"}
+          size="icon"
+          onClick={() => setDisplayMode("grid")}
+          title="Grid view"
+          aria-label="Grid view"
+          aria-pressed={displayMode === "grid"}
+        >
+          <LayoutGridIcon className="size-4" />
+        </Button>
+      )}
+      {compact ? (
+        <Button
+          variant={displayMode === "table" ? "default" : "outline"}
+          size="sm"
+          className="gap-1.5 text-xs"
+          onClick={() => setDisplayMode("table")}
+        >
+          <Rows3Icon />
+          Table
+        </Button>
+      ) : (
+        <Button
+          variant={displayMode === "table" ? "default" : "outline"}
+          size="icon"
+          onClick={() => setDisplayMode("table")}
+          title="Table view"
+          aria-label="Table view"
+          aria-pressed={displayMode === "table"}
+        >
+          <Rows3Icon className="size-4" />
+        </Button>
+      )}
+    </ButtonGroup>
+  );
+}
 
 function ViewModeToggle({
   compact,
@@ -208,6 +277,7 @@ function useOptionsBarState() {
   const { sortBy, sortDir, hasActiveFilters, view, groupBy, groupDir } = useFilterValues();
   const { setSortBy, setSortDir, setView, setGroupBy, setGroupDir } = useFilterActions();
 
+  const displayMode = useDisplayStore((s) => s.displayMode);
   const maxColumns = useDisplayStore((s) => s.maxColumns);
   const setMaxColumns = useDisplayStore((s) => s.setMaxColumns);
   const maxColumnsLimit = useDisplayStore((s) => s.physicalMax);
@@ -237,6 +307,7 @@ function useOptionsBarState() {
     setGroupBy,
     setGroupDir,
     columnProps,
+    displayMode,
   };
 }
 
@@ -265,6 +336,7 @@ export function DesktopOptionsBar({
     setGroupBy,
     setGroupDir,
     columnProps,
+    displayMode,
   } = useOptionsBarState();
 
   return (
@@ -286,7 +358,8 @@ export function DesktopOptionsBar({
       {!hideViewToggle && (
         <ViewModeToggle view={view} onViewChange={setView} showCopies={showCopies} />
       )}
-      <ColumnControls {...columnProps} />
+      <DisplayModeToggle />
+      {displayMode === "grid" && <ColumnControls {...columnProps} />}
     </div>
   );
 }
@@ -349,6 +422,7 @@ export function MobileOptionsContent({ showCopies }: { showCopies?: boolean } = 
     setGroupBy,
     setGroupDir,
     columnProps,
+    displayMode,
   } = useOptionsBarState();
 
   return (
@@ -368,15 +442,14 @@ export function MobileOptionsContent({ showCopies }: { showCopies?: boolean } = 
           onDirChange: setGroupDir,
         }}
       />
-      <div className="flex items-center gap-2">
-        <ViewModeToggle
-          compact
-          view={view}
-          onViewChange={setView}
-          showCopies={showCopies}
-          className="mr-auto"
-        />
-        <ColumnControls compact {...columnProps} />
+      <div className="flex flex-wrap items-center gap-2">
+        <ViewModeToggle compact view={view} onViewChange={setView} showCopies={showCopies} />
+        <DisplayModeToggle compact />
+        {displayMode === "grid" && (
+          <div className="ml-auto">
+            <ColumnControls compact {...columnProps} />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -389,6 +462,7 @@ export function MobileFilterContent({
   hiddenSections,
   filterOverrides,
   filterCounts,
+  renderOwnedFlag,
 }: {
   availableFilters: AvailableFilters;
   availableLanguages?: string[];
@@ -396,6 +470,7 @@ export function MobileFilterContent({
   hiddenSections?: ReadonlySet<string>;
   filterOverrides?: Partial<Record<string, string[]>>;
   filterCounts?: FilterCounts;
+  renderOwnedFlag?: (props: { label: string; isActive: boolean; onClick: () => void }) => ReactNode;
 }) {
   return (
     <div className="border-t pt-4">
@@ -408,6 +483,7 @@ export function MobileFilterContent({
           hiddenSections={hiddenSections}
           filterOverrides={filterOverrides}
           filterCounts={filterCounts}
+          renderOwnedFlag={renderOwnedFlag}
         />
       </div>
     </div>

@@ -59,19 +59,6 @@ export function ImageSuggestForm({ card, printing, setSlug, setName }: ImageSugg
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-      <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[auto_1fr]">
-        <dt className="text-muted-foreground">Card</dt>
-        <dd className="font-medium">{card.name}</dd>
-        <dt className="text-muted-foreground">Set</dt>
-        <dd>{setName}</dd>
-        <dt className="text-muted-foreground">Code</dt>
-        <dd className="font-mono">{printing.publicCode || "(none)"}</dd>
-        <dt className="text-muted-foreground">Finish</dt>
-        <dd>{printing.finish}</dd>
-        <dt className="text-muted-foreground">Language</dt>
-        <dd>{printing.language || "EN"}</dd>
-      </dl>
-
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="image-url">Image URL</Label>
         <Input
@@ -82,28 +69,39 @@ export function ImageSuggestForm({ card, printing, setSlug, setName }: ImageSugg
           placeholder="https://..."
         />
         {urlError ? (
-          <p className="text-red-600 dark:text-red-400">{urlError}</p>
+          <p className="text-sm text-red-600 dark:text-red-400">{urlError}</p>
         ) : (
-          <p className="text-muted-foreground">
-            A direct link to the image file is preferred (the URL should end in .png, .jpg, or
-            similar). If you only have a photo or scan, leave this empty and attach it to the GitHub
-            pull request after submitting.
+          <p className="text-muted-foreground text-sm">
+            Any image format works (.png, .jpg, .webp, .avif, ...).
           </p>
         )}
+        <details className="text-muted-foreground text-sm">
+          <summary className="hover:text-foreground cursor-pointer">
+            Only have a photo or scan?
+          </summary>
+          <p className="mt-1.5">
+            Leave this field empty and submit. You can attach the file on the GitHub page that
+            opens.
+          </p>
+        </details>
       </div>
 
       <div className="flex flex-col gap-2">
         <Button type="submit" className="self-start">
           <ExternalLinkIcon className="size-4" />
-          Submit image suggestion
+          Submit via GitHub
         </Button>
         <p className="text-muted-foreground text-sm">
-          A new tab opens on GitHub with everything filled in. If you don&apos;t already have a fork
-          of the data repo, GitHub will offer to create one in a single click. Then click
-          &ldquo;Propose changes&rdquo; at the bottom of the editor, and &ldquo;Create pull
-          request&rdquo; on the next page to confirm. I&apos;ll review your submission before it
-          goes live.
+          Opens in a new tab to confirm. I&apos;ll review before it goes live.
         </p>
+        <details className="text-muted-foreground text-sm">
+          <summary className="hover:text-foreground cursor-pointer">First time on GitHub?</summary>
+          <ol className="mt-1.5 ml-5 list-decimal space-y-1">
+            <li>GitHub will offer to fork the data repo in one click. Accept it.</li>
+            <li>Scroll to the bottom of the editor and click &ldquo;Propose changes&rdquo;.</li>
+            <li>On the next page, click &ldquo;Create pull request&rdquo; to confirm.</li>
+          </ol>
+        </details>
       </div>
     </form>
   );

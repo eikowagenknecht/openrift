@@ -1,8 +1,37 @@
 import type { CopyResponse, Finish } from "@openrift/shared";
-import { describe, expect, it } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { renderHook } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { describe, expect, it, vi } from "vitest";
 
 import type { OwnedBreakdownVariant } from "./use-owned-count";
-import { aggregateByVariant } from "./use-owned-count";
+
+vi.mock("@tanstack/react-start", () => ({
+  createServerFn: () => {
+    const chain = {
+      handler: () => async () => null,
+      middleware: () => chain,
+      inputValidator: () => chain,
+    };
+    return chain;
+  },
+  createMiddleware: () => {
+    const chain = { server: () => chain };
+    return chain;
+  },
+}));
+
+vi.mock("@/lib/server-fns/fetch-api", () => ({
+  fetchApi: vi.fn(),
+  fetchApiJson: vi.fn(),
+}));
+
+vi.mock("@/lib/server-fns/middleware", () => ({
+  withCookies: () => {},
+}));
+
+const { aggregateByVariant, useOwnedCountFor, useOwnedCountsForPrintings } =
+  await import("./use-owned-count");
 
 const v1: OwnedBreakdownVariant = { id: "p1", shortCode: "OGN-001", finish: "normal" as Finish };
 const v2: OwnedBreakdownVariant = { id: "p2", shortCode: "OGN-001p", finish: "foil" as Finish };
@@ -83,5 +112,48 @@ describe("aggregateByVariant", () => {
 
   it("returns an empty array when no variants are provided", () => {
     expect(aggregateByVariant([copy("p1", "c-import")], [], NAME_MAP)).toEqual([]);
+  });
+});
+
+function wrap(client: QueryClient) {
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  };
+}
+
+// Per-row hooks are mounted on /cards rows even when disabled (logged-out users
+// see the same DOM, gated by the `enabled` flag). They must tolerate a missing
+// session at mount and return undefined data without throwing.
+describe("per-printing owned-count hooks tolerate an unauthenticated session", () => {
+  it("useOwnedCountFor returns undefined when disabled", () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { result } = renderHook(() => useOwnedCountFor("p1", false), {
+      wrapper: wrap(client),
+    });
+    expect(result.current.data).toBeUndefined();
+  });
+
+  it("useOwnedCountFor returns undefined when no session is cached", () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { result } = renderHook(() => useOwnedCountFor("p1", true), {
+      wrapper: wrap(client),
+    });
+    expect(result.current.data).toBeUndefined();
+  });
+
+  it("useOwnedCountsForPrintings returns undefined when disabled", () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { result } = renderHook(() => useOwnedCountsForPrintings(["p1", "p2"], false), {
+      wrapper: wrap(client),
+    });
+    expect(result.current.data).toBeUndefined();
+  });
+
+  it("useOwnedCountsForPrintings returns undefined when no session is cached", () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { result } = renderHook(() => useOwnedCountsForPrintings(["p1", "p2"], true), {
+      wrapper: wrap(client),
+    });
+    expect(result.current.data).toBeUndefined();
   });
 });

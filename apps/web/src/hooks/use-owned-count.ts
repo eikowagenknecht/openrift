@@ -1,5 +1,5 @@
 import type { CopyCollectionBreakdownEntry, CopyResponse, Finish } from "@openrift/shared";
-import { eq, useLiveQuery } from "@tanstack/react-db";
+import { eq, inArray, useLiveQuery } from "@tanstack/react-db";
 import { useQuery } from "@tanstack/react-query";
 
 import { collectionsQueryOptions } from "@/hooks/use-collections";
@@ -34,6 +34,76 @@ export function useOwnedCount(enabled: boolean): {
     return { data: undefined };
   }
   return { data: aggregateTotals(copies) };
+}
+
+/**
+ * Per-printing owned count, scoped to a single printingId via a `where` filter.
+ * Lets each row in a virtualized list subscribe to just its own count, so
+ * adding or removing a copy only re-renders the row that owns that printing.
+ * The map-wide variant {@link useOwnedCount} above re-fires every consumer on
+ * any copy mutation.
+ * @returns The count, or undefined when disabled or still loading.
+ */
+export function useOwnedCountFor(
+  printingId: string,
+  enabled: boolean,
+): { data: number | undefined } {
+  const copiesCollection = useCopiesCollection();
+
+  const { data: copies } = useLiveQuery(
+    (q) =>
+      enabled && copiesCollection
+        ? q.from({ copy: copiesCollection }).where(({ copy }) => eq(copy.printingId, printingId))
+        : null,
+    [printingId, enabled, copiesCollection],
+  );
+
+  if (!enabled || !copies) {
+    return { data: undefined };
+  }
+  return { data: copies.length };
+}
+
+/**
+ * Owned counts for a set of printings (same card siblings) via `inArray`.
+ * Returns both per-printing totals and the summed total across the set, so
+ * the caller can show one number and still ask whether multiple variants
+ * have copies (for the cards-view "minus on ambiguous removal opens variant
+ * popover" branch). Same per-row subscription rationale as
+ * {@link useOwnedCountFor} — only re-fires when one of the listed siblings'
+ * counts actually changes.
+ * @returns The per-printing totals and summed total, or undefined when
+ *   disabled or still loading.
+ */
+export function useOwnedCountsForPrintings(
+  printingIds: readonly string[],
+  enabled: boolean,
+): { data: { totals: Record<string, number>; total: number } | undefined } {
+  const copiesCollection = useCopiesCollection();
+
+  // Identity-stable key so the live query doesn't tear down on unrelated
+  // parent renders that happen to recreate the array.
+  const idsKey = printingIds.join(",");
+
+  const { data: copies } = useLiveQuery(
+    (q) =>
+      enabled && copiesCollection && printingIds.length > 0
+        ? q
+            .from({ copy: copiesCollection })
+            .where(({ copy }) => inArray(copy.printingId, [...printingIds]))
+        : null,
+    [idsKey, enabled, copiesCollection],
+  );
+
+  if (!enabled || !copies) {
+    return { data: undefined };
+  }
+  const totals = aggregateTotals(copies);
+  let total = 0;
+  for (const id of printingIds) {
+    total += totals[id] ?? 0;
+  }
+  return { data: { totals, total } };
 }
 
 /**

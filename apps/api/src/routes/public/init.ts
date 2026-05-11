@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
-import type { InitResponse, KeywordEntry } from "@openrift/shared";
+import type { DistributionChannel, InitResponse, KeywordEntry } from "@openrift/shared";
 import { initResponseSchema } from "@openrift/shared/response-schemas";
 
 import type { Variables } from "../../types.js";
@@ -18,11 +18,12 @@ const getInit = createRoute({
 
 /** Public: GET /init — returns enums + keywords in a single request. */
 export const initRoute = new OpenAPIHono<{ Variables: Variables }>().openapi(getInit, async (c) => {
-  const { enums, keywords } = c.get("repos");
-  const [enumData, keywordRows, translations] = await Promise.all([
+  const { enums, keywords, distributionChannels } = c.get("repos");
+  const [enumData, keywordRows, translations, channelRows] = await Promise.all([
     enums.all(),
     keywords.listAll(),
     keywords.listAllTranslations(),
+    distributionChannels.listAll(),
   ]);
 
   const keywordsMap: Record<string, KeywordEntry> = {};
@@ -51,9 +52,20 @@ export const initRoute = new OpenAPIHono<{ Variables: Variables }>().openapi(get
     ]),
   ) as unknown as InitResponse["enums"];
 
+  const channelsResponse: DistributionChannel[] = channelRows.map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    label: row.label,
+    description: row.description,
+    kind: row.kind,
+    parentId: row.parentId,
+    childrenLabel: row.childrenLabel,
+  }));
+
   c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
   return c.json({
     enums: strippedEnums,
     keywords: keywordsMap,
+    distributionChannels: channelsResponse,
   } satisfies InitResponse);
 });

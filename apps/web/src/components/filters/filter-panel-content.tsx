@@ -72,6 +72,14 @@ interface FilterPanelContentProps {
    * unfaceted badges (deck builder, collection grid).
    */
   filterCounts?: FilterCounts;
+  /**
+   * Optional override for the Owned chip. When provided, the caller renders
+   * the badge themselves (typically a self-subscribing component that reads
+   * its count via {@link useOwnedFlagCount} so +/- clicks only invalidate
+   * the chip, not the rest of the panel). When omitted, the badge falls
+   * back to `filterCounts.flags.owned`.
+   */
+  renderOwnedFlag?: (props: { label: string; isActive: boolean; onClick: () => void }) => ReactNode;
 }
 
 export function FilterPanelContent({
@@ -81,6 +89,7 @@ export function FilterPanelContent({
   hiddenSections,
   filterOverrides,
   filterCounts,
+  renderOwnedFlag,
 }: FilterPanelContentProps) {
   return (
     <>
@@ -91,6 +100,7 @@ export function FilterPanelContent({
         hiddenSections={hiddenSections}
         filterOverrides={filterOverrides}
         filterCounts={filterCounts}
+        renderOwnedFlag={renderOwnedFlag}
       />
       <FilterRangeSections availableFilters={availableFilters} filterCounts={filterCounts} />
     </>
@@ -104,6 +114,7 @@ export function FilterBadgeSections({
   hiddenSections,
   filterOverrides,
   filterCounts,
+  renderOwnedFlag,
 }: FilterPanelContentProps) {
   const { labels } = useEnumOrders();
   const { filterState, view } = useFilterValues();
@@ -240,9 +251,9 @@ export function FilterBadgeSections({
           )}
           {!hiddenSections?.has("channels") && availableFilters.distributionChannels.length > 0 && (
             <MultiSelectCombobox
-              label="Channels"
-              searchPlaceholder="Search channels…"
-              emptyText="No channels match."
+              label="Distribution Channels"
+              searchPlaceholder="Search distribution channels…"
+              emptyText="No distribution channels match."
               options={availableFilters.distributionChannels.map((c) => ({
                 value: c.slug,
                 label: channelBreadcrumbs.get(c.id) ?? c.label,
@@ -283,21 +294,28 @@ export function FilterBadgeSections({
               onClick={toggleErrata}
             />
           )}
-          {!hiddenSections?.has("owned") && (
-            <FlagBadge
-              label={ownedLabel}
-              isActive={filterState.owned !== null}
-              count={filterCounts?.flags.owned}
-              onClick={() => toggleOwned(allowIncomplete)}
-            />
-          )}
+          {!hiddenSections?.has("owned") &&
+            (renderOwnedFlag ? (
+              renderOwnedFlag({
+                label: ownedLabel,
+                isActive: filterState.owned !== null,
+                onClick: () => toggleOwned(allowIncomplete),
+              })
+            ) : (
+              <FlagBadge
+                label={ownedLabel}
+                isActive={filterState.owned !== null}
+                count={filterCounts?.flags.owned}
+                onClick={() => toggleOwned(allowIncomplete)}
+              />
+            ))}
         </FilterSection>
       )}
     </>
   );
 }
 
-function FlagBadge({
+export function FlagBadge({
   label,
   isActive,
   count,

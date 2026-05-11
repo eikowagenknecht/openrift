@@ -2,32 +2,30 @@ import type { Printing } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { PackageIcon, PackagePlusIcon } from "lucide-react";
-import type { ReactNode } from "react";
 import { useEffect, useDeferredValue, useState } from "react";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
+import { BrowserCardCell } from "@/components/cards/browser-card-cell";
+import {
+  CardCatalogActiveFilters,
+  CardCatalogCollapsibleFilters,
+  CardCatalogFilterProvider,
+  CardCatalogLeftPaneFilters,
+  CardCatalogMobileFilters,
+} from "@/components/cards/card-catalog-filter-panel";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
-import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
-import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
-import { CollectionAddStrip } from "@/components/collection/collection-add-strip";
+import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { DisposePickerPopover } from "@/components/collection/dispose-picker-popover";
 import { QuickAddPalette } from "@/components/collection/quick-add-palette";
 import { VariantAddPopover } from "@/components/collection/variant-add-popover";
-import { ActiveFilters } from "@/components/filters/active-filters";
-import {
-  CollapsibleFilterPanel,
-  FilterToggleButton,
-} from "@/components/filters/collapsible-filter-panel";
-import { FilterPanelContent } from "@/components/filters/filter-panel-content";
+import { FilterToggleButton } from "@/components/filters/collapsible-filter-panel";
 import {
   DesktopOptionsBar,
-  MobileFilterContent,
   MobileOptionsContent,
   MobileOptionsDrawer,
 } from "@/components/filters/options-bar";
 import { SearchBar } from "@/components/filters/search-bar";
-import { Pane } from "@/components/layout/panes";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { Button } from "@/components/ui/button";
@@ -37,6 +35,7 @@ import { useCardDeepLink } from "@/hooks/use-card-deep-link";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { collectionsQueryOptions } from "@/hooks/use-collections";
+import { useChannelRegistry } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
@@ -44,17 +43,12 @@ import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import { useSession, useUserId } from "@/lib/auth-session";
 import { useAddModeStore } from "@/stores/add-mode-store";
+import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
-// Markers and channels are filterable from the URL but the catalog browser
-// has no UI for them today — they live with /promos. Always hide both. Owned
-// is only meaningful for logged-in users (counts would otherwise read 0).
-const CARD_BROWSER_HIDDEN: ReadonlySet<string> = new Set(["markers", "channels"]);
-const CARD_BROWSER_HIDDEN_LOGGED_OUT: ReadonlySet<string> = new Set([
-  ...CARD_BROWSER_HIDDEN,
-  "owned",
-]);
+// Owned is only meaningful for logged-in users (counts would otherwise read 0).
+const CARD_BROWSER_HIDDEN_LOGGED_OUT: ReadonlySet<string> = new Set(["owned"]);
 
 /**
  * Standalone catalog browser for the /cards route.
@@ -67,6 +61,7 @@ export function CardBrowser() {
   const catalogMode = useDisplayStore((s) => s.catalogMode);
   const cycleCatalogMode = useDisplayStore((s) => s.cycleCatalogMode);
   const { allPrintings, printingsById, sets } = useCards();
+  const channels = useChannelRegistry();
   // Lifted out of <CardThumbnail> — see useCardThumbnailDisplay for the why.
   // We reuse display.prices / display.favoriteMarketplace below for useCardData.
   const display = useCardThumbnailDisplay();
@@ -116,32 +111,34 @@ export function CardBrowser() {
   // means "show all" (the user cleared every language within this session).
   useSeedLanguagesFromPrefs(filters.languages);
 
-  const {
-    availableFilters,
-    availableLanguages,
-    filterCounts,
-    sortedCards,
-    printingsByCardId,
-    priceRangeByCardId,
-    totalUniqueCards,
-    filteredCount,
-    setDisplayLabel,
-  } = useCardData({
-    allPrintings,
-    sets,
-    filters,
-    ownedFilter: filters.ownedFilter,
-    sortBy,
-    sortDir,
-    view,
-    groupBy,
-    ownedCountByPrinting,
-    favoriteMarketplace: display.favoriteMarketplace,
-    prices: display.prices,
-    keywordReverseMap,
-  });
+  // Same gating as <CardCatalogFilterProvider>: useCardData internally calls
+  // useOwnedFlagCount and merges flags.owned into its filterCounts. That
+  // merge makes the return object fresh on every +/-, which (without an
+  // ownedFilter) ripples through sortedCards → items → groups → virtualRows
+  // and bails GroupHeaderRow's memo. CardBrowser doesn't read
+  // filterCounts.flags.owned (the chip is self-subscribed), so passing
+  // undefined here is safe; legacy callers (collection-grid, deck-card-
+  // browser) still pass their own ownedCountByPrinting.
+  const ownedCountForCardData = filters.ownedFilter ? ownedCountByPrinting : undefined;
 
-  const hiddenFilterSections = isLoggedIn ? CARD_BROWSER_HIDDEN : CARD_BROWSER_HIDDEN_LOGGED_OUT;
+  const { sortedCards, printingsByCardId, priceRangeByCardId, totalUniqueCards, filteredCount } =
+    useCardData({
+      allPrintings,
+      sets,
+      filters,
+      ownedFilter: filters.ownedFilter,
+      sortBy,
+      sortDir,
+      view,
+      groupBy,
+      ownedCountByPrinting: ownedCountForCardData,
+      favoriteMarketplace: display.favoriteMarketplace,
+      prices: display.prices,
+      keywordReverseMap,
+      channels,
+    });
+
+  const hiddenFilterSections = isLoggedIn ? undefined : CARD_BROWSER_HIDDEN_LOGGED_OUT;
 
   const deferredSortedCards = useDeferredValue(sortedCards);
   const isGridStale = deferredSortedCards !== sortedCards;
@@ -197,6 +194,27 @@ export function CardBrowser() {
     setTopPrintingOverrides((prev) => new Map(prev).set(printing.cardId, printing.id));
   };
 
+  // Register row-action handlers in a no-subscribe store so virtualized rows
+  // (table + grid) can dispatch via getState() without taking these unstable
+  // closures as props. See card-row-actions-store.ts for the why. Re-register
+  // on every render — the handlers close over per-render state (items,
+  // findBy, mutation results) and we want rows to dispatch the freshest
+  // implementation. Listing them as deps would just trigger re-runs anyway
+  // since none are reference-stable.
+  // oxlint-disable-next-line react-hooks/exhaustive-deps -- intentional: re-register every render
+  useEffect(() => {
+    useCardRowActionsStore.getState().setHandlers({
+      onRowClick: handleGridCardClick,
+      onSiblingClick: handleSiblingClick,
+      onIncrement: handleQuickAdd,
+      onDecrement: handleUndoAdd,
+      onOpenVariants: handleOpenVariantsScoped,
+    });
+    return () => {
+      useCardRowActionsStore.getState().setHandlers({});
+    };
+  });
+
   const searchAndClose = (query: string) => {
     setSearch(query);
     if (isMobile) {
@@ -222,64 +240,21 @@ export function CardBrowser() {
         ? (siblings.find((sibling) => sibling.id === overrideId) ?? item.printing)
         : item.printing;
 
-    let aboveCard: ReactNode | undefined;
-    const ownedCount = showStrip
-      ? inCardsView
-        ? (siblings?.reduce(
-            (sum, p) => sum + adjustedCount(p.id, ownedCountByPrinting?.[p.id] ?? 0),
-            0,
-          ) ?? 0)
-        : adjustedCount(displayPrinting.id, ownedCountByPrinting?.[displayPrinting.id] ?? 0)
-      : undefined;
-
-    // In cards view the shown count aggregates owned variants; a blind minus
-    // would only touch the displayed printing, so route ambiguous removals
-    // through the variant popover to let the user pick.
-    const ownedVariantCount =
-      inCardsView && siblings
-        ? siblings.filter((s) => (ownedCountByPrinting?.[s.id] ?? 0) > 0).length
-        : 0;
-    const hasAmbiguousRemoval = ownedVariantCount > 1;
-    const onUndoAdd =
-      hasAmbiguousRemoval && handleOpenVariantsScoped ? handleOpenVariantsScoped : handleUndoAdd;
-
-    if (ownedCount !== undefined) {
-      aboveCard = handleQuickAdd ? (
-        <CollectionAddStrip
-          printing={displayPrinting}
-          ownedCount={ownedCount}
-          hasVariants={inCardsView && (siblings?.length ?? 0) > 1}
-          onQuickAdd={handleQuickAdd}
-          onUndoAdd={onUndoAdd}
-          onOpenVariants={handleOpenVariantsScoped}
-        />
-      ) : (
-        <OwnedCountStrip
-          count={ownedCount}
-          printingId={displayPrinting.id}
-          cardName={displayPrinting.card.name}
-          shortCode={displayPrinting.shortCode}
-          siblings={inCardsView ? siblings : undefined}
-        />
-      );
-    }
-
     return (
-      <CardThumbnail
+      <BrowserCardCell
         printing={displayPrinting}
-        onClick={handleGridCardClick}
-        onSiblingClick={handleSiblingClick}
-        showImages={showImages}
+        siblings={inCardsView ? siblings : undefined}
         isSelected={ctx.isSelected}
         isFlashing={ctx.isFlashing}
-        dimmed={ownedCount === 0}
-        siblings={inCardsView ? siblings : undefined}
-        priceRange={priceRangeByCardId?.get(cardId)}
-        view={view}
         cardWidth={ctx.cardWidth}
         priority={ctx.priority}
+        showImages={showImages}
+        view={view}
         display={display}
-        aboveCard={aboveCard}
+        priceRange={priceRangeByCardId?.get(cardId)}
+        showStrip={showStrip}
+        showAddControls={isAddMode}
+        inCardsView={inCardsView}
       />
     );
   };
@@ -319,39 +294,14 @@ export function CardBrowser() {
           className="sm:hidden"
         >
           <MobileOptionsContent />
-          <MobileFilterContent
-            availableFilters={availableFilters}
-            availableLanguages={availableLanguages}
-            setDisplayLabel={setDisplayLabel}
-            filterCounts={filterCounts}
-            hiddenSections={hiddenFilterSections}
-          />
+          <CardCatalogMobileFilters />
         </MobileOptionsDrawer>
       </div>
-      <CollapsibleFilterPanel
-        availableFilters={availableFilters}
-        availableLanguages={availableLanguages}
-        setDisplayLabel={setDisplayLabel}
-        filterCounts={filterCounts}
-        hiddenSections={hiddenFilterSections}
-      />
+      <CardCatalogCollapsibleFilters />
     </>
   );
 
-  const leftPane = (
-    <Pane className="@wide:block px-3">
-      <h2 className="pb-4 text-lg font-semibold">Filters</h2>
-      <div className="space-y-4 pb-4">
-        <FilterPanelContent
-          availableFilters={availableFilters}
-          availableLanguages={availableLanguages}
-          setDisplayLabel={setDisplayLabel}
-          filterCounts={filterCounts}
-          hiddenSections={hiddenFilterSections}
-        />
-      </div>
-    </Pane>
-  );
+  const leftPane = <CardCatalogLeftPaneFilters />;
 
   const rightPane = isMobile ? undefined : (
     <SelectionDetailPane
@@ -363,108 +313,112 @@ export function CardBrowser() {
   );
 
   return (
-    <BrowserCardViewer
-      items={items}
-      totalItems={allPrintings.length}
-      renderCard={renderCard}
-      setOrder={sets}
-      groupBy={groupBy}
-      groupDir={groupDir}
-      deferredSortedCards={deferredSortedCards}
-      printingsByCardId={printingsByCardId}
-      view={view}
-      stale={isGridStale}
-      toolbar={toolbar}
-      leftPane={leftPane}
-      aboveGrid={
-        <ActiveFilters availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
-      }
-      rightPane={rightPane}
-      addStripHeight={showStrip ? ADD_STRIP_HEIGHT : undefined}
-    >
-      {isMobile && (
-        <SelectionMobileOverlay
-          items={items}
-          printingsByCardId={printingsByCardId}
-          showImages={showImages}
-          onSearchAndClose={searchAndClose}
-        />
-      )}
-      {inboxId && (
-        <QuickAddPalette
-          open={quickAddOpen}
-          onOpenChange={setQuickAddOpen}
-          collectionId={inboxId}
-          collectionName="Inbox"
-          printingsByCardId={printingsByCardId}
-          ownedCountByPrinting={ownedCountByPrinting}
-        />
-      )}
-      {variantPopover &&
-        handleQuickAdd &&
-        handleUndoAdd &&
-        (() => {
-          const allCardPrintings = printingsByCardId.get(variantPopover.cardId);
-          const variantPrintings = variantPopover.setId
-            ? allCardPrintings?.filter((p) => p.setId === variantPopover.setId)
-            : allCardPrintings;
-          if (!variantPrintings) {
-            return null;
-          }
-          return (
-            <Popover
-              open
-              onOpenChange={(open, details) => {
-                if (!open) {
-                  closeVariants(
-                    details.reason === "outside-press" ? details.event.target : undefined,
-                  );
-                }
-              }}
-            >
-              <PopoverContent
-                anchor={variantPopover.anchorEl}
-                side="bottom"
-                align="center"
-                className="max-h-72 w-max max-w-[min(90vw,24rem)] min-w-56 gap-0 overflow-y-auto p-0"
-              >
-                <VariantAddPopover
-                  printings={variantPrintings}
-                  ownedCounts={Object.fromEntries(
-                    variantPrintings.map((p) => [
-                      p.id,
-                      adjustedCount(p.id, ownedCountByPrinting?.[p.id] ?? 0),
-                    ]),
-                  )}
-                  onQuickAdd={handleQuickAdd}
-                  onUndoAdd={handleUndoAdd}
-                />
-              </PopoverContent>
-            </Popover>
-          );
-        })()}
-      {disposePicker && (
-        <Popover
-          open
-          onOpenChange={(open) => {
-            if (!open) {
-              closeDisposePicker();
+    <CardCatalogFilterProvider hiddenSections={hiddenFilterSections}>
+      <BrowserCardViewer
+        items={items}
+        totalItems={allPrintings.length}
+        renderCard={renderCard}
+        setOrder={sets}
+        groupBy={groupBy}
+        groupDir={groupDir}
+        deferredSortedCards={deferredSortedCards}
+        printingsByCardId={printingsByCardId}
+        view={view}
+        stale={isGridStale}
+        toolbar={toolbar}
+        leftPane={leftPane}
+        aboveGrid={<CardCatalogActiveFilters />}
+        rightPane={rightPane}
+        addStripHeight={showStrip ? ADD_STRIP_HEIGHT : undefined}
+        table={{
+          showOwned: showStrip,
+          showAddControls: isAddMode,
+        }}
+      >
+        {isMobile && (
+          <SelectionMobileOverlay
+            items={items}
+            printingsByCardId={printingsByCardId}
+            showImages={showImages}
+            onSearchAndClose={searchAndClose}
+          />
+        )}
+        {inboxId && (
+          <QuickAddPalette
+            open={quickAddOpen}
+            onOpenChange={setQuickAddOpen}
+            collectionId={inboxId}
+            collectionName="Inbox"
+            printingsByCardId={printingsByCardId}
+            ownedCountByPrinting={ownedCountByPrinting}
+          />
+        )}
+        {variantPopover &&
+          handleQuickAdd &&
+          handleUndoAdd &&
+          (() => {
+            const allCardPrintings = printingsByCardId.get(variantPopover.cardId);
+            const variantPrintings = variantPopover.setId
+              ? allCardPrintings?.filter((p) => p.setId === variantPopover.setId)
+              : allCardPrintings;
+            if (!variantPrintings) {
+              return null;
             }
-          }}
-        >
-          <PopoverContent
-            anchor={disposePicker.anchorEl}
-            side="bottom"
-            align="center"
-            className="w-max max-w-[min(90vw,24rem)] min-w-56 gap-0 p-0"
+            return (
+              <Popover
+                open
+                onOpenChange={(open, details) => {
+                  if (!open) {
+                    closeVariants(
+                      details.reason === "outside-press" ? details.event.target : undefined,
+                    );
+                  }
+                }}
+              >
+                <PopoverContent
+                  anchor={variantPopover.anchorEl}
+                  side="bottom"
+                  align="center"
+                  className="max-h-72 w-max max-w-[min(90vw,24rem)] min-w-56 gap-0 overflow-y-auto p-0"
+                >
+                  <VariantAddPopover
+                    printings={variantPrintings}
+                    ownedCounts={Object.fromEntries(
+                      variantPrintings.map((p) => [
+                        p.id,
+                        adjustedCount(p.id, ownedCountByPrinting?.[p.id] ?? 0),
+                      ]),
+                    )}
+                    onQuickAdd={handleQuickAdd}
+                    onUndoAdd={handleUndoAdd}
+                  />
+                </PopoverContent>
+              </Popover>
+            );
+          })()}
+        {disposePicker && (
+          <Popover
+            open
+            onOpenChange={(open) => {
+              if (!open) {
+                closeDisposePicker();
+              }
+            }}
           >
-            <DisposePickerPopover
-              printing={disposePicker.printing}
-              onPick={handleDisposeFromCollection}
-            />
-          </PopoverContent>
-        </Popover>
-      )}
-    </BrowserCardViewer>
+            <PopoverContent
+              anchor={disposePicker.anchorEl}
+              side="bottom"
+              align="center"
+              className="w-max max-w-[min(90vw,24rem)] min-w-56 gap-0 p-0"
+            >
+              <DisposePickerPopover
+                printing={disposePicker.printing}
+                onPick={handleDisposeFromCollection}
+              />
+            </PopoverContent>
+          </Popover>
+        )}
+      </BrowserCardViewer>
+    </CardCatalogFilterProvider>
   );
 }

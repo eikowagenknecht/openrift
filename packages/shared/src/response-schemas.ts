@@ -135,6 +135,16 @@ const describedEnumRowSchema = enumRowSchema.extend({
   description: z.string().nullable().openapi({ example: "Promo stamp around the rarity symbol" }),
 });
 
+const distributionChannelSchema = z.object({
+  id: z.string().openapi({ example: "019cfc3b-0369-7000-8000-000000000002" }),
+  slug: z.string().openapi({ example: "nexus-night" }),
+  label: z.string().openapi({ example: "Nexus Night" }),
+  description: z.string().nullable().openapi({ example: null }),
+  kind: z.enum(["event", "product"]).openapi({ example: "event" }),
+  parentId: z.string().nullable().openapi({ example: null }),
+  childrenLabel: z.string().nullable().openapi({ example: null }),
+});
+
 export const initResponseSchema = z
   .object({
     enums: z.object({
@@ -150,6 +160,7 @@ export const initResponseSchema = z
       markers: z.array(describedEnumRowSchema),
     }),
     keywords: z.record(z.string(), keywordEntrySchema),
+    distributionChannels: z.array(distributionChannelSchema).openapi({ example: [] }),
   })
   .openapi("InitResponse");
 
@@ -245,16 +256,6 @@ const markerSchema = z.object({
   slug: z.string().openapi({ example: "promo" }),
   label: z.string().openapi({ example: "Promo" }),
   description: z.string().nullable().openapi({ example: null }),
-});
-
-const distributionChannelSchema = z.object({
-  id: z.string().openapi({ example: "019cfc3b-0369-7000-8000-000000000002" }),
-  slug: z.string().openapi({ example: "nexus-night" }),
-  label: z.string().openapi({ example: "Nexus Night" }),
-  description: z.string().nullable().openapi({ example: null }),
-  kind: z.enum(["event", "product"]).openapi({ example: "event" }),
-  parentId: z.string().nullable().openapi({ example: null }),
-  childrenLabel: z.string().nullable().openapi({ example: null }),
 });
 
 const printingDistributionChannelSchema = z.object({

@@ -1,4 +1,4 @@
-import type { DeckZone, EnumOrders } from "@openrift/shared";
+import type { DeckZone, DistributionChannel, EnumOrders } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { initQueryOptions } from "@/hooks/use-init";
@@ -86,6 +86,23 @@ export function useMarkerList(): { slug: string; label: string; description: str
   const { data } = useSuspenseQuery(initQueryOptions);
   const rows = (data.enums.markers ?? []).toSorted((a, b) => a.sortOrder - b.sortOrder);
   return rows.map((row) => ({ slug: row.slug, label: row.label, description: row.description }));
+}
+
+/**
+ * Returns the full distribution-channel registry (including parents that no
+ * printing links to directly) from /init. Lets the filter UI render breadcrumb
+ * labels via `buildChannelBreadcrumbs` without bundling the registry onto the
+ * much larger catalog payload.
+ *
+ * Named distinctly from the admin-only `useDistributionChannels` (which talks
+ * to the admin endpoint and returns per-channel counts) so the two don't
+ * collide at import sites.
+ *
+ * @returns The channel registry.
+ */
+export function useChannelRegistry(): DistributionChannel[] {
+  const { data } = useSuspenseQuery(initQueryOptions);
+  return data.distributionChannels ?? [];
 }
 
 /**

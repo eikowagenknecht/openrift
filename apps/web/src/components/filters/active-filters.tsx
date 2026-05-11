@@ -126,7 +126,7 @@ export function ActiveFilters({
     },
     {
       key: "channels",
-      label: "Channel",
+      label: "Distribution Channel",
       values: filterState.channels,
       displayLabel: channelLabel,
     },

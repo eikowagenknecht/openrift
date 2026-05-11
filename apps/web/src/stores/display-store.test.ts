@@ -238,6 +238,14 @@ describe("useDisplayStore", () => {
       expect(useDisplayStore.getState().catalogMode).toBe("off");
     });
 
+    it("setDisplayMode toggles between grid and table", () => {
+      expect(useDisplayStore.getState().displayMode).toBe("grid");
+      useDisplayStore.getState().setDisplayMode("table");
+      expect(useDisplayStore.getState().displayMode).toBe("table");
+      useDisplayStore.getState().setDisplayMode("grid");
+      expect(useDisplayStore.getState().displayMode).toBe("grid");
+    });
+
     it("layout state setters work", () => {
       useDisplayStore.getState().setPhysicalMax(12);
       useDisplayStore.getState().setPhysicalMin(2);

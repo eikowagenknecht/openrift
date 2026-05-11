@@ -1,6 +1,7 @@
 import { Radio } from "@base-ui/react/radio";
 import { ArrowDownNarrowWideIcon, ArrowUpNarrowWideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { useState } from "react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RadioGroup } from "@/components/ui/radio-group";
@@ -115,6 +116,11 @@ export function SortGroupControls<
     group && (group.options.find((option) => option.value === group.value)?.label ?? group.value);
   const groupingActive = group !== undefined && (group.value as string) !== "none";
 
+  const [open, setOpen] = useState(false);
+
+  // Picking a group/sort/view option closes the popover so the user can see the
+  // result of their selection. The asc/desc DirToggle stays open — it's a small
+  // adjustment the user may want to make alongside other choices in the panel.
   const renderOptions = <TValue extends string>(
     options: SortGroupOption<TValue>[],
     selectedValue: TValue,
@@ -122,7 +128,10 @@ export function SortGroupControls<
   ) => (
     <RadioGroup
       value={selectedValue}
-      onValueChange={(value) => onSelect(value as TValue)}
+      onValueChange={(value) => {
+        onSelect(value as TValue);
+        setOpen(false);
+      }}
       className={cn("gap-0.5", compact ? "flex flex-row flex-wrap gap-1" : "flex flex-col")}
     >
       {options.map((option) => (
@@ -181,7 +190,7 @@ export function SortGroupControls<
   }
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         className={cn(
           "border-input bg-background ring-ring/10 dark:bg-input/30 hover:bg-muted hover:text-foreground dark:hover:bg-input/50 inline-flex h-8 items-center gap-2 rounded-md border px-3 text-sm whitespace-nowrap shadow-xs transition-colors",

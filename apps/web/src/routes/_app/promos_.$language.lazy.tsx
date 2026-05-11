@@ -8,27 +8,35 @@ import {
   useNavigate,
   useRouter,
 } from "@tanstack/react-router";
-import { PackageIcon } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { LinkIcon, PackageIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
+import { CardBrowserLayout, useCardBrowserLayoutOffsets } from "@/components/card-browser-layout";
+import {
+  CardTableGroupHeader,
+  CardTableHeader,
+  CardTableRow,
+  getCardTableColumns,
+} from "@/components/cards/card-table-row";
 import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
+import { SuggestImageOverlay } from "@/components/cards/suggest-image-overlay";
 import { ActiveFilters } from "@/components/filters/active-filters";
 import {
   CollapsibleFilterPanel,
   FilterToggleButton,
 } from "@/components/filters/collapsible-filter-panel";
 import { FilterPanelContent } from "@/components/filters/filter-panel-content";
-import { sortOptions } from "@/components/filters/options-bar";
+import { DisplayModeToggle, sortOptions } from "@/components/filters/options-bar";
 import { SearchBar } from "@/components/filters/search-bar";
 import { SortGroupControls } from "@/components/filters/sort-group-controls";
 import type { PageTocItem } from "@/components/layout/page-toc";
 import { PageToc } from "@/components/layout/page-toc";
+import { Pane } from "@/components/layout/panes";
 import { MarkdownText } from "@/components/markdown-text";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import {
   Select,
   SelectContent,
@@ -37,14 +45,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useEnumOrders, useLanguageList } from "@/hooks/use-enums";
 import { useHydrated } from "@/hooks/use-hydrated";
@@ -52,14 +52,13 @@ import { useOwnedCount } from "@/hooks/use-owned-count";
 import { publicPromoListQueryOptions } from "@/hooks/use-public-promos";
 import { useSession } from "@/lib/auth-session";
 import { catalogQueryOptions } from "@/lib/catalog-query";
-import { getHeaderHeight } from "@/lib/header-height";
 import { buildPromoTreeFromMatches } from "@/lib/promo-filters";
 import type { PromoGrouping, PromoSection } from "@/lib/promo-groupings";
 import { asPromoGrouping, groupByCard, groupByMarker, groupByYear } from "@/lib/promo-groupings";
 import type { ChannelNode } from "@/lib/promos-tree";
 import { computeLanguageAggregates } from "@/lib/promos-tree";
 import { FilterSearchProvider } from "@/lib/search-schemas";
-import { cn, PAGE_PADDING } from "@/lib/utils";
+import { PAGE_PADDING } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
 export const Route = createLazyFileRoute("/_app/promos_/$language")({
@@ -70,7 +69,7 @@ export const Route = createLazyFileRoute("/_app/promos_/$language")({
 function PromosRoute() {
   const search = Route.useSearch();
   return (
-    <FilterSearchProvider value={search}>
+    <FilterSearchProvider value={{ ...search, view: "printings" }}>
       <PromosPage />
     </FilterSearchProvider>
   );
@@ -78,12 +77,7 @@ function PromosRoute() {
 
 const PROMOS_BASE_HIDDEN_SECTIONS: ReadonlySet<string> = new Set(["promo"]);
 
-type ViewMode = "grid" | "list";
-
-const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
-  { value: "grid", label: "Grid" },
-  { value: "list", label: "Table" },
-];
+type ViewMode = "grid" | "table";
 
 const COMPACT_LEAF_THRESHOLD = 4;
 
@@ -167,7 +161,7 @@ function collectFlatSectionTocItems(
 }
 
 const GROUP_OPTIONS: { value: PromoGrouping; label: string }[] = [
-  { value: "channel", label: "Channel" },
+  { value: "channel", label: "Distribution Channel" },
   { value: "card", label: "Card" },
   { value: "year", label: "Year" },
   { value: "marker", label: "Marker" },
@@ -300,7 +294,7 @@ function PromosPage() {
     ...[...presentLanguageSet].filter((lang) => !languageOrder.includes(lang)).toSorted(),
   ];
 
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const viewMode: ViewMode = useDisplayStore((s) => s.displayMode);
 
   const priceFilterEnabled = activeLanguage === "EN";
 
@@ -442,78 +436,6 @@ function PromosPage() {
     window.open(href, "_blank", "noreferrer");
   };
 
-  // Mirrors CardBrowserLayout: site header → sticky toolbar → sticky aboveGrid
-  // → floating pill / sections. We don't reuse CardBrowserLayout itself
-  // because /promos keeps the wide-breakpoint FilterPanelContent inline (not
-  // in a leftPane) and its own PageToc as the sidebar. The padding/backdrop
-  // classes, the offset stack, and the dual ResizeObservers all match /cards.
-  const headerHeight = getHeaderHeight();
-  const toolbarRef = useRef<HTMLDivElement>(null);
-  const aboveGridRef = useRef<HTMLDivElement>(null);
-  const [toolbarHeight, setToolbarHeight] = useState(0);
-  const [aboveGridHeight, setAboveGridHeight] = useState(0);
-  useLayoutEffect(() => {
-    const el = toolbarRef.current;
-    if (!el) {
-      return;
-    }
-    const observer = new ResizeObserver(([entry]) => {
-      const height = entry.borderBoxSize[0]?.blockSize ?? entry.contentRect.height;
-      setToolbarHeight(Math.round(height));
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-  useLayoutEffect(() => {
-    const el = aboveGridRef.current;
-    if (!el) {
-      return;
-    }
-    const observer = new ResizeObserver(([entry]) => {
-      const height = entry.borderBoxSize[0]?.blockSize ?? entry.contentRect.height;
-      setAboveGridHeight(Math.round(height));
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-  const toolbarOffset = headerHeight + toolbarHeight;
-  const stickyOffset = toolbarOffset + aboveGridHeight;
-
-  // Track which section the viewport is currently scrolled into, so the
-  // floating pill always reflects the current context. Active = the last
-  // section whose top has crossed the sticky threshold.
-  const sectionEntries: { id: string; label: string; count: number }[] =
-    grouping === "channel"
-      ? channelRenderItems.map((item) => ({
-          id: item.sectionId,
-          label: item.title,
-          count: item.node.localPrintingCount,
-        }))
-      : flatRenderItems.map((item) => ({
-          id: item.sectionId,
-          label: item.title,
-          count: item.section.printings.length,
-        }));
-  const activeSectionId = useActiveSection(sectionEntries, stickyOffset);
-  const activeSection = sectionEntries.find((entry) => entry.id === activeSectionId) ?? null;
-
-  const handlePillClick = () => {
-    if (!activeSection) {
-      return;
-    }
-    // oxlint-disable-next-line prefer-query-selector -- ids derive from channel ids that may start with a digit; getElementById skips CSS-escape gymnastics.
-    const el = document.getElementById(activeSection.id);
-    if (!el) {
-      return;
-    }
-    // Compute target manually rather than rely on scroll-margin-top, so the
-    // section.top lands at exactly stickyOffset (right below the sticky
-    // stack). Matches CardGrid's scrollToGroup; the h-0 pill above overlaps
-    // the section's divider header for ~28px just like /cards.
-    const top = el.getBoundingClientRect().top + globalThis.scrollY - stickyOffset;
-    globalThis.scrollTo({ top, behavior: "auto" });
-  };
-
   return (
     <div className={PAGE_PADDING}>
       {hydrated && <OwnedCountBridge enabled={fetchOwned} onChange={setOwnedCountByPrinting} />}
@@ -567,171 +489,246 @@ function PromosPage() {
         )}
       </div>
 
-      <div
-        ref={toolbarRef}
-        className={cn(
-          "bg-background/80 sticky z-20 -mx-3 px-3 pt-3 backdrop-blur-lg",
-          aboveGridHeight === 0 && "sm:rounded-b-xl",
-        )}
-        style={{ top: `${headerHeight}px` }}
-      >
-        <div className="mb-1.5 flex flex-wrap items-center gap-2 sm:mb-3">
-          <SearchBar totalCards={activePrintings.length} filteredCount={matchedPrintings.length} />
-          <SortGroupControls
-            sortOptions={sortOptions}
-            sortBy={sortBy}
-            sortDir={sortDir}
-            onSortByChange={setSortBy}
-            onSortDirChange={setSortDir}
-            group={{
-              options: GROUP_OPTIONS,
-              value: grouping,
-              dir: groupDir,
-              onValueChange: (value) => setGroupBy(value as GroupByField),
-              onDirChange: setGroupDir,
-            }}
-            view={{
-              title: "View",
-              value: viewMode,
-              options: VIEW_OPTIONS,
-              onChange: setViewMode,
-            }}
+      <CardBrowserLayout
+        toolbar={
+          <>
+            <div className="mb-1.5 flex flex-wrap items-center gap-2 sm:mb-3">
+              <SearchBar
+                totalCards={activePrintings.length}
+                filteredCount={matchedPrintings.length}
+              />
+              <SortGroupControls
+                sortOptions={sortOptions}
+                sortBy={sortBy}
+                sortDir={sortDir}
+                onSortByChange={setSortBy}
+                onSortDirChange={setSortDir}
+                group={{
+                  options: GROUP_OPTIONS,
+                  value: grouping,
+                  dir: groupDir,
+                  onValueChange: (value) => setGroupBy(value as GroupByField),
+                  onDirChange: setGroupDir,
+                }}
+              />
+              <DisplayModeToggle />
+              {isLoggedIn && (
+                <Button
+                  variant={showOwned ? "default" : "outline"}
+                  size="icon"
+                  onClick={togglePromoOwned}
+                  aria-label={showOwned ? "Hide owned counts" : "Show owned counts"}
+                  aria-pressed={showOwned}
+                  title={showOwned ? "Hide owned counts" : "Show owned counts"}
+                >
+                  <PackageIcon className="size-4" />
+                </Button>
+              )}
+              <FilterToggleButton className="@wide:hidden flex" />
+            </div>
+            <CollapsibleFilterPanel
+              availableFilters={availableFilters}
+              setDisplayLabel={setDisplayLabel}
+              hiddenSections={hiddenWithOwned}
+            />
+          </>
+        }
+        leftPane={
+          <>
+            <PageToc items={tocItems} className="lg:w-52" />
+            <Pane className="@wide:block px-3">
+              <h2 className="pb-4 text-lg font-semibold">Filters</h2>
+              <div className="space-y-4 pb-4">
+                <FilterPanelContent
+                  availableFilters={availableFilters}
+                  setDisplayLabel={setDisplayLabel}
+                  hiddenSections={hiddenWithOwned}
+                />
+              </div>
+            </Pane>
+          </>
+        }
+        aboveGrid={
+          <ActiveFilters
+            availableFilters={availableFilters}
+            setDisplayLabel={setDisplayLabel}
+            hiddenSections={hiddenWithOwned}
           />
-          {isLoggedIn && (
-            <Button
-              variant={showOwned ? "default" : "outline"}
-              size="icon"
-              onClick={togglePromoOwned}
-              aria-label={showOwned ? "Hide owned counts" : "Show owned counts"}
-              aria-pressed={showOwned}
-              title={showOwned ? "Hide owned counts" : "Show owned counts"}
+        }
+        gridSlot={
+          <PromoSectionsContent
+            grouping={grouping}
+            channelRenderItems={channelRenderItems}
+            flatRenderItems={flatRenderItems}
+            hasContent={hasContent}
+            hasActiveFilters={hasActiveFilters}
+            viewMode={viewMode}
+            showImages={showImages}
+            display={display}
+            ownedCounts={ownedCounts}
+            onCardClick={handleCardClick}
+            sortPrintings={sortPrintings}
+            setNameBySlug={setSlugToName}
+          />
+        }
+      />
+    </div>
+  );
+}
+
+interface PromoSectionsContentProps {
+  grouping: PromoGrouping;
+  channelRenderItems: ChannelRenderItem[];
+  flatRenderItems: FlatRenderItem[];
+  hasContent: boolean;
+  hasActiveFilters: boolean;
+  viewMode: ViewMode;
+  showImages: boolean;
+  display: CardThumbnailDisplay;
+  ownedCounts: Record<string, number> | undefined;
+  onCardClick: (printing: Printing) => void;
+  sortPrintings: (printings: Printing[]) => Printing[];
+  setNameBySlug: Map<string, string>;
+}
+
+function PromoSectionsContent({
+  grouping,
+  channelRenderItems,
+  flatRenderItems,
+  hasContent,
+  hasActiveFilters,
+  viewMode,
+  showImages,
+  display,
+  ownedCounts,
+  onCardClick,
+  sortPrintings,
+  setNameBySlug,
+}: PromoSectionsContentProps) {
+  const { stickyOffset } = useCardBrowserLayoutOffsets();
+
+  // Active = the last section whose top has crossed the sticky threshold.
+  // Drives the floating pill and the smooth-scroll-to-section button.
+  const sectionEntries: { id: string; label: string; count: number }[] =
+    grouping === "channel"
+      ? channelRenderItems.map((item) => ({
+          id: item.sectionId,
+          label: item.title,
+          count: item.node.localPrintingCount,
+        }))
+      : flatRenderItems.map((item) => ({
+          id: item.sectionId,
+          label: item.title,
+          count: item.section.printings.length,
+        }));
+  const activeSectionId = useActiveSection(sectionEntries, stickyOffset);
+  const activeSection = sectionEntries.find((entry) => entry.id === activeSectionId) ?? null;
+
+  const handlePillClick = () => {
+    if (!activeSection) {
+      return;
+    }
+    // oxlint-disable-next-line prefer-query-selector -- ids derive from channel ids that may start with a digit; getElementById skips CSS-escape gymnastics.
+    const el = document.getElementById(activeSection.id);
+    if (!el) {
+      return;
+    }
+    // Compute target manually rather than rely on scroll-margin-top, so the
+    // section.top lands at exactly stickyOffset (right below the sticky
+    // stack). Matches CardGrid's scrollToGroup; the h-0 pill above overlaps
+    // the section's divider header for ~28px just like /cards.
+    const top = el.getBoundingClientRect().top + globalThis.scrollY - stickyOffset;
+    globalThis.scrollTo({ top, behavior: "auto" });
+  };
+
+  return (
+    <>
+      {/* Floating section pill — h-0 keeps it out of the layout flow so the
+          grid keeps butting up against the sticky stack; the pill just hovers
+          over the first row of cards while a section is active. z-20 keeps it
+          above hovered cards (which elevate to z-10). */}
+      <div className="sticky z-20 h-0" style={{ top: `${stickyOffset}px` }}>
+        {activeSection && (
+          <div className="flex justify-center pt-2">
+            <button
+              type="button"
+              onClick={handlePillClick}
+              className="bg-background/70 ring-border/70 hover:bg-background/90 cursor-pointer rounded-full px-3 py-1 text-sm shadow-sm ring-1 backdrop-blur"
             >
-              <PackageIcon className="size-4" />
-            </Button>
-          )}
-          <FilterToggleButton />
-        </div>
-        <CollapsibleFilterPanel
-          availableFilters={availableFilters}
-          setDisplayLabel={setDisplayLabel}
-          hiddenSections={hiddenWithOwned}
-        />
+              <span className="font-semibold">{activeSection.label}</span>{" "}
+              <span className="text-muted-foreground tabular-nums">({activeSection.count})</span>
+            </button>
+          </div>
+        )}
       </div>
 
-      <div
-        className="relative flex flex-1 items-stretch gap-6"
-        style={{ "--sticky-top": `${toolbarOffset}px` } as React.CSSProperties}
-      >
-        <PageToc items={tocItems} className="lg:w-52" />
-
-        <div className="min-w-0 flex-1">
-          <div className="@wide:block bg-background/80 -mx-3 hidden px-3 pb-3 backdrop-blur-lg">
-            <FilterPanelContent
-              availableFilters={availableFilters}
-              setDisplayLabel={setDisplayLabel}
-              hiddenSections={hiddenWithOwned}
-            />
-          </div>
-
-          <div
-            ref={aboveGridRef}
-            className="bg-background/80 sticky z-15 -mx-3 px-3 backdrop-blur-lg sm:rounded-b-xl"
-            style={{ top: `${toolbarOffset}px` }}
-          >
-            <ActiveFilters
-              availableFilters={availableFilters}
-              setDisplayLabel={setDisplayLabel}
-              hiddenSections={hiddenWithOwned}
-            />
-          </div>
-
-          {/* Floating section pill — h-0 keeps it out of the layout flow so the
-              grid keeps butting up against the sticky stack; the pill just
-              hovers over the first row of cards while a section is active.
-              z-20 keeps it above hovered cards (which elevate to z-10). */}
-          <div className="sticky z-20 h-0" style={{ top: `${stickyOffset}px` }}>
-            {activeSection && (
-              <div className="flex justify-center pt-2">
-                <button
-                  type="button"
-                  onClick={handlePillClick}
-                  className="bg-background/70 ring-border/70 hover:bg-background/90 cursor-pointer rounded-full px-3 py-1 text-sm shadow-sm ring-1 backdrop-blur"
-                >
-                  <span className="font-semibold">{activeSection.label}</span>{" "}
-                  <span className="text-muted-foreground tabular-nums">
-                    ({activeSection.count})
-                  </span>
-                </button>
-              </div>
+      {hasContent ? (
+        grouping === "channel" ? (
+          <div className="space-y-10">
+            {channelRenderItems.map((item) =>
+              item.kind === "leaf" ? (
+                <LeafSection
+                  key={item.sectionId}
+                  item={item}
+                  stickyOffset={stickyOffset}
+                  viewMode={viewMode}
+                  showImages={showImages}
+                  display={display}
+                  onCardClick={onCardClick}
+                  ownedCounts={ownedCounts}
+                  sortPrintings={sortPrintings}
+                  setNameBySlug={setNameBySlug}
+                />
+              ) : (
+                <CompactSection
+                  key={item.sectionId}
+                  item={item}
+                  stickyOffset={stickyOffset}
+                  viewMode={viewMode}
+                  showImages={showImages}
+                  display={display}
+                  onCardClick={onCardClick}
+                  ownedCounts={ownedCounts}
+                  sortPrintings={sortPrintings}
+                  setNameBySlug={setNameBySlug}
+                />
+              ),
             )}
           </div>
-
-          {hasContent ? (
-            grouping === "channel" ? (
-              <div className="space-y-10">
-                {channelRenderItems.map((item) =>
-                  item.kind === "leaf" ? (
-                    <LeafSection
-                      key={item.sectionId}
-                      item={item}
-                      stickyOffset={stickyOffset}
-                      viewMode={viewMode}
-                      showImages={showImages}
-                      display={display}
-                      onCardClick={handleCardClick}
-                      ownedCounts={ownedCounts}
-                      sortPrintings={sortPrintings}
-                    />
-                  ) : (
-                    <CompactSection
-                      key={item.sectionId}
-                      item={item}
-                      stickyOffset={stickyOffset}
-                      viewMode={viewMode}
-                      showImages={showImages}
-                      display={display}
-                      onCardClick={handleCardClick}
-                      ownedCounts={ownedCounts}
-                      sortPrintings={sortPrintings}
-                    />
-                  ),
-                )}
-              </div>
-            ) : (
-              <div className="space-y-10">
-                {flatRenderItems.map((item) => (
-                  <FlatSection
-                    key={item.sectionId}
-                    item={item}
-                    stickyOffset={stickyOffset}
-                    viewMode={viewMode}
-                    showImages={showImages}
-                    display={display}
-                    onCardClick={handleCardClick}
-                    ownedCounts={ownedCounts}
-                    sortPrintings={sortPrintings}
-                  />
-                ))}
-              </div>
-            )
+        ) : (
+          <div className="space-y-10">
+            {flatRenderItems.map((item) => (
+              <FlatSection
+                key={item.sectionId}
+                item={item}
+                stickyOffset={stickyOffset}
+                viewMode={viewMode}
+                showImages={showImages}
+                display={display}
+                onCardClick={onCardClick}
+                ownedCounts={ownedCounts}
+                sortPrintings={sortPrintings}
+                setNameBySlug={setNameBySlug}
+              />
+            ))}
+          </div>
+        )
+      ) : (
+        <p className="text-muted-foreground text-sm">
+          {hasActiveFilters ? (
+            "No promos match the current filters."
           ) : (
-            <p className="text-muted-foreground text-sm">
-              {hasActiveFilters ? (
-                "No promos match the current filters."
-              ) : (
-                <>
-                  No promos yet.{" "}
-                  <Link to="/contribute" className="text-primary hover:underline">
-                    Suggest one
-                  </Link>
-                  .
-                </>
-              )}
-            </p>
+            <>
+              No promos yet.{" "}
+              <Link to="/contribute" className="text-primary hover:underline">
+                Suggest one
+              </Link>
+              .
+            </>
           )}
-        </div>
-      </div>
-    </div>
+        </p>
+      )}
+    </>
   );
 }
 
@@ -786,6 +783,7 @@ interface SectionDividerProps {
   title: string;
   count: number;
   description?: string | null;
+  anchorId?: string;
 }
 
 /**
@@ -795,7 +793,7 @@ interface SectionDividerProps {
  *
  * @returns The divider header.
  */
-function SectionDivider({ title, count, description }: SectionDividerProps) {
+function SectionDivider({ title, count, description, anchorId }: SectionDividerProps) {
   return (
     <div className="mb-3">
       <div className="flex items-center gap-3">
@@ -803,6 +801,15 @@ function SectionDivider({ title, count, description }: SectionDividerProps) {
         <div className="flex items-baseline gap-2 text-sm">
           <span className="font-semibold">{title}</span>
           <span className="text-muted-foreground tabular-nums">({count})</span>
+          {anchorId && (
+            <a
+              href={`#${anchorId}`}
+              aria-label={`Link to ${title}`}
+              className="text-muted-foreground/60 hover:text-foreground self-center transition-colors"
+            >
+              <LinkIcon className="size-3.5" />
+            </a>
+          )}
         </div>
         <div className="bg-border h-px flex-1" />
       </div>
@@ -824,6 +831,7 @@ interface RenderedSectionProps {
   onCardClick: (printing: Printing) => void;
   ownedCounts: Record<string, number> | undefined;
   sortPrintings: (printings: Printing[]) => Printing[];
+  setNameBySlug: Map<string, string>;
 }
 
 function ParentAnchors({ ids, stickyOffset }: { ids: string[]; stickyOffset: number }) {
@@ -848,6 +856,7 @@ function LeafSection({
   onCardClick,
   ownedCounts,
   sortPrintings,
+  setNameBySlug,
 }: { item: ChannelRenderItem } & RenderedSectionProps) {
   const sortedPrintings = sortPrintings(item.node.printings);
   if (sortedPrintings.length === 0) {
@@ -860,6 +869,7 @@ function LeafSection({
         title={item.title}
         count={sortedPrintings.length}
         description={item.node.channel.description}
+        anchorId={item.sectionId}
       />
       {viewMode === "grid" ? (
         <div className="wide:grid-cols-6 xwide:grid-cols-8 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
@@ -874,6 +884,7 @@ function LeafSection({
                 display={display}
                 sizes={PROMOS_CARD_SIZES}
                 belowLabel={<BelowLabel printing={printing} />}
+                imageOverlay={<SuggestImageOverlay printing={printing} />}
                 aboveCard={ownedCounts ? <OwnedCountStrip count={ownedCount} /> : undefined}
                 dimmed={ownedCounts ? ownedCount === 0 : undefined}
               />
@@ -885,6 +896,7 @@ function LeafSection({
           printings={sortedPrintings}
           onRowClick={onCardClick}
           ownedCounts={ownedCounts}
+          setNameBySlug={setNameBySlug}
         />
       )}
     </section>
@@ -900,6 +912,7 @@ function FlatSection({
   onCardClick,
   ownedCounts,
   sortPrintings,
+  setNameBySlug,
 }: { item: FlatRenderItem } & RenderedSectionProps) {
   const sortedPrintings = sortPrintings(item.section.printings);
   if (sortedPrintings.length === 0) {
@@ -907,7 +920,7 @@ function FlatSection({
   }
   return (
     <section id={item.sectionId} style={{ scrollMarginTop: `${stickyOffset}px` }}>
-      <SectionDivider title={item.title} count={sortedPrintings.length} />
+      <SectionDivider title={item.title} count={sortedPrintings.length} anchorId={item.sectionId} />
       {viewMode === "grid" ? (
         <div className="wide:grid-cols-6 xwide:grid-cols-8 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
           {sortedPrintings.map((printing) => {
@@ -921,6 +934,7 @@ function FlatSection({
                 display={display}
                 sizes={PROMOS_CARD_SIZES}
                 belowLabel={<BelowLabel printing={printing} />}
+                imageOverlay={<SuggestImageOverlay printing={printing} />}
                 aboveCard={ownedCounts ? <OwnedCountStrip count={ownedCount} /> : undefined}
                 dimmed={ownedCounts ? ownedCount === 0 : undefined}
               />
@@ -932,6 +946,7 @@ function FlatSection({
           printings={sortedPrintings}
           onRowClick={onCardClick}
           ownedCounts={ownedCounts}
+          setNameBySlug={setNameBySlug}
         />
       )}
     </section>
@@ -947,6 +962,7 @@ function CompactSection({
   onCardClick,
   ownedCounts,
   sortPrintings,
+  setNameBySlug,
 }: { item: ChannelRenderItem } & RenderedSectionProps) {
   // Compact: every direct child is a leaf with few printings. Render them as
   // a single combined section anchored under the parent's breadcrumb. Each
@@ -961,14 +977,16 @@ function CompactSection({
         title={item.title}
         count={item.node.localPrintingCount}
         description={item.node.channel.description}
+        anchorId={item.sectionId}
       />
-      {viewMode === "list" ? (
+      {viewMode === "table" ? (
         <CompactBranchTable
           node={item.node}
           stickyOffset={stickyOffset}
           onCardClick={onCardClick}
           ownedCounts={ownedCounts}
           sortPrintings={sortPrintings}
+          setNameBySlug={setNameBySlug}
         />
       ) : (
         <CompactBranchGrid
@@ -1047,6 +1065,7 @@ function CompactBranchGrid({
                 display={display}
                 sizes={PROMOS_CARD_SIZES}
                 belowLabel={<BelowLabel printing={printing} />}
+                imageOverlay={<SuggestImageOverlay printing={printing} />}
                 aboveCard={ownedCounts ? <OwnedCountStrip count={ownedCount} /> : undefined}
                 dimmed={ownedCounts ? ownedCount === 0 : undefined}
               />
@@ -1064,86 +1083,68 @@ function CompactBranchTable({
   onCardClick,
   ownedCounts,
   sortPrintings,
+  setNameBySlug,
 }: {
   node: ChannelNode;
   stickyOffset: number;
   onCardClick: (printing: Printing) => void;
   ownedCounts: Record<string, number> | undefined;
   sortPrintings: (printings: Printing[]) => Printing[];
+  setNameBySlug: Map<string, string>;
 }) {
-  const columnHeader = node.channel.childrenLabel ?? "Variant";
-  const rows = node.children.flatMap((child) =>
-    sortPrintings(child.printings).map((printing, printingIndex) => ({
-      printing,
-      leafLabel: child.channel.label,
-      anchorId:
-        printingIndex === 0 ? `lang-${printing.language}-ch-${child.channel.id}` : undefined,
-    })),
-  );
-  if (rows.length === 0) {
+  const { labels } = useEnumOrders();
+  const showOwned = ownedCounts !== undefined;
+  const columns = getCardTableColumns(showOwned, false);
+  const branches = node.children
+    .map((child) => ({ child, printings: sortPrintings(child.printings) }))
+    .filter(({ printings }) => printings.length > 0);
+  if (branches.length === 0) {
     return null;
   }
+  const multipleBranches = branches.length > 1;
   return (
-    <Table className="table-fixed">
-      <TableHeader>
-        <TableRow>
-          <TableHead className="w-40">{columnHeader}</TableHead>
-          <TableHead>Card</TableHead>
-          <TableHead className="w-40">Code</TableHead>
-          <TableHead className="w-32">Finish</TableHead>
-          {ownedCounts && <TableHead className="w-24">Owned</TableHead>}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.map(({ printing, leafLabel, anchorId }) => {
-          const image = printing.images[0];
-          const ownedCount = ownedCounts?.[printing.id] ?? 0;
-          return (
-            <HoverCard key={`${leafLabel}-${printing.id}`}>
-              <HoverCardTrigger
-                render={
-                  <TableRow
-                    id={anchorId}
-                    onClick={() => onCardClick(printing)}
-                    className={cn("hover:bg-muted/50 cursor-pointer")}
-                    style={anchorId ? { scrollMarginTop: `${stickyOffset}px` } : undefined}
-                  />
-                }
-              >
-                <TableCell className="truncate font-medium">{leafLabel}</TableCell>
-                <TableCell className="truncate">{printing.card.name}</TableCell>
-                <TableCell className="text-muted-foreground truncate tabular-nums">
-                  {printing.publicCode}
-                </TableCell>
-                <TableCell className="truncate">{printing.finish}</TableCell>
-                {ownedCounts && (
-                  <TableCell
-                    className={cn(
-                      "truncate tabular-nums",
-                      ownedCount === 0 && "text-muted-foreground",
-                    )}
-                  >
-                    {ownedCount > 0 ? `×${ownedCount}` : ""}
-                  </TableCell>
-                )}
-              </HoverCardTrigger>
-              {image && (
-                <HoverCardContent
-                  side="right"
-                  className="w-auto border-0 bg-transparent p-0 shadow-none ring-0"
-                >
-                  <img
-                    src={imageUrl(image.imageId, "full")}
-                    alt={printing.card.name}
-                    className="h-96 w-auto rounded-lg shadow-xl"
-                  />
-                </HoverCardContent>
-              )}
-            </HoverCard>
-          );
-        })}
-      </TableBody>
-    </Table>
+    <div>
+      <CardTableHeader
+        columns={columns}
+        showOwned={showOwned}
+        showAddControls={false}
+        bordered={!multipleBranches}
+      />
+      {branches.map(({ child, printings }) => {
+        const anchorId = `lang-${printings[0].language}-ch-${child.channel.id}`;
+        return (
+          <div
+            key={child.channel.id}
+            id={anchorId}
+            style={{ scrollMarginTop: `${stickyOffset}px` }}
+          >
+            {multipleBranches && (
+              <CardTableGroupHeader
+                columns={columns}
+                name={child.channel.label}
+                count={printings.length}
+                anchorId={anchorId}
+              />
+            )}
+            {printings.map((printing) => (
+              <CardTableRow
+                key={printing.id}
+                printing={printing}
+                ownedCount={ownedCounts?.[printing.id]}
+                showOwned={showOwned}
+                showAddControls={false}
+                columns={columns}
+                cardTypeLabels={labels.cardTypes}
+                superTypeLabels={labels.superTypes}
+                rarityLabels={labels.rarities}
+                setNameBySlug={setNameBySlug}
+                onRowClick={onCardClick}
+              />
+            ))}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -1151,73 +1152,36 @@ function PromoListView({
   printings,
   onRowClick,
   ownedCounts,
+  setNameBySlug,
 }: {
   printings: Printing[];
   onRowClick: (printing: Printing) => void;
   ownedCounts: Record<string, number> | undefined;
+  setNameBySlug: Map<string, string>;
 }) {
+  const { labels } = useEnumOrders();
+  const showOwned = ownedCounts !== undefined;
+  const columns = getCardTableColumns(showOwned, false);
   return (
     <>
-      {/* Desktop: table with hover-to-preview */}
+      {/* Desktop: shared CardTable layout */}
       <div className="hidden md:block">
-        <Table className="table-fixed">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead className="w-40">Code</TableHead>
-              <TableHead className="w-32">Rarity</TableHead>
-              <TableHead className="w-32">Finish</TableHead>
-              {ownedCounts && <TableHead className="w-24">Owned</TableHead>}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {printings.map((printing) => {
-              const image = printing.images[0];
-              const ownedCount = ownedCounts?.[printing.id] ?? 0;
-              return (
-                <HoverCard key={printing.id}>
-                  <HoverCardTrigger
-                    render={
-                      <TableRow
-                        onClick={() => onRowClick(printing)}
-                        className="hover:bg-muted/50 cursor-pointer"
-                      />
-                    }
-                  >
-                    <TableCell className="truncate font-medium">{printing.card.name}</TableCell>
-                    <TableCell className="text-muted-foreground truncate tabular-nums">
-                      {printing.publicCode}
-                    </TableCell>
-                    <TableCell className="truncate">{printing.rarity}</TableCell>
-                    <TableCell className="truncate">{printing.finish}</TableCell>
-                    {ownedCounts && (
-                      <TableCell
-                        className={cn(
-                          "truncate tabular-nums",
-                          ownedCount === 0 && "text-muted-foreground",
-                        )}
-                      >
-                        {ownedCount > 0 ? `×${ownedCount}` : ""}
-                      </TableCell>
-                    )}
-                  </HoverCardTrigger>
-                  {image && (
-                    <HoverCardContent
-                      side="right"
-                      className="w-auto border-0 bg-transparent p-0 shadow-none ring-0"
-                    >
-                      <img
-                        src={imageUrl(image.imageId, "full")}
-                        alt={printing.card.name}
-                        className="h-96 w-auto rounded-lg shadow-xl"
-                      />
-                    </HoverCardContent>
-                  )}
-                </HoverCard>
-              );
-            })}
-          </TableBody>
-        </Table>
+        <CardTableHeader columns={columns} showOwned={showOwned} showAddControls={false} />
+        {printings.map((printing) => (
+          <CardTableRow
+            key={printing.id}
+            printing={printing}
+            ownedCount={ownedCounts?.[printing.id]}
+            showOwned={showOwned}
+            showAddControls={false}
+            columns={columns}
+            cardTypeLabels={labels.cardTypes}
+            superTypeLabels={labels.superTypes}
+            rarityLabels={labels.rarities}
+            setNameBySlug={setNameBySlug}
+            onRowClick={onRowClick}
+          />
+        ))}
       </div>
 
       {/* Mobile: stacked cards */}
@@ -1254,7 +1218,7 @@ function PromoListView({
                   {printing.publicCode}
                 </div>
                 <div className="text-muted-foreground truncate">
-                  {printing.rarity} · {printing.finish}
+                  {labels.rarities[printing.rarity]} · {labels.finishes[printing.finish]}
                 </div>
               </div>
             </button>
@@ -1266,12 +1230,7 @@ function PromoListView({
 }
 
 function BelowLabel({ printing }: { printing: Printing }) {
-  return (
-    <>
-      <SuggestImageOverlay printing={printing} />
-      <MarkerChips printing={printing} />
-    </>
-  );
+  return <MarkerChips printing={printing} />;
 }
 
 function MarkerChips({ printing }: { printing: Printing }) {
@@ -1285,23 +1244,6 @@ function MarkerChips({ printing }: { printing: Printing }) {
           {marker.label}
         </Badge>
       ))}
-    </div>
-  );
-}
-
-function SuggestImageOverlay({ printing }: { printing: Printing }) {
-  if (printing.images.length > 0) {
-    return null;
-  }
-  return (
-    <div className="aspect-card pointer-events-none absolute inset-x-1.5 top-1.5 z-20 flex items-center justify-center">
-      <Link
-        to="/contribute/$cardSlug/image/$printingId"
-        params={{ cardSlug: printing.card.slug, printingId: printing.id }}
-        className="bg-background/90 text-primary hover:bg-background pointer-events-auto rounded-md px-3 py-1.5 text-sm font-medium shadow-md"
-      >
-        Suggest image
-      </Link>
     </div>
   );
 }

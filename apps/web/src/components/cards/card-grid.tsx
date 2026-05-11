@@ -1,4 +1,4 @@
-import type { EnumOrders, GroupByField, Printing } from "@openrift/shared";
+import type { EnumOrders, GroupByField } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 import { SearchXIcon, WifiOffIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -8,6 +8,9 @@ import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer
 import { useAdminSettings } from "@/hooks/use-admin-settings";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
+import { groupItemsByChannel } from "@/lib/group-by-channel";
+import { groupItemsByMarker } from "@/lib/group-by-marker";
+import { groupItemsByYear } from "@/lib/group-by-year";
 import { getHeaderHeight } from "@/lib/header-height";
 import { cn } from "@/lib/utils";
 import { useWindowVirtualizerFresh } from "@/lib/virtualizer-fresh";
@@ -26,7 +29,6 @@ import {
 import { CardGridDebug } from "./card-grid-debug";
 import type { GroupInfo, VRow } from "./card-grid-types";
 import { ScrollIndicator } from "./scroll-indicator";
-import { useGridKeyboardNav } from "./use-grid-keyboard-nav";
 import { useStickyHeader } from "./use-sticky-header";
 
 export type { SetInfo } from "./card-grid-types";
@@ -56,7 +58,7 @@ interface OrderEntry {
 
 function groupItemsByField(
   items: CardViewerItem[],
-  groupBy: Exclude<GroupByField, "none" | "set">,
+  groupBy: Exclude<GroupByField, "none" | "set" | "channel" | "year" | "marker">,
   orders: Omit<EnumOrders, "finishes">,
 ): CardGroup[] {
   interface FieldConfig {
@@ -136,6 +138,15 @@ function buildGroups(
 ): CardGroup[] {
   if (groupBy === "none") {
     return [{ group: { id: "_all", slug: "", name: "" }, items }];
+  }
+  if (groupBy === "channel") {
+    return groupItemsByChannel(items, groupDir);
+  }
+  if (groupBy === "year") {
+    return groupItemsByYear(items, groupDir);
+  }
+  if (groupBy === "marker") {
+    return groupItemsByMarker(items, groupDir);
   }
   let groups: CardGroup[];
   if (groupBy === "set") {
@@ -344,7 +355,6 @@ interface CardGridProps {
   groupBy?: GroupByField;
   groupDir?: "asc" | "desc";
   selectedItemId?: string;
-  siblingPrintings?: Printing[];
   /** Extra height added to each card row (e.g. add-mode strip). */
   addStripHeight?: number;
   /** Total height of sticky elements above the grid (app header + toolbar). */
@@ -359,7 +369,6 @@ export function CardGrid({
   groupBy = "set",
   groupDir = "asc",
   selectedItemId,
-  siblingPrintings,
   addStripHeight = 0,
   stickyOffset = getHeaderHeight(),
 }: CardGridProps) {
@@ -453,11 +462,6 @@ export function CardGrid({
     virtualizer,
     scrollMargin,
     stickyOffset,
-  });
-
-  useGridKeyboardNav({
-    items,
-    siblingPrintings,
   });
 
   // ── Selected-card scroll + flash ───────────────────────────────────

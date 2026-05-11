@@ -1,3 +1,4 @@
+import type { DistributionChannel } from "../catalog.js";
 import type { KeywordEntry } from "./keyword.js";
 
 interface EnumRow {
@@ -28,4 +29,11 @@ export interface InitResponse {
     markers: DescribedEnumRow[];
   };
   keywords: Record<string, KeywordEntry>;
+  /**
+   * Full distribution-channel registry, including parents that no printing
+   * links to directly. Lives on /init so the filter UI on /cards (and any
+   * non-/promos consumer) can render breadcrumb labels without bundling the
+   * registry onto the much larger catalog payload.
+   */
+  distributionChannels: DistributionChannel[];
 }

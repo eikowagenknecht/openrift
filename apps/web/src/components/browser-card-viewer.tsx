@@ -1,6 +1,7 @@
 import type { GroupByField, Printing } from "@openrift/shared";
 import type { ReactNode } from "react";
 
+import type { CardTableProps } from "@/components/card-viewer";
 import { CardViewer } from "@/components/card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import type { GroupInfo } from "@/components/cards/card-grid-types";
@@ -24,6 +25,7 @@ interface BrowserCardViewerProps {
   aboveGrid?: ReactNode;
   rightPane?: ReactNode;
   addStripHeight?: number;
+  table?: CardTableProps;
   children?: ReactNode;
 }
 

@@ -31,6 +31,7 @@ import { useCards } from "@/hooks/use-cards";
 import { canAddRune, useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDeckDetail } from "@/hooks/use-decks";
+import { useChannelRegistry } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
@@ -41,8 +42,6 @@ import { catalogCardToDeckBuilderCard } from "@/lib/deck-builder-card";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
-
-const DECK_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set(["markers", "channels"]);
 
 /**
  * Build a map of domain → rune DeckBuilderCards from the full catalog.
@@ -142,6 +141,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   const showImages = useDisplayStore((state) => state.showImages);
   const isMobile = useIsMobile();
   const { allPrintings, sets } = useCards();
+  const channels = useChannelRegistry();
   // Lifted out of <CardThumbnail> — see useCardThumbnailDisplay for the why.
   // We reuse display.prices / display.favoriteMarketplace below for useCardData.
   const display = useCardThumbnailDisplay();
@@ -219,6 +219,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     favoriteMarketplace: display.favoriteMarketplace,
     prices: display.prices,
     keywordReverseMap,
+    channels,
   });
 
   const filteredCards = sortedCards;
@@ -401,7 +402,6 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
             availableFilters={availableFilters}
             availableLanguages={availableLanguages}
             setDisplayLabel={setDisplayLabel}
-            hiddenSections={DECK_HIDDEN_FILTER_SECTIONS}
           />
         </MobileOptionsDrawer>
       </div>
@@ -409,7 +409,6 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
         availableFilters={availableFilters}
         availableLanguages={availableLanguages}
         setDisplayLabel={setDisplayLabel}
-        hiddenSections={DECK_HIDDEN_FILTER_SECTIONS}
       />
     </>
   );
@@ -422,7 +421,6 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
           availableFilters={availableFilters}
           availableLanguages={availableLanguages}
           setDisplayLabel={setDisplayLabel}
-          hiddenSections={DECK_HIDDEN_FILTER_SECTIONS}
         />
       </div>
     </Pane>
@@ -452,11 +450,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
       toolbar={toolbar}
       leftPane={leftPane}
       aboveGrid={
-        <ActiveFilters
-          availableFilters={availableFilters}
-          setDisplayLabel={setDisplayLabel}
-          hiddenSections={DECK_HIDDEN_FILTER_SECTIONS}
-        />
+        <ActiveFilters availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
       }
       rightPane={rightPane}
       addStripHeight={ADD_STRIP_HEIGHT}

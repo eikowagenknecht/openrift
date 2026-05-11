@@ -69,6 +69,7 @@ import { useCards } from "@/hooks/use-cards";
 import { useCollectionCardData } from "@/hooks/use-collection-card-data";
 import { useCollections, useCollectionsMap, useDeleteCollection } from "@/hooks/use-collections";
 import { useDisposeCopies, useMoveCopies } from "@/hooks/use-copies";
+import { useChannelRegistry } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
@@ -157,6 +158,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const { filters, sortBy, sortDir, view, groupBy, groupDir, hasActiveFilters } = useFilterValues();
   const { setSearch, clearAllFilters } = useFilterActions();
   const { allPrintings, sets } = useCards();
+  const channels = useChannelRegistry();
   const prices = display.prices;
   const { data: session } = useSession();
   const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
@@ -194,6 +196,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     prices,
     keywordReverseMap,
     languageOrder: languageFilter,
+    channels,
   });
 
   // ── Catalog data (used by add mode grid + quick-add palette in all modes) ──
@@ -221,6 +224,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     favoriteMarketplace,
     prices,
     keywordReverseMap,
+    channels,
   });
 
   // ── Pick active data set based on mode ──────────────────────────────

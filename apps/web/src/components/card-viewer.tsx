@@ -5,6 +5,15 @@ import { CardBrowserLayout, useCardBrowserLayoutOffsets } from "@/components/car
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { CardGrid } from "@/components/cards/card-grid";
 import type { GroupInfo } from "@/components/cards/card-grid-types";
+import { CardTable } from "@/components/cards/card-table";
+import { useGridKeyboardNav } from "@/components/cards/use-grid-keyboard-nav";
+import { useIsMobile } from "@/hooks/use-is-mobile";
+import { useDisplayStore } from "@/stores/display-store";
+
+export interface CardTableProps {
+  showOwned: boolean;
+  showAddControls: boolean;
+}
 
 interface CardViewerProps {
   items: CardViewerItem[];
@@ -26,12 +35,15 @@ interface CardViewerProps {
   rightPane?: ReactNode;
   /** Extra height added to each card row (e.g. add-mode strip). */
   addStripHeight?: number;
+  /** Owned counts + click + add-mode handlers used by the table view. When omitted, table view falls back to the grid. */
+  table?: CardTableProps;
   children?: ReactNode;
 }
 
 /**
  * Shared layout shell used by both the card browser and the collection grid.
- * Renders a toolbar, an optional three-pane layout, and a virtualized CardGrid.
+ * Renders a toolbar, an optional three-pane layout, and a virtualized CardGrid
+ * or CardTable depending on the user's `displayMode` preference.
  *
  * Outer structure (sticky offsets, slots) lives in {@link CardBrowserLayout};
  * this component owns the grid logic — items, render context, and the
@@ -53,8 +65,15 @@ export function CardViewer({
   aboveGrid,
   rightPane,
   addStripHeight,
+  table,
   children,
 }: CardViewerProps) {
+  const displayMode = useDisplayStore((state) => state.displayMode);
+  const isMobile = useIsMobile();
+  const useTable = !isMobile && displayMode === "table" && table !== undefined;
+
+  useGridKeyboardNav({ items, siblingPrintings });
+
   // No useHydrated() gate here: every CardViewer consumer (CardBrowser,
   // deck-card-browser, collection-grid via BrowserCardViewer) only mounts
   // post-hydration, so the previous SSR-skeleton fallback only ever rendered
@@ -69,17 +88,28 @@ export function CardViewer({
       rightPane={rightPane}
       stale={stale}
       gridSlot={
-        <HydratedGrid
-          items={items}
-          totalItems={totalItems}
-          renderCard={renderCard}
-          setOrder={setOrder}
-          groupBy={groupBy}
-          groupDir={groupDir}
-          selectedItemId={selectedItemId}
-          siblingPrintings={siblingPrintings}
-          addStripHeight={addStripHeight}
-        />
+        useTable ? (
+          <HydratedTable
+            items={items}
+            totalItems={totalItems}
+            setOrder={setOrder}
+            groupBy={groupBy}
+            groupDir={groupDir}
+            selectedItemId={selectedItemId}
+            table={table}
+          />
+        ) : (
+          <HydratedGrid
+            items={items}
+            totalItems={totalItems}
+            renderCard={renderCard}
+            setOrder={setOrder}
+            groupBy={groupBy}
+            groupDir={groupDir}
+            selectedItemId={selectedItemId}
+            addStripHeight={addStripHeight}
+          />
+        )
       }
     >
       {children}
@@ -96,7 +126,6 @@ type HydratedGridProps = Pick<
   | "groupBy"
   | "groupDir"
   | "selectedItemId"
-  | "siblingPrintings"
   | "addStripHeight"
 >;
 
@@ -108,4 +137,24 @@ type HydratedGridProps = Pick<
 function HydratedGrid(props: HydratedGridProps) {
   const { stickyOffset } = useCardBrowserLayoutOffsets();
   return <CardGrid {...props} stickyOffset={stickyOffset} />;
+}
+
+interface HydratedTableProps {
+  items: CardViewerItem[];
+  totalItems: number;
+  setOrder?: GroupInfo[];
+  groupBy?: GroupByField;
+  groupDir?: "asc" | "desc";
+  selectedItemId?: string;
+  table: CardTableProps;
+}
+
+/**
+ * Reads the layout's sticky offset from context and forwards it to CardTable.
+ *
+ * @returns The hydrated CardTable wired up with the surrounding sticky offset.
+ */
+function HydratedTable({ table, ...props }: HydratedTableProps) {
+  const { stickyOffset } = useCardBrowserLayoutOffsets();
+  return <CardTable {...props} {...table} stickyOffset={stickyOffset} />;
 }

@@ -1,5 +1,6 @@
 import type {
   CardFilters,
+  DistributionChannel,
   FilterCounts,
   GroupByField,
   Marketplace,
@@ -41,6 +42,27 @@ interface UseCardDataParams {
   enabled?: boolean;
   /** Reverse map from translated keyword labels to canonical names, for cross-language search. */
   keywordReverseMap?: Map<string, string>;
+  /**
+   * Full distribution-channel registry (including parents that no printing
+   * links to directly). Required for the channel filter UI to render full
+   * breadcrumbs — without it, `getAvailableFilters` derives channels from the
+   * printings alone and parent labels are lost.
+   */
+  channels?: readonly DistributionChannel[];
+}
+
+interface UseCatalogFilterMetaParams {
+  allPrintings: Printing[];
+  sets: SetInfo[];
+  filters: CardFilters;
+  ownedFilter?: OwnedFilterState | null;
+  view: "cards" | "printings";
+  ownedCountByPrinting: Record<string, number> | undefined;
+  favoriteMarketplace: Marketplace;
+  prices: PriceLookup;
+  enabled?: boolean;
+  keywordReverseMap?: Map<string, string>;
+  channels?: readonly DistributionChannel[];
 }
 
 /**
@@ -218,6 +240,122 @@ function firstPrintingPerCardPerSet(printings: Printing[]): Printing[] {
   return result;
 }
 
+/**
+ * Filter-meta computation extracted so the catalog filter panel can subscribe
+ * to it independently of {@link useCardData}. Crucially, this hook does NOT
+ * compute the Owned chip count — that lives in {@link useOwnedFlagCount} so
+ * a +/- click only invalidates the chip's own subtree, not the rest of the
+ * filter UI. When `ownedFilter` is null, none of this hook's outputs depend
+ * on `ownedCountByPrinting`, so the returned ref stays stable across clicks.
+ *
+ * @returns Available filter options, faceted counts (without the owned chip),
+ *   the language list, and a slug-to-name resolver for set badges.
+ */
+export function useCatalogFilterMeta({
+  allPrintings,
+  sets,
+  filters,
+  ownedFilter,
+  view,
+  ownedCountByPrinting,
+  favoriteMarketplace,
+  prices,
+  enabled = true,
+  keywordReverseMap,
+  channels,
+}: UseCatalogFilterMetaParams) {
+  "use memo";
+
+  const { orders } = useEnumOrders();
+
+  if (!enabled) {
+    return {
+      availableFilters: getAvailableFilters([], { orders }),
+      availableLanguages: [] as string[],
+      filterCounts: EMPTY_FILTER_COUNTS,
+      setDisplayLabel: NO_OP_LABEL,
+    };
+  }
+
+  const setSlugToName = new Map(sets.map((s) => [s.slug, s.name]));
+  const setDisplayLabel = (slug: string) => setSlugToName.get(slug) ?? slug;
+
+  const lookup = prices ?? EMPTY_PRICE_LOOKUP;
+  const getPrice = (p: Printing) => lookup.get(p.id, favoriteMarketplace);
+
+  const availableFilters = getAvailableFilters(allPrintings, {
+    orders,
+    sets,
+    getPrice,
+    channels,
+  });
+  // Narrow the universe by owned BEFORE computing facet counts so the other
+  // chips (sets, rarities, colors, etc.) reflect the active owned selection.
+  const universeForCounts =
+    ownedFilter && ownedCountByPrinting
+      ? applyOwnedFilter(allPrintings, ownedFilter, view, ownedCountByPrinting)
+      : allPrintings;
+  const filterCounts = computeFilterCounts(universeForCounts, filters, {
+    countBy: view === "cards" ? "card" : "printing",
+    keywordReverseMap,
+    getPrice,
+  });
+  const availableLanguages = [...new Set(allPrintings.map((p) => p.language))];
+
+  return { availableFilters, availableLanguages, filterCounts, setDisplayLabel };
+}
+
+interface UseOwnedFlagCountParams {
+  allPrintings: Printing[];
+  filters: CardFilters;
+  view: "cards" | "printings";
+  ownedFilter?: OwnedFilterState | null;
+  ownedCountByPrinting: Record<string, number> | undefined;
+  favoriteMarketplace: Marketplace;
+  prices: PriceLookup;
+  enabled?: boolean;
+  keywordReverseMap?: Map<string, string>;
+}
+
+/**
+ * Standalone count for the "Owned" chip in the filter panel — answers "how
+ * many cards/printings would match if Owned were applied", anchored to the
+ * pre-owned filtered set so toggling Owned doesn't shrink its own count to
+ * zero. Pulled out of {@link useCatalogFilterMeta} so the chip can subscribe
+ * to ownedCount changes in isolation, leaving the rest of the filter UI
+ * stable across +/- clicks.
+ *
+ * @returns The count, or undefined when disabled or no copies are loaded.
+ */
+export function useOwnedFlagCount({
+  allPrintings,
+  filters,
+  view,
+  ownedFilter,
+  ownedCountByPrinting,
+  favoriteMarketplace,
+  prices,
+  enabled = true,
+  keywordReverseMap,
+}: UseOwnedFlagCountParams): number | undefined {
+  "use memo";
+
+  if (!enabled || !ownedCountByPrinting) {
+    return undefined;
+  }
+
+  const lookup = prices ?? EMPTY_PRICE_LOOKUP;
+  const getPrice = (p: Printing) => lookup.get(p.id, favoriteMarketplace);
+  const cardsBeforeOwned = filterCards(allPrintings, filters, { keywordReverseMap, getPrice });
+  const ownedSubset = applyOwnedFilter(
+    cardsBeforeOwned,
+    ownedFilter ?? "owned",
+    view,
+    ownedCountByPrinting,
+  );
+  return view === "cards" ? new Set(ownedSubset.map((p) => p.cardId)).size : ownedSubset.length;
+}
+
 export function useCardData({
   allPrintings,
   sets,
@@ -232,28 +370,64 @@ export function useCardData({
   prices,
   enabled = true,
   keywordReverseMap,
+  channels,
 }: UseCardDataParams) {
   "use memo";
 
   const { orders } = useEnumOrders();
 
+  // Compose the filter-meta hook so callers that don't yet read directly
+  // from useCatalogFilterMeta still get availableFilters/filterCounts/etc.
+  // from useCardData's return. <CardCatalogFilterPanel> talks to
+  // useCatalogFilterMeta directly so its re-renders aren't entangled with
+  // the rest of useCardData's outputs.
+  const baseMeta = useCatalogFilterMeta({
+    allPrintings,
+    sets,
+    filters,
+    ownedFilter,
+    view,
+    ownedCountByPrinting,
+    favoriteMarketplace,
+    prices,
+    enabled,
+    keywordReverseMap,
+    channels,
+  });
+  // Owned chip count is computed independently so subscribers can take it on
+  // its own without invalidating the rest of filterCounts. Merge it back into
+  // filterCounts.flags for callers that still read filterCounts.flags.owned
+  // (collection-grid, deck-card-browser, promos).
+  const ownedFlagCount = useOwnedFlagCount({
+    allPrintings,
+    filters,
+    view,
+    ownedFilter,
+    ownedCountByPrinting,
+    favoriteMarketplace,
+    prices,
+    enabled,
+    keywordReverseMap,
+  });
+  const meta = {
+    ...baseMeta,
+    filterCounts: {
+      ...baseMeta.filterCounts,
+      flags: { ...baseMeta.filterCounts.flags, owned: ownedFlagCount },
+    },
+  };
+
   if (!enabled) {
     return {
-      availableFilters: getAvailableFilters([], { orders }),
-      availableLanguages: [] as string[],
-      filterCounts: EMPTY_FILTER_COUNTS,
+      ...meta,
       sortedCards: [] as Printing[],
       printingsByCardId: EMPTY_PRINTINGS_MAP,
       priceRangeByCardId: null,
       ownedCounts: undefined,
       totalUniqueCards: 0,
       filteredCount: 0,
-      setDisplayLabel: NO_OP_LABEL,
     };
   }
-
-  const setSlugToName = new Map(sets.map((s) => [s.slug, s.name]));
-  const setDisplayLabel = (slug: string) => setSlugToName.get(slug) ?? slug;
 
   // getPrice resolves a printing's price on the user's favorite marketplace.
   // Filters, sorting, and the available-price-range histogram all read prices
@@ -264,38 +438,10 @@ export function useCardData({
   // `allPrintings` from useCards() arrives in (userLanguageRank, canonicalRank)
   // order, so `filterCards` preserves that order and the dedup/group below
   // can be first-occurrence without re-sorting.
-  const availableFilters = getAvailableFilters(allPrintings, { orders, sets, getPrice });
-  // Narrow the universe by owned BEFORE computing facet counts so the other
-  // chips (sets, rarities, colors, etc.) reflect the active owned selection.
-  // The owned-chip count itself is overridden below from the pre-owned set so
-  // it still answers "how many would match if owned were toggled".
-  const universeForCounts =
-    ownedFilter && ownedCountByPrinting
-      ? applyOwnedFilter(allPrintings, ownedFilter, view, ownedCountByPrinting)
-      : allPrintings;
-  const filterCounts = computeFilterCounts(universeForCounts, filters, {
-    countBy: view === "cards" ? "card" : "printing",
-    keywordReverseMap,
-    getPrice,
-  });
   let filteredCards = filterCards(allPrintings, filters, { keywordReverseMap, getPrice });
-  const cardsBeforeOwned = filteredCards;
 
   if (ownedFilter && ownedCountByPrinting) {
     filteredCards = applyOwnedFilter(filteredCards, ownedFilter, view, ownedCountByPrinting);
-  }
-
-  // The Owned chip count reflects whichever cycle state the chip is currently
-  // showing — null displays the "Owned" label, so we count owned matches.
-  if (ownedCountByPrinting) {
-    const ownedSubset = applyOwnedFilter(
-      cardsBeforeOwned,
-      ownedFilter ?? "owned",
-      view,
-      ownedCountByPrinting,
-    );
-    filterCounts.flags.owned =
-      view === "cards" ? new Set(ownedSubset.map((p) => p.cardId)).size : ownedSubset.length;
   }
 
   // Cards view dedupes by cardId so each card gets one tile. When also grouped
@@ -342,20 +488,13 @@ export function useCardData({
   const filteredCount =
     view === "cards" ? new Set(displayCards.map((p) => p.cardId)).size : displayCards.length;
 
-  // Available languages are derived from ALL printings (before language filtering)
-  // so the filter UI always shows every language that exists in the catalog.
-  const availableLanguages = [...new Set(allPrintings.map((p) => p.language))];
-
   return {
-    availableFilters,
-    availableLanguages,
-    filterCounts,
+    ...meta,
     sortedCards,
     printingsByCardId,
     priceRangeByCardId,
     ownedCounts,
     totalUniqueCards,
     filteredCount,
-    setDisplayLabel,
   };
 }

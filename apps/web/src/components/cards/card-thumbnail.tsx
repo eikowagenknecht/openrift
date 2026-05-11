@@ -285,6 +285,12 @@ interface CardThumbnailProps {
   showBanOverlay?: boolean; // custom: deckbuilder banned card overlay
   /** Content rendered below the meta-label row (e.g. marker chips on /promos). */
   belowLabel?: ReactNode;
+  /**
+   * Content overlaid on the card image area. Positioned as a sibling of the
+   * image button so it aligns with the placeholder/image rectangle even when
+   * `aboveCard` / `topSlot` are present.
+   */
+  imageOverlay?: ReactNode;
 }
 
 // Wrapper that owns the dnd-kit useDraggable subscription. Only mounted when a
@@ -352,6 +358,7 @@ export const CardThumbnail = memo(function CardThumbnail({
   dragId,
   showBanOverlay,
   belowLabel,
+  imageOverlay,
 }: CardThumbnailProps) {
   const card = {
     ...printing.card,
@@ -612,13 +619,16 @@ export const CardThumbnail = memo(function CardThumbnail({
       <>
         {flashOverlay}
         {topSlot}
-        <button
-          type="button"
-          className="focus-visible:ring-ring block w-full cursor-pointer text-left focus-visible:ring-2 focus-visible:outline-none"
-          onClick={(e) => onClick(printing, e)}
-        >
-          {imageSection}
-        </button>
+        <div className="relative">
+          <button
+            type="button"
+            className="focus-visible:ring-ring block w-full cursor-pointer text-left focus-visible:ring-2 focus-visible:outline-none"
+            onClick={(e) => onClick(printing, e)}
+          >
+            {imageSection}
+          </button>
+          {imageOverlay}
+        </div>
         {labelSection}
         {belowLabel}
       </>
@@ -669,13 +679,16 @@ export const CardThumbnail = memo(function CardThumbnail({
     >
       {flashOverlay}
       {aboveCard}
-      <button
-        type="button"
-        className="focus-visible:ring-ring block w-full cursor-pointer text-left focus-visible:ring-2 focus-visible:outline-none"
-        onClick={(e) => onClick(printing, e)}
-      >
-        {imageSection}
-      </button>
+      <div className="relative">
+        <button
+          type="button"
+          className="focus-visible:ring-ring block w-full cursor-pointer text-left focus-visible:ring-2 focus-visible:outline-none"
+          onClick={(e) => onClick(printing, e)}
+        >
+          {imageSection}
+        </button>
+        {imageOverlay}
+      </div>
       {labelSection}
       {belowLabel}
     </div>

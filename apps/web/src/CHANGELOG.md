@@ -2,12 +2,23 @@
 
 ## 2026-05-11
 
+- feat: The Cards page group-by dropdown now offers Distribution Channel, Year, and Marker — matching the Promos page — with trailing "(No distribution channel)", "Unknown year", and "Unmarked" sections for cards that don't match
+- fix: The Distribution Channel filter dropdown on the Cards page now shows the full breadcrumb path of each channel, so the four different "Top 8" entries are easy to tell apart, matching how the Promos page already did it
+- fix: The sort / group-by dropdown now closes after you pick an option, so you can see the result of your selection; the asc / desc arrow still leaves it open in case you want to make more changes
 - fix: Firefox now auto-reloads to pick up the new version after a deploy, instead of showing a loading error
 - fix: Saving preferences on the profile page no longer fails with a server error
 - fix: Opening a deck link for a deck that has been deleted or never existed now shows a Not Found page instead of a server error
 
+## 2026-05-09
+
+- feat: Arrow keys now move through cards on the Cards page table view, scrolling the selected row into view as you go, the same as the grid view
+- feat: The type and rarity columns on the Cards page table view show icons next to the labels
+- feat: The Cards page table view shows the full type, including supertypes like "Champion Unit", with retuned column widths so longer labels fit
+
 ## 2026-05-08
 
+- feat: A new Grid/Table toggle on the Cards page, Promos page, and deck-builder card picker lets you switch between the visual grid and a compact list view that fits more cards on screen at once
+- feat: The Cards page and the deck builder's card picker now expose Marker and Channel filters in the More section, so you can drill down to (e.g.) Champion-marker or tournament-distributed printings the same way you already could on Promos
 - feat: Promos sections now have a cleaner, centered header style that matches the Cards page
 - feat: The search and filter chips on the Promos page stay pinned to the top while you scroll
 - feat: A small clickable badge floats above the Promos grid showing which section you're in, and jumps back to its top when you tap it
