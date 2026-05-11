@@ -30,10 +30,15 @@ export function initClientSentry(router: TanstackRouter): void {
     environment: PROD ? "production" : "development",
     integrations: [Sentry.tanstackRouterBrowserTracingIntegration(router)],
     tracesSampleRate: 0.1,
-    // Sentinel errors thrown by server functions (e.g. use-card-detail, use-decks)
-    // when the API returns 404. Route loaders catch these and call notFound(),
-    // but TanStack Start's auto-instrumentation reports them before the catch.
-    ignoreErrors: ["NOT_FOUND"],
+    // NOT_FOUND: sentinel errors thrown by server functions (e.g. use-card-detail,
+    // use-decks) when the API returns 404. Route loaders catch these and call
+    // notFound(), but TanStack Start's auto-instrumentation reports them before
+    // the catch.
+    // Load failed: iOS WebKit's message when fetch() is aborted mid-flight
+    // (app backgrounded, network handoff, page navigation). Always a transport
+    // condition — fetch() doesn't reject on non-2xx — and already handled by
+    // TanStack Router's loader error path.
+    ignoreErrors: ["NOT_FOUND", "Load failed"],
     // Route envelopes through our own origin so they aren't dropped by Firefox
     // Enhanced Tracking Protection or ad-blockers (which list *.ingest.sentry.io
     // as a tracker). The API forwards them to Sentry server-side.
