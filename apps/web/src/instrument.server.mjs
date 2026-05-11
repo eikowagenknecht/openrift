@@ -26,10 +26,14 @@ if (dsn && (appEnv === "production" || appEnv === "preview")) {
     environment: process.env.APP_ENV === "production" ? "production" : "development",
     release: process.env.COMMIT_HASH,
     tracesSampleRate: 0.1,
-    // Sentinel errors thrown by server functions (e.g. use-card-detail, use-decks)
-    // when the API returns 404. Route loaders catch these and call notFound(),
-    // but TanStack Start's auto-instrumentation reports them before the catch.
-    ignoreErrors: ["NOT_FOUND"],
+    // NOT_FOUND: sentinel errors thrown by server functions (e.g. use-card-detail,
+    // use-decks) when the API returns 404. Route loaders catch these and call
+    // notFound(), but TanStack Start's auto-instrumentation reports them before
+    // the catch.
+    // AbortError: client closed the connection mid-SSR (navigated away, refresh,
+    // flaky network). Surfaced by the tanstackstart request middleware with no
+    // stacktrace; nothing actionable on the server.
+    ignoreErrors: ["NOT_FOUND", /^AbortError: The connection was closed/u],
     initialScope: { tags: { service: "web-ssr" } },
   });
 }
