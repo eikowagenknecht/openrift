@@ -24,6 +24,10 @@ export function initClientSentry(router: TanstackRouter): void {
     environment: PROD ? "production" : "development",
     integrations: [Sentry.tanstackRouterBrowserTracingIntegration(router)],
     tracesSampleRate: 0.1,
+    // Sentinel errors thrown by server functions (e.g. use-card-detail, use-decks)
+    // when the API returns 404. Route loaders catch these and call notFound(),
+    // but TanStack Start's auto-instrumentation reports them before the catch.
+    ignoreErrors: ["NOT_FOUND"],
     // Route envelopes through our own origin so they aren't dropped by Firefox
     // Enhanced Tracking Protection or ad-blockers (which list *.ingest.sentry.io
     // as a tracker). The API forwards them to Sentry server-side.
