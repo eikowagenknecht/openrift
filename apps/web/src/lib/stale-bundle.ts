@@ -58,8 +58,12 @@ export function initChunkErrorReloader(): void {
   if (globalThis.window === undefined) {
     return;
   }
+  // Each browser phrases the dynamic-import failure differently:
+  //   Chrome:  "Failed to fetch dynamically imported module"
+  //   Firefox: "error loading dynamically imported module"
+  //   Safari:  "Importing a module script failed"
   const isChunkLoadError = (message: string): boolean =>
-    /Failed to fetch dynamically imported module|Importing a module script failed|ChunkLoadError|Loading chunk \d+ failed/u.test(
+    /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|ChunkLoadError|Loading chunk \d+ failed/u.test(
       message,
     );
   globalThis.addEventListener("error", (event) => {

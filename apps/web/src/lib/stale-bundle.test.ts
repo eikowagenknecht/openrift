@@ -96,6 +96,18 @@ describe("initChunkErrorReloader", () => {
     expect(reloadSpy).toHaveBeenCalledTimes(1);
   });
 
+  test("reloads on Firefox-phrased dynamic-import failure", () => {
+    initChunkErrorReloader();
+
+    const event = new Event("unhandledrejection") as Event & { reason: unknown };
+    event.reason = new TypeError(
+      "error loading dynamically imported module: https://openrift.app/assets/card-detail-BD0IG5-V.js",
+    );
+    globalThis.dispatchEvent(event);
+
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
+  });
+
   test("ignores unrelated errors", () => {
     initChunkErrorReloader();
 

@@ -2,6 +2,7 @@
 
 ## 2026-05-11
 
+- fix: Firefox now auto-reloads to pick up the new version after a deploy, instead of showing a loading error
 - fix: Saving preferences on the profile page no longer fails with a server error
 - fix: Opening a deck link for a deck that has been deleted or never existed now shows a Not Found page instead of a server error
 
