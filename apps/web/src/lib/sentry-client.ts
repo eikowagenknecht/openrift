@@ -13,6 +13,12 @@ type TanstackRouter = Parameters<typeof Sentry.tanstackRouterBrowserTracingInteg
 // The dynamic-import + isServer gate in router.ts guarantee the module is never
 // evaluated on the server.
 export function initClientSentry(router: TanstackRouter): void {
+  // Skip in local dev — HMR / Fast Refresh noise (e.g. "Should have a queue"
+  // hook errors after a hot reload) would otherwise drown out real issues.
+  // Preview and production builds both have PROD === true.
+  if (!PROD) {
+    return;
+  }
   const dsn = globalThis.__OPENRIFT_CONFIG__?.sentryDsn;
   if (!dsn) {
     return;

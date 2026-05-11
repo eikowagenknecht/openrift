@@ -16,8 +16,11 @@
 
 import * as Sentry from "@sentry/tanstackstart-react";
 
+// Skip in local dev — keeps stray dev events out of the shared openrift-ssr
+// project. Preview deployments still report (APP_ENV === "preview").
+const appEnv = process.env.APP_ENV;
 const dsn = process.env.SENTRY_DSN_SSR;
-if (dsn) {
+if (dsn && (appEnv === "production" || appEnv === "preview")) {
   Sentry.init({
     dsn,
     environment: process.env.APP_ENV === "production" ? "production" : "development",
