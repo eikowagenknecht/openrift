@@ -41,7 +41,7 @@
     "@tanstack/react-pacer": "0.22.0"
   },
   "devDependencies": {
-    "@commitlint/cli": "20.5.3",
+    "@commitlint/cli": "21.0.0",
     "@commitlint/config-conventional": "21.0.0",
     "@commitlint/types": "21.0.0",
     "@tanstack/devtools-vite": "0.6.0",
