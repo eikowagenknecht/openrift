@@ -57,7 +57,7 @@ services:
   # `$$` escapes Compose's own variable interpolation so the inner shell
   # sees a literal `$`.
   disk-usage-exporter:
-    image: alpine:3.22
+    image: alpine:3.23
     command:
       - sh
       - -c
