@@ -8,7 +8,7 @@ import { CollapsibleFilterPanel } from "@/components/filters/collapsible-filter-
 import { FilterPanelContent, FlagBadge } from "@/components/filters/filter-panel-content";
 import { MobileFilterContent } from "@/components/filters/options-bar";
 import { Pane } from "@/components/layout/panes";
-import { useCardData, useCatalogFilterMeta, useOwnedFlagCount } from "@/hooks/use-card-data";
+import { useCatalogFilterMeta, useOwnedFlagCount } from "@/hooks/use-card-data";
 import { useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { useChannelRegistry } from "@/hooks/use-enums";
@@ -223,7 +223,3 @@ export function CardCatalogActiveFilters() {
     <ActiveFilters availableFilters={ctx.availableFilters} setDisplayLabel={ctx.setDisplayLabel} />
   );
 }
-
-// Re-exported so callers don't need a separate import line for the data hook
-// when wiring up <CardCatalogFilterProvider>.
-export { useCardData };

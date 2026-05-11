@@ -1,7 +1,7 @@
 import type { Printing } from "@openrift/shared";
 import { create } from "zustand";
 
-export interface CardRowHandlers {
+interface CardRowHandlers {
   onRowClick?: (printing: Printing) => void;
   onSiblingClick?: (printing: Printing) => void;
   onIncrement?: (printing: Printing) => void;
