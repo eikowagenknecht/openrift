@@ -1,5 +1,5 @@
 import type { Marketplace, Printing } from "@openrift/shared";
-import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   CheckIcon,
   CheckSquareIcon,
@@ -22,7 +22,6 @@ import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
-import { AddedCardsList } from "@/components/collection/added-cards-list";
 import { CollectionAddStrip } from "@/components/collection/collection-add-strip";
 import { FloatingActionBar } from "@/components/collection/floating-action-bar";
 import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
@@ -40,7 +39,6 @@ import {
   MobileOptionsDrawer,
 } from "@/components/filters/options-bar";
 import { SearchBar } from "@/components/filters/search-bar";
-import { MobileDetailOverlay } from "@/components/layout/mobile-detail-overlay";
 import { PageTopBar, PageTopBarActions, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { Pane } from "@/components/layout/panes";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
@@ -77,7 +75,6 @@ import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { useSession } from "@/lib/auth-session";
 import { formatterForMarketplace } from "@/lib/format";
-import { cn } from "@/lib/utils";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import { useDisplayStore } from "@/stores/display-store";
@@ -95,32 +92,6 @@ const COLLECTION_GRID_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set([
   "markers",
   "channels",
 ]);
-
-function AddedPill({
-  count,
-  active,
-  size,
-}: {
-  count: number;
-  active: boolean;
-  size: "desktop" | "mobile";
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => useAddModeStore.getState().toggleAddedList()}
-      className={cn(
-        "rounded-lg font-medium whitespace-nowrap transition-colors",
-        size === "desktop" ? "h-8 px-3 text-sm" : "h-8 px-2 text-sm",
-        active
-          ? "bg-primary text-primary-foreground"
-          : "bg-primary/10 text-primary hover:bg-primary/20",
-      )}
-    >
-      {count} {count === 1 ? "card" : "cards"} added
-    </button>
-  );
-}
 
 interface CollectionGridProps {
   collectionId?: string;
@@ -149,14 +120,17 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const favoriteMarketplace = display.favoriteMarketplace;
 
   // ── Mode state ──────────────────────────────────────────────────────
-  const { browsing: browsingParam } = useSearch({ strict: false });
-  const browsing = browsingParam ?? false;
+  // Shared with /cards via display-store, so the catalog mode persists across
+  // pages. On /collections we only use the "off" ↔ "add" transition; "count"
+  // (set on /cards) is treated as "not adding" here since the owned-only grid
+  // already shows counts in browse mode.
+  const catalogMode = useDisplayStore((state) => state.catalogMode);
   const [selectMode, setSelectMode] = useState(false);
-  const mode = browsing ? "add" : selectMode ? "select" : "browse";
+  const mode = catalogMode === "add" ? "add" : selectMode ? "select" : "browse";
 
   // ── Filter state (active in all modes) ──────────────────────────────
   const { filters, sortBy, sortDir, view, groupBy, groupDir, hasActiveFilters } = useFilterValues();
-  const { setSearch, clearAllFilters } = useFilterActions();
+  const { setSearch } = useFilterActions();
   const { allPrintings, sets } = useCards();
   const channels = useChannelRegistry();
   const prices = display.prices;
@@ -309,8 +283,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const addTarget = collectionId ?? inboxId;
 
   // ── Add mode state ──────────────────────────────────────────────────
-  const addedItems = useAddModeStore((s) => s.addedItems);
-  const showAddedList = useAddModeStore((s) => s.showAddedList);
   const variantPopover = useAddModeStore((s) => s.variantPopover);
   const disposePicker = useAddModeStore((s) => s.disposePicker);
   const closeDisposePicker = useAddModeStore((s) => s.closeDisposePicker);
@@ -326,29 +298,16 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // Fan-card sibling overrides (cards view, add mode)
   const [topPrintingOverrides, setTopPrintingOverrides] = useState<Map<string, string>>(new Map());
 
-  const startBrowsing = () => {
-    if (selectMode) {
+  const toggleAddMode = () => {
+    if (!isAddMode && selectMode) {
       setSelectMode(false);
       clearSelection();
     }
-    void navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, browsing: true }),
-      replace: true,
-    });
-  };
-
-  const handleCloseBrowsing = () => {
-    clearAllFilters();
-    void navigate({
-      to: ".",
-      search: ({ browsing: _, ...rest }) => rest,
-      replace: true,
-    });
-    useSelectionStore.getState().closeDetail();
-    useAddModeStore.getState().reset();
-    setTopPrintingOverrides(new Map());
-    globalThis.scrollTo(0, 0);
+    if (isAddMode) {
+      setTopPrintingOverrides(new Map());
+      globalThis.scrollTo(0, 0);
+    }
+    useDisplayStore.getState().toggleCatalogModeAdd();
   };
 
   const enterSelectMode = () => setSelectMode(true);
@@ -368,12 +327,8 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     useAddModeStore.getState().reset();
   }, [collectionId, clearSelection]);
 
-  // Cmd+K / Ctrl+K shortcut (skip in add mode — it has its own search)
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
-      if (mode === "add") {
-        return;
-      }
       if ((event.metaKey || event.ctrlKey) && event.key === "k") {
         event.preventDefault();
         setQuickAddOpen((prev) => !prev);
@@ -381,7 +336,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [mode]);
+  }, []);
 
   // ── Mutation handlers ───────────────────────────────────────────────
   const handleMove = (toCollectionId: string) => {
@@ -428,7 +383,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const findBy = dataView === "cards" ? "card" : ("printing" as const);
 
   const handleGridCardClick = (printing: Printing) => {
-    useAddModeStore.getState().closeAddedList();
     useAddModeStore.getState().closeVariants();
     useSelectionStore.getState().selectCard(printing, items, findBy);
   };
@@ -737,11 +691,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   };
 
   // ── Toolbar ─────────────────────────────────────────────────────────
-  const totalAdded = [...addedItems.values()].reduce(
-    (sum, entry) => sum + entry.quantity + entry.pendingCount,
-    0,
-  );
-
   const formatValue = formatterForMarketplace(favoriteMarketplace as Marketplace);
   const valueCents = currentCollection
     ? currentCollection.totalValueCents
@@ -796,7 +745,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           <Button
             variant={isAddMode ? "default" : "outline"}
             size="icon"
-            onClick={isAddMode ? handleCloseBrowsing : startBrowsing}
+            onClick={toggleAddMode}
             title={isAddMode ? "Stop adding" : "Browse catalog to add cards"}
             aria-label={isAddMode ? "Stop adding" : "Browse catalog to add cards"}
           >
@@ -849,29 +798,14 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     </Pane>
   );
 
-  const rightPane = (() => {
-    if (isMobile) {
-      return;
-    }
-    if (isAddMode && showAddedList && addedItems.size > 0) {
-      return (
-        <Pane className="@md:block">
-          <AddedCardsList
-            onCardClick={handleGridCardClick}
-            onClose={() => useAddModeStore.getState().closeAddedList()}
-          />
-        </Pane>
-      );
-    }
-    return (
-      <SelectionDetailPane
-        items={items}
-        printingsByCardId={printingsByCardId}
-        showImages={showImages}
-        onSearchAndClose={searchAndClose}
-      />
-    );
-  })();
+  const rightPane = isMobile ? undefined : (
+    <SelectionDetailPane
+      items={items}
+      printingsByCardId={printingsByCardId}
+      showImages={showImages}
+      onSearchAndClose={searchAndClose}
+    />
+  );
 
   const variantPrintings = variantPopover
     ? catalogPrintingsByCardId.get(variantPopover.cardId)
@@ -912,7 +846,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
                   <ZapIcon className="mr-1 size-3.5" />
                   Quick add
                 </Button>
-                <Button onClick={startBrowsing}>
+                <Button onClick={toggleAddMode}>
                   <LibraryBigIcon className="mr-1 size-3.5" />
                   Browse & add
                 </Button>
@@ -997,24 +931,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           />
         )}
 
-        {/* Floating action bar (add mode) */}
-        {isAddMode && addedItems.size > 0 && (
-          <div className="border-border bg-background fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg border px-4 py-2 shadow-lg">
-            <AddedPill count={totalAdded} active={showAddedList} size="desktop" />
-            <Button onClick={handleCloseBrowsing}>Done</Button>
-          </div>
-        )}
-
-        {/* Mobile overlays */}
-        {isAddMode && showAddedList && addedItems.size > 0 && isMobile && (
-          <MobileDetailOverlay>
-            <AddedCardsList
-              onCardClick={handleGridCardClick}
-              onClose={() => useAddModeStore.getState().closeAddedList()}
-            />
-          </MobileDetailOverlay>
-        )}
-        {!(isAddMode && showAddedList) && isMobile && (
+        {isMobile && (
           <SelectionMobileOverlay
             items={items}
             printingsByCardId={printingsByCardId}
@@ -1194,11 +1111,6 @@ function CollectionTopBar({
             </span>
           )}
         </span>
-      )}
-
-      {/* Add mode: pulsing dot (mobile indicator) */}
-      {mode === "add" && (
-        <span className="size-2 animate-pulse rounded-full bg-red-500 sm:hidden" />
       )}
 
       <PageTopBarActions>

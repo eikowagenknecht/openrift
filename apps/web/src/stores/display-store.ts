@@ -104,6 +104,7 @@ interface DisplayState {
   setFiltersExpanded: (value: boolean) => void;
   catalogMode: "off" | "count" | "add";
   cycleCatalogMode: () => void;
+  toggleCatalogModeAdd: () => void;
   displayMode: "grid" | "table";
   setDisplayMode: (value: "grid" | "table") => void;
 
@@ -222,6 +223,8 @@ export const useDisplayStore = create<DisplayState>()(
           const next = { off: "count", count: "add", add: "off" } as const;
           return { catalogMode: next[state.catalogMode] };
         }),
+      toggleCatalogModeAdd: () =>
+        set((state) => ({ catalogMode: state.catalogMode === "add" ? "off" : "add" })),
       displayMode: "grid" as const,
       setDisplayMode: (value) => set({ displayMode: value }),
 

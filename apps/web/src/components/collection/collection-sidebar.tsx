@@ -1,5 +1,5 @@
 import { useDndContext } from "@dnd-kit/core";
-import { Link, useMatches, useParams, useSearch } from "@tanstack/react-router";
+import { Link, useMatches, useParams } from "@tanstack/react-router";
 import {
   BookOpenIcon,
   ChartBarIcon,
@@ -27,7 +27,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useCollections, useCreateCollection } from "@/hooks/use-collections";
-import { cn } from "@/lib/utils";
 
 import type { CardDragData } from "./dnd-types";
 import { DroppableCollection } from "./droppable-collection";
@@ -50,8 +49,6 @@ export function CollectionSidebar() {
   const matches = useMatches();
   const currentPath = matches.at(-1)?.fullPath;
   const { collectionId } = useParams({ strict: false }) as { collectionId?: string };
-  const { browsing: browsingParam } = useSearch({ strict: false });
-  const browsing = browsingParam ?? false;
   const { isMobile, setOpenMobile } = useSidebar();
   const { data: collections } = useCollections();
 
@@ -112,40 +109,33 @@ export function CollectionSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Collections</SidebarGroupLabel>
           <SidebarMenu className="gap-1">
-            {collections?.map((col) => {
-              const isRecording =
-                browsing && (collectionId === col.id || (!collectionId && col.isInbox));
-              return (
-                <DroppableCollection
-                  key={col.id}
-                  collectionId={col.id}
-                  disabled={col.id === dragSourceCollectionId}
-                >
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      isActive={collectionId === col.id}
-                      render={
-                        <Link to="/collections/$collectionId" params={{ collectionId: col.id }} />
-                      }
-                    >
-                      {col.isInbox ? <InboxIcon /> : <BookOpenIcon />}
-                      <span className="flex-1 truncate">{col.name}</span>
-                      {isRecording && (
-                        <span className="ml-auto size-2.5 animate-pulse rounded-full bg-red-500" />
-                      )}
-                      {col.copyCount > 0 && (
-                        <Badge
-                          variant={col.isInbox ? "default" : "ghost"}
-                          className={cn("text-2xs", !isRecording && "ml-auto")}
-                        >
-                          {col.copyCount}
-                        </Badge>
-                      )}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </DroppableCollection>
-              );
-            })}
+            {collections?.map((col) => (
+              <DroppableCollection
+                key={col.id}
+                collectionId={col.id}
+                disabled={col.id === dragSourceCollectionId}
+              >
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={collectionId === col.id}
+                    render={
+                      <Link to="/collections/$collectionId" params={{ collectionId: col.id }} />
+                    }
+                  >
+                    {col.isInbox ? <InboxIcon /> : <BookOpenIcon />}
+                    <span className="flex-1 truncate">{col.name}</span>
+                    {col.copyCount > 0 && (
+                      <Badge
+                        variant={col.isInbox ? "default" : "ghost"}
+                        className="text-2xs ml-auto"
+                      >
+                        {col.copyCount}
+                      </Badge>
+                    )}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </DroppableCollection>
+            ))}
             <SidebarMenuItem>
               {isCreating ? (
                 <form

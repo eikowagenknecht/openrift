@@ -157,20 +157,6 @@ describe("useAddModeStore", () => {
   });
 
   describe("UI toggles", () => {
-    it("toggleAddedList flips showAddedList", () => {
-      expect(useAddModeStore.getState().showAddedList).toBe(false);
-      useAddModeStore.getState().toggleAddedList();
-      expect(useAddModeStore.getState().showAddedList).toBe(true);
-      useAddModeStore.getState().toggleAddedList();
-      expect(useAddModeStore.getState().showAddedList).toBe(false);
-    });
-
-    it("closeAddedList sets showAddedList to false", () => {
-      useAddModeStore.getState().toggleAddedList();
-      useAddModeStore.getState().closeAddedList();
-      expect(useAddModeStore.getState().showAddedList).toBe(false);
-    });
-
     it("openVariants stores the anchor element", () => {
       const anchor = document.createElement("button");
       useAddModeStore.getState().openVariants("card-1", anchor);
@@ -211,7 +197,6 @@ describe("useAddModeStore", () => {
     it("clears all state", () => {
       const printing = stubPrinting({ id: "p1" });
       useAddModeStore.getState().recordAdd(printing, "copy-1");
-      useAddModeStore.getState().toggleAddedList();
       useAddModeStore.getState().openVariants("card-1", document.createElement("button"));
       useAddModeStore.getState().openDisposePicker(printing, document.createElement("button"));
 
@@ -219,7 +204,6 @@ describe("useAddModeStore", () => {
 
       const state = useAddModeStore.getState();
       expect(state.addedItems.size).toBe(0);
-      expect(state.showAddedList).toBe(false);
       expect(state.variantPopover).toBeNull();
       expect(state.disposePicker).toBeNull();
     });

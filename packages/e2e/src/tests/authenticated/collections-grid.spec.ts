@@ -445,42 +445,45 @@ test.describe("collections grid", () => {
     });
   });
 
-  test.describe("browsing flag", () => {
+  test.describe("sidebar copy count", () => {
     test.describe.configure({ mode: "serial" });
 
     let state: BlockState;
 
     test.beforeAll(async ({ browser }) => {
       state = await setupBlock(browser, "browse");
-      // Seed copies so the inbox sidebar entry shows a non-zero count badge.
       await withSignedInContext(state.user, browser, async (context) => {
         await seedCopies(context, ANNIE_FIERY_NORMAL, 3, state.inboxId);
       });
     });
 
-    test("without ?browsing the inbox sidebar entry shows its copy count badge", async ({
-      browser,
-    }) => {
+    test("inbox sidebar entry shows its copy count badge", async ({ browser }) => {
       await withSignedInContext(state.user, browser, async (context) => {
         const page = await context.newPage();
         await page.goto(`/collections/${state.inboxId}`);
 
-        // Sidebar shows "Inbox" with a "3" badge next to it; assert the count text
-        // is visible. (Annie's grid renders the same number elsewhere, so we
-        // anchor on the sidebar item by scoping to the row containing "Inbox".)
         const inboxRow = page.locator('a[href*="/collections/"]', { hasText: "Inbox" });
         await expect(inboxRow).toBeVisible({ timeout: 15_000 });
         await expect(inboxRow.getByText("3", { exact: true })).toBeVisible();
       });
     });
 
-    // The browsing pulsing-red dot is rendered as a bare <span> with only
-    // styling classes (no role, aria-label, or distinctive text). Per project
-    // convention we don't scrape class names; flagging here so the team can
-    // decide whether to add an aria-label (e.g. "Currently browsing the catalog").
-    test.skip("with ?browsing=true the inbox sidebar entry shows the browsing indicator", () => {
-      // Intentionally skipped: needs a user-visible cue (aria-label or role) on
-      // the pulsing dot before this can be asserted without class scraping.
+    test("toolbar toggle enters and leaves add mode", async ({ browser }) => {
+      await withSignedInContext(state.user, browser, async (context) => {
+        const page = await context.newPage();
+        await page.goto(`/collections/${state.inboxId}`);
+
+        const toggle = page.getByRole("button", { name: "Browse catalog to add cards" });
+        await expect(toggle).toBeVisible({ timeout: 15_000 });
+        await toggle.click();
+
+        await expect(page.getByRole("button", { name: "Stop adding" })).toBeVisible();
+
+        await page.getByRole("button", { name: "Stop adding" }).click();
+        await expect(
+          page.getByRole("button", { name: "Browse catalog to add cards" }),
+        ).toBeVisible();
+      });
     });
   });
 
