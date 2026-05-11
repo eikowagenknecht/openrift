@@ -33,14 +33,21 @@ const fetchDecks = createServerFn({ method: "GET" })
 const fetchDeckDetail = createServerFn({ method: "GET" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: deckId }): Promise<DeckDetailResponse> =>
-      fetchApiJson<DeckDetailResponse>({
-        errorTitle: "Couldn't load deck",
-        cookie: context.cookie,
-        path: `/api/v1/decks/${encodeURIComponent(deckId)}`,
-      }),
-  );
+  .handler(async ({ context, data: deckId }): Promise<DeckDetailResponse> => {
+    // 404 is legitimate (unknown/deleted deck id, or one belonging to another
+    // user) — map to NOT_FOUND so the route can render a not-found page
+    // without logging the response as an error.
+    const res = await fetchApi({
+      errorTitle: "Couldn't load deck",
+      cookie: context.cookie,
+      path: `/api/v1/decks/${encodeURIComponent(deckId)}`,
+      acceptStatuses: [404],
+    });
+    if (res.status === 404) {
+      throw new Error("NOT_FOUND");
+    }
+    return res.json() as Promise<DeckDetailResponse>;
+  });
 
 export function decksQueryOptions(userId: string) {
   return queryOptions({

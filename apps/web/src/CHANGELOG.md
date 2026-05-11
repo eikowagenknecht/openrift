@@ -3,6 +3,7 @@
 ## 2026-05-11
 
 - fix: Saving preferences on the profile page no longer fails with a server error
+- fix: Opening a deck link for a deck that has been deleted or never existed now shows a Not Found page instead of a server error
 
 ## 2026-05-08
 
