@@ -3,6 +3,7 @@ import type { MiddlewareHandler } from "hono";
 import type { Repos } from "../deps.js";
 import { AppError, ERROR_CODES } from "../errors.js";
 import type { Variables } from "../types.js";
+import { resolveSession } from "./load-session.js";
 
 const ADMIN_CACHE_TTL = 30_000; // 30 seconds
 const adminCache = new Map<string, number>(); // userId → expiresAt timestamp
@@ -25,6 +26,7 @@ async function isAdmin(repos: Repos, userId: string): Promise<boolean> {
 }
 
 export const requireAdmin: MiddlewareHandler<{ Variables: Variables }> = async (c, next) => {
+  await resolveSession(c);
   const user = c.get("user");
   if (!user) {
     throw new AppError(401, ERROR_CODES.UNAUTHORIZED, "Unauthorized");

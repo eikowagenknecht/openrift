@@ -10,8 +10,12 @@ export interface Variables {
   io: Io;
   auth: Auth;
   config: Config;
-  user: Auth["$Infer"]["Session"]["user"] | null;
-  session: Auth["$Infer"]["Session"]["session"] | null;
+  // Undefined when no session-loading middleware has run on this route
+  // (truly-public endpoints). Use `loadSession`, `requireAuth`, or
+  // `requireAdmin` to populate; reads should treat `undefined` and `null`
+  // alike (`if (!user) ...`).
+  user: Auth["$Infer"]["Session"]["user"] | null | undefined;
+  session: Auth["$Infer"]["Session"]["session"] | null | undefined;
   repos: Repos;
   services: Services;
   transact: Transact;

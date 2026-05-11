@@ -18,6 +18,7 @@ const mockFeatureFlagsRepo = {
 const app = new Hono()
   .use("*", async (c, next) => {
     c.set("repos", { featureFlags: mockFeatureFlagsRepo } as never);
+    c.set("auth", { api: { getSession: () => Promise.resolve(null) } } as never);
     await next();
   })
   .route("/api/v1", featureFlagsRoute);

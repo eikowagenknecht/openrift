@@ -2,6 +2,7 @@ import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { FeatureFlagsResponse } from "@openrift/shared";
 import { featureFlagsResponseSchema } from "@openrift/shared/response-schemas";
 
+import { loadSession } from "../../middleware/load-session.js";
 import type { Variables } from "../../types.js";
 
 const getFeatureFlags = createRoute({
@@ -16,28 +17,28 @@ const getFeatureFlags = createRoute({
   },
 });
 
+const featureFlagsApp = new OpenAPIHono<{ Variables: Variables }>();
+featureFlagsApp.use("/feature-flags", loadSession);
+
 /** Public: GET /feature-flags — returns `{ flags: { key: enabled } }` map for the client to consume at boot. */
-export const featureFlagsRoute = new OpenAPIHono<{ Variables: Variables }>().openapi(
-  getFeatureFlags,
-  async (c) => {
-    const user = c.get("user");
+export const featureFlagsRoute = featureFlagsApp.openapi(getFeatureFlags, async (c) => {
+  const user = c.get("user");
 
-    if (user) {
-      // Authenticated: merge global defaults with per-user overrides.
-      const { userFeatureFlags } = c.get("repos");
-      const flags = await userFeatureFlags.listMerged(user.id);
-      c.header("Cache-Control", "private, max-age=60, stale-while-revalidate=300");
-      return c.json({ items: flags } satisfies FeatureFlagsResponse);
-    }
-
-    // Anonymous: global defaults only.
-    const { featureFlags } = c.get("repos");
-    const rows = await featureFlags.listKeyEnabled();
-    const flags: Record<string, boolean> = {};
-    for (const row of rows) {
-      flags[row.key] = row.enabled;
-    }
-    c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+  if (user) {
+    // Authenticated: merge global defaults with per-user overrides.
+    const { userFeatureFlags } = c.get("repos");
+    const flags = await userFeatureFlags.listMerged(user.id);
+    c.header("Cache-Control", "private, max-age=60, stale-while-revalidate=300");
     return c.json({ items: flags } satisfies FeatureFlagsResponse);
-  },
-);
+  }
+
+  // Anonymous: global defaults only.
+  const { featureFlags } = c.get("repos");
+  const rows = await featureFlags.listKeyEnabled();
+  const flags: Record<string, boolean> = {};
+  for (const row of rows) {
+    flags[row.key] = row.enabled;
+  }
+  c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+  return c.json({ items: flags } satisfies FeatureFlagsResponse);
+});

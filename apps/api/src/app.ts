@@ -274,14 +274,10 @@ export function createApp(deps: AppDeps) {
   app.get("/api/auth/*", (c) => auth.handler(c.req.raw));
   app.post("/api/auth/*", (c) => auth.handler(c.req.raw));
 
-  // Resolve the current user session (if any) so routes can access c.get("user").
-  // Runs on all /api/* routes — public routes simply see user as null.
-  app.use("/api/*", async (c, next) => {
-    const session = await auth.api.getSession({ headers: c.req.raw.headers });
-    c.set("user", session?.user ?? null);
-    c.set("session", session?.session ?? null);
-    await next();
-  });
+  // Session loading is opt-in per route. Auth-gated middlewares
+  // (`requireAuth`, `requireAdmin`) resolve the session themselves;
+  // public routes that branch on auth state apply the `loadSession`
+  // middleware explicitly. Truly-public routes skip the lookup entirely.
 
   // ── OpenAPI spec & Swagger UI ──────────────────────────────────────────
   app.doc("/api/doc", {

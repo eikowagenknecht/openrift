@@ -7,9 +7,21 @@ import { requireAuth } from "./require-auth.js";
 // Helpers
 // ---------------------------------------------------------------------------
 
-function createMockContext(user: { id: string } | null) {
-  const vars: Record<string, unknown> = { user };
-  return { get: (key: string) => vars[key] } as any;
+function createMockContext(session: { user: { id: string } } | null) {
+  const vars: Record<string, unknown> = {
+    auth: {
+      api: {
+        getSession: () => Promise.resolve(session),
+      },
+    },
+  };
+  return {
+    get: (key: string) => vars[key],
+    set: (key: string, value: unknown) => {
+      vars[key] = value;
+    },
+    req: { raw: { headers: new Headers() } },
+  } as any;
 }
 
 // ---------------------------------------------------------------------------
@@ -17,7 +29,7 @@ function createMockContext(user: { id: string } | null) {
 // ---------------------------------------------------------------------------
 
 describe("requireAuth", () => {
-  it("throws 401 AppError when user is null", async () => {
+  it("throws 401 AppError when no session", async () => {
     const ctx = createMockContext(null);
     const next = vi.fn(() => Promise.resolve());
 
@@ -34,11 +46,12 @@ describe("requireAuth", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("calls next() when user is present", async () => {
-    const ctx = createMockContext({ id: "user-123" });
+  it("calls next() and populates context when session has user", async () => {
+    const ctx = createMockContext({ user: { id: "user-123" } });
     const next = vi.fn(() => Promise.resolve());
 
     await requireAuth(ctx, next);
     expect(next).toHaveBeenCalledTimes(1);
+    expect(ctx.get("user")).toEqual({ id: "user-123" });
   });
 });

@@ -14,13 +14,22 @@ import { requireAdmin } from "./require-admin.js";
 const mockIsAdmin = vi.fn<(userId: string) => Promise<boolean>>();
 
 function createMockContext(options: { user?: { id: string } | null }) {
+  const session = options.user ? { user: options.user, session: { id: "s-1" } } : null;
   const vars: Record<string, unknown> = {
-    user: options.user === undefined ? null : options.user,
+    auth: {
+      api: {
+        getSession: () => Promise.resolve(session),
+      },
+    },
     repos: { admins: { isAdmin: mockIsAdmin } },
   };
 
   return {
     get: (key: string) => vars[key],
+    set: (key: string, value: unknown) => {
+      vars[key] = value;
+    },
+    req: { raw: { headers: new Headers() } },
   } as any;
 }
 
@@ -34,7 +43,7 @@ describe("require-admin middleware", () => {
   });
 
   describe("requireAdmin middleware", () => {
-    it("throws 401 if no user in context", async () => {
+    it("throws 401 if no user in session", async () => {
       const ctx = createMockContext({ user: null });
       const next = vi.fn(() => Promise.resolve());
 
