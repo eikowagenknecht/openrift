@@ -7,9 +7,44 @@
   "editable": true,
   "graphTooltip": 1,
   "refresh": "30s",
-  "time": { "from": "now-6h", "to": "now" },
+  "time": { "from": "now-3h", "to": "now" },
   "timezone": "browser",
-  "templating": { "list": [] },
+  "templating": {
+    "list": [
+      {
+        "name": "datname",
+        "label": "Database",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": {
+          "query": "label_values(pg_database_size_bytes, datname)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "regex": "",
+        "refresh": 1,
+        "sort": 1,
+        "multi": false,
+        "includeAll": false,
+        "current": { "selected": false, "text": "openrift", "value": "openrift" }
+      },
+      {
+        "name": "slow_threshold",
+        "label": "Slow ≥",
+        "type": "custom",
+        "query": "5ms,10ms,25ms,50ms,100ms,250ms,500ms",
+        "options": [
+          { "text": "5ms", "value": "5ms", "selected": false },
+          { "text": "10ms", "value": "10ms", "selected": false },
+          { "text": "25ms", "value": "25ms", "selected": true },
+          { "text": "50ms", "value": "50ms", "selected": false },
+          { "text": "100ms", "value": "100ms", "selected": false },
+          { "text": "250ms", "value": "250ms", "selected": false },
+          { "text": "500ms", "value": "500ms", "selected": false }
+        ],
+        "current": { "selected": true, "text": "25ms", "value": "25ms" }
+      }
+    ]
+  },
   "annotations": { "list": [] },
   "links": [
     {
@@ -23,71 +58,15 @@
   "panels": [
     {
       "type": "row",
-      "title": "Connections & size",
+      "title": "Overview",
       "collapsed": false,
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
       "panels": []
     },
     {
-      "title": "Active connections",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 80 },
-              { "color": "red", "value": 95 }
-            ]
-          },
-          "custom": { "fillOpacity": 15, "lineWidth": 2, "spanNulls": false }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "pg_stat_activity_count{datname=\"openrift\"}",
-          "legendFormat": "{{ state }}",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "title": "Max connections",
-      "type": "gauge",
-      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "min": 0,
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 70 },
-              { "color": "red", "value": 90 }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "sum(pg_stat_activity_count{datname=\"openrift\"})",
-          "legendFormat": "Active",
-          "refId": "A"
-        }
-      ],
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
-    },
-    {
       "title": "Database size",
       "type": "stat",
-      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 1 },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -105,93 +84,114 @@
       },
       "targets": [
         {
-          "expr": "pg_database_size_bytes{datname=\"openrift\"}",
+          "expr": "pg_database_size_bytes{datname=\"$datname\"}",
           "legendFormat": "Size",
           "refId": "A"
         }
       ],
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "value",
+        "graphMode": "area"
+      }
     },
     {
-      "type": "row",
-      "title": "Throughput",
-      "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
-      "panels": []
-    },
-    {
-      "title": "Transactions per second",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
+      "title": "Connection pool",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
-          "unit": "ops",
+          "unit": "percentunit",
           "min": 0,
-          "custom": { "fillOpacity": 10, "lineWidth": 2, "spanNulls": false }
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.7 },
+              { "color": "red", "value": 0.9 }
+            ]
+          }
         },
         "overrides": []
       },
       "targets": [
         {
-          "expr": "rate(pg_stat_database_xact_commit{datname=\"openrift\"}[5m])",
+          "expr": "sum(pg_stat_activity_count{datname=\"$datname\"}) / scalar(pg_settings_max_connections)",
+          "legendFormat": "In use",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "value",
+        "graphMode": "area"
+      }
+    },
+    {
+      "title": "Transactions/s",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(pg_stat_database_xact_commit{datname=\"$datname\"}[$__rate_interval]))",
           "legendFormat": "Commits/s",
           "refId": "A"
-        },
-        {
-          "expr": "rate(pg_stat_database_xact_rollback{datname=\"openrift\"}[5m])",
-          "legendFormat": "Rollbacks/s",
-          "refId": "B"
         }
-      ]
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "value",
+        "graphMode": "area"
+      }
     },
     {
-      "title": "Tuples per second",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+      "title": "Rollbacks/s",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
           "min": 0,
-          "custom": { "fillOpacity": 10, "lineWidth": 2, "spanNulls": false }
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.01 },
+              { "color": "red", "value": 0.1 }
+            ]
+          }
         },
         "overrides": []
       },
       "targets": [
         {
-          "expr": "rate(pg_stat_database_tup_fetched{datname=\"openrift\"}[5m])",
-          "legendFormat": "Fetched/s",
+          "expr": "sum(rate(pg_stat_database_xact_rollback{datname=\"$datname\"}[$__rate_interval]))",
+          "legendFormat": "Rollbacks/s",
           "refId": "A"
-        },
-        {
-          "expr": "rate(pg_stat_database_tup_inserted{datname=\"openrift\"}[5m])",
-          "legendFormat": "Inserted/s",
-          "refId": "B"
-        },
-        {
-          "expr": "rate(pg_stat_database_tup_updated{datname=\"openrift\"}[5m])",
-          "legendFormat": "Updated/s",
-          "refId": "C"
-        },
-        {
-          "expr": "rate(pg_stat_database_tup_deleted{datname=\"openrift\"}[5m])",
-          "legendFormat": "Deleted/s",
-          "refId": "D"
         }
-      ]
-    },
-    {
-      "type": "row",
-      "title": "Health",
-      "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
-      "panels": []
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "value",
+        "graphMode": "area"
+      }
     },
     {
       "title": "Cache hit ratio",
-      "type": "gauge",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 19 },
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -211,19 +211,25 @@
       },
       "targets": [
         {
-          "expr": "pg_stat_database_blks_hit{datname=\"openrift\"} / (pg_stat_database_blks_hit{datname=\"openrift\"} + pg_stat_database_blks_read{datname=\"openrift\"})",
+          "expr": "sum(rate(pg_stat_database_blks_hit{datname=\"$datname\"}[$__range])) / (sum(rate(pg_stat_database_blks_hit{datname=\"$datname\"}[$__range])) + sum(rate(pg_stat_database_blks_read{datname=\"$datname\"}[$__range])))",
           "legendFormat": "Cache hit ratio",
           "refId": "A"
         }
-      ]
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "value",
+        "graphMode": "none"
+      }
     },
     {
       "title": "Deadlocks",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 19 },
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
+          "unit": "short",
           "min": 0,
           "thresholds": {
             "mode": "absolute",
@@ -231,298 +237,202 @@
               { "color": "green", "value": null },
               { "color": "red", "value": 1 }
             ]
-          },
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(pg_stat_database_deadlocks{datname=\"$datname\"}[$__range]))",
+          "legendFormat": "Deadlocks",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "value",
+        "graphMode": "none"
+      }
+    },
+    {
+      "type": "row",
+      "title": "Connections",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "panels": []
+    },
+    {
+      "title": "Active connections by state",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "custom": {
+            "fillOpacity": 30,
+            "lineWidth": 1,
+            "spanNulls": false,
+            "stacking": { "mode": "normal", "group": "A" }
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "pg_stat_activity_count{datname=\"$datname\"} > 0",
+          "legendFormat": "{{state}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Throughput",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+      "panels": []
+    },
+    {
+      "title": "Transactions per second",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
           "custom": { "fillOpacity": 10, "lineWidth": 2, "spanNulls": false }
         },
         "overrides": []
       },
       "targets": [
         {
-          "expr": "rate(pg_stat_database_deadlocks{datname=\"openrift\"}[5m])",
-          "legendFormat": "Deadlocks/s",
+          "expr": "rate(pg_stat_database_xact_commit{datname=\"$datname\"}[$__rate_interval])",
+          "legendFormat": "Commits/s",
           "refId": "A"
+        },
+        {
+          "expr": "rate(pg_stat_database_xact_rollback{datname=\"$datname\"}[$__rate_interval])",
+          "legendFormat": "Rollbacks/s",
+          "refId": "B"
         }
       ]
     },
     {
-      "type": "row",
-      "title": "Top queries (pg_stat_statements)",
-      "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
-      "panels": []
-    },
-    {
-      "title": "Top 10 by total time",
-      "type": "table",
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 28 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 60 },
-              { "color": "red", "value": 600 }
-            ]
-          },
-          "custom": { "displayMode": "auto" }
-        },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "Total time (s)" },
-            "properties": [
-              { "id": "unit", "value": "s" },
-              { "id": "custom.displayMode", "value": "color-background" }
-            ]
-          },
-          {
-            "matcher": { "id": "byName", "options": "Mean time (s)" },
-            "properties": [{ "id": "unit", "value": "s" }]
-          }
-        ]
-      },
-      "targets": [
-        {
-          "expr": "topk(10, pg_stat_statements_seconds_total)",
-          "refId": "A",
-          "instant": true,
-          "format": "table"
-        }
-      ],
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true,
-              "__name__": true,
-              "instance": true,
-              "job": true,
-              "user": true,
-              "datname": true
-            },
-            "renameByName": {
-              "query": "Query",
-              "queryid": "ID",
-              "Value": "Total time (s)"
-            }
-          }
-        },
-        {
-          "id": "convertFieldType",
-          "options": {
-            "conversions": [{ "targetField": "ID", "destinationType": "string" }]
-          }
-        },
-        {
-          "id": "sortBy",
-          "options": { "fields": {}, "sort": [{ "field": "Total time (s)", "desc": true }] }
-        }
-      ]
-    },
-    {
-      "title": "Top 10 by mean time",
-      "type": "table",
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 38 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.1 },
-              { "color": "red", "value": 1 }
-            ]
-          },
-          "custom": { "displayMode": "auto" }
-        },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "Mean time (s)" },
-            "properties": [
-              { "id": "unit", "value": "s" },
-              { "id": "custom.displayMode", "value": "color-background" }
-            ]
-          }
-        ]
-      },
-      "targets": [
-        {
-          "expr": "topk(10, pg_stat_statements_seconds_mean)",
-          "refId": "A",
-          "instant": true,
-          "format": "table"
-        }
-      ],
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true,
-              "__name__": true,
-              "instance": true,
-              "job": true,
-              "user": true,
-              "datname": true
-            },
-            "renameByName": {
-              "query": "Query",
-              "queryid": "ID",
-              "Value": "Mean time (s)"
-            }
-          }
-        },
-        {
-          "id": "convertFieldType",
-          "options": {
-            "conversions": [{ "targetField": "ID", "destinationType": "string" }]
-          }
-        },
-        {
-          "id": "sortBy",
-          "options": { "fields": {}, "sort": [{ "field": "Mean time (s)", "desc": true }] }
-        }
-      ]
-    },
-    {
-      "title": "Top 10 most-called",
-      "type": "table",
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 48 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": { "displayMode": "auto" }
-        },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "Calls/s" },
-            "properties": [
-              { "id": "unit", "value": "ops" },
-              { "id": "custom.displayMode", "value": "color-background" },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    { "color": "green", "value": null },
-                    { "color": "yellow", "value": 10 },
-                    { "color": "red", "value": 100 }
-                  ]
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "targets": [
-        {
-          "expr": "topk(10, rate(pg_stat_statements_calls_total[5m]))",
-          "refId": "A",
-          "instant": true,
-          "format": "table"
-        }
-      ],
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true,
-              "__name__": true,
-              "instance": true,
-              "job": true,
-              "user": true,
-              "datname": true
-            },
-            "renameByName": {
-              "query": "Query",
-              "queryid": "ID",
-              "Value": "Calls/s"
-            }
-          }
-        },
-        {
-          "id": "convertFieldType",
-          "options": {
-            "conversions": [{ "targetField": "ID", "destinationType": "string" }]
-          }
-        },
-        {
-          "id": "sortBy",
-          "options": { "fields": {}, "sort": [{ "field": "Calls/s", "desc": true }] }
-        }
-      ]
-    },
-    {
-      "type": "row",
-      "title": "Aggregate query stats",
-      "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 58 },
-      "panels": []
-    },
-    {
-      "title": "Total DB time per second",
+      "title": "Tuples per second",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 59 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "min": 0,
-          "custom": { "fillOpacity": 15, "lineWidth": 2, "spanNulls": false }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "sum(rate(pg_stat_statements_seconds_total[5m]))",
-          "legendFormat": "Total query time/s",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "title": "Query calls per second",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 59 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
           "min": 0,
-          "custom": { "fillOpacity": 15, "lineWidth": 2, "spanNulls": false }
+          "custom": { "fillOpacity": 10, "lineWidth": 2, "spanNulls": false }
         },
         "overrides": []
       },
       "targets": [
         {
-          "expr": "sum(rate(pg_stat_statements_calls_total[5m]))",
-          "legendFormat": "Calls/s",
+          "expr": "rate(pg_stat_database_tup_fetched{datname=\"$datname\"}[$__rate_interval])",
+          "legendFormat": "Fetched/s",
           "refId": "A"
+        },
+        {
+          "expr": "rate(pg_stat_database_tup_inserted{datname=\"$datname\"}[$__rate_interval])",
+          "legendFormat": "Inserted/s",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(pg_stat_database_tup_updated{datname=\"$datname\"}[$__rate_interval])",
+          "legendFormat": "Updated/s",
+          "refId": "C"
+        },
+        {
+          "expr": "rate(pg_stat_database_tup_deleted{datname=\"$datname\"}[$__rate_interval])",
+          "legendFormat": "Deleted/s",
+          "refId": "D"
         }
       ]
     },
     {
       "type": "row",
-      "title": "DB activity (OTel spans)",
+      "title": "Slow DB activity",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 67 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
       "panels": []
     },
     {
-      "title": "DB span rate",
-      "type": "stat",
-      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 68 },
+      "title": "Slow DB spans (≥ $slow_threshold)",
+      "type": "table",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 24 },
       "datasource": { "type": "tempo", "uid": "tempo" },
+      "description": "DB spans at or above the threshold in the dashboard time range, sourced directly from Tempo. Click a trace ID to open the full trace and walk SSR → API → Kysely → DB.",
       "fieldConfig": {
         "defaults": {
-          "unit": "reqps",
+          "custom": { "align": "left", "displayMode": "auto" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Duration" },
+            "properties": [
+              { "id": "custom.displayMode", "value": "color-background" },
+              { "id": "custom.width", "value": 100 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Trace Name" },
+            "properties": [{ "id": "custom.width", "value": 260 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "db.query.text" },
+            "properties": [
+              { "id": "custom.width", "value": 700 },
+              { "id": "displayName", "value": "SQL" }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceql",
+          "tableType": "spans",
+          "limit": 50,
+          "spss": 5,
+          "query": "{resource.service.name=\"openrift-api\" && span.db.system.name=\"postgresql\" && duration >= $slow_threshold} | select(span.db.query.text)",
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Trace Service": true,
+              "db.system.name": true,
+              "service.name": true
+            },
+            "renameByName": {},
+            "indexByName": {}
+          }
+        }
+      ]
+    },
+    {
+      "title": "p95 DB latency by statement",
+      "type": "timeseries",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 36 },
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "description": "p95 span duration per distinct db.statement, computed by Tempo's TraceQL metrics engine from real spans. Updates roughly every minute as new spans flow in.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
           "min": 0,
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
+          "custom": { "lineWidth": 2, "fillOpacity": 5, "spanNulls": false }
         },
         "overrides": []
       },
@@ -531,16 +441,25 @@
           "datasource": { "type": "tempo", "uid": "tempo" },
           "queryType": "traceql",
           "metricsQueryType": "range",
-          "query": "{ resource.service.name=\"openrift-api\" && span.db.system.name=\"postgresql\" } | rate()",
+          "query": "{resource.service.name=\"openrift-api\" && span.db.system.name=\"postgresql\"} | quantile_over_time(duration, .95) by (span.db.query.text)",
           "refId": "A"
         }
       ],
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }
+      }
+    },
+    {
+      "type": "row",
+      "title": "DB activity by operation (OTel spans)",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 46 },
+      "panels": []
     },
     {
       "title": "DB query rate by operation",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 18, "x": 6, "y": 68 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 47 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -565,18 +484,13 @@
         }
       ],
       "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "calcs": ["mean", "max"],
-          "width": 420
-        }
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }
       }
     },
     {
       "title": "p95 DB duration by operation",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 76 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 47 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -597,12 +511,7 @@
         }
       ],
       "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "calcs": ["mean", "max"],
-          "width": 420
-        }
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }
       }
     }
   ]

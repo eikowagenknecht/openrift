@@ -37,9 +37,43 @@ updates:
     assignees:
       - eikowagenknecht
 
-  # Check for updates to Docker images every week
+  # Check for updates to Docker images every week. One entry per directory
+  # that contains a Dockerfile or docker-compose file — Dependabot doesn't
+  # recurse, so each location needs its own block.
   - package-ecosystem: "docker"
     directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "main"
+    commit-message:
+      prefix: "build"
+      include: "scope"
+    assignees:
+      - eikowagenknecht
+
+  # Monitoring stack: tempo, loki, alloy, grafana, prometheus, exporters.
+  - package-ecosystem: "docker-compose"
+    directory: "/monitoring"
+    schedule:
+      interval: "weekly"
+    target-branch: "main"
+    commit-message:
+      prefix: "build"
+      include: "scope"
+    assignees:
+      - eikowagenknecht
+    groups:
+      monitoring-images:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Backup stack
+  - package-ecosystem: "docker-compose"
+    directory: "/backup"
     schedule:
       interval: "weekly"
     target-branch: "main"

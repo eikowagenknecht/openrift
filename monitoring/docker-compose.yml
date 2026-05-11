@@ -6,18 +6,23 @@
 # Connects to the main app's Docker network to scrape metrics.
 services:
   # Host metrics: CPU, RAM, disk, network.
+  # Also serves Prometheus textfiles written by `disk-usage-exporter` via the
+  # textfile collector — its /metrics endpoint merges those gauges into its
+  # own output, so we don't need a separate scrape target.
   node-exporter:
-    image: prom/node-exporter:latest
+    image: prom/node-exporter:v1.11.1
     pid: host
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
+      - textfile_collector:/textfile:ro
     command:
       - "--path.procfs=/host/proc"
       - "--path.sysfs=/host/sys"
       - "--path.rootfs=/rootfs"
-      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc|run)($$|/)"
+      - "--collector.textfile.directory=/textfile"
     logging:
       driver: json-file
       options:
@@ -27,7 +32,7 @@ services:
 
   # Per-container metrics: CPU, memory, network, restarts.
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
     privileged: true
     volumes:
       - /:/rootfs:ro
@@ -44,9 +49,44 @@ services:
         max-file: "3"
     restart: unless-stopped
 
+  # Telemetry stack disk usage. Bind-mounted data dirs don't show up as
+  # separate filesystems in node-exporter, so we run a tiny sidecar that
+  # writes per-component sizes to a Prometheus textfile every minute.
+  # node-exporter picks it up via its textfile collector — no HTTP server
+  # or scrape target needed here.
+  # `$$` escapes Compose's own variable interpolation so the inner shell
+  # sees a literal `$`.
+  disk-usage-exporter:
+    image: alpine:3.22
+    command:
+      - sh
+      - -c
+      - |
+        while true; do
+          {
+            echo "# HELP telemetry_disk_usage_bytes Bytes on disk per telemetry component"
+            echo "# TYPE telemetry_disk_usage_bytes gauge"
+            for d in prometheus tempo loki alloy grafana; do
+              size=$$(du -sb /data/$$d 2>/dev/null | awk '{print $$1}')
+              echo "telemetry_disk_usage_bytes{component=\"$$d\"} $${size:-0}"
+            done
+          } > /textfile/disk_usage.prom.tmp
+          mv /textfile/disk_usage.prom.tmp /textfile/disk_usage.prom
+          sleep 60
+        done
+    volumes:
+      - ./data:/data:ro
+      - textfile_collector:/textfile
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+    restart: unless-stopped
+
   # PostgreSQL metrics: connections, query stats, replication.
   postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:latest
+    image: prometheuscommunity/postgres-exporter:v0.19.1
     environment:
       DATA_SOURCE_NAME: ${POSTGRES_CONNECTION}
       PG_EXPORTER_EXTEND_QUERY_PATH: /etc/postgres-exporter/queries.yaml
@@ -64,7 +104,7 @@ services:
 
   # Scrapes all exporters, stores metrics for 90 days.
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.11.3
     user: "${UID:-1000}:${GID:-1000}"
     ports:
       - "127.0.0.1:9090:9090"
@@ -98,7 +138,7 @@ services:
   # telemetry) on the internal Docker network. Queried by Grafana via :3200.
   # No host port for OTLP — apps send to Alloy, not directly here.
   tempo:
-    image: grafana/tempo:latest
+    image: grafana/tempo:2.10.5
     user: "${UID:-1000}:${GID:-1000}"
     command: ["-config.file=/etc/tempo/tempo.yml"]
     ports:
@@ -120,7 +160,7 @@ services:
   # Queried by Grafana via :3100 on the internal network; host 3101 is for
   # ad-hoc curl (Grafana already binds 3100 on the host).
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki:3.7.1
     user: "${UID:-1000}:${GID:-1000}"
     command: ["-config.file=/etc/loki/loki.yml"]
     ports:
@@ -143,7 +183,7 @@ services:
   # stdout via the Docker socket, parses pino JSON, and ships to Loki with
   # trace_id as structured metadata for Tempo ↔ Loki pivots. UI on :12345.
   alloy:
-    image: grafana/alloy:latest
+    image: grafana/alloy:v1.16.1
     command:
       - "run"
       - "--server.http.listen-addr=0.0.0.0:12345"
@@ -172,7 +212,7 @@ services:
 
   # Dashboards + email alerting. Accessible via host nginx.
   grafana:
-    image: grafana/grafana-oss:latest
+    image: grafana/grafana-oss:13.0.1
     user: "${UID:-1000}:${GID:-1000}"
     ports:
       - "127.0.0.1:${GRAFANA_PORT:-3100}:3000"
@@ -210,3 +250,9 @@ networks:
   openrift:
     external: true
     name: openrift_default
+
+volumes:
+  # Shared between disk-usage-exporter (writes .prom files) and node-exporter
+  # (reads them via --collector.textfile.directory). Named volume so Docker
+  # owns the lifecycle and permissions, avoiding root-owned ./data subdirs.
+  textfile_collector:

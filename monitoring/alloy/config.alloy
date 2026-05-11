@@ -87,39 +87,45 @@ loki.source.docker "containers" {
 }
 
 loki.process "pino" {
-  // Parse pino JSON. If the line isn't JSON (e.g. a non-pino container like
-  // Tempo/Prometheus), the stage no-ops and the line passes through with its
-  // existing labels.
-  stage.json {
-    expressions = {
-      level   = "level",
-      msg     = "msg",
-      time    = "time",
-      name    = "name",
-      trace_id = "trace_id",
-      span_id  = "span_id",
+  // Only attempt JSON / level / trace-id extraction on services known to
+  // emit pino logs. Without this guard, non-pino containers (Tempo,
+  // Grafana, Loki, Prometheus, …) get a phantom `level="<no value>"` label
+  // because the Go template renders unset keys as the literal string. Add
+  // new services here as they start shipping pino-formatted logs.
+  stage.match {
+    selector = "{service=~\"api|web\"}"
+
+    stage.json {
+      expressions = {
+        level    = "level",
+        msg      = "msg",
+        time     = "time",
+        name     = "name",
+        trace_id = "trace_id",
+        span_id  = "span_id",
+      }
     }
-  }
 
-  // Map numeric pino levels to text. Pino: 10=trace 20=debug 30=info 40=warn 50=error 60=fatal.
-  stage.template {
-    source   = "level_text"
-    template = "{{ if eq .level \"10\" }}trace{{ else if eq .level \"20\" }}debug{{ else if eq .level \"30\" }}info{{ else if eq .level \"40\" }}warn{{ else if eq .level \"50\" }}error{{ else if eq .level \"60\" }}fatal{{ else }}{{ .level }}{{ end }}"
-  }
-
-  stage.labels {
-    values = {
-      level = "level_text",
+    // Map numeric pino levels to text. Pino: 10=trace 20=debug 30=info 40=warn 50=error 60=fatal.
+    stage.template {
+      source   = "level_text"
+      template = "{{ if eq .level \"10\" }}trace{{ else if eq .level \"20\" }}debug{{ else if eq .level \"30\" }}info{{ else if eq .level \"40\" }}warn{{ else if eq .level \"50\" }}error{{ else if eq .level \"60\" }}fatal{{ end }}"
     }
-  }
 
-  // trace_id / span_id are high-cardinality so we attach them as structured
-  // metadata (Loki v13 feature), not labels. They're still indexed for
-  // exact-match queries via `| trace_id="..."`.
-  stage.structured_metadata {
-    values = {
-      trace_id = "trace_id",
-      span_id  = "span_id",
+    stage.labels {
+      values = {
+        level = "level_text",
+      }
+    }
+
+    // trace_id / span_id are high-cardinality so we attach them as structured
+    // metadata (Loki v13 feature), not labels. They're still indexed for
+    // exact-match queries via `| trace_id="..."`.
+    stage.structured_metadata {
+      values = {
+        trace_id = "trace_id",
+        span_id  = "span_id",
+      }
     }
   }
 

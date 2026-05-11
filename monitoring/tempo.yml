@@ -36,8 +36,20 @@ metrics_generator:
       histogram_buckets:
         [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]
     service_graphs: {}
+    local_blocks:
+      flush_check_period: 10s
+      trace_idle_period: 10s
+      complete_block_timeout: 1h
+      max_live_traces: 5000
+
+# Required for TraceQL metrics (rate, quantile_over_time, ...) backed by
+# local-blocks.
+query_frontend:
+  metrics:
+    max_duration: 24h
+    concurrent_jobs: 1000
 
 overrides:
   defaults:
     metrics_generator:
-      processors: [span-metrics, service-graphs]
+      processors: [span-metrics, service-graphs, local-blocks]

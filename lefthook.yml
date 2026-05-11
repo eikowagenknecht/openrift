@@ -22,6 +22,18 @@ pre-commit:
     oxfmt-fix:
       glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc,md}"
       run: bunx oxfmt '{staged_files}' && git update-index --again
+    docker-image-pinned:
+      # Fail if a Dockerfile or docker-compose file pins to `:latest`, `:main`
+      # (or any other floating tag we want to add). Pinned semver / digests
+      # only — Dependabot will then surface updates as PRs.
+      glob: "{Dockerfile*,**/docker-compose*.yml}"
+      run: |
+        bad=$(grep -HnE "(image:|^FROM)\s+\S+:(latest|main)\b" {staged_files} 2>/dev/null || true)
+        if [ -n "$bad" ]; then
+          echo "Floating Docker tag found — pin to an explicit version:"
+          echo "$bad"
+          exit 1
+        fi
 
 pre-push:
   commands:

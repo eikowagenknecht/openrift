@@ -30,6 +30,20 @@
       "url": "/d/openrift-infra",
       "targetBlank": false,
       "icon": "external link"
+    },
+    {
+      "type": "link",
+      "title": "Logs",
+      "url": "/d/openrift-logs",
+      "targetBlank": false,
+      "icon": "external link"
+    },
+    {
+      "type": "link",
+      "title": "Pipeline health",
+      "url": "/d/openrift-pipeline",
+      "targetBlank": false,
+      "icon": "external link"
     }
   ],
   "panels": [
@@ -276,7 +290,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "container_memory_usage_bytes{name=~\"openrift-.+\",name!~\"openrift-preview-.+\"}",
+          "expr": "max by (name) (container_memory_usage_bytes{name=~\"openrift-.+\",name!~\"openrift-preview-.+\"})",
           "refId": "A",
           "legendFormat": "{{ name }}"
         }
@@ -313,7 +327,10 @@
       "title": "CPU %",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
-        { "expr": "1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m]))", "refId": "A" }
+        {
+          "expr": "sum by (instance) (rate(node_cpu_seconds_total{mode!=\"idle\"}[5m])) / sum by (instance) (rate(node_cpu_seconds_total[5m]))",
+          "refId": "A"
+        }
       ],
       "fieldConfig": {
         "defaults": {
@@ -352,7 +369,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "rate(container_cpu_usage_seconds_total{name=~\"openrift-.+\",name!~\"openrift-preview-.+\"}[5m])",
+          "expr": "sum by (name) (rate(container_cpu_usage_seconds_total{name=~\"openrift-.+\",name!~\"openrift-preview-.+\"}[5m]))",
           "refId": "A",
           "legendFormat": "{{ name }}"
         }
@@ -383,84 +400,6 @@
         }
       ],
       "gridPos": { "h": 8, "w": 18, "x": 6, "y": 12 }
-    },
-    {
-      "type": "row",
-      "title": "Dashboards",
-      "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 20 },
-      "panels": []
-    },
-    {
-      "type": "stat",
-      "title": "API Metrics",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "vector(1)", "refId": "A", "instant": true }],
-      "fieldConfig": {
-        "defaults": {
-          "displayName": "API Metrics",
-          "color": { "mode": "fixed", "fixedColor": "green" },
-          "links": [{ "title": "Open dashboard", "url": "/d/openrift-api", "targetBlank": false }]
-        },
-        "overrides": []
-      },
-      "options": {
-        "textMode": "name",
-        "graphMode": "none",
-        "colorMode": "background_solid",
-        "justifyMode": "center",
-        "text": { "titleSize": 0, "valueSize": 22 },
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
-      },
-      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 21 }
-    },
-    {
-      "type": "stat",
-      "title": "Database",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "vector(1)", "refId": "A", "instant": true }],
-      "fieldConfig": {
-        "defaults": {
-          "displayName": "Database",
-          "color": { "mode": "fixed", "fixedColor": "green" },
-          "links": [
-            { "title": "Open dashboard", "url": "/d/openrift-database", "targetBlank": false }
-          ]
-        },
-        "overrides": []
-      },
-      "options": {
-        "textMode": "name",
-        "graphMode": "none",
-        "colorMode": "background_solid",
-        "justifyMode": "center",
-        "text": { "titleSize": 0, "valueSize": 22 },
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
-      },
-      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 21 }
-    },
-    {
-      "type": "stat",
-      "title": "Infrastructure",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "vector(1)", "refId": "A", "instant": true }],
-      "fieldConfig": {
-        "defaults": {
-          "displayName": "Infrastructure",
-          "color": { "mode": "fixed", "fixedColor": "green" },
-          "links": [{ "title": "Open dashboard", "url": "/d/openrift-infra", "targetBlank": false }]
-        },
-        "overrides": []
-      },
-      "options": {
-        "textMode": "name",
-        "graphMode": "none",
-        "colorMode": "background_solid",
-        "justifyMode": "center",
-        "text": { "titleSize": 0, "valueSize": 22 },
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
-      },
-      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 21 }
     }
   ]
 }

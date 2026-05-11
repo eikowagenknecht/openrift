@@ -41,3 +41,8 @@ scrape_configs:
   - job_name: "loki"
     static_configs:
       - targets: ["loki:3100"]
+
+  # Per-component telemetry disk usage arrives via node-exporter's textfile
+  # collector: the disk-usage-exporter sidecar writes disk_usage.prom into a
+  # shared volume that node-exporter reads. No separate scrape job needed —
+  # the metric appears under job="node-exporter" alongside CPU / RAM / disk.

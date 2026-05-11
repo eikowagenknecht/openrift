@@ -11,11 +11,12 @@ common:
   ring:
     kvstore:
       store: inmemory
+  storage:
+    filesystem:
+      chunks_directory: /var/loki/chunks
+      rules_directory: /var/loki/rules
 
 storage_config:
-  filesystem:
-    chunks_directory: /var/loki/chunks
-    rules_directory: /var/loki/rules
   tsdb_shipper:
     active_index_directory: /var/loki/tsdb-active
     cache_location: /var/loki/tsdb-cache
