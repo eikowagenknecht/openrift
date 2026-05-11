@@ -43,13 +43,15 @@ export function QuickAddPalette({
         <DrawerContent>
           <DrawerTitle className="sr-only">Quick add to {collectionName}</DrawerTitle>
           <div className="flex min-h-0 flex-1 flex-col p-4">
-            <PaletteInner
-              collectionId={collectionId}
-              collectionName={collectionName}
-              printingsByCardId={printingsByCardId}
-              ownedCountByPrinting={ownedCountByPrinting}
-              isMobile
-            />
+            {open && (
+              <PaletteInner
+                collectionId={collectionId}
+                collectionName={collectionName}
+                printingsByCardId={printingsByCardId}
+                ownedCountByPrinting={ownedCountByPrinting}
+                isMobile
+              />
+            )}
           </div>
         </DrawerContent>
       </Drawer>
@@ -63,13 +65,15 @@ export function QuickAddPalette({
         className="max-w-md gap-0 overflow-visible p-0 sm:max-w-md"
       >
         <DialogTitle className="sr-only">Quick add to {collectionName}</DialogTitle>
-        <PaletteInner
-          collectionId={collectionId}
-          collectionName={collectionName}
-          printingsByCardId={printingsByCardId}
-          ownedCountByPrinting={ownedCountByPrinting}
-          isMobile={false}
-        />
+        {open && (
+          <PaletteInner
+            collectionId={collectionId}
+            collectionName={collectionName}
+            printingsByCardId={printingsByCardId}
+            ownedCountByPrinting={ownedCountByPrinting}
+            isMobile={false}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -147,9 +151,13 @@ function PaletteInner({
     if (!list) {
       return;
     }
-    const selected = list.querySelector("[data-selected=true]");
-    if (selected) {
-      selected.scrollIntoView({ block: "nearest" });
+    // When a card is expanded, both the card row and the active printing row
+    // carry data-selected=true. Pick the last match so we scroll to the
+    // printing (deeper in the DOM) rather than the already-visible card row.
+    const candidates = list.querySelectorAll("[data-selected=true]");
+    const target = candidates.item(candidates.length - 1);
+    if (target) {
+      target.scrollIntoView({ block: "nearest" });
     }
   }, [selectedIndex, expandedCardId, expandedIndex]);
 
