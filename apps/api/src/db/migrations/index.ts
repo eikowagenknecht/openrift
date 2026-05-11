@@ -1,7 +1,7 @@
 // Static migration barrel — explicit imports so Kysely's MigrationProvider
 // doesn't need filesystem scanning. When adding a new migration, also add it here.
 
-import type { Migration } from "kysely";
+import type { Migration } from "kysely/migration";
 
 import * as m001 from "./001-core-schema.js";
 import * as m059 from "./059-backfill-keywords-from-printings.js";

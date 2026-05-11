@@ -4,9 +4,9 @@ import { describe, expect, it, vi } from "vitest";
 // Capture the provider passed to the Migrator constructor
 let capturedProvider: { getMigrations: () => Promise<Record<string, unknown>> } | undefined;
 
-vi.mock("kysely", async (importOriginal) => {
+vi.mock("kysely/migration", async (importOriginal) => {
   // oxlint-disable-next-line typescript/consistent-type-imports -- vitest dynamic import pattern
-  const original = await importOriginal<typeof import("kysely")>();
+  const original = await importOriginal<typeof import("kysely/migration")>();
   return {
     ...original,
     Migrator: class MockMigrator {

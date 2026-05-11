@@ -5,6 +5,7 @@ import {
   DB_SYSTEM_NAME_VALUE_POSTGRESQL,
 } from "@opentelemetry/semantic-conventions";
 import type {
+  AbortableOperationOptions,
   CompiledQuery,
   DatabaseConnection,
   DatabaseIntrospector,
@@ -129,7 +130,10 @@ class TracingConnection implements DatabaseConnection {
     this.inner = inner;
   }
 
-  async executeQuery<R>(compiledQuery: CompiledQuery): Promise<QueryResult<R>> {
+  async executeQuery<R>(
+    compiledQuery: CompiledQuery,
+    options?: AbortableOperationOptions,
+  ): Promise<QueryResult<R>> {
     const span = tracer.startSpan(deriveSpanName(compiledQuery.sql), {
       kind: SpanKind.CLIENT,
       attributes: {
@@ -139,7 +143,7 @@ class TracingConnection implements DatabaseConnection {
     });
     try {
       return await context.with(trace.setSpan(context.active(), span), () =>
-        this.inner.executeQuery<R>(compiledQuery),
+        this.inner.executeQuery<R>(compiledQuery, options),
       );
     } catch (error) {
       span.setStatus({
@@ -155,7 +159,8 @@ class TracingConnection implements DatabaseConnection {
 
   streamQuery<R>(
     compiledQuery: CompiledQuery,
-    chunkSize?: number,
+    chunkSize: number,
+    options?: AbortableOperationOptions,
   ): AsyncIterableIterator<QueryResult<R>> {
     const span = tracer.startSpan(deriveSpanName(compiledQuery.sql), {
       kind: SpanKind.CLIENT,
@@ -165,7 +170,7 @@ class TracingConnection implements DatabaseConnection {
       },
     });
     const iter = context.with(trace.setSpan(context.active(), span), () =>
-      this.inner.streamQuery<R>(compiledQuery, chunkSize),
+      this.inner.streamQuery<R>(compiledQuery, chunkSize, options),
     );
     return wrapIteratorWithSpan(iter, span);
   }

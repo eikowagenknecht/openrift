@@ -1,6 +1,6 @@
 import type { Logger } from "@openrift/shared/logger";
-import { Migrator } from "kysely";
 import type { Kysely } from "kysely";
+import { Migrator } from "kysely/migration";
 import { describe, expect, it, vi } from "vitest";
 
 import { migrate, rollback } from "./migrate.js";
