@@ -81,6 +81,23 @@ describe("instrumentRepo", () => {
     expect(repo.maxRetries).toBe(3);
   });
 
+  it("preserves `this` so methods can call sibling methods via this.x()", async () => {
+    const repo = instrumentRepo("test", {
+      async getOne(): Promise<number> {
+        return 1;
+      },
+      async addOne(this: { getOne: () => Promise<number> }): Promise<number> {
+        const one = await this.getOne();
+        return one + 1;
+      },
+    });
+
+    await expect(repo.addOne()).resolves.toBe(2);
+
+    const spans = exporter.getFinishedSpans();
+    expect(spans.map((span) => span.name).sort()).toEqual(["repo.test.addOne", "repo.test.getOne"]);
+  });
+
   it("creates child spans inside an active parent", async () => {
     const tracer = trace.getTracer("test-parent");
     const repo = instrumentRepo("inner", {

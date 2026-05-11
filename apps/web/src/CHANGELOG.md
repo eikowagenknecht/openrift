@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-05-11
+
+- fix: Saving preferences on the profile page no longer fails with a server error
+
 ## 2026-05-08
 
 - feat: Promos sections now have a cleaner, centered header style that matches the Cards page

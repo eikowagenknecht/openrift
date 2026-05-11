@@ -27,10 +27,11 @@ export const instrumentRepo = <R extends RepoLike>(name: string, repo: R): R => 
       continue;
     }
     const fn = value as AnyFunction;
-    wrapped[key] = (...args: unknown[]) =>
-      tracer.startActiveSpan(`repo.${name}.${key}`, async (span) => {
+    wrapped[key] = function instrumented(this: unknown, ...args: unknown[]) {
+      const receiver = this ?? wrapped;
+      return tracer.startActiveSpan(`repo.${name}.${key}`, async (span) => {
         try {
-          return await fn(...args);
+          return await fn.apply(receiver, args);
         } catch (error) {
           span.recordException(error as Error);
           span.setStatus({
@@ -42,6 +43,7 @@ export const instrumentRepo = <R extends RepoLike>(name: string, repo: R): R => 
           span.end();
         }
       });
+    };
   }
   return wrapped as R;
 };
