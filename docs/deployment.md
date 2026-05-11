@@ -417,7 +417,23 @@ An optional Prometheus + Grafana monitoring stack lives in `monitoring/`. It run
 - **Host metrics** (CPU, RAM, disk, network) via node-exporter
 - **Container metrics** (per-container CPU, memory, restarts) via cAdvisor
 - **PostgreSQL metrics** (connections, transactions, cache hit ratio, deadlocks) via postgres-exporter
+- **Traces** from the API and SSR via Tempo, with span-derived RED metrics fed back into Prometheus as exemplars
+- **Logs** from all app and monitoring containers via Loki, with `trace_id` attached as structured metadata for Tempo ↔ Loki pivots
 - **Alerting** via Grafana (email notifications for high RAM, disk, CPU, container restarts, DB connection saturation)
+
+### Telemetry pipeline
+
+```text
+  apps ──OTLP──▶ Alloy ──▶ Tempo      (traces)
+                  │
+                  └─tail Docker logs──▶ Loki   (logs, with trace_id)
+
+  apps ──/metrics──▶ Prometheus              (metrics, with exemplars)
+
+  apps ──errors────▶ Sentry                  (with trace_id tag and context)
+```
+
+Alloy is the single entrypoint for app telemetry: apps export OTLP to `http://alloy:4318` (Docker) or `http://localhost:4318` (host dev). Alloy forwards traces to Tempo and tails Docker container stdout, parsing pino JSON to lift `trace_id`, `service`, and `level` for Loki. In Grafana, a span in Tempo links to its log lines in Loki; a Sentry issue carries the `trace_id` tag for the same pivot.
 
 ### Setup
 
@@ -438,7 +454,7 @@ cp .env.example .env
 3. Create data directories (must exist before first start):
 
 ```bash
-mkdir -p ~/openrift/monitoring/data/prometheus ~/openrift/monitoring/data/grafana
+mkdir -p ~/openrift/monitoring/data/{prometheus,grafana,tempo,loki,alloy}
 ```
 
 4. Start the monitoring stack:

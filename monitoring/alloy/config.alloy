@@ -1,0 +1,138 @@
+// Grafana Alloy pipeline for OpenRift.
+//
+// Three jobs:
+//   1. Receive OTLP traces from apps on :4318 (HTTP) / :4317 (gRPC) and
+//      forward them to Tempo. This lets us add tail-sampling or fan-out in
+//      the future without redeploying app code.
+//   2. Discover all containers on the openrift Docker network and tail their
+//      stdout/stderr. Pino JSON lines are parsed so `trace_id`, `level`,
+//      `service`, etc. become Loki labels / structured metadata, enabling
+//      Tempo → Loki pivots by trace ID.
+//   3. Expose an internal metrics endpoint for Prometheus scraping.
+//
+// Apps export traces to `http://alloy:4318` (Docker) or
+// `http://localhost:4318` (host). Alloy forwards to Tempo internally.
+
+// ── Traces: OTLP receiver → Tempo ──────────────────────────────────────────
+
+otelcol.receiver.otlp "default" {
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+
+  output {
+    traces = [otelcol.processor.batch.default.input]
+  }
+}
+
+otelcol.processor.batch "default" {
+  output {
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo:4317"
+    tls {
+      insecure = true
+    }
+  }
+}
+
+// ── Logs: Docker → parse pino JSON → Loki ──────────────────────────────────
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+  refresh_interval = "10s"
+}
+
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+
+  // Drop containers that aren't part of our app or monitoring stack.
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    regex         = "openrift|monitoring"
+    action        = "keep"
+  }
+
+  // Service name = compose service. Used as the primary Loki label.
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+
+  // Project = compose project (`openrift` or `monitoring`).
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "project"
+  }
+
+  // Container name for disambiguating replicas.
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/?(.*)"
+    target_label  = "container"
+  }
+}
+
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.containers.output
+  forward_to = [loki.process.pino.receiver]
+}
+
+loki.process "pino" {
+  // Parse pino JSON. If the line isn't JSON (e.g. a non-pino container like
+  // Tempo/Prometheus), the stage no-ops and the line passes through with its
+  // existing labels.
+  stage.json {
+    expressions = {
+      level   = "level",
+      msg     = "msg",
+      time    = "time",
+      name    = "name",
+      trace_id = "trace_id",
+      span_id  = "span_id",
+    }
+  }
+
+  // Map numeric pino levels to text. Pino: 10=trace 20=debug 30=info 40=warn 50=error 60=fatal.
+  stage.template {
+    source   = "level_text"
+    template = "{{ if eq .level \"10\" }}trace{{ else if eq .level \"20\" }}debug{{ else if eq .level \"30\" }}info{{ else if eq .level \"40\" }}warn{{ else if eq .level \"50\" }}error{{ else if eq .level \"60\" }}fatal{{ else }}{{ .level }}{{ end }}"
+  }
+
+  stage.labels {
+    values = {
+      level = "level_text",
+    }
+  }
+
+  // trace_id / span_id are high-cardinality so we attach them as structured
+  // metadata (Loki v13 feature), not labels. They're still indexed for
+  // exact-match queries via `| trace_id="..."`.
+  stage.structured_metadata {
+    values = {
+      trace_id = "trace_id",
+      span_id  = "span_id",
+    }
+  }
+
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+// ── Self-monitoring ────────────────────────────────────────────────────────
+
+// Alloy auto-exposes its own metrics on /metrics on the http listen port (12345).
+// Prometheus scrapes it (see prometheus.yml).

@@ -14,6 +14,7 @@
 // lib/sentry-client.ts); the `service` tag distinguishes the two inside
 // that project.
 
+import { trace } from "@opentelemetry/api";
 import * as Sentry from "@sentry/tanstackstart-react";
 
 // Skip in local dev — keeps stray dev events out of the shared openrift-ssr
@@ -35,5 +36,27 @@ if (dsn && (appEnv === "production" || appEnv === "preview")) {
     // stacktrace; nothing actionable on the server.
     ignoreErrors: ["NOT_FOUND", /^AbortError: The connection was closed/u],
     initialScope: { tags: { service: "web-ssr" } },
+  });
+
+  // Attach the active OTel trace_id / span_id to every Sentry event so we
+  // can pivot from a Sentry issue to the Tempo trace in Grafana. Mirror of
+  // the API bridge in apps/api/src/index.ts.
+  Sentry.addEventProcessor((event) => {
+    const span = trace.getActiveSpan();
+    if (!span) {
+      return event;
+    }
+    const ctx = span.spanContext();
+    if (ctx.traceId === "00000000000000000000000000000000") {
+      return event;
+    }
+    event.contexts ??= {};
+    event.contexts.trace = {
+      trace_id: ctx.traceId,
+      span_id: ctx.spanId,
+      ...event.contexts.trace,
+    };
+    event.tags = { otel_trace_id: ctx.traceId, ...event.tags };
+    return event;
   });
 }

@@ -4,6 +4,7 @@
 // oxlint-disable-next-line import/no-unassigned-import -- side-effect import is the canonical OTel SDK bootstrap pattern
 import "./tracing.js";
 import { createLogger } from "@openrift/shared/logger";
+import { trace } from "@opentelemetry/api";
 import * as Sentry from "@sentry/bun";
 import { Cron } from "croner";
 
@@ -54,6 +55,28 @@ if (config.sentryDsn) {
     // transactions on its own. Errors continue to flow as before.
     tracesSampleRate: 0,
     skipOpenTelemetrySetup: true,
+  });
+
+  // Attach the active OTel trace_id / span_id to every Sentry event. This
+  // populates Sentry's "Trace" tab and gives us a value we can templated into
+  // a "View in Grafana" link for the Tempo trace.
+  Sentry.addEventProcessor((event) => {
+    const span = trace.getActiveSpan();
+    if (!span) {
+      return event;
+    }
+    const ctx = span.spanContext();
+    if (ctx.traceId === "00000000000000000000000000000000") {
+      return event;
+    }
+    event.contexts ??= {};
+    event.contexts.trace = {
+      trace_id: ctx.traceId,
+      span_id: ctx.spanId,
+      ...event.contexts.trace,
+    };
+    event.tags = { otel_trace_id: ctx.traceId, ...event.tags };
+    return event;
   });
 }
 

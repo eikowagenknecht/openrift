@@ -8,5 +8,21 @@ datasources:
     url: http://tempo:3200
     editable: false
     jsonData:
-      tracesToLogs:
+      # Click a span → see logs from the same request in Loki, matched by
+      # the trace_id structured metadata that Alloy attaches.
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: "-5m"
+        spanEndTimeShift: "5m"
+        filterByTraceID: true
+        customQuery: true
+        query: '{service=~".+"} | trace_id="$${__span.traceId}"'
+      # Click a span → see RED metrics for that route/operation.
+      tracesToMetrics:
         datasourceUid: prometheus
+        spanStartTimeShift: "-5m"
+        spanEndTimeShift: "5m"
+      serviceMap:
+        datasourceUid: prometheus
+      nodeGraph:
+        enabled: true

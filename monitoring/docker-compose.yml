@@ -94,16 +94,14 @@ services:
         max-file: "3"
     restart: unless-stopped
 
-  # Trace store. Receives OTLP spans from the API on :4318 (HTTP) / :4317
-  # (gRPC), stores them on disk for the configured retention, and is queried
-  # by Grafana via :3200. Joins the openrift network so the API container can
-  # reach it at http://tempo:4318.
+  # Trace store. Receives OTLP spans from Alloy (the entrypoint for all app
+  # telemetry) on the internal Docker network. Queried by Grafana via :3200.
+  # No host port for OTLP — apps send to Alloy, not directly here.
   tempo:
     image: grafana/tempo:latest
     user: "${UID:-1000}:${GID:-1000}"
     command: ["-config.file=/etc/tempo/tempo.yml"]
     ports:
-      - "127.0.0.1:4318:4318"
       - "127.0.0.1:3200:3200"
     networks:
       - default
@@ -111,6 +109,60 @@ services:
     volumes:
       - ./tempo.yml:/etc/tempo/tempo.yml:ro
       - ./data/tempo:/var/tempo
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+    restart: unless-stopped
+
+  # Log store. Receives logs from Alloy, retains 30 days (see loki.yml).
+  # Queried by Grafana via :3100 on the internal network; host 3101 is for
+  # ad-hoc curl (Grafana already binds 3100 on the host).
+  loki:
+    image: grafana/loki:latest
+    user: "${UID:-1000}:${GID:-1000}"
+    command: ["-config.file=/etc/loki/loki.yml"]
+    ports:
+      - "127.0.0.1:3101:3100"
+    networks:
+      - default
+      - openrift
+    volumes:
+      - ./loki.yml:/etc/loki/loki.yml:ro
+      - ./data/loki:/var/loki
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+    restart: unless-stopped
+
+  # Unified telemetry collector. Receives OTLP traces from apps on :4318
+  # (HTTP) / :4317 (gRPC) and forwards to Tempo. Tails Docker container
+  # stdout via the Docker socket, parses pino JSON, and ships to Loki with
+  # trace_id as structured metadata for Tempo ↔ Loki pivots. UI on :12345.
+  alloy:
+    image: grafana/alloy:latest
+    command:
+      - "run"
+      - "--server.http.listen-addr=0.0.0.0:12345"
+      - "--storage.path=/var/lib/alloy/data"
+      - "/etc/alloy/config.alloy"
+    ports:
+      - "127.0.0.1:4318:4318"
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:12345:12345"
+    networks:
+      - default
+      - openrift
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - ./data/alloy:/var/lib/alloy/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - tempo
+      - loki
     logging:
       driver: json-file
       options:
@@ -146,6 +198,7 @@ services:
     depends_on:
       - prometheus
       - tempo
+      - loki
     logging:
       driver: json-file
       options:

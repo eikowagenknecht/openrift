@@ -31,3 +31,13 @@ scrape_configs:
   - job_name: "prometheus"
     static_configs:
       - targets: ["localhost:9090"]
+
+  # Alloy self-monitoring (pipeline health, OTLP receive rate, Loki write rate)
+  - job_name: "alloy"
+    static_configs:
+      - targets: ["alloy:12345"]
+
+  # Loki self-monitoring (ingestion rate, query rate, retention)
+  - job_name: "loki"
+    static_configs:
+      - targets: ["loki:3100"]
