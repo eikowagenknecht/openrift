@@ -89,6 +89,10 @@ export function createAuth(deps: {
     session: {
       expiresIn: 60 * 60 * 24 * 365,
       updateAge: 60 * 60 * 24,
+      cookieCache: {
+        enabled: true,
+        maxAge: 5 * 60,
+      },
       fields: {
         userId: "user_id",
         expiresAt: "expires_at",
