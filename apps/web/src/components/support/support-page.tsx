@@ -1,14 +1,16 @@
 import { CopyIcon, HeartIcon } from "lucide-react";
 import { Suspense, useState } from "react";
-import { siDiscord, siGithubsponsors, siKofi, siReddit, siX } from "simple-icons";
+import { siDiscord, siGithub, siGithubsponsors, siKofi, siReddit, siX } from "simple-icons";
 
 import { CardText } from "@/components/cards/card-text";
 import { MarketplaceLink } from "@/components/marketplace-link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { getSiteUrl } from "@/lib/site-config";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
+const GITHUB_REPO_URL = "https://github.com/openriftapp/openrift";
 const GITHUB_SPONSORS_URL = "https://github.com/sponsors/eikowagenknecht";
 const KOFI_URL = "https://ko-fi.com/eikowagenknecht";
 
@@ -61,13 +63,13 @@ function SimpleIcon({ icon, className }: { icon: { path: string }; className?: s
   );
 }
 
-function TierCard({ tier }: { tier: SupportTier }) {
+function TierCard({ tier, label }: { tier: SupportTier; label: string }) {
   return (
     <Card size="sm">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <img src={tier.rarityImage} alt={tier.rarity} width={28} height={28} className="size-5" />
-          <span>{tier.rarity}</span>
+          <img src={tier.rarityImage} alt={label} width={28} height={28} className="size-5" />
+          <span>{label}</span>
           <span className="text-muted-foreground ml-auto text-sm font-normal">{tier.price}</span>
         </CardTitle>
         <CardDescription className="italic">
@@ -126,6 +128,7 @@ export function SupportPage() {
   const siteUrl = getSiteUrl();
   const shareText = `Check out OpenRift, a free card browser for Riftbound! ${siteUrl}`;
   const tweetText = encodeURIComponent(shareText);
+  const { labels } = useEnumOrders();
 
   return (
     <div className={`mx-auto flex w-full max-w-2xl flex-1 flex-col ${PAGE_PADDING}`}>
@@ -156,7 +159,7 @@ export function SupportPage() {
         <p className="text-muted-foreground mb-4 text-sm">Add Energy to the pool.</p>
         <div className="space-y-3">
           {tiers.map((tier) => (
-            <TierCard key={tier.rarity} tier={tier} />
+            <TierCard key={tier.rarity} tier={tier} label={labels.rarities[tier.rarity]} />
           ))}
         </div>
         <p className="text-muted-foreground mt-3 text-center text-xs italic">
@@ -194,7 +197,12 @@ export function SupportPage() {
           Can&apos;t spare the Energy? Cast a sharing spell instead. Every share adds Power to the
           community.
         </p>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+          <ShareButton
+            label="Star on GitHub"
+            icon={<SimpleIcon icon={siGithub} />}
+            href={GITHUB_REPO_URL}
+          />
           <ShareButton
             label="Summon your X followers"
             icon={<SimpleIcon icon={siX} />}
@@ -244,7 +252,8 @@ export function SupportPage() {
       <section className="mb-10">
         <h2 className="mb-1 text-lg font-semibold">Join the Party</h2>
         <p className="text-muted-foreground mb-4 text-sm">
-          Got feedback, questions, or just want to talk cards? Come hang out on Discord.
+          Got feedback, questions, or just want to nerd out about Riftbound? Come hang out on
+          Discord.
         </p>
         <a
           href="https://discord.gg/Qb6RcjXq6z"
