@@ -309,6 +309,8 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
         req("DELETE", "/admin/marketplace-mappings?marketplace=tcgplayer", {
           printingId,
           externalId: 12_345,
+          finish: "normal",
+          language: null,
         }),
       );
       expect(res.status).toBe(204);
@@ -402,6 +404,8 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
         req("DELETE", "/admin/marketplace-mappings?marketplace=cardmarket", {
           printingId,
           externalId: 67_890,
+          finish: "normal",
+          language: null,
         }),
       );
       expect(res.status).toBe(204);
@@ -462,6 +466,8 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
         req("DELETE", "/admin/marketplace-mappings?marketplace=cardtrader", {
           printingId,
           externalId: 55_555,
+          finish: "normal",
+          language: "EN",
         }),
       );
       expect(unmapRes.status).toBe(204);
