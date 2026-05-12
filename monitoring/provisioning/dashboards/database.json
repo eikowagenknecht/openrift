@@ -423,11 +423,11 @@
       ]
     },
     {
-      "title": "p95 DB latency by statement",
+      "title": "Top 10 slowest statements (mean exec time, 5m window)",
       "type": "timeseries",
       "gridPos": { "h": 10, "w": 24, "x": 0, "y": 36 },
-      "datasource": { "type": "tempo", "uid": "tempo" },
-      "description": "p95 span duration per distinct db.statement, computed by Tempo's TraceQL metrics engine from real spans. Updates roughly every minute as new spans flow in.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Mean execution time per normalized statement over a 5-minute window, top 10 by latency. Sourced from pg_stat_statements via postgres-exporter. pg_stat_statements only exposes mean (not percentiles); for p95 use the 'Slow DB spans' table above, which queries Tempo directly.",
       "fieldConfig": {
         "defaults": {
           "unit": "s",
@@ -438,10 +438,9 @@
       },
       "targets": [
         {
-          "datasource": { "type": "tempo", "uid": "tempo" },
-          "queryType": "traceql",
-          "metricsQueryType": "range",
-          "query": "{resource.service.name=\"openrift-api\" && span.db.system.name=\"postgresql\"} | quantile_over_time(duration, .95) by (span.db.query.text)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "topk(10, rate(pg_stat_statements_seconds_total[5m]) / rate(pg_stat_statements_calls_total[5m]) > 0)",
+          "legendFormat": "{{query}}",
           "refId": "A"
         }
       ],

@@ -127,6 +127,10 @@ services:
       - "--web.console.templates=/etc/prometheus/consoles"
       - "--web.enable-remote-write-receiver"
       - "--enable-feature=exemplar-storage"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     logging:
       driver: json-file
       options:
@@ -149,6 +153,10 @@ services:
     volumes:
       - ./tempo.yml:/etc/tempo/tempo.yml:ro
       - ./data/tempo:/var/tempo
+    deploy:
+      resources:
+        limits:
+          memory: 1G
     logging:
       driver: json-file
       options:
@@ -171,6 +179,10 @@ services:
     volumes:
       - ./loki.yml:/etc/loki/loki.yml:ro
       - ./data/loki:/var/loki
+    deploy:
+      resources:
+        limits:
+          memory: 256M
     logging:
       driver: json-file
       options:
@@ -203,6 +215,10 @@ services:
     depends_on:
       - tempo
       - loki
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     logging:
       driver: json-file
       options:
@@ -239,6 +255,10 @@ services:
       - prometheus
       - tempo
       - loki
+    deploy:
+      resources:
+        limits:
+          memory: 1G
     logging:
       driver: json-file
       options:
