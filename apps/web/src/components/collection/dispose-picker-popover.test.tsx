@@ -6,10 +6,27 @@ import { stubPrinting } from "@/test/factories";
 
 const printing = stubPrinting({ id: "p1", cardId: "c1" });
 
+function stubCollection(id: string, name: string, isInbox: boolean): CollectionResponse {
+  return {
+    id,
+    name,
+    isInbox,
+    description: null,
+    availableForDeckbuilding: true,
+    sortOrder: 0,
+    shareToken: null,
+    copyCount: 0,
+    totalValueCents: null,
+    unpricedCopyCount: null,
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+  };
+}
+
 const collections: CollectionResponse[] = [
-  { id: "col-inbox", userId: "u1", name: "Inbox", isInbox: true, sortIndex: 0 },
-  { id: "col-2", userId: "u1", name: "RiftCore Import", isInbox: false, sortIndex: 1 },
-  { id: "col-3", userId: "u1", name: "Trade Binder", isInbox: false, sortIndex: 2 },
+  stubCollection("col-inbox", "Inbox", true),
+  stubCollection("col-2", "RiftCore Import", false),
+  stubCollection("col-3", "Trade Binder", false),
 ];
 
 const copies: CopyResponse[] = [
