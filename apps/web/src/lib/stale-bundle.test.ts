@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import {
   _resetReloadFlagForTesting,
+  CHUNK_LOAD_ERROR_PATTERN,
   initChunkErrorReloader,
   initStaleBundleWatcher,
 } from "./stale-bundle";
@@ -116,5 +117,30 @@ describe("initChunkErrorReloader", () => {
     );
 
     expect(reloadSpy).not.toHaveBeenCalled();
+  });
+});
+
+// CHUNK_LOAD_ERROR_PATTERN is re-exported and consumed by sentry-client.ts's
+// `ignoreErrors`, so the real-world phrasings from open Sentry issues must keep
+// matching even if the regex is rewritten.
+describe("CHUNK_LOAD_ERROR_PATTERN", () => {
+  test.each([
+    [
+      "Chrome",
+      "Failed to fetch dynamically imported module: https://openrift.app/assets/route.lazy-COZEfpB1.js",
+    ],
+    [
+      "Firefox",
+      "error loading dynamically imported module: https://openrift.app/assets/card-detail-BsOjEl5_.js",
+    ],
+    ["Safari", "Importing a module script failed."],
+    ["webpack", "ChunkLoadError: Loading chunk 42 failed."],
+    ["webpack short form", "Loading chunk 7 failed"],
+  ])("matches %s phrasing", (_label, message) => {
+    expect(CHUNK_LOAD_ERROR_PATTERN.test(message)).toBe(true);
+  });
+
+  test("does not match unrelated TypeErrors", () => {
+    expect(CHUNK_LOAD_ERROR_PATTERN.test("Cannot read property of undefined")).toBe(false);
   });
 });

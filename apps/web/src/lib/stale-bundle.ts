@@ -54,18 +54,23 @@ export function initStaleBundleWatcher(): void {
   };
 }
 
+// Each browser phrases the dynamic-import failure differently:
+//   Chrome:  "Failed to fetch dynamically imported module"
+//   Firefox: "error loading dynamically imported module"
+//   Safari:  "Importing a module script failed"
+// Also matches webpack-style ChunkLoadError / "Loading chunk N failed" for any
+// future bundler that emits them. Shared with sentry-client.ts so the same
+// errors that trigger an auto-reload are filtered out of Sentry as one source
+// of truth — every session sees one event before the reload fires; without this
+// filter, the issue tracker fills up with auto-recovered noise.
+export const CHUNK_LOAD_ERROR_PATTERN =
+  /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|ChunkLoadError|Loading chunk \d+ failed/u;
+
 export function initChunkErrorReloader(): void {
   if (globalThis.window === undefined) {
     return;
   }
-  // Each browser phrases the dynamic-import failure differently:
-  //   Chrome:  "Failed to fetch dynamically imported module"
-  //   Firefox: "error loading dynamically imported module"
-  //   Safari:  "Importing a module script failed"
-  const isChunkLoadError = (message: string): boolean =>
-    /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|ChunkLoadError|Loading chunk \d+ failed/u.test(
-      message,
-    );
+  const isChunkLoadError = (message: string): boolean => CHUNK_LOAD_ERROR_PATTERN.test(message);
   globalThis.addEventListener("error", (event) => {
     if (isChunkLoadError(event.message)) {
       reloadOnce(`chunk load error: ${event.message}`);

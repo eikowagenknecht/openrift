@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/tanstackstart-react";
 
 import { COMMIT_HASH, PROD } from "./env";
+import { CHUNK_LOAD_ERROR_PATTERN } from "./stale-bundle";
 
 type TanstackRouter = Parameters<typeof Sentry.tanstackRouterBrowserTracingIntegration>[0];
 
@@ -38,7 +39,12 @@ export function initClientSentry(router: TanstackRouter): void {
     // (app backgrounded, network handoff, page navigation). Always a transport
     // condition — fetch() doesn't reject on non-2xx — and already handled by
     // TanStack Router's loader error path.
-    ignoreErrors: ["NOT_FOUND", "Load failed"],
+    // CHUNK_LOAD_ERROR_PATTERN: dynamic-import failures from stale HTML pointing
+    // at deleted /assets/*.js chunks. Already auto-recovered by
+    // initChunkErrorReloader() in client.tsx — the user gets one reload and the
+    // next page load is fine. Sentry's global handlers fire before our listener
+    // gets to reload, so every recovered session pollutes the issue tracker.
+    ignoreErrors: ["NOT_FOUND", "Load failed", CHUNK_LOAD_ERROR_PATTERN],
     // Route envelopes through our own origin so they aren't dropped by Firefox
     // Enhanced Tracking Protection or ad-blockers (which list *.ingest.sentry.io
     // as a tracker). The API forwards them to Sentry server-side.
