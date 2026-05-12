@@ -191,6 +191,7 @@ export function CardTableRow({
     <div
       role="row"
       tabIndex={0}
+      data-printing-id={printing.id}
       onClick={handleClick}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
