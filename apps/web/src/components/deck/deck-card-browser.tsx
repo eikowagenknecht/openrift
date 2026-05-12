@@ -39,6 +39,7 @@ import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { catalogCardToDeckBuilderCard } from "@/lib/deck-builder-card";
+import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
@@ -306,6 +307,24 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     .filter((card) => card.zone === "runes")
     .reduce((sum, card) => sum + card.quantity, 0);
 
+  // Register table-row action handlers in the no-subscribe store so the
+  // virtualized CardTable can dispatch row clicks and +/- without taking
+  // these unstable closures as props. Mirrors card-browser.tsx's wiring; see
+  // card-row-actions-store.ts for the why. Re-register every render so rows
+  // pick up the freshest implementation. Table view drops the shift-modifier
+  // semantics (add-max / remove-all) — clicks behave as a plain add/remove.
+  // oxlint-disable-next-line react-hooks/exhaustive-deps -- intentional: re-register every render
+  useEffect(() => {
+    useCardRowActionsStore.getState().setHandlers({
+      onRowClick: handleCardClick,
+      onIncrement: (printing) => handleQuickAdd(printing),
+      onDecrement: (printing) => handleRemove(printing),
+    });
+    return () => {
+      useCardRowActionsStore.getState().setHandlers({});
+    };
+  });
+
   const isMaxReached = (item: CardViewerItem): boolean => {
     const cardId = item.printing.cardId;
     if (activeZone === "legend" || activeZone === "champion") {
@@ -454,6 +473,10 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
       }
       rightPane={rightPane}
       addStripHeight={ADD_STRIP_HEIGHT}
+      table={{
+        showOwned: true,
+        showAddControls: true,
+      }}
     >
       {isMobile && (
         <SelectionMobileOverlay
