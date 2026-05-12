@@ -24,6 +24,7 @@ import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-
 import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
 import { CollectionAddStrip } from "@/components/collection/collection-add-strip";
 import { FloatingActionBar } from "@/components/collection/floating-action-bar";
+import { buildOnDecrement } from "@/components/collection/route-decrement";
 import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
 import { VariantAddPopover } from "@/components/collection/variant-add-popover";
 import { ActiveFilters } from "@/components/filters/active-filters";
@@ -411,15 +412,12 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       onRowClick: handleGridCardClick,
       onSiblingClick: handleSiblingClick,
       onIncrement: handleQuickAdd,
-      onDecrement: (printing, anchorEl) => {
-        const ownedVariantIds = allPrintingIdsByCardId.get(printing.cardId);
-        const hasAmbiguousRemoval = dataView === "cards" && (ownedVariantIds?.length ?? 0) > 1;
-        if (hasAmbiguousRemoval && handleOpenVariants && anchorEl) {
-          handleOpenVariants(printing, anchorEl);
-        } else {
-          handleUndoAdd?.(printing);
-        }
-      },
+      onDecrement: buildOnDecrement({
+        dataView,
+        ownedPrintingIdsByCardId: allPrintingIdsByCardId,
+        handleOpenVariants,
+        handleUndoAdd,
+      }),
       onOpenVariants: handleOpenVariants,
     });
     return () => {

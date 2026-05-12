@@ -4,6 +4,7 @@
 
 - feat: In add mode on the Cards and collection pages, pressing + or - on the keyboard adds or removes one of the selected card, matching the buttons on the strip above it
 - feat: When a card has copies of multiple variants, pressing - opens the variants popover so you can pick which one to remove; the popover itself accepts arrow keys to move the highlight and + / - to add or remove the highlighted variant
+- fix: On the collection page, pressing - on a card whose copies live across multiple collections now opens the "Remove from" picker instead of doing nothing
 
 ## 2026-05-11
 
