@@ -348,6 +348,13 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     const ownedCount = ownedCounts?.get(item.printing.id) ?? 0;
 
     const deckQty = deckQuantityByCard.get(cardId) ?? 0;
+    // Single-card zone strip controls key off "this card is in the active
+    // zone", not "this card is anywhere in the deck": a champion unit can
+    // simultaneously sit in main as regular copies without being the chosen
+    // champion, so don't flip to "Remove" just because deckQty > 0.
+    const isInActiveSingleZone =
+      isSingleCardZone &&
+      deckCards.some((card) => card.cardId === cardId && card.zone === activeZone);
 
     // On mobile, a tap adds the card (no hover to reach the + button);
     // long-press (or desktop right-click) opens the detail view via the context menu.
@@ -380,12 +387,12 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
             maxReached={isMaxReached(item)}
             addLabel={
               isSingleCardZone
-                ? singleCardZoneOccupied && deckQty === 0
+                ? singleCardZoneOccupied && !isInActiveSingleZone
                   ? "Switch"
                   : "Choose"
                 : undefined
             }
-            removeLabel={isSingleCardZone && deckQty > 0 ? "Remove" : undefined}
+            removeLabel={isInActiveSingleZone ? "Remove" : undefined}
             shiftHeld={shiftHeld}
             remainingCount={
               activeZone === "runes"

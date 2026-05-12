@@ -6,6 +6,7 @@
 - feat: In add mode on the Cards and collection pages, pressing + or - on the keyboard adds or removes one of the selected card, matching the buttons on the strip above it
 - feat: When a card has copies of multiple variants, pressing - opens the variants popover so you can pick which one to remove; the popover itself accepts arrow keys to move the highlight and + / - to add or remove the highlighted variant
 - feat: The "Remove from" picker (shown when copies span multiple collections) is now keyboard-steerable — arrow keys move the highlight, Enter or - picks the highlighted collection
+- fix: In the deck builder, a champion unit that's also in the main deck no longer looks like it has been picked as the chosen champion, so you can still drag or click it into the chosen champion slot
 - fix: On the collection page, pressing - on a card whose copies live across multiple collections now opens the "Remove from" picker instead of doing nothing
 - fix: The keyboard - shortcut now works on the table view too, not just the grid
 
