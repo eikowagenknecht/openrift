@@ -41,10 +41,11 @@ export function useGridKeyboardNav({ items, siblingPrintings }: UseGridKeyboardN
       if ((e.key === "+" || e.key === "-") && (e.ctrlKey || e.metaKey || e.altKey)) {
         return;
       }
-      // While the variant popover is open it handles arrows + +/- on the
-      // highlighted row; the grid handler steps back so we don't fight over
-      // the same keystrokes.
-      if (useAddModeStore.getState().variantPopover) {
+      // While the variant or dispose picker popover is open it handles its
+      // own arrow / +/- / Enter keys; the grid handler steps back so we don't
+      // fight over the same keystrokes.
+      const addMode = useAddModeStore.getState();
+      if (addMode.variantPopover || addMode.disposePicker) {
         return;
       }
 
