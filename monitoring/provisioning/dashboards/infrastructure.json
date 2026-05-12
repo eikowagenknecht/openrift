@@ -612,6 +612,76 @@
       ],
       "title": "Container network \u2014 transmitted",
       "type": "timeseries"
+    },
+    {
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 67 },
+      "title": "Other containers (monitoring stack, host services)",
+      "type": "row",
+      "panels": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "fillOpacity": 25,
+                "lineWidth": 2,
+                "spanNulls": false,
+                "stacking": { "group": "A", "mode": "normal" }
+              },
+              "min": 0,
+              "unit": "bytes"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 68 },
+          "options": {
+            "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "right" },
+            "tooltip": { "mode": "multi", "sort": "desc" }
+          },
+          "targets": [
+            {
+              "expr": "max by (name) (container_memory_usage_bytes{name!=\"\",name!~\"openrift-.+\"})",
+              "legendFormat": "{{ name }}",
+              "refId": "A"
+            }
+          ],
+          "title": "Container memory",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "fillOpacity": 25,
+                "lineWidth": 2,
+                "spanNulls": false,
+                "stacking": { "group": "A", "mode": "normal" }
+              },
+              "min": 0,
+              "unit": "percentunit"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 78 },
+          "options": {
+            "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "right" },
+            "tooltip": { "mode": "multi", "sort": "desc" }
+          },
+          "targets": [
+            {
+              "expr": "sum by (name) (rate(container_cpu_usage_seconds_total{name!=\"\",name!~\"openrift-.+\"}[$__rate_interval]))",
+              "legendFormat": "{{ name }}",
+              "refId": "A"
+            }
+          ],
+          "title": "Container CPU",
+          "type": "timeseries"
+        }
+      ]
     }
   ]
 }
