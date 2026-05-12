@@ -77,6 +77,7 @@ import { useSession } from "@/lib/auth-session";
 import { formatterForMarketplace } from "@/lib/format";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useAddModeStore } from "@/stores/add-mode-store";
+import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
@@ -397,6 +398,33 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     handleGridCardClick(printing);
     setTopPrintingOverrides((prev) => new Map(prev).set(printing.cardId, printing.id));
   };
+
+  // Register table-row action handlers in the no-subscribe store so the
+  // virtualized CardTable can dispatch row clicks and +/- without taking
+  // these unstable closures as props. Mirrors card-browser.tsx's wiring; see
+  // card-row-actions-store.ts for the why. Re-register every render so rows
+  // pick up the freshest implementation.
+  // oxlint-disable-next-line react-hooks/exhaustive-deps -- intentional: re-register every render
+  useEffect(() => {
+    useCardRowActionsStore.getState().setHandlers({
+      onRowClick: handleGridCardClick,
+      onSiblingClick: handleSiblingClick,
+      onIncrement: handleQuickAdd,
+      onDecrement: (printing, anchorEl) => {
+        const ownedVariantIds = allPrintingIdsByCardId.get(printing.cardId);
+        const hasAmbiguousRemoval = dataView === "cards" && (ownedVariantIds?.length ?? 0) > 1;
+        if (hasAmbiguousRemoval && handleOpenVariants) {
+          handleOpenVariants(printing, anchorEl);
+        } else {
+          handleUndoAdd?.(printing);
+        }
+      },
+      onOpenVariants: handleOpenVariants,
+    });
+    return () => {
+      useCardRowActionsStore.getState().setHandlers({});
+    };
+  });
 
   const searchAndClose = (query: string) => {
     setSearch(query);
@@ -925,6 +953,10 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         }
         rightPane={rightPane}
         addStripHeight={ADD_STRIP_HEIGHT}
+        table={{
+          showOwned: true,
+          showAddControls: mode !== "select" && Boolean(handleQuickAdd),
+        }}
       >
         {/* Floating action bar (select mode) */}
         {mode === "select" && selected.size > 0 && (
