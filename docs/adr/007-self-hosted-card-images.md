@@ -21,7 +21,7 @@ All card images are currently served from an external CDN we don't control. If t
 
 ## Decision Drivers
 
-- No additional hosting cost — must work within existing infrastructure (Hetzner CX23, Cloudflare free tier)
+- No additional hosting cost — must work within existing infrastructure (Hetzner CPX32, Cloudflare free tier)
 - Images must be served efficiently with responsive sizes for mobile and desktop
 - The current frontend uses Sanity CDN's query-string API for on-the-fly resizing (`?w=300&fm=webp`) — self-hosted images need a different approach
 - The API container currently uses `bun build --compile` into a distroless image, which doesn't support native addons
@@ -32,7 +32,7 @@ All card images are currently served from an external CDN we don't control. If t
 
 - **Cloudflare R2** — S3-compatible object storage, free tier (10GB storage, 10M reads/mo)
 - **allinkl.com webserver** — unlimited traffic shared hosting, upload via PHP endpoint or FTP
-- **Hetzner CX23** — same server as the API, serve via host nginx
+- **Hetzner CPX32** — same server as the API, serve via host nginx
 
 ### Image processing
 
@@ -51,7 +51,7 @@ All card images are currently served from an external CDN we don't control. If t
 
 ### Image storage
 
-Chosen option: "Hetzner CX23", because it adds no cost, no new services, and the API server already runs there. Card images are served by host nginx with Cloudflare CDN in front. A bind-mounted directory (`./card-images`) gives the API container write access while keeping images accessible to host nginx at a predictable path.
+Chosen option: "Hetzner CPX32", because it adds no cost, no new services, and the API server already runs there. Card images are served by host nginx with Cloudflare CDN in front. A bind-mounted directory (`./card-images`) gives the API container write access while keeping images accessible to host nginx at a predictable path.
 
 **Cost comparison at scale:**
 
