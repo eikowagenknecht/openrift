@@ -293,6 +293,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const variantPopover = useAddModeStore((s) => s.variantPopover);
   const disposePicker = useAddModeStore((s) => s.disposePicker);
   const closeDisposePicker = useAddModeStore((s) => s.closeDisposePicker);
+  const selectedCardId = useSelectionStore((s) => s.selectedCard?.id);
   const {
     handleQuickAdd,
     handleUndoAdd,
@@ -1043,6 +1044,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
               )}
               onQuickAdd={handleQuickAdd}
               onUndoAdd={handleUndoAdd}
+              initialHighlightId={selectedCardId}
             />
           </PopoverContent>
         </Popover>

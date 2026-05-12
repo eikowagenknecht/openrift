@@ -88,6 +88,7 @@ export function CardBrowser() {
   const variantPopover = useAddModeStore((s) => s.variantPopover);
   const disposePicker = useAddModeStore((s) => s.disposePicker);
   const closeDisposePicker = useAddModeStore((s) => s.closeDisposePicker);
+  const selectedCardId = useSelectionStore((s) => s.selectedCard?.id);
 
   const [topPrintingOverrides, setTopPrintingOverrides] = useState<Map<string, string>>(new Map());
 
@@ -201,13 +202,31 @@ export function CardBrowser() {
   // findBy, mutation results) and we want rows to dispatch the freshest
   // implementation. Listing them as deps would just trigger re-runs anyway
   // since none are reference-stable.
+  // In cards view, route minus to the variants popover when copies span
+  // multiple owned variants — mouse-click does this in browser-card-cell.tsx;
+  // mirroring it here keeps the keyboard `-` shortcut consistent.
+  const handleSmartDecrement = handleUndoAdd
+    ? (printing: Printing, anchorEl?: HTMLElement) => {
+        if (inCardsView) {
+          const allCardSiblings = printingsByCardId.get(printing.cardId);
+          const ownedVariantCount =
+            allCardSiblings?.filter((p) => (ownedCountByPrinting?.[p.id] ?? 0) > 0).length ?? 0;
+          if (ownedVariantCount > 1 && handleOpenVariantsScoped && anchorEl) {
+            handleOpenVariantsScoped(printing, anchorEl);
+            return;
+          }
+        }
+        void handleUndoAdd(printing, anchorEl);
+      }
+    : undefined;
+
   // oxlint-disable-next-line react-hooks/exhaustive-deps -- intentional: re-register every render
   useEffect(() => {
     useCardRowActionsStore.getState().setHandlers({
       onRowClick: handleGridCardClick,
       onSiblingClick: handleSiblingClick,
       onIncrement: handleQuickAdd,
-      onDecrement: handleUndoAdd,
+      onDecrement: handleSmartDecrement,
       onOpenVariants: handleOpenVariantsScoped,
     });
     return () => {
@@ -391,6 +410,7 @@ export function CardBrowser() {
                     )}
                     onQuickAdd={handleQuickAdd}
                     onUndoAdd={handleUndoAdd}
+                    initialHighlightId={selectedCardId}
                   />
                 </PopoverContent>
               </Popover>

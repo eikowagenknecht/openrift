@@ -2,6 +2,7 @@ import type { Printing } from "@openrift/shared";
 import { useEffect } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
+import { useAddModeStore } from "@/stores/add-mode-store";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
@@ -17,7 +18,8 @@ const NAV_KEYS = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "+", "-"];
  * by index; up/down cycle through sibling printings (variants) of the
  * selected card without changing the grid position unless the sibling is
  * itself a tile in the grid. `+` / `-` trigger the add-mode strip's
- * increment / decrement on the selected card (no-op when add mode is off).
+ * increment / decrement on the selected card (no-op when add mode is off);
+ * when the variant popover is open, it handles its own arrows and +/-.
  */
 export function useGridKeyboardNav({ items, siblingPrintings }: UseGridKeyboardNavParams) {
   const selectedCard = useSelectionStore((s) => s.selectedCard);
@@ -39,15 +41,36 @@ export function useGridKeyboardNav({ items, siblingPrintings }: UseGridKeyboardN
       if ((e.key === "+" || e.key === "-") && (e.ctrlKey || e.metaKey || e.altKey)) {
         return;
       }
+      // While the variant popover is open it handles arrows + +/- on the
+      // highlighted row; the grid handler steps back so we don't fight over
+      // the same keystrokes.
+      if (useAddModeStore.getState().variantPopover) {
+        return;
+      }
 
       if ((e.key === "+" || e.key === "-") && selectedCard) {
         const handlers = useCardRowActionsStore.getState().handlers;
-        const target = e.key === "+" ? handlers.onIncrement : handlers.onDecrement;
-        if (!target) {
+        if (e.key === "+") {
+          if (!handlers.onIncrement) {
+            return;
+          }
+          e.preventDefault();
+          handlers.onIncrement(selectedCard);
+          return;
+        }
+        if (!handlers.onDecrement) {
           return;
         }
         e.preventDefault();
-        target(selectedCard);
+        // Anchor for popovers (variants or dispose picker). The tile's
+        // data-printing-id is the *displayed* printing for that grid item,
+        // which differs from selectedCard only when the user has Up/Down'd
+        // to a sibling. Either way, the tile is a sensible visual anchor.
+        const tileId = items[selectedIndex]?.printing.id;
+        const tileEl = tileId
+          ? document.querySelector<HTMLElement>(`[data-printing-id="${tileId}"]`)
+          : null;
+        handlers.onDecrement(selectedCard, tileEl ?? undefined);
         return;
       }
 

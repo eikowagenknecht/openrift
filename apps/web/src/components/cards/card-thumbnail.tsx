@@ -303,6 +303,7 @@ function DraggableTopSlotWrapper({
   style,
   onMouseEnter,
   onMouseLeave,
+  printingId,
   children,
 }: {
   dragId: string;
@@ -311,6 +312,7 @@ function DraggableTopSlotWrapper({
   style: CSSProperties | undefined;
   onMouseEnter: (() => void) | undefined;
   onMouseLeave: (() => void) | undefined;
+  printingId: string;
   children: ReactNode;
 }) {
   const isMobile = useIsMobile();
@@ -323,6 +325,7 @@ function DraggableTopSlotWrapper({
   return (
     <div
       ref={setNodeRef}
+      data-printing-id={printingId}
       className={cn(className, isDragging && "opacity-40", enableDrag && "select-none")}
       style={style}
       onMouseEnter={onMouseEnter}
@@ -643,6 +646,7 @@ export const CardThumbnail = memo(function CardThumbnail({
           style={wrapperStyle}
           onMouseEnter={fanMouseEnter}
           onMouseLeave={fanMouseLeave}
+          printingId={printing.id}
         >
           {wrapperContent}
         </DraggableTopSlotWrapper>
@@ -651,6 +655,7 @@ export const CardThumbnail = memo(function CardThumbnail({
 
     return (
       <div
+        data-printing-id={printing.id}
         className={wrapperClassName}
         style={wrapperStyle}
         onMouseEnter={fanMouseEnter}
@@ -664,6 +669,7 @@ export const CardThumbnail = memo(function CardThumbnail({
   /* ── Normal mode: only the image area is clickable ── */
   return (
     <div
+      data-printing-id={printing.id}
       className={cn(
         // ⚠ p-1.5 is mirrored as BUTTON_PAD in card-grid.tsx — update both together
         "group relative z-0 w-full rounded-lg p-1.5 text-left transition-all hover:z-10",

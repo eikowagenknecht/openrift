@@ -3,6 +3,7 @@ import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
+import { useAddModeStore } from "@/stores/add-mode-store";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useSelectionStore } from "@/stores/selection-store";
 import { createStoreResetter } from "@/test/store-helpers";
@@ -19,15 +20,19 @@ const items: CardViewerItem[] = [
 
 let resetSelection: () => void;
 let resetActions: () => void;
+let resetAddMode: () => void;
 
 beforeEach(() => {
   resetSelection = createStoreResetter(useSelectionStore);
   resetActions = createStoreResetter(useCardRowActionsStore);
+  resetAddMode = createStoreResetter(useAddModeStore);
 });
 
 afterEach(() => {
   resetSelection();
   resetActions();
+  resetAddMode();
+  document.body.replaceChildren();
 });
 
 function press(key: string, init: KeyboardEventInit = {}) {
@@ -49,15 +54,47 @@ describe("useGridKeyboardNav: +/-", () => {
     expect(event.defaultPrevented).toBe(true);
   });
 
-  it("`-` dispatches onDecrement for the selected card", () => {
+  it("`-` dispatches onDecrement for the selected card, anchored to its tile", () => {
     const onDecrement = vi.fn();
     useCardRowActionsStore.getState().setHandlers({ onDecrement });
     useSelectionStore.getState().selectCard(p2, items, "printing");
 
+    // Mock the tile in the DOM so the anchor lookup succeeds — mirrors
+    // CardThumbnail's `data-printing-id`.
+    const tile = document.createElement("div");
+    tile.dataset.printingId = p2.id;
+    document.body.append(tile);
+
     renderHook(() => useGridKeyboardNav({ items }));
     press("-");
 
-    expect(onDecrement).toHaveBeenCalledWith(p2);
+    expect(onDecrement).toHaveBeenCalledWith(p2, tile);
+  });
+
+  it("`-` passes undefined anchor when the tile element isn't in the DOM", () => {
+    const onDecrement = vi.fn();
+    useCardRowActionsStore.getState().setHandlers({ onDecrement });
+    useSelectionStore.getState().selectCard(p1, items, "printing");
+
+    renderHook(() => useGridKeyboardNav({ items }));
+    press("-");
+
+    expect(onDecrement).toHaveBeenCalledWith(p1, undefined);
+  });
+
+  it("skips +/- while the variant popover is open", () => {
+    const onIncrement = vi.fn();
+    const onDecrement = vi.fn();
+    useCardRowActionsStore.getState().setHandlers({ onIncrement, onDecrement });
+    useSelectionStore.getState().selectCard(p1, items, "printing");
+    useAddModeStore.getState().openVariants(p1.cardId, document.createElement("div"));
+
+    renderHook(() => useGridKeyboardNav({ items }));
+    press("+");
+    press("-");
+
+    expect(onIncrement).not.toHaveBeenCalled();
+    expect(onDecrement).not.toHaveBeenCalled();
   });
 
   it("does nothing when no card is selected", () => {
