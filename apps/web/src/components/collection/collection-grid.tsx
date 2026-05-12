@@ -413,7 +413,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       onDecrement: (printing, anchorEl) => {
         const ownedVariantIds = allPrintingIdsByCardId.get(printing.cardId);
         const hasAmbiguousRemoval = dataView === "cards" && (ownedVariantIds?.length ?? 0) > 1;
-        if (hasAmbiguousRemoval && handleOpenVariants) {
+        if (hasAmbiguousRemoval && handleOpenVariants && anchorEl) {
           handleOpenVariants(printing, anchorEl);
         } else {
           handleUndoAdd?.(printing);
