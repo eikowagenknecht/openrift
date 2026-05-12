@@ -2,6 +2,7 @@
 
 ## 2026-05-12
 
+- feat: The collection and deck-builder pages now support the table view — the existing grid/table toggle in the toolbar now switches between layouts on both, the same way it already did on the Cards page
 - feat: In add mode on the Cards and collection pages, pressing + or - on the keyboard adds or removes one of the selected card, matching the buttons on the strip above it
 - feat: When a card has copies of multiple variants, pressing - opens the variants popover so you can pick which one to remove; the popover itself accepts arrow keys to move the highlight and + / - to add or remove the highlighted variant
 - feat: The "Remove from" picker (shown when copies span multiple collections) is now keyboard-steerable — arrow keys move the highlight, Enter or - picks the highlighted collection
