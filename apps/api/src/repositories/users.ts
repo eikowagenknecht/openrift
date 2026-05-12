@@ -1,5 +1,4 @@
 import type { Kysely } from "kysely";
-import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
 
@@ -27,24 +26,36 @@ export function usersRepo(db: Kysely<Database>) {
     async listWithCounts(): Promise<UserWithCounts[]> {
       const rows = await db
         .selectFrom("users as u")
-        .leftJoin("admins as a", "a.userId", "u.id")
-        .leftJoin("copies as co", "co.userId", "u.id")
-        .leftJoin("decks as d", "d.userId", "u.id")
-        .leftJoin("collections as cl", "cl.userId", "u.id")
-        .leftJoin("sessions as s", "s.userId", "u.id")
-        .select([
+        .select((eb) => [
           "u.id",
           "u.email",
           "u.name",
           "u.image",
           "u.createdAt",
-          sql<boolean>`a.user_id IS NOT NULL`.as("isAdmin"),
-          sql<number>`count(distinct co.id)`.as("cardCount"),
-          sql<number>`count(distinct d.id)`.as("deckCount"),
-          sql<number>`count(distinct cl.id)`.as("collectionCount"),
-          sql<Date | null>`max(s.updated_at)`.as("lastActiveAt"),
+          eb
+            .exists(eb.selectFrom("admins").select("userId").whereRef("admins.userId", "=", "u.id"))
+            .as("isAdmin"),
+          eb
+            .selectFrom("copies")
+            .select(eb.cast<number>(eb.fn.countAll(), "integer").as("c"))
+            .whereRef("copies.userId", "=", "u.id")
+            .as("cardCount"),
+          eb
+            .selectFrom("decks")
+            .select(eb.cast<number>(eb.fn.countAll(), "integer").as("c"))
+            .whereRef("decks.userId", "=", "u.id")
+            .as("deckCount"),
+          eb
+            .selectFrom("collections")
+            .select(eb.cast<number>(eb.fn.countAll(), "integer").as("c"))
+            .whereRef("collections.userId", "=", "u.id")
+            .as("collectionCount"),
+          eb
+            .selectFrom("sessions")
+            .select((seb) => seb.fn.max("updatedAt").as("m"))
+            .whereRef("sessions.userId", "=", "u.id")
+            .as("lastActiveAt"),
         ])
-        .groupBy(["u.id", "u.email", "u.name", "u.image", "u.createdAt", "a.userId"])
         .orderBy("u.createdAt", "desc")
         .execute();
 
@@ -53,10 +64,10 @@ export function usersRepo(db: Kysely<Database>) {
         email: r.email,
         name: r.name,
         image: r.image,
-        isAdmin: r.isAdmin,
-        cardCount: Number(r.cardCount),
-        deckCount: Number(r.deckCount),
-        collectionCount: Number(r.collectionCount),
+        isAdmin: Boolean(r.isAdmin),
+        cardCount: r.cardCount ?? 0,
+        deckCount: r.deckCount ?? 0,
+        collectionCount: r.collectionCount ?? 0,
         createdAt: r.createdAt,
         lastActiveAt: r.lastActiveAt,
       }));
