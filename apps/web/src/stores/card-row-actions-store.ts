@@ -5,7 +5,7 @@ interface CardRowHandlers {
   onRowClick?: (printing: Printing) => void;
   onSiblingClick?: (printing: Printing) => void;
   onIncrement?: (printing: Printing) => void;
-  onDecrement?: (printing: Printing, anchorEl: HTMLElement) => void;
+  onDecrement?: (printing: Printing, anchorEl?: HTMLElement) => void;
   onOpenVariants?: (printing: Printing, anchorEl: HTMLElement) => void;
 }
 

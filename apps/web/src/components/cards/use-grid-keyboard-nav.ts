@@ -2,6 +2,7 @@ import type { Printing } from "@openrift/shared";
 import { useEffect } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
+import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
 interface UseGridKeyboardNavParams {
@@ -9,11 +10,14 @@ interface UseGridKeyboardNavParams {
   siblingPrintings?: Printing[];
 }
 
+const NAV_KEYS = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "+", "-"];
+
 /**
  * Arrow-key navigation for the card grid. Left/right step through `items`
  * by index; up/down cycle through sibling printings (variants) of the
  * selected card without changing the grid position unless the sibling is
- * itself a tile in the grid.
+ * itself a tile in the grid. `+` / `-` trigger the add-mode strip's
+ * increment / decrement on the selected card (no-op when add mode is off).
  */
 export function useGridKeyboardNav({ items, siblingPrintings }: UseGridKeyboardNavParams) {
   const selectedCard = useSelectionStore((s) => s.selectedCard);
@@ -27,7 +31,23 @@ export function useGridKeyboardNav({ items, siblingPrintings }: UseGridKeyboardN
       if (tag === "input" || tag === "textarea" || tag === "select") {
         return;
       }
-      if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
+      if (!NAV_KEYS.includes(e.key)) {
+        return;
+      }
+      // Don't hijack Ctrl/Cmd +/- (browser zoom). Shift is fine — on US
+      // layouts `+` requires Shift+=.
+      if ((e.key === "+" || e.key === "-") && (e.ctrlKey || e.metaKey || e.altKey)) {
+        return;
+      }
+
+      if ((e.key === "+" || e.key === "-") && selectedCard) {
+        const handlers = useCardRowActionsStore.getState().handlers;
+        const target = e.key === "+" ? handlers.onIncrement : handlers.onDecrement;
+        if (!target) {
+          return;
+        }
+        e.preventDefault();
+        target(selectedCard);
         return;
       }
 

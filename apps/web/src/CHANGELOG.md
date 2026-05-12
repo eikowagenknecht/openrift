@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-05-12
+
+- feat: In add mode on the Cards and collection pages, pressing + or - on the keyboard adds or removes one of the selected card, matching the buttons on the strip above it
+
 ## 2026-05-11
 
 - feat: The collection page's add mode now uses the same toolbar toggle as the Cards page, with cards going into the collection you're viewing
