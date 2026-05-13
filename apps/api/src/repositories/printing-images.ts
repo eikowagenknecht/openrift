@@ -70,30 +70,38 @@ export function printingImagesRepo(db: Kysely<Database>) {
           "printingImages.imageFileId",
           "imgf.originalUrl",
           "imgf.rotation",
+          "imgf.needsTrim",
         ])
         .where("printingImages.id", "=", imageId)
         .executeTakeFirst();
     },
 
     /**
-     * Fetch rotation values for a batch of image_file IDs.
-     * @returns Map of imageFileId → rotation.
+     * Fetch rotation + needs_trim values for a batch of image_file IDs.
+     * @returns Map of imageFileId → { rotation, needsTrim }.
      */
-    async getRotationsByIds(ids: string[]): Promise<Map<string, number>> {
+    async getRotationsAndTrimByIds(
+      ids: string[],
+    ): Promise<Map<string, { rotation: number; needsTrim: boolean }>> {
       if (ids.length === 0) {
         return new Map();
       }
       const rows = await db
         .selectFrom("imageFiles")
-        .select(["id", "rotation"])
+        .select(["id", "rotation", "needsTrim"])
         .where("id", "in", ids)
         .execute();
-      return new Map(rows.map((r) => [r.id, r.rotation]));
+      return new Map(rows.map((r) => [r.id, { rotation: r.rotation, needsTrim: r.needsTrim }]));
     },
 
     /** Set the rotation on an image_file. */
     async setRotation(imageFileId: string, rotation: 0 | 90 | 180 | 270): Promise<void> {
       await db.updateTable("imageFiles").set({ rotation }).where("id", "=", imageFileId).execute();
+    },
+
+    /** Set the needs_trim flag on an image_file. */
+    async setNeedsTrim(imageFileId: string, needsTrim: boolean): Promise<void> {
+      await db.updateTable("imageFiles").set({ needsTrim }).where("id", "=", imageFileId).execute();
     },
 
     /** Deletes a printing image by ID. */
@@ -287,11 +295,11 @@ export function printingImagesRepo(db: Kysely<Database>) {
       return db
         .selectFrom("printingImages as pi")
         .innerJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId")
-        .select(["imgf.id as imageId", "imgf.originalUrl", "imgf.rotation"])
+        .select(["imgf.id as imageId", "imgf.originalUrl", "imgf.rotation", "imgf.needsTrim"])
         .where("pi.face", "=", "front")
         .where("imgf.rehostedUrl", "is", null)
         .where("imgf.originalUrl", "is not", null)
-        .groupBy(["imgf.id", "imgf.originalUrl", "imgf.rotation"])
+        .groupBy(["imgf.id", "imgf.originalUrl", "imgf.rotation", "imgf.needsTrim"])
         .limit(limit)
         .execute();
     },
@@ -385,14 +393,21 @@ export function printingImagesRepo(db: Kysely<Database>) {
 
     /**
      * Fetch an image_files row by ID.
-     * @returns The image_file's ID, originalUrl, and rehostedUrl, or undefined if not found.
+     * @returns The image_file's ID, URLs, rotation, and needsTrim, or undefined if not found.
      */
-    getImageFileById(
-      imageFileId: string,
-    ): Promise<{ id: string; originalUrl: string | null; rehostedUrl: string | null } | undefined> {
+    getImageFileById(imageFileId: string): Promise<
+      | {
+          id: string;
+          originalUrl: string | null;
+          rehostedUrl: string | null;
+          rotation: 0 | 90 | 180 | 270;
+          needsTrim: boolean;
+        }
+      | undefined
+    > {
       return db
         .selectFrom("imageFiles")
-        .select(["id", "originalUrl", "rehostedUrl"])
+        .select(["id", "originalUrl", "rehostedUrl", "rotation", "needsTrim"])
         .where("id", "=", imageFileId)
         .executeTakeFirst();
     },

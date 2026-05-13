@@ -114,6 +114,13 @@ async function generateWebpVariants(
   outputDir: string,
   fileBase: string,
   rotation: number,
+  /**
+   * When true, trim white scanner margins and apply a 1px shave before
+   * resizing. False preserves the image edge-to-edge — required for digital
+   * images where the card already fills the frame. The `-orig` file is never
+   * touched regardless of this flag.
+   */
+  needsTrim: boolean,
   /** When true, variants already on disk are kept as-is. */
   skipExisting = false,
 ): Promise<void> {
@@ -141,39 +148,48 @@ async function generateWebpVariants(
   const preTrimWidth = swap ? rawHeight : rawWidth;
   const preTrimHeight = swap ? rawWidth : rawHeight;
 
-  // Rotate + trim once before resizing. Threshold is tuned to absorb JPEG
-  // compression noise around the card edge — at a lower value, a single
-  // slightly-off-white pixel on the outer column anchors the bbox and leaves
-  // visible white strips on the sides. 60 lands tight against the card on
-  // the straight edges; white inside rounded-corner curves stays, which is
-  // fine since the card itself is the same shape.
   let prepped = io.sharp(buffer);
   if (rotation !== 0) {
     prepped = prepped.rotate(rotation);
   }
-  const { data: trimmedData, info: trimInfo } = await prepped
-    .trim({ background: "white", threshold: 60 })
-    .toBuffer({ resolveWithObject: true });
 
-  // When trim actually cropped something, shave 1 extra px off each side to
-  // absorb any leftover scanner halo. Skip when trim was a no-op so already-
-  // edge-to-edge art isn't nibbled.
-  const wasTrimmed = trimInfo.width < preTrimWidth || trimInfo.height < preTrimHeight;
-  let preppedBuffer = trimmedData;
-  let preppedWidth = trimInfo.width;
-  let preppedHeight = trimInfo.height;
-  if (wasTrimmed && preppedWidth > 2 && preppedHeight > 2) {
-    preppedBuffer = await io
-      .sharp(trimmedData)
-      .extract({
-        left: 1,
-        top: 1,
-        width: preppedWidth - 2,
-        height: preppedHeight - 2,
-      })
-      .toBuffer();
-    preppedWidth -= 2;
-    preppedHeight -= 2;
+  let preppedBuffer: Buffer;
+  let preppedWidth: number;
+  let preppedHeight: number;
+
+  if (needsTrim) {
+    // Threshold 100 (not 60) absorbs the scanner halo line ~60px outside the
+    // card. That halo sits around RGB 178 vs ~255 background — delta 77,
+    // enough to defeat threshold 60 and leave a visible white strip after
+    // trim. 100 covers it without over-cropping the card edge.
+    const { data: trimmedData, info: trimInfo } = await prepped
+      .trim({ background: "white", threshold: 100 })
+      .toBuffer({ resolveWithObject: true });
+
+    // When trim actually cropped something, shave 1 extra px off each side to
+    // absorb any leftover scanner halo. Skip when trim was a no-op so already-
+    // edge-to-edge art isn't nibbled.
+    const wasTrimmed = trimInfo.width < preTrimWidth || trimInfo.height < preTrimHeight;
+    preppedBuffer = trimmedData;
+    preppedWidth = trimInfo.width;
+    preppedHeight = trimInfo.height;
+    if (wasTrimmed && preppedWidth > 2 && preppedHeight > 2) {
+      preppedBuffer = await io
+        .sharp(trimmedData)
+        .extract({
+          left: 1,
+          top: 1,
+          width: preppedWidth - 2,
+          height: preppedHeight - 2,
+        })
+        .toBuffer();
+      preppedWidth -= 2;
+      preppedHeight -= 2;
+    }
+  } else {
+    preppedBuffer = await prepped.toBuffer();
+    preppedWidth = preTrimWidth;
+    preppedHeight = preTrimHeight;
   }
 
   const isLandscape = preppedWidth > preppedHeight;
@@ -263,6 +279,7 @@ export async function processAndSave(
   outputDir: string,
   fileBase: string,
   rotation: number,
+  needsTrim: boolean,
   /** Set to true to allow overwriting existing files (e.g. regeneration). */
   allowOverwrite = false,
 ): Promise<void> {
@@ -274,7 +291,7 @@ export async function processAndSave(
   // up with both e.g. `{base}-orig.png` and `{base}-orig.webp` on disk.
   await sweepExistingOrig(io, outputDir, fileBase);
   await io.fs.writeFile(join(outputDir, `${fileBase}-orig${originalExt}`), buffer);
-  await generateWebpVariants(io, buffer, outputDir, fileBase, rotation);
+  await generateWebpVariants(io, buffer, outputDir, fileBase, rotation, needsTrim);
 }
 
 /**
@@ -310,6 +327,7 @@ export async function regenerateFromOrig(
   io: Io,
   imageFileId: string,
   rotation: number,
+  needsTrim: boolean,
   originalUrl: string | null,
 ): Promise<void> {
   const outputDir = join(CARD_MEDIA_DIR, imageFileId.slice(-2));
@@ -323,7 +341,7 @@ export async function regenerateFromOrig(
   const origFile = files.find((f) => f.startsWith(`${imageFileId}-orig.`));
   if (origFile) {
     const buffer = await io.fs.readFile(join(outputDir, origFile));
-    await generateWebpVariants(io, buffer, outputDir, imageFileId, rotation);
+    await generateWebpVariants(io, buffer, outputDir, imageFileId, rotation, needsTrim);
     return;
   }
 
@@ -331,7 +349,7 @@ export async function regenerateFromOrig(
     throw new Error(`No orig file on disk and no originalUrl for image ${imageFileId}`);
   }
   const { buffer, ext } = await downloadImage(io, originalUrl);
-  await processAndSave(io, buffer, ext, outputDir, imageFileId, rotation, true);
+  await processAndSave(io, buffer, ext, outputDir, imageFileId, rotation, needsTrim, true);
 }
 
 /**
@@ -353,7 +371,16 @@ export async function rehostSingleImage(
     const { buffer, ext } = await downloadImage(io, image.originalUrl);
     const rehostedUrl = imageRehostedUrl(image.imageFileId);
     const outputDir = join(CARD_MEDIA_DIR, image.imageFileId.slice(-2));
-    await processAndSave(io, buffer, ext, outputDir, image.imageFileId, image.rotation, true);
+    await processAndSave(
+      io,
+      buffer,
+      ext,
+      outputDir,
+      image.imageFileId,
+      image.rotation,
+      image.needsTrim,
+      true,
+    );
     await repo.updateRehostedUrl(image.imageFileId, rehostedUrl);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -394,7 +421,16 @@ export async function rehostImages(
       const { buffer, ext } = await downloadImage(io, img.originalUrl);
       const selfHostedPath = imageRehostedUrl(img.imageId);
       const outputDir = join(CARD_MEDIA_DIR, img.imageId.slice(-2));
-      await processAndSave(io, buffer, ext, outputDir, img.imageId, img.rotation, true);
+      await processAndSave(
+        io,
+        buffer,
+        ext,
+        outputDir,
+        img.imageId,
+        img.rotation,
+        img.needsTrim,
+        true,
+      );
       await repo.updateRehostedUrl(img.imageId, selfHostedPath);
       return "rehosted" as const;
     }),
@@ -441,7 +477,7 @@ export async function regenerateImagesBatch(
     return out;
   }
 
-  const rotations = await repo.getRotationsByIds(batch.map((img) => img.imageId));
+  const settings = await repo.getRotationsAndTrimByIds(batch.map((img) => img.imageId));
 
   const results = await Promise.allSettled(
     batch.map(async (img) => {
@@ -483,12 +519,14 @@ export async function regenerateImagesBatch(
         throw new Error(`no -orig file on disk; cleared stale rehostedUrl and removed variants`);
       }
       const buffer = await io.fs.readFile(join(prefixDir, origFile));
+      const setting = settings.get(img.imageId);
       await generateWebpVariants(
         io,
         buffer,
         prefixDir,
         img.imageId,
-        rotations.get(img.imageId) ?? 0,
+        setting?.rotation ?? 0,
+        setting?.needsTrim ?? false,
         options.skipExisting,
       );
     }),

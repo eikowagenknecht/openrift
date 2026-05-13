@@ -331,7 +331,7 @@ const imageFileIds = printingImages.map((pi) => pi.image_file_id as string);
 const imageFiles =
   imageFileIds.length > 0
     ? await sql<Record<string, unknown>[]>`
-        SELECT id, original_url, rehosted_url, rotation
+        SELECT id, original_url, rehosted_url, rotation, needs_trim
         FROM image_files WHERE id = ANY(${imageFileIds})
         ORDER BY id
       `

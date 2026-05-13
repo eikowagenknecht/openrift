@@ -7,6 +7,8 @@ import {
   PlusIcon,
   RotateCcwIcon,
   RotateCwIcon,
+  ScissorsIcon,
+  ScissorsLineDashedIcon,
   Trash2Icon,
   UploadIcon,
   XIcon,
@@ -26,6 +28,7 @@ import {
   useRehostPrintingImage,
   useRotatePrintingImage,
   useSetCandidatePrintingImage,
+  useSetPrintingImageNeedsTrim,
   useUnrehostPrintingImage,
   useUploadPrintingImage,
 } from "@/hooks/use-admin-image-mutations";
@@ -36,9 +39,10 @@ function getDisplayUrl(img: AdminPrintingImageResponse): string | null {
   if (!img.rehostedUrl) {
     return img.originalUrl;
   }
-  // Cache-bust on rotation so admins see the rotated result immediately —
-  // the rehosted URL is stable but the file behind it is rewritten in place.
-  return `${img.rehostedUrl}-full.webp?r=${img.rotation}`;
+  // Cache-bust on rotation + needsTrim so admins see the regenerated result
+  // immediately — the rehosted URL is stable but the file behind it is
+  // rewritten in place when either changes.
+  return `${img.rehostedUrl}-full.webp?r=${img.rotation}&t=${img.needsTrim ? 1 : 0}`;
 }
 
 export function PrintingImageSwitcher({
@@ -61,6 +65,7 @@ export function PrintingImageSwitcher({
   const rehostPrintingImage = useRehostPrintingImage(invalidates);
   const unrehostPrintingImage = useUnrehostPrintingImage(invalidates);
   const rotatePrintingImage = useRotatePrintingImage(invalidates);
+  const setNeedsTrim = useSetPrintingImageNeedsTrim(invalidates);
   const addImageFromUrl = useAddImageFromUrl(invalidates);
   const uploadPrintingImage = useUploadPrintingImage(invalidates);
   const setPrintingSourceImage = useSetCandidatePrintingImage(invalidates);
@@ -227,6 +232,29 @@ export function PrintingImageSwitcher({
                   }
                 >
                   <RotateCwIcon className="size-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-6"
+                  title={
+                    effectiveImage.needsTrim
+                      ? "Auto-trim is ON — click to turn off (regenerates variants; -orig preserved)"
+                      : "Auto-trim is OFF — click to enable for scans (regenerates variants; -orig preserved)"
+                  }
+                  disabled={setNeedsTrim.isPending}
+                  onClick={() =>
+                    setNeedsTrim.mutate({
+                      imageId: effectiveImage.id,
+                      needsTrim: !effectiveImage.needsTrim,
+                    })
+                  }
+                >
+                  {effectiveImage.needsTrim ? (
+                    <ScissorsIcon className="size-3 text-green-600" />
+                  ) : (
+                    <ScissorsLineDashedIcon className="size-3" />
+                  )}
                 </Button>
               </>
             )}

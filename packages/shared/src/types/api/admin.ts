@@ -63,6 +63,7 @@ export interface AdminPrintingImageResponse {
   originalUrl: string | null;
   rehostedUrl: string | null;
   rotation: 0 | 90 | 180 | 270;
+  needsTrim: boolean;
   isActive: boolean;
 }
 

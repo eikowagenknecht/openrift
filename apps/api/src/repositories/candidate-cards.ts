@@ -492,6 +492,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         originalUrl: string | null;
         rehostedUrl: string | null;
         rotation: number;
+        needsTrim: boolean;
         isActive: boolean;
       }[]
     > {
@@ -509,6 +510,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "ci.originalUrl",
           "ci.rehostedUrl",
           "ci.rotation",
+          "ci.needsTrim",
           "printingImages.isActive",
         ])
         .where("printingImages.printingId", "in", printingIds)

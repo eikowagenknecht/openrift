@@ -22,6 +22,7 @@ import {
   addImageUrlSchema,
   rotateImageSchema,
   setImageSchema,
+  setNeedsTrimSchema,
   uploadImageFormSchema,
 } from "./schemas.js";
 
@@ -110,6 +111,19 @@ const rotateImage = createRoute({
   },
   responses: {
     204: { description: "Image rotation updated" },
+  },
+});
+
+const setNeedsTrim = createRoute({
+  method: "post",
+  path: "/printing-images/{imageId}/set-needs-trim",
+  tags: ["Admin - Cards"],
+  request: {
+    params: z.object({ imageId: z.string().uuid() }),
+    body: { content: { "application/json": { schema: setNeedsTrimSchema } } },
+  },
+  responses: {
+    204: { description: "needs_trim updated and variants regenerated" },
   },
 });
 
@@ -293,7 +307,15 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const rehostedUrl = imageRehostedUrl(image.imageFileId);
     const outputDir = join(CARD_MEDIA_DIR, image.imageFileId.slice(-2));
 
-    await processAndSave(c.get("io"), buffer, ext, outputDir, image.imageFileId, image.rotation);
+    await processAndSave(
+      c.get("io"),
+      buffer,
+      ext,
+      outputDir,
+      image.imageFileId,
+      image.rotation,
+      image.needsTrim,
+    );
 
     await printingImages.updateRehostedUrl(image.imageFileId, rehostedUrl);
 
@@ -310,7 +332,34 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     assertFound(image, "Printing image not found");
 
     await printingImages.setRotation(image.imageFileId, rotation);
-    await regenerateFromOrig(c.get("io"), image.imageFileId, rotation, image.originalUrl);
+    await regenerateFromOrig(
+      c.get("io"),
+      image.imageFileId,
+      rotation,
+      image.needsTrim,
+      image.originalUrl,
+    );
+
+    return c.body(null, 204);
+  })
+
+  // ── POST /printing-images/:imageId/set-needs-trim ────────────────────────
+  .openapi(setNeedsTrim, async (c) => {
+    const { printingImages } = c.get("repos");
+    const { imageId } = c.req.valid("param");
+    const { needsTrim } = c.req.valid("json");
+
+    const image = await printingImages.getForRehost(imageId);
+    assertFound(image, "Printing image not found");
+
+    await printingImages.setNeedsTrim(image.imageFileId, needsTrim);
+    await regenerateFromOrig(
+      c.get("io"),
+      image.imageFileId,
+      image.rotation,
+      needsTrim,
+      image.originalUrl,
+    );
 
     return c.body(null, 204);
   })
@@ -364,7 +413,9 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const rehostedUrl = imageRehostedUrl(imageId);
     const outputDir = join(CARD_MEDIA_DIR, imageId.slice(-2));
 
-    await processAndSave(c.get("io"), buffer, ext, outputDir, imageId, 0);
+    // New uploads default to needsTrim=false (digital). Admin opts in via the
+    // needs-trim toggle after upload — see set-needs-trim route.
+    await processAndSave(c.get("io"), buffer, ext, outputDir, imageId, 0, false);
 
     const { priorImageFile } = await c.get("transact")((trxRepos) =>
       trxRepos.printingImages.insertUploadedImage({

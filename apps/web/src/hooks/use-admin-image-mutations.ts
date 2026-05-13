@@ -106,6 +106,19 @@ const rotatePrintingImageFn = createServerFn({ method: "POST" })
     });
   });
 
+const setNeedsTrimFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { imageId: string; needsTrim: boolean }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    await fetchApi({
+      errorTitle: "Couldn't update needs-trim",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/printing-images/${encodeURIComponent(data.imageId)}/set-needs-trim`,
+      method: "POST",
+      body: { needsTrim: data.needsTrim },
+    });
+  });
+
 const addImageFromUrlFn = createServerFn({ method: "POST" })
   .inputValidator(
     (input: { printingId: string; url: string; source?: string; mode?: string }) => input,
@@ -196,6 +209,15 @@ export function useRotatePrintingImage(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: async ({ imageId, rotation }: { imageId: string; rotation: Rotation }) => {
       await rotatePrintingImageFn({ data: { imageId, rotation } });
+    },
+    invalidates,
+  });
+}
+
+export function useSetPrintingImageNeedsTrim(invalidates: Scope = defaultScope) {
+  return useMutationWithInvalidation({
+    mutationFn: async ({ imageId, needsTrim }: { imageId: string; needsTrim: boolean }) => {
+      await setNeedsTrimFn({ data: { imageId, needsTrim } });
     },
     invalidates,
   });

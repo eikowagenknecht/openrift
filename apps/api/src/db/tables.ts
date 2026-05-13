@@ -546,6 +546,12 @@ export interface ImageFilesTable {
   rehostedUrl: string | null;
   /** CHECK: IN (0, 90, 180, 270) */
   rotation: Generated<0 | 90 | 180 | 270>;
+  /**
+   * When true, the rehost pipeline trims white scanner margins and 1px shave
+   * before generating WebP variants. Default false (digital images, no trim).
+   * The `-orig` file is always preserved unmodified regardless of this flag.
+   */
+  needsTrim: Generated<boolean>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

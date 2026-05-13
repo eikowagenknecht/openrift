@@ -115,7 +115,7 @@ function makeMockRepo(
     }),
     rehostStatusBySet: vi.fn(() => Promise.resolve(opts.selectResult ?? [])),
     allRehostedUrls: vi.fn(() => Promise.resolve([])),
-    getRotationsByIds: vi.fn(() => Promise.resolve(new Map())),
+    getRotationsAndTrimByIds: vi.fn(() => Promise.resolve(new Map())),
     listAllRehosted: vi.fn(() => Promise.resolve(opts.rehosted ?? [])),
     getImageFileById: vi.fn(() =>
       Promise.resolve(opts.imageFile === undefined ? defaultFile : opts.imageFile),
@@ -233,7 +233,7 @@ describe("rehostFilesExist", () => {
 describe("processAndSave", () => {
   it("writes original and 4 webp variants", async () => {
     const buf = Buffer.from("test-img");
-    await processAndSave(mockIo, buf, ".png", "/tmp/out", "card-001", 0);
+    await processAndSave(mockIo, buf, ".png", "/tmp/out", "card-001", 0, false);
 
     // mkdir: once in processAndSave, once in generateWebpVariants
     expect(mockMkdir).toHaveBeenCalledTimes(2);
@@ -249,22 +249,22 @@ describe("processAndSave", () => {
   it("throws when files already exist on disk", async () => {
     mockReaddir.mockResolvedValue(["card-001-orig.png", "card-001-400w.webp"]);
     const buf = Buffer.from("test-img");
-    await expect(processAndSave(mockIo, buf, ".png", "/tmp/out", "card-001", 0)).rejects.toThrow(
-      "Rehost files already exist for card-001",
-    );
+    await expect(
+      processAndSave(mockIo, buf, ".png", "/tmp/out", "card-001", 0, false),
+    ).rejects.toThrow("Rehost files already exist for card-001");
     expect(mockWriteFile).not.toHaveBeenCalled();
   });
 
   it("allows overwrite when allowOverwrite is true", async () => {
     mockReaddir.mockResolvedValue(["card-001-orig.png"]);
     const buf = Buffer.from("test-img");
-    await processAndSave(mockIo, buf, ".png", "/tmp/out", "card-001", 0, true);
+    await processAndSave(mockIo, buf, ".png", "/tmp/out", "card-001", 0, false, true);
     expect(mockWriteFile).toHaveBeenCalledTimes(5);
   });
 
   it("resizes portrait sources on the width axis", async () => {
     mockSharpMetadata = { width: 600, height: 900 };
-    await processAndSave(mockIo, Buffer.from("p"), ".png", "/tmp/out", "portrait-1", 0);
+    await processAndSave(mockIo, Buffer.from("p"), ".png", "/tmp/out", "portrait-1", 0, false);
 
     // Portrait → width capped, height null
     expect(mockSharpInstance.resize).toHaveBeenCalledWith(120, null, { withoutEnlargement: true });
@@ -275,7 +275,7 @@ describe("processAndSave", () => {
 
   it("resizes landscape sources on the height axis", async () => {
     mockSharpMetadata = { width: 900, height: 600 };
-    await processAndSave(mockIo, Buffer.from("l"), ".png", "/tmp/out", "landscape-1", 0);
+    await processAndSave(mockIo, Buffer.from("l"), ".png", "/tmp/out", "landscape-1", 0, false);
 
     // Landscape → height capped, width null
     expect(mockSharpInstance.resize).toHaveBeenCalledWith(null, 120, { withoutEnlargement: true });
@@ -288,7 +288,7 @@ describe("processAndSave", () => {
     // Raw source is portrait (600×900); rotation=90 swaps to landscape
     // (900×600 post-rotate), so short-edge capping should hit the height axis.
     mockSharpMetadata = { width: 600, height: 900 };
-    await processAndSave(mockIo, Buffer.from("p"), ".png", "/tmp/out", "rotated-1", 90);
+    await processAndSave(mockIo, Buffer.from("p"), ".png", "/tmp/out", "rotated-1", 90, false);
 
     expect(mockSharpInstance.rotate).toHaveBeenCalledWith(90);
     expect(mockSharpInstance.resize).toHaveBeenCalledWith(null, 120, { withoutEnlargement: true });
@@ -297,12 +297,28 @@ describe("processAndSave", () => {
     expect(mockSharpInstance.resize).toHaveBeenCalledWith(null, 800, { withoutEnlargement: true });
   });
 
-  it("trims white borders with a tight threshold before resizing", async () => {
-    await processAndSave(mockIo, Buffer.from("p"), ".png", "/tmp/out", "trim-1", 0);
+  it("trims white borders at threshold 100 when needsTrim=true", async () => {
+    await processAndSave(mockIo, Buffer.from("p"), ".png", "/tmp/out", "trim-1", 0, true);
 
     // Trim runs once, then variants reuse the prepped buffer.
     expect(mockSharpInstance.trim).toHaveBeenCalledTimes(1);
-    expect(mockSharpInstance.trim).toHaveBeenCalledWith({ background: "white", threshold: 60 });
+    expect(mockSharpInstance.trim).toHaveBeenCalledWith({ background: "white", threshold: 100 });
+  });
+
+  it("does not call trim when needsTrim=false", async () => {
+    // Default for digital images — the -orig must round-trip into variants
+    // without any cropping. Important: trim must not run at all, so a card
+    // with a pure-white border doesn't accidentally get its border eaten.
+    await processAndSave(mockIo, Buffer.from("d"), ".png", "/tmp/out", "digital-1", 0, false);
+    expect(mockSharpInstance.trim).not.toHaveBeenCalled();
+    expect(mockSharpInstance.extract).not.toHaveBeenCalled();
+  });
+
+  it("preserves the -orig buffer regardless of needsTrim", async () => {
+    const buf = Buffer.from("orig-bytes");
+    await processAndSave(mockIo, buf, ".png", "/tmp/out", "orig-check", 0, true);
+    // The orig write receives the untouched input buffer, not the trimmed one.
+    expect(mockWriteFile).toHaveBeenCalledWith("/tmp/out/orig-check-orig.png", buf);
   });
 
   it("shaves 1 extra px off each side when trim actually cropped", async () => {
@@ -310,7 +326,7 @@ describe("processAndSave", () => {
     // Simulate a scan with a 10px white border on each side → trim reduces to 580x880.
     mockTrimInfo = { width: 580, height: 880 };
 
-    await processAndSave(mockIo, Buffer.from("b"), ".png", "/tmp/out", "bordered-1", 0);
+    await processAndSave(mockIo, Buffer.from("b"), ".png", "/tmp/out", "bordered-1", 0, true);
 
     expect(mockSharpInstance.extract).toHaveBeenCalledTimes(1);
     expect(mockSharpInstance.extract).toHaveBeenCalledWith({
@@ -324,7 +340,7 @@ describe("processAndSave", () => {
   it("skips the extra 1px shave when trim was a no-op", async () => {
     mockSharpMetadata = { width: 600, height: 900 };
     // mockTrimInfo stays null → post-rotation dims unchanged → wasTrimmed=false.
-    await processAndSave(mockIo, Buffer.from("e"), ".png", "/tmp/out", "edge-1", 0);
+    await processAndSave(mockIo, Buffer.from("e"), ".png", "/tmp/out", "edge-1", 0, true);
 
     expect(mockSharpInstance.extract).not.toHaveBeenCalled();
   });
@@ -333,7 +349,7 @@ describe("processAndSave", () => {
     // Existing dir holds a legacy png-orig; new rehost delivers webp.
     // processAndSave should delete the png-orig so we don't end up with both.
     mockReaddir.mockResolvedValue(["card-001-orig.png"]);
-    await processAndSave(mockIo, Buffer.from("w"), ".webp", "/tmp/out", "card-001", 0, true);
+    await processAndSave(mockIo, Buffer.from("w"), ".webp", "/tmp/out", "card-001", 0, false, true);
 
     expect(mockUnlink).toHaveBeenCalledWith("/tmp/out/card-001-orig.png");
     expect(mockWriteFile).toHaveBeenCalledWith("/tmp/out/card-001-orig.webp", expect.any(Buffer));
@@ -573,7 +589,7 @@ describe("regenerateImagesBatch", () => {
     const repo = makeMockRepo({});
     const result = await regenerateImagesBatch(mockIo, repo, []);
     expect(result).toEqual({ regenerated: 0, failed: 0, errors: [] });
-    expect(repo.getRotationsByIds).not.toHaveBeenCalled();
+    expect(repo.getRotationsAndTrimByIds).not.toHaveBeenCalled();
   });
 
   it("regenerates variants from on-disk orig files for each entry", async () => {
@@ -694,6 +710,40 @@ describe("regenerateImagesBatch", () => {
     expect(result.regenerated).toBe(1);
     expect(mockWriteFile).not.toHaveBeenCalled();
   });
+
+  it("uses per-image needsTrim from the settings map", async () => {
+    const repo = makeMockRepo({});
+    repo.getRotationsAndTrimByIds = vi.fn(() =>
+      Promise.resolve(new Map([["card-trim", { rotation: 0, needsTrim: true }]])),
+    );
+    mockReaddir.mockImplementation(async () => ["card-trim-orig.png"]);
+    await regenerateImagesBatch(mockIo, repo, [snap("card-trim")]);
+
+    expect(mockSharpInstance.trim).toHaveBeenCalledWith({ background: "white", threshold: 100 });
+  });
+
+  it("skips trim when needsTrim is false in the settings map", async () => {
+    const repo = makeMockRepo({});
+    repo.getRotationsAndTrimByIds = vi.fn(() =>
+      Promise.resolve(new Map([["card-keep", { rotation: 0, needsTrim: false }]])),
+    );
+    mockReaddir.mockImplementation(async () => ["card-keep-orig.png"]);
+    await regenerateImagesBatch(mockIo, repo, [snap("card-keep")]);
+
+    expect(mockSharpInstance.trim).not.toHaveBeenCalled();
+  });
+
+  it("defaults to needsTrim=false when the settings map lacks an entry", async () => {
+    // Defensive: a row missing from the rotations/needsTrim map (e.g. raced
+    // delete) must not retroactively start trimming. Defaulting to false
+    // matches the digital-image-default invariant.
+    const repo = makeMockRepo({});
+    repo.getRotationsAndTrimByIds = vi.fn(() => Promise.resolve(new Map()));
+    mockReaddir.mockImplementation(async () => ["card-orphan-orig.png"]);
+    await regenerateImagesBatch(mockIo, repo, [snap("card-orphan")]);
+
+    expect(mockSharpInstance.trim).not.toHaveBeenCalled();
+  });
 });
 
 // ─── runRegenerateImagesJob ──────────────────────────────────────────────
@@ -797,10 +847,10 @@ describe("runRegenerateImagesJob", () => {
     // 5 already counted from prior + 7 from this run = 12.
     expect(result.regenerated).toBe(12);
     expect(result.resumedFromRunId).toBe("run-1");
-    // Per-batch helper sees only the 7 unprocessed entries (rotations called once).
-    const rotationCallArgs = (printingImages.getRotationsByIds as any).mock.calls[0][0];
-    expect(rotationCallArgs).toHaveLength(7);
-    expect(rotationCallArgs[0]).toBe("card-005");
+    // Per-batch helper sees only the 7 unprocessed entries (settings fetched once).
+    const settingsCallArgs = (printingImages.getRotationsAndTrimByIds as any).mock.calls[0][0];
+    expect(settingsCallArgs).toHaveLength(7);
+    expect(settingsCallArgs[0]).toBe("card-005");
   });
 
   it("stops mid-run and throws 'cancelled' when cancelRequested flips between batches", async () => {
@@ -1096,7 +1146,12 @@ describe("imageRehostedUrl", () => {
 describe("rehostSingleImage", () => {
   it("does nothing when image has no originalUrl", async () => {
     const repo = {
-      getForRehost: vi.fn(async () => ({ originalUrl: null, imageFileId: "if-1" })),
+      getForRehost: vi.fn(async () => ({
+        originalUrl: null,
+        imageFileId: "if-1",
+        rotation: 0,
+        needsTrim: false,
+      })),
       updateRehostedUrl: vi.fn(async () => {}),
     } as any;
 
@@ -1122,6 +1177,8 @@ describe("rehostSingleImage", () => {
       getForRehost: vi.fn(async () => ({
         originalUrl: "https://example.com/img.png",
         imageFileId: "00594247-a18a-4efd-8998-105449a4cf40",
+        rotation: 0,
+        needsTrim: false,
       })),
       updateRehostedUrl: vi.fn(async () => {}),
     } as any;
@@ -1136,12 +1193,30 @@ describe("rehostSingleImage", () => {
     );
   });
 
+  it("propagates needsTrim from the image_file row to the trim step", async () => {
+    const repo = {
+      getForRehost: vi.fn(async () => ({
+        originalUrl: "https://example.com/img.png",
+        imageFileId: "00594247-a18a-4efd-8998-105449a4cf40",
+        rotation: 0,
+        needsTrim: true,
+      })),
+      updateRehostedUrl: vi.fn(async () => {}),
+    } as any;
+
+    await rehostSingleImage(mockIo, repo, "img-uuid");
+
+    expect(mockSharpInstance.trim).toHaveBeenCalledWith({ background: "white", threshold: 100 });
+  });
+
   it("swallows download errors silently", async () => {
     mockFetch.mockRejectedValue(new Error("timeout"));
     const repo = {
       getForRehost: vi.fn(async () => ({
         originalUrl: "https://example.com/img.png",
         imageFileId: "00594247-a18a-4efd-8998-105449a4cf40",
+        rotation: 0,
+        needsTrim: false,
       })),
       updateRehostedUrl: vi.fn(async () => {}),
     } as any;
