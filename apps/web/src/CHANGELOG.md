@@ -2,7 +2,7 @@
 
 ## 2026-05-13
 
-- feat: In the deck builder's table view, Shift+clicking + adds up to the zone maximum and Shift+clicking - removes every copy of the card across zones, matching what those clicks already did in the grid view
+- feat: The deck-builder's table view now matches the grid: an in-deck count is shown next to each card, Shift+click on + or - previews the bulk amount (e.g. +3 or -2) and performs add-to-max / remove-all when clicked, the legend and champion rows show Choose / Switch / Remove labels, and the + button is disabled once the zone is full
 
 ## 2026-05-12
 
