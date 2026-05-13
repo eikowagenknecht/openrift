@@ -127,7 +127,11 @@
     // React Overwrites
     "react/react-in-jsx-scope": "off", // React 17+ automatic JSX runtime
     "react/jsx-max-depth": "off", // Impractical for real component trees
-    "react/jsx-props-no-spreading": "off" // Idiomatic React, essential for shadcn/ui
+    "react/jsx-props-no-spreading": "off", // Idiomatic React, essential for shadcn/ui
+
+    // jsx-a11y Overwrites
+    "jsx-a11y/prefer-tag-over-role": "off", // Inline SVG icons, listbox/combobox typeahead, div-based grids, and shadcn-scaffolded groups intentionally use ARIA roles; the suggested semantic tags don't fit
+    "jsx-a11y/no-redundant-roles": "off" // `<input role="combobox">` is the canonical ARIA combobox pattern even when technically redundant
   },
   "ignorePatterns": [],
   "overrides": [

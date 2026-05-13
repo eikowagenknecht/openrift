@@ -70,10 +70,7 @@ test.describe("profile shell", () => {
       await expect(page.locator('[data-slot="card-description"]').first()).toHaveText(email);
 
       // "Joined <localized date>" — match format used by the component.
-      const joinedPattern = new RegExp(
-        String.raw`^Joined \w+ \d{1,2}, \d{4}$|^Joined \d{1,2} \w+ \d{4}$`,
-        "u",
-      );
+      const joinedPattern = /^Joined \w+ \d{1,2}, \d{4}$|^Joined \d{1,2} \w+ \d{4}$/u;
       await expect(page.getByText(joinedPattern)).toBeVisible();
 
       // Avatar: the Gravatar URL uses `d=404` so arbitrary test emails will
