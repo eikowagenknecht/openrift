@@ -7,6 +7,7 @@
 - feat: You can now drag a champion in and out of the chosen-champion slot, including dragging a champion from the main deck (or sideboard or overflow) onto the slot to replace whoever is in it
 - fix: Rules pages no longer show rules out of order on versions that span multiple updates (e.g. rule 300 appearing before 184.5)
 - fix: After tapping a rule cross-reference on the rules page, the browser back button now returns you to where you were reading
+- fix: The Cards page no longer briefly flashes a skeleton and remounts each time you change a filter, slider, sort, or type in the search box, so typing in the search field on slow connections no longer drops focus mid-word
 
 ## 2026-05-12
 

@@ -61,21 +61,41 @@ export const Route = createFileRoute("/_app/cards")({
   // so a route preload (`router.preloadRoute({ to: "/cards" })`) on idle from
   // the homepage primes the client QueryClient and the eventual click renders
   // the full grid with no Suspense fallback.
-  // Forward URL search params into the loader so `fetchCardCounts` can compute
-  // the filtered count over the catalog. Excludes `printingId` because it
-  // doesn't affect counts and would invalidate the loader on every selection.
-  loaderDeps: ({ search }) => ({ search }),
-  loader: async ({
+  // Return a stable (empty) deps object so the match ID — which is hashed from
+  // `loaderDeps` (see `router-core/router.js`: `matchId = route.id +
+  // interpolatedPath + loaderDepsHash`) — stays constant across filter/search/
+  // sort URL changes. Otherwise every navigation creates a fresh match starting
+  // in `status: "pending"`, which throws `loadPromise` to the route's Suspense
+  // boundary, renders `pendingComponent` (CardsPending), unmounts the entire
+  // route subtree (including the focused <input> in <SearchBar>), and remounts
+  // it once the loader resolves — losing focus mid-typing. The deps object must
+  // be the same shape on SSR and client to avoid a hydration mismatch (mismatched
+  // matchId on hydration causes the client to render `pendingComponent` where
+  // the server rendered `FirstRowPreview`). The SSR loader still gets the URL
+  // search via `location.search` below, so it can compute counts / first-row.
+  // The client loader doesn't need search anyway — the warm-cache path returns
+  // an `empty` payload regardless.
+  loaderDeps: () => ({}),
+  loader: ({
     context,
-    deps,
-  }): Promise<{
-    firstRow: FirstRowCard[];
-    facets: AvailableFiltersWire | null;
-    availableLanguages: string[];
-    setLabels: Record<string, string>;
-    counts: CardCounts;
-    filterCounts: FilterCountsWire | null;
-  }> => {
+    location,
+  }):
+    | {
+        firstRow: FirstRowCard[];
+        facets: AvailableFiltersWire | null;
+        availableLanguages: string[];
+        setLabels: Record<string, string>;
+        counts: CardCounts;
+        filterCounts: FilterCountsWire | null;
+      }
+    | Promise<{
+        firstRow: FirstRowCard[];
+        facets: AvailableFiltersWire | null;
+        availableLanguages: string[];
+        setLabels: Record<string, string>;
+        counts: CardCounts;
+        filterCounts: FilterCountsWire | null;
+      }> => {
     if (globalThis.window !== undefined) {
       const empty = {
         firstRow: [],
@@ -89,32 +109,42 @@ export const Route = createFileRoute("/_app/cards")({
         context.queryClient.getQueryData(catalogQueryOptions.queryKey) !== undefined &&
         context.queryClient.getQueryData(pricesQueryOptions.queryKey) !== undefined &&
         context.queryClient.getQueryData(initQueryOptions.queryKey) !== undefined;
-      // Once warmed, return sync so per-URL-change reruns don't enter a router transition. On cold entry (e.g. direct nav to /cards from /collection without landing-page preload), block on Promise.all so the pending skeleton shows instead of CardBrowser flashing an empty Suspense fallback.
+      // On a warm client cache, return synchronously (non-Promise) so the route's
+      // first mount doesn't enter a router transition. The stable client `loaderDeps`
+      // above already prevents this loader from re-running on filter/search changes,
+      // so this path matters only on the very first /cards entry. Cold entry returns
+      // a Promise so the route shows `pendingComponent` instead of flashing an empty
+      // Suspense fallback while the catalog is in flight.
       if (warm) {
         return empty;
       }
-      await Promise.all([
-        context.queryClient.ensureQueryData(catalogQueryOptions),
-        context.queryClient.ensureQueryData(pricesQueryOptions),
-        context.queryClient.ensureQueryData(initQueryOptions),
-      ]);
-      return empty;
+      return (async () => {
+        await Promise.all([
+          context.queryClient.ensureQueryData(catalogQueryOptions),
+          context.queryClient.ensureQueryData(pricesQueryOptions),
+          context.queryClient.ensureQueryData(initQueryOptions),
+        ]);
+        return empty;
+      })();
     }
-    await context.queryClient.ensureQueryData(initQueryOptions);
-    const [firstRow, facetsPayload, counts, filterCounts] = await Promise.all([
-      fetchFirstRowCards({ data: deps.search }),
-      fetchCardFacets(),
-      fetchCardCounts({ data: deps.search }),
-      fetchCardFilterCounts({ data: deps.search }),
-    ]);
-    return {
-      firstRow,
-      facets: facetsPayload.facets,
-      availableLanguages: facetsPayload.availableLanguages,
-      setLabels: facetsPayload.setLabels,
-      counts,
-      filterCounts,
-    };
+    const ssrSearch = location.search;
+    return (async () => {
+      await context.queryClient.ensureQueryData(initQueryOptions);
+      const [firstRow, facetsPayload, counts, filterCounts] = await Promise.all([
+        fetchFirstRowCards({ data: ssrSearch }),
+        fetchCardFacets(),
+        fetchCardCounts({ data: ssrSearch }),
+        fetchCardFilterCounts({ data: ssrSearch }),
+      ]);
+      return {
+        firstRow,
+        facets: facetsPayload.facets,
+        availableLanguages: facetsPayload.availableLanguages,
+        setLabels: facetsPayload.setLabels,
+        counts,
+        filterCounts,
+      };
+    })();
   },
   head: () => {
     const siteUrl = getSiteUrl();
