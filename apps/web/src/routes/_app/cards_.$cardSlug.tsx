@@ -132,9 +132,13 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
     const languageOrder = effectiveLanguageOrder([], languageRows);
     const labelMap = (rows: readonly { slug: string; label: string }[]) =>
       Object.fromEntries(rows.map((row) => [row.slug, row.label]));
+    // `LoaderFnContext.location` is typed as `ParsedLocation<{}>` — TanStack
+    // Router doesn't propagate the route's `validateSearch` type here — so
+    // re-parse with the schema to recover `printingId` in a type-safe way.
+    const { printingId } = cardDetailSearchSchema.parse(location.search);
     return {
       data,
-      printingId: location.search.printingId,
+      printingId,
       languageOrder,
       domainLabels: labelMap(init.enums.domains ?? []),
       cardTypeLabels: labelMap(init.enums.cardTypes ?? []),
