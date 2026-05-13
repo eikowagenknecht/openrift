@@ -8,6 +8,7 @@ import {
   ChevronsDownUpIcon,
   ChevronsUpDownIcon,
   CopyIcon,
+  GitCompareIcon,
   SearchIcon,
 } from "lucide-react";
 import type { MouseEvent } from "react";
@@ -1366,7 +1367,8 @@ function ShowChangesToggle({
   const label = (
     <label className="text-muted-foreground hover:text-foreground data-disabled:hover:text-muted-foreground flex cursor-pointer items-center gap-1.5 text-xs font-medium select-none data-disabled:cursor-not-allowed">
       {switchEl}
-      <span>Show changes</span>
+      <GitCompareIcon className="size-4 sm:hidden" aria-hidden="true" />
+      <span className="hidden sm:inline">Show changes</span>
     </label>
   );
 
