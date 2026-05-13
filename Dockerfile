@@ -1,5 +1,5 @@
 # ─── Stage 1: Install dependencies & build ────────────────────────────────────
-FROM oven/bun:1 AS build
+FROM oven/bun:1.3.14 AS build
 
 RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 
@@ -38,7 +38,7 @@ RUN --mount=type=secret,id=sentry_auth_token \
     bun run build
 
 # ─── Stage 2: API (server + migrations + cron) ───────────────────────────────
-FROM oven/bun:1-alpine AS api
+FROM oven/bun:1.3.14-alpine AS api
 
 WORKDIR /app
 
@@ -58,7 +58,7 @@ EXPOSE 3000
 CMD ["bun", "run", "apps/api/src/index.ts"]
 
 # ─── Stage 3: Web (TanStack Start SSR server) ───────────────────────────────
-FROM oven/bun:1-alpine AS web
+FROM oven/bun:1.3.14-alpine AS web
 
 WORKDIR /app
 COPY --from=build /app/apps/web/.output .output
@@ -67,7 +67,7 @@ EXPOSE 3001
 CMD ["bun", "run", ".output/server/index.mjs"]
 
 # ─── Stage 4: Proxy (nginx — reverse proxy + static asset serving) ──────────
-FROM nginx:alpine AS proxy
+FROM nginx:1.30.0-alpine AS proxy
 
 RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx/web.conf /etc/nginx/conf.d/web.conf

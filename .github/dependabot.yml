@@ -51,6 +51,19 @@ updates:
     assignees:
       - eikowagenknecht
 
+  # Root docker-compose: postgres. The ghcr.io/openriftapp/* images are our
+  # own builds tagged via $IMAGE_TAG and aren't candidates for bumps.
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "main"
+    commit-message:
+      prefix: "build"
+      include: "scope"
+    assignees:
+      - eikowagenknecht
+
   # Monitoring stack: tempo, loki, alloy, grafana, prometheus, exporters.
   - package-ecosystem: "docker-compose"
     directory: "/monitoring"
