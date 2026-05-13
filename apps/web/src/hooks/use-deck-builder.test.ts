@@ -467,6 +467,69 @@ describe("moveCardAction", () => {
     moveCardAction(collection, "card-1", "main", "legend", null);
     expect(cardsOf(collection)[0].zone).toBe("main");
   });
+
+  it("moves a champion from main into an empty champion slot, leaving extra copies behind", () => {
+    const champ = stubDeckBuilderCard({
+      cardId: "champ-a",
+      cardType: "unit",
+      superTypes: ["champion"],
+      zone: "main",
+      quantity: 2,
+    });
+    collection = createDraftCollection([champ]);
+    moveCardAction(collection, "champ-a", "main", "champion", null);
+    const cards = cardsOf(collection);
+    expect(cards.find((c) => c.zone === "champion")).toMatchObject({
+      cardId: "champ-a",
+      quantity: 1,
+    });
+    expect(cards.find((c) => c.zone === "main")).toMatchObject({ quantity: 1 });
+  });
+
+  it("replaces an existing champion when a different champion is dragged into the slot", () => {
+    const oldChamp = stubDeckBuilderCard({
+      cardId: "champ-a",
+      cardType: "unit",
+      superTypes: ["champion"],
+      zone: "champion",
+      quantity: 1,
+    });
+    const newChamp = stubDeckBuilderCard({
+      cardId: "champ-b",
+      cardType: "unit",
+      superTypes: ["champion"],
+      zone: "main",
+      quantity: 1,
+    });
+    collection = createDraftCollection([oldChamp, newChamp]);
+    moveCardAction(collection, "champ-b", "main", "champion", null);
+    const cards = cardsOf(collection);
+    expect(cards.filter((c) => c.zone === "champion")).toHaveLength(1);
+    expect(cards.find((c) => c.zone === "champion")?.cardId).toBe("champ-b");
+    expect(cards.some((c) => c.cardId === "champ-a")).toBe(false);
+  });
+
+  it("is a no-op when the same champion+printing already fills the slot, so no copy is lost", () => {
+    const inSlot = stubDeckBuilderCard({
+      cardId: "champ-a",
+      cardType: "unit",
+      superTypes: ["champion"],
+      zone: "champion",
+      quantity: 1,
+    });
+    const inMain = stubDeckBuilderCard({
+      cardId: "champ-a",
+      cardType: "unit",
+      superTypes: ["champion"],
+      zone: "main",
+      quantity: 2,
+    });
+    collection = createDraftCollection([inSlot, inMain]);
+    moveCardAction(collection, "champ-a", "main", "champion", null);
+    const cards = cardsOf(collection);
+    expect(cards.find((c) => c.zone === "main")?.quantity).toBe(2);
+    expect(cards.find((c) => c.zone === "champion")?.quantity).toBe(1);
+  });
 });
 
 // ── moveOneCardAction ───────────────────────────────────────────────────────
@@ -498,6 +561,29 @@ describe("moveOneCardAction", () => {
     const cards = cardsOf(collection);
     expect(cards.filter((c) => c.zone === "main")).toHaveLength(0);
     expect(cards.find((c) => c.zone === "sideboard")?.quantity).toBe(1);
+  });
+
+  it("replaces the champion slot when dragging a single copy of a different champion in", () => {
+    const oldChamp = stubDeckBuilderCard({
+      cardId: "champ-a",
+      cardType: "unit",
+      superTypes: ["champion"],
+      zone: "champion",
+      quantity: 1,
+    });
+    const newChamp = stubDeckBuilderCard({
+      cardId: "champ-b",
+      cardType: "unit",
+      superTypes: ["champion"],
+      zone: "main",
+      quantity: 3,
+    });
+    collection = createDraftCollection([oldChamp, newChamp]);
+    moveOneCardAction(collection, "champ-b", "main", "champion", null);
+    const cards = cardsOf(collection);
+    expect(cards.find((c) => c.zone === "champion")?.cardId).toBe("champ-b");
+    expect(cards.find((c) => c.zone === "main")?.quantity).toBe(2);
+    expect(cards.some((c) => c.cardId === "champ-a")).toBe(false);
   });
 });
 

@@ -40,7 +40,10 @@ export interface DeckDropData {
 type AnyDragData = DeckCardDragData | BrowserCardDragData;
 
 const DRAG_ACTIVATION = { distance: 8 };
-const DRAG_ZONES = new Set<DeckZone>(["main", "sideboard", "overflow"]);
+// Zones that accept deck-card drops. Champion is included so a unit can be
+// dragged from main/sideboard/overflow into the chosen-champion slot; the
+// move action handles replacing whatever's currently there.
+const DRAG_ZONES = new Set<DeckZone>(["main", "sideboard", "overflow", "champion"]);
 const MODIFIERS = [snapCenterToCursor];
 const EDGE_SIZE = 40;
 const SCROLL_SPEED = 15;

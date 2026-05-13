@@ -46,8 +46,9 @@ const ZONE_EMPTY_HINTS: Record<DeckZone, string> = {
 // Zones that only allow a single card — show remove button instead of +/-
 const SINGLE_CARD_ZONES = new Set<DeckZone>(["legend", "champion"]);
 const UNIQUE_ONLY_ZONES = new Set<DeckZone>(["battlefield"]);
-// Zones where cards can be dragged between freely
-const DRAG_ZONES = new Set<DeckZone>(["main", "sideboard", "overflow"]);
+// Zones whose rows can be picked up and dragged out. Drop-target validity is
+// gated separately (see deck-dnd-context.tsx + isCardAllowedInZone).
+const DRAG_ZONES = new Set<DeckZone>(["main", "sideboard", "overflow", "champion"]);
 
 interface DeckZoneSectionProps {
   deckId: string;

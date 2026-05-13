@@ -284,6 +284,36 @@ export function removeCardAction(
   }
 }
 
+// Legend and champion zones hold one card. Drop one copy in (deducting from
+// source), replacing any existing occupant. If the slot already holds the
+// exact same card+printing, no-op to avoid silently dropping a copy.
+function moveIntoSingleSlot(
+  collection: DeckCollection,
+  source: DeckBuilderCard,
+  sourceKey: string,
+  toZone: DeckZone,
+): void {
+  const existingInZone = allCards(collection).filter((card) => card.zone === toZone);
+  if (
+    existingInZone.length === 1 &&
+    existingInZone[0].cardId === source.cardId &&
+    existingInZone[0].preferredPrintingId === source.preferredPrintingId
+  ) {
+    return;
+  }
+  for (const existing of existingInZone) {
+    collection.delete(deckCardKey(existing.cardId, toZone, existing.preferredPrintingId));
+  }
+  if (source.quantity > 1) {
+    collection.update(sourceKey, (draft) => {
+      draft.quantity -= 1;
+    });
+  } else {
+    collection.delete(sourceKey);
+  }
+  collection.insert({ ...source, zone: toZone, quantity: 1 });
+}
+
 export function moveCardAction(
   collection: DeckCollection,
   cardId: string,
@@ -294,6 +324,10 @@ export function moveCardAction(
   const sourceKey = deckCardKey(cardId, fromZone, preferredPrintingId);
   const source = collection.get(sourceKey);
   if (!source || !isCardAllowedInZone(source, toZone)) {
+    return;
+  }
+  if (toZone === "legend" || toZone === "champion") {
+    moveIntoSingleSlot(collection, source, sourceKey, toZone);
     return;
   }
   const targetKey = deckCardKey(cardId, toZone, preferredPrintingId);
@@ -319,6 +353,10 @@ export function moveOneCardAction(
   const sourceKey = deckCardKey(cardId, fromZone, preferredPrintingId);
   const source = collection.get(sourceKey);
   if (!source || !isCardAllowedInZone(source, toZone)) {
+    return;
+  }
+  if (toZone === "legend" || toZone === "champion") {
+    moveIntoSingleSlot(collection, source, sourceKey, toZone);
     return;
   }
   if (source.quantity > 1) {
