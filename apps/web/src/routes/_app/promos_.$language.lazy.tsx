@@ -1135,48 +1135,80 @@ function CompactBranchTable({
   }
   const multipleBranches = branches.length > 1;
   return (
-    <div>
-      <CardTableHeader
-        columns={columns}
-        showOwned={showOwned}
-        showAddControls={false}
-        bordered={!multipleBranches}
-      />
-      {branches.map(({ child, printings }) => {
-        const anchorId = `lang-${printings[0].language}-ch-${child.channel.id}`;
-        return (
-          <div
-            key={child.channel.id}
-            id={anchorId}
-            style={{ scrollMarginTop: `${stickyOffset}px` }}
-          >
-            {multipleBranches && (
-              <CardTableGroupHeader
-                columns={columns}
-                name={child.channel.label}
-                count={printings.length}
-                anchorId={anchorId}
-              />
-            )}
-            {printings.map((printing) => (
-              <CardTableRow
-                key={printing.id}
-                printing={printing}
-                ownedCount={ownedCounts?.[printing.id]}
-                showOwned={showOwned}
-                showAddControls={false}
-                columns={columns}
-                cardTypeLabels={labels.cardTypes}
-                superTypeLabels={labels.superTypes}
-                rarityLabels={labels.rarities}
-                setNameBySlug={setNameBySlug}
-                onRowClick={onCardClick}
-              />
-            ))}
-          </div>
-        );
-      })}
-    </div>
+    <>
+      {/* Desktop: shared CardTable layout */}
+      <div className="hidden md:block">
+        <CardTableHeader
+          columns={columns}
+          showOwned={showOwned}
+          showAddControls={false}
+          bordered={!multipleBranches}
+        />
+        {branches.map(({ child, printings }) => {
+          const anchorId = `lang-${printings[0].language}-ch-${child.channel.id}`;
+          return (
+            <div
+              key={child.channel.id}
+              id={anchorId}
+              style={{ scrollMarginTop: `${stickyOffset}px` }}
+            >
+              {multipleBranches && (
+                <CardTableGroupHeader
+                  columns={columns}
+                  name={child.channel.label}
+                  count={printings.length}
+                  anchorId={anchorId}
+                />
+              )}
+              {printings.map((printing) => (
+                <CardTableRow
+                  key={printing.id}
+                  printing={printing}
+                  ownedCount={ownedCounts?.[printing.id]}
+                  showOwned={showOwned}
+                  showAddControls={false}
+                  columns={columns}
+                  cardTypeLabels={labels.cardTypes}
+                  superTypeLabels={labels.superTypes}
+                  rarityLabels={labels.rarities}
+                  setNameBySlug={setNameBySlug}
+                  onRowClick={onCardClick}
+                />
+              ))}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Mobile: stacked cards, grouped by leaf channel */}
+      <div className="flex flex-col gap-4 md:hidden">
+        {branches.map(({ child, printings }) => {
+          const anchorId = `lang-${printings[0].language}-ch-${child.channel.id}`;
+          return (
+            <div
+              key={child.channel.id}
+              id={anchorId}
+              style={{ scrollMarginTop: `${stickyOffset}px` }}
+            >
+              {multipleBranches && <div className="mb-2 font-semibold">{child.channel.label}</div>}
+              <div className="flex flex-col gap-2">
+                {printings.map((printing) => (
+                  <PromoMobileCard
+                    key={printing.id}
+                    printing={printing}
+                    ownedCount={ownedCounts?.[printing.id] ?? 0}
+                    showOwnedCount={ownedCounts !== undefined}
+                    rarityLabel={labels.rarities[printing.rarity]}
+                    finishLabel={labels.finishes[printing.finish]}
+                    onClick={onCardClick}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }
 
@@ -1218,46 +1250,68 @@ function PromoListView({
 
       {/* Mobile: stacked cards */}
       <div className="flex flex-col gap-2 md:hidden">
-        {printings.map((printing) => {
-          const image = printing.images[0];
-          const ownedCount = ownedCounts?.[printing.id] ?? 0;
-          return (
-            <button
-              key={printing.id}
-              type="button"
-              onClick={() => onRowClick(printing)}
-              className="hover:bg-muted/50 flex w-full items-center gap-3 rounded-lg border p-2 text-left"
-            >
-              {image ? (
-                <img
-                  src={imageUrl(image.imageId, "400w")}
-                  alt={printing.card.name}
-                  className="aspect-card h-20 shrink-0 rounded object-cover"
-                />
-              ) : (
-                <div className="bg-muted aspect-card h-20 shrink-0 rounded" />
-              )}
-              <div className="min-w-0 flex-1">
-                <div className="flex items-baseline justify-between gap-2">
-                  <div className="truncate font-medium">{printing.card.name}</div>
-                  {ownedCounts && ownedCount > 0 && (
-                    <span className="text-muted-foreground shrink-0 tabular-nums">
-                      &times;{ownedCount}
-                    </span>
-                  )}
-                </div>
-                <div className="text-muted-foreground truncate text-xs tabular-nums">
-                  {printing.publicCode}
-                </div>
-                <div className="text-muted-foreground truncate">
-                  {labels.rarities[printing.rarity]} · {labels.finishes[printing.finish]}
-                </div>
-              </div>
-            </button>
-          );
-        })}
+        {printings.map((printing) => (
+          <PromoMobileCard
+            key={printing.id}
+            printing={printing}
+            ownedCount={ownedCounts?.[printing.id] ?? 0}
+            showOwnedCount={ownedCounts !== undefined}
+            rarityLabel={labels.rarities[printing.rarity]}
+            finishLabel={labels.finishes[printing.finish]}
+            onClick={onRowClick}
+          />
+        ))}
       </div>
     </>
+  );
+}
+
+function PromoMobileCard({
+  printing,
+  ownedCount,
+  showOwnedCount,
+  rarityLabel,
+  finishLabel,
+  onClick,
+}: {
+  printing: Printing;
+  ownedCount: number;
+  showOwnedCount: boolean;
+  rarityLabel: string;
+  finishLabel: string;
+  onClick: (printing: Printing) => void;
+}) {
+  const image = printing.images[0];
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(printing)}
+      className="hover:bg-muted/50 flex w-full items-center gap-3 rounded-lg border p-2 text-left"
+    >
+      {image ? (
+        <img
+          src={imageUrl(image.imageId, "400w")}
+          alt={printing.card.name}
+          className="aspect-card h-20 shrink-0 rounded object-cover"
+        />
+      ) : (
+        <div className="bg-muted aspect-card h-20 shrink-0 rounded" />
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-2">
+          <div className="truncate font-medium">{printing.card.name}</div>
+          {showOwnedCount && ownedCount > 0 && (
+            <span className="text-muted-foreground shrink-0 tabular-nums">&times;{ownedCount}</span>
+          )}
+        </div>
+        <div className="text-muted-foreground truncate text-xs tabular-nums">
+          {printing.publicCode}
+        </div>
+        <div className="text-muted-foreground truncate">
+          {rarityLabel} · {finishLabel}
+        </div>
+      </div>
+    </button>
   );
 }
 
