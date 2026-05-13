@@ -81,7 +81,6 @@ export function PrintingImageSwitcher({
   const [imgError, setImgError] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlValue, setUrlValue] = useState("");
-  const [urlSource, setUrlSource] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedImage = images.find((img) => img.id === selectedId);
@@ -401,53 +400,43 @@ export function PrintingImageSwitcher({
       />
 
       {showUrlInput && (
-        <div className="space-y-1">
+        <div className="flex gap-1">
           <Input
             placeholder="Image URL…"
             value={urlValue}
             onChange={(e) => setUrlValue(e.target.value)}
+            className="flex-1"
           />
-          <div className="flex gap-1">
-            <Input
-              placeholder="Source name"
-              value={urlSource}
-              onChange={(e) => setUrlSource(e.target.value)}
-              className="flex-1"
-            />
-            <Button
-              variant="outline"
-              disabled={!urlValue.trim() || addImageFromUrl.isPending}
-              onClick={() => {
-                addImageFromUrl.mutate(
-                  {
-                    printingId,
-                    url: urlValue.trim(),
-                    source: urlSource.trim() || undefined,
-                    mode: "main",
+          <Button
+            variant="outline"
+            disabled={!urlValue.trim() || addImageFromUrl.isPending}
+            onClick={() => {
+              addImageFromUrl.mutate(
+                {
+                  printingId,
+                  url: urlValue.trim(),
+                  mode: "main",
+                },
+                {
+                  onSuccess: () => {
+                    setUrlValue("");
+                    setShowUrlInput(false);
                   },
-                  {
-                    onSuccess: () => {
-                      setUrlValue("");
-                      setUrlSource("");
-                      setShowUrlInput(false);
-                    },
-                  },
-                );
-              }}
-            >
-              Add
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setShowUrlInput(false);
-                setUrlValue("");
-                setUrlSource("");
-              }}
-            >
-              <XIcon className="size-3" />
-            </Button>
-          </div>
+                },
+              );
+            }}
+          >
+            Add
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setShowUrlInput(false);
+              setUrlValue("");
+            }}
+          >
+            <XIcon className="size-3" />
+          </Button>
         </div>
       )}
     </div>

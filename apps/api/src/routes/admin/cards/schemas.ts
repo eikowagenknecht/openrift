@@ -168,7 +168,6 @@ export const setNeedsTrimSchema = z.object({
 
 export const addImageUrlSchema = z.object({
   url: z.string(),
-  provider: z.string().optional(),
   mode: z.enum(["main", "additional"]).optional(),
 });
 

@@ -740,44 +740,41 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
   // ── POST /printing/:printingId/add-image-url ─────────────────────────────
 
   describe("POST /admin/cards/printing/:printingId/add-image-url", () => {
-    it("adds an image URL to a printing", async () => {
+    it("derives provider from URL host", async () => {
       const res = await app.fetch(
         req("POST", `/admin/cards/printing/${printingId}/add-image-url`, {
-          url: "https://example.com/csi-new-image.png",
-          provider: "csi-manual-test",
+          url: "https://i.imgur.com/csi-new-image.png",
           mode: "main",
         }),
       );
       expect(res.status).toBe(204);
 
-      // Verify printing_image was created with its card_image
       const images = await db
         .selectFrom("printingImages")
         .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
         .selectAll("printingImages")
         .select("ci.originalUrl")
         .where("printingImages.printingId", "=", printingId)
-        .where("printingImages.provider", "=", "csi-manual-test")
+        .where("printingImages.provider", "=", "imgur")
         .execute();
       expect(images.length).toBe(1);
-      expect(images[0].originalUrl).toBe("https://example.com/csi-new-image.png");
+      expect(images[0].originalUrl).toBe("https://i.imgur.com/csi-new-image.png");
       expect(images[0].isActive).toBe(true);
     });
 
-    it("adds an image URL with default mode and source", async () => {
+    it("uses default mode when not provided", async () => {
       const res = await app.fetch(
         req("POST", `/admin/cards/printing/${printingId}/add-image-url`, {
-          url: "https://example.com/csi-another-image.png",
+          url: "https://images.tcgplayer.com/csi-another-image.png",
         }),
       );
       expect(res.status).toBe(204);
 
-      // The default source is "manual" and default mode is "main"
       const images = await db
         .selectFrom("printingImages")
         .selectAll()
         .where("printingId", "=", printingId)
-        .where("provider", "=", "manual")
+        .where("provider", "=", "tcgplayer")
         .execute();
       expect(images.length).toBe(1);
       expect(images[0].isActive).toBe(true);
@@ -804,24 +801,22 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
     it("adds an image URL in additional mode", async () => {
       const res = await app.fetch(
         req("POST", `/admin/cards/printing/${printingId}/add-image-url`, {
-          url: "https://example.com/csi-additional-image.png",
-          provider: "csi-additional-test",
+          url: "https://www.reddit.com/csi-additional-image.png",
           mode: "additional",
         }),
       );
       expect(res.status).toBe(204);
 
-      // Verify the image was created as inactive
       const images = await db
         .selectFrom("printingImages")
         .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
         .selectAll("printingImages")
         .select("ci.originalUrl")
         .where("printingImages.printingId", "=", printingId)
-        .where("printingImages.provider", "=", "csi-additional-test")
+        .where("printingImages.provider", "=", "reddit")
         .execute();
       expect(images.length).toBe(1);
-      expect(images[0].originalUrl).toBe("https://example.com/csi-additional-image.png");
+      expect(images[0].originalUrl).toBe("https://www.reddit.com/csi-additional-image.png");
       expect(images[0].isActive).toBe(false);
     });
 

@@ -120,9 +120,7 @@ const setNeedsTrimFn = createServerFn({ method: "POST" })
   });
 
 const addImageFromUrlFn = createServerFn({ method: "POST" })
-  .inputValidator(
-    (input: { printingId: string; url: string; source?: string; mode?: string }) => input,
-  )
+  .inputValidator((input: { printingId: string; url: string; mode?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await fetchApi({
@@ -130,7 +128,7 @@ const addImageFromUrlFn = createServerFn({ method: "POST" })
       cookie: context.cookie,
       path: `/api/v1/admin/cards/printing/${encodeURIComponent(data.printingId)}/add-image-url`,
       method: "POST",
-      body: { url: data.url, source: data.source, mode: data.mode },
+      body: { url: data.url, mode: data.mode },
     });
   });
 
@@ -231,7 +229,6 @@ export function useAddImageFromUrl(invalidates: Scope = defaultScope) {
     }: {
       printingId: string;
       url: string;
-      source?: string;
       mode?: "main" | "additional";
     }) => addImageFromUrlFn({ data: { printingId, ...body } }),
     invalidates,

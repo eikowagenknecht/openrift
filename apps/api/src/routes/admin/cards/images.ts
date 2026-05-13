@@ -17,6 +17,7 @@ import {
 } from "../../../services/image-rehost.js";
 import type { Variables } from "../../../types.js";
 import { assertFound } from "../../../utils/assertions.js";
+import { urlToProvider } from "../../../utils/url-provider.js";
 import {
   activateImageSchema,
   addImageUrlSchema,
@@ -378,10 +379,11 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     assertFound(printing, "Printing not found");
 
     const mode = body.mode ?? "main";
-    const provider = body.provider?.trim() || "manual";
+    const url = body.url.trim();
+    const provider = urlToProvider(url);
 
     await c.get("transact")(async (trxRepos) => {
-      await trxRepos.printingImages.insertImage(printing.id, body.url.trim(), provider, mode);
+      await trxRepos.printingImages.insertImage(printing.id, url, provider, mode);
     });
 
     return c.body(null, 204);

@@ -510,7 +510,7 @@ describe("POST /api/v1/printing/:printingId/add-image-url", () => {
     vi.resetAllMocks();
   });
 
-  it("returns 204 with default mode and provider", async () => {
+  it("derives provider from URL host with default mode", async () => {
     mockPrintingImages.getPrintingById.mockResolvedValue({ id: "printing-1" });
 
     const res = await app.request(
@@ -518,19 +518,19 @@ describe("POST /api/v1/printing/:printingId/add-image-url", () => {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: "https://example.com/img.png" }),
+        body: JSON.stringify({ url: "https://i.imgur.com/img.png" }),
       },
     );
     expect(res.status).toBe(204);
     expect(mockTrxPrintingImages.insertImage).toHaveBeenCalledWith(
       "printing-1",
-      "https://example.com/img.png",
-      "manual",
+      "https://i.imgur.com/img.png",
+      "imgur",
       "main",
     );
   });
 
-  it("uses explicit mode and provider when provided", async () => {
+  it("respects explicit mode", async () => {
     mockPrintingImages.getPrintingById.mockResolvedValue({ id: "printing-1" });
 
     const res = await app.request(
@@ -539,16 +539,15 @@ describe("POST /api/v1/printing/:printingId/add-image-url", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          url: "https://example.com/img.png",
+          url: "https://images.tcgplayer.com/img.png",
           mode: "additional",
-          provider: "tcgplayer",
         }),
       },
     );
     expect(res.status).toBe(204);
     expect(mockTrxPrintingImages.insertImage).toHaveBeenCalledWith(
       "printing-1",
-      "https://example.com/img.png",
+      "https://images.tcgplayer.com/img.png",
       "tcgplayer",
       "additional",
     );
