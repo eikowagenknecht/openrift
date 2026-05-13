@@ -388,6 +388,45 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
 
   const canDeleteCollection = Boolean(currentCollection && !currentCollection.isInbox);
 
+  // ── Build items list ────────────────────────────────────────────────
+  let items: CardViewerItem[];
+  const stackByItemId = new Map<string, StackedEntry>();
+
+  if (isAddMode) {
+    items = deferredSortedCards.map((printing) => ({
+      id: printing.id,
+      printing,
+    }));
+  } else {
+    // Browse/select: use stacked collection data
+    const filteredStacks = deferredSortedCards.map((printing) => ({
+      printing,
+      stack: stackByPrintingId.get(printing.id),
+    }));
+
+    items = stacked
+      ? filteredStacks
+          .filter(
+            (entry): entry is { printing: Printing; stack: StackedEntry } =>
+              entry.stack !== undefined,
+          )
+          .map((entry) => {
+            stackByItemId.set(entry.stack.printingId, entry.stack);
+            return { id: entry.stack.printingId, printing: entry.printing };
+          })
+      : filteredStacks
+          .filter(
+            (entry): entry is { printing: Printing; stack: StackedEntry } =>
+              entry.stack !== undefined,
+          )
+          .flatMap((entry) =>
+            entry.stack.copyIds.map((copyId) => {
+              stackByItemId.set(copyId, entry.stack);
+              return { id: copyId, printing: entry.printing };
+            }),
+          );
+  }
+
   // ── Grid click handlers ─────────────────────────────────────────────
   const findBy = dataView === "cards" ? "card" : ("printing" as const);
 
@@ -431,45 +470,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       useSelectionStore.getState().closeDetail();
     }
   };
-
-  // ── Build items list ────────────────────────────────────────────────
-  let items: CardViewerItem[];
-  const stackByItemId = new Map<string, StackedEntry>();
-
-  if (isAddMode) {
-    items = deferredSortedCards.map((printing) => ({
-      id: printing.id,
-      printing,
-    }));
-  } else {
-    // Browse/select: use stacked collection data
-    const filteredStacks = deferredSortedCards.map((printing) => ({
-      printing,
-      stack: stackByPrintingId.get(printing.id),
-    }));
-
-    items = stacked
-      ? filteredStacks
-          .filter(
-            (entry): entry is { printing: Printing; stack: StackedEntry } =>
-              entry.stack !== undefined,
-          )
-          .map((entry) => {
-            stackByItemId.set(entry.stack.printingId, entry.stack);
-            return { id: entry.stack.printingId, printing: entry.printing };
-          })
-      : filteredStacks
-          .filter(
-            (entry): entry is { printing: Printing; stack: StackedEntry } =>
-              entry.stack !== undefined,
-          )
-          .flatMap((entry) =>
-            entry.stack.copyIds.map((copyId) => {
-              stackByItemId.set(copyId, entry.stack);
-              return { id: copyId, printing: entry.printing };
-            }),
-          );
-  }
 
   // ── Drag preview printings (up to 3 unique printings from selection) ─
   const dragPreviewPrintings: Printing[] = [];
