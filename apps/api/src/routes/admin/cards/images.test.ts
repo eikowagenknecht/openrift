@@ -57,7 +57,7 @@ const mockTrxPrintingImages = {
   insertImage: vi.fn(),
   deactivateActiveFront: vi.fn(),
   setActive: vi.fn(),
-  insertUploadedImage: vi.fn(),
+  insertUploadedImage: vi.fn(async () => ({ priorImageFile: null })),
 };
 
 const mockTransact = vi.fn(
@@ -592,6 +592,7 @@ describe("POST /api/v1/printing/:printingId/upload-image", () => {
     });
     mockProcessAndSave.mockResolvedValue(undefined);
     mockImageRehostedUrl.mockReturnValue("/media/cards/v7/mock-uuid-v7");
+    mockTrxPrintingImages.insertUploadedImage.mockResolvedValue({ priorImageFile: null });
 
     const formData = new FormData();
     formData.append("file", new File(["image-data"], "card.png", { type: "image/png" }));
@@ -621,6 +622,7 @@ describe("POST /api/v1/printing/:printingId/upload-image", () => {
     });
     mockProcessAndSave.mockResolvedValue(undefined);
     mockImageRehostedUrl.mockReturnValue("/media/cards/v7/mock-uuid-v7");
+    mockTrxPrintingImages.insertUploadedImage.mockResolvedValue({ priorImageFile: null });
 
     const formData = new FormData();
     formData.append("file", new File(["image-data"], "card.jpg", { type: "image/jpeg" }));
@@ -642,6 +644,45 @@ describe("POST /api/v1/printing/:printingId/upload-image", () => {
       rehostedUrl: "/media/cards/v7/mock-uuid-v7",
       mode: "additional",
     });
+  });
+
+  it("cleans up prior disk files + DB row when a re-upload replaces an existing image_file", async () => {
+    mockPrintingImages.getPrintingById.mockResolvedValue({ id: "printing-1" });
+    mockProcessAndSave.mockResolvedValue(undefined);
+    mockImageRehostedUrl.mockReturnValue("/media/cards/bb/new-id");
+    mockTrxPrintingImages.insertUploadedImage.mockResolvedValue({
+      priorImageFile: { id: "prior-imgf", rehostedUrl: "/media/cards/aa/prior-imgf" },
+    });
+    mockPrintingImages.deleteOrphanedImageFiles.mockResolvedValue(1);
+
+    const formData = new FormData();
+    formData.append("file", new File(["image-data"], "card.png", { type: "image/png" }));
+
+    const res = await app.request(
+      "/api/v1/printing/00000000-0000-4000-a000-000000000003/upload-image",
+      { method: "POST", body: formData },
+    );
+    expect(res.status).toBe(200);
+    expect(mockDeleteRehostFiles).toHaveBeenCalledWith(mockIo, "/media/cards/aa/prior-imgf");
+    expect(mockPrintingImages.deleteOrphanedImageFiles).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not delete files when there's no prior image_file (first upload)", async () => {
+    mockPrintingImages.getPrintingById.mockResolvedValue({ id: "printing-1" });
+    mockProcessAndSave.mockResolvedValue(undefined);
+    mockImageRehostedUrl.mockReturnValue("/media/cards/v7/mock-uuid-v7");
+    mockTrxPrintingImages.insertUploadedImage.mockResolvedValue({ priorImageFile: null });
+
+    const formData = new FormData();
+    formData.append("file", new File(["image-data"], "card.png", { type: "image/png" }));
+
+    const res = await app.request(
+      "/api/v1/printing/00000000-0000-4000-a000-000000000003/upload-image",
+      { method: "POST", body: formData },
+    );
+    expect(res.status).toBe(200);
+    expect(mockDeleteRehostFiles).not.toHaveBeenCalled();
+    expect(mockPrintingImages.deleteOrphanedImageFiles).not.toHaveBeenCalled();
   });
 
   it("returns 404 when printing not found", async () => {

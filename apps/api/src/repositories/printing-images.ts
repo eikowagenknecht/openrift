@@ -208,6 +208,8 @@ export function printingImagesRepo(db: Kysely<Database>) {
      * Insert an uploaded image as a printing image, with a pre-computed rehostedUrl.
      * Creates an image_files row for the uploaded image.
      * Optionally deactivates the current active front image first (when mode=main).
+     * @returns The prior image_file when the upsert replaced an existing one (so the
+     *   caller can delete its disk files + DB row), or `null` on a first upload.
      */
     async insertUploadedImage(values: {
       id: string;
@@ -215,17 +217,31 @@ export function printingImagesRepo(db: Kysely<Database>) {
       provider: string;
       rehostedUrl: string;
       mode: "main" | "additional";
-    }): Promise<void> {
+    }): Promise<{ priorImageFile: { id: string; rehostedUrl: string | null } | null }> {
       if (values.mode === "main") {
         await this.deactivateActiveFront(values.printingId);
       }
 
-      // Create image_files row with only rehostedUrl (uploaded images have no original URL)
-      const imageFile = await db
+      // Look up any existing printing_image for this slot so we can return its
+      // prior image_file. When the caller is replacing it (re-upload), the
+      // route will clean up the prior disk files + image_files row — leaving
+      // them in place would create orphans.
+      const existing = await db
+        .selectFrom("printingImages as pi")
+        .innerJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId")
+        .select(["imgf.id", "imgf.rehostedUrl"])
+        .where("pi.printingId", "=", values.printingId)
+        .where("pi.face", "=", "front")
+        .where("pi.provider", "=", values.provider)
+        .executeTakeFirst();
+
+      // Insert image_files with explicit id matching values.id (= the file path
+      // basename). Keeping these aligned is required by regenerateFromOrig,
+      // which derives the on-disk lookup path from image_file.id.
+      await db
         .insertInto("imageFiles")
-        .values({ rehostedUrl: values.rehostedUrl })
-        .returning("id")
-        .executeTakeFirstOrThrow();
+        .values({ id: values.id, rehostedUrl: values.rehostedUrl })
+        .execute();
 
       await db
         .insertInto("printingImages")
@@ -235,15 +251,21 @@ export function printingImagesRepo(db: Kysely<Database>) {
           face: "front",
           provider: values.provider,
           isActive: values.mode === "main",
-          imageFileId: imageFile.id,
+          imageFileId: values.id,
         })
         .onConflict((oc) =>
           oc.columns(["printingId", "face", "provider"]).doUpdateSet({
             isActive: values.mode === "main",
-            imageFileId: imageFile.id,
+            imageFileId: values.id,
           }),
         )
         .execute();
+
+      const priorImageFile =
+        existing && existing.id !== values.id
+          ? { id: existing.id, rehostedUrl: existing.rehostedUrl }
+          : null;
+      return { priorImageFile };
     },
 
     /**

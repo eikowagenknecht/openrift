@@ -366,15 +366,26 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     await processAndSave(c.get("io"), buffer, ext, outputDir, imageId, 0);
 
-    await c.get("transact")(async (trxRepos) => {
-      await trxRepos.printingImages.insertUploadedImage({
+    const { priorImageFile } = await c.get("transact")((trxRepos) =>
+      trxRepos.printingImages.insertUploadedImage({
         id: imageId,
         printingId: printing.id,
         provider,
         rehostedUrl,
         mode,
-      });
-    });
+      }),
+    );
+
+    // If the upsert displaced an existing image_file (re-upload to the same
+    // printing+face+provider slot), clean up its disk files and DB row now
+    // that no printing_image references it. Without this, every re-upload
+    // leaks ~1 MB of WebP variants + an unreferenced image_files row.
+    if (priorImageFile?.rehostedUrl) {
+      await deleteRehostFiles(c.get("io"), priorImageFile.rehostedUrl);
+    }
+    if (priorImageFile) {
+      await printingImages.deleteOrphanedImageFiles();
+    }
 
     return c.json({ rehostedUrl });
   });

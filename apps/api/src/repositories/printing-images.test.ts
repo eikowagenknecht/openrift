@@ -80,8 +80,9 @@ describe("printingImagesRepo", () => {
     ).toBe("pi-new");
   });
 
-  it("insertUploadedImage main mode deactivates and inserts", async () => {
-    const db = createMockDb([{ id: "ci-1" }]);
+  it("insertUploadedImage main mode deactivates and inserts (no prior)", async () => {
+    // Empty mock → pre-lookup returns undefined → no prior to clean up.
+    const db = createMockDb([]);
     await expect(
       printingImagesRepo(db).insertUploadedImage({
         id: "pi-new",
@@ -90,11 +91,11 @@ describe("printingImagesRepo", () => {
         rehostedUrl: "https://cdn.example.com/img.jpg",
         mode: "main",
       }),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ priorImageFile: null });
   });
 
-  it("insertUploadedImage additional mode inserts without deactivating", async () => {
-    const db = createMockDb([{ id: "ci-1" }]);
+  it("insertUploadedImage additional mode inserts without deactivating (no prior)", async () => {
+    const db = createMockDb([]);
     await expect(
       printingImagesRepo(db).insertUploadedImage({
         id: "pi-new",
@@ -103,7 +104,23 @@ describe("printingImagesRepo", () => {
         rehostedUrl: "https://cdn.example.com/img.jpg",
         mode: "additional",
       }),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ priorImageFile: null });
+  });
+
+  it("insertUploadedImage returns the prior image_file when replacing an existing one", async () => {
+    // First call to the mock returns the pre-upsert lookup, subsequent are insert/upsert returns.
+    const db = createMockDb([{ id: "prior-imgf", rehostedUrl: "/media/cards/aa/prior-imgf" }]);
+    const result = await printingImagesRepo(db).insertUploadedImage({
+      id: "pi-new",
+      printingId: "p-1",
+      provider: "upload",
+      rehostedUrl: "/media/cards/bb/pi-new",
+      mode: "main",
+    });
+    expect(result.priorImageFile).toEqual({
+      id: "prior-imgf",
+      rehostedUrl: "/media/cards/aa/prior-imgf",
+    });
   });
 
   it("clearAllRehostedUrls returns count", async () => {
