@@ -19,7 +19,7 @@ import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 
-import { PageToc } from "@/components/layout/page-toc";
+import { PageToc, PageTocMobileTrigger } from "@/components/layout/page-toc";
 import type { PageTocItem } from "@/components/layout/page-toc";
 import { PAGE_TOP_BAR_STICKY } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
@@ -1564,6 +1564,7 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
   const searchResult = isSearching ? computeSearchResult(rules, searchTerms) : null;
   const noSearchResults =
     isSearching && searchResult !== null && searchResult.visibleIndices.length === 0;
+  const tocItems = buildRulesTocItems(rules);
 
   return (
     <div className={`mx-auto w-full max-w-4xl ${PAGE_PADDING}`}>
@@ -1609,10 +1610,11 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
         </div>
       ) : (
         <div className="flex gap-6">
-          <PageToc items={buildRulesTocItems(rules)} />
+          <PageToc items={tocItems} />
           <div className="min-w-0 flex-1">
             <div className={cn(PAGE_TOP_BAR_STICKY, "mb-4 flex flex-wrap items-center gap-3 px-0")}>
               <RulesSearchBar />
+              <PageTocMobileTrigger items={tocItems} />
               {foldGroupKeys.length > 0 && !isSearching && (
                 <ExpandCollapseAllButton foldGroupKeys={foldGroupKeys} />
               )}

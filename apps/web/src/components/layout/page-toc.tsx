@@ -1,6 +1,9 @@
+import { ListIcon } from "lucide-react";
 import type { MouseEvent } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { usePageTocStore } from "@/stores/page-toc-store";
 
@@ -12,7 +15,17 @@ export interface PageTocItem {
 
 // Per-link store subscription: scroll-driven `activeId` changes only re-render
 // the previously-active and newly-active links instead of the whole TOC.
-function TocLink({ id, label, level }: { id: string; label: string; level: number }) {
+function TocLink({
+  id,
+  label,
+  level,
+  onSelect,
+}: {
+  id: string;
+  label: string;
+  level: number;
+  onSelect?: () => void;
+}) {
   const isActive = usePageTocStore((state) => state.activeId === id);
   const setActiveId = usePageTocStore((state) => state.setActiveId);
 
@@ -23,6 +36,7 @@ function TocLink({ id, label, level }: { id: string; label: string; level: numbe
       element.scrollIntoView({ behavior: "smooth", block: "start" });
       setActiveId(id);
     }
+    onSelect?.();
   }
 
   return (
@@ -40,12 +54,12 @@ function TocLink({ id, label, level }: { id: string; label: string; level: numbe
   );
 }
 
-export function PageToc({ items, className }: { items: PageTocItem[]; className?: string }) {
+// Reset to the first item whenever the items list changes (page navigation).
+// The store is global, so without this it would keep a stale id from the
+// previous page until the observer fires.
+function useActiveTocItem(items: PageTocItem[]) {
   const setActiveId = usePageTocStore((state) => state.setActiveId);
 
-  // Reset to the first item whenever the items list changes (page navigation).
-  // The store is global, so without this it would keep a stale id from the
-  // previous page until the observer fires.
   useEffect(() => {
     setActiveId(items[0]?.id ?? null);
   }, [items, setActiveId]);
@@ -78,6 +92,10 @@ export function PageToc({ items, className }: { items: PageTocItem[]; className?
     }
     return () => observer.disconnect();
   }, [items, setActiveId]);
+}
+
+export function PageToc({ items, className }: { items: PageTocItem[]; className?: string }) {
+  useActiveTocItem(items);
 
   return (
     <aside className={cn("hidden w-48 shrink-0 lg:block", className)}>
@@ -87,5 +105,56 @@ export function PageToc({ items, className }: { items: PageTocItem[]; className?
         ))}
       </nav>
     </aside>
+  );
+}
+
+// Mobile counterpart to PageToc. Below the lg breakpoint the sidebar is hidden,
+// so this opens a bottom sheet with the same list. Pair with PageToc on the
+// same page, whose observer keeps activeId in sync.
+export function PageTocMobileTrigger({
+  items,
+  className,
+}: {
+  items: PageTocItem[];
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  if (items.length === 0) {
+    return null;
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label="Open contents"
+            className={cn("lg:hidden", className)}
+          />
+        }
+      >
+        <ListIcon />
+      </SheetTrigger>
+      <SheetContent side="bottom" className="max-h-[80vh]">
+        <SheetHeader>
+          <SheetTitle>Contents</SheetTitle>
+        </SheetHeader>
+        <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-4 pb-6">
+          {items.map((item) => (
+            <TocLink
+              key={item.id}
+              id={item.id}
+              label={item.label}
+              level={item.level ?? 0}
+              onSelect={() => setOpen(false)}
+            />
+          ))}
+        </nav>
+      </SheetContent>
+    </Sheet>
   );
 }
