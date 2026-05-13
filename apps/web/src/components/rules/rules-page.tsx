@@ -1126,9 +1126,7 @@ function RuleRow({
         isSubtitle && "border-border mt-2",
         isContext && "opacity-60",
         isRemoved && "line-through decoration-from-font opacity-60",
-        isFolded &&
-          hasChildren &&
-          "bg-muted/50 shadow-[inset_2px_0_0_var(--color-muted-foreground)]",
+        isFolded && hasChildren && "bg-muted/50",
       )}
     >
       <button
