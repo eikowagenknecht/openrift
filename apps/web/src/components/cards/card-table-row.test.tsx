@@ -52,6 +52,36 @@ describe("CardTableRow", () => {
     expect(getByText("(5)")).toBeTruthy();
   });
 
+  it("renders the count before both +/- buttons in add mode so buttons stay pinned to the right when the parens appear", () => {
+    const printing = stubPrinting({ id: "p-row-order" });
+    const { container } = render(
+      <CardTableRow
+        printing={printing}
+        ownedCount={2}
+        totalOwnedCount={5}
+        isSelected={false}
+        showOwned={false}
+        showAddControls
+        columns="1fr"
+        cardTypeLabels={{}}
+        superTypeLabels={{}}
+        rarityLabels={{ common: "Common" }}
+        setNameBySlug={new Map()}
+        onRowClick={() => {}}
+      />,
+    );
+    const count = container.querySelector(".tabular-nums");
+    const removeButton = container.querySelector('[aria-label="Remove one"]');
+    const addButton = container.querySelector('[aria-label="Add one"]');
+    expect(count).not.toBeNull();
+    expect(removeButton).not.toBeNull();
+    expect(addButton).not.toBeNull();
+    const position = (node: Element | null, other: Element | null) =>
+      node && other ? node.compareDocumentPosition(other) : 0;
+    expect(position(count, removeButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(position(removeButton, addButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("omits the parens when the sibling total equals the per-printing count", () => {
     const printing = stubPrinting({ id: "p-row-3" });
     const { container } = render(

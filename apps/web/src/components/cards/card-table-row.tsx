@@ -258,6 +258,10 @@ export function CardTableRow({
             renderActions(printing, ownedCount)
           ) : (
             <>
+              <span className="text-center font-medium tabular-nums">
+                {ownedCount ?? 0}
+                {showTotal && <span className="opacity-60"> ({totalOwnedCount})</span>}
+              </span>
               <Button
                 type="button"
                 variant="outline"
@@ -271,10 +275,6 @@ export function CardTableRow({
               >
                 <MinusIcon className="size-3.5" />
               </Button>
-              <span className="min-w-6 text-center font-medium tabular-nums">
-                {ownedCount ?? 0}
-                {showTotal && <span className="opacity-60"> ({totalOwnedCount})</span>}
-              </span>
               <Button
                 type="button"
                 variant="default"
