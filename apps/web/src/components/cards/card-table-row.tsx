@@ -39,6 +39,8 @@ interface CardTableHeaderProps {
   stickyOffset?: number;
   /** Show a bottom border. Drop it when group headers will visually separate the body. */
   bordered?: boolean;
+  /** Label for the rightmost column. Defaults to "Owned". */
+  actionsLabel?: string;
 }
 
 /**
@@ -53,6 +55,7 @@ export function CardTableHeader({
   sticky,
   stickyOffset,
   bordered = true,
+  actionsLabel = "Owned",
 }: CardTableHeaderProps) {
   return (
     <div
@@ -74,7 +77,7 @@ export function CardTableHeader({
       <div className="px-3">Set</div>
       <div className="px-3">Type</div>
       <div className="px-3">Rarity</div>
-      {(showOwned || showAddControls) && <div className="px-3 text-right">Owned</div>}
+      {(showOwned || showAddControls) && <div className="px-3 text-right">{actionsLabel}</div>}
     </div>
   );
 }

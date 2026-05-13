@@ -228,6 +228,8 @@ interface CardTableProps {
   showAddControls: boolean;
   /** Optional renderer for the actions cell; replaces the default +/- buttons. */
   renderActions?: (printing: Printing, ownedCount: number | undefined) => ReactNode;
+  /** Label for the rightmost column header. Defaults to "Owned". */
+  actionsLabel?: string;
 }
 
 let cachedScrollMargin = 0;
@@ -251,6 +253,7 @@ export function CardTable({
   showOwned,
   showAddControls,
   renderActions,
+  actionsLabel,
 }: CardTableProps) {
   const { orders, labels } = useEnumOrders();
 
@@ -379,6 +382,7 @@ export function CardTable({
         sticky
         stickyOffset={stickyOffset}
         bordered={!multipleGroups}
+        actionsLabel={actionsLabel}
       />
       <div style={{ height: `${totalSize}px`, position: "relative" }}>
         {virtualItems.map((vItem) => {

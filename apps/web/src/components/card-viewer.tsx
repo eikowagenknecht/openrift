@@ -15,6 +15,8 @@ export interface CardTableProps {
   showAddControls: boolean;
   /** Optional renderer for the actions cell; replaces the default +/- buttons. */
   renderActions?: (printing: Printing, ownedCount: number | undefined) => ReactNode;
+  /** Label for the rightmost column header. Defaults to "Owned". */
+  actionsLabel?: string;
 }
 
 interface CardViewerProps {

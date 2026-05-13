@@ -484,6 +484,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
       table={{
         showOwned: true,
         showAddControls: true,
+        actionsLabel: "Deck",
         renderActions: (printing) => {
           const cardId = printing.cardId;
           const deckQty = deckQuantityByCard.get(cardId) ?? 0;
