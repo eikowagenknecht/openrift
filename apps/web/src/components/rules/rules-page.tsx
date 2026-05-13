@@ -8,7 +8,7 @@ import {
   ChevronsDownUpIcon,
   ChevronsUpDownIcon,
   CopyIcon,
-  GitCompareIcon,
+  FileClockIcon,
   SearchIcon,
 } from "lucide-react";
 import type { MouseEvent } from "react";
@@ -1354,31 +1354,52 @@ function ShowChangesToggle({
   const checked = useRulesShowChangesStore((state) => state.byKind[kind]);
   const setShow = useRulesShowChangesStore((state) => state.setShow);
 
+  const isOn = hasPreviousVersion && checked;
+  const toggle = () => {
+    if (!hasPreviousVersion) {
+      return;
+    }
+    setShow(kind, !isOn);
+  };
+
   const switchEl = (
     <Switch
       size="sm"
-      checked={hasPreviousVersion && checked}
+      checked={isOn}
       disabled={!hasPreviousVersion}
       onCheckedChange={(next) => setShow(kind, next)}
       aria-label="Show changes since previous version"
     />
   );
 
-  const label = (
-    <label className="text-muted-foreground hover:text-foreground data-disabled:hover:text-muted-foreground flex cursor-pointer items-center gap-1.5 text-xs font-medium select-none data-disabled:cursor-not-allowed">
-      {switchEl}
-      <GitCompareIcon className="size-4 sm:hidden" aria-hidden="true" />
-      <span className="hidden sm:inline">Show changes</span>
-    </label>
+  const content = (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        onClick={toggle}
+        disabled={!hasPreviousVersion}
+        aria-pressed={isOn}
+        aria-label="Show changes since previous version"
+        className={cn("sm:hidden", isOn && "bg-muted text-foreground")}
+      >
+        <FileClockIcon />
+      </Button>
+      <label className="text-muted-foreground hover:text-foreground data-disabled:hover:text-muted-foreground hidden cursor-pointer items-center gap-1.5 text-xs font-medium select-none data-disabled:cursor-not-allowed sm:flex">
+        {switchEl}
+        <span>Show changes</span>
+      </label>
+    </>
   );
 
   if (hasPreviousVersion) {
-    return label;
+    return content;
   }
   return (
     <TooltipProvider>
       <Tooltip>
-        <TooltipTrigger render={<span className="inline-flex" />}>{label}</TooltipTrigger>
+        <TooltipTrigger render={<span className="inline-flex" />}>{content}</TooltipTrigger>
         <TooltipContent>First version — no prior to compare</TooltipContent>
       </Tooltip>
     </TooltipProvider>
