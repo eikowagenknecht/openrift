@@ -2,8 +2,15 @@ import type { Printing } from "@openrift/shared";
 import { Suspense, lazy, useEffect } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
-import { MobileDetailOverlay } from "@/components/layout/mobile-detail-overlay";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useSelectionStore } from "@/stores/selection-store";
 
 const cardDetailImport = import("@/components/cards/card-detail");
@@ -20,10 +27,11 @@ interface SelectionMobileOverlayProps {
 }
 
 /**
- * Mobile fullscreen detail overlay that subscribes to the selection store.
- * Owns body scroll lock and browser history management for mobile back-button.
- * Renders nothing when no card is selected, detail is closed, or not on mobile.
- * @returns The mobile overlay or null.
+ * Fullscreen mobile card-detail drawer driven by the selection store.
+ * BaseUI Drawer provides the backdrop, scroll-lock, and swipe-to-close;
+ * a history.pushState entry keeps the Android back-button closing the drawer.
+ * Renders nothing on desktop or when no card is selected.
+ * @returns The mobile detail drawer or null.
  */
 export function SelectionMobileOverlay({
   items,
@@ -37,29 +45,18 @@ export function SelectionMobileOverlay({
   const setSelectedCard = useSelectionStore((s) => s.setSelectedCard);
   const closeDetail = useSelectionStore((s) => s.closeDetail);
   const navigateToIndex = useSelectionStore((s) => s.navigateToIndex);
+  const isMobile = useIsMobile();
 
-  // Lock body scroll when the mobile overlay is active
   useEffect(() => {
-    if (!detailOpen) {
-      return;
-    }
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [detailOpen]);
-
-  // Push a history entry so the browser back button closes the overlay
-  useEffect(() => {
-    if (!detailOpen) {
+    if (!detailOpen || !isMobile) {
       return;
     }
     history.pushState({ cardDetail: true }, "");
     globalThis.addEventListener("popstate", closeDetail);
     return () => globalThis.removeEventListener("popstate", closeDetail);
-  }, [detailOpen, closeDetail]);
+  }, [detailOpen, isMobile, closeDetail]);
 
-  if (!selectedCard || !detailOpen) {
+  if (!isMobile || !selectedCard) {
     return null;
   }
 
@@ -93,21 +90,36 @@ export function SelectionMobileOverlay({
   };
 
   return (
-    <MobileDetailOverlay>
-      <Suspense fallback={<CardDetailSkeleton />}>
-        <CardDetail
-          printing={selectedCard}
-          onClose={handleClose}
-          showImages={showImages}
-          onPrevCard={handlePrevCard}
-          onNextCard={handleNextCard}
-          onTagClick={(tag) => onSearchAndClose(`t:${tag}`)}
-          onKeywordClick={(keyword) => onSearchAndClose(`k:${keyword}`)}
-          printings={siblingPrintings}
-          onSelectPrinting={handleSelectPrinting}
-        />
-      </Suspense>
-    </MobileDetailOverlay>
+    <Drawer
+      open={detailOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          handleClose();
+        }
+      }}
+    >
+      <DrawerContent className="data-[swipe-direction=down]:mt-0 data-[swipe-direction=down]:h-full data-[swipe-direction=down]:max-h-screen data-[swipe-direction=down]:rounded-none data-[swipe-direction=down]:border-t-0">
+        <DrawerHeader className="sr-only">
+          <DrawerTitle>Card details</DrawerTitle>
+          <DrawerDescription>Details for the selected card</DrawerDescription>
+        </DrawerHeader>
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <Suspense fallback={<CardDetailSkeleton />}>
+            <CardDetail
+              printing={selectedCard}
+              onClose={handleClose}
+              showImages={showImages}
+              onPrevCard={handlePrevCard}
+              onNextCard={handleNextCard}
+              onTagClick={(tag) => onSearchAndClose(`t:${tag}`)}
+              onKeywordClick={(keyword) => onSearchAndClose(`k:${keyword}`)}
+              printings={siblingPrintings}
+              onSelectPrinting={handleSelectPrinting}
+            />
+          </Suspense>
+        </div>
+      </DrawerContent>
+    </Drawer>
   );
 }
 
