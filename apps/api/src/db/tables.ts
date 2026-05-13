@@ -556,16 +556,11 @@ export interface ImageFilesTable {
   updatedAt: UpdatedAt;
 }
 
-/**
- * CHECK: face IN ('front', 'back')
- * @see printingImageFieldRules in `schemas.ts` for Zod validation of CHECK constraints
- */
+/** CHECK: face IN ('front', 'back') — enforced by the `CardFace` type. */
 export interface PrintingImagesTable {
   id: Generated<string>;
   printingId: string;
   face: CardFace;
-  /** CHECK: <> '' */
-  provider: string;
   /** FK: image_files(id) */
   imageFileId: string;
   isActive: boolean;

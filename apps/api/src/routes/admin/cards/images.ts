@@ -17,7 +17,6 @@ import {
 } from "../../../services/image-rehost.js";
 import type { Variables } from "../../../types.js";
 import { assertFound } from "../../../utils/assertions.js";
-import { urlToProvider } from "../../../utils/url-provider.js";
 import {
   activateImageSchema,
   addImageUrlSchema,
@@ -189,15 +188,8 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Candidate printing has no image URL");
     }
 
-    const cs = await printingImages.getCandidateCardProvider(ps.candidateCardId);
-
     const imageId = await c.get("transact")((trxRepos) =>
-      trxRepos.printingImages.insertImage(
-        ps.printingId as string,
-        ps.imageUrl,
-        cs?.provider ?? "import",
-        mode,
-      ),
+      trxRepos.printingImages.insertImage(ps.printingId as string, ps.imageUrl, mode),
     );
 
     // Auto-rehost the accepted image (best-effort, non-blocking)
@@ -380,10 +372,9 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     const mode = body.mode ?? "main";
     const url = body.url.trim();
-    const provider = urlToProvider(url);
 
     await c.get("transact")(async (trxRepos) => {
-      await trxRepos.printingImages.insertImage(printing.id, url, provider, mode);
+      await trxRepos.printingImages.insertImage(printing.id, url, mode);
     });
 
     return c.body(null, 204);
@@ -400,7 +391,6 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const body = c.req.valid("form");
     const file = body.file;
     const mode = body.mode === "additional" ? ("additional" as const) : ("main" as const);
-    const provider = body.provider?.trim() || "upload";
 
     const MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // 50 MB
     if (file.size > MAX_UPLOAD_BYTES) {
@@ -419,26 +409,14 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     // needs-trim toggle after upload — see set-needs-trim route.
     await processAndSave(c.get("io"), buffer, ext, outputDir, imageId, 0, false);
 
-    const { priorImageFile } = await c.get("transact")((trxRepos) =>
+    await c.get("transact")((trxRepos) =>
       trxRepos.printingImages.insertUploadedImage({
         id: imageId,
         printingId: printing.id,
-        provider,
         rehostedUrl,
         mode,
       }),
     );
-
-    // If the upsert displaced an existing image_file (re-upload to the same
-    // printing+face+provider slot), clean up its disk files and DB row now
-    // that no printing_image references it. Without this, every re-upload
-    // leaks ~1 MB of WebP variants + an unreferenced image_files row.
-    if (priorImageFile?.rehostedUrl) {
-      await deleteRehostFiles(c.get("io"), priorImageFile.rehostedUrl);
-    }
-    if (priorImageFile) {
-      await printingImages.deleteOrphanedImageFiles();
-    }
 
     return c.json({ rehostedUrl });
   });

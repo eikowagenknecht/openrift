@@ -18,18 +18,24 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
 
   let productId = "";
 
+  let imageFileId = "";
+
   beforeAll(async () => {
+    const inserted = await db
+      .insertInto("imageFiles")
+      .values({ originalUrl: "https://example.com/cat-test-front.png" })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    imageFileId = inserted.id;
+
     await db
       .insertInto("printingImages")
       .values({
         printingId: SEED_PRINTING_ID,
         face: "front",
-        provider: "cat-test",
-        originalUrl: "https://example.com/cat-test-front.png",
-        rehostedUrl: null,
+        imageFileId,
         isActive: true,
       })
-      .onConflict((oc) => oc.columns(["printingId", "face", "provider"]).doNothing())
       .execute();
 
     // Seed data has a tcgplayer variant for this printing; look up its
@@ -108,7 +114,10 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
   });
 
   afterAll(async () => {
-    await db.deleteFrom("printingImages").where("provider", "=", "cat-test").execute();
+    if (imageFileId) {
+      await db.deleteFrom("printingImages").where("imageFileId", "=", imageFileId).execute();
+      await db.deleteFrom("imageFiles").where("id", "=", imageFileId).execute();
+    }
     if (productId) {
       await db
         .deleteFrom("marketplaceProductPrices")

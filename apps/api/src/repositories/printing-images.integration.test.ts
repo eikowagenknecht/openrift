@@ -31,7 +31,6 @@ describe.skipIf(!ctx)("printingImagesRepo (integration)", () => {
     const imageId = await repo.insertImage(
       seedPrintingId,
       "https://example.com/test-img.jpg",
-      "test-provider",
       "main",
     );
     expect(imageId).not.toBeNull();
@@ -39,7 +38,7 @@ describe.skipIf(!ctx)("printingImagesRepo (integration)", () => {
   });
 
   it("insertImage returns null when imageUrl is null", async () => {
-    const result = await repo.insertImage(seedPrintingId, null, "test-provider");
+    const result = await repo.insertImage(seedPrintingId, null);
     expect(result).toBeNull();
   });
 
@@ -47,7 +46,6 @@ describe.skipIf(!ctx)("printingImagesRepo (integration)", () => {
     const imageId = await repo.insertImage(
       seedPrintingId,
       "https://example.com/additional.jpg",
-      "test-additional",
       "additional",
     );
     expect(imageId).not.toBeNull();

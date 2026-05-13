@@ -488,7 +488,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         id: string;
         printingId: string;
         face: CardFace;
-        provider: string;
         originalUrl: string | null;
         rehostedUrl: string | null;
         rotation: number;
@@ -506,7 +505,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "printingImages.id",
           "printingImages.printingId",
           "printingImages.face",
-          "printingImages.provider",
           "ci.originalUrl",
           "ci.rehostedUrl",
           "ci.rotation",

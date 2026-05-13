@@ -580,18 +580,6 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
 
     // ── Accept printing ───────────────────────────────────────────────────────
 
-    /** @returns The provider name from the candidate_card linked to a candidate_printing. */
-    getProviderNameForCandidatePrinting(
-      candidatePrintingId: string,
-    ): Promise<{ provider: string } | undefined> {
-      return db
-        .selectFrom("candidatePrintings")
-        .innerJoin("candidateCards", "candidateCards.id", "candidatePrintings.candidateCardId")
-        .select("candidateCards.provider")
-        .where("candidatePrintings.id", "=", candidatePrintingId)
-        .executeTakeFirst();
-    },
-
     /** @returns Set UUID by slug. */
     getSetIdBySlug(slug: string): Promise<{ id: string } | undefined> {
       return db.selectFrom("sets").select("id").where("slug", "=", slug).executeTakeFirst();

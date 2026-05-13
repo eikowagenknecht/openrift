@@ -154,14 +154,13 @@ export function printingImagesRepo(db: Kysely<Database>) {
     /**
      * Insert an image record into printing_images.
      *
-     * @param mode - `'main'`: deactivate current active image, insert/update as active.
+     * @param mode - `'main'`: deactivate current active image, insert as active.
      *               `'additional'`: insert as inactive.
-     * @returns The inserted/updated image ID, or `null` if no imageUrl was provided.
+     * @returns The inserted image ID, or `null` if no imageUrl was provided.
      */
     async insertImage(
       printingId: string,
       imageUrl: string | null,
-      provider: string,
       mode: "main" | "additional" = "main",
     ): Promise<string | null> {
       if (!imageUrl) {
@@ -172,25 +171,6 @@ export function printingImagesRepo(db: Kysely<Database>) {
 
       if (mode === "main") {
         await this.deactivateActiveFront(printingId);
-
-        const row = await db
-          .insertInto("printingImages")
-          .values({
-            printingId,
-            face: "front",
-            provider,
-            imageFileId,
-            isActive: true,
-          })
-          .onConflict((oc) =>
-            oc.columns(["printingId", "face", "provider"]).doUpdateSet({
-              imageFileId,
-              isActive: true,
-            }),
-          )
-          .returning("id")
-          .executeTakeFirstOrThrow();
-        return row.id;
       }
 
       const row = await db
@@ -198,15 +178,9 @@ export function printingImagesRepo(db: Kysely<Database>) {
         .values({
           printingId,
           face: "front",
-          provider,
           imageFileId,
-          isActive: false,
+          isActive: mode === "main",
         })
-        .onConflict((oc) =>
-          oc.columns(["printingId", "face", "provider"]).doUpdateSet({
-            imageFileId,
-          }),
-        )
         .returning("id")
         .executeTakeFirstOrThrow();
       return row.id;
@@ -215,33 +189,17 @@ export function printingImagesRepo(db: Kysely<Database>) {
     /**
      * Insert an uploaded image as a printing image, with a pre-computed rehostedUrl.
      * Creates an image_files row for the uploaded image.
-     * Optionally deactivates the current active front image first (when mode=main).
-     * @returns The prior image_file when the upsert replaced an existing one (so the
-     *   caller can delete its disk files + DB row), or `null` on a first upload.
+     * Deactivates the current active front image first (when mode=main).
      */
     async insertUploadedImage(values: {
       id: string;
       printingId: string;
-      provider: string;
       rehostedUrl: string;
       mode: "main" | "additional";
-    }): Promise<{ priorImageFile: { id: string; rehostedUrl: string | null } | null }> {
+    }): Promise<void> {
       if (values.mode === "main") {
         await this.deactivateActiveFront(values.printingId);
       }
-
-      // Look up any existing printing_image for this slot so we can return its
-      // prior image_file. When the caller is replacing it (re-upload), the
-      // route will clean up the prior disk files + image_files row — leaving
-      // them in place would create orphans.
-      const existing = await db
-        .selectFrom("printingImages as pi")
-        .innerJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId")
-        .select(["imgf.id", "imgf.rehostedUrl"])
-        .where("pi.printingId", "=", values.printingId)
-        .where("pi.face", "=", "front")
-        .where("pi.provider", "=", values.provider)
-        .executeTakeFirst();
 
       // Insert image_files with explicit id matching values.id (= the file path
       // basename). Keeping these aligned is required by regenerateFromOrig,
@@ -257,23 +215,10 @@ export function printingImagesRepo(db: Kysely<Database>) {
           id: values.id,
           printingId: values.printingId,
           face: "front",
-          provider: values.provider,
           isActive: values.mode === "main",
           imageFileId: values.id,
         })
-        .onConflict((oc) =>
-          oc.columns(["printingId", "face", "provider"]).doUpdateSet({
-            isActive: values.mode === "main",
-            imageFileId: values.id,
-          }),
-        )
         .execute();
-
-      const priorImageFile =
-        existing && existing.id !== values.id
-          ? { id: existing.id, rehostedUrl: existing.rehostedUrl }
-          : null;
-      return { priorImageFile };
     },
 
     /**
@@ -456,15 +401,6 @@ export function printingImagesRepo(db: Kysely<Database>) {
         .selectFrom("candidatePrintings")
         .selectAll()
         .where("id", "=", id)
-        .executeTakeFirst();
-    },
-
-    /** @returns The provider name for a candidate card by ID. */
-    getCandidateCardProvider(candidateCardId: string): Promise<{ provider: string } | undefined> {
-      return db
-        .selectFrom("candidateCards")
-        .select("provider")
-        .where("id", "=", candidateCardId)
         .executeTakeFirst();
     },
 

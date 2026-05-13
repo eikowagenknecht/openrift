@@ -185,7 +185,6 @@ describe("acceptPrinting", () => {
       candidateMutations: {
         getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
         getPrintingCardIdByComposite: vi.fn(async () => null),
-        getProviderNameForCandidatePrinting: vi.fn(async () => ({ provider: "gallery" })),
         upsertPrinting: vi.fn(async () => "p-uuid"),
         linkAndCheckCandidatePrintings: vi.fn(async () => {}),
       },
@@ -327,7 +326,6 @@ describe("acceptPrinting", () => {
     expect(repos.printingImages.insertImage).toHaveBeenCalledWith(
       "p-uuid",
       "https://example.com/img.png",
-      "gallery",
     );
     expect(repos.candidateMutations.linkAndCheckCandidatePrintings).toHaveBeenCalledWith(
       ["cp-1"],
@@ -337,14 +335,12 @@ describe("acceptPrinting", () => {
 
   it("creates a printing with no candidate sources (manual entry)", async () => {
     const upsertPrinting = vi.fn(async () => "p-uuid");
-    const getProviderNameForCandidatePrinting = vi.fn(async () => ({ provider: "gallery" }));
     const linkAndCheckCandidatePrintings = vi.fn(async () => {});
 
     const repos = {
       candidateMutations: {
         getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
         getPrintingCardIdByComposite: vi.fn(async () => null),
-        getProviderNameForCandidatePrinting,
         upsertPrinting,
         linkAndCheckCandidatePrintings,
       },
@@ -399,7 +395,6 @@ describe("acceptPrinting", () => {
 
     expect(result).toBe("p-uuid");
     expect(upsertPrinting).toHaveBeenCalledTimes(1);
-    expect(getProviderNameForCandidatePrinting).not.toHaveBeenCalled();
     expect(linkAndCheckCandidatePrintings).not.toHaveBeenCalled();
   });
 
@@ -429,7 +424,6 @@ describe("acceptPrinting", () => {
       candidateMutations: {
         getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
         getPrintingCardIdByComposite: vi.fn(async () => null),
-        getProviderNameForCandidatePrinting: vi.fn(async () => null),
         upsertPrinting: vi.fn(async () => "p-uuid"),
         linkAndCheckCandidatePrintings: vi.fn(async () => {}),
       },

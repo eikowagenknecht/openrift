@@ -53,74 +53,45 @@ describe("printingImagesRepo", () => {
 
   it("insertImage returns null when no imageUrl", async () => {
     const db = createMockDb([]);
-    expect(await printingImagesRepo(db).insertImage("p-1", null, "manual")).toBeNull();
+    expect(await printingImagesRepo(db).insertImage("p-1", null)).toBeNull();
   });
 
   it("insertImage main mode deactivates and inserts", async () => {
     const db = createMockDb([{ id: "pi-new" }]);
     expect(
-      await printingImagesRepo(db).insertImage(
-        "p-1",
-        "https://example.com/img.jpg",
-        "manual",
-        "main",
-      ),
+      await printingImagesRepo(db).insertImage("p-1", "https://example.com/img.jpg", "main"),
     ).toBe("pi-new");
   });
 
   it("insertImage additional mode inserts as inactive", async () => {
     const db = createMockDb([{ id: "pi-new" }]);
     expect(
-      await printingImagesRepo(db).insertImage(
-        "p-1",
-        "https://example.com/img.jpg",
-        "manual",
-        "additional",
-      ),
+      await printingImagesRepo(db).insertImage("p-1", "https://example.com/img.jpg", "additional"),
     ).toBe("pi-new");
   });
 
-  it("insertUploadedImage main mode deactivates and inserts (no prior)", async () => {
-    // Empty mock → pre-lookup returns undefined → no prior to clean up.
+  it("insertUploadedImage main mode deactivates and inserts", async () => {
     const db = createMockDb([]);
     await expect(
       printingImagesRepo(db).insertUploadedImage({
         id: "pi-new",
         printingId: "p-1",
-        provider: "upload",
         rehostedUrl: "https://cdn.example.com/img.jpg",
         mode: "main",
       }),
-    ).resolves.toEqual({ priorImageFile: null });
+    ).resolves.toBeUndefined();
   });
 
-  it("insertUploadedImage additional mode inserts without deactivating (no prior)", async () => {
+  it("insertUploadedImage additional mode inserts without deactivating", async () => {
     const db = createMockDb([]);
     await expect(
       printingImagesRepo(db).insertUploadedImage({
         id: "pi-new",
         printingId: "p-1",
-        provider: "upload",
         rehostedUrl: "https://cdn.example.com/img.jpg",
         mode: "additional",
       }),
-    ).resolves.toEqual({ priorImageFile: null });
-  });
-
-  it("insertUploadedImage returns the prior image_file when replacing an existing one", async () => {
-    // First call to the mock returns the pre-upsert lookup, subsequent are insert/upsert returns.
-    const db = createMockDb([{ id: "prior-imgf", rehostedUrl: "/media/cards/aa/prior-imgf" }]);
-    const result = await printingImagesRepo(db).insertUploadedImage({
-      id: "pi-new",
-      printingId: "p-1",
-      provider: "upload",
-      rehostedUrl: "/media/cards/bb/pi-new",
-      mode: "main",
-    });
-    expect(result.priorImageFile).toEqual({
-      id: "prior-imgf",
-      rehostedUrl: "/media/cards/aa/prior-imgf",
-    });
+    ).resolves.toBeUndefined();
   });
 
   it("clearAllRehostedUrls returns count", async () => {
@@ -163,13 +134,6 @@ describe("printingImagesRepo", () => {
   it("getCandidatePrintingById returns a printing", async () => {
     const db = createMockDb([{ id: "cp-1" }]);
     expect(await printingImagesRepo(db).getCandidatePrintingById("cp-1")).toBeDefined();
-  });
-
-  it("getCandidateCardProvider returns provider", async () => {
-    const db = createMockDb([{ provider: "test" }]);
-    expect(await printingImagesRepo(db).getCandidateCardProvider("cc-1")).toEqual({
-      provider: "test",
-    });
   });
 
   it("getPrintingById returns id", async () => {

@@ -740,7 +740,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
   // ── POST /printing/:printingId/add-image-url ─────────────────────────────
 
   describe("POST /admin/cards/printing/:printingId/add-image-url", () => {
-    it("derives provider from URL host", async () => {
+    it("inserts an image in main mode", async () => {
       const res = await app.fetch(
         req("POST", `/admin/cards/printing/${printingId}/add-image-url`, {
           url: "https://i.imgur.com/csi-new-image.png",
@@ -755,7 +755,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .selectAll("printingImages")
         .select("ci.originalUrl")
         .where("printingImages.printingId", "=", printingId)
-        .where("printingImages.provider", "=", "imgur")
+        .where("ci.originalUrl", "=", "https://i.imgur.com/csi-new-image.png")
         .execute();
       expect(images.length).toBe(1);
       expect(images[0].originalUrl).toBe("https://i.imgur.com/csi-new-image.png");
@@ -772,9 +772,10 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
       const images = await db
         .selectFrom("printingImages")
-        .selectAll()
-        .where("printingId", "=", printingId)
-        .where("provider", "=", "tcgplayer")
+        .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
+        .selectAll("printingImages")
+        .where("printingImages.printingId", "=", printingId)
+        .where("ci.originalUrl", "=", "https://images.tcgplayer.com/csi-another-image.png")
         .execute();
       expect(images.length).toBe(1);
       expect(images[0].isActive).toBe(true);
@@ -813,7 +814,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .selectAll("printingImages")
         .select("ci.originalUrl")
         .where("printingImages.printingId", "=", printingId)
-        .where("printingImages.provider", "=", "reddit")
+        .where("ci.originalUrl", "=", "https://www.reddit.com/csi-additional-image.png")
         .execute();
       expect(images.length).toBe(1);
       expect(images[0].originalUrl).toBe("https://www.reddit.com/csi-additional-image.png");
@@ -836,7 +837,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
     it("uploads an image as main", async () => {
       const formData = new FormData();
       formData.append("file", new File([FAKE_BUFFER], "test.png", { type: "image/png" }));
-      formData.append("provider", "csi-upload-test");
       formData.append("mode", "main");
 
       const request = new Request(
@@ -857,7 +857,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .selectAll("printingImages")
         .select("ci.rehostedUrl")
         .where("printingImages.printingId", "=", printingId)
-        .where("printingImages.provider", "=", "csi-upload-test")
+        .where("ci.rehostedUrl", "=", json.rehostedUrl)
         .execute();
       expect(images.length).toBe(1);
       expect(images[0].isActive).toBe(true);
@@ -867,7 +867,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
     it("uploads an image as additional", async () => {
       const formData = new FormData();
       formData.append("file", new File([FAKE_BUFFER], "extra.png", { type: "image/png" }));
-      formData.append("provider", "csi-upload-additional");
       formData.append("mode", "additional");
 
       const request = new Request(
@@ -887,14 +886,14 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .selectAll("printingImages")
         .select("ci.rehostedUrl")
         .where("printingImages.printingId", "=", printingId)
-        .where("printingImages.provider", "=", "csi-upload-additional")
+        .where("ci.rehostedUrl", "=", json.rehostedUrl)
         .execute();
       expect(images.length).toBe(1);
       expect(images[0].isActive).toBe(false);
       expect(images[0].rehostedUrl).toBe(json.rehostedUrl);
     });
 
-    it("uploads with default mode (main) and source (upload)", async () => {
+    it("uploads with default mode (main)", async () => {
       const formData = new FormData();
       formData.append("file", new File([FAKE_BUFFER], "default.png", { type: "image/png" }));
 
@@ -908,14 +907,15 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       const json = await res.json();
       expect(json.rehostedUrl).toBeTypeOf("string");
 
-      // Verify default source is "upload" and default mode is "main" (active)
+      // Default mode is "main" — verify the row is active.
       const images = await db
         .selectFrom("printingImages")
-        .selectAll()
-        .where("printingId", "=", printingId)
-        .where("provider", "=", "upload")
+        .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
+        .selectAll("printingImages")
+        .where("printingImages.printingId", "=", printingId)
+        .where("ci.rehostedUrl", "=", json.rehostedUrl)
         .execute();
-      expect(images.length).toBeGreaterThanOrEqual(1);
+      expect(images.length).toBe(1);
       expect(images[0].isActive).toBe(true);
     });
 

@@ -1,4 +1,5 @@
 import type { AdminPrintingImageResponse, ProviderSettingResponse } from "@openrift/shared";
+import { hostSlugFromUrl } from "@openrift/shared";
 import {
   DownloadIcon,
   EyeIcon,
@@ -45,6 +46,10 @@ function getDisplayUrl(img: AdminPrintingImageResponse): string | null {
   return `${img.rehostedUrl}-full.webp?r=${img.rotation}&t=${img.needsTrim ? 1 : 0}`;
 }
 
+function imageLabel(img: AdminPrintingImageResponse): string {
+  return (img.originalUrl && hostSlugFromUrl(img.originalUrl)) ?? "upload";
+}
+
 export function PrintingImageSwitcher({
   printingId,
   printingLabel,
@@ -71,7 +76,7 @@ export function PrintingImageSwitcher({
   const setPrintingSourceImage = useSetCandidatePrintingImage(invalidates);
 
   const orderSort = sortByProviderOrder(providerSettings);
-  const sortedImages = images.toSorted((a, b) => orderSort(a.provider, b.provider));
+  const sortedImages = images.toSorted((a, b) => orderSort(imageLabel(a), imageLabel(b)));
   const sortedSourceImages = sourceImages.toSorted((a, b) => orderSort(a.source, b.source));
 
   const [selectedId, setSelectedId] = useState<string | null>(
@@ -159,7 +164,7 @@ export function PrintingImageSwitcher({
               External
             </Badge>
           )}
-          <span className="text-muted-foreground">{effectiveImage.provider}</span>
+          <span className="text-muted-foreground">{imageLabel(effectiveImage)}</span>
           <div className="ml-auto flex items-center gap-0.5">
             {effectiveImage.isActive ? (
               <Button
@@ -340,7 +345,7 @@ export function PrintingImageSwitcher({
                 setImgError(false);
               }}
             >
-              {img.provider}
+              {imageLabel(img)}
               {img.rehostedUrl ? null : <span className="text-orange-500"> !</span>}
             </button>
           );

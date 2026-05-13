@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict NkjfdJlIve9dZc2XpMAoOXQAe0r3a6iwffV9OWL0Ls9sI0IdMs5wZvS0AcBOcOK
+\restrict wLOGrOo5iiZA8ulSR6kxqiryKJHeupNxIjOp1ZVdgxxcVK0MlhFDTBxyuNrMvEX
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1147,14 +1147,12 @@ CREATE TABLE public.printing_events (
 CREATE TABLE public.printing_images (
     id uuid DEFAULT uuidv7() NOT NULL,
     face text DEFAULT 'front'::text NOT NULL,
-    provider text CONSTRAINT printing_images_source_not_null NOT NULL,
     is_active boolean DEFAULT false NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     printing_id uuid CONSTRAINT printing_images_new_printing_id_not_null NOT NULL,
     image_file_id uuid CONSTRAINT printing_images_card_image_id_not_null NOT NULL,
-    CONSTRAINT chk_printing_images_face CHECK ((face = ANY (ARRAY['front'::text, 'back'::text]))),
-    CONSTRAINT chk_printing_images_provider_not_empty CHECK ((provider <> ''::text))
+    CONSTRAINT chk_printing_images_face CHECK ((face = ANY (ARRAY['front'::text, 'back'::text])))
 );
 
 
@@ -2378,17 +2376,17 @@ CREATE UNIQUE INDEX idx_printing_images_active ON public.printing_images USING b
 
 
 --
+-- Name: idx_printing_images_printing_face; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_printing_images_printing_face ON public.printing_images USING btree (printing_id, face);
+
+
+--
 -- Name: idx_printing_images_printing_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_printing_images_printing_id ON public.printing_images USING btree (printing_id);
-
-
---
--- Name: idx_printing_images_provider; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX idx_printing_images_provider ON public.printing_images USING btree (printing_id, face, provider);
 
 
 --
@@ -3418,5 +3416,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict NkjfdJlIve9dZc2XpMAoOXQAe0r3a6iwffV9OWL0Ls9sI0IdMs5wZvS0AcBOcOK
+\unrestrict wLOGrOo5iiZA8ulSR6kxqiryKJHeupNxIjOp1ZVdgxxcVK0MlhFDTBxyuNrMvEX
 

@@ -231,11 +231,6 @@ export async function acceptPrinting(
     );
   }
 
-  const firstPs =
-    candidatePrintingIds.length > 0
-      ? await mut.getProviderNameForCandidatePrinting(candidatePrintingIds[0])
-      : null;
-
   let insertedId = "";
 
   await transact(async (trxRepos) => {
@@ -306,11 +301,7 @@ export async function acceptPrinting(
     await trxRepos.candidateMutations.recomputeKeywordsForPrintingCard(insertedId);
 
     if (printingFields.imageUrl) {
-      await trxRepos.printingImages.insertImage(
-        insertedId,
-        printingFields.imageUrl,
-        firstPs?.provider ?? "import",
-      );
+      await trxRepos.printingImages.insertImage(insertedId, printingFields.imageUrl);
     }
 
     if (candidatePrintingIds.length > 0) {

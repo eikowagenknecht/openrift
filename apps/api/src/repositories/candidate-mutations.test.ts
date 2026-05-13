@@ -273,13 +273,6 @@ describe("candidateMutationsRepo", () => {
 
   // ── Accept printing ───────────────────────────────────────────────────────
 
-  it("getProviderNameForCandidatePrinting returns provider", async () => {
-    const db = createMockDb([{ provider: "test" }]);
-    expect(await candidateMutationsRepo(db).getProviderNameForCandidatePrinting("cp-1")).toEqual({
-      provider: "test",
-    });
-  });
-
   it("getSetIdBySlug returns set id", async () => {
     const db = createMockDb([{ id: "s-1" }]);
     expect(await candidateMutationsRepo(db).getSetIdBySlug("OGS")).toEqual({ id: "s-1" });

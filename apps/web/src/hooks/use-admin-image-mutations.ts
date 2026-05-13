@@ -242,7 +242,6 @@ const uploadPrintingImageFn = createServerFn({ method: "POST" })
       fileName: string;
       fileType: string;
       fileBase64: string;
-      provider?: string;
       mode?: string;
     }) => input,
   )
@@ -252,9 +251,6 @@ const uploadPrintingImageFn = createServerFn({ method: "POST" })
     const blob = new Blob([fileBytes], { type: data.fileType });
     const formData = new FormData();
     formData.append("file", blob, data.fileName);
-    if (data.provider) {
-      formData.append("provider", data.provider);
-    }
     if (data.mode) {
       formData.append("mode", data.mode);
     }
@@ -278,12 +274,10 @@ export function useUploadPrintingImage(invalidates: Scope = defaultScope) {
     mutationFn: async ({
       printingId,
       file,
-      provider,
       mode,
     }: {
       printingId: string;
       file: File;
-      provider?: string;
       mode?: "main" | "additional";
     }) => {
       const bytes = new Uint8Array(await file.arrayBuffer());
@@ -294,7 +288,7 @@ export function useUploadPrintingImage(invalidates: Scope = defaultScope) {
       }
       const fileBase64 = btoa(binary);
       return uploadPrintingImageFn({
-        data: { printingId, fileName: file.name, fileType: file.type, fileBase64, provider, mode },
+        data: { printingId, fileName: file.name, fileType: file.type, fileBase64, mode },
       });
     },
     invalidates,

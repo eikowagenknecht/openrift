@@ -318,7 +318,7 @@ const keywordTranslations = await sql<Record<string, unknown>[]>`
 console.log("Querying images, snapshots, rules...");
 
 const printingImages = await sql<Record<string, unknown>[]>`
-  SELECT pi.id, pi.printing_id, pi.image_file_id, pi.face, pi.provider, pi.is_active
+  SELECT pi.id, pi.printing_id, pi.image_file_id, pi.face, pi.is_active
   FROM printing_images pi
   JOIN printings p ON p.id = pi.printing_id
   JOIN sets s ON s.id = p.set_id
