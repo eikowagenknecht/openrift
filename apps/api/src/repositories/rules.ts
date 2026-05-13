@@ -1,4 +1,5 @@
 import type { RuleKind } from "@openrift/shared";
+import { compareRuleNumbers } from "@openrift/shared";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
@@ -9,12 +10,14 @@ export function rulesRepo(db: Kysely<Database>) {
     /**
      * Returns the latest version of every rule for a given kind (excluding
      * removed rules). Uses DISTINCT ON to pick the newest version per
-     * rule_number within the kind.
+     * rule_number within the kind. Rows are sorted by natural rule-number order
+     * in JS — `sort_order` is per-version and collides across versions, so it
+     * can't be used here.
      *
-     * @returns All current rules ordered by sort_order.
+     * @returns All current rules ordered by natural rule_number.
      */
-    listLatest(kind: RuleKind) {
-      return db
+    async listLatest(kind: RuleKind) {
+      const rows = await db
         .selectFrom("rules")
         .selectAll()
         .where("kind", "=", kind)
@@ -29,17 +32,19 @@ export function rulesRepo(db: Kysely<Database>) {
             .orderBy("r2.ruleNumber")
             .orderBy("r2.version", "desc"),
         )
-        .orderBy("sortOrder")
         .execute();
+      return rows.toSorted((a, b) => compareRuleNumbers(a.ruleNumber, b.ruleNumber));
     },
 
     /**
-     * Returns all rules of a kind at or before a specific version.
+     * Returns all rules of a kind at or before a specific version. Rows are
+     * sorted by natural rule-number order in JS — `sort_order` is per-version
+     * and collides across versions, so it can't be used here.
      *
      * @returns Full ruleset as it was at the given version.
      */
-    listAtVersion(kind: RuleKind, version: string) {
-      return db
+    async listAtVersion(kind: RuleKind, version: string) {
+      const rows = await db
         .selectFrom("rules")
         .selectAll()
         .where("kind", "=", kind)
@@ -56,8 +61,8 @@ export function rulesRepo(db: Kysely<Database>) {
             .orderBy("r2.ruleNumber")
             .orderBy("r2.version", "desc"),
         )
-        .orderBy("sortOrder")
         .execute();
+      return rows.toSorted((a, b) => compareRuleNumbers(a.ruleNumber, b.ruleNumber));
     },
 
     /**

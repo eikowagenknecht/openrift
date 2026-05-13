@@ -214,3 +214,5 @@ export { appendSetTotal, fixTypography } from "./fix-typography.js";
 
 export type { DeckViolation } from "./deck-rules.js";
 export { validateDeck } from "./deck-rules.js";
+
+export { compareRuleNumbers } from "./rules.js";
