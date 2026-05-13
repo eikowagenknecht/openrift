@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-03-09
 ---
 
@@ -7,7 +7,7 @@ date: 2026-03-09
 
 ## Context and Problem Statement
 
-OpenRift's card catalog currently covers 664 cards across 3 sets, but is missing cards that exist elsewhere — notably the Arcane Box Set (6 cards), 2 Spiritforged tokens, and all promo cards. We need a way to supplement the catalog with data from other sources.
+OpenRift's card catalog at the time of this decision covered 664 cards across 3 sets, but was missing cards that existed elsewhere — notably the Arcane Box Set, two Spiritforged tokens, and all promo cards. We needed a way to supplement the catalog with data from other sources.
 
 ## Decision Drivers
 
@@ -43,14 +43,17 @@ Data sourcing             OpenRift
 ─────────────             ────────
 Produce JSON         →    candidates.json
                               ↓
-                          POST /admin/candidates/upload
+                          POST /admin/cards/candidates (ingest)
                               ↓
-                          card_candidates table (staging)
+                          candidate_cards + candidate_printings (staging)
                               ↓
                           Admin UI: review & edit
                               ↓
-                          Accept → cards/printings tables
-                                   + download & resize images (ADR-007)
+              Accept       Reject
+                ↓             ↓
+        cards / printings   ignored_candidate_cards
+        + image rehost      / ignored_candidate_printings
+        (ADR-007)           (skip on re-upload)
 ```
 
 ### Candidate JSON Format
@@ -96,130 +99,55 @@ interface CandidateCard {
 
 A card can have printings across multiple sets (e.g., a promo reprinted in a promo set), so set information lives on printings. `set_name` is only needed when a printing references a set that doesn't exist yet. New sets are created with `printed_total` defaulting to 0 — this can be corrected later via the admin UI.
 
-### Schema Changes
-
-The same migration also makes `printings.image_url` nullable. The column is currently `NOT NULL`, but imported cards may not have an image available. The frontend already handles missing images — `CardThumbnail` renders a placeholder component when `imageURL` is falsy.
-
 ### Staging Tables
 
-Two staging tables mirror the structure of `cards` and `printings`, with additional columns for review workflow:
+The live shape ships in `docs/schema.sql` — the design principles that landed:
 
-```sql
-CREATE TABLE candidate_cards (
-  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  status          text NOT NULL DEFAULT 'pending',
-  provider        text NOT NULL DEFAULT '',
-  match_card_id   text REFERENCES cards(id),
-  -- card fields (same as cards table)
-  short_code      text,
-  name            text NOT NULL,
-  type            text NOT NULL,
-  super_types     text[] NOT NULL DEFAULT '{}',
-  domains         text[] NOT NULL,
-  might           integer,
-  energy          integer,
-  power           integer,
-  might_bonus     integer,
-  keywords        text[] NOT NULL DEFAULT '{}',
-  rules_text      text NOT NULL,
-  effect_text     text NOT NULL DEFAULT '',
-  tags            text[] NOT NULL DEFAULT '{}',
-  -- review metadata
-  created_at      timestamptz NOT NULL DEFAULT now(),
-  updated_at      timestamptz NOT NULL DEFAULT now(),
-  reviewed_at     timestamptz,
-  reviewed_by     text REFERENCES users(id),
-  CONSTRAINT chk_candidate_cards_status CHECK (status IN ('pending', 'accepted', 'rejected')),
-  CONSTRAINT chk_candidate_cards_type CHECK (type IN ('Legend', 'Unit', 'Rune', 'Spell', 'Gear', 'Battlefield'))
-);
-CREATE INDEX idx_candidate_cards_status ON candidate_cards(status);
-CREATE INDEX idx_candidate_cards_match ON candidate_cards(match_card_id);
-
-CREATE TABLE candidate_printings (
-  id                   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  candidate_card_id    uuid NOT NULL REFERENCES candidate_cards(id) ON DELETE CASCADE,
-  -- printing fields (same as printings table)
-  short_code           text NOT NULL,
-  set_id               text NOT NULL,
-  set_name             text,
-  collector_number     integer NOT NULL,
-  rarity               text NOT NULL,
-  art_variant          text NOT NULL,
-  is_signed            boolean NOT NULL DEFAULT false,
-  finish               text NOT NULL,
-  artist               text NOT NULL,
-  public_code          text NOT NULL,
-  printed_rules_text   text NOT NULL,
-  printed_effect_text  text NOT NULL DEFAULT '',
-  image_url            text,
-  created_at           timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT chk_candidate_printings_rarity CHECK (rarity IN ('Common', 'Uncommon', 'Rare', 'Epic', 'Showcase')),
-  CONSTRAINT chk_candidate_printings_finish CHECK (finish IN ('normal', 'foil'))
-);
-CREATE INDEX idx_candidate_printings_card ON candidate_printings(candidate_card_id);
-
--- Maps alternative card names (from different sources) to canonical card IDs.
--- Persists across uploads so name differences only need to be resolved once.
-CREATE TABLE card_name_aliases (
-  alias       text PRIMARY KEY,
-  card_id     text NOT NULL REFERENCES cards(id)
-);
-```
-
-Relational staging tables (rather than JSONB) give us DB-level constraints on staged data, simple admin edits via UPDATE, and straightforward diffing against existing cards via SQL JOINs.
-
-- **`match_card_id`** is computed server-side on upload (see detection logic below). NULL means new card; non-NULL means update candidate.
-- **`provider`** is a free-form label (e.g., a batch name or date).
-- **`set_name`** on candidate printings is only needed when the `set_id` doesn't exist yet.
+- **Relational staging** (not JSONB blobs): `candidate_cards` and `candidate_printings` mirror the production card/printing shape so admin edits are plain `UPDATE`s and diffs against existing rows are SQL JOINs.
+- **`provider` + `external_id`** form the natural key for incoming candidates — the same upstream record uploaded twice updates the existing row instead of creating a duplicate.
+- **`extra_data jsonb`** on each staging row carries provider-specific fields that don't map cleanly to the production schema, so a new data source can be added without a migration.
+- **Non-empty CHECK constraints** on every text field — provider, external_id, name, short_code, etc. — so empty-string garbage never reaches the staging table.
+- **No `status` column.** The original design tracked `pending` / `accepted` / `rejected` on the candidate row; reality dropped that in favor of presence semantics: accepted candidates promote into `cards` / `printings` and disappear from staging; rejected candidates move into `ignored_candidate_cards` / `ignored_candidate_printings`. Re-uploading an ignored `(provider, external_id)` is skipped at ingest, so the admin doesn't have to reject the same junk twice.
+- **`card_name_aliases (card_id uuid, norm_name text)`** maps normalized alternative names to canonical cards. Matching is done by `norm_name` (lowercased, punctuation stripped) rather than literal `name`, which absorbs typographic variants like "Dr Mundo" vs "Dr. Mundo" without needing per-variant aliases.
 
 ### New vs. Update Detection
 
-On upload, the server classifies each candidate automatically:
+On ingest, the server normalizes each candidate's name into `norm_name` and tries to match it:
 
-1. **Alias match:** `candidate.name` exists in `card_name_aliases` → `match_card_id` is set from the alias mapping
-2. **Exact name match:** `candidate.name` matches an existing `cards.name` → `match_card_id` is set
-3. **No match:** `match_card_id` stays NULL (new card)
+1. **Alias match:** `norm_name` exists in `card_name_aliases` → maps to that `card_id`.
+2. **Direct normalized-name match:** `norm_name` matches an existing `cards.norm_name` → that's the match.
+3. **No match:** treated as a new-card candidate.
 
-The admin UI shows these in separate tabs.
+The admin UI lists matched and unmatched candidates separately.
 
 ### Handling Name Mismatches
 
-When a candidate appears as "new" but is actually an existing card under a different name (e.g., "Dr Mundo" vs "Dr. Mundo"), the admin creates a name alias instead of rejecting and re-uploading. The alias maps the alternative name to the canonical card, and the candidate is reclassified as an update. The alias persists — future uploads from any source using the same name will auto-match.
+When a candidate appears as "new" but is actually an existing card under a different normalized name, the admin adds an entry to `card_name_aliases` and the candidate is reclassified as an update. The alias persists — future uploads from any source that normalize to the same form auto-match.
 
 ### Admin UI Flow
 
 **Upload:** Admin uploads a JSON file via file picker, optionally enters a source label. The server validates against the Zod schema, computes matches, and inserts candidates. A summary is shown: N new cards, M update candidates, K validation errors.
 
-**Review — New Cards tab** (`match_card_id IS NULL`):
+**Review — New Cards tab** (candidates whose `norm_name` matches nothing):
 
 - Card image preview (if `image_url` present in candidate)
 - All fields inline-editable
 - Accept / Reject per card, or batch accept
 
-**Review — Updates tab** (`match_card_id IS NOT NULL`):
+**Review — Updates tab** (candidates whose `norm_name` matches an existing card directly or via `card_name_aliases`):
 
 - Side-by-side view: existing card data vs. candidate data
 - Field-level diff highlighting (changed values)
 - Per-field accept toggles — admin cherry-picks which fields to update
 - Accept (with selected fields) / Reject
 
-**Accept (new card):** Upsert set (using `set_name` if new), insert into `cards` and `printings`, download and resize images per ADR-007, set `image_url` to self-hosted path.
+**Accept (new card):** Upsert set (using `set_name` if new), insert into `cards` and `printings`. Image rehosting happens through `image_files` + `printing_images` per ADR-007 — there is no `printings.image_url` column to write.
 
-**Accept (update):** Apply only the accepted field changes to the existing card/printings. Download and resize any new images.
+**Accept (update):** Apply only the accepted field changes to the existing card/printings. Rehost any new images via the same path.
 
 ### API Endpoints
 
-All behind `requireAdmin` middleware:
-
-| Method  | Path                             | Purpose                                         |
-| ------- | -------------------------------- | ----------------------------------------------- |
-| `POST`  | `/admin/candidates/upload`       | Upload JSON, validate, compute matches, insert  |
-| `GET`   | `/admin/candidates`              | List by tab (new/updates) and status            |
-| `PATCH` | `/admin/candidates/:id`          | Admin edits candidate fields                    |
-| `POST`  | `/admin/candidates/:id/accept`   | Promote to real tables + process images         |
-| `POST`  | `/admin/candidates/:id/reject`   | Mark rejected                                   |
-| `POST`  | `/admin/candidates/batch-accept` | Accept multiple                                 |
-| `POST`  | `/admin/candidates/:id/alias`    | Create alias for candidate name → existing card |
+Routes live under `/admin/cards/` and `/admin/ignored-candidates/`. See `apps/api/src/routes/admin/cards/queries.ts`, `apps/api/src/routes/admin/cards/mutations.ts`, and `apps/api/src/routes/admin/ignored-candidates.ts` for the live surface. The original draft scoped everything under `/admin/candidates/`; that path tree never shipped.
 
 ### Shared Utilities
 
@@ -229,9 +157,8 @@ All behind `requireAdmin` middleware:
 
 - **ADR-007 (Self-Hosted Card Images):** The accept flow uses the image processing pipeline from ADR-007 to download, resize, and store candidate images.
 
-## Implementation Phases
+## Implementation Notes
 
-1. **Database migration** — `card_candidates` table
-2. **Shared types + Zod schemas** — `CandidateCard` type, validation schemas, extract `buildPrintingId`
-3. **API routes** — upload, list, edit, accept, reject, batch accept
-4. **Admin UI** — upload page, review tabs, inline editing, diff view
+- The staging tables ship as `candidate_cards` + `candidate_printings` (the draft called them `card_candidates`); both are owned by `apps/api/src/repositories/candidate-cards.ts`.
+- Reject handling diverged from the design: rather than a `status='rejected'` row on the candidate table, rejecting a candidate moves it into `ignored_candidate_cards` / `ignored_candidate_printings` keyed by `(provider, external_id)`. Subsequent ingests skip those keys so the same junk never re-surfaces in the review queue.
+- `buildPrintingId()` is shared between the catalog refresh and the candidate accept flow.

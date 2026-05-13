@@ -1,5 +1,5 @@
 ---
-status: rejected
+status: accepted
 date: 2026-02-25
 ---
 
@@ -7,9 +7,9 @@ date: 2026-02-25
 
 ## Context and Problem Statement
 
-OpenRift is currently a Vite + React 19 single-page application with a separate Hono API server (`apps/web` + `apps/api`), deployed as three Docker containers (nginx serving static files, Node.js API, PostgreSQL) behind Cloudflare and host nginx on a Hetzner VPS.
+OpenRift was originally a Vite + React 19 single-page application with a separate Hono API server (`apps/web` + `apps/api`), deployed as three Docker containers (nginx serving static files, Node.js API, PostgreSQL) behind Cloudflare and host nginx on a Hetzner VPS.
 
-TanStack Start is a full-stack React framework built on TanStack Router and Nitro. It offers server-side rendering (SSR), file-based routing, type-safe server functions, and a single deployable artifact. The question is whether migrating to TanStack Start would meaningfully benefit OpenRift.
+TanStack Start is a full-stack React framework built on TanStack Router and Nitro. It offers server-side rendering (SSR), file-based routing, type-safe server functions, and a single deployable artifact. The question was whether migrating to TanStack Start would meaningfully benefit OpenRift.
 
 ## Decision Drivers
 
@@ -30,34 +30,22 @@ TanStack Start is a full-stack React framework built on TanStack Router and Nitr
 
 ## Decision Outcome
 
-Chosen option: "Keep the current Vite SPA + Hono architecture", because the migration cost is disproportionate to the benefit, framework maturity is insufficient for a production bet, and the standalone API is an asset for a future mobile app.
+Chosen option: "Migrate to TanStack Start", because SEO became a real requirement (public card pages, social embeds), the framework matured to a point where the build pipeline and deployment patterns were stable enough to commit, and the Hono API can stay standalone for any future mobile client.
 
-**The current architecture is working well.** The SPA loads fast (Vite builds are small, Cloudflare caches aggressively), the Hono API is clean and lightweight, and the deployment is stable. There is no user-facing pain that SSR would solve — OpenRift is a card collection browser, not a content site that needs SEO or instant first-paint for engagement.
-
-**The migration cost is disproportionate to the benefit.** Nearly every frontend file would be touched. The nuqs → TanStack Router migration alone is substantial (every filter, sort, and view state parameter). The React Query → loader migration rewrites all data fetching. This is weeks of work for a lateral move in user experience.
-
-**Framework maturity is insufficient for a production bet.** The Nitro v2 → v3 transition is in progress, the "Vite-native" mode is coming, and the community deployment ecosystem is still forming (Coolify guides are months old, Docker patterns are community-sourced, not official). Migrating now means migrating again when the framework stabilizes.
-
-**The mobile app consideration tips the balance.** If a mobile app is on the roadmap, the standalone Hono API becomes an asset, not a liability. It can serve both the web frontend and mobile clients without modification. Merging it into server functions would create an extraction problem later.
+This is a reversal of the original 2026-02-25 verdict ("Keep the current Vite SPA + Hono architecture"). The factors that flipped the decision are the same ones called out at the time as "what would change this decision": the framework stabilized, SEO mattered after all, and the architecture below keeps the Hono API standalone — so the mobile-app concern from the original analysis is preserved.
 
 ### Consequences
 
-- Good, because the current architecture remains stable and performant.
+- Good, because public card and rules pages can render server-side for SEO and social embeds.
+- Good, because route loaders eliminate the web → API round-trip for initial page loads.
 - Good, because the Hono API stays standalone, ready to serve future mobile clients.
-- Bad, because there's no SSR for SEO or social media embeds.
-- Neutral, because TanStack Start should be re-evaluated when it reaches stable maturity or when a natural rewrite opportunity arises.
-- Neutral, because if SEO becomes a requirement before then, SSR can be added to specific routes via Vike rather than a full framework migration.
+- Bad, because nearly every frontend file was touched — nuqs was replaced with TanStack Router search params (see ADR-004), React Query usage shifted to route loaders for data needed at first paint, and the PWA service worker was reworked.
+- Bad, because SSR requires ~200–400 MB resident memory vs. ~50–100 MB for the previous nginx + Hono setup.
+- Neutral, because two server stacks now coexist (TanStack Start on Nitro/h3 for the web, Hono for the API), connected only through the shared types in `packages/shared`.
 
-### What would change this decision
+## Production Architecture
 
-- TanStack Start reaches stable maturity with a settled build pipeline (Nitro v3 or Vite-native) and official deployment guides.
-- SEO becomes a requirement — e.g., public card pages that need to rank in search results, social media embeds with card previews.
-- The API is not needed standalone — i.e., no mobile app or third-party consumers are planned.
-- A natural rewrite opportunity — e.g., a major feature that would require reworking routing and data fetching anyway.
-
-## Architecture If Adopted
-
-For reference, this is what the production architecture would look like with TanStack Start. The Hono API stays as a standalone service so that mobile clients can consume it directly.
+The Hono API stays as a standalone service so that mobile clients can consume it directly.
 
 ```plaintext
                   Internet
@@ -105,15 +93,14 @@ For reference, this is what the production architecture would look like with Tan
 └────────────────────────────────────────────────────────────────┘
 ```
 
-**Key changes from current architecture:**
+**Key changes from the original architecture:**
 
-- The `web` container runs TanStack Start (Node.js with SSR) instead of nginx serving static files. Browser requests get server-rendered HTML on first load, then hydrate into a SPA.
-- Server functions replace React Query fetches for the web app — data loads happen on the server during SSR, eliminating the web → API round-trip for initial page loads.
-- The Hono API container stays unchanged, serving mobile app clients (and any future third-party consumers) via the same REST endpoints.
-- Both the Start server and Hono API connect to PostgreSQL via a shared query layer in `packages/shared` — the same Kysely query functions, row-to-domain mapping, and TypeScript types. This guarantees both servers return identical data for the same request. Hono routes and Start server functions become thin wrappers over the shared layer.
-- Host nginx routes `/api/*` to Hono and everything else to the Start server.
-- Memory footprint increases: the Start server needs ~200–400 MB for SSR vs ~10 MB for the current nginx container.
-- Two different server stacks coexist: TanStack Start runs on Nitro (h3), while the API stays on Hono. The `packages/shared` layer (types, Kysely queries, Zod schemas) is shared, but the server code itself doesn't converge.
+- A new `web` container runs the TanStack Start SSR server (Bun). Browser requests get server-rendered HTML on first load, then hydrate into a SPA. nginx stays in the stack as a proxy and serves the hashed client bundles directly.
+- Route loaders and server functions handle data needed at first paint, so the initial render isn't blocked by a web → API round-trip. React Query is still in use for client-side queries after hydration; the ADR's original phrasing ("server functions replace React Query") was an overshoot.
+- The Hono API container stays unchanged, serving mobile clients and any future third-party consumers via the same REST endpoints.
+- Both the Start server and Hono API connect to PostgreSQL via the shared layer in `packages/shared` — the same TypeScript types and Zod schemas. The server code itself (Hono vs. Nitro/h3) does not converge.
+- Host nginx routes `/api/*` to Hono and everything else to the Start server (which itself sits behind the in-stack nginx proxy stage).
+- Memory footprint increases: the Start server needs ~200–400 MB for SSR vs. ~10 MB for the original static-only nginx setup.
 
 ## Pros and Cons of the Options
 
