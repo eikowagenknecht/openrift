@@ -2,6 +2,7 @@
 
 ## 2026-05-13
 
+- feat: Collapsed sections on the rules page now stand out with a subtle background tint, so it's easy to see at a glance which groups have hidden content
 - feat: The deck-builder's table view now matches the grid: an in-deck count is shown next to each card, Shift+click on + or - previews the bulk amount (e.g. +3 or -2) and performs add-to-max / remove-all when clicked, the legend and champion rows show Choose / Switch / Remove labels, and the + button is disabled once the zone is full
 - feat: You can now drag a champion in and out of the chosen-champion slot, including dragging a champion from the main deck (or sideboard or overflow) onto the slot to replace whoever is in it
 - fix: Rules pages no longer show rules out of order on versions that span multiple updates (e.g. rule 300 appearing before 184.5)
