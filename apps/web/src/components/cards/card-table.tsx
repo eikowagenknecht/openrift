@@ -6,7 +6,7 @@ import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import { useEnumOrders } from "@/hooks/use-enums";
-import { useOwnedCountFor } from "@/hooks/use-owned-count";
+import { useOwnedCountFor, useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
 import { groupItemsByChannel } from "@/lib/group-by-channel";
 import { groupItemsByMarker } from "@/lib/group-by-marker";
 import { groupItemsByYear } from "@/lib/group-by-year";
@@ -178,6 +178,7 @@ const DataRow = memo(function DataRow({
   rarityLabels,
   setNameBySlug,
   renderActions,
+  siblingIdsKey,
 }: {
   printing: Printing;
   isSelected: boolean;
@@ -189,12 +190,23 @@ const DataRow = memo(function DataRow({
   rarityLabels: Record<string, string>;
   setNameBySlug: Map<string, string>;
   renderActions?: (printing: Printing, ownedCount: number | undefined) => ReactNode;
+  /** Comma-joined sibling printing IDs (cards view). When set, the row computes an aggregate across siblings to mirror the grid's `×N (M)` strip. */
+  siblingIdsKey?: string;
 }) {
-  const { data: ownedCount } = useOwnedCountFor(printing.id, showOwned || showAddControls);
+  const enabled = showOwned || showAddControls;
+  const hasSiblings = siblingIdsKey !== undefined;
+  // Two hooks instead of branching — calling rules require unconditional hook order.
+  // The disabled one short-circuits inside the hook (returns undefined data).
+  const { data: singleCount } = useOwnedCountFor(printing.id, enabled && !hasSiblings);
+  const siblingIds = hasSiblings ? siblingIdsKey.split(",") : EMPTY_SIBLING_IDS;
+  const { data: siblingCounts } = useOwnedCountsForPrintings(siblingIds, enabled && hasSiblings);
+  const ownedCount = hasSiblings ? siblingCounts?.totals[printing.id] : singleCount;
+  const totalOwnedCount = hasSiblings ? siblingCounts?.total : undefined;
   return (
     <CardTableRow
       printing={printing}
       ownedCount={ownedCount}
+      totalOwnedCount={totalOwnedCount}
       isSelected={isSelected}
       showOwned={showOwned}
       showAddControls={showAddControls}
@@ -215,6 +227,8 @@ const DataRow = memo(function DataRow({
   );
 });
 
+const EMPTY_SIBLING_IDS: readonly string[] = [];
+
 interface CardTableProps {
   items: CardViewerItem[];
   totalItems: number;
@@ -230,6 +244,10 @@ interface CardTableProps {
   renderActions?: (printing: Printing, ownedCount: number | undefined) => ReactNode;
   /** Label for the rightmost column header. Defaults to "Owned". */
   actionsLabel?: string;
+  /** Cards-vs-printings view. Cards view enables the variant-aggregate count in add mode. */
+  view?: "cards" | "printings";
+  /** Lookup of all sibling printings per cardId. Used in add mode + cards view to render `N (M)` like the grid. */
+  printingsByCardId?: Map<string, Printing[]>;
 }
 
 let cachedScrollMargin = 0;
@@ -254,7 +272,12 @@ export function CardTable({
   showAddControls,
   renderActions,
   actionsLabel,
+  view,
+  printingsByCardId,
 }: CardTableProps) {
+  // Only enabled in add mode + cards view, where the grid shows `N (M)` and we want
+  // the table to match. Browse-mode unification is a separate concern.
+  const useSiblingTotals = showAddControls && view === "cards" && printingsByCardId !== undefined;
   const { orders, labels } = useEnumOrders();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -413,21 +436,33 @@ export function CardTable({
                   />
                 ) : null
               ) : (
-                row.items.map((item) => (
-                  <DataRow
-                    key={item.id}
-                    printing={item.printing}
-                    isSelected={item.id === selectedItemId || item.printing.id === selectedItemId}
-                    showOwned={showOwned}
-                    showAddControls={showAddControls}
-                    columns={columns}
-                    cardTypeLabels={labels.cardTypes}
-                    superTypeLabels={labels.superTypes}
-                    rarityLabels={labels.rarities}
-                    setNameBySlug={setNameBySlug}
-                    renderActions={renderActions}
-                  />
-                ))
+                row.items.map((item) => {
+                  // Pass a string key (not the array) so the memoized DataRow's shallow-prop
+                  // comparison stays stable across renders that produce a fresh sibling array
+                  // with identical IDs.
+                  const siblingIdsKey =
+                    useSiblingTotals && printingsByCardId
+                      ? (printingsByCardId.get(item.printing.cardId) ?? [])
+                          .map((sibling) => sibling.id)
+                          .join(",")
+                      : undefined;
+                  return (
+                    <DataRow
+                      key={item.id}
+                      printing={item.printing}
+                      isSelected={item.id === selectedItemId || item.printing.id === selectedItemId}
+                      showOwned={showOwned}
+                      showAddControls={showAddControls}
+                      columns={columns}
+                      cardTypeLabels={labels.cardTypes}
+                      superTypeLabels={labels.superTypes}
+                      rarityLabels={labels.rarities}
+                      setNameBySlug={setNameBySlug}
+                      renderActions={renderActions}
+                      siblingIdsKey={siblingIdsKey}
+                    />
+                  );
+                })
               )}
             </div>
           );

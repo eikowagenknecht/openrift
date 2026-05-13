@@ -29,4 +29,47 @@ describe("CardTableRow", () => {
     expect(row).not.toBeNull();
     expect(row?.getAttribute("role")).toBe("row");
   });
+
+  it("renders the sibling total in parens next to the per-printing count in add mode when they differ", () => {
+    const printing = stubPrinting({ id: "p-row-2" });
+    const { getByText } = render(
+      <CardTableRow
+        printing={printing}
+        ownedCount={2}
+        totalOwnedCount={5}
+        isSelected={false}
+        showOwned={false}
+        showAddControls
+        columns="1fr"
+        cardTypeLabels={{}}
+        superTypeLabels={{}}
+        rarityLabels={{ common: "Common" }}
+        setNameBySlug={new Map()}
+        onRowClick={() => {}}
+      />,
+    );
+    expect(getByText("2")).toBeTruthy();
+    expect(getByText("(5)")).toBeTruthy();
+  });
+
+  it("omits the parens when the sibling total equals the per-printing count", () => {
+    const printing = stubPrinting({ id: "p-row-3" });
+    const { container } = render(
+      <CardTableRow
+        printing={printing}
+        ownedCount={3}
+        totalOwnedCount={3}
+        isSelected={false}
+        showOwned={false}
+        showAddControls
+        columns="1fr"
+        cardTypeLabels={{}}
+        superTypeLabels={{}}
+        rarityLabels={{ common: "Common" }}
+        setNameBySlug={new Map()}
+        onRowClick={() => {}}
+      />,
+    );
+    expect(container.textContent).not.toContain("(3)");
+  });
 });

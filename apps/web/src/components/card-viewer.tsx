@@ -17,6 +17,10 @@ export interface CardTableProps {
   renderActions?: (printing: Printing, ownedCount: number | undefined) => ReactNode;
   /** Label for the rightmost column header. Defaults to "Owned". */
   actionsLabel?: string;
+  /** Cards-vs-printings view. Cards view enables the variant-aggregate count in add mode. */
+  view?: "cards" | "printings";
+  /** Lookup of all sibling printings per cardId. Used in add mode + cards view to render `N (M)` like the grid. */
+  printingsByCardId?: Map<string, Printing[]>;
 }
 
 interface CardViewerProps {

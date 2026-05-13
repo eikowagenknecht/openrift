@@ -955,6 +955,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         table={{
           showOwned: true,
           showAddControls: mode !== "select" && Boolean(handleQuickAdd),
+          view: dataView,
+          // In add mode the items are catalog representative printings (one per cardId);
+          // the catalog map carries all sibling variants. In browse mode this is unused
+          // because useSiblingTotals gates on showAddControls.
+          printingsByCardId: catalogPrintingsByCardId,
         }}
       >
         {/* Floating action bar (select mode) */}

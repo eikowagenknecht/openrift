@@ -352,6 +352,8 @@ export function CardBrowser() {
         table={{
           showOwned: showStrip,
           showAddControls: isAddMode,
+          view,
+          printingsByCardId,
         }}
       >
         {isMobile && (

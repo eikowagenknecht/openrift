@@ -9,6 +9,7 @@
 - fix: After tapping a rule cross-reference on the rules page, the browser back button now returns you to where you were reading
 - fix: The Cards page no longer briefly flashes a skeleton and remounts each time you change a filter, slider, sort, or type in the search box, so typing in the search field on slow connections no longer drops focus mid-word
 - fix: The "Edit collection" dialog now shows the right collection's name when you open it after switching between collections, instead of the one you visited first
+- fix: In add mode on the Cards and collection pages, the table view now shows the total owned across all variants in parentheses next to the per-printing count, matching the grid
 
 ## 2026-05-12
 

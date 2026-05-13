@@ -142,6 +142,8 @@ export function CardTableGroupHeader({
 interface CardTableRowProps {
   printing: Printing;
   ownedCount: number | undefined;
+  /** Aggregate owned count across all sibling variants (cards view). Rendered in parens next to the per-printing count in add mode when it differs from ownedCount. */
+  totalOwnedCount?: number;
   isSelected?: boolean;
   showOwned: boolean;
   showAddControls: boolean;
@@ -171,6 +173,7 @@ interface CardTableRowProps {
 export function CardTableRow({
   printing,
   ownedCount,
+  totalOwnedCount,
   isSelected,
   showOwned,
   showAddControls,
@@ -184,6 +187,7 @@ export function CardTableRow({
   onDecrement,
   renderActions,
 }: CardTableRowProps) {
+  const showTotal = totalOwnedCount !== undefined && totalOwnedCount !== ownedCount;
   const image = printing.images[0];
   const setName = setNameBySlug.get(printing.setSlug) ?? printing.setSlug;
   const typeLabel = [
@@ -269,6 +273,7 @@ export function CardTableRow({
               </Button>
               <span className="min-w-6 text-center font-medium tabular-nums">
                 {ownedCount ?? 0}
+                {showTotal && <span className="opacity-60"> ({totalOwnedCount})</span>}
               </span>
               <Button
                 type="button"
