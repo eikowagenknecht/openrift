@@ -41,6 +41,29 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
     filteredCountRef.current = filteredCount;
   }, [filteredCount]);
 
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [popoverRightOffset, setPopoverRightOffset] = useState(0);
+  useEffect(() => {
+    const node = wrapperRef.current;
+    if (!node) {
+      return;
+    }
+    const parent = node.parentElement;
+    if (!parent) {
+      return;
+    }
+    const update = () => {
+      const wrapRect = node.getBoundingClientRect();
+      const parentRect = parent.getBoundingClientRect();
+      setPopoverRightOffset(Math.max(0, parentRect.right - wrapRect.right));
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(parent);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
   const commitSearch = (value: string) => {
     setSearch(value);
     if (value) {
@@ -66,7 +89,7 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
       : String(totalCards);
 
   return (
-    <div className="relative min-w-0 flex-1">
+    <div ref={wrapperRef} className="relative min-w-0 flex-1">
       <div className="relative">
         <SearchIcon className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
         <Input
@@ -102,8 +125,9 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
         </span>
       </div>
       <div
+        style={{ right: -popoverRightOffset }}
         className={cn(
-          "bg-popover text-popover-foreground ring-foreground/10 absolute top-full right-0 left-0 z-30 mt-2 flex items-start gap-2 rounded-lg p-2.5 shadow-md ring-1 transition-[opacity,transform] duration-150",
+          "bg-popover text-popover-foreground ring-foreground/10 absolute top-full left-0 z-30 mt-2 flex items-start gap-2 rounded-lg p-2.5 shadow-md ring-1 transition-[opacity,transform] duration-150",
           showScopeChips
             ? "translate-y-0 opacity-100"
             : "pointer-events-none -translate-y-1 opacity-0",
