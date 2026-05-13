@@ -9,6 +9,7 @@ import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image"
 import { FinishIcon } from "@/components/cards/finish-icon";
 import { FoilOverlay } from "@/components/cards/foil-overlay";
 import { useCardTilt } from "@/hooks/use-card-tilt";
+import { useCoarsePointer } from "@/hooks/use-coarse-pointer";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useHydrated } from "@/hooks/use-hydrated";
@@ -17,7 +18,6 @@ import { usePrices } from "@/hooks/use-prices";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import { LANDSCAPE_ROTATION_STYLE, needsCssRotation } from "@/lib/images";
-import { IS_COARSE_POINTER } from "@/lib/pointer";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -26,6 +26,13 @@ export interface CardThumbnailDisplay {
   /** Pre-derived `foilEffect && hydrated` — foil is preference-driven so SSR can't know. */
   gridFoil: boolean;
   cardTilt: boolean;
+  /**
+   * Lifted result of {@link useCoarsePointer} so per-card render doesn't pay
+   * an extra subscription each. The hook is SSR-safe; the value is `false`
+   * during the initial client render to match SSR, then settles to the real
+   * `(pointer: coarse)` state one paint later.
+   */
+  coarsePointer: boolean;
   domainColors: Record<string, string>;
   finishLabels: Record<string, string>;
   prices: PriceLookup;
@@ -57,6 +64,7 @@ export function useCardThumbnailDisplay(): CardThumbnailDisplay {
   const cardTilt = useDisplayStore((s) => s.cardTilt);
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
   const hydrated = useHydrated();
+  const coarsePointer = useCoarsePointer();
   const domainColors = useDomainColors();
   const { labels } = useEnumOrders();
   const prices = usePrices();
@@ -65,6 +73,7 @@ export function useCardThumbnailDisplay(): CardThumbnailDisplay {
     fancyFan,
     gridFoil: foilEffect && hydrated,
     cardTilt,
+    coarsePointer,
     domainColors,
     finishLabels: labels.finishes,
     prices,
@@ -392,12 +401,20 @@ export const CardThumbnail = memo(function CardThumbnail({
   // frame before onLoad fires, producing a flash-and-fade on hydration.
   const [imgLoaded, setImgLoaded] = useState(priority ?? false);
 
-  const { fancyFan, gridFoil, cardTilt, domainColors, finishLabels, prices, favoriteMarketplace } =
-    display;
+  const {
+    fancyFan,
+    gridFoil,
+    cardTilt,
+    coarsePointer,
+    domainColors,
+    finishLabels,
+    prices,
+    favoriteMarketplace,
+  } = display;
   const favoritePrice = prices.get(printing.id, favoriteMarketplace);
   const isFoilCard = printing.finish === WellKnown.finish.FOIL;
   const finishTitle = finishLabels[printing.finish] ?? printing.finish;
-  const tiltEnabled = cardTilt && !IS_COARSE_POINTER;
+  const tiltEnabled = cardTilt && !coarsePointer;
   // Pick a shell: TiltImageShell calls useCardTilt internally, PlainImageShell
   // skips the hook entirely. Toggling cardTilt remounts the shell (and all
   // visible cards) once — cheap relative to paying for unused hook bookkeeping
@@ -457,7 +474,7 @@ export const CardThumbnail = memo(function CardThumbnail({
         // Coarse-pointer devices never trigger the hover fan-out, so the
         // sibling images sit hidden behind the front card forever. Skip
         // the download and let the bg-muted/border decorative stack stand in.
-        const showSibling = fancyFan && showImages && !IS_COARSE_POINTER && siblingImageId !== null;
+        const showSibling = fancyFan && showImages && !coarsePointer && siblingImageId !== null;
         const siblingSrc = showSibling ? imageUrl(siblingImageId, "400w") : null;
         const siblingSrcSet = showSibling
           ? `${imageUrl(siblingImageId, "120w")} 120w, ${imageUrl(siblingImageId, "240w")} 240w, ${imageUrl(siblingImageId, "400w")} 400w, ${imageUrl(siblingImageId, "full")} 800w`

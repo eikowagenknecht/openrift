@@ -14,11 +14,11 @@ import { FinishIcon, hasFinishIcon } from "@/components/cards/finish-icon";
 import { Button } from "@/components/ui/button";
 import { useIsAdmin } from "@/hooks/use-admin";
 import { useCardTilt } from "@/hooks/use-card-tilt";
+import { useCoarsePointer } from "@/hooks/use-coarse-pointer";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { getDomainGradientStyle, getDomainTintStyle } from "@/lib/domain";
 import { formatPublicCode } from "@/lib/format";
-import { IS_COARSE_POINTER } from "@/lib/pointer";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -63,20 +63,25 @@ export function CardDetail({
   const foilEffect = useDisplayStore((s) => s.foilEffect);
   const cardTilt = useDisplayStore((s) => s.cardTilt);
 
-  const tiltMode = IS_COARSE_POINTER ? ("none" as const) : ("pointer" as const);
+  // Hook over the IS_COARSE_POINTER module constant so SSR and the first
+  // client render agree — `showShimmer` flips the foil overlay's animation
+  // class on coarse-pointer devices and would otherwise abort hydration.
+  const coarsePointer = useCoarsePointer();
+
+  const tiltMode = coarsePointer ? ("none" as const) : ("pointer" as const);
 
   // Destructure into locals so React Compiler's ref heuristic doesn't flag
   // property access on the hook result — see the note in card-thumbnail.tsx.
   const { containerRef: tiltContainerRef, innerRef: tiltInnerRef } = useCardTilt({
     mode: tiltMode,
-    enabled: cardTilt && (!IS_COARSE_POINTER || isFoil),
+    enabled: cardTilt && (!coarsePointer || isFoil),
   });
 
   const { data: isAdmin } = useIsAdmin();
 
   const showFoil = isFoil && foilEffect;
   // Detail pane always uses animated foil — shimmers when tilt unavailable.
-  const showShimmer = showFoil && (!cardTilt || IS_COARSE_POINTER);
+  const showShimmer = showFoil && (!cardTilt || coarsePointer);
 
   return (
     <div

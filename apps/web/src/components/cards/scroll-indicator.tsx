@@ -1,6 +1,6 @@
 import type { Virtualizer } from "@tanstack/react-virtual";
 
-import { IS_COARSE_POINTER } from "@/lib/pointer";
+import { useCoarsePointer } from "@/hooks/use-coarse-pointer";
 import { cn } from "@/lib/utils";
 
 import type { VRow } from "./card-grid-types";
@@ -44,6 +44,7 @@ export function ScrollIndicator({
     multipleGroups,
     stickyOffset,
   });
+  const coarsePointer = useCoarsePointer();
 
   return (
     <>
@@ -54,7 +55,7 @@ export function ScrollIndicator({
         className={cn(
           "fixed z-30 transition-opacity duration-300",
           indicator.visible ? "pointer-events-auto" : "pointer-events-none",
-          IS_COARSE_POINTER && "-m-2 p-2",
+          coarsePointer && "-m-2 p-2",
         )}
         style={{
           right: 20,
@@ -102,7 +103,7 @@ export function ScrollIndicator({
             ref={badgeRef}
             className={cn(
               "bg-popover/90 text-popover-foreground inline-flex items-center rounded-md font-mono font-medium whitespace-nowrap shadow-md ring-1 backdrop-blur-sm select-none",
-              IS_COARSE_POINTER ? "px-5 py-2 text-base" : "px-5 py-2 text-sm",
+              coarsePointer ? "px-5 py-2 text-base" : "px-5 py-2 text-sm",
               indicator.dragging
                 ? "ring-primary/60 cursor-grabbing"
                 : "ring-primary/40 cursor-grab",
@@ -129,7 +130,7 @@ export function ScrollIndicator({
             }}
             className={cn(
               "pointer-events-none fixed z-29 transition-opacity duration-300",
-              IS_COARSE_POINTER && "-m-2 p-2",
+              coarsePointer && "-m-2 p-2",
             )}
             style={{
               right: 20,
@@ -142,7 +143,7 @@ export function ScrollIndicator({
               <div
                 className={cn(
                   "bg-popover/80 text-popover-foreground/70 ring-border/50 rounded-md font-mono font-medium whitespace-nowrap ring-1 backdrop-blur-sm select-none",
-                  IS_COARSE_POINTER ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs",
+                  coarsePointer ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs",
                 )}
               >
                 {pt.group.name}
