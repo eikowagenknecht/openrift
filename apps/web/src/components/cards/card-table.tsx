@@ -195,9 +195,11 @@ const DataRow = memo(function DataRow({
       rarityLabels={rarityLabels}
       setNameBySlug={setNameBySlug}
       onRowClick={(p) => useCardRowActionsStore.getState().handlers.onRowClick?.(p)}
-      onIncrement={(p) => useCardRowActionsStore.getState().handlers.onIncrement?.(p)}
-      onDecrement={(p, anchor) =>
-        useCardRowActionsStore.getState().handlers.onDecrement?.(p, anchor)
+      onIncrement={(p, modifiers) =>
+        useCardRowActionsStore.getState().handlers.onIncrement?.(p, modifiers)
+      }
+      onDecrement={(p, anchor, modifiers) =>
+        useCardRowActionsStore.getState().handlers.onDecrement?.(p, anchor, modifiers)
       }
     />
   );

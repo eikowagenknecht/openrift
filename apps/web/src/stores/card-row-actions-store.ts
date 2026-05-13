@@ -1,11 +1,19 @@
 import type { Printing } from "@openrift/shared";
 import { create } from "zustand";
 
+export interface CardRowClickModifiers {
+  shift?: boolean;
+}
+
 interface CardRowHandlers {
   onRowClick?: (printing: Printing) => void;
   onSiblingClick?: (printing: Printing) => void;
-  onIncrement?: (printing: Printing) => void;
-  onDecrement?: (printing: Printing, anchorEl?: HTMLElement) => void;
+  onIncrement?: (printing: Printing, modifiers?: CardRowClickModifiers) => void;
+  onDecrement?: (
+    printing: Printing,
+    anchorEl?: HTMLElement,
+    modifiers?: CardRowClickModifiers,
+  ) => void;
   onOpenVariants?: (printing: Printing, anchorEl: HTMLElement) => void;
 }
 
@@ -38,12 +46,16 @@ export function dispatchSiblingClick(printing: Printing): void {
   useCardRowActionsStore.getState().handlers.onSiblingClick?.(printing);
 }
 
-export function dispatchIncrement(printing: Printing): void {
-  useCardRowActionsStore.getState().handlers.onIncrement?.(printing);
+export function dispatchIncrement(printing: Printing, modifiers?: CardRowClickModifiers): void {
+  useCardRowActionsStore.getState().handlers.onIncrement?.(printing, modifiers);
 }
 
-export function dispatchDecrement(printing: Printing, anchorEl: HTMLElement): void {
-  useCardRowActionsStore.getState().handlers.onDecrement?.(printing, anchorEl);
+export function dispatchDecrement(
+  printing: Printing,
+  anchorEl: HTMLElement,
+  modifiers?: CardRowClickModifiers,
+): void {
+  useCardRowActionsStore.getState().handlers.onDecrement?.(printing, anchorEl, modifiers);
 }
 
 export function dispatchOpenVariants(printing: Printing, anchorEl: HTMLElement): void {

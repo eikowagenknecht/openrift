@@ -147,8 +147,12 @@ interface CardTableRowProps {
   rarityLabels: Record<string, string>;
   setNameBySlug: Map<string, string>;
   onRowClick: (printing: Printing) => void;
-  onIncrement?: (printing: Printing) => void;
-  onDecrement?: (printing: Printing, anchorEl: HTMLElement) => void;
+  onIncrement?: (printing: Printing, modifiers?: { shift?: boolean }) => void;
+  onDecrement?: (
+    printing: Printing,
+    anchorEl: HTMLElement,
+    modifiers?: { shift?: boolean },
+  ) => void;
 }
 
 /**
@@ -245,7 +249,7 @@ export function CardTableRow({
             size="icon-sm"
             onClick={(event) => {
               event.stopPropagation();
-              onDecrement?.(printing, event.currentTarget);
+              onDecrement?.(printing, event.currentTarget, { shift: event.shiftKey });
             }}
             disabled={!ownedCount}
             aria-label="Remove one"
@@ -259,7 +263,7 @@ export function CardTableRow({
             size="icon-sm"
             onClick={(event) => {
               event.stopPropagation();
-              onIncrement?.(printing);
+              onIncrement?.(printing, { shift: event.shiftKey });
             }}
             aria-label="Add one"
           >

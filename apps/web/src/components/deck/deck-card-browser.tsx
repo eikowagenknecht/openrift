@@ -248,7 +248,10 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     useSelectionStore.getState().selectCard(printing, items, findBy);
   };
 
-  const handleQuickAdd = (printing: Printing, event?: React.MouseEvent) => {
+  // `event` is typed as a structural `{ shiftKey?: boolean }` so the table
+  // path can synthesize the bit it cares about without faking a full
+  // React.MouseEvent. The grid path still passes a real event in.
+  const handleQuickAdd = (printing: Printing, event?: { shiftKey?: boolean }) => {
     const builderCard = catalogCardToDeckBuilderCard(printing.cardId, printing.card);
 
     if (activeZone === "legend") {
@@ -264,7 +267,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     }
   };
 
-  const handleRemove = (printing: Printing, event?: React.MouseEvent) => {
+  const handleRemove = (printing: Printing, event?: { shiftKey?: boolean }) => {
     const cardId = printing.cardId;
 
     // Shift+click removes all copies across all zones (every printing row)
@@ -311,14 +314,17 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   // virtualized CardTable can dispatch row clicks and +/- without taking
   // these unstable closures as props. Mirrors card-browser.tsx's wiring; see
   // card-row-actions-store.ts for the why. Re-register every render so rows
-  // pick up the freshest implementation. Table view drops the shift-modifier
-  // semantics (add-max / remove-all) — clicks behave as a plain add/remove.
+  // pick up the freshest implementation. Shift-click on the +/- buttons
+  // forwards the modifier so the table matches the grid's add-max /
+  // remove-all behavior.
   // oxlint-disable-next-line react-hooks/exhaustive-deps -- intentional: re-register every render
   useEffect(() => {
     useCardRowActionsStore.getState().setHandlers({
       onRowClick: handleCardClick,
-      onIncrement: (printing) => handleQuickAdd(printing),
-      onDecrement: (printing) => handleRemove(printing),
+      onIncrement: (printing, modifiers) =>
+        handleQuickAdd(printing, { shiftKey: modifiers?.shift }),
+      onDecrement: (printing, _anchorEl, modifiers) =>
+        handleRemove(printing, { shiftKey: modifiers?.shift }),
     });
     return () => {
       useCardRowActionsStore.getState().setHandlers({});
