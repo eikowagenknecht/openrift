@@ -66,7 +66,7 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
       : String(totalCards);
 
   return (
-    <div className="min-w-0 flex-1">
+    <div className="relative min-w-0 flex-1">
       <div className="relative">
         <SearchIcon className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
         <Input
@@ -103,8 +103,10 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
       </div>
       <div
         className={cn(
-          "flex items-start gap-2 overflow-hidden transition-all duration-200",
-          showScopeChips ? "mt-2 max-h-24 opacity-100" : "mt-0 max-h-0 opacity-0",
+          "bg-popover text-popover-foreground ring-foreground/10 absolute top-full right-0 left-0 z-30 mt-2 flex items-start gap-2 rounded-lg p-2.5 shadow-md ring-1 transition-[opacity,transform] duration-150",
+          showScopeChips
+            ? "translate-y-0 opacity-100"
+            : "pointer-events-none -translate-y-1 opacity-0",
         )}
       >
         <span className="text-muted-foreground shrink-0 text-xs">Search in:</span>
