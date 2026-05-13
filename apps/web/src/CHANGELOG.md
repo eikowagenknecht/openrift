@@ -11,6 +11,7 @@
 - fix: The "Edit collection" dialog now shows the right collection's name when you open it after switching between collections, instead of the one you visited first
 - fix: In add mode on the Cards and collection pages, the table view now shows the total owned across all variants in parentheses next to the per-printing count, matching the grid
 - fix: In add mode on the table view, the + and - buttons now stay in place when the total-in-parens appears or disappears, instead of shifting sideways
+- fix: Clicking through variants on a card detail page no longer briefly flashes a skeleton while it reloads, especially on slow connections
 
 ## 2026-05-12
 

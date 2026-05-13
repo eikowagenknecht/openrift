@@ -36,7 +36,15 @@ const MARKETPLACE_OFFER_CONFIG: { key: Marketplace; seller: string; currency: st
 
 export const Route = createFileRoute("/_app/cards_/$cardSlug")({
   validateSearch: cardDetailSearchSchema,
-  loaderDeps: ({ search }) => ({ printingId: search.printingId }),
+  // Return an empty (stable) deps object so the match ID — hashed from
+  // `loaderDeps` — doesn't change when the user clicks through variants and the
+  // URL `?printingId=…` is rewritten. Otherwise every variant switch creates a
+  // fresh match in `status: "pending"`, throws `loadPromise` to the route's
+  // Suspense boundary, briefly renders `CardDetailPending`, and remounts the
+  // detail subtree (wasted work + visible skeleton flash on slow connections).
+  // The loader still gets the URL's `printingId` via `location.search` below,
+  // so the SSR head/meta tags pick the right variant for shared links.
+  loaderDeps: () => ({}),
   head: ({ loaderData }) => {
     const siteUrl = getSiteUrl();
     const loaded = loaderData as CardDetailLoaderData | undefined;
@@ -101,7 +109,7 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
       ],
     };
   },
-  loader: async ({ context, params, deps }): Promise<CardDetailLoaderData> => {
+  loader: async ({ context, params, location }): Promise<CardDetailLoaderData> => {
     // Fetch card detail and init in parallel. The head/meta preview picks
     // the preferred printing using the live language sort order from
     // /api/enums — logged-out crawlers fall through to this default.
@@ -126,7 +134,7 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
       Object.fromEntries(rows.map((row) => [row.slug, row.label]));
     return {
       data,
-      printingId: deps.printingId,
+      printingId: location.search.printingId,
       languageOrder,
       domainLabels: labelMap(init.enums.domains ?? []),
       cardTypeLabels: labelMap(init.enums.cardTypes ?? []),
