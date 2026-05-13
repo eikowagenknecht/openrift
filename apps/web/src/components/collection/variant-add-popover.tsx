@@ -33,7 +33,9 @@ export function VariantAddPopover({
   // move — re-binding on every keystroke would lose the highlight between
   // listener registrations.
   const highlightedIndexRef = useRef(highlightedIndex);
-  highlightedIndexRef.current = highlightedIndex;
+  useEffect(() => {
+    highlightedIndexRef.current = highlightedIndex;
+  }, [highlightedIndex]);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
