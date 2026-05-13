@@ -1,9 +1,5 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
-import type {
-  RegenerateImagesCheckpoint,
-  RegenerateImagesKickoffResponse,
-  RestoreImageUrlsResponse,
-} from "@openrift/shared";
+import type { RegenerateImagesCheckpoint, RegenerateImagesKickoffResponse } from "@openrift/shared";
 import { createLogger } from "@openrift/shared/logger";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -23,7 +19,6 @@ import {
 } from "../../services/image-rehost.js";
 import { runJobAsync } from "../../services/run-job.js";
 import type { Variables } from "../../types.js";
-import { restoreImageUrlsSchema } from "./schemas.js";
 
 const log = createLogger("admin");
 
@@ -335,28 +330,6 @@ const migrateDirectories = createRoute({
   },
 });
 
-const restoreImageUrls = createRoute({
-  method: "post",
-  path: "/restore-image-urls",
-  tags: ["Admin - Images"],
-  request: {
-    body: { content: { "application/json": { schema: restoreImageUrlsSchema } } },
-  },
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            provider: z.string().openapi({ example: "riftcore" }),
-            updated: z.number().openapi({ example: 312 }),
-          }),
-        },
-      },
-      description: "Restore image URLs result",
-    },
-  },
-});
-
 // ── Route ───────────────────────────────────────────────────────────────────
 
 export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
@@ -454,8 +427,6 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     return c.json(result);
   })
 
-  // ── Restore original URLs from a card source ──────────────────────────────
-
   .openapi(brokenImages, async (c) => {
     const { printingImages } = c.get("repos");
     const result = await findBrokenImages(c.get("io"), printingImages);
@@ -476,11 +447,4 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
   .openapi(migrateDirectories, async (c) => {
     const result = await migrateImageDirectories(c.get("io"));
     return c.json(result);
-  })
-
-  .openapi(restoreImageUrls, async (c) => {
-    const { printingImages } = c.get("repos");
-    const { provider } = c.req.valid("json");
-    const updated = await printingImages.restoreFromSources(provider);
-    return c.json({ provider, updated } satisfies RestoreImageUrlsResponse);
   });

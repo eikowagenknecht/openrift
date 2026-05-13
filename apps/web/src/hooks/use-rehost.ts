@@ -160,19 +160,6 @@ const migrateDirectoriesFn = createServerFn({ method: "POST" })
     }),
   );
 
-const restoreImageUrlsFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { provider: string }) => input)
-  .middleware([withCookies])
-  .handler(({ context, data }) =>
-    fetchApiJson<{ updated: number; provider: string }>({
-      errorTitle: "Couldn't restore image URLs",
-      cookie: context.cookie,
-      path: "/api/v1/admin/restore-image-urls",
-      method: "POST",
-      body: { provider: data.provider },
-    }),
-  );
-
 // ── Query ─────────────────────────────────────────────────────────────────────
 
 export function useRehostStatus() {
@@ -312,16 +299,6 @@ export function useMigrateDirectories() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => migrateDirectoriesFn(),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.rehostStatus });
-    },
-  });
-}
-
-export function useRestoreImageUrls() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (provider: string) => restoreImageUrlsFn({ data: { provider } }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.admin.rehostStatus });
     },

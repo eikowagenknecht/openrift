@@ -7,15 +7,6 @@ import { ConfirmClearButton } from "@/components/admin/confirm-clear-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { useProviderNames } from "@/hooks/use-admin-card-queries";
 import { useLatestJobRunByKind } from "@/hooks/use-job-runs";
 import {
   useBrokenImages,
@@ -28,7 +19,6 @@ import {
   useRegenerateImages,
   useRehostImages,
   useRehostStatus,
-  useRestoreImageUrls,
   useUnrehostImages,
 } from "@/hooks/use-rehost";
 
@@ -415,68 +405,6 @@ function ManageSection() {
   );
 }
 
-// ── RestoreUrlsSection ────────────────────────────────────────────────────────
-
-function RestoreUrlsSection() {
-  const { data: sourceNames } = useProviderNames();
-  const [selectedSource, setSelectedSource] = useState<string>("");
-
-  const restoreMutation = useRestoreImageUrls();
-
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <CardTitle>Restore Original URLs</CardTitle>
-            <CardDescription>
-              Backfill missing original URLs on active images from a card source. Run this before
-              rehosting if images were lost.
-            </CardDescription>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <Select value={selectedSource} onValueChange={(v) => setSelectedSource(v ?? "")}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Select source" />
-              </SelectTrigger>
-              <SelectContent>
-                {sourceNames?.map((name: string) => (
-                  <SelectItem key={name} value={name}>
-                    {name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              variant="outline"
-              disabled={!selectedSource || restoreMutation.isPending}
-              onClick={() => restoreMutation.mutate(selectedSource)}
-            >
-              {restoreMutation.isPending ? (
-                <LoaderIcon className="size-4 animate-spin" />
-              ) : (
-                "Restore"
-              )}
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      {(restoreMutation.isSuccess || restoreMutation.isError) && (
-        <CardContent className="pt-0">
-          <SimpleMutationResult
-            mutation={restoreMutation}
-            renderSuccess={(d: { updated: number; provider: string }) => (
-              <>
-                Restored {d.updated} image URLs from &ldquo;{d.provider}&rdquo;
-              </>
-            )}
-          />
-        </CardContent>
-      )}
-    </Card>
-  );
-}
-
 // ── MissingImagesSection ──────────────────────────────────────────────────────
 
 function MissingImagesSection() {
@@ -733,8 +661,6 @@ export function ImagesPage() {
       <LowResImagesSection />
       <MissingImagesSection />
       <ManageSection />
-      <Separator />
-      <RestoreUrlsSection />
     </div>
   );
 }

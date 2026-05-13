@@ -243,12 +243,6 @@ export const ignoreProductsSchema = z.discriminatedUnion("level", [
   ignoreVariantsBodySchema,
 ]);
 
-// ── Images ─────────────────────────────────────────────────────────────────
-
-export const restoreImageUrlsSchema = z.object({
-  provider: z.string().min(1),
-});
-
 // ── Unified Mappings ───────────────────────────────────────────────────────
 
 export const marketplaceSchema = z.object({

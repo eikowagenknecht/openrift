@@ -391,11 +391,6 @@ export interface ClearRehostedResponse {
   cleared: number;
 }
 
-export interface RestoreImageUrlsResponse {
-  provider: string;
-  updated: number;
-}
-
 export interface CleanupOrphanedResponse {
   scanned: number;
   deleted: number;

@@ -114,7 +114,6 @@ export type {
   RehostImageResponse,
   RehostStatusDiskStats,
   RehostStatusResponse,
-  RestoreImageUrlsResponse,
   UnrehostImagesResponse,
   SearchField,
   SetDetailResponse,

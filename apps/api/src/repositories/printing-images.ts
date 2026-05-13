@@ -344,41 +344,6 @@ export function printingImagesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Bulk upsert printing_images from candidate_printings for a given provider.
-     * Creates missing image_files rows and links them.
-     * @returns The number of affected rows.
-     */
-    async restoreFromSources(provider: string): Promise<number> {
-      // First, ensure image_files exist for all candidate image URLs
-      await sql`
-        INSERT INTO image_files (original_url)
-        SELECT DISTINCT ps.image_url
-        FROM candidate_printings ps
-        JOIN candidate_cards cs ON cs.id = ps.candidate_card_id
-        WHERE ps.printing_id IS NOT NULL
-          AND ps.image_url IS NOT NULL
-          AND cs.provider = ${provider}
-        ON CONFLICT (original_url) WHERE original_url IS NOT NULL DO NOTHING
-      `.execute(db);
-
-      // Then insert/update printing_images with the image_file_id
-      const result = await sql`
-        INSERT INTO printing_images (printing_id, face, provider, image_file_id, is_active)
-        SELECT ps.printing_id, 'front', cs.provider, imgf.id, true
-        FROM candidate_printings ps
-        JOIN candidate_cards cs ON cs.id = ps.candidate_card_id
-        JOIN image_files imgf ON imgf.original_url = ps.image_url
-        WHERE ps.printing_id IS NOT NULL
-          AND ps.image_url IS NOT NULL
-          AND cs.provider = ${provider}
-        ON CONFLICT (printing_id, face, provider) DO UPDATE
-          SET image_file_id = EXCLUDED.image_file_id
-          WHERE printing_images.image_file_id != EXCLUDED.image_file_id
-      `.execute(db);
-      return Number(result.numAffectedRows ?? 0);
-    },
-
-    /**
      * List all rehosted image files.
      * @returns Images with their current rehosted URL.
      */

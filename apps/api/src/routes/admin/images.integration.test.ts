@@ -38,116 +38,12 @@ const USER_ID = "a0000000-0020-4000-a000-000000000001";
 
 const ctx = createTestContext(USER_ID, { io: mockIo });
 
-let printingId = "";
-
-// Seed test-specific data (IMG- prefix to avoid collisions)
+// Ensure user is an admin
 if (ctx) {
-  const { db } = ctx;
-
-  // Ensure user is an admin
-  await db
+  await ctx.db
     .insertInto("admins")
     .values({ userId: USER_ID })
     .onConflict((oc) => oc.column("userId").doNothing())
-    .execute();
-
-  // Seed set + card + printing (needed for restore-image-urls test)
-  const [set] = await db
-    .insertInto("sets")
-    .values({
-      slug: "IMG",
-      name: "IMG Test Set",
-      printedTotal: 1,
-      sortOrder: 920,
-    })
-    .returning("id")
-    .execute();
-
-  const [card] = await db
-    .insertInto("cards")
-    .values({
-      slug: "IMG-001",
-      name: "IMG Test Card",
-      type: "unit",
-      might: null,
-      energy: 2,
-      power: null,
-      mightBonus: null,
-      keywords: [],
-      tags: [],
-    })
-    .returning("id")
-    .execute();
-
-  await db
-    .insertInto("cardDomains")
-    .values({ cardId: card.id, domainSlug: "mind", ordinal: 0 })
-    .execute();
-
-  const [printing] = await db
-    .insertInto("printings")
-    .values({
-      cardId: card.id,
-      setId: set.id,
-      shortCode: "IMG-001",
-      rarity: "common",
-      artVariant: "normal",
-      isSigned: false,
-      finish: "normal",
-      artist: "Test Artist",
-      publicCode: "IMG",
-      printedRulesText: null,
-      printedEffectText: null,
-      flavorText: null,
-      comment: null,
-    })
-    .returning("id")
-    .execute();
-  printingId = printing.id;
-
-  // Seed card_sources + printing_sources with image URLs
-  const [cs] = await db
-    .insertInto("candidateCards")
-    .values({
-      provider: "img-source",
-      name: "IMG Test Card",
-      type: "unit",
-      superTypes: [],
-      domains: ["mind"],
-      might: null,
-      energy: 2,
-      power: null,
-      mightBonus: null,
-      rulesText: null,
-      effectText: null,
-      tags: [],
-      shortCode: "IMG-001",
-      externalId: "IMG-001",
-      extraData: null,
-    })
-    .returning("id")
-    .execute();
-
-  await db
-    .insertInto("candidatePrintings")
-    .values({
-      candidateCardId: cs.id,
-      printingId,
-      shortCode: "IMG-001",
-      setId: "IMG",
-      setName: "IMG Test Set",
-      rarity: "common",
-      artVariant: "normal",
-      isSigned: false,
-      finish: "normal",
-      artist: "Test Artist",
-      publicCode: "IMG",
-      printedRulesText: null,
-      printedEffectText: null,
-      imageUrl: "https://example.com/img-test.png",
-      flavorText: null,
-      externalId: "IMG-001",
-    })
     .execute();
 }
 
@@ -294,45 +190,6 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
 
       const json = await res.json();
       expect(json).toEqual(expect.any(Array));
-    });
-  });
-
-  // ── POST /admin/restore-image-urls ─────────────────────────────────────
-
-  describe("POST /admin/restore-image-urls", () => {
-    it("restores image URLs from printing sources and returns count", async () => {
-      const res = await app.fetch(
-        req("POST", "/admin/restore-image-urls", { provider: "img-source" }),
-      );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.provider).toBe("img-source");
-      expect(json.updated).toBeTypeOf("number");
-
-      // Verify a printing_images row was created with its card_image
-      const images = await db
-        .selectFrom("printingImages")
-        .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
-        .select([
-          "printingImages.printingId",
-          "printingImages.face",
-          "printingImages.provider",
-          "ci.originalUrl",
-          "printingImages.isActive",
-        ])
-        .where("printingImages.printingId", "=", printingId)
-        .where("printingImages.provider", "=", "img-source")
-        .execute();
-      expect(images).toHaveLength(1);
-      expect(images[0].face).toBe("front");
-      expect(images[0].originalUrl).toBe("https://example.com/img-test.png");
-      expect(images[0].isActive).toBe(true);
-    });
-
-    it("returns 400 with empty provider", async () => {
-      const res = await app.fetch(req("POST", "/admin/restore-image-urls", { provider: "" }));
-      expect(res.status).toBe(400);
     });
   });
 });

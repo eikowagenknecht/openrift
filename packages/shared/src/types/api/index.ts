@@ -154,7 +154,6 @@ export type {
   RehostStatusDiskStats,
   RehostStatusResponse,
   RehostStatusSetStats,
-  RestoreImageUrlsResponse,
   UnrehostImagesRequest,
   UnrehostImagesResponse,
   StagedProductResponse,

@@ -138,11 +138,6 @@ describe("printingImagesRepo", () => {
     expect(await printingImagesRepo(db).rehostStatusBySet()).toHaveLength(1);
   });
 
-  it("restoreFromSources returns affected count", async () => {
-    const db = createMockDb({ numAffectedRows: 7n });
-    expect(await printingImagesRepo(db).restoreFromSources("test")).toBe(7);
-  });
-
   it("listAllRehosted returns rehosted images", async () => {
     const db = createMockDb([{ imageId: "pi-1", rehostedUrl: "https://cdn.example.com/img.jpg" }]);
     expect(await printingImagesRepo(db).listAllRehosted()).toHaveLength(1);

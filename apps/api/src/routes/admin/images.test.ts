@@ -46,9 +46,7 @@ const mockUnrehostImages = vi.mocked(unrehostImages);
 // Mock repos
 // ---------------------------------------------------------------------------
 
-const mockPrintingImages = {
-  restoreFromSources: vi.fn(),
-};
+const mockPrintingImages = {};
 
 const mockCandidateCards = {
   listCardsWithMissingImages: vi.fn(),
@@ -443,38 +441,5 @@ describe("GET /api/v1/missing-images", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual([]);
-  });
-});
-
-describe("POST /api/v1/restore-image-urls", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it("returns 200 with provider and updated count", async () => {
-    mockPrintingImages.restoreFromSources.mockResolvedValue(15);
-
-    const res = await app.request("/api/v1/restore-image-urls", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ provider: "tcgplayer" }),
-    });
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json).toEqual({ provider: "tcgplayer", updated: 15 });
-    expect(mockPrintingImages.restoreFromSources).toHaveBeenCalledWith("tcgplayer");
-  });
-
-  it("returns 0 updated when no images to restore", async () => {
-    mockPrintingImages.restoreFromSources.mockResolvedValue(0);
-
-    const res = await app.request("/api/v1/restore-image-urls", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ provider: "cardmarket" }),
-    });
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json).toEqual({ provider: "cardmarket", updated: 0 });
   });
 });
