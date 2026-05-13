@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +37,18 @@ export function EditCollectionDialog({
   );
   const updateCollection = useUpdateCollection();
 
+  // BaseUI's Dialog only fires onOpenChange for user-initiated changes
+  // (Esc / backdrop / close button), not when the parent toggles the
+  // controlled `open` prop. The dialog stays mounted across collection
+  // navigations, so useState seeds would otherwise stick to whichever
+  // collection was current when the component first mounted.
+  useEffect(() => {
+    if (open) {
+      setName(currentName);
+      setAvailableForDeckbuilding(currentAvailableForDeckbuilding);
+    }
+  }, [open, currentName, currentAvailableForDeckbuilding]);
+
   const handleSubmit = () => {
     const trimmed = name.trim();
     const updates: { name?: string; availableForDeckbuilding?: boolean } = {};
@@ -57,16 +69,7 @@ export function EditCollectionDialog({
   };
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(nextOpen) => {
-        if (nextOpen) {
-          setName(currentName);
-          setAvailableForDeckbuilding(currentAvailableForDeckbuilding);
-        }
-        onOpenChange(nextOpen);
-      }}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit collection</DialogTitle>
