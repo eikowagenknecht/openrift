@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-05-13
+
+- feat: In the deck builder's table view, Shift+clicking + adds up to the zone maximum and Shift+clicking - removes every copy of the card across zones, matching what those clicks already did in the grid view
+
 ## 2026-05-12
 
 - feat: The collection and deck-builder pages now support the table view — the existing grid/table toggle in the toolbar now switches between layouts on both, the same way it already did on the Cards page
