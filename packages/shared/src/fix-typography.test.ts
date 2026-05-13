@@ -175,4 +175,24 @@ describe("appendSetTotal", () => {
   it("handles art variant codes", () => {
     expect(appendSetTotal("OGN-079a", 298)).toBe("OGN-079a/298");
   });
+
+  it("does not append for rune codes", () => {
+    expect(appendSetTotal("SFD-R01", 221)).toBe("SFD-R01");
+  });
+
+  it("does not append for rune codes with art variant", () => {
+    expect(appendSetTotal("SFD-R01a", 221)).toBe("SFD-R01a");
+  });
+
+  it("does not append for rune codes with promo suffix", () => {
+    expect(appendSetTotal("UNL-R02b-P", 219)).toBe("UNL-R02b-P");
+  });
+
+  it("does not append for token codes", () => {
+    expect(appendSetTotal("SFD-T01", 221)).toBe("SFD-T01");
+  });
+
+  it("does not append for token codes with art variant", () => {
+    expect(appendSetTotal("SFD-T03b", 221)).toBe("SFD-T03b");
+  });
 });

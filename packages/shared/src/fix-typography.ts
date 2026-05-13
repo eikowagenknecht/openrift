@@ -55,13 +55,19 @@ export function fixTypography(text: string | null, options?: FixTypographyOption
  * Append `/{printedTotal}` to a public code if it doesn't already contain a slash.
  * E.g. `SFD-109` + `221` → `SFD-109/221`.
  *
- * @returns The public code with the set total appended, or unchanged if already present or total is unavailable.
+ * Runes (`SET-R##`) and tokens (`SET-T##`) are excluded — they aren't numbered
+ * against the set total, so a `/N` suffix would be wrong.
+ *
+ * @returns The public code with the set total appended, or unchanged if already present, total is unavailable, or the code is a rune/token.
  */
 export function appendSetTotal(
   publicCode: string,
   printedTotal: number | null | undefined,
 ): string {
   if (!printedTotal || publicCode.includes("/")) {
+    return publicCode;
+  }
+  if (/^[A-Z]+-[RT]\d/u.test(publicCode)) {
     return publicCode;
   }
   return `${publicCode}/${printedTotal}`;
