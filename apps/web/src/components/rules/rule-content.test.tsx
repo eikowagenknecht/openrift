@@ -304,4 +304,31 @@ describe("same-page anchor click handler", () => {
     expect(useRulesSearchStore.getState().resetSignal).toBe(0);
     target.remove();
   });
+
+  it("pushes a history entry (not replace) so browser back returns to origin", () => {
+    // Simulate the parent re-rendering after the search reset: when the store
+    // resets, the rule that was filtered out becomes available in the DOM.
+    const unsubscribe = useRulesSearchStore.subscribe((state, prev) => {
+      if (state.resetSignal !== prev.resetSignal) {
+        const target = document.createElement("div");
+        target.id = "rule-540";
+        target.scrollIntoView = vi.fn();
+        document.body.append(target);
+      }
+    });
+    const pushSpy = vi.spyOn(globalThis.history, "pushState");
+    const replaceSpy = vi.spyOn(globalThis.history, "replaceState");
+    useRulesSearchStore.getState().setQuery("trigger");
+
+    render(<RuleContent content="See *rule 540* for details." />);
+    fireEvent.click(screen.getByRole("link", { name: "rule 540" }));
+
+    expect(pushSpy).toHaveBeenCalledWith(null, "", "#rule-540");
+    expect(replaceSpy).not.toHaveBeenCalled();
+
+    unsubscribe();
+    pushSpy.mockRestore();
+    replaceSpy.mockRestore();
+    document.querySelector("#rule-540")?.remove();
+  });
 });

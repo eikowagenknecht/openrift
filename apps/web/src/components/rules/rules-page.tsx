@@ -384,7 +384,8 @@ function handleSamePageAnchorClick(event: MouseEvent<HTMLAnchorElement>, href: s
   }
   // Otherwise the rule is filtered out by an active search. Reset the search
   // synchronously so React commits the unfiltered list, then scroll into view
-  // and reflect the hash in the URL.
+  // and reflect the hash in the URL. Use pushState (not replaceState) so the
+  // browser back button returns the user to where they were reading.
   event.preventDefault();
   flushSync(() => {
     useRulesSearchStore.getState().reset();
@@ -392,7 +393,7 @@ function handleSamePageAnchorClick(event: MouseEvent<HTMLAnchorElement>, href: s
   const target = document.querySelector(targetSelector);
   if (target instanceof HTMLElement) {
     target.scrollIntoView({ block: "start" });
-    history.replaceState(null, "", href);
+    history.pushState(null, "", href);
   }
 }
 
