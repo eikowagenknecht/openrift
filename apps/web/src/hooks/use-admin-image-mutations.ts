@@ -267,8 +267,13 @@ export function useUploadPrintingImage(invalidates: Scope = defaultScope) {
       provider?: string;
       mode?: "main" | "additional";
     }) => {
-      const buffer = await file.arrayBuffer();
-      const fileBase64 = btoa(String.fromCodePoint(...new Uint8Array(buffer)));
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      let binary = "";
+      const CHUNK = 32_768;
+      for (let i = 0; i < bytes.length; i += CHUNK) {
+        binary += String.fromCodePoint(...bytes.subarray(i, i + CHUNK));
+      }
+      const fileBase64 = btoa(binary);
       return uploadPrintingImageFn({
         data: { printingId, fileName: file.name, fileType: file.type, fileBase64, provider, mode },
       });
