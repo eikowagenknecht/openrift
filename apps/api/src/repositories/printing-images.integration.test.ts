@@ -83,6 +83,8 @@ describe.skipIf(!ctx)("printingImagesRepo (integration)", () => {
       id: imageFileId,
       originalUrl: "https://example.com/test-img.jpg",
       rehostedUrl: "https://cdn.example.com/rehosted.jpg",
+      rotation: 0,
+      needsTrim: false,
     });
   });
 
