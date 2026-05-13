@@ -28,7 +28,12 @@ import {
   FilterToggleButton,
 } from "@/components/filters/collapsible-filter-panel";
 import { FilterPanelContent } from "@/components/filters/filter-panel-content";
-import { DisplayModeToggle, sortOptions } from "@/components/filters/options-bar";
+import {
+  DisplayModeToggle,
+  MobileFilterContent,
+  MobileOptionsDrawer,
+  sortOptions,
+} from "@/components/filters/options-bar";
 import { SearchBar } from "@/components/filters/search-bar";
 import { SortGroupControls } from "@/components/filters/sort-group-controls";
 import type { PageTocItem } from "@/components/layout/page-toc";
@@ -497,20 +502,22 @@ function PromosPage() {
                 totalCards={activePrintings.length}
                 filteredCount={matchedPrintings.length}
               />
-              <SortGroupControls
-                sortOptions={sortOptions}
-                sortBy={sortBy}
-                sortDir={sortDir}
-                onSortByChange={setSortBy}
-                onSortDirChange={setSortDir}
-                group={{
-                  options: GROUP_OPTIONS,
-                  value: grouping,
-                  dir: groupDir,
-                  onValueChange: (value) => setGroupBy(value as GroupByField),
-                  onDirChange: setGroupDir,
-                }}
-              />
+              <div className="hidden sm:flex">
+                <SortGroupControls
+                  sortOptions={sortOptions}
+                  sortBy={sortBy}
+                  sortDir={sortDir}
+                  onSortByChange={setSortBy}
+                  onSortDirChange={setSortDir}
+                  group={{
+                    options: GROUP_OPTIONS,
+                    value: grouping,
+                    dir: groupDir,
+                    onValueChange: (value) => setGroupBy(value as GroupByField),
+                    onDirChange: setGroupDir,
+                  }}
+                />
+              </div>
               <DisplayModeToggle />
               {isLoggedIn && (
                 <Button
@@ -524,7 +531,32 @@ function PromosPage() {
                   <PackageIcon className="size-4" />
                 </Button>
               )}
-              <FilterToggleButton className="@wide:hidden flex" />
+              <FilterToggleButton className="@wide:hidden hidden sm:flex" />
+              <MobileOptionsDrawer
+                className="sm:hidden"
+                doneLabel={hasActiveFilters ? `Show ${matchedPrintings.length} promos` : undefined}
+              >
+                <SortGroupControls
+                  compact
+                  sortOptions={sortOptions}
+                  sortBy={sortBy}
+                  sortDir={sortDir}
+                  onSortByChange={setSortBy}
+                  onSortDirChange={setSortDir}
+                  group={{
+                    options: GROUP_OPTIONS,
+                    value: grouping,
+                    dir: groupDir,
+                    onValueChange: (value) => setGroupBy(value as GroupByField),
+                    onDirChange: setGroupDir,
+                  }}
+                />
+                <MobileFilterContent
+                  availableFilters={availableFilters}
+                  setDisplayLabel={setDisplayLabel}
+                  hiddenSections={hiddenWithOwned}
+                />
+              </MobileOptionsDrawer>
             </div>
             <CollapsibleFilterPanel
               availableFilters={availableFilters}
