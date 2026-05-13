@@ -13,6 +13,8 @@ import { useDisplayStore } from "@/stores/display-store";
 export interface CardTableProps {
   showOwned: boolean;
   showAddControls: boolean;
+  /** Optional renderer for the actions cell; replaces the default +/- buttons. */
+  renderActions?: (printing: Printing, ownedCount: number | undefined) => ReactNode;
 }
 
 interface CardViewerProps {

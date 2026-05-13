@@ -9,6 +9,7 @@ import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-
 import { DeckAddStrip } from "@/components/deck/deck-add-strip";
 import { DeckCardDetailMenu } from "@/components/deck/deck-card-detail-menu";
 import { DeckOverview } from "@/components/deck/deck-overview";
+import { DeckTableActions } from "@/components/deck/deck-table-actions";
 import { ActiveFilters } from "@/components/filters/active-filters";
 import {
   CollapsibleFilterPanel,
@@ -310,21 +311,15 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     .filter((card) => card.zone === "runes")
     .reduce((sum, card) => sum + card.quantity, 0);
 
-  // Register table-row action handlers in the no-subscribe store so the
-  // virtualized CardTable can dispatch row clicks and +/- without taking
-  // these unstable closures as props. Mirrors card-browser.tsx's wiring; see
-  // card-row-actions-store.ts for the why. Re-register every render so rows
-  // pick up the freshest implementation. Shift-click on the +/- buttons
-  // forwards the modifier so the table matches the grid's add-max /
-  // remove-all behavior.
+  // Register the row-body click handler so the virtualized CardTable can
+  // dispatch row clicks without taking unstable closures as props. The +/-
+  // buttons in the actions cell come from the deck-specific renderActions
+  // slot below, which closes over deck state directly — no store needed for
+  // those.
   // oxlint-disable-next-line react-hooks/exhaustive-deps -- intentional: re-register every render
   useEffect(() => {
     useCardRowActionsStore.getState().setHandlers({
       onRowClick: handleCardClick,
-      onIncrement: (printing, modifiers) =>
-        handleQuickAdd(printing, { shiftKey: modifiers?.shift }),
-      onDecrement: (printing, _anchorEl, modifiers) =>
-        handleRemove(printing, { shiftKey: modifiers?.shift }),
     });
     return () => {
       useCardRowActionsStore.getState().setHandlers({});
@@ -489,6 +484,36 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
       table={{
         showOwned: true,
         showAddControls: true,
+        renderActions: (printing) => {
+          const cardId = printing.cardId;
+          const deckQty = deckQuantityByCard.get(cardId) ?? 0;
+          const isInActiveSingleZone =
+            isSingleCardZone &&
+            deckCards.some((card) => card.cardId === cardId && card.zone === activeZone);
+          return (
+            <DeckTableActions
+              printing={printing}
+              deckQuantity={deckQty}
+              maxReached={isMaxReached({ id: printing.id, printing })}
+              addLabel={
+                isSingleCardZone
+                  ? singleCardZoneOccupied && !isInActiveSingleZone
+                    ? "Switch"
+                    : "Choose"
+                  : undefined
+              }
+              removeLabel={isInActiveSingleZone ? "Remove" : undefined}
+              shiftHeld={shiftHeld}
+              remainingCount={
+                activeZone === "runes"
+                  ? Math.max(0, 12 - runeTotal)
+                  : 3 - (copyLimitTotalByCard.get(cardId) ?? 0)
+              }
+              onQuickAdd={handleQuickAdd}
+              onRemove={handleRemove}
+            />
+          );
+        },
       }}
     >
       {isMobile && (

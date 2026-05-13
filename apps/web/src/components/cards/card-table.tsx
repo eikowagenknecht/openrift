@@ -1,6 +1,7 @@
 import type { EnumOrders, GroupByField, Printing } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 import { SearchXIcon, WifiOffIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
@@ -160,6 +161,12 @@ function buildVirtualRows(groups: CardGroup[]): VRow[] {
 // add/remove only re-renders the affected row. Action handlers are read
 // from the registry via getState() at click time — no React subscription,
 // no re-render trigger when the parent re-registers.
+//
+// `renderActions` is a deliberate exception: it captures parent state
+// (e.g. shift-held / per-card deck quantities in the deck builder) and
+// must update with the parent. Threading it as a prop bails the memo on
+// every parent render — acceptable because the heavy per-row work
+// (useOwnedCountFor) is hook-driven and unaffected by identity churn.
 const DataRow = memo(function DataRow({
   printing,
   isSelected,
@@ -170,6 +177,7 @@ const DataRow = memo(function DataRow({
   superTypeLabels,
   rarityLabels,
   setNameBySlug,
+  renderActions,
 }: {
   printing: Printing;
   isSelected: boolean;
@@ -180,6 +188,7 @@ const DataRow = memo(function DataRow({
   superTypeLabels: Record<string, string>;
   rarityLabels: Record<string, string>;
   setNameBySlug: Map<string, string>;
+  renderActions?: (printing: Printing, ownedCount: number | undefined) => ReactNode;
 }) {
   const { data: ownedCount } = useOwnedCountFor(printing.id, showOwned || showAddControls);
   return (
@@ -201,6 +210,7 @@ const DataRow = memo(function DataRow({
       onDecrement={(p, anchor, modifiers) =>
         useCardRowActionsStore.getState().handlers.onDecrement?.(p, anchor, modifiers)
       }
+      renderActions={renderActions}
     />
   );
 });
@@ -216,6 +226,8 @@ interface CardTableProps {
   stickyOffset?: number;
   showOwned: boolean;
   showAddControls: boolean;
+  /** Optional renderer for the actions cell; replaces the default +/- buttons. */
+  renderActions?: (printing: Printing, ownedCount: number | undefined) => ReactNode;
 }
 
 let cachedScrollMargin = 0;
@@ -238,6 +250,7 @@ export function CardTable({
   stickyOffset = getHeaderHeight(),
   showOwned,
   showAddControls,
+  renderActions,
 }: CardTableProps) {
   const { orders, labels } = useEnumOrders();
 
@@ -408,6 +421,7 @@ export function CardTable({
                     superTypeLabels={labels.superTypes}
                     rarityLabels={labels.rarities}
                     setNameBySlug={setNameBySlug}
+                    renderActions={renderActions}
                   />
                 ))
               )}

@@ -1,6 +1,7 @@
 import type { Printing } from "@openrift/shared";
 import { imageUrl } from "@openrift/shared";
 import { LinkIcon, MinusIcon, PlusIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { FinishIcon } from "@/components/cards/finish-icon";
 import { Button } from "@/components/ui/button";
@@ -153,6 +154,8 @@ interface CardTableRowProps {
     anchorEl: HTMLElement,
     modifiers?: { shift?: boolean },
   ) => void;
+  /** Optional override for the actions cell. Replaces the default +/- buttons. */
+  renderActions?: (printing: Printing, ownedCount: number | undefined) => ReactNode;
 }
 
 /**
@@ -176,6 +179,7 @@ export function CardTableRow({
   onRowClick,
   onIncrement,
   onDecrement,
+  renderActions,
 }: CardTableRowProps) {
   const image = printing.images[0];
   const setName = setNameBySlug.get(printing.setSlug) ?? printing.setSlug;
@@ -243,32 +247,40 @@ export function CardTableRow({
       </div>
       {showAddControls ? (
         <div className="flex items-center justify-end gap-1.5 px-3">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-sm"
-            onClick={(event) => {
-              event.stopPropagation();
-              onDecrement?.(printing, event.currentTarget, { shift: event.shiftKey });
-            }}
-            disabled={!ownedCount}
-            aria-label="Remove one"
-          >
-            <MinusIcon className="size-3.5" />
-          </Button>
-          <span className="min-w-6 text-center font-medium tabular-nums">{ownedCount ?? 0}</span>
-          <Button
-            type="button"
-            variant="default"
-            size="icon-sm"
-            onClick={(event) => {
-              event.stopPropagation();
-              onIncrement?.(printing, { shift: event.shiftKey });
-            }}
-            aria-label="Add one"
-          >
-            <PlusIcon className="size-3.5" />
-          </Button>
+          {renderActions ? (
+            renderActions(printing, ownedCount)
+          ) : (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onDecrement?.(printing, event.currentTarget, { shift: event.shiftKey });
+                }}
+                disabled={!ownedCount}
+                aria-label="Remove one"
+              >
+                <MinusIcon className="size-3.5" />
+              </Button>
+              <span className="min-w-6 text-center font-medium tabular-nums">
+                {ownedCount ?? 0}
+              </span>
+              <Button
+                type="button"
+                variant="default"
+                size="icon-sm"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onIncrement?.(printing, { shift: event.shiftKey });
+                }}
+                aria-label="Add one"
+              >
+                <PlusIcon className="size-3.5" />
+              </Button>
+            </>
+          )}
         </div>
       ) : showOwned ? (
         <div className="px-3 text-right tabular-nums">
