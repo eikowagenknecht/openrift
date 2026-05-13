@@ -1,7 +1,6 @@
-import { describe, expect, it } from "bun:test";
-
 import type { SpanContext } from "@opentelemetry/api";
 import { context, trace } from "@opentelemetry/api";
+import { describe, expect, it } from "vitest";
 
 import { createLogger, traceContextMixin } from "./logger";
 

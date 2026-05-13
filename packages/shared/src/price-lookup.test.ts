@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 
 import { EMPTY_PRICE_LOOKUP, priceLookupFromMap } from "./price-lookup.js";
 import type { PriceMap } from "./types/api/pricing.js";

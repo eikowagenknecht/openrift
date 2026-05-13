@@ -2,12 +2,7 @@
 
 ## Overview
 
-The project uses two test runners:
-
-- **`bun test`** — for `packages/shared` and `apps/api` (zero-config, uses Bun's built-in Jest-compatible runner)
-- **Vitest** — for `apps/web` (integrates with Vite for alias resolution, `import.meta.env`, JSX, and jsdom)
-
-This split follows the standard pattern for Vite+Bun monorepos: bun's native runner for backend/pure logic, Vitest for frontend code that needs Vite plugin integration and browser-like environments.
+All workspaces use **Vitest** as the test runner. `apps/web` runs with `jsdom`; `apps/api` and `packages/shared` run in node. Always invoke tests via `bun run test` (which goes through Turbo) — never `bun test`, which runs Bun's built-in runner and bypasses each package's vitest config.
 
 ## Running Tests
 
@@ -16,12 +11,13 @@ This split follows the standard pattern for Vite+Bun monorepos: bun's native run
 bun run test
 
 # Individual workspaces
-bun test --cwd packages/shared       # bun test
-bun run --cwd apps/web test          # vitest run
+bun run --cwd packages/shared test    # vitest run
+bun run --cwd apps/web test           # vitest run
+bun run --cwd apps/api test           # vitest run
 
 # With coverage
-bun test --coverage --cwd packages/shared
-bun run --cwd apps/web -- vitest run --coverage
+bun run --cwd packages/shared test:coverage
+bun run --cwd apps/web test:coverage
 ```
 
 ## Writing Tests
@@ -57,26 +53,23 @@ function makeCard(overrides: Partial<Card> = {}): Card {
 
 For functions that take simple inputs (strings, numbers, `null`), just call them directly — no factory needed.
 
-### packages/shared (bun test)
+### Imports
 
-- Import from `"bun:test"`:
+All test files import from `"vitest"`:
 
-  ```ts
-  import { describe, expect, it } from "bun:test";
-  ```
+```ts
+import { describe, expect, it } from "vitest";
+```
 
-- No config file needed — `bun test` discovers `*.test.ts` files automatically.
+### Configs
 
-### apps/web (Vitest)
+Each workspace has its own `vitest.config.ts`:
 
-- Import from `"vitest"`:
+- `packages/shared/vitest.config.ts` — node environment, no aliases.
+- `apps/api/vitest.config.ts` — node environment, sequential pool (`forks`, `fileParallelism: false`), loads `DATABASE_URL` from the root `.env` so integration tests can find it.
+- `apps/web/vitest.config.ts` — `jsdom` environment, `@/` → `src/` alias, React SWC plugin via Vite.
 
-  ```ts
-  import { describe, expect, it } from "vitest";
-  ```
-
-- Config lives in `apps/web/vitest.config.ts`. The `@/` alias and `jsdom` environment are preconfigured.
-- Use `vi.mock()` when the module under test imports something that has side effects or heavy dependencies (React components, DOM APIs, browser globals). If a utility only imports plain constants or types from such a module, mock just that export to avoid pulling in the entire dependency tree.
+Use `vi.mock()` when the module under test imports something with side effects or heavy dependencies (React components, DOM APIs, browser globals). If a utility only imports plain constants or types from such a module, mock just that export to avoid pulling in the entire dependency tree.
 
 ## Integration Tests
 
@@ -135,16 +128,15 @@ const { db } = await import("./db.js");
 
 ## Coverage
 
-Both runners print a summary table to the terminal with `--coverage`. If file-based reports are needed, they write to `coverage/` (gitignored).
+Vitest prints a summary table to the terminal with `--coverage`. File-based reports are written to `coverage/` (gitignored). The repo-level `test:coverage` script merges per-package `lcov.info` files into `coverage/lcov.info` at the repo root.
 
 ```bash
-# Terminal summary only
-bun test --coverage --cwd packages/shared
-bun run --cwd apps/web -- vitest run --coverage
+# Per-package
+bun run --cwd packages/shared test:coverage
+bun run --cwd apps/web test:coverage
 
-# Write lcov files to coverage/
-bun test --coverage --coverage-reporter=lcov --cwd packages/shared
-bun run --cwd apps/web -- vitest run --coverage --coverage.reporter=lcov
+# Merged across the monorepo
+bun run test:coverage
 ```
 
 ## E2E Tests (Playwright)

@@ -1,12 +1,12 @@
+/* oxlint-disable import/no-nodejs-modules -- node-only test reads a file from disk */
 /**
  * Asserts that `generated/card.schema.json` is in sync with the Zod schema.
  * Run `bun run gen:card-schema` to regenerate if this fails.
  */
-/* oxlint-disable import/no-nodejs-modules -- node-only test reads a file from disk */
-import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { contributionFileSchema } from "./contribute-schema.js";
