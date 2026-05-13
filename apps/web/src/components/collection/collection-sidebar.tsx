@@ -92,7 +92,7 @@ export function CollectionSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               isActive={currentPath === "/collections/" && !collectionId}
-              render={<Link to="/collections" />}
+              render={<Link to="/collections" search={(prev) => prev} />}
             >
               <LayersIcon />
               <span className="flex-1">All Cards</span>
@@ -119,7 +119,11 @@ export function CollectionSidebar() {
                   <SidebarMenuButton
                     isActive={collectionId === col.id}
                     render={
-                      <Link to="/collections/$collectionId" params={{ collectionId: col.id }} />
+                      <Link
+                        to="/collections/$collectionId"
+                        params={{ collectionId: col.id }}
+                        search={(prev) => prev}
+                      />
                     }
                   >
                     {col.isInbox ? <InboxIcon /> : <BookOpenIcon />}

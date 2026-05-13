@@ -6,6 +6,7 @@
 - feat: The deck-builder's table view now matches the grid: an in-deck count is shown next to each card, Shift+click on + or - previews the bulk amount (e.g. +3 or -2) and performs add-to-max / remove-all when clicked, the legend and champion rows show Choose / Switch / Remove labels, and the + button is disabled once the zone is full
 - feat: You can now drag a champion in and out of the chosen-champion slot, including dragging a champion from the main deck (or sideboard or overflow) onto the slot to replace whoever is in it
 - feat: On phones and tablets, the rules page now has a Contents button next to the search bar that opens the table of contents in a bottom sheet
+- fix: Switching between collections in the sidebar now keeps your active filters, instead of clearing them every time you change collection
 - fix: Rules pages no longer show rules out of order on versions that span multiple updates (e.g. rule 300 appearing before 184.5)
 - fix: After tapping a rule cross-reference on the rules page, the browser back button now returns you to where you were reading
 - fix: The Cards page no longer briefly flashes a skeleton and remounts each time you change a filter, slider, sort, or type in the search box, so typing in the search field on slow connections no longer drops focus mid-word
