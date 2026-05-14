@@ -603,6 +603,21 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     const hasAmbiguousRemoval = dataView === "cards" && (ownedVariantIds?.length ?? 0) > 1;
     const onUndoAdd =
       hasAmbiguousRemoval && handleOpenVariants ? handleOpenVariants : handleUndoAdd;
+    // Wider scope for the "(M)" hint next to the in-collection count: per-printing
+    // globally in printings view; sum across catalog siblings (any owned variant
+    // in any collection) in cards view.
+    let totalCount: number | undefined;
+    if (ownedCountByPrinting) {
+      if (dataView === "cards") {
+        let sum = 0;
+        for (const sibling of catalogSiblings ?? []) {
+          sum += ownedCountByPrinting[sibling.id] ?? 0;
+        }
+        totalCount = sum;
+      } else {
+        totalCount = ownedCountByPrinting[item.printing.id] ?? 0;
+      }
+    }
     const showAddStrip = mode === "browse" && handleQuickAdd;
     const aboveCard = showAddStrip ? (
       <CollectionAddStrip
@@ -620,6 +635,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         cardName={item.printing.card.name}
         shortCode={item.printing.shortCode}
         siblings={dataView === "cards" ? printingsByCardId.get(item.printing.cardId) : undefined}
+        totalCount={totalCount}
       />
     );
 
@@ -956,10 +972,18 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           showOwned: true,
           showAddControls: mode !== "select" && Boolean(handleQuickAdd),
           view: dataView,
-          // In add mode the items are catalog representative printings (one per cardId);
-          // the catalog map carries all sibling variants. In browse mode this is unused
-          // because useSiblingTotals gates on showAddControls.
+          // The catalog map carries every sibling variant (owned or not). On a
+          // collection page in cards view the table sums across siblings so the
+          // "owned" column matches the grid's per-card aggregate.
           printingsByCardId: catalogPrintingsByCardId,
+          // Scope owned counts to this collection; the global total appears as
+          // `(M)` next to the in-collection count when the two differ.
+          collectionId,
+          // showAddControls is also true in browse mode here (the +/- buttons
+          // stay visible); pass mode explicitly so the count derivation can
+          // distinguish "show variant aggregate" (add mode) from "show global
+          // across collections" (browse/select).
+          inAddMode: isAddMode,
         }}
       >
         {/* Floating action bar (select mode) */}

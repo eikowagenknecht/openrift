@@ -30,8 +30,13 @@ vi.mock("@/lib/server-fns/middleware", () => ({
   withCookies: () => {},
 }));
 
-const { aggregateByVariant, useOwnedCountFor, useOwnedCountsForPrintings } =
-  await import("./use-owned-count");
+const {
+  aggregateByVariant,
+  aggregateScopedCount,
+  aggregateScopedTotals,
+  useOwnedCountFor,
+  useOwnedCountsForPrintings,
+} = await import("./use-owned-count");
 
 const v1: OwnedBreakdownVariant = { id: "p1", shortCode: "OGN-001", finish: "normal" as Finish };
 const v2: OwnedBreakdownVariant = { id: "p2", shortCode: "OGN-001p", finish: "foil" as Finish };
@@ -112,6 +117,66 @@ describe("aggregateByVariant", () => {
 
   it("returns an empty array when no variants are provided", () => {
     expect(aggregateByVariant([copy("p1", "c-import")], [], NAME_MAP)).toEqual([]);
+  });
+});
+
+describe("aggregateScopedCount", () => {
+  it("returns the global count for both fields when no collectionId is given", () => {
+    const copies = [copy("p1", "c-a"), copy("p1", "c-b"), copy("p1", "c-b")];
+    expect(aggregateScopedCount(copies)).toEqual({ count: 3, totalCount: 3 });
+  });
+
+  it("restricts count to the requested collection while totalCount stays global", () => {
+    const copies = [copy("p1", "c-a"), copy("p1", "c-b"), copy("p1", "c-b")];
+    expect(aggregateScopedCount(copies, "c-b")).toEqual({ count: 2, totalCount: 3 });
+  });
+
+  it("returns count=0 when the requested collection has no copies", () => {
+    const copies = [copy("p1", "c-a"), copy("p1", "c-a")];
+    expect(aggregateScopedCount(copies, "c-elsewhere")).toEqual({ count: 0, totalCount: 2 });
+  });
+});
+
+describe("aggregateScopedTotals", () => {
+  const printingIds = ["p1", "p2"] as const;
+
+  it("returns identical scoped and global totals when no collectionId is given", () => {
+    const copies = [copy("p1", "c-a"), copy("p2", "c-b"), copy("p2", "c-b")];
+    expect(aggregateScopedTotals(copies, printingIds)).toEqual({
+      totals: { p1: 1, p2: 2 },
+      total: 3,
+      allTotals: { p1: 1, p2: 2 },
+      allTotal: 3,
+    });
+  });
+
+  it("restricts per-printing totals to the requested collection while allTotals stay global", () => {
+    const copies = [
+      copy("p1", "c-a"),
+      copy("p1", "c-b"),
+      copy("p2", "c-a"),
+      copy("p2", "c-a"),
+      copy("p2", "c-b"),
+    ];
+    expect(aggregateScopedTotals(copies, printingIds, "c-a")).toEqual({
+      totals: { p1: 1, p2: 2 },
+      total: 3,
+      allTotals: { p1: 2, p2: 3 },
+      allTotal: 5,
+    });
+  });
+
+  it("ignores copies whose printingId is not in the requested set when summing total/allTotal", () => {
+    const copies = [
+      copy("p1", "c-a"),
+      copy("p2", "c-a"),
+      copy("p-other", "c-a"),
+      copy("p-other", "c-b"),
+    ];
+    const result = aggregateScopedTotals(copies, printingIds, "c-a");
+    expect(result.total).toBe(2);
+    expect(result.allTotal).toBe(2);
+    expect(result.allTotals["p-other"]).toBe(2);
   });
 });
 

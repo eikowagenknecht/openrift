@@ -11,6 +11,8 @@ interface OwnedCountStripProps {
   shortCode?: string;
   /** All sibling printings of the same card (cards view), passed to the popover for per-variant breakdown. */
   siblings?: readonly OwnedBreakdownVariant[];
+  /** Wider-scope total. On a collection page this is the global figure; when it differs from `count`, the strip renders `×N (M)`. */
+  totalCount?: number;
 }
 
 /**
@@ -26,7 +28,9 @@ export function OwnedCountStrip({
   cardName,
   shortCode,
   siblings,
+  totalCount,
 }: OwnedCountStripProps) {
+  const showTotal = totalCount !== undefined && totalCount !== count;
   return (
     // ⚠ h-5 + mb-1 = 24px is mirrored as ADD_STRIP_HEIGHT in card-grid-constants — update both together
     <div className="relative z-30 mb-1 flex h-5 items-center justify-center">
@@ -37,12 +41,14 @@ export function OwnedCountStrip({
           shortCode={shortCode}
           count={count}
           siblings={siblings}
+          totalCount={totalCount}
           align="center"
         />
       ) : (
         <span className={COUNT_PILL_BASE}>
           <PackageIcon className="size-3" />
           <span>&times;{count}</span>
+          {showTotal && <span className="opacity-60"> ({totalCount})</span>}
         </span>
       )}
     </div>

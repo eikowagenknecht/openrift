@@ -21,6 +21,10 @@ export interface CardTableProps {
   view?: "cards" | "printings";
   /** Lookup of all sibling printings per cardId. Used in add mode + cards view to render `N (M)` like the grid. */
   printingsByCardId?: Map<string, Printing[]>;
+  /** When set, the owned count column reports copies in this collection; the global total surfaces as `(M)` when it differs. */
+  collectionId?: string;
+  /** True when the page is in add mode. Defaults to `showAddControls` (true on `/cards` only when adding). Set explicitly from `/collections`, where the +/- buttons are visible in browse mode too. */
+  inAddMode?: boolean;
 }
 
 interface CardViewerProps {

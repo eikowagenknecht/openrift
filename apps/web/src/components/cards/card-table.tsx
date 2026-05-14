@@ -179,6 +179,8 @@ const DataRow = memo(function DataRow({
   setNameBySlug,
   renderActions,
   siblingIdsKey,
+  collectionId,
+  inAddMode,
 }: {
   printing: Printing;
   isSelected: boolean;
@@ -192,16 +194,41 @@ const DataRow = memo(function DataRow({
   renderActions?: (printing: Printing, ownedCount: number | undefined) => ReactNode;
   /** Comma-joined sibling printing IDs (cards view). When set, the row computes an aggregate across siblings to mirror the grid's `×N (M)` strip. */
   siblingIdsKey?: string;
+  /** When set, the primary owned count is restricted to this collection; the global total surfaces as `(M)` when it differs. */
+  collectionId?: string;
+  /** True when the page is in add mode. Keeps the grid's per-printing + variant-aggregate display rather than widening to cross-collection. */
+  inAddMode: boolean;
 }) {
   const enabled = showOwned || showAddControls;
   const hasSiblings = siblingIdsKey !== undefined;
   // Two hooks instead of branching — calling rules require unconditional hook order.
   // The disabled one short-circuits inside the hook (returns undefined data).
-  const { data: singleCount } = useOwnedCountFor(printing.id, enabled && !hasSiblings);
+  const { data: single } = useOwnedCountFor(printing.id, enabled && !hasSiblings, collectionId);
   const siblingIds = hasSiblings ? siblingIdsKey.split(",") : EMPTY_SIBLING_IDS;
-  const { data: siblingCounts } = useOwnedCountsForPrintings(siblingIds, enabled && hasSiblings);
-  const ownedCount = hasSiblings ? siblingCounts?.totals[printing.id] : singleCount;
-  const totalOwnedCount = hasSiblings ? siblingCounts?.total : undefined;
+  const { data: siblingCounts } = useOwnedCountsForPrintings(
+    siblingIds,
+    enabled && hasSiblings,
+    collectionId,
+  );
+  // Add mode keeps its existing "primary = this variant, (M) = sibling
+  // aggregate in scope" pattern (matches the grid's CollectionAddStrip on
+  // both pages). Browse/select on a collection page widens the scope axis
+  // instead: primary = in-collection (card-aggregate in cards view), `(M)` =
+  // the same number across every collection.
+  let ownedCount: number | undefined;
+  let totalOwnedCount: number | undefined;
+  if (hasSiblings) {
+    if (inAddMode) {
+      ownedCount = siblingCounts?.totals[printing.id];
+      totalOwnedCount = siblingCounts?.total;
+    } else {
+      ownedCount = siblingCounts?.total;
+      totalOwnedCount = siblingCounts?.allTotal;
+    }
+  } else {
+    ownedCount = single?.count;
+    totalOwnedCount = !inAddMode && collectionId !== undefined ? single?.totalCount : undefined;
+  }
   return (
     <CardTableRow
       printing={printing}
@@ -248,6 +275,10 @@ interface CardTableProps {
   view?: "cards" | "printings";
   /** Lookup of all sibling printings per cardId. Used in add mode + cards view to render `N (M)` like the grid. */
   printingsByCardId?: Map<string, Printing[]>;
+  /** When set, the owned count column reports copies in this collection; the global total surfaces as `(M)` when it differs. */
+  collectionId?: string;
+  /** True when the page is in add mode. Defaults to `showAddControls`. Threaded separately because on `/collections` browse mode also renders the +/- buttons. */
+  inAddMode?: boolean;
 }
 
 let cachedScrollMargin = 0;
@@ -274,10 +305,17 @@ export function CardTable({
   actionsLabel,
   view,
   printingsByCardId,
+  collectionId,
+  inAddMode = showAddControls,
 }: CardTableProps) {
-  // Only enabled in add mode + cards view, where the grid shows `N (M)` and we want
-  // the table to match. Browse-mode unification is a separate concern.
-  const useSiblingTotals = showAddControls && view === "cards" && printingsByCardId !== undefined;
+  // Enabled when the row needs a card-aggregate count rather than a per-printing
+  // one: add mode on /cards (catalog matches the grid's `N (M)` strip), and any
+  // mode on a collection page in cards view (so the in-collection count mirrors
+  // the grid's per-card aggregate instead of leaking the displayed printing only).
+  const useSiblingTotals =
+    view === "cards" &&
+    printingsByCardId !== undefined &&
+    (showAddControls || collectionId !== undefined);
   const { orders, labels } = useEnumOrders();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -460,6 +498,8 @@ export function CardTable({
                       setNameBySlug={setNameBySlug}
                       renderActions={renderActions}
                       siblingIdsKey={siblingIdsKey}
+                      collectionId={collectionId}
+                      inAddMode={inAddMode}
                     />
                   );
                 })

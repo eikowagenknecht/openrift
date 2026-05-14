@@ -26,6 +26,8 @@ interface OwnedCollectionsPopoverProps {
   count?: number;
   /** All sibling variants of the same card (cards view). When provided with >1 entries, the breakdown groups by variant. */
   siblings?: readonly OwnedBreakdownVariant[];
+  /** Wider-scope total (e.g. global across collections). When set and different from `count`, the trigger renders `×N (M)`. */
+  totalCount?: number;
   /** Horizontal alignment of the popover relative to the trigger. */
   align?: PopoverPrimitive.Positioner.Props["align"];
 }
@@ -42,12 +44,14 @@ export function OwnedCollectionsPopover({
   shortCode,
   count,
   siblings,
+  totalCount,
   align = "end",
 }: OwnedCollectionsPopoverProps) {
   const { data: session } = useSession();
   const isAuthenticated = Boolean(session?.user);
   const { data: ownedCountByPrinting } = useOwnedCount(isAuthenticated);
   const totalOwned = count ?? ownedCountByPrinting?.[printingId] ?? 0;
+  const showTotal = totalCount !== undefined && totalCount !== totalOwned;
   const groupByVariant = Boolean(siblings && siblings.length > 1);
   const { data: singleBreakdown } = useOwnedCollections(
     printingId,
@@ -73,6 +77,7 @@ export function OwnedCollectionsPopover({
       >
         <PackageIcon className="size-3" />
         <span>&times;{totalOwned}</span>
+        {showTotal && <span className="opacity-60"> ({totalCount})</span>}
       </PopoverTrigger>
       <PopoverContent side="bottom" align={align} className="w-60 p-0">
         <div className="px-3 pt-2.5 pb-1">

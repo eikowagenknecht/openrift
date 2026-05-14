@@ -14,6 +14,65 @@ function aggregateTotals(copies: readonly CopyResponse[]): Record<string, number
   return totals;
 }
 
+/**
+ * Reduce a list of copies for a single printing into the displayed count
+ * (in-collection when `collectionId` is set, otherwise global) plus the global
+ * figure.
+ * @returns `{ count, totalCount }`. Both equal when no `collectionId` is supplied.
+ */
+export function aggregateScopedCount(
+  copies: readonly CopyResponse[],
+  collectionId?: string,
+): { count: number; totalCount: number } {
+  const totalCount = copies.length;
+  if (collectionId === undefined) {
+    return { count: totalCount, totalCount };
+  }
+  let count = 0;
+  for (const copy of copies) {
+    if (copy.collectionId === collectionId) {
+      count += 1;
+    }
+  }
+  return { count, totalCount };
+}
+
+/**
+ * Reduce a list of copies for a sibling set into per-printing + summed
+ * totals, both in-scope (limited to `collectionId` when set) and global.
+ * @returns Scoped + global per-printing maps and matching summed totals.
+ */
+export function aggregateScopedTotals(
+  copies: readonly CopyResponse[],
+  printingIds: readonly string[],
+  collectionId?: string,
+): {
+  totals: Record<string, number>;
+  total: number;
+  allTotals: Record<string, number>;
+  allTotal: number;
+} {
+  const allTotals = aggregateTotals(copies);
+  let allTotal = 0;
+  for (const id of printingIds) {
+    allTotal += allTotals[id] ?? 0;
+  }
+  if (collectionId === undefined) {
+    return { totals: allTotals, total: allTotal, allTotals, allTotal };
+  }
+  const totals: Record<string, number> = {};
+  for (const copy of copies) {
+    if (copy.collectionId === collectionId) {
+      totals[copy.printingId] = (totals[copy.printingId] ?? 0) + 1;
+    }
+  }
+  let total = 0;
+  for (const id of printingIds) {
+    total += totals[id] ?? 0;
+  }
+  return { totals, total, allTotals, allTotal };
+}
+
 export function useOwnedCount(enabled: boolean): {
   data: Record<string, number> | undefined;
 } {
@@ -42,12 +101,17 @@ export function useOwnedCount(enabled: boolean): {
  * adding or removing a copy only re-renders the row that owns that printing.
  * The map-wide variant {@link useOwnedCount} above re-fires every consumer on
  * any copy mutation.
- * @returns The count, or undefined when disabled or still loading.
+ *
+ * When `collectionId` is provided, `count` is restricted to that collection
+ * and `totalCount` reports the global figure for the same printing. Without
+ * a `collectionId`, both numbers are the global count.
+ * @returns The scoped + global counts, or undefined when disabled or still loading.
  */
 export function useOwnedCountFor(
   printingId: string,
   enabled: boolean,
-): { data: number | undefined } {
+  collectionId?: string,
+): { data: { count: number; totalCount: number } | undefined } {
   const copiesCollection = useCopiesCollection();
 
   const { data: copies } = useLiveQuery(
@@ -61,7 +125,7 @@ export function useOwnedCountFor(
   if (!enabled || !copies) {
     return { data: undefined };
   }
-  return { data: copies.length };
+  return { data: aggregateScopedCount(copies, collectionId) };
 }
 
 /**
@@ -72,13 +136,27 @@ export function useOwnedCountFor(
  * popover" branch). Same per-row subscription rationale as
  * {@link useOwnedCountFor} — only re-fires when one of the listed siblings'
  * counts actually changes.
- * @returns The per-printing totals and summed total, or undefined when
+ *
+ * When `collectionId` is provided, `totals`/`total` are restricted to that
+ * collection and `allTotals`/`allTotal` report the global figures across all
+ * collections. Without a `collectionId`, both pairs are identical.
+ * @returns The scoped + global per-printing totals and sums, or undefined when
  *   disabled or still loading.
  */
 export function useOwnedCountsForPrintings(
   printingIds: readonly string[],
   enabled: boolean,
-): { data: { totals: Record<string, number>; total: number } | undefined } {
+  collectionId?: string,
+): {
+  data:
+    | {
+        totals: Record<string, number>;
+        total: number;
+        allTotals: Record<string, number>;
+        allTotal: number;
+      }
+    | undefined;
+} {
   const copiesCollection = useCopiesCollection();
 
   // Identity-stable key so the live query doesn't tear down on unrelated
@@ -98,12 +176,7 @@ export function useOwnedCountsForPrintings(
   if (!enabled || !copies) {
     return { data: undefined };
   }
-  const totals = aggregateTotals(copies);
-  let total = 0;
-  for (const id of printingIds) {
-    total += totals[id] ?? 0;
-  }
-  return { data: { totals, total } };
+  return { data: aggregateScopedTotals(copies, printingIds, collectionId) };
 }
 
 /**
