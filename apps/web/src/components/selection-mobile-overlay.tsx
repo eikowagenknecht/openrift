@@ -10,7 +10,9 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { getDomainTintStyle } from "@/lib/domain";
 import { useSelectionStore } from "@/stores/selection-store";
 
 const cardDetailImport = import("@/components/cards/card-detail");
@@ -46,6 +48,7 @@ export function SelectionMobileOverlay({
   const closeDetail = useSelectionStore((s) => s.closeDetail);
   const navigateToIndex = useSelectionStore((s) => s.navigateToIndex);
   const isMobile = useIsMobile();
+  const domainColors = useDomainColors();
 
   useEffect(() => {
     if (!detailOpen || !isMobile) {
@@ -98,7 +101,10 @@ export function SelectionMobileOverlay({
         }
       }}
     >
-      <DrawerContent className="data-[swipe-direction=down]:mt-0 data-[swipe-direction=down]:h-full data-[swipe-direction=down]:max-h-screen data-[swipe-direction=down]:rounded-none data-[swipe-direction=down]:border-t-0">
+      <DrawerContent
+        className="data-[swipe-direction=down]:mt-0 data-[swipe-direction=down]:h-full data-[swipe-direction=down]:max-h-screen data-[swipe-direction=down]:rounded-none data-[swipe-direction=down]:border-t-0"
+        style={getDomainTintStyle(selectedCard.card.domains, domainColors)}
+      >
         <DrawerHeader className="sr-only">
           <DrawerTitle>Card details</DrawerTitle>
           <DrawerDescription>Details for the selected card</DrawerDescription>
