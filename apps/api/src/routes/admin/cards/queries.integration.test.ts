@@ -176,7 +176,6 @@ if (ctx) {
     .values({
       printingId: printing1Id,
       face: "front",
-      provider: "csq-test",
       imageFileId: csqImageFile.id,
       isActive: true,
     })

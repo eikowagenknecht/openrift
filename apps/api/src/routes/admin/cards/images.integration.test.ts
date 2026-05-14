@@ -280,8 +280,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
       expect(active!.originalUrl).toBe("https://example.com/csi-test.png");
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
-      expect(active!.provider).toBe("csi-source");
-      // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
       mainImageId = active!.id;
     });
 
@@ -343,9 +341,10 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       // Verify additional image was created as inactive
       const images = await db
         .selectFrom("printingImages")
-        .selectAll()
-        .where("printingId", "=", printingId)
-        .where("provider", "=", "csi-alt-source")
+        .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
+        .selectAll("printingImages")
+        .where("printingImages.printingId", "=", printingId)
+        .where("ci.originalUrl", "=", "https://example.com/csi-test-alt.png")
         .execute();
       expect(images.length).toBe(1);
       expect(images[0].isActive).toBe(false);
@@ -613,7 +612,6 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .values({
           printingId,
           face: "front",
-          provider: "csi-no-url-source",
           imageFileId: noUrlCardImage.id,
           isActive: false,
         })

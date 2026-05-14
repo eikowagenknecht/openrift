@@ -1675,7 +1675,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .values({
           printingId: disposablePrinting.id,
           face: "front",
-          provider: "test",
           imageFileId: cardImage.id,
           isActive: true,
         })
