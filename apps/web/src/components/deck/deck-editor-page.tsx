@@ -1,4 +1,4 @@
-import type { DeckZone } from "@openrift/shared";
+import type { DeckFormat, DeckZone } from "@openrift/shared";
 import { imageUrl, WellKnown } from "@openrift/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -8,6 +8,7 @@ import {
   LinkIcon,
   PencilIcon,
   PrinterIcon,
+  RefreshCwIcon,
   Share2Icon,
   UploadIcon,
   XIcon,
@@ -54,7 +55,7 @@ import { useFilterActions } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { useDeckCards } from "@/hooks/use-deck-builder";
 import { useDeckOwnership } from "@/hooks/use-deck-ownership";
-import { useDeckDetail } from "@/hooks/use-decks";
+import { useDeckDetail, useUpdateDeck } from "@/hooks/use-decks";
 import { useDeckBuildingCounts } from "@/hooks/use-owned-count";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useRequiredUserId, useSession } from "@/lib/auth-session";
@@ -126,6 +127,14 @@ function DeckEditorContent({
   const [proxyOpen, setProxyOpen] = useState(false);
   const [missingOpen, setMissingOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const updateDeck = useUpdateDeck();
+  const handleFormatToggle = () => {
+    const newFormat: DeckFormat =
+      data.deck.format === WellKnown.deckFormat.CONSTRUCTED
+        ? WellKnown.deckFormat.FREEFORM
+        : WellKnown.deckFormat.CONSTRUCTED;
+    updateDeck.mutate({ deckId, format: newFormat });
+  };
 
   // Ownership data — split available vs locked so the deck builder respects
   // each collection's availableForDeckbuilding flag.
@@ -361,6 +370,12 @@ function DeckEditorContent({
                   >
                     <UploadIcon className="size-4" />
                     Import &amp; replace cards…
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleFormatToggle}>
+                    <RefreshCwIcon className="size-4" />
+                    {data.deck.format === WellKnown.deckFormat.CONSTRUCTED
+                      ? "Change to freeform"
+                      : "Change to constructed"}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setShareOpen(true)}>
                     <LinkIcon className="size-4" />

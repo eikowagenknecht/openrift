@@ -160,9 +160,12 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   } = useFilterValues();
   const { setSearch } = useFilterActions();
   const { addCard, removeCard, setLegend, setQuantity } = useDeckBuilderActions(deckId);
+  const { data: deckDetail } = useDeckDetail(deckId);
+  const isFreeform = deckDetail.deck.format === "freeform";
   // Wrapper only renders this component when activeZone is set
   const activeZone = useDeckBuilderUiStore((state) => state.activeZone) as DeckZone;
-  const isSingleCardZone = activeZone === "legend" || activeZone === "champion";
+  // Single-card zones only apply in constructed — freeform legend/champion are multi-card.
+  const isSingleCardZone = !isFreeform && (activeZone === "legend" || activeZone === "champion");
 
   // Track Shift key for "add max" visual hint
   const [shiftHeld, setShiftHeld] = useState(false);
@@ -255,14 +258,16 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   const handleQuickAdd = (printing: Printing, event?: { shiftKey?: boolean }) => {
     const builderCard = catalogCardToDeckBuilderCard(printing.cardId, printing.card);
 
-    if (activeZone === "legend") {
+    if (activeZone === "legend" && !isFreeform) {
       setLegend(builderCard, buildRunesByDomain(allPrintings));
     } else {
-      // Shift+click adds up to the zone maximum in one action
+      // Shift+click adds up to the zone maximum (or +3 in freeform where there's no max).
       const count = event?.shiftKey
-        ? activeZone === "runes"
-          ? Math.max(0, 12 - runeTotal)
-          : 3
+        ? isFreeform
+          ? 3
+          : activeZone === "runes"
+            ? Math.max(0, 12 - runeTotal)
+            : 3
         : undefined;
       addCard(builderCard, activeZone, count);
     }
@@ -327,6 +332,9 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   });
 
   const isMaxReached = (item: CardViewerItem): boolean => {
+    if (isFreeform) {
+      return false;
+    }
     const cardId = item.printing.cardId;
     if (activeZone === "legend" || activeZone === "champion") {
       return deckCards.some((card) => card.cardId === cardId && card.zone === activeZone);
@@ -396,9 +404,11 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
             removeLabel={isInActiveSingleZone ? "Remove" : undefined}
             shiftHeld={shiftHeld}
             remainingCount={
-              activeZone === "runes"
-                ? Math.max(0, 12 - runeTotal)
-                : 3 - (copyLimitTotalByCard.get(cardId) ?? 0)
+              isFreeform
+                ? undefined
+                : activeZone === "runes"
+                  ? Math.max(0, 12 - runeTotal)
+                  : 3 - (copyLimitTotalByCard.get(cardId) ?? 0)
             }
             onQuickAdd={handleQuickAdd}
             onRemove={handleRemove}

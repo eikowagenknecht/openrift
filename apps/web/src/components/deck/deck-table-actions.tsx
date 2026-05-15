@@ -12,7 +12,8 @@ interface DeckTableActionsProps {
   addLabel?: string;
   removeLabel?: string;
   shiftHeld: boolean;
-  remainingCount: number;
+  /** Shift+click adds up to this many; undefined means no cap (freeform). */
+  remainingCount?: number;
   onQuickAdd: (printing: Printing, event: { shiftKey?: boolean }) => void;
   onRemove: (printing: Printing, event: { shiftKey?: boolean }) => void;
 }
@@ -35,7 +36,8 @@ export function DeckTableActions({
   onQuickAdd,
   onRemove,
 }: DeckTableActionsProps) {
-  const showBulkAdd = shiftHeld && !addLabel && remainingCount > 1 && !maxReached;
+  const showBulkAdd =
+    shiftHeld && !addLabel && remainingCount !== undefined && remainingCount > 1 && !maxReached;
   const showBulkRemove = shiftHeld && deckQuantity > 1;
 
   // Single-card zone (legend / champion) with a labeled remove: show only the

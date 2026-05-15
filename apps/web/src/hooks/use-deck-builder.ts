@@ -3,6 +3,7 @@ import { validateDeck } from "@openrift/shared";
 import { useLiveQuery } from "@tanstack/react-db";
 import type { Collection } from "@tanstack/react-db";
 
+import { useDeckDetail } from "@/hooks/use-decks";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { deckCardKey, isCardAllowedInZone } from "@/lib/deck-builder-card";
 import { useDeckDraftCollection } from "@/lib/deck-builder-collection";
@@ -164,20 +165,44 @@ export function canAddRune(card: DeckBuilderCard, deckCards: DeckBuilderCard[]):
 
 // ── Action implementations ──────────────────────────────────────────────────
 
+function incrementOrInsert(
+  collection: DeckCollection,
+  card: DeckBuilderCard,
+  zone: DeckZone,
+  preferredPrintingId: string | null,
+  addQty: number,
+): void {
+  const key = deckCardKey(card.cardId, zone, preferredPrintingId);
+  const existing = collection.get(key);
+  if (existing) {
+    collection.update(key, (draft) => {
+      draft.quantity += addQty;
+    });
+  } else {
+    collection.insert({ ...card, zone, quantity: addQty, preferredPrintingId });
+  }
+}
+
 export function addCardAction(
   collection: DeckCollection,
   card: DeckBuilderCard,
   zone: DeckZone,
   count: number | undefined,
   runesByDomain: Map<string, DeckBuilderCard[]>,
+  format: DeckFormat,
 ): void {
   if (!isCardAllowedInZone(card, zone)) {
     return;
   }
   const preferredPrintingId = card.preferredPrintingId;
+  const freeform = format === "freeform";
 
   if (zone === "legend" || zone === "champion") {
-    // Single-card zones: replace whatever is in the zone, across any printing.
+    if (freeform) {
+      incrementOrInsert(collection, card, zone, preferredPrintingId, count ?? 1);
+      return;
+    }
+    // Constructed: single-card zones replace whatever is there, across any printing.
     for (const existing of allCards(collection)) {
       if (existing.zone === zone) {
         collection.delete(deckCardKey(existing.cardId, zone, existing.preferredPrintingId));
@@ -188,6 +213,10 @@ export function addCardAction(
   }
 
   if (zone === "battlefield") {
+    if (freeform) {
+      incrementOrInsert(collection, card, zone, preferredPrintingId, count ?? 1);
+      return;
+    }
     const cards = allCards(collection);
     const zoneCards = cards.filter((entry) => entry.zone === "battlefield");
     if (zoneCards.some((entry) => entry.cardId === card.cardId)) {
@@ -201,6 +230,10 @@ export function addCardAction(
   }
 
   if (zone === "runes") {
+    if (freeform) {
+      incrementOrInsert(collection, card, zone, preferredPrintingId, count ?? 1);
+      return;
+    }
     const addQty = count ?? 1;
     for (let step = 0; step < addQty; step++) {
       const cards = allCards(collection);
@@ -225,31 +258,16 @@ export function addCardAction(
     return;
   }
 
-  // Main / sideboard / overflow — enforce cross-zone copy cap of 3.
-  const cards = allCards(collection);
+  // Main / sideboard / overflow.
   let addQty = count ?? 1;
-  if (COPY_LIMIT_ZONES.has(zone)) {
-    const total = crossZoneTotal(cards, card.cardId);
+  if (!freeform && COPY_LIMIT_ZONES.has(zone)) {
+    const total = crossZoneTotal(allCards(collection), card.cardId);
     if (total >= 3) {
       return;
     }
     addQty = Math.min(addQty, 3 - total);
   }
-
-  const key = deckCardKey(card.cardId, zone, preferredPrintingId);
-  const existing = cards.find(
-    (entry) =>
-      entry.cardId === card.cardId &&
-      entry.zone === zone &&
-      entry.preferredPrintingId === preferredPrintingId,
-  );
-  if (existing) {
-    collection.update(key, (draft) => {
-      draft.quantity += addQty;
-    });
-  } else {
-    collection.insert({ ...card, zone, quantity: addQty, preferredPrintingId });
-  }
+  incrementOrInsert(collection, card, zone, preferredPrintingId, addQty);
 }
 
 /**
@@ -262,6 +280,7 @@ export function removeCardAction(
   cardId: string,
   zone: DeckZone,
   runesByDomain: Map<string, DeckBuilderCard[]>,
+  format: DeckFormat,
   preferredPrintingId?: string | null,
 ): void {
   const target =
@@ -279,7 +298,7 @@ export function removeCardAction(
   } else {
     collection.delete(key);
   }
-  if (zone === "runes") {
+  if (zone === "runes" && format !== "freeform") {
     rebalanceRunes(collection, target.domains, runesByDomain);
   }
 }
@@ -320,13 +339,15 @@ export function moveCardAction(
   fromZone: DeckZone,
   toZone: DeckZone,
   preferredPrintingId: string | null,
+  format: DeckFormat,
 ): void {
   const sourceKey = deckCardKey(cardId, fromZone, preferredPrintingId);
   const source = collection.get(sourceKey);
   if (!source || !isCardAllowedInZone(source, toZone)) {
     return;
   }
-  if (toZone === "legend" || toZone === "champion") {
+  const singleSlot = (toZone === "legend" || toZone === "champion") && format !== "freeform";
+  if (singleSlot) {
     moveIntoSingleSlot(collection, source, sourceKey, toZone);
     return;
   }
@@ -349,13 +370,15 @@ export function moveOneCardAction(
   fromZone: DeckZone,
   toZone: DeckZone,
   preferredPrintingId: string | null,
+  format: DeckFormat,
 ): void {
   const sourceKey = deckCardKey(cardId, fromZone, preferredPrintingId);
   const source = collection.get(sourceKey);
   if (!source || !isCardAllowedInZone(source, toZone)) {
     return;
   }
-  if (toZone === "legend" || toZone === "champion") {
+  const singleSlot = (toZone === "legend" || toZone === "champion") && format !== "freeform";
+  if (singleSlot) {
     moveIntoSingleSlot(collection, source, sourceKey, toZone);
     return;
   }
@@ -457,7 +480,13 @@ export function setLegendAction(
   collection: DeckCollection,
   card: DeckBuilderCard,
   runesByDomain: Map<string, DeckBuilderCard[]>,
+  format: DeckFormat,
 ): void {
+  if (format === "freeform") {
+    // Freeform: legends are a multi-card zone, no rune autofill or domain swap.
+    incrementOrInsert(collection, card, "legend", card.preferredPrintingId, 1);
+    return;
+  }
   const cards = allCards(collection);
 
   // Replace legend slot (across all printings).
@@ -563,6 +592,8 @@ export function useDeckBuilderActions(deckId: string): DeckBuilderActions {
   const collection = useDeckDraftCollection(deckId);
   const runesByDomain = useDeckBuilderUiStore((state) => state.runesByDomain);
   const activeZone = useDeckBuilderUiStore((state) => state.activeZone);
+  const { data: deckDetail } = useDeckDetail(deckId);
+  const format = deckDetail.deck.format;
 
   // Mid-sign-out the collection briefly goes null while React commits the
   // unmount of this route. Make all actions no-ops in that window — by the
@@ -588,14 +619,14 @@ export function useDeckBuilderActions(deckId: string): DeckBuilderActions {
       if (!target) {
         return;
       }
-      addCardAction(collection, card, target, count, runesByDomain);
+      addCardAction(collection, card, target, count, runesByDomain, format);
     },
     removeCard: (cardId, zone, preferredPrintingId) =>
-      removeCardAction(collection, cardId, zone, runesByDomain, preferredPrintingId),
+      removeCardAction(collection, cardId, zone, runesByDomain, format, preferredPrintingId),
     moveCard: (cardId, from, to, preferredPrintingId) =>
-      moveCardAction(collection, cardId, from, to, preferredPrintingId),
+      moveCardAction(collection, cardId, from, to, preferredPrintingId, format),
     moveOneCard: (cardId, from, to, preferredPrintingId) =>
-      moveOneCardAction(collection, cardId, from, to, preferredPrintingId),
+      moveOneCardAction(collection, cardId, from, to, preferredPrintingId, format),
     setQuantity: (cardId, zone, quantity, preferredPrintingId) =>
       setQuantityAction(collection, cardId, zone, quantity, preferredPrintingId),
     changePreferredPrinting: (cardId, zone, fromPrintingId, toPrintingId, countToConvert) =>
@@ -607,7 +638,7 @@ export function useDeckBuilderActions(deckId: string): DeckBuilderActions {
         toPrintingId,
         countToConvert,
       ),
-    setLegend: (card, rbd) => setLegendAction(collection, card, rbd ?? runesByDomain),
+    setLegend: (card, rbd) => setLegendAction(collection, card, rbd ?? runesByDomain, format),
   };
 }
 

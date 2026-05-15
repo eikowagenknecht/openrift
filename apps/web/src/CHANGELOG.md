@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-05-15
+
+- feat: Freeform decks no longer enforce constructed limits — multiple legends and champions, more than 3 battlefields (including duplicates), 4+ copies of a card across main/sideboard/overflow, and any number of runes are all allowed. The 12-rune autofill and auto-rebalance only apply to constructed decks now
+- feat: The deck editor's 3-dot menu now has a Change to freeform / Change to constructed action, matching the deck list menu
+
 ## 2026-05-13
 
 - feat: Collapsed sections on the rules page now stand out with a subtle background tint, so it's easy to see at a glance which groups have hidden content

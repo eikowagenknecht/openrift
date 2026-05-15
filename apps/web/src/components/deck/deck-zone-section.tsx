@@ -12,6 +12,7 @@ import type {
 } from "@/components/deck/deck-dnd-context";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { canAddRune, useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
+import { useDeckDetail } from "@/hooks/use-decks";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import {
@@ -74,6 +75,9 @@ export function DeckZoneSection({
   const [open, setOpen] = useState(zone !== "sideboard" && zone !== "overflow");
   const { addCard, removeCard, setQuantity } = useDeckBuilderActions(deckId);
   const allCards = useDeckCards(deckId);
+  const { data: deckDetail } = useDeckDetail(deckId);
+  const format = deckDetail.deck.format;
+  const isFreeform = format === "freeform";
   const { getPreferredPrinting } = usePreferredPrinting();
 
   // Check if the currently dragged card is allowed in this zone
@@ -107,6 +111,7 @@ export function DeckZoneSection({
           draggedCardId: draggedCard.cardId,
           fromZone: dragData?.type === "deck-card" ? dragData.fromZone : null,
           allCards,
+          format,
         })
       : false;
 
@@ -130,7 +135,8 @@ export function DeckZoneSection({
   };
 
   const totalQuantity = cards.reduce((sum, card) => sum + card.quantity, 0);
-  const expected = ZONE_EXPECTED[zone];
+  // Freeform has no per-zone target — hide the "x/N" denominator entirely.
+  const expected = isFreeform ? undefined : ZONE_EXPECTED[zone];
   const zoneViolations = violations.filter(
     (violation) => violation.zone === zone && !violation.cardId,
   );
@@ -144,8 +150,9 @@ export function DeckZoneSection({
   // use the hint text instead of screaming errors at an empty deck.
   const isEmpty = cards.length === 0;
   const hasZoneViolations = !isEmpty && zoneViolations.length > 0;
-  const isSingleCard = SINGLE_CARD_ZONES.has(zone);
-  const isUniqueOnly = UNIQUE_ONLY_ZONES.has(zone);
+  // In freeform, legend/champion are multi-card and battlefields aren't unique.
+  const isSingleCard = SINGLE_CARD_ZONES.has(zone) && !isFreeform;
+  const isUniqueOnly = UNIQUE_ONLY_ZONES.has(zone) && !isFreeform;
   const isGrouped = GROUPED_ZONES.has(zone);
 
   // Get legend domains for active zone tint — return the stable array from the card
@@ -160,8 +167,9 @@ export function DeckZoneSection({
         draggable={DRAG_ZONES.has(zone)}
         shiftHeld={zone === "runes" ? undefined : shiftHeld}
         onIncrement={
-          (copyLimitZones.has(zone) && crossZoneTotal(card.cardId) >= 3) ||
-          (zone === "runes" && !canAddRune(card, allCards))
+          !isFreeform &&
+          ((copyLimitZones.has(zone) && crossZoneTotal(card.cardId) >= 3) ||
+            (zone === "runes" && !canAddRune(card, allCards)))
             ? undefined
             : (event) => addCard(card, zone, event.shiftKey ? 3 : undefined)
         }

@@ -286,6 +286,7 @@ export function DeckOverview({
               allCards={cards}
               expected={ZONE_EXPECTED[zone]}
               emptyHint={ZONE_EMPTY_HINTS[zone]}
+              format={deck.format}
               zoneViolations={violations.filter(
                 (violation) => violation.zone === zone && !violation.cardId,
               )}
@@ -306,6 +307,7 @@ export function DeckOverview({
           allCards={cards}
           expected={ZONE_EXPECTED.main}
           emptyHint={ZONE_EMPTY_HINTS.main}
+          format={deck.format}
           zoneViolations={violations.filter(
             (violation) => violation.zone === WellKnown.deckZone.MAIN && !violation.cardId,
           )}
@@ -323,6 +325,7 @@ export function DeckOverview({
           allCards={cards}
           expected={ZONE_EXPECTED.sideboard}
           emptyHint={ZONE_EMPTY_HINTS.sideboard}
+          format={deck.format}
           zoneViolations={violations.filter(
             (violation) => violation.zone === WellKnown.deckZone.SIDEBOARD && !violation.cardId,
           )}
@@ -341,6 +344,7 @@ export function DeckOverview({
             allCards={cards}
             expected={ZONE_EXPECTED.overflow}
             emptyHint={ZONE_EMPTY_HINTS.overflow}
+            format={deck.format}
             zoneViolations={violations.filter(
               (violation) => violation.zone === WellKnown.deckZone.OVERFLOW && !violation.cardId,
             )}
@@ -532,6 +536,7 @@ interface ZoneTileProps {
   expected: number | undefined;
   emptyHint: string;
   zoneViolations: DeckViolation[];
+  format: DeckFormat;
   className?: string;
   onClick?: () => void;
   onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
@@ -549,6 +554,7 @@ function ZoneTile({
   expected,
   emptyHint,
   zoneViolations,
+  format,
   className,
   onClick,
   onHoverCard,
@@ -589,6 +595,7 @@ function ZoneTile({
           draggedCardId: draggedCard.cardId,
           fromZone: dragData?.type === "deck-card" ? dragData.fromZone : null,
           allCards,
+          format,
         })
       : false;
 

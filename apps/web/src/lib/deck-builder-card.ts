@@ -2,6 +2,7 @@ import type {
   Card,
   CardType,
   DeckCardResponse,
+  DeckFormat,
   DeckZone,
   Domain,
   SuperType,
@@ -106,8 +107,12 @@ export function isDeckZoneFullForDrag(args: {
   /** Source zone of the dragged card, or null when the drag started in the card browser. */
   fromZone: DeckZone | null;
   allCards: readonly { cardId: string; zone: DeckZone; quantity: number }[];
+  format: DeckFormat;
 }): boolean {
-  const { zone, draggedCardId, fromZone, allCards } = args;
+  const { zone, draggedCardId, fromZone, allCards, format } = args;
+  if (format === WellKnown.deckFormat.FREEFORM) {
+    return false;
+  }
   if (COPY_LIMIT_ZONES.has(zone) && fromZone === null) {
     const total = allCards
       .filter((entry) => entry.cardId === draggedCardId && COPY_LIMIT_ZONES.has(entry.zone))

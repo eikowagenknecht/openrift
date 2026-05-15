@@ -51,7 +51,7 @@ afterEach(() => {
 describe("addCardAction", () => {
   it("adds a card to the target zone", () => {
     const card = stubDeckBuilderCard({ cardType: "unit" });
-    addCardAction(collection, card, "main", undefined, EMPTY_RUNES);
+    addCardAction(collection, card, "main", undefined, EMPTY_RUNES, "constructed");
     const cards = cardsOf(collection);
     expect(cards).toHaveLength(1);
     expect(cards[0].zone).toBe("main");
@@ -60,20 +60,20 @@ describe("addCardAction", () => {
 
   it("adds to an explicit zone override", () => {
     const card = stubDeckBuilderCard({ cardType: "unit" });
-    addCardAction(collection, card, "sideboard", undefined, EMPTY_RUNES);
+    addCardAction(collection, card, "sideboard", undefined, EMPTY_RUNES, "constructed");
     expect(cardsOf(collection)[0].zone).toBe("sideboard");
   });
 
   it("rejects cards that don't belong in the target zone", () => {
     const legend = stubDeckBuilderCard({ cardType: "legend" });
-    addCardAction(collection, legend, "main", undefined, EMPTY_RUNES);
+    addCardAction(collection, legend, "main", undefined, EMPTY_RUNES, "constructed");
     expect(cardsOf(collection)).toHaveLength(0);
   });
 
   it("increments quantity for an existing entry", () => {
     const card = stubDeckBuilderCard({ cardId: "card-1", cardType: "unit", zone: "main" });
     collection = createDraftCollection([{ ...card, quantity: 1 }]);
-    addCardAction(collection, card, "main", undefined, EMPTY_RUNES);
+    addCardAction(collection, card, "main", undefined, EMPTY_RUNES, "constructed");
     expect(cardsOf(collection)[0].quantity).toBe(2);
   });
 
@@ -85,7 +85,14 @@ describe("addCardAction", () => {
       quantity: 3,
     });
     collection = createDraftCollection([card]);
-    addCardAction(collection, { ...card, zone: "sideboard" }, "sideboard", undefined, EMPTY_RUNES);
+    addCardAction(
+      collection,
+      { ...card, zone: "sideboard" },
+      "sideboard",
+      undefined,
+      EMPTY_RUNES,
+      "constructed",
+    );
     const total = cardsOf(collection).reduce((sum, entry) => sum + entry.quantity, 0);
     expect(total).toBe(3);
   });
@@ -98,7 +105,14 @@ describe("addCardAction", () => {
       quantity: 2,
     });
     collection = createDraftCollection([card]);
-    addCardAction(collection, { ...card, zone: "sideboard" }, "sideboard", 5, EMPTY_RUNES);
+    addCardAction(
+      collection,
+      { ...card, zone: "sideboard" },
+      "sideboard",
+      5,
+      EMPTY_RUNES,
+      "constructed",
+    );
     const total = cardsOf(collection).reduce((sum, entry) => sum + entry.quantity, 0);
     expect(total).toBe(3);
   });
@@ -111,7 +125,7 @@ describe("addCardAction", () => {
     });
     collection = createDraftCollection([oldLegend]);
     const newLegend = stubDeckBuilderCard({ cardId: "new", cardType: "legend" });
-    addCardAction(collection, newLegend, "legend", undefined, EMPTY_RUNES);
+    addCardAction(collection, newLegend, "legend", undefined, EMPTY_RUNES, "constructed");
     const legends = cardsOf(collection).filter((c) => c.zone === "legend");
     expect(legends).toHaveLength(1);
     expect(legends[0].cardId).toBe("new");
@@ -130,7 +144,7 @@ describe("addCardAction", () => {
       cardType: "unit",
       superTypes: ["champion"],
     });
-    addCardAction(collection, newChamp, "champion", undefined, EMPTY_RUNES);
+    addCardAction(collection, newChamp, "champion", undefined, EMPTY_RUNES, "constructed");
     const champs = cardsOf(collection).filter((c) => c.zone === "champion");
     expect(champs).toHaveLength(1);
     expect(champs[0].cardId).toBe("new-champ");
@@ -147,7 +161,7 @@ describe("addCardAction", () => {
     );
     collection = createDraftCollection(bfs);
     const newBf = stubDeckBuilderCard({ cardId: "bf-new", cardType: "battlefield" });
-    addCardAction(collection, newBf, "battlefield", undefined, EMPTY_RUNES);
+    addCardAction(collection, newBf, "battlefield", undefined, EMPTY_RUNES, "constructed");
     expect(cardsOf(collection).filter((c) => c.zone === "battlefield")).toHaveLength(3);
   });
 
@@ -159,7 +173,7 @@ describe("addCardAction", () => {
       quantity: 1,
     });
     collection = createDraftCollection([bf]);
-    addCardAction(collection, { ...bf }, "battlefield", undefined, EMPTY_RUNES);
+    addCardAction(collection, { ...bf }, "battlefield", undefined, EMPTY_RUNES, "constructed");
     const cards = cardsOf(collection);
     expect(cards).toHaveLength(1);
     expect(cards[0].quantity).toBe(1);
@@ -185,7 +199,7 @@ describe("addCardAction", () => {
       cardType: "rune",
       domains: ["fury"],
     });
-    addCardAction(collection, addCard, "runes", undefined, EMPTY_RUNES);
+    addCardAction(collection, addCard, "runes", undefined, EMPTY_RUNES, "constructed");
     const total = cardsOf(collection)
       .filter((card) => card.zone === "runes")
       .reduce((sum, card) => sum + card.quantity, 0);
@@ -219,7 +233,7 @@ describe("addCardAction", () => {
       cardType: "rune",
       domains: ["fury"],
     });
-    addCardAction(collection, addCard, "runes", undefined, EMPTY_RUNES);
+    addCardAction(collection, addCard, "runes", undefined, EMPTY_RUNES, "constructed");
     const runes = cardsOf(collection).filter((card) => card.zone === "runes");
     const total = runes.reduce((sum, card) => sum + card.quantity, 0);
     expect(total).toBe(12);
@@ -247,7 +261,7 @@ describe("addCardAction", () => {
       cardType: "rune",
       domains: ["fury"],
     });
-    addCardAction(collection, addCard, "runes", undefined, EMPTY_RUNES);
+    addCardAction(collection, addCard, "runes", undefined, EMPTY_RUNES, "constructed");
     const total = cardsOf(collection)
       .filter((card) => card.zone === "runes")
       .reduce((sum, card) => sum + card.quantity, 0);
@@ -345,19 +359,19 @@ describe("removeCardAction", () => {
   it("decrements quantity when above 1", () => {
     const card = stubDeckBuilderCard({ cardId: "card-1", zone: "main", quantity: 3 });
     collection = createDraftCollection([card]);
-    removeCardAction(collection, "card-1", "main", EMPTY_RUNES);
+    removeCardAction(collection, "card-1", "main", EMPTY_RUNES, "constructed");
     expect(cardsOf(collection)[0].quantity).toBe(2);
   });
 
   it("removes the entry entirely when quantity is 1", () => {
     const card = stubDeckBuilderCard({ cardId: "card-1", zone: "main", quantity: 1 });
     collection = createDraftCollection([card]);
-    removeCardAction(collection, "card-1", "main", EMPTY_RUNES);
+    removeCardAction(collection, "card-1", "main", EMPTY_RUNES, "constructed");
     expect(cardsOf(collection)).toHaveLength(0);
   });
 
   it("does nothing when the card is not found", () => {
-    removeCardAction(collection, "missing", "main", EMPTY_RUNES);
+    removeCardAction(collection, "missing", "main", EMPTY_RUNES, "constructed");
     expect(cardsOf(collection)).toHaveLength(0);
   });
 
@@ -385,7 +399,7 @@ describe("removeCardAction", () => {
       ["calm", [calmRune]],
     ]);
     collection = createDraftCollection([legend, furyRune]);
-    removeCardAction(collection, "fury-rune", "runes", runesByDomain);
+    removeCardAction(collection, "fury-rune", "runes", runesByDomain, "constructed");
     const runes = cardsOf(collection).filter((card) => card.zone === "runes");
     const total = runes.reduce((sum, card) => sum + card.quantity, 0);
     expect(total).toBe(12);
@@ -408,7 +422,7 @@ describe("removeCardAction", () => {
       quantity: 12,
     });
     collection = createDraftCollection([legend, furyRune]);
-    removeCardAction(collection, "fury-rune", "runes", EMPTY_RUNES);
+    removeCardAction(collection, "fury-rune", "runes", EMPTY_RUNES, "constructed");
     const runes = cardsOf(collection).filter((card) => card.zone === "runes");
     const total = runes.reduce((sum, card) => sum + card.quantity, 0);
     // Demonstrates the F5 bug shape: with an empty catalog, the rebalance can't
@@ -429,7 +443,7 @@ describe("moveCardAction", () => {
       quantity: 2,
     });
     collection = createDraftCollection([card]);
-    moveCardAction(collection, "card-1", "main", "sideboard", null);
+    moveCardAction(collection, "card-1", "main", "sideboard", null, "constructed");
     const cards = cardsOf(collection);
     expect(cards.filter((c) => c.zone === "main")).toHaveLength(0);
     expect(cards.find((c) => c.zone === "sideboard")?.quantity).toBe(2);
@@ -449,7 +463,7 @@ describe("moveCardAction", () => {
       quantity: 1,
     });
     collection = createDraftCollection([mainCard, sideCard]);
-    moveCardAction(collection, "card-1", "main", "sideboard", null);
+    moveCardAction(collection, "card-1", "main", "sideboard", null, "constructed");
     const cards = cardsOf(collection);
     expect(cards).toHaveLength(1);
     expect(cards[0].zone).toBe("sideboard");
@@ -464,7 +478,7 @@ describe("moveCardAction", () => {
       quantity: 1,
     });
     collection = createDraftCollection([unit]);
-    moveCardAction(collection, "card-1", "main", "legend", null);
+    moveCardAction(collection, "card-1", "main", "legend", null, "constructed");
     expect(cardsOf(collection)[0].zone).toBe("main");
   });
 
@@ -477,7 +491,7 @@ describe("moveCardAction", () => {
       quantity: 2,
     });
     collection = createDraftCollection([champ]);
-    moveCardAction(collection, "champ-a", "main", "champion", null);
+    moveCardAction(collection, "champ-a", "main", "champion", null, "constructed");
     const cards = cardsOf(collection);
     expect(cards.find((c) => c.zone === "champion")).toMatchObject({
       cardId: "champ-a",
@@ -502,7 +516,7 @@ describe("moveCardAction", () => {
       quantity: 1,
     });
     collection = createDraftCollection([oldChamp, newChamp]);
-    moveCardAction(collection, "champ-b", "main", "champion", null);
+    moveCardAction(collection, "champ-b", "main", "champion", null, "constructed");
     const cards = cardsOf(collection);
     expect(cards.filter((c) => c.zone === "champion")).toHaveLength(1);
     expect(cards.find((c) => c.zone === "champion")?.cardId).toBe("champ-b");
@@ -525,7 +539,7 @@ describe("moveCardAction", () => {
       quantity: 2,
     });
     collection = createDraftCollection([inSlot, inMain]);
-    moveCardAction(collection, "champ-a", "main", "champion", null);
+    moveCardAction(collection, "champ-a", "main", "champion", null, "constructed");
     const cards = cardsOf(collection);
     expect(cards.find((c) => c.zone === "main")?.quantity).toBe(2);
     expect(cards.find((c) => c.zone === "champion")?.quantity).toBe(1);
@@ -543,7 +557,7 @@ describe("moveOneCardAction", () => {
       quantity: 3,
     });
     collection = createDraftCollection([card]);
-    moveOneCardAction(collection, "card-1", "main", "sideboard", null);
+    moveOneCardAction(collection, "card-1", "main", "sideboard", null, "constructed");
     const cards = cardsOf(collection);
     expect(cards.find((c) => c.zone === "main")?.quantity).toBe(2);
     expect(cards.find((c) => c.zone === "sideboard")?.quantity).toBe(1);
@@ -557,7 +571,7 @@ describe("moveOneCardAction", () => {
       quantity: 1,
     });
     collection = createDraftCollection([card]);
-    moveOneCardAction(collection, "card-1", "main", "sideboard", null);
+    moveOneCardAction(collection, "card-1", "main", "sideboard", null, "constructed");
     const cards = cardsOf(collection);
     expect(cards.filter((c) => c.zone === "main")).toHaveLength(0);
     expect(cards.find((c) => c.zone === "sideboard")?.quantity).toBe(1);
@@ -579,7 +593,7 @@ describe("moveOneCardAction", () => {
       quantity: 3,
     });
     collection = createDraftCollection([oldChamp, newChamp]);
-    moveOneCardAction(collection, "champ-b", "main", "champion", null);
+    moveOneCardAction(collection, "champ-b", "main", "champion", null, "constructed");
     const cards = cardsOf(collection);
     expect(cards.find((c) => c.zone === "champion")?.cardId).toBe("champ-b");
     expect(cards.find((c) => c.zone === "main")?.quantity).toBe(2);
@@ -628,7 +642,7 @@ describe("setLegendAction", () => {
       cardType: "legend",
       domains: ["mind", "body"],
     });
-    setLegendAction(collection, newLegend, EMPTY_RUNES);
+    setLegendAction(collection, newLegend, EMPTY_RUNES, "constructed");
     const legends = cardsOf(collection).filter((c) => c.zone === "legend");
     expect(legends).toHaveLength(1);
     expect(legends[0].cardId).toBe("new");
@@ -654,7 +668,7 @@ describe("setLegendAction", () => {
       cardType: "legend",
       domains: ["mind", "body"],
     });
-    setLegendAction(collection, newLegend, EMPTY_RUNES);
+    setLegendAction(collection, newLegend, EMPTY_RUNES, "constructed");
     const runes = cardsOf(collection).filter((c) => c.zone === "runes");
     expect(runes.every((r) => r.domains.every((d) => ["mind", "body"].includes(d)))).toBe(true);
   });
@@ -679,10 +693,166 @@ describe("setLegendAction", () => {
       cardType: "legend",
       domains: ["fury", "calm"],
     });
-    setLegendAction(collection, legend, runesByDomain);
+    setLegendAction(collection, legend, runesByDomain, "constructed");
     const runes = cardsOf(collection).filter((c) => c.zone === "runes");
     const totalQty = runes.reduce((sum, r) => sum + r.quantity, 0);
     expect(totalQty).toBe(12);
+  });
+});
+
+// ── freeform behavior ──────────────────────────────────────────────────────
+
+describe("freeform format", () => {
+  it("allows multiple distinct legends instead of replacing", () => {
+    const first = stubDeckBuilderCard({ cardId: "legend-a", cardType: "legend" });
+    const second = stubDeckBuilderCard({ cardId: "legend-b", cardType: "legend" });
+    addCardAction(collection, first, "legend", undefined, EMPTY_RUNES, "freeform");
+    addCardAction(collection, second, "legend", undefined, EMPTY_RUNES, "freeform");
+    const legends = cardsOf(collection).filter((card) => card.zone === "legend");
+    expect(legends).toHaveLength(2);
+    expect(legends.map((card) => card.cardId).sort()).toEqual(["legend-a", "legend-b"]);
+  });
+
+  it("allows multiple distinct champions instead of replacing", () => {
+    const first = stubDeckBuilderCard({
+      cardId: "champ-a",
+      cardType: "unit",
+      superTypes: ["champion"],
+    });
+    const second = stubDeckBuilderCard({
+      cardId: "champ-b",
+      cardType: "unit",
+      superTypes: ["champion"],
+    });
+    addCardAction(collection, first, "champion", undefined, EMPTY_RUNES, "freeform");
+    addCardAction(collection, second, "champion", undefined, EMPTY_RUNES, "freeform");
+    expect(cardsOf(collection).filter((card) => card.zone === "champion")).toHaveLength(2);
+  });
+
+  it("allows more than 3 battlefields and duplicate quantities", () => {
+    const bf = stubDeckBuilderCard({ cardId: "bf-1", cardType: "battlefield" });
+    for (let step = 0; step < 5; step++) {
+      addCardAction(collection, bf, "battlefield", undefined, EMPTY_RUNES, "freeform");
+    }
+    const row = cardsOf(collection).find((card) => card.zone === "battlefield");
+    expect(row?.quantity).toBe(5);
+  });
+
+  it("allows 4+ copies of the same card in main", () => {
+    const card = stubDeckBuilderCard({ cardId: "card-1", cardType: "unit" });
+    addCardAction(collection, card, "main", 5, EMPTY_RUNES, "freeform");
+    expect(cardsOf(collection)[0].quantity).toBe(5);
+  });
+
+  it("ignores the 12-rune cap and does not rebalance", () => {
+    const legend = stubDeckBuilderCard({
+      cardId: "legend-1",
+      cardType: "legend",
+      zone: "legend",
+      domains: ["fury", "calm"],
+    });
+    const furyRune = stubDeckBuilderCard({
+      cardId: "fury-rune",
+      cardType: "rune",
+      zone: "runes",
+      domains: ["fury"],
+      quantity: 12,
+    });
+    collection = createDraftCollection([legend, furyRune]);
+    const addCard = stubDeckBuilderCard({
+      cardId: "fury-rune",
+      cardType: "rune",
+      domains: ["fury"],
+    });
+    addCardAction(collection, addCard, "runes", 3, EMPTY_RUNES, "freeform");
+    const runes = cardsOf(collection).filter((card) => card.zone === "runes");
+    expect(runes.find((card) => card.cardId === "fury-rune")?.quantity).toBe(15);
+  });
+
+  it("removeCardAction does not rebalance runes in freeform", () => {
+    const legend = stubDeckBuilderCard({
+      cardId: "legend-1",
+      cardType: "legend",
+      zone: "legend",
+      domains: ["fury", "calm"],
+    });
+    const furyRune = stubDeckBuilderCard({
+      cardId: "fury-rune",
+      cardType: "rune",
+      zone: "runes",
+      domains: ["fury"],
+      quantity: 5,
+    });
+    const calmCatalogRune = stubDeckBuilderCard({
+      cardId: "calm-rune",
+      cardType: "rune",
+      domains: ["calm"],
+    });
+    const runesByDomain = new Map<string, DeckBuilderCard[]>([["calm", [calmCatalogRune]]]);
+    collection = createDraftCollection([legend, furyRune]);
+    removeCardAction(collection, "fury-rune", "runes", runesByDomain, "freeform");
+    // Constructed would backfill an opposite-domain rune; freeform must not.
+    const runes = cardsOf(collection).filter((card) => card.zone === "runes");
+    expect(runes).toHaveLength(1);
+    expect(runes[0].cardId).toBe("fury-rune");
+    expect(runes[0].quantity).toBe(4);
+  });
+
+  it("setLegendAction adds a legend without dropping runes or autofilling", () => {
+    const incompatibleRune = stubDeckBuilderCard({
+      cardId: "fury-rune",
+      cardType: "rune",
+      zone: "runes",
+      domains: ["fury"],
+      quantity: 3,
+    });
+    const calmCatalogRune = stubDeckBuilderCard({
+      cardId: "calm-rune",
+      cardType: "rune",
+      domains: ["calm"],
+    });
+    const mindCatalogRune = stubDeckBuilderCard({
+      cardId: "mind-rune",
+      cardType: "rune",
+      domains: ["mind"],
+    });
+    const runesByDomain = new Map<string, DeckBuilderCard[]>([
+      ["calm", [calmCatalogRune]],
+      ["mind", [mindCatalogRune]],
+    ]);
+    collection = createDraftCollection([incompatibleRune]);
+    const legend = stubDeckBuilderCard({
+      cardId: "legend-1",
+      cardType: "legend",
+      domains: ["calm", "mind"],
+    });
+    setLegendAction(collection, legend, runesByDomain, "freeform");
+    const runes = cardsOf(collection).filter((card) => card.zone === "runes");
+    expect(runes).toHaveLength(1);
+    expect(runes[0].cardId).toBe("fury-rune");
+    expect(runes[0].quantity).toBe(3);
+    expect(cardsOf(collection).filter((card) => card.zone === "legend")).toHaveLength(1);
+  });
+
+  it("moveCardAction treats legend/champion as multi-card zones", () => {
+    const existingChamp = stubDeckBuilderCard({
+      cardId: "champ-a",
+      cardType: "unit",
+      superTypes: ["champion"],
+      zone: "champion",
+      quantity: 1,
+    });
+    const incoming = stubDeckBuilderCard({
+      cardId: "champ-b",
+      cardType: "unit",
+      superTypes: ["champion"],
+      zone: "main",
+      quantity: 1,
+    });
+    collection = createDraftCollection([existingChamp, incoming]);
+    moveCardAction(collection, "champ-b", "main", "champion", null, "freeform");
+    const champs = cardsOf(collection).filter((card) => card.zone === "champion");
+    expect(champs).toHaveLength(2);
   });
 });
 
@@ -700,8 +870,8 @@ describe("preferred printings", () => {
       cardType: "unit",
       preferredPrintingId: "printing-alt",
     });
-    addCardAction(collection, base, "main", 2, EMPTY_RUNES);
-    addCardAction(collection, alt, "main", 1, EMPTY_RUNES);
+    addCardAction(collection, base, "main", 2, EMPTY_RUNES, "constructed");
+    addCardAction(collection, alt, "main", 1, EMPTY_RUNES, "constructed");
     const cards = cardsOf(collection).filter((c) => c.zone === "main");
     expect(cards).toHaveLength(2);
     const totalsByPrinting = Map.groupBy(cards, (c) => c.preferredPrintingId ?? "default");
@@ -720,8 +890,8 @@ describe("preferred printings", () => {
       cardType: "unit",
       preferredPrintingId: "printing-alt",
     });
-    addCardAction(collection, base, "main", 2, EMPTY_RUNES);
-    addCardAction(collection, alt, "main", 2, EMPTY_RUNES); // only 1 should fit
+    addCardAction(collection, base, "main", 2, EMPTY_RUNES, "constructed");
+    addCardAction(collection, alt, "main", 2, EMPTY_RUNES, "constructed"); // only 1 should fit
     const total = cardsOf(collection)
       .filter((c) => c.cardId === "c1" && c.zone === "main")
       .reduce((sum, c) => sum + c.quantity, 0);
@@ -744,7 +914,7 @@ describe("preferred printings", () => {
       quantity: 1,
     });
     collection = createDraftCollection([base, alt]);
-    removeCardAction(collection, "c1", "main", EMPTY_RUNES);
+    removeCardAction(collection, "c1", "main", EMPTY_RUNES, "constructed");
     const cards = cardsOf(collection);
     const baseRow = cards.find((c) => c.preferredPrintingId === null);
     const altRow = cards.find((c) => c.preferredPrintingId === "printing-alt");
@@ -761,7 +931,7 @@ describe("preferred printings", () => {
       quantity: 2,
     });
     collection = createDraftCollection([alt]);
-    removeCardAction(collection, "c1", "main", EMPTY_RUNES, "printing-alt");
+    removeCardAction(collection, "c1", "main", EMPTY_RUNES, "constructed", "printing-alt");
     expect(cardsOf(collection)[0].quantity).toBe(1);
   });
 

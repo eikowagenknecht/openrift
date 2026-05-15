@@ -62,7 +62,13 @@ describe("isDeckZoneFullForDrag", () => {
     // copy-limit zone — including its own source — forcing the user to discard.
     const allCards = [{ cardId, zone: "main" as DeckZone, quantity: 3 }];
     expect(
-      isDeckZoneFullForDrag({ zone: "main", draggedCardId: cardId, fromZone: "main", allCards }),
+      isDeckZoneFullForDrag({
+        zone: "main",
+        draggedCardId: cardId,
+        fromZone: "main",
+        allCards,
+        format: "constructed",
+      }),
     ).toBe(false);
   });
 
@@ -78,6 +84,7 @@ describe("isDeckZoneFullForDrag", () => {
         draggedCardId: cardId,
         fromZone: "main",
         allCards,
+        format: "constructed",
       }),
     ).toBe(false);
   });
@@ -88,7 +95,13 @@ describe("isDeckZoneFullForDrag", () => {
       { cardId, zone: "sideboard" as DeckZone, quantity: 1 },
     ];
     expect(
-      isDeckZoneFullForDrag({ zone: "main", draggedCardId: cardId, fromZone: null, allCards }),
+      isDeckZoneFullForDrag({
+        zone: "main",
+        draggedCardId: cardId,
+        fromZone: null,
+        allCards,
+        format: "constructed",
+      }),
     ).toBe(true);
     expect(
       isDeckZoneFullForDrag({
@@ -96,6 +109,7 @@ describe("isDeckZoneFullForDrag", () => {
         draggedCardId: cardId,
         fromZone: null,
         allCards,
+        format: "constructed",
       }),
     ).toBe(true);
   });
@@ -103,7 +117,13 @@ describe("isDeckZoneFullForDrag", () => {
   it("allows browser-card adds below the cap", () => {
     const allCards = [{ cardId, zone: "main" as DeckZone, quantity: 2 }];
     expect(
-      isDeckZoneFullForDrag({ zone: "main", draggedCardId: cardId, fromZone: null, allCards }),
+      isDeckZoneFullForDrag({
+        zone: "main",
+        draggedCardId: cardId,
+        fromZone: null,
+        allCards,
+        format: "constructed",
+      }),
     ).toBe(false);
   });
 
@@ -115,6 +135,7 @@ describe("isDeckZoneFullForDrag", () => {
         draggedCardId: cardId,
         fromZone: null,
         allCards,
+        format: "constructed",
       }),
     ).toBe(true);
   });
@@ -131,6 +152,7 @@ describe("isDeckZoneFullForDrag", () => {
         draggedCardId: "rune-new",
         fromZone: null,
         allCards,
+        format: "constructed",
       }),
     ).toBe(true);
   });
@@ -142,6 +164,20 @@ describe("isDeckZoneFullForDrag", () => {
         draggedCardId: cardId,
         fromZone: null,
         allCards: [],
+        format: "constructed",
+      }),
+    ).toBe(false);
+  });
+
+  it("returns false for any zone in freeform format", () => {
+    const allCards = [{ cardId, zone: "main" as DeckZone, quantity: 3 }];
+    expect(
+      isDeckZoneFullForDrag({
+        zone: "main",
+        draggedCardId: cardId,
+        fromZone: null,
+        allCards,
+        format: "freeform",
       }),
     ).toBe(false);
   });
