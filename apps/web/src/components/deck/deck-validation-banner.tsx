@@ -1,20 +1,28 @@
 import type { DeckViolation } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { CheckIcon, CircleAlertIcon } from "lucide-react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useDeckCards, useDeckViolations } from "@/hooks/use-deck-builder";
 import { useDeckDetail } from "@/hooks/use-decks";
+import { useDeckFormatList } from "@/hooks/use-enums";
 
 /**
  * Badge showing a click-to-open popover listing each violation.
  * @returns The violation badge element.
  */
-function ViolationBadge({ violations }: { violations: DeckViolation[] }) {
+function ViolationBadge({
+  formatLabel,
+  violations,
+}: {
+  formatLabel: string;
+  violations: DeckViolation[];
+}) {
   return (
     <Popover>
       <PopoverTrigger nativeButton={false} render={<span />}>
         <span className="flex shrink-0 cursor-pointer items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
-          Constructed
+          {formatLabel}
           <CircleAlertIcon className="size-3" />
         </span>
       </PopoverTrigger>
@@ -32,22 +40,24 @@ function ViolationBadge({ violations }: { violations: DeckViolation[] }) {
 }
 
 /**
- * Format badge showing "Constructed ✓", "Freeform", or violation count.
+ * Format badge showing "<Format> ✓", "<Format> · Draft", or violation count.
  * @returns The format badge element.
  */
 export function DeckFormatBadge({ deckId }: { deckId: string }) {
   const { data: deckDetail } = useDeckDetail(deckId);
   const format = deckDetail.deck.format;
+  const { labels } = useDeckFormatList();
+  const formatLabel = labels[format] ?? format;
   const violations = useDeckViolations(deckId, format);
   const cards = useDeckCards(deckId);
   const totalCards = cards.reduce((sum, card) => sum + card.quantity, 0);
 
-  const isValid = format === "freeform" || violations.length === 0;
+  const isValid = format === WellKnown.deckFormat.FREEFORM || violations.length === 0;
 
   if (isValid) {
     return (
       <span className="flex shrink-0 items-center gap-1 rounded-md bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
-        {format === "freeform" ? "Freeform" : "Constructed"}
+        {formatLabel}
         <CheckIcon className="size-3" />
       </span>
     );
@@ -58,10 +68,10 @@ export function DeckFormatBadge({ deckId }: { deckId: string }) {
   if (totalCards === 0) {
     return (
       <span className="bg-muted text-muted-foreground flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium">
-        Constructed · Draft
+        {formatLabel} · Draft
       </span>
     );
   }
 
-  return <ViolationBadge violations={violations} />;
+  return <ViolationBadge formatLabel={formatLabel} violations={violations} />;
 }

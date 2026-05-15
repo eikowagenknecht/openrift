@@ -1,5 +1,4 @@
-import type { DeckFormat, DeckListItemResponse, DeckResponse } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type { DeckListItemResponse, DeckResponse } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -41,6 +40,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -53,6 +55,7 @@ import {
   useSetDeckPinned,
   useUpdateDeck,
 } from "@/hooks/use-decks";
+import { useDeckFormatList } from "@/hooks/use-enums";
 import { useRequiredUserId } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { toDeckBuilderCard } from "@/lib/deck-builder-card";
@@ -74,6 +77,8 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
   const deleteDeck = useDeleteDeck();
   const setPinned = useSetDeckPinned();
   const setArchived = useSetDeckArchived();
+  const { formats } = useDeckFormatList();
+  const otherFormats = formats.filter((entry) => entry.slug !== deck.format);
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -122,13 +127,9 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
     setRenameOpen(false);
   };
 
-  const handleFormatToggle = (event: React.MouseEvent) => {
+  const handleFormatChange = (event: React.MouseEvent, slug: string) => {
     stop(event);
-    const newFormat: DeckFormat =
-      deck.format === WellKnown.deckFormat.CONSTRUCTED
-        ? WellKnown.deckFormat.FREEFORM
-        : WellKnown.deckFormat.CONSTRUCTED;
-    updateDeck.mutate({ deckId: deck.id, format: newFormat });
+    updateDeck.mutate({ deckId: deck.id, format: slug });
   };
 
   return (
@@ -187,12 +188,24 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
             <PencilIcon className="size-4" />
             Rename
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleFormatToggle}>
-            <RefreshCwIcon className="size-4" />
-            {deck.format === WellKnown.deckFormat.CONSTRUCTED
-              ? "Change to freeform"
-              : "Change to constructed"}
-          </DropdownMenuItem>
+          {otherFormats.length > 0 && (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <RefreshCwIcon className="size-4" />
+                Change format
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                {otherFormats.map((entry) => (
+                  <DropdownMenuItem
+                    key={entry.slug}
+                    onClick={(event: React.MouseEvent) => handleFormatChange(event, entry.slug)}
+                  >
+                    {entry.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          )}
           <DropdownMenuItem onClick={handleClone}>
             <CopyIcon className="size-4" />
             Clone

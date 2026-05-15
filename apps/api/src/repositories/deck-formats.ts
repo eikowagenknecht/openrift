@@ -1,4 +1,3 @@
-import type { DeckFormat } from "@openrift/shared/types";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
@@ -43,7 +42,7 @@ export function deckFormatsRepo(db: Kysely<Database>) {
       return db
         .selectFrom("decks")
         .select("id")
-        .where("format", "=", slug as DeckFormat)
+        .where("format", "=", slug)
         .limit(1)
         .executeTakeFirst();
     },

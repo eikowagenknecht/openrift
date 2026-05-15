@@ -9,10 +9,17 @@ import { seoHead, toAbsoluteUrl } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 import { CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
 
-const FORMAT_LABELS: Record<"constructed" | "freeform", string> = {
-  constructed: "Constructed",
-  freeform: "Freeform",
-};
+/**
+ * Capitalize a deck-format slug for the SSR/meta context where no React hooks
+ * are available. The `<head>` strings ship in the HTML before /init runs, so
+ * we can't look up the admin-managed display label here — render the slug
+ * with hyphens turned into spaces and the first letter capitalized.
+ * @returns A presentable rendering of the slug.
+ */
+function formatLabelFromSlug(slug: string): string {
+  const spaced = slug.replaceAll("-", " ");
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
 
 export const Route = createFileRoute("/_app/decks_/share/$token")({
   head: ({ loaderData, params }) => {
@@ -30,10 +37,10 @@ export const Route = createFileRoute("/_app/decks_/share/$token")({
       siteUrl,
       legend?.imageId ? imageUrl(legend.imageId, "full") : undefined,
     );
-    const title = `${deck.name} (${FORMAT_LABELS[deck.format]} deck)`;
+    const formatLabel = formatLabelFromSlug(deck.format);
+    const title = `${deck.name} (${formatLabel} deck)`;
     const description =
-      deck.description ??
-      `A ${FORMAT_LABELS[deck.format]} Riftbound deck shared by ${owner.displayName}.`;
+      deck.description ?? `A ${formatLabel} Riftbound deck shared by ${owner.displayName}.`;
     return seoHead({
       siteUrl,
       title,

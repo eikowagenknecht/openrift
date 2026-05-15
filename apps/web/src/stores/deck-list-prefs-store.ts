@@ -10,7 +10,12 @@ type DeckListDensity = "grid" | "list";
 
 export type DeckListGroupBy = "none" | "format" | "domains" | "legend" | "validity";
 
-export type DeckListFormatFilter = "all" | "constructed" | "freeform";
+/**
+ * "all" or a deck-format slug from the `deck_formats` reference table. The
+ * toolbar validates user-selected values against the live list; the persisted
+ * value is accepted as long as it's a plausible slug.
+ */
+export type DeckListFormatFilter = "all" | string;
 
 export type DeckListValidityFilter = "all" | "valid" | "invalid";
 
@@ -31,11 +36,11 @@ const GROUP_OPTIONS: ReadonlySet<DeckListGroupBy> = new Set([
   "validity",
 ]);
 
-const FORMAT_OPTIONS: ReadonlySet<DeckListFormatFilter> = new Set([
-  "all",
-  "constructed",
-  "freeform",
-]);
+const FORMAT_FILTER_SLUG_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
+
+function isValidFormatFilter(value: unknown): value is DeckListFormatFilter {
+  return value === "all" || (typeof value === "string" && FORMAT_FILTER_SLUG_RE.test(value));
+}
 
 const VALIDITY_OPTIONS: ReadonlySet<DeckListValidityFilter> = new Set(["all", "valid", "invalid"]);
 
@@ -160,8 +165,8 @@ export const useDeckListPrefsStore = create<DeckListPrefsState>()(
         const groupDir = SORT_DIRS.has(raw.groupDir as SortDir)
           ? (raw.groupDir as SortDir)
           : current.groupDir;
-        const formatFilter = FORMAT_OPTIONS.has(raw.formatFilter as DeckListFormatFilter)
-          ? (raw.formatFilter as DeckListFormatFilter)
+        const formatFilter = isValidFormatFilter(raw.formatFilter)
+          ? raw.formatFilter
           : current.formatFilter;
         const validityFilter = VALIDITY_OPTIONS.has(raw.validityFilter as DeckListValidityFilter)
           ? (raw.validityFilter as DeckListValidityFilter)

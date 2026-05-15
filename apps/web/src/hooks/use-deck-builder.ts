@@ -1,5 +1,5 @@
 import type { DeckFormat, DeckViolation, DeckZone, Domain } from "@openrift/shared";
-import { validateDeck } from "@openrift/shared";
+import { WellKnown, validateDeck } from "@openrift/shared";
 import { useLiveQuery } from "@tanstack/react-db";
 import type { Collection } from "@tanstack/react-db";
 
@@ -195,7 +195,7 @@ export function addCardAction(
     return;
   }
   const preferredPrintingId = card.preferredPrintingId;
-  const freeform = format === "freeform";
+  const freeform = format === WellKnown.deckFormat.FREEFORM;
 
   if (zone === "legend" || zone === "champion") {
     if (freeform) {
@@ -298,7 +298,7 @@ export function removeCardAction(
   } else {
     collection.delete(key);
   }
-  if (zone === "runes" && format !== "freeform") {
+  if (zone === "runes" && format !== WellKnown.deckFormat.FREEFORM) {
     rebalanceRunes(collection, target.domains, runesByDomain);
   }
 }
@@ -346,7 +346,8 @@ export function moveCardAction(
   if (!source || !isCardAllowedInZone(source, toZone)) {
     return;
   }
-  const singleSlot = (toZone === "legend" || toZone === "champion") && format !== "freeform";
+  const singleSlot =
+    (toZone === "legend" || toZone === "champion") && format !== WellKnown.deckFormat.FREEFORM;
   if (singleSlot) {
     moveIntoSingleSlot(collection, source, sourceKey, toZone);
     return;
@@ -377,7 +378,8 @@ export function moveOneCardAction(
   if (!source || !isCardAllowedInZone(source, toZone)) {
     return;
   }
-  const singleSlot = (toZone === "legend" || toZone === "champion") && format !== "freeform";
+  const singleSlot =
+    (toZone === "legend" || toZone === "champion") && format !== WellKnown.deckFormat.FREEFORM;
   if (singleSlot) {
     moveIntoSingleSlot(collection, source, sourceKey, toZone);
     return;
@@ -482,7 +484,7 @@ export function setLegendAction(
   runesByDomain: Map<string, DeckBuilderCard[]>,
   format: DeckFormat,
 ): void {
-  if (format === "freeform") {
+  if (format === WellKnown.deckFormat.FREEFORM) {
     // Freeform: legends are a multi-card zone, no rune autofill or domain swap.
     incrementOrInsert(collection, card, "legend", card.preferredPrintingId, 1);
     return;

@@ -6,6 +6,7 @@ import { ArchiveIcon, CheckIcon, CircleAlertIcon, PinIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDomainColors } from "@/hooks/use-domain-colors";
+import { useDeckFormatList } from "@/hooks/use-enums";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatterForMarketplace } from "@/lib/format";
@@ -33,6 +34,7 @@ function DomainDot({ domain }: { domain: string }) {
 export function DeckListRow({ item }: { item: DeckListItemResponse }) {
   const { deck, legendCardId, championCardId, totalCards, isValid, totalValueCents } = item;
   const { getPreferredPrinting } = usePreferredPrinting();
+  const { labels: formatLabels } = useDeckFormatList();
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
 
   const legendCard = legendCardId ? getPreferredPrinting(legendCardId)?.card : undefined;
@@ -91,9 +93,9 @@ export function DeckListRow({ item }: { item: DeckListItemResponse }) {
       </div>
 
       <div className="flex shrink-0 items-center gap-1">
-        {deck.format === "freeform" ? (
+        {deck.format === WellKnown.deckFormat.FREEFORM ? (
           <Badge variant="outline" className="text-xs">
-            Freeform
+            {formatLabels[deck.format] ?? deck.format}
           </Badge>
         ) : isValid ? (
           <Badge

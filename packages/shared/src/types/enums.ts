@@ -56,7 +56,8 @@ export type SetType = "main" | "supplemental";
 export type ActivityAction = "added" | "removed" | "moved";
 
 /** Backed by `deck_formats` reference table. */
-export type DeckFormat = "constructed" | "freeform";
+// oxlint-disable-next-line typescript-eslint/ban-types -- open string type for DB-driven enum values
+export type DeckFormat = string & Record<never, never>;
 
 /** Backed by `deck_zones` reference table. */
 export type DeckZone =

@@ -159,12 +159,12 @@ function groupKeyAndLabel(
   item: DeckListItemWithNames,
   groupBy: DeckListGroupBy,
   domainLabels?: Record<string, string>,
+  formatLabels?: Record<string, string>,
 ): { key: string; label: string } {
   switch (groupBy) {
     case "format": {
-      return item.deck.format === "constructed"
-        ? { key: "constructed", label: "Constructed" }
-        : { key: "freeform", label: "Freeform" };
+      const slug = item.deck.format;
+      return { key: slug, label: formatLabels?.[slug] ?? slug };
     }
     case "domains": {
       const combo = domainComboOf(item);
@@ -179,12 +179,14 @@ function groupKeyAndLabel(
       return { key: `legend:${legend}`, label: legend };
     }
     case "validity": {
-      if (item.deck.format === "freeform") {
-        return { key: "freeform", label: "Freeform" };
+      const slug = item.deck.format;
+      if (slug === WellKnown.deckFormat.FREEFORM) {
+        return { key: slug, label: formatLabels?.[slug] ?? slug };
       }
+      const formatLabel = formatLabels?.[slug] ?? slug;
       return item.isValid
-        ? { key: "valid", label: "Valid constructed" }
-        : { key: "invalid", label: "Invalid constructed" };
+        ? { key: `valid:${slug}`, label: `Valid ${formatLabel}` }
+        : { key: `invalid:${slug}`, label: `Invalid ${formatLabel}` };
     }
     case "none": {
       return { key: "all", label: "" };
@@ -197,13 +199,14 @@ export function groupDecks(
   groupBy: DeckListGroupBy,
   dir: SortDir = "asc",
   domainLabels?: Record<string, string>,
+  formatLabels?: Record<string, string>,
 ): DeckListGroup[] {
   if (groupBy === "none") {
     return [{ key: "all", label: "", items }];
   }
   const map = new Map<string, DeckListGroup>();
   for (const item of items) {
-    const { key, label } = groupKeyAndLabel(item, groupBy, domainLabels);
+    const { key, label } = groupKeyAndLabel(item, groupBy, domainLabels, formatLabels);
     let group = map.get(key);
     if (!group) {
       group = { key, label, items: [] };
@@ -272,7 +275,7 @@ export function filterAvailabilityFrom(items: DeckListItemWithNames[]): DeckList
   };
   for (const item of items) {
     formats.add(item.deck.format);
-    if (item.deck.format === "constructed") {
+    if (item.deck.format !== WellKnown.deckFormat.FREEFORM) {
       if (item.isValid) {
         sawValid = true;
       } else {

@@ -285,8 +285,8 @@ describe("groupDecks", () => {
     ];
     const groups = groupDecks(items, "validity");
     const byKey = Object.fromEntries(groups.map((group) => [group.key, group]));
-    expect(byKey.valid.items.map((item) => item.deck.id)).toEqual(["a"]);
-    expect(byKey.invalid.items.map((item) => item.deck.id)).toEqual(["b"]);
+    expect(byKey["valid:constructed"].items.map((item) => item.deck.id)).toEqual(["a"]);
+    expect(byKey["invalid:constructed"].items.map((item) => item.deck.id)).toEqual(["b"]);
     expect(byKey.freeform.items.map((item) => item.deck.id)).toEqual(["c"]);
   });
 

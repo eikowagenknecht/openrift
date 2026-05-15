@@ -36,6 +36,16 @@ const mockUserPreferences = {
   getByUserId: vi.fn(() => Promise.resolve(undefined)),
 };
 
+const mockDeckFormats = {
+  getBySlug: vi.fn((slug: string) =>
+    Promise.resolve(
+      slug === "constructed" || slug === "freeform"
+        ? { slug, label: slug, sortOrder: 0, isWellKnown: true }
+        : undefined,
+    ),
+  ),
+};
+
 const mockEnums = {
   all: vi.fn(() =>
     Promise.resolve({
@@ -82,6 +92,7 @@ const app = new Hono()
       marketplace: mockMarketplace,
       userPreferences: mockUserPreferences,
       enums: mockEnums,
+      deckFormats: mockDeckFormats,
     } as never);
     await next();
   })

@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCreateDeck, useDecks } from "@/hooks/use-decks";
-import { useEnumOrders } from "@/hooks/use-enums";
+import { useDeckFormatList, useEnumOrders } from "@/hooks/use-enums";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckListItemWithNames } from "@/lib/deck-list-utils";
 import {
@@ -46,11 +46,6 @@ import { DeckListRow } from "./deck-list-row";
 import { DeckListToolbar } from "./deck-list-toolbar";
 import { DeckTile } from "./deck-tile";
 
-const FORMAT_LABELS: Record<string, string> = {
-  constructed: "Constructed",
-  freeform: "Freeform",
-};
-
 function CreateDeckDialog({
   open,
   onOpenChange,
@@ -60,8 +55,9 @@ function CreateDeckDialog({
 }) {
   const navigate = useNavigate();
   const createDeck = useCreateDeck();
+  const { formats, labels: formatLabels } = useDeckFormatList();
   const [name, setName] = useState("New Deck");
-  const [format, setFormat] = useState<"constructed" | "freeform">("constructed");
+  const [format, setFormat] = useState<string>(formats[0]?.slug ?? "");
 
   const handleCreate = () => {
     createDeck.mutate(
@@ -95,13 +91,23 @@ function CreateDeckDialog({
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="deck-format">Format</Label>
-            <Select value={format} onValueChange={(value) => setFormat(value as typeof format)}>
+            <Select
+              value={format}
+              onValueChange={(value) => {
+                if (value !== null) {
+                  setFormat(value);
+                }
+              }}
+            >
               <SelectTrigger id="deck-format">
-                <SelectValue>{(value: string) => FORMAT_LABELS[value] ?? value}</SelectValue>
+                <SelectValue>{(value: string) => formatLabels[value] ?? value}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="constructed">Constructed</SelectItem>
-                <SelectItem value="freeform">Freeform</SelectItem>
+                {formats.map((entry) => (
+                  <SelectItem key={entry.slug} value={entry.slug}>
+                    {entry.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -168,6 +174,7 @@ export function DeckListPage() {
   const domainFilter = useDeckListPrefsStore((state) => state.domainFilter);
   const showArchived = useDeckListPrefsStore((state) => state.showArchived);
   const { labels } = useEnumOrders();
+  const { labels: formatLabels } = useDeckFormatList();
 
   const enriched = useEnrichedItems(deckItems);
   // Compute filter availability against the enriched set (before any filter is applied)
@@ -182,7 +189,7 @@ export function DeckListPage() {
     domains: domainFilter,
   });
   const sorted = sortDecks(filtered, sortField, sortDir);
-  const groups = groupDecks(sorted, groupBy, groupDir, labels.domains);
+  const groups = groupDecks(sorted, groupBy, groupDir, labels.domains, formatLabels);
 
   const containerClass =
     density === "grid"

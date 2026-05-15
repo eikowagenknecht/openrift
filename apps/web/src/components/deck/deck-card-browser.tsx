@@ -1,5 +1,5 @@
 import type { DeckZone, Marketplace, Printing } from "@openrift/shared";
-import { imageUrl } from "@openrift/shared";
+import { imageUrl, WellKnown } from "@openrift/shared";
 import { useDeferredValue, useEffect, useState } from "react";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
@@ -161,7 +161,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   const { setSearch } = useFilterActions();
   const { addCard, removeCard, setLegend, setQuantity } = useDeckBuilderActions(deckId);
   const { data: deckDetail } = useDeckDetail(deckId);
-  const isFreeform = deckDetail.deck.format === "freeform";
+  const isFreeform = deckDetail.deck.format === WellKnown.deckFormat.FREEFORM;
   // Wrapper only renders this component when activeZone is set
   const activeZone = useDeckBuilderUiStore((state) => state.activeZone) as DeckZone;
   // Single-card zones only apply in constructed — freeform legend/champion are multi-card.

@@ -41,7 +41,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useCards } from "@/hooks/use-cards";
 import { deckDetailQueryOptions, useCreateDeck, useSaveDeckCards } from "@/hooks/use-decks";
-import { useZoneOrder } from "@/hooks/use-enums";
+import { useDeckFormatList, useZoneOrder } from "@/hooks/use-enums";
 import { useRequiredUserId } from "@/lib/auth-session";
 import type { DeckMatchStatus, DeckMatchedEntry, ResolvedCard } from "@/lib/deck-import-matcher";
 import { matchDeckEntries } from "@/lib/deck-import-matcher";
@@ -70,11 +70,6 @@ function entryDisplayName(entry: DeckMatchedEntry): string {
 }
 
 type ImportStep = "input" | "preview";
-
-const DECK_FORMAT_LABELS: Record<string, string> = {
-  constructed: "Constructed",
-  freeform: "Freeform",
-};
 
 const IMPORT_PLACEHOLDERS: Record<DeckImportFormat, string> = {
   piltover: "Paste a Piltover Archive deck code...",
@@ -144,6 +139,7 @@ function DeckImportPage() {
   const { replaceDeckId } = Route.useSearch();
   const { allPrintings } = useCards();
   const { zoneOrder, zoneLabels } = useZoneOrder();
+  const { formats: deckFormats, labels: deckFormatLabels } = useDeckFormatList();
   const createDeck = useCreateDeck();
   const saveDeckCards = useSaveDeckCards();
   const navigate = useNavigate();
@@ -159,7 +155,7 @@ function DeckImportPage() {
   const [rawText, setRawText] = useState("");
   const [importFormat, setImportFormat] = useState<DeckImportFormat>("piltover");
   const [deckName, setDeckName] = useState("Imported Deck");
-  const [deckFormat, setDeckFormat] = useState<DeckFormat>("constructed");
+  const [deckFormat, setDeckFormat] = useState<DeckFormat>(deckFormats[0]?.slug ?? "");
   const [matchedEntries, setMatchedEntries] = useState<DeckMatchedEntry[]>([]);
   const [parseWarnings, setParseWarnings] = useState<string[]>([]);
   const [skippedIndices, setSkippedIndices] = useState<Set<number>>(new Set());
@@ -365,6 +361,8 @@ function DeckImportPage() {
         expandedValues={expandedValues}
         deckName={deckName}
         deckFormat={deckFormat}
+        deckFormats={deckFormats}
+        deckFormatLabels={deckFormatLabels}
         zoneOrder={zoneOrder}
         zoneLabels={zoneLabels}
         readyCount={readyEntries.length}
@@ -529,6 +527,8 @@ function PreviewStep({
   expandedValues,
   deckName,
   deckFormat,
+  deckFormats,
+  deckFormatLabels,
   zoneOrder,
   zoneLabels,
   readyCount,
@@ -554,6 +554,8 @@ function PreviewStep({
   expandedValues: string[];
   deckName: string;
   deckFormat: DeckFormat;
+  deckFormats: { slug: string; label: string }[];
+  deckFormatLabels: Record<string, string>;
   zoneOrder: DeckZone[];
   zoneLabels: Record<DeckZone, string>;
   readyCount: number;
@@ -680,16 +682,21 @@ function PreviewStep({
                 <Label htmlFor="preview-deck-format">Format</Label>
                 <Select
                   value={deckFormat}
-                  onValueChange={(value) => onDeckFormatChange(value as DeckFormat)}
+                  onValueChange={(value) => {
+                    if (value !== null) {
+                      onDeckFormatChange(value);
+                    }
+                  }}
                 >
                   <SelectTrigger id="preview-deck-format" className="mb-0 w-[140px]">
-                    <SelectValue>
-                      {(value: string) => DECK_FORMAT_LABELS[value] ?? value}
-                    </SelectValue>
+                    <SelectValue>{(value: string) => deckFormatLabels[value] ?? value}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="constructed">Constructed</SelectItem>
-                    <SelectItem value="freeform">Freeform</SelectItem>
+                    {deckFormats.map((entry) => (
+                      <SelectItem key={entry.slug} value={entry.slug}>
+                        {entry.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

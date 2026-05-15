@@ -1,4 +1,4 @@
-import type { CardType, DeckZone, Domain, SuperType } from "../enums.js";
+import type { CardType, DeckFormat, DeckZone, Domain, SuperType } from "../enums.js";
 
 export interface DeckListResponse {
   items: DeckListItemResponse[];
@@ -8,7 +8,7 @@ export interface DeckListResponse {
 export interface DeckSummaryResponse {
   id: string;
   name: string;
-  format: "constructed" | "freeform";
+  format: DeckFormat;
   isPinned: boolean;
   archivedAt: string | null;
   createdAt: string;
@@ -34,7 +34,7 @@ export interface DeckResponse {
   id: string;
   name: string;
   description: string | null;
-  format: "constructed" | "freeform";
+  format: DeckFormat;
   isWanted: boolean;
   isPublic: boolean;
   shareToken: string | null;
@@ -62,7 +62,7 @@ export interface PublicDeckResponse {
   id: string;
   name: string;
   description: string | null;
-  format: "constructed" | "freeform";
+  format: DeckFormat;
   createdAt: string;
   updatedAt: string;
 }

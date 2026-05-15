@@ -20,17 +20,13 @@ import {
 import { Button } from "@/components/ui/button";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useCloneSharedDeck, usePublicDeck } from "@/hooks/use-decks";
+import { useDeckFormatList } from "@/hooks/use-enums";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
-
-const FORMAT_LABELS: Record<"constructed" | "freeform", string> = {
-  constructed: "Constructed",
-  freeform: "Freeform",
-};
 
 export const Route = createLazyFileRoute("/_app/decks_/share/$token")({
   component: SharedDeckPage,
@@ -83,6 +79,7 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
   const marketplace = marketplaceOrder[0] ?? "cardtrader";
   const isMobile = useIsMobile();
   const hydrated = useHydrated();
+  const { labels: formatLabels } = useDeckFormatList();
 
   // Everything the shell needs — builder cards, thumbnails, hover full-image
   // URLs, and card slugs — comes straight from the enriched payload. No
@@ -167,7 +164,8 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
             <div className="flex min-w-0 flex-1 items-baseline gap-2">
               <PageTopBarTitle>{data.deck.name}</PageTopBarTitle>
               <span className="text-muted-foreground hidden truncate text-xs md:inline">
-                {FORMAT_LABELS[data.deck.format]} · Shared by {data.owner.displayName}
+                {formatLabels[data.deck.format] ?? data.deck.format} · Shared by{" "}
+                {data.owner.displayName}
               </span>
             </div>
             <PageTopBarActions>

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useDeckFormatList } from "@/hooks/use-enums";
 import type { DeckListFilterAvailability } from "@/lib/deck-list-utils";
 import { cn } from "@/lib/utils";
 import type { DeckListGroupBy, DeckListSortField } from "@/stores/deck-list-prefs-store";
@@ -60,6 +61,8 @@ export function DeckListToolbar({
   const showArchived = useDeckListPrefsStore((state) => state.showArchived);
   const setShowArchived = useDeckListPrefsStore((state) => state.setShowArchived);
   const resetFilters = useDeckListPrefsStore((state) => state.resetFilters);
+  const { formats } = useDeckFormatList();
+  const formatSlugs = new Set(formats.map((entry) => entry.slug));
 
   const hasActiveFilter =
     search !== "" || formatFilter !== "all" || validityFilter !== "all" || domainFilter.length > 0;
@@ -170,15 +173,16 @@ export function DeckListToolbar({
                 size="sm"
                 value={[formatFilter]}
                 onValueChange={([next]) => {
-                  if (next === "all" || next === "constructed" || next === "freeform") {
+                  if (next === "all" || formatSlugs.has(next)) {
                     setFormatFilter(next);
                   }
                 }}
                 aria-label="Format filter"
               >
-                {(["all", "constructed", "freeform"] as const).map((value) => (
-                  <ToggleGroupItem key={value} value={value} className="capitalize">
-                    {value}
+                <ToggleGroupItem value="all">All</ToggleGroupItem>
+                {formats.map((entry) => (
+                  <ToggleGroupItem key={entry.slug} value={entry.slug}>
+                    {entry.label}
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>

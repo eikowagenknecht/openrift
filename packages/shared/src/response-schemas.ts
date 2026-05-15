@@ -11,7 +11,7 @@ const superTypeSchema = z.string().openapi({ example: "Champion" });
 const artVariantSchema = z.string().openapi({ example: "normal" });
 const finishSchema = z.string().openapi({ example: "foil" });
 const activityActionSchema = z.enum(["added", "removed", "moved"]);
-const deckFormatSchema = z.enum(["constructed", "freeform"]);
+const deckFormatSchema = z.string().openapi({ example: "constructed" });
 const deckZoneSchema = z.enum([
   "main",
   "sideboard",

@@ -78,6 +78,25 @@ export function useLanguageList(): { code: string; name: string }[] {
 }
 
 /**
+ * Returns ordered deck-format rows from the /init endpoint along with a
+ * slug → label lookup. Use this everywhere the UI needs to enumerate or label
+ * deck formats — never hardcode format slugs or labels.
+ *
+ * @returns An ordered array of `{ slug, label }` entries and the matching label lookup.
+ */
+export function useDeckFormatList(): {
+  formats: { slug: string; label: string }[];
+  labels: Record<string, string>;
+} {
+  const { data } = useSuspenseQuery(initQueryOptions);
+  const rows = sorted(data.enums.deckFormats ?? []);
+  return {
+    formats: rows.map((row) => ({ slug: row.slug, label: row.label })),
+    labels: Object.fromEntries(rows.map((row) => [row.slug, row.label])),
+  };
+}
+
+/**
  * Returns ordered marker rows from the /init endpoint, including descriptions.
  *
  * @returns An ordered array of `{ slug, label, description }` marker entries.

@@ -1,5 +1,6 @@
 import { useDndContext, useDroppable } from "@dnd-kit/core";
 import type { DeckViolation, DeckZone } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { AlertTriangleIcon, BanIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -77,7 +78,7 @@ export function DeckZoneSection({
   const allCards = useDeckCards(deckId);
   const { data: deckDetail } = useDeckDetail(deckId);
   const format = deckDetail.deck.format;
-  const isFreeform = format === "freeform";
+  const isFreeform = format === WellKnown.deckFormat.FREEFORM;
   const { getPreferredPrinting } = usePreferredPrinting();
 
   // Check if the currently dragged card is allowed in this zone

@@ -5,7 +5,6 @@ import type {
   DeckAvailabilityResponse,
   DeckDetailResponse,
   DeckExportResponse,
-  DeckFormat,
   DeckListItemResponse,
   DeckListResponse,
   DeckZone,
@@ -34,6 +33,8 @@ import {
 import { PREFERENCE_DEFAULTS } from "@openrift/shared/types";
 import { z } from "zod";
 
+import type { Repos } from "../../deps.js";
+import { AppError, ERROR_CODES } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { buildPatchUpdates } from "../../patch.js";
@@ -43,6 +44,13 @@ import type { TextCodecCard } from "../../services/deck-codecs/index.js";
 import type { Variables } from "../../types.js";
 import { assertDeleted, assertFound } from "../../utils/assertions.js";
 import { toDeck, toDeckAvailabilityItem, toDeckCard, toDeckSummary } from "../../utils/mappers.js";
+
+async function assertKnownFormat(deckFormats: Repos["deckFormats"], format: string): Promise<void> {
+  const row = await deckFormats.getBySlug(format);
+  if (!row) {
+    throw new AppError(400, ERROR_CODES.BAD_REQUEST, `Unknown deck format: ${format}`);
+  }
+}
 
 const patchFields: FieldMapping = {
   name: "name",
@@ -392,14 +400,15 @@ export const decksRoute = decksApp
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
   .openapi(createDeck, async (c) => {
-    const { decks } = c.get("repos");
+    const { decks, deckFormats } = c.get("repos");
     const userId = getUserId(c);
     const body = c.req.valid("json");
+    await assertKnownFormat(deckFormats, body.format);
     const row = await decks.create({
       userId,
       name: body.name,
       description: body.description ?? null,
-      format: body.format as DeckFormat,
+      format: body.format,
       isWanted: body.isWanted ?? false,
       isPublic: body.isPublic ?? false,
     });
@@ -427,10 +436,13 @@ export const decksRoute = decksApp
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
   .openapi(updateDeck, async (c) => {
-    const { decks } = c.get("repos");
+    const { decks, deckFormats } = c.get("repos");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
+    if (body.format !== undefined) {
+      await assertKnownFormat(deckFormats, body.format);
+    }
     const updates = buildPatchUpdates(body, patchFields);
     const row = await decks.update(id, userId, updates);
     assertFound(row, "Not found");
