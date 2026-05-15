@@ -1,5 +1,7 @@
 import { useRef, useState } from "react";
 
+import { isTempCopyId } from "@/lib/temp-copy-id";
+
 interface UseCardSelectionResult {
   selected: Set<string>;
   toggleSelect: (copyId: string) => void;
@@ -21,7 +23,17 @@ export function useCardSelection(): UseCardSelectionResult {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const lastSelectedItemIdRef = useRef<string | null>(null);
 
+  // Optimistic rows inserted by useBatchedAddCopies live in the grid with a
+  // temp- prefixed id until the add API returns a server-assigned uuid. Those
+  // rows must not enter the selection set: dispose/move would 400 on the API
+  // (invalid uuid) or race with the in-flight add. Filtering at the hook
+  // makes every callsite (click, shift-range, select-all, stack-toggle) safe
+  // without sprinkling the same guard through the grid.
+
   const toggleSelect = (copyId: string) => {
+    if (isTempCopyId(copyId)) {
+      return;
+    }
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(copyId)) {
@@ -34,10 +46,14 @@ export function useCardSelection(): UseCardSelectionResult {
   };
 
   const toggleStack = (copyIds: string[]) => {
+    const realIds = copyIds.filter((id) => !isTempCopyId(id));
+    if (realIds.length === 0) {
+      return;
+    }
     setSelected((prev) => {
       const next = new Set(prev);
-      const allSelected = copyIds.every((id) => next.has(id));
-      for (const id of copyIds) {
+      const allSelected = realIds.every((id) => next.has(id));
+      for (const id of realIds) {
         if (allSelected) {
           next.delete(id);
         } else {
@@ -49,10 +65,11 @@ export function useCardSelection(): UseCardSelectionResult {
   };
 
   const toggleSelectAll = (allCopyIds: string[]) => {
-    if (selected.size === allCopyIds.length) {
+    const realIds = allCopyIds.filter((id) => !isTempCopyId(id));
+    if (selected.size === realIds.length) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(allCopyIds));
+      setSelected(new Set(realIds));
     }
   };
 
@@ -62,9 +79,13 @@ export function useCardSelection(): UseCardSelectionResult {
   };
 
   const addToSelection = (ids: string[]) => {
+    const realIds = ids.filter((id) => !isTempCopyId(id));
+    if (realIds.length === 0) {
+      return;
+    }
     setSelected((prev) => {
       const next = new Set(prev);
-      for (const id of ids) {
+      for (const id of realIds) {
         next.add(id);
       }
       return next;

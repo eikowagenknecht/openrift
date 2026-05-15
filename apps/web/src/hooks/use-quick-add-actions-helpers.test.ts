@@ -87,4 +87,37 @@ describe("decideRemoval", () => {
       copyId: "c2",
     });
   });
+
+  // Regression: an optimistic temp row (id `temp-<uuid>`) for an in-flight
+  // add must not be picked by the minus button — dispose would 400 on the
+  // API (invalid uuid) or race the add-success swap. See Sentry
+  // OPENRIFT-SSR-R.
+  it("excludes optimistic temp rows when picking the newest", () => {
+    const copies = [
+      copy("01900000-0000-7000-8000-000000000001", "pr-1", "col-1"),
+      copy("temp-99999999-0000-0000-0000-000000000099", "pr-1", "col-1"),
+    ];
+    expect(decideRemoval(copies, "pr-1")).toEqual({
+      kind: "dispose",
+      copyId: "01900000-0000-7000-8000-000000000001",
+    });
+  });
+
+  it("returns 'none' when only a temp row matches the printing", () => {
+    const copies = [copy("temp-99999999-0000-0000-0000-000000000099", "pr-1", "col-1")];
+    expect(decideRemoval(copies, "pr-1")).toEqual({ kind: "none" });
+  });
+
+  it("does not open the picker on a multi-collection spread that's only real on one side", () => {
+    // Real copy in col-A, temp-only in col-B → after filtering, only col-A
+    // is in play, so this disposes from col-A rather than opening the picker.
+    const copies = [
+      copy("01900000-0000-7000-8000-000000000010", "pr-1", "col-A"),
+      copy("temp-22222222-0000-0000-0000-000000000022", "pr-1", "col-B"),
+    ];
+    expect(decideRemoval(copies, "pr-1")).toEqual({
+      kind: "dispose",
+      copyId: "01900000-0000-7000-8000-000000000010",
+    });
+  });
 });

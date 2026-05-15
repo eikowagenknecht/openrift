@@ -8,6 +8,7 @@ import { trackEvent } from "@/lib/analytics";
 import { useUserId } from "@/lib/auth-session";
 import { useCopiesCollection } from "@/lib/copies-collection";
 import { queryKeys } from "@/lib/query-keys";
+import { isTempCopyId, TEMP_COPY_ID_PREFIX } from "@/lib/temp-copy-id";
 import { withTimeout } from "@/lib/with-timeout";
 
 const BATCH_SIZE = 500;
@@ -201,6 +202,17 @@ export function useMoveCopies() {
       if (!userId || !copiesCollection) {
         return;
       }
+      // Drop optimistic temp ids — they reference rows still in flight from
+      // useBatchedAddCopies and aren't valid uuids, so the move API would
+      // 400. The temp row's collectionId was set at insert time, and the
+      // server-assigned row that replaces it on add-success will inherit
+      // whatever collection the original add targeted; treating the move as
+      // a no-op for in-flight rows keeps the user's intent local to this
+      // mutation rather than reaching across the in-flight add.
+      const realCopyIds = copyIds.filter((id) => !isTempCopyId(id));
+      if (realCopyIds.length === 0) {
+        return;
+      }
       const collection = copiesCollection;
       const tx = createTransaction<CopyResponse>({
         mutationFn: async ({ transaction }) => {
@@ -224,7 +236,7 @@ export function useMoveCopies() {
         },
       });
       tx.mutate(() => {
-        for (const id of copyIds) {
+        for (const id of realCopyIds) {
           collection.update(id, (draft) => {
             draft.collectionId = toCollectionId;
           });
@@ -318,7 +330,7 @@ export function useBatchedAddCopies(callbacks?: BatchedAddCallbacks) {
       // server-assigned row on success. The tempId is returned so callers
       // can record it in session-level "recently added" UI immediately and
       // swap for the real id after the API confirms.
-      const tempId = `temp-${crypto.randomUUID()}`;
+      const tempId = `${TEMP_COPY_ID_PREFIX}${crypto.randomUUID()}`;
       if (copiesCollection) {
         copiesCollection.utils.writeInsert([{ id: tempId, printingId, collectionId }]);
       }
@@ -345,6 +357,15 @@ export function useDisposeCopies() {
       if (!userId || !copiesCollection) {
         return;
       }
+      // Drop optimistic temp ids — they reference rows still in flight from
+      // useBatchedAddCopies and aren't valid uuids, so the API would 400.
+      // Leaving the temp row alone here also avoids the swap-after-delete
+      // race where the add would later re-insert a real row the user thought
+      // they removed.
+      const realCopyIds = copyIds.filter((id) => !isTempCopyId(id));
+      if (realCopyIds.length === 0) {
+        return;
+      }
       const collection = copiesCollection;
       const tx = createTransaction<CopyResponse>({
         mutationFn: async ({ transaction }) => {
@@ -365,12 +386,12 @@ export function useDisposeCopies() {
         },
       });
       tx.mutate(() => {
-        for (const id of copyIds) {
+        for (const id of realCopyIds) {
           collection.delete(id);
         }
       });
       await tx.isPersisted.promise;
-      trackEvent("collection-remove", { count: copyIds.length });
+      trackEvent("collection-remove", { count: realCopyIds.length });
     },
   });
 }

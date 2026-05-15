@@ -1,5 +1,7 @@
 import type { CopyResponse } from "@openrift/shared";
 
+import { isTempCopyId } from "@/lib/temp-copy-id";
+
 /**
  * Picks the newest copy among the given copies. Copy ids are uuidv7, so
  * lexicographic id ordering matches creation order.
@@ -28,6 +30,13 @@ export function decideRemoval(
 ): RemovalDecision {
   const filtered = allCopies.filter((c) => {
     if (c.printingId !== printingId) {
+      return false;
+    }
+    // Optimistic temp rows aren't real copies yet; the minus button must
+    // not target them, or dispose would either 400 on the API (invalid uuid)
+    // or race with the in-flight add and "delete" a row that then comes
+    // back when the add commits.
+    if (isTempCopyId(c.id)) {
       return false;
     }
     return viewCollectionId ? c.collectionId === viewCollectionId : true;
