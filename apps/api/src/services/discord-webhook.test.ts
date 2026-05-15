@@ -329,4 +329,62 @@ describe("buildChangedPrintingPayloads", () => {
     expect(fields[0].value).toContain("*empty*");
     expect(fields[0].value).toContain("New flavor");
   });
+
+  it("resolves setId UUIDs into set names via the provided lookup", () => {
+    const fromSetId = "019cfc3b-0369-78be-bd85-75cb9e46ad0c";
+    const toSetId = "019cfd6f-067b-768c-a586-b8f9547ad455";
+    const events = [
+      makeEvent({
+        eventType: "changed",
+        changes: [{ field: "setId", from: fromSetId, to: toSetId }],
+      }),
+    ];
+
+    const payloads = buildChangedPrintingPayloads(events, APP_BASE_URL, {
+      setNamesById: new Map([
+        [fromSetId, "Origins"],
+        [toSetId, "Unleashed"],
+      ]),
+    });
+
+    const fields = payloads[0].embeds[0].fields ?? [];
+    expect(fields[0].name).toBe("Set");
+    expect(fields[0].value).toBe("Origins → Unleashed");
+    expect(fields[0].value).not.toContain(fromSetId);
+    expect(fields[0].value).not.toContain(toSetId);
+  });
+
+  it("falls back to the raw UUID when a setId is missing from the lookup", () => {
+    const fromSetId = "019cfc3b-0369-78be-bd85-75cb9e46ad0c";
+    const toSetId = "019cfd6f-067b-768c-a586-b8f9547ad455";
+    const events = [
+      makeEvent({
+        eventType: "changed",
+        changes: [{ field: "setId", from: fromSetId, to: toSetId }],
+      }),
+    ];
+
+    const payloads = buildChangedPrintingPayloads(events, APP_BASE_URL, {
+      setNamesById: new Map([[toSetId, "Unleashed"]]),
+    });
+
+    const fields = payloads[0].embeds[0].fields ?? [];
+    expect(fields[0].value).toBe(`${fromSetId} → Unleashed`);
+  });
+
+  it("leaves setId values unchanged when no lookup is provided", () => {
+    const fromSetId = "019cfc3b-0369-78be-bd85-75cb9e46ad0c";
+    const toSetId = "019cfd6f-067b-768c-a586-b8f9547ad455";
+    const events = [
+      makeEvent({
+        eventType: "changed",
+        changes: [{ field: "setId", from: fromSetId, to: toSetId }],
+      }),
+    ];
+
+    const payloads = buildChangedPrintingPayloads(events, APP_BASE_URL);
+    const fields = payloads[0].embeds[0].fields ?? [];
+
+    expect(fields[0].value).toBe(`${fromSetId} → ${toSetId}`);
+  });
 });

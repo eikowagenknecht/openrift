@@ -29,14 +29,21 @@ describe("flushPendingPrintingEvents", () => {
     vi.resetAllMocks();
   });
 
-  it("returns early when no pending events", async () => {
-    const repos = {
+  function makeRepos(events: unknown[], setNamesById = new Map<string, string>()) {
+    return {
       printingEvents: {
-        listPending: vi.fn(async () => []),
+        listPending: vi.fn(async () => events),
         markSent: vi.fn(async () => {}),
         markRetry: vi.fn(async () => {}),
       },
+      sets: {
+        getNamesByIds: vi.fn(async () => setNamesById),
+      },
     };
+  }
+
+  it("returns early when no pending events", async () => {
+    const repos = makeRepos([]);
 
     const result = await flushPendingPrintingEvents(
       repos as any,
@@ -62,13 +69,7 @@ describe("flushPendingPrintingEvents", () => {
 
     mockFlush.mockResolvedValue({ sentIds: ["evt-1"], failedIds: [], failures: [] });
 
-    const repos = {
-      printingEvents: {
-        listPending: vi.fn(async () => events),
-        markSent: vi.fn(async () => {}),
-        markRetry: vi.fn(async () => {}),
-      },
-    };
+    const repos = makeRepos(events);
 
     const result = await flushPendingPrintingEvents(
       repos as any,
@@ -77,9 +78,59 @@ describe("flushPendingPrintingEvents", () => {
       mockLog(),
     );
 
-    expect(mockFlush).toHaveBeenCalledWith(events, WEBHOOKS, APP_BASE_URL, expect.anything());
+    expect(mockFlush).toHaveBeenCalledWith(
+      events,
+      WEBHOOKS,
+      APP_BASE_URL,
+      expect.anything(),
+      expect.objectContaining({ setNamesById: expect.any(Map) }),
+    );
     expect(repos.printingEvents.markSent).toHaveBeenCalledWith(["evt-1"]);
     expect(result).toEqual({ sent: 1, failed: 0 });
+  });
+
+  it("resolves setId UUIDs referenced by changed events into a name lookup", async () => {
+    const fromSetId = "019cfc3b-0369-78be-bd85-75cb9e46ad0c";
+    const toSetId = "019cfd6f-067b-768c-a586-b8f9547ad455";
+    const events = [
+      {
+        id: "evt-1",
+        eventType: "changed" as const,
+        printingId: "p-1",
+        cardName: "Order Rune",
+        changes: [{ field: "setId", from: fromSetId, to: toSetId }],
+        status: "pending" as const,
+      },
+      {
+        // Non-setId change must not contribute to the id list.
+        id: "evt-2",
+        eventType: "changed" as const,
+        printingId: "p-2",
+        cardName: "Other Card",
+        changes: [{ field: "artist", from: "A", to: "B" }],
+        status: "pending" as const,
+      },
+    ];
+
+    mockFlush.mockResolvedValue({ sentIds: ["evt-1", "evt-2"], failedIds: [], failures: [] });
+
+    const repos = makeRepos(
+      events,
+      new Map([
+        [fromSetId, "Origins"],
+        [toSetId, "Unleashed"],
+      ]),
+    );
+
+    await flushPendingPrintingEvents(repos as any, WEBHOOKS, APP_BASE_URL, mockLog());
+
+    expect(repos.sets.getNamesByIds).toHaveBeenCalledTimes(1);
+    const [requestedIds] = repos.sets.getNamesByIds.mock.calls[0] as [string[]];
+    expect(requestedIds.toSorted()).toEqual([fromSetId, toSetId].toSorted());
+
+    const lookups = mockFlush.mock.calls[0][4];
+    expect(lookups?.setNamesById?.get(fromSetId)).toBe("Origins");
+    expect(lookups?.setNamesById?.get(toSetId)).toBe("Unleashed");
   });
 
   it("marks failed events for retry on partial failure and includes failure detail", async () => {
@@ -106,13 +157,7 @@ describe("flushPendingPrintingEvents", () => {
       failures: [{ channel: "printingChanges", status: 400, detail: "Bad embed" }],
     });
 
-    const repos = {
-      printingEvents: {
-        listPending: vi.fn(async () => events),
-        markSent: vi.fn(async () => {}),
-        markRetry: vi.fn(async () => {}),
-      },
-    };
+    const repos = makeRepos(events);
 
     const result = await flushPendingPrintingEvents(
       repos as any,
@@ -147,13 +192,7 @@ describe("flushPendingPrintingEvents", () => {
       failures: [{ channel: "printingChanges", status: 401, detail: "Unauthorized" }],
     });
 
-    const repos = {
-      printingEvents: {
-        listPending: vi.fn(async () => events),
-        markSent: vi.fn(async () => {}),
-        markRetry: vi.fn(async () => {}),
-      },
-    };
+    const repos = makeRepos(events);
 
     await expect(
       flushPendingPrintingEvents(repos as any, WEBHOOKS, APP_BASE_URL, mockLog()),

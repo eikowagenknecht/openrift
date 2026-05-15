@@ -43,6 +43,15 @@ export interface WebhookFailure {
   detail: string;
 }
 
+/**
+ * Lookups used to resolve UUID-typed change values (e.g. setId) to human-readable
+ * names before they're rendered in Discord embeds. Maps are keyed by UUID; ids
+ * not present fall back to the raw value.
+ */
+export interface ChangeValueLookups {
+  setNamesById?: Map<string, string>;
+}
+
 // Discord requires absolute URLs for embed images. Build the 400w variant
 // from the image id and prepend the app base URL.
 function absoluteImageUrl(appBaseUrl: string, id: string | null): string | undefined {
@@ -64,6 +73,7 @@ export async function flushPrintingEvents(
   webhookUrls: { newPrintings: string | null; printingChanges: string | null },
   appBaseUrl: string,
   log: Logger,
+  lookups: ChangeValueLookups = {},
 ): Promise<{ sentIds: string[]; failedIds: string[]; failures: WebhookFailure[] }> {
   const newEvents = events.filter((e) => e.eventType === "new");
   const changedEvents = events.filter((e) => e.eventType === "changed");
@@ -88,7 +98,7 @@ export async function flushPrintingEvents(
   }
 
   if (changedEvents.length > 0 && webhookUrls.printingChanges) {
-    const payloads = buildChangedPrintingPayloads(changedEvents, appBaseUrl);
+    const payloads = buildChangedPrintingPayloads(changedEvents, appBaseUrl, lookups);
     const result = await sendPayloads(webhookUrls.printingChanges, payloads, log);
     for (const event of changedEvents) {
       (result.ok ? sentIds : failedIds).push(event.id);
@@ -260,6 +270,7 @@ function buildNewPrintingSummary(
 export function buildChangedPrintingPayloads(
   events: EnrichedPrintingEvent[],
   appBaseUrl: string,
+  lookups: ChangeValueLookups = {},
 ): DiscordWebhookPayload[] {
   const byPrinting = Map.groupBy(events, (e) => e.printingId);
   const embeds: DiscordEmbed[] = [];
@@ -289,7 +300,7 @@ export function buildChangedPrintingPayloads(
       .filter(([, { from, to }]) => !valuesEqual(from, to))
       .map(([field, { from, to }]) => ({
         name: humanizePrintingField(field),
-        value: formatChange(from, to),
+        value: formatChange(field, from, to, lookups),
         inline: false,
       }));
 
@@ -345,9 +356,23 @@ function formatValue(value: unknown): string {
   return str;
 }
 
-function formatChange(from: unknown, to: unknown): string {
-  const fromStr = formatValue(from);
-  const toStr = formatValue(to);
+// Fields whose stored value is a UUID FK to another table. The raw UUID isn't
+// useful in a Discord embed, so we resolve it via the matching lookup.
+function resolveFieldValue(field: string, value: unknown, lookups: ChangeValueLookups): unknown {
+  if (field === "setId" && typeof value === "string" && lookups.setNamesById) {
+    return lookups.setNamesById.get(value) ?? value;
+  }
+  return value;
+}
+
+function formatChange(
+  field: string,
+  from: unknown,
+  to: unknown,
+  lookups: ChangeValueLookups,
+): string {
+  const fromStr = formatValue(resolveFieldValue(field, from, lookups));
+  const toStr = formatValue(resolveFieldValue(field, to, lookups));
   // Long values (rules text, flavor text) wrap badly inside an inline arrow,
   // so split them onto labelled lines for legibility.
   if (fromStr.length > MULTILINE_THRESHOLD || toStr.length > MULTILINE_THRESHOLD) {

@@ -1,10 +1,37 @@
 import type { Logger } from "@openrift/shared/logger";
 
-import type { printingEventsRepo } from "../repositories/printing-events.js";
-import type { WebhookFailure } from "./discord-webhook.js";
+import type { EnrichedPrintingEvent, printingEventsRepo } from "../repositories/printing-events.js";
+import type { setsRepo } from "../repositories/sets.js";
+import type { ChangeValueLookups, WebhookFailure } from "./discord-webhook.js";
 import { flushPrintingEvents } from "./discord-webhook.js";
 
 type PrintingEventsRepo = ReturnType<typeof printingEventsRepo>;
+type SetsRepo = ReturnType<typeof setsRepo>;
+
+/**
+ * Collect every distinct setId UUID referenced by a `setId` field change so we
+ * can resolve them to human-readable set names in a single query.
+ *
+ * @returns Distinct setId UUIDs that appear as either `from` or `to` on a
+ * `setId` change.
+ */
+function collectChangedSetIds(events: EnrichedPrintingEvent[]): string[] {
+  const ids = new Set<string>();
+  for (const event of events) {
+    for (const change of event.changes ?? []) {
+      if (change.field !== "setId") {
+        continue;
+      }
+      if (typeof change.from === "string") {
+        ids.add(change.from);
+      }
+      if (typeof change.to === "string") {
+        ids.add(change.to);
+      }
+    }
+  }
+  return [...ids];
+}
 
 interface DiscordWebhookUrls {
   newPrintings: string | null;
@@ -40,7 +67,7 @@ function describeFailures(failures: WebhookFailure[]): string {
  * detail. Throws if all delivery attempts failed.
  */
 export async function flushPendingPrintingEvents(
-  repos: { printingEvents: PrintingEventsRepo },
+  repos: { printingEvents: PrintingEventsRepo; sets: SetsRepo },
   webhookUrls: DiscordWebhookUrls,
   appBaseUrl: string,
   log: Logger,
@@ -50,11 +77,15 @@ export async function flushPendingPrintingEvents(
     return { sent: 0, failed: 0 };
   }
 
+  const setNamesById = await repos.sets.getNamesByIds(collectChangedSetIds(events));
+  const lookups: ChangeValueLookups = { setNamesById };
+
   const { sentIds, failedIds, failures } = await flushPrintingEvents(
     events,
     webhookUrls,
     appBaseUrl,
     log,
+    lookups,
   );
 
   await repos.printingEvents.markSent(sentIds);

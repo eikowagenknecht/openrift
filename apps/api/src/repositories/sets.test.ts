@@ -28,6 +28,26 @@ describe("setsRepo", () => {
     expect(await setsRepo(db).getPrintedTotal("s-1")).toEqual({ printedTotal: 200 });
   });
 
+  it("getNamesByIds returns a map of id to name", async () => {
+    const db = createMockDb([
+      { id: "s-1", name: "Origins" },
+      { id: "s-2", name: "Unleashed" },
+    ]);
+    const result = await setsRepo(db).getNamesByIds(["s-1", "s-2"]);
+    expect(result).toEqual(
+      new Map([
+        ["s-1", "Origins"],
+        ["s-2", "Unleashed"],
+      ]),
+    );
+  });
+
+  it("getNamesByIds returns an empty map when ids is empty", async () => {
+    const db = createMockDb([]);
+    const result = await setsRepo(db).getNamesByIds([]);
+    expect(result.size).toBe(0);
+  });
+
   it("create inserts a set", async () => {
     const db = createMockDb([]);
     await expect(

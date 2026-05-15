@@ -25,6 +25,19 @@ export function setsRepo(db: Kysely<Database>) {
       return db.selectFrom("sets").select("printedTotal").where("id", "=", id).executeTakeFirst();
     },
 
+    /** @returns A map of set UUID → name for the given ids. Missing ids are absent from the map. */
+    async getNamesByIds(ids: string[]): Promise<Map<string, string>> {
+      if (ids.length === 0) {
+        return new Map();
+      }
+      const rows = await db
+        .selectFrom("sets")
+        .select(["id", "name"])
+        .where("id", "in", ids)
+        .execute();
+      return new Map(rows.map((row) => [row.id, row.name]));
+    },
+
     /** Creates a new set with the given values. */
     async create(values: {
       slug: string;
