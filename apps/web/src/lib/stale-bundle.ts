@@ -66,6 +66,26 @@ export function initStaleBundleWatcher(): void {
 export const CHUNK_LOAD_ERROR_PATTERN =
   /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|ChunkLoadError|Loading chunk \d+ failed/u;
 
+// `throw undefined` (or null, or empty string) inside an event handler / async
+// callback escapes React error boundaries and produces a white page. We can't
+// reproduce reliably (cache- or state-related; F5 fixes it), so trade UX for
+// resilience: when the global handler sees a same-origin bare throw, reload
+// once. The session-scoped flag in reloadOnce() prevents loops if the bare
+// throw fires again immediately after reload.
+function isSameOriginBareThrow(event: ErrorEvent): boolean {
+  if (event.error !== undefined && event.error !== null && event.error !== "") {
+    return false;
+  }
+  // Filter to our own bundle: cross-origin (browser extensions, Sentry, etc.)
+  // get sanitized to event.error === undefined + empty/foreign filename. Only
+  // reload when we're confident it's our code.
+  return event.filename?.startsWith(globalThis.location.origin) === true;
+}
+
+function isBareRejection(reason: unknown): boolean {
+  return reason === undefined || reason === null || reason === "";
+}
+
 export function initChunkErrorReloader(): void {
   if (globalThis.window === undefined) {
     return;
@@ -74,6 +94,10 @@ export function initChunkErrorReloader(): void {
   globalThis.addEventListener("error", (event) => {
     if (isChunkLoadError(event.message)) {
       reloadOnce(`chunk load error: ${event.message}`);
+      return;
+    }
+    if (isSameOriginBareThrow(event)) {
+      reloadOnce(`bare throw at ${event.filename}:${event.lineno}`);
     }
   });
   globalThis.addEventListener("unhandledrejection", (event) => {
@@ -81,6 +105,10 @@ export function initChunkErrorReloader(): void {
     const message = reason instanceof Error ? reason.message : String(reason ?? "");
     if (isChunkLoadError(message)) {
       reloadOnce(`chunk load error: ${message}`);
+      return;
+    }
+    if (isBareRejection(reason)) {
+      reloadOnce(`bare promise rejection (${String(reason)})`);
     }
   });
 }

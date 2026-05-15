@@ -118,6 +118,69 @@ describe("initChunkErrorReloader", () => {
 
     expect(reloadSpy).not.toHaveBeenCalled();
   });
+
+  test("reloads on same-origin bare throw (throw undefined)", () => {
+    initChunkErrorReloader();
+
+    globalThis.dispatchEvent(
+      new ErrorEvent("error", {
+        message: "uncaught exception: undefined",
+        error: undefined,
+        filename: `${globalThis.location.origin}/assets/react-dom-C_M-nUen.js`,
+        lineno: 8,
+      }),
+    );
+
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test("ignores cross-origin bare throw (browser-extension noise)", () => {
+    initChunkErrorReloader();
+
+    globalThis.dispatchEvent(
+      new ErrorEvent("error", {
+        message: "Script error.",
+        error: undefined,
+        filename: "",
+      }),
+    );
+
+    expect(reloadSpy).not.toHaveBeenCalled();
+  });
+
+  test("ignores same-origin error with a real Error object", () => {
+    initChunkErrorReloader();
+
+    globalThis.dispatchEvent(
+      new ErrorEvent("error", {
+        message: "TypeError: x is null",
+        error: new TypeError("x is null"),
+        filename: `${globalThis.location.origin}/assets/foo.js`,
+      }),
+    );
+
+    expect(reloadSpy).not.toHaveBeenCalled();
+  });
+
+  test("reloads on bare promise rejection (reason undefined)", () => {
+    initChunkErrorReloader();
+
+    const event = new Event("unhandledrejection") as Event & { reason: unknown };
+    event.reason = undefined;
+    globalThis.dispatchEvent(event);
+
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test("ignores promise rejection with a real Error", () => {
+    initChunkErrorReloader();
+
+    const event = new Event("unhandledrejection") as Event & { reason: unknown };
+    event.reason = new Error("normal failure");
+    globalThis.dispatchEvent(event);
+
+    expect(reloadSpy).not.toHaveBeenCalled();
+  });
 });
 
 // CHUNK_LOAD_ERROR_PATTERN is re-exported and consumed by sentry-client.ts's
