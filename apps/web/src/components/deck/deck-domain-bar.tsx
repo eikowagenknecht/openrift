@@ -12,7 +12,7 @@ export function DeckDomainBar({
 }: {
   distribution: { domain: string; count: number }[];
 }) {
-  const { orders } = useEnumOrders();
+  const { orders, labels } = useEnumOrders();
   const domainColors = useDomainColors();
 
   const total = distribution.reduce((sum, entry) => sum + entry.count, 0);
@@ -40,7 +40,7 @@ export function DeckDomainBar({
               }}
             />
             <TooltipContent side="bottom">
-              {segment.domain}: {segment.count}
+              {labels.domains[segment.domain]}: {segment.count}
             </TooltipContent>
           </Tooltip>
         );

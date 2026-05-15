@@ -6,6 +6,7 @@ import type { ChartConfig } from "@/components/ui/chart";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import type { TypeCount } from "@/hooks/use-deck-stats";
 import { useDomainColors } from "@/hooks/use-domain-colors";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { getDomainColor } from "@/lib/domain";
 
 interface TypeBreakdownProps {
@@ -15,26 +16,33 @@ interface TypeBreakdownProps {
   singleColor?: boolean;
 }
 
-function buildChartConfig(domains: Domain[], colors: Record<string, string>): ChartConfig {
+function buildChartConfig(
+  domains: Domain[],
+  domainLabels: Record<string, string>,
+  colors: Record<string, string>,
+): ChartConfig {
   const config: ChartConfig = {};
   for (const domain of domains) {
-    config[domain] = { label: domain, color: getDomainColor(domain, colors) };
+    config[domain] = { label: domainLabels[domain], color: getDomainColor(domain, colors) };
   }
   return config;
 }
 
 export function TypeBreakdown({ data, domains, singleColor }: TypeBreakdownProps) {
   const domainColors = useDomainColors();
+  const { labels } = useEnumOrders();
 
   if (data.length === 0) {
     return null;
   }
 
-  // Add a label with count + pluralized type name
-  const labeledData = data.map((entry) => ({
-    ...entry,
-    label: `${entry.total} ${entry.total === 1 ? entry.type : `${entry.type}s`}`,
-  }));
+  const labeledData = data.map((entry) => {
+    const typeLabel = labels.cardTypes[entry.type];
+    return {
+      ...entry,
+      label: `${entry.total} ${entry.total === 1 ? typeLabel : `${typeLabel}s`}`,
+    };
+  });
 
   const heading = (
     <div className="mb-1 flex items-center text-xs">
@@ -69,7 +77,7 @@ export function TypeBreakdown({ data, domains, singleColor }: TypeBreakdownProps
     );
   }
 
-  const chartConfig = buildChartConfig(domains, domainColors);
+  const chartConfig = buildChartConfig(domains, labels.domains, domainColors);
 
   return (
     <div>

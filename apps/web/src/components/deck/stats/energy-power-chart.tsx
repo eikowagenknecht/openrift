@@ -5,6 +5,7 @@ import type { ChartConfig } from "@/components/ui/chart";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import type { DomainCombo, EnergyCostCount, PowerCount } from "@/hooks/use-deck-stats";
 import { useDomainColors } from "@/hooks/use-domain-colors";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { getDomainColor } from "@/lib/domain";
 
 interface EnergyPowerChartProps {
@@ -34,13 +35,14 @@ interface SingleChartProps {
 function buildChartConfig(
   stacks: DomainCombo[],
   prefix: string,
+  domainLabels: Record<string, string>,
   colors: Record<string, string>,
 ): ChartConfig {
   const config: ChartConfig = {};
   for (const stack of stacks) {
     const isMulti = stack.domains.length > 1;
     config[`${prefix}_${stack.key}`] = {
-      label: stack.domains.join(" + "),
+      label: stack.domains.map((domain) => domainLabels[domain]).join(" + "),
       color: isMulti ? "#737373" : getDomainColor(stack.domains[0], colors),
       ...(isMulti && {
         gradient: stack.domains.map((domain) => getDomainColor(domain, colors)),
@@ -111,6 +113,7 @@ function SingleChart({
   singleColor,
 }: SingleChartProps) {
   const domainColors = useDomainColors();
+  const { labels } = useEnumOrders();
   if (data.length === 0) {
     return null;
   }
@@ -175,7 +178,7 @@ function SingleChart({
     }
     return row;
   });
-  const chartConfig = buildChartConfig(stacks, metric, domainColors);
+  const chartConfig = buildChartConfig(stacks, metric, labels.domains, domainColors);
 
   return (
     <div>

@@ -8,6 +8,7 @@ import { useDeckCards } from "@/hooks/use-deck-builder";
 import type { DomainCount } from "@/hooks/use-deck-stats";
 import { useDeckStats } from "@/hooks/use-deck-stats";
 import { useDomainColors } from "@/hooks/use-domain-colors";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { getDomainColor } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +23,8 @@ export function DomainBar({
   colors: Record<string, string>;
   className?: string;
 }) {
+  const { labels } = useEnumOrders();
+
   if (data.length === 0 || total === 0) {
     return null;
   }
@@ -46,7 +49,7 @@ export function DomainBar({
                 }}
               />
               <TooltipContent side="bottom">
-                {entry.domain}: {count}
+                {labels.domains[entry.domain]}: {count}
               </TooltipContent>
             </Tooltip>
           );
