@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-05-16
+
+- fix: On the collections page, dragging a card onto a sidebar collection no longer breaks when the page auto-scrolls. The card preview now stays under your cursor, and the drop lands on the right collection instead of drifting away
+
 ## 2026-05-15
 
 - feat: Freeform decks no longer enforce constructed limits — multiple legends and champions, more than 3 battlefields (including duplicates), 4+ copies of a card across main/sideboard/overflow, and any number of runes are all allowed. The 12-rune autofill and auto-rebalance only apply to constructed decks now

@@ -15,6 +15,7 @@ import { useState } from "react";
 import { DefinitionList, DefinitionRow } from "@/components/help/definition-list";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 export default function WhyOpenRiftArticle() {
   return (
@@ -911,8 +912,4 @@ function TechLink({ href, children }: { href: string; children: React.ReactNode 
       {children}
     </a>
   );
-}
-
-function cn(...classes: (string | false | undefined)[]) {
-  return classes.filter(Boolean).join(" ");
 }

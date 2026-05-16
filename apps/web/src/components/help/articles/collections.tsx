@@ -15,6 +15,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Kbd } from "@/components/ui/kbd";
+import { cn } from "@/lib/utils";
 
 export default function CollectionsArticle() {
   return (
@@ -262,10 +263,6 @@ function SidebarItem({
       </span>
     </div>
   );
-}
-
-function cn(...classes: (string | false | undefined)[]) {
-  return classes.filter(Boolean).join(" ");
 }
 
 function FeatureCard({

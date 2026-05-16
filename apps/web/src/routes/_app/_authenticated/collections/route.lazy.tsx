@@ -1,12 +1,14 @@
-import type { DragEndEvent, DragStartEvent, Modifier } from "@dnd-kit/core";
+import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import {
   DndContext,
   DragOverlay,
   PointerSensor,
   pointerWithin,
+  useDndContext,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
+import { snapCenterToCursor } from "@dnd-kit/modifiers";
 import { imageUrl } from "@openrift/shared";
 import { createLazyFileRoute, Outlet } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -31,29 +33,45 @@ export const Route = createLazyFileRoute("/_app/_authenticated/collections")({
 });
 
 const DRAG_ACTIVATION = { distance: 8 };
-// Center the drag overlay under the cursor regardless of where the user grabbed.
-const snapCenterToCursor: Modifier = ({
-  activatorEvent,
-  activeNodeRect,
-  draggingNodeRect,
-  transform,
-}) => {
-  if (
-    typeof PointerEvent !== "undefined" &&
-    activatorEvent instanceof PointerEvent &&
-    activeNodeRect &&
-    draggingNodeRect
-  ) {
-    const grabX = activatorEvent.clientX - activeNodeRect.left;
-    const grabY = activatorEvent.clientY - activeNodeRect.top;
-    return {
-      ...transform,
-      x: transform.x + grabX - draggingNodeRect.width / 2,
-      y: transform.y + grabY - draggingNodeRect.height / 2,
+const MODIFIERS = [snapCenterToCursor];
+
+/**
+ * Forces dnd-kit to re-measure all droppable rects on any scroll event during
+ * drag. The sidebar uses `position: sticky`, and dnd-kit's `Rect` class assumes
+ * all elements move with scroll (applying scroll deltas to the initial
+ * getBoundingClientRect). Sticky elements don't move, so the rects drift and
+ * the drop target ends up offset from the cursor. Re-measuring creates fresh
+ * Rect objects with correct values.
+ * @returns Nothing (invisible helper component).
+ */
+function DndScrollWatcher() {
+  const { active, measureDroppableContainers } = useDndContext();
+
+  useEffect(() => {
+    if (!active) {
+      return;
+    }
+
+    let rafId = 0;
+    const handleScroll = () => {
+      if (!rafId) {
+        rafId = requestAnimationFrame(() => {
+          measureDroppableContainers([]);
+          rafId = 0;
+        });
+      }
     };
-  }
-  return transform;
-};
+
+    // Capture phase catches scroll on any element (sidebar, page, etc.)
+    globalThis.addEventListener("scroll", handleScroll, true);
+    return () => {
+      globalThis.removeEventListener("scroll", handleScroll, true);
+      cancelAnimationFrame(rafId);
+    };
+  }, [active, measureDroppableContainers]);
+
+  return null;
+}
 
 function CollectionLayout() {
   const search = Route.useSearch();
@@ -143,11 +161,12 @@ function CollectionLayout() {
                 setShiftHeld(false);
               }}
             >
+              <DndScrollWatcher />
               <TopBarSlotContext value={topBarSlot}>
                 <CollectionSidebar />
                 <CollectionContent />
               </TopBarSlotContext>
-              <DragOverlay dropAnimation={null} modifiers={[snapCenterToCursor]}>
+              <DragOverlay dropAnimation={null} modifiers={MODIFIERS}>
                 {activeDrag && <DragPreview drag={activeDrag} shiftHeld={shiftHeld} />}
               </DragOverlay>
             </DndContext>
