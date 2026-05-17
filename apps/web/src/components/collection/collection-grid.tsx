@@ -1172,90 +1172,86 @@ function CollectionTopBar({
         <span className="text-muted-foreground shrink-0 text-xs">→ {addTargetLabel}</span>
       )}
 
-      {/* Browse/select: card count + value */}
-      {mode !== "add" && (
-        <span className="text-muted-foreground hidden shrink-0 items-center gap-x-1.5 text-xs sm:flex">
-          {valueCents !== null && valueCents !== undefined && (
-            <span>
-              {formatValue(valueCents / 100)}
-              {unpricedCount ? (
-                <span className="text-muted-foreground/60 ml-1">({unpricedCount} unpriced)</span>
-              ) : null}
-            </span>
-          )}
-        </span>
-      )}
+      <span className="text-muted-foreground hidden shrink-0 items-center gap-x-1.5 text-xs sm:flex">
+        {valueCents !== null && valueCents !== undefined && (
+          <span>
+            {formatValue(valueCents / 100)}
+            {unpricedCount ? (
+              <span className="text-muted-foreground/60 ml-1">({unpricedCount} unpriced)</span>
+            ) : null}
+          </span>
+        )}
+      </span>
 
       <PageTopBarActions>
-        {mode !== "add" && (
-          <div className="flex items-center gap-2">
-            {addTarget && hasCards && (
+        <div className="flex items-center gap-2">
+          {addTarget && hasCards && (
+            <>
+              <Button variant="ghost" size="icon" onClick={onQuickAdd} className="sm:hidden">
+                <ZapIcon className="size-4" />
+              </Button>
+              <Button variant="ghost" onClick={onQuickAdd} className="hidden sm:flex">
+                <ZapIcon className="size-4" />
+                Quick add
+              </Button>
+            </>
+          )}
+          {mode === "select" ? (
+            <>
+              <Button variant="ghost" size="icon" onClick={onSelectAll} className="sm:hidden">
+                <CheckIcon className="size-4" />
+              </Button>
+              <Button variant="ghost" onClick={onSelectAll} className="hidden sm:flex">
+                <CheckIcon className="size-4" />
+                {isAllSelected ? "Deselect all" : "Select all"}
+              </Button>
+              <Button variant="ghost" size="icon" onClick={onExitSelect} className="sm:hidden">
+                <XIcon className="size-4" />
+              </Button>
+              <Button variant="default" onClick={onExitSelect} className="hidden sm:flex">
+                Done
+              </Button>
+            </>
+          ) : (
+            mode !== "add" &&
+            hasCards && (
               <>
-                <Button variant="ghost" size="icon" onClick={onQuickAdd} className="sm:hidden">
-                  <ZapIcon className="size-4" />
+                <Button variant="ghost" size="icon" onClick={onEnterSelect} className="sm:hidden">
+                  <CheckSquareIcon className="size-4" />
                 </Button>
-                <Button variant="ghost" onClick={onQuickAdd} className="hidden sm:flex">
-                  <ZapIcon className="size-4" />
-                  Quick add
+                <Button variant="ghost" onClick={onEnterSelect} className="hidden sm:flex">
+                  <CheckSquareIcon className="size-4" />
+                  Manage {view}
                 </Button>
               </>
-            )}
-            {mode === "select" ? (
-              <>
-                <Button variant="ghost" size="icon" onClick={onSelectAll} className="sm:hidden">
-                  <CheckIcon className="size-4" />
-                </Button>
-                <Button variant="ghost" onClick={onSelectAll} className="hidden sm:flex">
-                  <CheckIcon className="size-4" />
-                  {isAllSelected ? "Deselect all" : "Select all"}
-                </Button>
-                <Button variant="ghost" size="icon" onClick={onExitSelect} className="sm:hidden">
-                  <XIcon className="size-4" />
-                </Button>
-                <Button variant="default" onClick={onExitSelect} className="hidden sm:flex">
-                  Done
-                </Button>
-              </>
-            ) : (
-              hasCards && (
-                <>
-                  <Button variant="ghost" size="icon" onClick={onEnterSelect} className="sm:hidden">
-                    <CheckSquareIcon className="size-4" />
-                  </Button>
-                  <Button variant="ghost" onClick={onEnterSelect} className="hidden sm:flex">
-                    <CheckSquareIcon className="size-4" />
-                    Manage {view}
-                  </Button>
-                </>
-              )
-            )}
-            {(canEdit || canDelete) && (
-              <DropdownMenu>
-                <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
-                  <EllipsisVerticalIcon className="size-4" />
-                  <span className="sr-only">Collection actions</span>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {canEdit && (
-                    <DropdownMenuItem onClick={onEdit}>
-                      <PencilIcon className="size-4" />
-                      Edit collection
-                    </DropdownMenuItem>
-                  )}
-                  {canDelete && (
-                    <DropdownMenuItem
-                      className="text-destructive focus:text-destructive"
-                      onClick={onDelete}
-                    >
-                      <Trash2Icon className="size-4" />
-                      Delete collection
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-        )}
+            )
+          )}
+          {(canEdit || canDelete) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
+                <EllipsisVerticalIcon className="size-4" />
+                <span className="sr-only">Collection actions</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {canEdit && (
+                  <DropdownMenuItem onClick={onEdit}>
+                    <PencilIcon className="size-4" />
+                    Edit collection
+                  </DropdownMenuItem>
+                )}
+                {canDelete && (
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={onDelete}
+                  >
+                    <Trash2Icon className="size-4" />
+                    Delete collection
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </PageTopBarActions>
     </PageTopBar>
   );
