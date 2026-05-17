@@ -12,6 +12,7 @@
 - fix: Invalid deck zones no longer get a red border on top of the warning icon, which made the editor feel noisier than it needed to
 - fix: On a shared collection link, hovering a card now lets the fan-out animation spread past the column edge, matching how it looks on the main cards page
 - fix: On a collection in cards view, hovering a card you own across multiple printings now fans those printings out, like it does on the main cards page
+- fix: On a set page, hovering a card with multiple printings in that set (foil, alt art, etc.) now fans them out, instead of only showing the single representative printing
 
 ## 2026-05-16
 

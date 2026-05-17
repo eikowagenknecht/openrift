@@ -33,6 +33,7 @@ function SetDetailPage() {
   const effectiveLanguageOrder = useEffectiveLanguageOrder();
 
   const uniquePrintings = deduplicateByCard(data.printings, effectiveLanguageOrder);
+  const printingsByCardId = Map.groupBy(data.printings, (printing) => printing.cardId);
 
   const handleCardClick = (printing: Printing) => {
     void navigate({ to: "/cards/$cardSlug", params: { cardSlug: printing.card.slug } });
@@ -64,6 +65,8 @@ function SetDetailPage() {
             showImages={showImages}
             display={display}
             sizes={SETS_CARD_SIZES}
+            view="cards"
+            siblings={printingsByCardId.get(printing.cardId)}
           />
         ))}
       </div>
