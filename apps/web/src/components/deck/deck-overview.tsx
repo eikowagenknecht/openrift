@@ -629,7 +629,6 @@ function ZoneTile({
       ref={readOnly ? undefined : dropRef}
       className={cn(
         "bg-card relative flex flex-col gap-2 rounded-lg border p-3 transition-colors",
-        hasViolation && "border-destructive/50",
         !readOnly && isOver && !dropDisabled && "ring-primary/60 ring-2",
         !readOnly && dropDisabled && "opacity-40",
         className,

@@ -4,6 +4,7 @@
 
 - feat: The Owned filter is now a multi-select with four buckets (None, Partial Playset, Full Playset, and More than Full), so you can combine them, for example to see only cards where you're missing copies, or only cards where you've gone past a playset
 - fix: The dropdown arrow on a selected filter chip is now readable in dark mode, instead of fading into the chip's background
+- fix: Invalid deck zones no longer get a red border on top of the warning icon, which made the editor feel noisier than it needed to
 
 ## 2026-05-16
 
