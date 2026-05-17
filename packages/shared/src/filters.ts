@@ -441,10 +441,12 @@ export function getAvailableFilters(
   const domains = unique(printings.flatMap((p) => p.card.domains)).sort(
     (a, b) => orderIndex(orders.domains, a) - orderIndex(orders.domains, b),
   );
-  const types = unique(printings.map((p) => p.card.type)).sort();
+  const types = unique(printings.map((p) => p.card.type)).sort(
+    (a, b) => orderIndex(orders.cardTypes, a) - orderIndex(orders.cardTypes, b),
+  );
   const superTypes = unique(printings.flatMap((p) => p.card.superTypes))
     .filter((st) => st !== "basic")
-    .sort();
+    .sort((a, b) => orderIndex(orders.superTypes, a) - orderIndex(orders.superTypes, b));
   const rarities = unique(printings.map((p) => p.rarity)).sort(
     (a, b) => orderIndex(orders.rarities, a) - orderIndex(orders.rarities, b),
   );

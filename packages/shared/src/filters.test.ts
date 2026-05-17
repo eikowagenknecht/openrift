@@ -1315,9 +1315,9 @@ describe("getAvailableFilters", () => {
     expect(result.rarities).toEqual(["common", "rare", "epic"]);
   });
 
-  it("sorts types alphabetically", () => {
+  it("sorts types by cardTypes order", () => {
     const result = getAvailableFilters(printings);
-    expect(result.types).toEqual(["spell", "unit"]);
+    expect(result.types).toEqual(["unit", "spell"]);
   });
 
   it("excludes Basic from superTypes", () => {
