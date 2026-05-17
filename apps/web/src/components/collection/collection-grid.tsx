@@ -670,7 +670,10 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             printing={item.printing}
             onClick={(printing, event) => handleClick(printing, event)}
             showImages={showImages}
-            view="printings"
+            view={dataView}
+            siblings={
+              dataView === "cards" ? printingsByCardId.get(item.printing.cardId) : undefined
+            }
             cardWidth={ctx.cardWidth}
             priority={ctx.priority}
             display={display}
