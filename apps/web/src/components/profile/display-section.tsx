@@ -246,8 +246,9 @@ function SegmentedRadio<TValue extends string>({
           key={option.value}
           value={option.value}
           className={cn(
-            "rounded-sm px-2.5 py-1 text-sm font-medium transition-colors outline-none",
+            "rounded-sm border border-transparent px-2.5 py-1 text-sm font-medium transition-colors outline-none",
             "data-checked:bg-background data-checked:text-foreground data-checked:shadow-sm",
+            "dark:data-checked:bg-input/30 dark:data-checked:border-input",
             "data-unchecked:text-muted-foreground data-unchecked:hover:text-foreground",
           )}
         >

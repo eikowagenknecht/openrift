@@ -107,7 +107,7 @@ html.hide-scrollbar::-webkit-scrollbar {
   --primary-foreground: oklch(0.16 0.025 260);
   --secondary: oklch(0.34 0.01 260);
   --secondary-foreground: oklch(0.95 0 0);
-  --muted: oklch(0.30 0.006 260);
+  --muted: oklch(0.18 0.006 260);
   --muted-foreground: oklch(0.68 0 0);
   --accent: oklch(0.55 0.06 195);
   --accent-foreground: oklch(0.95 0 0);
