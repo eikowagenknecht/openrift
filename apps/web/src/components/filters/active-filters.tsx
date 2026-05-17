@@ -75,7 +75,6 @@ export function ActiveFilters({
     | "finishes"
     | "markers"
     | "channels"
-    | "customTags"
     | "owned";
 
   const markerLabel = (slug: string) =>
