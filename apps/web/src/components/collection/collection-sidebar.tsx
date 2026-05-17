@@ -3,6 +3,7 @@ import { Link, useMatches, useParams } from "@tanstack/react-router";
 import {
   BookOpenIcon,
   ChartBarIcon,
+  HandshakeIcon,
   HistoryIcon,
   ArrowLeftRightIcon,
   InboxIcon,
@@ -27,6 +28,8 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useCollections, useCreateCollection } from "@/hooks/use-collections";
+import { useFeatureEnabled } from "@/hooks/use-feature-flags";
+import { useCreateTradeList, useTradeLists } from "@/hooks/use-trade-lists";
 
 import type { CardDragData } from "./dnd-types";
 import { DroppableCollection } from "./droppable-collection";
@@ -45,44 +48,130 @@ function MobileSidebarHeader() {
   );
 }
 
+function InlineCreateRow({
+  label,
+  placeholder,
+  onSubmit,
+}: {
+  label: string;
+  placeholder: string;
+  onSubmit: (name: string) => Promise<unknown>;
+}) {
+  const [isCreating, setIsCreating] = useState(false);
+  const [name, setName] = useState("");
+  const [isPending, setIsPending] = useState(false);
+
+  const handleSubmit = async () => {
+    const trimmed = name.trim();
+    if (!trimmed || isPending) {
+      return;
+    }
+    setIsPending(true);
+    try {
+      await onSubmit(trimmed);
+      setName("");
+      setIsCreating(false);
+    } catch {
+      // Mutation hooks surface their own error toast; keep the form open so
+      // the user can retry without retyping.
+    }
+    setIsPending(false);
+  };
+
+  if (!isCreating) {
+    return (
+      <SidebarMenuButton className="text-muted-foreground" onClick={() => setIsCreating(true)}>
+        <PlusIcon className="size-4" />
+        <span>{label}</span>
+      </SidebarMenuButton>
+    );
+  }
+
+  return (
+    <form
+      className="flex gap-1 px-2 py-1"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void handleSubmit();
+      }}
+    >
+      <Input
+        autoFocus // oxlint-disable-line jsx-a11y/no-autofocus -- intentional for inline create
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        placeholder={placeholder}
+        disabled={isPending}
+        className="h-7 text-xs" // TODO: Style this better, the current style does not fit here
+        onBlur={() => {
+          if (!name.trim() && !isPending) {
+            setIsCreating(false);
+          }
+        }}
+      />
+    </form>
+  );
+}
+
+function TradeListsSidebarGroup({ activeId }: { activeId?: string }) {
+  const { data: tradeLists } = useTradeLists();
+  const createTradeList = useCreateTradeList();
+
+  return (
+    <SidebarGroup>
+      <SidebarGroupLabel>Trade Lists</SidebarGroupLabel>
+      <SidebarMenu className="gap-1">
+        {tradeLists.map((list) => (
+          <SidebarMenuItem key={list.id}>
+            <SidebarMenuButton
+              isActive={activeId === list.id}
+              render={
+                <Link
+                  to="/collections/trade-lists/$tradeListId"
+                  params={{ tradeListId: list.id }}
+                />
+              }
+            >
+              <HandshakeIcon />
+              <span className="flex-1 truncate">{list.name}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        ))}
+        <SidebarMenuItem>
+          <InlineCreateRow
+            label="New trade list"
+            placeholder="Trade list name"
+            onSubmit={(name) => createTradeList.mutateAsync({ name })}
+          />
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </SidebarGroup>
+  );
+}
+
 export function CollectionSidebar() {
   const matches = useMatches();
   const currentPath = matches.at(-1)?.fullPath;
-  const { collectionId } = useParams({ strict: false }) as { collectionId?: string };
+  const { collectionId, tradeListId } = useParams({ strict: false }) as {
+    collectionId?: string;
+    tradeListId?: string;
+  };
   const { isMobile, setOpenMobile } = useSidebar();
   const { data: collections } = useCollections();
+  const tradeListsEnabled = useFeatureEnabled("trade-lists");
 
   // Close the mobile sidebar when the user navigates to a different page
   useEffect(() => {
     if (isMobile) {
       setOpenMobile(false);
     }
-  }, [currentPath, collectionId, isMobile, setOpenMobile]);
+  }, [currentPath, collectionId, tradeListId, isMobile, setOpenMobile]);
   const createCollection = useCreateCollection();
-  const [isCreating, setIsCreating] = useState(false);
-  const [newName, setNewName] = useState("");
 
   const { active } = useDndContext();
   const dragSourceCollectionId = (active?.data.current as CardDragData | undefined)
     ?.sourceCollectionId;
 
   const totalCopies = collections?.reduce((sum, col) => sum + col.copyCount, 0) ?? 0;
-
-  const handleCreate = () => {
-    const trimmed = newName.trim();
-    if (!trimmed) {
-      return;
-    }
-    createCollection.mutate(
-      { name: trimmed },
-      {
-        onSuccess: () => {
-          setNewName("");
-          setIsCreating(false);
-        },
-      },
-    );
-  };
 
   return (
     <NestedSidebar className="ml-3" extraOffset="calc(0.75rem + 2rem + 0.75rem)">
@@ -141,39 +230,15 @@ export function CollectionSidebar() {
               </DroppableCollection>
             ))}
             <SidebarMenuItem>
-              {isCreating ? (
-                <form
-                  className="flex gap-1 px-2 py-1"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    handleCreate();
-                  }}
-                >
-                  <Input
-                    autoFocus // oxlint-disable-line jsx-a11y/no-autofocus -- intentional for inline create
-                    value={newName}
-                    onChange={(event) => setNewName(event.target.value)}
-                    placeholder="Collection name"
-                    className="h-7 text-xs" // TODO: Style this better, the current style does not fit here
-                    onBlur={() => {
-                      if (!newName.trim()) {
-                        setIsCreating(false);
-                      }
-                    }}
-                  />
-                </form>
-              ) : (
-                <SidebarMenuButton
-                  className="text-muted-foreground"
-                  onClick={() => setIsCreating(true)}
-                >
-                  <PlusIcon className="size-4" />
-                  <span>New collection</span>
-                </SidebarMenuButton>
-              )}
+              <InlineCreateRow
+                label="New collection"
+                placeholder="Collection name"
+                onSubmit={(name) => createCollection.mutateAsync({ name })}
+              />
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
+        {tradeListsEnabled && <TradeListsSidebarGroup activeId={tradeListId} />}
         <SidebarGroup>
           <SidebarGroupLabel>Manage</SidebarGroupLabel>
           <SidebarMenu className="gap-1">

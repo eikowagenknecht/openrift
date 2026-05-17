@@ -138,6 +138,7 @@ export type {
   StagedProductResponse,
   SuperType,
   TimeRange,
+  TradeListBulkAddResponse,
   TradeListDetailResponse,
   TradeListItemDetailResponse,
   TradeListItemResponse,

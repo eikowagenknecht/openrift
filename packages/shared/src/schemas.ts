@@ -199,6 +199,10 @@ export const createTradeListItemSchema = z.object({
   copyId: z.uuid(),
 });
 
+export const bulkCreateTradeListItemsSchema = z.object({
+  copyIds: z.array(z.uuid()).min(1).max(500),
+});
+
 const marketplaceEnum = z.enum(["tcgplayer", "cardmarket", "cardtrader"]);
 
 const themeEnum = z.enum(["light", "dark", "auto"]);

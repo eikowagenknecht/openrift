@@ -34,3 +34,8 @@ export interface TradeListDetailResponse {
   tradeList: TradeListResponse;
   items: TradeListItemDetailResponse[];
 }
+
+export interface TradeListBulkAddResponse {
+  added: number;
+  skipped: number;
+}

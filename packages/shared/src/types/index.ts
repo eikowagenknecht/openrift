@@ -169,6 +169,7 @@ export type {
   ShoppingListItemResponse,
   ShoppingListResponse,
   ShoppingListSourceResponse,
+  TradeListBulkAddResponse,
   TradeListDetailResponse,
   TradeListItemDetailResponse,
   TradeListItemResponse,

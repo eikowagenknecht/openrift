@@ -761,6 +761,13 @@ export const tradeListItemResponseSchema = z.object({
   copyId: z.string(),
 });
 
+export const tradeListBulkAddResponseSchema = z
+  .object({
+    added: z.number().int().nonnegative(),
+    skipped: z.number().int().nonnegative(),
+  })
+  .openapi("TradeListBulkAddResponse");
+
 const tradeListItemDetailResponseSchema = z
   .object({
     id: z.string(),

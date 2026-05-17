@@ -83,4 +83,24 @@ describe("tradeListsRepo", () => {
     const result = await tradeListsRepo(db).deleteItem("tli-1", "tl-1", "u1");
     expect(result).toEqual({ numDeletedRows: 1n });
   });
+
+  it("bulkCreateItems returns inserted rows", async () => {
+    const db = createMockDb([ITEM]);
+    const result = await tradeListsRepo(db).bulkCreateItems({
+      tradeListId: "tl-1",
+      userId: "u1",
+      copyIds: ["cp-1"],
+    });
+    expect(result).toEqual([ITEM]);
+  });
+
+  it("bulkCreateItems short-circuits on empty input", async () => {
+    const db = createMockDb([]);
+    const result = await tradeListsRepo(db).bulkCreateItems({
+      tradeListId: "tl-1",
+      userId: "u1",
+      copyIds: [],
+    });
+    expect(result).toEqual([]);
+  });
 });

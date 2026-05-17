@@ -82,6 +82,20 @@ export function copiesRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
+    /** @returns The subset of input IDs that are owned by the given user. */
+    async filterUserOwned(ids: readonly string[], userId: string): Promise<string[]> {
+      if (ids.length === 0) {
+        return [];
+      }
+      const rows = await db
+        .selectFrom("copies")
+        .select("id")
+        .where("userId", "=", userId)
+        .where("id", "in", ids)
+        .execute();
+      return rows.map((row) => row.id);
+    },
+
     /** @returns Copies in a specific collection. When `limit` is provided, fetches `limit + 1` rows to detect `hasMore`. */
     listForCollection(collectionId: string, limit?: number, cursor?: string): Promise<CopyRow[]> {
       let query = db

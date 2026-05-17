@@ -138,6 +138,31 @@ export function tradeListsRepo(db: Kysely<Database>) {
         .executeTakeFirstOrThrow();
     },
 
+    /**
+     * Bulk-insert items, skipping duplicates (uq_trade_list_items).
+     * @returns The rows actually inserted (skipped duplicates are not returned).
+     */
+    bulkCreateItems(values: {
+      tradeListId: string;
+      userId: string;
+      copyIds: string[];
+    }): Promise<Selectable<TradeListItemsTable>[]> {
+      if (values.copyIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      const rows = values.copyIds.map((copyId) => ({
+        tradeListId: values.tradeListId,
+        userId: values.userId,
+        copyId,
+      }));
+      return db
+        .insertInto("tradeListItems")
+        .values(rows)
+        .onConflict((oc) => oc.columns(["tradeListId", "copyId"]).doNothing())
+        .returningAll()
+        .execute();
+    },
+
     /** @returns Delete result — check `numDeletedRows` to verify the item existed. */
     deleteItem(itemId: string, tradeListId: string, userId: string): Promise<DeleteResult> {
       return db

@@ -51,6 +51,10 @@ const KNOWN_FLAGS: KnownFlag[] = [
     key: "help-how-to-play",
     description: "Show the How to Play Riftbound help article",
   },
+  {
+    key: "trade-lists",
+    description: "Enable trade lists in the collections sidebar and on copy rows",
+  },
 ];
 
 function GlobalFlagsSection() {

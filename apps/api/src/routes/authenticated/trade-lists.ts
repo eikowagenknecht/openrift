@@ -1,12 +1,18 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
-import type { TradeListDetailResponse, TradeListListResponse } from "@openrift/shared";
+import type {
+  TradeListBulkAddResponse,
+  TradeListDetailResponse,
+  TradeListListResponse,
+} from "@openrift/shared";
 import {
+  tradeListBulkAddResponseSchema,
   tradeListDetailResponseSchema,
   tradeListItemResponseSchema,
   tradeListListResponseSchema,
   tradeListResponseSchema,
 } from "@openrift/shared/response-schemas";
 import {
+  bulkCreateTradeListItemsSchema,
   createTradeListItemSchema,
   createTradeListSchema,
   idAndItemIdParamSchema,
@@ -109,6 +115,22 @@ const createTradeListItemRoute = createRoute({
   },
 });
 
+const bulkCreateTradeListItemsRoute = createRoute({
+  method: "post",
+  path: "/{id}/items/bulk",
+  tags: ["Trade Lists"],
+  request: {
+    params: idParamSchema,
+    body: { content: { "application/json": { schema: bulkCreateTradeListItemsSchema } } },
+  },
+  responses: {
+    200: {
+      content: { "application/json": { schema: tradeListBulkAddResponseSchema } },
+      description: "Success",
+    },
+  },
+});
+
 const deleteTradeListItem = createRoute({
   method: "delete",
   path: "/{id}/items/{itemId}",
@@ -205,6 +227,30 @@ export const tradeListsRoute = tradeListsApp
     });
 
     return c.json(toTradeListItem(row), 201);
+  })
+
+  // ── POST /trade-lists/:id/items/bulk ──────────────────────────────────────
+  .openapi(bulkCreateTradeListItemsRoute, async (c) => {
+    const { tradeLists, copies } = c.get("repos");
+    const userId = getUserId(c);
+    const { id: tradeListId } = c.req.valid("param");
+    const { copyIds } = c.req.valid("json");
+
+    const tradeList = await tradeLists.exists(tradeListId, userId);
+    assertFound(tradeList, "Trade list not found");
+
+    const ownedCopyIds = await copies.filterUserOwned(copyIds, userId);
+    const inserted = await tradeLists.bulkCreateItems({
+      tradeListId,
+      userId,
+      copyIds: ownedCopyIds,
+    });
+
+    const response: TradeListBulkAddResponse = {
+      added: inserted.length,
+      skipped: copyIds.length - inserted.length,
+    };
+    return c.json(response);
   })
 
   // ── DELETE /trade-lists/:id/items/:itemId ─────────────────────────────────

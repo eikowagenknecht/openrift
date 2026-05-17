@@ -1,4 +1,4 @@
-import { BookOpenIcon, Trash2Icon, XIcon } from "lucide-react";
+import { BookOpenIcon, HandshakeIcon, Trash2Icon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-is-mobile";
@@ -7,6 +7,7 @@ interface FloatingActionBarProps {
   selectedCount: number;
   onMove: () => void;
   onDispose: () => void;
+  onTrade?: () => void;
   onClear: () => void;
   isMovePending: boolean;
   isDisposePending: boolean;
@@ -16,6 +17,7 @@ export function FloatingActionBar({
   selectedCount,
   onMove,
   onDispose,
+  onTrade,
   onClear,
   isMovePending,
   isDisposePending,
@@ -35,6 +37,12 @@ export function FloatingActionBar({
         <BookOpenIcon />
         Move
       </Button>
+      {onTrade && (
+        <Button variant="secondary" size={buttonSize} onClick={onTrade}>
+          <HandshakeIcon />
+          Trade
+        </Button>
+      )}
       <Button
         variant="destructive"
         size={buttonSize}
