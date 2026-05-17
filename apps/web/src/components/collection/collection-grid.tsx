@@ -26,8 +26,9 @@ import {
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
+import { CardCell } from "@/components/cards/card-cell";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
-import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
+import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
 import { CollectionAddStrip } from "@/components/collection/collection-add-strip";
 import { FloatingActionBar } from "@/components/collection/floating-action-bar";
@@ -643,38 +644,40 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     );
 
     return (
-      <DraggableCard
-        id={item.id}
-        copyIds={dragCopyIds}
-        isStackDrag={isStackDrag}
+      <CardCell
         printing={item.printing}
-        previewPrintings={dragPreviewPrintings.length > 0 ? dragPreviewPrintings : [item.printing]}
-        sourceCollectionId={collectionId}
-      >
-        <div className="relative">
-          {mode === "select" && (
-            <SelectionCheckbox isSelected={isItemSelected} onToggle={handleToggle} />
-          )}
-          {isItemSelected && (
-            <div className="ring-primary/50 pointer-events-none absolute inset-1.5 z-10 rounded-lg ring-2" />
-          )}
-          <CardThumbnail
+        ctx={ctx}
+        display={display}
+        showImages={showImages}
+        view={dataView}
+        onClick={(printing, event) => handleClick(printing, event)}
+        siblings={dataView === "cards" ? printingsByCardId.get(item.printing.cardId) : undefined}
+        strip={aboveCard}
+        leftOverlay={
+          mode === "select" ? (
+            <>
+              <SelectionCheckbox isSelected={isItemSelected} onToggle={handleToggle} />
+              {isItemSelected && (
+                <div className="ring-primary/50 pointer-events-none absolute inset-1.5 z-10 rounded-lg ring-2" />
+              )}
+            </>
+          ) : undefined
+        }
+        wrap={(cell) => (
+          <DraggableCard
+            id={item.id}
+            copyIds={dragCopyIds}
+            isStackDrag={isStackDrag}
             printing={item.printing}
-            onClick={(printing, event) => handleClick(printing, event)}
-            showImages={showImages}
-            view={dataView}
-            siblings={
-              dataView === "cards" ? printingsByCardId.get(item.printing.cardId) : undefined
+            previewPrintings={
+              dragPreviewPrintings.length > 0 ? dragPreviewPrintings : [item.printing]
             }
-            cardWidth={ctx.cardWidth}
-            priority={ctx.priority}
-            display={display}
-            isSelected={ctx.isSelected}
-            isFlashing={ctx.isFlashing}
-            aboveCard={aboveCard}
-          />
-        </div>
-      </DraggableCard>
+            sourceCollectionId={collectionId}
+          >
+            {cell}
+          </DraggableCard>
+        )}
+      />
     );
   };
 
@@ -714,22 +717,20 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       hasAmbiguousRemoval && handleOpenVariants ? handleOpenVariants : handleUndoAdd;
 
     return (
-      <CardThumbnail
+      <CardCell
         printing={displayPrinting}
+        ctx={ctx}
+        display={display}
+        showImages={showImages}
+        view={dataView}
         onClick={handleGridCardClick}
         onSiblingClick={handleSiblingClick}
-        showImages={showImages}
-        isSelected={ctx.isSelected}
-        isFlashing={ctx.isFlashing}
         siblings={dataView === "cards" ? siblings : undefined}
         priceRange={catalogPriceRangeByCardId?.get(cardId)}
-        view={dataView}
-        cardWidth={ctx.cardWidth}
-        priority={ctx.priority}
-        display={display}
         dimmed={ownedCount === 0}
-        topSlot={
-          handleQuickAdd && (
+        stripSlot="topSlot"
+        strip={
+          handleQuickAdd ? (
             <CollectionAddStrip
               printing={displayPrinting}
               ownedCount={ownedCount}
@@ -739,7 +740,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
               onUndoAdd={onUndoAdd}
               onOpenVariants={handleOpenVariants}
             />
-          )
+          ) : undefined
         }
       />
     );

@@ -10,8 +10,9 @@ import {
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
+import { CardCell } from "@/components/cards/card-cell";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
-import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
+import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { DeckAddStrip } from "@/components/deck/deck-add-strip";
 import { DeckCardDetailMenu } from "@/components/deck/deck-card-detail-menu";
 import { DeckOverview } from "@/components/deck/deck-overview";
@@ -373,7 +374,6 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
     const cardId = item.printing.cardId;
     const ownedCount = ownedCounts?.get(item.printing.id) ?? 0;
-
     const deckQty = deckQuantityByCard.get(cardId) ?? 0;
     // Single-card zone strip controls key off "this card is in the active
     // zone", not "this card is anywhere in the deck": a champion unit can
@@ -385,28 +385,25 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
 
     // On mobile, a tap adds the card (no hover to reach the + button);
     // long-press (or desktop right-click) opens the detail view via the context menu.
-    const thumbnail = (
-      <CardThumbnail
+    return (
+      <CardCell
         printing={item.printing}
-        onClick={isMobile ? handleQuickAdd : handleCardClick}
-        showImages={showImages}
-        isSelected={ctx.isSelected}
-        isFlashing={ctx.isFlashing}
-        highlighted={deckQty > 0}
-        siblings={undefined}
-        priceRange={priceRangeByCardId?.get(cardId)}
-        view={view}
-        cardWidth={ctx.cardWidth}
-        priority={ctx.priority}
+        ctx={ctx}
         display={display}
+        showImages={showImages}
+        view={view}
+        onClick={isMobile ? handleQuickAdd : handleCardClick}
+        priceRange={priceRangeByCardId?.get(cardId)}
         dimmed={ownedCount === 0 && deckQty === 0}
+        highlighted={deckQty > 0}
+        showBanOverlay
         dragData={{
           type: "browser-card",
           card: catalogCardToDeckBuilderCard(item.printing.cardId, item.printing.card),
         }}
         dragId={`browser-card-${item.printing.id}`}
-        showBanOverlay
-        topSlot={
+        stripSlot="topSlot"
+        strip={
           <DeckAddStrip
             printing={item.printing}
             ownedCount={ownedCount}
@@ -432,13 +429,12 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
             onRemove={handleRemove}
           />
         }
+        contextMenu={(cell) => (
+          <DeckCardDetailMenu onViewDetail={() => handleCardClick(item.printing)}>
+            {cell}
+          </DeckCardDetailMenu>
+        )}
       />
-    );
-
-    return (
-      <DeckCardDetailMenu onViewDetail={() => handleCardClick(item.printing)}>
-        {thumbnail}
-      </DeckCardDetailMenu>
     );
   };
 

@@ -276,10 +276,7 @@ export function CardBrowser() {
       <BrowserCardCell
         printing={displayPrinting}
         siblings={inCardsView ? siblings : undefined}
-        isSelected={ctx.isSelected}
-        isFlashing={ctx.isFlashing}
-        cardWidth={ctx.cardWidth}
-        priority={ctx.priority}
+        ctx={ctx}
         showImages={showImages}
         view={view}
         display={display}

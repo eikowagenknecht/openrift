@@ -10,8 +10,9 @@ import {
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
+import { CardCell } from "@/components/cards/card-cell";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
-import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
+import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
 import {
   PAGE_TOP_BAR_STICKY,
@@ -189,21 +190,17 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
 
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
     const cardId = item.printing.cardId;
-    const siblings = view === "cards" ? printingsByCardId.get(cardId) : undefined;
     return (
-      <CardThumbnail
+      <CardCell
         printing={item.printing}
-        onClick={handleCardClick}
-        siblings={siblings}
-        priceRange={priceRangeByCardId?.get(cardId)}
-        view={view}
-        showImages={showImages}
-        isSelected={ctx.isSelected}
-        isFlashing={ctx.isFlashing}
-        cardWidth={ctx.cardWidth}
-        priority={ctx.priority}
+        ctx={ctx}
         display={display}
-        aboveCard={<OwnedCountStrip count={countByPrintingId[item.printing.id] ?? 0} />}
+        showImages={showImages}
+        view={view}
+        onClick={handleCardClick}
+        siblings={view === "cards" ? printingsByCardId.get(cardId) : undefined}
+        priceRange={priceRangeByCardId?.get(cardId)}
+        strip={<OwnedCountStrip count={countByPrintingId[item.printing.id] ?? 0} />}
       />
     );
   };
