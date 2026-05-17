@@ -670,42 +670,31 @@ function NestedSidebar({
   className,
   style,
   extraOffset = "0px",
+  marginTop = "0px",
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
-  /** Extra vertical space above the sidebar (e.g. a page top bar) to subtract from the height calc. */
+  /** Vertical space above the sidebar (e.g. a sticky page top bar) that the sidebar must not overlap. Added to the sticky-top and subtracted from the height. */
   extraOffset?: string;
+  /** Margin applied above the sidebar via className (e.g. `mt-3`). Subtracted from the height so the sidebar doesn't overflow the row by its own margin. */
+  marginTop?: string;
 }) {
-  const [isStuck, setIsStuck] = React.useState(false);
-
-  // custom: detect when the sidebar is in its sticky position (scrolled past its natural offset)
-  React.useEffect(() => {
-    const handleScroll = () => {
-      // Sticky top is calc(3.5rem + 1px) ≈ 57px. Any scroll means the top bar area
-      // has started scrolling away, so the sidebar is stuck or about to be.
-      setIsStuck(globalThis.scrollY > 0);
-    };
-    globalThis.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
-    return () => globalThis.removeEventListener("scroll", handleScroll);
-  }, []);
-
   return (
     <Sidebar
       className={cn(
-        // sticky! top-14: sit in document flow below the 3.5rem app header (default is fixed inset-y-0)
-        // overflow-hidden!: prevent sidebar from scrolling externally (SidebarContent scrolls internally)
-        // w-0!: collapse width when offcanvas — sticky elements can't slide off-screen like fixed ones
-        "sticky! top-[calc(3.5rem+1px)] overflow-hidden! border-0! group-data-[collapsible=offcanvas]:w-0!",
-        // custom: round top corners when not in sticky position
-        !isStuck && "rounded-t-lg!",
+        // sticky! sit in document flow below the app header (and any sticky topbar above us);
+        //   default is fixed inset-y-0 which we don't want for nested sidebars.
+        // overflow-hidden!: prevent sidebar from scrolling externally (SidebarContent scrolls internally).
+        // w-0!: collapse width when offcanvas — sticky elements can't slide off-screen like fixed ones.
+        // rounded-t-lg!: top corners are always visible (sidebar sits below the topbar, not flush against the header).
+        "sticky! overflow-hidden! rounded-t-lg! border-0! group-data-[collapsible=offcanvas]:w-0!",
         className,
       )}
       style={{
-        // Height fills viewport below header + border, minus any extra offset (e.g. top bar).
-        // When stuck the extra offset has scrolled away, so only subtract the header.
-        height: isStuck
-          ? "calc(100svh - 3.5rem - 1px)"
-          : `calc(100svh - 3.5rem - 1px - ${extraOffset})`,
+        // top inline because extraOffset is dynamic — Tailwind can't JIT a class with an interpolated value.
+        top: `calc(3.5rem + 1px + ${extraOffset})`,
+        // Height fills viewport below header + border, minus any extra offset (e.g. a sticky top bar
+        // that stays pinned and never returns its space) and the caller's margin-top.
+        height: `calc(100svh - 3.5rem - 1px - ${extraOffset} - ${marginTop})`,
         ...style,
       }}
       {...props}
