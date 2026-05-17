@@ -615,13 +615,13 @@ export function CardGrid({
       {/* Sticky set header overlay */}
       <div className="sticky z-20 h-0" style={{ top: stickyOffset }}>
         {multipleGroups && activeHeaderRow && (
-          <div className="flex justify-center pt-2">
+          <div className="pointer-events-none flex justify-center pt-2">
             <GroupHeaderLabel
               slug={activeHeaderRow.group.slug}
               name={activeHeaderRow.group.name}
               groupId={activeHeaderRow.group.id}
               onSelect={scrollToGroup}
-              className="bg-background/60 ring-border/70 rounded-full px-3 py-1 shadow-sm ring-1 backdrop-blur"
+              className="bg-background/60 ring-border/70 pointer-events-auto rounded-full px-3 py-1 shadow-sm ring-1 backdrop-blur"
             />
           </div>
         )}
