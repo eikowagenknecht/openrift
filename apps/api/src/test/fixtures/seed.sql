@@ -1952,5 +1952,4 @@ INSERT INTO marketplace_product_prices (marketplace_product_id, recorded_at, mar
 
 -- Feature flags
 INSERT INTO feature_flags (key, enabled, description) VALUES
-  ('copies-tracked', TRUE, 'Show the total copies tracked counter on the landing page'),
   ('price-history', TRUE, 'Show the Value Over Time chart on the collection stats page');

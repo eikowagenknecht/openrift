@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { useCountUp } from "@/hooks/use-count-up";
-import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { landingSummaryQueryOptions } from "@/lib/landing-summary-query";
 import { cn } from "@/lib/utils";
 
@@ -16,7 +15,6 @@ import { HeroBackground } from "./hero-background";
 export function LandingPage() {
   const router = useRouter();
   const { data } = useQuery(landingSummaryQueryOptions);
-  const copiesTracked = useFeatureEnabled("copies-tracked");
   const [spinning, setSpinning] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [hinting, setHinting] = useState(false);
@@ -121,17 +119,11 @@ export function LandingPage() {
               <span className="text-foreground font-semibold">
                 {animatedPrintings.toLocaleString()}
               </span>{" "}
-              printings
-              {copiesTracked && (
-                <>
-                  {" "}
-                  &middot;{" "}
-                  <span className="text-foreground font-semibold">
-                    {animatedCopies.toLocaleString()}
-                  </span>{" "}
-                  copies tracked
-                </>
-              )}
+              printings &middot;{" "}
+              <span className="text-foreground font-semibold">
+                {animatedCopies.toLocaleString()}
+              </span>{" "}
+              copies tracked
             </p>
           )}
         </div>

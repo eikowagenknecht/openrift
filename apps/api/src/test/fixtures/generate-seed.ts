@@ -376,11 +376,6 @@ console.log("Generating synthetic data...");
 // Keep in sync with KNOWN_FLAGS in apps/web/src/components/admin/feature-flags-page.tsx
 const syntheticFeatureFlags: Record<string, unknown>[] = [
   {
-    key: "copies-tracked",
-    enabled: true,
-    description: "Show the total copies tracked counter on the landing page",
-  },
-  {
     key: "price-history",
     enabled: true,
     description: "Show the Value Over Time chart on the collection stats page",

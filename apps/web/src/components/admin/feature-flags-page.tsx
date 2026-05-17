@@ -40,10 +40,6 @@ interface KnownFlag {
 
 const KNOWN_FLAGS: KnownFlag[] = [
   {
-    key: "copies-tracked",
-    description: "Show the total copies tracked counter on the landing page",
-  },
-  {
     key: "glossary",
     description: "Show the glossary page (symbols, keywords) and header link",
   },
