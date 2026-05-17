@@ -647,19 +647,27 @@ function FilterSection({
             return (
               <Badge
                 key={option}
-                variant={isSelected ? "default" : "outline"}
+                variant={!icon && isSelected ? "default" : "outline"}
                 className={cn(
                   "cursor-pointer",
+                  icon && "pr-0",
                   isSecondary && !isSelected && "opacity-65",
                   isZero && !isSelected && "opacity-40",
                 )}
                 onClick={() => onToggle?.(option)}
               >
                 {icon && <CardIcon src={icon} />}
-                {displayLabel ? displayLabel(option) : option}
-                {count !== undefined && (
-                  <span className="ml-1 tabular-nums opacity-60">{count}</span>
-                )}
+                <span
+                  className={cn(
+                    icon && "-my-0.5 inline-flex h-5 items-center rounded-full px-2",
+                    icon && isSelected && "bg-primary text-primary-foreground",
+                  )}
+                >
+                  {displayLabel ? displayLabel(option) : option}
+                  {count !== undefined && (
+                    <span className="ml-1 tabular-nums opacity-60">{count}</span>
+                  )}
+                </span>
               </Badge>
             );
           })}
