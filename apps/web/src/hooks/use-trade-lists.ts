@@ -40,7 +40,7 @@ const fetchTradeListDetail = createServerFn({ method: "GET" })
     return res.json() as Promise<TradeListDetailResponse>;
   });
 
-export function tradeListsQueryOptions(userId: string) {
+function tradeListsQueryOptions(userId: string) {
   return queryOptions({
     queryKey: queryKeys.tradeLists.all(userId),
     queryFn: () => fetchTradeLists(),
