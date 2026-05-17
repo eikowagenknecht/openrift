@@ -791,6 +791,27 @@ export const tradeListDetailResponseSchema = z
   })
   .openapi("TradeListDetailResponse");
 
+export const publicTradeListResponseSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  })
+  .openapi("PublicTradeListResponse");
+
+export const publicTradeListDetailResponseSchema = z
+  .object({
+    tradeList: publicTradeListResponseSchema,
+    items: z.array(tradeListItemDetailResponseSchema),
+    owner: z.object({ displayName: z.string() }),
+  })
+  .openapi("PublicTradeListDetailResponse");
+
+export const tradeListShareResponseSchema = z
+  .object({ shareToken: z.string() })
+  .openapi("TradeListShareResponse");
+
 // ── Shopping List ────────────────────────────────────────────────────────────
 
 const shoppingListSourceResponseSchema = z.object({

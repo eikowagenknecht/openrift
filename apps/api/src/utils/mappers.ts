@@ -11,6 +11,7 @@ import type {
   PublicCollectionResponse,
   PublicDeckCardResponse,
   PublicDeckResponse,
+  PublicTradeListResponse,
   SuperType,
   TradeListItemDetailResponse,
   TradeListItemResponse,
@@ -120,6 +121,16 @@ export function toTradeList(row: Selectable<TradeListsTable>): TradeListResponse
     name: row.name,
     rules: row.rules as TradeListResponse["rules"],
     shareToken: row.shareToken,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+/** @returns Public-facing trade list fields — excludes shareToken, rules, and userId. */
+export function toPublicTradeList(row: Selectable<TradeListsTable>): PublicTradeListResponse {
+  return {
+    id: row.id,
+    name: row.name,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

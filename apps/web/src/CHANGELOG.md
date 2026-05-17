@@ -4,6 +4,7 @@
 
 - feat: Clicking a promo on the Promos page now opens its card detail in the side panel (matching the card browser), instead of opening a new tab
 - feat: Collections can now be shared with a public link, so anyone can browse, filter, and sort the cards and see the total value without signing in
+- feat: Trade lists can now be shared with a public link, so anyone with the link can see what you're offering for trade without signing in
 - feat: The deck list now shows each custom-format deck's picked tags (e.g. "Bandle City + Neutral") next to its legend/champion, and labels the format badge with the real format name, so a Custom - Region deck no longer looks identical to a Constructed one
 - feat: The Owned filter is now a multi-select with four buckets (None, Partial Playset, Full Playset, and More than Full), so you can combine them, for example to see only cards where you're missing copies, or only cards where you've gone past a playset
 - fix: Picked custom tags now show up in the deck builder's active filters bar (grouped by their category), so a tag added from the filter panel can be cleared from there like every other filter

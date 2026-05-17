@@ -80,12 +80,15 @@ export type {
 export type { SiteSettingsResponse } from "./site-settings.js";
 
 export type {
+  PublicTradeListDetailResponse,
+  PublicTradeListResponse,
   TradeListBulkAddResponse,
   TradeListDetailResponse,
   TradeListItemDetailResponse,
   TradeListItemResponse,
   TradeListListResponse,
   TradeListResponse,
+  TradeListShareResponse,
 } from "./trade-list.js";
 
 export type {

@@ -44,6 +44,7 @@ import { sentryTunnelRoute } from "./routes/public/sentry-tunnel.js";
 import { setsRoute } from "./routes/public/sets.js";
 import { siteSettingsRoute } from "./routes/public/site-settings.js";
 import { sitemapDataRoute } from "./routes/public/sitemap.js";
+import { publicTradeListsRoute } from "./routes/public/trade-lists.js";
 import type { Auth, Config, Variables } from "./types.js";
 
 export interface AppDeps {
@@ -318,6 +319,7 @@ export function createApp(deps: AppDeps) {
       .route("/api/v1", rulesRoute)
       .route("/api/v1", publicDecksRoute)
       .route("/api/v1", publicCollectionsRoute)
+      .route("/api/v1", publicTradeListsRoute)
       .route("/api/v1", sentryTunnelRoute)
 
       // ── Authenticated routes (require a valid session) ──────────────────

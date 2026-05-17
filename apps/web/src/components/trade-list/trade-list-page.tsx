@@ -4,6 +4,7 @@ import {
   EllipsisVerticalIcon,
   HandshakeIcon,
   PencilIcon,
+  Share2Icon,
   Trash2Icon,
   XIcon,
 } from "lucide-react";
@@ -14,6 +15,7 @@ import { toast } from "sonner";
 import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { PageTopBar, PageTopBarActions, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { DeleteTradeListDialog } from "@/components/trade-list/delete-trade-list-dialog";
+import { TradeListShareDialog } from "@/components/trade-list/trade-list-share-dialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -55,6 +57,7 @@ export function TradeListPage({ tradeListId }: TradeListPageProps) {
   const [isRenaming, setIsRenaming] = useState(false);
   const [name, setName] = useState(data.tradeList.name);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const updateTradeList = useUpdateTradeList();
   const deleteTradeList = useDeleteTradeList();
@@ -144,6 +147,10 @@ export function TradeListPage({ tradeListId }: TradeListPageProps) {
               <PencilIcon className="size-4" />
               Rename
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setShareOpen(true)}>
+              <Share2Icon className="size-4" />
+              {data.tradeList.shareToken === null ? "Share" : "Manage sharing"}
+            </DropdownMenuItem>
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               onClick={() => setDeleteOpen(true)}
@@ -170,6 +177,15 @@ export function TradeListPage({ tradeListId }: TradeListPageProps) {
     />
   );
 
+  const shareDialog = (
+    <TradeListShareDialog
+      tradeListId={tradeListId}
+      shareToken={data.tradeList.shareToken}
+      open={shareOpen}
+      onOpenChange={setShareOpen}
+    />
+  );
+
   if (data.items.length === 0) {
     return (
       <>
@@ -188,6 +204,7 @@ export function TradeListPage({ tradeListId }: TradeListPageProps) {
           <EmptyContent />
         </Empty>
         {deleteDialog}
+        {shareDialog}
       </>
     );
   }
@@ -230,6 +247,7 @@ export function TradeListPage({ tradeListId }: TradeListPageProps) {
         })}
       </div>
       {deleteDialog}
+      {shareDialog}
     </>
   );
 }

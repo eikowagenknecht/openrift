@@ -35,6 +35,23 @@ export interface TradeListDetailResponse {
   items: TradeListItemDetailResponse[];
 }
 
+export interface PublicTradeListResponse {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublicTradeListDetailResponse {
+  tradeList: PublicTradeListResponse;
+  items: TradeListItemDetailResponse[];
+  owner: { displayName: string };
+}
+
+export interface TradeListShareResponse {
+  shareToken: string;
+}
+
 export interface TradeListBulkAddResponse {
   added: number;
   skipped: number;

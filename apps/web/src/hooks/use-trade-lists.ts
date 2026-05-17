@@ -1,10 +1,12 @@
 import type {
+  PublicTradeListDetailResponse,
   TradeListBulkAddResponse,
   TradeListDetailResponse,
   TradeListListResponse,
   TradeListResponse,
+  TradeListShareResponse,
 } from "@openrift/shared";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId } from "@/lib/auth-session";
@@ -180,4 +182,86 @@ export function useRemoveTradeListItem() {
       queryKeys.tradeLists.detail(userId, variables.tradeListId),
     ],
   });
+}
+
+// ── Trade list sharing ──────────────────────────────────────────────────────
+
+const shareTradeListFn = createServerFn({ method: "POST" })
+  .inputValidator((input: string) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data: tradeListId }): Promise<TradeListShareResponse> =>
+      fetchApiJson<TradeListShareResponse>({
+        errorTitle: "Couldn't share trade list",
+        cookie: context.cookie,
+        path: `/api/v1/trade-lists/${encodeURIComponent(tradeListId)}/share`,
+        method: "POST",
+      }),
+  );
+
+export function useShareTradeList() {
+  const userId = useRequiredUserId();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (tradeListId: string) => shareTradeListFn({ data: tradeListId }),
+    onSuccess: (data, tradeListId) => {
+      queryClient.setQueryData<TradeListDetailResponse>(
+        queryKeys.tradeLists.detail(userId, tradeListId),
+        (old) =>
+          old ? { ...old, tradeList: { ...old.tradeList, shareToken: data.shareToken } } : old,
+      );
+    },
+  });
+}
+
+const unshareTradeListFn = createServerFn({ method: "POST" })
+  .inputValidator((input: string) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data: tradeListId }) => {
+    await fetchApi({
+      errorTitle: "Couldn't unshare trade list",
+      cookie: context.cookie,
+      path: `/api/v1/trade-lists/${encodeURIComponent(tradeListId)}/share`,
+      method: "DELETE",
+    });
+  });
+
+export function useUnshareTradeList() {
+  const userId = useRequiredUserId();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (tradeListId: string) => unshareTradeListFn({ data: tradeListId }),
+    onSuccess: (_, tradeListId) => {
+      queryClient.setQueryData<TradeListDetailResponse>(
+        queryKeys.tradeLists.detail(userId, tradeListId),
+        (old) => (old ? { ...old, tradeList: { ...old.tradeList, shareToken: null } } : old),
+      );
+    },
+  });
+}
+
+const fetchPublicTradeListFn = createServerFn({ method: "GET" })
+  .inputValidator((input: string) => input)
+  .handler(async ({ data: token }): Promise<PublicTradeListDetailResponse> => {
+    // 404 is legitimate (unknown/revoked token) — map to NOT_FOUND without logging.
+    const res = await fetchApi({
+      errorTitle: "Couldn't load shared trade list",
+      path: `/api/v1/trade-lists/share/${encodeURIComponent(token)}`,
+      acceptStatuses: [404],
+    });
+    if (res.status === 404) {
+      throw new Error("NOT_FOUND");
+    }
+    return res.json() as Promise<PublicTradeListDetailResponse>;
+  });
+
+export function publicTradeListQueryOptions(token: string) {
+  return queryOptions({
+    queryKey: queryKeys.tradeLists.publicByToken(token),
+    queryFn: () => fetchPublicTradeListFn({ data: token }),
+  });
+}
+
+export function usePublicTradeList(token: string) {
+  return useSuspenseQuery(publicTradeListQueryOptions(token));
 }

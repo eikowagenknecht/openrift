@@ -1,5 +1,6 @@
 import type { CardType } from "@openrift/shared/types";
 import type { DeleteResult, Kysely, Selectable } from "kysely";
+import { sql } from "kysely";
 
 import type {
   CopiesTable,
@@ -123,6 +124,80 @@ export function tradeListsRepo(db: Kysely<Database>) {
         .where("tli.userId", "=", userId)
         .orderBy("card.name")
         .execute();
+    },
+
+    /** @returns Trade list items joined with copy, printing, card, and image details. Not scoped to a user — caller has already verified access (e.g. by share token). */
+    itemsWithDetailsAnon(tradeListId: string): Promise<TradeListItemRow[]> {
+      return db
+        .selectFrom("tradeListItems as tli")
+        .innerJoin("copies as cp", "cp.id", "tli.copyId")
+        .innerJoin("printings as p", "p.id", "cp.printingId")
+        .innerJoin("cards as card", "card.id", "p.cardId")
+        .leftJoin("printingImages as pi", (join) =>
+          join
+            .onRef("pi.printingId", "=", "p.id")
+            .on("pi.face", "=", "front")
+            .on("pi.isActive", "=", true),
+        )
+        .leftJoin("imageFiles as ci", "ci.id", "pi.imageFileId")
+        .select([
+          "tli.id",
+          "tli.tradeListId",
+          "tli.copyId",
+          "cp.printingId",
+          "cp.collectionId",
+          imageId("ci").as("imageId"),
+          "p.setId",
+          "p.rarity",
+          "p.finish",
+          "card.name as cardName",
+          "card.type as cardType",
+        ])
+        .where("tli.tradeListId", "=", tradeListId)
+        .orderBy("card.name")
+        .execute();
+    },
+
+    /**
+     * Sets (or nulls) the share_token on a trade list, scoped to the owning user.
+     * @returns The updated trade list row, or `undefined` if not owned by the user.
+     */
+    setShareToken(
+      id: string,
+      userId: string,
+      shareToken: string | null,
+    ): Promise<Selectable<TradeListsTable> | undefined> {
+      return db
+        .updateTable("tradeLists")
+        .set({ shareToken, updatedAt: sql`now()` })
+        .where("id", "=", id)
+        .where("userId", "=", userId)
+        .returningAll()
+        .executeTakeFirst();
+    },
+
+    /**
+     * Looks up a trade list by its share token. Anonymous — no user scoping.
+     * @returns The trade list row plus owner display name, or `undefined` if the
+     * token does not match.
+     */
+    async findByShareToken(
+      shareToken: string,
+    ): Promise<{ tradeList: Selectable<TradeListsTable>; ownerName: string | null } | undefined> {
+      const row = await db
+        .selectFrom("tradeLists as tl")
+        .innerJoin("users as u", "u.id", "tl.userId")
+        .selectAll("tl")
+        .select("u.name as ownerName")
+        .where("tl.shareToken", "=", shareToken)
+        .executeTakeFirst();
+
+      if (!row) {
+        return undefined;
+      }
+
+      const { ownerName, ...tradeList } = row;
+      return { tradeList, ownerName };
     },
 
     /** @returns The newly created trade list item row. */

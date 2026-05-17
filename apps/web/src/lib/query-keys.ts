@@ -81,6 +81,7 @@ export const queryKeys = {
   tradeLists: {
     all: (userId: string) => ["trade-lists", userId] as const,
     detail: (userId: string, id: string) => ["trade-lists", userId, id] as const,
+    publicByToken: (token: string) => ["trade-lists", "share", token] as const,
   },
   rules: {
     all: (kind: string) => ["rules", kind] as const,

@@ -10,6 +10,7 @@ import {
   tradeListItemResponseSchema,
   tradeListListResponseSchema,
   tradeListResponseSchema,
+  tradeListShareResponseSchema,
 } from "@openrift/shared/response-schemas";
 import {
   bulkCreateTradeListItemsSchema,
@@ -27,6 +28,7 @@ import type { FieldMapping } from "../../patch.js";
 import type { Variables } from "../../types.js";
 import { assertDeleted, assertFound } from "../../utils/assertions.js";
 import { toTradeList, toTradeListItem, toTradeListItemDetail } from "../../utils/mappers.js";
+import { generateShareToken } from "../../utils/share-token.js";
 
 const patchFields: FieldMapping = {
   name: "name",
@@ -136,6 +138,29 @@ const deleteTradeListItem = createRoute({
   path: "/{id}/items/{itemId}",
   tags: ["Trade Lists"],
   request: { params: idAndItemIdParamSchema },
+  responses: {
+    204: { description: "No Content" },
+  },
+});
+
+const shareTradeList = createRoute({
+  method: "post",
+  path: "/{id}/share",
+  tags: ["Trade Lists"],
+  request: { params: idParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: tradeListShareResponseSchema } },
+      description: "Shared",
+    },
+  },
+});
+
+const unshareTradeList = createRoute({
+  method: "delete",
+  path: "/{id}/share",
+  tags: ["Trade Lists"],
+  request: { params: idParamSchema },
   responses: {
     204: { description: "No Content" },
   },
@@ -261,6 +286,33 @@ export const tradeListsRoute = tradeListsApp
 
     const result = await tradeLists.deleteItem(itemId, tradeListId, userId);
     assertDeleted(result, "Not found");
+
+    return c.body(null, 204);
+  })
+
+  // ── POST /trade-lists/:id/share ───────────────────────────────────────────
+  // Generates (or rotates) the trade list's share token.
+  .openapi(shareTradeList, async (c) => {
+    const { tradeLists } = c.get("repos");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+
+    const token = generateShareToken();
+    const updated = await tradeLists.setShareToken(id, userId, token);
+    assertFound(updated, "Not found");
+
+    return c.json({ shareToken: token });
+  })
+
+  // ── DELETE /trade-lists/:id/share ─────────────────────────────────────────
+  // Nulls the share token. Old links 404 forever.
+  .openapi(unshareTradeList, async (c) => {
+    const { tradeLists } = c.get("repos");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+
+    const updated = await tradeLists.setShareToken(id, userId, null);
+    assertFound(updated, "Not found");
 
     return c.body(null, 204);
   });
