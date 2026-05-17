@@ -65,7 +65,7 @@ export function MultiSelectCombobox({
         render={
           <Badge
             variant={hasSelection ? "default" : "outline"}
-            className="cursor-pointer"
+            className="cursor-pointer [&>svg]:text-current"
             render={<button type="button" />}
           />
         }
