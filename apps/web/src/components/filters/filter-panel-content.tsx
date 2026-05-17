@@ -239,6 +239,14 @@ export function FilterBadgeSections({
         (!hiddenSections?.has("markers") && availableFilters.markers.length > 0) ||
         (!hiddenSections?.has("channels") && availableFilters.distributionChannels.length > 0)) && (
         <FilterSection label="More">
+          {availableFilters.hasAnyMarker && !hiddenSections?.has("promo") && (
+            <FlagBadge
+              label={filterState.promo === false ? "Not Promo" : "Promo"}
+              isActive={filterState.promo !== null}
+              count={filterCounts?.flags.promo}
+              onClick={togglePromo}
+            />
+          )}
           {!hiddenSections?.has("markers") && availableFilters.markers.length > 0 && (
             <MultiSelectCombobox
               label="Markers"
@@ -268,14 +276,6 @@ export function FilterBadgeSections({
               isActive={filterState.signed !== null}
               count={filterCounts?.flags.signed}
               onClick={toggleSigned}
-            />
-          )}
-          {availableFilters.hasAnyMarker && !hiddenSections?.has("promo") && (
-            <FlagBadge
-              label={filterState.promo === false ? "Not Promo" : "Promo"}
-              isActive={filterState.promo !== null}
-              count={filterCounts?.flags.promo}
-              onClick={togglePromo}
             />
           )}
           {availableFilters.hasBanned && (
