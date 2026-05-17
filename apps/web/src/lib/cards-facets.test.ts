@@ -107,7 +107,7 @@ describe("extractCatalogFacets", () => {
     const facets = extractCatalogFacets(makeCatalog(cards, printings), NO_PRICES, ORDERS);
 
     expect(facets.sets).toEqual(["OGN"]);
-    expect(facets.types).toEqual(["spell", "unit"]);
+    expect(facets.types).toEqual(["unit", "spell"]);
     expect(facets.domains).toEqual(["body", "mind"]);
     expect(facets.rarities).toEqual(["common", "rare"]);
     expect(facets.finishes).toEqual(["normal", "foil"]);
