@@ -17,8 +17,6 @@ export type {
   SiteSettingsTable,
   IgnoredCandidateCardsTable,
   IgnoredCandidatePrintingsTable,
-  CustomTagCategoriesTable,
-  CustomTagsTable,
   KeywordsTable,
   MarkersTable,
   MarketplaceProductPricesTable,

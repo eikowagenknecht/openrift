@@ -32,9 +32,6 @@ export type {
   MarkersTable,
   RaritiesTable,
   ReferenceTable,
-  // Custom tags (migration 128, categories added in 130)
-  CustomTagCategoriesTable,
-  CustomTagsTable,
   // Printing events (migration 071)
   FieldChange,
   // Job runs (migration 101)

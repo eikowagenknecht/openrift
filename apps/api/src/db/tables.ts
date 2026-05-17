@@ -637,7 +637,7 @@ interface PrintingMarkersTable {
  * `custom_tags` in 130 so categories can be renamed and described in one
  * place.
  */
-export interface CustomTagCategoriesTable {
+interface CustomTagCategoriesTable {
   id: Generated<string>;
   /** CHECK: <> '' — e.g. "region" */
   slug: string;
@@ -654,7 +654,7 @@ export interface CustomTagCategoriesTable {
  * Admin-curated supplemental tags on cards. Used by custom deck-builder
  * formats that filter by tag (first: region-locked freeform decks).
  */
-export interface CustomTagsTable {
+interface CustomTagsTable {
   id: Generated<string>;
   /** CHECK: <> '' */
   slug: string;

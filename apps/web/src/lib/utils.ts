@@ -26,21 +26,7 @@ export const PAGE_PADDING_NO_TOP = `${PAGE_X} pb-3`;
 export const FOOTER_PADDING_NO_TOP = `${PAGE_X} pb-3`;
 
 /**
- * Title-cases a kebab-case slug for display ("crew-members" → "Crew Members").
- * Empty segments are preserved so leading/trailing dashes don't crash.
- *
- * @returns The title-cased label.
- */
-export function titleCaseSlug(slug: string): string {
-  return slug
-    .split("-")
-    .map((part) => (part.length === 0 ? part : part[0].toUpperCase() + part.slice(1)))
-    .join(" ");
-}
-
-/**
  * Capitalises the first character of a single word (e.g. "regions" → "Regions").
- * Use {@link titleCaseSlug} for kebab-cased multi-word input.
  *
  * @returns The capitalised word.
  */

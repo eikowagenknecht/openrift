@@ -236,7 +236,7 @@ const fetchCardCustomTags = createServerFn({ method: "GET" })
       }),
   );
 
-export function cardCustomTagsQueryOptions(cardId: string) {
+function cardCustomTagsQueryOptions(cardId: string) {
   return queryOptions({
     queryKey: queryKeys.admin.cardCustomTags(cardId),
     queryFn: () => fetchCardCustomTags({ data: { cardId } }),

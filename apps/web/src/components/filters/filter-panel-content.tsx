@@ -355,7 +355,7 @@ export function FilterBadgeSections({
   );
 }
 
-export function FlagBadge({
+function FlagBadge({
   label,
   isActive,
   count,
