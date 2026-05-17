@@ -4,22 +4,15 @@ import { Suspense, useState } from "react";
 
 import { CardViewer } from "@/components/card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
+import {
+  BrowserActiveFilters,
+  BrowserLeftPane,
+  BrowserToolbar,
+  CardBrowserFilterProvider,
+} from "@/components/cards/card-browser-filter-scaffold";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
-import { ActiveFilters } from "@/components/filters/active-filters";
-import {
-  CollapsibleFilterPanel,
-  FilterToggleButton,
-} from "@/components/filters/collapsible-filter-panel";
-import { FilterPanelContent } from "@/components/filters/filter-panel-content";
-import {
-  DesktopOptionsBar,
-  MobileFilterContent,
-  MobileOptionsContent,
-  MobileOptionsDrawer,
-} from "@/components/filters/options-bar";
-import { SearchBar } from "@/components/filters/search-bar";
 import {
   PAGE_TOP_BAR_STICKY,
   PageTopBar,
@@ -27,7 +20,6 @@ import {
   PageTopBarTitle,
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
-import { Pane } from "@/components/layout/panes";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { useCardData } from "@/hooks/use-card-data";
@@ -217,61 +209,19 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
   };
 
   const toolbar = (
-    <>
-      <div className="mb-3 flex items-start gap-3">
-        <SearchBar totalCards={totalUniqueCards} filteredCount={filteredCount} />
-        <DesktopOptionsBar className="hidden sm:flex" />
-        <FilterToggleButton className="@wide:hidden hidden sm:flex" />
-        <MobileOptionsDrawer
-          doneLabel={
-            hasActiveFilters
-              ? `Show ${filteredCount} ${view === "cards" ? "cards" : "printings"}`
-              : undefined
-          }
-          className="sm:hidden"
-        >
-          <MobileOptionsContent />
-          <MobileFilterContent
-            availableFilters={availableFilters}
-            availableLanguages={availableLanguages}
-            filterCounts={filterCounts}
-            setDisplayLabel={setDisplayLabel}
-            hiddenSections={SHARED_HIDDEN_FILTER_SECTIONS}
-          />
-        </MobileOptionsDrawer>
-      </div>
-      <CollapsibleFilterPanel
-        availableFilters={availableFilters}
-        availableLanguages={availableLanguages}
-        filterCounts={filterCounts}
-        setDisplayLabel={setDisplayLabel}
-        hiddenSections={SHARED_HIDDEN_FILTER_SECTIONS}
-      />
-    </>
-  );
-
-  const leftPane = (
-    <Pane className="@wide:block px-3">
-      <h2 className="pb-4 text-lg font-semibold">Filters</h2>
-      <div className="space-y-4 pb-4">
-        <FilterPanelContent
-          availableFilters={availableFilters}
-          availableLanguages={availableLanguages}
-          filterCounts={filterCounts}
-          setDisplayLabel={setDisplayLabel}
-          hiddenSections={SHARED_HIDDEN_FILTER_SECTIONS}
-        />
-      </div>
-    </Pane>
-  );
-
-  const aboveGrid = (
-    <ActiveFilters
-      availableFilters={availableFilters}
-      setDisplayLabel={setDisplayLabel}
-      hiddenSections={SHARED_HIDDEN_FILTER_SECTIONS}
+    <BrowserToolbar
+      totalCards={totalUniqueCards}
+      filteredCount={filteredCount}
+      mobileDoneLabel={
+        hasActiveFilters
+          ? `Show ${filteredCount} ${view === "cards" ? "cards" : "printings"}`
+          : undefined
+      }
     />
   );
+
+  const leftPane = <BrowserLeftPane />;
+  const aboveGrid = <BrowserActiveFilters />;
 
   const rightPane = isMobile ? undefined : (
     <SelectionDetailPane
@@ -287,38 +237,46 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
   }
 
   return (
-    <CardViewer
-      items={items}
-      totalItems={collectionPrintings.length}
-      renderCard={renderCard}
-      toolbar={toolbar}
-      leftPane={leftPane}
-      aboveGrid={aboveGrid}
-      rightPane={rightPane}
-      addStripHeight={ADD_STRIP_HEIGHT}
-      table={{
-        showOwned: true,
-        showAddControls: false,
-        view,
-        printingsByCardId,
-        actionsLabel: "Copies",
-        // renderActions overrides the default ownedCount cell (which is
-        // auth-keyed via useOwnedCountFor and would read 0 for the public
-        // visitor); we render the per-printing count from the share payload.
-        renderActions: (printing) => {
-          const count = countByPrintingId[printing.id] ?? 0;
-          return count > 0 ? <span>×{count}</span> : null;
-        },
-      }}
+    <CardBrowserFilterProvider
+      availableFilters={availableFilters}
+      availableLanguages={availableLanguages}
+      filterCounts={filterCounts}
+      setDisplayLabel={setDisplayLabel}
+      hiddenSections={SHARED_HIDDEN_FILTER_SECTIONS}
     >
-      {isMobile && (
-        <SelectionMobileOverlay
-          items={items}
-          printingsByCardId={printingsByCardId}
-          showImages={showImages}
-          onSearchAndClose={handleSearchAndClose}
-        />
-      )}
-    </CardViewer>
+      <CardViewer
+        items={items}
+        totalItems={collectionPrintings.length}
+        renderCard={renderCard}
+        toolbar={toolbar}
+        leftPane={leftPane}
+        aboveGrid={aboveGrid}
+        rightPane={rightPane}
+        addStripHeight={ADD_STRIP_HEIGHT}
+        table={{
+          showOwned: true,
+          showAddControls: false,
+          view,
+          printingsByCardId,
+          actionsLabel: "Copies",
+          // renderActions overrides the default ownedCount cell (which is
+          // auth-keyed via useOwnedCountFor and would read 0 for the public
+          // visitor); we render the per-printing count from the share payload.
+          renderActions: (printing) => {
+            const count = countByPrintingId[printing.id] ?? 0;
+            return count > 0 ? <span>×{count}</span> : null;
+          },
+        }}
+      >
+        {isMobile && (
+          <SelectionMobileOverlay
+            items={items}
+            printingsByCardId={printingsByCardId}
+            showImages={showImages}
+            onSearchAndClose={handleSearchAndClose}
+          />
+        )}
+      </CardViewer>
+    </CardBrowserFilterProvider>
   );
 }

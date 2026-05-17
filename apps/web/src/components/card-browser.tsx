@@ -8,29 +8,21 @@ import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { BrowserCardCell } from "@/components/cards/browser-card-cell";
 import {
-  CardCatalogActiveFilters,
-  CardCatalogCollapsibleFilters,
-  CardCatalogFilterProvider,
-  CardCatalogLeftPaneFilters,
-  CardCatalogMobileFilters,
-} from "@/components/cards/card-catalog-filter-panel";
+  BrowserActiveFilters,
+  BrowserLeftPane,
+  BrowserToolbar,
+  CardBrowserFilterProvider,
+} from "@/components/cards/card-browser-filter-scaffold";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { DisposePickerPopover } from "@/components/collection/dispose-picker-popover";
 import { QuickAddPalette } from "@/components/collection/quick-add-palette";
 import { VariantAddPopover } from "@/components/collection/variant-add-popover";
-import { FilterToggleButton } from "@/components/filters/collapsible-filter-panel";
-import {
-  DesktopOptionsBar,
-  MobileOptionsContent,
-  MobileOptionsDrawer,
-} from "@/components/filters/options-bar";
-import { SearchBar } from "@/components/filters/search-bar";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent } from "@/components/ui/popover";
-import { useCardData } from "@/hooks/use-card-data";
+import { useCardData, useCatalogFilterMeta } from "@/hooks/use-card-data";
 import { useCardDeepLink } from "@/hooks/use-card-deep-link";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
@@ -116,10 +108,10 @@ export function CardBrowser() {
   // means "show all" (the user cleared every language within this session).
   useSeedLanguagesFromPrefs(filters.languages);
 
-  // Same gating as <CardCatalogFilterProvider>: when no buckets are selected,
-  // useCardData's output doesn't depend on the live owned-count map. Passing
-  // undefined keeps the hook's return ref stable across +/- clicks so
-  // sortedCards → items → groups → virtualRows don't churn.
+  // When no owned buckets are selected, useCardData's output doesn't depend
+  // on the live owned-count map. Passing undefined keeps the hook's return
+  // ref stable across +/- clicks so sortedCards → items → groups → virtualRows
+  // don't churn. The filter meta below uses the same gating.
   const ownedCountForCardData = filters.ownedFilter.length > 0 ? ownedCountByPrinting : undefined;
 
   const { sortedCards, printingsByCardId, priceRangeByCardId, totalUniqueCards, filteredCount } =
@@ -142,6 +134,25 @@ export function CardBrowser() {
   const hiddenFilterSections = isLoggedIn
     ? CARD_BROWSER_HIDDEN_LOGGED_IN
     : CARD_BROWSER_HIDDEN_LOGGED_OUT;
+
+  // Compute filter meta separately from useCardData so the meta hook's
+  // outputs aren't entangled with the rest of useCardData's. The owned-count
+  // gating below keeps the returned ref stable across +/- clicks when no
+  // owned buckets are selected — without it, every click busts downstream
+  // memoization in the filter chrome.
+  const ownedCountForMeta = filters.ownedFilter.length > 0 ? ownedCountByPrinting : undefined;
+  const filterMeta = useCatalogFilterMeta({
+    allPrintings,
+    sets,
+    filters,
+    ownedFilter: filters.ownedFilter,
+    view,
+    ownedCountByPrinting: ownedCountForMeta,
+    favoriteMarketplace: display.favoriteMarketplace,
+    prices: display.prices,
+    keywordReverseMap,
+    channels,
+  });
 
   const deferredSortedCards = useDeferredValue(sortedCards);
   const isGridStale = deferredSortedCards !== sortedCards;
@@ -280,49 +291,41 @@ export function CardBrowser() {
     );
   };
 
+  const catalogModeButton = isLoggedIn ? (
+    <Button
+      variant={catalogMode === "off" ? "outline" : "default"}
+      size="icon"
+      onClick={cycleCatalogMode}
+      title={
+        catalogMode === "off"
+          ? "Show owned count"
+          : catalogMode === "count"
+            ? "Switch to add mode"
+            : "Turn off"
+      }
+    >
+      {catalogMode === "add" ? (
+        <PackagePlusIcon className="size-4" />
+      ) : (
+        <PackageIcon className="size-4" />
+      )}
+    </Button>
+  ) : null;
+
   const toolbar = (
-    <>
-      <div className="mb-1.5 flex items-start gap-3 sm:mb-3">
-        <SearchBar totalCards={totalUniqueCards} filteredCount={filteredCount} />
-        <DesktopOptionsBar className="hidden sm:flex" />
-        {isLoggedIn && (
-          <Button
-            variant={catalogMode === "off" ? "outline" : "default"}
-            size="icon"
-            onClick={cycleCatalogMode}
-            title={
-              catalogMode === "off"
-                ? "Show owned count"
-                : catalogMode === "count"
-                  ? "Switch to add mode"
-                  : "Turn off"
-            }
-          >
-            {catalogMode === "add" ? (
-              <PackagePlusIcon className="size-4" />
-            ) : (
-              <PackageIcon className="size-4" />
-            )}
-          </Button>
-        )}
-        <FilterToggleButton className="@wide:hidden hidden sm:flex" />
-        <MobileOptionsDrawer
-          doneLabel={
-            hasActiveFilters
-              ? `Show ${filteredCount} ${view === "cards" ? "cards" : "printings"}`
-              : undefined
-          }
-          className="sm:hidden"
-        >
-          <MobileOptionsContent />
-          <CardCatalogMobileFilters />
-        </MobileOptionsDrawer>
-      </div>
-      <CardCatalogCollapsibleFilters />
-    </>
+    <BrowserToolbar
+      totalCards={totalUniqueCards}
+      filteredCount={filteredCount}
+      mobileDoneLabel={
+        hasActiveFilters
+          ? `Show ${filteredCount} ${view === "cards" ? "cards" : "printings"}`
+          : undefined
+      }
+      extras={catalogModeButton}
+    />
   );
 
-  const leftPane = <CardCatalogLeftPaneFilters />;
+  const leftPane = <BrowserLeftPane />;
 
   const rightPane = isMobile ? undefined : (
     <SelectionDetailPane
@@ -334,7 +337,13 @@ export function CardBrowser() {
   );
 
   return (
-    <CardCatalogFilterProvider hiddenSections={hiddenFilterSections}>
+    <CardBrowserFilterProvider
+      availableFilters={filterMeta.availableFilters}
+      availableLanguages={filterMeta.availableLanguages}
+      filterCounts={filterMeta.filterCounts}
+      setDisplayLabel={filterMeta.setDisplayLabel}
+      hiddenSections={hiddenFilterSections}
+    >
       <BrowserCardViewer
         items={items}
         totalItems={allPrintings.length}
@@ -348,7 +357,7 @@ export function CardBrowser() {
         stale={isGridStale}
         toolbar={toolbar}
         leftPane={leftPane}
-        aboveGrid={<CardCatalogActiveFilters />}
+        aboveGrid={<BrowserActiveFilters />}
         rightPane={rightPane}
         addStripHeight={showStrip ? ADD_STRIP_HEIGHT : undefined}
         table={{
@@ -443,6 +452,6 @@ export function CardBrowser() {
           </Popover>
         )}
       </BrowserCardViewer>
-    </CardCatalogFilterProvider>
+    </CardBrowserFilterProvider>
   );
 }

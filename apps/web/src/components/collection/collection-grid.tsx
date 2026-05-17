@@ -20,6 +20,12 @@ import { toast } from "sonner";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
+import {
+  BrowserActiveFilters,
+  BrowserLeftPane,
+  BrowserToolbar,
+  CardBrowserFilterProvider,
+} from "@/components/cards/card-browser-filter-scaffold";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
@@ -28,21 +34,7 @@ import { FloatingActionBar } from "@/components/collection/floating-action-bar";
 import { buildOnDecrement } from "@/components/collection/route-decrement";
 import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
 import { VariantAddPopover } from "@/components/collection/variant-add-popover";
-import { ActiveFilters } from "@/components/filters/active-filters";
-import {
-  CollapsibleFilterPanel,
-  FilterToggleButton,
-} from "@/components/filters/collapsible-filter-panel";
-import { FilterPanelContent } from "@/components/filters/filter-panel-content";
-import {
-  DesktopOptionsBar,
-  MobileFilterContent,
-  MobileOptionsContent,
-  MobileOptionsDrawer,
-} from "@/components/filters/options-bar";
-import { SearchBar } from "@/components/filters/search-bar";
 import { PageTopBar, PageTopBarActions, PageTopBarTitle } from "@/components/layout/page-top-bar";
-import { Pane } from "@/components/layout/panes";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { AddToTradeListDialog } from "@/components/trade-list/add-to-trade-list-dialog";
@@ -790,78 +782,41 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
 
   const topBarPortal = topBarSlot && createPortal(collectionTopBar, topBarSlot);
 
+  const addModeButton = addTarget ? (
+    <Button
+      variant={isAddMode ? "default" : "outline"}
+      size="icon"
+      onClick={toggleAddMode}
+      title={isAddMode ? "Stop adding" : "Browse catalog to add cards"}
+      aria-label={isAddMode ? "Stop adding" : "Browse catalog to add cards"}
+    >
+      {isAddMode ? <PackagePlusIcon className="size-4" /> : <PackageIcon className="size-4" />}
+    </Button>
+  ) : null;
+
   const toolbar = (
-    <>
-      {/* Search bar */}
-      <div className="mb-3 flex items-start gap-3">
-        <SearchBar
-          totalCards={view === "copies" ? totalCopies : totalUniqueCards}
-          filteredCount={
-            view === "copies"
-              ? sortedCards.reduce(
-                  (sum, card) => sum + (stackByPrintingId.get(card.id)?.copyIds.length ?? 0),
-                  0,
-                )
-              : sortedCards.length
-          }
-        />
-        <DesktopOptionsBar className="hidden sm:flex" showCopies={mode !== "add"} />
-        {addTarget && (
-          <Button
-            variant={isAddMode ? "default" : "outline"}
-            size="icon"
-            onClick={toggleAddMode}
-            title={isAddMode ? "Stop adding" : "Browse catalog to add cards"}
-            aria-label={isAddMode ? "Stop adding" : "Browse catalog to add cards"}
-          >
-            {isAddMode ? (
-              <PackagePlusIcon className="size-4" />
-            ) : (
-              <PackageIcon className="size-4" />
-            )}
-          </Button>
-        )}
-        <FilterToggleButton className="@wide:hidden hidden sm:flex" />
-        <MobileOptionsDrawer
-          doneLabel={
-            hasActiveFilters
-              ? `Show ${sortedCards.length} ${dataView === "cards" ? "cards" : "printings"}`
-              : undefined
-          }
-          className="sm:hidden"
-        >
-          <MobileOptionsContent showCopies={mode !== "add"} />
-          <MobileFilterContent
-            availableFilters={availableFilters}
-            availableLanguages={availableLanguages}
-            setDisplayLabel={setDisplayLabel}
-            hiddenSections={COLLECTION_GRID_HIDDEN_FILTER_SECTIONS}
-          />
-        </MobileOptionsDrawer>
-      </div>
-      <CollapsibleFilterPanel
-        availableFilters={availableFilters}
-        availableLanguages={availableLanguages}
-        setDisplayLabel={setDisplayLabel}
-        hiddenSections={COLLECTION_GRID_HIDDEN_FILTER_SECTIONS}
-      />
-    </>
+    <BrowserToolbar
+      totalCards={view === "copies" ? totalCopies : totalUniqueCards}
+      filteredCount={
+        view === "copies"
+          ? sortedCards.reduce(
+              (sum, card) => sum + (stackByPrintingId.get(card.id)?.copyIds.length ?? 0),
+              0,
+            )
+          : sortedCards.length
+      }
+      mobileDoneLabel={
+        hasActiveFilters
+          ? `Show ${sortedCards.length} ${dataView === "cards" ? "cards" : "printings"}`
+          : undefined
+      }
+      extras={addModeButton}
+      showCopies={mode !== "add"}
+    />
   );
 
   // ── Panes ───────────────────────────────────────────────────────────
-  const leftPane = (
-    <Pane className="@wide:block px-3">
-      <h2 className="pb-4 text-lg font-semibold">Filters</h2>
-      <div className="space-y-4 pb-4">
-        <FilterPanelContent
-          availableFilters={availableFilters}
-          availableLanguages={availableLanguages}
-          setDisplayLabel={setDisplayLabel}
-          hiddenSections={COLLECTION_GRID_HIDDEN_FILTER_SECTIONS}
-        />
-      </div>
-    </Pane>
-  );
+  const leftPane = <BrowserLeftPane />;
 
   const rightPane = isMobile ? undefined : (
     <SelectionDetailPane
@@ -969,7 +924,12 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
 
   // ── Main render ─────────────────────────────────────────────────────
   return (
-    <>
+    <CardBrowserFilterProvider
+      availableFilters={availableFilters}
+      availableLanguages={availableLanguages}
+      setDisplayLabel={setDisplayLabel}
+      hiddenSections={COLLECTION_GRID_HIDDEN_FILTER_SECTIONS}
+    >
       {topBarPortal}
       <BrowserCardViewer
         items={items}
@@ -984,13 +944,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         stale={isGridStale}
         toolbar={toolbar}
         leftPane={leftPane}
-        aboveGrid={
-          <ActiveFilters
-            availableFilters={availableFilters}
-            setDisplayLabel={setDisplayLabel}
-            hiddenSections={COLLECTION_GRID_HIDDEN_FILTER_SECTIONS}
-          />
-        }
+        aboveGrid={<BrowserActiveFilters />}
         rightPane={rightPane}
         addStripHeight={ADD_STRIP_HEIGHT}
         table={{
@@ -1157,7 +1111,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           preferredLanguages={preferredLanguages}
         />
       )}
-    </>
+    </CardBrowserFilterProvider>
   );
 }
 

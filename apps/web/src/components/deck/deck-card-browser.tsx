@@ -4,6 +4,12 @@ import { useDeferredValue, useEffect, useState } from "react";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
+import {
+  BrowserActiveFilters,
+  BrowserLeftPane,
+  BrowserToolbar,
+  CardBrowserFilterProvider,
+} from "@/components/cards/card-browser-filter-scaffold";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { DeckAddStrip } from "@/components/deck/deck-add-strip";
@@ -11,20 +17,6 @@ import { DeckCardDetailMenu } from "@/components/deck/deck-card-detail-menu";
 import { DeckOverview } from "@/components/deck/deck-overview";
 import { DeckTableActions } from "@/components/deck/deck-table-actions";
 import { FormatTagPickBanner, needsFormatTagPick } from "@/components/deck/format-tag-pick-banner";
-import { ActiveFilters } from "@/components/filters/active-filters";
-import {
-  CollapsibleFilterPanel,
-  FilterToggleButton,
-} from "@/components/filters/collapsible-filter-panel";
-import { FilterPanelContent } from "@/components/filters/filter-panel-content";
-import {
-  DesktopOptionsBar,
-  MobileFilterContent,
-  MobileOptionsContent,
-  MobileOptionsDrawer,
-} from "@/components/filters/options-bar";
-import { SearchBar } from "@/components/filters/search-bar";
-import { Pane } from "@/components/layout/panes";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { useCardData } from "@/hooks/use-card-data";
@@ -451,46 +443,15 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   };
 
   const toolbar = (
-    <>
-      <div className="mb-3 flex items-start gap-3">
-        <SearchBar totalCards={totalUniqueCards} filteredCount={sortedCards.length} />
-        <DesktopOptionsBar className="hidden sm:flex" hideViewToggle />
-        <FilterToggleButton className="@wide:hidden hidden sm:flex" />
-        <MobileOptionsDrawer
-          doneLabel={hasActiveFilters ? `Show ${sortedCards.length} cards` : undefined}
-          className="sm:hidden"
-        >
-          <MobileOptionsContent />
-          <MobileFilterContent
-            availableFilters={availableFilters}
-            availableLanguages={availableLanguages}
-            setDisplayLabel={setDisplayLabel}
-            visibleCustomTagCategories={visibleCustomTagCategories}
-          />
-        </MobileOptionsDrawer>
-      </div>
-      <CollapsibleFilterPanel
-        availableFilters={availableFilters}
-        availableLanguages={availableLanguages}
-        setDisplayLabel={setDisplayLabel}
-        visibleCustomTagCategories={visibleCustomTagCategories}
-      />
-    </>
+    <BrowserToolbar
+      totalCards={totalUniqueCards}
+      filteredCount={sortedCards.length}
+      mobileDoneLabel={hasActiveFilters ? `Show ${sortedCards.length} cards` : undefined}
+      hideViewToggle
+    />
   );
 
-  const leftPane = (
-    <Pane className="@wide:block px-3">
-      <h2 className="pb-4 text-lg font-semibold">Filters</h2>
-      <div className="space-y-4 pb-4">
-        <FilterPanelContent
-          availableFilters={availableFilters}
-          availableLanguages={availableLanguages}
-          setDisplayLabel={setDisplayLabel}
-          visibleCustomTagCategories={visibleCustomTagCategories}
-        />
-      </div>
-    </Pane>
-  );
+  const leftPane = <BrowserLeftPane />;
 
   const rightPane = (
     <SelectionDetailPane
@@ -502,68 +463,73 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   );
 
   return (
-    <BrowserCardViewer
-      items={items}
-      totalItems={allPrintings.length}
-      renderCard={renderCard}
-      setOrder={sets}
-      deferredSortedCards={deferredSortedCards}
-      printingsByCardId={printingsByCardId}
-      view={view}
-      groupBy={groupBy}
-      groupDir={groupDir}
-      stale={isGridStale}
-      toolbar={toolbar}
-      leftPane={leftPane}
-      aboveGrid={
-        <ActiveFilters availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
-      }
-      rightPane={rightPane}
-      addStripHeight={ADD_STRIP_HEIGHT}
-      table={{
-        showOwned: true,
-        showAddControls: true,
-        actionsLabel: "Deck",
-        renderActions: (printing) => {
-          const cardId = printing.cardId;
-          const deckQty = deckQuantityByCard.get(cardId) ?? 0;
-          const isInActiveSingleZone =
-            isSingleCardZone &&
-            deckCards.some((card) => card.cardId === cardId && card.zone === activeZone);
-          return (
-            <DeckTableActions
-              printing={printing}
-              deckQuantity={deckQty}
-              maxReached={isMaxReached({ id: printing.id, printing })}
-              addLabel={
-                isSingleCardZone
-                  ? singleCardZoneOccupied && !isInActiveSingleZone
-                    ? "Switch"
-                    : "Choose"
-                  : undefined
-              }
-              removeLabel={isInActiveSingleZone ? "Remove" : undefined}
-              shiftHeld={shiftHeld}
-              remainingCount={
-                activeZone === "runes"
-                  ? Math.max(0, 12 - runeTotal)
-                  : 3 - (copyLimitTotalByCard.get(cardId) ?? 0)
-              }
-              onQuickAdd={handleQuickAdd}
-              onRemove={handleRemove}
-            />
-          );
-        },
-      }}
+    <CardBrowserFilterProvider
+      availableFilters={availableFilters}
+      availableLanguages={availableLanguages}
+      setDisplayLabel={setDisplayLabel}
+      visibleCustomTagCategories={visibleCustomTagCategories}
     >
-      {isMobile && (
-        <SelectionMobileOverlay
-          items={items}
-          printingsByCardId={printingsByCardId}
-          showImages={showImages}
-          onSearchAndClose={setSearch}
-        />
-      )}
-    </BrowserCardViewer>
+      <BrowserCardViewer
+        items={items}
+        totalItems={allPrintings.length}
+        renderCard={renderCard}
+        setOrder={sets}
+        deferredSortedCards={deferredSortedCards}
+        printingsByCardId={printingsByCardId}
+        view={view}
+        groupBy={groupBy}
+        groupDir={groupDir}
+        stale={isGridStale}
+        toolbar={toolbar}
+        leftPane={leftPane}
+        aboveGrid={<BrowserActiveFilters />}
+        rightPane={rightPane}
+        addStripHeight={ADD_STRIP_HEIGHT}
+        table={{
+          showOwned: true,
+          showAddControls: true,
+          actionsLabel: "Deck",
+          renderActions: (printing) => {
+            const cardId = printing.cardId;
+            const deckQty = deckQuantityByCard.get(cardId) ?? 0;
+            const isInActiveSingleZone =
+              isSingleCardZone &&
+              deckCards.some((card) => card.cardId === cardId && card.zone === activeZone);
+            return (
+              <DeckTableActions
+                printing={printing}
+                deckQuantity={deckQty}
+                maxReached={isMaxReached({ id: printing.id, printing })}
+                addLabel={
+                  isSingleCardZone
+                    ? singleCardZoneOccupied && !isInActiveSingleZone
+                      ? "Switch"
+                      : "Choose"
+                    : undefined
+                }
+                removeLabel={isInActiveSingleZone ? "Remove" : undefined}
+                shiftHeld={shiftHeld}
+                remainingCount={
+                  activeZone === "runes"
+                    ? Math.max(0, 12 - runeTotal)
+                    : 3 - (copyLimitTotalByCard.get(cardId) ?? 0)
+                }
+                onQuickAdd={handleQuickAdd}
+                onRemove={handleRemove}
+              />
+            );
+          },
+        }}
+      >
+        {isMobile && (
+          <SelectionMobileOverlay
+            items={items}
+            printingsByCardId={printingsByCardId}
+            showImages={showImages}
+            onSearchAndClose={setSearch}
+          />
+        )}
+      </BrowserCardViewer>
+    </CardBrowserFilterProvider>
   );
 }

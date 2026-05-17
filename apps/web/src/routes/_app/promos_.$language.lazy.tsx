@@ -1,17 +1,19 @@
 import type { GroupByField, Printing, SortDirection, SortOption } from "@openrift/shared";
 import { filterCards, getAvailableFilters, imageUrl, sortCards } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import {
-  createLazyFileRoute,
-  Link,
-  useLocation,
-  useNavigate,
-  useRouter,
-} from "@tanstack/react-router";
+import { createLazyFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { LinkIcon, PackageIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { CardBrowserLayout, useCardBrowserLayoutOffsets } from "@/components/card-browser-layout";
+import type { CardViewerItem } from "@/components/card-viewer-types";
+import {
+  BrowserActiveFilters,
+  BrowserCollapsibleFilters,
+  BrowserLeftPane,
+  BrowserMobileFilters,
+  CardBrowserFilterProvider,
+} from "@/components/cards/card-browser-filter-scaffold";
 import {
   CardTableGroupHeader,
   CardTableHeader,
@@ -22,15 +24,9 @@ import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
 import { SuggestImageOverlay } from "@/components/cards/suggest-image-overlay";
-import { ActiveFilters } from "@/components/filters/active-filters";
-import {
-  CollapsibleFilterPanel,
-  FilterToggleButton,
-} from "@/components/filters/collapsible-filter-panel";
-import { FilterPanelContent } from "@/components/filters/filter-panel-content";
+import { FilterToggleButton } from "@/components/filters/collapsible-filter-panel";
 import {
   DisplayModeToggle,
-  MobileFilterContent,
   MobileOptionsDrawer,
   sortOptions,
 } from "@/components/filters/options-bar";
@@ -38,8 +34,9 @@ import { SearchBar } from "@/components/filters/search-bar";
 import { SortGroupControls } from "@/components/filters/sort-group-controls";
 import type { PageTocItem } from "@/components/layout/page-toc";
 import { PageToc } from "@/components/layout/page-toc";
-import { Pane } from "@/components/layout/panes";
 import { MarkdownText } from "@/components/markdown-text";
+import { SelectionDetailPane } from "@/components/selection-detail-pane";
+import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -53,6 +50,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useEnumOrders, useLanguageList } from "@/hooks/use-enums";
 import { useHydrated } from "@/hooks/use-hydrated";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { publicPromoListQueryOptions } from "@/hooks/use-public-promos";
 import { useSession } from "@/lib/auth-session";
@@ -66,6 +64,7 @@ import { computeLanguageAggregates } from "@/lib/promos-tree";
 import { FilterSearchProvider } from "@/lib/search-schemas";
 import { PAGE_PADDING } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
+import { useSelectionStore } from "@/stores/selection-store";
 
 export const Route = createLazyFileRoute("/_app/promos_/$language")({
   component: PromosRoute,
@@ -264,7 +263,6 @@ function PromosPage() {
   const { data } = useSuspenseQuery(publicPromoListQueryOptions);
   const { language: activeLanguage } = Route.useParams();
   const navigate = useNavigate();
-  const router = useRouter();
   const location = useLocation();
   const showImages = useDisplayStore((s) => s.showImages);
   const display = useCardThumbnailDisplay();
@@ -292,7 +290,8 @@ function PromosPage() {
     useDisplayStore.setState({ catalogMode: catalogMode === "off" ? "count" : "off" });
   };
   const { orders: enumOrders } = useEnumOrders();
-  const { setSortBy, setSortDir, setGroupBy, setGroupDir } = useFilterActions();
+  const { setSortBy, setSortDir, setGroupBy, setGroupDir, setSearch } = useFilterActions();
+  const isMobile = useIsMobile();
 
   const presentLanguageSet = new Set(data.printings.map((p) => p.language));
   const presentLanguages = [
@@ -421,13 +420,21 @@ function PromosPage() {
     });
   }
 
+  const selectionItems: CardViewerItem[] = matchedPrintings.map((printing) => ({
+    id: printing.id,
+    printing,
+  }));
+  const printingsByCardId = Map.groupBy(activePrintings, (printing) => printing.cardId);
+
   const handleCardClick = (printing: Printing) => {
-    const { href } = router.buildLocation({
-      to: "/cards/$cardSlug",
-      params: { cardSlug: printing.card.slug },
-      search: { printingId: printing.id },
-    });
-    window.open(href, "_blank", "noreferrer");
+    useSelectionStore.getState().selectCard(printing, selectionItems, "printing");
+  };
+
+  const handleSearchAndClose = (query: string) => {
+    setSearch(query);
+    if (isMobile) {
+      useSelectionStore.getState().closeDetail();
+    }
   };
 
   return (
@@ -483,116 +490,120 @@ function PromosPage() {
         )}
       </div>
 
-      <CardBrowserLayout
-        toolbar={
-          <>
-            <div className="mb-1.5 flex flex-wrap items-center gap-2 sm:mb-3">
-              <SearchBar
-                totalCards={activePrintings.length}
-                filteredCount={matchedPrintings.length}
-              />
-              <div className="hidden sm:flex">
-                <SortGroupControls
-                  sortOptions={sortOptions}
-                  sortBy={sortBy}
-                  sortDir={sortDir}
-                  onSortByChange={setSortBy}
-                  onSortDirChange={setSortDir}
-                  group={{
-                    options: GROUP_OPTIONS,
-                    value: grouping,
-                    dir: groupDir,
-                    onValueChange: (value) => setGroupBy(value as GroupByField),
-                    onDirChange: setGroupDir,
-                  }}
+      <CardBrowserFilterProvider
+        availableFilters={availableFilters}
+        setDisplayLabel={setDisplayLabel}
+        hiddenSections={hiddenWithOwned}
+      >
+        <CardBrowserLayout
+          toolbar={
+            <>
+              <div className="mb-1.5 flex flex-wrap items-center gap-2 sm:mb-3">
+                <SearchBar
+                  totalCards={activePrintings.length}
+                  filteredCount={matchedPrintings.length}
                 />
-              </div>
-              <DisplayModeToggle />
-              {isLoggedIn && (
-                <Button
-                  variant={showOwned ? "default" : "outline"}
-                  size="icon"
-                  onClick={togglePromoOwned}
-                  aria-label={showOwned ? "Hide owned counts" : "Show owned counts"}
-                  aria-pressed={showOwned}
-                  title={showOwned ? "Hide owned counts" : "Show owned counts"}
+                <div className="hidden sm:flex">
+                  <SortGroupControls
+                    sortOptions={sortOptions}
+                    sortBy={sortBy}
+                    sortDir={sortDir}
+                    onSortByChange={setSortBy}
+                    onSortDirChange={setSortDir}
+                    group={{
+                      options: GROUP_OPTIONS,
+                      value: grouping,
+                      dir: groupDir,
+                      onValueChange: (value) => setGroupBy(value as GroupByField),
+                      onDirChange: setGroupDir,
+                    }}
+                  />
+                </div>
+                <DisplayModeToggle />
+                {isLoggedIn && (
+                  <Button
+                    variant={showOwned ? "default" : "outline"}
+                    size="icon"
+                    onClick={togglePromoOwned}
+                    aria-label={showOwned ? "Hide owned counts" : "Show owned counts"}
+                    aria-pressed={showOwned}
+                    title={showOwned ? "Hide owned counts" : "Show owned counts"}
+                  >
+                    <PackageIcon className="size-4" />
+                  </Button>
+                )}
+                <FilterToggleButton className="@wide:hidden hidden sm:flex" />
+                <MobileOptionsDrawer
+                  className="sm:hidden"
+                  doneLabel={
+                    hasActiveFilters ? `Show ${matchedPrintings.length} promos` : undefined
+                  }
                 >
-                  <PackageIcon className="size-4" />
-                </Button>
-              )}
-              <FilterToggleButton className="@wide:hidden hidden sm:flex" />
-              <MobileOptionsDrawer
-                className="sm:hidden"
-                doneLabel={hasActiveFilters ? `Show ${matchedPrintings.length} promos` : undefined}
-              >
-                <SortGroupControls
-                  compact
-                  sortOptions={sortOptions}
-                  sortBy={sortBy}
-                  sortDir={sortDir}
-                  onSortByChange={setSortBy}
-                  onSortDirChange={setSortDir}
-                  group={{
-                    options: GROUP_OPTIONS,
-                    value: grouping,
-                    dir: groupDir,
-                    onValueChange: (value) => setGroupBy(value as GroupByField),
-                    onDirChange: setGroupDir,
-                  }}
-                />
-                <MobileFilterContent
-                  availableFilters={availableFilters}
-                  setDisplayLabel={setDisplayLabel}
-                  hiddenSections={hiddenWithOwned}
-                />
-              </MobileOptionsDrawer>
-            </div>
-            <CollapsibleFilterPanel
-              availableFilters={availableFilters}
-              setDisplayLabel={setDisplayLabel}
-              hiddenSections={hiddenWithOwned}
-            />
-          </>
-        }
-        leftPane={
-          <>
-            <PageToc items={tocItems} className="lg:w-52" />
-            <Pane className="@wide:block px-3">
-              <h2 className="pb-4 text-lg font-semibold">Filters</h2>
-              <div className="space-y-4 pb-4">
-                <FilterPanelContent
-                  availableFilters={availableFilters}
-                  setDisplayLabel={setDisplayLabel}
-                  hiddenSections={hiddenWithOwned}
-                />
+                  <SortGroupControls
+                    compact
+                    sortOptions={sortOptions}
+                    sortBy={sortBy}
+                    sortDir={sortDir}
+                    onSortByChange={setSortBy}
+                    onSortDirChange={setSortDir}
+                    group={{
+                      options: GROUP_OPTIONS,
+                      value: grouping,
+                      dir: groupDir,
+                      onValueChange: (value) => setGroupBy(value as GroupByField),
+                      onDirChange: setGroupDir,
+                    }}
+                  />
+                  <BrowserMobileFilters />
+                </MobileOptionsDrawer>
               </div>
-            </Pane>
-          </>
-        }
-        aboveGrid={
-          <ActiveFilters
-            availableFilters={availableFilters}
-            setDisplayLabel={setDisplayLabel}
-            hiddenSections={hiddenWithOwned}
-          />
-        }
-        gridSlot={
-          <PromoSectionsContent
-            grouping={grouping}
-            channelRenderItems={channelRenderItems}
-            flatRenderItems={flatRenderItems}
-            hasContent={hasContent}
-            hasActiveFilters={hasActiveFilters}
-            viewMode={viewMode}
-            showImages={showImages}
-            display={display}
-            ownedCounts={ownedCounts}
-            onCardClick={handleCardClick}
-            sortPrintings={sortPrintings}
-            setNameBySlug={setSlugToName}
-          />
-        }
-      />
+              <BrowserCollapsibleFilters />
+            </>
+          }
+          leftPane={
+            <>
+              <PageToc items={tocItems} className="lg:w-52" />
+              <BrowserLeftPane />
+            </>
+          }
+          aboveGrid={<BrowserActiveFilters />}
+          rightPane={
+            isMobile ? undefined : (
+              <SelectionDetailPane
+                items={selectionItems}
+                printingsByCardId={printingsByCardId}
+                showImages={showImages}
+                onSearchAndClose={handleSearchAndClose}
+              />
+            )
+          }
+          gridSlot={
+            <PromoSectionsContent
+              grouping={grouping}
+              channelRenderItems={channelRenderItems}
+              flatRenderItems={flatRenderItems}
+              hasContent={hasContent}
+              hasActiveFilters={hasActiveFilters}
+              viewMode={viewMode}
+              showImages={showImages}
+              display={display}
+              ownedCounts={ownedCounts}
+              onCardClick={handleCardClick}
+              sortPrintings={sortPrintings}
+              setNameBySlug={setSlugToName}
+            />
+          }
+        >
+          {isMobile && (
+            <SelectionMobileOverlay
+              items={selectionItems}
+              printingsByCardId={printingsByCardId}
+              showImages={showImages}
+              onSearchAndClose={handleSearchAndClose}
+            />
+          )}
+        </CardBrowserLayout>
+      </CardBrowserFilterProvider>
     </div>
   );
 }
