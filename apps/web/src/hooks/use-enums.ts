@@ -1,4 +1,4 @@
-import type { DeckZone, DistributionChannel, EnumOrders } from "@openrift/shared";
+import type { CustomTag, DeckZone, DistributionChannel, EnumOrders } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { initQueryOptions } from "@/hooks/use-init";
@@ -122,6 +122,21 @@ export function useMarkerList(): { slug: string; label: string; description: str
 export function useChannelRegistry(): DistributionChannel[] {
   const { data } = useSuspenseQuery(initQueryOptions);
   return data.distributionChannels ?? [];
+}
+
+/**
+ * Returns the admin-curated custom-tag vocabulary from /init. Used by the
+ * freeform deck-builder filter to render the per-category tag chips.
+ *
+ * @returns Custom tags grouped by category, with each group already sorted.
+ */
+export function useCustomTagList(): { byCategory: Map<string, CustomTag[]>; all: CustomTag[] } {
+  const { data } = useSuspenseQuery(initQueryOptions);
+  const all = (data.customTags ?? []).toSorted(
+    (a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label),
+  );
+  const byCategory = Map.groupBy(all, (tag) => tag.category);
+  return { byCategory, all };
 }
 
 /**

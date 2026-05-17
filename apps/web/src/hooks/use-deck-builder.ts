@@ -1,11 +1,18 @@
-import type { DeckFormat, DeckViolation, DeckZone, Domain } from "@openrift/shared";
+import type {
+  DeckFormat,
+  DeckFormatConfig,
+  DeckViolation,
+  DeckZone,
+  Domain,
+} from "@openrift/shared";
 import { WellKnown, validateDeck } from "@openrift/shared";
 import { useLiveQuery } from "@tanstack/react-db";
 import type { Collection } from "@tanstack/react-db";
 
+import { useCustomTagAssignments } from "@/hooks/use-custom-tag-assignments";
 import { useDeckDetail } from "@/hooks/use-decks";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
-import { deckCardKey, isCardAllowedInZone } from "@/lib/deck-builder-card";
+import { deckCardKey, isCardAllowedInZone, toRuleEngineCard } from "@/lib/deck-builder-card";
 import { useDeckDraftCollection } from "@/lib/deck-builder-collection";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 
@@ -653,20 +660,16 @@ export function useDeckCards(deckId: string): DeckBuilderCard[] {
   return data ?? EMPTY_CARDS;
 }
 
-export function useDeckViolations(deckId: string, format: DeckFormat): DeckViolation[] {
+export function useDeckViolations(
+  deckId: string,
+  format: DeckFormat,
+  formatConfig: DeckFormatConfig | null,
+): DeckViolation[] {
   const cards = useDeckCards(deckId);
+  const customTagAssignments = useCustomTagAssignments();
   return validateDeck({
     format,
-    cards: cards.map((card) => ({
-      cardId: card.cardId,
-      zone: card.zone,
-      quantity: card.quantity,
-      cardName: card.cardName,
-      cardType: card.cardType,
-      superTypes: card.superTypes,
-      domains: card.domains,
-      tags: card.tags,
-      keywords: card.keywords,
-    })),
+    formatConfig,
+    cards: cards.map((card) => toRuleEngineCard(card, customTagAssignments)),
   });
 }

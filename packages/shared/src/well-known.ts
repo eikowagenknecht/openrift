@@ -73,6 +73,14 @@ export const WellKnown = {
     CONSTRUCTED: "constructed",
     /** Skips all deck validation. */
     FREEFORM: "freeform",
+    /**
+     * Constructed minus domain rules, plus a tag-membership rule. Every card
+     * must carry at least one of the chosen region tags (custom_tags.slug,
+     * category=`region`) — multiple regions OR-match, so a deck locked to
+     * ["bandle-city", "neutral"] accepts cards tagged with either. The
+     * chosen slugs live in `format_config.tagSlugs`.
+     */
+    CUSTOM_REGION: "custom-region",
   },
   deckZone: {
     /** Default zone for most cards. */

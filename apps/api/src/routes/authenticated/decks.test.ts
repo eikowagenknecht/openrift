@@ -39,11 +39,15 @@ const mockUserPreferences = {
 const mockDeckFormats = {
   getBySlug: vi.fn((slug: string) =>
     Promise.resolve(
-      slug === "constructed" || slug === "freeform"
+      slug === "constructed" || slug === "freeform" || slug === "custom-region"
         ? { slug, label: slug, sortOrder: 0, isWellKnown: true }
         : undefined,
     ),
   ),
+};
+
+const mockCustomTags = {
+  getBySlug: vi.fn(() => Promise.resolve(undefined as object | undefined)),
 };
 
 const mockEnums = {
@@ -93,6 +97,7 @@ const app = new Hono()
       userPreferences: mockUserPreferences,
       enums: mockEnums,
       deckFormats: mockDeckFormats,
+      customTags: mockCustomTags,
     } as never);
     await next();
   })
@@ -118,6 +123,7 @@ const dbDeck = {
   name: "Fury Aggro",
   description: null,
   format: "constructed",
+  formatConfig: null,
   isWanted: false,
   isPublic: false,
   shareToken: null,
@@ -509,6 +515,7 @@ describe("POST /api/v1/decks — argument passing", () => {
       name: "Simple",
       description: null,
       format: "freeform",
+      formatConfig: null,
       isWanted: false,
       isPublic: false,
     });

@@ -1,5 +1,21 @@
 import type { CardType, DeckFormat, DeckZone, Domain, SuperType } from "../enums.js";
 
+/**
+ * Per-deck format config payload (`decks.format_config` jsonb). Each format
+ * reads only the keys it cares about. The interface is concrete (not a
+ * generic `Record`) so TanStack server-fn typing can preserve inference
+ * through the response types — add a new optional key here when a new
+ * format needs its own per-deck setting.
+ */
+export interface DeckFormatConfig {
+  /**
+   * Custom-Region: chosen `custom_tags.slug` values (category=`region`).
+   * A card is legal if it carries any one of these (OR-match), so a deck
+   * locked to ["bandle-city", "neutral"] accepts cards tagged with either.
+   */
+  tagSlugs?: string[];
+}
+
 export interface DeckListResponse {
   items: DeckListItemResponse[];
 }
@@ -9,6 +25,12 @@ export interface DeckSummaryResponse {
   id: string;
   name: string;
   format: DeckFormat;
+  /**
+   * Per-deck format config; shape owned by each format. `null` means no
+   * config (constructed/freeform) or "config required but not yet picked"
+   * (e.g. Custom-Region deck before a region is set).
+   */
+  formatConfig: DeckFormatConfig | null;
   isPinned: boolean;
   archivedAt: string | null;
   createdAt: string;
@@ -35,6 +57,8 @@ export interface DeckResponse {
   name: string;
   description: string | null;
   format: DeckFormat;
+  /** See {@link DeckSummaryResponse.formatConfig}. */
+  formatConfig: DeckFormatConfig | null;
   isWanted: boolean;
   isPublic: boolean;
   shareToken: string | null;
@@ -63,6 +87,8 @@ export interface PublicDeckResponse {
   name: string;
   description: string | null;
   format: DeckFormat;
+  /** See {@link DeckSummaryResponse.formatConfig}. */
+  formatConfig: DeckFormatConfig | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -94,6 +120,14 @@ export interface PublicDeckDetailResponse {
   deck: PublicDeckResponse;
   cards: PublicDeckCardResponse[];
   owner: { displayName: string };
+  /**
+   * Card id → custom-tag slugs (sorted), denormalized for the cards in this
+   * deck only. The full catalog map isn't available to anonymous viewers, so
+   * tag-locked formats (e.g. Custom-Region) need this slice to validate the
+   * deck honestly instead of reporting every card as out-of-format. Cards
+   * with no tags are absent from the record.
+   */
+  customTagAssignments: Record<string, string[]>;
 }
 
 export interface DeckShareResponse {

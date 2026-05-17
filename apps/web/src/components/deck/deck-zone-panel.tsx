@@ -36,7 +36,11 @@ export function DeckZonePanel({
   const { zoneOrder } = useZoneOrder();
   const cards = useDeckCards(deckId);
   const { data: deckDetail } = useDeckDetail(deckId);
-  const violations = useDeckViolations(deckId, deckDetail.deck.format);
+  const violations = useDeckViolations(
+    deckId,
+    deckDetail.deck.format,
+    deckDetail.deck.formatConfig,
+  );
   const activeZone = useDeckBuilderUiStore((state) => state.activeZone);
 
   const [shiftHeld, setShiftHeld] = useState(false);

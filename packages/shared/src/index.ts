@@ -51,6 +51,7 @@ export type {
   DeckDetailResponse,
   DeckExportResponse,
   DeckFormat,
+  DeckFormatConfig,
   DeckListItemResponse,
   DeckListResponse,
   DeckResponse,
@@ -91,6 +92,13 @@ export type {
   PricesResponse,
   Printing,
   PromosListResponse,
+  AdminCustomTagAssignmentsResponse,
+  AdminCustomTagCategoryListResponse,
+  AdminCustomTagListResponse,
+  CustomTag,
+  CustomTagCategory,
+  CustomTagCategoryResponse,
+  CustomTagResponse,
   MarkerResponse,
   DistributionChannel,
   DistributionChannelKind,
@@ -211,7 +219,7 @@ export {
 
 export { appendSetTotal, fixTypography } from "./fix-typography.js";
 
-export type { DeckViolation } from "./deck-rules.js";
+export type { DeckCard, DeckState, DeckViolation } from "./deck-rules.js";
 export { validateDeck } from "./deck-rules.js";
 
 export { compareRuleNumbers } from "./rules.js";

@@ -15,6 +15,8 @@ interface CollapsibleFilterPanelProps {
   availableLanguages?: string[];
   setDisplayLabel?: (code: string) => string;
   hiddenSections?: ReadonlySet<string>;
+  /** See {@link FilterPanelContentProps.visibleCustomTagCategories}. */
+  visibleCustomTagCategories?: ReadonlySet<string>;
   filterOverrides?: Partial<Record<string, string[]>>;
   filterCounts?: FilterCounts;
   renderOwnedFlag?: (props: { label: string; isActive: boolean; onClick: () => void }) => ReactNode;
@@ -31,6 +33,7 @@ export function CollapsibleFilterPanel({
   availableLanguages,
   setDisplayLabel,
   hiddenSections,
+  visibleCustomTagCategories,
   filterOverrides,
   filterCounts,
   renderOwnedFlag,
@@ -51,6 +54,7 @@ export function CollapsibleFilterPanel({
             availableLanguages={availableLanguages}
             setDisplayLabel={setDisplayLabel}
             hiddenSections={hiddenSections}
+            visibleCustomTagCategories={visibleCustomTagCategories}
             filterOverrides={filterOverrides}
             filterCounts={filterCounts}
             renderOwnedFlag={renderOwnedFlag}

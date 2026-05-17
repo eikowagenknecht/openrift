@@ -1,4 +1,4 @@
-import type { DistributionChannel } from "../catalog.js";
+import type { CustomTag, DistributionChannel } from "../catalog.js";
 import type { KeywordEntry } from "./keyword.js";
 
 interface EnumRow {
@@ -36,4 +36,10 @@ export interface InitResponse {
    * registry onto the much larger catalog payload.
    */
   distributionChannels: DistributionChannel[];
+  /**
+   * Admin-curated supplemental tag vocabulary. Used by custom deck-builder
+   * formats (first: region-locked freeform). Lives on /init so the freeform
+   * filter UI can render labels without depending on the catalog payload.
+   */
+  customTags: CustomTag[];
 }

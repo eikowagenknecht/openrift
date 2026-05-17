@@ -140,6 +140,7 @@ export function searchToFilters(search: FilterSearch) {
     hasAnyMarker: search.promo ?? null,
     markerSlugs: [] as string[],
     distributionChannelSlugs: [] as string[],
+    customTagSlugs: [] as string[],
     isBanned: search.banned ?? null,
     hasErrata: search.errata ?? null,
     energy: { min: search.energyMin ?? null, max: search.energyMax ?? null },

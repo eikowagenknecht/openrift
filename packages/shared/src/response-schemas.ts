@@ -135,6 +135,16 @@ const describedEnumRowSchema = enumRowSchema.extend({
   description: z.string().nullable().openapi({ example: "Promo stamp around the rarity symbol" }),
 });
 
+const customTagSchema = z.object({
+  id: z.string().openapi({ example: "019d4999-4219-72f6-b7bb-64004e1b1bff" }),
+  slug: z.string().openapi({ example: "bandle-city" }),
+  label: z.string().openapi({ example: "Bandle City" }),
+  category: z.string().openapi({ example: "region" }),
+  categoryLabel: z.string().openapi({ example: "Region" }),
+  description: z.string().nullable().openapi({ example: null }),
+  sortOrder: z.number().openapi({ example: 0 }),
+});
+
 const distributionChannelSchema = z.object({
   id: z.string().openapi({ example: "019cfc3b-0369-7000-8000-000000000002" }),
   slug: z.string().openapi({ example: "nexus-night" }),
@@ -161,6 +171,7 @@ export const initResponseSchema = z
     }),
     keywords: z.record(z.string(), keywordEntrySchema),
     distributionChannels: z.array(distributionChannelSchema).openapi({ example: [] }),
+    customTags: z.array(customTagSchema).openapi({ example: [] }),
   })
   .openapi("InitResponse");
 
@@ -337,6 +348,13 @@ export const catalogResponseSchema = z
     cards: z.record(z.string(), catalogCardResponseValueSchema),
     printings: z.record(z.string(), catalogPrintingResponseValueSchema),
     totalCopies: z.number().openapi({ example: 142 }),
+    /**
+     * Map of card id → array of custom-tag slugs (sorted). Admin-curated
+     * tags supplementing the catalogue's intrinsic data; consumed only by
+     * custom deck-builder formats (e.g. region-locked freeform). Standard
+     * UI should not render these alongside `card.tags`.
+     */
+    customTagAssignments: z.record(z.string(), z.array(z.string())).openapi({ example: {} }),
   })
   .openapi("CatalogResponse");
 
@@ -486,12 +504,23 @@ export const collectionEventListResponseSchema = z
 
 // ── Decks ────────────────────────────────────────────────────────────────────
 
+// Mirrors DeckFormatConfig in shared/types/api/deck.ts. Schema stays a
+// concrete object (not z.record) so TanStack's server-fn type inference can
+// propagate the response shape through the client hooks.
+const formatConfigSchema = z
+  .object({
+    tagSlugs: z.array(z.string()).optional(),
+  })
+  .nullable()
+  .openapi({ example: { tagSlugs: ["bilgewater", "neutral"] } });
+
 export const deckResponseSchema = z
   .object({
     id: z.string(),
     name: z.string(),
     description: z.string().nullable(),
     format: deckFormatSchema,
+    formatConfig: formatConfigSchema,
     isWanted: z.boolean(),
     isPublic: z.boolean(),
     shareToken: z.string().nullable(),
@@ -508,6 +537,7 @@ export const publicDeckResponseSchema = z
     name: z.string(),
     description: z.string().nullable(),
     format: deckFormatSchema,
+    formatConfig: formatConfigSchema,
     createdAt: z.string(),
     updatedAt: z.string(),
   })
@@ -531,6 +561,7 @@ const deckSummaryResponseSchema = z
     id: z.string(),
     name: z.string(),
     format: deckFormatSchema,
+    formatConfig: formatConfigSchema,
     isPinned: z.boolean(),
     archivedAt: z.string().nullable(),
     createdAt: z.string(),
@@ -597,6 +628,7 @@ export const publicDeckDetailResponseSchema = z
     deck: publicDeckResponseSchema,
     cards: z.array(publicDeckCardResponseSchema),
     owner: z.object({ displayName: z.string() }),
+    customTagAssignments: z.record(z.string(), z.array(z.string())).openapi({ example: {} }),
   })
   .openapi("PublicDeckDetailResponse");
 

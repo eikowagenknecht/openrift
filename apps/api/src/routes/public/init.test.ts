@@ -29,12 +29,17 @@ const mockDistributionChannelsRepo = {
   listAll: vi.fn(() => Promise.resolve([] as never[])),
 };
 
+const mockCustomTagsRepo = {
+  listAll: vi.fn(() => Promise.resolve([] as never[])),
+};
+
 const app = new Hono()
   .use("*", async (c, next) => {
     c.set("repos", {
       enums: mockEnumsRepo,
       keywords: mockKeywordsRepo,
       distributionChannels: mockDistributionChannelsRepo,
+      customTags: mockCustomTagsRepo,
     } as never);
     await next();
   })
@@ -46,6 +51,7 @@ describe("GET /api/v1/init", () => {
     mockKeywordsRepo.listAll.mockReset();
     mockKeywordsRepo.listAllTranslations.mockReset();
     mockDistributionChannelsRepo.listAll.mockReset();
+    mockCustomTagsRepo.listAll.mockReset();
     mockEnumsRepo.all.mockResolvedValue({
       cardTypes: [],
       rarities: [],
@@ -59,6 +65,7 @@ describe("GET /api/v1/init", () => {
     mockKeywordsRepo.listAll.mockResolvedValue([]);
     mockKeywordsRepo.listAllTranslations.mockResolvedValue([]);
     mockDistributionChannelsRepo.listAll.mockResolvedValue([]);
+    mockCustomTagsRepo.listAll.mockResolvedValue([]);
   });
 
   it("returns 200 with enums and keywords", async () => {

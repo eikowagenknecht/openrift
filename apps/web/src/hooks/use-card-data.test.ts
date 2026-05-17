@@ -54,6 +54,7 @@ function emptyFilters(): CardFilters {
     hasAnyMarker: null,
     markerSlugs: [] as string[],
     distributionChannelSlugs: [] as string[],
+    customTagSlugs: [] as string[],
     isBanned: null,
     hasErrata: null,
     energy: { min: null, max: null },

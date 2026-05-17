@@ -28,7 +28,7 @@ const getPublicDeckByShareToken = createRoute({
 export const publicDecksRoute = new OpenAPIHono<{ Variables: Variables }>().openapi(
   getPublicDeckByShareToken,
   async (c) => {
-    const { decks, catalog, canonicalPrintings } = c.get("repos");
+    const { decks, catalog, canonicalPrintings, customTags } = c.get("repos");
     const { token } = c.req.valid("param");
 
     const found = await decks.findByShareToken(token);
@@ -37,10 +37,11 @@ export const publicDecksRoute = new OpenAPIHono<{ Variables: Variables }>().open
     const cards = await decks.cardsForDeck(found.deck.id, found.deck.userId);
 
     // Denormalize card + preferred-printing data so the share page can SSR
-    // without the global catalog. Both lookups only need the distinct IDs
-    // actually referenced by this deck.
+    // without the global catalog. All three lookups only need the distinct
+    // IDs actually referenced by this deck — custom-tag assignments are
+    // scoped here so anon viewers of a Custom-Region deck can validate it.
     const uniqueCardIds = [...new Set(cards.map((card) => card.cardId))];
-    const [cardMetas, printingMetas] = await Promise.all([
+    const [cardMetas, printingMetas, customTagAssignmentsMap] = await Promise.all([
       catalog.cardsByIds(uniqueCardIds),
       canonicalPrintings.resolvePrintingMetaForRows(
         cards.map((card) => ({
@@ -48,6 +49,7 @@ export const publicDecksRoute = new OpenAPIHono<{ Variables: Variables }>().open
           preferredPrintingId: card.preferredPrintingId,
         })),
       ),
+      customTags.assignmentsForCardIds(uniqueCardIds),
     ]);
     const cardMetaById = new Map(cardMetas.map((meta) => [meta.id, meta]));
 
@@ -64,6 +66,7 @@ export const publicDecksRoute = new OpenAPIHono<{ Variables: Variables }>().open
         return toPublicDeckCard(row, cardMeta, printingMeta);
       }),
       owner: { displayName: found.ownerName ?? "Anonymous" },
+      customTagAssignments: Object.fromEntries(customTagAssignmentsMap),
     };
 
     c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");

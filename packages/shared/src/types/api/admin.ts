@@ -267,6 +267,49 @@ export interface MarkerResponse {
   updatedAt: string;
 }
 
+export interface CustomTagResponse {
+  id: string;
+  slug: string;
+  label: string;
+  /** Category slug, joined from `custom_tag_categories.slug`. */
+  category: string;
+  /** Category display label, joined from `custom_tag_categories.label`. */
+  categoryLabel: string;
+  /** Category FK, used when editing the tag. */
+  categoryId: string;
+  description: string | null;
+  sortOrder: number;
+  /** Number of cards currently assigned this tag. */
+  cardCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminCustomTagListResponse {
+  tags: CustomTagResponse[];
+}
+
+export interface CustomTagCategoryResponse {
+  id: string;
+  slug: string;
+  label: string;
+  description: string | null;
+  sortOrder: number;
+  /** Number of custom tags currently assigned to this category. */
+  tagCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminCustomTagCategoryListResponse {
+  categories: CustomTagCategoryResponse[];
+}
+
+export interface AdminCustomTagAssignmentsResponse {
+  /** Map of card id → array of custom-tag slugs (sorted). */
+  assignments: Record<string, string[]>;
+}
+
 export interface DistributionChannelResponse {
   id: string;
   slug: string;

@@ -7,6 +7,34 @@ export interface Marker {
   description: string | null;
 }
 
+/**
+ * Admin-curated namespace for {@link CustomTag}s. Each tag belongs to exactly
+ * one category, so the deck-builder UI can offer only the right vocabulary
+ * (e.g. just "region" tags for region-locked freeform decks).
+ */
+export interface CustomTagCategory {
+  id: string;
+  slug: string;
+  label: string;
+  description: string | null;
+  sortOrder: number;
+}
+
+/**
+ * Admin-curated supplemental tag attachable to any card, used by custom
+ * deck-builder formats. `category` is the category slug (kept on the tag for
+ * convenience so consumers can group by it without a second lookup).
+ */
+export interface CustomTag {
+  id: string;
+  slug: string;
+  label: string;
+  category: string;
+  categoryLabel: string;
+  description: string | null;
+  sortOrder: number;
+}
+
 export interface MarkerWithCount extends Marker {
   cardCount: number;
   printingCount: number;

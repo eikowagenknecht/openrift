@@ -13,6 +13,8 @@ import { catalogRepo } from "./repositories/catalog.js";
 import { collectionEventsRepo } from "./repositories/collection-events.js";
 import { collectionsRepo } from "./repositories/collections.js";
 import { copiesRepo } from "./repositories/copies.js";
+import { customTagCategoriesRepo } from "./repositories/custom-tag-categories.js";
+import { customTagsRepo } from "./repositories/custom-tags.js";
 import { deckFormatsRepo } from "./repositories/deck-formats.js";
 import { deckZonesRepo } from "./repositories/deck-zones.js";
 import { decksRepo } from "./repositories/decks.js";
@@ -67,6 +69,8 @@ export interface Repos {
   catalog: ReturnType<typeof catalogRepo>;
   collections: ReturnType<typeof collectionsRepo>;
   copies: ReturnType<typeof copiesRepo>;
+  customTagCategories: ReturnType<typeof customTagCategoriesRepo>;
+  customTags: ReturnType<typeof customTagsRepo>;
   deckFormats: ReturnType<typeof deckFormatsRepo>;
   deckZones: ReturnType<typeof deckZonesRepo>;
   decks: ReturnType<typeof decksRepo>;
@@ -131,6 +135,8 @@ export function createRepos(db: Kysely<Database>): Repos {
     catalog: catalogRepo(db),
     collections: collectionsRepo(db),
     copies: copiesRepo(db),
+    customTagCategories: customTagCategoriesRepo(db),
+    customTags: customTagsRepo(db),
     deckFormats: deckFormatsRepo(db),
     deckZones: deckZonesRepo(db),
     decks: decksRepo(db),

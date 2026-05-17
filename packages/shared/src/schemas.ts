@@ -106,10 +106,18 @@ export const disposeCopiesSchema = z.object({
   copyIds: z.array(z.uuid()).min(1).max(500),
 });
 
+/**
+ * Free-form per-deck format config. Each format owns its shape; the schema
+ * stays loose because the column is jsonb and validation lives in the route
+ * handler (which knows the format). Pass `null` to clear.
+ */
+const formatConfigSchema = z.record(z.string(), z.unknown()).nullable();
+
 export const createDeckSchema = z.object({
   name: deckFieldRules.name,
   description: z.string().max(2000).nullish(),
   format: deckFieldRules.format,
+  formatConfig: formatConfigSchema.optional(),
   isWanted: z.boolean().optional(),
   isPublic: z.boolean().optional(),
 });
@@ -118,6 +126,7 @@ export const updateDeckSchema = z.object({
   name: deckFieldRules.name.optional(),
   description: z.string().max(2000).nullish(),
   format: deckFieldRules.format.optional(),
+  formatConfig: formatConfigSchema.optional(),
   isWanted: z.boolean().optional(),
   isPublic: z.boolean().optional(),
 });

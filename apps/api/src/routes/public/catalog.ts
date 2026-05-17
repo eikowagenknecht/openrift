@@ -40,16 +40,25 @@ export const catalogRoute = catalogApp
     const repos = c.get("repos");
     const { catalog } = repos;
 
-    const [sets, cardRows, printingRows, imageRows, banRows, errataRows, totalCopies] =
-      await Promise.all([
-        catalog.sets(),
-        catalog.cards(),
-        catalog.printings(),
-        catalog.printingImages(),
-        catalog.cardBans(),
-        catalog.cardErrata(),
-        catalog.totalCopies(),
-      ]);
+    const [
+      sets,
+      cardRows,
+      printingRows,
+      imageRows,
+      banRows,
+      errataRows,
+      totalCopies,
+      customTagAssignmentsMap,
+    ] = await Promise.all([
+      catalog.sets(),
+      catalog.cards(),
+      catalog.printings(),
+      catalog.printingImages(),
+      catalog.cardBans(),
+      catalog.cardErrata(),
+      catalog.totalCopies(),
+      repos.customTags.assignmentsByCard(),
+    ]);
 
     const { markerBySlug, channelsByPrinting } = await loadMarkerAndChannelMaps(
       repos,
@@ -108,6 +117,7 @@ export const catalogRoute = catalogApp
       cards,
       printings,
       totalCopies,
+      customTagAssignments: Object.fromEntries(customTagAssignmentsMap),
     };
 
     // Catalog data only changes when sets/cards/printings ship — typically

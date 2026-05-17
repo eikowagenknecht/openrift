@@ -53,6 +53,7 @@ const catalogPages = [
 
 const taxonomyPages = [
   { to: "/admin/markers" as const, icon: TagIcon, title: "Markers" },
+  { to: "/admin/custom-tags" as const, icon: TagIcon, title: "Custom Tags" },
   { to: "/admin/distribution-channels" as const, icon: MapIcon, title: "Distribution Channels" },
   { to: "/admin/domains" as const, icon: PaletteIcon, title: "Domains" },
   { to: "/admin/card-types" as const, icon: ShapesIcon, title: "Card Types" },

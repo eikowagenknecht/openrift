@@ -47,8 +47,12 @@ import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
+// Custom tags are a deck-builder concept (format constraints, freeform
+// self-narrowing). They aren't useful when browsing the catalogue at large,
+// so hide the section regardless of auth state.
+const CARD_BROWSER_HIDDEN_LOGGED_IN: ReadonlySet<string> = new Set(["customTags"]);
 // Owned is only meaningful for logged-in users (counts would otherwise read 0).
-const CARD_BROWSER_HIDDEN_LOGGED_OUT: ReadonlySet<string> = new Set(["owned"]);
+const CARD_BROWSER_HIDDEN_LOGGED_OUT: ReadonlySet<string> = new Set(["owned", "customTags"]);
 
 /**
  * Standalone catalog browser for the /cards route.
@@ -139,7 +143,9 @@ export function CardBrowser() {
       channels,
     });
 
-  const hiddenFilterSections = isLoggedIn ? undefined : CARD_BROWSER_HIDDEN_LOGGED_OUT;
+  const hiddenFilterSections = isLoggedIn
+    ? CARD_BROWSER_HIDDEN_LOGGED_IN
+    : CARD_BROWSER_HIDDEN_LOGGED_OUT;
 
   const deferredSortedCards = useDeferredValue(sortedCards);
   const isGridStale = deferredSortedCards !== sortedCards;

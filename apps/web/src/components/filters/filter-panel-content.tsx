@@ -8,7 +8,7 @@ import { MultiSelectCombobox } from "@/components/filters/multi-select-combobox"
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
-import { useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
+import { useCustomTagList, useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
 import { buildChannelBreadcrumbs } from "@/lib/channel-breadcrumbs";
 import { formatDomainFilterLabel } from "@/lib/domain";
 import { formatPriceIntegerForMarketplace } from "@/lib/format";
@@ -64,6 +64,13 @@ interface FilterPanelContentProps {
   availableLanguages?: string[];
   setDisplayLabel?: (code: string) => string;
   hiddenSections?: ReadonlySet<string>;
+  /**
+   * Restricts the Custom Tags section to specific tag categories. Useful in
+   * the deck builder where a tag-locked format only cares about one
+   * category (e.g. Custom-Region → just "region") and other categories
+   * would be noise. Omit (default) to show every category that has tags.
+   */
+  visibleCustomTagCategories?: ReadonlySet<string>;
   /** Override selected values for array filters (e.g. zone presets in the deck builder). */
   filterOverrides?: Partial<Record<string, string[]>>;
   /**
@@ -87,6 +94,7 @@ export function FilterPanelContent({
   availableLanguages,
   setDisplayLabel,
   hiddenSections,
+  visibleCustomTagCategories,
   filterOverrides,
   filterCounts,
   renderOwnedFlag,
@@ -98,6 +106,7 @@ export function FilterPanelContent({
         availableLanguages={availableLanguages}
         setDisplayLabel={setDisplayLabel}
         hiddenSections={hiddenSections}
+        visibleCustomTagCategories={visibleCustomTagCategories}
         filterOverrides={filterOverrides}
         filterCounts={filterCounts}
         renderOwnedFlag={renderOwnedFlag}
@@ -112,6 +121,7 @@ export function FilterBadgeSections({
   availableLanguages,
   setDisplayLabel,
   hiddenSections,
+  visibleCustomTagCategories,
   filterOverrides,
   filterCounts,
   renderOwnedFlag,
@@ -139,6 +149,16 @@ export function FilterBadgeSections({
   // paths (e.g. "Tournament › Regionals › Top 8") and the cmdk filter can
   // search them.
   const channelBreadcrumbs = buildChannelBreadcrumbs(availableFilters.distributionChannels);
+  // Custom tags come from /init (admin-curated, not derived from the printing
+  // set), so they're sourced directly here rather than threaded through
+  // AvailableFilters like markers/channels.
+  const { byCategory: customTagsByCategory } = useCustomTagList();
+  // Effective set of categories after applying the visibility prop. Used
+  // both to gate the "More" section's appearance and to filter the
+  // per-category iteration below — keep them in sync via this single source.
+  const visibleCategories = [...customTagsByCategory.entries()].filter(([category]) =>
+    visibleCustomTagCategories === undefined ? true : visibleCustomTagCategories.has(category),
+  );
   // Use overrides when URL state is empty (zone presets that aren't in the URL)
   const selected = (key: keyof typeof filterState) => {
     const urlValue = filterState[key];
@@ -237,7 +257,8 @@ export function FilterBadgeSections({
         availableFilters.hasBanned ||
         availableFilters.hasErrata ||
         (!hiddenSections?.has("markers") && availableFilters.markers.length > 0) ||
-        (!hiddenSections?.has("channels") && availableFilters.distributionChannels.length > 0)) && (
+        (!hiddenSections?.has("channels") && availableFilters.distributionChannels.length > 0) ||
+        (!hiddenSections?.has("customTags") && visibleCategories.length > 0)) && (
         <FilterSection label="More">
           {availableFilters.hasAnyMarker && !hiddenSections?.has("promo") && (
             <FlagBadge
@@ -270,6 +291,38 @@ export function FilterBadgeSections({
               onChange={(values) => setArrayFilter("channels", values)}
             />
           )}
+          {!hiddenSections?.has("customTags") &&
+            visibleCategories.map(([category, tagsInCategory]) => {
+              // Each category gets its own dropdown, but they all write to the
+              // same `customTags` URL key — so when toggling within one
+              // category we merge with whatever the other categories already
+              // hold. `selected("customTags")` is the union (URL or override
+              // fallback); we slice it down to this category's slugs for the
+              // dropdown's `selected` prop.
+              const allSelected = selected("customTags");
+              const categorySlugs = new Set(tagsInCategory.map((t) => t.slug));
+              const selectedInCategory = allSelected.filter((slug) => categorySlugs.has(slug));
+              const selectedOutsideCategory = allSelected.filter(
+                (slug) => !categorySlugs.has(slug),
+              );
+              // `byCategory` is grouped from non-empty arrays, so the first
+              // tag always exists and carries the joined category label from
+              // /init. The `?? category` is a defensive fallback only.
+              const label = tagsInCategory[0]?.categoryLabel ?? category;
+              return (
+                <MultiSelectCombobox
+                  key={category}
+                  label={label}
+                  searchPlaceholder={`Search ${label.toLowerCase()}…`}
+                  emptyText={`No ${label.toLowerCase()} match.`}
+                  options={tagsInCategory.map((t) => ({ value: t.slug, label: t.label }))}
+                  selected={selectedInCategory}
+                  onChange={(values) =>
+                    setArrayFilter("customTags", [...selectedOutsideCategory, ...values])
+                  }
+                />
+              );
+            })}
           {availableFilters.hasSigned && (
             <FlagBadge
               label={filterState.signed === false ? "Not Signed" : "Signed"}

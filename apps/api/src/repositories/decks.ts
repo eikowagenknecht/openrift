@@ -1,8 +1,43 @@
-import type { CardType, DeckFormat, DeckZone, Domain, SuperType } from "@openrift/shared/types";
+import type {
+  CardType,
+  DeckFormat,
+  DeckFormatConfig,
+  DeckZone,
+  Domain,
+  SuperType,
+} from "@openrift/shared/types";
 import type { DeleteResult, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
 import type { CardsTable, Database, DeckCardsTable, DecksTable } from "../db/index.js";
+
+/**
+ * postgres.js under Bun returns jsonb columns as raw JSON strings rather
+ * than parsed objects (mirrors the helpers in user-preferences and
+ * printing-events). The shape is enforced by `validateFormatConfig` at the
+ * write boundary, so the parsed cast is safe at read time.
+ *
+ * @returns The parsed config object, or null if the column was NULL.
+ */
+function parseFormatConfig(value: DeckFormatConfig | string | null): DeckFormatConfig | null {
+  if (value === null) {
+    return null;
+  }
+  if (typeof value === "string") {
+    return JSON.parse(value) as DeckFormatConfig;
+  }
+  return value;
+}
+
+function serializeFormatConfig(value: DeckFormatConfig | null): string | null {
+  return value === null ? null : JSON.stringify(value);
+}
+
+function withParsedFormatConfig<T extends { formatConfig: DeckFormatConfig | string | null }>(
+  row: T,
+): T & { formatConfig: DeckFormatConfig | null } {
+  return { ...row, formatConfig: parseFormatConfig(row.formatConfig) };
+}
 
 /** Slim deck card row — card metadata is resolved client-side from the catalog. */
 type DeckCardRow = Pick<
@@ -36,7 +71,7 @@ export function decksRepo(db: Kysely<Database>) {
      * @returns Decks for a user, ordered by name. Archived decks are excluded
      * unless `options.includeArchived` is true.
      */
-    listForUser(
+    async listForUser(
       userId: string,
       options?: { wantedOnly?: boolean; includeArchived?: boolean },
     ): Promise<Selectable<DecksTable>[]> {
@@ -51,17 +86,19 @@ export function decksRepo(db: Kysely<Database>) {
       if (!options?.includeArchived) {
         query = query.where("archivedAt", "is", null);
       }
-      return query.execute();
+      const rows = await query.execute();
+      return rows.map((row) => withParsedFormatConfig(row));
     },
 
     /** @returns A single deck by ID scoped to a user, or `undefined`. */
-    getByIdForUser(id: string, userId: string): Promise<Selectable<DecksTable> | undefined> {
-      return db
+    async getByIdForUser(id: string, userId: string): Promise<Selectable<DecksTable> | undefined> {
+      const row = await db
         .selectFrom("decks")
         .selectAll()
         .where("id", "=", id)
         .where("userId", "=", userId)
         .executeTakeFirst();
+      return row === undefined ? undefined : withParsedFormatConfig(row);
     },
 
     /** @returns The deck's `id` and `format`, or `undefined` if not found. */
@@ -88,30 +125,44 @@ export function decksRepo(db: Kysely<Database>) {
     },
 
     /** @returns The newly created deck row. */
-    create(values: {
+    async create(values: {
       userId: string;
       name: string;
       description: string | null;
       format: DeckFormat;
+      formatConfig: DeckFormatConfig | null;
       isWanted: boolean;
       isPublic: boolean;
     }): Promise<Selectable<DecksTable>> {
-      return db.insertInto("decks").values(values).returningAll().executeTakeFirstOrThrow();
+      const row = await db
+        .insertInto("decks")
+        .values({ ...values, formatConfig: serializeFormatConfig(values.formatConfig) })
+        .returningAll()
+        .executeTakeFirstOrThrow();
+      return { ...row, formatConfig: parseFormatConfig(row.formatConfig) };
     },
 
     /** @returns The updated deck row, or `undefined` if not found. */
-    update(
+    async update(
       id: string,
       userId: string,
       updates: Record<string, unknown>,
     ): Promise<Selectable<DecksTable> | undefined> {
-      return db
+      const next = { ...updates };
+      if ("formatConfig" in next) {
+        next.formatConfig = serializeFormatConfig(next.formatConfig as DeckFormatConfig | null);
+      }
+      const row = await db
         .updateTable("decks")
-        .set(updates)
+        .set(next)
         .where("id", "=", id)
         .where("userId", "=", userId)
         .returningAll()
         .executeTakeFirst();
+      if (!row) {
+        return undefined;
+      }
+      return { ...row, formatConfig: parseFormatConfig(row.formatConfig) };
     },
 
     /** @returns Delete result -- check `numDeletedRows` to verify the row existed. */
@@ -295,6 +346,11 @@ export function decksRepo(db: Kysely<Database>) {
             name: `${source.name} (Copy)`,
             description: source.description,
             format: source.format,
+            // Carry format_config so a cloned Custom-Region deck stays locked
+            // to the same region without forcing the user to re-pick.
+            // Re-encode through serialize to handle the raw-string shape
+            // postgres.js returns for jsonb reads.
+            formatConfig: serializeFormatConfig(parseFormatConfig(source.formatConfig)),
             isWanted: source.isWanted,
             isPublic: false,
           })
@@ -314,7 +370,7 @@ export function decksRepo(db: Kysely<Database>) {
             .execute();
         }
 
-        return newDeck;
+        return withParsedFormatConfig(newDeck);
       });
     },
 
@@ -335,18 +391,19 @@ export function decksRepo(db: Kysely<Database>) {
      * Toggles a deck's pinned status, scoped to the owning user.
      * @returns The updated deck row, or `undefined` if the deck is not owned by the user.
      */
-    setPinned(
+    async setPinned(
       id: string,
       userId: string,
       isPinned: boolean,
     ): Promise<Selectable<DecksTable> | undefined> {
-      return db
+      const row = await db
         .updateTable("decks")
         .set({ isPinned })
         .where("id", "=", id)
         .where("userId", "=", userId)
         .returningAll()
         .executeTakeFirst();
+      return row === undefined ? undefined : withParsedFormatConfig(row);
     },
 
     /**
@@ -354,37 +411,39 @@ export function decksRepo(db: Kysely<Database>) {
      * when unarchived, nulls it. Scoped to the owning user.
      * @returns The updated deck row, or `undefined` if the deck is not owned by the user.
      */
-    setArchived(
+    async setArchived(
       id: string,
       userId: string,
       archived: boolean,
     ): Promise<Selectable<DecksTable> | undefined> {
-      return db
+      const row = await db
         .updateTable("decks")
         .set({ archivedAt: archived ? sql`now()` : null })
         .where("id", "=", id)
         .where("userId", "=", userId)
         .returningAll()
         .executeTakeFirst();
+      return row === undefined ? undefined : withParsedFormatConfig(row);
     },
 
     /**
      * Sets (or nulls) the share_token and is_public on a deck, scoped to the owning user.
      * @returns The updated deck row, or `undefined` if the deck is not owned by the user.
      */
-    setShareToken(
+    async setShareToken(
       id: string,
       userId: string,
       shareToken: string | null,
       isPublic: boolean,
     ): Promise<Selectable<DecksTable> | undefined> {
-      return db
+      const row = await db
         .updateTable("decks")
         .set({ shareToken, isPublic, updatedAt: sql`now()` })
         .where("id", "=", id)
         .where("userId", "=", userId)
         .returningAll()
         .executeTakeFirst();
+      return row === undefined ? undefined : withParsedFormatConfig(row);
     },
 
     /**
@@ -409,7 +468,7 @@ export function decksRepo(db: Kysely<Database>) {
       }
 
       const { ownerName, ...deck } = row;
-      return { deck, ownerName };
+      return { deck: withParsedFormatConfig(deck), ownerName };
     },
 
     /**
@@ -440,6 +499,7 @@ export function decksRepo(db: Kysely<Database>) {
             name: `Copy of ${source.name}`,
             description: source.description,
             format: source.format,
+            formatConfig: serializeFormatConfig(parseFormatConfig(source.formatConfig)),
             isWanted: false,
             isPublic: false,
           })
@@ -459,7 +519,7 @@ export function decksRepo(db: Kysely<Database>) {
             .execute();
         }
 
-        return newDeck;
+        return withParsedFormatConfig(newDeck);
       });
     },
   };

@@ -112,6 +112,7 @@ const CATALOG_RESPONSE: CatalogResponse = {
     }),
   },
   totalCopies: 150,
+  customTagAssignments: {},
 };
 
 describe("useCards", () => {

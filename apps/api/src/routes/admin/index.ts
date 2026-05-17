@@ -10,6 +10,7 @@ import { adminCardTypesRoute } from "./card-types.js";
 import { adminCardsRoute } from "./cards/index.js";
 import { catalogRoute } from "./catalog.js";
 import { adminChangelogRoute } from "./changelog.js";
+import { adminCustomTagsRoute } from "./custom-tags.js";
 import { adminDeckFormatsRoute } from "./deck-formats.js";
 import { adminDeckZonesRoute } from "./deck-zones.js";
 import { adminDistributionChannelsRoute } from "./distribution-channels.js";
@@ -121,6 +122,7 @@ export const adminRoute = app
   .route("/admin", unifiedMappingsRoute)
   .route("/admin", adminLanguagesRoute)
   .route("/admin", adminMarkersRoute)
+  .route("/admin", adminCustomTagsRoute)
   .route("/admin", adminDistributionChannelsRoute)
   .route("/admin", adminProviderSettingsRoute)
   .route("/admin", adminSiteSettingsRoute)

@@ -29,7 +29,8 @@ type ArrayKey =
   | "artVariants"
   | "finishes"
   | "markers"
-  | "channels";
+  | "channels"
+  | "customTags";
 
 /**
  * Build a `filterState` object from raw search params that matches the shape
@@ -50,6 +51,7 @@ function toFilterState(raw: FilterSearch, defaultView: DefaultCardView) {
     finishes: raw.finishes ?? [],
     markers: raw.markers ?? [],
     channels: raw.channels ?? [],
+    customTags: raw.customTags ?? [],
     energyMin: raw.energyMin ?? null,
     energyMax: raw.energyMax ?? null,
     mightMin: raw.mightMin ?? null,
@@ -102,6 +104,7 @@ export function useFilterValues() {
     channels: filterState.channels,
     markerSlugs: filterState.markers,
     distributionChannelSlugs: filterState.channels,
+    customTagSlugs: filterState.customTags,
     isBanned: filterState.banned ?? null,
     hasErrata: filterState.errata ?? null,
     energy: { min: filterState.energyMin, max: filterState.energyMax },
@@ -135,6 +138,7 @@ export function useFilterValues() {
     filterState.finishes.length > 0 ||
     filterState.markers.length > 0 ||
     filterState.channels.length > 0 ||
+    filterState.customTags.length > 0 ||
     filterState.energyMin !== null ||
     filterState.energyMax !== null ||
     filterState.mightMin !== null ||
@@ -204,6 +208,7 @@ export function useFilterActions() {
       finishes: undefined,
       markers: undefined,
       channels: undefined,
+      customTags: undefined,
       energyMin: undefined,
       energyMax: undefined,
       mightMin: undefined,

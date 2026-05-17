@@ -137,6 +137,7 @@ function emptyFilters(): CardFilters {
     hasAnyMarker: null,
     markerSlugs: [],
     distributionChannelSlugs: [],
+    customTagSlugs: [],
     isBanned: null,
     hasErrata: null,
   };

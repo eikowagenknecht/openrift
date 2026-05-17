@@ -1,4 +1,4 @@
-import type { DeckZone, Marketplace, Printing } from "@openrift/shared";
+import type { DeckResponse, DeckZone, Marketplace, Printing } from "@openrift/shared";
 import { imageUrl, WellKnown } from "@openrift/shared";
 import { useDeferredValue, useEffect, useState } from "react";
 
@@ -10,6 +10,7 @@ import { DeckAddStrip } from "@/components/deck/deck-add-strip";
 import { DeckCardDetailMenu } from "@/components/deck/deck-card-detail-menu";
 import { DeckOverview } from "@/components/deck/deck-overview";
 import { DeckTableActions } from "@/components/deck/deck-table-actions";
+import { FormatTagPickBanner, needsFormatTagPick } from "@/components/deck/format-tag-pick-banner";
 import { ActiveFilters } from "@/components/filters/active-filters";
 import {
   CollapsibleFilterPanel,
@@ -29,6 +30,7 @@ import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
+import { useCustomTagAssignments } from "@/hooks/use-custom-tag-assignments";
 import { canAddRune, useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDeckDetail } from "@/hooks/use-decks";
@@ -40,6 +42,7 @@ import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { catalogCardToDeckBuilderCard } from "@/lib/deck-builder-card";
+import { getFormatTagConfig } from "@/lib/format-tag-config";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
@@ -93,12 +96,19 @@ export function DeckCardBrowser({
   onViewMissing,
   onHoverCard,
 }: DeckCardBrowserProps) {
+  const { data: deckDetail } = useDeckDetail(deckId);
   const activeZone = useDeckBuilderUiStore((state) => state.activeZone);
+
+  // Tag-locked decks without picked tags intercept everything else — there's
+  // no useful overview or browser to render until the user picks.
+  if (needsFormatTagPick(deckDetail.deck)) {
+    return <FormatTagPickBanner deck={deckDetail.deck} />;
+  }
 
   if (!activeZone) {
     return (
       <DeckOverviewForEditor
-        deckId={deckId}
+        deck={deckDetail.deck}
         ownershipData={ownershipData}
         marketplace={marketplace}
         onZoneClick={onZoneClick}
@@ -112,20 +122,26 @@ export function DeckCardBrowser({
 }
 
 function DeckOverviewForEditor({
-  deckId,
+  deck,
   ownershipData,
   marketplace,
   onZoneClick,
   onViewMissing,
   onHoverCard,
-}: DeckCardBrowserProps) {
-  const { data: deckDetail } = useDeckDetail(deckId);
-  const cards = useDeckCards(deckId);
+}: Omit<DeckCardBrowserProps, "deckId"> & { deck: DeckResponse }) {
+  const cards = useDeckCards(deck.id);
+  const customTagAssignments = useCustomTagAssignments();
   const { getPreferredFrontImage } = usePreferredPrinting();
   return (
     <DeckOverview
-      deck={{ id: deckId, name: deckDetail.deck.name, format: deckDetail.deck.format }}
+      deck={{
+        id: deck.id,
+        name: deck.name,
+        format: deck.format,
+        formatConfig: deck.formatConfig,
+      }}
       cards={cards}
+      customTagAssignments={customTagAssignments}
       ownershipData={ownershipData}
       marketplace={marketplace}
       getThumbnail={(cardId, preferredPrintingId) => {
@@ -144,6 +160,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   const isMobile = useIsMobile();
   const { allPrintings, sets } = useCards();
   const channels = useChannelRegistry();
+  const customTagAssignments = useCustomTagAssignments();
   // Lifted out of <CardThumbnail> — see useCardThumbnailDisplay for the why.
   // We reuse display.prices / display.favoriteMarketplace below for useCardData.
   const display = useCardThumbnailDisplay();
@@ -162,6 +179,14 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   const { addCard, removeCard, setLegend, setQuantity } = useDeckBuilderActions(deckId);
   const { data: deckDetail } = useDeckDetail(deckId);
   const isFreeform = deckDetail.deck.format === WellKnown.deckFormat.FREEFORM;
+  // Tag-locked formats restrict the Custom Tags filter section to their own
+  // category (e.g. Custom-Region → only the "region" dropdown). Other
+  // formats pass `undefined` so every category remains available for
+  // self-narrowing.
+  const formatTagConfig = getFormatTagConfig(deckDetail.deck.format);
+  const visibleCustomTagCategories: ReadonlySet<string> | undefined = formatTagConfig
+    ? new Set([formatTagConfig.category])
+    : undefined;
   // Wrapper only renders this component when activeZone is set
   const activeZone = useDeckBuilderUiStore((state) => state.activeZone) as DeckZone;
   // Single-card zones only apply in constructed — freeform legend/champion are multi-card.
@@ -225,6 +250,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     prices: display.prices,
     keywordReverseMap,
     channels,
+    customTagAssignments,
   });
 
   const filteredCards = sortedCards;
@@ -439,6 +465,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
             availableFilters={availableFilters}
             availableLanguages={availableLanguages}
             setDisplayLabel={setDisplayLabel}
+            visibleCustomTagCategories={visibleCustomTagCategories}
           />
         </MobileOptionsDrawer>
       </div>
@@ -446,6 +473,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
         availableFilters={availableFilters}
         availableLanguages={availableLanguages}
         setDisplayLabel={setDisplayLabel}
+        visibleCustomTagCategories={visibleCustomTagCategories}
       />
     </>
   );
@@ -458,6 +486,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
           availableFilters={availableFilters}
           availableLanguages={availableLanguages}
           setDisplayLabel={setDisplayLabel}
+          visibleCustomTagCategories={visibleCustomTagCategories}
         />
       </div>
     </Pane>

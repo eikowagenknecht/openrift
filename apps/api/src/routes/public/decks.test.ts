@@ -22,12 +22,17 @@ const mockCanonicalPrintingsRepo = {
   resolvePrintingMetaForRows: vi.fn(() => Promise.resolve([] as object[])),
 };
 
+const mockCustomTagsRepo = {
+  assignmentsForCardIds: vi.fn(() => Promise.resolve(new Map<string, string[]>())),
+};
+
 const app = new Hono()
   .use("*", async (c, next) => {
     c.set("repos", {
       decks: mockRepo,
       catalog: mockCatalogRepo,
       canonicalPrintings: mockCanonicalPrintingsRepo,
+      customTags: mockCustomTagsRepo,
     } as never);
     await next();
   })
@@ -49,6 +54,7 @@ const dbDeck = {
   name: "Fury Aggro",
   description: "A fast opener",
   format: "constructed" as const,
+  formatConfig: null,
   isWanted: false,
   isPublic: true,
   shareToken: "tok-abc",
@@ -95,6 +101,8 @@ describe("GET /api/v1/decks/share/:token", () => {
     mockCatalogRepo.cardsByIds.mockResolvedValue([]);
     mockCanonicalPrintingsRepo.resolvePrintingMetaForRows.mockReset();
     mockCanonicalPrintingsRepo.resolvePrintingMetaForRows.mockResolvedValue([]);
+    mockCustomTagsRepo.assignmentsForCardIds.mockReset();
+    mockCustomTagsRepo.assignmentsForCardIds.mockResolvedValue(new Map());
   });
 
   it("returns 200 with the enriched public deck detail when the token resolves", async () => {

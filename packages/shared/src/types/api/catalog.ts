@@ -62,6 +62,12 @@ export interface CatalogResponse {
   cards: Record<string, CatalogResponseCardValue>;
   printings: Record<string, CatalogResponsePrintingValue>;
   totalCopies: number;
+  /**
+   * Map of card id → array of admin-curated custom-tag slugs (sorted).
+   * Consumed only by custom deck-builder formats (e.g. region-locked
+   * freeform). Standard UI should not render these alongside `card.tags`.
+   */
+  customTagAssignments: Record<string, string[]>;
 }
 
 export interface CardDetailResponse {

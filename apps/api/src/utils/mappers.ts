@@ -57,6 +57,7 @@ export function toDeck(row: Selectable<DecksTable>): DeckResponse {
     name: row.name,
     description: row.description,
     format: row.format,
+    formatConfig: row.formatConfig,
     isWanted: row.isWanted,
     isPublic: row.isPublic,
     shareToken: row.shareToken,
@@ -73,6 +74,7 @@ export function toDeckSummary(row: Selectable<DecksTable>): DeckSummaryResponse 
     id: row.id,
     name: row.name,
     format: row.format,
+    formatConfig: row.formatConfig,
     isPinned: row.isPinned,
     archivedAt: row.archivedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
@@ -87,6 +89,7 @@ export function toPublicDeck(row: Selectable<DecksTable>): PublicDeckResponse {
     name: row.name,
     description: row.description,
     format: row.format,
+    formatConfig: row.formatConfig,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

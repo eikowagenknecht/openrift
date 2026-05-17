@@ -75,7 +75,7 @@ function makeCatalog(
   printings: Record<string, CatalogResponsePrintingValue>,
   sets: CatalogSetResponse[] = [makeSet("set-ogn", "OGN")],
 ): CatalogResponse {
-  return { sets, cards, printings, totalCopies: 0 };
+  return { sets, cards, printings, totalCopies: 0, customTagAssignments: {} };
 }
 
 const ORDERS: EnumOrders = {

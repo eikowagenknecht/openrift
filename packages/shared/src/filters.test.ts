@@ -114,6 +114,7 @@ function emptyFilters(overrides: Partial<CardFilters> = {}): CardFilters {
     hasAnyMarker: null,
     markerSlugs: [],
     distributionChannelSlugs: [],
+    customTagSlugs: [],
     isBanned: null,
     hasErrata: null,
     ...overrides,
@@ -1137,6 +1138,51 @@ describe("filterCards", () => {
       }),
     ];
     const result = filterCards(cards, emptyFilters({ markerSlugs: ["promo"] }));
+    expect(result).toHaveLength(0);
+  });
+
+  // -- customTagSlugs filter --
+
+  it("customTagSlugs filter passes all when empty", () => {
+    const cards = [
+      makePrinting({ cardId: "a", card: { name: "A" } }),
+      makePrinting({ cardId: "b", card: { name: "B" } }),
+    ];
+    const result = filterCards(cards, emptyFilters({ customTagSlugs: [] }), {
+      customTagAssignments: { a: ["bandle-city"], b: ["bilgewater"] },
+    });
+    expect(result).toHaveLength(2);
+  });
+
+  it("customTagSlugs filter OR-matches across selected slugs", () => {
+    const cards = [
+      makePrinting({ cardId: "a", card: { name: "A" } }),
+      makePrinting({ cardId: "b", card: { name: "B" } }),
+      makePrinting({ cardId: "c", card: { name: "C" } }),
+    ];
+    const result = filterCards(
+      cards,
+      emptyFilters({ customTagSlugs: ["bandle-city", "bilgewater"] }),
+      { customTagAssignments: { a: ["bandle-city"], b: ["bilgewater"], c: ["demacia"] } },
+    );
+    expect(result.map((p) => p.card.name).toSorted()).toEqual(["A", "B"]);
+  });
+
+  it("customTagSlugs filter excludes cards with no assignment", () => {
+    const cards = [
+      makePrinting({ cardId: "a", card: { name: "A" } }),
+      makePrinting({ cardId: "b", card: { name: "B" } }),
+    ];
+    const result = filterCards(cards, emptyFilters({ customTagSlugs: ["bandle-city"] }), {
+      customTagAssignments: { a: ["bandle-city"] },
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0].card.name).toBe("A");
+  });
+
+  it("customTagSlugs filter with missing assignment map excludes everything", () => {
+    const cards = [makePrinting({ cardId: "a", card: { name: "A" } })];
+    const result = filterCards(cards, emptyFilters({ customTagSlugs: ["bandle-city"] }));
     expect(result).toHaveLength(0);
   });
 

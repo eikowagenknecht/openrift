@@ -1,5 +1,11 @@
 import { useDndContext, useDraggable, useDroppable } from "@dnd-kit/core";
-import type { DeckFormat, DeckViolation, DeckZone, Marketplace } from "@openrift/shared";
+import type {
+  DeckFormat,
+  DeckFormatConfig,
+  DeckViolation,
+  DeckZone,
+  Marketplace,
+} from "@openrift/shared";
 import { WellKnown, validateDeck } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import {
@@ -21,6 +27,7 @@ import type {
 } from "@/components/deck/deck-dnd-context";
 import { OwnershipBar, ownershipPercent } from "@/components/deck/deck-ownership-panel";
 import { DomainBar } from "@/components/deck/deck-stats-panel";
+import { FormatConfigCard } from "@/components/deck/format-config-card";
 import { EnergyChart, PowerChart } from "@/components/deck/stats/energy-power-chart";
 import { TypeBreakdown } from "@/components/deck/stats/type-breakdown";
 import { Button } from "@/components/ui/button";
@@ -36,6 +43,7 @@ import {
   getDeckCardKey,
   isCardAllowedInZone,
   isDeckZoneFullForDrag,
+  toRuleEngineCard,
 } from "@/lib/deck-builder-card";
 import { GROUPED_ZONES, sortOverviewCards, TYPE_GROUP_ORDER } from "@/lib/deck-card-sort";
 import { ZONE_LABELS } from "@/lib/deck-zone-labels";
@@ -80,8 +88,15 @@ const SMALL_ZONE_SPAN: Partial<Record<DeckZone, string>> = {
 };
 
 interface DeckOverviewProps {
-  deck: { id: string; name: string; format: DeckFormat };
+  deck: { id: string; name: string; format: DeckFormat; formatConfig: DeckFormatConfig | null };
   cards: DeckBuilderCard[];
+  /**
+   * Card id → custom-tag slugs. Required so deck-level validation can fire
+   * the tag-membership rule for Custom-Region decks. Pass `{}` from contexts
+   * where custom tags aren't loaded (e.g. SSR snapshots) — validation will
+   * report every card as out-of-region, matching the data we're rendering.
+   */
+  customTagAssignments: Record<string, readonly string[]>;
   ownershipData?: DeckOwnershipData;
   marketplace: Marketplace;
   /**
@@ -123,6 +138,7 @@ interface DeckOverviewProps {
 export function DeckOverview({
   deck,
   cards,
+  customTagAssignments,
   ownershipData,
   marketplace,
   getThumbnail,
@@ -136,17 +152,8 @@ export function DeckOverview({
 }: DeckOverviewProps) {
   const violations = validateDeck({
     format: deck.format,
-    cards: cards.map((card) => ({
-      cardId: card.cardId,
-      zone: card.zone,
-      quantity: card.quantity,
-      cardName: card.cardName,
-      cardType: card.cardType,
-      superTypes: card.superTypes,
-      domains: card.domains,
-      tags: card.tags,
-      keywords: card.keywords,
-    })),
+    formatConfig: deck.formatConfig,
+    cards: cards.map((card) => toRuleEngineCard(card, customTagAssignments)),
   });
   const stats = useDeckStats(cards);
   const domainColors = useDomainColors();
@@ -172,6 +179,12 @@ export function DeckOverview({
 
   return (
     <div className="@container flex flex-col gap-6 px-1 pt-2 pb-4">
+      <FormatConfigCard
+        deckId={deck.id}
+        format={deck.format}
+        formatConfig={deck.formatConfig}
+        readOnly={readOnly}
+      />
       {description && (
         <p className="text-muted-foreground text-sm whitespace-pre-wrap">{description}</p>
       )}

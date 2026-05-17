@@ -210,6 +210,13 @@ function matchesDistributionChannels(channelSlugs: string[], actualSlugs: string
   return channelSlugs.some((slug) => actualSlugs.includes(slug));
 }
 
+function matchesCustomTags(filterSlugs: string[], actualSlugs: readonly string[]): boolean {
+  if (filterSlugs.length === 0) {
+    return true;
+  }
+  return filterSlugs.some((slug) => actualSlugs.includes(slug));
+}
+
 /**
  * Compares by a nullable numeric value. Nulls are always pushed to the end,
  * the primary comparison respects `dir`, and the tiebreaker (shortCode) is
@@ -270,6 +277,12 @@ interface FilterCardsOptions {
    * resolver to filter on the user's selected marketplace.
    */
   getPrice?: (printing: Printing) => number | undefined;
+  /**
+   * Card id → custom-tag slugs lookup. Only consulted when `filters.customTagSlugs`
+   * is non-empty (i.e. the freeform deck-builder custom-tag filter is active).
+   * Standard filtering paths leave this undefined and pay no overhead.
+   */
+  customTagAssignments?: Record<string, readonly string[]>;
 }
 
 /**
@@ -314,6 +327,10 @@ export function filterCards(
       matchesDistributionChannels(
         filters.distributionChannelSlugs,
         printing.distributionChannels.map((dc) => dc.channel.slug),
+      ) &&
+      matchesCustomTags(
+        filters.customTagSlugs,
+        options.customTagAssignments?.[printing.cardId] ?? [],
       ) &&
       matchesRange(card.energy, filters.energy) &&
       matchesRange(card.might, filters.might) &&

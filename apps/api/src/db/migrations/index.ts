@@ -73,6 +73,9 @@ import * as m124 from "./124-pg-stat-statements.js";
 import * as m125 from "./125-marketplace-group-set-id.js";
 import * as m126 from "./126-image-files-needs-trim.js";
 import * as m127 from "./127-drop-printing-images-provider.js";
+import * as m128 from "./128-custom-tags.js";
+import * as m129 from "./129-custom-region-format.js";
+import * as m130 from "./130-custom-tag-categories.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -205,4 +208,7 @@ export const migrations: Record<string, Migration> = {
   "125-marketplace-group-set-id": m125,
   "126-image-files-needs-trim": m126,
   "127-drop-printing-images-provider": m127,
+  "128-custom-tags": m128,
+  "129-custom-region-format": m129,
+  "130-custom-tag-categories": m130,
 };

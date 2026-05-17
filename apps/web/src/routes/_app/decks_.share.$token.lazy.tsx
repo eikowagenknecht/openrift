@@ -181,8 +181,16 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
       <HoveredCardPreview hoveredCard={hoveredCard} origin="main" containerRef={containerRef} />
 
       <DeckOverview
-        deck={{ id: data.deck.id, name: data.deck.name, format: data.deck.format }}
+        deck={{
+          id: data.deck.id,
+          name: data.deck.name,
+          format: data.deck.format,
+          formatConfig: data.deck.formatConfig,
+        }}
         cards={builderCards}
+        // Denormalized into the share response so anon viewers of a
+        // Custom-Region deck see the same validation result as the owner.
+        customTagAssignments={data.customTagAssignments}
         ownershipData={ownershipData}
         marketplace={marketplace}
         getThumbnail={(cardId, preferredPrintingId) =>

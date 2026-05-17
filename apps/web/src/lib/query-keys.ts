@@ -130,6 +130,12 @@ export const queryKeys = {
     deckFormats: ["admin", "deck-formats"] as const,
     formats: ["admin", "formats"] as const,
     markers: ["admin", "markers"] as const,
+    customTags: ["admin", "custom-tags"] as const,
+    customTagCategories: ["admin", "custom-tag-categories"] as const,
+    cardCustomTags: Object.assign(
+      (cardId: string) => ["admin", "card-custom-tags", cardId] as const,
+      { prefix: ["admin", "card-custom-tags"] as const },
+    ),
     distributionChannels: ["admin", "distribution-channels"] as const,
     distinctArtists: ["admin", "distinct-artists"] as const,
     providerSettings: ["admin", "provider-settings"] as const,

@@ -460,6 +460,7 @@ export function MobileFilterContent({
   availableLanguages,
   setDisplayLabel,
   hiddenSections,
+  visibleCustomTagCategories,
   filterOverrides,
   filterCounts,
   renderOwnedFlag,
@@ -468,6 +469,7 @@ export function MobileFilterContent({
   availableLanguages?: string[];
   setDisplayLabel?: (code: string) => string;
   hiddenSections?: ReadonlySet<string>;
+  visibleCustomTagCategories?: ReadonlySet<string>;
   filterOverrides?: Partial<Record<string, string[]>>;
   filterCounts?: FilterCounts;
   renderOwnedFlag?: (props: { label: string; isActive: boolean; onClick: () => void }) => ReactNode;
@@ -481,6 +483,7 @@ export function MobileFilterContent({
           availableLanguages={availableLanguages}
           setDisplayLabel={setDisplayLabel}
           hiddenSections={hiddenSections}
+          visibleCustomTagCategories={visibleCustomTagCategories}
           filterOverrides={filterOverrides}
           filterCounts={filterCounts}
           renderOwnedFlag={renderOwnedFlag}

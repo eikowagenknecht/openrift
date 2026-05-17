@@ -2,12 +2,14 @@
 
 ## 2026-05-16
 
+- feat: New "Custom - Region" deck format — pick one or more regions (e.g. Bandle City and Neutral) and build a deck where every card has to carry at least one of the chosen region tags. Constructed copy and zone rules still apply, but the domain restrictions are dropped so any region's cards work together regardless of color
 - fix: On the collections page, dragging a card onto a sidebar collection no longer breaks when the page auto-scrolls. The card preview now stays under your cursor, and the drop lands on the right collection instead of drifting away
 
 ## 2026-05-15
 
 - feat: Freeform decks no longer enforce constructed limits — multiple legends and champions, more than 3 battlefields (including duplicates), 4+ copies of a card across main/sideboard/overflow, and any number of runes are all allowed. The 12-rune autofill and auto-rebalance only apply to constructed decks now
 - feat: The deck editor's 3-dot menu now has a Change to freeform / Change to constructed action, matching the deck list menu
+- feat: The freeform deck builder has a new Custom Tags filter — pick one or more curated tags (like region) to narrow the card list when building themed decks
 - fix: A rare crash that left the page blank now triggers a one-shot reload instead, so you don't have to refresh by hand
 
 ## 2026-05-13

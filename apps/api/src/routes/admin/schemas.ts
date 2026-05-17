@@ -102,6 +102,44 @@ export const updateMarkerSchema = z.object({
   description: z.string().min(1).nullable().optional(),
 });
 
+// ── Custom Tag Categories ──────────────────────────────────────────────────
+
+export const createCustomTagCategorySchema = z.object({
+  slug: z.string().min(1).regex(slugRegex, "Slug must be kebab-case (e.g. region)"),
+  label: z.string().min(1),
+  description: z.string().min(1).nullable().optional(),
+});
+
+export const updateCustomTagCategorySchema = z.object({
+  slug: z.string().min(1).regex(slugRegex, "Slug must be kebab-case").optional(),
+  label: z.string().min(1).optional(),
+  description: z.string().min(1).nullable().optional(),
+});
+
+// ── Custom Tags ────────────────────────────────────────────────────────────
+
+export const createCustomTagSchema = z.object({
+  slug: z.string().min(1).regex(slugRegex, "Slug must be kebab-case (e.g. bandle-city)"),
+  label: z.string().min(1),
+  categoryId: z.string().uuid(),
+  description: z.string().min(1).nullable().optional(),
+});
+
+export const updateCustomTagSchema = z.object({
+  slug: z.string().min(1).regex(slugRegex, "Slug must be kebab-case").optional(),
+  label: z.string().min(1).optional(),
+  categoryId: z.string().uuid().optional(),
+  description: z.string().min(1).nullable().optional(),
+});
+
+export const setCardCustomTagsSchema = z.object({
+  customTagIds: z.array(z.string().uuid()),
+});
+
+export const addCardsToCustomTagSchema = z.object({
+  cardIds: z.array(z.string().uuid()),
+});
+
 // ── Distribution Channels ──────────────────────────────────────────────────
 
 const distributionChannelKindEnum = z.enum(["event", "product"]);

@@ -49,6 +49,11 @@ interface UseCardDataParams {
    * printings alone and parent labels are lost.
    */
   channels?: readonly DistributionChannel[];
+  /**
+   * Card id → custom-tag slugs lookup. Required only when the freeform deck
+   * builder's custom-tag filter is active; standard callers omit this.
+   */
+  customTagAssignments?: Record<string, readonly string[]>;
 }
 
 interface UseCatalogFilterMetaParams {
@@ -63,6 +68,7 @@ interface UseCatalogFilterMetaParams {
   enabled?: boolean;
   keywordReverseMap?: Map<string, string>;
   channels?: readonly DistributionChannel[];
+  customTagAssignments?: Record<string, readonly string[]>;
 }
 
 /**
@@ -263,6 +269,7 @@ export function useCatalogFilterMeta({
   enabled = true,
   keywordReverseMap,
   channels,
+  customTagAssignments,
 }: UseCatalogFilterMetaParams) {
   "use memo";
 
@@ -299,6 +306,7 @@ export function useCatalogFilterMeta({
     countBy: view === "cards" ? "card" : "printing",
     keywordReverseMap,
     getPrice,
+    customTagAssignments,
   });
   const availableLanguages = [...new Set(allPrintings.map((p) => p.language))];
 
@@ -371,6 +379,7 @@ export function useCardData({
   enabled = true,
   keywordReverseMap,
   channels,
+  customTagAssignments,
 }: UseCardDataParams) {
   "use memo";
 
@@ -393,6 +402,7 @@ export function useCardData({
     enabled,
     keywordReverseMap,
     channels,
+    customTagAssignments,
   });
   // Owned chip count is computed independently so subscribers can take it on
   // its own without invalidating the rest of filterCounts. Merge it back into
@@ -438,7 +448,11 @@ export function useCardData({
   // `allPrintings` from useCards() arrives in (userLanguageRank, canonicalRank)
   // order, so `filterCards` preserves that order and the dedup/group below
   // can be first-occurrence without re-sorting.
-  let filteredCards = filterCards(allPrintings, filters, { keywordReverseMap, getPrice });
+  let filteredCards = filterCards(allPrintings, filters, {
+    keywordReverseMap,
+    getPrice,
+    customTagAssignments,
+  });
 
   if (ownedFilter && ownedCountByPrinting) {
     filteredCards = applyOwnedFilter(filteredCards, ownedFilter, view, ownedCountByPrinting);

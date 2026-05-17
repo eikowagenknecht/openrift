@@ -32,6 +32,7 @@ export const filterSearchSchema = z.object({
   finishes: stringArray(),
   markers: stringArray(),
   channels: stringArray(),
+  customTags: stringArray(),
   energyMin: numberField(),
   energyMax: numberField(),
   mightMin: numberField(),

@@ -1,3 +1,4 @@
+import type { DeckFormatConfig } from "./types/api/deck.js";
 import type { CardType, DeckFormat, DeckZone, Domain, SuperType } from "./types/enums.js";
 import { WellKnown } from "./well-known.js";
 
@@ -12,12 +13,24 @@ export interface DeckCard {
   superTypes: SuperType[];
   domains: Domain[];
   tags: string[];
+  /**
+   * Admin-curated `custom_tags.slug` assignments for this card. Consumed by
+   * tag-locked formats (e.g. Custom-Region) and ignored by everything else.
+   */
+  customTagSlugs: readonly string[];
   keywords: string[];
 }
 
 export interface DeckState {
   format: DeckFormat;
   cards: DeckCard[];
+  /**
+   * Format-specific config plucked from `decks.format_config`. Each format
+   * reads only the keys it cares about. `null` means the user hasn't picked
+   * config yet (e.g. Custom-Region deck without a region) — rules treat this
+   * as a "config required" violation rather than as "all checks pass".
+   */
+  formatConfig?: DeckFormatConfig | null;
 }
 
 export interface DeckViolation {
@@ -503,6 +516,56 @@ const signatureMatchesLegendTag: DeckRule = (state) => {
   return violations;
 };
 
+// ── Tag-locked rules (custom-region and any future tag-locked format) ──────
+
+/**
+ * Reads the chosen tag slugs from `state.formatConfig`. The shape is
+ * enforced at the API boundary (`validateFormatConfig` in the decks route),
+ * so the rule trusts the type and just unwraps the optional.
+ *
+ * @returns The slug list, or an empty array if no config is set.
+ */
+function formatConfigTagSlugs(state: DeckState): readonly string[] {
+  return state.formatConfig?.tagSlugs ?? [];
+}
+
+// Tag-locked formats are invalid until the user picks at least one tag.
+const formatTagRequired: DeckRule = (state) => {
+  if (formatConfigTagSlugs(state).length > 0) {
+    return [];
+  }
+  return [
+    {
+      zone: "deck",
+      code: "FORMAT_TAG_REQUIRED",
+      message: "Pick at least one region to start building",
+    },
+  ];
+};
+
+// Every card across all zones must carry at least one of the chosen tags
+// (OR-match). A deck locked to ["bandle-city", "neutral"] accepts cards
+// tagged with either or both.
+const cardsCarryFormatTag: DeckRule = (state) => {
+  const allowed = formatConfigTagSlugs(state);
+  if (allowed.length === 0) {
+    return [];
+  }
+  const violations: DeckViolation[] = [];
+  for (const card of state.cards) {
+    const ok = allowed.some((slug) => card.customTagSlugs.includes(slug));
+    if (!ok) {
+      violations.push({
+        zone: card.zone,
+        code: "CARD_NOT_IN_FORMAT_TAG",
+        message: `${card.cardName} is not tagged for this format`,
+        cardId: card.cardId,
+      });
+    }
+  }
+  return violations;
+};
+
 // ── Rule Sets ───────────────────────────────────────────────────────────────
 
 const CONSTRUCTED_RULES: DeckRule[] = [
@@ -526,18 +589,54 @@ const CONSTRUCTED_RULES: DeckRule[] = [
   signatureMatchesLegendTag,
 ];
 
+// Custom-Region: constructed minus the two pure-domain rules, plus the two
+// tag-locked rules. championSharesTagWithLegend stays (it's a tag rule, not
+// a domain rule). Order: tag rules first so a missing tag pick reports the
+// load-bearing violation before per-card noise.
+const REGION_LOCKED_RULES: DeckRule[] = [
+  formatTagRequired,
+  cardsCarryFormatTag,
+  legendExactlyOne,
+  championExactlyOne,
+  championSharesTagWithLegend,
+  runesExactlyTwelve,
+  runesAllTypeRune,
+  battlefieldExactlyThree,
+  battlefieldAllTypeBattlefield,
+  battlefieldNoDuplicates,
+  mainDeckExactly,
+  mainDeckCopyLimit,
+  championCopyLimitAcrossZones,
+  sideboardMaximum,
+  sideboardCopyLimit,
+  uniqueCopyLimit,
+  signatureTotalLimit,
+  signatureMatchesLegendTag,
+];
+
 /**
  * Validates a deck against the rules for its format.
  *
  * @returns An array of violations. Empty means the deck is valid.
  */
 export function validateDeck(state: DeckState): DeckViolation[] {
-  if (state.format === WellKnown.deckFormat.FREEFORM) {
-    return [];
+  let rules: DeckRule[];
+  switch (state.format) {
+    case WellKnown.deckFormat.FREEFORM: {
+      return [];
+    }
+    case WellKnown.deckFormat.CUSTOM_REGION: {
+      rules = REGION_LOCKED_RULES;
+      break;
+    }
+    default: {
+      rules = CONSTRUCTED_RULES;
+      break;
+    }
   }
 
   const violations: DeckViolation[] = [];
-  for (const rule of CONSTRUCTED_RULES) {
+  for (const rule of rules) {
     violations.push(...rule(state));
   }
   return violations;

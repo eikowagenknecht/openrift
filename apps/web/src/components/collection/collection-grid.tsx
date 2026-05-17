@@ -93,6 +93,10 @@ import { QuickAddPalette } from "./quick-add-palette";
 const COLLECTION_GRID_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set([
   "markers",
   "channels",
+  // Custom tags are a deck-builder concept (format constraints, freeform
+  // self-narrowing). Hiding them here keeps the collection grid focused on
+  // physical attributes you actually own copies of.
+  "customTags",
 ]);
 
 interface CollectionGridProps {

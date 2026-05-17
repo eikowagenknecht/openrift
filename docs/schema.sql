@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict wLOGrOo5iiZA8ulSR6kxqiryKJHeupNxIjOp1ZVdgxxcVK0MlhFDTBxyuNrMvEX
+\restrict y5J9LpvJDZqHrAztIPhqi7ZubgW1DaD3YBU2MWA7lKOz42kmIfx7HTmZ7zijyEW
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -520,6 +520,16 @@ CREATE TABLE public.card_bans (
 
 
 --
+-- Name: card_custom_tags; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.card_custom_tags (
+    card_id uuid NOT NULL,
+    custom_tag_id uuid NOT NULL
+);
+
+
+--
 -- Name: card_domains; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -667,6 +677,43 @@ CREATE TABLE public.copies (
 
 
 --
+-- Name: custom_tag_categories; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.custom_tag_categories (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    slug text NOT NULL,
+    label text NOT NULL,
+    description text,
+    sort_order integer DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT custom_tag_categories_description_check CHECK ((description <> ''::text)),
+    CONSTRAINT custom_tag_categories_label_check CHECK ((label <> ''::text)),
+    CONSTRAINT custom_tag_categories_slug_check CHECK ((slug <> ''::text))
+);
+
+
+--
+-- Name: custom_tags; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.custom_tags (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    slug text NOT NULL,
+    label text NOT NULL,
+    description text,
+    sort_order integer DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    category_id uuid NOT NULL,
+    CONSTRAINT custom_tags_description_check CHECK ((description <> ''::text)),
+    CONSTRAINT custom_tags_label_check CHECK ((label <> ''::text)),
+    CONSTRAINT custom_tags_slug_check CHECK ((slug <> ''::text))
+);
+
+
+--
 -- Name: deck_cards; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -722,6 +769,7 @@ CREATE TABLE public.decks (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     is_pinned boolean DEFAULT false NOT NULL,
     archived_at timestamp with time zone,
+    format_config jsonb,
     CONSTRAINT chk_decks_name_not_empty CHECK ((name <> ''::text))
 );
 
@@ -1542,6 +1590,14 @@ ALTER TABLE ONLY public.card_bans
 
 
 --
+-- Name: card_custom_tags card_custom_tags_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_custom_tags
+    ADD CONSTRAINT card_custom_tags_pkey PRIMARY KEY (card_id, custom_tag_id);
+
+
+--
 -- Name: card_domains card_domains_card_id_ordinal_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1643,6 +1699,38 @@ ALTER TABLE ONLY public.collections
 
 ALTER TABLE ONLY public.copies
     ADD CONSTRAINT copies_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: custom_tag_categories custom_tag_categories_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.custom_tag_categories
+    ADD CONSTRAINT custom_tag_categories_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: custom_tag_categories custom_tag_categories_slug_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.custom_tag_categories
+    ADD CONSTRAINT custom_tag_categories_slug_key UNIQUE (slug);
+
+
+--
+-- Name: custom_tags custom_tags_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.custom_tags
+    ADD CONSTRAINT custom_tags_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: custom_tags custom_tags_slug_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.custom_tags
+    ADD CONSTRAINT custom_tags_slug_key UNIQUE (slug);
 
 
 --
@@ -2222,6 +2310,13 @@ CREATE UNIQUE INDEX idx_candidate_printings_card_external_id ON public.candidate
 
 
 --
+-- Name: idx_card_custom_tags_custom_tag_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_card_custom_tags_custom_tag_id ON public.card_custom_tags USING btree (custom_tag_id);
+
+
+--
 -- Name: idx_card_domains_domain_slug; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2268,6 +2363,13 @@ CREATE INDEX idx_copies_collection ON public.copies USING btree (collection_id);
 --
 
 CREATE INDEX idx_copies_user_printing ON public.copies USING btree (user_id, printing_id);
+
+
+--
+-- Name: idx_custom_tags_category_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_custom_tags_category_id ON public.custom_tags USING btree (category_id);
 
 
 --
@@ -2719,6 +2821,20 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.copies FOR EACH ROW EX
 
 
 --
+-- Name: custom_tag_categories trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.custom_tag_categories FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: custom_tags trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.custom_tags FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
 -- Name: deck_cards trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -2941,6 +3057,22 @@ ALTER TABLE ONLY public.card_bans
 
 
 --
+-- Name: card_custom_tags card_custom_tags_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_custom_tags
+    ADD CONSTRAINT card_custom_tags_card_id_fkey FOREIGN KEY (card_id) REFERENCES public.cards(id) ON DELETE CASCADE;
+
+
+--
+-- Name: card_custom_tags card_custom_tags_custom_tag_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_custom_tags
+    ADD CONSTRAINT card_custom_tags_custom_tag_id_fkey FOREIGN KEY (custom_tag_id) REFERENCES public.custom_tags(id) ON DELETE CASCADE;
+
+
+--
 -- Name: card_domains card_domains_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3026,6 +3158,14 @@ ALTER TABLE ONLY public.copies
 
 ALTER TABLE ONLY public.copies
     ADD CONSTRAINT copies_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: custom_tags custom_tags_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.custom_tags
+    ADD CONSTRAINT custom_tags_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.custom_tag_categories(id) ON DELETE RESTRICT;
 
 
 --
@@ -3416,5 +3556,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict wLOGrOo5iiZA8ulSR6kxqiryKJHeupNxIjOp1ZVdgxxcVK0MlhFDTBxyuNrMvEX
+\unrestrict y5J9LpvJDZqHrAztIPhqi7ZubgW1DaD3YBU2MWA7lKOz42kmIfx7HTmZ7zijyEW
 

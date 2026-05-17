@@ -41,6 +41,7 @@ function buildCatalog(
     ),
     printings: Object.fromEntries(printings.map((p) => [p.id, toCatalogPrinting(p)])),
     totalCopies: printings.length,
+    customTagAssignments: {},
   };
 }
 

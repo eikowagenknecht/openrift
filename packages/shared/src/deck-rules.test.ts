@@ -30,6 +30,7 @@ function makeCard(overrides: Partial<DeckCard> = {}): DeckCard {
     superTypes: [],
     domains: ["fury"],
     tags: [],
+    customTagSlugs: [],
     keywords: [],
     ...overrides,
   };
@@ -94,9 +95,10 @@ function makeConstructedShell(): DeckCard[] {
 
 function makeState(
   cards: DeckCard[],
-  format: "constructed" | "freeform" = "constructed",
+  format: "constructed" | "freeform" | "custom-region" = "constructed",
+  formatConfig?: { tagSlugs?: string[] } | null,
 ): DeckState {
-  return { format, cards };
+  return { format, cards, formatConfig: formatConfig ?? null };
 }
 
 // ── legendExactlyOne ────────────────────────────────────────────────────────
@@ -694,5 +696,97 @@ describe("validateDeck", () => {
     const cards = [...makeConstructedShell(), ...mainCards, overflowCard];
     const violations = validateDeck(makeState(cards));
     expect(violations).toEqual([]);
+  });
+});
+
+// ── validateDeck — custom-region branch ────────────────────────────────────
+
+describe("validateDeck for custom-region", () => {
+  function withTags(card: DeckCard, slugs: string[]): DeckCard {
+    return { ...card, customTagSlugs: slugs };
+  }
+
+  function fullyTaggedShell(slugs: string[]): DeckCard[] {
+    return makeConstructedShell().map((card) => withTags(card, slugs));
+  }
+
+  function fullyTaggedMain(slugs: string[], count = 13): DeckCard[] {
+    return Array.from({ length: count }, (_, index) =>
+      withTags(makeCard({ cardId: `main-${index}`, quantity: 3 }), slugs),
+    );
+  }
+
+  it("flags empty tag list with FORMAT_TAG_REQUIRED", () => {
+    const violations = validateDeck(makeState([], "custom-region", { tagSlugs: [] }));
+    const codes = violations.map((v) => v.code);
+    expect(codes).toContain("FORMAT_TAG_REQUIRED");
+  });
+
+  it("flags missing formatConfig with FORMAT_TAG_REQUIRED", () => {
+    const violations = validateDeck(makeState([], "custom-region", null));
+    const codes = violations.map((v) => v.code);
+    expect(codes).toContain("FORMAT_TAG_REQUIRED");
+  });
+
+  it("accepts a fully-tagged 40-card single-region deck", () => {
+    const tagSlugs = ["bandle-city"];
+    const cards = [...fullyTaggedShell(tagSlugs), ...fullyTaggedMain(tagSlugs)];
+    const violations = validateDeck(makeState(cards, "custom-region", { tagSlugs }));
+    expect(violations).toEqual([]);
+  });
+
+  it("OR-matches across multiple regions — neutral OR bandle-city legal", () => {
+    const tagSlugs = ["bandle-city", "neutral"];
+    // Mix: half tagged bandle-city, half tagged neutral. Neither carries both.
+    const shell = fullyTaggedShell(["bandle-city"]);
+    const mainHalf = fullyTaggedMain(["bandle-city"], 6);
+    const otherHalf = Array.from({ length: 7 }, (_, index) =>
+      withTags(makeCard({ cardId: `neutral-${index}`, quantity: 3 }), ["neutral"]),
+    );
+    const violations = validateDeck(
+      makeState([...shell, ...mainHalf, ...otherHalf], "custom-region", { tagSlugs }),
+    );
+    expect(violations.filter((v) => v.code === "CARD_NOT_IN_FORMAT_TAG")).toEqual([]);
+  });
+
+  it("flags cards carrying none of the chosen tags", () => {
+    const tagSlugs = ["bandle-city", "neutral"];
+    const cards = [
+      ...fullyTaggedShell(["bandle-city"]),
+      ...fullyTaggedMain(["bandle-city"], 12),
+      withTags(makeCard({ cardId: "wandering-card", quantity: 3 }), ["bilgewater"]),
+    ];
+    const violations = validateDeck(makeState(cards, "custom-region", { tagSlugs }));
+    const offending = violations.filter((v) => v.code === "CARD_NOT_IN_FORMAT_TAG");
+    expect(offending).toHaveLength(1);
+    expect(offending[0].cardId).toBe("wandering-card");
+  });
+
+  it("does not run the dropped domain rules", () => {
+    // Main-deck card with a domain outside the legend's domains would fail
+    // constructed (DOMAIN_MISMATCH) but pass region-locked.
+    const tagSlugs = ["bandle-city"];
+    const offColorCard = withTags(
+      makeCard({
+        cardId: "off-color",
+        quantity: 3,
+        domains: ["chaos"], // legend uses fury/body
+      }),
+      tagSlugs,
+    );
+    const cards = [...fullyTaggedShell(tagSlugs), offColorCard, ...fullyTaggedMain(tagSlugs, 12)];
+    const violations = validateDeck(makeState(cards, "custom-region", { tagSlugs }));
+    expect(violations.some((v) => v.code === "DOMAIN_MISMATCH")).toBe(false);
+    expect(violations.some((v) => v.code === "RUNE_DOMAIN_MISMATCH")).toBe(false);
+  });
+
+  it("still runs constructed structural rules (legend/champion/runes/main count)", () => {
+    const tagSlugs = ["bandle-city"];
+    const violations = validateDeck(makeState([], "custom-region", { tagSlugs }));
+    const codes = violations.map((v) => v.code);
+    expect(codes).toContain("LEGEND_REQUIRED");
+    expect(codes).toContain("CHAMPION_REQUIRED");
+    expect(codes).toContain("RUNES_REQUIRED");
+    expect(codes).toContain("MAIN_TOO_FEW");
   });
 });

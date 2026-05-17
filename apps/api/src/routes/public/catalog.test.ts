@@ -23,12 +23,17 @@ const mockDistributionChannelsRepo = {
   listAll: vi.fn(() => Promise.resolve([])),
 };
 
+const mockCustomTagsRepo = {
+  assignmentsByCard: vi.fn(() => Promise.resolve(new Map<string, string[]>())),
+};
+
 // oxlint-disable-next-line -- test mock doesn't match full Repos type
 const app = new Hono()
   .use("*", async (c, next) => {
     c.set("repos", {
       catalog: mockCatalogRepo,
       distributionChannels: mockDistributionChannelsRepo,
+      customTags: mockCustomTagsRepo,
     } as never);
     await next();
   })
@@ -98,6 +103,7 @@ function seedDefaults(overrides?: {
   mockCatalogRepo.totalCopies.mockResolvedValue(overrides?.totalCopies ?? 42);
   mockCatalogRepo.markersList.mockResolvedValue([]);
   mockDistributionChannelsRepo.listForPrintingIds.mockResolvedValue([]);
+  mockCustomTagsRepo.assignmentsByCard.mockResolvedValue(new Map());
 }
 
 // ---------------------------------------------------------------------------

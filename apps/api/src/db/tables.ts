@@ -4,6 +4,7 @@ import type {
   CardFace,
   CardType,
   DeckFormat,
+  DeckFormatConfig,
   DeckZone,
   Finish,
   Rarity,
@@ -350,6 +351,22 @@ export interface DecksTable {
   description: string | null;
   /** FK → deck_formats(slug) */
   format: DeckFormat;
+  /**
+   * Per-deck format config (jsonb). Shape owned by each format's code and
+   * enforced at the API boundary by `validateFormatConfig` — readers can
+   * trust the type. NULL for formats that have no config (constructed,
+   * freeform) or for a format that requires config the user hasn't
+   * provided yet (e.g. Custom-Region deck before a region is picked).
+   *
+   * Current shapes:
+   * - `custom-region`: `{"tagSlugs": ["<custom_tags.slug>", ...]}` (one or
+   *   more region slugs, OR-matched at validation time) or NULL
+   *
+   * Writes must be pre-stringified for postgres.js (Bun); reads return
+   * the parsed object via `parseFormatConfig`. This Select/Insert split
+   * mirrors `user_preferences.data`.
+   */
+  formatConfig: ColumnType<DeckFormatConfig | null, string | null, string | null>;
   isWanted: boolean;
   isPublic: boolean;
   shareToken: string | null;
@@ -608,6 +625,54 @@ interface PrintingMarkersTable {
   printingId: string;
   /** PK part 2 — FK ON DELETE RESTRICT */
   markerId: string;
+}
+
+// ─── Custom tags (migration 128, categories table added in 130) ──────────────
+
+/**
+ * Admin-curated category vocabulary for {@link CustomTagsTable}. Categories
+ * namespace tags so each custom deck-builder format (e.g. region-locked
+ * freeform) only sees its own set. Migrated from a freeform text column on
+ * `custom_tags` in 130 so categories can be renamed and described in one
+ * place.
+ */
+export interface CustomTagCategoriesTable {
+  id: Generated<string>;
+  /** CHECK: <> '' — e.g. "region" */
+  slug: string;
+  /** CHECK: <> '' */
+  label: string;
+  /** CHECK: <> '' */
+  description: string | null;
+  sortOrder: Generated<number>;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/**
+ * Admin-curated supplemental tags on cards. Used by custom deck-builder
+ * formats that filter by tag (first: region-locked freeform decks).
+ */
+export interface CustomTagsTable {
+  id: Generated<string>;
+  /** CHECK: <> '' */
+  slug: string;
+  /** CHECK: <> '' */
+  label: string;
+  /** FK → custom_tag_categories.id, ON DELETE RESTRICT */
+  categoryId: string;
+  /** CHECK: <> '' */
+  description: string | null;
+  sortOrder: Generated<number>;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+interface CardCustomTagsTable {
+  /** PK part 1 — FK ON DELETE CASCADE */
+  cardId: string;
+  /** PK part 2 — FK ON DELETE CASCADE */
+  customTagId: string;
 }
 
 // ─── Distribution channels (migration 090, renamed from promo_types/034) ─────
@@ -926,6 +991,11 @@ export interface Database {
   printingMarkers: PrintingMarkersTable;
   distributionChannels: DistributionChannelsTable;
   printingDistributionChannels: PrintingDistributionChannelsTable;
+
+  // Custom tags (migration 128, categories added in 130)
+  customTagCategories: CustomTagCategoriesTable;
+  customTags: CustomTagsTable;
+  cardCustomTags: CardCustomTagsTable;
 
   // Provider settings (migration 035, renamed in 038)
   providerSettings: ProviderSettingsTable;

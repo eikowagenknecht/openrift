@@ -5,6 +5,7 @@ import type {
   DeckAvailabilityResponse,
   DeckDetailResponse,
   DeckExportResponse,
+  DeckFormatConfig,
   DeckListItemResponse,
   DeckListResponse,
   DeckZone,
@@ -52,10 +53,79 @@ async function assertKnownFormat(deckFormats: Repos["deckFormats"], format: stri
   }
 }
 
+/**
+ * Per-format validation of `formatConfig`. Each format declares its own
+ * shape; this helper dispatches by slug and rejects malformed values at the
+ * API boundary so the DB never holds a config the runtime can't honor.
+ *
+ * Custom-Region accepts `null` (no regions picked yet) or
+ * `{ tagSlugs: <slug>[] }` where each slug references an existing
+ * custom_tags row with category='region'. At least one slug is required;
+ * duplicates are deduped to keep the persisted payload tidy.
+ *
+ * @returns The normalized config to persist, or null when the user hasn't
+ *   provided one yet. Throws AppError(400) for malformed values.
+ */
+async function validateFormatConfig(
+  customTagsRepo: Repos["customTags"],
+  format: string,
+  config: Record<string, unknown> | null | undefined,
+): Promise<DeckFormatConfig | null> {
+  if (config === undefined || config === null) {
+    return null;
+  }
+
+  if (format === WellKnown.deckFormat.CUSTOM_REGION) {
+    const raw = config.tagSlugs;
+    if (!Array.isArray(raw) || raw.length === 0) {
+      throw new AppError(
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "formatConfig.tagSlugs must be a non-empty array for Custom - Region decks",
+      );
+    }
+    const slugs = [
+      ...new Set(raw.filter((slug): slug is string => typeof slug === "string" && slug !== "")),
+    ];
+    if (slugs.length !== raw.length) {
+      throw new AppError(
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "formatConfig.tagSlugs must contain unique non-empty strings",
+      );
+    }
+    const tags = await customTagsRepo.listBySlugs(slugs);
+    const tagBySlug = new Map(tags.map((tag) => [tag.slug, tag]));
+    for (const slug of slugs) {
+      const tag = tagBySlug.get(slug);
+      if (!tag) {
+        throw new AppError(400, ERROR_CODES.BAD_REQUEST, `Unknown custom tag slug: ${slug}`);
+      }
+      if (tag.category !== "region") {
+        throw new AppError(
+          400,
+          ERROR_CODES.BAD_REQUEST,
+          `Custom tag "${slug}" is not in the region category`,
+        );
+      }
+    }
+    return { tagSlugs: slugs };
+  }
+
+  // Other formats don't accept config today; reject anything non-null so we
+  // don't silently persist data that has no consumer.
+  throw new AppError(
+    400,
+    ERROR_CODES.BAD_REQUEST,
+    `Format "${format}" does not accept format_config`,
+  );
+}
+
 const patchFields: FieldMapping = {
   name: "name",
   description: "description",
   format: "format",
+  formatConfig: "formatConfig",
   isWanted: "isWanted",
   isPublic: "isPublic",
 };
@@ -364,7 +434,11 @@ export const decksRoute = decksApp
           count: domainCountMap.get(domain as Domain) ?? 0,
         }));
 
-      // Validation
+      // Validation. The list endpoint cares only about pass/fail, not the
+      // detailed violations, so we deliberately don't load per-card custom
+      // tag assignments here — the tag-membership rule would mis-report when
+      // the list query skipped the join. Custom-Region decks therefore show
+      // as valid in the list and surface real violations on the deck page.
       const isValid =
         row.format === WellKnown.deckFormat.CONSTRUCTED
           ? validateDeck({
@@ -378,6 +452,7 @@ export const decksRoute = decksApp
                 superTypes: card.superTypes as SuperType[],
                 domains: card.domains as Domain[],
                 tags: card.tags,
+                customTagSlugs: [],
                 keywords: card.keywords,
               })),
             }).length === 0
@@ -400,15 +475,17 @@ export const decksRoute = decksApp
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
   .openapi(createDeck, async (c) => {
-    const { decks, deckFormats } = c.get("repos");
+    const { decks, deckFormats, customTags } = c.get("repos");
     const userId = getUserId(c);
     const body = c.req.valid("json");
     await assertKnownFormat(deckFormats, body.format);
+    const formatConfig = await validateFormatConfig(customTags, body.format, body.formatConfig);
     const row = await decks.create({
       userId,
       name: body.name,
       description: body.description ?? null,
       format: body.format,
+      formatConfig,
       isWanted: body.isWanted ?? false,
       isPublic: body.isPublic ?? false,
     });
@@ -436,14 +513,40 @@ export const decksRoute = decksApp
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
   .openapi(updateDeck, async (c) => {
-    const { decks, deckFormats } = c.get("repos");
+    const { decks, deckFormats, customTags } = c.get("repos");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
     if (body.format !== undefined) {
       await assertKnownFormat(deckFormats, body.format);
     }
-    const updates = buildPatchUpdates(body, patchFields);
+    // Decide which format the resulting deck will be under, so format_config
+    // is validated against the right shape — body.format wins, falling back
+    // to the deck's current format when only the config is being patched.
+    let effectiveFormat = body.format;
+    if (effectiveFormat === undefined && body.formatConfig !== undefined) {
+      const current = await decks.getIdAndFormat(id, userId);
+      assertFound(current, "Not found");
+      effectiveFormat = current.format;
+    }
+    // Resolve formatConfig BEFORE buildPatchUpdates so it counts as a field
+    // change. Two paths land here with an implicit config update:
+    //   1. body has formatConfig: validate against the resulting format.
+    //   2. format is changing but body doesn't specify config: clear the
+    //      old config so a Custom-Region deck switched to constructed
+    //      doesn't keep a stale tagSlugs, and a deck switched INTO
+    //      Custom-Region lands in the "pick a region" banner state.
+    const normalized: Record<string, unknown> = { ...body };
+    if (body.formatConfig !== undefined && effectiveFormat !== undefined) {
+      normalized.formatConfig = await validateFormatConfig(
+        customTags,
+        effectiveFormat,
+        body.formatConfig,
+      );
+    } else if (body.format !== undefined && body.formatConfig === undefined) {
+      normalized.formatConfig = null;
+    }
+    const updates = buildPatchUpdates(normalized, patchFields);
     const row = await decks.update(id, userId, updates);
     assertFound(row, "Not found");
     return c.json(toDeck(row));

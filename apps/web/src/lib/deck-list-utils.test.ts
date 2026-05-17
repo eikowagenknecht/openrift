@@ -35,6 +35,7 @@ function makeItem(overrides: DeckOverrides = {}): DeckListItemWithNames {
       id: overrides.id ?? "deck-1",
       name: overrides.name ?? "Test Deck",
       format: overrides.format ?? "constructed",
+      formatConfig: null,
       isPinned: overrides.isPinned ?? false,
       archivedAt: overrides.archivedAt ?? null,
       createdAt: overrides.createdAt ?? "2026-01-01T00:00:00.000Z",

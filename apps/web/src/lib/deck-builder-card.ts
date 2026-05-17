@@ -1,6 +1,7 @@
 import type {
   Card,
   CardType,
+  DeckCard,
   DeckCardResponse,
   DeckFormat,
   DeckZone,
@@ -41,6 +42,32 @@ export function deckCardKey(
   preferredPrintingId: string | null,
 ): string {
   return `${cardId}|${zone}|${preferredPrintingId ?? ""}`;
+}
+
+/**
+ * Projects a builder card into the rule-engine's `DeckCard` shape, stitching
+ * in the catalog-side custom-tag slugs for tag-locked formats. Centralises
+ * the field-by-field copy that `DeckOverview` and `useDeckViolations` both
+ * need so adding a new rule-engine field stays a one-line change.
+ *
+ * @returns The `DeckCard` to feed into `validateDeck`.
+ */
+export function toRuleEngineCard(
+  card: DeckBuilderCard,
+  customTagAssignments: Record<string, readonly string[]>,
+): DeckCard {
+  return {
+    cardId: card.cardId,
+    zone: card.zone,
+    quantity: card.quantity,
+    cardName: card.cardName,
+    cardType: card.cardType,
+    superTypes: card.superTypes,
+    domains: card.domains,
+    tags: card.tags,
+    customTagSlugs: customTagAssignments[card.cardId] ?? [],
+    keywords: card.keywords,
+  };
 }
 
 export function getDeckCardKey(card: {

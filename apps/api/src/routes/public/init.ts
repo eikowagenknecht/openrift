@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
-import type { DistributionChannel, InitResponse, KeywordEntry } from "@openrift/shared";
+import type { CustomTag, DistributionChannel, InitResponse, KeywordEntry } from "@openrift/shared";
 import { initResponseSchema } from "@openrift/shared/response-schemas";
 
 import type { Variables } from "../../types.js";
@@ -18,12 +18,13 @@ const getInit = createRoute({
 
 /** Public: GET /init — returns enums + keywords in a single request. */
 export const initRoute = new OpenAPIHono<{ Variables: Variables }>().openapi(getInit, async (c) => {
-  const { enums, keywords, distributionChannels } = c.get("repos");
-  const [enumData, keywordRows, translations, channelRows] = await Promise.all([
+  const { enums, keywords, distributionChannels, customTags } = c.get("repos");
+  const [enumData, keywordRows, translations, channelRows, customTagRows] = await Promise.all([
     enums.all(),
     keywords.listAll(),
     keywords.listAllTranslations(),
     distributionChannels.listAll(),
+    customTags.listAll(),
   ]);
 
   const keywordsMap: Record<string, KeywordEntry> = {};
@@ -62,10 +63,21 @@ export const initRoute = new OpenAPIHono<{ Variables: Variables }>().openapi(get
     childrenLabel: row.childrenLabel,
   }));
 
+  const customTagsResponse: CustomTag[] = customTagRows.map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    label: row.label,
+    category: row.category,
+    categoryLabel: row.categoryLabel,
+    description: row.description,
+    sortOrder: row.sortOrder,
+  }));
+
   c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
   return c.json({
     enums: strippedEnums,
     keywords: keywordsMap,
     distributionChannels: channelsResponse,
+    customTags: customTagsResponse,
   } satisfies InitResponse);
 });

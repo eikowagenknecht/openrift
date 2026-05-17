@@ -225,10 +225,24 @@ function DeckEditorContent({
     const legendDomains = legend?.domains ?? [];
     const domainsWithColorless =
       legendDomains.length > 0 ? [...legendDomains, WellKnown.domain.COLORLESS] : [];
+    // Tag-locked formats (custom-region today, future custom-* formats too)
+    // re-apply their tag selection on every zone change. Same pattern as
+    // `domains` above — the format constraint follows the user across zones
+    // so the browser stays narrowed to legal cards by default. Users can
+    // still un-toggle chips within a zone to peek at out-of-format cards;
+    // the next zone switch resets to the format's tag set.
+    const formatTagSlugs = Array.isArray(data.deck.formatConfig?.tagSlugs)
+      ? data.deck.formatConfig.tagSlugs
+      : [];
 
     switch (zone) {
       case "legend": {
-        setArrayFilters({ types: [WellKnown.cardType.LEGEND], superTypes: [], domains: [] });
+        setArrayFilters({
+          types: [WellKnown.cardType.LEGEND],
+          superTypes: [],
+          domains: [],
+          customTags: formatTagSlugs,
+        });
         break;
       }
       case "champion": {
@@ -236,6 +250,7 @@ function DeckEditorContent({
           types: [WellKnown.cardType.UNIT],
           superTypes: [WellKnown.superType.CHAMPION],
           domains: domainsWithColorless,
+          customTags: formatTagSlugs,
         });
         if (legend?.tags[0]) {
           setSearch(`t:${legend.tags[0]}`);
@@ -247,6 +262,7 @@ function DeckEditorContent({
           types: [WellKnown.cardType.RUNE],
           superTypes: [],
           domains: legendDomains,
+          customTags: formatTagSlugs,
         });
         break;
       }
@@ -255,6 +271,7 @@ function DeckEditorContent({
           types: [WellKnown.cardType.BATTLEFIELD],
           superTypes: [],
           domains: [],
+          customTags: formatTagSlugs,
         });
         break;
       }
@@ -264,6 +281,7 @@ function DeckEditorContent({
           types: [WellKnown.cardType.UNIT, "spell", "gear"],
           superTypes: [],
           domains: domainsWithColorless,
+          customTags: formatTagSlugs,
         });
         break;
       }
@@ -272,6 +290,7 @@ function DeckEditorContent({
           types: [WellKnown.cardType.UNIT, "spell", "gear", WellKnown.cardType.BATTLEFIELD],
           superTypes: [],
           domains: domainsWithColorless,
+          customTags: formatTagSlugs,
         });
         break;
       }

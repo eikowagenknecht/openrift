@@ -5,7 +5,7 @@ import { CheckIcon, CircleAlertIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useDeckCards, useDeckViolations } from "@/hooks/use-deck-builder";
 import { useDeckDetail } from "@/hooks/use-decks";
-import { useDeckFormatList } from "@/hooks/use-enums";
+import { useCustomTagList, useDeckFormatList } from "@/hooks/use-enums";
 
 /**
  * Badge showing a click-to-open popover listing each violation.
@@ -46,9 +46,21 @@ function ViolationBadge({
 export function DeckFormatBadge({ deckId }: { deckId: string }) {
   const { data: deckDetail } = useDeckDetail(deckId);
   const format = deckDetail.deck.format;
+  const formatConfig = deckDetail.deck.formatConfig;
   const { labels } = useDeckFormatList();
-  const formatLabel = labels[format] ?? format;
-  const violations = useDeckViolations(deckId, format);
+  const { all: customTags } = useCustomTagList();
+  // For Custom-Region decks, append "· <Region> + <Region>" to the label so
+  // the deck's active tags are visible at a glance. Slugs that no longer
+  // resolve (admin-deleted) are silently dropped from the display rather
+  // than rendered as the raw slug — the validation banner is the right
+  // place to surface that breakage, not the format badge.
+  const tagSlugs = formatConfig?.tagSlugs ?? [];
+  const tagLabels = tagSlugs
+    .map((slug) => customTags.find((t) => t.slug === slug)?.label)
+    .filter((label): label is string => typeof label === "string");
+  const baseLabel = labels[format] ?? format;
+  const formatLabel = tagLabels.length > 0 ? `${baseLabel} · ${tagLabels.join(" + ")}` : baseLabel;
+  const violations = useDeckViolations(deckId, format, formatConfig);
   const cards = useDeckCards(deckId);
   const totalCards = cards.reduce((sum, card) => sum + card.quantity, 0);
 

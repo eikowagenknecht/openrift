@@ -4,6 +4,7 @@ import type {
   DeckDetailResponse,
   DeckExportResponse,
   DeckFormat,
+  DeckFormatConfig,
   DeckListResponse,
   DeckResponse,
   DeckShareResponse,
@@ -30,24 +31,29 @@ const fetchDecks = createServerFn({ method: "GET" })
       }),
   );
 
+async function fetchDeckDetailImpl(
+  cookie: string | undefined,
+  deckId: string,
+): Promise<DeckDetailResponse> {
+  // 404 is legitimate (unknown/deleted deck id, or one belonging to another
+  // user) — map to NOT_FOUND so the route can render a not-found page
+  // without logging the response as an error.
+  const res = await fetchApi({
+    errorTitle: "Couldn't load deck",
+    cookie,
+    path: `/api/v1/decks/${encodeURIComponent(deckId)}`,
+    acceptStatuses: [404],
+  });
+  if (res.status === 404) {
+    throw new Error("NOT_FOUND");
+  }
+  return (await res.json()) as DeckDetailResponse;
+}
+
 const fetchDeckDetail = createServerFn({ method: "GET" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data: deckId }): Promise<DeckDetailResponse> => {
-    // 404 is legitimate (unknown/deleted deck id, or one belonging to another
-    // user) — map to NOT_FOUND so the route can render a not-found page
-    // without logging the response as an error.
-    const res = await fetchApi({
-      errorTitle: "Couldn't load deck",
-      cookie: context.cookie,
-      path: `/api/v1/decks/${encodeURIComponent(deckId)}`,
-      acceptStatuses: [404],
-    });
-    if (res.status === 404) {
-      throw new Error("NOT_FOUND");
-    }
-    return res.json() as Promise<DeckDetailResponse>;
-  });
+  .handler(({ context, data: deckId }) => fetchDeckDetailImpl(context.cookie, deckId));
 
 export function decksQueryOptions(userId: string) {
   return queryOptions({
@@ -60,7 +66,7 @@ export function decksQueryOptions(userId: string) {
 export function deckDetailQueryOptions(userId: string, deckId: string) {
   return queryOptions({
     queryKey: queryKeys.decks.detail(userId, deckId),
-    queryFn: () => fetchDeckDetail({ data: deckId }),
+    queryFn: (): Promise<DeckDetailResponse> => fetchDeckDetail({ data: deckId }),
   });
 }
 
@@ -192,7 +198,14 @@ export function useSaveDeckCards() {
 }
 
 const updateDeckFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { deckId: string; name?: string; format?: DeckFormat }) => input)
+  .inputValidator(
+    (input: {
+      deckId: string;
+      name?: string;
+      format?: DeckFormat;
+      formatConfig?: DeckFormatConfig | null;
+    }) => input,
+  )
   .middleware([withCookies])
   .handler(({ context, data }) => {
     const { deckId, ...fields } = data;
@@ -217,6 +230,7 @@ export function useUpdateDeck() {
       deckId: string;
       name?: string;
       format?: DeckFormat;
+      formatConfig?: DeckFormatConfig | null;
     }): Promise<DeckResponse> => updateDeckFn({ data: { deckId, ...fields } }),
     onSuccess: (data, variables) => {
       // Update deck detail cache with the returned metadata
@@ -429,7 +443,8 @@ const fetchPublicDeckFn = createServerFn({ method: "GET" })
     if (res.status === 404) {
       throw new Error("NOT_FOUND");
     }
-    return res.json() as Promise<PublicDeckDetailResponse>;
+    const json = (await res.json()) as PublicDeckDetailResponse;
+    return json;
   });
 
 export function publicDeckQueryOptions(token: string) {

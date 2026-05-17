@@ -87,6 +87,12 @@ export interface CardFilters {
   markerSlugs: string[];
   /** Filter to printings distributed through at least one of these channel slugs. */
   distributionChannelSlugs: string[];
+  /**
+   * Filter to cards that carry at least one of these custom-tag slugs.
+   * Admin-curated tags only relevant in the freeform deck builder; standard
+   * filtering should leave this empty.
+   */
+  customTagSlugs: string[];
   isBanned: boolean | null;
   hasErrata: boolean | null;
 }
