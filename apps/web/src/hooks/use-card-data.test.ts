@@ -69,7 +69,7 @@ function baseParams() {
     allPrintings: [],
     sets: SETS,
     filters: emptyFilters(),
-    ownedFilter: null,
+    ownedFilter: [] as ("none" | "partial" | "full" | "extra")[],
     sortBy: "name" as const,
     sortDir: "asc" as const,
     view: "printings" as const,
@@ -80,7 +80,7 @@ function baseParams() {
 }
 
 describe("useCardData", () => {
-  it("narrows non-owned facet counts to the owned subset when owned=owned", () => {
+  it("narrows non-owned facet counts to the selected owned bucket", () => {
     // Regression: previously the owned filter was applied AFTER computeFilterCounts,
     // so the rarity/set/etc. chips kept showing counts from the entire catalog
     // even when the user had narrowed to owned cards.
@@ -90,7 +90,7 @@ describe("useCardData", () => {
     const params = {
       ...baseParams(),
       allPrintings: [ownedCommon, unownedRare],
-      ownedFilter: "owned" as const,
+      ownedFilter: ["partial", "full", "extra"] as const,
       ownedCountByPrinting: { [ownedCommon.id]: 1, [unownedRare.id]: 0 },
     };
 
@@ -100,33 +100,14 @@ describe("useCardData", () => {
     expect(result.current.filterCounts.rarities.get("rare")).toBeUndefined();
   });
 
-  it("keeps the owned-chip count anchored to the pre-owned filtered set", () => {
-    // The owned chip count must answer "how many cards would match if I
-    // selected owned" — derived from cards filtered by everything EXCEPT
-    // owned, so toggling owned doesn't shrink its own count to zero.
-    const ownedCommon = stubPrinting({ rarity: "common" });
-    const unownedRare = stubPrinting({ rarity: "rare" });
-
-    const params = {
-      ...baseParams(),
-      allPrintings: [ownedCommon, unownedRare],
-      ownedFilter: "owned" as const,
-      ownedCountByPrinting: { [ownedCommon.id]: 1, [unownedRare.id]: 0 },
-    };
-
-    const { result } = renderHook(() => useCardData(params));
-
-    expect(result.current.filterCounts.flags.owned).toBe(1);
-  });
-
-  it("leaves facet counts unchanged when ownedFilter is null", () => {
+  it("leaves facet counts unchanged when the owned filter is empty", () => {
     const a = stubPrinting({ rarity: "common" });
     const b = stubPrinting({ rarity: "rare" });
 
     const params = {
       ...baseParams(),
       allPrintings: [a, b],
-      ownedFilter: null,
+      ownedFilter: [],
       ownedCountByPrinting: { [a.id]: 1, [b.id]: 0 },
     };
 
@@ -134,6 +115,116 @@ describe("useCardData", () => {
 
     expect(result.current.filterCounts.rarities.get("common")).toBe(1);
     expect(result.current.filterCounts.rarities.get("rare")).toBe(1);
+  });
+
+  it("filters by the 'none' bucket — only unowned cards survive", () => {
+    const owned = stubPrinting({ rarity: "common" });
+    const unowned = stubPrinting({ rarity: "rare" });
+
+    const params = {
+      ...baseParams(),
+      allPrintings: [owned, unowned],
+      ownedFilter: ["none"] as const,
+      ownedCountByPrinting: { [owned.id]: 2, [unowned.id]: 0 },
+    };
+
+    const { result } = renderHook(() => useCardData(params));
+
+    expect(result.current.sortedCards).toHaveLength(1);
+    expect(result.current.sortedCards[0]?.id).toBe(unowned.id);
+  });
+
+  it("filters by 'full' — only cards with exactly the playset size match", () => {
+    // Default cardType is "unit" → playset size 3.
+    const full = stubPrinting({ rarity: "common" });
+    const partial = stubPrinting({ rarity: "uncommon" });
+    const extra = stubPrinting({ rarity: "rare" });
+
+    const params = {
+      ...baseParams(),
+      allPrintings: [full, partial, extra],
+      ownedFilter: ["full"] as const,
+      ownedCountByPrinting: { [full.id]: 3, [partial.id]: 1, [extra.id]: 5 },
+    };
+
+    const { result } = renderHook(() => useCardData(params));
+
+    expect(result.current.sortedCards.map((p) => p.id)).toEqual([full.id]);
+  });
+
+  it("filters by 'partial' — only cards above zero but below a full playset match", () => {
+    const empty = stubPrinting({ rarity: "common" });
+    const partial = stubPrinting({ rarity: "uncommon" });
+    const full = stubPrinting({ rarity: "rare" });
+
+    const params = {
+      ...baseParams(),
+      allPrintings: [empty, partial, full],
+      ownedFilter: ["partial"] as const,
+      ownedCountByPrinting: { [empty.id]: 0, [partial.id]: 1, [full.id]: 3 },
+    };
+
+    const { result } = renderHook(() => useCardData(params));
+
+    expect(result.current.sortedCards.map((p) => p.id)).toEqual([partial.id]);
+  });
+
+  it("filters by 'extra' — only cards beyond a full playset match", () => {
+    const full = stubPrinting({ rarity: "common" });
+    const extra = stubPrinting({ rarity: "rare" });
+
+    const params = {
+      ...baseParams(),
+      allPrintings: [full, extra],
+      ownedFilter: ["extra"] as const,
+      ownedCountByPrinting: { [full.id]: 3, [extra.id]: 7 },
+    };
+
+    const { result } = renderHook(() => useCardData(params));
+
+    expect(result.current.sortedCards.map((p) => p.id)).toEqual([extra.id]);
+  });
+
+  it("OR's multiple selected buckets", () => {
+    const empty = stubPrinting({ rarity: "common" });
+    const partial = stubPrinting({ rarity: "uncommon" });
+    const extra = stubPrinting({ rarity: "rare" });
+
+    const params = {
+      ...baseParams(),
+      allPrintings: [empty, partial, extra],
+      ownedFilter: ["none", "extra"] as const,
+      ownedCountByPrinting: { [empty.id]: 0, [partial.id]: 1, [extra.id]: 5 },
+    };
+
+    const { result } = renderHook(() => useCardData(params));
+
+    expect(result.current.sortedCards.map((p) => p.id).toSorted()).toEqual(
+      [empty.id, extra.id].toSorted(),
+    );
+  });
+
+  it("buckets a card by its aggregated playset across variants, not per-printing", () => {
+    // option (c) from the design conversation: in printings view, every
+    // variant of a card with a complete playset shows up under "Full".
+    const cardId = "shared-card";
+    const variantA = stubPrinting({ cardId, shortCode: "A-001" });
+    const variantB = stubPrinting({ cardId, shortCode: "B-001" });
+
+    const params = {
+      ...baseParams(),
+      allPrintings: [variantA, variantB],
+      ownedFilter: ["full"] as const,
+      // 2 of one variant + 1 of the other = 3 total, hitting the playset
+      // size of 3 for a regular unit. Both variants should be included.
+      ownedCountByPrinting: { [variantA.id]: 2, [variantB.id]: 1 },
+    };
+
+    const { result } = renderHook(() => useCardData(params));
+
+    expect(result.current.sortedCards.map((p) => p.id).toSorted()).toEqual(
+      [variantA.id, variantB.id].toSorted(),
+    );
   });
 
   it("dedupes to one printing per cardId in cards view by default", () => {

@@ -1,6 +1,5 @@
 import type { AvailableFilters, FilterCounts } from "@openrift/shared";
 import { SlidersHorizontalIcon } from "lucide-react";
-import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
@@ -19,7 +18,6 @@ interface CollapsibleFilterPanelProps {
   visibleCustomTagCategories?: ReadonlySet<string>;
   filterOverrides?: Partial<Record<string, string[]>>;
   filterCounts?: FilterCounts;
-  renderOwnedFlag?: (props: { label: string; isActive: boolean; onClick: () => void }) => ReactNode;
 }
 
 /**
@@ -36,7 +34,6 @@ export function CollapsibleFilterPanel({
   visibleCustomTagCategories,
   filterOverrides,
   filterCounts,
-  renderOwnedFlag,
 }: CollapsibleFilterPanelProps) {
   const filtersExpanded = useDisplayStore((state) => state.filtersExpanded);
   const setFiltersExpanded = useDisplayStore((state) => state.setFiltersExpanded);
@@ -57,7 +54,6 @@ export function CollapsibleFilterPanel({
             visibleCustomTagCategories={visibleCustomTagCategories}
             filterOverrides={filterOverrides}
             filterCounts={filterCounts}
-            renderOwnedFlag={renderOwnedFlag}
           />
         </div>
         <div className="grid grid-cols-2 items-start gap-x-6 gap-y-3 lg:grid-cols-4">

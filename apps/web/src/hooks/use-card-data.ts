@@ -14,20 +14,20 @@ import {
   EMPTY_PRICE_LOOKUP,
   filterCards,
   getAvailableFilters,
-  getPlaysetSize,
   sortCards,
 } from "@openrift/shared";
 
 import type { SetInfo } from "@/components/cards/card-grid";
 import { useEnumOrders } from "@/hooks/use-enums";
-import type { OwnedFilterState } from "@/lib/search-schemas";
+import { applyOwnedBucketFilter } from "@/lib/owned-bucket";
+import type { OwnedBucket } from "@/lib/search-schemas";
 
 interface UseCardDataParams {
   allPrintings: Printing[];
   sets: SetInfo[];
   filters: CardFilters;
-  /** Owned filter state: "owned" | "missing" | "incomplete" | null (no filter). */
-  ownedFilter?: OwnedFilterState | null;
+  /** Selected ownership buckets. Empty array means no owned filter. */
+  ownedFilter?: readonly OwnedBucket[];
   sortBy: SortOption;
   sortDir: "asc" | "desc";
   view: "cards" | "printings";
@@ -60,7 +60,7 @@ interface UseCatalogFilterMetaParams {
   allPrintings: Printing[];
   sets: SetInfo[];
   filters: CardFilters;
-  ownedFilter?: OwnedFilterState | null;
+  ownedFilter?: readonly OwnedBucket[];
   view: "cards" | "printings";
   ownedCountByPrinting: Record<string, number> | undefined;
   favoriteMarketplace: Marketplace;
@@ -155,58 +155,6 @@ const EMPTY_FILTER_COUNTS: FilterCounts = {
 };
 
 /**
- * Apply the owned/missing/incomplete filter to a printings list. Mirrors the
- * same logic the main render path uses but takes the owned state as an
- * argument so it can be reused to compute the owned-chip count for any
- * hypothetical state.
- *
- * @returns Printings remaining after the owned filter is applied.
- */
-function applyOwnedFilter(
-  cards: Printing[],
-  state: OwnedFilterState,
-  view: "cards" | "printings",
-  ownedCountByPrinting: Record<string, number>,
-): Printing[] {
-  if (state === "incomplete") {
-    const ownedTotalByCard = new Map<string, number>();
-    const cardById = new Map<string, Printing["card"]>();
-    for (const printing of cards) {
-      const count = ownedCountByPrinting[printing.id] ?? 0;
-      ownedTotalByCard.set(printing.cardId, (ownedTotalByCard.get(printing.cardId) ?? 0) + count);
-      if (!cardById.has(printing.cardId)) {
-        cardById.set(printing.cardId, printing.card);
-      }
-    }
-    const incompleteCardIds = new Set<string>();
-    for (const [cardId, total] of ownedTotalByCard) {
-      const card = cardById.get(cardId);
-      if (!card) {
-        continue;
-      }
-      if (total < getPlaysetSize(card.type, card.keywords)) {
-        incompleteCardIds.add(cardId);
-      }
-    }
-    return cards.filter((printing) => incompleteCardIds.has(printing.cardId));
-  }
-  if (view === "printings") {
-    return state === "owned"
-      ? cards.filter((printing) => (ownedCountByPrinting[printing.id] ?? 0) > 0)
-      : cards.filter((printing) => (ownedCountByPrinting[printing.id] ?? 0) === 0);
-  }
-  const ownedCardIds = new Set<string>();
-  for (const printing of cards) {
-    if ((ownedCountByPrinting[printing.id] ?? 0) > 0) {
-      ownedCardIds.add(printing.cardId);
-    }
-  }
-  return state === "owned"
-    ? cards.filter((printing) => ownedCardIds.has(printing.cardId))
-    : cards.filter((printing) => !ownedCardIds.has(printing.cardId));
-}
-
-/**
  * Keep the first printing encountered per `cardId`. Relies on the input
  * being pre-sorted in the order the caller wants to break ties in — here,
  * (userLanguageRank, canonicalRank) from useCards().
@@ -248,14 +196,12 @@ function firstPrintingPerCardPerSet(printings: Printing[]): Printing[] {
 
 /**
  * Filter-meta computation extracted so the catalog filter panel can subscribe
- * to it independently of {@link useCardData}. Crucially, this hook does NOT
- * compute the Owned chip count — that lives in {@link useOwnedFlagCount} so
- * a +/- click only invalidates the chip's own subtree, not the rest of the
- * filter UI. When `ownedFilter` is null, none of this hook's outputs depend
- * on `ownedCountByPrinting`, so the returned ref stays stable across clicks.
+ * to it independently of {@link useCardData}. When `ownedFilter` is empty,
+ * none of this hook's outputs depend on `ownedCountByPrinting`, so the
+ * returned ref stays stable across +/- clicks on the copies collection.
  *
- * @returns Available filter options, faceted counts (without the owned chip),
- *   the language list, and a slug-to-name resolver for set badges.
+ * @returns Available filter options, faceted counts, the language list, and a
+ *   slug-to-name resolver for set badges.
  */
 export function useCatalogFilterMeta({
   allPrintings,
@@ -299,8 +245,8 @@ export function useCatalogFilterMeta({
   // Narrow the universe by owned BEFORE computing facet counts so the other
   // chips (sets, rarities, colors, etc.) reflect the active owned selection.
   const universeForCounts =
-    ownedFilter && ownedCountByPrinting
-      ? applyOwnedFilter(allPrintings, ownedFilter, view, ownedCountByPrinting)
+    ownedFilter && ownedFilter.length > 0 && ownedCountByPrinting
+      ? applyOwnedBucketFilter(allPrintings, ownedFilter, ownedCountByPrinting)
       : allPrintings;
   const filterCounts = computeFilterCounts(universeForCounts, filters, {
     countBy: view === "cards" ? "card" : "printing",
@@ -311,57 +257,6 @@ export function useCatalogFilterMeta({
   const availableLanguages = [...new Set(allPrintings.map((p) => p.language))];
 
   return { availableFilters, availableLanguages, filterCounts, setDisplayLabel };
-}
-
-interface UseOwnedFlagCountParams {
-  allPrintings: Printing[];
-  filters: CardFilters;
-  view: "cards" | "printings";
-  ownedFilter?: OwnedFilterState | null;
-  ownedCountByPrinting: Record<string, number> | undefined;
-  favoriteMarketplace: Marketplace;
-  prices: PriceLookup;
-  enabled?: boolean;
-  keywordReverseMap?: Map<string, string>;
-}
-
-/**
- * Standalone count for the "Owned" chip in the filter panel — answers "how
- * many cards/printings would match if Owned were applied", anchored to the
- * pre-owned filtered set so toggling Owned doesn't shrink its own count to
- * zero. Pulled out of {@link useCatalogFilterMeta} so the chip can subscribe
- * to ownedCount changes in isolation, leaving the rest of the filter UI
- * stable across +/- clicks.
- *
- * @returns The count, or undefined when disabled or no copies are loaded.
- */
-export function useOwnedFlagCount({
-  allPrintings,
-  filters,
-  view,
-  ownedFilter,
-  ownedCountByPrinting,
-  favoriteMarketplace,
-  prices,
-  enabled = true,
-  keywordReverseMap,
-}: UseOwnedFlagCountParams): number | undefined {
-  "use memo";
-
-  if (!enabled || !ownedCountByPrinting) {
-    return undefined;
-  }
-
-  const lookup = prices ?? EMPTY_PRICE_LOOKUP;
-  const getPrice = (p: Printing) => lookup.get(p.id, favoriteMarketplace);
-  const cardsBeforeOwned = filterCards(allPrintings, filters, { keywordReverseMap, getPrice });
-  const ownedSubset = applyOwnedFilter(
-    cardsBeforeOwned,
-    ownedFilter ?? "owned",
-    view,
-    ownedCountByPrinting,
-  );
-  return view === "cards" ? new Set(ownedSubset.map((p) => p.cardId)).size : ownedSubset.length;
 }
 
 export function useCardData({
@@ -390,7 +285,7 @@ export function useCardData({
   // from useCardData's return. <CardCatalogFilterPanel> talks to
   // useCatalogFilterMeta directly so its re-renders aren't entangled with
   // the rest of useCardData's outputs.
-  const baseMeta = useCatalogFilterMeta({
+  const meta = useCatalogFilterMeta({
     allPrintings,
     sets,
     filters,
@@ -404,28 +299,6 @@ export function useCardData({
     channels,
     customTagAssignments,
   });
-  // Owned chip count is computed independently so subscribers can take it on
-  // its own without invalidating the rest of filterCounts. Merge it back into
-  // filterCounts.flags for callers that still read filterCounts.flags.owned
-  // (collection-grid, deck-card-browser, promos).
-  const ownedFlagCount = useOwnedFlagCount({
-    allPrintings,
-    filters,
-    view,
-    ownedFilter,
-    ownedCountByPrinting,
-    favoriteMarketplace,
-    prices,
-    enabled,
-    keywordReverseMap,
-  });
-  const meta = {
-    ...baseMeta,
-    filterCounts: {
-      ...baseMeta.filterCounts,
-      flags: { ...baseMeta.filterCounts.flags, owned: ownedFlagCount },
-    },
-  };
 
   if (!enabled) {
     return {
@@ -454,8 +327,8 @@ export function useCardData({
     customTagAssignments,
   });
 
-  if (ownedFilter && ownedCountByPrinting) {
-    filteredCards = applyOwnedFilter(filteredCards, ownedFilter, view, ownedCountByPrinting);
+  if (ownedFilter && ownedFilter.length > 0 && ownedCountByPrinting) {
+    filteredCards = applyOwnedBucketFilter(filteredCards, ownedFilter, ownedCountByPrinting);
   }
 
   // Cards view dedupes by cardId so each card gets one tile. When also grouped

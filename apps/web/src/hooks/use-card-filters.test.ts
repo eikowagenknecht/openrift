@@ -354,35 +354,42 @@ describe("useCardFilters", () => {
     expect(source).not.toMatch(/\[`\$\{[^`]+\}[^`]*`\]\s*:/u);
   });
 
-  it("toggleOwned cycles owned → missing → incomplete → cleared", () => {
+  it("toggleArrayFilter adds an owned bucket value", () => {
     mockSearch = {};
     const { result } = renderHook(() => useCardFilters(), { wrapper });
 
-    act(() => result.current.toggleOwned());
-    expect(lastNavigateSearch()).toMatchObject({ owned: "owned" });
-
-    mockSearch = { owned: "owned" };
-    mockNavigate.mockClear();
-    act(() => result.current.toggleOwned());
-    expect(lastNavigateSearch()).toMatchObject({ owned: "missing" });
-
-    mockSearch = { owned: "missing" };
-    mockNavigate.mockClear();
-    act(() => result.current.toggleOwned());
-    expect(lastNavigateSearch()).toMatchObject({ owned: "incomplete" });
-
-    mockSearch = { owned: "incomplete" };
-    mockNavigate.mockClear();
-    act(() => result.current.toggleOwned());
-    expect(lastNavigateSearch().owned).toBeUndefined();
+    act(() => result.current.toggleArrayFilter("owned", "full"));
+    expect(lastNavigateSearch()).toMatchObject({ owned: ["full"] });
   });
 
-  it("toggleOwned skips incomplete when allowIncomplete=false", () => {
-    mockSearch = { owned: "missing" };
+  it("toggleArrayFilter accumulates multiple owned buckets", () => {
+    mockSearch = { owned: ["full"] };
     const { result } = renderHook(() => useCardFilters(), { wrapper });
 
-    act(() => result.current.toggleOwned(false));
-    expect(lastNavigateSearch().owned).toBeUndefined();
+    act(() => result.current.toggleArrayFilter("owned", "extra"));
+    expect(lastNavigateSearch()).toMatchObject({ owned: ["full", "extra"] });
+  });
+
+  it("toggleArrayFilter removes an owned bucket and strips the key when empty", () => {
+    mockSearch = { owned: ["partial"] };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.toggleArrayFilter("owned", "partial"));
+    expect(lastNavigateSearch()).not.toHaveProperty("owned");
+  });
+
+  it("clearOwned removes the owned key entirely", () => {
+    mockSearch = { owned: ["none", "partial"] };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.clearOwned());
+    expect(lastNavigateSearch()).not.toHaveProperty("owned");
+  });
+
+  it("flags hasActiveFilters when any owned bucket is selected", () => {
+    mockSearch = { owned: ["full"] };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+    expect(result.current.hasActiveFilters).toBe(true);
   });
 
   it("toggleArrayFilter reads latest router state for sequential calls", () => {

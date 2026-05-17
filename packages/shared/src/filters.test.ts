@@ -2256,11 +2256,6 @@ describe("computeFilterCounts", () => {
       expect(counts.flags.banned).toBe(0);
       expect(counts.flags.errata).toBe(0);
     });
-
-    it("leaves flags.owned unset (computed in useCardData with collection state)", () => {
-      const counts = computeFilterCounts(flagSample, emptyFilters(), { countBy: "printing" });
-      expect(counts.flags.owned).toBeUndefined();
-    });
   });
 
   describe("ranges", () => {

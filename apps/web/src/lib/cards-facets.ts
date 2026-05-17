@@ -310,9 +310,7 @@ export const fetchCardCounts = createServerFn({ method: "GET" })
 /**
  * Server fn that pre-computes the per-dimension faceted filter counts for a
  * given URL search, so the SSR shell can render badge counts and dim
- * zero-match options before hydration. `flags.owned` is left unset because
- * computing it requires the user's collection counts, which only become
- * available after the auth check on the client.
+ * zero-match options before hydration.
  */
 export const fetchCardFilterCounts = createServerFn({ method: "GET" })
   .inputValidator((input: FilterSearch) => input)

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-05-17
+
+- feat: The Owned filter is now a multi-select with four buckets (None, Partial Playset, Full Playset, and More than Full), so you can combine them, for example to see only cards where you're missing copies, or only cards where you've gone past a playset
+
 ## 2026-05-16
 
 - feat: New "Custom - Region" deck format — pick one or more regions (e.g. Bandle City and Neutral) and build a deck where every card has to carry at least one of the chosen region tags. Constructed copy and zone rules still apply, but the domain restrictions are dropped so any region's cards work together regardless of color

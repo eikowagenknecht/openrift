@@ -463,7 +463,6 @@ export function MobileFilterContent({
   visibleCustomTagCategories,
   filterOverrides,
   filterCounts,
-  renderOwnedFlag,
 }: {
   availableFilters: AvailableFilters;
   availableLanguages?: string[];
@@ -472,7 +471,6 @@ export function MobileFilterContent({
   visibleCustomTagCategories?: ReadonlySet<string>;
   filterOverrides?: Partial<Record<string, string[]>>;
   filterCounts?: FilterCounts;
-  renderOwnedFlag?: (props: { label: string; isActive: boolean; onClick: () => void }) => ReactNode;
 }) {
   return (
     <div className="border-t pt-4">
@@ -486,7 +484,6 @@ export function MobileFilterContent({
           visibleCustomTagCategories={visibleCustomTagCategories}
           filterOverrides={filterOverrides}
           filterCounts={filterCounts}
-          renderOwnedFlag={renderOwnedFlag}
         />
       </div>
     </div>

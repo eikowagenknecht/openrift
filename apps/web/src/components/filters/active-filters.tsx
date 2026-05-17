@@ -41,7 +41,6 @@ export function ActiveFilters({
   const {
     toggleArrayFilter,
     setRange,
-    clearOwned,
     clearSigned,
     clearPromo,
     clearBanned,
@@ -49,6 +48,12 @@ export function ActiveFilters({
     clearAllFilters,
     setSearch,
   } = useFilterActions();
+  const ownedBucketLabels: Record<string, string> = {
+    none: "None",
+    partial: "Partial Playset",
+    full: "Full Playset",
+    extra: "More than Full",
+  };
   const favoriteMarketplace = useDisplayStore((s) => s.marketplaceOrder[0] ?? "cardtrader");
 
   const rangeBadgeSections: RangeBadgeSection[] = [
@@ -68,7 +73,8 @@ export function ActiveFilters({
     | "artVariants"
     | "finishes"
     | "markers"
-    | "channels";
+    | "channels"
+    | "owned";
 
   const markerLabel = (slug: string) =>
     availableFilters.markers.find((m) => m.slug === slug)?.label ?? slug;
@@ -130,6 +136,12 @@ export function ActiveFilters({
       values: filterState.channels,
       displayLabel: channelLabel,
     },
+    {
+      key: "owned",
+      label: "Owned",
+      values: filterState.owned,
+      displayLabel: (v: string) => ownedBucketLabels[v] ?? v,
+    },
   ].filter(
     (
       g,
@@ -145,7 +157,6 @@ export function ActiveFilters({
     filterState.search !== "" ||
     filterGroups.length > 0 ||
     rangeBadgeSections.some(({ key }) => ranges[key].min !== null || ranges[key].max !== null) ||
-    filterState.owned !== null ||
     filterState.signed !== null ||
     filterState.promo !== null ||
     filterState.banned !== null ||
@@ -177,9 +188,12 @@ export function ActiveFilters({
           <div key={key} className="flex min-w-0 flex-wrap items-center gap-1">
             <span className="text-muted-foreground text-xs">{label}:</span>
             {values.map((value) => {
-              // Markers and channels don't have icon assets — skip the lookup.
+              // Markers, channels, and owned buckets don't have icon assets —
+              // skip the lookup so we can pass `key` straight through.
               const icon =
-                key === "markers" || key === "channels" ? undefined : getFilterIconPath(key, value);
+                key === "markers" || key === "channels" || key === "owned"
+                  ? undefined
+                  : getFilterIconPath(key, value);
               const displayFn =
                 groupDisplayLabel ??
                 (key === "sets" && setDisplayLabel ? setDisplayLabel : (v: string) => v);
@@ -217,21 +231,6 @@ export function ActiveFilters({
             />
           );
         })}
-        {filterState.owned !== null && (
-          <div className="flex items-center gap-1">
-            <span className="text-muted-foreground text-xs">Owned:</span>
-            <Badge variant="secondary" className="gap-1">
-              {filterState.owned === "missing"
-                ? "No Playset"
-                : filterState.owned === "incomplete"
-                  ? "Incomplete"
-                  : "Owned"}
-              <button type="button" onClick={clearOwned} className="hover:text-foreground ml-0.5">
-                <XIcon className="size-3" />
-              </button>
-            </Badge>
-          </div>
-        )}
         {filterState.signed !== null && (
           <div className="flex items-center gap-1">
             <span className="text-muted-foreground text-xs">Flag:</span>

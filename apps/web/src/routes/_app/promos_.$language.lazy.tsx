@@ -57,6 +57,7 @@ import { useOwnedCount } from "@/hooks/use-owned-count";
 import { publicPromoListQueryOptions } from "@/hooks/use-public-promos";
 import { useSession } from "@/lib/auth-session";
 import { catalogQueryOptions } from "@/lib/catalog-query";
+import { applyOwnedBucketFilter } from "@/lib/owned-bucket";
 import { buildPromoTreeFromMatches } from "@/lib/promo-filters";
 import type { PromoGrouping, PromoSection } from "@/lib/promo-groupings";
 import { asPromoGrouping, groupByCard, groupByMarker, groupByYear } from "@/lib/promo-groupings";
@@ -275,7 +276,7 @@ function PromosPage() {
   const catalogMode = useDisplayStore((s) => s.catalogMode);
   const showOwned = isLoggedIn && catalogMode !== "off";
   const { filters, ranges, filterState, groupDir, hasActiveFilters } = useFilterValues();
-  const ownedFilterActive = filters.ownedFilter !== null;
+  const ownedFilterActive = filters.ownedFilter.length > 0;
   const fetchOwned = isLoggedIn && (showOwned || ownedFilterActive);
   // useOwnedCount → useLiveQuery uses useSyncExternalStore without a server
   // snapshot, which is invalid during SSR. Defer the call to OwnedCountBridge,
@@ -334,25 +335,13 @@ function PromosPage() {
     languages: [activeLanguage],
     price: priceFilterEnabled ? ranges.price : { min: null, max: null },
   };
-  const matchedPrintings = filterCards(activePrintings, cardFilters, {
+  const initialMatches = filterCards(activePrintings, cardFilters, {
     getPrice: (p) => display.prices.get(p.id, display.favoriteMarketplace),
-  }).filter((p) => {
-    if (filters.ownedFilter === null || !isLoggedIn) {
-      return true;
-    }
-    const counts = ownedCountByPrinting;
-    if (!counts) {
-      return true;
-    }
-    const count = counts[p.id] ?? 0;
-    if (filters.ownedFilter === "owned") {
-      return count > 0;
-    }
-    if (filters.ownedFilter === "missing") {
-      return count === 0;
-    }
-    return count < 4;
   });
+  const matchedPrintings =
+    !ownedFilterActive || !isLoggedIn || !ownedCountByPrinting
+      ? initialMatches
+      : applyOwnedBucketFilter(initialMatches, filters.ownedFilter, ownedCountByPrinting);
   const grouping = asPromoGrouping(filterState.groupBy);
 
   // Apply groupDir uniformly across all groupings — the channel tree reverses

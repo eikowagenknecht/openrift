@@ -511,17 +511,13 @@ export interface FilterCounts {
   /**
    * Counts for the single-chip "More"-section flags. Each value reflects the
    * count *if the chip's currently-displayed state were applied*, combined
-   * with all other active filters. `owned` is left as `undefined` here — it
-   * lives in `useCardData` because computing it requires the user's
-   * collection counts and the active view, neither of which `filterCards`
-   * consumes.
+   * with all other active filters.
    */
   flags: {
     signed: number;
     promo: number;
     banned: number;
     errata: number;
-    owned?: number;
   };
   /**
    * Bounds for each range slider, faceted to the subset that matches every
@@ -564,7 +560,7 @@ const COUNTABLE_DIMENSIONS: readonly CountableDimension[] = [
 ];
 
 interface FlagDimension {
-  key: keyof Omit<FilterCounts["flags"], "owned">;
+  key: keyof FilterCounts["flags"];
   filterField: "isSigned" | "hasAnyMarker" | "isBanned" | "hasErrata";
 }
 

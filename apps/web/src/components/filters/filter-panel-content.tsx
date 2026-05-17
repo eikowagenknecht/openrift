@@ -13,6 +13,7 @@ import { buildChannelBreadcrumbs } from "@/lib/channel-breadcrumbs";
 import { formatDomainFilterLabel } from "@/lib/domain";
 import { formatPriceIntegerForMarketplace } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
+import type { OwnedBucket } from "@/lib/search-schemas";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -59,6 +60,13 @@ const STAT_RANGE_SECTIONS: RangeSection[] = [
   { key: "might", label: "Might" },
 ];
 
+const OWNED_BUCKETS: readonly { value: OwnedBucket; label: string }[] = [
+  { value: "none", label: "None" },
+  { value: "partial", label: "Partial Playset" },
+  { value: "full", label: "Full Playset" },
+  { value: "extra", label: "More than Full" },
+];
+
 interface FilterPanelContentProps {
   availableFilters: AvailableFilters;
   availableLanguages?: string[];
@@ -79,14 +87,6 @@ interface FilterPanelContentProps {
    * unfaceted badges (deck builder, collection grid).
    */
   filterCounts?: FilterCounts;
-  /**
-   * Optional override for the Owned chip. When provided, the caller renders
-   * the badge themselves (typically a self-subscribing component that reads
-   * its count via {@link useOwnedFlagCount} so +/- clicks only invalidate
-   * the chip, not the rest of the panel). When omitted, the badge falls
-   * back to `filterCounts.flags.owned`.
-   */
-  renderOwnedFlag?: (props: { label: string; isActive: boolean; onClick: () => void }) => ReactNode;
 }
 
 export function FilterPanelContent({
@@ -97,7 +97,6 @@ export function FilterPanelContent({
   visibleCustomTagCategories,
   filterOverrides,
   filterCounts,
-  renderOwnedFlag,
 }: FilterPanelContentProps) {
   return (
     <>
@@ -109,7 +108,6 @@ export function FilterPanelContent({
         visibleCustomTagCategories={visibleCustomTagCategories}
         filterOverrides={filterOverrides}
         filterCounts={filterCounts}
-        renderOwnedFlag={renderOwnedFlag}
       />
       <FilterRangeSections availableFilters={availableFilters} filterCounts={filterCounts} />
     </>
@@ -124,12 +122,10 @@ export function FilterBadgeSections({
   visibleCustomTagCategories,
   filterOverrides,
   filterCounts,
-  renderOwnedFlag,
 }: FilterPanelContentProps) {
   const { labels } = useEnumOrders();
-  const { filterState, view } = useFilterValues();
+  const { filterState } = useFilterValues();
   const {
-    toggleOwned,
     toggleArrayFilter,
     setArrayFilter,
     toggleSigned,
@@ -137,13 +133,6 @@ export function FilterBadgeSections({
     toggleBanned,
     toggleErrata,
   } = useFilterActions();
-  const allowIncomplete = view !== "printings";
-  const ownedLabel =
-    filterState.owned === "missing"
-      ? "No Playset"
-      : filterState.owned === "incomplete"
-        ? "Incomplete"
-        : "Owned";
   const languageLabels = useLanguageLabels();
   // Pre-build channel breadcrumbs once so the More section can render full
   // paths (e.g. "Tournament › Regionals › Top 8") and the cmdk filter can
@@ -347,21 +336,19 @@ export function FilterBadgeSections({
               onClick={toggleErrata}
             />
           )}
-          {!hiddenSections?.has("owned") &&
-            (renderOwnedFlag ? (
-              renderOwnedFlag({
-                label: ownedLabel,
-                isActive: filterState.owned !== null,
-                onClick: () => toggleOwned(allowIncomplete),
-              })
-            ) : (
-              <FlagBadge
-                label={ownedLabel}
-                isActive={filterState.owned !== null}
-                count={filterCounts?.flags.owned}
-                onClick={() => toggleOwned(allowIncomplete)}
-              />
-            ))}
+          {!hiddenSections?.has("owned") && (
+            <MultiSelectCombobox
+              label="Owned"
+              searchPlaceholder="Search owned…"
+              emptyText="No options match."
+              options={OWNED_BUCKETS.map((bucket) => ({
+                value: bucket.value,
+                label: bucket.label,
+              }))}
+              selected={filterState.owned}
+              onChange={(values) => setArrayFilter("owned", values)}
+            />
+          )}
         </FilterSection>
       )}
     </>

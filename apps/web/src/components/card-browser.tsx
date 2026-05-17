@@ -116,15 +116,11 @@ export function CardBrowser() {
   // means "show all" (the user cleared every language within this session).
   useSeedLanguagesFromPrefs(filters.languages);
 
-  // Same gating as <CardCatalogFilterProvider>: useCardData internally calls
-  // useOwnedFlagCount and merges flags.owned into its filterCounts. That
-  // merge makes the return object fresh on every +/-, which (without an
-  // ownedFilter) ripples through sortedCards → items → groups → virtualRows
-  // and bails GroupHeaderRow's memo. CardBrowser doesn't read
-  // filterCounts.flags.owned (the chip is self-subscribed), so passing
-  // undefined here is safe; legacy callers (collection-grid, deck-card-
-  // browser) still pass their own ownedCountByPrinting.
-  const ownedCountForCardData = filters.ownedFilter ? ownedCountByPrinting : undefined;
+  // Same gating as <CardCatalogFilterProvider>: when no buckets are selected,
+  // useCardData's output doesn't depend on the live owned-count map. Passing
+  // undefined keeps the hook's return ref stable across +/- clicks so
+  // sortedCards → items → groups → virtualRows don't churn.
+  const ownedCountForCardData = filters.ownedFilter.length > 0 ? ownedCountByPrinting : undefined;
 
   const { sortedCards, printingsByCardId, priceRangeByCardId, totalUniqueCards, filteredCount } =
     useCardData({

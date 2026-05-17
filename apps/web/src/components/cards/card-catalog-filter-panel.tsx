@@ -5,10 +5,10 @@ import { createContext, use } from "react";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { ActiveFilters } from "@/components/filters/active-filters";
 import { CollapsibleFilterPanel } from "@/components/filters/collapsible-filter-panel";
-import { FilterPanelContent, FlagBadge } from "@/components/filters/filter-panel-content";
+import { FilterPanelContent } from "@/components/filters/filter-panel-content";
 import { MobileFilterContent } from "@/components/filters/options-bar";
 import { Pane } from "@/components/layout/panes";
-import { useCatalogFilterMeta, useOwnedFlagCount } from "@/hooks/use-card-data";
+import { useCatalogFilterMeta } from "@/hooks/use-card-data";
 import { useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { useChannelRegistry } from "@/hooks/use-enums";
@@ -24,12 +24,7 @@ interface FilterMetaContextValue {
   hiddenSections: ReadonlySet<string> | undefined;
 }
 
-// Two contexts on purpose: meta is reference-stable across +/- clicks when
-// ownedFilter is null, so its consumers (set/domain/type/range chip subtrees)
-// skip re-renders entirely. The owned-chip count gets its own context so only
-// <CardCatalogOwnedFlagBadge> re-runs when copies change.
 const FilterMetaContext = createContext<FilterMetaContextValue | null>(null);
-const OwnedFlagCountContext = createContext<number | undefined>(undefined);
 
 function useFilterMeta(): FilterMetaContextValue {
   const value = use(FilterMetaContext);
@@ -45,12 +40,10 @@ interface CardCatalogFilterProviderProps {
 }
 
 /**
- * Wraps the catalog browser with split contexts so the filter UI's
- * non-owned chips bail on +/- clicks while the owned-chip count still
- * tracks changes. The provider itself re-renders on ownedCount changes
- * (it subscribes via {@link useOwnedFlagCount}), but it only shuffles
- * context values — no real DOM work — and consumers split into a stable
- * meta tree and an owned-chip tree.
+ * Wraps the catalog browser with a meta context so the filter UI's chips
+ * can read availableFilters/filterCounts without each consumer re-running
+ * `useCatalogFilterMeta`. When the owned filter is empty, the hook's
+ * returned ref stays stable across +/- clicks on the copies collection.
  *
  * @returns The provider tree wrapping `children`.
  */
@@ -73,11 +66,11 @@ export function CardCatalogFilterProvider({
 
   // Gate ownedCountByPrinting at the call site rather than inside
   // useCatalogFilterMeta. React Compiler tracks the hook's inputs whether or
-  // not the runtime branch reads them, so passing the live map even when
-  // ownedFilter is null was busting downstream memoization on every +/-
-  // click. When ownedFilter is null, every chip is owned-count-independent,
+  // not the runtime branch reads them, so passing the live map even with an
+  // empty owned filter was busting downstream memoization on every +/-
+  // click. When no buckets are selected, every chip is owned-count-independent,
   // so the hook receives a stable `undefined` and its return ref holds.
-  const ownedCountForMeta = filters.ownedFilter ? ownedCountByPrinting : undefined;
+  const ownedCountForMeta = filters.ownedFilter.length > 0 ? ownedCountByPrinting : undefined;
 
   const meta = useCatalogFilterMeta({
     allPrintings,
@@ -91,17 +84,6 @@ export function CardCatalogFilterProvider({
     keywordReverseMap,
     channels,
   });
-  const ownedFlagCount = useOwnedFlagCount({
-    allPrintings,
-    filters,
-    view,
-    ownedFilter: filters.ownedFilter,
-    ownedCountByPrinting,
-    favoriteMarketplace: display.favoriteMarketplace,
-    prices: display.prices,
-    keywordReverseMap,
-    enabled: isLoggedIn,
-  });
 
   const metaValue: FilterMetaContextValue = {
     availableFilters: meta.availableFilters,
@@ -111,44 +93,11 @@ export function CardCatalogFilterProvider({
     hiddenSections,
   };
 
-  return (
-    <FilterMetaContext.Provider value={metaValue}>
-      <OwnedFlagCountContext.Provider value={ownedFlagCount}>
-        {children}
-      </OwnedFlagCountContext.Provider>
-    </FilterMetaContext.Provider>
-  );
+  return <FilterMetaContext.Provider value={metaValue}>{children}</FilterMetaContext.Provider>;
 }
 
 /**
- * Self-subscribing Owned chip — reads count from {@link OwnedFlagCountContext}
- * and label/active/onClick from URL filter state. Sits as a leaf under the
- * provider so a +/- click invalidates only this chip, not the rest of the
- * filter panel.
- *
- * @returns The Owned filter badge.
- */
-function CardCatalogOwnedFlagBadge({
-  label,
-  isActive,
-  onClick,
-}: {
-  label: string;
-  isActive: boolean;
-  onClick: () => void;
-}) {
-  const count = use(OwnedFlagCountContext);
-  return <FlagBadge label={label} isActive={isActive} count={count} onClick={onClick} />;
-}
-
-const renderOwnedFlag = (props: { label: string; isActive: boolean; onClick: () => void }) => (
-  <CardCatalogOwnedFlagBadge {...props} />
-);
-
-/**
- * Mobile drawer's filter pane. Subscribes to {@link FilterMetaContext} only,
- * so it doesn't re-render on +/- clicks; the Owned chip slot is filled by
- * {@link CardCatalogOwnedFlagBadge}.
+ * Mobile drawer's filter pane. Subscribes to {@link FilterMetaContext}.
  *
  * @returns The mobile filter content.
  */
@@ -161,14 +110,12 @@ export function CardCatalogMobileFilters() {
       setDisplayLabel={ctx.setDisplayLabel}
       filterCounts={ctx.filterCounts}
       hiddenSections={ctx.hiddenSections}
-      renderOwnedFlag={renderOwnedFlag}
     />
   );
 }
 
 /**
- * Mid-width collapsible filter row. Subscribes to {@link FilterMetaContext}
- * only.
+ * Mid-width collapsible filter row. Subscribes to {@link FilterMetaContext}.
  *
  * @returns The collapsible filter row.
  */
@@ -181,14 +128,12 @@ export function CardCatalogCollapsibleFilters() {
       setDisplayLabel={ctx.setDisplayLabel}
       filterCounts={ctx.filterCounts}
       hiddenSections={ctx.hiddenSections}
-      renderOwnedFlag={renderOwnedFlag}
     />
   );
 }
 
 /**
- * Desktop left-pane filter content. Subscribes to {@link FilterMetaContext}
- * only.
+ * Desktop left-pane filter content. Subscribes to {@link FilterMetaContext}.
  *
  * @returns The desktop filter pane.
  */
@@ -204,7 +149,6 @@ export function CardCatalogLeftPaneFilters() {
           setDisplayLabel={ctx.setDisplayLabel}
           filterCounts={ctx.filterCounts}
           hiddenSections={ctx.hiddenSections}
-          renderOwnedFlag={renderOwnedFlag}
         />
       </div>
     </Pane>
@@ -213,7 +157,7 @@ export function CardCatalogLeftPaneFilters() {
 
 /**
  * Active-filter chip strip rendered above the grid. Subscribes only to
- * {@link FilterMetaContext}, since it doesn't show owned counts.
+ * {@link FilterMetaContext}.
  *
  * @returns The active filters strip.
  */

@@ -14,7 +14,7 @@ import type {
 import { useRouter } from "@tanstack/react-router";
 
 import { trackEvent } from "@/lib/analytics";
-import type { FilterSearch, OwnedFilterState } from "@/lib/search-schemas";
+import type { FilterSearch, OwnedBucket } from "@/lib/search-schemas";
 import { useFilterSearch } from "@/lib/search-schemas";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSearchScopeStore } from "@/stores/search-scope-store";
@@ -30,7 +30,8 @@ type ArrayKey =
   | "finishes"
   | "markers"
   | "channels"
-  | "customTags";
+  | "customTags"
+  | "owned";
 
 /**
  * Build a `filterState` object from raw search params that matches the shape
@@ -60,7 +61,7 @@ function toFilterState(raw: FilterSearch, defaultView: DefaultCardView) {
     powerMax: raw.powerMax ?? null,
     priceMin: raw.priceMin ?? null,
     priceMax: raw.priceMax ?? null,
-    owned: raw.owned ?? null,
+    owned: raw.owned ?? [],
     signed: raw.signed ?? null,
     promo: raw.promo ?? null,
     banned: raw.banned ?? null,
@@ -97,7 +98,7 @@ export function useFilterValues() {
     domains: filterState.domains as Domain[],
     artVariants: filterState.artVariants as ArtVariant[],
     finishes: filterState.finishes as Finish[],
-    ownedFilter: filterState.owned ?? null,
+    ownedFilter: filterState.owned as OwnedBucket[],
     isSigned: filterState.signed ?? null,
     hasAnyMarker: filterState.promo ?? null,
     markers: filterState.markers,
@@ -147,7 +148,7 @@ export function useFilterValues() {
     filterState.powerMax !== null ||
     filterState.priceMin !== null ||
     filterState.priceMax !== null ||
-    filterState.owned !== null ||
+    filterState.owned.length > 0 ||
     filterState.signed !== null ||
     filterState.promo !== null ||
     filterState.banned !== null ||
@@ -275,22 +276,6 @@ export function useFilterActions() {
     } as Partial<FilterSearch>);
   };
 
-  const toggleOwned = (allowIncomplete = true) => {
-    trackEvent("filter-apply", { type: "owned" });
-    const cycle: (OwnedFilterState | undefined)[] = allowIncomplete
-      ? ["owned", "missing", "incomplete", undefined]
-      : ["owned", "missing", undefined];
-    void router.navigate({
-      to: ".",
-      search: (prev) => {
-        const currentIdx = cycle.indexOf((prev.owned as OwnedFilterState | undefined) ?? undefined);
-        const next = cycle[(currentIdx + 1) % cycle.length];
-        return Object.fromEntries(
-          Object.entries({ ...prev, owned: next }).filter(([, v]) => v !== undefined),
-        );
-      },
-    });
-  };
   const clearOwned = () => updateSearch({ owned: undefined });
 
   const toggleSigned = () => {
@@ -347,7 +332,6 @@ export function useFilterActions() {
     setArrayFilter,
     setArrayFilters,
     setRange,
-    toggleOwned,
     clearOwned,
     toggleSigned,
     togglePromo,
