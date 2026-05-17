@@ -147,6 +147,50 @@ export function collectionsRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Sets (or nulls) the share_token and is_public on a collection, scoped to the owning user.
+     * @returns The updated collection row, or `undefined` if not owned by the user.
+     */
+    setShareToken(
+      id: string,
+      userId: string,
+      shareToken: string | null,
+      isPublic: boolean,
+    ): Promise<Selectable<CollectionsTable> | undefined> {
+      return db
+        .updateTable("collections")
+        .set({ shareToken, isPublic, updatedAt: sql`now()` })
+        .where("id", "=", id)
+        .where("userId", "=", userId)
+        .returningAll()
+        .executeTakeFirst();
+    },
+
+    /**
+     * Looks up a public collection by its share token. Anonymous — no user scoping.
+     * @returns The collection row plus owner display name, or `undefined` if the
+     * token does not match a public collection.
+     */
+    async findByShareToken(
+      shareToken: string,
+    ): Promise<{ collection: Selectable<CollectionsTable>; ownerName: string | null } | undefined> {
+      const row = await db
+        .selectFrom("collections as c")
+        .innerJoin("users as u", "u.id", "c.userId")
+        .selectAll("c")
+        .select("u.name as ownerName")
+        .where("c.shareToken", "=", shareToken)
+        .where("c.isPublic", "=", true)
+        .executeTakeFirst();
+
+      if (!row) {
+        return undefined;
+      }
+
+      const { ownerName, ...collection } = row;
+      return { collection, ownerName };
+    },
+
+    /**
      * Ensures the user has an inbox collection. Creates one if it doesn't exist,
      * handling race conditions via `ON CONFLICT DO NOTHING`.
      * @returns The inbox collection ID

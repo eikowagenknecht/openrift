@@ -14,6 +14,7 @@ function stubCollection(id: string, name: string, isInbox: boolean): CollectionR
     description: null,
     availableForDeckbuilding: true,
     sortOrder: 0,
+    isPublic: false,
     shareToken: null,
     copyCount: 0,
     totalValueCents: null,

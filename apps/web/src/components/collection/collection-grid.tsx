@@ -9,6 +9,7 @@ import {
   PackageIcon,
   PackagePlusIcon,
   PencilIcon,
+  Share2Icon,
   Trash2Icon,
   XIcon,
   ZapIcon,
@@ -82,6 +83,7 @@ import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
+import { CollectionShareDialog } from "./collection-share-dialog";
 import { DeleteCollectionDialog } from "./delete-collection-dialog";
 import { DisposeDialog } from "./dispose-dialog";
 import { DisposePickerPopover } from "./dispose-picker-popover";
@@ -282,6 +284,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const moveCopies = useMoveCopies();
   const disposeCopies = useDisposeCopies();
   const deleteCollection = useDeleteCollection();
@@ -771,8 +774,10 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       view={view}
       canEdit={Boolean(currentCollection)}
       canDelete={canDeleteCollection}
+      canShare={Boolean(currentCollection)}
       onEdit={() => setEditOpen(true)}
       onDelete={() => setDeleteOpen(true)}
+      onShare={() => setShareOpen(true)}
     />
   );
 
@@ -942,6 +947,15 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             isInbox={currentCollection.isInbox}
           />
         )}
+        {currentCollection && (
+          <CollectionShareDialog
+            open={shareOpen}
+            onOpenChange={setShareOpen}
+            collectionId={currentCollection.id}
+            isPublic={currentCollection.isPublic}
+            shareToken={currentCollection.shareToken}
+          />
+        )}
       </Empty>
     );
   }
@@ -1047,6 +1061,15 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             isInbox={currentCollection.isInbox}
           />
         )}
+        {currentCollection && (
+          <CollectionShareDialog
+            open={shareOpen}
+            onOpenChange={setShareOpen}
+            collectionId={currentCollection.id}
+            isPublic={currentCollection.isPublic}
+            shareToken={currentCollection.shareToken}
+          />
+        )}
       </BrowserCardViewer>
 
       {/* Variant add popover (add mode only) */}
@@ -1139,8 +1162,10 @@ interface CollectionTopBarProps {
   view: string;
   canEdit: boolean;
   canDelete: boolean;
+  canShare: boolean;
   onEdit: () => void;
   onDelete: () => void;
+  onShare: () => void;
 }
 
 function CollectionTopBar({
@@ -1161,8 +1186,10 @@ function CollectionTopBar({
   view,
   canEdit,
   canDelete,
+  canShare,
   onEdit,
   onDelete,
+  onShare,
 }: CollectionTopBarProps) {
   return (
     <PageTopBar>
@@ -1226,7 +1253,7 @@ function CollectionTopBar({
               </>
             )
           )}
-          {(canEdit || canDelete) && (
+          {(canEdit || canDelete || canShare) && (
             <DropdownMenu>
               <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
                 <EllipsisVerticalIcon className="size-4" />
@@ -1237,6 +1264,12 @@ function CollectionTopBar({
                   <DropdownMenuItem onClick={onEdit}>
                     <PencilIcon className="size-4" />
                     Edit collection
+                  </DropdownMenuItem>
+                )}
+                {canShare && (
+                  <DropdownMenuItem onClick={onShare}>
+                    <Share2Icon className="size-4" />
+                    Share collection
                   </DropdownMenuItem>
                 )}
                 {canDelete && (

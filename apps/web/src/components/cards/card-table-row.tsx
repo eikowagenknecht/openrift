@@ -292,7 +292,11 @@ export function CardTableRow({
         </div>
       ) : showOwned ? (
         <div className="px-3 text-right tabular-nums">
-          {ownedCount && ownedCount > 0 ? `×${ownedCount}` : ""}
+          {renderActions
+            ? renderActions(printing, ownedCount)
+            : ownedCount && ownedCount > 0
+              ? `×${ownedCount}`
+              : ""}
         </div>
       ) : null}
     </div>

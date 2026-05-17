@@ -76,6 +76,7 @@ import * as m127 from "./127-drop-printing-images-provider.js";
 import * as m128 from "./128-custom-tags.js";
 import * as m129 from "./129-custom-region-format.js";
 import * as m130 from "./130-custom-tag-categories.js";
+import * as m131 from "./131-collection-is-public.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -211,4 +212,5 @@ export const migrations: Record<string, Migration> = {
   "128-custom-tags": m128,
   "129-custom-region-format": m129,
   "130-custom-tag-categories": m130,
+  "131-collection-is-public": m131,
 };

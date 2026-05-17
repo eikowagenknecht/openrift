@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict y5J9LpvJDZqHrAztIPhqi7ZubgW1DaD3YBU2MWA7lKOz42kmIfx7HTmZ7zijyEW
+\restrict SuVom28DWcHy4oyKyUDYhF76Vids3Hluw13MwIwPqYRMoY9BIA2AoXRS21ywf5A
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -658,6 +658,7 @@ CREATE TABLE public.collections (
     share_token text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_public boolean DEFAULT false NOT NULL,
     CONSTRAINT chk_collections_name_not_empty CHECK ((name <> ''::text))
 );
 
@@ -3556,5 +3557,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict y5J9LpvJDZqHrAztIPhqi7ZubgW1DaD3YBU2MWA7lKOz42kmIfx7HTmZ7zijyEW
+\unrestrict SuVom28DWcHy4oyKyUDYhF76Vids3Hluw13MwIwPqYRMoY9BIA2AoXRS21ywf5A
 

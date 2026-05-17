@@ -3,6 +3,7 @@ import type { CollectionListResponse, CopyListResponse } from "@openrift/shared"
 import {
   collectionListResponseSchema,
   collectionResponseSchema,
+  collectionShareResponseSchema,
   copyListResponseSchema,
 } from "@openrift/shared/response-schemas";
 import {
@@ -22,6 +23,7 @@ import type { Variables } from "../../types.js";
 import { assertFound } from "../../utils/assertions.js";
 import { toCollection, toCopy } from "../../utils/mappers.js";
 import { getFavoriteMarketplace } from "../../utils/preferences.js";
+import { generateShareToken } from "../../utils/share-token.js";
 
 const patchFields: FieldMapping = {
   name: "name",
@@ -109,6 +111,29 @@ const getCollectionCopies = createRoute({
       content: { "application/json": { schema: copyListResponseSchema } },
       description: "Success",
     },
+  },
+});
+
+const shareCollection = createRoute({
+  method: "post",
+  path: "/{id}/share",
+  tags: ["Collections"],
+  request: { params: idParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: collectionShareResponseSchema } },
+      description: "Shared",
+    },
+  },
+});
+
+const unshareCollection = createRoute({
+  method: "delete",
+  path: "/{id}/share",
+  tags: ["Collections"],
+  request: { params: idParamSchema },
+  responses: {
+    204: { description: "No Content" },
   },
 });
 
@@ -222,4 +247,31 @@ export const collectionsRoute = collectionsApp
       items: items.map((row) => toCopy(row)),
       nextCursor: hasMore && lastItem ? buildCopiesCursor(lastItem.createdAt, lastItem.id) : null,
     } satisfies CopyListResponse);
+  })
+
+  // ── POST /collections/:id/share ───────────────────────────────────────────
+  // Generates (or rotates) the collection's share token and flips is_public=true.
+  .openapi(shareCollection, async (c) => {
+    const { collections } = c.get("repos");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+
+    const token = generateShareToken();
+    const updated = await collections.setShareToken(id, userId, token, true);
+    assertFound(updated, "Not found");
+
+    return c.json({ shareToken: token, isPublic: true });
+  })
+
+  // ── DELETE /collections/:id/share ─────────────────────────────────────────
+  // Nulls the share token and flips is_public=false. Old links 404 forever.
+  .openapi(unshareCollection, async (c) => {
+    const { collections } = c.get("repos");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+
+    const updated = await collections.setShareToken(id, userId, null, false);
+    assertFound(updated, "Not found");
+
+    return c.body(null, 204);
   });

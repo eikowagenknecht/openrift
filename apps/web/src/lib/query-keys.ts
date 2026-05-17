@@ -41,6 +41,7 @@ export const queryKeys = {
   },
   collections: {
     all: (userId: string) => ["collections", userId] as const,
+    publicByToken: (token: string) => ["collections", "share", token] as const,
   },
   preferences: {
     all: (userId: string) => ["preferences", userId] as const,

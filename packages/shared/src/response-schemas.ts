@@ -443,6 +443,7 @@ export const collectionResponseSchema = z
     availableForDeckbuilding: z.boolean(),
     isInbox: z.boolean(),
     sortOrder: z.number(),
+    isPublic: z.boolean(),
     shareToken: z.string().nullable(),
     copyCount: z.number(),
     totalValueCents: z.number().nullable(),
@@ -455,6 +456,26 @@ export const collectionResponseSchema = z
 export const collectionListResponseSchema = z
   .object({ items: z.array(collectionResponseSchema) })
   .openapi("CollectionListResponse");
+
+export const publicCollectionResponseSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    description: z.string().nullable(),
+    copyCount: z.number(),
+    totalValueCents: z.number().nullable(),
+    unpricedCopyCount: z.number().nullable(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  })
+  .openapi("PublicCollectionResponse");
+
+export const collectionShareResponseSchema = z
+  .object({
+    shareToken: z.string(),
+    isPublic: z.boolean(),
+  })
+  .openapi("CollectionShareResponse");
 
 // ── Copies ───────────────────────────────────────────────────────────────────
 
@@ -472,6 +493,15 @@ export const copyListResponseSchema = z
     nextCursor: z.string().nullable(),
   })
   .openapi("CopyListResponse");
+
+export const publicCollectionDetailResponseSchema = z
+  .object({
+    collection: publicCollectionResponseSchema,
+    copies: z.array(copyResponseSchema),
+    nextCursor: z.string().nullable(),
+    owner: z.object({ displayName: z.string() }),
+  })
+  .openapi("PublicCollectionDetailResponse");
 
 // ── Collection Events ────────────────────────────────────────────────────────
 

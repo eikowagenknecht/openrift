@@ -309,6 +309,7 @@ export interface CollectionsTable {
   availableForDeckbuilding: boolean;
   isInbox: boolean;
   sortOrder: number;
+  isPublic: Generated<boolean>;
   shareToken: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;

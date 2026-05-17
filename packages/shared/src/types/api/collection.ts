@@ -5,6 +5,7 @@ export interface CollectionResponse {
   availableForDeckbuilding: boolean;
   isInbox: boolean;
   sortOrder: number;
+  isPublic: boolean;
   shareToken: string | null;
   copyCount: number;
   totalValueCents: number | null;
@@ -15,6 +16,29 @@ export interface CollectionResponse {
 
 export interface CollectionListResponse {
   items: CollectionResponse[];
+}
+
+export interface PublicCollectionResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  copyCount: number;
+  totalValueCents: number | null;
+  unpricedCopyCount: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublicCollectionDetailResponse {
+  collection: PublicCollectionResponse;
+  copies: CopyResponse[];
+  nextCursor: string | null;
+  owner: { displayName: string };
+}
+
+export interface CollectionShareResponse {
+  shareToken: string;
+  isPublic: boolean;
 }
 
 export interface CopyListResponse {

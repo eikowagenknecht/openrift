@@ -40,9 +40,12 @@ export type {
 export type {
   CollectionListResponse,
   CollectionResponse,
+  CollectionShareResponse,
   CopyCollectionBreakdownEntry,
   CopyListResponse,
   CopyResponse,
+  PublicCollectionDetailResponse,
+  PublicCollectionResponse,
 } from "./collection.js";
 
 export type {

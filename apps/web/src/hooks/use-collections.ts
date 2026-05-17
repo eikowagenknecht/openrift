@@ -1,6 +1,10 @@
-import type { CollectionResponse } from "@openrift/shared";
+import type {
+  CollectionResponse,
+  CollectionShareResponse,
+  PublicCollectionDetailResponse,
+} from "@openrift/shared";
 import { useLiveQuery } from "@tanstack/react-db";
-import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId } from "@/lib/auth-session";
@@ -137,6 +141,119 @@ const deleteCollectionFn = createServerFn({ method: "POST" })
       method: "DELETE",
     });
   });
+
+// ── Collection sharing ──────────────────────────────────────────────────────
+
+const shareCollectionFn = createServerFn({ method: "POST" })
+  .inputValidator((input: string) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data: collectionId }): Promise<CollectionShareResponse> =>
+      fetchApiJson<CollectionShareResponse>({
+        errorTitle: "Couldn't share collection",
+        cookie: context.cookie,
+        path: `/api/v1/collections/${encodeURIComponent(collectionId)}/share`,
+        method: "POST",
+      }),
+  );
+
+export function useShareCollection() {
+  const userId = useRequiredUserId();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (collectionId: string) => shareCollectionFn({ data: collectionId }),
+    onSuccess: (data, collectionId) => {
+      queryClient.setQueryData<CollectionsResponse>(queryKeys.collections.all(userId), (old) =>
+        old
+          ? {
+              ...old,
+              items: old.items.map((col) =>
+                col.id === collectionId
+                  ? { ...col, isPublic: data.isPublic, shareToken: data.shareToken }
+                  : col,
+              ),
+            }
+          : old,
+      );
+    },
+  });
+}
+
+const unshareCollectionFn = createServerFn({ method: "POST" })
+  .inputValidator((input: string) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data: collectionId }) => {
+    await fetchApi({
+      errorTitle: "Couldn't unshare collection",
+      cookie: context.cookie,
+      path: `/api/v1/collections/${encodeURIComponent(collectionId)}/share`,
+      method: "DELETE",
+    });
+  });
+
+export function useUnshareCollection() {
+  const userId = useRequiredUserId();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (collectionId: string) => unshareCollectionFn({ data: collectionId }),
+    onSuccess: (_, collectionId) => {
+      queryClient.setQueryData<CollectionsResponse>(queryKeys.collections.all(userId), (old) =>
+        old
+          ? {
+              ...old,
+              items: old.items.map((col) =>
+                col.id === collectionId ? { ...col, isPublic: false, shareToken: null } : col,
+              ),
+            }
+          : old,
+      );
+    },
+  });
+}
+
+const fetchPublicCollectionFn = createServerFn({ method: "GET" })
+  .inputValidator((input: string) => input)
+  .handler(async ({ data: token }): Promise<PublicCollectionDetailResponse> => {
+    const basePath = `/api/v1/collections/share/${encodeURIComponent(token)}`;
+    // 404 is legitimate (unknown/expired token) — map to NOT_FOUND without logging.
+    const firstRes = await fetchApi({
+      errorTitle: "Couldn't load shared collection",
+      path: basePath,
+      acceptStatuses: [404],
+    });
+    if (firstRes.status === 404) {
+      throw new Error("NOT_FOUND");
+    }
+    const firstPage = (await firstRes.json()) as PublicCollectionDetailResponse;
+
+    // Walk the cursor server-side so the SSR payload carries every copy for
+    // collections larger than the API's per-page cap. Matches the authenticated
+    // `fetchCopies` pattern in copies-query.ts.
+    const allCopies = [...firstPage.copies];
+    let cursor = firstPage.nextCursor;
+    while (cursor) {
+      const nextRes = await fetchApi({
+        errorTitle: "Couldn't load shared collection",
+        path: `${basePath}?cursor=${encodeURIComponent(cursor)}`,
+      });
+      const page = (await nextRes.json()) as PublicCollectionDetailResponse;
+      allCopies.push(...page.copies);
+      cursor = page.nextCursor;
+    }
+
+    return { ...firstPage, copies: allCopies, nextCursor: null };
+  });
+
+export function publicCollectionQueryOptions(token: string) {
+  return queryOptions({
+    queryKey: queryKeys.collections.publicByToken(token),
+    queryFn: () => fetchPublicCollectionFn({ data: token }),
+  });
+}
+
+export function usePublicCollection(token: string) {
+  return useSuspenseQuery(publicCollectionQueryOptions(token));
+}
 
 export function useDeleteCollection() {
   const userId = useRequiredUserId();

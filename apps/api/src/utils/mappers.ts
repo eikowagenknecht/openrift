@@ -8,6 +8,7 @@ import type {
   DeckResponse,
   DeckSummaryResponse,
   Domain,
+  PublicCollectionResponse,
   PublicDeckCardResponse,
   PublicDeckResponse,
   SuperType,
@@ -42,7 +43,25 @@ export function toCollection(
     availableForDeckbuilding: row.availableForDeckbuilding,
     isInbox: row.isInbox,
     sortOrder: row.sortOrder,
+    isPublic: row.isPublic,
     shareToken: row.shareToken,
+    copyCount: row.copyCount ?? 0,
+    totalValueCents: value?.totalValueCents ?? null,
+    unpricedCopyCount: value?.unpricedCopyCount ?? null,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+/** @returns Public-facing collection fields — excludes shareToken, isPublic, isInbox, sortOrder, availableForDeckbuilding. */
+export function toPublicCollection(
+  row: Selectable<CollectionsTable> & { copyCount?: number },
+  value?: CollectionValue,
+): PublicCollectionResponse {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
     copyCount: row.copyCount ?? 0,
     totalValueCents: value?.totalValueCents ?? null,
     unpricedCopyCount: value?.unpricedCopyCount ?? null,

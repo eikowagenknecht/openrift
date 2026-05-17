@@ -18,6 +18,7 @@ const mockCollectionsRepo = {
   listCopiesInCollection: vi.fn(() => Promise.resolve([] as object[])),
   moveCopiesBetweenCollections: vi.fn(() => Promise.resolve()),
   deleteByIdForUser: vi.fn(() => Promise.resolve()),
+  setShareToken: vi.fn(() => Promise.resolve(undefined as object | undefined)),
 };
 
 const mockCopiesRepo = {
@@ -80,6 +81,7 @@ const dbCollection = {
   isInbox: false,
   availableForDeckbuilding: true,
   sortOrder: 0,
+  isPublic: false,
   shareToken: null,
   createdAt: now,
   updatedAt: now,
@@ -447,5 +449,90 @@ describe("PATCH /api/v1/collections/:id — field updates", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.description).toBe("Updated description");
+  });
+});
+
+describe("POST /api/v1/collections/:id/share", () => {
+  beforeEach(() => {
+    mockCollectionsRepo.setShareToken.mockReset();
+  });
+
+  it("returns 200 with a fresh share token and isPublic=true", async () => {
+    const shared = { ...dbCollection, isPublic: true, shareToken: "will-be-replaced" };
+    mockCollectionsRepo.setShareToken.mockResolvedValue(shared);
+    const res = await app.request(`/api/v1/collections/${dbCollection.id}/share`, {
+      method: "POST",
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.shareToken).toMatch(/^[A-Za-z0-9]{12}$/u);
+    expect(json.isPublic).toBe(true);
+    expect(mockCollectionsRepo.setShareToken).toHaveBeenCalledWith(
+      dbCollection.id,
+      USER_ID,
+      json.shareToken,
+      true,
+    );
+  });
+
+  it("returns 404 when the collection is not owned by the caller", async () => {
+    mockCollectionsRepo.setShareToken.mockResolvedValue(undefined);
+    const res = await app.request(`/api/v1/collections/${dbCollection.id}/share`, {
+      method: "POST",
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it("mints a different token each call (rotation on re-share)", async () => {
+    mockCollectionsRepo.setShareToken.mockResolvedValue({ ...dbCollection, isPublic: true });
+    const res1 = await app.request(`/api/v1/collections/${dbCollection.id}/share`, {
+      method: "POST",
+    });
+    const r1 = await res1.json();
+    const res2 = await app.request(`/api/v1/collections/${dbCollection.id}/share`, {
+      method: "POST",
+    });
+    const r2 = await res2.json();
+    expect(r1.shareToken).not.toBe(r2.shareToken);
+  });
+
+  it("can share an inbox collection (inbox is shareable like any other)", async () => {
+    mockCollectionsRepo.setShareToken.mockResolvedValue({ ...dbInbox, isPublic: true });
+    const res = await app.request(`/api/v1/collections/${dbInbox.id}/share`, {
+      method: "POST",
+    });
+    expect(res.status).toBe(200);
+  });
+});
+
+describe("DELETE /api/v1/collections/:id/share", () => {
+  beforeEach(() => {
+    mockCollectionsRepo.setShareToken.mockReset();
+  });
+
+  it("returns 204 and nulls the token + isPublic=false", async () => {
+    mockCollectionsRepo.setShareToken.mockResolvedValue({
+      ...dbCollection,
+      isPublic: false,
+      shareToken: null,
+    });
+    const res = await app.request(`/api/v1/collections/${dbCollection.id}/share`, {
+      method: "DELETE",
+    });
+    expect(res.status).toBe(204);
+    expect(mockCollectionsRepo.setShareToken).toHaveBeenCalledWith(
+      dbCollection.id,
+      USER_ID,
+      null,
+      false,
+    );
+  });
+
+  it("returns 404 when the collection is not owned by the caller", async () => {
+    mockCollectionsRepo.setShareToken.mockResolvedValue(undefined);
+    const res = await app.request(`/api/v1/collections/${dbCollection.id}/share`, {
+      method: "DELETE",
+    });
+    expect(res.status).toBe(404);
   });
 });
