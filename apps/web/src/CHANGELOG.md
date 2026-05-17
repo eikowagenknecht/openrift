@@ -9,6 +9,7 @@
 - fix: Dark mode looks a bit cleaner, with darker muted surfaces and the Auto/Light/Dark picker on the Profile page now matching the login tabs
 - fix: The dropdown arrow on a selected filter chip is now readable in dark mode, instead of fading into the chip's background
 - fix: Invalid deck zones no longer get a red border on top of the warning icon, which made the editor feel noisier than it needed to
+- fix: On a shared collection link, hovering a card now lets the fan-out animation spread past the column edge, matching how it looks on the main cards page
 
 ## 2026-05-16
 

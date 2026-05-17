@@ -95,7 +95,7 @@ function SharedCollectionPage() {
               </span>
             </PageTopBar>
           </div>
-          <div className="flex min-w-0 flex-1 flex-col overflow-x-clip px-3 pb-3">
+          <div className="flex min-w-0 flex-1 flex-col px-3 pb-3">
             {collection.description ? (
               <p className="text-muted-foreground py-3 text-sm">{collection.description}</p>
             ) : null}
