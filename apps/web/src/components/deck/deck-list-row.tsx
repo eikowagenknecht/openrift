@@ -6,10 +6,11 @@ import { ArchiveIcon, CheckIcon, CircleAlertIcon, PinIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDomainColors } from "@/hooks/use-domain-colors";
-import { useDeckFormatList } from "@/hooks/use-enums";
+import { useCustomTagList, useDeckFormatList } from "@/hooks/use-enums";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatterForMarketplace } from "@/lib/format";
+import { resolveFormatTagSummary } from "@/lib/format-tag-config";
 import { useDisplayStore } from "@/stores/display-store";
 
 import { DeckActionsMenu } from "./deck-actions-menu";
@@ -35,6 +36,7 @@ export function DeckListRow({ item }: { item: DeckListItemResponse }) {
   const { deck, legendCardId, championCardId, totalCards, isValid, totalValueCents } = item;
   const { getPreferredPrinting } = usePreferredPrinting();
   const { labels: formatLabels } = useDeckFormatList();
+  const { all: customTags } = useCustomTagList();
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
 
   const legendCard = legendCardId ? getPreferredPrinting(legendCardId)?.card : undefined;
@@ -44,7 +46,9 @@ export function DeckListRow({ item }: { item: DeckListItemResponse }) {
   const legendDomains = legendCard?.domains;
   const updatedDate = new Date(deck.updatedAt).toISOString().slice(0, 10);
 
-  const subtitle = [legendCard?.name, championCard?.name].filter(Boolean).join(" / ");
+  const tagSummary = resolveFormatTagSummary(deck.format, deck.formatConfig, customTags);
+  const identity = [legendCard?.name, championCard?.name].filter(Boolean).join(" / ");
+  const subtitle = [identity, tagSummary].filter(Boolean).join(" · ");
 
   const gradientStyle =
     legendDomains && legendDomains.length > 0

@@ -6,9 +6,11 @@ import { ArchiveIcon, CheckIcon, CircleAlertIcon, PinIcon, SwordsIcon } from "lu
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDomainColors } from "@/hooks/use-domain-colors";
+import { useCustomTagList, useDeckFormatList } from "@/hooks/use-enums";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatterForMarketplace } from "@/lib/format";
+import { resolveFormatTagSummary } from "@/lib/format-tag-config";
 import { useDisplayStore } from "@/stores/display-store";
 
 import { DeckActionsMenu } from "./deck-actions-menu";
@@ -130,6 +132,8 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
     totalValueCents,
   } = item;
   const { getPreferredPrinting, getPreferredFrontImage } = usePreferredPrinting();
+  const { labels: formatLabels } = useDeckFormatList();
+  const { all: customTags } = useCustomTagList();
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
 
   const legendCard = legendCardId ? getPreferredPrinting(legendCardId)?.card : undefined;
@@ -141,6 +145,9 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
   const legendDomains = legendCard?.domains;
   const createdDate = new Date(deck.createdAt).toISOString().slice(0, 10);
   const updatedDate = new Date(deck.updatedAt).toISOString().slice(0, 10);
+
+  const tagSummary = resolveFormatTagSummary(deck.format, deck.formatConfig, customTags);
+  const formatLabel = formatLabels[deck.format] ?? deck.format;
 
   const typeSummary = typeCounts
     .map(({ cardType, count }) => `${count} ${count === 1 ? cardType : `${cardType}s`}`)
@@ -184,9 +191,11 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
             )}
             <h3 className="truncate leading-tight font-semibold">{deck.name}</h3>
           </div>
-          {(legendCard || championCard) && (
+          {(legendCard || championCard || tagSummary) && (
             <p className="text-muted-foreground mt-0.5 truncate text-xs">
-              {[legendCard?.name, championCard?.name].filter(Boolean).join(" / ")}
+              {[[legendCard?.name, championCard?.name].filter(Boolean).join(" / "), tagSummary]
+                .filter(Boolean)
+                .join(" · ")}
             </p>
           )}
         </div>
@@ -203,7 +212,7 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
           </span>
           {deck.format === WellKnown.deckFormat.FREEFORM ? (
             <Badge variant="outline" className="text-xs">
-              Freeform
+              {formatLabel}
             </Badge>
           ) : isValid ? (
             <Badge
@@ -211,7 +220,7 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
               className="border-green-600/30 bg-green-600/10 text-xs text-green-700 dark:border-green-400/30 dark:bg-green-400/10 dark:text-green-400"
             >
               <CheckIcon className="size-3" />
-              Constructed
+              {formatLabel}
             </Badge>
           ) : (
             <Badge
@@ -219,7 +228,7 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
               className="border-amber-600/30 bg-amber-600/10 text-xs text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-400"
             >
               <CircleAlertIcon className="size-3" />
-              Constructed
+              {formatLabel}
             </Badge>
           )}
         </div>

@@ -1,3 +1,4 @@
+import type { CustomTag, DeckFormatConfig } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 
 /**
@@ -32,4 +33,29 @@ const FORMAT_TAG_CONFIGS: Record<string, FormatTagConfig> = {
  */
 export function getFormatTagConfig(format: string): FormatTagConfig | null {
   return FORMAT_TAG_CONFIGS[format] ?? null;
+}
+
+/**
+ * Builds the display string for a deck's tag-locked format selection. Picked
+ * tags that no longer resolve (admin-deleted slugs) are silently dropped —
+ * validation surfaces that breakage separately. Used by the deck-list row
+ * and tile so they don't have to duplicate the join/resolve logic.
+ *
+ * @returns "<label> + <label>" when tags are picked, "No <nounPlural> picked"
+ *   when nothing resolves, or null when the format isn't tag-locked.
+ */
+export function resolveFormatTagSummary(
+  format: string,
+  formatConfig: DeckFormatConfig | null,
+  customTags: CustomTag[],
+): string | null {
+  const config = getFormatTagConfig(format);
+  if (!config) {
+    return null;
+  }
+  const tagSlugs = formatConfig?.tagSlugs ?? [];
+  const labels = tagSlugs
+    .map((slug) => customTags.find((tag) => tag.slug === slug)?.label)
+    .filter((label): label is string => typeof label === "string");
+  return labels.length === 0 ? `No ${config.nounPlural} picked` : labels.join(" + ");
 }
