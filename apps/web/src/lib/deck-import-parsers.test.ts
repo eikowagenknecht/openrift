@@ -220,6 +220,20 @@ describe("parseDeckImportData — text format", () => {
     expect(entries[0].explicitZone).toBe("main");
   });
 
+  it("treats a bare line with no leading count as quantity 1", () => {
+    const input = "Iron Ballista\n3 Fury Rune\nBrazen Buccaneer";
+    const { entries, warnings } = parseDeckImportData(input, "text");
+
+    expect(warnings).toEqual([]);
+    expect(entries).toHaveLength(3);
+    expect(entries[0].quantity).toBe(1);
+    expect(entries[0].cardName).toBe("Iron Ballista");
+    expect(entries[1].quantity).toBe(3);
+    expect(entries[1].cardName).toBe("Fury Rune");
+    expect(entries[2].quantity).toBe(1);
+    expect(entries[2].cardName).toBe("Brazen Buccaneer");
+  });
+
   it("warns and clears the zone on unknown header so cards fall back to type inference", () => {
     // Reproduces the riftdecks.com bug: an unknown 'Rune Pool:' header used to
     // make the rune cards inherit the prior 'Battlefields:' zone silently.

@@ -170,16 +170,13 @@ function parseTextFormat(code: string): DeckParseResult {
       continue;
     }
 
-    // Parse card line: "{quantity} {card name}"
+    // Parse card line: "{quantity} {card name}". A bare line with no leading
+    // count is treated as quantity 1 so users can paste plain name lists
+    // without prefixing every row.
     const match = line.match(/^(\d+)\s+(.+)$/u);
-    if (!match) {
-      warnings.push(`Skipped unparseable line: ${line}`);
-      continue;
-    }
-
     const effectiveZone = currentZone ?? "main";
-    const quantity = Number(match[1]);
-    const cardName = match[2].trim();
+    const quantity = match ? Number(match[1]) : 1;
+    const cardName = match ? match[2].trim() : line;
     entries.push({
       cardName,
       quantity,

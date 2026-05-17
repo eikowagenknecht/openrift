@@ -2,6 +2,7 @@
 
 ## 2026-05-17
 
+- feat: The text deck importer now accepts plain card names too, so a list with no leading counts (one card per line) imports without having to prefix every row with a "1"
 - feat: Clicking a promo on the Promos page now opens its card detail in the side panel (matching the card browser), instead of opening a new tab
 - feat: Collections can now be shared with a public link, so anyone can browse, filter, and sort the cards and see the total value without signing in
 - feat: Trade lists can now be shared with a public link, so anyone with the link can see what you're offering for trade without signing in

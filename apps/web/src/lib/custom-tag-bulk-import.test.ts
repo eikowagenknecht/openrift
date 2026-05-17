@@ -68,10 +68,17 @@ describe("planCustomTagBulkImport", () => {
     ]);
   });
 
-  it("propagates parser warnings for unparseable lines", () => {
-    const plan = planCustomTagBulkImport("not a valid line\n1 Brazen Buccaneer", CARDS);
+  it("treats bare lines (no leading count) as quantity 1", () => {
+    const plan = planCustomTagBulkImport("Brazen Buccaneer\nRiptide Rex", CARDS);
+    expect(plan.cardIds).toEqual(["card-1", "card-2"]);
+    expect(plan.unmatched).toEqual([]);
+    expect(plan.warnings).toEqual([]);
+  });
+
+  it("propagates parser warnings for unknown zone headers", () => {
+    const plan = planCustomTagBulkImport("Mystery Zone:\n1 Brazen Buccaneer", CARDS);
     expect(plan.cardIds).toEqual(["card-1"]);
-    expect(plan.warnings.some((w) => w.includes("not a valid line"))).toBe(true);
+    expect(plan.warnings.some((w) => w.includes("Mystery Zone"))).toBe(true);
   });
 
   it("skips blank lines without warning", () => {

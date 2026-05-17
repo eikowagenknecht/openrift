@@ -576,7 +576,12 @@ function BulkImport({ tags }: { tags: CustomTagResponse[] }) {
 }
 
 function BulkImportPreview({ plan }: { plan: BulkImportPlan }) {
-  if (plan.matched.length === 0 && plan.unmatched.length === 0 && plan.ambiguous.length === 0) {
+  if (
+    plan.matched.length === 0 &&
+    plan.unmatched.length === 0 &&
+    plan.ambiguous.length === 0 &&
+    plan.warnings.length === 0
+  ) {
     return null;
   }
   return (
