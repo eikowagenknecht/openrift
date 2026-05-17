@@ -3,6 +3,16 @@ import type { Marketplace } from "../pricing.js";
 
 export type Theme = "light" | "dark" | "auto";
 
+/**
+ * Orthogonal to Theme: Theme picks the light/dark scheme, Palette picks the
+ * variable set inside it. Adding a palette = a `[data-palette="X"]` block plus
+ * a `.dark[data-palette="X"]` block in index.css, plus an entry here.
+ * @see PALETTES
+ */
+export type Palette = (typeof PALETTES)[number];
+
+export const PALETTES = ["default", "minimal"] as const;
+
 export type DefaultCardView = "cards" | "printings";
 
 /**
@@ -32,6 +42,7 @@ export interface UserPreferencesResponse {
   foilEffect?: boolean;
   cardTilt?: boolean;
   theme?: Theme;
+  palette?: Palette;
   marketplaceOrder?: Marketplace[];
   languages?: string[];
   completionScope?: CompletionScopePreference;
@@ -45,6 +56,7 @@ export interface ResolvedPreferences {
   foilEffect: boolean;
   cardTilt: boolean;
   theme: Theme;
+  palette: Palette;
   marketplaceOrder: Marketplace[];
   languages: string[];
   completionScope: CompletionScopePreference;
@@ -58,6 +70,7 @@ export const PREFERENCE_DEFAULTS: ResolvedPreferences = {
   foilEffect: false,
   cardTilt: true,
   theme: "auto",
+  palette: "default",
   marketplaceOrder: [...ALL_MARKETPLACES],
   languages: ["EN"],
   completionScope: {},

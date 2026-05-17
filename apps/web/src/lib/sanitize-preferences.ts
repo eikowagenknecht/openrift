@@ -1,10 +1,11 @@
-import type { CompletionScopePreference, Marketplace, Theme } from "@openrift/shared";
-import { ALL_MARKETPLACES } from "@openrift/shared";
+import type { CompletionScopePreference, Marketplace, Palette, Theme } from "@openrift/shared";
+import { ALL_MARKETPLACES, PALETTES } from "@openrift/shared";
 
 import type { DisplayOverrides } from "@/stores/display-store";
 
 const VALID_MARKETPLACES = new Set<string>(ALL_MARKETPLACES);
 const VALID_THEMES = new Set<string>(["light", "dark", "auto"]);
+const VALID_PALETTES = new Set<string>(PALETTES);
 const VALID_DEFAULT_CARD_VIEWS = new Set<string>(["cards", "printings"]);
 
 interface SanitizedOverrides {
@@ -105,6 +106,17 @@ export function sanitizeServerResponse(data: unknown): Partial<DisplayOverrides>
 export function sanitizeTheme(value: unknown): Theme | null {
   if (typeof value === "string" && VALID_THEMES.has(value)) {
     return value as Theme;
+  }
+  return null;
+}
+
+/**
+ * Sanitizes a palette value from server or persisted data.
+ * @returns The palette preference, or null for default.
+ */
+export function sanitizePalette(value: unknown): Palette | null {
+  if (typeof value === "string" && VALID_PALETTES.has(value)) {
+    return value as Palette;
   }
   return null;
 }

@@ -1,4 +1,6 @@
 import interLatinWoff2 from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
+import type { Palette } from "@openrift/shared";
+import { PALETTES } from "@openrift/shared";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import { pacerDevtoolsPlugin } from "@tanstack/react-pacer-devtools";
 import type { QueryClient } from "@tanstack/react-query";
@@ -54,6 +56,26 @@ const getServerTheme = createServerFn({ method: "GET" }).handler((): "light" | "
     return "light";
   } catch {
     return "light";
+  }
+});
+
+// Server function that reads the palette cookie. The cookie may not exist
+// (first-time visitors) — default to PREFERENCE_DEFAULTS.palette. Unknown
+// values are clamped so untrusted cookie content never reaches the DOM.
+const getServerPalette = createServerFn({ method: "GET" }).handler((): Palette => {
+  const raw = getCookie("palette");
+  if (!raw) {
+    return "default";
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    const preference: unknown = parsed?.state?.preference;
+    if (typeof preference === "string" && (PALETTES as readonly string[]).includes(preference)) {
+      return preference as Palette;
+    }
+    return "default";
+  } catch {
+    return "default";
   }
 });
 
@@ -153,8 +175,9 @@ export const Route = createRootRouteWithContext<{
         throw redirect({ to: "/cards" });
       }
     }
-    const [resolvedTheme, sentryDsn] = await Promise.all([
+    const [resolvedTheme, resolvedPalette, sentryDsn] = await Promise.all([
       getServerTheme(),
+      getServerPalette(),
       getServerSentryDsn(),
       (async () => {
         try {
@@ -173,7 +196,7 @@ export const Route = createRootRouteWithContext<{
         }
       })(),
     ]);
-    return { resolvedTheme, sentryDsn };
+    return { resolvedTheme, resolvedPalette, sentryDsn };
   },
   component: RootComponent,
   notFoundComponent: RouteNotFoundFallback,
@@ -181,7 +204,7 @@ export const Route = createRootRouteWithContext<{
 });
 
 function RootDocument({ children }: { children: React.ReactNode }) {
-  const { resolvedTheme, sentryDsn } = Route.useRouteContext();
+  const { resolvedTheme, resolvedPalette, sentryDsn } = Route.useRouteContext();
   const { data: siteSettings } = useSuspenseQuery(siteSettingsQueryOptions);
   const umamiOrigin = safeOrigin(siteSettings["umami-url"]);
 
@@ -189,7 +212,12 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     // suppressHydrationWarning: the blocking script below may adjust the class
     // for "auto" theme users whose OS prefers dark mode. The server defaults
     // "auto" to "light" since it can't check matchMedia.
-    <html lang="en" className={resolvedTheme === "dark" ? "dark" : ""} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={resolvedTheme === "dark" ? "dark" : ""}
+      data-palette={resolvedPalette}
+      suppressHydrationWarning
+    >
       <head>
         {/* No crossOrigin: Umami's script.js loads as a non-CORS <script>. */}
         {umamiOrigin && <link rel="preconnect" href={umamiOrigin} />}

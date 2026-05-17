@@ -63,6 +63,7 @@ import { cn, CONTAINER_WIDTH } from "@/lib/utils";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
+import { usePaletteStore } from "@/stores/palette-store";
 import { useThemeStore } from "@/stores/theme-store";
 
 function LogoLink({ className }: { className?: string }) {
@@ -234,6 +235,7 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
     await signOut();
     useDisplayStore.getState().reset();
     useThemeStore.getState().reset();
+    usePaletteStore.getState().reset();
     useAddModeStore.getState().reset();
     useDeckBuilderUiStore.getState().reset();
     // Navigate first so authenticated routes start unmounting, then

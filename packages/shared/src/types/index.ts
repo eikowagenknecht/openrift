@@ -122,11 +122,12 @@ export type {
   UnmatchedCardDetailResponse,
   CompletionScopePreference,
   DefaultCardView,
+  Palette,
   ResolvedPreferences,
   Theme,
   UserPreferencesResponse,
 } from "./api/index.js";
-export { PREFERENCE_DEFAULTS } from "./api/index.js";
+export { PALETTES, PREFERENCE_DEFAULTS } from "./api/index.js";
 
 export type {
   RuleChangesResponse,

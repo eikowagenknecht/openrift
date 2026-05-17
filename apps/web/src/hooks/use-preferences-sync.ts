@@ -6,10 +6,11 @@ import { useEffect, useRef } from "react";
 
 import { useUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
-import { sanitizeServerResponse, sanitizeTheme } from "@/lib/sanitize-preferences";
+import { sanitizePalette, sanitizeServerResponse, sanitizeTheme } from "@/lib/sanitize-preferences";
 import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useDisplayStore } from "@/stores/display-store";
+import { usePaletteStore } from "@/stores/palette-store";
 import { useThemeStore } from "@/stores/theme-store";
 
 const fetchPreferencesFn = createServerFn({ method: "GET" })
@@ -41,9 +42,13 @@ const patchPreferencesFn = createServerFn({ method: "POST" })
  * Null overrides are sent as `null` to tell the API to remove the key.
  * @returns Snapshot of preferences to persist server-side.
  */
-function getPrefsSnapshot(): UserPreferencesResponse & { theme?: string | null } {
+function getPrefsSnapshot(): UserPreferencesResponse & {
+  theme?: string | null;
+  palette?: string | null;
+} {
   const { overrides } = useDisplayStore.getState();
-  const { preference } = useThemeStore.getState();
+  const { preference: themePreference } = useThemeStore.getState();
+  const { preference: palettePreference } = usePaletteStore.getState();
 
   // Send all overrides — null tells the API to remove the key (reset to default).
   return {
@@ -55,7 +60,8 @@ function getPrefsSnapshot(): UserPreferencesResponse & { theme?: string | null }
     languages: overrides.languages,
     completionScope: overrides.completionScope,
     defaultCardView: overrides.defaultCardView,
-    theme: preference,
+    theme: themePreference,
+    palette: palettePreference,
   } as UserPreferencesResponse;
 }
 
@@ -117,6 +123,9 @@ export function usePreferencesSync(enabled: boolean) {
     const theme = sanitizeTheme((data as Record<string, unknown>).theme);
     useThemeStore.getState().setTheme(theme);
 
+    const palette = sanitizePalette((data as Record<string, unknown>).palette);
+    usePaletteStore.getState().setPalette(palette);
+
     requestAnimationFrame(() => {
       hydrating.current = false;
     });
@@ -140,10 +149,12 @@ export function usePreferencesSync(enabled: boolean) {
 
     const unsubDisplay = useDisplayStore.subscribe(onStoreChange);
     const unsubTheme = useThemeStore.subscribe(onStoreChange);
+    const unsubPalette = usePaletteStore.subscribe(onStoreChange);
 
     return () => {
       unsubDisplay();
       unsubTheme();
+      unsubPalette();
     };
   }, [debouncedSave]);
 }

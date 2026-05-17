@@ -3,11 +3,12 @@ export type { ApiErrorResponse } from "./error.js";
 export type {
   CompletionScopePreference,
   DefaultCardView,
+  Palette,
   ResolvedPreferences,
   Theme,
   UserPreferencesResponse,
 } from "./preferences.js";
-export { PREFERENCE_DEFAULTS } from "./preferences.js";
+export { PALETTES, PREFERENCE_DEFAULTS } from "./preferences.js";
 
 export type { InitResponse } from "./init.js";
 

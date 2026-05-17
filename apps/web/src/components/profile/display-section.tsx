@@ -1,5 +1,5 @@
 import { Radio } from "@base-ui/react/radio";
-import type { DefaultCardView, Theme } from "@openrift/shared";
+import type { DefaultCardView, Palette, Theme } from "@openrift/shared";
 import { RotateCcwIcon } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
+import { usePaletteStore } from "@/stores/palette-store";
 import { useThemeStore } from "@/stores/theme-store";
 
 export function DisplaySection() {
@@ -26,6 +27,8 @@ export function DisplaySection() {
   const resetPreference = useDisplayStore((s) => s.resetPreference);
   const themePreference = useThemeStore((s) => s.preference);
   const setTheme = useThemeStore((s) => s.setTheme);
+  const palettePreference = usePaletteStore((s) => s.preference);
+  const setPalette = usePaletteStore((s) => s.setPalette);
 
   return (
     <Card>
@@ -43,6 +46,18 @@ export function DisplaySection() {
             )}
           </div>
         </div>
+
+        {PALETTE_OPTIONS.length > 1 && (
+          <div className="flex items-center justify-between gap-4">
+            <Label>Palette</Label>
+            <div className="flex items-center gap-1.5">
+              <PalettePicker value={palettePreference} onChange={setPalette} />
+              {palettePreference !== null && (
+                <ResetButton onClick={() => setPalette(null)} label="Reset palette" />
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center justify-between gap-4">
           <Label>Default card view</Label>
@@ -163,6 +178,29 @@ function ThemePicker({
       value={value ?? "auto"}
       onValueChange={(next) => onChange(next === "auto" ? null : (next as Theme))}
       options={THEME_OPTIONS}
+    />
+  );
+}
+
+// Palette is hidden from the UI until a second option ships. Adding an entry
+// here automatically reveals the picker in DisplaySection.
+const PALETTE_OPTIONS: { value: Palette; label: string }[] = [
+  { value: "default", label: "Default" },
+  { value: "minimal", label: "Minimal" },
+];
+
+function PalettePicker({
+  value,
+  onChange,
+}: {
+  value: Palette | null;
+  onChange: (value: Palette | null) => void;
+}) {
+  return (
+    <SegmentedRadio
+      value={value ?? "default"}
+      onValueChange={(next) => onChange(next === "default" ? null : (next as Palette))}
+      options={PALETTE_OPTIONS}
     />
   );
 }

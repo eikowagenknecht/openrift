@@ -203,6 +203,8 @@ const marketplaceEnum = z.enum(["tcgplayer", "cardmarket", "cardtrader"]);
 
 const themeEnum = z.enum(["light", "dark", "auto"]);
 
+const paletteEnum = z.enum(["default", "minimal"]);
+
 const defaultCardViewEnum = z.enum(["cards", "printings"]);
 
 export const updatePreferencesSchema = z.object({
@@ -211,6 +213,7 @@ export const updatePreferencesSchema = z.object({
   foilEffect: z.boolean().nullable().optional(),
   cardTilt: z.boolean().nullable().optional(),
   theme: themeEnum.nullable().optional(),
+  palette: paletteEnum.nullable().optional(),
   marketplaceOrder: z
     .array(marketplaceEnum)
     .max(3)
