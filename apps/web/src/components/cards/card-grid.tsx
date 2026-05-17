@@ -239,14 +239,14 @@ const HeaderRow = memo(function HeaderRow({
 }) {
   return (
     <div className="flex items-center gap-3 pt-4 pb-2">
-      <div className="bg-border h-px flex-1" />
+      <div className="bg-border-accent h-px flex-1" />
       <GroupHeaderLabel
         slug={row.group.slug}
         name={row.group.name}
         groupId={row.group.id}
         onSelect={onScrollToGroup}
       />
-      <div className="bg-border h-px flex-1" />
+      <div className="bg-border-accent h-px flex-1" />
     </div>
   );
 });

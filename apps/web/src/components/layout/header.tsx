@@ -528,7 +528,7 @@ export function Header() {
   const showDecks = Boolean(session?.user);
 
   return (
-    <header className="bg-background/80 sticky top-0 z-50 border-b backdrop-blur-lg">
+    <header className="bg-background/80 border-border-accent sticky top-0 z-50 border-b backdrop-blur-lg">
       <div
         className={`${CONTAINER_WIDTH} grid h-14 grid-cols-[1fr_auto_1fr] items-center px-3 md:grid-cols-[1fr_auto]`}
       >
