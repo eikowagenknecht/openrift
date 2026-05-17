@@ -6,7 +6,7 @@ import { CardIcon } from "@/components/card-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
-import { useEnumOrders } from "@/hooks/use-enums";
+import { useCustomTagList, useEnumOrders } from "@/hooks/use-enums";
 import { buildChannelBreadcrumbsBySlug } from "@/lib/channel-breadcrumbs";
 import { formatDomainFilterLabel } from "@/lib/domain";
 import { formatPriceIntegerForMarketplace } from "@/lib/format";
@@ -37,6 +37,7 @@ export function ActiveFilters({
   hiddenSections,
 }: ActiveFiltersProps) {
   const { labels } = useEnumOrders();
+  const { all: allCustomTags } = useCustomTagList();
   const { filterState, ranges } = useFilterValues();
   const {
     toggleArrayFilter,
@@ -74,12 +75,32 @@ export function ActiveFilters({
     | "finishes"
     | "markers"
     | "channels"
+    | "customTags"
     | "owned";
 
   const markerLabel = (slug: string) =>
     availableFilters.markers.find((m) => m.slug === slug)?.label ?? slug;
   const channelBreadcrumbs = buildChannelBreadcrumbsBySlug(availableFilters.distributionChannels);
   const channelLabel = (slug: string) => channelBreadcrumbs.get(slug) ?? slug;
+
+  // Group selected custom tags by their category so each renders with the
+  // category label (matching the per-category dropdowns in the filter panel).
+  // Unknown slugs (e.g. a tag deleted after being saved into a deck URL)
+  // fall into an "Other" bucket so the user can still remove them.
+  const customTagBySlug = new Map(allCustomTags.map((tag) => [tag.slug, tag]));
+  const customTagGroups: { categorySlug: string; categoryLabel: string; values: string[] }[] = [];
+  for (const slug of filterState.customTags) {
+    const tag = customTagBySlug.get(slug);
+    const categorySlug = tag?.category ?? "__unknown";
+    const categoryLabel = tag?.categoryLabel ?? "Tag";
+    const existing = customTagGroups.find((g) => g.categorySlug === categorySlug);
+    if (existing) {
+      existing.values.push(slug);
+    } else {
+      customTagGroups.push({ categorySlug, categoryLabel, values: [slug] });
+    }
+  }
+  const customTagsHidden = hiddenSections?.has("customTags") ?? false;
 
   const filterGroups: {
     key: FilterKey;
@@ -156,6 +177,7 @@ export function ActiveFilters({
   const hasVisibleContent =
     filterState.search !== "" ||
     filterGroups.length > 0 ||
+    (!customTagsHidden && customTagGroups.length > 0) ||
     rangeBadgeSections.some(({ key }) => ranges[key].min !== null || ranges[key].max !== null) ||
     filterState.signed !== null ||
     filterState.promo !== null ||
@@ -213,6 +235,30 @@ export function ActiveFilters({
             })}
           </div>
         ))}
+        {!customTagsHidden &&
+          customTagGroups.map(({ categorySlug, categoryLabel, values }) => (
+            <div
+              key={`customTags-${categorySlug}`}
+              className="flex min-w-0 flex-wrap items-center gap-1"
+            >
+              <span className="text-muted-foreground text-xs">{categoryLabel}:</span>
+              {values.map((slug) => {
+                const tag = customTagBySlug.get(slug);
+                return (
+                  <Badge key={`customTags-${slug}`} variant="secondary" className="gap-1">
+                    {tag?.label ?? slug}
+                    <button
+                      type="button"
+                      onClick={() => toggleArrayFilter("customTags", slug)}
+                      className="hover:text-foreground ml-0.5"
+                    >
+                      <XIcon className="size-3" />
+                    </button>
+                  </Badge>
+                );
+              })}
+            </div>
+          ))}
         {rangeBadgeSections.map(({ key, label, formatValue }) => {
           const range = ranges[key];
           if (range.min === null && range.max === null) {

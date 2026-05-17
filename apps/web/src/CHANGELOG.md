@@ -4,6 +4,7 @@
 
 - feat: The deck list now shows each custom-format deck's picked tags (e.g. "Bandle City + Neutral") next to its legend/champion, and labels the format badge with the real format name, so a Custom - Region deck no longer looks identical to a Constructed one
 - feat: The Owned filter is now a multi-select with four buckets (None, Partial Playset, Full Playset, and More than Full), so you can combine them, for example to see only cards where you're missing copies, or only cards where you've gone past a playset
+- fix: Picked custom tags now show up in the deck builder's active filters bar (grouped by their category), so a tag added from the filter panel can be cleared from there like every other filter
 - fix: Dark mode looks a bit cleaner, with darker muted surfaces and the Auto/Light/Dark picker on the Profile page now matching the login tabs
 - fix: The dropdown arrow on a selected filter chip is now readable in dark mode, instead of fading into the chip's background
 - fix: Invalid deck zones no longer get a red border on top of the warning icon, which made the editor feel noisier than it needed to
