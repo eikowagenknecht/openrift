@@ -30,7 +30,7 @@ export function AuthFormCard({
           </div>
           <div className="bg-muted relative hidden md:block">
             <img
-              src="/logo-gray.svg"
+              src="/logo-color.svg"
               alt="OpenRift"
               className="absolute inset-0 m-auto size-48 object-contain"
             />
