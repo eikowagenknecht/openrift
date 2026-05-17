@@ -6,7 +6,6 @@ import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import { useEnumOrders } from "@/hooks/use-enums";
-import { useOwnedCountFor, useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
 import { groupItemsByChannel } from "@/lib/group-by-channel";
 import { groupItemsByMarker } from "@/lib/group-by-marker";
 import { groupItemsByYear } from "@/lib/group-by-year";
@@ -15,6 +14,7 @@ import { useWindowVirtualizerFresh } from "@/lib/virtualizer-fresh";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 
 import type { GroupInfo, VRow } from "./card-grid-types";
+import type { ActionsColumn } from "./card-table-row";
 import {
   CARD_TABLE_HEADER_HEIGHT,
   CARD_TABLE_ROW_HEIGHT,
@@ -157,104 +157,50 @@ function buildVirtualRows(groups: CardGroup[]): VRow[] {
   return rows;
 }
 
-// Each row reads its own count via a printingId-scoped live query so
-// add/remove only re-renders the affected row. Action handlers are read
-// from the registry via getState() at click time — no React subscription,
-// no re-render trigger when the parent re-registers.
-//
-// `renderActions` is a deliberate exception: it captures parent state
-// (e.g. shift-held / per-card deck quantities in the deck builder) and
-// must update with the parent. Threading it as a prop bails the memo on
-// every parent render — acceptable because the heavy per-row work
-// (useOwnedCountFor) is hook-driven and unaffected by identity churn.
+// Data subscriptions (live owned-count, per-cell) live inside the actions
+// component the surface passes through `renderActions` — see
+// CatalogTableActions / CollectionTableActions / StaticCountTableActions.
+// DataRow is a presentation wrapper that only owns the click dispatch and
+// the renderActions handoff; `renderActions` identity changes with each
+// parent render (it closes over parent state) but the memoized children
+// inside the actions component are cached by React Compiler, so the
+// re-render cost stays per-row-local.
 const DataRow = memo(function DataRow({
   printing,
   isSelected,
-  showOwned,
-  showAddControls,
+  actionsColumn,
   columns,
   cardTypeLabels,
   superTypeLabels,
   rarityLabels,
   setNameBySlug,
   renderActions,
-  siblingIdsKey,
-  collectionId,
-  inAddMode,
 }: {
   printing: Printing;
   isSelected: boolean;
-  showOwned: boolean;
-  showAddControls: boolean;
+  actionsColumn: ActionsColumn;
   columns: string;
   cardTypeLabels: Record<string, string>;
   superTypeLabels: Record<string, string>;
   rarityLabels: Record<string, string>;
   setNameBySlug: Map<string, string>;
-  renderActions?: (printing: Printing, ownedCount: number | undefined) => ReactNode;
-  /** Comma-joined sibling printing IDs (cards view). When set, the row computes an aggregate across siblings to mirror the grid's `×N (M)` strip. */
-  siblingIdsKey?: string;
-  /** When set, the primary owned count is restricted to this collection; the global total surfaces as `(M)` when it differs. */
-  collectionId?: string;
-  /** True when the page is in add mode. Keeps the grid's per-printing + variant-aggregate display rather than widening to cross-collection. */
-  inAddMode: boolean;
+  renderActions?: (printing: Printing) => ReactNode;
 }) {
-  const enabled = showOwned || showAddControls;
-  const hasSiblings = siblingIdsKey !== undefined;
-  // Two hooks instead of branching — calling rules require unconditional hook order.
-  // The disabled one short-circuits inside the hook (returns undefined data).
-  const { data: single } = useOwnedCountFor(printing.id, enabled && !hasSiblings, collectionId);
-  const siblingIds = hasSiblings ? siblingIdsKey.split(",") : EMPTY_SIBLING_IDS;
-  const { data: siblingCounts } = useOwnedCountsForPrintings(
-    siblingIds,
-    enabled && hasSiblings,
-    collectionId,
-  );
-  // Add mode keeps its existing "primary = this variant, (M) = sibling
-  // aggregate in scope" pattern (matches the grid's CollectionAddStrip on
-  // both pages). Browse/select on a collection page widens the scope axis
-  // instead: primary = in-collection (card-aggregate in cards view), `(M)` =
-  // the same number across every collection.
-  let ownedCount: number | undefined;
-  let totalOwnedCount: number | undefined;
-  if (hasSiblings) {
-    if (inAddMode) {
-      ownedCount = siblingCounts?.totals[printing.id];
-      totalOwnedCount = siblingCounts?.total;
-    } else {
-      ownedCount = siblingCounts?.total;
-      totalOwnedCount = siblingCounts?.allTotal;
-    }
-  } else {
-    ownedCount = single?.count;
-    totalOwnedCount = !inAddMode && collectionId !== undefined ? single?.totalCount : undefined;
-  }
   return (
     <CardTableRow
       printing={printing}
-      ownedCount={ownedCount}
-      totalOwnedCount={totalOwnedCount}
       isSelected={isSelected}
-      showOwned={showOwned}
-      showAddControls={showAddControls}
+      actionsColumn={actionsColumn}
       columns={columns}
       cardTypeLabels={cardTypeLabels}
       superTypeLabels={superTypeLabels}
       rarityLabels={rarityLabels}
       setNameBySlug={setNameBySlug}
       onRowClick={(p) => useCardRowActionsStore.getState().handlers.onRowClick?.(p)}
-      onIncrement={(p, modifiers) =>
-        useCardRowActionsStore.getState().handlers.onIncrement?.(p, modifiers)
-      }
-      onDecrement={(p, anchor, modifiers) =>
-        useCardRowActionsStore.getState().handlers.onDecrement?.(p, anchor, modifiers)
-      }
       renderActions={renderActions}
     />
   );
 });
-
-const EMPTY_SIBLING_IDS: readonly string[] = [];
 
 interface CardTableProps {
   items: CardViewerItem[];
@@ -265,20 +211,12 @@ interface CardTableProps {
   selectedItemId?: string;
   /** Window-scroll offset for sticky elements above the table (header + toolbar). */
   stickyOffset?: number;
-  showOwned: boolean;
-  showAddControls: boolean;
-  /** Optional renderer for the actions cell; replaces the default +/- buttons. */
-  renderActions?: (printing: Printing, ownedCount: number | undefined) => ReactNode;
+  /** Width + presence of the rightmost actions column. See {@link ActionsColumn}. */
+  actionsColumn: ActionsColumn;
+  /** Renders the contents of the actions cell for each row. */
+  renderActions?: (printing: Printing) => ReactNode;
   /** Label for the rightmost column header. Defaults to "Owned". */
   actionsLabel?: string;
-  /** Cards-vs-printings view. Cards view enables the variant-aggregate count in add mode. */
-  view?: "cards" | "printings";
-  /** Lookup of all sibling printings per cardId. Used in add mode + cards view to render `N (M)` like the grid. */
-  printingsByCardId?: Map<string, Printing[]>;
-  /** When set, the owned count column reports copies in this collection; the global total surfaces as `(M)` when it differs. */
-  collectionId?: string;
-  /** True when the page is in add mode. Defaults to `showAddControls`. Threaded separately because on `/collections` browse mode also renders the +/- buttons. */
-  inAddMode?: boolean;
 }
 
 let cachedScrollMargin = 0;
@@ -287,7 +225,9 @@ let cachedScrollMargin = 0;
  * Virtualized table view for the card browser. Mirrors CardGrid's grouping +
  * window-scroll virtualization but renders rows instead of grid cells. Each
  * row hovers a full-size preview via HoverCard, and the rightmost column
- * surfaces owned counts plus +/- buttons in add mode.
+ * surfaces whatever {@link CardTableProps.renderActions} returns — typically
+ * a CatalogTableActions / CollectionTableActions / DeckTableActions /
+ * StaticCountTableActions cell.
  *
  * @returns The rendered virtualized table.
  */
@@ -299,23 +239,10 @@ export function CardTable({
   groupDir = "asc",
   selectedItemId,
   stickyOffset = getHeaderHeight(),
-  showOwned,
-  showAddControls,
+  actionsColumn,
   renderActions,
   actionsLabel,
-  view,
-  printingsByCardId,
-  collectionId,
-  inAddMode = showAddControls,
 }: CardTableProps) {
-  // Enabled when the row needs a card-aggregate count rather than a per-printing
-  // one: add mode on /cards (catalog matches the grid's `N (M)` strip), and any
-  // mode on a collection page in cards view (so the in-collection count mirrors
-  // the grid's per-card aggregate instead of leaking the displayed printing only).
-  const useSiblingTotals =
-    view === "cards" &&
-    printingsByCardId !== undefined &&
-    (showAddControls || collectionId !== undefined);
   const { orders, labels } = useEnumOrders();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -403,7 +330,7 @@ export function CardTable({
     }
   };
 
-  const columns = getCardTableColumns(showOwned, showAddControls);
+  const columns = getCardTableColumns(actionsColumn);
 
   if (items.length === 0) {
     return (
@@ -438,8 +365,7 @@ export function CardTable({
     <div ref={containerRef}>
       <CardTableHeader
         columns={columns}
-        showOwned={showOwned}
-        showAddControls={showAddControls}
+        actionsColumn={actionsColumn}
         sticky
         stickyOffset={stickyOffset}
         bordered={!multipleGroups}
@@ -474,35 +400,20 @@ export function CardTable({
                   />
                 ) : null
               ) : (
-                row.items.map((item) => {
-                  // Pass a string key (not the array) so the memoized DataRow's shallow-prop
-                  // comparison stays stable across renders that produce a fresh sibling array
-                  // with identical IDs.
-                  const siblingIdsKey =
-                    useSiblingTotals && printingsByCardId
-                      ? (printingsByCardId.get(item.printing.cardId) ?? [])
-                          .map((sibling) => sibling.id)
-                          .join(",")
-                      : undefined;
-                  return (
-                    <DataRow
-                      key={item.id}
-                      printing={item.printing}
-                      isSelected={item.id === selectedItemId || item.printing.id === selectedItemId}
-                      showOwned={showOwned}
-                      showAddControls={showAddControls}
-                      columns={columns}
-                      cardTypeLabels={labels.cardTypes}
-                      superTypeLabels={labels.superTypes}
-                      rarityLabels={labels.rarities}
-                      setNameBySlug={setNameBySlug}
-                      renderActions={renderActions}
-                      siblingIdsKey={siblingIdsKey}
-                      collectionId={collectionId}
-                      inAddMode={inAddMode}
-                    />
-                  );
-                })
+                row.items.map((item) => (
+                  <DataRow
+                    key={item.id}
+                    printing={item.printing}
+                    isSelected={item.id === selectedItemId || item.printing.id === selectedItemId}
+                    actionsColumn={actionsColumn}
+                    columns={columns}
+                    cardTypeLabels={labels.cardTypes}
+                    superTypeLabels={labels.superTypes}
+                    rarityLabels={labels.rarities}
+                    setNameBySlug={setNameBySlug}
+                    renderActions={renderActions}
+                  />
+                ))
               )}
             </div>
           );

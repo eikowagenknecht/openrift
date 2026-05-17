@@ -15,6 +15,7 @@ import {
 } from "@/components/cards/card-browser-filter-scaffold";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
+import { CatalogTableActions } from "@/components/cards/catalog-table-actions";
 import { DisposePickerPopover } from "@/components/collection/dispose-picker-popover";
 import { QuickAddPalette } from "@/components/collection/quick-add-palette";
 import { VariantAddPopover } from "@/components/collection/variant-add-popover";
@@ -358,10 +359,20 @@ export function CardBrowser() {
         rightPane={rightPane}
         addStripHeight={showStrip ? ADD_STRIP_HEIGHT : undefined}
         table={{
-          showOwned: showStrip,
-          showAddControls: isAddMode,
-          view,
-          printingsByCardId,
+          actionsColumn: showStrip ? (isAddMode ? "wide" : "narrow") : "none",
+          renderActions: showStrip
+            ? (printing) => (
+                <CatalogTableActions
+                  printing={printing}
+                  isAddMode={isAddMode}
+                  siblingIds={
+                    isAddMode && view === "cards"
+                      ? printingsByCardId.get(printing.cardId)?.map((sibling) => sibling.id)
+                      : undefined
+                  }
+                />
+              )
+            : undefined,
         }}
       >
         {isMobile && (

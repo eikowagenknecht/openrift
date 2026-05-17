@@ -29,6 +29,7 @@ import {
 import { CardCell } from "@/components/cards/card-cell";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
+import { CollectionTableActions } from "@/components/cards/collection-table-actions";
 import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
 import { CollectionAddStrip } from "@/components/collection/collection-add-strip";
 import { FloatingActionBar } from "@/components/collection/floating-action-bar";
@@ -949,21 +950,24 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         rightPane={rightPane}
         addStripHeight={ADD_STRIP_HEIGHT}
         table={{
-          showOwned: true,
-          showAddControls: mode !== "select" && Boolean(handleQuickAdd),
-          view: dataView,
-          // The catalog map carries every sibling variant (owned or not). On a
-          // collection page in cards view the table sums across siblings so the
-          // "owned" column matches the grid's per-card aggregate.
-          printingsByCardId: catalogPrintingsByCardId,
-          // Scope owned counts to this collection; the global total appears as
-          // `(M)` next to the in-collection count when the two differ.
-          collectionId,
-          // showAddControls is also true in browse mode here (the +/- buttons
-          // stay visible); pass mode explicitly so the count derivation can
-          // distinguish "show variant aggregate" (add mode) from "show global
-          // across collections" (browse/select).
-          inAddMode: isAddMode,
+          // Browse + add show the +/- buttons (mode !== "select" path);
+          // select mode drops them and shows a read-only count.
+          actionsColumn: mode !== "select" && Boolean(handleQuickAdd) ? "wide" : "narrow",
+          renderActions: (printing) => (
+            <CollectionTableActions
+              printing={printing}
+              collectionId={collectionId}
+              isAddMode={isAddMode}
+              siblingIds={
+                // The catalog map carries every sibling variant (owned or not).
+                // In cards view the table sums across siblings so the count
+                // matches the grid's per-card aggregate.
+                dataView === "cards"
+                  ? catalogPrintingsByCardId.get(printing.cardId)?.map((sibling) => sibling.id)
+                  : undefined
+              }
+            />
+          ),
         }}
       >
         {/* Floating action bar (select mode) */}

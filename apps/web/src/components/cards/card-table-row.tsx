@@ -1,39 +1,43 @@
 import type { Printing } from "@openrift/shared";
 import { imageUrl } from "@openrift/shared";
-import { LinkIcon, MinusIcon, PlusIcon } from "lucide-react";
+import { LinkIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { FinishIcon } from "@/components/cards/finish-icon";
-import { Button } from "@/components/ui/button";
 import { getFilterIconPath, getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 export const CARD_TABLE_ROW_HEIGHT = 56;
 export const CARD_TABLE_HEADER_HEIGHT = 48;
 
-const COLUMN_WIDTHS_LOGGED_OUT = "60px minmax(180px, 1fr) 160px 200px 130px";
-const COLUMN_WIDTHS_LOGGED_IN = `${COLUMN_WIDTHS_LOGGED_OUT} 80px`;
-const COLUMN_WIDTHS_ADD_MODE = `${COLUMN_WIDTHS_LOGGED_OUT} 150px`;
+/** Layout for the rightmost actions column. */
+export type ActionsColumn = "none" | "narrow" | "wide";
+
+const COLUMN_WIDTHS_NO_ACTIONS = "60px minmax(180px, 1fr) 160px 200px 130px";
+const COLUMN_WIDTHS_NARROW = `${COLUMN_WIDTHS_NO_ACTIONS} 80px`;
+const COLUMN_WIDTHS_WIDE = `${COLUMN_WIDTHS_NO_ACTIONS} 150px`;
 
 /**
  * Resolve the gridTemplateColumns string for the card table — keeps every row,
  * the column header, and any group headers locked to identical track widths.
+ * Width follows the actions column: "narrow" (80px, read-only count), "wide"
+ * (150px, +/- buttons), or "none" (column omitted entirely).
+ *
  * @returns CSS grid-template-columns value.
  */
-export function getCardTableColumns(showOwned: boolean, showAddControls: boolean): string {
-  if (showAddControls) {
-    return COLUMN_WIDTHS_ADD_MODE;
+export function getCardTableColumns(actionsColumn: ActionsColumn): string {
+  if (actionsColumn === "wide") {
+    return COLUMN_WIDTHS_WIDE;
   }
-  if (showOwned) {
-    return COLUMN_WIDTHS_LOGGED_IN;
+  if (actionsColumn === "narrow") {
+    return COLUMN_WIDTHS_NARROW;
   }
-  return COLUMN_WIDTHS_LOGGED_OUT;
+  return COLUMN_WIDTHS_NO_ACTIONS;
 }
 
 interface CardTableHeaderProps {
   columns: string;
-  showOwned: boolean;
-  showAddControls: boolean;
+  actionsColumn: ActionsColumn;
   /** When true, sticks to the top of the viewport at `stickyOffset`. */
   sticky?: boolean;
   stickyOffset?: number;
@@ -50,8 +54,7 @@ interface CardTableHeaderProps {
  */
 export function CardTableHeader({
   columns,
-  showOwned,
-  showAddControls,
+  actionsColumn,
   sticky,
   stickyOffset,
   bordered = true,
@@ -77,7 +80,7 @@ export function CardTableHeader({
       <div className="px-3">Set</div>
       <div className="px-3">Type</div>
       <div className="px-3">Rarity</div>
-      {(showOwned || showAddControls) && <div className="px-3 text-right">{actionsLabel}</div>}
+      {actionsColumn !== "none" && <div className="px-3 text-right">{actionsLabel}</div>}
     </div>
   );
 }
@@ -141,53 +144,43 @@ export function CardTableGroupHeader({
 
 interface CardTableRowProps {
   printing: Printing;
-  ownedCount: number | undefined;
-  /** Aggregate owned count across all sibling variants (cards view). Rendered in parens next to the per-printing count in add mode when it differs from ownedCount. */
-  totalOwnedCount?: number;
   isSelected?: boolean;
-  showOwned: boolean;
-  showAddControls: boolean;
+  actionsColumn: ActionsColumn;
   columns: string;
   cardTypeLabels: Record<string, string>;
   superTypeLabels: Record<string, string>;
   rarityLabels: Record<string, string>;
   setNameBySlug: Map<string, string>;
   onRowClick: (printing: Printing) => void;
-  onIncrement?: (printing: Printing, modifiers?: { shift?: boolean }) => void;
-  onDecrement?: (
-    printing: Printing,
-    anchorEl: HTMLElement,
-    modifiers?: { shift?: boolean },
-  ) => void;
-  /** Optional override for the actions cell. Replaces the default +/- buttons. */
-  renderActions?: (printing: Printing, ownedCount: number | undefined) => ReactNode;
+  /**
+   * Content for the rightmost cell. Required when `actionsColumn !== "none"`.
+   * The wrapper styling (right-aligned text for "narrow", flex+gap for "wide")
+   * is owned by the row; the renderer returns inline content.
+   */
+  renderActions?: (printing: Printing) => ReactNode;
 }
 
 /**
- * Pure-presentation row for the card table. Owned count + action handlers are
- * passed in so the component is reusable from both the virtualized CardTable
- * (which subscribes per-row via a live query) and non-virtualized callers
- * (which pass counts from a precomputed Record).
+ * Pure-presentation row for the card table. Owned counts, +/- buttons, and
+ * any per-row data subscriptions live in the actions component passed via
+ * {@link CardTableRowProps.renderActions} (e.g. CatalogTableActions,
+ * CollectionTableActions, StaticCountTableActions, DeckTableActions). The row
+ * only owns the static cells (image, name, set, type, rarity) and the click
+ * dispatch.
  * @returns The data-row element.
  */
 export function CardTableRow({
   printing,
-  ownedCount,
-  totalOwnedCount,
   isSelected,
-  showOwned,
-  showAddControls,
+  actionsColumn,
   columns,
   cardTypeLabels,
   superTypeLabels,
   rarityLabels,
   setNameBySlug,
   onRowClick,
-  onIncrement,
-  onDecrement,
   renderActions,
 }: CardTableRowProps) {
-  const showTotal = totalOwnedCount !== undefined && totalOwnedCount !== ownedCount;
   const image = printing.images[0];
   const setName = setNameBySlug.get(printing.setSlug) ?? printing.setSlug;
   const typeLabel = [
@@ -252,52 +245,12 @@ export function CardTableRow({
         )}
         <span className="truncate">{rarityLabel}</span>
       </div>
-      {showAddControls ? (
+      {actionsColumn === "wide" ? (
         <div className="flex items-center justify-end gap-1.5 px-3">
-          {renderActions ? (
-            renderActions(printing, ownedCount)
-          ) : (
-            <>
-              <span className="text-center font-medium tabular-nums">
-                {ownedCount ?? 0}
-                {showTotal && <span className="opacity-60"> ({totalOwnedCount})</span>}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onDecrement?.(printing, event.currentTarget, { shift: event.shiftKey });
-                }}
-                disabled={!ownedCount}
-                aria-label="Remove one"
-              >
-                <MinusIcon className="size-3.5" />
-              </Button>
-              <Button
-                type="button"
-                variant="default"
-                size="icon-sm"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onIncrement?.(printing, { shift: event.shiftKey });
-                }}
-                aria-label="Add one"
-              >
-                <PlusIcon className="size-3.5" />
-              </Button>
-            </>
-          )}
+          {renderActions?.(printing)}
         </div>
-      ) : showOwned ? (
-        <div className="px-3 text-right tabular-nums">
-          {renderActions
-            ? renderActions(printing, ownedCount)
-            : ownedCount && ownedCount > 0
-              ? `×${ownedCount}`
-              : ""}
-        </div>
+      ) : actionsColumn === "narrow" ? (
+        <div className="px-3 text-right tabular-nums">{renderActions?.(printing)}</div>
       ) : null}
     </div>
   );

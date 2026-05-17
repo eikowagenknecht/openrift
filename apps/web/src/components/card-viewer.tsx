@@ -6,25 +6,18 @@ import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer
 import { CardGrid } from "@/components/cards/card-grid";
 import type { GroupInfo } from "@/components/cards/card-grid-types";
 import { CardTable } from "@/components/cards/card-table";
+import type { ActionsColumn } from "@/components/cards/card-table-row";
 import { useGridKeyboardNav } from "@/components/cards/use-grid-keyboard-nav";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useDisplayStore } from "@/stores/display-store";
 
 export interface CardTableProps {
-  showOwned: boolean;
-  showAddControls: boolean;
-  /** Optional renderer for the actions cell; replaces the default +/- buttons. */
-  renderActions?: (printing: Printing, ownedCount: number | undefined) => ReactNode;
+  /** Width + presence of the rightmost actions column. "none" omits the column entirely. */
+  actionsColumn: ActionsColumn;
+  /** Renders the contents of the actions cell for each row. */
+  renderActions?: (printing: Printing) => ReactNode;
   /** Label for the rightmost column header. Defaults to "Owned". */
   actionsLabel?: string;
-  /** Cards-vs-printings view. Cards view enables the variant-aggregate count in add mode. */
-  view?: "cards" | "printings";
-  /** Lookup of all sibling printings per cardId. Used in add mode + cards view to render `N (M)` like the grid. */
-  printingsByCardId?: Map<string, Printing[]>;
-  /** When set, the owned count column reports copies in this collection; the global total surfaces as `(M)` when it differs. */
-  collectionId?: string;
-  /** True when the page is in add mode. Defaults to `showAddControls` (true on `/cards` only when adding). Set explicitly from `/collections`, where the +/- buttons are visible in browse mode too. */
-  inAddMode?: boolean;
 }
 
 interface CardViewerProps {

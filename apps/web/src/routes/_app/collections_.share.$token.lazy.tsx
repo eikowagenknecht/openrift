@@ -14,6 +14,7 @@ import { CardCell } from "@/components/cards/card-cell";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
+import { StaticCountTableActions } from "@/components/cards/static-count-table-actions";
 import {
   PAGE_TOP_BAR_STICKY,
   PageTopBar,
@@ -251,18 +252,14 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
         rightPane={rightPane}
         addStripHeight={ADD_STRIP_HEIGHT}
         table={{
-          showOwned: true,
-          showAddControls: false,
-          view,
-          printingsByCardId,
+          actionsColumn: "narrow",
           actionsLabel: "Copies",
-          // renderActions overrides the default ownedCount cell (which is
-          // auth-keyed via useOwnedCountFor and would read 0 for the public
-          // visitor); we render the per-printing count from the share payload.
-          renderActions: (printing) => {
-            const count = countByPrintingId[printing.id] ?? 0;
-            return count > 0 ? <span>×{count}</span> : null;
-          },
+          // The public visitor has no auth-keyed inventory; we render the
+          // per-printing count straight from the share payload via
+          // StaticCountTableActions (no live query).
+          renderActions: (printing) => (
+            <StaticCountTableActions count={countByPrintingId[printing.id] ?? 0} />
+          ),
         }}
       >
         {isMobile && (

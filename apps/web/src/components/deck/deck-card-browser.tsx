@@ -482,8 +482,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
         rightPane={rightPane}
         addStripHeight={ADD_STRIP_HEIGHT}
         table={{
-          showOwned: true,
-          showAddControls: true,
+          actionsColumn: "wide",
           actionsLabel: "Deck",
           renderActions: (printing) => {
             const cardId = printing.cardId;

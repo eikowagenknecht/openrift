@@ -14,6 +14,7 @@ import {
   BrowserMobileFilters,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
+import type { ActionsColumn } from "@/components/cards/card-table-row";
 import {
   CardTableGroupHeader,
   CardTableHeader,
@@ -23,6 +24,7 @@ import {
 import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
+import { StaticCountTableActions } from "@/components/cards/static-count-table-actions";
 import { SuggestImageOverlay } from "@/components/cards/suggest-image-overlay";
 import { FilterToggleButton } from "@/components/filters/collapsible-filter-panel";
 import {
@@ -1125,8 +1127,11 @@ function CompactBranchTable({
   setNameBySlug: Map<string, string>;
 }) {
   const { labels } = useEnumOrders();
-  const showOwned = ownedCounts !== undefined;
-  const columns = getCardTableColumns(showOwned, false);
+  const actionsColumn: ActionsColumn = ownedCounts === undefined ? "none" : "narrow";
+  const columns = getCardTableColumns(actionsColumn);
+  const renderActions = ownedCounts
+    ? (printing: Printing) => <StaticCountTableActions count={ownedCounts[printing.id] ?? 0} />
+    : undefined;
   const branches = node.children
     .map((child) => ({ child, printings: sortPrintings(child.printings) }))
     .filter(({ printings }) => printings.length > 0);
@@ -1140,8 +1145,7 @@ function CompactBranchTable({
       <div className="hidden md:block">
         <CardTableHeader
           columns={columns}
-          showOwned={showOwned}
-          showAddControls={false}
+          actionsColumn={actionsColumn}
           bordered={!multipleBranches}
         />
         {branches.map(({ child, printings }) => {
@@ -1164,15 +1168,14 @@ function CompactBranchTable({
                 <CardTableRow
                   key={printing.id}
                   printing={printing}
-                  ownedCount={ownedCounts?.[printing.id]}
-                  showOwned={showOwned}
-                  showAddControls={false}
+                  actionsColumn={actionsColumn}
                   columns={columns}
                   cardTypeLabels={labels.cardTypes}
                   superTypeLabels={labels.superTypes}
                   rarityLabels={labels.rarities}
                   setNameBySlug={setNameBySlug}
                   onRowClick={onCardClick}
+                  renderActions={renderActions}
                 />
               ))}
             </div>
@@ -1224,26 +1227,28 @@ function PromoListView({
   setNameBySlug: Map<string, string>;
 }) {
   const { labels } = useEnumOrders();
-  const showOwned = ownedCounts !== undefined;
-  const columns = getCardTableColumns(showOwned, false);
+  const actionsColumn: ActionsColumn = ownedCounts === undefined ? "none" : "narrow";
+  const columns = getCardTableColumns(actionsColumn);
+  const renderActions = ownedCounts
+    ? (printing: Printing) => <StaticCountTableActions count={ownedCounts[printing.id] ?? 0} />
+    : undefined;
   return (
     <>
       {/* Desktop: shared CardTable layout */}
       <div className="hidden md:block">
-        <CardTableHeader columns={columns} showOwned={showOwned} showAddControls={false} />
+        <CardTableHeader columns={columns} actionsColumn={actionsColumn} />
         {printings.map((printing) => (
           <CardTableRow
             key={printing.id}
             printing={printing}
-            ownedCount={ownedCounts?.[printing.id]}
-            showOwned={showOwned}
-            showAddControls={false}
+            actionsColumn={actionsColumn}
             columns={columns}
             cardTypeLabels={labels.cardTypes}
             superTypeLabels={labels.superTypes}
             rarityLabels={labels.rarities}
             setNameBySlug={setNameBySlug}
             onRowClick={onRowClick}
+            renderActions={renderActions}
           />
         ))}
       </div>
