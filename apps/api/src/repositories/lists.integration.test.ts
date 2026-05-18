@@ -421,7 +421,9 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
         copyId: null,
         quantity: 1,
       },
-      // Duplicate — merges into the previous via ON CONFLICT DO UPDATE.
+      // Duplicate — pre-aggregated before INSERT so quantities sum into one
+      // row. Postgres won't let two in-statement rows both hit ON CONFLICT
+      // DO UPDATE on the same target, so the dedup happens in app code.
       {
         listId: list.id,
         userId,
@@ -432,7 +434,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
         quantity: 1,
       },
     ]);
-    expect(result).toEqual({ inserted: 1, updated: 1 });
+    expect(result).toEqual({ inserted: 1, updated: 0 });
 
     // The single surviving entry's quantity reflects both inputs.
     const rows = await repo.entriesWithDetails(list.id, "card", userId);

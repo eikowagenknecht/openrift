@@ -271,9 +271,26 @@ export function listsRepo(db: Kysely<Database>) {
       }
       const targetColumn: "cardId" | "printingId" | "copyId" =
         kind === "card" ? "cardId" : kind === "printing" ? "printingId" : "copyId";
+      // Pre-aggregate dupes by conflict key: Postgres rejects two rows in the
+      // same INSERT both hitting ON CONFLICT DO UPDATE on the same target
+      // ("cannot affect row a second time"). Card/printing kinds sum the
+      // quantities so the merge semantics match a later ON CONFLICT bump;
+      // copy kind keeps the first occurrence (DO NOTHING is singular).
+      const aggregated = new Map<string, NewEntryValues>();
+      for (const value of values) {
+        const conflictKey = `${value.listId}\0${String(value[targetColumn])}`;
+        const existing = aggregated.get(conflictKey);
+        if (existing) {
+          if (kind !== "copy") {
+            existing.quantity += value.quantity;
+          }
+        } else {
+          aggregated.set(conflictKey, { ...value });
+        }
+      }
       const rows = await db
         .insertInto("listEntries")
-        .values(values)
+        .values([...aggregated.values()])
         .onConflict((oc) => {
           const conflictTarget = oc
             .columns(["listId", targetColumn])
