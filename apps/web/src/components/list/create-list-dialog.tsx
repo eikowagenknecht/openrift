@@ -22,7 +22,6 @@ interface KindOption {
   kind: ListKind;
   label: string;
   icon: IconComponent;
-  hint: string;
 }
 
 // Icons mirror the filter-chrome view-mode toggle (apps/web/src/components/
@@ -33,19 +32,36 @@ const KIND_OPTIONS: Record<ListKind, KindOption> = {
     kind: "card",
     label: "Cards",
     icon: SquareIcon,
-    hint: "any printing of the card",
   },
   printing: {
     kind: "printing",
     label: "Printings",
     icon: CopyIcon,
-    hint: "a specific printing (set, art, finish)",
   },
   copy: {
     kind: "copy",
     label: "Copies",
     icon: SquareStackIcon,
-    hint: "specific physical cards from your collection",
+  },
+};
+
+const KIND_HINTS: Record<ListIntent, Record<ListKind, string>> = {
+  buy: {
+    card: "Any printing works. Use for the missing cards of a deck you want to play.",
+    printing:
+      "A specific version (set, art, finish). Use when you want a particular printing, like a foil alt-art from a specific set.",
+    copy: "specific physical cards from your collection",
+  },
+  sell: {
+    card: "any printing of the card",
+    printing: "a specific printing (set, art, finish)",
+    copy: "specific physical cards from your collection",
+  },
+  organize: {
+    card: "Any printing works. Use to group cards however you like, such as a brew pool for a deck idea or a custom-format card list.",
+    printing:
+      "A specific version (set, art, finish). Use for showcases or themed groupings, like your favorite alt-arts.",
+    copy: "Specific physical cards from your collection. Use for a playset earmarked for a specific event, or copies you're undecided about selling and want to keep tabs on.",
   },
 };
 
@@ -113,7 +129,7 @@ export function CreateListDialog({ intent, open, onOpenChange, onCreated }: Crea
           <DialogTitle>{INTENT_TITLE[intent]}</DialogTitle>
           <DialogDescription>
             {availableKinds.length === 1
-              ? "Sell lists track specific physical copies from your collection."
+              ? "List specific copies you want to sell or trade away. For example all the bulk after opening one too many Booster Display."
               : "Pick what this list tracks. You can't change it later, but you can always create a new list."}{" "}
             <Link
               to="/help/$slug"
@@ -145,7 +161,9 @@ export function CreateListDialog({ intent, open, onOpenChange, onCreated }: Crea
                   <Icon className="mt-0.5 size-4 shrink-0" />
                   <div className="flex-1">
                     <div className="font-medium">{meta.label}</div>
-                    <div className="text-muted-foreground text-xs">{meta.hint}</div>
+                    <div className="text-muted-foreground text-xs">
+                      {KIND_HINTS[intent][option]}
+                    </div>
                   </div>
                 </button>
               );
@@ -198,4 +216,15 @@ export function listKindIcon(kind: ListKind): IconComponent {
  */
 export function listKindLabel(kind: ListKind): string {
   return KIND_OPTIONS[kind].label;
+}
+
+const INTENT_LABEL: Record<ListIntent, string> = {
+  buy: "Buy",
+  sell: "Sell",
+  organize: "Organize",
+};
+
+/** @returns Capitalized label for a list intent ("Buy" | "Sell" | "Organize"). */
+export function listIntentLabel(intent: ListIntent): string {
+  return INTENT_LABEL[intent];
 }

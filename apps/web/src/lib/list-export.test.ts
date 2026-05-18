@@ -24,9 +24,9 @@ describe("formatCardListAsDeckText", () => {
   it("formats entries as `<qty> <name>` lines, preserving input order", () => {
     const output = formatCardListAsDeckText([
       cardEntry("e1", "c1", "Teemo, Scout", 1),
-      cardEntry("e2", "c2", "Jinx, Radical", 3),
+      cardEntry("e2", "c2", "Jinx, Rebel", 3),
     ]);
-    expect(output).toBe("1 Teemo, Scout\n3 Jinx, Radical");
+    expect(output).toBe("1 Teemo, Scout\n3 Jinx, Rebel");
   });
 
   it("returns an empty string when there are no entries", () => {
@@ -47,7 +47,7 @@ describe("formatCardListAsDeckText", () => {
         kind: "printing",
         printingId: "p1",
         quantity: 2,
-        cardName: "Jinx, Radical",
+        cardName: "Jinx, Rebel",
         cardType: "unit",
         setId: "set-1",
         rarity: "common",

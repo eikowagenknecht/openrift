@@ -250,7 +250,7 @@ export function ListPage({ listId }: ListPageProps) {
           </Button>
         </form>
       ) : (
-        <>
+        <div className="flex min-w-0 flex-1 items-baseline gap-2">
           <PageTopBarTitle onToggleSidebar={toggleSidebar}>{data.list.name}</PageTopBarTitle>
           <Badge variant="ghost" className="text-2xs hidden shrink-0 sm:inline-flex">
             <IntentIcon className="size-3" />
@@ -263,7 +263,7 @@ export function ListPage({ listId }: ListPageProps) {
           {hydrated && entriesCount > 0 && (
             <ListValueLabel kind={data.list.kind} entries={data.entries} />
           )}
-        </>
+        </div>
       )}
       <PageTopBarActions>
         <DropdownMenu>

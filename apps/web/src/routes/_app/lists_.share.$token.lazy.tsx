@@ -25,6 +25,7 @@ import {
   PageTopBarTitle,
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
+import { listIntentLabel } from "@/components/list/create-list-dialog";
 import { ListValueLabel } from "@/components/list/list-value-label";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
@@ -72,16 +73,21 @@ function SharedListPage() {
         <div className="flex min-h-0 flex-1 flex-col">
           <div ref={setTopBarSlot} className={PAGE_TOP_BAR_STICKY}>
             <PageTopBar>
-              <PageTopBarTitle>{list.name}</PageTopBarTitle>
-              <span className="text-muted-foreground hidden shrink-0 items-center gap-x-1.5 text-xs sm:flex">
-                <span>Shared by {owner.displayName}</span>
-                <span>
-                  · {list.intent} list of {kindNoun}
+              <div className="flex min-w-0 flex-1 items-baseline gap-2">
+                <PageTopBarTitle>{list.name}</PageTopBarTitle>
+                <span className="text-muted-foreground hidden shrink-0 items-baseline gap-x-1.5 text-xs sm:flex">
+                  <span>Shared by {owner.displayName}</span>
+                  <span>
+                    · {listIntentLabel(list.intent)} list of {kindNoun}
+                  </span>
+                  {hydrated && entries.length > 0 && (
+                    <>
+                      <span>·</span>
+                      <ListValueLabel kind={list.kind} entries={entries} />
+                    </>
+                  )}
                 </span>
-              </span>
-              {hydrated && entries.length > 0 && (
-                <ListValueLabel kind={list.kind} entries={entries} />
-              )}
+              </div>
             </PageTopBar>
           </div>
           <div className="flex min-w-0 flex-1 flex-col px-3 pb-3">

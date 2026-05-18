@@ -113,7 +113,7 @@ function InputStep({
       <Textarea
         value={rawText}
         onChange={(event) => onTextChange(event.target.value)}
-        placeholder={"1 Teemo, Scout\n3 Jinx, Radical"}
+        placeholder={"1 Teemo, Scout\n3 Jinx, Rebel"}
         className="min-h-[200px] font-mono text-xs"
       />
 
