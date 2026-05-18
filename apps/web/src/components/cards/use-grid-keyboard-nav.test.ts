@@ -54,6 +54,18 @@ describe("useGridKeyboardNav: +/-", () => {
     expect(event.defaultPrevented).toBe(true);
   });
 
+  it("`=` is a no-shift alias for `+`", () => {
+    const onIncrement = vi.fn();
+    useCardRowActionsStore.getState().setHandlers({ onIncrement });
+    useSelectionStore.getState().selectCard(p1, items, "printing");
+
+    renderHook(() => useGridKeyboardNav({ items }));
+    const event = press("=");
+
+    expect(onIncrement).toHaveBeenCalledWith(p1);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
   it("`-` dispatches onDecrement for the selected card, anchored to its tile", () => {
     const onDecrement = vi.fn();
     useCardRowActionsStore.getState().setHandlers({ onDecrement });

@@ -2,6 +2,7 @@
 
 ## 2026-05-18
 
+- feat: Adding cards with the keyboard now accepts = as well as +, so you don't have to hold Shift on US layouts
 - feat: The collections sidebar now has Buy, Sell, and Organize lists. Each list tracks cards, printings, or specific copies (you pick what at creation), and any list can be shared with a public link
 - feat: Card and printing lists now have a "Browse catalog" mode that shows every card with a +/- stepper on each tile, so you can build a buy or wishlist list directly without leaving the page
 - feat: Card and printing lists track quantities — dropping the same card onto a list a second time adds another instead of being ignored, and each tile and table row has a +/- stepper for direct edits. Copy lists stay singular since each entry is one physical card

@@ -11,15 +11,20 @@ interface UseGridKeyboardNavParams {
   siblingPrintings?: Printing[];
 }
 
-const NAV_KEYS = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "+", "-"];
+const NAV_KEYS = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "+", "=", "-"];
+
+// `=` is accepted as a no-shift alias for `+` — on US layouts `+` requires
+// Shift+= and the asymmetry with `-` is awkward.
+const isIncrementKey = (key: string) => key === "+" || key === "=";
+const isAddRemoveKey = (key: string) => isIncrementKey(key) || key === "-";
 
 /**
  * Arrow-key navigation for the card grid. Left/right step through `items`
  * by index; up/down cycle through sibling printings (variants) of the
  * selected card without changing the grid position unless the sibling is
- * itself a tile in the grid. `+` / `-` trigger the add-mode strip's
+ * itself a tile in the grid. `+` / `=` / `-` trigger the add-mode strip's
  * increment / decrement on the selected card (no-op when add mode is off);
- * when the variant popover is open, it handles its own arrows and +/-.
+ * when the variant popover is open, it handles its own arrows and +/=/-.
  */
 export function useGridKeyboardNav({ items, siblingPrintings }: UseGridKeyboardNavParams) {
   const selectedCard = useSelectionStore((s) => s.selectedCard);
@@ -36,22 +41,21 @@ export function useGridKeyboardNav({ items, siblingPrintings }: UseGridKeyboardN
       if (!NAV_KEYS.includes(e.key)) {
         return;
       }
-      // Don't hijack Ctrl/Cmd +/- (browser zoom). Shift is fine — on US
-      // layouts `+` requires Shift+=.
-      if ((e.key === "+" || e.key === "-") && (e.ctrlKey || e.metaKey || e.altKey)) {
+      // Don't hijack Ctrl/Cmd +/=/- (browser zoom).
+      if (isAddRemoveKey(e.key) && (e.ctrlKey || e.metaKey || e.altKey)) {
         return;
       }
       // While the variant or dispose picker popover is open it handles its
-      // own arrow / +/- / Enter keys; the grid handler steps back so we don't
-      // fight over the same keystrokes.
+      // own arrow / +/=/- / Enter keys; the grid handler steps back so we
+      // don't fight over the same keystrokes.
       const addMode = useAddModeStore.getState();
       if (addMode.variantPopover || addMode.disposePicker) {
         return;
       }
 
-      if ((e.key === "+" || e.key === "-") && selectedCard) {
+      if (isAddRemoveKey(e.key) && selectedCard) {
         const handlers = useCardRowActionsStore.getState().handlers;
-        if (e.key === "+") {
+        if (isIncrementKey(e.key)) {
           if (!handlers.onIncrement) {
             return;
           }

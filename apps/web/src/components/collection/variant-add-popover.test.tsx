@@ -111,6 +111,22 @@ describe("VariantAddPopover keyboard nav", () => {
     expect(onQuickAdd).toHaveBeenCalledWith(p2);
   });
 
+  it("`=` is a no-shift alias for `+` and calls onQuickAdd", () => {
+    const onQuickAdd = vi.fn();
+    render(
+      <VariantAddPopover
+        printings={printings}
+        ownedCounts={{}}
+        onQuickAdd={onQuickAdd}
+        onUndoAdd={() => {}}
+        initialHighlightId="v2"
+      />,
+    );
+
+    press("=");
+    expect(onQuickAdd).toHaveBeenCalledWith(p2);
+  });
+
   it("`-` calls onUndoAdd for the highlighted variant when owned > 0", () => {
     const onUndoAdd = vi.fn();
     render(

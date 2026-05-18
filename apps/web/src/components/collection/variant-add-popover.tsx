@@ -52,13 +52,15 @@ export function VariantAddPopover({
         setHighlightedIndex((idx) => (idx > 0 ? idx - 1 : printings.length - 1));
         return;
       }
-      if (event.key === "+" || event.key === "-") {
+      // `=` is accepted as a no-shift alias for `+` (US layouts need Shift+=).
+      const isIncrement = event.key === "+" || event.key === "=";
+      if (isIncrement || event.key === "-") {
         const printing = printings[highlightedIndexRef.current];
         if (!printing) {
           return;
         }
         event.preventDefault();
-        if (event.key === "+") {
+        if (isIncrement) {
           onQuickAdd(printing);
           return;
         }
