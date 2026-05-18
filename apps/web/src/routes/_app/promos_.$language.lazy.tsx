@@ -1,4 +1,4 @@
-import type { GroupByField, Printing, SortDirection, SortOption } from "@openrift/shared";
+import type { Printing, SortDirection, SortOption } from "@openrift/shared";
 import { filterCards, getAvailableFilters, imageUrl, sortCards } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createLazyFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
@@ -9,9 +9,8 @@ import { CardBrowserLayout, useCardBrowserLayoutOffsets } from "@/components/car
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import {
   BrowserActiveFilters,
-  BrowserCollapsibleFilters,
   BrowserLeftPane,
-  BrowserMobileFilters,
+  BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
 import type { ActionsColumn } from "@/components/cards/card-table-row";
@@ -26,14 +25,6 @@ import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-
 import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
 import { StaticCountTableActions } from "@/components/cards/static-count-table-actions";
 import { SuggestImageOverlay } from "@/components/cards/suggest-image-overlay";
-import { FilterToggleButton } from "@/components/filters/collapsible-filter-panel";
-import {
-  DisplayModeToggle,
-  MobileOptionsDrawer,
-  sortOptions,
-} from "@/components/filters/options-bar";
-import { SearchBar } from "@/components/filters/search-bar";
-import { SortGroupControls } from "@/components/filters/sort-group-controls";
 import type { PageTocItem } from "@/components/layout/page-toc";
 import { PageToc } from "@/components/layout/page-toc";
 import { MarkdownText } from "@/components/markdown-text";
@@ -55,6 +46,7 @@ import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { publicPromoListQueryOptions } from "@/hooks/use-public-promos";
+import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 import { useSession } from "@/lib/auth-session";
 import { catalogQueryOptions } from "@/lib/catalog-query";
 import { applyOwnedBucketFilter } from "@/lib/owned-bucket";
@@ -292,7 +284,7 @@ function PromosPage() {
     useDisplayStore.setState({ catalogMode: catalogMode === "off" ? "count" : "off" });
   };
   const { orders: enumOrders } = useEnumOrders();
-  const { setSortBy, setSortDir, setGroupBy, setGroupDir, setSearch } = useFilterActions();
+  const { setSearch } = useFilterActions();
   const isMobile = useIsMobile();
 
   const presentLanguageSet = new Set(data.printings.map((p) => p.language));
@@ -499,30 +491,16 @@ function PromosPage() {
       >
         <CardBrowserLayout
           toolbar={
-            <>
-              <div className="mb-1.5 flex flex-wrap items-center gap-2 sm:mb-3">
-                <SearchBar
-                  totalCards={activePrintings.length}
-                  filteredCount={matchedPrintings.length}
-                />
-                <div className="hidden sm:flex">
-                  <SortGroupControls
-                    sortOptions={sortOptions}
-                    sortBy={sortBy}
-                    sortDir={sortDir}
-                    onSortByChange={setSortBy}
-                    onSortDirChange={setSortDir}
-                    group={{
-                      options: GROUP_OPTIONS,
-                      value: grouping,
-                      dir: groupDir,
-                      onValueChange: (value) => setGroupBy(value as GroupByField),
-                      onDirChange: setGroupDir,
-                    }}
-                  />
-                </div>
-                <DisplayModeToggle />
-                {isLoggedIn && (
+            <BrowserToolbar
+              totalCards={activePrintings.length}
+              filteredCount={matchedPrintings.length}
+              mobileDoneLabel={
+                hasActiveFilters ? `Show ${matchedPrintings.length} promos` : undefined
+              }
+              hideViewToggle
+              groupByOptions={GROUP_OPTIONS}
+              extras={
+                isLoggedIn ? (
                   <Button
                     variant={showOwned ? "default" : "outline"}
                     size="icon"
@@ -533,34 +511,9 @@ function PromosPage() {
                   >
                     <PackageIcon className="size-4" />
                   </Button>
-                )}
-                <FilterToggleButton className="@wide:hidden hidden sm:flex" />
-                <MobileOptionsDrawer
-                  className="sm:hidden"
-                  doneLabel={
-                    hasActiveFilters ? `Show ${matchedPrintings.length} promos` : undefined
-                  }
-                >
-                  <SortGroupControls
-                    compact
-                    sortOptions={sortOptions}
-                    sortBy={sortBy}
-                    sortDir={sortDir}
-                    onSortByChange={setSortBy}
-                    onSortDirChange={setSortDir}
-                    group={{
-                      options: GROUP_OPTIONS,
-                      value: grouping,
-                      dir: groupDir,
-                      onValueChange: (value) => setGroupBy(value as GroupByField),
-                      onDirChange: setGroupDir,
-                    }}
-                  />
-                  <BrowserMobileFilters />
-                </MobileOptionsDrawer>
-              </div>
-              <BrowserCollapsibleFilters />
-            </>
+                ) : null
+              }
+            />
           }
           leftPane={
             <>
@@ -641,6 +594,25 @@ function PromoSectionsContent({
 }: PromoSectionsContentProps) {
   const { stickyOffset } = useCardBrowserLayoutOffsets();
 
+  // Share the column-sizing mechanism with /cards: useResponsiveColumns
+  // measures the container, applies the user's maxColumns override, and
+  // writes the live autoColumns / physicalMin / physicalMax back to the
+  // display store so ColumnControls in the toolbar reflects the real
+  // measurement. Each section grid further down consumes `columns` via
+  // inline gridTemplateColumns, replacing the previous Tailwind
+  // breakpoint classes (wide:grid-cols-6 xwide:grid-cols-8 …).
+  const maxColumns = useDisplayStore((s) => s.maxColumns);
+  const setAutoColumns = useDisplayStore((s) => s.setAutoColumns);
+  const setPhysicalMax = useDisplayStore((s) => s.setPhysicalMax);
+  const setPhysicalMin = useDisplayStore((s) => s.setPhysicalMin);
+  const { containerRef, columns, autoColumns, physicalMax, physicalMin } =
+    useResponsiveColumns(maxColumns);
+  useEffect(() => {
+    setAutoColumns(autoColumns);
+    setPhysicalMax(physicalMax);
+    setPhysicalMin(physicalMin);
+  }, [autoColumns, physicalMax, physicalMin, setAutoColumns, setPhysicalMax, setPhysicalMin]);
+
   // Active = the last section whose top has crossed the sticky threshold.
   // Drives the floating pill and the smooth-scroll-to-section button.
   const sectionEntries: { id: string; label: string; count: number }[] =
@@ -696,72 +668,80 @@ function PromoSectionsContent({
         )}
       </div>
 
-      {hasContent ? (
-        grouping === "channel" ? (
-          <div className="space-y-10">
-            {channelRenderItems.map((item) =>
-              item.kind === "leaf" ? (
-                <LeafSection
-                  key={item.sectionId}
-                  item={item}
-                  stickyOffset={stickyOffset}
-                  viewMode={viewMode}
-                  showImages={showImages}
-                  display={display}
-                  onCardClick={onCardClick}
-                  ownedCounts={ownedCounts}
-                  sortPrintings={sortPrintings}
-                  setNameBySlug={setNameBySlug}
-                />
-              ) : (
-                <CompactSection
-                  key={item.sectionId}
-                  item={item}
-                  stickyOffset={stickyOffset}
-                  viewMode={viewMode}
-                  showImages={showImages}
-                  display={display}
-                  onCardClick={onCardClick}
-                  ownedCounts={ownedCounts}
-                  sortPrintings={sortPrintings}
-                  setNameBySlug={setNameBySlug}
-                />
-              ),
-            )}
-          </div>
-        ) : (
-          <div className="space-y-10">
-            {flatRenderItems.map((item) => (
-              <FlatSection
-                key={item.sectionId}
-                item={item}
-                stickyOffset={stickyOffset}
-                viewMode={viewMode}
-                showImages={showImages}
-                display={display}
-                onCardClick={onCardClick}
-                ownedCounts={ownedCounts}
-                sortPrintings={sortPrintings}
-                setNameBySlug={setNameBySlug}
-              />
-            ))}
-          </div>
-        )
-      ) : (
-        <p className="text-muted-foreground text-sm">
-          {hasActiveFilters ? (
-            "No promos match the current filters."
+      {/* Single outer wrapper so useResponsiveColumns has a stable container
+          to measure — the ResizeObserver is wired up once and survives the
+          channel↔flat branch swap below. */}
+      <div ref={containerRef}>
+        {hasContent ? (
+          grouping === "channel" ? (
+            <div className="space-y-10">
+              {channelRenderItems.map((item) =>
+                item.kind === "leaf" ? (
+                  <LeafSection
+                    key={item.sectionId}
+                    item={item}
+                    stickyOffset={stickyOffset}
+                    viewMode={viewMode}
+                    showImages={showImages}
+                    display={display}
+                    columns={columns}
+                    onCardClick={onCardClick}
+                    ownedCounts={ownedCounts}
+                    sortPrintings={sortPrintings}
+                    setNameBySlug={setNameBySlug}
+                  />
+                ) : (
+                  <CompactSection
+                    key={item.sectionId}
+                    item={item}
+                    stickyOffset={stickyOffset}
+                    viewMode={viewMode}
+                    showImages={showImages}
+                    display={display}
+                    columns={columns}
+                    onCardClick={onCardClick}
+                    ownedCounts={ownedCounts}
+                    sortPrintings={sortPrintings}
+                    setNameBySlug={setNameBySlug}
+                  />
+                ),
+              )}
+            </div>
           ) : (
-            <>
-              No promos yet.{" "}
-              <Link to="/contribute" className="text-primary hover:underline">
-                Suggest one
-              </Link>
-              .
-            </>
-          )}
-        </p>
-      )}
+            <div className="space-y-10">
+              {flatRenderItems.map((item) => (
+                <FlatSection
+                  key={item.sectionId}
+                  item={item}
+                  stickyOffset={stickyOffset}
+                  viewMode={viewMode}
+                  showImages={showImages}
+                  display={display}
+                  columns={columns}
+                  onCardClick={onCardClick}
+                  ownedCounts={ownedCounts}
+                  sortPrintings={sortPrintings}
+                  setNameBySlug={setNameBySlug}
+                />
+              ))}
+            </div>
+          )
+        ) : (
+          <p className="text-muted-foreground text-sm">
+            {hasActiveFilters ? (
+              "No promos match the current filters."
+            ) : (
+              <>
+                No promos yet.{" "}
+                <Link to="/contribute" className="text-primary hover:underline">
+                  Suggest one
+                </Link>
+                .
+              </>
+            )}
+          </p>
+        )}
+      </div>
     </>
   );
 }
@@ -862,10 +842,21 @@ interface RenderedSectionProps {
   viewMode: ViewMode;
   showImages: boolean;
   display: CardThumbnailDisplay;
+  /** Column count from {@link useResponsiveColumns} — drives each section's inline gridTemplateColumns. */
+  columns: number;
   onCardClick: (printing: Printing) => void;
   ownedCounts: Record<string, number> | undefined;
   sortPrintings: (printings: Printing[]) => Printing[];
   setNameBySlug: Map<string, string>;
+}
+
+/**
+ * Inline grid template that mirrors what CardGrid does for /cards.
+ *
+ * @returns A CSS style object with `gridTemplateColumns` set to the column count.
+ */
+function gridStyle(columns: number): React.CSSProperties {
+  return { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` };
 }
 
 function ParentAnchors({ ids, stickyOffset }: { ids: string[]; stickyOffset: number }) {
@@ -887,6 +878,7 @@ function LeafSection({
   viewMode,
   showImages,
   display,
+  columns,
   onCardClick,
   ownedCounts,
   sortPrintings,
@@ -906,7 +898,7 @@ function LeafSection({
         anchorId={item.sectionId}
       />
       {viewMode === "grid" ? (
-        <div className="wide:grid-cols-6 xwide:grid-cols-8 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-4" style={gridStyle(columns)}>
           {sortedPrintings.map((printing) => {
             const ownedCount = ownedCounts?.[printing.id] ?? 0;
             return (
@@ -943,6 +935,7 @@ function FlatSection({
   viewMode,
   showImages,
   display,
+  columns,
   onCardClick,
   ownedCounts,
   sortPrintings,
@@ -956,7 +949,7 @@ function FlatSection({
     <section id={item.sectionId} style={{ scrollMarginTop: `${stickyOffset}px` }}>
       <SectionDivider title={item.title} count={sortedPrintings.length} anchorId={item.sectionId} />
       {viewMode === "grid" ? (
-        <div className="wide:grid-cols-6 xwide:grid-cols-8 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-4" style={gridStyle(columns)}>
           {sortedPrintings.map((printing) => {
             const ownedCount = ownedCounts?.[printing.id] ?? 0;
             return (
@@ -993,6 +986,7 @@ function CompactSection({
   viewMode,
   showImages,
   display,
+  columns,
   onCardClick,
   ownedCounts,
   sortPrintings,
@@ -1028,6 +1022,7 @@ function CompactSection({
           stickyOffset={stickyOffset}
           showImages={showImages}
           display={display}
+          columns={columns}
           onCardClick={onCardClick}
           ownedCounts={ownedCounts}
           sortPrintings={sortPrintings}
@@ -1042,6 +1037,7 @@ function CompactBranchGrid({
   stickyOffset,
   showImages,
   display,
+  columns,
   onCardClick,
   ownedCounts,
   sortPrintings,
@@ -1050,6 +1046,7 @@ function CompactBranchGrid({
   stickyOffset: number;
   showImages: boolean;
   display: CardThumbnailDisplay;
+  columns: number;
   onCardClick: (printing: Printing) => void;
   ownedCounts: Record<string, number> | undefined;
   sortPrintings: (printings: Printing[]) => Printing[];
@@ -1082,7 +1079,7 @@ function CompactBranchGrid({
           ))}
         </dl>
       )}
-      <div className="wide:grid-cols-6 xwide:grid-cols-8 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
+      <div className="grid gap-4" style={gridStyle(columns)}>
         {entries.map(({ printing, leafLabel, anchorId }) => {
           const ownedCount = ownedCounts?.[printing.id] ?? 0;
           return (

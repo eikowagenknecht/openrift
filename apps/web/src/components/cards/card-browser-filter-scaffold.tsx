@@ -145,17 +145,23 @@ interface BrowserToolbarProps {
   extras?: ReactNode;
   /** Passed to DesktopOptionsBar + MobileOptionsContent to enable the "copies" view button. */
   showCopies?: boolean;
-  /** Hide the cards/printings/copies view toggle (deck builder). */
+  /** Hide the cards/printings/copies view toggle (deck builder, promos). */
   hideViewToggle?: boolean;
+  /**
+   * Override the default group-by options list. /promos uses a custom set
+   * (channel / card / year / marker) instead of the catalog default.
+   * `value` is widened to `string` because surface-specific keys (e.g. "card")
+   * aren't in the shared `GroupByField` enum.
+   */
+  groupByOptions?: { value: string; label: string }[];
 }
 
 /**
  * Standard card-browser toolbar: search bar, sort/group/view/display/columns
  * controls, optional extras slot, filter-panel toggle, and the mobile options
- * drawer. The collapsible filter row sits underneath. Used by surfaces that
- * accept the default SortGroupControls config (catalog, collection, shared,
- * deck builder). Promos assembles its own toolbar because it overrides the
- * group-by options.
+ * drawer. The collapsible filter row sits underneath. Every card-browser
+ * surface uses this — surfaces with a different group-by axis (e.g. /promos)
+ * pass `groupByOptions` to override the list.
  *
  * @returns The assembled toolbar block.
  */
@@ -166,6 +172,7 @@ export function BrowserToolbar({
   extras,
   showCopies,
   hideViewToggle,
+  groupByOptions,
 }: BrowserToolbarProps) {
   return (
     <>
@@ -175,11 +182,16 @@ export function BrowserToolbar({
           className="hidden sm:flex"
           showCopies={showCopies}
           hideViewToggle={hideViewToggle}
+          groupByOptions={groupByOptions}
         />
         {extras}
         <FilterToggleButton className="@wide:hidden hidden sm:flex" />
         <MobileOptionsDrawer doneLabel={mobileDoneLabel} className="sm:hidden">
-          <MobileOptionsContent showCopies={showCopies} />
+          <MobileOptionsContent
+            showCopies={showCopies}
+            hideViewToggle={hideViewToggle}
+            groupByOptions={groupByOptions}
+          />
           <BrowserMobileFilters />
         </MobileOptionsDrawer>
       </div>

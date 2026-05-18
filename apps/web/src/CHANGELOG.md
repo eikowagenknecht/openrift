@@ -2,6 +2,7 @@
 
 ## 2026-05-18
 
+- feat: The Promos page now responds to the column-count controls in the toolbar, so you can set how many cards per row the same way as on the cards browser
 - feat: When the site is briefly unreachable (for example during a deploy), you now see a friendly card-themed page instead of a generic browser error
 - feat: In Custom - Region decks, you can now add a Signature for any Champion in your region, as long as that Champion is in the deck. The previous rule only allowed Signatures matching your Legend's Champion
 - feat: Custom - Region decks now allow 1 to 3 Battlefield cards, instead of requiring exactly 3

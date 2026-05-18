@@ -39,7 +39,7 @@ export const sortOptions: { value: SortOption; label: string }[] = [
   { value: "price", label: "Price" },
 ];
 
-const groupByOptions: { value: GroupByField; label: string }[] = [
+export const defaultGroupByOptions: { value: GroupByField; label: string }[] = [
   { value: "none", label: "None" },
   { value: "set", label: "Set" },
   { value: "type", label: "Type" },
@@ -319,10 +319,18 @@ export function DesktopOptionsBar({
   className,
   showCopies,
   hideViewToggle,
+  groupByOptions = defaultGroupByOptions,
 }: {
   className?: string;
   showCopies?: boolean;
   hideViewToggle?: boolean;
+  /**
+   * Override the default group-by options (e.g. /promos uses
+   * channel/card/year/marker). `value` is widened to `string` because
+   * surface-specific keys like "card" aren't in the shared `GroupByField` —
+   * the URL is loosely typed and each surface re-parses on read.
+   */
+  groupByOptions?: { value: string; label: string }[];
 }) {
   const {
     sortBy,
@@ -351,7 +359,7 @@ export function DesktopOptionsBar({
           options: groupByOptions,
           value: groupBy,
           dir: groupDir,
-          onValueChange: setGroupBy,
+          onValueChange: (value) => setGroupBy(value as GroupByField),
           onDirChange: setGroupDir,
         }}
       />
@@ -409,7 +417,16 @@ export function MobileOptionsDrawer({
 /*  Mobile drawer sections — self-contained, composable                */
 /* ------------------------------------------------------------------ */
 
-export function MobileOptionsContent({ showCopies }: { showCopies?: boolean } = {}) {
+export function MobileOptionsContent({
+  showCopies,
+  hideViewToggle,
+  groupByOptions = defaultGroupByOptions,
+}: {
+  showCopies?: boolean;
+  hideViewToggle?: boolean;
+  /** See {@link DesktopOptionsBar} for why the value type is widened to `string`. */
+  groupByOptions?: { value: string; label: string }[];
+} = {}) {
   const {
     sortBy,
     sortDir,
@@ -438,12 +455,14 @@ export function MobileOptionsContent({ showCopies }: { showCopies?: boolean } = 
           options: groupByOptions,
           value: groupBy,
           dir: groupDir,
-          onValueChange: setGroupBy,
+          onValueChange: (value) => setGroupBy(value as GroupByField),
           onDirChange: setGroupDir,
         }}
       />
       <div className="flex flex-wrap items-center gap-2">
-        <ViewModeToggle compact view={view} onViewChange={setView} showCopies={showCopies} />
+        {!hideViewToggle && (
+          <ViewModeToggle compact view={view} onViewChange={setView} showCopies={showCopies} />
+        )}
         <DisplayModeToggle compact />
         {displayMode === "grid" && (
           <div className="ml-auto">
