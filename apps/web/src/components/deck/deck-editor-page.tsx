@@ -231,7 +231,9 @@ function DeckEditorContent({
     if (!printing) {
       return;
     }
-    useSelectionStore.getState().selectCard(printing, deckItems, "card");
+    // Pass the zone so a card appearing in multiple zones anchors at the
+    // instance the user clicked, not at the first zone-occurrence.
+    useSelectionStore.getState().selectCard(printing, deckItems, "card", card.zone);
   };
 
   const handleZoneClick = (zone: DeckZone) => {

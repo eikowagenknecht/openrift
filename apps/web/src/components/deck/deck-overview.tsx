@@ -844,8 +844,12 @@ function ZoneThumb({
 }) {
   const isMobile = useIsMobile();
   const enableDrag = !readOnly && !isMobile && DRAG_SOURCE_ZONES.has(zone);
-  // Per-thumb selector: only this thumb re-renders when its selected-state flips.
-  const isSelected = useSelectionStore((state) => state.selectedCard?.cardId === card.cardId);
+  // Per-thumb selector: only this thumb re-renders when its selected-state
+  // flips. Match on (zone, cardId) so a card in multiple zones lights up
+  // only at the instance the user actually clicked.
+  const isSelected = useSelectionStore(
+    (state) => state.selectedZone === zone && state.selectedCard?.cardId === card.cardId,
+  );
 
   const dragData: DeckCardDragData = {
     type: "deck-card",

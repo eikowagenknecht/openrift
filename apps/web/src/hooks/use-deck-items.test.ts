@@ -83,8 +83,8 @@ describe("useDeckItems", () => {
     ]);
   });
 
-  it("deduplicates by cardId, anchoring at the first zone the card appears in", () => {
-    registerPrinting("shared");
+  it("emits one item per zone appearance with zone tags and composite ids", () => {
+    const shared = registerPrinting("shared");
     registerPrinting("only-main");
 
     const { result } = renderHook(() =>
@@ -95,9 +95,16 @@ describe("useDeckItems", () => {
       ]),
     );
 
-    expect(result.current.items.map((item) => item.printing.cardId)).toEqual([
-      "shared",
-      "only-main",
+    expect(
+      result.current.items.map((item) => ({
+        cardId: item.printing.cardId,
+        zone: item.zone,
+        id: item.id,
+      })),
+    ).toEqual([
+      { cardId: "shared", zone: "main", id: `main:${shared.id}` },
+      { cardId: "only-main", zone: "main", id: expect.stringMatching(/^main:/u) },
+      { cardId: "shared", zone: "sideboard", id: `sideboard:${shared.id}` },
     ]);
   });
 

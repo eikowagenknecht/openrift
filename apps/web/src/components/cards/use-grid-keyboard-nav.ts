@@ -81,12 +81,14 @@ export function useGridKeyboardNav({ items, siblingPrintings }: UseGridKeyboardN
 
       if (e.key === "ArrowLeft" && selectedIndex > 0) {
         e.preventDefault();
-        navigateToIndex(selectedIndex - 1, items[selectedIndex - 1].printing);
+        const target = items[selectedIndex - 1];
+        navigateToIndex(selectedIndex - 1, target.printing, target.zone);
         return;
       }
       if (e.key === "ArrowRight" && selectedIndex >= 0 && selectedIndex < items.length - 1) {
         e.preventDefault();
-        navigateToIndex(selectedIndex + 1, items[selectedIndex + 1].printing);
+        const target = items[selectedIndex + 1];
+        navigateToIndex(selectedIndex + 1, target.printing, target.zone);
         return;
       }
 
@@ -112,7 +114,7 @@ export function useGridKeyboardNav({ items, siblingPrintings }: UseGridKeyboardN
         if (siblingIdx === -1) {
           setSelectedCard(sibling);
         } else {
-          navigateToIndex(siblingIdx, sibling);
+          navigateToIndex(siblingIdx, sibling, items[siblingIdx].zone);
         }
       }
     };

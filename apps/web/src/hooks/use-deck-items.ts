@@ -33,10 +33,11 @@ interface UseDeckItemsResult {
  * legend → champion → runes → battlefield → main → sideboard → overflow, with
  * grouped zones (main/sideboard/overflow) sorted by type then curve.
  *
- * Deduplicates by cardId: a card appearing in multiple zones occupies a single
- * entry, anchored at its first zone in the order above. Cards whose printing
- * can't be resolved (e.g. share-page during catalog hydration) are skipped, so
- * an empty deck or pre-hydration call returns an empty items list.
+ * Each zone appearance gets its own item: a card in both main and sideboard
+ * produces two entries so highlight and arrow-nav anchor at the instance the
+ * user clicked. Items carry a `zone` tag and use a composite `${zone}:${printingId}`
+ * id so cells stay distinct within the list. Cards whose printing can't be
+ * resolved (e.g. share-page during catalog hydration) are skipped.
  *
  * @returns The deck's printings as CardViewerItems plus the catalog map.
  */
@@ -46,20 +47,15 @@ export function useDeckItems(cards: DeckBuilderCard[]): UseDeckItemsResult {
   const { getPreferredPrinting } = usePreferredPrinting();
 
   const items: CardViewerItem[] = [];
-  const seen = new Set<string>();
   for (const zone of ZONE_ORDER) {
     const inZone = cards.filter((card) => card.zone === zone);
     const sorted = sortOverviewCards(inZone, zone);
     for (const card of sorted) {
-      if (seen.has(card.cardId)) {
-        continue;
-      }
       const printing = getPreferredPrinting(card.cardId, card.preferredPrintingId);
       if (!printing) {
         continue;
       }
-      seen.add(card.cardId);
-      items.push({ id: printing.id, printing });
+      items.push({ id: `${zone}:${printing.id}`, printing, zone });
     }
   }
 

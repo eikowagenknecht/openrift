@@ -310,7 +310,7 @@ function SharedDeckDetailPaneBridge({
     }
     const printing = getPreferredPrinting(pendingClick.cardId, pendingClick.preferredPrintingId);
     if (printing) {
-      useSelectionStore.getState().selectCard(printing, items, "card");
+      useSelectionStore.getState().selectCard(printing, items, "card", pendingClick.zone);
       onResolved();
     }
   }, [pendingClick, getPreferredPrinting, items, onResolved]);
@@ -353,7 +353,7 @@ function SharedDeckMobileOverlayBridge({
     }
     const printing = getPreferredPrinting(pendingClick.cardId, pendingClick.preferredPrintingId);
     if (printing) {
-      useSelectionStore.getState().selectCard(printing, items, "card");
+      useSelectionStore.getState().selectCard(printing, items, "card", pendingClick.zone);
       onResolved();
     }
   }, [pendingClick, getPreferredPrinting, items, onResolved]);

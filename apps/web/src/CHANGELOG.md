@@ -18,6 +18,7 @@
 - feat: In Custom - Region decks, you can now add a Signature for any Champion in your region, as long as that Champion is in the deck. The previous rule only allowed Signatures matching your Legend's Champion
 - feat: Custom - Region decks now allow 1 to 3 Battlefield cards, instead of requiring exactly 3
 - feat: The deck builder no longer pre-filters cards by your Legend's domains in Custom - Region decks, since rune colors and card colors aren't enforced in this format. You see every legal card on each zone right away
+- fix: Clicking a card in the deck overview now highlights it and lets you arrow-key through the deck. The highlight follows the specific zone you clicked, so a card sitting in both main and sideboard only lights up where you clicked
 - fix: Opening a deck is noticeably faster, with first paint roughly two seconds quicker on a cold load
 - fix: The card detail panel now closes when you switch between collections, lists, and other card-browser pages, instead of carrying a card you picked on the previous page into the next one
 - fix: The Promos page's group-by dropdown no longer shows "set" (a leftover from another page or from the default) when the actual grouping is by distribution channel
