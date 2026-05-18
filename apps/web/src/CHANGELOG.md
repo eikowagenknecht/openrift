@@ -7,6 +7,7 @@
 - feat: Card and printing lists track quantities — dropping the same card onto a list a second time adds another instead of being ignored, and each tile and table row has a +/- stepper for direct edits. Copy lists stay singular since each entry is one physical card
 - feat: Selecting copies in a collection now offers an "Add to list" action, and dragging a card or selection onto a sidebar list adds it there
 - feat: A card list can now be exported as plain text, one "quantity card name" per line, so you can paste it straight into deck builders
+- feat: Clicking a card in the deck overview (or in the deck editor's sidebar) now opens the card details in a side panel, matching how the cards browser works. The same panel is available on shared deck links
 - feat: The Promos page now responds to the column-count controls in the toolbar, so you can set how many cards per row the same way as on the cards browser
 - feat: When the site is briefly unreachable (for example during a deploy), you now see a friendly card-themed page instead of a generic browser error
 - feat: In Custom - Region decks, you can now add a Signature for any Champion in your region, as long as that Champion is in the deck. The previous rule only allowed Signatures matching your Legend's Champion

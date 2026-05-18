@@ -85,7 +85,7 @@ export function SelectionDetailPane({
   );
 }
 
-function CardDetailSkeleton() {
+export function CardDetailSkeleton() {
   return (
     <div className="bg-background rounded-lg px-3">
       <div className="hidden md:flex md:items-start md:justify-between md:gap-2 md:pt-4 md:pb-4">

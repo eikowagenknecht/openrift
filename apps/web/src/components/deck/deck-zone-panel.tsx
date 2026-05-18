@@ -2,6 +2,7 @@ import type { DeckZone, Marketplace } from "@openrift/shared";
 import { LayoutDashboardIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import type { CardViewerItem } from "@/components/card-viewer-types";
 import { DeckOwnershipPanel } from "@/components/deck/deck-ownership-panel";
 import { DeckStatsPanel } from "@/components/deck/deck-stats-panel";
 import { DeckZoneSection } from "@/components/deck/deck-zone-section";
@@ -21,6 +22,9 @@ interface DeckZonePanelProps {
   marketplace?: Marketplace;
   onViewMissing?: () => void;
   hideStatsAndOwnership?: boolean;
+  /** Deck items in display order — passed to each zone section so a row click
+   * seeds the detail pane's prev/next nav with the same list the overview uses. */
+  deckItems: CardViewerItem[];
 }
 
 export function DeckZonePanel({
@@ -32,6 +36,7 @@ export function DeckZonePanel({
   marketplace,
   onViewMissing,
   hideStatsAndOwnership,
+  deckItems,
 }: DeckZonePanelProps) {
   const { zoneOrder } = useZoneOrder();
   const cards = useDeckCards(deckId);
@@ -91,6 +96,7 @@ export function DeckZonePanel({
           shiftHeld={shiftHeld}
           onActivate={() => onZoneClick?.(zone)}
           onHoverCard={onHoverCard}
+          deckItems={deckItems}
         />
       ))}
       {!hideStatsAndOwnership && (

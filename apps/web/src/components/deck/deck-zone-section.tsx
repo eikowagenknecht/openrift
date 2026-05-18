@@ -4,6 +4,7 @@ import { WellKnown } from "@openrift/shared";
 import { AlertTriangleIcon, BanIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
 
+import type { CardViewerItem } from "@/components/card-viewer-types";
 import { DeckCardPrintingMenu } from "@/components/deck/deck-card-printing-menu";
 import { DeckCardRow } from "@/components/deck/deck-card-row";
 import type {
@@ -61,6 +62,9 @@ interface DeckZoneSectionProps {
   shiftHeld?: boolean;
   onActivate: () => void;
   onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
+  /** Full deck-items list (across all zones), used to seed the detail pane's
+   * prev/next navigation when a row is clicked. */
+  deckItems: CardViewerItem[];
 }
 
 export function DeckZoneSection({
@@ -72,6 +76,7 @@ export function DeckZoneSection({
   shiftHeld,
   onActivate,
   onHoverCard,
+  deckItems,
 }: DeckZoneSectionProps) {
   const [open, setOpen] = useState(zone !== "sideboard" && zone !== "overflow");
   const { addCard, removeCard, setQuantity } = useDeckBuilderActions(deckId);
@@ -131,7 +136,7 @@ export function DeckZoneSection({
   const handleCardClick = (card: DeckBuilderCard) => {
     const match = getPreferredPrinting(card.cardId, card.preferredPrintingId);
     if (match) {
-      useSelectionStore.getState().selectCard(match, [], "card");
+      useSelectionStore.getState().selectCard(match, deckItems, "card");
     }
   };
 

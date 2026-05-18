@@ -13,7 +13,7 @@ import {
   UploadIcon,
   XIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { buildRunesByDomain, DeckCardBrowser } from "@/components/deck/deck-card-browser";
@@ -37,6 +37,8 @@ import {
   PageTopBarTitle,
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
+import { SelectionDetailPane } from "@/components/selection-detail-pane";
+import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -57,6 +59,7 @@ import {
 import { useFilterActions } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { useDeckCards } from "@/hooks/use-deck-builder";
+import { useDeckItems } from "@/hooks/use-deck-items";
 import { useDeckOwnership } from "@/hooks/use-deck-ownership";
 import { useDeckDetail, useUpdateDeck } from "@/hooks/use-decks";
 import { useDeckFormatList } from "@/hooks/use-enums";
@@ -67,9 +70,11 @@ import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { toDeckBuilderCard } from "@/lib/deck-builder-card";
 import { hydrateDeckDraft, useDeckSaveStatus } from "@/lib/deck-builder-collection";
 import { ZONE_LABELS } from "@/lib/deck-zone-labels";
+import { getHeaderHeight } from "@/lib/header-height";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
+import { useSelectionStore } from "@/stores/selection-store";
 
 interface DeckEditorPageProps {
   deckId: string;
@@ -206,6 +211,26 @@ function DeckEditorContent({
 
   const { setArrayFilters, setSearch } = useFilterActions();
 
+  const { items: deckItems, printingsByCardId } = useDeckItems(deckCards);
+  const showImages = useDisplayStore((state) => state.showImages);
+  const detailOpen = useSelectionStore((state) => state.detailOpen);
+  const topBarHeight = use(PageTopBarHeightContext);
+
+  // Switching between overview and zone mode swaps the items array under the
+  // detail pane (deck items vs catalog items), so clear the selection at the
+  // boundary to avoid an orphaned selectedIndex.
+  useEffect(() => {
+    useSelectionStore.getState().closeDetail();
+  }, [activeZone]);
+
+  const handleOverviewCardClick = (card: DeckBuilderCard) => {
+    const printing = getPreferredPrinting(card.cardId, card.preferredPrintingId);
+    if (!printing) {
+      return;
+    }
+    useSelectionStore.getState().selectCard(printing, deckItems, "card");
+  };
+
   const handleZoneClick = (zone: DeckZone) => {
     // Clicking the active zone again returns to the overview dashboard.
     if (zone === activeZone) {
@@ -325,8 +350,12 @@ function DeckEditorContent({
       id ? { id, origin: "main", preferredPrintingId: preferredPrintingId ?? null } : null,
     );
 
+  // While the detail pane is open, the floating hover preview from the main
+  // (overview) thumbnails would compete with the pane. Suppress it. Sidebar
+  // hover stays — it's the primary way to peek at a card without committing.
+  const suppressHoverPreview = detailOpen && hovered?.origin === "main";
   const hoveredPrinting =
-    hovered && !isMobile
+    hovered && !isMobile && !suppressHoverPreview
       ? (getPreferredPrinting(hovered.id, hovered.preferredPrintingId) ?? null)
       : null;
   const hoveredFrontImage = hoveredPrinting?.images.find((image) => image.face === "front") ?? null;
@@ -492,6 +521,7 @@ function DeckEditorContent({
                   marketplace={marketplace}
                   onViewMissing={() => setMissingOpen(true)}
                   hideStatsAndOwnership={activeZone === null}
+                  deckItems={deckItems}
                 />
               </div>
             </SidebarContent>
@@ -513,19 +543,52 @@ function DeckEditorContent({
                 </span>
               </div>
             )}
-            <div className="flex-1">
-              <DeckCardBrowser
-                deckId={deckId}
-                ownershipData={ownershipData}
-                marketplace={marketplace}
-                onZoneClick={handleZoneClick}
-                onViewMissing={() => setMissingOpen(true)}
-                onHoverCard={setHoveredMain}
-              />
+            <div
+              className="flex flex-1 items-stretch gap-6"
+              style={
+                {
+                  "--sticky-top": `${getHeaderHeight() + topBarHeight}px`,
+                } as React.CSSProperties
+              }
+            >
+              <div className="flex min-w-0 flex-1 flex-col">
+                <DeckCardBrowser
+                  deckId={deckId}
+                  ownershipData={ownershipData}
+                  marketplace={marketplace}
+                  onZoneClick={handleZoneClick}
+                  onViewMissing={() => setMissingOpen(true)}
+                  onHoverCard={setHoveredMain}
+                  onOverviewCardClick={handleOverviewCardClick}
+                />
+              </div>
+              {!isMobile && activeZone === null && (
+                <SelectionDetailPane
+                  items={deckItems}
+                  printingsByCardId={printingsByCardId}
+                  showImages={showImages}
+                  onSearchAndClose={() => {
+                    // Tag/keyword chips have no filter context on the deck
+                    // overview — there is no catalog grid to drive. Closing
+                    // the pane on click would be jarring with no visible
+                    // result, so swallow these clicks for now.
+                  }}
+                />
+              )}
             </div>
             <Footer />
           </div>
         </div>
+        {isMobile && (
+          <SelectionMobileOverlay
+            items={deckItems}
+            printingsByCardId={printingsByCardId}
+            showImages={showImages}
+            onSearchAndClose={() => {
+              // See comment on the desktop pane above.
+            }}
+          />
+        )}
       </DeckDndContext>
     </div>
   );

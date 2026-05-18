@@ -120,12 +120,8 @@ interface DeckOverviewProps {
   signInHref?: string;
   /** Long-form deck description rendered above the KPI strip. */
   description?: string;
-  /**
-   * When set on a read-only overview, card thumbnails become links to the
-   * card detail page at the returned slug. Ignored in edit mode (the
-   * printing-menu popover takes precedence there).
-   */
-  getCardSlug?: (cardId: string) => string | undefined;
+  /** Fired when a card thumbnail is clicked. Opens the detail pane. */
+  onCardClick?: (card: DeckBuilderCard) => void;
 }
 
 /**
@@ -148,7 +144,7 @@ export function DeckOverview({
   readOnly,
   signInHref,
   description,
-  getCardSlug,
+  onCardClick,
 }: DeckOverviewProps) {
   const championIdentifierTags = useChampionIdentifierTags();
   const violations = validateDeck({
@@ -310,7 +306,7 @@ export function DeckOverview({
               onHoverCard={onHoverCard}
               getThumbnail={getThumbnail}
               readOnly={readOnly}
-              getCardSlug={getCardSlug}
+              onCardClick={onCardClick}
             />
           ))}
         </div>
@@ -330,7 +326,7 @@ export function DeckOverview({
           onHoverCard={onHoverCard}
           getThumbnail={getThumbnail}
           readOnly={readOnly}
-          getCardSlug={getCardSlug}
+          onCardClick={onCardClick}
         />
         <ZoneTile
           deckId={deck.id}
@@ -348,7 +344,7 @@ export function DeckOverview({
           onHoverCard={onHoverCard}
           getThumbnail={getThumbnail}
           readOnly={readOnly}
-          getCardSlug={getCardSlug}
+          onCardClick={onCardClick}
         />
         {cards.some((card) => card.zone === WellKnown.deckZone.OVERFLOW) && (
           <ZoneTile
@@ -367,7 +363,7 @@ export function DeckOverview({
             onHoverCard={onHoverCard}
             getThumbnail={getThumbnail}
             readOnly={readOnly}
-            getCardSlug={getCardSlug}
+            onCardClick={onCardClick}
           />
         )}
       </div>
@@ -557,7 +553,7 @@ interface ZoneTileProps {
   onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
   getThumbnail: (cardId: string, preferredPrintingId: string | null) => string | undefined;
   readOnly?: boolean;
-  getCardSlug?: (cardId: string) => string | undefined;
+  onCardClick?: (card: DeckBuilderCard) => void;
 }
 
 function ZoneTile({
@@ -575,7 +571,7 @@ function ZoneTile({
   onHoverCard,
   getThumbnail,
   readOnly,
-  getCardSlug,
+  onCardClick,
 }: ZoneTileProps) {
   const hasViolation = zoneViolations.length > 0;
   const quantity = cards.reduce((sum, card) => sum + card.quantity, 0);
@@ -704,7 +700,7 @@ function ZoneTile({
           onHoverCard={onHoverCard}
           getThumbnail={getThumbnail}
           readOnly={readOnly}
-          getCardSlug={getCardSlug}
+          onCardClick={onCardClick}
         />
       ) : (
         <div className="flex flex-wrap items-center gap-1.5">
@@ -723,7 +719,7 @@ function ZoneTile({
                 isLandscape={isLandscape}
                 onHoverCard={onHoverCard}
                 readOnly={readOnly}
-                cardSlug={getCardSlug?.(card.cardId)}
+                onCardClick={onCardClick}
               />
             );
           })}
@@ -759,7 +755,7 @@ function GroupedThumbs({
   onHoverCard,
   getThumbnail,
   readOnly,
-  getCardSlug,
+  onCardClick,
 }: {
   deckId: string;
   zone: DeckZone;
@@ -768,7 +764,7 @@ function GroupedThumbs({
   onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
   getThumbnail: (cardId: string, preferredPrintingId: string | null) => string | undefined;
   readOnly?: boolean;
-  getCardSlug?: (cardId: string) => string | undefined;
+  onCardClick?: (card: DeckBuilderCard) => void;
 }) {
   const { labels } = useEnumOrders();
   const grouped = Map.groupBy(cards, (card) => card.cardType);
@@ -812,7 +808,7 @@ function GroupedThumbs({
                     isLandscape={isLandscape}
                     onHoverCard={onHoverCard}
                     readOnly={readOnly}
-                    cardSlug={getCardSlug?.(card.cardId)}
+                    onCardClick={onCardClick}
                   />
                 );
               })}
@@ -832,7 +828,7 @@ function ZoneThumb({
   isLandscape,
   onHoverCard,
   readOnly,
-  cardSlug,
+  onCardClick,
 }: {
   deckId: string;
   card: DeckBuilderCard;
@@ -841,7 +837,7 @@ function ZoneThumb({
   isLandscape: boolean;
   onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
   readOnly?: boolean;
-  cardSlug?: string;
+  onCardClick?: (card: DeckBuilderCard) => void;
 }) {
   const isMobile = useIsMobile();
   const enableDrag = !readOnly && !isMobile && DRAG_SOURCE_ZONES.has(zone);
@@ -861,16 +857,36 @@ function ZoneThumb({
     disabled: !enableDrag,
   });
 
+  // When onCardClick is provided, the thumb becomes a button: spread role +
+  // tabIndex + click/key handlers together so the static analyzer sees a
+  // consistent interactive element (no jsx-a11y/no-static-element-interactions
+  // false positive from conditional props).
+  const interactiveProps: React.HTMLAttributes<HTMLDivElement> = onCardClick
+    ? {
+        role: "button",
+        tabIndex: 0,
+        onClick: () => onCardClick(card),
+        onKeyDown: (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onCardClick(card);
+          }
+        },
+      }
+    : {};
+
   const thumbBody = (
     <div
       ref={enableDrag ? setNodeRef : undefined}
       className={cn(
         "relative shrink-0",
         enableDrag && "cursor-grab active:cursor-grabbing",
+        onCardClick && !enableDrag && "cursor-pointer",
         isDragging && card.quantity === 1 && "opacity-40",
       )}
       onMouseEnter={() => onHoverCard?.(card.cardId, card.preferredPrintingId)}
       onMouseLeave={() => onHoverCard?.(null)}
+      {...interactiveProps}
       {...(enableDrag ? listeners : {})}
       {...(enableDrag ? attributes : {})}
     >
@@ -889,13 +905,6 @@ function ZoneThumb({
   );
 
   if (readOnly) {
-    if (cardSlug) {
-      return (
-        <Link to="/cards/$cardSlug" params={{ cardSlug }} className="block">
-          {thumbBody}
-        </Link>
-      );
-    }
     return thumbBody;
   }
 

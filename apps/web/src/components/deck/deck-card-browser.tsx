@@ -73,6 +73,10 @@ interface DeckCardBrowserProps {
   onZoneClick: (zone: DeckZone) => void;
   onViewMissing: () => void;
   onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
+  /** Overview-only — opens the editor's detail pane for the clicked card. The
+   * editor builds the handler because it owns the deck-items list used for the
+   * pane's prev/next navigation. */
+  onOverviewCardClick: (card: DeckBuilderCard) => void;
 }
 
 /**
@@ -88,6 +92,7 @@ export function DeckCardBrowser({
   onZoneClick,
   onViewMissing,
   onHoverCard,
+  onOverviewCardClick,
 }: DeckCardBrowserProps) {
   const { data: deckDetail } = useDeckDetail(deckId);
   const activeZone = useDeckBuilderUiStore((state) => state.activeZone);
@@ -107,6 +112,7 @@ export function DeckCardBrowser({
         onZoneClick={onZoneClick}
         onViewMissing={onViewMissing}
         onHoverCard={onHoverCard}
+        onCardClick={onOverviewCardClick}
       />
     );
   }
@@ -121,7 +127,11 @@ function DeckOverviewForEditor({
   onZoneClick,
   onViewMissing,
   onHoverCard,
-}: Omit<DeckCardBrowserProps, "deckId"> & { deck: DeckResponse }) {
+  onCardClick,
+}: Omit<DeckCardBrowserProps, "deckId" | "onOverviewCardClick"> & {
+  deck: DeckResponse;
+  onCardClick: (card: DeckBuilderCard) => void;
+}) {
   const cards = useDeckCards(deck.id);
   const customTagAssignments = useCustomTagAssignments();
   const { getPreferredFrontImage } = usePreferredPrinting();
@@ -144,6 +154,7 @@ function DeckOverviewForEditor({
       onZoneClick={onZoneClick}
       onViewMissing={onViewMissing}
       onHoverCard={onHoverCard}
+      onCardClick={onCardClick}
     />
   );
 }
