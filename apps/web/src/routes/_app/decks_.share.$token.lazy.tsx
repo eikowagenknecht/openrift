@@ -196,7 +196,7 @@ function SharedDeckContent({
       <HoveredCardPreview hoveredCard={hoveredCard} origin="main" containerRef={containerRef} />
 
       <div
-        className="flex items-stretch gap-6"
+        className="@container flex items-stretch gap-6"
         style={{ "--sticky-top": `${getHeaderHeight() + topBarHeight}px` } as React.CSSProperties}
       >
         <div className="min-w-0 flex-1">

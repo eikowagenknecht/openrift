@@ -544,7 +544,7 @@ function DeckEditorContent({
               </div>
             )}
             <div
-              className="flex flex-1 items-stretch gap-6"
+              className="@container flex flex-1 items-stretch gap-6"
               style={
                 {
                   "--sticky-top": `${getHeaderHeight() + topBarHeight}px`,
