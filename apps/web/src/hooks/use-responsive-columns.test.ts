@@ -22,29 +22,29 @@ describe("useResponsiveColumns", () => {
     setInnerWidth(originalInnerWidth);
   });
 
-  // The useState initializer runs before any DOM measurement, so SSR-shipped
-  // markup must derive its column count from this same table — otherwise the
-  // hydrated grid disagrees with what the server painted on first paint.
-  it.each([
-    [320, 2],
-    [639, 2],
-    [640, 3],
-    [767, 3],
-    [768, 4],
-    [1023, 4],
-    [1024, 5],
-    [1279, 5],
-    [1280, 6],
-    [1599, 6],
-    [1600, 7],
-    [1919, 7],
-    [1920, 8],
-    [2560, 8],
-  ])("at innerWidth=%i, the initial column count is %i", (width, expected) => {
-    setInnerWidth(width);
+  // The initializer must be deterministic across SSR and client so the
+  // hydrated grid's inline `gridTemplateColumns` matches the server-rendered
+  // HTML. Reading `globalThis.innerWidth` here would return undefined on the
+  // server and a real value on the client, producing a hydration mismatch on
+  // SSR-rendered pages like /promos. The useLayoutEffect upgrades to the
+  // measured column count before the browser paints.
+  it.each([320, 640, 1024, 1280, 1920, 2560])(
+    "starts at SSR-safe 2 columns regardless of innerWidth (%i)",
+    (width) => {
+      setInnerWidth(width);
+      const { result } = renderHook(() => useResponsiveColumns());
+      expect(result.current.columns).toBe(2);
+      expect(result.current.autoColumns).toBe(2);
+    },
+  );
+
+  it("reports measured=false on the initial render (before useLayoutEffect runs against a real container)", () => {
+    // The hook only flips `measured` to true once updateColumns() runs with
+    // a real containerRef. In the JSDOM test environment the ref is null, so
+    // the effect bails before measuring. SSR consumers rely on this flag to
+    // keep the CSS-only responsive grid in place until JS has the real width.
     const { result } = renderHook(() => useResponsiveColumns());
-    expect(result.current.columns).toBe(expected);
-    expect(result.current.autoColumns).toBe(expected);
+    expect(result.current.measured).toBe(false);
   });
 
   it("uses the explicit maxColumns argument verbatim in the initializer", () => {
@@ -55,10 +55,10 @@ describe("useResponsiveColumns", () => {
     expect(result.current.columns).toBe(3);
   });
 
-  it("falls back to autoColumns when maxColumns is null (auto mode)", () => {
+  it("falls back to the SSR-safe default when maxColumns is null (auto mode)", () => {
     setInnerWidth(1280);
     const { result } = renderHook(() => useResponsiveColumns(null));
-    expect(result.current.columns).toBe(6);
-    expect(result.current.autoColumns).toBe(6);
+    expect(result.current.columns).toBe(2);
+    expect(result.current.autoColumns).toBe(2);
   });
 });

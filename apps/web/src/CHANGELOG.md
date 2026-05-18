@@ -9,6 +9,7 @@
 - feat: The deck builder no longer pre-filters cards by your Legend's domains in Custom - Region decks, since rune colors and card colors aren't enforced in this format. You see every legal card on each zone right away
 - fix: The Promos page's group-by dropdown no longer shows "set" (a leftover from another page or from the default) when the actual grouping is by distribution channel
 - fix: A tab left idle during a release update now refreshes itself when you return to it, so you don't end up clicking through a stale page
+- fix: The Promos page no longer briefly renders as a narrow two-column grid on desktop before snapping to the correct width on load
 
 ## 2026-05-17
 

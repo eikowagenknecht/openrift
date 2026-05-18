@@ -46,7 +46,7 @@ import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { publicPromoListQueryOptions } from "@/hooks/use-public-promos";
-import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
+import { SSR_RESPONSIVE_GRID_COLS, useResponsiveColumns } from "@/hooks/use-responsive-columns";
 import { useSession } from "@/lib/auth-session";
 import { catalogQueryOptions } from "@/lib/catalog-query";
 import { applyOwnedBucketFilter } from "@/lib/owned-bucket";
@@ -56,7 +56,7 @@ import { asPromoGrouping, groupByCard, groupByMarker, groupByYear } from "@/lib/
 import type { ChannelNode } from "@/lib/promos-tree";
 import { computeLanguageAggregates } from "@/lib/promos-tree";
 import { FilterSearchProvider } from "@/lib/search-schemas";
-import { PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
@@ -606,7 +606,7 @@ function PromoSectionsContent({
   const setAutoColumns = useDisplayStore((s) => s.setAutoColumns);
   const setPhysicalMax = useDisplayStore((s) => s.setPhysicalMax);
   const setPhysicalMin = useDisplayStore((s) => s.setPhysicalMin);
-  const { containerRef, columns, autoColumns, physicalMax, physicalMin } =
+  const { containerRef, columns, autoColumns, physicalMax, physicalMin, measured } =
     useResponsiveColumns(maxColumns);
   useEffect(() => {
     setAutoColumns(autoColumns);
@@ -686,6 +686,7 @@ function PromoSectionsContent({
                     showImages={showImages}
                     display={display}
                     columns={columns}
+                    measured={measured}
                     onCardClick={onCardClick}
                     ownedCounts={ownedCounts}
                     sortPrintings={sortPrintings}
@@ -700,6 +701,7 @@ function PromoSectionsContent({
                     showImages={showImages}
                     display={display}
                     columns={columns}
+                    measured={measured}
                     onCardClick={onCardClick}
                     ownedCounts={ownedCounts}
                     sortPrintings={sortPrintings}
@@ -719,6 +721,7 @@ function PromoSectionsContent({
                   showImages={showImages}
                   display={display}
                   columns={columns}
+                  measured={measured}
                   onCardClick={onCardClick}
                   ownedCounts={ownedCounts}
                   sortPrintings={sortPrintings}
@@ -843,8 +846,10 @@ interface RenderedSectionProps {
   viewMode: ViewMode;
   showImages: boolean;
   display: CardThumbnailDisplay;
-  /** Column count from {@link useResponsiveColumns} — drives each section's inline gridTemplateColumns. */
+  /** Column count from {@link useResponsiveColumns} — drives each section's inline gridTemplateColumns once measured. */
   columns: number;
+  /** False until useLayoutEffect has measured the container; while false, the grid relies on SSR_RESPONSIVE_GRID_COLS so SSR paints the right column count without a hydration mismatch. */
+  measured: boolean;
   onCardClick: (printing: Printing) => void;
   ownedCounts: Record<string, number> | undefined;
   sortPrintings: (printings: Printing[]) => Printing[];
@@ -852,12 +857,25 @@ interface RenderedSectionProps {
 }
 
 /**
- * Inline grid template that mirrors what CardGrid does for /cards.
+ * Class string and style object for a section grid. Pre-measurement uses
+ * container-query Tailwind classes so SSR-painted HTML already has the right
+ * column count for the actual container width. Post-measurement, an inline
+ * `gridTemplateColumns` locks in the JS-measured (or user-controlled) value
+ * and overrides the CSS classes.
  *
- * @returns A CSS style object with `gridTemplateColumns` set to the column count.
+ * @returns Props to spread onto the grid container.
  */
-function gridStyle(columns: number): React.CSSProperties {
-  return { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` };
+function gridProps(
+  columns: number,
+  measured: boolean,
+): {
+  className: string;
+  style: React.CSSProperties | undefined;
+} {
+  return {
+    className: cn("grid gap-4", measured ? null : SSR_RESPONSIVE_GRID_COLS),
+    style: measured ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } : undefined,
+  };
 }
 
 function ParentAnchors({ ids, stickyOffset }: { ids: string[]; stickyOffset: number }) {
@@ -880,6 +898,7 @@ function LeafSection({
   showImages,
   display,
   columns,
+  measured,
   onCardClick,
   ownedCounts,
   sortPrintings,
@@ -899,7 +918,7 @@ function LeafSection({
         anchorId={item.sectionId}
       />
       {viewMode === "grid" ? (
-        <div className="grid gap-4" style={gridStyle(columns)}>
+        <div {...gridProps(columns, measured)}>
           {sortedPrintings.map((printing) => {
             const ownedCount = ownedCounts?.[printing.id] ?? 0;
             return (
@@ -937,6 +956,7 @@ function FlatSection({
   showImages,
   display,
   columns,
+  measured,
   onCardClick,
   ownedCounts,
   sortPrintings,
@@ -950,7 +970,7 @@ function FlatSection({
     <section id={item.sectionId} style={{ scrollMarginTop: `${stickyOffset}px` }}>
       <SectionDivider title={item.title} count={sortedPrintings.length} anchorId={item.sectionId} />
       {viewMode === "grid" ? (
-        <div className="grid gap-4" style={gridStyle(columns)}>
+        <div {...gridProps(columns, measured)}>
           {sortedPrintings.map((printing) => {
             const ownedCount = ownedCounts?.[printing.id] ?? 0;
             return (
@@ -988,6 +1008,7 @@ function CompactSection({
   showImages,
   display,
   columns,
+  measured,
   onCardClick,
   ownedCounts,
   sortPrintings,
@@ -1024,6 +1045,7 @@ function CompactSection({
           showImages={showImages}
           display={display}
           columns={columns}
+          measured={measured}
           onCardClick={onCardClick}
           ownedCounts={ownedCounts}
           sortPrintings={sortPrintings}
@@ -1039,6 +1061,7 @@ function CompactBranchGrid({
   showImages,
   display,
   columns,
+  measured,
   onCardClick,
   ownedCounts,
   sortPrintings,
@@ -1048,6 +1071,7 @@ function CompactBranchGrid({
   showImages: boolean;
   display: CardThumbnailDisplay;
   columns: number;
+  measured: boolean;
   onCardClick: (printing: Printing) => void;
   ownedCounts: Record<string, number> | undefined;
   sortPrintings: (printings: Printing[]) => Printing[];
@@ -1080,7 +1104,7 @@ function CompactBranchGrid({
           ))}
         </dl>
       )}
-      <div className="grid gap-4" style={gridStyle(columns)}>
+      <div {...gridProps(columns, measured)}>
         {entries.map(({ printing, leafLabel, anchorId }) => {
           const ownedCount = ownedCounts?.[printing.id] ?? 0;
           return (

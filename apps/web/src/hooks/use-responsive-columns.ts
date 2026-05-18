@@ -14,22 +14,28 @@ const MIN_CARD_WIDTH = 100;
 const MAX_CARD_WIDTH = 500;
 const GAP = 16;
 
+// Initial state must be identical on server and client so SSR-rendered grids
+// hydrate without an attribute mismatch on `style.gridTemplateColumns`. The
+// server has no `innerWidth`, so we can't derive cols from a breakpoint at
+// initializer time — every consumer starts at the narrowest column count and
+// the useLayoutEffect below upgrades to the measured value before the browser
+// paints. /cards is gated behind useHydrated() so it never SSRs the grid,
+// but /promos renders during SSR for crawlers and would mismatch otherwise.
+// Pair the `measured` flag with CSS container-query grid classes on the SSR
+// markup so the browser's first paint already shows the right column count
+// based on the actual container width (see /promos for the pattern).
+const SSR_SAFE_COLUMNS = 2;
+
 export function useResponsiveColumns(maxColumns?: number | null) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [columns, setColumns] = useState(() => {
-    if (maxColumns !== undefined && maxColumns !== null) {
-      return maxColumns;
-    }
-    const match = breakpoints.find((bp) => globalThis.innerWidth >= bp.minWidth);
-    return match?.cols ?? 2;
-  });
+  const [columns, setColumns] = useState(() =>
+    maxColumns !== undefined && maxColumns !== null ? maxColumns : SSR_SAFE_COLUMNS,
+  );
   const [physicalMax, setPhysicalMax] = useState(8);
   const [physicalMin, setPhysicalMin] = useState(1);
-  const [autoColumns, setAutoColumns] = useState(() => {
-    const match = breakpoints.find((bp) => globalThis.innerWidth >= bp.minWidth);
-    return match?.cols ?? 2;
-  });
+  const [autoColumns, setAutoColumns] = useState(SSR_SAFE_COLUMNS);
   const [containerWidth, setContainerWidth] = useState(400);
+  const [measured, setMeasured] = useState(false);
 
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -79,6 +85,7 @@ export function useResponsiveColumns(maxColumns?: number | null) {
       setAutoColumns(auto);
       setColumns(cols);
       setContainerWidth(width);
+      setMeasured(true);
     };
 
     updateColumns();
@@ -95,5 +102,22 @@ export function useResponsiveColumns(maxColumns?: number | null) {
     };
   }, [maxColumns]);
 
-  return { containerRef, columns, physicalMax, physicalMin, autoColumns, containerWidth };
+  return {
+    containerRef,
+    columns,
+    physicalMax,
+    physicalMin,
+    autoColumns,
+    containerWidth,
+    measured,
+  };
 }
+
+// Tailwind container-query classes mirroring the JS breakpoints above. Apply
+// these on a grid container nested inside `@container/grid` (set in
+// card-browser-layout) when `measured` is still false — i.e. during SSR and
+// the pre-hydration paint. The browser then renders the right column count
+// from CSS alone, and the inline `gridTemplateColumns` style takes over once
+// JS has the precise measurement.
+export const SSR_RESPONSIVE_GRID_COLS =
+  "grid-cols-2 @min-[640px]/grid:grid-cols-3 @min-[768px]/grid:grid-cols-4 @min-[1024px]/grid:grid-cols-5 @min-[1280px]/grid:grid-cols-6 @min-[1600px]/grid:grid-cols-7 @min-[1920px]/grid:grid-cols-8";
