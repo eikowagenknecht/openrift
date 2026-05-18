@@ -8,12 +8,11 @@ import {
   toDeckSummary,
   toDeckAvailabilityItem,
   toDeckCard,
+  toList,
+  toListEntry,
+  toListEntryDetail,
   toPublicDeck,
-  toTradeList,
-  toTradeListItem,
-  toTradeListItemDetail,
-  toWishList,
-  toWishListItem,
+  toPublicList,
 } from "./mappers.js";
 
 // ---------------------------------------------------------------------------
@@ -214,153 +213,223 @@ describe("toDeckSummary", () => {
 });
 
 // ---------------------------------------------------------------------------
-// toTradeList
+// toList
 // ---------------------------------------------------------------------------
 
-describe("toTradeList", () => {
-  it("maps a trade list row", () => {
-    const result = toTradeList({
-      id: "tl-1",
+describe("toList", () => {
+  it("maps a list row including intent, kind, and entry count", () => {
+    const result = toList({
+      id: "lst-1",
       userId: "user-1",
-      name: "For Trade",
-      rules: { foo: "bar" },
+      name: "Demacia binder",
+      intent: "organize",
+      kind: "card",
+      isPublic: false,
       shareToken: null,
       createdAt: NOW,
       updatedAt: LATER,
+      entryCount: 12,
     });
     expect(result).toEqual({
-      id: "tl-1",
-      name: "For Trade",
-      rules: { foo: "bar" },
+      id: "lst-1",
+      name: "Demacia binder",
+      intent: "organize",
+      kind: "card",
+      entryCount: 12,
+      isPublic: false,
       shareToken: null,
       createdAt: "2025-06-15T12:00:00.000Z",
       updatedAt: "2025-06-16T08:30:00.000Z",
     });
   });
+
+  it("defaults entryCount to 0 when the caller doesn't supply one (e.g. after create)", () => {
+    const result = toList({
+      id: "lst-1",
+      userId: "user-1",
+      name: "Wants",
+      intent: "buy",
+      kind: "printing",
+      isPublic: true,
+      shareToken: "tok-abc",
+      createdAt: NOW,
+      updatedAt: LATER,
+    });
+    expect(result.entryCount).toBe(0);
+    expect(result.isPublic).toBe(true);
+    expect(result.shareToken).toBe("tok-abc");
+    expect(result.kind).toBe("printing");
+  });
 });
 
 // ---------------------------------------------------------------------------
-// toTradeListItem
+// toPublicList
 // ---------------------------------------------------------------------------
 
-describe("toTradeListItem", () => {
-  it("maps a trade list item row (base fields only)", () => {
-    const result = toTradeListItem({
-      id: "tli-1",
-      tradeListId: "tl-1",
+describe("toPublicList", () => {
+  it("excludes shareToken and isPublic but keeps intent + kind", () => {
+    const result = toPublicList({
+      id: "lst-1",
       userId: "user-1",
-      copyId: "copy-1",
+      name: "Demacia binder",
+      intent: "organize",
+      kind: "card",
+      isPublic: true,
+      shareToken: "tok-abc",
       createdAt: NOW,
       updatedAt: LATER,
     });
     expect(result).toEqual({
-      id: "tli-1",
-      tradeListId: "tl-1",
-      copyId: "copy-1",
-    });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// toTradeListItemDetail
-// ---------------------------------------------------------------------------
-
-describe("toTradeListItemDetail", () => {
-  it("maps a denormalized trade list item row with card details", () => {
-    const result = toTradeListItemDetail({
-      id: "tli-1",
-      tradeListId: "tl-1",
-      copyId: "copy-1",
-      printingId: "p-1",
-      collectionId: "col-1",
-      imageId: "uuid-base",
-      setId: "set-1",
-      rarity: "rare",
-      finish: "foil",
-      cardName: "Fire Dragon",
-      cardType: "unit",
-    });
-    expect(result).toEqual({
-      id: "tli-1",
-      tradeListId: "tl-1",
-      copyId: "copy-1",
-      printingId: "p-1",
-      collectionId: "col-1",
-      imageId: "uuid-base",
-      setId: "set-1",
-      rarity: "rare",
-      finish: "foil",
-      cardName: "Fire Dragon",
-      cardType: "unit",
-    });
-  });
-
-  it("maps null imageId to null", () => {
-    const result = toTradeListItemDetail({
-      id: "tli-1",
-      tradeListId: "tl-1",
-      copyId: "copy-1",
-      printingId: "p-1",
-      collectionId: "col-1",
-      imageId: null,
-      setId: "set-1",
-      rarity: "rare",
-      finish: "foil",
-      cardName: "Fire Dragon",
-      cardType: "unit",
-    });
-    expect(result.imageId).toBeNull();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// toWishList
-// ---------------------------------------------------------------------------
-
-describe("toWishList", () => {
-  it("maps a wish list row", () => {
-    const result = toWishList({
-      id: "wl-1",
-      userId: "user-1",
-      name: "Wanted",
-      rules: null,
-      shareToken: "share-tok",
-      createdAt: NOW,
-      updatedAt: LATER,
-    });
-    expect(result).toEqual({
-      id: "wl-1",
-      name: "Wanted",
-      rules: null,
-      shareToken: "share-tok",
+      id: "lst-1",
+      name: "Demacia binder",
+      intent: "organize",
+      kind: "card",
       createdAt: "2025-06-15T12:00:00.000Z",
       updatedAt: "2025-06-16T08:30:00.000Z",
     });
+    expect((result as Record<string, unknown>).shareToken).toBeUndefined();
+    expect((result as Record<string, unknown>).isPublic).toBeUndefined();
   });
 });
 
 // ---------------------------------------------------------------------------
-// toWishListItem
+// toListEntry
 // ---------------------------------------------------------------------------
 
-describe("toWishListItem", () => {
-  it("maps a wish list item row", () => {
-    const result = toWishListItem({
-      id: "wli-1",
-      wishListId: "wl-1",
+describe("toListEntry", () => {
+  it("maps a card-kind entry to the card variant", () => {
+    const result = toListEntry({
+      id: "le-1",
+      listId: "lst-1",
       userId: "user-1",
-      cardId: null,
-      printingId: "p-2",
-      quantityDesired: 3,
+      kind: "card",
+      cardId: "card-1",
+      printingId: null,
+      copyId: null,
+      quantity: 4,
       createdAt: NOW,
       updatedAt: LATER,
     });
     expect(result).toEqual({
-      id: "wli-1",
-      wishListId: "wl-1",
+      id: "le-1",
+      listId: "lst-1",
+      kind: "card",
+      cardId: "card-1",
+      quantity: 4,
+    });
+  });
+
+  it("maps a copy-kind entry to the copy variant", () => {
+    const result = toListEntry({
+      id: "le-2",
+      listId: "lst-1",
+      userId: "user-1",
+      kind: "copy",
       cardId: null,
-      printingId: "p-2",
-      quantityDesired: 3,
+      printingId: null,
+      copyId: "copy-1",
+      quantity: 1,
+      createdAt: NOW,
+      updatedAt: LATER,
+    });
+    expect(result).toEqual({
+      id: "le-2",
+      listId: "lst-1",
+      kind: "copy",
+      copyId: "copy-1",
+      quantity: 1,
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// toListEntryDetail
+// ---------------------------------------------------------------------------
+
+describe("toListEntryDetail", () => {
+  it("maps a card-kind entry with just card identity + name", () => {
+    const result = toListEntryDetail({
+      kind: "card",
+      id: "le-1",
+      listId: "lst-1",
+      quantity: 2,
+      cardId: "card-1",
+      cardName: "Fire Dragon",
+      cardType: "unit",
+    });
+    expect(result).toEqual({
+      kind: "card",
+      id: "le-1",
+      listId: "lst-1",
+      quantity: 2,
+      cardId: "card-1",
+      cardName: "Fire Dragon",
+      cardType: "unit",
+    });
+  });
+
+  it("maps a printing-kind entry with printing details", () => {
+    const result = toListEntryDetail({
+      kind: "printing",
+      id: "le-2",
+      listId: "lst-1",
+      quantity: 1,
+      printingId: "p-1",
+      cardName: "Fire Dragon",
+      cardType: "unit",
+      setId: "set-1",
+      rarity: "rare",
+      finish: "foil",
+      imageId: "img-1",
+    });
+    expect(result).toEqual({
+      kind: "printing",
+      id: "le-2",
+      listId: "lst-1",
+      quantity: 1,
+      printingId: "p-1",
+      cardName: "Fire Dragon",
+      cardType: "unit",
+      setId: "set-1",
+      rarity: "rare",
+      finish: "foil",
+      imageId: "img-1",
+    });
+  });
+
+  it("maps a copy-kind entry with the underlying printing for rendering", () => {
+    // Regression: copy-targeted entries used to leave the underlying printing
+    // off the response, so the list-page couldn't look up a printing and
+    // rendered an empty list even though entries existed.
+    const result = toListEntryDetail({
+      kind: "copy",
+      id: "le-3",
+      listId: "lst-1",
+      quantity: 1,
+      copyId: "copy-1",
+      printingId: "p-1",
+      collectionId: "col-1",
+      cardName: "Fire Dragon",
+      cardType: "unit",
+      setId: "set-1",
+      rarity: "rare",
+      finish: "foil",
+      imageId: "img-1",
+    });
+    expect(result).toEqual({
+      kind: "copy",
+      id: "le-3",
+      listId: "lst-1",
+      quantity: 1,
+      copyId: "copy-1",
+      printingId: "p-1",
+      collectionId: "col-1",
+      cardName: "Fire Dragon",
+      cardType: "unit",
+      setId: "set-1",
+      rarity: "rare",
+      finish: "foil",
+      imageId: "img-1",
     });
   });
 });

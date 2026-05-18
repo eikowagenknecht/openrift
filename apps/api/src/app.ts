@@ -25,10 +25,8 @@ import { collectionValueHistoryRoute } from "./routes/authenticated/collection-v
 import { collectionsRoute } from "./routes/authenticated/collections.js";
 import { copiesRoute } from "./routes/authenticated/copies.js";
 import { decksRoute } from "./routes/authenticated/decks.js";
+import { listsRoute } from "./routes/authenticated/lists.js";
 import { preferencesRoute } from "./routes/authenticated/preferences.js";
-import { shoppingListRoute } from "./routes/authenticated/shopping-list.js";
-import { tradeListsRoute } from "./routes/authenticated/trade-lists.js";
-import { wishListsRoute } from "./routes/authenticated/wish-lists.js";
 import { cardsRoute } from "./routes/public/cards.js";
 import { catalogRoute } from "./routes/public/catalog.js";
 import { publicCollectionsRoute } from "./routes/public/collections.js";
@@ -37,6 +35,7 @@ import { featureFlagsRoute } from "./routes/public/feature-flags.js";
 import { healthRoute } from "./routes/public/health.js";
 import { initRoute } from "./routes/public/init.js";
 import { landingSummaryRoute } from "./routes/public/landing-summary.js";
+import { publicListsRoute } from "./routes/public/lists.js";
 import { pricesRoute } from "./routes/public/prices.js";
 import { promosRoute } from "./routes/public/promos.js";
 import { rulesRoute } from "./routes/public/rules.js";
@@ -44,7 +43,6 @@ import { sentryTunnelRoute } from "./routes/public/sentry-tunnel.js";
 import { setsRoute } from "./routes/public/sets.js";
 import { siteSettingsRoute } from "./routes/public/site-settings.js";
 import { sitemapDataRoute } from "./routes/public/sitemap.js";
-import { publicTradeListsRoute } from "./routes/public/trade-lists.js";
 import type { Auth, Config, Variables } from "./types.js";
 
 export interface AppDeps {
@@ -319,7 +317,7 @@ export function createApp(deps: AppDeps) {
       .route("/api/v1", rulesRoute)
       .route("/api/v1", publicDecksRoute)
       .route("/api/v1", publicCollectionsRoute)
-      .route("/api/v1", publicTradeListsRoute)
+      .route("/api/v1", publicListsRoute)
       .route("/api/v1", sentryTunnelRoute)
 
       // ── Authenticated routes (require a valid session) ──────────────────
@@ -329,9 +327,7 @@ export function createApp(deps: AppDeps) {
       .route("/api/v1", collectionValueHistoryRoute)
       .route("/api/v1", decksRoute)
       .route("/api/v1", preferencesRoute)
-      .route("/api/v1", wishListsRoute)
-      .route("/api/v1", tradeListsRoute)
-      .route("/api/v1", shoppingListRoute)
+      .route("/api/v1", listsRoute)
 
       // ── Admin routes (require admin role) ────────────────────────────────
       .route("/api/v1", adminRoute)

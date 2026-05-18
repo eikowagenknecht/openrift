@@ -78,10 +78,16 @@ export const queryKeys = {
     availability: (userId: string, id: string) => ["decks", userId, id, "availability"] as const,
     publicByToken: (token: string) => ["decks", "share", token] as const,
   },
-  tradeLists: {
-    all: (userId: string) => ["trade-lists", userId] as const,
-    detail: (userId: string, id: string) => ["trade-lists", userId, id] as const,
-    publicByToken: (token: string) => ["trade-lists", "share", token] as const,
+  lists: {
+    // intent: optional filter (buy | sell | organize). Cache miss for the
+    // intent-filtered key is fine — different intents live in different UI
+    // surfaces and rarely overlap in practice.
+    all: (userId: string, intent?: string) =>
+      intent === undefined
+        ? (["lists", userId] as const)
+        : (["lists", userId, "intent", intent] as const),
+    detail: (userId: string, id: string) => ["lists", userId, id] as const,
+    publicByToken: (token: string) => ["lists", "share", token] as const,
   },
   rules: {
     all: (kind: string) => ["rules", kind] as const,

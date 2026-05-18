@@ -1,0 +1,841 @@
+import { afterAll, describe, expect, it } from "vitest";
+
+import { CARD_FURY_UNIT, PRINTING_1 } from "../test/fixtures/constants.js";
+import { createDbContext } from "../test/integration-context.js";
+import { listsRepo } from "./lists.js";
+
+const ctx = createDbContext("a0000000-0040-4000-a000-000000000001");
+
+describe.skipIf(!ctx)("listsRepo (integration)", () => {
+  const { db, userId } = ctx!;
+  const repo = listsRepo(db);
+
+  // Track IDs for cleanup. list_entries cascades on lists delete, but copies
+  // and collections we create directly need their own cleanup.
+  const createdListIds: string[] = [];
+  const createdCollectionIds: string[] = [];
+  const createdCopyIds: string[] = [];
+
+  afterAll(async () => {
+    if (createdListIds.length > 0) {
+      await db.deleteFrom("lists").where("id", "in", createdListIds).execute();
+    }
+    if (createdCopyIds.length > 0) {
+      await db.deleteFrom("copies").where("id", "in", createdCopyIds).execute();
+    }
+    if (createdCollectionIds.length > 0) {
+      await db.deleteFrom("collections").where("id", "in", createdCollectionIds).execute();
+    }
+  });
+
+  async function createTestCopy() {
+    let collection = await db
+      .selectFrom("collections")
+      .selectAll()
+      .where("userId", "=", userId)
+      .executeTakeFirst();
+    if (!collection) {
+      collection = await db
+        .insertInto("collections")
+        .values({
+          userId,
+          name: "Lists Test Binder",
+          availableForDeckbuilding: true,
+          isInbox: false,
+          sortOrder: 1,
+        })
+        .returningAll()
+        .executeTakeFirstOrThrow();
+      createdCollectionIds.push(collection.id);
+    }
+    const copy = await db
+      .insertInto("copies")
+      .values({
+        userId,
+        collectionId: collection.id,
+        printingId: PRINTING_1.id,
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+    createdCopyIds.push(copy.id);
+    return copy;
+  }
+
+  // ── List CRUD ──────────────────────────────────────────────────────────────
+
+  it("creates a list for each allowed intent × kind combo", async () => {
+    const combos: { intent: "buy" | "sell" | "organize"; kind: "card" | "printing" | "copy" }[] = [
+      { intent: "buy", kind: "card" },
+      { intent: "buy", kind: "printing" },
+      { intent: "sell", kind: "copy" },
+      { intent: "organize", kind: "card" },
+      { intent: "organize", kind: "printing" },
+      { intent: "organize", kind: "copy" },
+    ];
+    for (const { intent, kind } of combos) {
+      const list = await repo.create({ userId, name: `Test ${intent}/${kind}`, intent, kind });
+      createdListIds.push(list.id);
+      expect(list.intent).toBe(intent);
+      expect(list.kind).toBe(kind);
+      expect(list.isPublic).toBe(false);
+      expect(list.shareToken).toBeNull();
+    }
+  });
+
+  it("rejects disallowed intent × kind combos at the DB layer", async () => {
+    // CHECK chk_lists_intent_kind blocks: buy×copy, sell×card, sell×printing.
+    for (const bad of [
+      { intent: "buy" as const, kind: "copy" as const },
+      { intent: "sell" as const, kind: "card" as const },
+      { intent: "sell" as const, kind: "printing" as const },
+    ]) {
+      await expect(
+        repo.create({ userId, name: `Bad ${bad.intent}/${bad.kind}`, ...bad }),
+      ).rejects.toThrow();
+    }
+  });
+
+  it("filters listForUser by intent", async () => {
+    const buyLists = await repo.listForUser(userId, "buy");
+    const sellLists = await repo.listForUser(userId, "sell");
+    expect(buyLists.every((l) => l.intent === "buy")).toBe(true);
+    expect(sellLists.every((l) => l.intent === "sell")).toBe(true);
+    expect(buyLists.length).toBeGreaterThanOrEqual(1);
+    expect(sellLists.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("listForUser includes the per-list entry count", async () => {
+    const list = await repo.create({
+      userId,
+      name: "Count check",
+      intent: "buy",
+      kind: "card",
+    });
+    createdListIds.push(list.id);
+    await repo.bulkCreateEntries("card", [
+      { listId: list.id, userId, kind: "card", cardId: CARD_FURY_UNIT.id, quantity: 1 },
+    ]);
+    const all = await repo.listForUser(userId);
+    const fetched = all.find((l) => l.id === list.id);
+    expect(fetched?.entryCount).toBe(1);
+    // Empty lists must still surface a zero count (correlated subquery, not GROUP BY).
+    const empty = await repo.create({
+      userId,
+      name: "Empty",
+      intent: "buy",
+      kind: "card",
+    });
+    createdListIds.push(empty.id);
+    const allAgain = await repo.listForUser(userId);
+    expect(allAgain.find((l) => l.id === empty.id)?.entryCount).toBe(0);
+  });
+
+  it("getByIdForUser scopes to the owner", async () => {
+    const list = await repo.create({
+      userId,
+      name: "Scoped",
+      intent: "organize",
+      kind: "card",
+    });
+    createdListIds.push(list.id);
+    const otherUserId = "a0000000-9999-4000-a000-000000000099";
+    expect(await repo.getByIdForUser(list.id, otherUserId)).toBeUndefined();
+    expect(await repo.getByIdForUser(list.id, userId)).toBeDefined();
+  });
+
+  it("getIdAndKind returns id + kind for the owner only", async () => {
+    const list = await repo.create({
+      userId,
+      name: "IdKind",
+      intent: "buy",
+      kind: "printing",
+    });
+    createdListIds.push(list.id);
+    expect(await repo.getIdAndKind(list.id, userId)).toEqual({ id: list.id, kind: "printing" });
+    expect(
+      await repo.getIdAndKind(list.id, "a0000000-9999-4000-a000-000000000099"),
+    ).toBeUndefined();
+  });
+
+  it("updates a list name", async () => {
+    const list = await repo.create({
+      userId,
+      name: "Before",
+      intent: "buy",
+      kind: "card",
+    });
+    createdListIds.push(list.id);
+    const updated = await repo.update(list.id, userId, { name: "After" });
+    expect(updated?.name).toBe("After");
+  });
+
+  it("deletes a list", async () => {
+    const list = await repo.create({ userId, name: "Doomed", intent: "buy", kind: "card" });
+    const result = await repo.deleteByIdForUser(list.id, userId);
+    expect(result.numDeletedRows).toBe(1n);
+    expect(await repo.getByIdForUser(list.id, userId)).toBeUndefined();
+  });
+
+  // ── Sharing ────────────────────────────────────────────────────────────────
+
+  it("setShareToken sets and clears the public share state", async () => {
+    const list = await repo.create({
+      userId,
+      name: "Shareable",
+      intent: "organize",
+      kind: "card",
+    });
+    createdListIds.push(list.id);
+
+    const shared = await repo.setShareToken(list.id, userId, "tok-abc", true);
+    expect(shared?.isPublic).toBe(true);
+    expect(shared?.shareToken).toBe("tok-abc");
+
+    const found = await repo.findByShareToken("tok-abc");
+    expect(found?.list.id).toBe(list.id);
+
+    const unshared = await repo.setShareToken(list.id, userId, null, false);
+    expect(unshared?.isPublic).toBe(false);
+    expect(unshared?.shareToken).toBeNull();
+    expect(await repo.findByShareToken("tok-abc")).toBeUndefined();
+  });
+
+  it("findByShareToken requires isPublic=true even when a token exists", async () => {
+    const list = await repo.create({
+      userId,
+      name: "Token only",
+      intent: "organize",
+      kind: "card",
+    });
+    createdListIds.push(list.id);
+    await db
+      .updateTable("lists")
+      .set({ shareToken: "dangling-tok", isPublic: false })
+      .where("id", "=", list.id)
+      .execute();
+    expect(await repo.findByShareToken("dangling-tok")).toBeUndefined();
+  });
+
+  // ── Entries — single-kind shape ────────────────────────────────────────────
+
+  it("creates a card-kind entry on a card-kind list", async () => {
+    const list = await repo.create({
+      userId,
+      name: "Card entries",
+      intent: "buy",
+      kind: "card",
+    });
+    createdListIds.push(list.id);
+    const entry = await repo.createEntry({
+      listId: list.id,
+      userId,
+      kind: "card",
+      cardId: CARD_FURY_UNIT.id,
+      printingId: null,
+      copyId: null,
+      quantity: 4,
+    });
+    expect(entry.cardId).toBe(CARD_FURY_UNIT.id);
+    expect(entry.kind).toBe("card");
+    expect(entry.quantity).toBe(4);
+  });
+
+  it("creates a printing-kind entry on a printing-kind list", async () => {
+    const list = await repo.create({
+      userId,
+      name: "Printing entries",
+      intent: "buy",
+      kind: "printing",
+    });
+    createdListIds.push(list.id);
+    const entry = await repo.createEntry({
+      listId: list.id,
+      userId,
+      kind: "printing",
+      cardId: null,
+      printingId: PRINTING_1.id,
+      copyId: null,
+      quantity: 1,
+    });
+    expect(entry.printingId).toBe(PRINTING_1.id);
+    expect(entry.kind).toBe("printing");
+  });
+
+  it("creates a copy-kind entry and cascades on copy delete", async () => {
+    const copy = await createTestCopy();
+    const list = await repo.create({
+      userId,
+      name: "Copy entries",
+      intent: "sell",
+      kind: "copy",
+    });
+    createdListIds.push(list.id);
+
+    const entry = await repo.createEntry({
+      listId: list.id,
+      userId,
+      kind: "copy",
+      cardId: null,
+      printingId: null,
+      copyId: copy.id,
+      quantity: 1,
+    });
+    expect(entry.copyId).toBe(copy.id);
+
+    await db.deleteFrom("copies").where("id", "=", copy.id).execute();
+    createdCopyIds.splice(createdCopyIds.indexOf(copy.id), 1);
+
+    const surviving = await db
+      .selectFrom("listEntries")
+      .selectAll()
+      .where("id", "=", entry.id)
+      .executeTakeFirst();
+    expect(surviving).toBeUndefined();
+  });
+
+  it("rejects an entry whose kind doesn't match the list", async () => {
+    const list = await repo.create({
+      userId,
+      name: "Mismatched",
+      intent: "buy",
+      kind: "card",
+    });
+    createdListIds.push(list.id);
+    // The composite FK (list_id, kind) → lists(id, kind) blocks this at the
+    // DB layer regardless of which target columns are set.
+    await expect(
+      repo.createEntry({
+        listId: list.id,
+        userId,
+        kind: "printing",
+        cardId: null,
+        printingId: PRINTING_1.id,
+        copyId: null,
+        quantity: 1,
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("rejects a card-kind entry without a card_id (CHECK shape)", async () => {
+    const list = await repo.create({
+      userId,
+      name: "Bad shape",
+      intent: "buy",
+      kind: "card",
+    });
+    createdListIds.push(list.id);
+    await expect(
+      repo.createEntry({
+        listId: list.id,
+        userId,
+        kind: "card",
+        cardId: null,
+        printingId: null,
+        copyId: null,
+        quantity: 1,
+      }),
+    ).rejects.toThrow();
+  });
+
+  // ── Partial unique indexes — duplicates ────────────────────────────────────
+
+  it("rejects a duplicate card-kind entry on the same list", async () => {
+    const list = await repo.create({
+      userId,
+      name: "Dedup card",
+      intent: "buy",
+      kind: "card",
+    });
+    createdListIds.push(list.id);
+    await repo.createEntry({
+      listId: list.id,
+      userId,
+      kind: "card",
+      cardId: CARD_FURY_UNIT.id,
+      printingId: null,
+      copyId: null,
+      quantity: 1,
+    });
+    await expect(
+      repo.createEntry({
+        listId: list.id,
+        userId,
+        kind: "card",
+        cardId: CARD_FURY_UNIT.id,
+        printingId: null,
+        copyId: null,
+        quantity: 1,
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("allows the same printing across different lists", async () => {
+    const listA = await repo.create({
+      userId,
+      name: "List A",
+      intent: "buy",
+      kind: "printing",
+    });
+    const listB = await repo.create({
+      userId,
+      name: "List B",
+      intent: "buy",
+      kind: "printing",
+    });
+    createdListIds.push(listA.id, listB.id);
+    await repo.createEntry({
+      listId: listA.id,
+      userId,
+      kind: "printing",
+      cardId: null,
+      printingId: PRINTING_1.id,
+      copyId: null,
+      quantity: 1,
+    });
+    await expect(
+      repo.createEntry({
+        listId: listB.id,
+        userId,
+        kind: "printing",
+        cardId: null,
+        printingId: PRINTING_1.id,
+        copyId: null,
+        quantity: 1,
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  // ── Bulk-create entries ────────────────────────────────────────────────────
+
+  it("bulkCreateEntries inserts and merges dupes within one kind", async () => {
+    const list = await repo.create({ userId, name: "Bulk", intent: "buy", kind: "card" });
+    createdListIds.push(list.id);
+
+    const result = await repo.bulkCreateEntries("card", [
+      {
+        listId: list.id,
+        userId,
+        kind: "card",
+        cardId: CARD_FURY_UNIT.id,
+        printingId: null,
+        copyId: null,
+        quantity: 1,
+      },
+      // Duplicate — merges into the previous via ON CONFLICT DO UPDATE.
+      {
+        listId: list.id,
+        userId,
+        kind: "card",
+        cardId: CARD_FURY_UNIT.id,
+        printingId: null,
+        copyId: null,
+        quantity: 1,
+      },
+    ]);
+    expect(result).toEqual({ inserted: 1, updated: 1 });
+
+    // The single surviving entry's quantity reflects both inputs.
+    const rows = await repo.entriesWithDetails(list.id, "card", userId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.quantity).toBe(2);
+  });
+
+  // Regression: separate calls used to drop the second invocation as "skipped"
+  // because ON CONFLICT DO NOTHING returned no row. Now each call bumps the
+  // existing entry's quantity instead — the user can drag the same card onto
+  // a list multiple times to build up the desired count.
+  it("bulkCreateEntries bumps quantity on a later call against an existing entry", async () => {
+    const list = await repo.create({ userId, name: "Bulk repeat", intent: "buy", kind: "card" });
+    createdListIds.push(list.id);
+
+    const entry = {
+      listId: list.id,
+      userId,
+      kind: "card" as const,
+      cardId: CARD_FURY_UNIT.id,
+      printingId: null,
+      copyId: null,
+      quantity: 1,
+    };
+
+    expect(await repo.bulkCreateEntries("card", [entry])).toEqual({ inserted: 1, updated: 0 });
+    expect(await repo.bulkCreateEntries("card", [entry])).toEqual({ inserted: 0, updated: 1 });
+    expect(await repo.bulkCreateEntries("card", [{ ...entry, quantity: 3 }])).toEqual({
+      inserted: 0,
+      updated: 1,
+    });
+
+    const rows = await repo.entriesWithDetails(list.id, "card", userId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.quantity).toBe(5);
+  });
+
+  // Regression: ON CONFLICT (list_id, copy_id) used to omit the partial-index
+  // predicate (`WHERE copy_id IS NOT NULL`), so Postgres raised "no unique or
+  // exclusion constraint matching the ON CONFLICT specification" the moment
+  // a copy-kind bulk insert ran in production.
+  it("bulkCreateEntries works with copy-kind entries (partial-index ON CONFLICT)", async () => {
+    const copyA = await createTestCopy();
+    const copyB = await createTestCopy();
+    const list = await repo.create({
+      userId,
+      name: "Bulk copy",
+      intent: "sell",
+      kind: "copy",
+    });
+    createdListIds.push(list.id);
+
+    const result = await repo.bulkCreateEntries("copy", [
+      {
+        listId: list.id,
+        userId,
+        kind: "copy",
+        cardId: null,
+        printingId: null,
+        copyId: copyA.id,
+        quantity: 1,
+      },
+      {
+        listId: list.id,
+        userId,
+        kind: "copy",
+        cardId: null,
+        printingId: null,
+        copyId: copyB.id,
+        quantity: 1,
+      },
+      // Duplicate copyA — copy-kind lists use DO NOTHING (a copy is singular,
+      // not "quantity 2 of this physical card"), so the dupe is dropped and
+      // doesn't appear in the returned counts.
+      {
+        listId: list.id,
+        userId,
+        kind: "copy",
+        cardId: null,
+        printingId: null,
+        copyId: copyA.id,
+        quantity: 1,
+      },
+    ]);
+    expect(result).toEqual({ inserted: 2, updated: 0 });
+
+    // The original copyA entry stays at quantity 1 — no merge.
+    const rows = await repo.entriesWithDetails(list.id, "copy", userId);
+    expect(rows).toHaveLength(2);
+    expect(rows.every((row) => row.quantity === 1)).toBe(true);
+  });
+
+  it("bulkCreateEntries returns zero counts for empty input without a DB roundtrip", async () => {
+    const result = await repo.bulkCreateEntries("card", []);
+    expect(result).toEqual({ inserted: 0, updated: 0 });
+  });
+
+  // ── bulkCreateEntriesFromCopies (drag-from-collections) ────────────────────
+
+  it("bulkCreateEntriesFromCopies inserts one copy entry per owned copy on a copy-kind list", async () => {
+    const copyA = await createTestCopy();
+    const copyB = await createTestCopy();
+    const list = await repo.create({
+      userId,
+      name: "From copies (copy)",
+      intent: "sell",
+      kind: "copy",
+    });
+    createdListIds.push(list.id);
+
+    const result = await repo.bulkCreateEntriesFromCopies(list.id, "copy", userId, [
+      copyA.id,
+      copyB.id,
+    ]);
+    expect(result).toEqual({ added: 2, updated: 0, skipped: 0 });
+
+    const rows = await repo.entriesWithDetails(list.id, "copy", userId);
+    expect(rows).toHaveLength(2);
+  });
+
+  it("bulkCreateEntriesFromCopies dedups to distinct printings on a printing-kind list", async () => {
+    // Both copies are of the same PRINTING_1, so the printing-kind list ends
+    // up with a single entry even though two copies were dragged.
+    const copyA = await createTestCopy();
+    const copyB = await createTestCopy();
+    const list = await repo.create({
+      userId,
+      name: "From copies (printing)",
+      intent: "buy",
+      kind: "printing",
+    });
+    createdListIds.push(list.id);
+
+    const result = await repo.bulkCreateEntriesFromCopies(list.id, "printing", userId, [
+      copyA.id,
+      copyB.id,
+    ]);
+    expect(result).toEqual({ added: 1, updated: 0, skipped: 0 });
+  });
+
+  it("bulkCreateEntriesFromCopies dedups to distinct cards on a card-kind list", async () => {
+    const copyA = await createTestCopy();
+    const copyB = await createTestCopy();
+    const list = await repo.create({
+      userId,
+      name: "From copies (card)",
+      intent: "buy",
+      kind: "card",
+    });
+    createdListIds.push(list.id);
+
+    const result = await repo.bulkCreateEntriesFromCopies(list.id, "card", userId, [
+      copyA.id,
+      copyB.id,
+    ]);
+    // Both copies are of the same card via PRINTING_1.
+    expect(result).toEqual({ added: 1, updated: 0, skipped: 0 });
+  });
+
+  // Drag-readd on card/printing-kind lists bumps the existing entry's
+  // quantity instead of being silently rejected. The second call surfaces as
+  // `updated`. Copy-kind lists have the opposite contract — see the
+  // "stays singular on re-drag" test below.
+  it("bulkCreateEntriesFromCopies bumps quantity on a second drag of the same copies", async () => {
+    const copy = await createTestCopy();
+    const list = await repo.create({
+      userId,
+      name: "Drag re-add",
+      intent: "buy",
+      kind: "card",
+    });
+    createdListIds.push(list.id);
+
+    expect(await repo.bulkCreateEntriesFromCopies(list.id, "card", userId, [copy.id])).toEqual({
+      added: 1,
+      updated: 0,
+      skipped: 0,
+    });
+    expect(await repo.bulkCreateEntriesFromCopies(list.id, "card", userId, [copy.id])).toEqual({
+      added: 0,
+      updated: 1,
+      skipped: 0,
+    });
+
+    const rows = await repo.entriesWithDetails(list.id, "card", userId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.quantity).toBe(2);
+  });
+
+  // Copy-kind invariant: a copy is one specific physical card, so re-dragging
+  // it can't legitimately increase its quantity. The second drag is reported
+  // as `skipped`, not `updated`, and the existing entry stays at quantity 1.
+  it("bulkCreateEntriesFromCopies keeps copy-kind entries singular on re-drag", async () => {
+    const copy = await createTestCopy();
+    const list = await repo.create({
+      userId,
+      name: "Copy re-add",
+      intent: "sell",
+      kind: "copy",
+    });
+    createdListIds.push(list.id);
+
+    expect(await repo.bulkCreateEntriesFromCopies(list.id, "copy", userId, [copy.id])).toEqual({
+      added: 1,
+      updated: 0,
+      skipped: 0,
+    });
+    expect(await repo.bulkCreateEntriesFromCopies(list.id, "copy", userId, [copy.id])).toEqual({
+      added: 0,
+      updated: 0,
+      skipped: 1,
+    });
+
+    const rows = await repo.entriesWithDetails(list.id, "copy", userId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.quantity).toBe(1);
+  });
+
+  it("bulkCreateEntriesFromCopies treats non-owned copies as skipped", async () => {
+    const list = await repo.create({
+      userId,
+      name: "Non-owned",
+      intent: "buy",
+      kind: "card",
+    });
+    createdListIds.push(list.id);
+
+    const fakeCopyId = "a0000000-0040-4000-a000-0000000099aa";
+    const result = await repo.bulkCreateEntriesFromCopies(list.id, "card", userId, [fakeCopyId]);
+    expect(result).toEqual({ added: 0, updated: 0, skipped: 1 });
+  });
+
+  // Regression for the mixed-ownership accounting bug: with one owned copy and
+  // one bogus ID, the non-owned ID used to drop silently from `skipped` so the
+  // toast under-reported. Now both an inserted entry and the dropped ID are
+  // surfaced.
+  it("bulkCreateEntriesFromCopies counts non-owned in skipped on mixed input", async () => {
+    const copy = await createTestCopy();
+    const list = await repo.create({
+      userId,
+      name: "Mixed owned/non-owned",
+      intent: "sell",
+      kind: "copy",
+    });
+    createdListIds.push(list.id);
+
+    const fakeCopyId = "a0000000-0040-4000-a000-00000000bb22";
+    const result = await repo.bulkCreateEntriesFromCopies(list.id, "copy", userId, [
+      copy.id,
+      fakeCopyId,
+    ]);
+    expect(result).toEqual({ added: 1, updated: 0, skipped: 1 });
+  });
+
+  // ── Enriched read ──────────────────────────────────────────────────────────
+
+  it("entriesWithDetails returns enriched rows for card-kind lists", async () => {
+    const list = await repo.create({
+      userId,
+      name: "Enriched card",
+      intent: "organize",
+      kind: "card",
+    });
+    createdListIds.push(list.id);
+    await repo.createEntry({
+      listId: list.id,
+      userId,
+      kind: "card",
+      cardId: CARD_FURY_UNIT.id,
+      printingId: null,
+      copyId: null,
+      quantity: 1,
+    });
+    const rows = await repo.entriesWithDetails(list.id, "card", userId);
+    expect(rows).toHaveLength(1);
+    const cardRow = rows[0];
+    expect(cardRow?.cardName).toBe(CARD_FURY_UNIT.name);
+    expect(cardRow?.kind).toBe("card");
+    if (cardRow?.kind === "card") {
+      expect(cardRow.cardId).toBe(CARD_FURY_UNIT.id);
+    }
+    // Card-kind rows carry no printing/set details — they're not on the union variant.
+    expect("setId" in (cardRow ?? {})).toBe(false);
+    expect("printingId" in (cardRow ?? {})).toBe(false);
+  });
+
+  it("entriesWithDetails returns enriched rows for copy-kind lists", async () => {
+    const copy = await createTestCopy();
+    const list = await repo.create({
+      userId,
+      name: "Enriched copy",
+      intent: "sell",
+      kind: "copy",
+    });
+    createdListIds.push(list.id);
+    await repo.createEntry({
+      listId: list.id,
+      userId,
+      kind: "copy",
+      cardId: null,
+      printingId: null,
+      copyId: copy.id,
+      quantity: 1,
+    });
+    const rows = await repo.entriesWithDetails(list.id, "copy", userId);
+    expect(rows).toHaveLength(1);
+    const copyRow = rows[0];
+    expect(copyRow?.kind).toBe("copy");
+    if (copyRow?.kind === "copy") {
+      expect(copyRow.setId).not.toBeNull();
+      expect(copyRow.collectionId).not.toBeNull();
+      // Copy-kind: the rendering printing comes from the underlying copy.
+      expect(copyRow.printingId).toBe(PRINTING_1.id);
+    }
+  });
+
+  it("entriesWithDetails user-scopes the result", async () => {
+    const list = await repo.create({
+      userId,
+      name: "Scoped enriched",
+      intent: "buy",
+      kind: "card",
+    });
+    createdListIds.push(list.id);
+    await repo.createEntry({
+      listId: list.id,
+      userId,
+      kind: "card",
+      cardId: CARD_FURY_UNIT.id,
+      printingId: null,
+      copyId: null,
+      quantity: 1,
+    });
+    const wrongUser = "a0000000-9999-4000-a000-000000000099";
+    expect(await repo.entriesWithDetails(list.id, "card", wrongUser)).toEqual([]);
+  });
+
+  // ── updateEntry / deleteEntry / cascade ────────────────────────────────────
+
+  it("updates an entry's quantity", async () => {
+    const list = await repo.create({
+      userId,
+      name: "Update entry",
+      intent: "buy",
+      kind: "card",
+    });
+    createdListIds.push(list.id);
+    const entry = await repo.createEntry({
+      listId: list.id,
+      userId,
+      kind: "card",
+      cardId: CARD_FURY_UNIT.id,
+      printingId: null,
+      copyId: null,
+      quantity: 1,
+    });
+    const updated = await repo.updateEntry(entry.id, list.id, userId, { quantity: 5 });
+    expect(updated?.quantity).toBe(5);
+  });
+
+  it("deletes an entry", async () => {
+    const list = await repo.create({
+      userId,
+      name: "Delete entry",
+      intent: "buy",
+      kind: "card",
+    });
+    createdListIds.push(list.id);
+    const entry = await repo.createEntry({
+      listId: list.id,
+      userId,
+      kind: "card",
+      cardId: CARD_FURY_UNIT.id,
+      printingId: null,
+      copyId: null,
+      quantity: 1,
+    });
+    const result = await repo.deleteEntry(entry.id, list.id, userId);
+    expect(result.numDeletedRows).toBe(1n);
+  });
+
+  it("deleting a list cascades its entries", async () => {
+    const list = await repo.create({
+      userId,
+      name: "Cascade test",
+      intent: "buy",
+      kind: "card",
+    });
+    const entry = await repo.createEntry({
+      listId: list.id,
+      userId,
+      kind: "card",
+      cardId: CARD_FURY_UNIT.id,
+      printingId: null,
+      copyId: null,
+      quantity: 1,
+    });
+    await repo.deleteByIdForUser(list.id, userId);
+    const surviving = await db
+      .selectFrom("listEntries")
+      .selectAll()
+      .where("id", "=", entry.id)
+      .executeTakeFirst();
+    expect(surviving).toBeUndefined();
+  });
+});

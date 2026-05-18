@@ -701,139 +701,118 @@ export const userPreferencesResponseSchema = z
   })
   .openapi("UserPreferencesResponse");
 
-// ── Wish Lists ───────────────────────────────────────────────────────────────
+// ── Lists (unified buy / sell / organize) ────────────────────────────────────
 
-export const wishListResponseSchema = z
+const listIntentSchema = z.enum(["buy", "sell", "organize"]).openapi("ListIntent");
+
+const listKindSchema = z.enum(["card", "printing", "copy"]).openapi("ListKind");
+
+export const listResponseSchema = z
   .object({
     id: z.string(),
     name: z.string(),
-    rules: z
-      .record(z.string(), z.union([z.string(), z.number(), z.boolean()]).nullable())
-      .nullable(),
+    intent: listIntentSchema,
+    kind: listKindSchema,
+    entryCount: z.number().int().nonnegative(),
+    isPublic: z.boolean(),
     shareToken: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
   })
-  .openapi("WishListResponse");
+  .openapi("ListResponse");
 
-export const wishListListResponseSchema = z
-  .object({ items: z.array(wishListResponseSchema) })
-  .openapi("WishListListResponse");
+export const listListResponseSchema = z
+  .object({ items: z.array(listResponseSchema) })
+  .openapi("ListListResponse");
 
-export const wishListItemResponseSchema = z
-  .object({
-    id: z.string(),
-    wishListId: z.string(),
-    cardId: z.string().nullable(),
-    printingId: z.string().nullable(),
-    quantityDesired: z.number(),
-  })
-  .openapi("WishListItemResponse");
-
-export const wishListDetailResponseSchema = z
-  .object({
-    wishList: wishListResponseSchema,
-    items: z.array(wishListItemResponseSchema),
-  })
-  .openapi("WishListDetailResponse");
-
-// ── Trade Lists ──────────────────────────────────────────────────────────────
-
-export const tradeListResponseSchema = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-    rules: z
-      .record(z.string(), z.union([z.string(), z.number(), z.boolean()]).nullable())
-      .nullable(),
-    shareToken: z.string().nullable(),
-    createdAt: z.string(),
-    updatedAt: z.string(),
-  })
-  .openapi("TradeListResponse");
-
-export const tradeListListResponseSchema = z
-  .object({ items: z.array(tradeListResponseSchema) })
-  .openapi("TradeListListResponse");
-
-export const tradeListItemResponseSchema = z.object({
+const listEntryBaseShape = {
   id: z.string(),
-  tradeListId: z.string(),
-  copyId: z.string(),
-});
+  listId: z.string(),
+  quantity: z.number(),
+};
 
-export const tradeListBulkAddResponseSchema = z
+export const listEntryResponseSchema = z
+  .discriminatedUnion("kind", [
+    z.object({ ...listEntryBaseShape, kind: z.literal("card"), cardId: z.string() }),
+    z.object({ ...listEntryBaseShape, kind: z.literal("printing"), printingId: z.string() }),
+    z.object({ ...listEntryBaseShape, kind: z.literal("copy"), copyId: z.string() }),
+  ])
+  .openapi("ListEntryResponse");
+
+const listEntryDetailBaseShape = {
+  ...listEntryBaseShape,
+  cardName: z.string(),
+  cardType: cardTypeSchema,
+};
+
+const listEntryDetailPrintingFieldsShape = {
+  setId: z.string(),
+  rarity: raritySchema,
+  finish: finishSchema,
+  imageId: imageIdSchema.nullable(),
+};
+
+const listEntryDetailResponseSchema = z
+  .discriminatedUnion("kind", [
+    z.object({
+      ...listEntryDetailBaseShape,
+      kind: z.literal("card"),
+      cardId: z.string(),
+    }),
+    z.object({
+      ...listEntryDetailBaseShape,
+      kind: z.literal("printing"),
+      printingId: z.string(),
+      ...listEntryDetailPrintingFieldsShape,
+    }),
+    z.object({
+      ...listEntryDetailBaseShape,
+      kind: z.literal("copy"),
+      copyId: z.string(),
+      printingId: z.string(),
+      collectionId: z.string(),
+      ...listEntryDetailPrintingFieldsShape,
+    }),
+  ])
+  .openapi("ListEntryDetailResponse");
+
+export const listDetailResponseSchema = z
   .object({
-    added: z.number().int().nonnegative(),
-    skipped: z.number().int().nonnegative(),
+    list: listResponseSchema,
+    entries: z.array(listEntryDetailResponseSchema),
   })
-  .openapi("TradeListBulkAddResponse");
+  .openapi("ListDetailResponse");
 
-const tradeListItemDetailResponseSchema = z
-  .object({
-    id: z.string(),
-    tradeListId: z.string(),
-    copyId: z.string(),
-    printingId: z.string(),
-    collectionId: z.string(),
-    imageId: imageIdSchema.nullable(),
-    setId: z.string(),
-    rarity: raritySchema,
-    finish: finishSchema,
-    cardName: z.string(),
-    cardType: cardTypeSchema,
-  })
-  .openapi("TradeListItemDetailResponse");
-
-export const tradeListDetailResponseSchema = z
-  .object({
-    tradeList: tradeListResponseSchema,
-    items: z.array(tradeListItemDetailResponseSchema),
-  })
-  .openapi("TradeListDetailResponse");
-
-export const publicTradeListResponseSchema = z
+const publicListResponseSchema = z
   .object({
     id: z.string(),
     name: z.string(),
+    intent: listIntentSchema,
+    kind: listKindSchema,
     createdAt: z.string(),
     updatedAt: z.string(),
   })
-  .openapi("PublicTradeListResponse");
+  .openapi("PublicListResponse");
 
-export const publicTradeListDetailResponseSchema = z
+export const publicListDetailResponseSchema = z
   .object({
-    tradeList: publicTradeListResponseSchema,
-    items: z.array(tradeListItemDetailResponseSchema),
+    list: publicListResponseSchema,
+    entries: z.array(listEntryDetailResponseSchema),
     owner: z.object({ displayName: z.string() }),
   })
-  .openapi("PublicTradeListDetailResponse");
+  .openapi("PublicListDetailResponse");
 
-export const tradeListShareResponseSchema = z
-  .object({ shareToken: z.string() })
-  .openapi("TradeListShareResponse");
+export const listShareResponseSchema = z
+  .object({ shareToken: z.string(), isPublic: z.boolean() })
+  .openapi("ListShareResponse");
 
-// ── Shopping List ────────────────────────────────────────────────────────────
-
-const shoppingListSourceResponseSchema = z.object({
-  source: z.string(),
-  demandSourceId: z.string(),
-  sourceName: z.string(),
-  needed: z.number(),
-});
-
-const shoppingListItemResponseSchema = z.object({
-  cardId: z.string().nullable(),
-  printingId: z.string().nullable(),
-  totalDemand: z.number(),
-  owned: z.number(),
-  stillNeeded: z.number(),
-  sources: z.array(shoppingListSourceResponseSchema),
-});
-
-export const shoppingListResponseSchema = z
-  .object({ items: z.array(shoppingListItemResponseSchema) })
-  .openapi("ShoppingListResponse");
+export const listBulkAddResponseSchema = z
+  .object({
+    added: z.number().int().nonnegative(),
+    updated: z.number().int().nonnegative(),
+    skipped: z.number().int().nonnegative(),
+  })
+  .openapi("ListBulkAddResponse");
 
 // ── Rules ───────────────────────────────────────────────────────────────────
 

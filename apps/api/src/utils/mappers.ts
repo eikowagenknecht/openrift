@@ -8,27 +8,20 @@ import type {
   DeckResponse,
   DeckSummaryResponse,
   Domain,
+  Finish,
+  ListEntryDetailResponse,
+  ListEntryResponse,
+  ListResponse,
   PublicCollectionResponse,
   PublicDeckCardResponse,
   PublicDeckResponse,
-  PublicTradeListResponse,
+  PublicListResponse,
+  Rarity,
   SuperType,
-  TradeListItemDetailResponse,
-  TradeListItemResponse,
-  TradeListResponse,
-  WishListItemResponse,
-  WishListResponse,
 } from "@openrift/shared";
 import type { Selectable } from "kysely";
 
-import type {
-  CollectionsTable,
-  DecksTable,
-  TradeListItemsTable,
-  TradeListsTable,
-  WishListItemsTable,
-  WishListsTable,
-} from "../db/index.js";
+import type { CollectionsTable, DecksTable, ListEntriesTable, ListsTable } from "../db/index.js";
 import type { CollectionValue } from "../repositories/marketplace.js";
 
 // ── Simple entity mappers ──────────────────────────────────────────────────
@@ -115,53 +108,135 @@ export function toPublicDeck(row: Selectable<DecksTable>): PublicDeckResponse {
   };
 }
 
-export function toTradeList(row: Selectable<TradeListsTable>): TradeListResponse {
+export function toList(row: Selectable<ListsTable> & { entryCount?: number }): ListResponse {
   return {
     id: row.id,
     name: row.name,
-    rules: row.rules as TradeListResponse["rules"],
+    intent: row.intent,
+    kind: row.kind,
+    entryCount: row.entryCount ?? 0,
+    isPublic: row.isPublic,
     shareToken: row.shareToken,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
 }
 
-/** @returns Public-facing trade list fields — excludes shareToken, rules, and userId. */
-export function toPublicTradeList(row: Selectable<TradeListsTable>): PublicTradeListResponse {
+/** @returns Public-facing list fields — excludes shareToken, isPublic, userId. */
+export function toPublicList(row: Selectable<ListsTable>): PublicListResponse {
   return {
     id: row.id,
     name: row.name,
+    intent: row.intent,
+    kind: row.kind,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
 }
 
-export function toTradeListItem(row: Selectable<TradeListItemsTable>): TradeListItemResponse {
+/**
+ * Maps a raw list-entry row (wide nullable shape from the DB) to the bare
+ * discriminated response. The kind column tells us which of
+ * cardId/printingId/copyId is non-null per `chk_list_entries_kind_shape`.
+ * @returns The narrowed list entry response.
+ */
+export function toListEntry(row: Selectable<ListEntriesTable>): ListEntryResponse {
+  const base = { id: row.id, listId: row.listId, quantity: row.quantity };
+  if (row.kind === "card") {
+    return { ...base, kind: "card", cardId: row.cardId as string };
+  }
+  if (row.kind === "printing") {
+    return { ...base, kind: "printing", printingId: row.printingId as string };
+  }
+  return { ...base, kind: "copy", copyId: row.copyId as string };
+}
+
+/**
+ * Maps an enriched list-entry row to the discriminated detail response. The
+ * repo's per-kind queries already produce the right variant — this mapper
+ * just narrows the union for the route handler.
+ * @returns The serialized list entry detail response.
+ */
+export function toListEntryDetail(
+  row:
+    | {
+        kind: "card";
+        id: string;
+        listId: string;
+        quantity: number;
+        cardId: string;
+        cardName: string;
+        cardType: string;
+      }
+    | {
+        kind: "printing";
+        id: string;
+        listId: string;
+        quantity: number;
+        printingId: string;
+        cardName: string;
+        cardType: string;
+        setId: string;
+        rarity: string;
+        finish: string;
+        imageId: string | null;
+      }
+    | {
+        kind: "copy";
+        id: string;
+        listId: string;
+        quantity: number;
+        copyId: string;
+        printingId: string;
+        collectionId: string;
+        cardName: string;
+        cardType: string;
+        setId: string;
+        rarity: string;
+        finish: string;
+        imageId: string | null;
+      },
+): ListEntryDetailResponse {
+  if (row.kind === "card") {
+    return {
+      kind: "card",
+      id: row.id,
+      listId: row.listId,
+      quantity: row.quantity,
+      cardId: row.cardId,
+      cardName: row.cardName,
+      cardType: row.cardType as CardType,
+    };
+  }
+  if (row.kind === "printing") {
+    return {
+      kind: "printing",
+      id: row.id,
+      listId: row.listId,
+      quantity: row.quantity,
+      printingId: row.printingId,
+      cardName: row.cardName,
+      cardType: row.cardType as CardType,
+      setId: row.setId,
+      rarity: row.rarity as Rarity,
+      finish: row.finish as Finish,
+      imageId: row.imageId,
+    };
+  }
   return {
+    kind: "copy",
     id: row.id,
-    tradeListId: row.tradeListId,
+    listId: row.listId,
+    quantity: row.quantity,
     copyId: row.copyId,
-  };
-}
-
-export function toWishList(row: Selectable<WishListsTable>): WishListResponse {
-  return {
-    id: row.id,
-    name: row.name,
-    rules: row.rules as WishListResponse["rules"],
-    shareToken: row.shareToken,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-  };
-}
-
-export function toWishListItem(row: Selectable<WishListItemsTable>): WishListItemResponse {
-  return {
-    id: row.id,
-    wishListId: row.wishListId,
-    cardId: row.cardId,
     printingId: row.printingId,
-    quantityDesired: row.quantityDesired,
+    collectionId: row.collectionId,
+    cardName: row.cardName,
+    cardType: row.cardType as CardType,
+    setId: row.setId,
+    rarity: row.rarity as Rarity,
+    finish: row.finish as Finish,
+    imageId: row.imageId,
   };
 }
 
@@ -287,38 +362,6 @@ export function toPublicDeckCard(
     resolvedPrintingId: printingMeta.resolvedPrintingId,
     shortCode: printingMeta.shortCode,
     imageId: printingMeta.imageId,
-  };
-}
-
-/**
- * Maps a denormalized trade list item row to TradeListItemDetailResponse.
- * @returns The serialized trade list item detail response.
- */
-export function toTradeListItemDetail(row: {
-  id: string;
-  tradeListId: string;
-  copyId: string;
-  printingId: string;
-  collectionId: string;
-  imageId: string | null;
-  setId: string;
-  rarity: string;
-  finish: string;
-  cardName: string;
-  cardType: string;
-}): TradeListItemDetailResponse {
-  return {
-    id: row.id,
-    tradeListId: row.tradeListId,
-    copyId: row.copyId,
-    printingId: row.printingId,
-    collectionId: row.collectionId,
-    imageId: row.imageId,
-    setId: row.setId,
-    rarity: row.rarity as TradeListItemDetailResponse["rarity"],
-    finish: row.finish as TradeListItemDetailResponse["finish"],
-    cardName: row.cardName,
-    cardType: row.cardType as TradeListItemDetailResponse["cardType"],
   };
 }
 

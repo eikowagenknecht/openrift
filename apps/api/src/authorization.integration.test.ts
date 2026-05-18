@@ -14,8 +14,7 @@ const ctx = createTestContext("a0000000-0001-4000-a000-000000000001");
 
 const COL_ID = "c0000000-0000-4000-a000-0000000000c1";
 const DECK_ID = "e0000000-0000-4000-a000-00000000de01";
-const WL_ID = "f1000000-0000-4000-a000-000000000f01";
-const TL_ID = "e1000000-0000-4000-a000-000000000e01";
+const LIST_ID = "e1000000-0000-4000-a000-000000000e01";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -62,34 +61,17 @@ describe.skipIf(!ctx)("Authorization: user isolation — CRUD factory (integrati
     });
   });
 
-  describe("Wish Lists", () => {
-    it("PATCH /wish-lists/:id returns 404 for another user's wish list", async () => {
-      await expectStatus("PATCH", `/wish-lists/${WL_ID}`, 404, { name: "Hijacked" });
+  describe("Lists", () => {
+    it("PATCH /lists/:id returns 404 for another user's list", async () => {
+      await expectStatus("PATCH", `/lists/${LIST_ID}`, 404, { name: "Hijacked" });
     });
 
-    it("DELETE /wish-lists/:id returns 404 for another user's wish list", async () => {
-      await expectStatus("DELETE", `/wish-lists/${WL_ID}`, 404);
+    it("DELETE /lists/:id returns 404 for another user's list", async () => {
+      await expectStatus("DELETE", `/lists/${LIST_ID}`, 404);
     });
 
-    it("GET /wish-lists returns empty array (user has no wish lists)", async () => {
-      const res = await app.fetch(req("GET", "/wish-lists"));
-      expect(res.status).toBe(200);
-      const json = await res.json();
-      expect(json).toEqual({ items: [] });
-    });
-  });
-
-  describe("Trade Lists", () => {
-    it("PATCH /trade-lists/:id returns 404 for another user's trade list", async () => {
-      await expectStatus("PATCH", `/trade-lists/${TL_ID}`, 404, { name: "Hijacked" });
-    });
-
-    it("DELETE /trade-lists/:id returns 404 for another user's trade list", async () => {
-      await expectStatus("DELETE", `/trade-lists/${TL_ID}`, 404);
-    });
-
-    it("GET /trade-lists returns empty array (user has no trade lists)", async () => {
-      const res = await app.fetch(req("GET", "/trade-lists"));
+    it("GET /lists returns empty array (user has no lists)", async () => {
+      const res = await app.fetch(req("GET", "/lists"));
       expect(res.status).toBe(200);
       const json = await res.json();
       expect(json).toEqual({ items: [] });

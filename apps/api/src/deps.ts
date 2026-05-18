@@ -29,6 +29,7 @@ import { ingestRepo } from "./repositories/ingest.js";
 import { jobRunsRepo } from "./repositories/job-runs.js";
 import { keywordsRepo } from "./repositories/keywords.js";
 import { languagesRepo } from "./repositories/languages.js";
+import { listsRepo } from "./repositories/lists.js";
 import { markersRepo } from "./repositories/markers.js";
 import { marketplaceAdminRepo } from "./repositories/marketplace-admin.js";
 import { marketplaceMappingRepo } from "./repositories/marketplace-mapping.js";
@@ -43,11 +44,9 @@ import { setsRepo } from "./repositories/sets.js";
 import { siteSettingsRepo } from "./repositories/site-settings.js";
 import { statusRepo } from "./repositories/status.js";
 import { superTypesRepo } from "./repositories/super-types.js";
-import { tradeListsRepo } from "./repositories/trade-lists.js";
 import { userFeatureFlagsRepo } from "./repositories/user-feature-flags.js";
 import { userPreferencesRepo } from "./repositories/user-preferences.js";
 import { usersRepo } from "./repositories/users.js";
-import { wishListsRepo } from "./repositories/wish-lists.js";
 import { deleteCollection } from "./services/collections.js";
 import { addCopies, disposeCopies, moveCopies } from "./services/copies.js";
 import { logEvents } from "./services/event-logger.js";
@@ -55,7 +54,6 @@ import { importErrata } from "./services/import-errata.js";
 import { ensureInbox } from "./services/inbox.js";
 import { ingestCandidates } from "./services/ingest-candidates.js";
 import { getMappingOverview } from "./services/marketplace-mapping.js";
-import { buildShoppingList } from "./services/shopping-list.js";
 
 export interface Repos {
   collectionEvents: ReturnType<typeof collectionEventsRepo>;
@@ -83,6 +81,7 @@ export interface Repos {
   keywords: ReturnType<typeof keywordsRepo>;
   languages: ReturnType<typeof languagesRepo>;
   ignoredCandidates: ReturnType<typeof ignoredCandidatesRepo>;
+  lists: ReturnType<typeof listsRepo>;
   marketplace: ReturnType<typeof marketplaceRepo>;
   marketplaceAdmin: ReturnType<typeof marketplaceAdminRepo>;
   printingImages: ReturnType<typeof printingImagesRepo>;
@@ -95,10 +94,8 @@ export interface Repos {
   superTypes: ReturnType<typeof superTypesRepo>;
   providerSettings: ReturnType<typeof providerSettingsRepo>;
   siteSettings: ReturnType<typeof siteSettingsRepo>;
-  tradeLists: ReturnType<typeof tradeListsRepo>;
   userPreferences: ReturnType<typeof userPreferencesRepo>;
   users: ReturnType<typeof usersRepo>;
-  wishLists: ReturnType<typeof wishListsRepo>;
   ingest: ReturnType<typeof ingestRepo>;
   marketplaceMapping: ReturnType<typeof marketplaceMappingRepo>;
   priceRefresh: ReturnType<typeof priceRefreshRepo>;
@@ -113,7 +110,6 @@ export interface Services {
   addCopies: typeof addCopies;
   moveCopies: typeof moveCopies;
   disposeCopies: typeof disposeCopies;
-  buildShoppingList: typeof buildShoppingList;
   getMappingOverview: typeof getMappingOverview;
   ingestCandidates: typeof ingestCandidates;
   importErrata: typeof importErrata;
@@ -149,6 +145,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     keywords: keywordsRepo(db),
     languages: languagesRepo(db),
     ignoredCandidates: ignoredCandidatesRepo(db),
+    lists: listsRepo(db),
     marketplace: marketplaceRepo(db),
     marketplaceAdmin: marketplaceAdminRepo(db),
     printingImages: printingImagesRepo(db),
@@ -161,10 +158,8 @@ export function createRepos(db: Kysely<Database>): Repos {
     superTypes: superTypesRepo(db),
     providerSettings: providerSettingsRepo(db),
     siteSettings: siteSettingsRepo(db),
-    tradeLists: tradeListsRepo(db),
     userPreferences: userPreferencesRepo(db),
     users: usersRepo(db),
-    wishLists: wishListsRepo(db),
     ingest: ingestRepo(db),
     marketplaceMapping: marketplaceMappingRepo(db),
     priceRefresh: priceRefreshRepo(db),
@@ -193,7 +188,6 @@ export const services: Services = {
   addCopies,
   moveCopies,
   disposeCopies,
-  buildShoppingList,
   getMappingOverview,
   ingestCandidates,
   importErrata,

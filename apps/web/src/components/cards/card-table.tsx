@@ -168,6 +168,7 @@ function buildVirtualRows(groups: CardGroup[]): VRow[] {
 // oxlint-disable-next-line eslint/prefer-arrow-callback -- named for React DevTools
 const DataRow = memo(function DataRow({
   printing,
+  itemId,
   isSelected,
   actionsColumn,
   columns,
@@ -178,6 +179,7 @@ const DataRow = memo(function DataRow({
   renderActions,
 }: {
   printing: Printing;
+  itemId: string;
   isSelected: boolean;
   actionsColumn: ActionsColumn;
   columns: string;
@@ -185,11 +187,12 @@ const DataRow = memo(function DataRow({
   superTypeLabels: Record<string, string>;
   rarityLabels: Record<string, string>;
   setNameBySlug: Map<string, string>;
-  renderActions?: (printing: Printing) => ReactNode;
+  renderActions?: (printing: Printing, itemId: string) => ReactNode;
 }) {
   return (
     <CardTableRow
       printing={printing}
+      itemId={itemId}
       isSelected={isSelected}
       actionsColumn={actionsColumn}
       columns={columns}
@@ -215,7 +218,7 @@ interface CardTableProps {
   /** Width + presence of the rightmost actions column. See {@link ActionsColumn}. */
   actionsColumn: ActionsColumn;
   /** Renders the contents of the actions cell for each row. */
-  renderActions?: (printing: Printing) => ReactNode;
+  renderActions?: (printing: Printing, itemId: string) => ReactNode;
   /** Label for the rightmost column header. Defaults to "Owned". */
   actionsLabel?: string;
 }
@@ -405,6 +408,7 @@ export function CardTable({
                   <DataRow
                     key={item.id}
                     printing={item.printing}
+                    itemId={item.id}
                     isSelected={item.id === selectedItemId || item.printing.id === selectedItemId}
                     actionsColumn={actionsColumn}
                     columns={columns}

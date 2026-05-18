@@ -15,8 +15,30 @@ const deckCardFieldRules = {
   zone: z.string().min(1),
   quantity: z.number().int().positive(),
 };
-const wishListItemFieldRules = {
-  quantityDesired: z.number().int().positive(),
+const listEntryFieldRules = {
+  quantity: z.number().int().positive(),
+};
+
+const listIntentSchema = z.enum(["buy", "sell", "organize"]);
+
+const listKindSchema = z.enum(["card", "printing", "copy"]);
+
+/**
+ * Allowed intent × kind combos. Mirrors the chk_lists_intent_kind DB
+ * constraint added in migration 133.
+ * @returns true if the combo is allowed.
+ */
+const isAllowedIntentKind = (
+  intent: "buy" | "sell" | "organize",
+  kind: "card" | "printing" | "copy",
+): boolean => {
+  if (intent === "buy") {
+    return kind === "card" || kind === "printing";
+  }
+  if (intent === "sell") {
+    return kind === "copy";
+  }
+  return true;
 };
 
 // ---------------------------------------------------------------------------
@@ -153,53 +175,74 @@ export const deckExportQuerySchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// Wish list schemas
+// List schemas (unified buy / sell / organize lists, replaces wish/trade)
 // ---------------------------------------------------------------------------
 
-/** Flat key-value map for wish/trade list filter rules. */
-const listRulesSchema = z
-  .record(z.string(), z.union([z.string(), z.number(), z.boolean()]).nullable())
-  .optional();
-
-export const createWishListSchema = z.object({
-  name: z.string().min(1).max(200),
-  rules: listRulesSchema,
+export const listIntentQuerySchema = z.object({
+  intent: listIntentSchema.optional(),
 });
 
-export const updateWishListSchema = z.object({
-  name: z.string().min(1).max(200).optional(),
-  rules: listRulesSchema,
-});
-
-export const createWishListItemSchema = z
+export const createListSchema = z
   .object({
-    cardId: z.uuid().optional(),
-    printingId: z.uuid().optional(),
-    quantityDesired: wishListItemFieldRules.quantityDesired.default(1),
+    name: z.string().min(1).max(200),
+    intent: listIntentSchema,
+    kind: listKindSchema,
   })
-  .refine((data) => Boolean(data.cardId) !== Boolean(data.printingId), {
-    message: "Exactly one of cardId or printingId must be provided",
+  .refine((data) => isAllowedIntentKind(data.intent, data.kind), {
+    message:
+      "Disallowed intent/kind combo. Buy: card|printing. Sell: copy. Organize: card|printing|copy.",
   });
 
-export const updateWishListItemSchema = z.object({
-  quantityDesired: wishListItemFieldRules.quantityDesired,
-});
-
-export const createTradeListSchema = z.object({
-  name: z.string().min(1).max(200),
-  rules: listRulesSchema,
-});
-
-export const updateTradeListSchema = z.object({
+export const updateListSchema = z.object({
   name: z.string().min(1).max(200).optional(),
-  rules: listRulesSchema.nullable(),
 });
 
-export const createTradeListItemSchema = z.object({
-  copyId: z.uuid(),
+/**
+ * Exactly one of cardId / printingId / copyId must be set. The parent list's
+ * kind determines which one is required — the route handler validates the
+ * match.
+ * @returns True when exactly one target is provided.
+ */
+const oneListEntryTarget = (data: {
+  cardId?: string | undefined;
+  printingId?: string | undefined;
+  copyId?: string | undefined;
+}) =>
+  Number(Boolean(data.cardId)) + Number(Boolean(data.printingId)) + Number(Boolean(data.copyId)) ===
+  1;
+
+const listEntryInputShape = {
+  cardId: z.uuid().optional(),
+  printingId: z.uuid().optional(),
+  copyId: z.uuid().optional(),
+  quantity: listEntryFieldRules.quantity.default(1),
+};
+
+export const createListEntrySchema = z.object(listEntryInputShape).refine(oneListEntryTarget, {
+  message: "Exactly one of cardId, printingId, or copyId must be provided",
 });
 
-export const bulkCreateTradeListItemsSchema = z.object({
+export const updateListEntrySchema = z.object({
+  quantity: listEntryFieldRules.quantity,
+});
+
+export const bulkCreateListEntriesSchema = z.object({
+  entries: z
+    .array(
+      z.object(listEntryInputShape).refine(oneListEntryTarget, {
+        message: "Exactly one of cardId, printingId, or copyId must be provided",
+      }),
+    )
+    .min(1)
+    .max(500),
+});
+
+/**
+ * Drag-from-collections sugar. The user picks copies and drops them on a list
+ * in the sidebar; the server derives the right entry shape based on the
+ * list's kind (card / printing / copy) and bulk-inserts the deduped result.
+ */
+export const bulkAddCopiesToListSchema = z.object({
   copyIds: z.array(z.uuid()).min(1).max(500),
 });
 

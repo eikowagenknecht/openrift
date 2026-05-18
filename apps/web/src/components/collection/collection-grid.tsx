@@ -37,9 +37,9 @@ import { buildOnDecrement } from "@/components/collection/route-decrement";
 import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
 import { VariantAddPopover } from "@/components/collection/variant-add-popover";
 import { PageTopBar, PageTopBarActions, PageTopBarTitle } from "@/components/layout/page-top-bar";
+import { AddToListDialog } from "@/components/list/add-to-list-dialog";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
-import { AddToTradeListDialog } from "@/components/trade-list/add-to-trade-list-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -65,7 +65,6 @@ import { useCollectionCardData } from "@/hooks/use-collection-card-data";
 import { useCollections, useCollectionsMap, useDeleteCollection } from "@/hooks/use-collections";
 import { useDisposeCopies, useMoveCopies } from "@/hooks/use-copies";
 import { useChannelRegistry } from "@/hooks/use-enums";
-import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
@@ -277,12 +276,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const stacked = view !== "copies";
   const [moveOpen, setMoveOpen] = useState(false);
   const [disposeOpen, setDisposeOpen] = useState(false);
-  const [tradeOpen, setTradeOpen] = useState(false);
+  const [addToListOpen, setAddToListOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const tradeListsEnabled = useFeatureEnabled("trade-lists");
   const moveCopies = useMoveCopies();
   const disposeCopies = useDisposeCopies();
   const deleteCollection = useDeleteCollection();
@@ -976,7 +974,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             selectedCount={selected.size}
             onMove={() => setMoveOpen(true)}
             onDispose={() => setDisposeOpen(true)}
-            onTrade={tradeListsEnabled ? () => setTradeOpen(true) : undefined}
+            onAddToList={() => setAddToListOpen(true)}
             onClear={clearSelection}
             isMovePending={moveCopies.isPending}
             isDisposePending={disposeCopies.isPending}
@@ -1008,14 +1006,12 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           isPending={disposeCopies.isPending}
         />
 
-        {tradeListsEnabled && (
-          <AddToTradeListDialog
-            open={tradeOpen}
-            onOpenChange={setTradeOpen}
-            copyIds={[...selected]}
-            onAdded={clearSelection}
-          />
-        )}
+        <AddToListDialog
+          open={addToListOpen}
+          onOpenChange={setAddToListOpen}
+          copyIds={[...selected]}
+          onAdded={clearSelection}
+        />
 
         {currentCollection && !currentCollection.isInbox && (
           <DeleteCollectionDialog

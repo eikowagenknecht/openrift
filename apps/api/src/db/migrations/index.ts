@@ -77,6 +77,8 @@ import * as m128 from "./128-custom-tags.js";
 import * as m129 from "./129-custom-region-format.js";
 import * as m130 from "./130-custom-tag-categories.js";
 import * as m131 from "./131-collection-is-public.js";
+import * as m132 from "./132-unified-lists.js";
+import * as m133 from "./133-list-kind.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -213,4 +215,6 @@ export const migrations: Record<string, Migration> = {
   "129-custom-region-format": m129,
   "130-custom-tag-categories": m130,
   "131-collection-is-public": m131,
+  "132-unified-lists": m132,
+  "133-list-kind": m133,
 };

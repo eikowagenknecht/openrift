@@ -1,9 +1,10 @@
 import { useDndContext } from "@dnd-kit/core";
+import type { ListIntent } from "@openrift/shared";
 import { Link, useMatches, useParams } from "@tanstack/react-router";
 import {
   BookOpenIcon,
   ChartBarIcon,
-  HandshakeIcon,
+  ChevronDownIcon,
   HistoryIcon,
   ArrowLeftRightIcon,
   InboxIcon,
@@ -11,11 +12,14 @@ import {
   PlusIcon,
   XIcon,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
+import { CreateListDialog, listKindIcon } from "@/components/list/create-list-dialog";
+import { DroppableSidebarList } from "@/components/list/droppable-sidebar-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   NestedSidebar,
   SidebarContent,
@@ -27,10 +31,12 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { useCollections, useCreateCollection } from "@/hooks/use-collections";
-import { useFeatureEnabled } from "@/hooks/use-feature-flags";
-import { useCreateTradeList, useTradeLists } from "@/hooks/use-trade-lists";
+import { useCollections } from "@/hooks/use-collections";
+import { useLists } from "@/hooks/use-lists";
+import type { SidebarGroupKey } from "@/stores/sidebar-fold-store";
+import { useSidebarFoldStore } from "@/stores/sidebar-fold-store";
 
+import { CreateCollectionDialog } from "./create-collection-dialog";
 import type { CardDragData } from "./dnd-types";
 import { DroppableCollection } from "./droppable-collection";
 
@@ -48,124 +54,130 @@ function MobileSidebarHeader() {
   );
 }
 
-function InlineCreateRow({
+const INTENT_GROUPS: { intent: ListIntent; label: string; foldKey: SidebarGroupKey }[] = [
+  { intent: "buy", label: "Buy", foldKey: "buy" },
+  { intent: "sell", label: "Sell", foldKey: "sell" },
+  { intent: "organize", label: "Organize", foldKey: "organize" },
+];
+
+/**
+ * Sidebar group whose header is a click-to-fold trigger. The open state is
+ * persisted per-user via the sidebar-fold store, so refreshing the page
+ * keeps the user's collapse choices.
+ * @returns A collapsible sidebar group with a chevron-bearing label.
+ */
+function CollapsibleSidebarGroup({
   label,
-  placeholder,
-  onSubmit,
+  foldKey,
+  children,
 }: {
   label: string;
-  placeholder: string;
-  onSubmit: (name: string) => Promise<unknown>;
+  foldKey: SidebarGroupKey;
+  children: ReactNode;
 }) {
-  const [isCreating, setIsCreating] = useState(false);
-  const [name, setName] = useState("");
-  const [isPending, setIsPending] = useState(false);
-
-  const handleSubmit = async () => {
-    const trimmed = name.trim();
-    if (!trimmed || isPending) {
-      return;
-    }
-    setIsPending(true);
-    try {
-      await onSubmit(trimmed);
-      setName("");
-      setIsCreating(false);
-    } catch {
-      // Mutation hooks surface their own error toast; keep the form open so
-      // the user can retry without retyping.
-    }
-    setIsPending(false);
-  };
-
-  if (!isCreating) {
-    return (
-      <SidebarMenuButton className="text-muted-foreground" onClick={() => setIsCreating(true)}>
-        <PlusIcon className="size-4" />
-        <span>{label}</span>
-      </SidebarMenuButton>
-    );
-  }
+  const open = useSidebarFoldStore((state) => state.byKey[foldKey]);
+  const setOpen = useSidebarFoldStore((state) => state.setOpen);
 
   return (
-    <form
-      className="flex gap-1 px-2 py-1"
-      onSubmit={(event) => {
-        event.preventDefault();
-        void handleSubmit();
-      }}
-    >
-      <Input
-        autoFocus // oxlint-disable-line jsx-a11y/no-autofocus -- intentional for inline create
-        value={name}
-        onChange={(event) => setName(event.target.value)}
-        placeholder={placeholder}
-        disabled={isPending}
-        className="h-7 text-xs" // TODO: Style this better, the current style does not fit here
-        onBlur={() => {
-          if (!name.trim() && !isPending) {
-            setIsCreating(false);
-          }
-        }}
-      />
-    </form>
+    <Collapsible open={open} onOpenChange={(next) => setOpen(foldKey, next)}>
+      <SidebarGroup>
+        <SidebarGroupLabel
+          className="hover:bg-sidebar-accent cursor-pointer transition-colors"
+          render={<CollapsibleTrigger />}
+        >
+          <span className="flex-1 text-left">{label}</span>
+          <ChevronDownIcon className="size-3 transition-transform data-[panel-open=false]:-rotate-90" />
+        </SidebarGroupLabel>
+        <CollapsibleContent className="overflow-hidden transition-[height] duration-200 data-[ending-style]:h-0 data-[starting-style]:h-0">
+          <SidebarMenu className="gap-1">{children}</SidebarMenu>
+        </CollapsibleContent>
+      </SidebarGroup>
+    </Collapsible>
   );
 }
 
-function TradeListsSidebarGroup({ activeId }: { activeId?: string }) {
-  const { data: tradeLists } = useTradeLists();
-  const createTradeList = useCreateTradeList();
+function ListsSidebarGroups({ activeId }: { activeId?: string }) {
+  const { data: lists } = useLists();
+  const [createIntent, setCreateIntent] = useState<ListIntent | null>(null);
+
+  // Group lists by intent so each section only renders its own rows.
+  const byIntent = Map.groupBy(lists, (list) => list.intent);
 
   return (
-    <SidebarGroup>
-      <SidebarGroupLabel>Trade Lists</SidebarGroupLabel>
-      <SidebarMenu className="gap-1">
-        {tradeLists.map((list) => (
-          <SidebarMenuItem key={list.id}>
-            <SidebarMenuButton
-              isActive={activeId === list.id}
-              render={
-                <Link
-                  to="/collections/trade-lists/$tradeListId"
-                  params={{ tradeListId: list.id }}
-                />
-              }
-            >
-              <HandshakeIcon />
-              <span className="flex-1 truncate">{list.name}</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        ))}
-        <SidebarMenuItem>
-          <InlineCreateRow
-            label="New trade list"
-            placeholder="Trade list name"
-            onSubmit={(name) => createTradeList.mutateAsync({ name })}
-          />
-        </SidebarMenuItem>
-      </SidebarMenu>
-    </SidebarGroup>
+    <>
+      {INTENT_GROUPS.map(({ intent, label, foldKey }) => {
+        const rows = byIntent.get(intent) ?? [];
+        return (
+          <CollapsibleSidebarGroup key={intent} label={label} foldKey={foldKey}>
+            {rows.map((list) => {
+              const KindIcon = listKindIcon(list.kind);
+              // Every list kind accepts dropped copies — the server derives
+              // card / printing / copy entries from the list's kind via the
+              // /entries/from-copies endpoint.
+              return (
+                <DroppableSidebarList key={list.id} listId={list.id} listName={list.name}>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      isActive={activeId === list.id}
+                      render={<Link to="/collections/lists/$listId" params={{ listId: list.id }} />}
+                    >
+                      <KindIcon />
+                      <span className="flex-1 truncate">{list.name}</span>
+                      {list.entryCount > 0 && (
+                        <Badge variant="ghost" className="text-2xs ml-auto">
+                          {list.entryCount}
+                        </Badge>
+                      )}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </DroppableSidebarList>
+              );
+            })}
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                className="text-muted-foreground"
+                onClick={() => setCreateIntent(intent)}
+              >
+                <PlusIcon className="size-4" />
+                <span>New {label.toLowerCase()} list</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </CollapsibleSidebarGroup>
+        );
+      })}
+      {createIntent !== null && (
+        <CreateListDialog
+          intent={createIntent}
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              setCreateIntent(null);
+            }
+          }}
+        />
+      )}
+    </>
   );
 }
 
 export function CollectionSidebar() {
   const matches = useMatches();
   const currentPath = matches.at(-1)?.fullPath;
-  const { collectionId, tradeListId } = useParams({ strict: false }) as {
+  const { collectionId, listId } = useParams({ strict: false }) as {
     collectionId?: string;
-    tradeListId?: string;
+    listId?: string;
   };
   const { isMobile, setOpenMobile } = useSidebar();
   const { data: collections } = useCollections();
-  const tradeListsEnabled = useFeatureEnabled("trade-lists");
 
   // Close the mobile sidebar when the user navigates to a different page
   useEffect(() => {
     if (isMobile) {
       setOpenMobile(false);
     }
-  }, [currentPath, collectionId, tradeListId, isMobile, setOpenMobile]);
-  const createCollection = useCreateCollection();
+  }, [currentPath, collectionId, listId, isMobile, setOpenMobile]);
+
+  const [createCollectionOpen, setCreateCollectionOpen] = useState(false);
 
   const { active } = useDndContext();
   const dragSourceCollectionId = (active?.data.current as CardDragData | undefined)
@@ -195,50 +207,46 @@ export function CollectionSidebar() {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Collections</SidebarGroupLabel>
-          <SidebarMenu className="gap-1">
-            {collections?.map((col) => (
-              <DroppableCollection
-                key={col.id}
-                collectionId={col.id}
-                disabled={col.id === dragSourceCollectionId}
-              >
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    isActive={collectionId === col.id}
-                    render={
-                      <Link
-                        to="/collections/$collectionId"
-                        params={{ collectionId: col.id }}
-                        search={(prev) => prev}
-                      />
-                    }
-                  >
-                    {col.isInbox ? <InboxIcon /> : <BookOpenIcon />}
-                    <span className="flex-1 truncate">{col.name}</span>
-                    {col.copyCount > 0 && (
-                      <Badge
-                        variant={col.isInbox ? "default" : "ghost"}
-                        className="text-2xs ml-auto"
-                      >
-                        {col.copyCount}
-                      </Badge>
-                    )}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </DroppableCollection>
-            ))}
-            <SidebarMenuItem>
-              <InlineCreateRow
-                label="New collection"
-                placeholder="Collection name"
-                onSubmit={(name) => createCollection.mutateAsync({ name })}
-              />
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
-        {tradeListsEnabled && <TradeListsSidebarGroup activeId={tradeListId} />}
+        <CollapsibleSidebarGroup label="Collections" foldKey="collections">
+          {collections?.map((col) => (
+            <DroppableCollection
+              key={col.id}
+              collectionId={col.id}
+              disabled={col.id === dragSourceCollectionId}
+            >
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={collectionId === col.id}
+                  render={
+                    <Link
+                      to="/collections/$collectionId"
+                      params={{ collectionId: col.id }}
+                      search={(prev) => prev}
+                    />
+                  }
+                >
+                  {col.isInbox ? <InboxIcon /> : <BookOpenIcon />}
+                  <span className="flex-1 truncate">{col.name}</span>
+                  {col.copyCount > 0 && (
+                    <Badge variant={col.isInbox ? "default" : "ghost"} className="text-2xs ml-auto">
+                      {col.copyCount}
+                    </Badge>
+                  )}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </DroppableCollection>
+          ))}
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              className="text-muted-foreground"
+              onClick={() => setCreateCollectionOpen(true)}
+            >
+              <PlusIcon className="size-4" />
+              <span>New collection</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </CollapsibleSidebarGroup>
+        <ListsSidebarGroups activeId={listId} />
         <SidebarGroup>
           <SidebarGroupLabel>Manage</SidebarGroupLabel>
           <SidebarMenu className="gap-1">
@@ -272,6 +280,7 @@ export function CollectionSidebar() {
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
+      <CreateCollectionDialog open={createCollectionOpen} onOpenChange={setCreateCollectionOpen} />
     </NestedSidebar>
   );
 }

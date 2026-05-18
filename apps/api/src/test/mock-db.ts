@@ -48,12 +48,15 @@ export function createMockDb(executeResult: unknown = []) {
       get(_, prop) {
         if (prop === "execute") {
           return async (...args: unknown[]) => {
+            // For .transaction().execute(cb), Kysely returns the callback's
+            // resolved value; mirror that so transactional repos can be
+            // unit-tested. Falls back to executeResult if the cb throws.
             for (const arg of args) {
               if (typeof arg === "function") {
                 try {
-                  await (arg as Function)(chain());
+                  return await (arg as Function)(chain());
                 } catch {
-                  /* ignore */
+                  /* ignore — fall through to executeResult */
                 }
               }
             }

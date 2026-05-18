@@ -390,47 +390,54 @@ export interface DeckCardsTable {
   preferredPrintingId: string | null;
 }
 
-export interface WishListsTable {
+/**
+ * Unified list table — replaces the old trade_lists and wish_lists.
+ *
+ * `intent` is the surface (buy / sell / organize). `kind` is the granularity
+ * the list tracks: a list contains uniformly cards, printings, or copies.
+ * The intent × kind matrix is constrained (migration 133):
+ *   buy      → card | printing
+ *   sell     → copy
+ *   organize → card | printing | copy
+ *
+ * CHECK: intent ∈ ('buy','sell','organize'); kind ∈ ('card','printing','copy');
+ * intent × kind matches one of the six allowed combos; name <> ''.
+ */
+export interface ListsTable {
   id: Generated<string>;
   userId: string;
   name: string;
-  rules: unknown;
+  intent: ListIntent;
+  kind: ListKind;
+  isPublic: Generated<boolean>;
   shareToken: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
+
+export type ListIntent = "buy" | "sell" | "organize";
+
+export type ListKind = "card" | "printing" | "copy";
 
 /**
- * CHECK: exactly one of card_id or printing_id must be set (XOR).
- * @see wishListItemFieldRules in `schemas.ts` for Zod validation of CHECK constraints
+ * Single-granularity entry matching the parent list's kind:
+ *   kind = 'card'     → card_id set, printing_id/copy_id NULL
+ *   kind = 'printing' → printing_id set, card_id/copy_id NULL
+ *   kind = 'copy'     → copy_id set, card_id/printing_id NULL
+ *
+ * The composite FK (list_id, kind) → lists(id, kind) enforces that an
+ * entry's kind matches its parent list's kind at the DB layer.
  */
-export interface WishListItemsTable {
+export interface ListEntriesTable {
   id: Generated<string>;
-  wishListId: string;
+  listId: string;
   userId: string;
+  kind: ListKind;
   cardId: string | null;
   printingId: string | null;
+  copyId: string | null;
   /** CHECK: > 0 */
-  quantityDesired: number;
-  createdAt: CreatedAt;
-  updatedAt: UpdatedAt;
-}
-
-export interface TradeListsTable {
-  id: Generated<string>;
-  userId: string;
-  name: string;
-  rules: unknown;
-  shareToken: string | null;
-  createdAt: CreatedAt;
-  updatedAt: UpdatedAt;
-}
-
-export interface TradeListItemsTable {
-  id: Generated<string>;
-  tradeListId: string;
-  userId: string;
-  copyId: string;
+  quantity: Generated<number>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -963,10 +970,8 @@ export interface Database {
   collectionEvents: CollectionEventsTable;
   decks: DecksTable;
   deckCards: DeckCardsTable;
-  wishLists: WishListsTable;
-  wishListItems: WishListItemsTable;
-  tradeLists: TradeListsTable;
-  tradeListItems: TradeListItemsTable;
+  lists: ListsTable;
+  listEntries: ListEntriesTable;
 
   // Candidate cards (migration 018, renamed in 038)
   candidateCards: CandidateCardsTable;

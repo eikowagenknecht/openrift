@@ -14,8 +14,12 @@ import { useDisplayStore } from "@/stores/display-store";
 export interface CardTableProps {
   /** Width + presence of the rightmost actions column. "none" omits the column entirely. */
   actionsColumn: ActionsColumn;
-  /** Renders the contents of the actions cell for each row. */
-  renderActions?: (printing: Printing) => ReactNode;
+  /**
+   * Renders the contents of the actions cell for each row. The second arg is
+   * the item id (so surfaces with multiple items per printing — e.g. copy-kind
+   * lists — can target the specific entry the row stands for).
+   */
+  renderActions?: (printing: Printing, itemId: string) => ReactNode;
   /** Label for the rightmost column header. Defaults to "Owned". */
   actionsLabel?: string;
 }

@@ -2,11 +2,17 @@
 
 ## 2026-05-18
 
+- feat: The collections sidebar now has Buy, Sell, and Organize lists. Each list tracks cards, printings, or specific copies (you pick what at creation), and any list can be shared with a public link
+- feat: Card and printing lists now have a "Browse catalog" mode that shows every card with a +/- stepper on each tile, so you can build a buy or wishlist list directly without leaving the page
+- feat: Card and printing lists track quantities — dropping the same card onto a list a second time adds another instead of being ignored, and each tile and table row has a +/- stepper for direct edits. Copy lists stay singular since each entry is one physical card
+- feat: Selecting copies in a collection now offers an "Add to list" action, and dragging a card or selection onto a sidebar list adds it there
+- feat: A card list can now be exported as plain text, one "quantity card name" per line, so you can paste it straight into deck builders
 - feat: The Promos page now responds to the column-count controls in the toolbar, so you can set how many cards per row the same way as on the cards browser
 - feat: When the site is briefly unreachable (for example during a deploy), you now see a friendly card-themed page instead of a generic browser error
 - feat: In Custom - Region decks, you can now add a Signature for any Champion in your region, as long as that Champion is in the deck. The previous rule only allowed Signatures matching your Legend's Champion
 - feat: Custom - Region decks now allow 1 to 3 Battlefield cards, instead of requiring exactly 3
 - feat: The deck builder no longer pre-filters cards by your Legend's domains in Custom - Region decks, since rune colors and card colors aren't enforced in this format. You see every legal card on each zone right away
+- fix: The card detail panel now closes when you switch between collections, lists, and other card-browser pages, instead of carrying a card you picked on the previous page into the next one
 - fix: The Promos page's group-by dropdown no longer shows "set" (a leftover from another page or from the default) when the actual grouping is by distribution channel
 - fix: A tab left idle during a release update now refreshes itself when you return to it, so you don't end up clicking through a stale page
 - fix: The Promos page no longer briefly renders as a narrow two-column grid on desktop before snapping to the correct width on load

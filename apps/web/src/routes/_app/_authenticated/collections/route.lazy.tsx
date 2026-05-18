@@ -24,6 +24,8 @@ import {
 } from "@/components/layout/page-top-bar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useMoveCopies } from "@/hooks/use-copies";
+import { useBulkAddCopiesToList } from "@/hooks/use-lists";
+import { describeListAdd } from "@/lib/list-toast";
 import { FilterSearchProvider } from "@/lib/search-schemas";
 
 import { TopBarSlotContext } from "./route";
@@ -80,6 +82,7 @@ function CollectionLayout() {
   const [activeDrag, setActiveDrag] = useState<CardDragData | null>(null);
   const [shiftHeld, setShiftHeld] = useState(false);
   const moveCopies = useMoveCopies();
+  const bulkAddCopiesToList = useBulkAddCopiesToList();
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: DRAG_ACTIVATION }));
 
@@ -121,28 +124,51 @@ function CollectionLayout() {
     setShiftHeld(false);
 
     const dragData = event.active.data.current as CardDragData | undefined;
-    const dropData = event.over?.data.current as { type: string; collectionId: string } | undefined;
+    const dropData = event.over?.data.current as
+      | { type: "collection"; collectionId: string }
+      | { type: "list"; listId: string; listName: string }
+      | undefined;
 
-    if (
-      !dropData ||
-      dragData?.type !== "collection-card" ||
-      dropData.type !== "collection" ||
-      dragData.sourceCollectionId === dropData.collectionId
-    ) {
+    if (!dropData || dragData?.type !== "collection-card") {
       return;
     }
 
-    const copyIds =
-      dragData.isStackDrag && !moveAll ? dragData.copyIds.slice(0, 1) : dragData.copyIds;
-    const count = copyIds.length;
-    moveCopies.mutate(
-      { copyIds, toCollectionId: dropData.collectionId },
-      {
-        onSuccess: () => {
-          toast.success(`Moved ${count} card${count > 1 ? "s" : ""}`);
+    if (dropData.type === "collection") {
+      // Same-collection drop is a no-op; the route used to bail on this.
+      if (dragData.sourceCollectionId === dropData.collectionId) {
+        return;
+      }
+      const copyIds =
+        dragData.isStackDrag && !moveAll ? dragData.copyIds.slice(0, 1) : dragData.copyIds;
+      const count = copyIds.length;
+      moveCopies.mutate(
+        { copyIds, toCollectionId: dropData.collectionId },
+        {
+          onSuccess: () => {
+            toast.success(`Moved ${count} card${count > 1 ? "s" : ""}`);
+          },
         },
-      },
-    );
+      );
+      return;
+    }
+
+    if (dropData.type === "list") {
+      // Adding to a list is non-destructive (copies stay in their collection),
+      // so the stack-trim-to-one default doesn't apply — all copies under the
+      // dragged tile flow into the server, which derives the right entry shape
+      // (card / printing / copy) from the list's kind and dedupes.
+      bulkAddCopiesToList.mutate(
+        { listId: dropData.listId, copyIds: dragData.copyIds },
+        {
+          onSuccess: (result) => {
+            const listName = dropData.listName;
+            toast[result.added + result.updated === 0 ? "info" : "success"](
+              describeListAdd(result, listName),
+            );
+          },
+        },
+      );
+    }
   };
 
   return (

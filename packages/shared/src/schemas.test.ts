@@ -1,27 +1,26 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  bulkCreateListEntriesSchema,
   collectionEventsQuerySchema,
   addCopiesSchema,
   copiesQuerySchema,
   createCollectionSchema,
   createDeckSchema,
-  createTradeListItemSchema,
-  createTradeListSchema,
-  createWishListItemSchema,
-  createWishListSchema,
+  createListEntrySchema,
+  createListSchema,
   decksQuerySchema,
   disposeCopiesSchema,
   idAndItemIdParamSchema,
   idParamSchema,
   keyParamSchema,
+  listIntentQuerySchema,
   moveCopiesSchema,
   updateCollectionSchema,
   updateDeckCardsSchema,
   updateDeckSchema,
-  updateTradeListSchema,
-  updateWishListItemSchema,
-  updateWishListSchema,
+  updateListEntrySchema,
+  updateListSchema,
 } from "./schemas";
 
 // ---------------------------------------------------------------------------
@@ -228,106 +227,183 @@ describe("updateDeckCardsSchema", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Wish list schemas
+// List schemas (unified buy / sell / organize)
 // ---------------------------------------------------------------------------
 
-describe("createWishListSchema", () => {
-  it("accepts valid wish list", () => {
-    expect(createWishListSchema.safeParse({ name: "Wants" }).success).toBe(true);
+const CARD_ID = "c0000000-0001-4000-a000-000000000001";
+const PRINTING_ID = "d0000000-0001-4000-a000-000000000001";
+const COPY_ID = "550e8400-e29b-41d4-a716-446655440000";
+
+describe("createListSchema", () => {
+  it("accepts buy + card", () => {
+    expect(createListSchema.safeParse({ name: "Wants", intent: "buy", kind: "card" }).success).toBe(
+      true,
+    );
   });
 
-  it("accepts optional rules", () => {
-    expect(createWishListSchema.safeParse({ name: "Wants", rules: { foo: 1 } }).success).toBe(true);
-  });
-});
-
-describe("updateWishListSchema", () => {
-  it("accepts partial update", () => {
-    expect(updateWishListSchema.safeParse({ name: "Updated" }).success).toBe(true);
-  });
-
-  it("accepts empty object", () => {
-    expect(updateWishListSchema.safeParse({}).success).toBe(true);
-  });
-});
-
-describe("createWishListItemSchema", () => {
-  it("accepts item with cardId", () => {
+  it("accepts buy + printing", () => {
     expect(
-      createWishListItemSchema.safeParse({ cardId: "c0000000-0001-4000-a000-000000000001" })
-        .success,
+      createListSchema.safeParse({ name: "Foils", intent: "buy", kind: "printing" }).success,
     ).toBe(true);
   });
 
-  it("accepts item with printingId", () => {
+  it("accepts sell + copy", () => {
     expect(
-      createWishListItemSchema.safeParse({ printingId: "d0000000-0001-4000-a000-000000000001" })
-        .success,
+      createListSchema.safeParse({ name: "For trade", intent: "sell", kind: "copy" }).success,
     ).toBe(true);
   });
 
-  it("defaults quantityDesired to 1", () => {
-    const result = createWishListItemSchema.parse({
-      cardId: "c0000000-0001-4000-a000-000000000001",
-    });
-    expect(result.quantityDesired).toBe(1);
+  it("accepts organize + each kind", () => {
+    for (const kind of ["card", "printing", "copy"] as const) {
+      expect(
+        createListSchema.safeParse({ name: "Demacia", intent: "organize", kind }).success,
+      ).toBe(true);
+    }
   });
 
-  it("accepts explicit quantityDesired", () => {
-    const result = createWishListItemSchema.parse({
-      cardId: "c0000000-0001-4000-a000-000000000001",
-      quantityDesired: 4,
-    });
-    expect(result.quantityDesired).toBe(4);
+  it("rejects buy + copy (disallowed combo)", () => {
+    expect(createListSchema.safeParse({ name: "Bad", intent: "buy", kind: "copy" }).success).toBe(
+      false,
+    );
   });
 
-  it("rejects non-positive quantityDesired", () => {
+  it("rejects sell + card (disallowed combo)", () => {
+    expect(createListSchema.safeParse({ name: "Bad", intent: "sell", kind: "card" }).success).toBe(
+      false,
+    );
+  });
+
+  it("rejects sell + printing (disallowed combo)", () => {
     expect(
-      createWishListItemSchema.safeParse({
-        cardId: "c0000000-0001-4000-a000-000000000001",
-        quantityDesired: 0,
+      createListSchema.safeParse({ name: "Bad", intent: "sell", kind: "printing" }).success,
+    ).toBe(false);
+  });
+
+  it("rejects an unknown intent", () => {
+    expect(createListSchema.safeParse({ name: "x", intent: "barter", kind: "card" }).success).toBe(
+      false,
+    );
+  });
+
+  it("rejects an unknown kind", () => {
+    expect(createListSchema.safeParse({ name: "x", intent: "buy", kind: "physical" }).success).toBe(
+      false,
+    );
+  });
+
+  it("rejects a missing kind", () => {
+    expect(createListSchema.safeParse({ name: "x", intent: "buy" }).success).toBe(false);
+  });
+
+  it("rejects a missing intent", () => {
+    expect(createListSchema.safeParse({ name: "x", kind: "card" }).success).toBe(false);
+  });
+
+  it("rejects an empty name", () => {
+    expect(createListSchema.safeParse({ name: "", intent: "buy", kind: "card" }).success).toBe(
+      false,
+    );
+  });
+});
+
+describe("updateListSchema", () => {
+  it("accepts a partial update", () => {
+    expect(updateListSchema.safeParse({ name: "Renamed" }).success).toBe(true);
+  });
+
+  it("accepts an empty object", () => {
+    expect(updateListSchema.safeParse({}).success).toBe(true);
+  });
+});
+
+describe("createListEntrySchema (three-way XOR)", () => {
+  it("accepts an entry with cardId only", () => {
+    expect(createListEntrySchema.safeParse({ cardId: CARD_ID }).success).toBe(true);
+  });
+
+  it("accepts an entry with printingId only", () => {
+    expect(createListEntrySchema.safeParse({ printingId: PRINTING_ID }).success).toBe(true);
+  });
+
+  it("accepts an entry with copyId only", () => {
+    expect(createListEntrySchema.safeParse({ copyId: COPY_ID }).success).toBe(true);
+  });
+
+  it("rejects an entry with no target", () => {
+    expect(createListEntrySchema.safeParse({}).success).toBe(false);
+  });
+
+  it("rejects an entry with two targets", () => {
+    expect(
+      createListEntrySchema.safeParse({ cardId: CARD_ID, printingId: PRINTING_ID }).success,
+    ).toBe(false);
+  });
+
+  it("rejects an entry with all three targets", () => {
+    expect(
+      createListEntrySchema.safeParse({
+        cardId: CARD_ID,
+        printingId: PRINTING_ID,
+        copyId: COPY_ID,
       }).success,
     ).toBe(false);
   });
-});
 
-describe("updateWishListItemSchema", () => {
-  it("accepts valid update", () => {
-    expect(updateWishListItemSchema.safeParse({ quantityDesired: 3 }).success).toBe(true);
+  it("defaults quantity to 1", () => {
+    const result = createListEntrySchema.parse({ cardId: CARD_ID });
+    expect(result.quantity).toBe(1);
   });
 
-  it("rejects non-positive", () => {
-    expect(updateWishListItemSchema.safeParse({ quantityDesired: -1 }).success).toBe(false);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Trade list schemas
-// ---------------------------------------------------------------------------
-
-describe("createTradeListSchema", () => {
-  it("accepts valid trade list", () => {
-    expect(createTradeListSchema.safeParse({ name: "For Trade" }).success).toBe(true);
+  it("rejects non-positive quantity", () => {
+    expect(createListEntrySchema.safeParse({ cardId: CARD_ID, quantity: 0 }).success).toBe(false);
   });
 });
 
-describe("updateTradeListSchema", () => {
-  it("accepts partial update", () => {
-    expect(updateTradeListSchema.safeParse({ rules: null }).success).toBe(true);
+describe("updateListEntrySchema", () => {
+  it("accepts a positive quantity", () => {
+    expect(updateListEntrySchema.safeParse({ quantity: 3 }).success).toBe(true);
+  });
+
+  it("rejects a negative quantity", () => {
+    expect(updateListEntrySchema.safeParse({ quantity: -1 }).success).toBe(false);
   });
 });
 
-describe("createTradeListItemSchema", () => {
-  it("accepts valid item", () => {
+describe("bulkCreateListEntriesSchema", () => {
+  it("accepts a mixed batch", () => {
+    const result = bulkCreateListEntriesSchema.safeParse({
+      entries: [{ cardId: CARD_ID }, { printingId: PRINTING_ID }, { copyId: COPY_ID }],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects an entry with no target inside the batch", () => {
     expect(
-      createTradeListItemSchema.safeParse({
-        copyId: "550e8400-e29b-41d4-a716-446655440000",
-      }).success,
-    ).toBe(true);
+      bulkCreateListEntriesSchema.safeParse({ entries: [{ cardId: CARD_ID }, {}] }).success,
+    ).toBe(false);
   });
 
-  it("rejects non-uuid copyId", () => {
-    expect(createTradeListItemSchema.safeParse({ copyId: "not-uuid" }).success).toBe(false);
+  it("rejects an empty batch", () => {
+    expect(bulkCreateListEntriesSchema.safeParse({ entries: [] }).success).toBe(false);
+  });
+
+  it("rejects a batch over 500", () => {
+    const entries = Array.from({ length: 501 }, () => ({ cardId: CARD_ID }));
+    expect(bulkCreateListEntriesSchema.safeParse({ entries }).success).toBe(false);
+  });
+});
+
+describe("listIntentQuerySchema", () => {
+  it("accepts an empty query", () => {
+    expect(listIntentQuerySchema.safeParse({}).success).toBe(true);
+  });
+
+  it("accepts a known intent", () => {
+    expect(listIntentQuerySchema.safeParse({ intent: "sell" }).success).toBe(true);
+  });
+
+  it("rejects an unknown intent", () => {
+    expect(listIntentQuerySchema.safeParse({ intent: "trade" }).success).toBe(false);
   });
 });
 

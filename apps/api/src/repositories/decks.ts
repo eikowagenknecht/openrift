@@ -438,7 +438,7 @@ export function decksRepo(db: Kysely<Database>) {
     ): Promise<Selectable<DecksTable> | undefined> {
       const row = await db
         .updateTable("decks")
-        .set({ shareToken, isPublic, updatedAt: sql`now()` })
+        .set({ shareToken, isPublic })
         .where("id", "=", id)
         .where("userId", "=", userId)
         .returningAll()

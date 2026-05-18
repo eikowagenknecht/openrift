@@ -25,7 +25,7 @@ export function DroppableCollection({
   return (
     <div
       ref={setNodeRef}
-      className={cn(showHighlight && "bg-primary/10 ring-primary/60 rounded-md ring-2")}
+      className={cn(showHighlight && "bg-primary/10 ring-primary/60 rounded-md ring-2 ring-inset")}
     >
       {children}
     </div>
