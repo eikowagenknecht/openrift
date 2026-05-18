@@ -400,7 +400,7 @@ export const sideboardCopyLimit: DeckRule = (state) => {
 };
 
 // Battlefield zone must have between 1 and 3 cards (Custom-Region variant).
-export const battlefieldOneToThree: DeckRule = (state) => {
+const battlefieldOneToThree: DeckRule = (state) => {
   const battlefields = cardsInZone(state.cards, WellKnown.deckZone.BATTLEFIELD);
   const count = totalQuantity(battlefields);
 
