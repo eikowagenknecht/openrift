@@ -348,6 +348,7 @@ function DraggableTopSlotWrapper({
 
 // Explicit memo: rendered inside the virtualizer's items.map() which re-runs every
 // scroll frame. React Compiler cannot memoize JSX created in dynamic .map() callbacks.
+// oxlint-disable-next-line eslint/prefer-arrow-callback -- named for React DevTools
 export const CardThumbnail = memo(function CardThumbnail({
   printing,
   onClick,

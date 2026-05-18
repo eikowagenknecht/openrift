@@ -592,6 +592,7 @@ export function CandidateSpreadsheet({
                             render={
                               <button
                                 type="button"
+                                aria-label={`Edit ${field.label}`}
                                 className="flex w-full items-center gap-1 rounded text-left text-sm"
                                 onClick={(e) => e.stopPropagation()}
                               />
@@ -696,6 +697,7 @@ export function CandidateSpreadsheet({
                   ) : editingField === field.key && field.multiline ? (
                     <textarea
                       ref={textareaRef}
+                      aria-label={field.label}
                       defaultValue={hasValue(activeValue) ? String(activeValue) : ""}
                       rows={4}
                       className="border-primary w-full resize-y rounded border bg-transparent p-1 text-sm outline-none"
@@ -713,6 +715,7 @@ export function CandidateSpreadsheet({
                     <input
                       ref={inputRef}
                       type="text"
+                      aria-label={field.label}
                       inputMode={field.type === "number" ? "numeric" : undefined}
                       defaultValue={
                         hasValue(activeValue)
@@ -899,6 +902,7 @@ export function CandidateSpreadsheet({
             return (
               <Fragment key={`${field.key}+toggle`}>
                 {fieldRow}
+                {/* oxlint-disable-next-line jsx-a11y/control-has-associated-label -- label lives in the <td> inside; rule doesn't see across children */}
                 <tr
                   className="bg-muted/30 hover:bg-muted/50 cursor-pointer border-b"
                   onClick={() => setCollapsed((c) => !c)}

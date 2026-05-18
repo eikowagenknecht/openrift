@@ -345,6 +345,7 @@ function PaletteInner({
         <input
           ref={inputRef}
           type="text"
+          aria-label={`Add card to ${collectionName}`}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={handleKeyDown}

@@ -66,6 +66,7 @@ export function MultiSelectCombobox({
           <Badge
             variant={hasSelection ? "default" : "outline"}
             className="cursor-pointer [&>svg]:text-current"
+            // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- label injected as ComboboxTrigger children below
             render={<button type="button" />}
           />
         }

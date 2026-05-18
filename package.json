@@ -52,7 +52,7 @@
     "lcov-result-merger": "6.0.0",
     "lefthook": "2.1.6",
     "oxfmt": "0.50.0",
-    "oxlint": "1.64.0",
+    "oxlint": "1.65.0",
     "syncpack": "15.2.0",
     "turbo": "2.9.14"
   },

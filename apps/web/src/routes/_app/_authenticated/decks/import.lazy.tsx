@@ -985,6 +985,7 @@ function CardSearch({
     <div className="relative" ref={containerRef}>
       <input
         role="combobox"
+        aria-label="Search cards"
         aria-expanded={visible && results.length > 0}
         aria-controls={listboxId}
         aria-activedescendant={activeOptionId}

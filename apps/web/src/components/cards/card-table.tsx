@@ -165,6 +165,7 @@ function buildVirtualRows(groups: CardGroup[]): VRow[] {
 // parent render (it closes over parent state) but the memoized children
 // inside the actions component are cached by React Compiler, so the
 // re-render cost stays per-row-local.
+// oxlint-disable-next-line eslint/prefer-arrow-callback -- named for React DevTools
 const DataRow = memo(function DataRow({
   printing,
   isSelected,

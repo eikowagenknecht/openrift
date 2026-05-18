@@ -465,7 +465,7 @@ function FeedbackPopover() {
         <PopoverClose
           nativeButton={false}
           render={
-            // oxlint-disable-next-line jsx-a11y/anchor-has-content -- content is provided as children of PopoverClose
+            // oxlint-disable-next-line jsx-a11y/anchor-has-content, jsx-a11y/control-has-associated-label -- content is provided as children of PopoverClose
             <a href="https://discord.gg/Qb6RcjXq6z" target="_blank" rel="noreferrer" />
           }
           className="hover:bg-muted flex items-center gap-3 rounded-md px-2 py-2 text-sm"
@@ -482,7 +482,7 @@ function FeedbackPopover() {
         <PopoverClose
           nativeButton={false}
           render={
-            // oxlint-disable-next-line jsx-a11y/anchor-has-content -- content is provided as children of PopoverClose
+            // oxlint-disable-next-line jsx-a11y/anchor-has-content, jsx-a11y/control-has-associated-label -- content is provided as children of PopoverClose
             <a
               href="https://github.com/openriftapp/openrift/issues/new/choose"
               target="_blank"

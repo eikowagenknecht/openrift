@@ -301,6 +301,7 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
           <TableBody ref={tableAnchorRef}>
             {/* See accepted-cards-table for why we adjust by scrollMargin. */}
             {virtualItems.length > 0 && (
+              // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- TanStack Virtual spacer row, no semantic content
               <tr style={{ height: virtualItems[0].start - scrollMargin }} />
             )}
             {virtualItems.map((virtualRow) => {
@@ -316,6 +317,7 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
               );
             })}
             {virtualItems.length > 0 && (
+              // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- TanStack Virtual spacer row, no semantic content
               <tr
                 style={{
                   height: totalSize - (virtualItems.at(-1)?.end ?? 0) + scrollMargin,

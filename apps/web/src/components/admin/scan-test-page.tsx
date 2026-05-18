@@ -214,6 +214,7 @@ export function ScanTestPage() {
               <div className="relative overflow-hidden rounded-md">
                 <video
                   ref={videoRef}
+                  aria-label="Live camera feed"
                   className="bg-muted w-full rounded-md border"
                   playsInline
                   muted
@@ -237,7 +238,7 @@ export function ScanTestPage() {
                 </div>
               )}
               {/* Hidden canvas for capture processing */}
-              <canvas ref={canvasRef} className="hidden" />
+              <canvas ref={canvasRef} aria-hidden="true" className="hidden" />
             </div>
           </div>
         </CardContent>

@@ -393,6 +393,7 @@ export function PrintingImageSwitcher({
       <input
         ref={fileInputRef}
         type="file"
+        aria-label="Upload printing image"
         accept="image/*"
         className="hidden"
         onChange={(e) => {

@@ -202,6 +202,7 @@ function computeRowStarts(
 // stable onSelect (scrollToGroup) instead of minting a fresh `() => scrollToGroup(id)`
 // arrow on every CardGrid re-render. Without this, every scroll tick changed
 // the onClick reference and forced GroupHeaderLabel to re-render.
+// oxlint-disable-next-line eslint/prefer-arrow-callback -- named for React DevTools
 const GroupHeaderLabel = memo(function GroupHeaderLabel({
   slug,
   name,
@@ -230,6 +231,7 @@ const GroupHeaderLabel = memo(function GroupHeaderLabel({
 // Explicit memo: rendered inside the virtualizer's items.map() which re-runs every
 // scroll frame. React Compiler cannot memoize JSX created in dynamic .map() callbacks.
 // ⚠ pt-4 / pb-2 are mirrored as HEADER_PT / HEADER_PB above — update both together
+// oxlint-disable-next-line eslint/prefer-arrow-callback -- named for React DevTools
 const HeaderRow = memo(function HeaderRow({
   row,
   onScrollToGroup,
@@ -253,6 +255,7 @@ const HeaderRow = memo(function HeaderRow({
 
 // Explicit memo: rendered inside the virtualizer's items.map() which re-runs every
 // scroll frame. React Compiler cannot memoize JSX created in dynamic .map() callbacks.
+// oxlint-disable-next-line eslint/prefer-arrow-callback -- named for React DevTools
 const CardRowContent = memo(function CardRowContent({
   row,
   columns,

@@ -289,6 +289,7 @@ function CardDetailPage() {
                 const left = leftRows[i];
                 const right = rightRows[i];
                 return (
+                  // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- presentational info-table row, not a control
                   <tr key={i}>
                     <td className="text-muted-foreground w-24 py-1 pr-2 align-top text-xs font-medium">
                       <div className="flex min-h-6 flex-col justify-center">{left?.[0]}</div>
@@ -306,7 +307,9 @@ function CardDetailPage() {
                 );
               })}
               {/* Right column rows stacked on mobile */}
+              {/* oxlint-disable-next-line jsx-a11y/control-has-associated-label -- presentational info-table row, not a control */}
               <tr className="sm:hidden">
+                {/* oxlint-disable-next-line jsx-a11y/control-has-associated-label -- presentational info-table cell, not a control */}
                 <td colSpan={2} className="pt-2">
                   <table className="w-full text-sm">
                     <tbody>
@@ -511,6 +514,7 @@ function ErrataRow({ errata, printing }: { errata: CardErrata; printing: Printin
 
 function InfoRow({ label, children }: { label: string; children: ReactNode }) {
   return (
+    // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- presentational info-table row, not a control
     <tr>
       <td className="text-muted-foreground w-24 py-1 pr-2 align-top text-xs font-medium">
         <div className="flex min-h-6 flex-col justify-center">{label}</div>

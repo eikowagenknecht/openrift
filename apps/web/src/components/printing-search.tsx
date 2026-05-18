@@ -106,6 +106,7 @@ export function PrintingSearch({
     <div className="relative" ref={containerRef}>
       <input
         role="combobox"
+        aria-label="Search catalog"
         aria-expanded={visible && results.length > 0}
         aria-controls={listboxId}
         aria-activedescendant={activeOptionId}

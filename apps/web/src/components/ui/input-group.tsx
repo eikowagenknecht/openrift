@@ -48,7 +48,7 @@ function InputGroupAddon({
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof inputGroupAddonVariants>) {
   return (
-    // oxlint-disable-next-line click-events-have-key-events -- custom: focus delegation on click; keyboard users already reach the input directly
+    // oxlint-disable-next-line click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- custom: focus delegation on click; keyboard users already reach the input directly
     <div
       role="group"
       data-slot="input-group-addon"
