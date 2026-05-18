@@ -51,7 +51,25 @@ async function fetchCatalogFromEdge(): Promise<CatalogResponse> {
   return res.json() as Promise<CatalogResponse>;
 }
 
+// Memoize by input identity. React Query's structural sharing can't preserve
+// reference equality across renders because the enriched result contains a
+// non-serializable `Map` (`printingsByCardId`), so without this every render
+// produces a fresh `data` reference — defeating all downstream memoization
+// (React Compiler, useMemo, manual caches). Keyed by `catalog` so the cache
+// invalidates naturally when the underlying fetch returns new data.
+const enrichCache = new WeakMap<CatalogResponse, UseCardsResult>();
+
 export function enrichCatalog(catalog: CatalogResponse): UseCardsResult {
+  const cached = enrichCache.get(catalog);
+  if (cached) {
+    return cached;
+  }
+  const result = enrichCatalogInner(catalog);
+  enrichCache.set(catalog, result);
+  return result;
+}
+
+function enrichCatalogInner(catalog: CatalogResponse): UseCardsResult {
   const setsById = new Map(catalog.sets.map((s) => [s.id, s]));
 
   // Cards are already in the right shape — identity lives in the map key.
