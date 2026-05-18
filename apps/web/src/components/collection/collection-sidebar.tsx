@@ -108,7 +108,7 @@ function ListsSidebarGroups({ activeId }: { activeId?: string }) {
       {INTENT_GROUPS.map(({ intent, label, foldKey }) => {
         const rows = byIntent.get(intent) ?? [];
         return (
-          <CollapsibleSidebarGroup key={intent} label={label} foldKey={foldKey}>
+          <CollapsibleSidebarGroup key={intent} label={`${label} lists`} foldKey={foldKey}>
             {rows.map((list) => {
               const KindIcon = listKindIcon(list.kind);
               // Every list kind accepts dropped copies — the server derives
