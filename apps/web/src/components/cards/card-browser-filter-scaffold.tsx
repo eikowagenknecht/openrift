@@ -86,7 +86,7 @@ export function BrowserLeftPane() {
  *
  * @returns The collapsible filter row.
  */
-export function BrowserCollapsibleFilters() {
+function BrowserCollapsibleFilters() {
   const meta = useFilterMeta();
   return (
     <CollapsibleFilterPanel
@@ -105,7 +105,7 @@ export function BrowserCollapsibleFilters() {
  *
  * @returns The mobile filter content.
  */
-export function BrowserMobileFilters() {
+function BrowserMobileFilters() {
   const meta = useFilterMeta();
   return (
     <MobileFilterContent

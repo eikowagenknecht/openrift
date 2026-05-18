@@ -31,7 +31,7 @@ import { useDisplayStore } from "@/stores/display-store";
 
 import { FilterPanelContent } from "./filter-panel-content";
 
-export const sortOptions: { value: SortOption; label: string }[] = [
+const sortOptions: { value: SortOption; label: string }[] = [
   { value: "id", label: "ID" },
   { value: "name", label: "Name" },
   { value: "energy", label: "Energy" },
@@ -39,7 +39,7 @@ export const sortOptions: { value: SortOption; label: string }[] = [
   { value: "price", label: "Price" },
 ];
 
-export const defaultGroupByOptions: { value: GroupByField; label: string }[] = [
+const defaultGroupByOptions: { value: GroupByField; label: string }[] = [
   { value: "none", label: "None" },
   { value: "set", label: "Set" },
   { value: "type", label: "Type" },
@@ -51,13 +51,7 @@ export const defaultGroupByOptions: { value: GroupByField; label: string }[] = [
   { value: "marker", label: "Marker" },
 ];
 
-export function DisplayModeToggle({
-  compact,
-  className,
-}: {
-  compact?: boolean;
-  className?: string;
-}) {
+function DisplayModeToggle({ compact, className }: { compact?: boolean; className?: string }) {
   const displayMode = useDisplayStore((state) => state.displayMode);
   const setDisplayMode = useDisplayStore((state) => state.setDisplayMode);
   const isMobile = useIsMobile();
