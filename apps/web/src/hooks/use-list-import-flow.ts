@@ -163,17 +163,22 @@ export function useListImportFlow(listId: string, onClose: () => void) {
       batches.push(payload.slice(offset, offset + BATCH_SIZE));
     }
 
-    try {
+    const sendAllBatches = async () => {
       for (const batch of batches) {
         await bulkAddEntries.mutateAsync({ listId, entries: batch });
       }
-      const cardLabel = totalCards === 1 ? "card" : "cards";
+    };
+
+    const cardLabel = totalCards === 1 ? "card" : "cards";
+
+    try {
+      await sendAllBatches();
       toast.success(`Added ${totalCards} ${cardLabel} to list.`);
+      setIsImporting(false);
       reset();
       onClose();
     } catch {
       toast.error("Import failed. Some cards may have been added.");
-    } finally {
       setIsImporting(false);
     }
   };
