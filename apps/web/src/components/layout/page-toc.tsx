@@ -3,6 +3,7 @@ import type { MouseEvent } from "react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { usePageTocStore } from "@/stores/page-toc-store";
@@ -98,12 +99,19 @@ export function PageToc({ items, className }: { items: PageTocItem[]; className?
   useActiveTocItem(items);
 
   return (
-    <aside className={cn("hidden w-48 shrink-0 lg:block", className)}>
-      <nav className="sticky top-(--sticky-top) max-h-[calc(100vh-var(--sticky-top))] space-y-0.5 overflow-y-auto">
-        {items.map((item) => (
-          <TocLink key={item.id} id={item.id} label={item.label} level={item.level ?? 0} />
-        ))}
-      </nav>
+    <aside
+      className={cn(
+        "sticky top-(--sticky-top) hidden max-h-[calc(100vh-var(--sticky-top))] w-48 shrink-0 lg:block",
+        className,
+      )}
+    >
+      <ScrollArea className="h-full">
+        <nav className="space-y-0.5">
+          {items.map((item) => (
+            <TocLink key={item.id} id={item.id} label={item.label} level={item.level ?? 0} />
+          ))}
+        </nav>
+      </ScrollArea>
     </aside>
   );
 }
@@ -143,17 +151,19 @@ export function PageTocMobileTrigger({
         <SheetHeader>
           <SheetTitle>Contents</SheetTitle>
         </SheetHeader>
-        <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-4 pb-6">
-          {items.map((item) => (
-            <TocLink
-              key={item.id}
-              id={item.id}
-              label={item.label}
-              level={item.level ?? 0}
-              onSelect={() => setOpen(false)}
-            />
-          ))}
-        </nav>
+        <ScrollArea className="min-h-0 flex-1">
+          <nav className="space-y-0.5 px-4 pb-6">
+            {items.map((item) => (
+              <TocLink
+                key={item.id}
+                id={item.id}
+                label={item.label}
+                level={item.level ?? 0}
+                onSelect={() => setOpen(false)}
+              />
+            ))}
+          </nav>
+        </ScrollArea>
       </SheetContent>
     </Sheet>
   );

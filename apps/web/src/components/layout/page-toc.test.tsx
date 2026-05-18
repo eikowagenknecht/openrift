@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitForElementToBeRemoved } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -61,7 +61,7 @@ describe("PageTocMobileTrigger", () => {
 
     expect(scrollSpy).toHaveBeenCalledTimes(1);
     expect(usePageTocStore.getState().activeId).toBe("rule-100-1");
-    expect(screen.queryByRole("link", { name: "100.1 Players" })).not.toBeInTheDocument();
+    await waitForElementToBeRemoved(() => screen.queryByRole("link", { name: "100.1 Players" }));
 
     scrollSpy.mockRestore();
   });

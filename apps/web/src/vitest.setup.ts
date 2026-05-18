@@ -28,6 +28,15 @@ if (globalThis.Element && !globalThis.Element.prototype.scrollIntoView) {
   };
 }
 
+// jsdom doesn't implement Element.getAnimations — BaseUI's ScrollArea viewport
+// polls it on a teardown timer and throws as an uncaught exception otherwise.
+if (
+  globalThis.Element &&
+  (globalThis.Element.prototype as { getAnimations?: () => unknown[] }).getAnimations === undefined
+) {
+  (globalThis.Element.prototype as { getAnimations?: () => unknown[] }).getAnimations = () => [];
+}
+
 afterEach(() => {
   cleanup();
 });
