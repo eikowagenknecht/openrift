@@ -154,6 +154,14 @@ interface BrowserToolbarProps {
    * aren't in the shared `GroupByField` enum.
    */
   groupByOptions?: { value: string; label: string }[];
+  /**
+   * Override the displayed group-by value. Required for surfaces where the
+   * URL's groupBy (or its default) can be invalid for the surface's options
+   * — e.g. /promos receives "set" by default, which isn't a promo grouping;
+   * the surface passes its normalized value here so the dropdown shows a
+   * real option instead of the raw URL string.
+   */
+  groupByValue?: string;
 }
 
 /**
@@ -173,6 +181,7 @@ export function BrowserToolbar({
   showCopies,
   hideViewToggle,
   groupByOptions,
+  groupByValue,
 }: BrowserToolbarProps) {
   return (
     <>
@@ -183,6 +192,7 @@ export function BrowserToolbar({
           showCopies={showCopies}
           hideViewToggle={hideViewToggle}
           groupByOptions={groupByOptions}
+          groupByValue={groupByValue}
         />
         {extras}
         <FilterToggleButton className="@wide:hidden hidden sm:flex" />
@@ -191,6 +201,7 @@ export function BrowserToolbar({
             showCopies={showCopies}
             hideViewToggle={hideViewToggle}
             groupByOptions={groupByOptions}
+            groupByValue={groupByValue}
           />
           <BrowserMobileFilters />
         </MobileOptionsDrawer>

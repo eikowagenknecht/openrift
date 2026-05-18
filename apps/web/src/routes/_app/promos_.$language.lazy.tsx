@@ -499,6 +499,7 @@ function PromosPage() {
               }
               hideViewToggle
               groupByOptions={GROUP_OPTIONS}
+              groupByValue={grouping}
               extras={
                 isLoggedIn ? (
                   <Button

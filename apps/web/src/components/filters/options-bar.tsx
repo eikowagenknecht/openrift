@@ -314,6 +314,7 @@ export function DesktopOptionsBar({
   showCopies,
   hideViewToggle,
   groupByOptions = defaultGroupByOptions,
+  groupByValue,
 }: {
   className?: string;
   showCopies?: boolean;
@@ -325,6 +326,14 @@ export function DesktopOptionsBar({
    * the URL is loosely typed and each surface re-parses on read.
    */
   groupByOptions?: { value: string; label: string }[];
+  /**
+   * Override the displayed group-by value. Surfaces with their own valid
+   * group-by set (e.g. /promos, where the URL default "set" isn't a valid
+   * promo grouping) pass the normalized value so the dropdown shows a real
+   * option instead of the raw URL string. Falls back to `filterState.groupBy`
+   * when not provided.
+   */
+  groupByValue?: string;
 }) {
   const {
     sortBy,
@@ -351,7 +360,7 @@ export function DesktopOptionsBar({
         onSortDirChange={setSortDir}
         group={{
           options: groupByOptions,
-          value: groupBy,
+          value: groupByValue ?? groupBy,
           dir: groupDir,
           onValueChange: (value) => setGroupBy(value as GroupByField),
           onDirChange: setGroupDir,
@@ -415,11 +424,14 @@ export function MobileOptionsContent({
   showCopies,
   hideViewToggle,
   groupByOptions = defaultGroupByOptions,
+  groupByValue,
 }: {
   showCopies?: boolean;
   hideViewToggle?: boolean;
   /** See {@link DesktopOptionsBar} for why the value type is widened to `string`. */
   groupByOptions?: { value: string; label: string }[];
+  /** See {@link DesktopOptionsBar} for the normalized-value override rationale. */
+  groupByValue?: string;
 } = {}) {
   const {
     sortBy,
@@ -447,7 +459,7 @@ export function MobileOptionsContent({
         onSortDirChange={setSortDir}
         group={{
           options: groupByOptions,
-          value: groupBy,
+          value: groupByValue ?? groupBy,
           dir: groupDir,
           onValueChange: (value) => setGroupBy(value as GroupByField),
           onDirChange: setGroupDir,
