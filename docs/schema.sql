@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict SuVom28DWcHy4oyKyUDYhF76Vids3Hluw13MwIwPqYRMoY9BIA2AoXRS21ywf5A
+\restrict glhveMztaLVlraH2SHZfH5gziTmr3M0GLqB5Lt7xiS92TNSwzMFfeZFqWruAy2m
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -985,6 +985,48 @@ CREATE TABLE public.languages (
 
 
 --
+-- Name: list_entries; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.list_entries (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    list_id uuid NOT NULL,
+    user_id text NOT NULL,
+    card_id uuid,
+    printing_id uuid,
+    copy_id uuid,
+    quantity integer DEFAULT 1 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    kind text NOT NULL,
+    CONSTRAINT chk_list_entries_kind CHECK ((kind = ANY (ARRAY['card'::text, 'printing'::text, 'copy'::text]))),
+    CONSTRAINT chk_list_entries_kind_shape CHECK ((((kind = 'card'::text) AND (card_id IS NOT NULL) AND (printing_id IS NULL) AND (copy_id IS NULL)) OR ((kind = 'printing'::text) AND (printing_id IS NOT NULL) AND (card_id IS NULL) AND (copy_id IS NULL)) OR ((kind = 'copy'::text) AND (copy_id IS NOT NULL) AND (card_id IS NULL) AND (printing_id IS NULL)))),
+    CONSTRAINT chk_list_entries_quantity CHECK ((quantity > 0))
+);
+
+
+--
+-- Name: lists; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.lists (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    user_id text NOT NULL,
+    name text NOT NULL,
+    intent text NOT NULL,
+    is_public boolean DEFAULT false NOT NULL,
+    share_token text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    kind text NOT NULL,
+    CONSTRAINT chk_lists_intent CHECK ((intent = ANY (ARRAY['buy'::text, 'sell'::text, 'organize'::text]))),
+    CONSTRAINT chk_lists_intent_kind CHECK ((((intent = 'buy'::text) AND (kind = ANY (ARRAY['card'::text, 'printing'::text]))) OR ((intent = 'sell'::text) AND (kind = 'copy'::text)) OR ((intent = 'organize'::text) AND (kind = ANY (ARRAY['card'::text, 'printing'::text, 'copy'::text]))))),
+    CONSTRAINT chk_lists_kind CHECK ((kind = ANY (ARRAY['card'::text, 'printing'::text, 'copy'::text]))),
+    CONSTRAINT chk_lists_name_not_empty CHECK ((name <> ''::text))
+);
+
+
+--
 -- Name: markers; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1428,35 +1470,6 @@ CREATE TABLE public.super_types (
 
 
 --
--- Name: trade_list_items; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.trade_list_items (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    trade_list_id uuid NOT NULL,
-    user_id text NOT NULL,
-    copy_id uuid NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
---
--- Name: trade_lists; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.trade_lists (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    user_id text NOT NULL,
-    name text NOT NULL,
-    rules jsonb,
-    share_token text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
---
 -- Name: user_feature_flags; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1504,39 +1517,6 @@ CREATE TABLE public.verifications (
     identifier text NOT NULL,
     value text NOT NULL,
     expires_at timestamp with time zone NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
---
--- Name: wish_list_items; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.wish_list_items (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    wish_list_id uuid NOT NULL,
-    user_id text NOT NULL,
-    quantity_desired integer DEFAULT 1 NOT NULL,
-    printing_id uuid,
-    card_id uuid,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT chk_wish_list_items_quantity CHECK ((quantity_desired > 0)),
-    CONSTRAINT chk_wish_list_items_target_xor CHECK (((card_id IS NOT NULL) <> (printing_id IS NOT NULL)))
-);
-
-
---
--- Name: wish_lists; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.wish_lists (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    user_id text NOT NULL,
-    name text NOT NULL,
-    rules jsonb,
-    share_token text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -1887,6 +1867,30 @@ ALTER TABLE ONLY public.languages
 
 
 --
+-- Name: list_entries list_entries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.list_entries
+    ADD CONSTRAINT list_entries_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: lists lists_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lists
+    ADD CONSTRAINT lists_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: lists lists_share_token_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lists
+    ADD CONSTRAINT lists_share_token_key UNIQUE (share_token);
+
+
+--
 -- Name: markers markers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2095,30 +2099,6 @@ ALTER TABLE ONLY public.super_types
 
 
 --
--- Name: trade_list_items trade_list_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.trade_list_items
-    ADD CONSTRAINT trade_list_items_pkey PRIMARY KEY (id);
-
-
---
--- Name: trade_lists trade_lists_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.trade_lists
-    ADD CONSTRAINT trade_lists_pkey PRIMARY KEY (id);
-
-
---
--- Name: trade_lists trade_lists_share_token_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.trade_lists
-    ADD CONSTRAINT trade_lists_share_token_key UNIQUE (share_token);
-
-
---
 -- Name: collections uq_collections_id_user; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2151,6 +2131,22 @@ ALTER TABLE ONLY public.keyword_translations
 
 
 --
+-- Name: lists uq_lists_id_kind; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lists
+    ADD CONSTRAINT uq_lists_id_kind UNIQUE (id, kind);
+
+
+--
+-- Name: lists uq_lists_id_user; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lists
+    ADD CONSTRAINT uq_lists_id_user UNIQUE (id, user_id);
+
+
+--
 -- Name: printings uq_printings_identity; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2164,30 +2160,6 @@ ALTER TABLE ONLY public.printings
 
 ALTER TABLE ONLY public.printings
     ADD CONSTRAINT uq_printings_variant UNIQUE (short_code, art_variant, is_signed, marker_slugs, rarity, finish, language) DEFERRABLE INITIALLY DEFERRED;
-
-
---
--- Name: trade_list_items uq_trade_list_items; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.trade_list_items
-    ADD CONSTRAINT uq_trade_list_items UNIQUE (trade_list_id, copy_id);
-
-
---
--- Name: trade_lists uq_trade_lists_id_user; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.trade_lists
-    ADD CONSTRAINT uq_trade_lists_id_user UNIQUE (id, user_id);
-
-
---
--- Name: wish_lists uq_wish_lists_id_user; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.wish_lists
-    ADD CONSTRAINT uq_wish_lists_id_user UNIQUE (id, user_id);
 
 
 --
@@ -2228,30 +2200,6 @@ ALTER TABLE ONLY public.users
 
 ALTER TABLE ONLY public.verifications
     ADD CONSTRAINT verifications_pkey PRIMARY KEY (id);
-
-
---
--- Name: wish_list_items wish_list_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.wish_list_items
-    ADD CONSTRAINT wish_list_items_pkey PRIMARY KEY (id);
-
-
---
--- Name: wish_lists wish_lists_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.wish_lists
-    ADD CONSTRAINT wish_lists_pkey PRIMARY KEY (id);
-
-
---
--- Name: wish_lists wish_lists_share_token_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.wish_lists
-    ADD CONSTRAINT wish_lists_share_token_key UNIQUE (share_token);
 
 
 --
@@ -2430,6 +2378,27 @@ CREATE INDEX idx_job_runs_running ON public.job_runs USING btree (kind) WHERE (s
 
 
 --
+-- Name: idx_list_entries_list; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_list_entries_list ON public.list_entries USING btree (list_id);
+
+
+--
+-- Name: idx_lists_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lists_user_id ON public.lists USING btree (user_id);
+
+
+--
+-- Name: idx_lists_user_intent; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lists_user_intent ON public.lists USING btree (user_id, intent);
+
+
+--
 -- Name: idx_marketplace_product_variants_printing_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2556,41 +2525,6 @@ CREATE INDEX idx_sessions_user_id ON public.sessions USING btree (user_id);
 
 
 --
--- Name: idx_trade_list_items_copy; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_trade_list_items_copy ON public.trade_list_items USING btree (copy_id);
-
-
---
--- Name: idx_trade_list_items_list; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_trade_list_items_list ON public.trade_list_items USING btree (trade_list_id);
-
-
---
--- Name: idx_trade_lists_user_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_trade_lists_user_id ON public.trade_lists USING btree (user_id);
-
-
---
--- Name: idx_wish_list_items_list; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_wish_list_items_list ON public.wish_list_items USING btree (wish_list_id);
-
-
---
--- Name: idx_wish_lists_user_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_wish_lists_user_id ON public.wish_lists USING btree (user_id);
-
-
---
 -- Name: marketplace_product_variants_product_printing_key; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2626,17 +2560,24 @@ CREATE UNIQUE INDEX uq_deck_cards ON public.deck_cards USING btree (deck_id, car
 
 
 --
--- Name: uq_wish_list_items_card; Type: INDEX; Schema: public; Owner: -
+-- Name: uq_list_entries_card; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX uq_wish_list_items_card ON public.wish_list_items USING btree (wish_list_id, card_id);
+CREATE UNIQUE INDEX uq_list_entries_card ON public.list_entries USING btree (list_id, card_id) WHERE (card_id IS NOT NULL);
 
 
 --
--- Name: uq_wish_list_items_printing; Type: INDEX; Schema: public; Owner: -
+-- Name: uq_list_entries_copy; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX uq_wish_list_items_printing ON public.wish_list_items USING btree (wish_list_id, printing_id);
+CREATE UNIQUE INDEX uq_list_entries_copy ON public.list_entries USING btree (list_id, copy_id) WHERE (copy_id IS NOT NULL);
+
+
+--
+-- Name: uq_list_entries_printing; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_list_entries_printing ON public.list_entries USING btree (list_id, printing_id) WHERE (printing_id IS NOT NULL);
 
 
 --
@@ -2885,6 +2826,20 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.languages FOR EACH ROW
 
 
 --
+-- Name: list_entries trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.list_entries FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: lists trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.lists FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
 -- Name: markers trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -2962,20 +2917,6 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.sets FOR EACH ROW EXEC
 
 
 --
--- Name: trade_list_items trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.trade_list_items FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
-
---
--- Name: trade_lists trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.trade_lists FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
-
---
 -- Name: users trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -2987,20 +2928,6 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXE
 --
 
 CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.verifications FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
-
---
--- Name: wish_list_items trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.wish_list_items FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
-
---
--- Name: wish_lists trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.wish_lists FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -3266,6 +3193,30 @@ ALTER TABLE ONLY public.decks
 
 
 --
+-- Name: list_entries fk_list_entries_copy_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.list_entries
+    ADD CONSTRAINT fk_list_entries_copy_user FOREIGN KEY (copy_id, user_id) REFERENCES public.copies(id, user_id) ON DELETE CASCADE;
+
+
+--
+-- Name: list_entries fk_list_entries_list_kind; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.list_entries
+    ADD CONSTRAINT fk_list_entries_list_kind FOREIGN KEY (list_id, kind) REFERENCES public.lists(id, kind) ON DELETE CASCADE;
+
+
+--
+-- Name: list_entries fk_list_entries_list_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.list_entries
+    ADD CONSTRAINT fk_list_entries_list_user FOREIGN KEY (list_id, user_id) REFERENCES public.lists(id, user_id) ON DELETE CASCADE;
+
+
+--
 -- Name: printing_link_overrides fk_plo_printing_id; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3306,30 +3257,6 @@ ALTER TABLE ONLY public.printings
 
 
 --
--- Name: trade_list_items fk_trade_list_items_copy_user; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.trade_list_items
-    ADD CONSTRAINT fk_trade_list_items_copy_user FOREIGN KEY (copy_id, user_id) REFERENCES public.copies(id, user_id) ON DELETE CASCADE;
-
-
---
--- Name: trade_list_items fk_trade_list_items_list_user; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.trade_list_items
-    ADD CONSTRAINT fk_trade_list_items_list_user FOREIGN KEY (trade_list_id, user_id) REFERENCES public.trade_lists(id, user_id) ON DELETE CASCADE;
-
-
---
--- Name: wish_list_items fk_wish_list_items_list_user; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.wish_list_items
-    ADD CONSTRAINT fk_wish_list_items_list_user FOREIGN KEY (wish_list_id, user_id) REFERENCES public.wish_lists(id, user_id) ON DELETE CASCADE;
-
-
---
 -- Name: keyword_translations keyword_translations_keyword_name_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3343,6 +3270,30 @@ ALTER TABLE ONLY public.keyword_translations
 
 ALTER TABLE ONLY public.keyword_translations
     ADD CONSTRAINT keyword_translations_language_fkey FOREIGN KEY (language) REFERENCES public.languages(code) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: list_entries list_entries_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.list_entries
+    ADD CONSTRAINT list_entries_card_id_fkey FOREIGN KEY (card_id) REFERENCES public.cards(id);
+
+
+--
+-- Name: list_entries list_entries_printing_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.list_entries
+    ADD CONSTRAINT list_entries_printing_id_fkey FOREIGN KEY (printing_id) REFERENCES public.printings(id);
+
+
+--
+-- Name: lists lists_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lists
+    ADD CONSTRAINT lists_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --
@@ -3498,14 +3449,6 @@ ALTER TABLE ONLY public.sessions
 
 
 --
--- Name: trade_lists trade_lists_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.trade_lists
-    ADD CONSTRAINT trade_lists_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
 -- Name: user_feature_flags user_feature_flags_flag_key_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3530,32 +3473,8 @@ ALTER TABLE ONLY public.user_preferences
 
 
 --
--- Name: wish_list_items wish_list_items_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.wish_list_items
-    ADD CONSTRAINT wish_list_items_card_id_fkey FOREIGN KEY (card_id) REFERENCES public.cards(id);
-
-
---
--- Name: wish_list_items wish_list_items_printing_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.wish_list_items
-    ADD CONSTRAINT wish_list_items_printing_id_fkey FOREIGN KEY (printing_id) REFERENCES public.printings(id);
-
-
---
--- Name: wish_lists wish_lists_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.wish_lists
-    ADD CONSTRAINT wish_lists_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
 -- PostgreSQL database dump complete
 --
 
-\unrestrict SuVom28DWcHy4oyKyUDYhF76Vids3Hluw13MwIwPqYRMoY9BIA2AoXRS21ywf5A
+\unrestrict glhveMztaLVlraH2SHZfH5gziTmr3M0GLqB5Lt7xiS92TNSwzMFfeZFqWruAy2m
 
