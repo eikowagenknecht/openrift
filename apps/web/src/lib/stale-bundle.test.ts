@@ -5,6 +5,7 @@ import {
   CHUNK_LOAD_ERROR_PATTERN,
   initChunkErrorReloader,
   initStaleBundleWatcher,
+  initVisibilityVersionCheck,
 } from "./stale-bundle";
 
 // COMMIT_HASH is set to "test" by vitest.config's `define`. Build IDs in tests
@@ -180,6 +181,65 @@ describe("initChunkErrorReloader", () => {
     globalThis.dispatchEvent(event);
 
     expect(reloadSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("initVisibilityVersionCheck", () => {
+  function setVisibility(state: "visible" | "hidden"): void {
+    Object.defineProperty(globalThis.document, "visibilityState", {
+      configurable: true,
+      value: state,
+    });
+  }
+
+  test("pings /api/health when the tab becomes visible", () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("ok"));
+    globalThis.fetch = fetchMock;
+    initVisibilityVersionCheck();
+
+    setVisibility("visible");
+    globalThis.document.dispatchEvent(new Event("visibilitychange"));
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith("/api/health", { cache: "no-store" });
+  });
+
+  test("does not ping when the tab becomes hidden", () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("ok"));
+    globalThis.fetch = fetchMock;
+    initVisibilityVersionCheck();
+
+    setVisibility("hidden");
+    globalThis.document.dispatchEvent(new Event("visibilitychange"));
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("throttles consecutive focus events within the min interval", () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("ok"));
+    globalThis.fetch = fetchMock;
+    initVisibilityVersionCheck();
+
+    setVisibility("visible");
+    globalThis.document.dispatchEvent(new Event("visibilitychange"));
+    globalThis.document.dispatchEvent(new Event("visibilitychange"));
+    globalThis.document.dispatchEvent(new Event("visibilitychange"));
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("swallows network errors so a backend outage doesn't crash the tab", () => {
+    // The rejection is caught inside pingHealth's try/catch, so the
+    // dispatchEvent caller never sees it. We only assert the synchronous
+    // contract here; the X-Build-Id comparison itself is covered by
+    // initStaleBundleWatcher's own tests.
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+    initVisibilityVersionCheck();
+
+    setVisibility("visible");
+    expect(() => {
+      globalThis.document.dispatchEvent(new Event("visibilitychange"));
+    }).not.toThrow();
   });
 });
 

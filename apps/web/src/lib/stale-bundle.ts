@@ -5,7 +5,10 @@ import { COMMIT_HASH } from "./env";
 //
 //   1. Long-lived tab on a redeployed server. The tab's bundled __COMMIT_HASH__
 //      no longer matches the live API. Detected via X-Build-Id header on every
-//      /api/v1/* response (initStaleBundleWatcher).
+//      /api/v1/* response (initStaleBundleWatcher). For idle tabs that don't
+//      organically issue API calls (e.g. someone reading the rules page), an
+//      extra ping fires when the tab is refocused (initVisibilityVersionCheck)
+//      so the header check still runs.
 //
 //   2. Stale HTML in a browser/CDN cache pointing at deleted /assets/*.js
 //      chunks (the SWR window after a deploy). Detected via window error /
@@ -113,8 +116,43 @@ export function initChunkErrorReloader(): void {
   });
 }
 
-// Test-only escape hatch — Vitest can't easily clear sessionStorage in
-// jsdom between cases without leaking state across files.
+// Idle tabs (e.g. left open on the rules page overnight) make no API calls,
+// so initStaleBundleWatcher never gets a chance to see a fresh X-Build-Id.
+// When the user refocuses the tab, ping /api/health — the wrapped fetch
+// installed by initStaleBundleWatcher reads X-Build-Id on the response and
+// reloads if it differs, so this function does not need its own comparison.
+// Throttled so alt-tab spam doesn't generate a request per flick.
+const VISIBILITY_CHECK_MIN_INTERVAL_MS = 30_000;
+let lastVisibilityCheckMs = 0;
+
+async function pingHealth(): Promise<void> {
+  try {
+    await globalThis.fetch("/api/health", { cache: "no-store" });
+  } catch {
+    // Offline or backend down — nothing to do; the next real API call
+    // (or the next refocus) will retry the check.
+  }
+}
+
+export function initVisibilityVersionCheck(): void {
+  if (globalThis.window === undefined || !COMMIT_HASH) {
+    return;
+  }
+  globalThis.document.addEventListener("visibilitychange", () => {
+    if (globalThis.document.visibilityState !== "visible") {
+      return;
+    }
+    const now = Date.now();
+    if (now - lastVisibilityCheckMs < VISIBILITY_CHECK_MIN_INTERVAL_MS) {
+      return;
+    }
+    lastVisibilityCheckMs = now;
+    void pingHealth();
+  });
+}
+
+// Test-only escape hatches — Vitest can't easily clear sessionStorage or
+// module state in jsdom between cases without leaking across files.
 export function _resetReloadFlagForTesting(): void {
   if (globalThis.window !== undefined) {
     try {
@@ -123,4 +161,5 @@ export function _resetReloadFlagForTesting(): void {
       // ignore
     }
   }
+  lastVisibilityCheckMs = 0;
 }
