@@ -1,4 +1,5 @@
 import type { ListIntent, ListKind } from "@openrift/shared";
+import { Link } from "@tanstack/react-router";
 import { CopyIcon, SquareIcon, SquareStackIcon } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import { useState } from "react";
@@ -113,7 +114,14 @@ export function CreateListDialog({ intent, open, onOpenChange, onCreated }: Crea
           <DialogDescription>
             {availableKinds.length === 1
               ? "Sell lists track specific physical copies from your collection."
-              : "Pick what this list tracks. You can't change it later, but you can always create a new list."}
+              : "Pick what this list tracks. You can't change it later, but you can always create a new list."}{" "}
+            <Link
+              to="/help/$slug"
+              params={{ slug: "cards-printings-copies" }}
+              className="text-primary hover:underline"
+            >
+              Learn the difference between cards, printings, and copies.
+            </Link>
           </DialogDescription>
         </DialogHeader>
 
