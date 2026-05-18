@@ -24,8 +24,6 @@ export type {
   PrintingsTable,
   SetsTable,
   ListEntriesTable,
-  ListIntent,
-  ListKind,
   ListsTable,
   UserPreferencesTable,
   RaritiesTable,

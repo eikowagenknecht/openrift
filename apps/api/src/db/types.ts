@@ -23,8 +23,6 @@ export type {
   PrintingsTable,
   SetsTable,
   ListEntriesTable,
-  ListIntent,
-  ListKind,
   ListsTable,
   UserPreferencesTable,
   // Reference tables (migration 062)

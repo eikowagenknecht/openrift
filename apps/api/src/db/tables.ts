@@ -7,6 +7,8 @@ import type {
   DeckFormatConfig,
   DeckZone,
   Finish,
+  ListIntent,
+  ListKind,
   Rarity,
   UserPreferencesResponse,
 } from "@openrift/shared/types";
@@ -414,10 +416,6 @@ export interface ListsTable {
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
-
-export type ListIntent = "buy" | "sell" | "organize";
-
-export type ListKind = "card" | "printing" | "copy";
 
 /**
  * Single-granularity entry matching the parent list's kind:
