@@ -12,5 +12,3 @@ import { filterSearchSchema } from "@/lib/search-schemas";
 export const cardsSearchSchema = filterSearchSchema.omit({ customTags: true }).extend({
   printingId: z.string().optional().catch(undefined),
 });
-
-export type CardsSearch = z.infer<typeof cardsSearchSchema>;
