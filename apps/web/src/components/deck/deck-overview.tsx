@@ -51,6 +51,7 @@ import { formatterForMarketplace } from "@/lib/format";
 import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useOnboardingStore } from "@/stores/onboarding-store";
+import { useSelectionStore } from "@/stores/selection-store";
 
 const ZONE_EXPECTED: Partial<Record<DeckZone, number>> = {
   legend: 1,
@@ -841,6 +842,8 @@ function ZoneThumb({
 }) {
   const isMobile = useIsMobile();
   const enableDrag = !readOnly && !isMobile && DRAG_SOURCE_ZONES.has(zone);
+  // Per-thumb selector: only this thumb re-renders when its selected-state flips.
+  const isSelected = useSelectionStore((state) => state.selectedCard?.cardId === card.cardId);
 
   const dragData: DeckCardDragData = {
     type: "deck-card",
@@ -879,10 +882,11 @@ function ZoneThumb({
     <div
       ref={enableDrag ? setNodeRef : undefined}
       className={cn(
-        "relative shrink-0",
+        "relative shrink-0 rounded-md",
         enableDrag && "cursor-grab active:cursor-grabbing",
         onCardClick && !enableDrag && "cursor-pointer",
         isDragging && card.quantity === 1 && "opacity-40",
+        isSelected && "ring-primary ring-offset-background ring-2 ring-offset-2",
       )}
       onMouseEnter={() => onHoverCard?.(card.cardId, card.preferredPrintingId)}
       onMouseLeave={() => onHoverCard?.(null)}

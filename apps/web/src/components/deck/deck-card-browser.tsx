@@ -13,6 +13,7 @@ import {
 import { CardCell } from "@/components/cards/card-cell";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
+import { useGridKeyboardNav } from "@/components/cards/use-grid-keyboard-nav";
 import { DeckAddStrip } from "@/components/deck/deck-add-strip";
 import { DeckCardDetailMenu } from "@/components/deck/deck-card-detail-menu";
 import { DeckOverview } from "@/components/deck/deck-overview";
@@ -25,6 +26,7 @@ import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { useCustomTagAssignments } from "@/hooks/use-custom-tag-assignments";
 import { canAddRune, useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
+import { useDeckItems } from "@/hooks/use-deck-items";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDeckDetail } from "@/hooks/use-decks";
 import { useChannelRegistry } from "@/hooks/use-enums";
@@ -120,6 +122,8 @@ export function DeckCardBrowser({
   return <DeckCardBrowserInner deckId={deckId} />;
 }
 
+const EMPTY_SIBLINGS: Printing[] = [];
+
 function DeckOverviewForEditor({
   deck,
   ownershipData,
@@ -135,6 +139,18 @@ function DeckOverviewForEditor({
   const cards = useDeckCards(deck.id);
   const customTagAssignments = useCustomTagAssignments();
   const { getPreferredFrontImage } = usePreferredPrinting();
+
+  // Mirror the parent editor's deckItems so arrow-key navigation walks the
+  // same list the detail pane's prev/next uses. selectedIndex from the
+  // selection store is consistent across both paths because useDeckItems
+  // produces the same dedup'd visual-order list here as in the editor.
+  const { items, printingsByCardId } = useDeckItems(cards);
+  const selectedCard = useSelectionStore((state) => state.selectedCard);
+  const siblingPrintings = selectedCard
+    ? (printingsByCardId.get(selectedCard.cardId) ?? EMPTY_SIBLINGS)
+    : EMPTY_SIBLINGS;
+  useGridKeyboardNav({ items, siblingPrintings });
+
   return (
     <DeckOverview
       deck={{
