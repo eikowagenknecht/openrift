@@ -125,6 +125,19 @@ export function useChannelRegistry(): DistributionChannel[] {
 }
 
 /**
+ * Catalogue-derived set of champion-identifier tags (e.g. "Ivern", "Karma")
+ * from /init. Used by Custom-Region deck validation to distinguish champion
+ * names from region/utility tags when checking that a Signature's matching
+ * Champion is present in the deck.
+ *
+ * @returns Set of champion-identifier tag names.
+ */
+export function useChampionIdentifierTags(): ReadonlySet<string> {
+  const { data } = useSuspenseQuery(initQueryOptions);
+  return new Set(data.championIdentifierTags);
+}
+
+/**
  * Returns the admin-curated custom-tag vocabulary from /init. Used by the
  * freeform deck-builder filter to render the per-category tag chips.
  *

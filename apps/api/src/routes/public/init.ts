@@ -18,14 +18,16 @@ const getInit = createRoute({
 
 /** Public: GET /init — returns enums + keywords in a single request. */
 export const initRoute = new OpenAPIHono<{ Variables: Variables }>().openapi(getInit, async (c) => {
-  const { enums, keywords, distributionChannels, customTags } = c.get("repos");
-  const [enumData, keywordRows, translations, channelRows, customTagRows] = await Promise.all([
-    enums.all(),
-    keywords.listAll(),
-    keywords.listAllTranslations(),
-    distributionChannels.listAll(),
-    customTags.listAll(),
-  ]);
+  const { enums, keywords, distributionChannels, customTags, catalog } = c.get("repos");
+  const [enumData, keywordRows, translations, channelRows, customTagRows, championIdentifierTags] =
+    await Promise.all([
+      enums.all(),
+      keywords.listAll(),
+      keywords.listAllTranslations(),
+      distributionChannels.listAll(),
+      customTags.listAll(),
+      catalog.championIdentifierTags(),
+    ]);
 
   const keywordsMap: Record<string, KeywordEntry> = {};
   for (const row of keywordRows) {
@@ -79,5 +81,6 @@ export const initRoute = new OpenAPIHono<{ Variables: Variables }>().openapi(get
     keywords: keywordsMap,
     distributionChannels: channelsResponse,
     customTags: customTagsResponse,
+    championIdentifierTags,
   } satisfies InitResponse);
 });

@@ -42,4 +42,13 @@ export interface InitResponse {
    * filter UI can render labels without depending on the catalog payload.
    */
   customTags: CustomTag[];
+  /**
+   * Catalogue-derived list of tag names that identify a Champion (the
+   * distinct `tags` values across all Legend cards — each Legend has
+   * exactly one tag, the champion name). Used by Custom-Region deck
+   * validation to discriminate champion-identifier tags from region/
+   * utility tags when checking that a Signature's matching champion is
+   * actually in the deck.
+   */
+  championIdentifierTags: string[];
 }

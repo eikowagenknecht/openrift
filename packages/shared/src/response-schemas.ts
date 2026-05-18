@@ -172,6 +172,7 @@ export const initResponseSchema = z
     keywords: z.record(z.string(), keywordEntrySchema),
     distributionChannels: z.array(distributionChannelSchema).openapi({ example: [] }),
     customTags: z.array(customTagSchema).openapi({ example: [] }),
+    championIdentifierTags: z.array(z.string()).openapi({ example: ["Garen", "Karma", "Yasuo"] }),
   })
   .openapi("InitResponse");
 

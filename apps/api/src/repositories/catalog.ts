@@ -105,6 +105,25 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /**
+     * Catalogue-wide list of distinct `cards.tags` values appearing on Legend
+     * cards. Each Legend has exactly one tag (the champion's name), so this
+     * is the canonical set of champion-identifier tags — used by Custom-Region
+     * to tell champion-name tags apart from region/utility tags during deck
+     * validation.
+     *
+     * @returns Sorted, distinct champion-identifier tags.
+     */
+    async championIdentifierTags(): Promise<string[]> {
+      const result = await sql<{ tag: string }>`
+        SELECT DISTINCT unnest(tags) AS tag
+        FROM cards
+        WHERE type = 'legend'
+        ORDER BY tag
+      `.execute(db);
+      return result.rows.map((row) => row.tag);
+    },
+
     /** @returns All cards (no printings), for building a card lookup. */
     cards(): Promise<CatalogCardRow[]> {
       return db

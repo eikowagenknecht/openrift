@@ -31,6 +31,14 @@ export interface DeckState {
    * as a "config required" violation rather than as "all checks pass".
    */
   formatConfig?: DeckFormatConfig | null;
+  /**
+   * Catalogue-derived set of tags that name a Champion (e.g. "Ivern",
+   * "Karma"). Used by Custom-Region's signature-champion rule to tell
+   * champion-identifier tags apart from region/utility tags during overlap
+   * checks. Source of truth: distinct tags on Legend cards. Optional so
+   * legacy callers (and Standard format) keep working without it.
+   */
+  championIdentifierTags?: ReadonlySet<string>;
 }
 
 export interface DeckViolation {
@@ -391,6 +399,33 @@ export const sideboardCopyLimit: DeckRule = (state) => {
   return violations;
 };
 
+// Battlefield zone must have between 1 and 3 cards (Custom-Region variant).
+export const battlefieldOneToThree: DeckRule = (state) => {
+  const battlefields = cardsInZone(state.cards, WellKnown.deckZone.BATTLEFIELD);
+  const count = totalQuantity(battlefields);
+
+  if (count === 0) {
+    return [
+      {
+        zone: WellKnown.deckZone.BATTLEFIELD,
+        code: "BATTLEFIELD_REQUIRED",
+        message: "At least 1 Battlefield card is required",
+      },
+    ];
+  }
+  if (count > 3) {
+    return [
+      {
+        zone: WellKnown.deckZone.BATTLEFIELD,
+        code: "BATTLEFIELD_TOO_MANY",
+        message: `${count}/3 Battlefield cards — remove ${count - 3}`,
+      },
+    ];
+  }
+
+  return [];
+};
+
 // Battlefield zone must have exactly 3 cards.
 export const battlefieldExactlyThree: DeckRule = (state) => {
   const battlefields = cardsInZone(state.cards, WellKnown.deckZone.BATTLEFIELD);
@@ -516,6 +551,60 @@ const signatureMatchesLegendTag: DeckRule = (state) => {
   return violations;
 };
 
+// Each Signature must share its champion-identifier tag with at least one
+// Champion in the deck (champion zone or main). Used by Custom-Region in
+// place of signatureMatchesLegendTag — the Legend's champion no longer has
+// to own every Signature, but the Signature's champion still must be
+// physically present in the deck. Falls back to a no-op when no
+// championIdentifierTags set is provided (e.g. legacy callers).
+const signatureChampionInDeck: DeckRule = (state) => {
+  const championIdSet = state.championIdentifierTags;
+  if (!championIdSet || championIdSet.size === 0) {
+    return [];
+  }
+
+  const championsInDeck = [
+    ...cardsInZone(state.cards, WellKnown.deckZone.CHAMPION),
+    ...cardsInZone(state.cards, WellKnown.deckZone.MAIN),
+  ].filter((card) => card.superTypes.includes(WellKnown.superType.CHAMPION));
+
+  const championIdTagsInDeck = new Set<string>();
+  for (const champion of championsInDeck) {
+    for (const tag of champion.tags) {
+      if (championIdSet.has(tag)) {
+        championIdTagsInDeck.add(tag);
+      }
+    }
+  }
+
+  const violations: DeckViolation[] = [];
+  for (const card of [
+    ...cardsInZone(state.cards, WellKnown.deckZone.MAIN),
+    ...cardsInZone(state.cards, WellKnown.deckZone.SIDEBOARD),
+  ]) {
+    if (!card.superTypes.includes(WellKnown.superType.SIGNATURE)) {
+      continue;
+    }
+    const signatureChampionTags = card.tags.filter((tag) => championIdSet.has(tag));
+    if (signatureChampionTags.length === 0) {
+      // Signature with no recognised champion-identifier tag — data oddity,
+      // not something the user can fix. Skip rather than block the deck.
+      continue;
+    }
+    const satisfied = signatureChampionTags.some((tag) => championIdTagsInDeck.has(tag));
+    if (!satisfied) {
+      violations.push({
+        zone: card.zone,
+        code: "SIGNATURE_CHAMPION_MISSING",
+        message: `${card.cardName} needs its champion (${signatureChampionTags.join(" or ")}) in the deck`,
+        cardId: card.cardId,
+      });
+    }
+  }
+
+  return violations;
+};
+
 // ── Tag-locked rules (custom-region and any future tag-locked format) ──────
 
 /**
@@ -601,7 +690,7 @@ const REGION_LOCKED_RULES: DeckRule[] = [
   championSharesTagWithLegend,
   runesExactlyTwelve,
   runesAllTypeRune,
-  battlefieldExactlyThree,
+  battlefieldOneToThree,
   battlefieldAllTypeBattlefield,
   battlefieldNoDuplicates,
   mainDeckExactly,
@@ -611,7 +700,7 @@ const REGION_LOCKED_RULES: DeckRule[] = [
   sideboardCopyLimit,
   uniqueCopyLimit,
   signatureTotalLimit,
-  signatureMatchesLegendTag,
+  signatureChampionInDeck,
 ];
 
 /**

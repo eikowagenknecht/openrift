@@ -97,8 +97,9 @@ function makeState(
   cards: DeckCard[],
   format: "constructed" | "freeform" | "custom-region" = "constructed",
   formatConfig?: { tagSlugs?: string[] } | null,
+  championIdentifierTags?: ReadonlySet<string>,
 ): DeckState {
-  return { format, cards, formatConfig: formatConfig ?? null };
+  return { format, cards, formatConfig: formatConfig ?? null, championIdentifierTags };
 }
 
 // ── legendExactlyOne ────────────────────────────────────────────────────────
@@ -788,5 +789,243 @@ describe("validateDeck for custom-region", () => {
     expect(codes).toContain("CHAMPION_REQUIRED");
     expect(codes).toContain("RUNES_REQUIRED");
     expect(codes).toContain("MAIN_TOO_FEW");
+  });
+
+  // ── battlefield 1-to-3 (custom-region only) ─────────────────────────────
+
+  function shellWithBattlefields(slugs: string[], bfCount: number): DeckCard[] {
+    const base = makeConstructedShell()
+      .filter((card) => card.zone !== "battlefield")
+      .map((card) => ({ ...card, customTagSlugs: slugs }));
+    const bfs = Array.from({ length: bfCount }, (_, index) => ({
+      ...makeBattlefield(`bf-${index + 1}`),
+      customTagSlugs: slugs,
+    }));
+    return [...base, ...bfs];
+  }
+
+  function fullyTaggedMainCards(slugs: string[]): DeckCard[] {
+    return Array.from({ length: 13 }, (_, index) => ({
+      ...makeCard({ cardId: `main-${index}`, quantity: 3 }),
+      customTagSlugs: slugs,
+    }));
+  }
+
+  it("accepts 1 battlefield (custom-region range allows 1–3)", () => {
+    const tagSlugs = ["bandle-city"];
+    const cards = [...shellWithBattlefields(tagSlugs, 1), ...fullyTaggedMainCards(tagSlugs)];
+    const violations = validateDeck(makeState(cards, "custom-region", { tagSlugs }));
+    expect(violations.filter((v) => v.code?.startsWith("BATTLEFIELD"))).toEqual([]);
+  });
+
+  it("accepts 2 battlefields", () => {
+    const tagSlugs = ["bandle-city"];
+    const cards = [...shellWithBattlefields(tagSlugs, 2), ...fullyTaggedMainCards(tagSlugs)];
+    const violations = validateDeck(makeState(cards, "custom-region", { tagSlugs }));
+    expect(violations.filter((v) => v.code?.startsWith("BATTLEFIELD"))).toEqual([]);
+  });
+
+  it("accepts 3 battlefields", () => {
+    const tagSlugs = ["bandle-city"];
+    const cards = [...shellWithBattlefields(tagSlugs, 3), ...fullyTaggedMainCards(tagSlugs)];
+    const violations = validateDeck(makeState(cards, "custom-region", { tagSlugs }));
+    expect(violations.filter((v) => v.code?.startsWith("BATTLEFIELD"))).toEqual([]);
+  });
+
+  it("rejects 0 battlefields", () => {
+    const tagSlugs = ["bandle-city"];
+    const cards = [...shellWithBattlefields(tagSlugs, 0), ...fullyTaggedMainCards(tagSlugs)];
+    const violations = validateDeck(makeState(cards, "custom-region", { tagSlugs }));
+    expect(violations.some((v) => v.code === "BATTLEFIELD_REQUIRED")).toBe(true);
+  });
+
+  it("rejects 4 battlefields", () => {
+    const tagSlugs = ["bandle-city"];
+    const cards = [...shellWithBattlefields(tagSlugs, 4), ...fullyTaggedMainCards(tagSlugs)];
+    const violations = validateDeck(makeState(cards, "custom-region", { tagSlugs }));
+    expect(violations.some((v) => v.code === "BATTLEFIELD_TOO_MANY")).toBe(true);
+  });
+
+  it("standard constructed still requires exactly 3 battlefields", () => {
+    // Constructed rules still use battlefieldExactlyThree — sanity check.
+    const cards = [
+      makeLegend(),
+      makeChampion(),
+      ...Array.from({ length: 6 }, (_, index) => makeRune("fury", `rune-fury-${index}`)),
+      ...Array.from({ length: 6 }, (_, index) => makeRune("body", `rune-body-${index}`)),
+      makeBattlefield("bf-1"),
+    ];
+    const violations = validateDeck(makeState(cards, "constructed"));
+    expect(violations.some((v) => v.code === "BATTLEFIELD_TOO_FEW")).toBe(true);
+  });
+
+  // ── signatureChampionInDeck (custom-region only) ────────────────────────
+
+  const ALL_CHAMPION_IDS = new Set(["Karma", "Ivern", "Draven", "Garen", "Yasuo"]);
+
+  function customRegionShell(
+    legendTag: string,
+    championTag: string,
+    regionTag: string,
+    slugs: string[],
+  ): DeckCard[] {
+    return [
+      { ...makeLegend({ tags: [legendTag] }), customTagSlugs: slugs },
+      {
+        ...makeChampion({ tags: [championTag, regionTag], cardName: `${championTag}, Hero` }),
+        customTagSlugs: slugs,
+      },
+      ...Array.from({ length: 6 }, (_, index) => ({
+        ...makeRune("fury", `rune-fury-${index}`),
+        customTagSlugs: slugs,
+      })),
+      ...Array.from({ length: 6 }, (_, index) => ({
+        ...makeRune("body", `rune-body-${index}`),
+        customTagSlugs: slugs,
+      })),
+      { ...makeBattlefield("bf-1"), customTagSlugs: slugs },
+      { ...makeBattlefield("bf-2"), customTagSlugs: slugs },
+      { ...makeBattlefield("bf-3"), customTagSlugs: slugs },
+    ];
+  }
+
+  it("passes when the Signature's champion is the Chosen Champion", () => {
+    const tagSlugs = ["ionia"];
+    // Legend = Karma, Chosen Champion = Karma; Signature is Karma's
+    const cards: DeckCard[] = [
+      ...customRegionShell("Karma", "Karma", "Ionia", tagSlugs),
+      {
+        ...makeCard({
+          cardId: "sig-1",
+          superTypes: ["signature"],
+          tags: ["Karma", "Ionia"],
+          cardName: "Karma Sig",
+        }),
+        customTagSlugs: tagSlugs,
+      },
+      ...Array.from({ length: 13 }, (_, index) => ({
+        ...makeCard({ cardId: `filler-${index}`, quantity: 3 }),
+        customTagSlugs: tagSlugs,
+      })),
+    ];
+    const violations = validateDeck(
+      makeState(cards, "custom-region", { tagSlugs }, ALL_CHAMPION_IDS),
+    );
+    expect(violations.filter((v) => v.code === "SIGNATURE_CHAMPION_MISSING")).toEqual([]);
+  });
+
+  it("rejects a Signature whose champion is not in the deck — region overlap is ignored", () => {
+    const tagSlugs = ["ionia"];
+    // Chosen Champion = Karma (Ionia). Signature = Daisy! (Ivern + Ionia).
+    // Naive tag overlap would pass on "Ionia"; the rule must reject this.
+    const cards: DeckCard[] = [
+      ...customRegionShell("Karma", "Karma", "Ionia", tagSlugs),
+      {
+        ...makeCard({
+          cardId: "sig-daisy",
+          superTypes: ["signature"],
+          tags: ["Ivern", "Ionia"],
+          cardName: "Daisy!",
+        }),
+        customTagSlugs: tagSlugs,
+      },
+      ...Array.from({ length: 13 }, (_, index) => ({
+        ...makeCard({ cardId: `filler-${index}`, quantity: 3 }),
+        customTagSlugs: tagSlugs,
+      })),
+    ];
+    const violations = validateDeck(
+      makeState(cards, "custom-region", { tagSlugs }, ALL_CHAMPION_IDS),
+    );
+    const offending = violations.filter((v) => v.code === "SIGNATURE_CHAMPION_MISSING");
+    expect(offending).toHaveLength(1);
+    expect(offending[0].cardId).toBe("sig-daisy");
+  });
+
+  it("accepts a Signature when its champion is in the main deck (not Chosen)", () => {
+    const tagSlugs = ["ionia"];
+    // Chosen = Karma; Ivern is added as a non-Chosen Champion in main.
+    const ivernInMain: DeckCard = {
+      ...makeCard({
+        cardId: "champion-ivern-main",
+        zone: "main",
+        cardType: "unit",
+        superTypes: ["champion"],
+        tags: ["Ivern", "Ionia"],
+        cardName: "Ivern, Green Father",
+        quantity: 1,
+      }),
+      customTagSlugs: tagSlugs,
+    };
+    const cards: DeckCard[] = [
+      ...customRegionShell("Karma", "Karma", "Ionia", tagSlugs),
+      ivernInMain,
+      {
+        ...makeCard({
+          cardId: "sig-daisy",
+          superTypes: ["signature"],
+          tags: ["Ivern", "Ionia"],
+          cardName: "Daisy!",
+        }),
+        customTagSlugs: tagSlugs,
+      },
+      ...Array.from({ length: 12 }, (_, index) => ({
+        ...makeCard({ cardId: `filler-${index}`, quantity: 3 }),
+        customTagSlugs: tagSlugs,
+      })),
+    ];
+    const violations = validateDeck(
+      makeState(cards, "custom-region", { tagSlugs }, ALL_CHAMPION_IDS),
+    );
+    expect(violations.filter((v) => v.code === "SIGNATURE_CHAMPION_MISSING")).toEqual([]);
+  });
+
+  it("accepts an Equipment-tagged Signature when its champion is in the deck", () => {
+    const tagSlugs = ["noxus"];
+    // Spinning Axe = {Draven, Equipment}. Draven is in the deck as Chosen.
+    const cards: DeckCard[] = [
+      ...customRegionShell("Draven", "Draven", "Noxus", tagSlugs),
+      {
+        ...makeCard({
+          cardId: "sig-axe",
+          superTypes: ["signature"],
+          tags: ["Draven", "Equipment"],
+          cardName: "Spinning Axe",
+        }),
+        customTagSlugs: tagSlugs,
+      },
+      ...Array.from({ length: 13 }, (_, index) => ({
+        ...makeCard({ cardId: `filler-${index}`, quantity: 3 }),
+        customTagSlugs: tagSlugs,
+      })),
+    ];
+    const violations = validateDeck(
+      makeState(cards, "custom-region", { tagSlugs }, ALL_CHAMPION_IDS),
+    );
+    expect(violations.filter((v) => v.code === "SIGNATURE_CHAMPION_MISSING")).toEqual([]);
+  });
+
+  it("no-ops when championIdentifierTags is not provided (legacy callers)", () => {
+    const tagSlugs = ["ionia"];
+    const cards: DeckCard[] = [
+      ...customRegionShell("Karma", "Karma", "Ionia", tagSlugs),
+      {
+        ...makeCard({
+          cardId: "sig-daisy",
+          superTypes: ["signature"],
+          tags: ["Ivern", "Ionia"],
+          cardName: "Daisy!",
+        }),
+        customTagSlugs: tagSlugs,
+      },
+      ...Array.from({ length: 13 }, (_, index) => ({
+        ...makeCard({ cardId: `filler-${index}`, quantity: 3 }),
+        customTagSlugs: tagSlugs,
+      })),
+    ];
+    // No champion-id set passed → rule must no-op (don't block valid decks
+    // just because plumbing isn't there yet).
+    const violations = validateDeck(makeState(cards, "custom-region", { tagSlugs }));
+    expect(violations.filter((v) => v.code === "SIGNATURE_CHAMPION_MISSING")).toEqual([]);
   });
 });

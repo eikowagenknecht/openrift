@@ -36,7 +36,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDeckStats } from "@/hooks/use-deck-stats";
 import { useDomainColors } from "@/hooks/use-domain-colors";
-import { useEnumOrders } from "@/hooks/use-enums";
+import { useChampionIdentifierTags, useEnumOrders } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import {
@@ -150,10 +150,12 @@ export function DeckOverview({
   description,
   getCardSlug,
 }: DeckOverviewProps) {
+  const championIdentifierTags = useChampionIdentifierTags();
   const violations = validateDeck({
     format: deck.format,
     formatConfig: deck.formatConfig,
     cards: cards.map((card) => toRuleEngineCard(card, customTagAssignments)),
+    championIdentifierTags,
   });
   const stats = useDeckStats(cards);
   const domainColors = useDomainColors();

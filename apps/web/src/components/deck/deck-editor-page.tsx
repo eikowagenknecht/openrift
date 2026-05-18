@@ -234,6 +234,13 @@ function DeckEditorContent({
     const formatTagSlugs = Array.isArray(data.deck.formatConfig?.tagSlugs)
       ? data.deck.formatConfig.tagSlugs
       : [];
+    // Custom-Region drops both domain-match rules (runes and main-deck),
+    // so any-color cards are legal across every zone. Skip the legend-domain
+    // prefilter on each zone preset to avoid hiding cards the format
+    // actually accepts.
+    const isCustomRegion = data.deck.format === WellKnown.deckFormat.CUSTOM_REGION;
+    const runesDomainFilter = isCustomRegion ? [] : legendDomains;
+    const mainDomainFilter = isCustomRegion ? [] : domainsWithColorless;
 
     switch (zone) {
       case "legend": {
@@ -249,7 +256,7 @@ function DeckEditorContent({
         setArrayFilters({
           types: [WellKnown.cardType.UNIT],
           superTypes: [WellKnown.superType.CHAMPION],
-          domains: domainsWithColorless,
+          domains: mainDomainFilter,
           customTags: formatTagSlugs,
         });
         if (legend?.tags[0]) {
@@ -261,7 +268,7 @@ function DeckEditorContent({
         setArrayFilters({
           types: [WellKnown.cardType.RUNE],
           superTypes: [],
-          domains: legendDomains,
+          domains: runesDomainFilter,
           customTags: formatTagSlugs,
         });
         break;
@@ -280,7 +287,7 @@ function DeckEditorContent({
         setArrayFilters({
           types: [WellKnown.cardType.UNIT, "spell", "gear"],
           superTypes: [],
-          domains: domainsWithColorless,
+          domains: mainDomainFilter,
           customTags: formatTagSlugs,
         });
         break;
@@ -289,7 +296,7 @@ function DeckEditorContent({
         setArrayFilters({
           types: [WellKnown.cardType.UNIT, "spell", "gear", WellKnown.cardType.BATTLEFIELD],
           superTypes: [],
-          domains: domainsWithColorless,
+          domains: mainDomainFilter,
           customTags: formatTagSlugs,
         });
         break;

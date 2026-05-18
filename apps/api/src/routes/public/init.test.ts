@@ -33,6 +33,10 @@ const mockCustomTagsRepo = {
   listAll: vi.fn(() => Promise.resolve([] as never[])),
 };
 
+const mockCatalogRepo = {
+  championIdentifierTags: vi.fn(() => Promise.resolve([] as string[])),
+};
+
 const app = new Hono()
   .use("*", async (c, next) => {
     c.set("repos", {
@@ -40,6 +44,7 @@ const app = new Hono()
       keywords: mockKeywordsRepo,
       distributionChannels: mockDistributionChannelsRepo,
       customTags: mockCustomTagsRepo,
+      catalog: mockCatalogRepo,
     } as never);
     await next();
   })
@@ -52,6 +57,7 @@ describe("GET /api/v1/init", () => {
     mockKeywordsRepo.listAllTranslations.mockReset();
     mockDistributionChannelsRepo.listAll.mockReset();
     mockCustomTagsRepo.listAll.mockReset();
+    mockCatalogRepo.championIdentifierTags.mockReset();
     mockEnumsRepo.all.mockResolvedValue({
       cardTypes: [],
       rarities: [],
@@ -66,6 +72,7 @@ describe("GET /api/v1/init", () => {
     mockKeywordsRepo.listAllTranslations.mockResolvedValue([]);
     mockDistributionChannelsRepo.listAll.mockResolvedValue([]);
     mockCustomTagsRepo.listAll.mockResolvedValue([]);
+    mockCatalogRepo.championIdentifierTags.mockResolvedValue([]);
   });
 
   it("returns 200 with enums and keywords", async () => {
@@ -139,6 +146,14 @@ describe("GET /api/v1/init", () => {
     expect(mockEnumsRepo.all).toHaveBeenCalledTimes(1);
     expect(mockKeywordsRepo.listAll).toHaveBeenCalledTimes(1);
     expect(mockKeywordsRepo.listAllTranslations).toHaveBeenCalledTimes(1);
+    expect(mockCatalogRepo.championIdentifierTags).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns championIdentifierTags from the catalog repo", async () => {
+    mockCatalogRepo.championIdentifierTags.mockResolvedValue(["Ivern", "Karma"]);
+    const res = await app.request("/api/v1/init");
+    const json = await res.json();
+    expect(json.championIdentifierTags).toEqual(["Ivern", "Karma"]);
   });
 
   it("returns empty keywords when none exist", async () => {

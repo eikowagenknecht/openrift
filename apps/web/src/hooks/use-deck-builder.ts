@@ -11,6 +11,7 @@ import type { Collection } from "@tanstack/react-db";
 
 import { useCustomTagAssignments } from "@/hooks/use-custom-tag-assignments";
 import { useDeckDetail } from "@/hooks/use-decks";
+import { useChampionIdentifierTags } from "@/hooks/use-enums";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { deckCardKey, isCardAllowedInZone, toRuleEngineCard } from "@/lib/deck-builder-card";
 import { useDeckDraftCollection } from "@/lib/deck-builder-collection";
@@ -667,9 +668,11 @@ export function useDeckViolations(
 ): DeckViolation[] {
   const cards = useDeckCards(deckId);
   const customTagAssignments = useCustomTagAssignments();
+  const championIdentifierTags = useChampionIdentifierTags();
   return validateDeck({
     format,
     formatConfig,
     cards: cards.map((card) => toRuleEngineCard(card, customTagAssignments)),
+    championIdentifierTags,
   });
 }
