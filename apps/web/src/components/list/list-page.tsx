@@ -41,6 +41,7 @@ import { ListEntryTableActions } from "@/components/list/list-entry-table-action
 import { ListExportDialog } from "@/components/list/list-export-dialog";
 import { ListImportDialog } from "@/components/list/list-import-dialog";
 import { ListShareDialog } from "@/components/list/list-share-dialog";
+import { ListValueLabel } from "@/components/list/list-value-label";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +66,7 @@ import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { useChannelRegistry } from "@/hooks/use-enums";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import {
@@ -143,6 +145,7 @@ export function ListPage({ listId }: ListPageProps) {
   const { toggleSidebar } = useSidebar();
   const topBarSlot = use(TopBarSlotContext);
   const { data } = useListDetail(listId);
+  const hydrated = useHydrated();
 
   const [isRenaming, setIsRenaming] = useState(false);
   const [name, setName] = useState(data.list.name);
@@ -257,6 +260,9 @@ export function ListPage({ listId }: ListPageProps) {
             <KindIcon className="size-3" />
             {listKindLabel(data.list.kind)}
           </Badge>
+          {hydrated && entriesCount > 0 && (
+            <ListValueLabel kind={data.list.kind} entries={data.entries} />
+          )}
         </>
       )}
       <PageTopBarActions>

@@ -2,6 +2,7 @@
 
 ## 2026-05-18
 
+- feat: Lists now show their total value in the title bar, like collections do. Card lists are valued at the cheapest printing in your preferred languages, and any entries with no price for your marketplace show as "(N unpriced)"
 - feat: Card lists can now be imported from the same plain-text format that export produces, so you can move a buy/sell list between tools or between your own lists without retyping
 - feat: Adding cards with the keyboard now accepts = as well as +, so you don't have to hold Shift on US layouts
 - feat: The collections sidebar now has Buy, Sell, and Organize lists. Each list tracks cards, printings, or specific copies (you pick what at creation), and any list can be shared with a public link

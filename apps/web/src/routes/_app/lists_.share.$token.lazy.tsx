@@ -25,6 +25,7 @@ import {
   PageTopBarTitle,
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
+import { ListValueLabel } from "@/components/list/list-value-label";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { useCardData } from "@/hooks/use-card-data";
@@ -59,8 +60,9 @@ function SharedListPage() {
   const search = Route.useSearch();
   const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
   const topBarHeight = useMeasuredHeight(topBarSlot);
+  const hydrated = useHydrated();
 
-  const { list, owner } = data;
+  const { list, owner, entries } = data;
   const kindNoun =
     list.kind === "copy" ? "copies" : list.kind === "printing" ? "printings" : "cards";
 
@@ -77,6 +79,9 @@ function SharedListPage() {
                   · {list.intent} list of {kindNoun}
                 </span>
               </span>
+              {hydrated && entries.length > 0 && (
+                <ListValueLabel kind={list.kind} entries={entries} />
+              )}
             </PageTopBar>
           </div>
           <div className="flex min-w-0 flex-1 flex-col px-3 pb-3">
