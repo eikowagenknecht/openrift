@@ -422,10 +422,6 @@ function CardDetailPage() {
               )}
             </tbody>
           </table>
-
-          <div className="border-border mt-3 border-t pt-3 empty:hidden">
-            <PricingSection printing={selectedPrinting} range="30d" />
-          </div>
         </div>
       </div>
 
@@ -801,13 +797,16 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
 
   return (
     <div>
-      <h2 className="mb-3 text-lg font-semibold">
-        Price History — {formatPublicCode(printing)}
-        {printing.finish !== WellKnown.finish.NORMAL &&
-          ` ${labels.finishes[printing.finish] ?? printing.finish}`}
-        {printing.markers.length > 0 && ` (${printing.markers.map((m) => m.label).join(", ")})`}
-        {printing.language !== "EN" && ` [${printing.language}]`}
-      </h2>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <h2 className="text-lg font-semibold">
+          Price History — {formatPublicCode(printing)}
+          {printing.finish !== WellKnown.finish.NORMAL &&
+            ` ${labels.finishes[printing.finish] ?? printing.finish}`}
+          {printing.markers.length > 0 && ` (${printing.markers.map((m) => m.label).join(", ")})`}
+          {printing.language !== "EN" && ` [${printing.language}]`}
+        </h2>
+        <PricingSection printing={printing} range={effectiveRange} />
+      </div>
 
       {/* Shared toolbar */}
       <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
