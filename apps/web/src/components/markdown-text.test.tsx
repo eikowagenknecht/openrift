@@ -9,12 +9,37 @@ describe("MarkdownText", () => {
     expect(screen.getByText("Just words.")).toBeInTheDocument();
   });
 
-  it("renders markdown links with safe attributes", () => {
-    render(<MarkdownText text="See [the wiki](https://example.com) for details." />);
-    const link = screen.getByRole("link", { name: "the wiki" });
-    expect(link).toHaveAttribute("href", "https://example.com");
+  it("renders allowlisted links with safe attributes", () => {
+    render(
+      <MarkdownText text="Watch [the breakdown](https://www.youtube.com/watch?v=abc) here." />,
+    );
+    const link = screen.getByRole("link", { name: "the breakdown" });
+    expect(link).toHaveAttribute("href", "https://www.youtube.com/watch?v=abc");
     expect(link).toHaveAttribute("target", "_blank");
-    expect(link).toHaveAttribute("rel", expect.stringContaining("noreferrer"));
+    const rel = link.getAttribute("rel") ?? "";
+    expect(rel).toContain("noreferrer");
+    expect(rel).toContain("nofollow");
+    expect(rel).toContain("ugc");
+  });
+
+  it("renders other allowlisted hosts as links", () => {
+    render(<MarkdownText text="See [decks](https://riftdecks.com/abc) and more." />);
+    expect(screen.getByRole("link", { name: "decks" })).toHaveAttribute(
+      "href",
+      "https://riftdecks.com/abc",
+    );
+  });
+
+  it("strips href from links to disallowed hosts but keeps the text", () => {
+    render(<MarkdownText text="See [the wiki](https://example.com) for details." />);
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.getByText("the wiki")).toBeInTheDocument();
+  });
+
+  it("drops javascript: URLs entirely", () => {
+    render(<MarkdownText text="Click [me](javascript:alert(1)) now." />);
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.getByText("me")).toBeInTheDocument();
   });
 
   it("renders inline emphasis and strong", () => {
