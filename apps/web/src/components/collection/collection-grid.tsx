@@ -496,6 +496,36 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     }
   }
 
+  // Per-item drag derivation, shared between the grid cell wrap and the table
+  // row wrap. Returns null when the item isn't draggable (no backing stack,
+  // e.g. add mode or filtered-out copies).
+  const buildDragProps = (
+    printing: Printing,
+    itemId: string,
+  ): {
+    copyIds: string[];
+    isStackDrag: boolean;
+    previewPrintings: Printing[];
+  } | null => {
+    const stack = stackByItemId.get(itemId);
+    if (!stack) {
+      return null;
+    }
+    const cardCopyIds = allCopyIdsByCardId.get(printing.cardId);
+    const effectiveCopyIds = cardCopyIds ?? stack.copyIds;
+    const isItemSelected =
+      mode === "select"
+        ? stacked
+          ? effectiveCopyIds.every((id) => selected.has(id))
+          : selected.has(itemId)
+        : false;
+    const isFromSelection = mode === "select" && isItemSelected && selected.size > 0;
+    const copyIds = isFromSelection ? [...selected] : stacked ? effectiveCopyIds : [itemId];
+    const isStackDrag = !isFromSelection && stacked && effectiveCopyIds.length > 1;
+    const previewPrintings = dragPreviewPrintings.length > 0 ? dragPreviewPrintings : [printing];
+    return { copyIds, isStackDrag, previewPrintings };
+  };
+
   // ── Render card ─────────────────────────────────────────────────────
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
     if (isAddMode) {
@@ -589,12 +619,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           : stack.copyIds.length) ?? 0)
       : 1;
 
-    // Resolve which copy IDs this card represents for drag-and-drop
-    const isFromSelection = mode === "select" && isItemSelected && selected.size > 0;
-    const dragCopyIds = isFromSelection ? [...selected] : stacked ? effectiveCopyIds : [item.id];
+    // Resolve which copy IDs this card represents for drag-and-drop.
     // Only stack drags get trimmed to 1 on default (non-shift) drop. Explicit
-    // select-mode selections always move every selected copy.
-    const isStackDrag = !isFromSelection && stacked && effectiveCopyIds.length > 1;
+    // select-mode selections always move every selected copy. See
+    // `buildDragProps` above — also reused by the table-view row wrap.
+    const dragProps = buildDragProps(item.printing, item.id);
 
     // In browse mode, show the +/- add strip (matches add mode). Select mode
     // keeps the read-only count + collection-breakdown popover.
@@ -662,20 +691,22 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             </>
           ) : undefined
         }
-        wrap={(cell) => (
-          <DraggableCard
-            id={item.id}
-            copyIds={dragCopyIds}
-            isStackDrag={isStackDrag}
-            printing={item.printing}
-            previewPrintings={
-              dragPreviewPrintings.length > 0 ? dragPreviewPrintings : [item.printing]
-            }
-            sourceCollectionId={collectionId}
-          >
-            {cell}
-          </DraggableCard>
-        )}
+        wrap={(cell) =>
+          dragProps ? (
+            <DraggableCard
+              id={item.id}
+              copyIds={dragProps.copyIds}
+              isStackDrag={dragProps.isStackDrag}
+              printing={item.printing}
+              previewPrintings={dragProps.previewPrintings}
+              sourceCollectionId={collectionId}
+            >
+              {cell}
+            </DraggableCard>
+          ) : (
+            cell
+          )
+        }
       />
     );
   };
@@ -966,6 +997,24 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
               }
             />
           ),
+          wrapRow: (printing, itemId, row) => {
+            const dragProps = buildDragProps(printing, itemId);
+            if (!dragProps) {
+              return row;
+            }
+            return (
+              <DraggableCard
+                id={itemId}
+                copyIds={dragProps.copyIds}
+                isStackDrag={dragProps.isStackDrag}
+                printing={printing}
+                previewPrintings={dragProps.previewPrintings}
+                sourceCollectionId={collectionId}
+              >
+                {row}
+              </DraggableCard>
+            );
+          },
         }}
       >
         {/* Floating action bar (select mode) */}

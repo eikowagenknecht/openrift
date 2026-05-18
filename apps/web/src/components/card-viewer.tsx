@@ -22,6 +22,12 @@ export interface CardTableProps {
   renderActions?: (printing: Printing, itemId: string) => ReactNode;
   /** Label for the rightmost column header. Defaults to "Owned". */
   actionsLabel?: string;
+  /**
+   * Optional wrapper applied around each data row. Mirrors the grid's per-cell
+   * `wrap` slot — surfaces use this for drag wiring (e.g. /collections wraps
+   * rows in `<DraggableCard>` so table rows are draggable just like grid cells).
+   */
+  wrapRow?: (printing: Printing, itemId: string, row: ReactNode) => ReactNode;
 }
 
 interface CardViewerProps {

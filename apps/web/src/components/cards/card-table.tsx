@@ -2,7 +2,7 @@ import type { EnumOrders, GroupByField, Printing } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 import { SearchXIcon, WifiOffIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -221,6 +221,12 @@ interface CardTableProps {
   renderActions?: (printing: Printing, itemId: string) => ReactNode;
   /** Label for the rightmost column header. Defaults to "Owned". */
   actionsLabel?: string;
+  /**
+   * Optional wrapper applied around each data row. Surfaces use this for drag
+   * wiring — e.g. /collections wraps rows in `<DraggableCard>` so the table
+   * row becomes a drag handle alongside grid cells.
+   */
+  wrapRow?: (printing: Printing, itemId: string, row: ReactNode) => ReactNode;
 }
 
 let cachedScrollMargin = 0;
@@ -246,6 +252,7 @@ export function CardTable({
   actionsColumn,
   renderActions,
   actionsLabel,
+  wrapRow,
 }: CardTableProps) {
   const { orders, labels } = useEnumOrders();
 
@@ -404,21 +411,28 @@ export function CardTable({
                   />
                 ) : null
               ) : (
-                row.items.map((item) => (
-                  <DataRow
-                    key={item.id}
-                    printing={item.printing}
-                    itemId={item.id}
-                    isSelected={item.id === selectedItemId || item.printing.id === selectedItemId}
-                    actionsColumn={actionsColumn}
-                    columns={columns}
-                    cardTypeLabels={labels.cardTypes}
-                    superTypeLabels={labels.superTypes}
-                    rarityLabels={labels.rarities}
-                    setNameBySlug={setNameBySlug}
-                    renderActions={renderActions}
-                  />
-                ))
+                row.items.map((item) => {
+                  const rowNode = (
+                    <DataRow
+                      printing={item.printing}
+                      itemId={item.id}
+                      isSelected={item.id === selectedItemId || item.printing.id === selectedItemId}
+                      actionsColumn={actionsColumn}
+                      columns={columns}
+                      cardTypeLabels={labels.cardTypes}
+                      superTypeLabels={labels.superTypes}
+                      rarityLabels={labels.rarities}
+                      setNameBySlug={setNameBySlug}
+                      renderActions={renderActions}
+                    />
+                  );
+                  if (!wrapRow) {
+                    return <Fragment key={item.id}>{rowNode}</Fragment>;
+                  }
+                  return (
+                    <Fragment key={item.id}>{wrapRow(item.printing, item.id, rowNode)}</Fragment>
+                  );
+                })
               )}
             </div>
           );
