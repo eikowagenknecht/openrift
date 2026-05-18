@@ -33,7 +33,7 @@ export function DeleteListDialog({
   const itemPluralNoun = kind === "copy" ? "copies" : kind === "printing" ? "printings" : "cards";
   const tailMessage =
     entryCount === 0
-      ? "This list is empty."
+      ? " This list is empty."
       : kind === "copy"
         ? ` The ${entryCount} ${entryCount === 1 ? "copy" : "copies"} on this list will stay in your collection, but will no longer be on this list.`
         : ` This list has ${entryCount} ${entryCount === 1 ? itemNoun : itemPluralNoun}, which will no longer be grouped.`;
