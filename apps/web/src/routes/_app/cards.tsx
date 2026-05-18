@@ -1,5 +1,4 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { z } from "zod";
 
 import { CardBrowserLayout } from "@/components/card-browser-layout";
 import { RouteErrorFallback } from "@/components/error-message";
@@ -11,19 +10,14 @@ import type { AvailableFiltersWire, CardCounts, FilterCountsWire } from "@/lib/c
 import { fetchCardCounts, fetchCardFacets, fetchCardFilterCounts } from "@/lib/cards-facets";
 import type { FirstRowCard } from "@/lib/cards-first-row";
 import { fetchFirstRowCards } from "@/lib/cards-first-row";
+import { cardsSearchSchema } from "@/lib/cards-search-schema";
 import { catalogQueryOptions } from "@/lib/catalog-query";
-import { filterSearchSchema } from "@/lib/search-schemas";
 import { collectionPageJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 import { PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
 const CARDS_DESCRIPTION =
   "Complete Riftbound TCG card database with marketplace price comparison. Filter by set, domain, rarity, cost, and keyword to browse every card and printing.";
-
-const cardsSearchSchema = filterSearchSchema.extend({
-  // oxlint-disable-next-line unicorn/no-useless-undefined, promise/prefer-await-to-then, unicorn/prefer-top-level-await -- zod's `.catch(undefined)` is a sync fallback, not a Promise#catch
-  printingId: z.string().optional().catch(undefined),
-});
 
 export const Route = createFileRoute("/_app/cards")({
   validateSearch: cardsSearchSchema,
