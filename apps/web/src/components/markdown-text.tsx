@@ -10,14 +10,10 @@ const ALLOWED_LINK_HOSTS: ReadonlySet<string> = new Set([
   "youtube.com",
   "www.youtube.com",
   "m.youtube.com",
-  "music.youtube.com",
   "youtu.be",
-  "youtube-nocookie.com",
-  "www.youtube-nocookie.com",
   "riftdecks.com",
-  "www.riftdecks.com",
   "piltoverarchive.com",
-  "www.piltoverarchive.com",
+  "openrift.app",
 ]);
 
 function isAllowedLinkHref(href: string | undefined): boolean {
