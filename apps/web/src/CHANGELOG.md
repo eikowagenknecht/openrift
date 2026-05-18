@@ -2,6 +2,7 @@
 
 ## 2026-05-18
 
+- feat: When the site is briefly unreachable (for example during a deploy), you now see a friendly card-themed page instead of a generic browser error
 - feat: In Custom - Region decks, you can now add a Signature for any Champion in your region, as long as that Champion is in the deck. The previous rule only allowed Signatures matching your Legend's Champion
 - feat: Custom - Region decks now allow 1 to 3 Battlefield cards, instead of requiring exactly 3
 - feat: The deck builder no longer pre-filters cards by your Legend's domains in Custom - Region decks, since rune colors and card colors aren't enforced in this format. You see every legal card on each zone right away

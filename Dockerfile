@@ -73,4 +73,7 @@ RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx/web.conf /etc/nginx/conf.d/web.conf
 # Built client assets (JS/CSS with content hashes) served directly by nginx
 COPY --from=build /app/apps/web/.output/public /srv/static
+# Maintenance fallback served when the SSR upstream is unreachable. See the
+# @maintenance location in web.conf.
+COPY nginx/maintenance.html /srv/static/maintenance.html
 EXPOSE 8080

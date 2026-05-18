@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <meta http-equiv="refresh" content="30">
+    <title>Between rounds | OpenRift</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #070d18;
+        --bg-accent: #1d3664;
+        --fg: #f3f0e8;
+        --muted: #8a93a5;
+        --accent: #c9a567;
+        --accent-hi: #e5d5bb;
+      }
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: radial-gradient(circle at center, var(--bg-accent), var(--bg) 70%);
+        color: var(--fg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+        text-align: center;
+      }
+      .stack {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.25rem;
+        max-width: 32rem;
+      }
+      .logo {
+        width: 96px;
+        height: 96px;
+        filter: drop-shadow(0 0 24px rgba(201, 165, 103, 0.25));
+      }
+      h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin: 0;
+        line-height: 1.2;
+      }
+      p { margin: 0; color: var(--muted); line-height: 1.5; }
+      .small { font-size: 0.85rem; }
+      .btn {
+        display: inline-block;
+        padding: 0.625rem 1.25rem;
+        background: var(--accent);
+        color: #1a1a1a;
+        text-decoration: none;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        margin-top: 0.5rem;
+        transition: background 120ms ease;
+      }
+      .btn:hover, .btn:focus-visible { background: var(--accent-hi); }
+    </style>
+  </head>
+  <body>
+    <main class="stack">
+      <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="OpenRift logo">
+        <defs>
+          <radialGradient id="zone-frame" cx=".5" cy=".5" r=".6">
+            <stop offset="0%" stop-color="#1d3664"/>
+            <stop offset="100%" stop-color="#070d18"/>
+          </radialGradient>
+          <radialGradient id="zone-ring-inner" cx=".5" cy=".5" r=".6">
+            <stop offset="0%" stop-color="#e5d5bb"/>
+            <stop offset="100%" stop-color="#c9a567"/>
+          </radialGradient>
+        </defs>
+        <path fill="url(#zone-frame)" d="m197 15 200 22 67 76 48 120 48-120 67-76 200-22 177 130 17 324-509 538L3 469l17-324z"/>
+        <path fill="#6dc9c7" d="M203 42 44 158 25 459l486 514-84-142L74 437l14-253 126-93 168 12 57 53 50 75-37-97-62-70zm618 0-187 22-62 70-37 97 50-75 57-53 168-12 126 93 14 253-353 394-84 142 486-514-19-301-159-116z"/>
+        <path fill="url(#zone-ring-inner)" d="m221 128-99 76-11 217 315 406-203-337 47 22-70-65-31-49 1-51 33 33-33-69 4-77 58-53 134-2 49 18 88 83-11-38-63-69-54-36zm582 0-154 9-54 36-63 69-11 38 88-83 49-18 134 2 58 53 4 77-33 69 33-33 1 51-31 49-70 65 47-22-203 337 315-406-11-217-99-76zM377 680l115 218-59-170zm270 0-56 48-59 170z"/>
+        <path fill="#fff" d="M580 591c11 0 20-9 20-20V352c0-11-9-20-20-20H444c-11 0-20 9-20 20v219c0 11 9 20 20 20z"/>
+        <path fill="#ccc" d="M427 604c-12-6-20-19-21-34V352c0-3 0-6 1-8l-97 20c-11 2-18 13-16 25l45 213c2 11 13 18 24 16zm170 0 64 14c11 2 22-5 24-16l45-213c2-12-5-23-16-25l-97-20c1 2 1 5 1 8V570c-1 15-9 28-21 34z"/>
+      </svg>
+      <h1>Between rounds</h1>
+      <p>OpenRift is either rolling out a fresh print run or chasing down a misprint. Either way, hang tight and we'll be back on the table.</p>
+      <p class="small">This page will reshuffle itself shortly.</p>
+      <a class="btn" href="/">Reshuffle now</a>
+    </main>
+  </body>
+</html>
