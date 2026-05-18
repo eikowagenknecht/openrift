@@ -1,0 +1,233 @@
+import type { Printing } from "@openrift/shared";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
+
+import { useCards } from "@/hooks/use-cards";
+import { useBulkAddListEntries } from "@/hooks/use-lists";
+import type { MatchStatus, MatchedEntry } from "@/lib/import-matcher";
+import { matchEntries } from "@/lib/import-matcher";
+import { parseCardListText } from "@/lib/list-import-parser";
+import { useDisplayStore } from "@/stores/display-store";
+
+const STATUS_SORT_ORDER: Record<MatchStatus, number> = {
+  unresolved: 0,
+  "needs-review": 1,
+  exact: 2,
+};
+
+const BATCH_SIZE = 500;
+
+type ImportStep = "input" | "preview";
+
+/**
+ * Import-flow plumbing for card-kind lists: parse a deck-text blob, match
+ * names against the catalog, let the user resolve/skip ambiguous rows, then
+ * bulk-add the resolved rows to the target list.
+ *
+ * Card-kind lists store by `cardId` — a specific printing isn't part of the
+ * entry — so any name-resolved match counts as exact even when multiple
+ * printings of the same card exist. The matcher itself flags those as
+ * `needs-review` because it doesn't know the surface's intent; we collapse
+ * "single card, multiple printings" back down to `exact` here.
+ * @returns Import flow state and action handlers.
+ */
+export function useListImportFlow(listId: string, onClose: () => void) {
+  const { allPrintings } = useCards();
+  const bulkAddEntries = useBulkAddListEntries();
+  const preferredLanguages = useDisplayStore((state) => state.languages);
+
+  const [step, setStep] = useState<ImportStep>("input");
+  const [rawText, setRawText] = useState("");
+  const [matchedEntries, setMatchedEntries] = useState<MatchedEntry[]>([]);
+  const [parseErrors, setParseErrors] = useState<string[]>([]);
+  const [isImporting, setIsImporting] = useState(false);
+  const [skippedIndices, setSkippedIndices] = useState<Set<number>>(new Set());
+  const [expandedIndices, setExpandedIndices] = useState<Set<number>>(new Set());
+  const [rowCount, setRowCount] = useState(0);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const reset = () => {
+    setStep("input");
+    setRawText("");
+    setMatchedEntries([]);
+    setParseErrors([]);
+    setSkippedIndices(new Set());
+    setExpandedIndices(new Set());
+    setRowCount(0);
+  };
+
+  const handleParse = (text: string) => {
+    const { entries, errors, rowCount: parsedRowCount } = parseCardListText(text);
+    setRowCount(parsedRowCount);
+    setParseErrors(errors);
+
+    if (entries.length === 0) {
+      return;
+    }
+
+    const matched = matchEntries(entries, allPrintings, preferredLanguages[0]).map((entry) =>
+      promoteToExact(entry),
+    );
+    const sorted = matched.toSorted((entryA, entryB) => {
+      const statusDiff = STATUS_SORT_ORDER[entryA.status] - STATUS_SORT_ORDER[entryB.status];
+      if (statusDiff !== 0) {
+        return statusDiff;
+      }
+      return entryA.entry.cardName.localeCompare(entryB.entry.cardName);
+    });
+    setMatchedEntries(sorted);
+    setSkippedIndices(new Set());
+
+    const nonExact = new Set<number>();
+    for (let index = 0; index < sorted.length; index++) {
+      if (sorted[index].status !== "exact") {
+        nonExact.add(index);
+      }
+    }
+    setExpandedIndices(nonExact);
+
+    setStep("preview");
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    const text = await file.text();
+    setRawText(text);
+    handleParse(text);
+    if (fileRef.current) {
+      fileRef.current.value = "";
+    }
+  };
+
+  const handleResolve = (index: number, printing: Printing) => {
+    setMatchedEntries((prev) =>
+      prev.map((entry, entryIndex) =>
+        entryIndex === index
+          ? { ...entry, resolvedPrinting: printing, status: "exact" as MatchStatus }
+          : entry,
+      ),
+    );
+  };
+
+  const handleSkip = (index: number) => {
+    setSkippedIndices((prev) => new Set([...prev, index]));
+  };
+
+  const handleUnskip = (index: number) => {
+    setSkippedIndices((prev) => {
+      const next = new Set(prev);
+      next.delete(index);
+      return next;
+    });
+  };
+
+  const handleToggleExpand = (index: number) => {
+    setExpandedIndices((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
+
+  const readyEntries = matchedEntries.filter(
+    (entry, index) => entry.resolvedPrinting && !skippedIndices.has(index),
+  );
+  const needsAttentionCount = matchedEntries.filter(
+    (entry, index) => !entry.resolvedPrinting && !skippedIndices.has(index),
+  ).length;
+  const skippedCount = skippedIndices.size;
+  const totalCards = readyEntries.reduce((sum, entry) => sum + entry.entry.quantity, 0);
+
+  const handleImport = async () => {
+    if (readyEntries.length === 0) {
+      toast.error("Nothing to import.");
+      return;
+    }
+
+    setIsImporting(true);
+
+    const payload = readyEntries.map((entry) => ({
+      cardId: entry.resolvedPrinting?.cardId ?? "",
+      quantity: entry.entry.quantity,
+    }));
+
+    const batches: (typeof payload)[] = [];
+    for (let offset = 0; offset < payload.length; offset += BATCH_SIZE) {
+      batches.push(payload.slice(offset, offset + BATCH_SIZE));
+    }
+
+    try {
+      for (const batch of batches) {
+        await bulkAddEntries.mutateAsync({ listId, entries: batch });
+      }
+      const cardLabel = totalCards === 1 ? "card" : "cards";
+      toast.success(`Added ${totalCards} ${cardLabel} to list.`);
+      reset();
+      onClose();
+    } catch {
+      toast.error("Import failed. Some cards may have been added.");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  return {
+    step,
+    rawText,
+    matchedEntries,
+    parseErrors,
+    isImporting,
+    skippedIndices,
+    expandedIndices,
+    rowCount,
+    fileRef,
+    allPrintings,
+
+    readyCount: readyEntries.length,
+    needsAttentionCount,
+    skippedCount,
+    totalCards,
+
+    handleRawTextChange: setRawText,
+    handleParse,
+    handleFileUpload,
+    handleResolve,
+    handleSkip,
+    handleUnskip,
+    handleToggleExpand,
+    handleImport,
+    handleBack: () => setStep("input"),
+    reset,
+  };
+}
+
+/**
+ * For card-kind lists we only care about the cardId, not the specific
+ * printing. So when the matcher returns `needs-review` because it found one
+ * card but several printings of it (different finishes, alt arts), promote to
+ * `exact` — picking any printing of that card lets us extract the cardId,
+ * which is all the import payload needs. Multi-card ambiguity is left for
+ * the user to resolve manually.
+ * @returns The original entry, or a copy with status bumped to "exact".
+ */
+export function promoteToExact(matched: MatchedEntry): MatchedEntry {
+  if (matched.status === "exact" || matched.candidates.length === 0) {
+    return matched;
+  }
+  const cardIds = new Set(matched.candidates.map((printing) => printing.cardId));
+  if (cardIds.size !== 1) {
+    return matched;
+  }
+  return {
+    ...matched,
+    status: "exact",
+    resolvedPrinting: matched.resolvedPrinting ?? matched.candidates[0],
+  };
+}

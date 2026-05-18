@@ -12,6 +12,7 @@ import {
   PencilIcon,
   Share2Icon,
   Trash2Icon,
+  UploadIcon,
   XIcon,
 } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
@@ -38,6 +39,7 @@ import { ListEntryContextMenu } from "@/components/list/list-entry-context-menu"
 import { ListEntryQuantityStrip } from "@/components/list/list-entry-quantity-strip";
 import { ListEntryTableActions } from "@/components/list/list-entry-table-actions";
 import { ListExportDialog } from "@/components/list/list-export-dialog";
+import { ListImportDialog } from "@/components/list/list-import-dialog";
 import { ListShareDialog } from "@/components/list/list-share-dialog";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
@@ -147,6 +149,7 @@ export function ListPage({ listId }: ListPageProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const updateList = useUpdateList();
   const deleteList = useDeleteList();
@@ -272,10 +275,16 @@ export function ListPage({ listId }: ListPageProps) {
               {data.list.shareToken === null ? "Share" : "Manage sharing"}
             </DropdownMenuItem>
             {data.list.kind === "card" && (
-              <DropdownMenuItem onClick={() => setExportOpen(true)}>
-                <DownloadIcon className="size-4" />
-                Export
-              </DropdownMenuItem>
+              <>
+                <DropdownMenuItem onClick={() => setImportOpen(true)}>
+                  <UploadIcon className="size-4" />
+                  Import
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setExportOpen(true)}>
+                  <DownloadIcon className="size-4" />
+                  Export
+                </DropdownMenuItem>
+              </>
             )}
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
@@ -317,6 +326,10 @@ export function ListPage({ listId }: ListPageProps) {
     <ListExportDialog entries={data.entries} open={exportOpen} onOpenChange={setExportOpen} />
   );
 
+  const importDialog = data.list.kind === "card" && (
+    <ListImportDialog listId={listId} open={importOpen} onOpenChange={setImportOpen} />
+  );
+
   // When add mode is active we fall through to the browser even with zero
   // entries — the grid renders the whole catalog so the user can start adding.
   if (entriesCount === 0 && !isAddMode) {
@@ -344,6 +357,7 @@ export function ListPage({ listId }: ListPageProps) {
         {deleteDialog}
         {shareDialog}
         {exportDialog}
+        {importDialog}
       </>
     );
   }
@@ -367,6 +381,7 @@ export function ListPage({ listId }: ListPageProps) {
       {deleteDialog}
       {shareDialog}
       {exportDialog}
+      {importDialog}
     </>
   );
 }

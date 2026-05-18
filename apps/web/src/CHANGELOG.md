@@ -2,6 +2,7 @@
 
 ## 2026-05-18
 
+- feat: Card lists can now be imported from the same plain-text format that export produces, so you can move a buy/sell list between tools or between your own lists without retyping
 - feat: Adding cards with the keyboard now accepts = as well as +, so you don't have to hold Shift on US layouts
 - feat: The collections sidebar now has Buy, Sell, and Organize lists. Each list tracks cards, printings, or specific copies (you pick what at creation), and any list can be shared with a public link
 - feat: Card and printing lists now have a "Browse catalog" mode that shows every card with a +/- stepper on each tile, so you can build a buy or wishlist list directly without leaving the page
