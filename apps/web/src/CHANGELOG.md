@@ -2,6 +2,7 @@
 
 ## 2026-05-18
 
+- feat: Decks now have an editable description that shows above the overview. Open the deck's actions menu and pick "Edit description" to add notes, strategy, or mulligan tips. Markdown is supported (links, lists, bold, italics, inline code)
 - feat: The "new list" dialog now spells out what each list is for with concrete examples, so it's clearer when to pick Cards, Printings, or Copies for a buy, sell, or organize list
 - feat: Lists now show their total value in the title bar, like collections do. Card lists are valued at the cheapest printing in your preferred languages, and any entries with no price for your marketplace show as "(N unpriced)"
 - feat: Card lists can now be imported from the same plain-text format that export produces, so you can move a buy/sell list between tools or between your own lists without retyping

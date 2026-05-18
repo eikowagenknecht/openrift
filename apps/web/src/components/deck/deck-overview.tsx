@@ -30,6 +30,7 @@ import { DomainBar } from "@/components/deck/deck-stats-panel";
 import { FormatConfigCard } from "@/components/deck/format-config-card";
 import { EnergyChart, PowerChart } from "@/components/deck/stats/energy-power-chart";
 import { TypeBreakdown } from "@/components/deck/stats/type-breakdown";
+import { MarkdownText } from "@/components/markdown-text";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -185,9 +186,7 @@ export function DeckOverview({
         formatConfig={deck.formatConfig}
         readOnly={readOnly}
       />
-      {description && (
-        <p className="text-muted-foreground text-sm whitespace-pre-wrap">{description}</p>
-      )}
+      {description && <MarkdownText text={description} className="text-muted-foreground text-sm" />}
       {showIntroBanner && <DeckBuilderIntroBanner format={deck.format} onDismiss={dismissIntro} />}
       {fallbackHint && <p className="text-sm">{fallbackHint}</p>}
 

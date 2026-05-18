@@ -171,6 +171,7 @@ function DeckOverviewForEditor({
       onViewMissing={onViewMissing}
       onHoverCard={onHoverCard}
       onCardClick={onCardClick}
+      description={deck.description ?? undefined}
     />
   );
 }

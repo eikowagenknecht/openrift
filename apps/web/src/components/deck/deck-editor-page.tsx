@@ -5,6 +5,7 @@ import { useNavigate } from "@tanstack/react-router";
 import {
   CornerLeftUpIcon,
   EllipsisVerticalIcon,
+  FileTextIcon,
   LinkIcon,
   PencilIcon,
   PrinterIcon,
@@ -17,6 +18,7 @@ import { use, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { buildRunesByDomain, DeckCardBrowser } from "@/components/deck/deck-card-browser";
+import { DeckDescriptionDialog } from "@/components/deck/deck-description-dialog";
 import { DeckDndContext } from "@/components/deck/deck-dnd-context";
 import { DeckExportDialog } from "@/components/deck/deck-export-dialog";
 import { DeckMissingCardsDialog } from "@/components/deck/deck-missing-cards-dialog";
@@ -132,6 +134,7 @@ function DeckEditorContent({
   const resetUi = useDeckBuilderUiStore((state) => state.reset);
   const setRunesByDomain = useDeckBuilderUiStore((state) => state.setRunesByDomain);
   const [renameOpen, setRenameOpen] = useState(false);
+  const [descriptionOpen, setDescriptionOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [proxyOpen, setProxyOpen] = useState(false);
   const [missingOpen, setMissingOpen] = useState(false);
@@ -417,6 +420,10 @@ function DeckEditorContent({
                     <PencilIcon className="size-4" />
                     Rename
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setDescriptionOpen(true)}>
+                    <FileTextIcon className="size-4" />
+                    Edit description
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() =>
                       void navigate({
@@ -472,6 +479,12 @@ function DeckEditorContent({
         currentName={data.deck.name}
         open={renameOpen}
         onOpenChange={setRenameOpen}
+      />
+      <DeckDescriptionDialog
+        deckId={deckId}
+        currentDescription={data.deck.description ?? null}
+        open={descriptionOpen}
+        onOpenChange={setDescriptionOpen}
       />
       <DeckShareDialog
         deckId={deckId}

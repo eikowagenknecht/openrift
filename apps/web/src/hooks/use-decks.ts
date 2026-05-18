@@ -202,6 +202,7 @@ const updateDeckFn = createServerFn({ method: "POST" })
     (input: {
       deckId: string;
       name?: string;
+      description?: string | null;
       format?: DeckFormat;
       formatConfig?: DeckFormatConfig | null;
     }) => input,
@@ -229,6 +230,7 @@ export function useUpdateDeck() {
     }: {
       deckId: string;
       name?: string;
+      description?: string | null;
       format?: DeckFormat;
       formatConfig?: DeckFormatConfig | null;
     }): Promise<DeckResponse> => updateDeckFn({ data: { deckId, ...fields } }),
