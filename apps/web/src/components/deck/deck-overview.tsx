@@ -156,6 +156,7 @@ export function DeckOverview({
   });
   const stats = useDeckStats(cards);
   const domainColors = useDomainColors();
+  const { labels } = useEnumOrders();
   const fmtPrice = formatterForMarketplace(marketplace);
 
   const totalCards = cards.reduce((sum, card) => sum + card.quantity, 0);
@@ -252,7 +253,9 @@ export function DeckOverview({
             caption={
               stats.domainDistribution.length > 0 ? (
                 <span className="truncate">
-                  {stats.domainDistribution.map((entry) => entry.domain).join(" · ")}
+                  {stats.domainDistribution
+                    .map((entry) => labels.domains[entry.domain])
+                    .join(" · ")}
                 </span>
               ) : undefined
             }
