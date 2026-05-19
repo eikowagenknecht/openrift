@@ -1,10 +1,10 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import type { JobRunStartedResponse } from "@openrift/shared";
 import { createLogger } from "@openrift/shared/logger";
-import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 
 import { flushPendingPrintingEvents } from "../../services/flush-printing-events.js";
-import { runJob } from "../../services/run-job.js";
+import { runJobAsync } from "../../services/run-job.js";
 import type { Variables } from "../../types.js";
 
 const log = createLogger("admin");
@@ -13,16 +13,9 @@ const FLUSH_KIND = "discord.flush_printing_events";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
 
-const webhookFailureSchema = z.object({
-  channel: z.enum(["newPrintings", "printingChanges"]),
-  status: z.number().optional(),
-  detail: z.string(),
-});
-
-const flushResponseSchema = z.object({
-  sent: z.number().openapi({ example: 5 }),
-  failed: z.number().openapi({ example: 0 }),
-  failures: z.array(webhookFailureSchema).optional(),
+const flushStartedResponseSchema = z.object({
+  runId: z.string().uuid(),
+  status: z.enum(["running", "already_running"]),
 });
 
 const fieldChangeSchema = z.object({
@@ -71,9 +64,10 @@ const flushRoute = createRoute({
   path: "/printing-events/flush",
   tags: ["Admin - Operations"],
   responses: {
-    200: {
-      content: { "application/json": { schema: flushResponseSchema } },
-      description: "Pending printing events flushed to Discord",
+    202: {
+      content: { "application/json": { schema: flushStartedResponseSchema } },
+      description:
+        "Flush started in the background. Poll GET /admin/job-runs?kind=discord.flush_printing_events for completion.",
     },
   },
 });
@@ -112,28 +106,24 @@ export const adminPrintingEventsRoute = new OpenAPIHono<{ Variables: Variables }
     const repos = c.get("repos");
     const config = c.get("config");
 
-    const result = await runJob({ repos, log }, FLUSH_KIND, "admin", () =>
-      flushPendingPrintingEvents(
-        repos,
-        {
-          newPrintings: config.discordWebhooks.newPrintings,
-          printingChanges: config.discordWebhooks.printingChanges,
-        },
-        config.appBaseUrl,
-        log,
-      ),
+    const started = await runJobAsync(
+      { repos, log },
+      FLUSH_KIND,
+      "admin",
+      () =>
+        flushPendingPrintingEvents(
+          repos,
+          {
+            newPrintings: config.discordWebhooks.newPrintings,
+            printingChanges: config.discordWebhooks.printingChanges,
+          },
+          config.appBaseUrl,
+          log,
+        ),
+      { summarize: (result) => result },
     );
 
-    if (result === null) {
-      // runJob swallowed the error and recorded it in job_runs. Surface the
-      // recorded error_message to the HTTP caller so the toast shows what
-      // Discord actually said.
-      const recent = await repos.jobRuns.listRecent({ kind: FLUSH_KIND, limit: 1 });
-      const message = recent[0]?.errorMessage ?? "Flush failed (already running?)";
-      throw new HTTPException(500, { message });
-    }
-
-    return c.json(result);
+    return c.json(started satisfies JobRunStartedResponse, 202);
   })
   .openapi(listRoute, async (c) => {
     const { printingEvents } = c.get("repos");

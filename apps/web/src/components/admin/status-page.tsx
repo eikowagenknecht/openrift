@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useFlushPrintingEvents } from "@/hooks/use-flush-printing-events";
+import { useFlushPrintingEvents, useLatestFlushRun } from "@/hooks/use-flush-printing-events";
 import { usePostChangelog } from "@/hooks/use-post-changelog";
 import { useThrowInApi, useThrowInSsr } from "@/hooks/use-sentry-test";
 import { useAdminStatus } from "@/hooks/use-status";
@@ -384,21 +384,23 @@ function SentrySmokeTestCard() {
 
 function FlushPrintingEventsButton() {
   const flush = useFlushPrintingEvents();
+  const latestRun = useLatestFlushRun();
+  const isFlushRunning = flush.isPending || latestRun.data?.status === "running";
 
   async function handleFlush() {
     // Narrow the try to just the await — react-compiler doesn't support
     // logical/conditional value blocks inside a try/catch statement.
-    let result: Awaited<ReturnType<typeof flush.mutateAsync>>;
+    let started: Awaited<ReturnType<typeof flush.mutateAsync>>;
     try {
-      result = await flush.mutateAsync();
+      started = await flush.mutateAsync();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Flush failed");
+      toast.error(error instanceof Error ? error.message : "Couldn't start flush");
       return;
     }
-    if (result.sent === 0 && result.failed === 0) {
-      toast.success("No pending printing events");
+    if (started.status === "already_running") {
+      toast.info("A flush is already running");
     } else {
-      toast.success(`Flushed ${result.sent} sent, ${result.failed} failed`);
+      toast.success("Flush started");
     }
   }
 
@@ -408,10 +410,10 @@ function FlushPrintingEventsButton() {
       size="icon"
       className="size-7"
       onClick={handleFlush}
-      disabled={flush.isPending}
+      disabled={isFlushRunning}
       title="Flush pending printing events to Discord now"
     >
-      {flush.isPending ? (
+      {isFlushRunning ? (
         <LoaderIcon className="size-3.5 animate-spin" />
       ) : (
         <SendIcon className="size-3.5" />

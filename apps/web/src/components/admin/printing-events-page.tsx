@@ -1,6 +1,6 @@
 import { humanizePrintingField } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { LoaderIcon, RefreshCwIcon, RotateCcwIcon, SendIcon } from "lucide-react";
+import { CheckIcon, LoaderIcon, RefreshCwIcon, RotateCcwIcon, SendIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -16,10 +16,13 @@ import {
 } from "@/components/ui/table";
 import type { PrintingEventView } from "@/hooks/use-flush-printing-events";
 import {
+  isFlushPrintingEventsResult,
   useAdminPrintingEvents,
   useFlushPrintingEvents,
+  useLatestFlushRun,
   useRetryPrintingEvents,
 } from "@/hooks/use-flush-printing-events";
+import type { JobRunView } from "@/lib/server-fns/api-types";
 
 function StatusBadge({ status }: { status: PrintingEventView["status"] }) {
   if (status === "failed") {
@@ -78,27 +81,27 @@ function formatValue(value: unknown): string {
 export function PrintingEventsPage() {
   const { data, refetch, isFetching } = useAdminPrintingEvents();
   const flush = useFlushPrintingEvents();
+  const latestRun = useLatestFlushRun();
   const retry = useRetryPrintingEvents();
   const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
 
   const events = data?.events ?? [];
   const pending = events.filter((e) => e.status === "pending");
   const failed = events.filter((e) => e.status === "failed");
+  const isFlushRunning = flush.isPending || latestRun.data?.status === "running";
 
   async function handleFlush() {
-    let result: Awaited<ReturnType<typeof flush.mutateAsync>>;
+    let started: Awaited<ReturnType<typeof flush.mutateAsync>>;
     try {
-      result = await flush.mutateAsync();
+      started = await flush.mutateAsync();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Flush failed");
+      toast.error(error instanceof Error ? error.message : "Couldn't start flush");
       return;
     }
-    if (result.sent === 0 && result.failed === 0) {
-      toast.success("No pending printing events");
-    } else if (result.failed === 0) {
-      toast.success(`Sent ${result.sent} events`);
+    if (started.status === "already_running") {
+      toast.info("A flush is already running");
     } else {
-      toast.warning(`Sent ${result.sent}, failed ${result.failed} (will retry)`);
+      toast.success("Flush started");
     }
   }
 
@@ -137,8 +140,8 @@ export function PrintingEventsPage() {
               Retry all failed
             </Button>
           )}
-          <Button onClick={handleFlush} disabled={flush.isPending}>
-            {flush.isPending ? <LoaderIcon className="animate-spin" /> : <SendIcon />}
+          <Button onClick={handleFlush} disabled={isFlushRunning}>
+            {isFlushRunning ? <LoaderIcon className="animate-spin" /> : <SendIcon />}
             Flush now
           </Button>
           <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
@@ -156,6 +159,8 @@ export function PrintingEventsPage() {
           <strong className="text-foreground">{failed.length}</strong> failed
         </span>
       </div>
+
+      {latestRun.data && <FlushRunStatus run={latestRun.data} />}
 
       <Table>
         <TableHeader>
@@ -298,5 +303,53 @@ function FieldChangeRow({ field, from, to }: { field: string; from: unknown; to:
       <span className="text-muted-foreground"> → </span>
       <span className="font-mono">{toStr}</span>
     </div>
+  );
+}
+
+function FlushRunStatus({ run }: { run: JobRunView }) {
+  if (run.status === "running") {
+    return (
+      <p className="text-muted-foreground flex items-center gap-1 text-sm">
+        <LoaderIcon className="size-4 animate-spin" />
+        Flush running since {formatTimeAgo(run.startedAt)}
+      </p>
+    );
+  }
+  if (run.status === "failed") {
+    return (
+      <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+        <XIcon className="size-4" />
+        {run.errorMessage ?? "Flush failed"}
+      </p>
+    );
+  }
+  if (isFlushPrintingEventsResult(run.result)) {
+    const { sent, failed: failedCount } = run.result;
+    if (sent === 0 && failedCount === 0) {
+      return (
+        <p className="text-muted-foreground flex items-center gap-1 text-sm">
+          <CheckIcon className="size-4" />
+          No pending events on last flush
+        </p>
+      );
+    }
+    return (
+      <p
+        className={
+          failedCount === 0
+            ? "flex items-center gap-1 text-sm text-green-600 dark:text-green-400"
+            : "flex items-center gap-1 text-sm text-yellow-700 dark:text-yellow-500"
+        }
+      >
+        <CheckIcon className="size-4" />
+        Last flush sent {sent}, failed {failedCount}
+      </p>
+    );
+  }
+  return (
+    <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+      <CheckIcon className="size-4" />
+      Last flush completed
+    </p>
   );
 }
