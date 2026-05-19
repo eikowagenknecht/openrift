@@ -461,7 +461,7 @@ function PaletteInner({
                             height={28}
                             className="size-3.5 shrink-0"
                           />
-                          <span className="text-muted-foreground text-2xs w-[3.25rem] shrink-0 font-mono">
+                          <span className="text-muted-foreground text-2xs w-[3.5rem] shrink-0 font-mono">
                             {formatCardId(printing)}
                           </span>
                           <span className="min-w-0 flex-1 truncate">
