@@ -3,6 +3,7 @@ import { ArrowDownNarrowWideIcon, ArrowUpNarrowWideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RadioGroup } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
@@ -54,6 +55,42 @@ function DirToggle({
         <ArrowUpNarrowWideIcon className="size-3.5" />
       )}
     </button>
+  );
+}
+
+function BadgeRow<TValue extends string>({
+  label,
+  options,
+  value,
+  onChange,
+  action,
+}: {
+  label: string;
+  options: SortGroupOption<TValue>[];
+  value: TValue;
+  onChange: (value: TValue) => void;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex min-w-0 items-start gap-2">
+      <p className="text-muted-foreground w-18 text-xs font-medium">{label}</p>
+      <div className="flex flex-1 flex-wrap gap-1">
+        {options.map((option) => {
+          const isSelected = option.value === value;
+          return (
+            <Badge
+              key={option.value}
+              variant={isSelected ? "default" : "outline"}
+              className="cursor-pointer"
+              onClick={() => onChange(option.value)}
+            >
+              {option.label}
+            </Badge>
+          );
+        })}
+      </div>
+      {action && <span className="shrink-0">{action}</span>}
+    </div>
   );
 }
 
@@ -181,10 +218,38 @@ export function SortGroupControls<
 
   if (compact) {
     return (
-      <div className="flex flex-col gap-3">
-        {groupSection}
-        {sortSection}
-        {viewSection}
+      <div className="flex flex-col gap-2">
+        {group && (
+          <BadgeRow
+            label="Group by"
+            options={group.options}
+            value={group.value}
+            // oxlint-disable-next-line react/jsx-handler-names -- forwarded callback from caller, name fixed by the route
+            onChange={group.onValueChange}
+            action={
+              groupingActive ? (
+                // oxlint-disable-next-line react/jsx-handler-names -- forwarded callback from caller, name fixed by the route
+                <DirToggle dir={group.dir} onToggle={group.onDirChange} />
+              ) : undefined
+            }
+          />
+        )}
+        <BadgeRow
+          label="Sort by"
+          options={sortOptions}
+          value={sortBy}
+          onChange={onSortByChange}
+          action={<DirToggle dir={sortDir} onToggle={onSortDirChange} />}
+        />
+        {view && (
+          <BadgeRow
+            label={view.title ?? "View"}
+            options={view.options}
+            value={view.value}
+            // oxlint-disable-next-line react/jsx-handler-names -- forwarded callback from caller, name fixed by the route
+            onChange={view.onChange}
+          />
+        )}
       </div>
     );
   }
