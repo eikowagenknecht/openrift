@@ -29,12 +29,19 @@ describe("flushPendingPrintingEvents", () => {
     vi.resetAllMocks();
   });
 
-  function makeRepos(events: unknown[], setNamesById = new Map<string, string>()) {
+  function makeRepos(
+    events: unknown[],
+    setNamesById = new Map<string, string>(),
+    rarities: { slug: string; label: string }[] = [],
+  ) {
     return {
       printingEvents: {
         listPending: vi.fn(async () => events),
         markSent: vi.fn(async () => {}),
         markRetry: vi.fn(async () => {}),
+      },
+      rarities: {
+        listAll: vi.fn(async () => rarities),
       },
       sets: {
         getNamesByIds: vi.fn(async () => setNamesById),
@@ -83,7 +90,10 @@ describe("flushPendingPrintingEvents", () => {
       WEBHOOKS,
       APP_BASE_URL,
       expect.anything(),
-      expect.objectContaining({ setNamesById: expect.any(Map) }),
+      expect.objectContaining({
+        setNamesById: expect.any(Map),
+        rarityLabelsBySlug: expect.any(Map),
+      }),
     );
     expect(repos.printingEvents.markSent).toHaveBeenCalledWith(["evt-1"]);
     expect(result).toEqual({ sent: 1, failed: 0 });
@@ -131,6 +141,32 @@ describe("flushPendingPrintingEvents", () => {
     const lookups = mockFlush.mock.calls[0][4];
     expect(lookups?.setNamesById?.get(fromSetId)).toBe("Origins");
     expect(lookups?.setNamesById?.get(toSetId)).toBe("Unleashed");
+  });
+
+  it("builds a rarity slug → label lookup from the rarities repo", async () => {
+    const events = [
+      {
+        id: "evt-1",
+        eventType: "new" as const,
+        printingId: "p-1",
+        cardName: "Card",
+        status: "pending" as const,
+      },
+    ];
+
+    mockFlush.mockResolvedValue({ sentIds: ["evt-1"], failedIds: [], failures: [] });
+
+    const repos = makeRepos(events, new Map(), [
+      { slug: "common", label: "Common" },
+      { slug: "rare", label: "Rare" },
+    ]);
+
+    await flushPendingPrintingEvents(repos as any, WEBHOOKS, APP_BASE_URL, mockLog());
+
+    expect(repos.rarities.listAll).toHaveBeenCalledTimes(1);
+    const lookups = mockFlush.mock.calls[0][4];
+    expect(lookups?.rarityLabelsBySlug?.get("common")).toBe("Common");
+    expect(lookups?.rarityLabelsBySlug?.get("rare")).toBe("Rare");
   });
 
   it("marks failed events for retry on partial failure and includes failure detail", async () => {

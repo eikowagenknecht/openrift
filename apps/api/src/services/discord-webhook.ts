@@ -44,12 +44,13 @@ export interface WebhookFailure {
 }
 
 /**
- * Lookups used to resolve UUID-typed change values (e.g. setId) to human-readable
- * names before they're rendered in Discord embeds. Maps are keyed by UUID; ids
- * not present fall back to the raw value.
+ * Lookups used to resolve opaque change values (UUIDs for sets, slugs for rarities)
+ * to human-readable names before they're rendered in Discord embeds. Maps are keyed
+ * by the raw value; entries not present fall back to the raw value.
  */
 export interface ChangeValueLookups {
   setNamesById?: Map<string, string>;
+  rarityLabelsBySlug?: Map<string, string>;
 }
 
 // Discord requires absolute URLs for embed images. Build the 400w variant
@@ -141,7 +142,7 @@ export function buildNewPrintingPayloads(
       headerParts.push(`**${event.shortCode}**`);
     }
     if (event.rarity) {
-      headerParts.push(event.rarity);
+      headerParts.push(event.rarityLabel ?? event.rarity);
     }
     if (event.finish && event.finish !== "normal") {
       headerParts.push(event.finishLabel ?? event.finish);
@@ -356,11 +357,15 @@ function formatValue(value: unknown): string {
   return str;
 }
 
-// Fields whose stored value is a UUID FK to another table. The raw UUID isn't
-// useful in a Discord embed, so we resolve it via the matching lookup.
+// Fields whose stored value is an opaque key (UUID FK for setId, slug for rarity).
+// The raw value isn't useful in a Discord embed, so we resolve it via the matching
+// lookup.
 function resolveFieldValue(field: string, value: unknown, lookups: ChangeValueLookups): unknown {
   if (field === "setId" && typeof value === "string" && lookups.setNamesById) {
     return lookups.setNamesById.get(value) ?? value;
+  }
+  if (field === "rarity" && typeof value === "string" && lookups.rarityLabelsBySlug) {
+    return lookups.rarityLabelsBySlug.get(value) ?? value;
   }
   return value;
 }

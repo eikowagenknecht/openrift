@@ -1,11 +1,13 @@
 import type { Logger } from "@openrift/shared/logger";
 
 import type { EnrichedPrintingEvent, printingEventsRepo } from "../repositories/printing-events.js";
+import type { raritiesRepo } from "../repositories/rarities.js";
 import type { setsRepo } from "../repositories/sets.js";
 import type { ChangeValueLookups, WebhookFailure } from "./discord-webhook.js";
 import { flushPrintingEvents } from "./discord-webhook.js";
 
 type PrintingEventsRepo = ReturnType<typeof printingEventsRepo>;
+type RaritiesRepo = ReturnType<typeof raritiesRepo>;
 type SetsRepo = ReturnType<typeof setsRepo>;
 
 /**
@@ -67,7 +69,7 @@ function describeFailures(failures: WebhookFailure[]): string {
  * detail. Throws if all delivery attempts failed.
  */
 export async function flushPendingPrintingEvents(
-  repos: { printingEvents: PrintingEventsRepo; sets: SetsRepo },
+  repos: { printingEvents: PrintingEventsRepo; rarities: RaritiesRepo; sets: SetsRepo },
   webhookUrls: DiscordWebhookUrls,
   appBaseUrl: string,
   log: Logger,
@@ -77,8 +79,12 @@ export async function flushPendingPrintingEvents(
     return { sent: 0, failed: 0 };
   }
 
-  const setNamesById = await repos.sets.getNamesByIds(collectChangedSetIds(events));
-  const lookups: ChangeValueLookups = { setNamesById };
+  const [setNamesById, rarities] = await Promise.all([
+    repos.sets.getNamesByIds(collectChangedSetIds(events)),
+    repos.rarities.listAll(),
+  ]);
+  const rarityLabelsBySlug = new Map(rarities.map((r) => [r.slug, r.label]));
+  const lookups: ChangeValueLookups = { setNamesById, rarityLabelsBySlug };
 
   const { sentIds, failedIds, failures } = await flushPrintingEvents(
     events,

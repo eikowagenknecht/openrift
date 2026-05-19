@@ -35,6 +35,7 @@ export interface EnrichedPrintingEvent {
   setName: string | null;
   shortCode: string | null;
   rarity: string | null;
+  rarityLabel: string | null;
   finish: string | null;
   finishLabel: string | null;
   artist: string | null;
@@ -100,6 +101,7 @@ export function printingEventsRepo(db: Kysely<Database>) {
         .innerJoin("cards as c", "c.id", "p.cardId")
         .innerJoin("sets as s", "s.id", "p.setId")
         .leftJoin("finishes as fi", "fi.slug", "p.finish")
+        .leftJoin("rarities as r", "r.slug", "p.rarity")
         .leftJoin("languages as lng", "lng.code", "p.language")
         .leftJoin("printingImages as pi", (join) =>
           join
@@ -119,6 +121,7 @@ export function printingEventsRepo(db: Kysely<Database>) {
           "s.name as setName",
           "p.shortCode",
           "p.rarity",
+          "r.label as rarityLabel",
           "p.finish",
           "fi.label as finishLabel",
           "p.artist",
@@ -147,6 +150,7 @@ export function printingEventsRepo(db: Kysely<Database>) {
         .innerJoin("cards as c", "c.id", "p.cardId")
         .innerJoin("sets as s", "s.id", "p.setId")
         .leftJoin("finishes as fi", "fi.slug", "p.finish")
+        .leftJoin("rarities as r", "r.slug", "p.rarity")
         .leftJoin("languages as lng", "lng.code", "p.language")
         .leftJoin("printingImages as pi", (join) =>
           join
@@ -168,6 +172,7 @@ export function printingEventsRepo(db: Kysely<Database>) {
           "s.name as setName",
           "p.shortCode",
           "p.rarity",
+          "r.label as rarityLabel",
           "p.finish",
           "fi.label as finishLabel",
           "p.artist",

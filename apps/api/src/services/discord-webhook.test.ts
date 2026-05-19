@@ -17,6 +17,7 @@ function makeEvent(overrides: Partial<EnrichedPrintingEvent> = {}): EnrichedPrin
     setName: "Origins",
     shortCode: "OGN-001",
     rarity: "common",
+    rarityLabel: "Common",
     finish: "normal",
     finishLabel: "Normal",
     artist: "Artist A",
@@ -84,16 +85,31 @@ describe("buildNewPrintingPayloads", () => {
     expect(payloads[0].embeds[0].thumbnail).toBeUndefined();
   });
 
-  it("builds a markdown description with code, rarity, and finish", () => {
+  it("builds a markdown description with code, rarity label, and finish", () => {
     const events = [
-      makeEvent({ shortCode: "OGN-001", rarity: "rare", finish: "metal", finishLabel: "Metal" }),
+      makeEvent({
+        shortCode: "OGN-001",
+        rarity: "rare",
+        rarityLabel: "Rare",
+        finish: "metal",
+        finishLabel: "Metal",
+      }),
     ];
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
     expect(payloads[0].embeds[0].description).toContain("**OGN-001**");
-    expect(payloads[0].embeds[0].description).toContain("rare");
+    expect(payloads[0].embeds[0].description).toContain("Rare");
+    expect(payloads[0].embeds[0].description).not.toMatch(/\brare\b/u);
     expect(payloads[0].embeds[0].description).toContain("Metal");
+  });
+
+  it("falls back to rarity slug when label is missing", () => {
+    const events = [makeEvent({ rarity: "uncommon", rarityLabel: null })];
+
+    const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
+
+    expect(payloads[0].embeds[0].description).toContain("uncommon");
   });
 
   it("omits finish from description when it is 'normal'", () => {
@@ -370,6 +386,42 @@ describe("buildChangedPrintingPayloads", () => {
 
     const fields = payloads[0].embeds[0].fields ?? [];
     expect(fields[0].value).toBe(`${fromSetId} → Unleashed`);
+  });
+
+  it("resolves rarity slugs into labels via the provided lookup", () => {
+    const events = [
+      makeEvent({
+        eventType: "changed",
+        changes: [{ field: "rarity", from: "common", to: "rare" }],
+      }),
+    ];
+
+    const payloads = buildChangedPrintingPayloads(events, APP_BASE_URL, {
+      rarityLabelsBySlug: new Map([
+        ["common", "Common"],
+        ["rare", "Rare"],
+      ]),
+    });
+
+    const fields = payloads[0].embeds[0].fields ?? [];
+    expect(fields[0].name).toBe("Rarity");
+    expect(fields[0].value).toBe("Common → Rare");
+  });
+
+  it("falls back to the raw rarity slug when missing from the lookup", () => {
+    const events = [
+      makeEvent({
+        eventType: "changed",
+        changes: [{ field: "rarity", from: "common", to: "rare" }],
+      }),
+    ];
+
+    const payloads = buildChangedPrintingPayloads(events, APP_BASE_URL, {
+      rarityLabelsBySlug: new Map([["rare", "Rare"]]),
+    });
+
+    const fields = payloads[0].embeds[0].fields ?? [];
+    expect(fields[0].value).toBe("common → Rare");
   });
 
   it("leaves setId values unchanged when no lookup is provided", () => {
