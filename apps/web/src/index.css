@@ -61,7 +61,7 @@ html.hide-scrollbar::-webkit-scrollbar {
   --card-foreground: oklch(0.2 0.02 260);
   --popover: oklch(0.99 0.008 85);
   --popover-foreground: oklch(0.2 0.02 260);
-  --primary: oklch(0.55 0.1 75);
+  --primary: oklch(0.38 0.05 195);
   --primary-foreground: oklch(0.97 0.012 85);
   --secondary: oklch(0.92 0.015 85);
   --secondary-foreground: oklch(0.2 0.02 260);
@@ -109,8 +109,8 @@ html.hide-scrollbar::-webkit-scrollbar {
   --secondary-foreground: oklch(0.95 0 0);
   --muted: oklch(0.3 0.006 260);
   --muted-foreground: oklch(0.68 0 0);
-  --accent: oklch(0.55 0.06 195);
-  --accent-foreground: oklch(0.95 0 0);
+  --accent: oklch(0.74 0.09 80);
+  --accent-foreground: oklch(0.16 0.025 260);
   --destructive: oklch(0.55 0.2 18);
   --border: oklch(0.38 0.01 260);
   --border-accent: oklch(0.55 0.08 80);
