@@ -1149,8 +1149,8 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         </Popover>
       )}
 
-      {/* Quick-add palette (browse/select modes) */}
-      {!isAddMode && addTarget && (
+      {/* Quick-add palette — available in all modes */}
+      {addTarget && (
         <QuickAddPalette
           open={quickAddOpen}
           onOpenChange={setQuickAddOpen}
