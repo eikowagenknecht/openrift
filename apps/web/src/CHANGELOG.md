@@ -7,6 +7,8 @@
 ## 2026-05-19
 
 - feat: The quick-add keyboard palette now opens in a collection's add mode too, so the same keyboard flow works no matter which mode the collection is in
+- fix: Card search inputs in the quick-add palette and the deck and collection import flows no longer zoom the page on iPhone when you tap into them
+- fix: Deck and collection import rows now wrap on mobile, so the search box and zone picker no longer push past the edge of the screen
 
 ## 2026-05-18
 

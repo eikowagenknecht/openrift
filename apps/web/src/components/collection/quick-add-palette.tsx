@@ -351,7 +351,7 @@ function PaletteInner({
           onKeyDown={handleKeyDown}
           placeholder={`Add to "${collectionName}"...`}
           className={cn(
-            "placeholder:text-muted-foreground h-11 w-full bg-transparent pl-10 text-sm outline-none",
+            "placeholder:text-muted-foreground h-11 w-full bg-transparent pl-10 text-base outline-none sm:text-sm",
             query ? "pr-9" : "pr-3",
           )}
           autoFocus // oxlint-disable-line jsx-a11y/no-autofocus -- command palette, always focused on open

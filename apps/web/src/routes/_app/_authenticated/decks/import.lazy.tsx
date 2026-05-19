@@ -1,6 +1,5 @@
 import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion";
 import type { DeckFormat, DeckResponse, DeckZone, Printing } from "@openrift/shared";
-import { useDebouncedValue } from "@tanstack/react-pacer";
 import { useQuery } from "@tanstack/react-query";
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import {
@@ -12,9 +11,11 @@ import {
   UploadIcon,
   XCircleIcon,
 } from "lucide-react";
-import { useId, useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
+import { ImportCatalogSearch } from "@/components/import/import-catalog-search";
+import { ImportRowRawFields, ImportRowShell } from "@/components/import/import-row-shell";
 import { Accordion, AccordionContent, AccordionItem } from "@/components/ui/accordion";
 import {
   AlertDialog,
@@ -778,92 +779,72 @@ function DeckImportEntryRow({
       value={String(index)}
       className={cn("not-last:border-b-0", isSkipped && "opacity-40")}
     >
-      <div className="flex items-center gap-3 px-4 py-2.5 text-sm">
-        <AccordionPrimitive.Header className="flex">
-          <AccordionPrimitive.Trigger
-            className="text-muted-foreground hover:text-foreground shrink-0 outline-none"
-            disabled={rawFieldEntries.length === 0}
-          >
-            <ChevronRightIcon className="size-4 transition-transform data-[panel-open]:rotate-90" />
-          </AccordionPrimitive.Trigger>
-        </AccordionPrimitive.Header>
-
-        <StatusIcon className={cn("size-4 shrink-0", statusColor)} />
-
-        <span className="text-muted-foreground w-10 shrink-0 text-right tabular-nums">
-          {entry.entry.quantity}&times;
-        </span>
-
-        {entry.entry.shortCode && (
-          <span className="text-muted-foreground shrink-0 text-xs">{entry.entry.shortCode}</span>
-        )}
-
-        <span className="min-w-0 flex-1 truncate font-medium">
-          {displayName}
-          <span className="text-muted-foreground ml-1.5 text-xs font-normal">
-            {zoneLabels[entry.zone]}
-          </span>
-        </span>
-
-        <div className="flex shrink-0 items-center gap-2">
-          {entry.suggestedName && (
-            <span className="text-muted-foreground text-xs">
-              Did you mean <em>{entry.suggestedName}</em>?
-            </span>
-          )}
-
-          {showSearch ? (
-            <CardSearch
-              allPrintings={allPrintings}
-              onSelect={(card) => {
-                onResolve(index, card);
-                setShowSearch(false);
-              }}
-            />
-          ) : null}
-
-          <Button
-            variant="ghost"
-            size="xs"
-            onClick={() => setShowSearch(!showSearch)}
-            aria-label={showSearch ? "Close search" : "Search catalog"}
-          >
-            {showSearch ? (
-              <XCircleIcon className="size-3.5" />
-            ) : (
-              <SearchIcon className="size-3.5" />
+      <ImportRowShell
+        chevron={
+          <AccordionPrimitive.Header className="flex">
+            <AccordionPrimitive.Trigger
+              className="text-muted-foreground hover:text-foreground shrink-0 outline-none"
+              disabled={rawFieldEntries.length === 0}
+              aria-label="Toggle raw fields"
+            >
+              <ChevronRightIcon className="size-4 transition-transform data-[panel-open]:rotate-90" />
+            </AccordionPrimitive.Trigger>
+          </AccordionPrimitive.Header>
+        }
+        statusIcon={<StatusIcon className={cn("size-4 shrink-0", statusColor)} />}
+        quantity={entry.entry.quantity}
+        code={entry.entry.shortCode}
+        name={displayName}
+        nameSuffix={zoneLabels[entry.zone]}
+        actions={
+          <>
+            {entry.suggestedName && (
+              <span className="text-muted-foreground text-xs">
+                Did you mean <em>{entry.suggestedName}</em>?
+              </span>
             )}
-          </Button>
-
-          <ZonePicker
-            zone={entry.zone}
-            zoneOrder={zoneOrder}
-            zoneLabels={zoneLabels}
-            onZoneChange={(zone) => onZoneChange(index, zone)}
-          />
-
-          {isSkipped ? (
-            <Button variant="ghost" size="xs" onClick={() => onUnskip(index)}>
-              Unskip
+            {showSearch ? (
+              <CardSearch
+                allPrintings={allPrintings}
+                onSelect={(card) => {
+                  onResolve(index, card);
+                  setShowSearch(false);
+                }}
+              />
+            ) : null}
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => setShowSearch(!showSearch)}
+              aria-label={showSearch ? "Close search" : "Search catalog"}
+            >
+              {showSearch ? (
+                <XCircleIcon className="size-3.5" />
+              ) : (
+                <SearchIcon className="size-3.5" />
+              )}
             </Button>
-          ) : (
-            <Button variant="ghost" size="xs" onClick={() => onSkip(index)}>
-              Skip
-            </Button>
-          )}
-        </div>
-      </div>
-
+            <ZonePicker
+              zone={entry.zone}
+              zoneOrder={zoneOrder}
+              zoneLabels={zoneLabels}
+              onZoneChange={(zone) => onZoneChange(index, zone)}
+            />
+            {isSkipped ? (
+              <Button variant="ghost" size="xs" onClick={() => onUnskip(index)}>
+                Unskip
+              </Button>
+            ) : (
+              <Button variant="ghost" size="xs" onClick={() => onSkip(index)}>
+                Skip
+              </Button>
+            )}
+          </>
+        }
+      />
       {rawFieldEntries.length > 0 && (
         <AccordionContent className="bg-muted/30 border-border border-t px-4 py-2">
-          <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
-            {rawFieldEntries.map(([key, value]) => (
-              <div key={key}>
-                <span className="text-muted-foreground">{key}: </span>
-                <span>{value}</span>
-              </div>
-            ))}
-          </div>
+          <ImportRowRawFields entries={rawFieldEntries} />
         </AccordionContent>
       )}
     </AccordionItem>
@@ -912,6 +893,8 @@ function ZonePicker({
 // Card search (for correction UI)
 // ---------------------------------------------------------------------------
 
+const MAX_SEARCH_RESULTS = 20;
+
 function CardSearch({
   allPrintings,
   onSelect,
@@ -919,138 +902,20 @@ function CardSearch({
   allPrintings: Printing[];
   onSelect: (card: ResolvedCard) => void;
 }) {
-  const [search, setSearch] = useState("");
-  const [showResults, setShowResults] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(-1);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-  const listboxId = useId();
-  const [debouncedSearch] = useDebouncedValue(search, { wait: 150 });
-
-  // Deduplicate to unique cards (not printings)
-  const results =
-    debouncedSearch.length >= 2
-      ? deduplicateToCards(allPrintings, debouncedSearch).slice(0, 20)
-      : [];
-
-  const visible = showResults && search.length >= 2;
-  const activeOptionId = activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined;
-
-  function scrollActiveIntoView(index: number) {
-    const item = listRef.current?.children[index] as HTMLElement | undefined;
-    if (item) {
-      item.scrollIntoView({ block: "nearest" });
-    }
-  }
-
-  function handleKeyDown(event: React.KeyboardEvent) {
-    if (!visible || results.length === 0) {
-      return;
-    }
-
-    switch (event.key) {
-      case "ArrowDown": {
-        event.preventDefault();
-        const next = activeIndex < results.length - 1 ? activeIndex + 1 : 0;
-        setActiveIndex(next);
-        scrollActiveIntoView(next);
-        break;
-      }
-      case "ArrowUp": {
-        event.preventDefault();
-        const prev = activeIndex > 0 ? activeIndex - 1 : results.length - 1;
-        setActiveIndex(prev);
-        scrollActiveIntoView(prev);
-        break;
-      }
-      case "Enter": {
-        event.preventDefault();
-        if (activeIndex >= 0 && activeIndex < results.length) {
-          onSelect(results[activeIndex]);
-          setShowResults(false);
-          setActiveIndex(-1);
-        }
-        break;
-      }
-      case "Escape": {
-        event.preventDefault();
-        setShowResults(false);
-        setActiveIndex(-1);
-        break;
-      }
-    }
-  }
-
   return (
-    <div className="relative" ref={containerRef}>
-      <input
-        role="combobox"
-        aria-label="Search cards"
-        aria-expanded={visible && results.length > 0}
-        aria-controls={listboxId}
-        aria-activedescendant={activeOptionId}
-        aria-autocomplete="list"
-        placeholder="Search cards..."
-        value={search}
-        onChange={(event) => {
-          setSearch(event.target.value);
-          setShowResults(true);
-          setActiveIndex(-1);
-        }}
-        onFocus={() => setShowResults(true)}
-        onBlur={(event) => {
-          if (!containerRef.current?.contains(event.relatedTarget)) {
-            setShowResults(false);
-            setActiveIndex(-1);
-          }
-        }}
-        onKeyDown={handleKeyDown}
-        className="border-input bg-background placeholder:text-muted-foreground focus:ring-ring h-7 w-44 rounded-md border px-2 text-xs focus:ring-1 focus:outline-none"
-      />
-      {visible && results.length > 0 && (
-        <div
-          ref={listRef}
-          id={listboxId}
-          // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- ARIA combobox pattern with autocomplete
-          role="listbox"
-          className="bg-popover absolute top-full right-0 z-50 mt-1 max-h-60 w-max min-w-full overflow-y-auto rounded-md border shadow-md"
-        >
-          {results.map((card, resultIndex) => (
-            <button
-              key={card.cardId}
-              id={`${listboxId}-option-${resultIndex}`}
-              role="option"
-              aria-selected={resultIndex === activeIndex}
-              type="button"
-              className={cn(
-                "flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs",
-                resultIndex === activeIndex ? "bg-muted" : "hover:bg-muted",
-              )}
-              onMouseDown={(event) => event.preventDefault()}
-              onMouseEnter={() => setActiveIndex(resultIndex)}
-              onClick={() => {
-                onSelect(card);
-                setShowResults(false);
-                setActiveIndex(-1);
-              }}
-            >
-              <span className="truncate font-medium">{card.cardName}</span>
-              <span className="text-muted-foreground shrink-0">{card.shortCode}</span>
-            </button>
-          ))}
-        </div>
+    <ImportCatalogSearch<ResolvedCard>
+      ariaLabel="Search cards"
+      placeholder="Search cards..."
+      getResults={(query) => deduplicateToCards(allPrintings, query).slice(0, MAX_SEARCH_RESULTS)}
+      getKey={(card) => card.cardId}
+      renderItem={(card) => (
+        <>
+          <span className="truncate font-medium">{card.cardName}</span>
+          <span className="text-muted-foreground shrink-0">{card.shortCode}</span>
+        </>
       )}
-      {visible && results.length === 0 && (
-        <div
-          id={listboxId}
-          // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- ARIA combobox pattern with autocomplete
-          role="listbox"
-          className="bg-popover absolute top-full right-0 z-50 mt-1 w-full rounded-md border px-3 py-2 shadow-md"
-        >
-          <p className="text-muted-foreground text-xs">No matching cards</p>
-        </div>
-      )}
-    </div>
+      onSelect={onSelect}
+    />
   );
 }
 

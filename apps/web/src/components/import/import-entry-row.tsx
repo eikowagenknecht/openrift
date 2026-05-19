@@ -13,6 +13,7 @@ import { useRef, useState } from "react";
 import { PrintingHoverPreview } from "@/components/cards/printing-hover-preview";
 import { PrintingOptionContent } from "@/components/cards/printing-option-content";
 import { usePrintingHover } from "@/components/cards/use-printing-hover";
+import { ImportRowRawFields, ImportRowShell } from "@/components/import/import-row-shell";
 import { PrintingSearch, formatImportPrintingLabel } from "@/components/printing-search";
 import { Button } from "@/components/ui/button";
 import {
@@ -65,90 +66,71 @@ export function ImportEntryRow({
 
   return (
     <div className={cn(isSkipped && "opacity-40")}>
-      <div className="flex items-center gap-3 px-4 py-2.5 text-sm">
-        <button
-          type="button"
-          className="text-muted-foreground hover:text-foreground shrink-0"
-          onClick={() => onToggleExpand(index)}
-        >
-          <ChevronIcon className="size-4" />
-        </button>
-
-        <StatusIcon className={cn("size-4 shrink-0", statusColor)} />
-
-        <span className="text-muted-foreground w-10 shrink-0 text-right tabular-nums">
-          {entry.entry.quantity}&times;
-        </span>
-
-        {entry.entry.sourceCode && (
-          <span className="text-muted-foreground shrink-0 text-xs">{entry.entry.sourceCode}</span>
-        )}
-
-        <span className="min-w-0 flex-1 truncate font-medium">
-          {entry.entry.cardName}
-          {specialties && (
-            <span className="text-muted-foreground ml-1.5 text-xs font-normal">{specialties}</span>
-          )}
-        </span>
-
-        <div className="flex shrink-0 items-center gap-2">
-          {entry.suggestedName && (
-            <span className="text-muted-foreground text-xs">
-              Did you mean <em>{entry.suggestedName}</em>?
-            </span>
-          )}
-
-          {showSearch ? (
-            <PrintingSearch
-              allPrintings={allPrintings}
-              onSelect={(printing) => {
-                onResolve(index, printing);
-                setShowSearch(false);
-              }}
-            />
-          ) : hasCandidates ? (
-            <VariantPicker
-              candidates={entry.candidates}
-              resolved={entry.resolvedPrinting}
-              onSelect={(printing) => onResolve(index, printing)}
-            />
-          ) : null}
-
-          <Button
-            variant="ghost"
-            size="xs"
-            onClick={() => setShowSearch(!showSearch)}
-            aria-label={showSearch ? "Close search" : "Search catalog"}
+      <ImportRowShell
+        chevron={
+          <button
+            type="button"
+            className="text-muted-foreground hover:text-foreground shrink-0"
+            onClick={() => onToggleExpand(index)}
+            aria-label={isExpanded ? "Collapse raw fields" : "Expand raw fields"}
           >
-            {showSearch ? (
-              <XCircleIcon className="size-3.5" />
-            ) : (
-              <SearchIcon className="size-3.5" />
+            <ChevronIcon className="size-4" />
+          </button>
+        }
+        statusIcon={<StatusIcon className={cn("size-4 shrink-0", statusColor)} />}
+        quantity={entry.entry.quantity}
+        code={entry.entry.sourceCode}
+        name={entry.entry.cardName}
+        nameSuffix={specialties}
+        actions={
+          <>
+            {entry.suggestedName && (
+              <span className="text-muted-foreground text-xs">
+                Did you mean <em>{entry.suggestedName}</em>?
+              </span>
             )}
-          </Button>
-
-          {isSkipped ? (
-            <Button variant="ghost" size="xs" onClick={() => onUnskip(index)}>
-              Unskip
+            {showSearch ? (
+              <PrintingSearch
+                allPrintings={allPrintings}
+                onSelect={(printing) => {
+                  onResolve(index, printing);
+                  setShowSearch(false);
+                }}
+              />
+            ) : hasCandidates ? (
+              <VariantPicker
+                candidates={entry.candidates}
+                resolved={entry.resolvedPrinting}
+                onSelect={(printing) => onResolve(index, printing)}
+              />
+            ) : null}
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => setShowSearch(!showSearch)}
+              aria-label={showSearch ? "Close search" : "Search catalog"}
+            >
+              {showSearch ? (
+                <XCircleIcon className="size-3.5" />
+              ) : (
+                <SearchIcon className="size-3.5" />
+              )}
             </Button>
-          ) : (
-            <Button variant="ghost" size="xs" onClick={() => onSkip(index)}>
-              Skip
-            </Button>
-          )}
-        </div>
-      </div>
-
+            {isSkipped ? (
+              <Button variant="ghost" size="xs" onClick={() => onUnskip(index)}>
+                Unskip
+              </Button>
+            ) : (
+              <Button variant="ghost" size="xs" onClick={() => onSkip(index)}>
+                Skip
+              </Button>
+            )}
+          </>
+        }
+      />
       {isExpanded && rawFieldEntries.length > 0 && (
         <div className="bg-muted/30 border-border border-t px-4 py-2">
-          <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
-            {rawFieldEntries.map(([key, value]) => (
-              <div key={key}>
-                <span className="text-muted-foreground">{key}: </span>
-                <span>{value}</span>
-              </div>
-            ))}
-          </div>
+          <ImportRowRawFields entries={rawFieldEntries} />
         </div>
       )}
     </div>
