@@ -337,17 +337,58 @@ export function catalogRepo(db: Kysely<Database>) {
     },
 
     /**
-     * @returns All printings for a given card ID in canonical order (see
-     * `printings_ordered` view). `printings[0]` is the canonical default
-     * printing for SSR meta tags and the UI's initially-selected printing.
+     * @returns All printings for a given card ID in canonical order.
+     * `printings[0]` is the canonical default printing for SSR meta tags
+     * and the UI's initially-selected printing.
+     *
+     * The ordering expression mirrors the `printings_ordered` view, but the
+     * row_number is computed only over the matching subset so the
+     * `idx_printings_card_id` index can be used. `canonicalRank` is therefore
+     * per-card monotonic (1, 2, 3 …) — consumers only use it as a within-card
+     * tiebreaker, so the smaller values are semantically equivalent.
      */
     printingsByCardId(cardId: string): Promise<CatalogPrintingRow[]> {
       return db
-        .selectFrom("printingsOrdered")
-        .select(PRINTING_VIEW_COLUMNS)
-        .where("printingsOrdered.cardId", "=", cardId)
-        .orderBy("printingsOrdered.canonicalRank")
-        .execute();
+        .selectFrom("printings as p")
+        .innerJoin("sets as s", "s.id", "p.setId")
+        .innerJoin("finishes as f", "f.slug", "p.finish")
+        .innerJoin("languages as l", "l.code", "p.language")
+        .select([
+          "p.id",
+          "p.cardId",
+          "p.setId",
+          "p.shortCode",
+          "p.rarity",
+          "p.artVariant",
+          "p.isSigned",
+          "p.finish",
+          "p.artist",
+          "p.publicCode",
+          "p.printedRulesText",
+          "p.printedEffectText",
+          "p.flavorText",
+          "p.printedName",
+          "p.printedYear",
+          "p.language",
+          "p.markerSlugs",
+          "p.comment",
+          sql<number>`(row_number() OVER (
+            ORDER BY
+              l.sort_order,
+              s.sort_order,
+              p.short_code,
+              array_length(p.marker_slugs, 1) IS NOT NULL,
+              COALESCE(
+                (SELECT MIN(m.sort_order) FROM markers m
+                 WHERE m.slug = ANY(p.marker_slugs)),
+                0
+              ),
+              f.sort_order
+          ))::int`.as("canonicalRank"),
+        ])
+        .where("p.cardId", "=", cardId)
+        .orderBy("canonicalRank")
+        .execute() as Promise<CatalogPrintingRow[]>;
     },
 
     /** @returns Printing images for a given card's printings. */
