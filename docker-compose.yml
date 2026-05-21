@@ -3,7 +3,7 @@
 services:
   # PostgreSQL database.
   db:
-    image: postgres:18.3-alpine
+    image: postgres:18.4-alpine
     user: "${UID:-1000}:${GID:-1000}"
     command: >
       postgres
