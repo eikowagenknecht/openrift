@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-05-23
+
+- fix: The app no longer shows an error page on some iOS Safari setups (older versions, in-app browsers, privacy proxies) where the browser strips the headers used for CSRF protection
+
 ## 2026-05-18
 
 - feat: Decks now have an editable description that shows above the overview. Open the deck's actions menu and pick "Edit description" to add notes, strategy, or mulligan tips. Markdown is supported (links, lists, bold, italics, inline code)
