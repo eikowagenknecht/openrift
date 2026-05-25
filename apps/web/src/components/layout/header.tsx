@@ -21,6 +21,7 @@ import {
   SparklesIcon,
   SunIcon,
   UserIcon,
+  UsersIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -55,6 +56,7 @@ import {
 } from "@/components/ui/sheet";
 import { useIsAdmin } from "@/hooks/use-admin";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
+import { useFriendGroupPendingInvitesCount } from "@/hooks/use-friend-groups";
 import { signOut } from "@/lib/auth-client";
 import { sessionQueryOptions, useSession } from "@/lib/auth-session";
 import { useGravatarUrl } from "@/lib/gravatar";
@@ -208,16 +210,28 @@ function DesktopNav({
 function UserMenuTrigger({
   user,
   gravatarUrl,
+  pendingInvites,
 }: {
   user: { name: string; email: string } | undefined;
   gravatarUrl: string | undefined;
+  pendingInvites: number;
 }) {
   if (user) {
     return (
-      <Avatar size="sm">
-        {gravatarUrl && <AvatarImage src={gravatarUrl} alt={user.name ?? user.email} />}
-        <AvatarFallback>{getUserInitials(user.name, user.email)}</AvatarFallback>
-      </Avatar>
+      <div className="relative">
+        <Avatar size="sm">
+          {gravatarUrl && <AvatarImage src={gravatarUrl} alt={user.name ?? user.email} />}
+          <AvatarFallback>{getUserInitials(user.name, user.email)}</AvatarFallback>
+        </Avatar>
+        {pendingInvites > 0 && (
+          <span
+            aria-label={`${pendingInvites} pending invites`}
+            className="bg-primary text-primary-foreground absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full text-[10px] font-medium"
+          >
+            {pendingInvites > 9 ? "9+" : pendingInvites}
+          </span>
+        )}
+      </div>
     );
   }
   return <EllipsisVerticalIcon className="size-5" />;
@@ -228,6 +242,8 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
   const darkMode = theme === "dark";
   const { data: isAdmin } = useIsAdmin();
+  const { data: pendingInvitesData } = useFriendGroupPendingInvitesCount({ enabled: isLoggedIn });
+  const pendingInvites = pendingInvitesData?.count ?? 0;
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -256,6 +272,17 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
         <DropdownMenuItem render={<Link to="/profile" />}>
           <UserIcon className="size-4" />
           Profile
+        </DropdownMenuItem>
+      )}
+      {isLoggedIn && (
+        <DropdownMenuItem render={<Link to="/groups" />}>
+          <UsersIcon className="size-4" />
+          Friend groups
+          {pendingInvites > 0 && (
+            <span className="bg-primary text-primary-foreground ml-auto rounded-full px-1.5 text-[10px] font-medium">
+              {pendingInvites}
+            </span>
+          )}
         </DropdownMenuItem>
       )}
       {isLoggedIn && isAdmin && (
@@ -303,6 +330,10 @@ function UserMenu({
   isPending: boolean;
   gravatarUrl: string | undefined;
 }) {
+  const isLoggedIn = Boolean(session?.user);
+  const { data: pendingInvitesData } = useFriendGroupPendingInvitesCount({ enabled: isLoggedIn });
+  const pendingInvites = pendingInvitesData?.count ?? 0;
+
   if (isPending) {
     return <div className="size-8" />;
   }
@@ -322,9 +353,9 @@ function UserMenu({
       )}
       <DropdownMenu>
         <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Menu" />}>
-          <UserMenuTrigger user={user} gravatarUrl={gravatarUrl} />
+          <UserMenuTrigger user={user} gravatarUrl={gravatarUrl} pendingInvites={pendingInvites} />
         </DropdownMenuTrigger>
-        <UserMenuItems isLoggedIn={Boolean(user)} />
+        <UserMenuItems isLoggedIn={isLoggedIn} />
       </DropdownMenu>
     </div>
   );

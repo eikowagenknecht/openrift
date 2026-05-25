@@ -72,5 +72,16 @@ export function usersRepo(db: Kysely<Database>) {
         lastActiveAt: r.lastActiveAt,
       }));
     },
+
+    /** @returns The user row matched by email (case-sensitive), or `undefined`. */
+    getByEmail(
+      email: string,
+    ): Promise<{ id: string; name: string | null; image: string | null } | undefined> {
+      return db
+        .selectFrom("users")
+        .select(["id", "name", "image"])
+        .where("email", "=", email)
+        .executeTakeFirst();
+    },
   };
 }

@@ -94,6 +94,30 @@ export type {
 } from "./list.js";
 
 export type {
+  FriendGroupDetailResponse,
+  FriendGroupInviteDirection,
+  FriendGroupJoinPreviewResponse,
+  FriendGroupJoinViewerStatus,
+  FriendGroupListResponse,
+  FriendGroupMatchesResponse,
+  FriendGroupMatchRow,
+  FriendGroupMemberDetailResponse,
+  FriendGroupMemberResponse,
+  FriendGroupPendingInviteResponse,
+  FriendGroupPendingInvitesCountResponse,
+  FriendGroupRequestResponse,
+  FriendGroupResponse,
+  FriendGroupRole,
+  FriendGroupShareResponse,
+  FriendGroupShareableListResponse,
+  FriendGroupShareableListsResponse,
+  FriendGroupSharedListDetailResponse,
+  FriendGroupSummaryResponse,
+  FriendGroupViewerStatus,
+  ListGroupSharesResponse,
+} from "./friend-group.js";
+
+export type {
   AnySnapshot,
   CardmarketSnapshot,
   CardtraderSnapshot,

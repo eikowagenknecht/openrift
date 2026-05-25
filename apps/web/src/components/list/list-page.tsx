@@ -39,6 +39,7 @@ import { ListEntryContextMenu } from "@/components/list/list-entry-context-menu"
 import { ListEntryQuantityStrip } from "@/components/list/list-entry-quantity-strip";
 import { ListEntryTableActions } from "@/components/list/list-entry-table-actions";
 import { ListExportDialog } from "@/components/list/list-export-dialog";
+import { ListGroupSharesBadge } from "@/components/list/list-group-shares-badge";
 import { ListImportDialog } from "@/components/list/list-import-dialog";
 import { ListShareDialog } from "@/components/list/list-share-dialog";
 import { ListValueLabel } from "@/components/list/list-value-label";
@@ -263,6 +264,7 @@ export function ListPage({ listId }: ListPageProps) {
           {hydrated && entriesCount > 0 && (
             <ListValueLabel kind={data.list.kind} entries={data.entries} />
           )}
+          {hydrated && <ListGroupSharesBadge listId={listId} />}
         </div>
       )}
       <PageTopBarActions>

@@ -6,6 +6,7 @@
 
 ## 2026-05-19
 
+- feat: Friend groups are now live. Create or join a small group at Friend groups in the avatar menu, share your buy or sell lists with each group, and the group page shows live matches: who has the cards you want, and who wants the cards you have. Trades still happen off-app — set a per-group nickname for your contact info.
 - feat: Highlight color on popover and dropdown menu items now uses the brand gold for better contrast in dark mode
 - feat: The quick-add keyboard palette now opens in a collection's add mode too, so the same keyboard flow works no matter which mode the collection is in
 - fix: Card search inputs in the quick-add palette and the deck and collection import flows no longer zoom the page on iPhone when you tap into them

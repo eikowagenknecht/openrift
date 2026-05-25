@@ -871,3 +871,195 @@ export const collectionValueHistoryResponseSchema = z
     ),
   })
   .openapi("CollectionValueHistoryResponse");
+
+// ── Friend groups (ADR-013) ─────────────────────────────────────────────────
+
+const friendGroupRoleSchema = z.enum(["owner", "admin", "member"]).openapi("FriendGroupRole");
+
+export const friendGroupResponseSchema = z
+  .object({
+    id: z.string(),
+    slug: z.string(),
+    name: z.string(),
+    description: z.string().nullable(),
+    /** Nullable when the group has disabled code-based joining. */
+    code: z.string().nullable(),
+    codeRotatedAt: z.string(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  })
+  .openapi("FriendGroupResponse");
+
+export const friendGroupSummaryResponseSchema = friendGroupResponseSchema
+  .extend({
+    viewerRole: friendGroupRoleSchema,
+    memberCount: z.number().int().nonnegative(),
+    pendingRequestCount: z.number().int().nonnegative(),
+  })
+  .openapi("FriendGroupSummaryResponse");
+
+export const friendGroupListResponseSchema = z
+  .object({
+    items: z.array(friendGroupSummaryResponseSchema),
+    pendingInvites: z.array(
+      z.object({
+        id: z.string(),
+        groupId: z.string(),
+        groupSlug: z.string(),
+        groupName: z.string(),
+        createdAt: z.string(),
+      }),
+    ),
+  })
+  .openapi("FriendGroupListResponse");
+
+export const friendGroupMemberResponseSchema = z
+  .object({
+    userId: z.string(),
+    userName: z.string().nullable(),
+    userImage: z.string().nullable(),
+    role: friendGroupRoleSchema,
+    nickname: z.string().nullable(),
+    joinedAt: z.string(),
+  })
+  .openapi("FriendGroupMemberResponse");
+
+const friendGroupShareResponseSchema = z
+  .object({
+    groupId: z.string(),
+    listId: z.string(),
+    listName: z.string(),
+    listIntent: z.enum(["buy", "sell", "organize"]),
+    listKind: z.enum(["card", "printing", "copy"]),
+    userId: z.string(),
+    userName: z.string().nullable(),
+    sharedAt: z.string(),
+  })
+  .openapi("FriendGroupShareResponse");
+
+export const friendGroupRequestResponseSchema = z
+  .object({
+    id: z.string(),
+    userId: z.string(),
+    userName: z.string().nullable(),
+    userImage: z.string().nullable(),
+    createdAt: z.string(),
+  })
+  .openapi("FriendGroupRequestResponse");
+
+const friendGroupViewerStatusSchema = z
+  .enum(["member", "pending"])
+  .openapi("FriendGroupViewerStatus");
+
+export const friendGroupDetailResponseSchema = z
+  .object({
+    group: friendGroupResponseSchema,
+    viewerStatus: friendGroupViewerStatusSchema,
+    viewerRole: friendGroupRoleSchema.nullable(),
+    members: z.array(friendGroupMemberResponseSchema),
+    shares: z.array(friendGroupShareResponseSchema),
+    pendingRequests: z.array(friendGroupRequestResponseSchema),
+  })
+  .openapi("FriendGroupDetailResponse");
+
+export const friendGroupJoinPreviewResponseSchema = z
+  .object({
+    id: z.string(),
+    slug: z.string(),
+    name: z.string(),
+    description: z.string().nullable(),
+    memberCount: z.number().int().nonnegative(),
+    ownerName: z.string().nullable(),
+    /**
+     * `"member"` if the viewer is already in. `"pending"` if a request is
+     * already queued. `"available"` otherwise.
+     */
+    viewerStatus: z.enum(["available", "pending", "member"]),
+  })
+  .openapi("FriendGroupJoinPreviewResponse");
+
+export const friendGroupShareableListResponseSchema = z
+  .object({
+    listId: z.string(),
+    listName: z.string(),
+    listIntent: z.enum(["buy", "sell", "organize"]),
+    listKind: z.enum(["card", "printing", "copy"]),
+    sharedAt: z.string().nullable(),
+  })
+  .openapi("FriendGroupShareableListResponse");
+
+export const friendGroupShareableListsResponseSchema = z
+  .object({ items: z.array(friendGroupShareableListResponseSchema) })
+  .openapi("FriendGroupShareableListsResponse");
+
+const friendGroupMatchRowSchema = z
+  .object({
+    counterpartyUserId: z.string(),
+    counterpartyName: z.string().nullable(),
+    counterpartyImage: z.string().nullable(),
+    counterpartyNickname: z.string().nullable(),
+    counterpartyListId: z.string(),
+    counterpartyListName: z.string(),
+    sellEntryId: z.string(),
+    sellListId: z.string(),
+    copyId: z.string(),
+    printingId: z.string(),
+    cardId: z.string(),
+    cardName: z.string(),
+    cardType: cardTypeSchema,
+    setId: z.string(),
+    rarity: raritySchema,
+    finish: finishSchema,
+    imageId: imageIdSchema.nullable(),
+    buyEntryId: z.string(),
+    buyListId: z.string(),
+    buyEntryKind: z.enum(["card", "printing"]),
+    buyQuantity: z.number().int().nonnegative(),
+  })
+  .openapi("FriendGroupMatchRow");
+
+export const friendGroupMatchesResponseSchema = z
+  .object({
+    othersHaveYourWants: z.array(friendGroupMatchRowSchema),
+    othersWantYourHaves: z.array(friendGroupMatchRowSchema),
+  })
+  .openapi("FriendGroupMatchesResponse");
+
+export const friendGroupMemberDetailResponseSchema = z
+  .object({
+    member: friendGroupMemberResponseSchema,
+    shares: z.array(friendGroupShareResponseSchema),
+    matches: z.array(friendGroupMatchRowSchema),
+    reverseMatches: z.array(friendGroupMatchRowSchema),
+  })
+  .openapi("FriendGroupMemberDetailResponse");
+
+export const friendGroupPendingInvitesCountResponseSchema = z
+  .object({ count: z.number().int().nonnegative() })
+  .openapi("FriendGroupPendingInvitesCountResponse");
+
+export const listGroupSharesResponseSchema = z
+  .object({
+    items: z.array(
+      z.object({
+        groupId: z.string(),
+        groupSlug: z.string(),
+        groupName: z.string(),
+      }),
+    ),
+  })
+  .openapi("ListGroupSharesResponse");
+
+export const friendGroupSharedListDetailResponseSchema = z
+  .object({
+    list: z.object({
+      id: z.string(),
+      name: z.string(),
+      intent: z.enum(["buy", "sell", "organize"]),
+      kind: z.enum(["card", "printing", "copy"]),
+      ownerUserId: z.string(),
+      ownerName: z.string().nullable(),
+    }),
+    entries: z.array(listEntryDetailResponseSchema),
+  })
+  .openapi("FriendGroupSharedListDetailResponse");

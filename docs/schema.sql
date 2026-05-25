@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict glhveMztaLVlraH2SHZfH5gziTmr3M0GLqB5Lt7xiS92TNSwzMFfeZFqWruAy2m
+\restrict qfWbW3hYdvhMw1DPfwktbOoluuCwAFg3mbc0KaSxVLFmN5Fkb0PKnN9grXLGePQ
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -216,6 +216,39 @@ CREATE FUNCTION public.protect_well_known_keyword() RETURNS trigger
         END IF;
       END IF;
       RETURN COALESCE(NEW, OLD);
+    END;
+    $$;
+
+
+--
+-- Name: rebalance_friend_group_owner(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.rebalance_friend_group_owner() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+    DECLARE
+      successor RECORD;
+    BEGIN
+      IF OLD.role <> 'owner' THEN
+        RETURN OLD;
+      END IF;
+
+      SELECT user_id INTO successor
+      FROM friend_group_members
+      WHERE group_id = OLD.group_id
+      ORDER BY (role = 'admin') DESC, joined_at ASC
+      LIMIT 1;
+
+      IF FOUND THEN
+        UPDATE friend_group_members
+           SET role = 'owner'
+         WHERE group_id = OLD.group_id AND user_id = successor.user_id;
+      ELSE
+        DELETE FROM friend_groups WHERE id = OLD.group_id;
+      END IF;
+
+      RETURN OLD;
     END;
     $$;
 
@@ -848,6 +881,66 @@ CREATE TABLE public.formats (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT chk_formats_id_not_empty CHECK ((id <> ''::text)),
     CONSTRAINT chk_formats_name_not_empty CHECK ((name <> ''::text))
+);
+
+
+--
+-- Name: friend_group_invites; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.friend_group_invites (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    group_id uuid NOT NULL,
+    user_id text NOT NULL,
+    direction text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_friend_group_invites_direction CHECK ((direction = ANY (ARRAY['invite'::text, 'request'::text])))
+);
+
+
+--
+-- Name: friend_group_list_shares; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.friend_group_list_shares (
+    group_id uuid NOT NULL,
+    list_id uuid NOT NULL,
+    user_id text NOT NULL,
+    shared_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: friend_group_members; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.friend_group_members (
+    group_id uuid NOT NULL,
+    user_id text NOT NULL,
+    role text NOT NULL,
+    nickname text,
+    joined_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_friend_group_members_nickname CHECK (((nickname IS NULL) OR (length(nickname) <= 80))),
+    CONSTRAINT chk_friend_group_members_role CHECK ((role = ANY (ARRAY['owner'::text, 'admin'::text, 'member'::text])))
+);
+
+
+--
+-- Name: friend_groups; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.friend_groups (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    slug text NOT NULL,
+    name text NOT NULL,
+    description text,
+    code text,
+    code_rotated_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_friend_groups_description CHECK (((description IS NULL) OR (length(description) <= 500))),
+    CONSTRAINT chk_friend_groups_name CHECK (((length(name) >= 1) AND (length(name) <= 60))),
+    CONSTRAINT chk_friend_groups_slug CHECK ((slug ~ '^[a-z0-9][a-z0-9-]{2,29}$'::text))
 );
 
 
@@ -1803,6 +1896,46 @@ ALTER TABLE ONLY public.formats
 
 
 --
+-- Name: friend_group_invites friend_group_invites_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_invites
+    ADD CONSTRAINT friend_group_invites_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: friend_group_list_shares friend_group_list_shares_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_list_shares
+    ADD CONSTRAINT friend_group_list_shares_pkey PRIMARY KEY (group_id, list_id);
+
+
+--
+-- Name: friend_group_members friend_group_members_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_members
+    ADD CONSTRAINT friend_group_members_pkey PRIMARY KEY (group_id, user_id);
+
+
+--
+-- Name: friend_groups friend_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_groups
+    ADD CONSTRAINT friend_groups_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: friend_groups friend_groups_slug_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_groups
+    ADD CONSTRAINT friend_groups_slug_key UNIQUE (slug);
+
+
+--
 -- Name: ignored_candidate_cards ignored_candidate_cards_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2123,6 +2256,22 @@ ALTER TABLE ONLY public.decks
 
 
 --
+-- Name: friend_group_invites uq_friend_group_invites_group_user; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_invites
+    ADD CONSTRAINT uq_friend_group_invites_group_user UNIQUE (group_id, user_id);
+
+
+--
+-- Name: friend_group_members uq_friend_group_members_user_group; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_members
+    ADD CONSTRAINT uq_friend_group_members_user_group UNIQUE (user_id, group_id);
+
+
+--
 -- Name: keyword_translations uq_keyword_translations_keyword_language; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2343,6 +2492,34 @@ CREATE INDEX idx_distribution_channels_parent_id ON public.distribution_channels
 
 
 --
+-- Name: idx_friend_group_invites_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_friend_group_invites_user ON public.friend_group_invites USING btree (user_id);
+
+
+--
+-- Name: idx_friend_group_list_shares_group; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_friend_group_list_shares_group ON public.friend_group_list_shares USING btree (group_id);
+
+
+--
+-- Name: idx_friend_group_list_shares_list; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_friend_group_list_shares_list ON public.friend_group_list_shares USING btree (list_id);
+
+
+--
+-- Name: idx_friend_group_members_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_friend_group_members_user ON public.friend_group_members USING btree (user_id);
+
+
+--
 -- Name: idx_ignored_candidate_cards_provider_external; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2560,6 +2737,20 @@ CREATE UNIQUE INDEX uq_deck_cards ON public.deck_cards USING btree (deck_id, car
 
 
 --
+-- Name: uq_friend_group_one_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_friend_group_one_owner ON public.friend_group_members USING btree (group_id) WHERE (role = 'owner'::text);
+
+
+--
+-- Name: uq_friend_groups_code; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_friend_groups_code ON public.friend_groups USING btree (code) WHERE (code IS NOT NULL);
+
+
+--
 -- Name: uq_list_entries_card; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2714,6 +2905,13 @@ CREATE TRIGGER trg_rarities_protect_well_known BEFORE DELETE OR UPDATE ON public
 
 
 --
+-- Name: friend_group_members trg_rebalance_friend_group_owner; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_rebalance_friend_group_owner AFTER DELETE ON public.friend_group_members FOR EACH ROW EXECUTE FUNCTION public.rebalance_friend_group_owner();
+
+
+--
 -- Name: accounts trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -2802,6 +3000,13 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.distribution_channels 
 --
 
 CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.feature_flags FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: friend_groups trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.friend_groups FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -3193,6 +3398,14 @@ ALTER TABLE ONLY public.decks
 
 
 --
+-- Name: friend_group_list_shares fk_friend_group_list_shares_membership; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_list_shares
+    ADD CONSTRAINT fk_friend_group_list_shares_membership FOREIGN KEY (user_id, group_id) REFERENCES public.friend_group_members(user_id, group_id) ON DELETE CASCADE;
+
+
+--
 -- Name: list_entries fk_list_entries_copy_user; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3254,6 +3467,46 @@ ALTER TABLE ONLY public.printings
 
 ALTER TABLE ONLY public.printings
     ADD CONSTRAINT fk_printings_rarity FOREIGN KEY (rarity) REFERENCES public.rarities(slug);
+
+
+--
+-- Name: friend_group_invites friend_group_invites_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_invites
+    ADD CONSTRAINT friend_group_invites_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.friend_groups(id) ON DELETE CASCADE;
+
+
+--
+-- Name: friend_group_invites friend_group_invites_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_invites
+    ADD CONSTRAINT friend_group_invites_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: friend_group_list_shares friend_group_list_shares_list_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_list_shares
+    ADD CONSTRAINT friend_group_list_shares_list_id_fkey FOREIGN KEY (list_id) REFERENCES public.lists(id) ON DELETE CASCADE;
+
+
+--
+-- Name: friend_group_members friend_group_members_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_members
+    ADD CONSTRAINT friend_group_members_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.friend_groups(id) ON DELETE CASCADE;
+
+
+--
+-- Name: friend_group_members friend_group_members_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_members
+    ADD CONSTRAINT friend_group_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --
@@ -3476,5 +3729,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict glhveMztaLVlraH2SHZfH5gziTmr3M0GLqB5Lt7xiS92TNSwzMFfeZFqWruAy2m
+\unrestrict qfWbW3hYdvhMw1DPfwktbOoluuCwAFg3mbc0KaSxVLFmN5Fkb0PKnN9grXLGePQ
 

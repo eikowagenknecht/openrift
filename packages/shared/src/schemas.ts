@@ -254,6 +254,86 @@ const paletteEnum = z.enum(["default", "minimal"]);
 
 const defaultCardViewEnum = z.enum(["cards", "printings"]);
 
+// ---------------------------------------------------------------------------
+// Friend groups (ADR-013)
+// ---------------------------------------------------------------------------
+
+const friendGroupSlugSchema = z
+  .string()
+  .min(3)
+  .max(30)
+  .regex(/^[a-z0-9][a-z0-9-]+$/u, "Slug must be lowercase letters, digits, or dashes");
+
+/**
+ * Slugs that collide with app-level routes or obvious squat targets. Mirrored
+ * in the route layer for a clean 400 before the DB rejects.
+ */
+export const RESERVED_FRIEND_GROUP_SLUGS = new Set(["new", "join", "create", "settings", "admin"]);
+
+export const createFriendGroupSchema = z
+  .object({
+    slug: friendGroupSlugSchema,
+    name: z.string().min(1).max(60),
+    description: z.string().max(500).nullable().optional(),
+    /** `true` (default) generates a join code; `false` creates an invite-only group. */
+    generateCode: z.boolean().default(true),
+  })
+  .refine((data) => !RESERVED_FRIEND_GROUP_SLUGS.has(data.slug), {
+    message: "Slug is reserved",
+    path: ["slug"],
+  });
+
+export const updateFriendGroupSchema = z
+  .object({
+    slug: friendGroupSlugSchema.optional(),
+    name: z.string().min(1).max(60).optional(),
+    description: z.string().max(500).nullable().optional(),
+  })
+  .refine((data) => data.slug === undefined || !RESERVED_FRIEND_GROUP_SLUGS.has(data.slug), {
+    message: "Slug is reserved",
+    path: ["slug"],
+  });
+
+export const friendGroupSlugParamSchema = z.object({ slug: friendGroupSlugSchema });
+
+export const friendGroupCodeQuerySchema = z.object({
+  code: z.string().min(8).max(64),
+});
+
+export const friendGroupJoinByCodeSchema = z.object({
+  code: z.string().min(8).max(64),
+});
+
+export const friendGroupInviteByEmailSchema = z.object({
+  email: z.email().max(320),
+});
+
+export const friendGroupUpdateRoleSchema = z.object({
+  role: z.enum(["admin", "member"]),
+});
+
+export const friendGroupUpdateNicknameSchema = z.object({
+  nickname: z.string().max(80).nullable(),
+});
+
+export const friendGroupTransferOwnershipSchema = z.object({
+  userId: z.string().min(1),
+});
+
+export const friendGroupShareListSchema = z.object({
+  listId: z.uuid(),
+});
+
+export const friendGroupSlugAndUserParamSchema = z.object({
+  slug: friendGroupSlugSchema,
+  userId: z.string().min(1),
+});
+
+export const friendGroupSlugAndListIdParamSchema = z.object({
+  slug: friendGroupSlugSchema,
+  listId: z.uuid(),
+});
+
 export const updatePreferencesSchema = z.object({
   showImages: z.boolean().nullable().optional(),
   fancyFan: z.boolean().nullable().optional(),

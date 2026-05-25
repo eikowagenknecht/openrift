@@ -25,6 +25,7 @@ import { collectionValueHistoryRoute } from "./routes/authenticated/collection-v
 import { collectionsRoute } from "./routes/authenticated/collections.js";
 import { copiesRoute } from "./routes/authenticated/copies.js";
 import { decksRoute } from "./routes/authenticated/decks.js";
+import { friendGroupsRoute } from "./routes/authenticated/friend-groups.js";
 import { listsRoute } from "./routes/authenticated/lists.js";
 import { preferencesRoute } from "./routes/authenticated/preferences.js";
 import { cardsRoute } from "./routes/public/cards.js";
@@ -328,6 +329,7 @@ export function createApp(deps: AppDeps) {
       .route("/api/v1", decksRoute)
       .route("/api/v1", preferencesRoute)
       .route("/api/v1", listsRoute)
+      .route("/api/v1", friendGroupsRoute)
 
       // ── Admin routes (require admin role) ────────────────────────────────
       .route("/api/v1", adminRoute)

@@ -79,6 +79,10 @@ const TEST_USERS: TestUser[] = [
   { id: "a0000000-0047-4000-a000-000000000001", email: "admin-0047@test.com", isAdmin: true },
   { id: "a0000000-0048-4000-a000-000000000001", email: "admin-0048@test.com", isAdmin: true },
   { id: "a0000000-0049-4000-a000-000000000001", email: "user-0049@test.com", isAdmin: false },
+  { id: "a0000000-0050-4000-a000-000000000001", email: "repo-0050@test.com", isAdmin: false },
+  { id: "a0000000-0051-4000-a000-000000000001", email: "repo-0051@test.com", isAdmin: false },
+  { id: "a0000000-0052-4000-a000-000000000001", email: "repo-0052@test.com", isAdmin: false },
+  { id: "a0000000-0053-4000-a000-000000000001", email: "repo-0053@test.com", isAdmin: false },
 ];
 
 // ---------------------------------------------------------------------------

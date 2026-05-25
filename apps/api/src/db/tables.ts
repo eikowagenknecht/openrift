@@ -440,6 +440,50 @@ export interface ListEntriesTable {
   updatedAt: UpdatedAt;
 }
 
+// ─── Friend groups (migration 134, ADR-013) ──────────────────────────────────
+
+export type FriendGroupRole = "owner" | "admin" | "member";
+export type FriendGroupInviteDirection = "invite" | "request";
+
+export interface FriendGroupsTable {
+  id: Generated<string>;
+  /** CHECK: matches `^[a-z0-9][a-z0-9-]{2,29}$` */
+  slug: string;
+  /** CHECK: length 1..60 */
+  name: string;
+  /** CHECK: length <= 500 */
+  description: string | null;
+  /** Nullable disables code-based joining; unique where not null. */
+  code: string | null;
+  codeRotatedAt: ColumnType<Date, Date | undefined, Date>;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+export interface FriendGroupMembersTable {
+  groupId: string;
+  userId: string;
+  role: FriendGroupRole;
+  /** CHECK: length <= 80 */
+  nickname: string | null;
+  joinedAt: ColumnType<Date, Date | undefined, Date>;
+}
+
+export interface FriendGroupInvitesTable {
+  id: Generated<string>;
+  groupId: string;
+  userId: string;
+  direction: FriendGroupInviteDirection;
+  createdAt: CreatedAt;
+}
+
+export interface FriendGroupListSharesTable {
+  groupId: string;
+  listId: string;
+  userId: string;
+  sharedAt: ColumnType<Date, Date | undefined, Date>;
+}
+
 // ─── Candidate cards (migration 018, renamed in 038) ─────────────────────────
 
 /** @see candidateCardFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
@@ -970,6 +1014,12 @@ export interface Database {
   deckCards: DeckCardsTable;
   lists: ListsTable;
   listEntries: ListEntriesTable;
+
+  // Friend groups (migration 134, ADR-013)
+  friendGroups: FriendGroupsTable;
+  friendGroupMembers: FriendGroupMembersTable;
+  friendGroupInvites: FriendGroupInvitesTable;
+  friendGroupListShares: FriendGroupListSharesTable;
 
   // Candidate cards (migration 018, renamed in 038)
   candidateCards: CandidateCardsTable;

@@ -23,6 +23,8 @@ import { domainsRepo } from "./repositories/domains.js";
 import { enumsRepo } from "./repositories/enums.js";
 import { featureFlagsRepo } from "./repositories/feature-flags.js";
 import { finishesRepo } from "./repositories/finishes.js";
+import { friendGroupMatchesRepo } from "./repositories/friend-group-matches.js";
+import { friendGroupsRepo } from "./repositories/friend-groups.js";
 import { healthRepo } from "./repositories/health.js";
 import { ignoredCandidatesRepo } from "./repositories/ignored-candidates.js";
 import { ingestRepo } from "./repositories/ingest.js";
@@ -76,6 +78,8 @@ export interface Repos {
   enums: ReturnType<typeof enumsRepo>;
   featureFlags: ReturnType<typeof featureFlagsRepo>;
   finishes: ReturnType<typeof finishesRepo>;
+  friendGroups: ReturnType<typeof friendGroupsRepo>;
+  friendGroupMatches: ReturnType<typeof friendGroupMatchesRepo>;
   userFeatureFlags: ReturnType<typeof userFeatureFlagsRepo>;
   health: ReturnType<typeof healthRepo>;
   keywords: ReturnType<typeof keywordsRepo>;
@@ -140,6 +144,8 @@ export function createRepos(db: Kysely<Database>): Repos {
     enums: enumsRepo(db),
     featureFlags: featureFlagsRepo(db),
     finishes: finishesRepo(db),
+    friendGroups: friendGroupsRepo(db),
+    friendGroupMatches: friendGroupMatchesRepo(db),
     userFeatureFlags: userFeatureFlagsRepo(db),
     health: healthRepo(db),
     keywords: keywordsRepo(db),

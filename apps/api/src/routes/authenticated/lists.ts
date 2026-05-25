@@ -9,6 +9,7 @@ import {
   listBulkAddResponseSchema,
   listDetailResponseSchema,
   listEntryResponseSchema,
+  listGroupSharesResponseSchema,
   listListResponseSchema,
   listResponseSchema,
   listShareResponseSchema,
@@ -205,6 +206,19 @@ const unshareList = createRoute({
   request: { params: idParamSchema },
   responses: {
     204: { description: "No Content" },
+  },
+});
+
+const listGroupShares = createRoute({
+  method: "get",
+  path: "/{id}/group-shares",
+  tags: ["Lists"],
+  request: { params: idParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: listGroupSharesResponseSchema } },
+      description: "Groups this list is shared with (ADR-013)",
+    },
   },
 });
 
@@ -435,6 +449,21 @@ export const listsRoute = listsApp
     assertFound(updated, "Not found");
 
     return c.body(null, 204);
+  })
+
+  // ── GET /lists/:id/group-shares (ADR-013) ─────────────────────────────────
+  // The "shared with N groups" badge on the list page. Scoped to lists the
+  // viewer owns; non-owned lists 404.
+  .openapi(listGroupShares, async (c) => {
+    const { lists, friendGroups } = c.get("repos");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+
+    const list = await lists.getByIdForUser(id, userId);
+    assertFound(list, "List not found");
+
+    const items = await friendGroups.listGroupsSharingList(id);
+    return c.json({ items });
   });
 
 /**

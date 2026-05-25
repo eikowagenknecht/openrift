@@ -88,6 +88,21 @@ export const queryKeys = {
         : (["lists", userId, "intent", intent] as const),
     detail: (userId: string, id: string) => ["lists", userId, id] as const,
     publicByToken: (token: string) => ["lists", "share", token] as const,
+    groupShares: (userId: string, id: string) => ["lists", userId, id, "group-shares"] as const,
+  },
+  friendGroups: {
+    all: (userId: string) => ["friend-groups", userId] as const,
+    detail: (userId: string, slug: string) => ["friend-groups", userId, slug] as const,
+    matches: (userId: string, slug: string) => ["friend-groups", userId, slug, "matches"] as const,
+    memberDetail: (userId: string, slug: string, memberId: string) =>
+      ["friend-groups", userId, slug, "members", memberId] as const,
+    shareableLists: (userId: string, slug: string) =>
+      ["friend-groups", userId, slug, "shareable-lists"] as const,
+    pendingInvitesCount: (userId: string) =>
+      ["friend-groups", userId, "pending-invites-count"] as const,
+    joinPreview: (code: string) => ["friend-groups", "join-preview", code] as const,
+    sharedList: (userId: string, slug: string, listId: string) =>
+      ["friend-groups", userId, slug, "lists", listId] as const,
   },
   rules: {
     all: (kind: string) => ["rules", kind] as const,
