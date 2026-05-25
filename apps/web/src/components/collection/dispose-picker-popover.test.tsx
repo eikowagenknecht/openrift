@@ -60,15 +60,23 @@ vi.mock("@/lib/copies-collection", () => ({
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { DisposePickerPopover } from "./dispose-picker-popover";
 
-function press(key: string) {
+function commandRoot(container: HTMLElement): HTMLElement {
+  const root = container.querySelector<HTMLElement>('[data-slot="command"]');
+  if (!root) {
+    throw new Error("Command root not found");
+  }
+  return root;
+}
+
+function press(container: HTMLElement, key: string) {
   act(() => {
-    document.dispatchEvent(new KeyboardEvent("keydown", { key, cancelable: true, bubbles: true }));
+    fireEvent.keyDown(commandRoot(container), { key });
   });
 }
 
 function highlightedIndex(container: HTMLElement): number {
-  const rows = [...container.querySelectorAll<HTMLButtonElement>("button")];
-  return rows.findIndex((row) => row.dataset.highlighted === "true");
+  const items = [...container.querySelectorAll<HTMLElement>('[data-slot="picker-row"]')];
+  return items.findIndex((item) => item.dataset.selected === "true");
 }
 
 describe("DisposePickerPopover keyboard nav", () => {
@@ -84,32 +92,36 @@ describe("DisposePickerPopover keyboard nav", () => {
       <DisposePickerPopover printing={printing as Printing} onPick={() => {}} />,
     );
 
-    press("ArrowDown");
+    press(container, "ArrowDown");
     expect(highlightedIndex(container)).toBe(1);
-    press("ArrowDown");
+    press(container, "ArrowDown");
     expect(highlightedIndex(container)).toBe(2);
-    press("ArrowDown");
+    press(container, "ArrowDown");
     expect(highlightedIndex(container)).toBe(0);
-    press("ArrowUp");
+    press(container, "ArrowUp");
     expect(highlightedIndex(container)).toBe(2);
   });
 
   it("Enter picks the highlighted collection", () => {
     const onPick = vi.fn();
-    render(<DisposePickerPopover printing={printing as Printing} onPick={onPick} />);
+    const { container } = render(
+      <DisposePickerPopover printing={printing as Printing} onPick={onPick} />,
+    );
 
-    press("ArrowDown");
-    press("Enter");
+    press(container, "ArrowDown");
+    press(container, "Enter");
     expect(onPick).toHaveBeenCalledWith(printing, "col-2");
   });
 
   it("`-` also picks the highlighted collection", () => {
     const onPick = vi.fn();
-    render(<DisposePickerPopover printing={printing as Printing} onPick={onPick} />);
+    const { container } = render(
+      <DisposePickerPopover printing={printing as Printing} onPick={onPick} />,
+    );
 
-    press("ArrowDown");
-    press("ArrowDown");
-    press("-");
+    press(container, "ArrowDown");
+    press(container, "ArrowDown");
+    press(container, "-");
     expect(onPick).toHaveBeenCalledWith(printing, "col-3");
   });
 
@@ -118,8 +130,8 @@ describe("DisposePickerPopover keyboard nav", () => {
       <DisposePickerPopover printing={printing as Printing} onPick={() => {}} />,
     );
 
-    const rows = container.querySelectorAll<HTMLButtonElement>("button");
-    fireEvent.mouseEnter(rows[2]);
+    const items = container.querySelectorAll<HTMLElement>('[data-slot="picker-row"]');
+    fireEvent.pointerMove(items[2]);
     expect(highlightedIndex(container)).toBe(2);
   });
 });

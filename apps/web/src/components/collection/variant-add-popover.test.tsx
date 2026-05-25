@@ -35,16 +35,23 @@ const p2 = stubPrinting({ id: "v2", cardId, shortCode: "P2" });
 const p3 = stubPrinting({ id: "v3", cardId, shortCode: "P3" });
 const printings = [p1, p2, p3];
 
-function press(key: string) {
+function commandRoot(container: HTMLElement): HTMLElement {
+  const root = container.querySelector<HTMLElement>('[data-slot="command"]');
+  if (!root) {
+    throw new Error("Command root not found");
+  }
+  return root;
+}
+
+function press(container: HTMLElement, key: string) {
   act(() => {
-    const event = new KeyboardEvent("keydown", { key, cancelable: true, bubbles: true });
-    document.dispatchEvent(event);
+    fireEvent.keyDown(commandRoot(container), { key });
   });
 }
 
 function highlightedIndex(container: HTMLElement): number {
-  const rows = [...container.querySelectorAll<HTMLDivElement>("div.flex.items-center.gap-2")];
-  return rows.findIndex((row) => row.className.includes("bg-accent"));
+  const rows = [...container.querySelectorAll<HTMLElement>('[data-slot="picker-row"]')];
+  return rows.findIndex((row) => row.dataset.selected === "true");
 }
 
 describe("VariantAddPopover keyboard nav", () => {
@@ -85,19 +92,19 @@ describe("VariantAddPopover keyboard nav", () => {
     );
 
     expect(highlightedIndex(container)).toBe(0);
-    press("ArrowDown");
+    press(container, "ArrowDown");
     expect(highlightedIndex(container)).toBe(1);
-    press("ArrowDown");
+    press(container, "ArrowDown");
     expect(highlightedIndex(container)).toBe(2);
-    press("ArrowDown");
+    press(container, "ArrowDown");
     expect(highlightedIndex(container)).toBe(0);
-    press("ArrowUp");
+    press(container, "ArrowUp");
     expect(highlightedIndex(container)).toBe(2);
   });
 
   it("`+` calls onQuickAdd for the highlighted variant", () => {
     const onQuickAdd = vi.fn();
-    render(
+    const { container } = render(
       <VariantAddPopover
         printings={printings}
         ownedCounts={{}}
@@ -107,13 +114,13 @@ describe("VariantAddPopover keyboard nav", () => {
       />,
     );
 
-    press("+");
+    press(container, "+");
     expect(onQuickAdd).toHaveBeenCalledWith(p2);
   });
 
   it("`=` is a no-shift alias for `+` and calls onQuickAdd", () => {
     const onQuickAdd = vi.fn();
-    render(
+    const { container } = render(
       <VariantAddPopover
         printings={printings}
         ownedCounts={{}}
@@ -123,13 +130,13 @@ describe("VariantAddPopover keyboard nav", () => {
       />,
     );
 
-    press("=");
+    press(container, "=");
     expect(onQuickAdd).toHaveBeenCalledWith(p2);
   });
 
   it("`-` calls onUndoAdd for the highlighted variant when owned > 0", () => {
     const onUndoAdd = vi.fn();
-    render(
+    const { container } = render(
       <VariantAddPopover
         printings={printings}
         ownedCounts={{ v1: 0, v2: 2, v3: 0 }}
@@ -139,7 +146,7 @@ describe("VariantAddPopover keyboard nav", () => {
       />,
     );
 
-    press("-");
+    press(container, "-");
     expect(onUndoAdd).toHaveBeenCalledTimes(1);
     expect(onUndoAdd.mock.calls[0][0]).toBe(p2);
     expect(onUndoAdd.mock.calls[0][1]).toBeInstanceOf(HTMLElement);
@@ -147,7 +154,7 @@ describe("VariantAddPopover keyboard nav", () => {
 
   it("`-` is a no-op when the highlighted variant has zero owned", () => {
     const onUndoAdd = vi.fn();
-    render(
+    const { container } = render(
       <VariantAddPopover
         printings={printings}
         ownedCounts={{ v1: 0, v2: 0, v3: 1 }}
@@ -157,7 +164,7 @@ describe("VariantAddPopover keyboard nav", () => {
       />,
     );
 
-    press("-");
+    press(container, "-");
     expect(onUndoAdd).not.toHaveBeenCalled();
   });
 
@@ -171,8 +178,8 @@ describe("VariantAddPopover keyboard nav", () => {
       />,
     );
 
-    const rows = container.querySelectorAll<HTMLDivElement>("div.flex.items-center.gap-2");
-    fireEvent.mouseEnter(rows[2]);
+    const rows = container.querySelectorAll<HTMLElement>('[data-slot="picker-row"]');
+    fireEvent.pointerMove(rows[2]);
     expect(highlightedIndex(container)).toBe(2);
   });
 });

@@ -1,11 +1,11 @@
 import type { Printing } from "@openrift/shared";
 import { MinusIcon, PlusIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { PickerList, PickerRow } from "@/components/ui/picker-list";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
-import { cn } from "@/lib/utils";
 
 interface VariantAddPopoverProps {
   printings: Printing[];
@@ -25,127 +25,105 @@ export function VariantAddPopover({
 }: VariantAddPopoverProps) {
   const hasMixedRarities = new Set(printings.map((p) => p.rarity)).size > 1;
   const { labels } = useEnumOrders();
+  const printingsById = new Map(printings.map((p) => [p.id, p]));
 
-  const matchedIndex = printings.findIndex((p) => p.id === initialHighlightId);
-  const [highlightedIndex, setHighlightedIndex] = useState(Math.max(matchedIndex, 0));
-  const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
-  // Document-level keydown reads the latest index without re-binding on each
-  // move — re-binding on every keystroke would lose the highlight between
-  // listener registrations.
-  const highlightedIndexRef = useRef(highlightedIndex);
-  useEffect(() => {
-    highlightedIndexRef.current = highlightedIndex;
-  }, [highlightedIndex]);
+  // "" lets cmdk auto-pick the first row; we seed it with initialHighlightId
+  // only when that id is actually in the list.
+  const initialId = printings.some((p) => p.id === initialHighlightId) ? initialHighlightId : "";
+  const [highlightedId, setHighlightedId] = useState(initialId ?? "");
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if (event.ctrlKey || event.metaKey || event.altKey) {
-        return;
-      }
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        setHighlightedIndex((idx) => (idx < printings.length - 1 ? idx + 1 : 0));
-        return;
-      }
-      if (event.key === "ArrowUp") {
-        event.preventDefault();
-        setHighlightedIndex((idx) => (idx > 0 ? idx - 1 : printings.length - 1));
-        return;
-      }
-      // `=` is accepted as a no-shift alias for `+` (US layouts need Shift+=).
-      const isIncrement = event.key === "+" || event.key === "=";
-      if (isIncrement || event.key === "-") {
-        const printing = printings[highlightedIndexRef.current];
+  return (
+    <PickerList
+      highlightedId={highlightedId}
+      onHighlightChange={setHighlightedId}
+      onKeyDown={(event, id) => {
+        const printing = printingsById.get(id);
         if (!printing) {
           return;
         }
-        event.preventDefault();
+        // `=` is accepted as a no-shift alias for `+` (US layouts need Shift+=).
+        const isIncrement = event.key === "+" || event.key === "=";
         if (isIncrement) {
+          event.preventDefault();
           onQuickAdd(printing);
           return;
         }
-        const owned = ownedCounts?.[printing.id] ?? 0;
-        if (owned === 0) {
-          return;
+        if (event.key === "-") {
+          const owned = ownedCounts?.[id] ?? 0;
+          if (owned === 0) {
+            return;
+          }
+          event.preventDefault();
+          const anchor = rowRefs.current[id];
+          if (anchor) {
+            onUndoAdd(printing, anchor);
+          }
         }
-        const anchor = rowRefs.current[highlightedIndexRef.current];
-        if (anchor) {
-          onUndoAdd(printing, anchor);
-        }
+      }}
+      header={
+        <div className="px-2.5 pt-2 pb-0.5">
+          <p className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
+            Variants
+          </p>
+        </div>
       }
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [printings, onQuickAdd, onUndoAdd, ownedCounts]);
+    >
+      {printings.map((printing) => {
+        const owned = ownedCounts?.[printing.id] ?? 0;
 
-  return (
-    <>
-      <div className="px-2.5 pt-2 pb-0.5">
-        <p className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
-          Variants
-        </p>
-      </div>
-      <div className="px-1 pb-1">
-        {printings.map((printing, idx) => {
-          const owned = ownedCounts?.[printing.id] ?? 0;
-          const highlighted = idx === highlightedIndex;
-
-          return (
-            <div
-              key={printing.id}
-              ref={(el) => {
-                rowRefs.current[idx] = el;
-              }}
-              onMouseEnter={() => setHighlightedIndex(idx)}
-              className={cn(
-                "flex items-center gap-2 rounded-md px-1.5 py-0.5 text-sm",
-                highlighted && "bg-accent",
+        return (
+          <PickerRow
+            key={printing.id}
+            value={printing.id}
+            className="py-0.5"
+            ref={(el) => {
+              rowRefs.current[printing.id] = el;
+            }}
+          >
+            <div className="flex flex-1 items-center gap-1.5 whitespace-nowrap">
+              {hasMixedRarities && (
+                <img
+                  src={`/images/rarities/${printing.rarity.toLowerCase()}-28x28.webp`}
+                  alt={printing.rarity}
+                  title={printing.rarity}
+                  width={28}
+                  height={28}
+                  className="size-3.5 shrink-0"
+                />
               )}
-            >
-              <div className="flex flex-1 items-center gap-1.5 whitespace-nowrap">
-                {hasMixedRarities && (
-                  <img
-                    src={`/images/rarities/${printing.rarity.toLowerCase()}-28x28.webp`}
-                    alt={printing.rarity}
-                    title={printing.rarity}
-                    width={28}
-                    height={28}
-                    className="size-3.5 shrink-0"
-                  />
-                )}
-                <span className="text-muted-foreground text-2xs shrink-0 font-mono">
-                  {formatCardId(printing)}
-                </span>
-                <span>{formatPrintingLabel(printing, printings, labels) || printing.setSlug}</span>
-              </div>
-              <div className="flex shrink-0 items-center gap-0.5">
-                <Button
-                  type="button"
-                  tabIndex={-1}
-                  size="icon-xs"
-                  variant="ghost"
-                  onClick={(event) => onUndoAdd(printing, event.currentTarget)}
-                  disabled={owned === 0}
-                  aria-label={`Remove ${printing.card.name}`}
-                >
-                  <MinusIcon />
-                </Button>
-                <span className="text-muted-foreground w-5 text-center tabular-nums">{owned}</span>
-                <Button
-                  type="button"
-                  tabIndex={-1}
-                  size="icon-xs"
-                  variant="ghost"
-                  onClick={() => onQuickAdd(printing)}
-                  aria-label={`Add ${printing.card.name}`}
-                >
-                  <PlusIcon />
-                </Button>
-              </div>
+              <span className="text-muted-foreground text-2xs shrink-0 font-mono">
+                {formatCardId(printing)}
+              </span>
+              <span>{formatPrintingLabel(printing, printings, labels) || printing.setSlug}</span>
             </div>
-          );
-        })}
-      </div>
-    </>
+            <div className="flex shrink-0 items-center gap-0.5">
+              <Button
+                type="button"
+                tabIndex={-1}
+                size="icon-xs"
+                variant="ghost"
+                onClick={(event) => onUndoAdd(printing, event.currentTarget)}
+                disabled={owned === 0}
+                aria-label={`Remove ${printing.card.name}`}
+              >
+                <MinusIcon />
+              </Button>
+              <span className="text-muted-foreground w-5 text-center tabular-nums">{owned}</span>
+              <Button
+                type="button"
+                tabIndex={-1}
+                size="icon-xs"
+                variant="ghost"
+                onClick={() => onQuickAdd(printing)}
+                aria-label={`Add ${printing.card.name}`}
+              >
+                <PlusIcon />
+              </Button>
+            </div>
+          </PickerRow>
+        );
+      })}
+    </PickerList>
   );
 }
