@@ -293,7 +293,7 @@ export function CardDetail({
         <CardFooter printing={printing} />
 
         {/* Printings */}
-        {printings && printings.length > 1 && onSelectPrinting && (
+        {printings && printings.length > 0 && onSelectPrinting && (
           <PrintingPicker current={printing} printings={printings} onSelect={onSelectPrinting} />
         )}
 
