@@ -498,6 +498,7 @@ function PaletteInner({
                             size="icon-xs"
                             onClick={() => handleAdd(printing)}
                             aria-label={`Add ${printing.card.name}`}
+                            className="group-data-[selected=true]:bg-accent-foreground group-data-[selected=true]:text-accent group-data-[selected=true]:hover:bg-accent-foreground/80"
                           >
                             <PlusIcon />
                           </Button>
