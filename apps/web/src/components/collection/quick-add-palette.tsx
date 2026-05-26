@@ -146,7 +146,7 @@ function PaletteInner({
     ? (results.find((r) => r.cardId === expandedCardId)?.printings[expandedIndex] ?? null)
     : null;
   const previewImageId = previewPrinting?.images[0]?.imageId ?? null;
-  const previewThumbnail = previewImageId ? imageUrl(previewImageId, "400w") : null;
+  const previewThumbnail = previewImageId ? imageUrl(previewImageId, "full") : null;
   const previewRotated = previewPrinting
     ? needsCssRotation(getOrientation(previewPrinting.card.type))
     : false;
@@ -312,7 +312,7 @@ function PaletteInner({
     <div className="relative">
       {/* Card image preview — floats left of the dialog on desktop */}
       {previewPrinting && previewThumbnail && (
-        <div className="absolute top-0 right-full mr-3 hidden w-48 lg:block">
+        <div className="absolute top-0 right-full mr-3 hidden w-96 lg:block">
           <div
             className="bg-muted aspect-card relative overflow-hidden"
             style={{ borderRadius: "5% / 3.6%" }}
@@ -398,8 +398,8 @@ function PaletteInner({
                 type="button"
                 data-selected={isSelected || isExpanded}
                 className={cn(
-                  "flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors",
-                  (isSelected || isExpanded) && "bg-accent",
+                  "group flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors",
+                  isSelected || isExpanded ? "bg-accent text-accent-foreground" : "hover:bg-muted",
                 )}
                 onClick={() => {
                   setSelectedIndex(index);
@@ -414,16 +414,18 @@ function PaletteInner({
               >
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-medium">{card.cardName}</div>
-                  <div className="text-muted-foreground text-xs">{shortCodes.join(" · ")}</div>
+                  <div className="text-muted-foreground group-data-[selected=true]:text-accent-foreground/80 text-xs">
+                    {shortCodes.join(" · ")}
+                  </div>
                 </div>
                 {card.ownedCount > 0 && (
-                  <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                  <span className="text-muted-foreground group-data-[selected=true]:text-accent-foreground/80 shrink-0 text-xs tabular-nums">
                     ×{card.ownedCount}
                   </span>
                 )}
                 <ChevronRightIcon
                   className={cn(
-                    "text-muted-foreground size-4 shrink-0 transition-transform",
+                    "text-muted-foreground group-data-[selected=true]:text-accent-foreground size-4 shrink-0 transition-transform",
                     isExpanded && "rotate-90",
                   )}
                 />
@@ -431,7 +433,7 @@ function PaletteInner({
 
               {/* Expanded printing list */}
               {isExpanded && (
-                <div className="bg-accent/50 border-accent px-1 py-1">
+                <div className="bg-muted/50 px-1 py-1">
                   {card.printings.map((printing, printingIndex) => {
                     const isPrintingSelected = printingIndex === expandedIndex;
                     // ownedForPrinting comes from useOwnedCount → useLiveQuery
@@ -447,8 +449,8 @@ function PaletteInner({
                         key={printing.id}
                         data-selected={isPrintingSelected}
                         className={cn(
-                          "flex w-full items-center gap-1 rounded text-xs transition-colors",
-                          isPrintingSelected && "bg-accent",
+                          "group flex w-full items-center gap-1 rounded text-xs transition-colors",
+                          isPrintingSelected && "bg-accent text-accent-foreground",
                         )}
                         onMouseEnter={() => setExpandedIndex(printingIndex)}
                       >
@@ -461,7 +463,7 @@ function PaletteInner({
                             height={28}
                             className="size-3.5 shrink-0"
                           />
-                          <span className="text-muted-foreground text-2xs w-[3.5rem] shrink-0 font-mono">
+                          <span className="text-muted-foreground group-data-[selected=true]:text-accent-foreground/80 text-2xs w-[3.5rem] shrink-0 font-mono">
                             {formatCardId(printing)}
                           </span>
                           <span className="min-w-0 flex-1 truncate">
@@ -485,7 +487,7 @@ function PaletteInner({
                               "text-2xs w-5 text-center tabular-nums",
                               sessionAdded > 0
                                 ? "text-green-600 dark:text-green-400"
-                                : "text-muted-foreground",
+                                : "text-muted-foreground group-data-[selected=true]:text-accent-foreground/80",
                             )}
                           >
                             {ownedForPrinting}
