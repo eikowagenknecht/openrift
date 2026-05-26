@@ -19,7 +19,13 @@ interface Row {
   count: number;
 }
 
-export function DisposePickerPopover({ printing, onPick }: DisposePickerPopoverProps) {
+/**
+ * Computes the per-collection rows for a "Remove from" picker — collections
+ * the user owns at least one copy of `printing` in, ordered server-canonical
+ * (inbox first, then user-ordered).
+ * @returns Rows of `{ collection, count }`.
+ */
+function useDisposeRows(printing: Printing): Row[] {
   const userId = useRequiredUserId();
   const copiesCollection = useCopiesCollection();
   const { data: collections } = useQuery(collectionsQueryOptions(userId));
@@ -37,8 +43,6 @@ export function DisposePickerPopover({ printing, onPick }: DisposePickerPopoverP
       }
       countByCollection.set(copy.collectionId, (countByCollection.get(copy.collectionId) ?? 0) + 1);
     }
-    // Collection order is authoritative here (server returns inbox-first, then
-    // user-ordered). Filter to ones that actually own copies of this printing.
     for (const collection of collections) {
       const count = countByCollection.get(collection.id) ?? 0;
       if (count > 0) {
@@ -46,27 +50,25 @@ export function DisposePickerPopover({ printing, onPick }: DisposePickerPopoverP
       }
     }
   }
+  return rows;
+}
 
-  const [highlightedId, setHighlightedId] = useState("");
+interface DisposeListBodyProps {
+  printing: Printing;
+  onPick: (printing: Printing, collectionId: string) => void;
+}
 
+/**
+ * Just the rows of a "Remove from" picker (no PickerList wrapper). Used both
+ * by the standalone `DisposePickerPopover` and as the dispose-page children
+ * of `VariantAddPopover`, so a single Command root stays mounted across the
+ * variants ↔ dispose page swap and the popover never loses focus.
+ * @returns A fragment of `PickerRow`s, one per collection that owns a copy.
+ */
+export function DisposeListBody({ printing, onPick }: DisposeListBodyProps) {
+  const rows = useDisposeRows(printing);
   return (
-    <PickerList
-      highlightedId={highlightedId}
-      onHighlightChange={setHighlightedId}
-      onKeyDown={(event, id) => {
-        if (event.key === "-" && id) {
-          event.preventDefault();
-          onPick(printing, id);
-        }
-      }}
-      header={
-        <div className="px-2.5 pt-2 pb-0.5">
-          <p className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
-            Remove from
-          </p>
-        </div>
-      }
-    >
+    <>
       {rows.map(({ collection, count }) => (
         <PickerRow
           key={collection.id}
@@ -82,6 +84,41 @@ export function DisposePickerPopover({ printing, onPick }: DisposePickerPopoverP
           <span className="text-muted-foreground tabular-nums">×{count}</span>
         </PickerRow>
       ))}
+    </>
+  );
+}
+
+/**
+ * Header label for the "Remove from" sub-picker. Exported so the variants
+ * popover can swap to it without re-declaring the styling.
+ * @returns The header element.
+ */
+export function DisposeListHeader() {
+  return (
+    <div className="px-2.5 pt-2 pb-0.5">
+      <p className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
+        Remove from
+      </p>
+    </div>
+  );
+}
+
+export function DisposePickerPopover({ printing, onPick }: DisposePickerPopoverProps) {
+  const [highlightedId, setHighlightedId] = useState("");
+
+  return (
+    <PickerList
+      highlightedId={highlightedId}
+      onHighlightChange={setHighlightedId}
+      onKeyDown={(event, id) => {
+        if (event.key === "-" && id) {
+          event.preventDefault();
+          onPick(printing, id);
+        }
+      }}
+      header={<DisposeListHeader />}
+    >
+      <DisposeListBody printing={printing} onPick={onPick} />
     </PickerList>
   );
 }

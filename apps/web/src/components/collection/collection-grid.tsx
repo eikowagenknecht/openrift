@@ -1167,33 +1167,28 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             align="center"
             className="max-h-72 w-max max-w-[min(90vw,24rem)] min-w-56 gap-0 overflow-y-auto p-0"
           >
-            {variantDisposeTarget ? (
-              <DisposePickerPopover
-                printing={variantDisposeTarget}
-                onPick={async (printing, fromCollectionId) => {
-                  await handleDisposeFromCollection(printing, fromCollectionId);
-                  setVariantDisposeTarget(null);
-                }}
-              />
-            ) : (
-              <VariantAddPopover
-                printings={variantPrintings}
-                ownedCounts={Object.fromEntries(
-                  variantPrintings.map((p) => [
-                    p.id,
-                    adjustedCount(p.id, stackByPrintingId.get(p.id)?.copyIds.length ?? 0),
-                  ]),
-                )}
-                onQuickAdd={handleQuickAdd}
-                onUndoAdd={async (printing) => {
-                  const result = await tryUndoAdd(printing);
-                  if (result === "ambiguous") {
-                    setVariantDisposeTarget(printing);
-                  }
-                }}
-                initialHighlightId={selectedCardId}
-              />
-            )}
+            <VariantAddPopover
+              printings={variantPrintings}
+              ownedCounts={Object.fromEntries(
+                variantPrintings.map((p) => [
+                  p.id,
+                  adjustedCount(p.id, stackByPrintingId.get(p.id)?.copyIds.length ?? 0),
+                ]),
+              )}
+              onQuickAdd={handleQuickAdd}
+              onUndoAdd={async (printing) => {
+                const result = await tryUndoAdd(printing);
+                if (result === "ambiguous") {
+                  setVariantDisposeTarget(printing);
+                }
+              }}
+              initialHighlightId={selectedCardId}
+              disposeTarget={variantDisposeTarget}
+              onDisposePick={async (printing, fromCollectionId) => {
+                await handleDisposeFromCollection(printing, fromCollectionId);
+                setVariantDisposeTarget(null);
+              }}
+            />
           </PopoverContent>
         </Popover>
       )}
