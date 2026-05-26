@@ -32,7 +32,7 @@ interface MatchRowCardProps {
   match: AggregatedMatch;
 }
 
-export function MatchRowCard({ match }: MatchRowCardProps) {
+function MatchRowCard({ match }: MatchRowCardProps) {
   return (
     <Link
       to="/cards/$cardSlug"

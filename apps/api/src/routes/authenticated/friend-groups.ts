@@ -30,7 +30,6 @@ import {
   friendGroupSharedListDetailResponseSchema,
 } from "@openrift/shared/response-schemas";
 import {
-  RESERVED_FRIEND_GROUP_SLUGS,
   createFriendGroupSchema,
   friendGroupCodeQuerySchema,
   friendGroupInviteByEmailSchema,
@@ -1092,7 +1091,3 @@ export const friendGroupsRoute = friendGroupsApp
     };
     return c.json(response);
   });
-
-// `RESERVED_FRIEND_GROUP_SLUGS` is used in the schemas refinement; re-export
-// here for tests that want to inspect the canonical set.
-export { RESERVED_FRIEND_GROUP_SLUGS };

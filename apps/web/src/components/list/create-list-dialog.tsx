@@ -268,21 +268,3 @@ export function CreateListDialog({
 export function listKindIcon(kind: ListKind): IconComponent {
   return KIND_OPTIONS[kind].icon;
 }
-
-/**
- * @returns Human label for a list kind ("Cards" | "Printings" | "Copies").
- */
-export function listKindLabel(kind: ListKind): string {
-  return KIND_OPTIONS[kind].label;
-}
-
-const INTENT_LABEL: Record<ListIntent, string> = {
-  wish: "Wishlist",
-  trade: "Tradelist",
-  organize: "Organize",
-};
-
-/** @returns Capitalized label for a list intent ("Wishlist" | "Tradelist" | "Organize"). */
-export function listIntentLabel(intent: ListIntent): string {
-  return INTENT_LABEL[intent];
-}

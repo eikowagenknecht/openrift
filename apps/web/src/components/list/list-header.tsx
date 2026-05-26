@@ -35,7 +35,7 @@ interface ListSummary {
   kind: ListKind;
 }
 
-export type ListHeaderAttribution =
+type ListHeaderAttribution =
   | { kind: "owner"; ownerName: string | null }
   | { kind: "shares" }
   | { kind: "none" };

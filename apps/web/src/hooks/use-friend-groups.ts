@@ -9,7 +9,6 @@ import type {
   FriendGroupResponse,
   FriendGroupShareableListsResponse,
   FriendGroupSharedListDetailResponse,
-  ListGroupSharesResponse,
 } from "@openrift/shared";
 import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
@@ -128,18 +127,6 @@ const fetchSharedList = createServerFn({ method: "GET" })
     return res.json() as Promise<FriendGroupSharedListDetailResponse>;
   });
 
-const fetchListGroupShares = createServerFn({ method: "GET" })
-  .inputValidator((input: string) => input)
-  .middleware([withCookies])
-  .handler(
-    ({ context, data: listId }): Promise<ListGroupSharesResponse> =>
-      fetchApiJson<ListGroupSharesResponse>({
-        errorTitle: "Couldn't load list group shares",
-        cookie: context.cookie,
-        path: `/api/v1/lists/${encodeURIComponent(listId)}/group-shares`,
-      }),
-  );
-
 // ── Hooks ───────────────────────────────────────────────────────────────────
 
 export function friendGroupsQueryOptions(userId: string) {
@@ -156,7 +143,7 @@ export function friendGroupDetailQueryOptions(userId: string, slug: string) {
   });
 }
 
-export function friendGroupMatchesQueryOptions(userId: string, slug: string) {
+function friendGroupMatchesQueryOptions(userId: string, slug: string) {
   return queryOptions({
     queryKey: queryKeys.friendGroups.matches(userId, slug),
     queryFn: () => fetchGroupMatches({ data: slug }),
@@ -197,7 +184,7 @@ export function useFriendGroupMemberDetail(slug: string, memberUserId: string) {
   );
 }
 
-export function friendGroupSharedListQueryOptions(userId: string, slug: string, listId: string) {
+function friendGroupSharedListQueryOptions(userId: string, slug: string, listId: string) {
   return queryOptions({
     queryKey: queryKeys.friendGroups.sharedList(userId, slug, listId),
     queryFn: () => fetchSharedList({ data: { slug, listId } }),
@@ -232,16 +219,6 @@ export function useFriendGroupPendingInvitesCount(opts?: { enabled?: boolean }) 
     staleTime: 60 * 1000,
     enabled: opts?.enabled ?? true,
   });
-}
-
-export function useListGroupShares(listId: string) {
-  const userId = useRequiredUserId();
-  return useSuspenseQuery(
-    queryOptions({
-      queryKey: queryKeys.lists.groupShares(userId, listId),
-      queryFn: () => fetchListGroupShares({ data: listId }),
-    }),
-  );
 }
 
 // ── Server functions: mutations ─────────────────────────────────────────────

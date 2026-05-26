@@ -7,7 +7,7 @@ import type { JobRunView } from "@/lib/server-fns/api-types";
 import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 
-export interface WebhookFailure {
+interface WebhookFailure {
   channel: "newPrintings" | "printingChanges";
   status?: number;
   detail: string;
@@ -19,7 +19,7 @@ export interface FlushPrintingEventsResult {
   failures?: WebhookFailure[];
 }
 
-export const FLUSH_PRINTING_EVENTS_KIND = "discord.flush_printing_events";
+const FLUSH_PRINTING_EVENTS_KIND = "discord.flush_printing_events";
 
 const PRINTING_EVENTS_KEY = ["admin", "printing-events"] as const;
 const FLUSH_RUN_KEY = ["admin", "job-runs", FLUSH_PRINTING_EVENTS_KIND] as const;
