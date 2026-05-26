@@ -60,4 +60,22 @@ describe("MarkdownText", () => {
     expect(container.querySelector("img")).toBeNull();
     expect(screen.getByText(/hello/u)).toBeInTheDocument();
   });
+
+  describe("when trusted", () => {
+    it("renders links to hosts outside the allowlist", () => {
+      render(<MarkdownText text="See [the wiki](https://example.com) for details." trusted />);
+      const link = screen.getByRole("link", { name: "the wiki" });
+      expect(link).toHaveAttribute("href", "https://example.com");
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link.getAttribute("rel") ?? "").toContain("noreferrer");
+    });
+
+    it("still strips raw HTML", () => {
+      const { container } = render(
+        <MarkdownText text='<img src="x" onerror="alert(1)" />hello' trusted />,
+      );
+      expect(container.querySelector("img")).toBeNull();
+      expect(screen.getByText(/hello/u)).toBeInTheDocument();
+    });
+  });
 });

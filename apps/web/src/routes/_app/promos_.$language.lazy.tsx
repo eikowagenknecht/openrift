@@ -834,6 +834,7 @@ function SectionDivider({ title, count, description, anchorId }: SectionDividerP
       {description && (
         <MarkdownText
           text={description}
+          trusted
           className="text-muted-foreground mx-auto mt-1 max-w-2xl text-center text-sm"
         />
       )}
@@ -1098,7 +1099,7 @@ function CompactBranchGrid({
             >
               <dt className="font-semibold">{child.channel.label}</dt>
               <dd className="text-muted-foreground min-w-0">
-                <MarkdownText text={child.channel.description ?? ""} />
+                <MarkdownText text={child.channel.description ?? ""} trusted />
               </dd>
             </div>
           ))}
