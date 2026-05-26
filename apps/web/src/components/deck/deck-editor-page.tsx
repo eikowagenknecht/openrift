@@ -515,6 +515,7 @@ function DeckEditorContent({
           missingCards={ownershipData.missingCards}
           totalMissingValue={ownershipData.missingValueCents}
           marketplace={marketplace}
+          deckName={data.deck.name}
         />
       )}
       <DeckDndContext deckId={deckId}>

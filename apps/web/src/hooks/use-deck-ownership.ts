@@ -1,4 +1,4 @@
-import type { Marketplace, PriceLookup, Printing } from "@openrift/shared";
+import type { Marketplace, PriceLookup, Printing, Rarity } from "@openrift/shared";
 import { preferredPrinting } from "@openrift/shared";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -30,7 +30,7 @@ export interface CardOwnership {
    * The printing whose price backed `displayPrice` — used to deep-link to the
    * matching marketplace product. `undefined` when the card has no printings.
    */
-  displayPrinting: { id: string; language: string; shortCode: string } | undefined;
+  displayPrinting: { id: string; language: string; shortCode: string; rarity: Rarity } | undefined;
 }
 
 export interface DeckOwnershipData {
@@ -160,6 +160,7 @@ export function computeDeckOwnership(
           id: resolvedPrinting.id,
           language: resolvedPrinting.language,
           shortCode: resolvedPrinting.shortCode,
+          rarity: resolvedPrinting.rarity,
         }
       : undefined;
 

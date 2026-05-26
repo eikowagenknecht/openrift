@@ -261,6 +261,7 @@ function SharedDeckContent({
           totalMissingValue={ownershipData.missingValueCents}
           marketplace={marketplace}
           mode={isLoggedIn ? "missing" : "prices"}
+          deckName={data.deck.name}
         />
       )}
 

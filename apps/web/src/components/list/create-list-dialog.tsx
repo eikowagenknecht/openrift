@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useCreateList } from "@/hooks/use-lists";
+import { useBulkAddListEntries, useCreateList } from "@/hooks/use-lists";
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -77,11 +77,29 @@ const INTENT_TITLE: Record<ListIntent, string> = {
   organize: "New organize list",
 };
 
+export interface InitialEntry {
+  cardId?: string;
+  printingId?: string;
+  copyId?: string;
+  quantity?: number;
+}
+
 interface CreateListDialogProps {
   intent: ListIntent;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated?: (listId: string) => void;
+  /**
+   * Pre-fills the name input. The user can still edit it before submitting.
+   */
+  defaultName?: string;
+  /**
+   * If provided, the dialog bulk-adds the returned entries to the new list
+   * immediately after creation. Called with the chosen kind so the caller
+   * can shape entries per kind (e.g. `cardId` for "card", `printingId` for
+   * "printing"). Return an empty array to skip the bulk-add.
+   */
+  initialEntries?: (kind: ListKind) => InitialEntry[];
 }
 
 /**
@@ -91,16 +109,24 @@ interface CreateListDialogProps {
  * navigate or chain follow-ups.
  * @returns The dialog component.
  */
-export function CreateListDialog({ intent, open, onOpenChange, onCreated }: CreateListDialogProps) {
+export function CreateListDialog({
+  intent,
+  open,
+  onOpenChange,
+  onCreated,
+  defaultName,
+  initialEntries,
+}: CreateListDialogProps) {
   const availableKinds = KINDS_BY_INTENT[intent];
   const [kind, setKind] = useState<ListKind>(availableKinds[0] ?? "card");
-  const [name, setName] = useState("");
+  const [name, setName] = useState(defaultName ?? "");
   const createList = useCreateList();
+  const bulkAdd = useBulkAddListEntries();
 
   // Reset state on close so the next open starts fresh.
   const handleOpenChange = (next: boolean) => {
     if (!next) {
-      setName("");
+      setName(defaultName ?? "");
       setKind(availableKinds[0] ?? "card");
     }
     onOpenChange(next);
@@ -108,13 +134,17 @@ export function CreateListDialog({ intent, open, onOpenChange, onCreated }: Crea
 
   const handleSubmit = () => {
     const trimmed = name.trim();
-    if (!trimmed || createList.isPending) {
+    if (!trimmed || createList.isPending || bulkAdd.isPending) {
       return;
     }
     createList.mutate(
       { name: trimmed, intent, kind },
       {
-        onSuccess: (list) => {
+        onSuccess: async (list) => {
+          const entries = initialEntries?.(kind) ?? [];
+          if (entries.length > 0) {
+            await bulkAdd.mutateAsync({ listId: list.id, entries });
+          }
           onCreated?.(list.id);
           handleOpenChange(false);
         },
@@ -189,11 +219,14 @@ export function CreateListDialog({ intent, open, onOpenChange, onCreated }: Crea
               type="button"
               variant="ghost"
               onClick={() => handleOpenChange(false)}
-              disabled={createList.isPending}
+              disabled={createList.isPending || bulkAdd.isPending}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={!name.trim() || createList.isPending}>
+            <Button
+              type="submit"
+              disabled={!name.trim() || createList.isPending || bulkAdd.isPending}
+            >
               Create
             </Button>
           </DialogFooter>

@@ -2,6 +2,8 @@
 
 ## 2026-05-26
 
+- feat: From a deck's Missing cards view, you can now create a wishlist in one click. The new list is pre-named after the deck and seeded with all the missing cards
+- feat: The Missing cards dialog now shows each card's rarity icon next to its set code, so the list is easier to scan
 - feat: Shared list pages now show how many of each card you want or have on offer, both as a badge in grid view and as a Qty column in table view
 - feat: In the deck builder, right-click or long-press a card to move it to another allowed zone. This is the main way to move cards on mobile, where dragging is disabled
 - feat: Buy and sell lists are now called Wishlists and Tradelists, matching the names other TCG sites use

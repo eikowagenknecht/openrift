@@ -200,6 +200,7 @@ describe("computeDeckOwnership", () => {
       id: "p-en",
       language: "EN",
       shortCode: "OGN-001-EN",
+      rarity: "common",
     });
     expect(entry?.displayPrice).toBe(500);
     expect(result.deckValueCents).toBe(500);
@@ -220,7 +221,12 @@ describe("computeDeckOwnership", () => {
 
     const result = computeDeckOwnership(deckCards, printings, {}, "tcgplayer", prices, EN_FIRST);
     const [entry] = result.missingCards;
-    expect(entry?.displayPrinting).toEqual({ id: "p1", language: "EN", shortCode: "OGN-001" });
+    expect(entry?.displayPrinting).toEqual({
+      id: "p1",
+      language: "EN",
+      shortCode: "OGN-001",
+      rarity: "common",
+    });
     expect(entry?.displayPrice).toBe(5);
   });
 

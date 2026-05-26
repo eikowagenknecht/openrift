@@ -1,8 +1,11 @@
-import type { Marketplace } from "@openrift/shared";
+import type { ListKind, Marketplace } from "@openrift/shared";
 import { straightenApostrophes } from "@openrift/shared";
-import { CheckIcon, CopyIcon, LockIcon } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { CheckIcon, CopyIcon, HeartIcon, LockIcon } from "lucide-react";
 import { useState } from "react";
 
+import type { InitialEntry } from "@/components/list/create-list-dialog";
+import { CreateListDialog } from "@/components/list/create-list-dialog";
 import { MarketplaceLink } from "@/components/marketplace-link";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { CardOwnership } from "@/hooks/use-deck-ownership";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { useMarketplaceInfo } from "@/hooks/use-marketplace-info";
 import { formatterForMarketplace } from "@/lib/format";
 import { MARKETPLACE_META } from "@/lib/marketplace-meta";
@@ -40,6 +44,12 @@ interface DeckMissingCardsDialogProps {
    * the same rows as a price breakdown for the whole deck.
    */
   mode?: "missing" | "prices";
+  /**
+   * Deck name used to pre-fill the wishlist name. When provided (and mode is
+   * "missing"), a "Create wishlist" button is shown that opens the
+   * wishlist-creation dialog seeded with these missing cards.
+   */
+  deckName?: string;
 }
 
 export function DeckMissingCardsDialog({
@@ -49,10 +59,14 @@ export function DeckMissingCardsDialog({
   totalMissingValue,
   marketplace,
   mode = "missing",
+  deckName,
 }: DeckMissingCardsDialogProps) {
   const [copied, setCopied] = useState(false);
+  const [wishlistOpen, setWishlistOpen] = useState(false);
+  const navigate = useNavigate();
   const fmt = formatterForMarketplace(marketplace);
   const meta = MARKETPLACE_META[marketplace];
+  const { labels: enumLabels } = useEnumOrders();
 
   const sorted = missingCards.toSorted((a, b) => {
     const zoneCmp = (ZONE_LABELS[a.zone] ?? a.zone).localeCompare(ZONE_LABELS[b.zone] ?? b.zone);
@@ -98,6 +112,22 @@ export function DeckMissingCardsDialog({
 
   const totalMissing = sorted.reduce((sum, card) => sum + card.shortfall, 0);
 
+  const buildWishlistEntries = (kind: ListKind): InitialEntry[] => {
+    if (kind === "card") {
+      return sorted.map((card) => ({ cardId: card.cardId, quantity: card.shortfall }));
+    }
+    if (kind === "printing") {
+      return sorted.flatMap((card) =>
+        card.displayPrinting
+          ? [{ printingId: card.displayPrinting.id, quantity: card.shortfall }]
+          : [],
+      );
+    }
+    return [];
+  };
+
+  const showWishlistButton = mode === "missing" && deckName !== undefined && sorted.length > 0;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -139,12 +169,22 @@ export function DeckMissingCardsDialog({
                       <MarketplaceLink
                         marketplace={marketplace}
                         href={linkFor(card)}
-                        className="hover:text-foreground underline decoration-dotted underline-offset-2"
+                        className="hover:text-foreground inline-flex items-center gap-1.5 underline decoration-dotted underline-offset-2"
                       >
-                        <span className="text-muted-foreground mr-2 font-mono">
+                        {card.displayPrinting && (
+                          <img
+                            src={`/images/rarities/${card.displayPrinting.rarity.toLowerCase()}-28x28.webp`}
+                            alt={enumLabels.rarities[card.displayPrinting.rarity]}
+                            title={enumLabels.rarities[card.displayPrinting.rarity]}
+                            width={28}
+                            height={28}
+                            className="size-3.5 shrink-0"
+                          />
+                        )}
+                        <span className="text-muted-foreground font-mono">
                           {card.displayPrinting?.shortCode ?? "--"}
                         </span>
-                        {card.cardName}
+                        <span>{card.cardName}</span>
                       </MarketplaceLink>
                       {card.locked > 0 && (
                         <Tooltip>
@@ -186,6 +226,12 @@ export function DeckMissingCardsDialog({
         )}
 
         <DialogFooter>
+          {showWishlistButton && (
+            <Button variant="outline" size="sm" onClick={() => setWishlistOpen(true)}>
+              <HeartIcon className="size-3.5" />
+              Create wishlist
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={handleCopy}>
             {copied ? (
               <>
@@ -201,6 +247,22 @@ export function DeckMissingCardsDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+      {showWishlistButton && (
+        <CreateListDialog
+          intent="wish"
+          open={wishlistOpen}
+          onOpenChange={setWishlistOpen}
+          defaultName={`${deckName} - Missing`}
+          initialEntries={buildWishlistEntries}
+          onCreated={(listId) => {
+            onOpenChange(false);
+            void navigate({
+              to: "/collections/lists/$listId",
+              params: { listId },
+            });
+          }}
+        />
+      )}
     </Dialog>
   );
 }
