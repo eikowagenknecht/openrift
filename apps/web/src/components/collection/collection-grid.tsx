@@ -301,11 +301,19 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const {
     handleQuickAdd,
     handleUndoAdd,
+    tryUndoAdd,
     handleOpenVariants,
     handleDisposeFromCollection,
     closeVariants,
     adjustedCount,
   } = useQuickAddActions(addTarget, collectionId);
+  const [variantDisposeTarget, setVariantDisposeTarget] = useState<Printing | null>(null);
+  // Clear the in-popover dispose page whenever the variants popover closes or
+  // switches to a different card — otherwise the next time it opens, it would
+  // still be showing the stale "Remove from" sub-page.
+  useEffect(() => {
+    setVariantDisposeTarget(null);
+  }, [variantPopover?.cardId]);
 
   // Fan-card sibling overrides (cards view, add mode)
   const [topPrintingOverrides, setTopPrintingOverrides] = useState<Map<string, string>>(new Map());
@@ -1094,13 +1102,23 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       </BrowserCardViewer>
 
       {/* Variant add popover (add mode only) */}
-      {variantPopover && variantPrintings && handleQuickAdd && handleUndoAdd && (
+      {variantPopover && variantPrintings && handleQuickAdd && handleUndoAdd && tryUndoAdd && (
         <Popover
           open
           onOpenChange={(open, details) => {
-            if (!open) {
-              closeVariants(details.reason === "outside-press" ? details.event.target : undefined);
+            if (open) {
+              return;
             }
+            // ESC inside the dispose sub-page goes back to the variants list,
+            // mirroring how cmdk "pages" work. The popover stays mounted
+            // because `open` is hard-coded true; clearing variantDisposeTarget
+            // swaps the content back.
+            if (details.reason === "escape-key" && variantDisposeTarget) {
+              setVariantDisposeTarget(null);
+              return;
+            }
+            setVariantDisposeTarget(null);
+            closeVariants(details.reason === "outside-press" ? details.event.target : undefined);
           }}
         >
           <PopoverContent
@@ -1109,18 +1127,33 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             align="center"
             className="max-h-72 w-max max-w-[min(90vw,24rem)] min-w-56 gap-0 overflow-y-auto p-0"
           >
-            <VariantAddPopover
-              printings={variantPrintings}
-              ownedCounts={Object.fromEntries(
-                variantPrintings.map((p) => [
-                  p.id,
-                  adjustedCount(p.id, stackByPrintingId.get(p.id)?.copyIds.length ?? 0),
-                ]),
-              )}
-              onQuickAdd={handleQuickAdd}
-              onUndoAdd={handleUndoAdd}
-              initialHighlightId={selectedCardId}
-            />
+            {variantDisposeTarget ? (
+              <DisposePickerPopover
+                printing={variantDisposeTarget}
+                onPick={async (printing, fromCollectionId) => {
+                  await handleDisposeFromCollection(printing, fromCollectionId);
+                  setVariantDisposeTarget(null);
+                }}
+              />
+            ) : (
+              <VariantAddPopover
+                printings={variantPrintings}
+                ownedCounts={Object.fromEntries(
+                  variantPrintings.map((p) => [
+                    p.id,
+                    adjustedCount(p.id, stackByPrintingId.get(p.id)?.copyIds.length ?? 0),
+                  ]),
+                )}
+                onQuickAdd={handleQuickAdd}
+                onUndoAdd={async (printing) => {
+                  const result = await tryUndoAdd(printing);
+                  if (result === "ambiguous") {
+                    setVariantDisposeTarget(printing);
+                  }
+                }}
+                initialHighlightId={selectedCardId}
+              />
+            )}
           </PopoverContent>
         </Popover>
       )}

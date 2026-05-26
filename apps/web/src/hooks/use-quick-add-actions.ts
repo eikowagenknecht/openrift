@@ -67,11 +67,12 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
       }
     : undefined;
 
-  const handleUndoAdd = addTarget
-    ? async (printing: Printing, anchorEl?: HTMLElement) => {
-        // 1. Session undo: if the user just added a copy this session, that's
-        //    what "undo" means — remove the most recent one so the action
-        //    mirrors the click that created it.
+  // Silent half of undo-add: session undo + single-collection dispose only.
+  // Returns "ambiguous" when copies span multiple collections so the caller
+  // can decide how to surface the picker (in-popover page swap vs. standalone
+  // popover anchored elsewhere). Returns "done" when no further action needed.
+  const tryUndoAdd = addTarget
+    ? async (printing: Printing): Promise<"done" | "ambiguous"> => {
         const entry = useAddModeStore.getState().addedItems.get(printing.id);
         const sessionCopyId = entry?.copyIds.at(-1);
         if (sessionCopyId) {
@@ -81,29 +82,29 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
           } catch {
             useAddModeStore.getState().recordAdd(printing, sessionCopyId);
           }
-          return;
+          return "done";
         }
-
-        // 2. Pre-existing copies: decide whether to silently dispose the
-        //    newest (single-collection scope) or open the picker (ambiguous).
         if (!copiesCollection) {
-          return;
+          return "done";
         }
         const decision = decideRemoval(copiesCollection.toArray, printing.id, viewCollectionId);
         if (decision.kind === "none") {
-          return;
+          return "done";
         }
         if (decision.kind === "dispose") {
           await disposeCopies.mutateAsync({ copyIds: [decision.copyId] });
-          return;
+          return "done";
         }
+        return "ambiguous";
+      }
+    : undefined;
 
-        // 3. Ambiguous (All Cards view, copies across multiple collections):
-        //    open the picker anchored to the minus button.
-        if (!anchorEl) {
-          return;
+  const handleUndoAdd = tryUndoAdd
+    ? async (printing: Printing, anchorEl?: HTMLElement) => {
+        const result = await tryUndoAdd(printing);
+        if (result === "ambiguous" && anchorEl) {
+          useAddModeStore.getState().openDisposePicker(printing, anchorEl);
         }
-        useAddModeStore.getState().openDisposePicker(printing, anchorEl);
       }
     : undefined;
 
@@ -164,6 +165,7 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
   return {
     handleQuickAdd,
     handleUndoAdd,
+    tryUndoAdd,
     handleOpenVariants,
     handleDisposeFromCollection,
     closeVariants,
