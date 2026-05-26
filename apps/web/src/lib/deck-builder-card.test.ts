@@ -1,7 +1,11 @@
 import type { DeckZone, SuperType } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import { isCardAllowedInZone, isDeckZoneFullForDrag } from "./deck-builder-card";
+import {
+  getAllowedMoveTargets,
+  isCardAllowedInZone,
+  isDeckZoneFullForDrag,
+} from "./deck-builder-card";
 
 describe("isCardAllowedInZone", () => {
   it("allows Legend cards only in the legend zone", () => {
@@ -180,5 +184,61 @@ describe("isDeckZoneFullForDrag", () => {
         format: "freeform",
       }),
     ).toBe(false);
+  });
+});
+
+describe("getAllowedMoveTargets", () => {
+  it("offers main/sideboard/overflow plus champion for a Champion unit in main", () => {
+    const card = {
+      cardType: "unit" as const,
+      superTypes: ["champion"] as SuperType[],
+      zone: "main" as DeckZone,
+    };
+    expect(getAllowedMoveTargets(card)).toEqual(["sideboard", "overflow", "champion"]);
+  });
+
+  it("excludes the current zone", () => {
+    const card = {
+      cardType: "unit" as const,
+      superTypes: [] as SuperType[],
+      zone: "sideboard" as DeckZone,
+    };
+    expect(getAllowedMoveTargets(card)).toEqual(["main", "overflow"]);
+  });
+
+  it("returns an empty list when no other zone is allowed (Legend in legend)", () => {
+    const card = {
+      cardType: "legend" as const,
+      superTypes: [] as SuperType[],
+      zone: "legend" as DeckZone,
+    };
+    expect(getAllowedMoveTargets(card)).toEqual([]);
+  });
+
+  it("returns an empty list for a Rune in runes", () => {
+    const card = {
+      cardType: "rune" as const,
+      superTypes: [] as SuperType[],
+      zone: "runes" as DeckZone,
+    };
+    expect(getAllowedMoveTargets(card)).toEqual([]);
+  });
+
+  it("returns an empty list for a Battlefield card in battlefield", () => {
+    const card = {
+      cardType: "battlefield" as const,
+      superTypes: [] as SuperType[],
+      zone: "battlefield" as DeckZone,
+    };
+    expect(getAllowedMoveTargets(card)).toEqual([]);
+  });
+
+  it("lets a Champion move out of the champion zone into main/sideboard/overflow", () => {
+    const card = {
+      cardType: "unit" as const,
+      superTypes: ["champion"] as SuperType[],
+      zone: "champion" as DeckZone,
+    };
+    expect(getAllowedMoveTargets(card)).toEqual(["main", "sideboard", "overflow"]);
   });
 });

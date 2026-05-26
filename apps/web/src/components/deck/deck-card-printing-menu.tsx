@@ -9,11 +9,14 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { useCards } from "@/hooks/use-cards";
 import { useDeckBuilderActions } from "@/hooks/use-deck-builder";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import { getAllowedMoveTargets } from "@/lib/deck-builder-card";
+import { ZONE_LABELS } from "@/lib/deck-zone-labels";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -24,13 +27,14 @@ interface DeckCardPrintingMenuProps {
 }
 
 /**
- * Right-click menu for a deck row: lists available printings with thumbnails
- * and a large hover preview anchored beside the menu. Click a printing to
- * convert every copy in this row; shift-click to split off a single copy.
+ * Right-click / long-press menu for a deck row. Lists allowed target zones
+ * (the only way to move cards on mobile, where drag is disabled) and
+ * available printings with thumbnails and a hover preview. Click a printing
+ * to convert every copy in this row; shift-click to split off a single copy.
  * @returns The wrapped children with the context menu attached.
  */
 export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintingMenuProps) {
-  const { changePreferredPrinting } = useDeckBuilderActions(deckId);
+  const { changePreferredPrinting, moveCard, moveOneCard } = useDeckBuilderActions(deckId);
   const { printingsByCardId } = useCards();
   const languages = useDisplayStore((state) => state.languages);
   const allPrintings = printingsByCardId.get(card.cardId) ?? [];
@@ -46,7 +50,9 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
   const { hoveredId, onEnter, onLeave, reset } = usePrintingHover();
   const popupRef = useRef<HTMLDivElement>(null);
 
-  if (printings.length === 0) {
+  const moveTargets = getAllowedMoveTargets(card);
+
+  if (printings.length === 0 && moveTargets.length === 0) {
     return children;
   }
 
@@ -56,6 +62,15 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
     // Otherwise convert the whole row.
     const count = isShift && card.quantity > 1 ? 1 : card.quantity;
     changePreferredPrinting(card.cardId, card.zone, card.preferredPrintingId, printing.id, count);
+  };
+
+  const handleMove = (targetZone: (typeof moveTargets)[number], event: MouseEvent) => {
+    const splitOne = event.shiftKey && card.quantity > 1;
+    if (splitOne) {
+      moveOneCard(card.cardId, card.zone, targetZone, card.preferredPrintingId);
+    } else {
+      moveCard(card.cardId, card.zone, targetZone, card.preferredPrintingId);
+    }
   };
 
   const hoveredPrinting = hoveredId ? printings.find((p) => p.id === hoveredId) : null;
@@ -69,27 +84,57 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
         {children}
       </ContextMenuTrigger>
       <ContextMenuContent ref={popupRef} className="max-h-[70vh] w-72 overflow-y-auto">
-        <div className="text-muted-foreground text-2xs px-1.5 pt-1 pb-1.5 font-medium tracking-wide uppercase">
-          Change printing
-          {card.quantity > 1 && (
-            <span className="text-muted-foreground/70 ml-1 hidden normal-case md:inline">
-              · shift-click to split 1
-            </span>
-          )}
-        </div>
-        <div className="flex flex-col gap-0.5">
-          {printings.map((printing) => (
-            <PrintingMenuItem
-              key={printing.id}
-              printing={printing}
-              printings={printings}
-              isActive={printing.id === card.preferredPrintingId}
-              onSelect={handleSelect}
-              onHoverEnter={onEnter}
-              onHoverLeave={onLeave}
-            />
-          ))}
-        </div>
+        {moveTargets.length > 0 && (
+          <>
+            <div className="text-muted-foreground text-2xs px-1.5 pt-1 pb-1.5 font-medium tracking-wide uppercase">
+              Move to
+              {card.quantity > 1 && (
+                <span className="text-muted-foreground/70 ml-1 hidden normal-case md:inline">
+                  · shift-click to move 1
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col gap-0.5">
+              {moveTargets.map((targetZone) => (
+                <ContextMenuItem
+                  key={targetZone}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleMove(targetZone, event);
+                  }}
+                >
+                  {ZONE_LABELS[targetZone]}
+                </ContextMenuItem>
+              ))}
+            </div>
+            {printings.length > 0 && <ContextMenuSeparator />}
+          </>
+        )}
+        {printings.length > 0 && (
+          <>
+            <div className="text-muted-foreground text-2xs px-1.5 pt-1 pb-1.5 font-medium tracking-wide uppercase">
+              Change printing
+              {card.quantity > 1 && (
+                <span className="text-muted-foreground/70 ml-1 hidden normal-case md:inline">
+                  · shift-click to split 1
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col gap-0.5">
+              {printings.map((printing) => (
+                <PrintingMenuItem
+                  key={printing.id}
+                  printing={printing}
+                  printings={printings}
+                  isActive={printing.id === card.preferredPrintingId}
+                  onSelect={handleSelect}
+                  onHoverEnter={onEnter}
+                  onHoverLeave={onLeave}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </ContextMenuContent>
       {hoveredPrinting && <PrintingHoverPreview printing={hoveredPrinting} anchorRef={popupRef} />}
     </ContextMenu>

@@ -2,6 +2,7 @@
 
 ## 2026-05-26
 
+- feat: In the deck builder, right-click or long-press a card to move it to another allowed zone. This is the main way to move cards on mobile, where dragging is disabled
 - feat: Buy and sell lists are now called Wishlists and Tradelists, matching the names other TCG sites use
 
 ## 2026-05-23

@@ -78,6 +78,31 @@ export function getDeckCardKey(card: {
   return deckCardKey(card.cardId, card.zone, card.preferredPrintingId);
 }
 
+// Display order for the "Move to" context menu — mirrors deck-overview stacking.
+const MOVE_TARGET_ORDER: readonly DeckZone[] = [
+  WellKnown.deckZone.MAIN,
+  WellKnown.deckZone.SIDEBOARD,
+  WellKnown.deckZone.OVERFLOW,
+  WellKnown.deckZone.CHAMPION,
+  WellKnown.deckZone.LEGEND,
+  WellKnown.deckZone.BATTLEFIELD,
+  WellKnown.deckZone.RUNES,
+];
+
+/**
+ * Lists zones a card can be moved into via the context menu — every zone where
+ * its type is allowed, minus its current zone, in display order.
+ *
+ * @returns Allowed target zones for the move-to menu.
+ */
+export function getAllowedMoveTargets(card: {
+  cardType: CardType;
+  superTypes: SuperType[];
+  zone: DeckZone;
+}): DeckZone[] {
+  return MOVE_TARGET_ORDER.filter((zone) => zone !== card.zone && isCardAllowedInZone(card, zone));
+}
+
 /**
  * Checks whether a card is allowed in a given zone based on its type/supertypes.
  *
