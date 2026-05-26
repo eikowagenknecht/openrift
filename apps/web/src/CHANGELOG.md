@@ -2,6 +2,7 @@
 
 ## 2026-05-26
 
+- feat: A friend group member's shared lists now appear as compact tiles with a heart, handshake, or folder icon for wishlists, tradelists, and organize lists, instead of stacked groups
 - feat: Wishlists and tradelists now use the same header across your own view, public share links, and group shares. Each shows the list name, type, entry count, total value, and (on group shares) a back arrow to the group page
 - feat: The quick add menu's card preview is now twice as big, so it's easier to spot the right printing at a glance
 - feat: From a deck's Missing cards view, you can now create a wishlist in one click. The new list is pre-named after the deck and seeded with all the missing cards
