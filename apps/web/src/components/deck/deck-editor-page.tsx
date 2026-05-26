@@ -212,7 +212,7 @@ function DeckEditorContent({
     return () => globalThis.removeEventListener("beforeunload", handler);
   }, [unsavedWarning]);
 
-  const { setArrayFilters, setSearch } = useFilterActions();
+  const { setArrayFilters, setRanges, setSearch } = useFilterActions();
 
   const { items: deckItems, printingsByCardId } = useDeckItems(deckCards);
   const showImages = useDisplayStore((state) => state.showImages);
@@ -272,6 +272,13 @@ function DeckEditorContent({
     const runesDomainFilter = isCustomRegion ? [] : legendDomains;
     const mainDomainFilter = isCustomRegion ? [] : domainsWithColorless;
 
+    // Legends, runes, and battlefields have no energy / might / power, so
+    // any range filters carried over from a previous zone would hide every
+    // card in these zones. Price still applies (marketplace value).
+    const clearStatRanges = () => {
+      setRanges({ energy: null, might: null, power: null });
+    };
+
     switch (zone) {
       case "legend": {
         setArrayFilters({
@@ -280,6 +287,7 @@ function DeckEditorContent({
           domains: [],
           customTags: formatTagSlugs,
         });
+        clearStatRanges();
         break;
       }
       case "champion": {
@@ -301,6 +309,7 @@ function DeckEditorContent({
           domains: runesDomainFilter,
           customTags: formatTagSlugs,
         });
+        clearStatRanges();
         break;
       }
       case "battlefield": {
@@ -310,6 +319,7 @@ function DeckEditorContent({
           domains: [],
           customTags: formatTagSlugs,
         });
+        clearStatRanges();
         break;
       }
       case "main":

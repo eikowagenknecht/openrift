@@ -185,6 +185,52 @@ describe("useCardFilters", () => {
     expect(lastNavigateSearch()).toMatchObject({ priceMin: 0.5, priceMax: 99.99 });
   });
 
+  it("setRanges clears multiple ranges in a single navigation", () => {
+    mockSearch = { energyMin: 1, energyMax: 5, mightMin: 2, mightMax: 8, powerMin: 0, powerMax: 9 };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.setRanges({ energy: null, might: null, power: null }));
+
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+    const search = lastNavigateSearch();
+    expect(search).not.toHaveProperty("energyMin");
+    expect(search).not.toHaveProperty("energyMax");
+    expect(search).not.toHaveProperty("mightMin");
+    expect(search).not.toHaveProperty("mightMax");
+    expect(search).not.toHaveProperty("powerMin");
+    expect(search).not.toHaveProperty("powerMax");
+  });
+
+  it("setRanges leaves untouched range keys intact", () => {
+    mockSearch = { energyMin: 1, energyMax: 5, priceMin: 0.5, priceMax: 99 };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.setRanges({ energy: null }));
+
+    const search = lastNavigateSearch();
+    expect(search).not.toHaveProperty("energyMin");
+    expect(search).not.toHaveProperty("energyMax");
+    expect(search).toMatchObject({ priceMin: 0.5, priceMax: 99 });
+  });
+
+  it("setRanges can set min/max values, not just clear them", () => {
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() =>
+      result.current.setRanges({
+        energy: { min: 1, max: 5 },
+        might: { min: 2, max: null },
+      }),
+    );
+
+    expect(lastNavigateSearch()).toMatchObject({
+      energyMin: 1,
+      energyMax: 5,
+      mightMin: 2,
+    });
+    expect(lastNavigateSearch()).not.toHaveProperty("mightMax");
+  });
+
   it("toggleSigned cycles null → true → false → null", () => {
     const { result } = renderHook(() => useCardFilters(), { wrapper });
 

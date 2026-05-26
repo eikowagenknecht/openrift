@@ -276,6 +276,22 @@ export function useFilterActions() {
     } as Partial<FilterSearch>);
   };
 
+  const setRanges = (
+    updates: Partial<Record<RangeKey, { min: number | null; max: number | null } | null>>,
+  ) => {
+    const patch: Partial<FilterSearch> = {};
+    for (const [key, value] of Object.entries(updates) as [
+      RangeKey,
+      { min: number | null; max: number | null } | null,
+    ][]) {
+      const minKey = `${key}Min` as const;
+      const maxKey = `${key}Max` as const;
+      (patch as Record<string, unknown>)[minKey] = value?.min ?? undefined;
+      (patch as Record<string, unknown>)[maxKey] = value?.max ?? undefined;
+    }
+    updateSearch(patch);
+  };
+
   const clearOwned = () => updateSearch({ owned: undefined });
 
   const toggleSigned = () => {
@@ -332,6 +348,7 @@ export function useFilterActions() {
     setArrayFilter,
     setArrayFilters,
     setRange,
+    setRanges,
     clearOwned,
     toggleSigned,
     togglePromo,
