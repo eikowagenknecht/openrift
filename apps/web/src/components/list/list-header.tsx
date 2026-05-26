@@ -6,7 +6,6 @@ import { PageTopBar, PageTopBarActions, PageTopBarTitle } from "@/components/lay
 import { listKindIcon } from "@/components/list/create-list-dialog";
 import { ListGroupSharesBadge } from "@/components/list/list-group-shares-badge";
 import { ListValueLabel } from "@/components/list/list-value-label";
-import { Badge } from "@/components/ui/badge";
 import { useHydrated } from "@/hooks/use-hydrated";
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
@@ -78,14 +77,14 @@ export function ListHeader({
       {backLink}
       <div className="flex min-w-0 flex-1 items-baseline gap-2">
         <PageTopBarTitle onToggleSidebar={onToggleSidebar}>{list.name}</PageTopBarTitle>
-        <Badge variant="ghost" className="text-2xs hidden shrink-0 sm:inline-flex">
-          <IntentIcon className="size-3" />
+        <span className="text-muted-foreground hidden shrink-0 text-xs sm:inline">
+          <IntentIcon className="mr-1 inline-block size-3 align-text-bottom" />
           {INTENT_LABEL[list.intent]}
-        </Badge>
-        <Badge variant="ghost" className="text-2xs hidden shrink-0 sm:inline-flex">
-          <KindIcon className="size-3" />
+        </span>
+        <span className="text-muted-foreground hidden shrink-0 text-xs sm:inline">
+          <KindIcon className="mr-1 inline-block size-3 align-text-bottom" />
           {count} {kindNoun}
-        </Badge>
+        </span>
         {hydrated && count > 0 && <ListValueLabel kind={list.kind} entries={entries} />}
         {attribution.kind === "owner" && attribution.ownerName ? (
           <span className="text-muted-foreground hidden shrink-0 text-xs sm:inline">
