@@ -255,7 +255,7 @@ export function DeckMissingCardsDialog({
           defaultName={`${deckName} - Missing`}
           initialEntries={buildWishlistEntries}
           title={`New wishlist for "${deckName}"`}
-          description="Already includes the cards you still need for this deck."
+          description="Pick whether any version of the card works, or you want a specific one."
           kindHints={{
             card: "Any printing of each card counts. Pick this if you just want to play the deck.",
             printing:
