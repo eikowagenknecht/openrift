@@ -65,14 +65,17 @@ export function VariantAddPopover({
         if (!printing) {
           return;
         }
-        // `=` is accepted as a no-shift alias for `+` (US layouts need Shift+=).
-        const isIncrement = event.key === "+" || event.key === "=";
+        // `=` is a no-shift alias for `+` (US layouts need Shift+=).
+        // Enter is an alias for `+`, Shift+Enter for `-`.
+        const isIncrement =
+          event.key === "+" || event.key === "=" || (event.key === "Enter" && !event.shiftKey);
+        const isDecrement = event.key === "-" || (event.key === "Enter" && event.shiftKey);
         if (isIncrement) {
           event.preventDefault();
           onQuickAdd(printing);
           return;
         }
-        if (event.key === "-") {
+        if (isDecrement) {
           const owned = ownedCounts?.[id] ?? 0;
           if (owned === 0) {
             return;

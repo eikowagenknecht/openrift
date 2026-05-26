@@ -5,6 +5,7 @@
 - feat: Shared list pages now show how many of each card you want or have on offer, both as a badge in grid view and as a Qty column in table view
 - feat: In the deck builder, right-click or long-press a card to move it to another allowed zone. This is the main way to move cards on mobile, where dragging is disabled
 - feat: Buy and sell lists are now called Wishlists and Tradelists, matching the names other TCG sites use
+- feat: In the variants picker, Enter adds the highlighted variant and Shift+Enter removes one, so you can stay on the home row instead of reaching for +/-
 - fix: Curated links in the Promos page descriptions are clickable again — a recent safety tightening had accidentally stripped them
 - fix: When you remove a card that exists in multiple collections from inside the variants picker, the "Remove from" list now replaces the variants list inside the same popover instead of opening a second one over it. Press Esc to go back to the variants list
 

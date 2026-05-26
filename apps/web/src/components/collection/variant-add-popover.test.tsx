@@ -43,9 +43,9 @@ function commandRoot(container: HTMLElement): HTMLElement {
   return root;
 }
 
-function press(container: HTMLElement, key: string) {
+function press(container: HTMLElement, key: string, init: { shiftKey?: boolean } = {}) {
   act(() => {
-    fireEvent.keyDown(commandRoot(container), { key });
+    fireEvent.keyDown(commandRoot(container), { key, ...init });
   });
 }
 
@@ -132,6 +132,56 @@ describe("VariantAddPopover keyboard nav", () => {
 
     press(container, "=");
     expect(onQuickAdd).toHaveBeenCalledWith(p2);
+  });
+
+  it("Enter is an alias for `+` and calls onQuickAdd", () => {
+    const onQuickAdd = vi.fn();
+    const { container } = render(
+      <VariantAddPopover
+        printings={printings}
+        ownedCounts={{}}
+        onQuickAdd={onQuickAdd}
+        onUndoAdd={() => {}}
+        initialHighlightId="v2"
+      />,
+    );
+
+    press(container, "Enter");
+    expect(onQuickAdd).toHaveBeenCalledWith(p2);
+  });
+
+  it("Shift+Enter is an alias for `-` and calls onUndoAdd when owned > 0", () => {
+    const onUndoAdd = vi.fn();
+    const { container } = render(
+      <VariantAddPopover
+        printings={printings}
+        ownedCounts={{ v1: 0, v2: 2, v3: 0 }}
+        onQuickAdd={() => {}}
+        onUndoAdd={onUndoAdd}
+        initialHighlightId="v2"
+      />,
+    );
+
+    press(container, "Enter", { shiftKey: true });
+    expect(onUndoAdd).toHaveBeenCalledTimes(1);
+    expect(onUndoAdd.mock.calls[0][0]).toBe(p2);
+    expect(onUndoAdd.mock.calls[0][1]).toBeInstanceOf(HTMLElement);
+  });
+
+  it("Shift+Enter is a no-op when the highlighted variant has zero owned", () => {
+    const onUndoAdd = vi.fn();
+    const { container } = render(
+      <VariantAddPopover
+        printings={printings}
+        ownedCounts={{ v1: 0, v2: 0, v3: 0 }}
+        onQuickAdd={() => {}}
+        onUndoAdd={onUndoAdd}
+        initialHighlightId="v2"
+      />,
+    );
+
+    press(container, "Enter", { shiftKey: true });
+    expect(onUndoAdd).not.toHaveBeenCalled();
   });
 
   it("`-` calls onUndoAdd for the highlighted variant when owned > 0", () => {
