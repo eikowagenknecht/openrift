@@ -11,6 +11,7 @@
 - feat: In the deck builder, right-click or long-press a card to move it to another allowed zone. This is the main way to move cards on mobile, where dragging is disabled
 - feat: Buy and sell lists are now called Wishlists and Tradelists, matching the names other TCG sites use
 - feat: In the variants picker, Enter does whatever you came in to do (add if you opened it by adding, remove if you opened it by removing), and Shift+Enter does the opposite. The literal +/- keys still work either way
+- fix: Card thumbnails on a friend group member's shared list page now show the card art again, instead of empty placeholder boxes
 - fix: In dark mode, the selected and expanded rows in the quick add menu are now readable instead of showing white text on gold
 - fix: The card detail pane now shows the Printings section even when there is only one printing, so you can still see the global owned count for that printing
 - fix: Curated links in the Promos page descriptions are clickable again — a recent safety tightening had accidentally stripped them

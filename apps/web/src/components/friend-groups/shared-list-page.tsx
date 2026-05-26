@@ -7,6 +7,7 @@ import { ListHeader } from "@/components/list/list-header";
 import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useFriendGroupSharedList } from "@/hooks/use-friend-groups";
+import { resolveEntryImageId } from "@/lib/list-thumbnail";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
 interface SharedListPageProps {
@@ -25,7 +26,7 @@ interface SharedListPageProps {
  */
 export function SharedListPage({ slug, listId }: SharedListPageProps) {
   const { data } = useFriendGroupSharedList(slug, listId);
-  const { cardsById, sets } = useCards();
+  const { cardsById, printingsById, printingsByCardId, sets } = useCards();
   const { labels } = useEnumOrders();
   const setsById = new Map(sets.map((set) => [set.id, set]));
 
@@ -52,6 +53,7 @@ export function SharedListPage({ slug, listId }: SharedListPageProps) {
                 key={entry.id}
                 entry={entry}
                 cardSlug={cardsById[(entry as { cardId?: string }).cardId ?? ""]?.slug}
+                imageId={resolveEntryImageId(entry, printingsById, printingsByCardId)}
                 setName={setNameFor(entry, setsById)}
                 rarityLabel={rarityLabelFor(entry, labels.rarities)}
                 finishLabel={finishLabelFor(entry, labels.finishes)}
@@ -97,6 +99,7 @@ function finishLabelFor(
 interface SharedListEntryRowProps {
   entry: ListEntryDetailResponse;
   cardSlug: string | undefined;
+  imageId: string | null;
   setName: string | null;
   rarityLabel: string | null;
   finishLabel: string | null;
@@ -105,12 +108,12 @@ interface SharedListEntryRowProps {
 function SharedListEntryRow({
   entry,
   cardSlug,
+  imageId,
   setName,
   rarityLabel,
   finishLabel,
 }: SharedListEntryRowProps) {
   const cardId = entry.kind === "card" ? entry.cardId : undefined;
-  const imageId = entry.kind === "card" ? null : entry.imageId;
   const metaParts = [setName, rarityLabel, finishLabel].filter(
     (part): part is string => part !== null,
   );
