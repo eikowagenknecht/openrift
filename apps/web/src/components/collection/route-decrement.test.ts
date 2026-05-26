@@ -39,7 +39,7 @@ describe("buildOnDecrement", () => {
     });
     onDecrement(printing, anchor);
 
-    expect(handleOpenVariants).toHaveBeenCalledWith(printing, anchor);
+    expect(handleOpenVariants).toHaveBeenCalledWith(printing, anchor, "remove");
     expect(handleUndoAdd).not.toHaveBeenCalled();
   });
 

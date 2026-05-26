@@ -99,7 +99,7 @@ describe("useGridKeyboardNav: +/-", () => {
     const onDecrement = vi.fn();
     useCardRowActionsStore.getState().setHandlers({ onIncrement, onDecrement });
     useSelectionStore.getState().selectCard(p1, items, "printing");
-    useAddModeStore.getState().openVariants(p1.cardId, document.createElement("div"));
+    useAddModeStore.getState().openVariants(p1.cardId, document.createElement("div"), "add");
 
     renderHook(() => useGridKeyboardNav({ items }));
     press("+");

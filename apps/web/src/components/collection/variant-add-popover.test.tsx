@@ -62,6 +62,7 @@ describe("VariantAddPopover keyboard nav", () => {
         ownedCounts={{ v1: 1, v2: 1, v3: 1 }}
         onQuickAdd={() => {}}
         onUndoAdd={() => {}}
+        intent="add"
         initialHighlightId="v2"
       />,
     );
@@ -75,6 +76,7 @@ describe("VariantAddPopover keyboard nav", () => {
         ownedCounts={{}}
         onQuickAdd={() => {}}
         onUndoAdd={() => {}}
+        intent="add"
         initialHighlightId="not-in-list"
       />,
     );
@@ -88,6 +90,7 @@ describe("VariantAddPopover keyboard nav", () => {
         ownedCounts={{}}
         onQuickAdd={() => {}}
         onUndoAdd={() => {}}
+        intent="add"
       />,
     );
 
@@ -110,6 +113,7 @@ describe("VariantAddPopover keyboard nav", () => {
         ownedCounts={{}}
         onQuickAdd={onQuickAdd}
         onUndoAdd={() => {}}
+        intent="add"
         initialHighlightId="v2"
       />,
     );
@@ -126,6 +130,7 @@ describe("VariantAddPopover keyboard nav", () => {
         ownedCounts={{}}
         onQuickAdd={onQuickAdd}
         onUndoAdd={() => {}}
+        intent="add"
         initialHighlightId="v2"
       />,
     );
@@ -134,41 +139,51 @@ describe("VariantAddPopover keyboard nav", () => {
     expect(onQuickAdd).toHaveBeenCalledWith(p2);
   });
 
-  it("Enter is an alias for `+` and calls onQuickAdd", () => {
+  it("with intent=add, Enter adds and Shift+Enter removes", () => {
     const onQuickAdd = vi.fn();
+    const onUndoAdd = vi.fn();
     const { container } = render(
       <VariantAddPopover
         printings={printings}
-        ownedCounts={{}}
+        ownedCounts={{ v1: 0, v2: 2, v3: 0 }}
         onQuickAdd={onQuickAdd}
-        onUndoAdd={() => {}}
+        onUndoAdd={onUndoAdd}
+        intent="add"
         initialHighlightId="v2"
       />,
     );
 
     press(container, "Enter");
     expect(onQuickAdd).toHaveBeenCalledWith(p2);
+
+    press(container, "Enter", { shiftKey: true });
+    expect(onUndoAdd).toHaveBeenCalledTimes(1);
+    expect(onUndoAdd.mock.calls[0][0]).toBe(p2);
   });
 
-  it("Shift+Enter is an alias for `-` and calls onUndoAdd when owned > 0", () => {
+  it("with intent=remove, Enter removes and Shift+Enter adds", () => {
+    const onQuickAdd = vi.fn();
     const onUndoAdd = vi.fn();
     const { container } = render(
       <VariantAddPopover
         printings={printings}
         ownedCounts={{ v1: 0, v2: 2, v3: 0 }}
-        onQuickAdd={() => {}}
+        onQuickAdd={onQuickAdd}
         onUndoAdd={onUndoAdd}
+        intent="remove"
         initialHighlightId="v2"
       />,
     );
 
-    press(container, "Enter", { shiftKey: true });
+    press(container, "Enter");
     expect(onUndoAdd).toHaveBeenCalledTimes(1);
     expect(onUndoAdd.mock.calls[0][0]).toBe(p2);
-    expect(onUndoAdd.mock.calls[0][1]).toBeInstanceOf(HTMLElement);
+
+    press(container, "Enter", { shiftKey: true });
+    expect(onQuickAdd).toHaveBeenCalledWith(p2);
   });
 
-  it("Shift+Enter is a no-op when the highlighted variant has zero owned", () => {
+  it("Enter is a no-op for remove when the highlighted variant has zero owned", () => {
     const onUndoAdd = vi.fn();
     const { container } = render(
       <VariantAddPopover
@@ -176,11 +191,12 @@ describe("VariantAddPopover keyboard nav", () => {
         ownedCounts={{ v1: 0, v2: 0, v3: 0 }}
         onQuickAdd={() => {}}
         onUndoAdd={onUndoAdd}
+        intent="remove"
         initialHighlightId="v2"
       />,
     );
 
-    press(container, "Enter", { shiftKey: true });
+    press(container, "Enter");
     expect(onUndoAdd).not.toHaveBeenCalled();
   });
 
@@ -192,6 +208,7 @@ describe("VariantAddPopover keyboard nav", () => {
         ownedCounts={{ v1: 0, v2: 2, v3: 0 }}
         onQuickAdd={() => {}}
         onUndoAdd={onUndoAdd}
+        intent="add"
         initialHighlightId="v2"
       />,
     );
@@ -210,6 +227,7 @@ describe("VariantAddPopover keyboard nav", () => {
         ownedCounts={{ v1: 0, v2: 0, v3: 1 }}
         onQuickAdd={() => {}}
         onUndoAdd={onUndoAdd}
+        intent="add"
         initialHighlightId="v2"
       />,
     );
@@ -225,6 +243,7 @@ describe("VariantAddPopover keyboard nav", () => {
         ownedCounts={{}}
         onQuickAdd={() => {}}
         onUndoAdd={() => {}}
+        intent="add"
       />,
     );
 

@@ -36,6 +36,7 @@ import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import { useSession, useUserId } from "@/lib/auth-session";
 import { useAddModeStore } from "@/stores/add-mode-store";
+import type { VariantPopoverIntent } from "@/stores/add-mode-store";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
@@ -186,8 +187,8 @@ export function CardBrowser() {
   // Tag the variant popover with the cell's setId in cards+set mode so the
   // popover can filter to in-set variants only.
   const handleOpenVariantsScoped = handleOpenVariants
-    ? (printing: Printing, anchorEl: HTMLElement) =>
-        handleOpenVariants(printing, anchorEl, scopeVariantsToSet)
+    ? (printing: Printing, anchorEl: HTMLElement, intent: VariantPopoverIntent) =>
+        handleOpenVariants(printing, anchorEl, intent, scopeVariantsToSet)
     : undefined;
 
   // Deep-link: open a specific printing when navigating from e.g. activity page
@@ -235,7 +236,7 @@ export function CardBrowser() {
           const ownedVariantCount =
             allCardSiblings?.filter((p) => (ownedCountByPrinting?.[p.id] ?? 0) > 0).length ?? 0;
           if (ownedVariantCount > 1 && handleOpenVariantsScoped && anchorEl) {
-            handleOpenVariantsScoped(printing, anchorEl);
+            handleOpenVariantsScoped(printing, anchorEl, "remove");
             return;
           }
         }
@@ -457,6 +458,7 @@ export function CardBrowser() {
                       }
                     }}
                     initialHighlightId={selectedCardId}
+                    intent={variantPopover.intent}
                     disposeTarget={variantDisposeTarget}
                     onDisposePick={async (printing, collectionId) => {
                       await handleDisposeFromCollection(printing, collectionId);

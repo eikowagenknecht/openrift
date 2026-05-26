@@ -8,6 +8,7 @@ import { useCopiesCollection } from "@/lib/copies-collection";
 import { summarizeBatchAdd } from "@/lib/summarize-batch-add";
 import { isTempCopyId } from "@/lib/temp-copy-id";
 import { useAddModeStore } from "@/stores/add-mode-store";
+import type { VariantPopoverIntent } from "@/stores/add-mode-store";
 
 /**
  * Shared add/undo logic for collection add mode. Optimistic count changes
@@ -128,7 +129,12 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
   const justClosedRef = useRef<string | null>(null);
 
   const handleOpenVariants = addTarget
-    ? (printing: Printing, anchorEl: HTMLElement, scopeToSet = false) => {
+    ? (
+        printing: Printing,
+        anchorEl: HTMLElement,
+        intent: VariantPopoverIntent,
+        scopeToSet = false,
+      ) => {
         if (justClosedRef.current === printing.cardId) {
           justClosedRef.current = null;
           return;
@@ -141,7 +147,7 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
         }
         useAddModeStore
           .getState()
-          .openVariants(printing.cardId, anchorEl, scopeToSet ? printing.setId : undefined);
+          .openVariants(printing.cardId, anchorEl, intent, scopeToSet ? printing.setId : undefined);
       }
     : undefined;
 

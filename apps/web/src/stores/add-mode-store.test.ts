@@ -157,20 +157,21 @@ describe("useAddModeStore", () => {
   });
 
   describe("UI toggles", () => {
-    it("openVariants stores the anchor element", () => {
+    it("openVariants stores the anchor element and intent", () => {
       const anchor = document.createElement("button");
-      useAddModeStore.getState().openVariants("card-1", anchor);
+      useAddModeStore.getState().openVariants("card-1", anchor, "remove");
 
       const state = useAddModeStore.getState();
       expect(state.variantPopover).toEqual({
         cardId: "card-1",
         anchorEl: anchor,
+        intent: "remove",
         setId: undefined,
       });
     });
 
     it("closeVariants clears the popover", () => {
-      useAddModeStore.getState().openVariants("card-1", document.createElement("button"));
+      useAddModeStore.getState().openVariants("card-1", document.createElement("button"), "add");
       useAddModeStore.getState().closeVariants();
       expect(useAddModeStore.getState().variantPopover).toBeNull();
     });
@@ -197,7 +198,7 @@ describe("useAddModeStore", () => {
     it("clears all state", () => {
       const printing = stubPrinting({ id: "p1" });
       useAddModeStore.getState().recordAdd(printing, "copy-1");
-      useAddModeStore.getState().openVariants("card-1", document.createElement("button"));
+      useAddModeStore.getState().openVariants("card-1", document.createElement("button"), "add");
       useAddModeStore.getState().openDisposePicker(printing, document.createElement("button"));
 
       useAddModeStore.getState().reset();

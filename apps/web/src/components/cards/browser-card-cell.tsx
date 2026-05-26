@@ -66,9 +66,15 @@ export function BrowserCardCell({
       ? siblings.filter((sibling) => (counts.totals[sibling.id] ?? 0) > 0).length
       : 0;
   // Cards view: minus on a card with copies across multiple variants is
-  // ambiguous — route to the variant popover instead of silently disposing
-  // the displayed printing.
-  const onUndoAdd = ownedVariantCount > 1 ? dispatchOpenVariants : dispatchDecrement;
+  // ambiguous — route to the variant popover (with "remove" intent so Enter
+  // there decrements) instead of silently disposing the displayed printing.
+  const onUndoAdd = (target: Printing, anchorEl: HTMLElement) => {
+    if (ownedVariantCount > 1) {
+      dispatchOpenVariants(target, anchorEl, "remove");
+    } else {
+      dispatchDecrement(target, anchorEl);
+    }
+  };
 
   let strip: ReactNode | undefined;
   if (enabled) {
@@ -86,7 +92,9 @@ export function BrowserCardCell({
           ariaLabel: `Add ${printing.card.name}`,
         }}
         onPillClick={
-          hasVariants ? (event) => dispatchOpenVariants(printing, event.currentTarget) : undefined
+          hasVariants
+            ? (event) => dispatchOpenVariants(printing, event.currentTarget, "add")
+            : undefined
         }
         pillAriaLabel={hasVariants ? `Choose variant for ${printing.card.name}` : undefined}
       />

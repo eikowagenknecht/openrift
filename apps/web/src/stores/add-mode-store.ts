@@ -8,12 +8,21 @@ interface AddedEntry {
   pendingCount: number;
 }
 
+/**
+ * Why the popover knows how it was opened: when the user enters via a `-`
+ * button or the `-` key, Enter inside the popover should remove the
+ * highlighted variant. When they enter via the pill / add affordance, Enter
+ * should add. Shift+Enter is always the inverse of the entry intent.
+ */
+export type VariantPopoverIntent = "add" | "remove";
+
 interface AddModeState {
   addedItems: Map<string, AddedEntry>;
   variantPopover: {
     cardId: string;
     /** Optional setId — when present, the popover filters variants to this set. */
     setId?: string;
+    intent: VariantPopoverIntent;
     anchorEl: HTMLElement;
   } | null;
   disposePicker: { printing: Printing; anchorEl: HTMLElement } | null;
@@ -22,7 +31,12 @@ interface AddModeState {
   decrementPending: (printingId: string) => void;
   recordAdd: (printing: Printing, copyId: string) => void;
   recordUndo: (printingId: string) => void;
-  openVariants: (cardId: string, anchorEl: HTMLElement, setId?: string) => void;
+  openVariants: (
+    cardId: string,
+    anchorEl: HTMLElement,
+    intent: VariantPopoverIntent,
+    setId?: string,
+  ) => void;
   closeVariants: () => void;
   openDisposePicker: (printing: Printing, anchorEl: HTMLElement) => void;
   closeDisposePicker: () => void;
@@ -101,7 +115,8 @@ export const useAddModeStore = create<AddModeState>()((set) => ({
       return { addedItems: next };
     }),
 
-  openVariants: (cardId, anchorEl, setId) => set({ variantPopover: { cardId, setId, anchorEl } }),
+  openVariants: (cardId, anchorEl, intent, setId) =>
+    set({ variantPopover: { cardId, setId, intent, anchorEl } }),
   closeVariants: () => set({ variantPopover: null }),
   openDisposePicker: (printing, anchorEl) => set({ disposePicker: { printing, anchorEl } }),
   closeDisposePicker: () => set({ disposePicker: null }),

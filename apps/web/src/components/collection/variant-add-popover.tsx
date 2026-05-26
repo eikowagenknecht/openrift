@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { PickerList, PickerRow } from "@/components/ui/picker-list";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
+import type { VariantPopoverIntent } from "@/stores/add-mode-store";
 
 interface VariantAddPopoverProps {
   printings: Printing[];
@@ -15,6 +16,12 @@ interface VariantAddPopoverProps {
   onUndoAdd: (printing: Printing, anchorEl: HTMLElement) => void;
   /** Initial keyboard highlight target (e.g. the printing selected on the grid). */
   initialHighlightId?: string;
+  /**
+   * How the popover was opened. Enter does the entry action (add or remove)
+   * for the highlighted variant; Shift+Enter does the opposite. `+` / `=` / `-`
+   * are always literal regardless of intent.
+   */
+  intent: VariantPopoverIntent;
   /**
    * When set, the popover swaps to a "Remove from" page for this printing
    * instead of the variants list. Implemented as a children/header swap inside
@@ -31,6 +38,7 @@ export function VariantAddPopover({
   onQuickAdd,
   onUndoAdd,
   initialHighlightId,
+  intent,
   disposeTarget,
   onDisposePick,
 }: VariantAddPopoverProps) {
@@ -66,10 +74,15 @@ export function VariantAddPopover({
           return;
         }
         // `=` is a no-shift alias for `+` (US layouts need Shift+=).
-        // Enter is an alias for `+`, Shift+Enter for `-`.
-        const isIncrement =
-          event.key === "+" || event.key === "=" || (event.key === "Enter" && !event.shiftKey);
-        const isDecrement = event.key === "-" || (event.key === "Enter" && event.shiftKey);
+        // Enter follows the entry intent so the same key that brought the user
+        // in (cell `+` vs cell `-`) keeps doing the same action here; Shift+Enter
+        // is the inverse.
+        const enterDoesIncrement =
+          event.key === "Enter" && (intent === "add" ? !event.shiftKey : event.shiftKey);
+        const enterDoesDecrement =
+          event.key === "Enter" && (intent === "remove" ? !event.shiftKey : event.shiftKey);
+        const isIncrement = event.key === "+" || event.key === "=" || enterDoesIncrement;
+        const isDecrement = event.key === "-" || enterDoesDecrement;
         if (isIncrement) {
           event.preventDefault();
           onQuickAdd(printing);

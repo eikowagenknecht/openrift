@@ -1,6 +1,8 @@
 import type { Printing } from "@openrift/shared";
 import { create } from "zustand";
 
+import type { VariantPopoverIntent } from "@/stores/add-mode-store";
+
 export interface CardRowClickModifiers {
   shift?: boolean;
 }
@@ -14,7 +16,11 @@ interface CardRowHandlers {
     anchorEl?: HTMLElement,
     modifiers?: CardRowClickModifiers,
   ) => void;
-  onOpenVariants?: (printing: Printing, anchorEl: HTMLElement) => void;
+  onOpenVariants?: (
+    printing: Printing,
+    anchorEl: HTMLElement,
+    intent: VariantPopoverIntent,
+  ) => void;
 }
 
 interface CardRowActionsState {
@@ -58,6 +64,10 @@ export function dispatchDecrement(
   useCardRowActionsStore.getState().handlers.onDecrement?.(printing, anchorEl, modifiers);
 }
 
-export function dispatchOpenVariants(printing: Printing, anchorEl: HTMLElement): void {
-  useCardRowActionsStore.getState().handlers.onOpenVariants?.(printing, anchorEl);
+export function dispatchOpenVariants(
+  printing: Printing,
+  anchorEl: HTMLElement,
+  intent: VariantPopoverIntent,
+): void {
+  useCardRowActionsStore.getState().handlers.onOpenVariants?.(printing, anchorEl, intent);
 }

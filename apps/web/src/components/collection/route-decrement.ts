@@ -1,9 +1,15 @@
 import type { Printing } from "@openrift/shared";
 
+import type { VariantPopoverIntent } from "@/stores/add-mode-store";
+
 interface RouteDecrementDeps {
   dataView: "cards" | "printings" | "copies";
   ownedPrintingIdsByCardId: Map<string, string[]>;
-  handleOpenVariants?: (printing: Printing, anchorEl: HTMLElement) => void;
+  handleOpenVariants?: (
+    printing: Printing,
+    anchorEl: HTMLElement,
+    intent: VariantPopoverIntent,
+  ) => void;
   handleUndoAdd?: (printing: Printing, anchorEl?: HTMLElement) => void | Promise<void>;
 }
 
@@ -26,7 +32,7 @@ export function buildOnDecrement({
     const ownedVariantIds = ownedPrintingIdsByCardId.get(printing.cardId);
     const hasAmbiguousRemoval = dataView === "cards" && (ownedVariantIds?.length ?? 0) > 1;
     if (hasAmbiguousRemoval && handleOpenVariants && anchorEl) {
-      handleOpenVariants(printing, anchorEl);
+      handleOpenVariants(printing, anchorEl, "remove");
       return;
     }
     void handleUndoAdd?.(printing, anchorEl);

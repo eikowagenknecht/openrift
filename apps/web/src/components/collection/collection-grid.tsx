@@ -642,7 +642,13 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     // removals through the variant popover to let the user pick.
     const hasAmbiguousRemoval = dataView === "cards" && (ownedVariantIds?.length ?? 0) > 1;
     const onUndoAdd =
-      hasAmbiguousRemoval && handleOpenVariants ? handleOpenVariants : handleUndoAdd;
+      hasAmbiguousRemoval && handleOpenVariants
+        ? (printing: Printing, anchorEl?: HTMLElement) => {
+            if (anchorEl) {
+              handleOpenVariants(printing, anchorEl, "remove");
+            }
+          }
+        : handleUndoAdd;
     // Wider scope for the "(M)" hint next to the in-collection count: per-printing
     // globally in printings view; sum across catalog siblings (any owned variant
     // in any collection) in cards view.
@@ -661,7 +667,8 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     const showAddStrip = mode === "browse" && handleQuickAdd;
     const variantTrigger =
       dataView === "cards" && (catalogSiblings?.length ?? 0) > 1 && handleOpenVariants
-        ? handleOpenVariants
+        ? (printing: Printing, anchorEl: HTMLElement) =>
+            handleOpenVariants(printing, anchorEl, "add")
         : undefined;
     const aboveCard = showAddStrip ? (
       <CardCountStrip
@@ -772,7 +779,13 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     const ownedVariantIds = allPrintingIdsByCardId.get(cardId);
     const hasAmbiguousRemoval = dataView === "cards" && (ownedVariantIds?.length ?? 0) > 1;
     const onUndoAdd =
-      hasAmbiguousRemoval && handleOpenVariants ? handleOpenVariants : handleUndoAdd;
+      hasAmbiguousRemoval && handleOpenVariants
+        ? (printing: Printing, anchorEl?: HTMLElement) => {
+            if (anchorEl) {
+              handleOpenVariants(printing, anchorEl, "remove");
+            }
+          }
+        : handleUndoAdd;
 
     return (
       <CardCell
@@ -792,7 +805,8 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             ? (() => {
                 const variantTrigger =
                   dataView === "cards" && (siblings?.length ?? 0) > 1 && handleOpenVariants
-                    ? handleOpenVariants
+                    ? (printing: Printing, anchorEl: HTMLElement) =>
+                        handleOpenVariants(printing, anchorEl, "add")
                     : undefined;
                 return (
                   <CardCountStrip
@@ -1183,6 +1197,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
                 }
               }}
               initialHighlightId={selectedCardId}
+              intent={variantPopover.intent}
               disposeTarget={variantDisposeTarget}
               onDisposePick={async (printing, fromCollectionId) => {
                 await handleDisposeFromCollection(printing, fromCollectionId);
