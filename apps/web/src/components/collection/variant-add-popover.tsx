@@ -49,18 +49,27 @@ export function VariantAddPopover({
   // "" lets cmdk auto-pick the first row; we seed it with initialHighlightId
   // only when that id is actually in the list.
   const initialId = printings.some((p) => p.id === initialHighlightId) ? initialHighlightId : "";
-  const [highlightedId, setHighlightedId] = useState(initialId ?? "");
+  // Two highlight states so the value passed to cmdk is already "" at the
+  // moment the dispose rows register — cmdk only auto-selects the first row
+  // when its internal value is falsy AT ITEM REGISTRATION TIME; switching it
+  // to "" later (via useEffect) is too late. Pairing each set of rows with
+  // its own state also preserves the variant highlight when the user picks
+  // a collection and returns from the dispose page.
+  const [variantHighlightedId, setVariantHighlightedId] = useState(initialId ?? "");
+  const [disposeHighlightedId, setDisposeHighlightedId] = useState("");
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const isDispose =
     disposeTarget !== null && disposeTarget !== undefined && onDisposePick !== undefined;
+  const highlightedId = isDispose ? disposeHighlightedId : variantHighlightedId;
+  const setHighlightedId = isDispose ? setDisposeHighlightedId : setVariantHighlightedId;
 
-  // When entering the dispose sub-page, clear the highlight so cmdk auto-picks
-  // the first collection row. Without this, the variant id from before the
-  // swap stays in state and no row is visually selected on the new page.
+  // After leaving the dispose sub-page (pick or back), reset the dispose
+  // highlight so the next visit lands on the first row rather than the
+  // previously-picked collection id.
   useEffect(() => {
-    if (isDispose) {
-      setHighlightedId("");
+    if (!isDispose) {
+      setDisposeHighlightedId("");
     }
   }, [isDispose]);
 
