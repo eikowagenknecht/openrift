@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type SidebarGroupKey = "collections" | "buy" | "sell" | "organize";
+export type SidebarGroupKey = "collections" | "wish" | "trade" | "organize";
 
 interface SidebarFoldState {
   /** True means the group is open; false means folded. Default open. */
@@ -13,8 +13,8 @@ interface SidebarFoldState {
 
 const DEFAULTS: Record<SidebarGroupKey, boolean> = {
   collections: true,
-  buy: true,
-  sell: true,
+  wish: true,
+  trade: true,
   organize: true,
 };
 
@@ -44,8 +44,8 @@ export const useSidebarFoldStore = create<SidebarFoldState>()(
             collections: isBool(persistedByKey.collections)
               ? persistedByKey.collections
               : current.byKey.collections,
-            buy: isBool(persistedByKey.buy) ? persistedByKey.buy : current.byKey.buy,
-            sell: isBool(persistedByKey.sell) ? persistedByKey.sell : current.byKey.sell,
+            wish: isBool(persistedByKey.wish) ? persistedByKey.wish : current.byKey.wish,
+            trade: isBool(persistedByKey.trade) ? persistedByKey.trade : current.byKey.trade,
             organize: isBool(persistedByKey.organize)
               ? persistedByKey.organize
               : current.byKey.organize,

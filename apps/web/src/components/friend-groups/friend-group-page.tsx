@@ -145,7 +145,7 @@ function MatchesSection({ slug, data }: { slug: string; data: FriendGroupDetailR
           <MatchRowGroup rows={matches.othersHaveYourWants} groupSlug={slug} linkCounterparty />
         ) : (
           <EmptyMatchPanel
-            viewerHasShares={viewerShares.some((s) => s.listIntent === "buy")}
+            viewerHasShares={viewerShares.some((s) => s.listIntent === "wish")}
             othersHaveShares={othersShare}
             mode="wants"
           />
@@ -158,7 +158,7 @@ function MatchesSection({ slug, data }: { slug: string; data: FriendGroupDetailR
           <MatchRowGroup rows={matches.othersWantYourHaves} groupSlug={slug} linkCounterparty />
         ) : (
           <EmptyMatchPanel
-            viewerHasShares={viewerShares.some((s) => s.listIntent === "sell")}
+            viewerHasShares={viewerShares.some((s) => s.listIntent === "trade")}
             othersHaveShares={othersShare}
             mode="haves"
           />
@@ -180,15 +180,15 @@ function EmptyMatchPanel({
   if (!othersHaveShares) {
     return (
       <p className="text-muted-foreground">
-        No members are sharing lists with this group yet. Ask them to share a buy or sell list to
-        start seeing matches.
+        No members are sharing lists with this group yet. Ask them to share a wishlist or tradelist
+        to start seeing matches.
       </p>
     );
   }
   if (!viewerHasShares) {
     return (
       <p className="text-muted-foreground">
-        Share at least one {mode === "wants" ? "buy" : "sell"} list with this group to see what
+        Share at least one {mode === "wants" ? "wishlist" : "tradelist"} with this group to see what
         members can {mode === "wants" ? "offer" : "want"}.
       </p>
     );
@@ -579,8 +579,8 @@ function ShareableListsPanel({ slug }: { slug: string }) {
         <CardHeader>
           <CardTitle className="text-base">Share your lists</CardTitle>
           <CardDescription>
-            You don&apos;t have any lists yet. Create a buy, sell, or organize list to share it with
-            this group.
+            You don&apos;t have any lists yet. Create a wishlist, tradelist, or organize list to
+            share it with this group.
           </CardDescription>
         </CardHeader>
       </Card>

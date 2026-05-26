@@ -1,6 +1,6 @@
 import type { CardType, Finish, Rarity } from "../enums.js";
 
-export type ListIntent = "buy" | "sell" | "organize";
+export type ListIntent = "wish" | "trade" | "organize";
 
 /** Granularity the list tracks. Each list contains uniformly one kind. */
 export type ListKind = "card" | "printing" | "copy";

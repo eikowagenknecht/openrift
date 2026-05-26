@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict qfWbW3hYdvhMw1DPfwktbOoluuCwAFg3mbc0KaSxVLFmN5Fkb0PKnN9grXLGePQ
+\restrict h4VwxwIUlAGeglzoxgyvC6v01PvdcmuiaWY8JF1958F69zM4eSemScWVUsVO9C3
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1112,8 +1112,8 @@ CREATE TABLE public.lists (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     kind text NOT NULL,
-    CONSTRAINT chk_lists_intent CHECK ((intent = ANY (ARRAY['buy'::text, 'sell'::text, 'organize'::text]))),
-    CONSTRAINT chk_lists_intent_kind CHECK ((((intent = 'buy'::text) AND (kind = ANY (ARRAY['card'::text, 'printing'::text]))) OR ((intent = 'sell'::text) AND (kind = 'copy'::text)) OR ((intent = 'organize'::text) AND (kind = ANY (ARRAY['card'::text, 'printing'::text, 'copy'::text]))))),
+    CONSTRAINT chk_lists_intent CHECK ((intent = ANY (ARRAY['wish'::text, 'trade'::text, 'organize'::text]))),
+    CONSTRAINT chk_lists_intent_kind CHECK ((((intent = 'wish'::text) AND (kind = ANY (ARRAY['card'::text, 'printing'::text]))) OR ((intent = 'trade'::text) AND (kind = 'copy'::text)) OR ((intent = 'organize'::text) AND (kind = ANY (ARRAY['card'::text, 'printing'::text, 'copy'::text]))))),
     CONSTRAINT chk_lists_kind CHECK ((kind = ANY (ARRAY['card'::text, 'printing'::text, 'copy'::text]))),
     CONSTRAINT chk_lists_name_not_empty CHECK ((name <> ''::text))
 );
@@ -3729,5 +3729,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict qfWbW3hYdvhMw1DPfwktbOoluuCwAFg3mbc0KaSxVLFmN5Fkb0PKnN9grXLGePQ
+\unrestrict h4VwxwIUlAGeglzoxgyvC6v01PvdcmuiaWY8JF1958F69zM4eSemScWVUsVO9C3
 

@@ -69,7 +69,7 @@ const dbList = {
   id: LIST_ID,
   userId: USER_ID,
   name: "Wants",
-  intent: "buy" as const,
+  intent: "wish" as const,
   kind: "card" as const,
   isPublic: false,
   shareToken: null,
@@ -113,15 +113,15 @@ describe("GET /api/v1/lists", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.items).toHaveLength(1);
-    expect(json.items[0].intent).toBe("buy");
+    expect(json.items[0].intent).toBe("wish");
     expect(json.items[0].entryCount).toBe(7);
     expect(mockListsRepo.listForUser).toHaveBeenCalledWith(USER_ID, undefined);
   });
 
   it("forwards intent filter to repo", async () => {
     mockListsRepo.listForUser.mockResolvedValue([]);
-    await app.request("/api/v1/lists?intent=sell");
-    expect(mockListsRepo.listForUser).toHaveBeenCalledWith(USER_ID, "sell");
+    await app.request("/api/v1/lists?intent=trade");
+    expect(mockListsRepo.listForUser).toHaveBeenCalledWith(USER_ID, "trade");
   });
 
   it("rejects an unknown intent", async () => {
@@ -144,13 +144,13 @@ describe("POST /api/v1/lists", () => {
     const res = await app.request("/api/v1/lists", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: "Wants", intent: "buy", kind: "card" }),
+      body: JSON.stringify({ name: "Wants", intent: "wish", kind: "card" }),
     });
     expect(res.status).toBe(201);
     expect(mockListsRepo.create).toHaveBeenCalledWith({
       userId: USER_ID,
       name: "Wants",
-      intent: "buy",
+      intent: "wish",
       kind: "card",
     });
   });
@@ -168,16 +168,16 @@ describe("POST /api/v1/lists", () => {
     const res = await app.request("/api/v1/lists", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: "Wants", intent: "buy" }),
+      body: JSON.stringify({ name: "Wants", intent: "wish" }),
     });
     expect(res.status).toBe(400);
   });
 
-  it("rejects buy + copy (disallowed combo)", async () => {
+  it("rejects wish + copy (disallowed combo)", async () => {
     const res = await app.request("/api/v1/lists", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: "Bad", intent: "buy", kind: "copy" }),
+      body: JSON.stringify({ name: "Bad", intent: "wish", kind: "copy" }),
     });
     expect(res.status).toBe(400);
   });

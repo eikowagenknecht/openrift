@@ -190,7 +190,7 @@ The tournament-deck URL slug is `decks.share_token`; no slug column is added her
 
 - **User submissions / community-curated entries.** No submission form, no moderation queue, no trusted-curator role. The archive is admin-only. If this ever changes, it is a new ADR with its own anti-spam design.
 - **External scraping / imports.** No riftdecks.com scraper, no Discord-post parser, no automated ingest of any kind. Each tournament and each deck is entered by hand through the admin UI. The source URL is a back-reference, not a fetch target.
-- **Trade execution from a tournament deck.** Tournament decks integrate with the catalog and collection (and, transitively, with friend-group sell-list matches once ADR-013 lands), but they do not model trade proposals or two-sided exchanges. The "trade sessions" stance from ADR-013 applies here unchanged.
+- **Trade execution from a tournament deck.** Tournament decks integrate with the catalog and collection (and, transitively, with friend-group tradelist matches once ADR-013 lands), but they do not model trade proposals or two-sided exchanges. The "trade sessions" stance from ADR-013 applies here unchanged.
 - **Player profiles.** Player names are free text. There is no `players` table, no link from a `tournaments_decks` row to an OpenRift `users` row, no claim flow ("this is me"), and no "all decks by Player X" aggregation. If a pilot has an OpenRift account, we do not surface that fact.
 
 ## Deferred / Out of Scope

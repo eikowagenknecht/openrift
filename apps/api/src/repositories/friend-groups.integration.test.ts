@@ -128,7 +128,7 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
 
   async function createList(
     userId: string,
-    intent: "buy" | "sell" | "organize",
+    intent: "wish" | "trade" | "organize",
     kind: "card" | "printing" | "copy",
   ) {
     const list = await db
@@ -192,7 +192,7 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
 
   it("rejects sharing into a group the user is not a member of", async () => {
     const group = await createGroup(VIEWER_ID);
-    const list = await createList(OUTSIDER_ID, "buy", "card");
+    const list = await createList(OUTSIDER_ID, "wish", "card");
     // Outsider is not in the group, so the composite FK to friend_group_members
     // must reject this share.
     await expect(repo.share(group.id, list.id, OUTSIDER_ID)).rejects.toThrow();
@@ -211,7 +211,7 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
   it("leave-cascade drops the user's shares for that group", async () => {
     const group = await createGroup(VIEWER_ID);
     await repo.addMember(group.id, SELLER_ID, "member");
-    const sellList = await createList(SELLER_ID, "sell", "copy");
+    const sellList = await createList(SELLER_ID, "trade", "copy");
     await repo.share(group.id, sellList.id, SELLER_ID);
     expect(await repo.listSharesForGroup(group.id)).toHaveLength(1);
 
@@ -251,33 +251,33 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     const group = await createGroup(VIEWER_ID);
     await repo.addMember(group.id, SELLER_ID, "member");
 
-    const buy = await createList(VIEWER_ID, "buy", "card");
+    const wish = await createList(VIEWER_ID, "wish", "card");
     await db
       .insertInto("listEntries")
       .values({
-        listId: buy.id,
+        listId: wish.id,
         userId: VIEWER_ID,
         kind: "card",
         cardId: CARD_FURY_UNIT.id,
         quantity: 1,
       })
       .execute();
-    await repo.share(group.id, buy.id, VIEWER_ID);
+    await repo.share(group.id, wish.id, VIEWER_ID);
 
     // Seller offers an alt printing of the same card.
     const copy = await addCopy(SELLER_ID, ALT_PRINTING_OF_FURY_UNIT);
-    const sell = await createList(SELLER_ID, "sell", "copy");
+    const trade = await createList(SELLER_ID, "trade", "copy");
     await db
       .insertInto("listEntries")
       .values({
-        listId: sell.id,
+        listId: trade.id,
         userId: SELLER_ID,
         kind: "copy",
         copyId: copy.id,
         quantity: 1,
       })
       .execute();
-    await repo.share(group.id, sell.id, SELLER_ID);
+    await repo.share(group.id, trade.id, SELLER_ID);
 
     const rows = await matches.othersHaveYourWants({ groupId: group.id, viewerUserId: VIEWER_ID });
     expect(rows).toHaveLength(1);
@@ -289,33 +289,33 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     const group = await createGroup(VIEWER_ID);
     await repo.addMember(group.id, SELLER_ID, "member");
 
-    const buy = await createList(VIEWER_ID, "buy", "printing");
+    const wish = await createList(VIEWER_ID, "wish", "printing");
     await db
       .insertInto("listEntries")
       .values({
-        listId: buy.id,
+        listId: wish.id,
         userId: VIEWER_ID,
         kind: "printing",
         printingId: PRINTING_1.id,
         quantity: 1,
       })
       .execute();
-    await repo.share(group.id, buy.id, VIEWER_ID);
+    await repo.share(group.id, wish.id, VIEWER_ID);
 
     // Seller has the alt printing of the same card — must NOT match.
     const altCopy = await addCopy(SELLER_ID, ALT_PRINTING_OF_FURY_UNIT);
-    const sell = await createList(SELLER_ID, "sell", "copy");
+    const trade = await createList(SELLER_ID, "trade", "copy");
     await db
       .insertInto("listEntries")
       .values({
-        listId: sell.id,
+        listId: trade.id,
         userId: SELLER_ID,
         kind: "copy",
         copyId: altCopy.id,
         quantity: 1,
       })
       .execute();
-    await repo.share(group.id, sell.id, SELLER_ID);
+    await repo.share(group.id, trade.id, SELLER_ID);
 
     expect(
       await matches.othersHaveYourWants({ groupId: group.id, viewerUserId: VIEWER_ID }),
@@ -326,7 +326,7 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     await db
       .insertInto("listEntries")
       .values({
-        listId: sell.id,
+        listId: trade.id,
         userId: SELLER_ID,
         kind: "copy",
         copyId: exactCopy.id,
@@ -344,26 +344,26 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     await repo.addMember(groupA.id, SELLER_ID, "member");
     await repo.addMember(groupB.id, SELLER_ID, "member");
 
-    const buy = await createList(VIEWER_ID, "buy", "card");
+    const wish = await createList(VIEWER_ID, "wish", "card");
     await db
       .insertInto("listEntries")
       .values({
-        listId: buy.id,
+        listId: wish.id,
         userId: VIEWER_ID,
         kind: "card",
         cardId: CARD_FURY_UNIT.id,
         quantity: 1,
       })
       .execute();
-    await repo.share(groupA.id, buy.id, VIEWER_ID);
-    await repo.share(groupB.id, buy.id, VIEWER_ID);
+    await repo.share(groupA.id, wish.id, VIEWER_ID);
+    await repo.share(groupB.id, wish.id, VIEWER_ID);
 
     const copy = await addCopy(SELLER_ID, PRINTING_1.id);
-    const sell = await createList(SELLER_ID, "sell", "copy");
+    const trade = await createList(SELLER_ID, "trade", "copy");
     await db
       .insertInto("listEntries")
       .values({
-        listId: sell.id,
+        listId: trade.id,
         userId: SELLER_ID,
         kind: "copy",
         copyId: copy.id,
@@ -371,7 +371,7 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
       })
       .execute();
     // Sell list shared with B only.
-    await repo.share(groupB.id, sell.id, SELLER_ID);
+    await repo.share(groupB.id, trade.id, SELLER_ID);
 
     expect(
       await matches.othersHaveYourWants({ groupId: groupA.id, viewerUserId: VIEWER_ID }),
@@ -385,20 +385,20 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     const group = await createGroup(VIEWER_ID);
     await repo.addMember(group.id, SELLER_ID, "member");
 
-    const buy = await createList(VIEWER_ID, "buy", "card");
+    const wish = await createList(VIEWER_ID, "wish", "card");
     await db
       .insertInto("listEntries")
       .values({
-        listId: buy.id,
+        listId: wish.id,
         userId: VIEWER_ID,
         kind: "card",
         cardId: CARD_FURY_UNIT.id,
         quantity: 1,
       })
       .execute();
-    await repo.share(group.id, buy.id, VIEWER_ID);
+    await repo.share(group.id, wish.id, VIEWER_ID);
 
-    // Seller has the matching card in an ORGANIZE list (not sell).
+    // Seller has the matching card in an ORGANIZE list (not trade).
     const copy = await addCopy(SELLER_ID, PRINTING_1.id);
     const organize = await createList(SELLER_ID, "organize", "copy");
     await db
@@ -421,32 +421,32 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
   it("the viewer's own lists never match themselves", async () => {
     const group = await createGroup(VIEWER_ID);
 
-    const buy = await createList(VIEWER_ID, "buy", "card");
+    const wish = await createList(VIEWER_ID, "wish", "card");
     await db
       .insertInto("listEntries")
       .values({
-        listId: buy.id,
+        listId: wish.id,
         userId: VIEWER_ID,
         kind: "card",
         cardId: CARD_FURY_UNIT.id,
         quantity: 1,
       })
       .execute();
-    await repo.share(group.id, buy.id, VIEWER_ID);
+    await repo.share(group.id, wish.id, VIEWER_ID);
 
     const copy = await addCopy(VIEWER_ID, PRINTING_1.id);
-    const sell = await createList(VIEWER_ID, "sell", "copy");
+    const trade = await createList(VIEWER_ID, "trade", "copy");
     await db
       .insertInto("listEntries")
       .values({
-        listId: sell.id,
+        listId: trade.id,
         userId: VIEWER_ID,
         kind: "copy",
         copyId: copy.id,
         quantity: 1,
       })
       .execute();
-    await repo.share(group.id, sell.id, VIEWER_ID);
+    await repo.share(group.id, trade.id, VIEWER_ID);
 
     expect(
       await matches.othersHaveYourWants({ groupId: group.id, viewerUserId: VIEWER_ID }),
@@ -456,29 +456,29 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     ).toHaveLength(0);
   });
 
-  it("deck-derived demand never appears (only explicit buy entries do)", async () => {
+  it("deck-derived demand never appears (only explicit wish entries do)", async () => {
     // We never read decks in the match query, so there is nothing structural
-    // to assert against. Instead we assert the *negative*: with no buy list
+    // to assert against. Instead we assert the *negative*: with no wishlist
     // entries, the match view stays empty even when the seller has a copy of
     // the card the viewer's deck would want.
     const group = await createGroup(VIEWER_ID);
     await repo.addMember(group.id, SELLER_ID, "member");
 
-    // Viewer has no buy list — only a deck might create implicit demand, but
+    // Viewer has no wishlist — only a deck might create implicit demand, but
     // decks are explicitly out of scope.
     const copy = await addCopy(SELLER_ID, PRINTING_1.id);
-    const sell = await createList(SELLER_ID, "sell", "copy");
+    const trade = await createList(SELLER_ID, "trade", "copy");
     await db
       .insertInto("listEntries")
       .values({
-        listId: sell.id,
+        listId: trade.id,
         userId: SELLER_ID,
         kind: "copy",
         copyId: copy.id,
         quantity: 1,
       })
       .execute();
-    await repo.share(group.id, sell.id, SELLER_ID);
+    await repo.share(group.id, trade.id, SELLER_ID);
 
     expect(
       await matches.othersHaveYourWants({ groupId: group.id, viewerUserId: VIEWER_ID }),
@@ -489,32 +489,32 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     const group = await createGroup(VIEWER_ID);
     await repo.addMember(group.id, SELLER_ID, "member");
 
-    const buy = await createList(VIEWER_ID, "buy", "card");
+    const wish = await createList(VIEWER_ID, "wish", "card");
     await db
       .insertInto("listEntries")
       .values({
-        listId: buy.id,
+        listId: wish.id,
         userId: VIEWER_ID,
         kind: "card",
         cardId: CARD_FURY_UNIT.id,
         quantity: 1,
       })
       .execute();
-    await repo.share(group.id, buy.id, VIEWER_ID);
+    await repo.share(group.id, wish.id, VIEWER_ID);
 
     const copy = await addCopy(SELLER_ID, PRINTING_1.id);
-    const sell = await createList(SELLER_ID, "sell", "copy");
+    const trade = await createList(SELLER_ID, "trade", "copy");
     await db
       .insertInto("listEntries")
       .values({
-        listId: sell.id,
+        listId: trade.id,
         userId: SELLER_ID,
         kind: "copy",
         copyId: copy.id,
         quantity: 1,
       })
       .execute();
-    await repo.share(group.id, sell.id, SELLER_ID);
+    await repo.share(group.id, trade.id, SELLER_ID);
 
     expect(
       await matches.othersHaveYourWants({ groupId: group.id, viewerUserId: VIEWER_ID }),
@@ -532,33 +532,33 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     await repo.addMember(group.id, SELLER_ID, "member");
 
     // Other member wants Fury Unit.
-    const buy = await createList(SELLER_ID, "buy", "card");
+    const wish = await createList(SELLER_ID, "wish", "card");
     await db
       .insertInto("listEntries")
       .values({
-        listId: buy.id,
+        listId: wish.id,
         userId: SELLER_ID,
         kind: "card",
         cardId: CARD_FURY_UNIT.id,
         quantity: 2,
       })
       .execute();
-    await repo.share(group.id, buy.id, SELLER_ID);
+    await repo.share(group.id, wish.id, SELLER_ID);
 
     // Viewer has the printing.
     const copy = await addCopy(VIEWER_ID, PRINTING_1.id);
-    const sell = await createList(VIEWER_ID, "sell", "copy");
+    const trade = await createList(VIEWER_ID, "trade", "copy");
     await db
       .insertInto("listEntries")
       .values({
-        listId: sell.id,
+        listId: trade.id,
         userId: VIEWER_ID,
         kind: "copy",
         copyId: copy.id,
         quantity: 1,
       })
       .execute();
-    await repo.share(group.id, sell.id, VIEWER_ID);
+    await repo.share(group.id, trade.id, VIEWER_ID);
 
     const rows = await matches.othersWantYourHaves({ groupId: group.id, viewerUserId: VIEWER_ID });
     expect(rows).toHaveLength(1);

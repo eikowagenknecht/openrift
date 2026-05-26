@@ -168,7 +168,7 @@ describe("friendGroupsRepo", () => {
       userId: "u1",
       sharedAt: new Date(),
       listName: "My Wants",
-      listIntent: "buy",
+      listIntent: "wish",
       listKind: "card",
       userName: "Alice",
     };
@@ -180,7 +180,7 @@ describe("friendGroupsRepo", () => {
     const row = {
       listId: "lst-1",
       listName: "My Wants",
-      listIntent: "buy",
+      listIntent: "wish",
       listKind: "card",
       sharedAt: null,
     };

@@ -46,13 +46,13 @@ const KIND_OPTIONS: Record<ListKind, KindOption> = {
 };
 
 const KIND_HINTS: Record<ListIntent, Record<ListKind, string>> = {
-  buy: {
+  wish: {
     card: "Any printing works. Use for the missing cards of a deck you want to play.",
     printing:
       "A specific version (set, art, finish). Use when you want a particular printing, like a foil alt-art from a specific set.",
     copy: "specific physical cards from your collection",
   },
-  sell: {
+  trade: {
     card: "any printing of the card",
     printing: "a specific printing (set, art, finish)",
     copy: "specific physical cards from your collection",
@@ -66,14 +66,14 @@ const KIND_HINTS: Record<ListIntent, Record<ListKind, string>> = {
 };
 
 const KINDS_BY_INTENT: Record<ListIntent, ListKind[]> = {
-  buy: ["card", "printing"],
-  sell: ["copy"],
+  wish: ["card", "printing"],
+  trade: ["copy"],
   organize: ["card", "printing", "copy"],
 };
 
 const INTENT_TITLE: Record<ListIntent, string> = {
-  buy: "New buy list",
-  sell: "New sell list",
+  wish: "New wishlist",
+  trade: "New tradelist",
   organize: "New organize list",
 };
 
@@ -86,7 +86,7 @@ interface CreateListDialogProps {
 
 /**
  * Picks the list's `kind` (when the intent allows more than one) and its
- * name. Sell defaults straight to a name input since `copy` is the only
+ * name. Trade defaults straight to a name input since `copy` is the only
  * valid kind. The created list's id is passed to onCreated so callers can
  * navigate or chain follow-ups.
  * @returns The dialog component.
@@ -219,12 +219,12 @@ export function listKindLabel(kind: ListKind): string {
 }
 
 const INTENT_LABEL: Record<ListIntent, string> = {
-  buy: "Buy",
-  sell: "Sell",
+  wish: "Wishlist",
+  trade: "Tradelist",
   organize: "Organize",
 };
 
-/** @returns Capitalized label for a list intent ("Buy" | "Sell" | "Organize"). */
+/** @returns Capitalized label for a list intent ("Wishlist" | "Tradelist" | "Organize"). */
 export function listIntentLabel(intent: ListIntent): string {
   return INTENT_LABEL[intent];
 }

@@ -1,4 +1,4 @@
-import type { FriendGroupRole, FriendGroupShareResponse } from "@openrift/shared";
+import type { FriendGroupRole, FriendGroupShareResponse, ListIntent } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ChevronLeftIcon } from "lucide-react";
 
@@ -14,9 +14,9 @@ interface MemberDetailPageProps {
   userId: string;
 }
 
-const INTENT_LABEL: Record<"buy" | "sell" | "organize", string> = {
-  buy: "Buy list",
-  sell: "Sell list",
+const INTENT_LABEL: Record<ListIntent, string> = {
+  wish: "Wishlist",
+  trade: "Tradelist",
   organize: "Organize list",
 };
 
@@ -30,14 +30,13 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
   const { data } = useFriendGroupMemberDetail(slug, userId);
   const { member } = data;
 
-  const sharesByIntent: Record<"buy" | "sell" | "organize", FriendGroupShareResponse[]> = {
-    buy: [],
-    sell: [],
+  const sharesByIntent: Record<ListIntent, FriendGroupShareResponse[]> = {
+    wish: [],
+    trade: [],
     organize: [],
   };
   for (const share of data.shares) {
-    const intent = share.listIntent as "buy" | "sell" | "organize";
-    sharesByIntent[intent].push(share);
+    sharesByIntent[share.listIntent].push(share);
   }
 
   return (
@@ -94,7 +93,7 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {(["buy", "sell", "organize"] as const).map((intent) => {
+            {(["wish", "trade", "organize"] as const).map((intent) => {
               const items = sharesByIntent[intent];
               if (items.length === 0) {
                 return null;

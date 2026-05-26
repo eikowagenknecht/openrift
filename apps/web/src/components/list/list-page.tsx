@@ -91,14 +91,14 @@ interface ListPageProps {
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 
 const INTENT_LABEL: Record<ListIntent, string> = {
-  buy: "Buy",
-  sell: "Sell",
+  wish: "Wishlist",
+  trade: "Tradelist",
   organize: "Organize",
 };
 
 const INTENT_ICON: Record<ListIntent, IconComponent> = {
-  buy: HeartIcon,
-  sell: HandshakeIcon,
+  wish: HeartIcon,
+  trade: HandshakeIcon,
   organize: FolderIcon,
 };
 

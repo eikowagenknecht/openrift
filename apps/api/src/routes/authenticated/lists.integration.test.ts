@@ -31,7 +31,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
 
   async function createList(
     name: string,
-    intent: "buy" | "sell" | "organize",
+    intent: "wish" | "trade" | "organize",
     kind: "card" | "printing" | "copy",
   ): Promise<string> {
     const res = await app.fetch(req("POST", "/lists", { name, intent, kind }));
@@ -69,9 +69,9 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
   describe("POST /lists", () => {
     it("creates a list for each allowed intent × kind combo", async () => {
       const combos = [
-        { intent: "buy", kind: "card" },
-        { intent: "buy", kind: "printing" },
-        { intent: "sell", kind: "copy" },
+        { intent: "wish", kind: "card" },
+        { intent: "wish", kind: "printing" },
+        { intent: "trade", kind: "copy" },
         { intent: "organize", kind: "card" },
         { intent: "organize", kind: "printing" },
         { intent: "organize", kind: "copy" },
@@ -88,22 +88,22 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       }
     });
 
-    it("rejects buy + copy (disallowed combo)", async () => {
+    it("rejects wish + copy (disallowed combo)", async () => {
       const res = await app.fetch(
-        req("POST", "/lists", { name: "Bad", intent: "buy", kind: "copy" }),
+        req("POST", "/lists", { name: "Bad", intent: "wish", kind: "copy" }),
       );
       expect(res.status).toBe(400);
     });
 
-    it("rejects sell + card (disallowed combo)", async () => {
+    it("rejects trade + card (disallowed combo)", async () => {
       const res = await app.fetch(
-        req("POST", "/lists", { name: "Bad", intent: "sell", kind: "card" }),
+        req("POST", "/lists", { name: "Bad", intent: "trade", kind: "card" }),
       );
       expect(res.status).toBe(400);
     });
 
     it("returns 400 on missing kind", async () => {
-      const res = await app.fetch(req("POST", "/lists", { name: "No kind", intent: "buy" }));
+      const res = await app.fetch(req("POST", "/lists", { name: "No kind", intent: "wish" }));
       expect(res.status).toBe(400);
     });
 
@@ -125,16 +125,16 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       expect(Array.isArray(json.items)).toBe(true);
       expect(json.items.length).toBeGreaterThanOrEqual(3);
       for (const item of json.items) {
-        expect(["buy", "sell", "organize"]).toContain(item.intent);
+        expect(["wish", "trade", "organize"]).toContain(item.intent);
         expect(["card", "printing", "copy"]).toContain(item.kind);
       }
     });
 
     it("filters by intent", async () => {
-      const res = await app.fetch(req("GET", "/lists?intent=sell"));
+      const res = await app.fetch(req("GET", "/lists?intent=trade"));
       expect(res.status).toBe(200);
       const json = (await res.json()) as { items: { intent: string }[] };
-      expect(json.items.every((l) => l.intent === "sell")).toBe(true);
+      expect(json.items.every((l) => l.intent === "trade")).toBe(true);
     });
   });
 
@@ -142,7 +142,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
 
   describe("PATCH /lists/:id", () => {
     it("renames a list", async () => {
-      const id = await createList("Before", "buy", "card");
+      const id = await createList("Before", "wish", "card");
       const res = await app.fetch(req("PATCH", `/lists/${id}`, { name: "After" }));
       expect(res.status).toBe(200);
       const json = (await res.json()) as { name: string };
@@ -176,7 +176,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
 
   describe("POST /lists/:id/entries", () => {
     it("adds a card-kind entry to a card-kind list", async () => {
-      const id = await createList("Card entries", "buy", "card");
+      const id = await createList("Card entries", "wish", "card");
       const res = await app.fetch(
         req("POST", `/lists/${id}/entries`, { cardId: CARD_FURY_UNIT.id }),
       );
@@ -187,7 +187,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
     });
 
     it("rejects a printing in a card-kind list", async () => {
-      const id = await createList("Card list, printing input", "buy", "card");
+      const id = await createList("Card list, printing input", "wish", "card");
       const res = await app.fetch(
         req("POST", `/lists/${id}/entries`, { printingId: PRINTING_1.id }),
       );
@@ -195,7 +195,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
     });
 
     it("adds a printing-kind entry to a printing-kind list", async () => {
-      const id = await createList("Printing entries", "buy", "printing");
+      const id = await createList("Printing entries", "wish", "printing");
       const res = await app.fetch(
         req("POST", `/lists/${id}/entries`, { printingId: PRINTING_1.id, quantity: 2 }),
       );
@@ -207,13 +207,13 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
 
     it("adds a copy-kind entry only when the copy belongs to the user", async () => {
       const copyId = await createCopy();
-      const id = await createList("Copy entries", "sell", "copy");
+      const id = await createList("Copy entries", "trade", "copy");
       const res = await app.fetch(req("POST", `/lists/${id}/entries`, { copyId }));
       expect(res.status).toBe(201);
     });
 
     it("returns 404 when the copyId is not owned by the caller", async () => {
-      const id = await createList("Foreign copy", "sell", "copy");
+      const id = await createList("Foreign copy", "trade", "copy");
       const res = await app.fetch(
         req("POST", `/lists/${id}/entries`, { copyId: "550e8400-e29b-41d4-a716-446655440099" }),
       );
@@ -221,7 +221,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
     });
 
     it("returns 400 when no target is provided", async () => {
-      const id = await createList("No target", "buy", "card");
+      const id = await createList("No target", "wish", "card");
       const res = await app.fetch(req("POST", `/lists/${id}/entries`, {}));
       expect(res.status).toBe(400);
     });
@@ -232,7 +232,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
   describe("POST /lists/:id/entries/bulk", () => {
     it("reports added/skipped for a copy-kind list", async () => {
       const copyId = await createCopy();
-      const id = await createList("Bulk copy", "sell", "copy");
+      const id = await createList("Bulk copy", "trade", "copy");
       const res = await app.fetch(
         req("POST", `/lists/${id}/entries/bulk`, {
           entries: [{ copyId }, { copyId: "550e8400-e29b-41d4-a716-446655440099" }],
@@ -245,7 +245,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
     });
 
     it("rejects a bulk batch with mixed targets when the list is single-kind", async () => {
-      const id = await createList("Mixed", "buy", "card");
+      const id = await createList("Mixed", "wish", "card");
       const res = await app.fetch(
         req("POST", `/lists/${id}/entries/bulk`, {
           entries: [{ cardId: CARD_FURY_UNIT.id }, { printingId: PRINTING_1.id }],
@@ -260,7 +260,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
   describe("POST /lists/:id/entries/from-copies", () => {
     it("inserts copy entries on a copy-kind list", async () => {
       const copyId = await createCopy();
-      const id = await createList("From-copies copy", "sell", "copy");
+      const id = await createList("From-copies copy", "trade", "copy");
       const res = await app.fetch(
         req("POST", `/lists/${id}/entries/from-copies`, { copyIds: [copyId] }),
       );
@@ -272,7 +272,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
 
     it("derives a card entry from a copy on a card-kind list", async () => {
       const copyId = await createCopy();
-      const id = await createList("From-copies card", "buy", "card");
+      const id = await createList("From-copies card", "wish", "card");
       const res = await app.fetch(
         req("POST", `/lists/${id}/entries/from-copies`, { copyIds: [copyId] }),
       );
@@ -287,7 +287,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
     });
 
     it("treats non-owned copies as skipped", async () => {
-      const id = await createList("Non-owned", "buy", "card");
+      const id = await createList("Non-owned", "wish", "card");
       const res = await app.fetch(
         req("POST", `/lists/${id}/entries/from-copies`, {
           copyIds: ["550e8400-e29b-41d4-a716-446655440099"],
@@ -304,7 +304,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
 
   describe("GET /lists/:id", () => {
     it("returns the list (with kind) and enriched entries", async () => {
-      const id = await createList("Detail", "buy", "card");
+      const id = await createList("Detail", "wish", "card");
       await app.fetch(req("POST", `/lists/${id}/entries`, { cardId: CARD_FURY_UNIT.id }));
       const res = await app.fetch(req("GET", `/lists/${id}`));
       expect(res.status).toBe(200);
@@ -324,7 +324,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
 
   describe("PATCH/DELETE /lists/:id/entries/:itemId", () => {
     it("updates the quantity and then deletes the entry", async () => {
-      const id = await createList("Entry ops", "buy", "card");
+      const id = await createList("Entry ops", "wish", "card");
       const createRes = await app.fetch(
         req("POST", `/lists/${id}/entries`, { cardId: CARD_FURY_UNIT.id }),
       );

@@ -64,14 +64,15 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
   // ── List CRUD ──────────────────────────────────────────────────────────────
 
   it("creates a list for each allowed intent × kind combo", async () => {
-    const combos: { intent: "buy" | "sell" | "organize"; kind: "card" | "printing" | "copy" }[] = [
-      { intent: "buy", kind: "card" },
-      { intent: "buy", kind: "printing" },
-      { intent: "sell", kind: "copy" },
-      { intent: "organize", kind: "card" },
-      { intent: "organize", kind: "printing" },
-      { intent: "organize", kind: "copy" },
-    ];
+    const combos: { intent: "wish" | "trade" | "organize"; kind: "card" | "printing" | "copy" }[] =
+      [
+        { intent: "wish", kind: "card" },
+        { intent: "wish", kind: "printing" },
+        { intent: "trade", kind: "copy" },
+        { intent: "organize", kind: "card" },
+        { intent: "organize", kind: "printing" },
+        { intent: "organize", kind: "copy" },
+      ];
     for (const { intent, kind } of combos) {
       const list = await repo.create({ userId, name: `Test ${intent}/${kind}`, intent, kind });
       createdListIds.push(list.id);
@@ -83,11 +84,11 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
   });
 
   it("rejects disallowed intent × kind combos at the DB layer", async () => {
-    // CHECK chk_lists_intent_kind blocks: buy×copy, sell×card, sell×printing.
+    // CHECK chk_lists_intent_kind blocks: wish×copy, trade×card, trade×printing.
     for (const bad of [
-      { intent: "buy" as const, kind: "copy" as const },
-      { intent: "sell" as const, kind: "card" as const },
-      { intent: "sell" as const, kind: "printing" as const },
+      { intent: "wish" as const, kind: "copy" as const },
+      { intent: "trade" as const, kind: "card" as const },
+      { intent: "trade" as const, kind: "printing" as const },
     ]) {
       await expect(
         repo.create({ userId, name: `Bad ${bad.intent}/${bad.kind}`, ...bad }),
@@ -96,10 +97,10 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
   });
 
   it("filters listForUser by intent", async () => {
-    const buyLists = await repo.listForUser(userId, "buy");
-    const sellLists = await repo.listForUser(userId, "sell");
-    expect(buyLists.every((l) => l.intent === "buy")).toBe(true);
-    expect(sellLists.every((l) => l.intent === "sell")).toBe(true);
+    const buyLists = await repo.listForUser(userId, "wish");
+    const sellLists = await repo.listForUser(userId, "trade");
+    expect(buyLists.every((l) => l.intent === "wish")).toBe(true);
+    expect(sellLists.every((l) => l.intent === "trade")).toBe(true);
     expect(buyLists.length).toBeGreaterThanOrEqual(1);
     expect(sellLists.length).toBeGreaterThanOrEqual(1);
   });
@@ -108,7 +109,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const list = await repo.create({
       userId,
       name: "Count check",
-      intent: "buy",
+      intent: "wish",
       kind: "card",
     });
     createdListIds.push(list.id);
@@ -122,7 +123,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const empty = await repo.create({
       userId,
       name: "Empty",
-      intent: "buy",
+      intent: "wish",
       kind: "card",
     });
     createdListIds.push(empty.id);
@@ -147,7 +148,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const list = await repo.create({
       userId,
       name: "IdKind",
-      intent: "buy",
+      intent: "wish",
       kind: "printing",
     });
     createdListIds.push(list.id);
@@ -161,7 +162,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const list = await repo.create({
       userId,
       name: "Before",
-      intent: "buy",
+      intent: "wish",
       kind: "card",
     });
     createdListIds.push(list.id);
@@ -170,7 +171,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
   });
 
   it("deletes a list", async () => {
-    const list = await repo.create({ userId, name: "Doomed", intent: "buy", kind: "card" });
+    const list = await repo.create({ userId, name: "Doomed", intent: "wish", kind: "card" });
     const result = await repo.deleteByIdForUser(list.id, userId);
     expect(result.numDeletedRows).toBe(1n);
     expect(await repo.getByIdForUser(list.id, userId)).toBeUndefined();
@@ -222,7 +223,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const list = await repo.create({
       userId,
       name: "Card entries",
-      intent: "buy",
+      intent: "wish",
       kind: "card",
     });
     createdListIds.push(list.id);
@@ -244,7 +245,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const list = await repo.create({
       userId,
       name: "Printing entries",
-      intent: "buy",
+      intent: "wish",
       kind: "printing",
     });
     createdListIds.push(list.id);
@@ -266,7 +267,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const list = await repo.create({
       userId,
       name: "Copy entries",
-      intent: "sell",
+      intent: "trade",
       kind: "copy",
     });
     createdListIds.push(list.id);
@@ -297,7 +298,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const list = await repo.create({
       userId,
       name: "Mismatched",
-      intent: "buy",
+      intent: "wish",
       kind: "card",
     });
     createdListIds.push(list.id);
@@ -320,7 +321,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const list = await repo.create({
       userId,
       name: "Bad shape",
-      intent: "buy",
+      intent: "wish",
       kind: "card",
     });
     createdListIds.push(list.id);
@@ -343,7 +344,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const list = await repo.create({
       userId,
       name: "Dedup card",
-      intent: "buy",
+      intent: "wish",
       kind: "card",
     });
     createdListIds.push(list.id);
@@ -373,13 +374,13 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const listA = await repo.create({
       userId,
       name: "List A",
-      intent: "buy",
+      intent: "wish",
       kind: "printing",
     });
     const listB = await repo.create({
       userId,
       name: "List B",
-      intent: "buy",
+      intent: "wish",
       kind: "printing",
     });
     createdListIds.push(listA.id, listB.id);
@@ -408,7 +409,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
   // ── Bulk-create entries ────────────────────────────────────────────────────
 
   it("bulkCreateEntries inserts and merges dupes within one kind", async () => {
-    const list = await repo.create({ userId, name: "Bulk", intent: "buy", kind: "card" });
+    const list = await repo.create({ userId, name: "Bulk", intent: "wish", kind: "card" });
     createdListIds.push(list.id);
 
     const result = await repo.bulkCreateEntries("card", [
@@ -447,7 +448,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
   // existing entry's quantity instead — the user can drag the same card onto
   // a list multiple times to build up the desired count.
   it("bulkCreateEntries bumps quantity on a later call against an existing entry", async () => {
-    const list = await repo.create({ userId, name: "Bulk repeat", intent: "buy", kind: "card" });
+    const list = await repo.create({ userId, name: "Bulk repeat", intent: "wish", kind: "card" });
     createdListIds.push(list.id);
 
     const entry = {
@@ -482,7 +483,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const list = await repo.create({
       userId,
       name: "Bulk copy",
-      intent: "sell",
+      intent: "trade",
       kind: "copy",
     });
     createdListIds.push(list.id);
@@ -540,7 +541,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const list = await repo.create({
       userId,
       name: "From copies (copy)",
-      intent: "sell",
+      intent: "trade",
       kind: "copy",
     });
     createdListIds.push(list.id);
@@ -563,7 +564,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const list = await repo.create({
       userId,
       name: "From copies (printing)",
-      intent: "buy",
+      intent: "wish",
       kind: "printing",
     });
     createdListIds.push(list.id);
@@ -581,7 +582,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const list = await repo.create({
       userId,
       name: "From copies (card)",
-      intent: "buy",
+      intent: "wish",
       kind: "card",
     });
     createdListIds.push(list.id);
@@ -603,7 +604,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const list = await repo.create({
       userId,
       name: "Drag re-add",
-      intent: "buy",
+      intent: "wish",
       kind: "card",
     });
     createdListIds.push(list.id);
@@ -632,7 +633,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const list = await repo.create({
       userId,
       name: "Copy re-add",
-      intent: "sell",
+      intent: "trade",
       kind: "copy",
     });
     createdListIds.push(list.id);
@@ -657,7 +658,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const list = await repo.create({
       userId,
       name: "Non-owned",
-      intent: "buy",
+      intent: "wish",
       kind: "card",
     });
     createdListIds.push(list.id);
@@ -676,7 +677,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const list = await repo.create({
       userId,
       name: "Mixed owned/non-owned",
-      intent: "sell",
+      intent: "trade",
       kind: "copy",
     });
     createdListIds.push(list.id);
@@ -726,7 +727,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const list = await repo.create({
       userId,
       name: "Enriched copy",
-      intent: "sell",
+      intent: "trade",
       kind: "copy",
     });
     createdListIds.push(list.id);
@@ -755,7 +756,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const list = await repo.create({
       userId,
       name: "Scoped enriched",
-      intent: "buy",
+      intent: "wish",
       kind: "card",
     });
     createdListIds.push(list.id);
@@ -778,7 +779,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const list = await repo.create({
       userId,
       name: "Update entry",
-      intent: "buy",
+      intent: "wish",
       kind: "card",
     });
     createdListIds.push(list.id);
@@ -799,7 +800,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const list = await repo.create({
       userId,
       name: "Delete entry",
-      intent: "buy",
+      intent: "wish",
       kind: "card",
     });
     createdListIds.push(list.id);
@@ -820,7 +821,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const list = await repo.create({
       userId,
       name: "Cascade test",
-      intent: "buy",
+      intent: "wish",
       kind: "card",
     });
     const entry = await repo.createEntry({

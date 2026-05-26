@@ -19,8 +19,8 @@ interface ResolvedMatchRow extends FriendGroupMatchRow {
 }
 
 /**
- * One tile = one (counterparty, buy entry, printing). The same physical copy
- * is interchangeable in a sell list today (per-copy condition is deferred in
+ * One tile = one (counterparty, wish entry, printing). The same physical copy
+ * is interchangeable in a tradelist today (per-copy condition is deferred in
  * ADR-005), so N copies of the same printing collapse into one tile with an
  * `availableCount`.
  */

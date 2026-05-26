@@ -54,10 +54,22 @@ function MobileSidebarHeader() {
   );
 }
 
-const INTENT_GROUPS: { intent: ListIntent; label: string; foldKey: SidebarGroupKey }[] = [
-  { intent: "buy", label: "Buy", foldKey: "buy" },
-  { intent: "sell", label: "Sell", foldKey: "sell" },
-  { intent: "organize", label: "Organize", foldKey: "organize" },
+interface IntentGroup {
+  intent: ListIntent;
+  groupLabel: string;
+  newButtonLabel: string;
+  foldKey: SidebarGroupKey;
+}
+
+const INTENT_GROUPS: IntentGroup[] = [
+  { intent: "wish", groupLabel: "Wishlists", newButtonLabel: "New wishlist", foldKey: "wish" },
+  { intent: "trade", groupLabel: "Tradelists", newButtonLabel: "New tradelist", foldKey: "trade" },
+  {
+    intent: "organize",
+    groupLabel: "Organize lists",
+    newButtonLabel: "New organize list",
+    foldKey: "organize",
+  },
 ];
 
 /**
@@ -105,10 +117,10 @@ function ListsSidebarGroups({ activeId }: { activeId?: string }) {
 
   return (
     <>
-      {INTENT_GROUPS.map(({ intent, label, foldKey }) => {
+      {INTENT_GROUPS.map(({ intent, groupLabel, newButtonLabel, foldKey }) => {
         const rows = byIntent.get(intent) ?? [];
         return (
-          <CollapsibleSidebarGroup key={intent} label={`${label} lists`} foldKey={foldKey}>
+          <CollapsibleSidebarGroup key={intent} label={groupLabel} foldKey={foldKey}>
             {rows.map((list) => {
               const KindIcon = listKindIcon(list.kind);
               // Every list kind accepts dropped copies — the server derives
@@ -139,7 +151,7 @@ function ListsSidebarGroups({ activeId }: { activeId?: string }) {
                 onClick={() => setCreateIntent(intent)}
               >
                 <PlusIcon className="size-4" />
-                <span>New {label.toLowerCase()} list</span>
+                <span>{newButtonLabel}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </CollapsibleSidebarGroup>

@@ -92,7 +92,7 @@ export type ListEntryUpdate = Omit<
 >;
 
 /**
- * Queries for unified user lists (buy / sell / organize) × granularity
+ * Queries for unified user lists (wish / trade / organize) × granularity
  * (card / printing / copy) and their entries.
  *
  * @returns An object with list query methods bound to the given `db`.

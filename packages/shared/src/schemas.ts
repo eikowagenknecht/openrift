@@ -19,23 +19,23 @@ const listEntryFieldRules = {
   quantity: z.number().int().positive(),
 };
 
-const listIntentSchema = z.enum(["buy", "sell", "organize"]);
+const listIntentSchema = z.enum(["wish", "trade", "organize"]);
 
 const listKindSchema = z.enum(["card", "printing", "copy"]);
 
 /**
  * Allowed intent × kind combos. Mirrors the chk_lists_intent_kind DB
- * constraint added in migration 133.
+ * constraint (migration 133, renamed in 135).
  * @returns true if the combo is allowed.
  */
 const isAllowedIntentKind = (
-  intent: "buy" | "sell" | "organize",
+  intent: "wish" | "trade" | "organize",
   kind: "card" | "printing" | "copy",
 ): boolean => {
-  if (intent === "buy") {
+  if (intent === "wish") {
     return kind === "card" || kind === "printing";
   }
-  if (intent === "sell") {
+  if (intent === "trade") {
     return kind === "copy";
   }
   return true;
@@ -175,7 +175,7 @@ export const deckExportQuerySchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// List schemas (unified buy / sell / organize lists, replaces wish/trade)
+// List schemas (unified wishlist / tradelist / organize lists)
 // ---------------------------------------------------------------------------
 
 export const listIntentQuerySchema = z.object({
@@ -190,7 +190,7 @@ export const createListSchema = z
   })
   .refine((data) => isAllowedIntentKind(data.intent, data.kind), {
     message:
-      "Disallowed intent/kind combo. Buy: card|printing. Sell: copy. Organize: card|printing|copy.",
+      "Disallowed intent/kind combo. Wish: card|printing. Trade: copy. Organize: card|printing|copy.",
   });
 
 export const updateListSchema = z.object({

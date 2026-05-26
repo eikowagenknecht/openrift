@@ -26,7 +26,7 @@ interface AddToListDialogProps {
 /**
  * Dialog invoked from the collection grid's float-bar with selected copies.
  * Adds them as copy-kind entries — so only copy-kind lists are eligible:
- *   - sell lists (always copy by intent×kind constraint)
+ *   - tradelists (always copy by intent×kind constraint)
  *   - organize×copy lists
  * The user picks which intent the new list belongs to when creating inline.
  * @returns The dialog component.
@@ -36,11 +36,11 @@ export function AddToListDialog({ open, onOpenChange, copyIds, onAdded }: AddToL
   const bulkAdd = useBulkAddListEntries();
   const createList = useCreateList();
 
-  // Owned copies can only land in copy-kind lists. Sell is always copy by
+  // Owned copies can only land in copy-kind lists. Trade is always copy by
   // the intent×kind constraint; organize×copy is the other valid target.
   const eligibleLists = allLists.filter((list) => list.kind === "copy");
 
-  const [createIntent, setCreateIntent] = useState<"sell" | "organize" | null>(null);
+  const [createIntent, setCreateIntent] = useState<"trade" | "organize" | null>(null);
   const [newName, setNewName] = useState("");
 
   const count = copyIds.length;
@@ -114,8 +114,8 @@ export function AddToListDialog({ open, onOpenChange, copyIds, onAdded }: AddToL
             </p>
           )}
           {eligibleLists.map((list) => {
-            const Icon = list.intent === "sell" ? HandshakeIcon : FolderIcon;
-            const intentLabel = list.intent === "sell" ? "Sell" : "Organize";
+            const Icon = list.intent === "trade" ? HandshakeIcon : FolderIcon;
+            const intentLabel = list.intent === "trade" ? "Tradelist" : "Organize";
             return (
               <button
                 key={list.id}
@@ -137,11 +137,11 @@ export function AddToListDialog({ open, onOpenChange, copyIds, onAdded }: AddToL
               variant="ghost"
               size="sm"
               className="text-muted-foreground justify-start"
-              onClick={() => setCreateIntent("sell")}
+              onClick={() => setCreateIntent("trade")}
               disabled={disableAdd}
             >
               <PlusIcon className="size-3.5" />
-              New sell list
+              New tradelist
             </Button>
             <Button
               variant="ghost"
@@ -166,7 +166,7 @@ export function AddToListDialog({ open, onOpenChange, copyIds, onAdded }: AddToL
               autoFocus // oxlint-disable-line jsx-a11y/no-autofocus -- intentional inside dialog
               value={newName}
               onChange={(event) => setNewName(event.target.value)}
-              placeholder={`${createIntent === "sell" ? "Sell" : "Organize"} list name`}
+              placeholder={createIntent === "trade" ? "Tradelist name" : "Organize list name"}
               className="h-8"
             />
             <Button type="submit" size="sm" disabled={!newName.trim() || disableAdd}>

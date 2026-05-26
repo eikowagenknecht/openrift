@@ -248,7 +248,7 @@ describe("toList", () => {
       id: "lst-1",
       userId: "user-1",
       name: "Wants",
-      intent: "buy",
+      intent: "wish",
       kind: "printing",
       isPublic: true,
       shareToken: "tok-abc",

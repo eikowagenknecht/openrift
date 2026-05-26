@@ -227,7 +227,7 @@ describe("updateDeckCardsSchema", () => {
 });
 
 // ---------------------------------------------------------------------------
-// List schemas (unified buy / sell / organize)
+// List schemas (unified wish / trade / organize)
 // ---------------------------------------------------------------------------
 
 const CARD_ID = "c0000000-0001-4000-a000-000000000001";
@@ -235,21 +235,21 @@ const PRINTING_ID = "d0000000-0001-4000-a000-000000000001";
 const COPY_ID = "550e8400-e29b-41d4-a716-446655440000";
 
 describe("createListSchema", () => {
-  it("accepts buy + card", () => {
-    expect(createListSchema.safeParse({ name: "Wants", intent: "buy", kind: "card" }).success).toBe(
-      true,
-    );
-  });
-
-  it("accepts buy + printing", () => {
+  it("accepts wish + card", () => {
     expect(
-      createListSchema.safeParse({ name: "Foils", intent: "buy", kind: "printing" }).success,
+      createListSchema.safeParse({ name: "Wants", intent: "wish", kind: "card" }).success,
     ).toBe(true);
   });
 
-  it("accepts sell + copy", () => {
+  it("accepts wish + printing", () => {
     expect(
-      createListSchema.safeParse({ name: "For trade", intent: "sell", kind: "copy" }).success,
+      createListSchema.safeParse({ name: "Foils", intent: "wish", kind: "printing" }).success,
+    ).toBe(true);
+  });
+
+  it("accepts trade + copy", () => {
+    expect(
+      createListSchema.safeParse({ name: "For trade", intent: "trade", kind: "copy" }).success,
     ).toBe(true);
   });
 
@@ -261,21 +261,21 @@ describe("createListSchema", () => {
     }
   });
 
-  it("rejects buy + copy (disallowed combo)", () => {
-    expect(createListSchema.safeParse({ name: "Bad", intent: "buy", kind: "copy" }).success).toBe(
+  it("rejects wish + copy (disallowed combo)", () => {
+    expect(createListSchema.safeParse({ name: "Bad", intent: "wish", kind: "copy" }).success).toBe(
       false,
     );
   });
 
-  it("rejects sell + card (disallowed combo)", () => {
-    expect(createListSchema.safeParse({ name: "Bad", intent: "sell", kind: "card" }).success).toBe(
+  it("rejects trade + card (disallowed combo)", () => {
+    expect(createListSchema.safeParse({ name: "Bad", intent: "trade", kind: "card" }).success).toBe(
       false,
     );
   });
 
-  it("rejects sell + printing (disallowed combo)", () => {
+  it("rejects trade + printing (disallowed combo)", () => {
     expect(
-      createListSchema.safeParse({ name: "Bad", intent: "sell", kind: "printing" }).success,
+      createListSchema.safeParse({ name: "Bad", intent: "trade", kind: "printing" }).success,
     ).toBe(false);
   });
 
@@ -286,13 +286,13 @@ describe("createListSchema", () => {
   });
 
   it("rejects an unknown kind", () => {
-    expect(createListSchema.safeParse({ name: "x", intent: "buy", kind: "physical" }).success).toBe(
-      false,
-    );
+    expect(
+      createListSchema.safeParse({ name: "x", intent: "wish", kind: "physical" }).success,
+    ).toBe(false);
   });
 
   it("rejects a missing kind", () => {
-    expect(createListSchema.safeParse({ name: "x", intent: "buy" }).success).toBe(false);
+    expect(createListSchema.safeParse({ name: "x", intent: "wish" }).success).toBe(false);
   });
 
   it("rejects a missing intent", () => {
@@ -300,7 +300,7 @@ describe("createListSchema", () => {
   });
 
   it("rejects an empty name", () => {
-    expect(createListSchema.safeParse({ name: "", intent: "buy", kind: "card" }).success).toBe(
+    expect(createListSchema.safeParse({ name: "", intent: "wish", kind: "card" }).success).toBe(
       false,
     );
   });
@@ -399,11 +399,11 @@ describe("listIntentQuerySchema", () => {
   });
 
   it("accepts a known intent", () => {
-    expect(listIntentQuerySchema.safeParse({ intent: "sell" }).success).toBe(true);
+    expect(listIntentQuerySchema.safeParse({ intent: "trade" }).success).toBe(true);
   });
 
   it("rejects an unknown intent", () => {
-    expect(listIntentQuerySchema.safeParse({ intent: "trade" }).success).toBe(false);
+    expect(listIntentQuerySchema.safeParse({ intent: "sell" }).success).toBe(false);
   });
 });
 

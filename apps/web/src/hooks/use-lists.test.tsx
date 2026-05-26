@@ -65,7 +65,7 @@ function wrap(client: QueryClient) {
 const LIST: ListResponse = {
   id: "lst-1",
   name: "Wants",
-  intent: "buy",
+  intent: "wish",
   kind: "card",
   entryCount: 0,
   isPublic: false,
@@ -81,7 +81,7 @@ describe("useCreateList", () => {
     const { result } = renderHook(() => useCreateList(), { wrapper: wrap(client) });
 
     await act(async () => {
-      await result.current.mutateAsync({ name: "Wants", intent: "buy", kind: "card" });
+      await result.current.mutateAsync({ name: "Wants", intent: "wish", kind: "card" });
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -89,7 +89,7 @@ describe("useCreateList", () => {
       queryKey: ["lists", "test-user-id"],
     });
     expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: ["lists", "test-user-id", "intent", "buy"],
+      queryKey: ["lists", "test-user-id", "intent", "wish"],
     });
   });
 });

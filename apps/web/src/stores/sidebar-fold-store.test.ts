@@ -18,27 +18,27 @@ describe("sidebar-fold-store", () => {
   it("defaults to open for every group", () => {
     expect(useSidebarFoldStore.getState().byKey).toEqual({
       collections: true,
-      buy: true,
-      sell: true,
+      wish: true,
+      trade: true,
       organize: true,
     });
   });
 
   it("setOpen flips a single group without affecting others", () => {
-    useSidebarFoldStore.getState().setOpen("buy", false);
+    useSidebarFoldStore.getState().setOpen("wish", false);
     expect(useSidebarFoldStore.getState().byKey).toEqual({
       collections: true,
-      buy: false,
-      sell: true,
+      wish: false,
+      trade: true,
       organize: true,
     });
   });
 
   it("toggle flips the open state for one group", () => {
-    useSidebarFoldStore.getState().toggle("sell");
-    expect(useSidebarFoldStore.getState().byKey.sell).toBe(false);
-    useSidebarFoldStore.getState().toggle("sell");
-    expect(useSidebarFoldStore.getState().byKey.sell).toBe(true);
+    useSidebarFoldStore.getState().toggle("trade");
+    expect(useSidebarFoldStore.getState().byKey.trade).toBe(false);
+    useSidebarFoldStore.getState().toggle("trade");
+    expect(useSidebarFoldStore.getState().byKey.trade).toBe(true);
   });
 
   it("reset restores defaults after folding", () => {
@@ -47,8 +47,8 @@ describe("sidebar-fold-store", () => {
     useSidebarFoldStore.getState().reset();
     expect(useSidebarFoldStore.getState().byKey).toEqual({
       collections: true,
-      buy: true,
-      sell: true,
+      wish: true,
+      trade: true,
       organize: true,
     });
   });

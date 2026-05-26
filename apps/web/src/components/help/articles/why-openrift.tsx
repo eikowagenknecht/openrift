@@ -494,15 +494,15 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   },
   {
     kind: "row",
-    feature: "Wish / trade lists",
+    feature: "Wishlists / tradelists",
     values: ["no", "yes", "yes", "yes", "yes"],
     detail: {
       general:
         "Dedicated lists for cards you want, and sometimes cards you're willing to trade away.",
       openrift: "Not supported yet; planned.",
-      piltoverArchive: "Single wish list, not shareable.",
-      riftmana: "One wish list and one trade list, not shareable.",
-      riftboundGg: "One wish list and one trade list, both shareable.",
+      piltoverArchive: "Single wishlist, not shareable.",
+      riftmana: "One wishlist and one tradelist, not shareable.",
+      riftboundGg: "One wishlist and one tradelist, both shareable.",
       riftcore: "Automatic trade binder plus multiple manual and dynamic want lists.",
     },
   },

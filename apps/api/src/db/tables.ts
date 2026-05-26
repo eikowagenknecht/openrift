@@ -395,14 +395,14 @@ export interface DeckCardsTable {
 /**
  * Unified list table — replaces the old trade_lists and wish_lists.
  *
- * `intent` is the surface (buy / sell / organize). `kind` is the granularity
+ * `intent` is the surface (wish / trade / organize). `kind` is the granularity
  * the list tracks: a list contains uniformly cards, printings, or copies.
- * The intent × kind matrix is constrained (migration 133):
- *   buy      → card | printing
- *   sell     → copy
+ * The intent × kind matrix is constrained (migration 133, renamed in 135):
+ *   wish     → card | printing
+ *   trade    → copy
  *   organize → card | printing | copy
  *
- * CHECK: intent ∈ ('buy','sell','organize'); kind ∈ ('card','printing','copy');
+ * CHECK: intent ∈ ('wish','trade','organize'); kind ∈ ('card','printing','copy');
  * intent × kind matches one of the six allowed combos; name <> ''.
  */
 export interface ListsTable {

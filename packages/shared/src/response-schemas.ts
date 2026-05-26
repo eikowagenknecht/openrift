@@ -701,9 +701,9 @@ export const userPreferencesResponseSchema = z
   })
   .openapi("UserPreferencesResponse");
 
-// ── Lists (unified buy / sell / organize) ────────────────────────────────────
+// ── Lists (unified wishlist / tradelist / organize) ─────────────────────────
 
-const listIntentSchema = z.enum(["buy", "sell", "organize"]).openapi("ListIntent");
+const listIntentSchema = z.enum(["wish", "trade", "organize"]).openapi("ListIntent");
 
 const listKindSchema = z.enum(["card", "printing", "copy"]).openapi("ListKind");
 
@@ -929,7 +929,7 @@ const friendGroupShareResponseSchema = z
     groupId: z.string(),
     listId: z.string(),
     listName: z.string(),
-    listIntent: z.enum(["buy", "sell", "organize"]),
+    listIntent: z.enum(["wish", "trade", "organize"]),
     listKind: z.enum(["card", "printing", "copy"]),
     userId: z.string(),
     userName: z.string().nullable(),
@@ -982,7 +982,7 @@ export const friendGroupShareableListResponseSchema = z
   .object({
     listId: z.string(),
     listName: z.string(),
-    listIntent: z.enum(["buy", "sell", "organize"]),
+    listIntent: z.enum(["wish", "trade", "organize"]),
     listKind: z.enum(["card", "printing", "copy"]),
     sharedAt: z.string().nullable(),
   })
@@ -1055,7 +1055,7 @@ export const friendGroupSharedListDetailResponseSchema = z
     list: z.object({
       id: z.string(),
       name: z.string(),
-      intent: z.enum(["buy", "sell", "organize"]),
+      intent: z.enum(["wish", "trade", "organize"]),
       kind: z.enum(["card", "printing", "copy"]),
       ownerUserId: z.string(),
       ownerName: z.string().nullable(),

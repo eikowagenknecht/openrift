@@ -5,9 +5,9 @@ import type { Database } from "../db/index.js";
 import { imageId } from "./query-helpers.js";
 
 /**
- * One side of a match — a buy entry intersecting a sell entry. The row always
- * carries the *sell* side's card identity (the physical copy that could
- * change hands) plus enough buy-side info to explain *why* the row matched.
+ * One side of a match — a wish entry intersecting a trade entry. The row always
+ * carries the *trade* side's card identity (the physical copy that could
+ * change hands) plus enough wish-side info to explain *why* the row matched.
  *
  * The "counterparty" is the *other* user — in `othersHaveYourWants` the
  * counterparty is the seller (they have what you want); in
@@ -20,7 +20,7 @@ export interface MatchRow {
   counterpartyImage: string | null;
   counterpartyNickname: string | null;
 
-  /** The counterparty's source list (their sell list in "they have", their buy list in "they want"). */
+  /** The counterparty's source list (their tradelist in "they have", their wishlist in "they want"). */
   counterpartyListId: string;
   counterpartyListName: string;
 
@@ -53,11 +53,11 @@ interface MatchScope {
  * Match-view queries for ADR-013 friend groups. Computed at read time, never
  * materialised — see the ADR's _Match view_ section.
  *
- * Both panels share one SQL shape: join buy entries against sell entries
+ * Both panels share one SQL shape: join wish entries against trade entries
  * within the same group's opted-in shares. The only difference is who plays
  * "viewer" and who plays "counterparty" on each side.
  *
- * **Only `buy` ↔ `sell` shares participate.** `organize` lists never appear
+ * **Only `wish` ↔ `trade` shares participate.** `organize` lists never appear
  * here, even when shared (see member-detail for that). Deck-derived demand
  * (`is_wanted` decks) is excluded by construction — we only read from
  * `list_entries`, which decks never populate.
@@ -68,7 +68,7 @@ export function friendGroupMatchesRepo(db: Kysely<Database>) {
   return {
     /**
      * Cards the *viewer wants* that other members have offered for sale in
-     * this group. Joins viewer's buy entries against other members' sell
+     * this group. Joins viewer's wish entries against other members' trade
      * entries, filtered to lists explicitly shared with the group.
      * @returns Match rows; sorted by counterparty, then card name.
      */
@@ -102,7 +102,7 @@ async function runMatchQuery(
   const buyerUserId = direction === "others-have-your-wants" ? scope.viewerUserId : null;
 
   let query = db
-    // Sell side: copies offered by the seller into this group.
+    // Trade side: copies offered into this group.
     .selectFrom("friendGroupListShares as s_sell")
     .innerJoin("lists as l_sell", "l_sell.id", "s_sell.listId")
     .innerJoin("listEntries as le_sell", "le_sell.listId", "l_sell.id")
@@ -116,12 +116,12 @@ async function runMatchQuery(
         .on("pi.isActive", "=", true),
     )
     .leftJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId")
-    // Buy side: buy entries shared by the buyer with the same group.
+    // Wish side: wish entries shared with the same group.
     .innerJoin("friendGroupListShares as s_buy", (join) =>
       join.onRef("s_buy.groupId", "=", "s_sell.groupId"),
     )
     .innerJoin("lists as l_buy", (join) =>
-      join.onRef("l_buy.id", "=", "s_buy.listId").on("l_buy.intent", "=", "buy"),
+      join.onRef("l_buy.id", "=", "s_buy.listId").on("l_buy.intent", "=", "wish"),
     )
     .innerJoin("listEntries as le_buy", "le_buy.listId", "l_buy.id")
     // Counterparty profile (for grouping/avatar/nickname).
@@ -142,10 +142,10 @@ async function runMatchQuery(
         ),
     )
     .where("s_sell.groupId", "=", scope.groupId)
-    .where("l_sell.intent", "=", "sell")
+    .where("l_sell.intent", "=", "trade")
     .where("le_sell.kind", "=", "copy")
-    // Match rule: card-kind buys match any printing of the card; printing-
-    // kind buys match the exact printing.
+    // Match rule: card-kind wishes match any printing of the card; printing-
+    // kind wishes match the exact printing.
     .where((eb) =>
       eb.or([
         eb.and([

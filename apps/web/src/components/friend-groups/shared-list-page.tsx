@@ -45,7 +45,7 @@ export function SharedListPage({ slug, listId }: SharedListPageProps) {
         <h1 className="text-2xl font-semibold">{data.list.name}</h1>
         <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm">
           <Badge variant="outline">{listIntentLabel(data.list.intent)}</Badge>
-          {data.list.intent === "sell" ? null : (
+          {data.list.intent === "trade" ? null : (
             <Badge variant="outline">{listKindLabel(data.list.kind)}</Badge>
           )}
           {data.list.ownerName ? <span>shared by {data.list.ownerName}</span> : null}

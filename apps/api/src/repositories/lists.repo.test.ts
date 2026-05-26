@@ -7,7 +7,7 @@ const LIST = {
   id: "lst-1",
   userId: "u1",
   name: "Wants",
-  intent: "buy" as const,
+  intent: "wish" as const,
   kind: "card" as const,
   isPublic: false,
   shareToken: null,
@@ -38,7 +38,7 @@ describe("listsRepo", () => {
   it("listForUser filters by intent when given", async () => {
     const db = createMockDb([LIST]);
     const repo = listsRepo(db);
-    expect(await repo.listForUser("u1", "buy")).toEqual([LIST]);
+    expect(await repo.listForUser("u1", "wish")).toEqual([LIST]);
   });
 
   it("getByIdForUser returns a list", async () => {
@@ -56,7 +56,7 @@ describe("listsRepo", () => {
   it("create returns the created list", async () => {
     const db = createMockDb([LIST]);
     const repo = listsRepo(db);
-    const result = await repo.create({ userId: "u1", name: "Wants", intent: "buy", kind: "card" });
+    const result = await repo.create({ userId: "u1", name: "Wants", intent: "wish", kind: "card" });
     expect(result).toEqual(LIST);
   });
 

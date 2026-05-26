@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-05-26
+
+- feat: Buy and sell lists are now called Wishlists and Tradelists, matching the names other TCG sites use
+
 ## 2026-05-23
 
 - fix: The app no longer shows an error page on some iOS Safari setups (older versions, in-app browsers, privacy proxies) where the browser strips the headers used for CSRF protection

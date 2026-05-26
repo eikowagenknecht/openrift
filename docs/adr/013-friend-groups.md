@@ -7,9 +7,9 @@ date: 2026-05-19
 
 ## Context and Problem Statement
 
-OpenRift's collection model (ADR-005) already supports buy lists, sell lists, and per-list share tokens. But share tokens are coarse: one link per list, anyone with the URL has access. Real-world trading happens inside fixed circles — an LGS playgroup, a Nexus Night crew, a Discord cell of 5–15 people — where members repeatedly buy/sell among themselves. Today a user has to hand each friend a separate share link per list, with no way to ask "which of my friends has the cards I'm looking for?"
+OpenRift's collection model (ADR-005) already supports wishlists, tradelists, and per-list share tokens. But share tokens are coarse: one link per list, anyone with the URL has access. Real-world trading happens inside fixed circles — an LGS playgroup, a Nexus Night crew, a Discord cell of 5–15 people — where members repeatedly wish/trade among themselves. Today a user has to hand each friend a separate share link per list, with no way to ask "which of my friends has the cards I'm looking for?"
 
-We want first-class **friend groups** where members can opt-in their existing buy/sell lists per group, and the app surfaces matches across the group.
+We want first-class **friend groups** where members can opt-in their existing wishlists/tradelists per group, and the app surfaces matches across the group.
 
 **Trade execution is intentionally _not_ in the system.** The actual exchange happens out-of-band — in person at Nexus Night, in a Discord DM, by post — and OpenRift never models proposals, counter-offers, or a two-sided ledger. The app's job is discovery; the humans handle the trade and each user updates their own collection independently afterwards. This is a deliberate, permanent choice, not a deferral. ADR-005's deferred "trade sessions" item is superseded by this stance.
 
@@ -20,7 +20,7 @@ We want first-class **friend groups** where members can opt-in their existing bu
 - Joining must be spam-resistant — leaked codes and unsolicited invites are the two failure modes
 - Existing primitives (`lists`, `list_entries`, copies) cover the data; we only need group membership + a sharing scope
 - Trade negotiation happens externally (Discord, in person) — no in-app messaging in this ADR
-- Matches must be live: when a member adds a card to their sell list, their groups see it without re-sharing
+- Matches must be live: when a member adds a card to their tradelist, their groups see it without re-sharing
 
 ## Considered Options
 
@@ -34,7 +34,7 @@ Chosen option: **Friend groups with opt-in sharing**, because per-list ACLs scal
 
 ### Consequences
 
-- Good — matchmaking is a single SQL query: intersect my buys with co-members' shared sells, scoped to one group.
+- Good — matchmaking is a single SQL query: intersect my wishes with co-members' shared trades, scoped to one group.
 - Good — sharing a list with a group is one row; revoking is one row; no ACL fan-out across users.
 - Good — leaving or being kicked cleanly auto-revokes via FK cascade, with no separate cleanup logic.
 - Bad — three new tables and a small surface of new endpoints. Mitigated by the model being narrow and read-mostly.
@@ -93,21 +93,21 @@ We deliberately do **not** add per-user invite rate limits, a global "don't invi
 - Sharing is **per group, all members, live.** Any subsequent edit to the list propagates immediately — there is no snapshotting.
 - The same list can be shared with **multiple groups** simultaneously. Unsharing affects only the selected group.
 - Nothing is shared by default. The user toggles each list per group from the group page.
-- **All three `intent` values can be shared.** `buy` and `sell` lists drive the match view. `organize` lists are shareable too but **do not participate in matches** — they surface on the member detail page as informational context ("Alice is organizing _Spiritforged Vault_"), useful for "what's this person collecting / curating" without implying a buy/sell signal.
+- **All three `intent` values can be shared.** `wish` and `trade` lists drive the match view. `organize` lists are shareable too but **do not participate in matches** — they surface on the member detail page as informational context ("Alice is organizing _Spiritforged Vault_"), useful for "what's this person collecting / curating" without implying a wish/trade signal.
 - Leaving or being kicked deletes the membership row, which cascades to delete all of that user's `friend_group_list_shares` rows for that group. Re-joining starts fresh — share records are not retained.
 - The `lists.id` FK uses `ON DELETE CASCADE` so deleting a list cleans up its shares.
 
 ### Match view
 
-Computed live at query time, never materialised. **Only `buy` ↔ `sell` shares participate** — deck-derived demand (the virtual shortfall from `is_wanted=true` decks in ADR-005) and `organize` lists are explicitly excluded. Users who want their deck wishes visible to a group must mirror them into an explicitly-shared buy list. This keeps the model "what you opted in is what's visible" with no implicit coupling between decks and groups.
+Computed live at query time, never materialised. **Only `wish` ↔ `trade` shares participate** — deck-derived demand (the virtual shortfall from `is_wanted=true` decks in ADR-005) and `organize` lists are explicitly excluded. Users who want their deck wishes visible to a group must mirror them into an explicitly-shared wishlist. This keeps the model "what you opted in is what's visible" with no implicit coupling between decks and groups.
 
 For viewer U in group G, two virtual sets:
 
-- **Members have what you want.** Inner-join U's `intent='buy'` list entries against the `intent='sell'` list entries of every other member whose sell list is in `friend_group_list_shares` for G.
-  - A buy entry with `kind='card'` matches any copy of that card.
-  - A buy entry with `kind='printing'` matches only copies of that exact printing.
+- **Members have what you want.** Inner-join U's `intent='wish'` list entries against the `intent='trade'` list entries of every other member whose tradelist is in `friend_group_list_shares` for G.
+  - A wish entry with `kind='card'` matches any copy of that card.
+  - A wish entry with `kind='printing'` matches only copies of that exact printing.
   - Result rows are at copy granularity (each `list_entries` row of `kind='copy'` is one offer), so once per-copy condition / notes land (deferred per ADR-005), they surface here automatically.
-- **Members want what you have.** Mirror query: their buy entries against U's shared sell entries.
+- **Members want what you have.** Mirror query: their wish entries against U's shared trade entries.
 
 The view groups matches by counterparty (display name, avatar, per-group nickname). Each counterparty heading is a link to that member's page within the group (see _User experience surfaces_ below) where the viewer can see all their matched cards and all of their shared lists in one place. Last-active and any other presence indicator are out of scope for this ADR; the nickname is where members put their external contact info, and there is no DM surface.
 
@@ -134,7 +134,7 @@ The architectural decisions above land in these routes and affordances. Pixel-le
   - **Matches** (top, default focus). Two stacked panels: "Members have what you want", then "Members want what you have". Each panel groups by counterparty, with cards rendered via the existing `<CardCell>` slot pattern (per `docs/contributing.md` card-browser conventions).
   - **Members**. Roster with role badges, display name, avatar, per-group nickname. Admin row actions inline: kick, promote, demote. Owner-only actions: transfer ownership.
   - **Settings** (admin+ only). Name, description, slug (with rename warning), join code with rotate button, **list-share management** (which of the viewer's own lists are shared with this group — checkboxes, one row per list), and delete (owner-only, with destructive confirm). Plain members see a subset of this section: just the list-share toggles for their own lists.
-- **`/groups/$slug/members/$user_id`** — single-member view inside a group. Shows the member's matched cards (filtered to this counterparty), all of their lists shared with this group grouped by intent (buy / sell / organize — `organize` lives here as informational, not in the match view), their nickname, and contact-info-as-typed. This is the "drill into one trade partner" page.
+- **`/groups/$slug/members/$user_id`** — single-member view inside a group. Shows the member's matched cards (filtered to this counterparty), all of their lists shared with this group grouped by intent (wish / trade / organize — `organize` lives here as informational, not in the match view), their nickname, and contact-info-as-typed. This is the "drill into one trade partner" page.
 
 ### Sharing affordance
 
@@ -142,7 +142,7 @@ List-share toggles live on the **group page**, not on the list page. From `/list
 
 ### Cross-surface integration
 
-The match query has one explicit cross-surface consumer: the **shopping list**. When a card has an unmet demand (from a buy list or wanted deck) and a co-member's shared sell list contains a matching copy, the shopping-list row shows "available from $member · $group" inline, linking to the corresponding `/groups/$slug/members/$user_id`.
+The match query has one explicit cross-surface consumer: the **shopping list**. When a card has an unmet demand (from a wishlist or wanted deck) and a co-member's shared tradelist contains a matching copy, the shopping-list row shows "available from $member · $group" inline, linking to the corresponding `/groups/$slug/members/$user_id`.
 
 The card browser (`/cards`), collection (`/collections`), and deck builder (`/decks/$id`) stay group-agnostic — no badges, no per-cell group queries. This contains the perf surface to the shopping list, which is already a heavy aggregate query.
 
@@ -157,8 +157,8 @@ No global notifications, no email, no toasts — just the two persistent badges.
 
 ### Empty states (all designed explicitly)
 
-- **No one is sharing.** Shown when no other member of this group has a single `friend_group_list_shares` row. Copy: "No members are sharing lists with this group yet. Ask them to share a buy or sell list to start seeing matches."
-- **You haven't shared.** Shown when the viewer has no shares with this group. Copy: "Share at least one buy or sell list with this group to see what members can offer or want."
+- **No one is sharing.** Shown when no other member of this group has a single `friend_group_list_shares` row. Copy: "No members are sharing lists with this group yet. Ask them to share a wishlist or tradelist to start seeing matches."
+- **You haven't shared.** Shown when the viewer has no shares with this group. Copy: "Share at least one wishlist or tradelist with this group to see what members can offer or want."
 - **No overlaps found.** Shown when shares exist on both sides but the intersection is empty. Copy: "No matches right now. You'll see opportunities here when someone's wants overlap with someone's haves."
 - **Pending approval.** Shown to a user who has submitted a request and is awaiting an admin's decision. The whole group page renders as a stub (group name + "Waiting for an admin to approve your request" + a cancel-request button). No member list, no matches.
 
@@ -285,10 +285,10 @@ Schema-level invariants exercised by integration tests:
 
 Match-view behaviour exercised by a vitest test covering:
 
-- Buy entry at `kind='card'` matches any printing of that card in a co-member's shared sell list.
-- Buy entry at `kind='printing'` matches only copies of that exact printing.
+- Wish entry at `kind='card'` matches any printing of that card in a co-member's shared tradelist.
+- Wish entry at `kind='printing'` matches only copies of that exact printing.
 - Lists not in `friend_group_list_shares` for the viewing group do not surface, even if shared with a different group.
 - `intent='organize'` lists shared with a group never appear in either match panel, but do appear on the member detail page.
-- Deck-derived demand (from `is_wanted` decks) never appears in the match view — only entries in explicitly-shared buy lists do.
+- Deck-derived demand (from `is_wanted` decks) never appears in the match view — only entries in explicitly-shared wishlists do.
 - The viewer's own lists never appear on either side of their own match view.
-- After a kick, the kicked user's previously-shared sell entries stop appearing for remaining members.
+- After a kick, the kicked user's previously-shared trade entries stop appearing for remaining members.
