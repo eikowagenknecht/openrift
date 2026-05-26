@@ -1,4 +1,4 @@
-import { render, screen, waitForElementToBeRemoved } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -38,7 +38,7 @@ describe("PageTocMobileTrigger", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("opens the sheet and shows all items", async () => {
+  it("opens the drawer and shows all items", async () => {
     const user = userEvent.setup();
     render(<PageTocMobileTrigger items={ITEMS} />);
 
@@ -49,7 +49,7 @@ describe("PageTocMobileTrigger", () => {
     }
   });
 
-  it("scrolls to target, updates active id, and closes the sheet on item click", async () => {
+  it("scrolls to target, updates active id, and closes the drawer on item click", async () => {
     const user = userEvent.setup();
     const scrollSpy = vi
       .spyOn(globalThis.Element.prototype, "scrollIntoView")
@@ -61,7 +61,9 @@ describe("PageTocMobileTrigger", () => {
 
     expect(scrollSpy).toHaveBeenCalledTimes(1);
     expect(usePageTocStore.getState().activeId).toBe("rule-100-1");
-    await waitForElementToBeRemoved(() => screen.queryByRole("link", { name: "100.1 Players" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("link", { name: "100.1 Players" })).not.toBeInTheDocument();
+    });
 
     scrollSpy.mockRestore();
   });

@@ -3,8 +3,15 @@ import type { MouseEvent } from "react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { usePageTocStore } from "@/stores/page-toc-store";
 
@@ -117,7 +124,7 @@ export function PageToc({ items, className }: { items: PageTocItem[]; className?
 }
 
 // Mobile counterpart to PageToc. Below the lg breakpoint the sidebar is hidden,
-// so this opens a bottom sheet with the same list. Pair with PageToc on the
+// so this opens a bottom drawer with the same list. Pair with PageToc on the
 // same page, whose observer keeps activeId in sync.
 export function PageTocMobileTrigger({
   items,
@@ -133,8 +140,8 @@ export function PageTocMobileTrigger({
   }
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger
+    <Drawer open={open} onOpenChange={setOpen}>
+      <DrawerTrigger
         render={
           <Button
             type="button"
@@ -146,11 +153,12 @@ export function PageTocMobileTrigger({
         }
       >
         <ListIcon />
-      </SheetTrigger>
-      <SheetContent side="bottom" className="max-h-[80vh]">
-        <SheetHeader>
-          <SheetTitle>Contents</SheetTitle>
-        </SheetHeader>
+      </DrawerTrigger>
+      <DrawerContent>
+        <DrawerHeader>
+          <DrawerTitle>Contents</DrawerTitle>
+          <DrawerDescription className="sr-only">Jump to a section on this page</DrawerDescription>
+        </DrawerHeader>
         <ScrollArea className="min-h-0 flex-1">
           <nav className="space-y-0.5 px-4 pb-6">
             {items.map((item) => (
@@ -164,7 +172,7 @@ export function PageTocMobileTrigger({
             ))}
           </nav>
         </ScrollArea>
-      </SheetContent>
-    </Sheet>
+      </DrawerContent>
+    </Drawer>
   );
 }
