@@ -21,7 +21,7 @@ const EMPTY_SIBLING_IDS: readonly string[] = [];
  * `×N` owned count; add mode adds +/- buttons via {@link CountWithAddControls}.
  * In cards view + add mode, the parent passes `siblingIds` so the cell
  * displays the per-printing count with the variant aggregate as a `(M)` hint
- * (matching the grid's CollectionAddStrip).
+ * (matching the grid's CardCountStrip).
  *
  * @returns The catalog actions content (no wrapper — CardTableRow renders that).
  */

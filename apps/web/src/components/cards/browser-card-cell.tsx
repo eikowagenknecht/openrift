@@ -3,10 +3,10 @@ import type { ReactNode } from "react";
 
 import type { CardRenderContext } from "@/components/card-viewer-types";
 import { CardCell } from "@/components/cards/card-cell";
+import { CardCountStrip } from "@/components/cards/card-count-strip";
+import { OwnedCollectionsPopover } from "@/components/cards/card-detail/owned-collections-popover";
 import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
-import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
 import { SuggestImageOverlay } from "@/components/cards/suggest-image-overlay";
-import { CollectionAddStrip } from "@/components/collection/collection-add-strip";
 import { useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
 import {
   dispatchDecrement,
@@ -72,22 +72,36 @@ export function BrowserCardCell({
 
   let strip: ReactNode | undefined;
   if (enabled) {
+    const hasVariants = inCardsView && (siblings?.length ?? 0) > 1;
     strip = showAddControls ? (
-      <CollectionAddStrip
-        printing={printing}
-        ownedCount={ownedCount}
-        hasVariants={inCardsView && (siblings?.length ?? 0) > 1}
-        onQuickAdd={dispatchIncrement}
-        onUndoAdd={onUndoAdd}
-        onOpenVariants={dispatchOpenVariants}
+      <CardCountStrip
+        count={ownedCount}
+        decrement={{
+          onClick: (event) => onUndoAdd(printing, event.currentTarget),
+          disabled: ownedCount === 0,
+          ariaLabel: `Remove ${printing.card.name}`,
+        }}
+        increment={{
+          onClick: () => dispatchIncrement(printing),
+          ariaLabel: `Add ${printing.card.name}`,
+        }}
+        onPillClick={
+          hasVariants ? (event) => dispatchOpenVariants(printing, event.currentTarget) : undefined
+        }
+        pillAriaLabel={hasVariants ? `Choose variant for ${printing.card.name}` : undefined}
       />
     ) : (
-      <OwnedCountStrip
+      <CardCountStrip
         count={ownedCount}
-        printingId={printing.id}
-        cardName={printing.card.name}
-        shortCode={printing.shortCode}
-        siblings={inCardsView ? siblings : undefined}
+        pillOverride={
+          <OwnedCollectionsPopover
+            printingId={printing.id}
+            cardName={printing.card.name}
+            shortCode={printing.shortCode}
+            count={ownedCount}
+            siblings={inCardsView ? siblings : undefined}
+          />
+        }
       />
     );
   }

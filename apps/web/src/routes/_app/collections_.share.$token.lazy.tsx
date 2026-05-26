@@ -11,9 +11,9 @@ import {
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
 import { CardCell } from "@/components/cards/card-cell";
+import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
-import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
 import { StaticCountTableActions } from "@/components/cards/static-count-table-actions";
 import {
   PAGE_TOP_BAR_STICKY,
@@ -201,7 +201,7 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
         onClick={handleCardClick}
         siblings={view === "cards" ? printingsByCardId.get(cardId) : undefined}
         priceRange={priceRangeByCardId?.get(cardId)}
-        strip={<OwnedCountStrip count={countByPrintingId[item.printing.id] ?? 0} />}
+        strip={<CardCountStrip count={countByPrintingId[item.printing.id] ?? 0} />}
       />
     );
   };

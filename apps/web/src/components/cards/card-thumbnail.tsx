@@ -278,7 +278,7 @@ interface CardThumbnailProps {
    * for the rationale.
    */
   display: CardThumbnailDisplay;
-  /** Content rendered above the card image (e.g. OwnedCountStrip). */
+  /** Content rendered above the card image (e.g. CardCountStrip). */
   aboveCard?: ReactNode;
   /** Dims the card image (used in add mode for unowned cards). */
   dimmed?: boolean;

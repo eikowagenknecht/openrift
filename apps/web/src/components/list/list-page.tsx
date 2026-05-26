@@ -29,14 +29,13 @@ import {
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
 import { CardCell } from "@/components/cards/card-cell";
+import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { PageTopBar, PageTopBarActions, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { listKindIcon, listKindLabel } from "@/components/list/create-list-dialog";
 import { DeleteListDialog } from "@/components/list/delete-list-dialog";
-import { ListAddStrip } from "@/components/list/list-add-strip";
 import { ListEntryContextMenu } from "@/components/list/list-entry-context-menu";
-import { ListEntryQuantityStrip } from "@/components/list/list-entry-quantity-strip";
 import { ListEntryTableActions } from "@/components/list/list-entry-table-actions";
 import { ListExportDialog } from "@/components/list/list-export-dialog";
 import { ListGroupSharesBadge } from "@/components/list/list-group-shares-badge";
@@ -627,11 +626,18 @@ function ListEntryBrowser({
           dimmed={displayedCount === 0}
           stripSlot="topSlot"
           strip={
-            <ListAddStrip
-              printing={item.printing}
-              displayedCount={displayedCount}
-              onIncrement={handleIncrement}
-              onDecrement={handleDecrement}
+            <CardCountStrip
+              count={displayedCount}
+              icon={ListIcon}
+              decrement={{
+                onClick: () => handleDecrement(item.printing),
+                disabled: displayedCount <= 1,
+                ariaLabel: `Decrease ${item.printing.card.name} quantity on list`,
+              }}
+              increment={{
+                onClick: () => handleIncrement(item.printing),
+                ariaLabel: `Add ${item.printing.card.name} to list`,
+              }}
             />
           }
         />
@@ -644,15 +650,26 @@ function ListEntryBrowser({
     // quantity > 1 is meaningless. Removal still goes through the right-click
     // context menu.
     const quantityStrip =
-      entry && kind !== "copy" ? (
-        <ListEntryQuantityStrip
-          quantity={entry.quantity}
-          onIncrement={() => onQuantityChange(entry.id, entry.quantity + 1)}
-          onDecrement={() => onQuantityChange(entry.id, entry.quantity - 1)}
-          isPending={isQuantityPendingFor(entry.id)}
-          cardName={entry.cardName}
-        />
-      ) : undefined;
+      entry && kind !== "copy"
+        ? (() => {
+            const isPending = isQuantityPendingFor(entry.id);
+            return (
+              <CardCountStrip
+                count={entry.quantity}
+                decrement={{
+                  onClick: () => onQuantityChange(entry.id, entry.quantity - 1),
+                  disabled: isPending || entry.quantity <= 1,
+                  ariaLabel: `Decrease ${entry.cardName} quantity`,
+                }}
+                increment={{
+                  onClick: () => onQuantityChange(entry.id, entry.quantity + 1),
+                  disabled: isPending,
+                  ariaLabel: `Increase ${entry.cardName} quantity`,
+                }}
+              />
+            );
+          })()
+        : undefined;
 
     return (
       <CardCell

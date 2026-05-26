@@ -5,6 +5,7 @@ import type {
   PublicListDetailResponse,
 } from "@openrift/shared";
 import { createLazyFileRoute } from "@tanstack/react-router";
+import { ListIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 
 import { CardViewer } from "@/components/card-viewer";
@@ -16,6 +17,7 @@ import {
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
 import { CardCell } from "@/components/cards/card-cell";
+import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import {
@@ -167,15 +169,24 @@ function SharedListGrid({ data }: { data: PublicListDetailResponse }) {
     channels,
   });
 
-  const items: CardViewerItem[] =
-    view === "copies"
-      ? sortedCards.flatMap((printing) =>
-          (entriesByPrintingId.get(printing.id) ?? []).map((entry) => ({
-            id: entry.id,
-            printing,
-          })),
-        )
-      : sortedCards.map((printing) => ({ id: printing.id, printing }));
+  const items: CardViewerItem[] = [];
+  const entryByItemId = new Map<string, ListEntryDetailResponse>();
+  if (view === "copies") {
+    for (const sortedPrinting of sortedCards) {
+      for (const entry of entriesByPrintingId.get(sortedPrinting.id) ?? []) {
+        items.push({ id: entry.id, printing: sortedPrinting });
+        entryByItemId.set(entry.id, entry);
+      }
+    }
+  } else {
+    for (const sortedPrinting of sortedCards) {
+      items.push({ id: sortedPrinting.id, printing: sortedPrinting });
+      const first = entriesByPrintingId.get(sortedPrinting.id)?.[0];
+      if (first) {
+        entryByItemId.set(sortedPrinting.id, first);
+      }
+    }
+  }
 
   const findBy: "card" | "printing" = view === "cards" && groupBy !== "set" ? "card" : "printing";
 
@@ -201,6 +212,14 @@ function SharedListGrid({ data }: { data: PublicListDetailResponse }) {
             cardId,
           )
         : undefined;
+    // Surface the per-entry quantity so a visitor can see "I want 4 of this".
+    // Copy-kind lists have implicit quantity 1 per entry, so the strip
+    // adds nothing there.
+    const entry = entryByItemId.get(item.id);
+    const strip =
+      entry && list.kind !== "copy" ? (
+        <CardCountStrip count={entry.quantity} icon={ListIcon} />
+      ) : undefined;
     return (
       <CardCell
         printing={item.printing}
@@ -211,6 +230,7 @@ function SharedListGrid({ data }: { data: PublicListDetailResponse }) {
         onClick={handleCardClick}
         siblings={siblings}
         priceRange={priceRangeByCardId?.get(cardId)}
+        strip={strip}
       />
     );
   };

@@ -27,11 +27,11 @@ import {
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
 import { CardCell } from "@/components/cards/card-cell";
+import { CardCountStrip } from "@/components/cards/card-count-strip";
+import { OwnedCollectionsPopover } from "@/components/cards/card-detail/owned-collections-popover";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CollectionTableActions } from "@/components/cards/collection-table-actions";
-import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
-import { CollectionAddStrip } from "@/components/collection/collection-add-strip";
 import { FloatingActionBar } from "@/components/collection/floating-action-bar";
 import { buildOnDecrement } from "@/components/collection/route-decrement";
 import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
@@ -659,23 +659,43 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       }
     }
     const showAddStrip = mode === "browse" && handleQuickAdd;
+    const variantTrigger =
+      dataView === "cards" && (catalogSiblings?.length ?? 0) > 1 && handleOpenVariants
+        ? handleOpenVariants
+        : undefined;
     const aboveCard = showAddStrip ? (
-      <CollectionAddStrip
-        printing={item.printing}
-        ownedCount={ownedCount}
-        hasVariants={dataView === "cards" && (catalogSiblings?.length ?? 0) > 1}
-        onQuickAdd={handleQuickAdd}
-        onUndoAdd={onUndoAdd}
-        onOpenVariants={handleOpenVariants}
+      <CardCountStrip
+        count={ownedCount}
+        decrement={{
+          onClick: (event) => onUndoAdd?.(item.printing, event.currentTarget),
+          disabled: ownedCount === 0,
+          ariaLabel: `Remove ${item.printing.card.name}`,
+        }}
+        increment={{
+          onClick: () => handleQuickAdd(item.printing),
+          ariaLabel: `Add ${item.printing.card.name}`,
+        }}
+        onPillClick={
+          variantTrigger ? (event) => variantTrigger(item.printing, event.currentTarget) : undefined
+        }
+        pillAriaLabel={variantTrigger ? `Choose variant for ${item.printing.card.name}` : undefined}
       />
     ) : (
-      <OwnedCountStrip
+      <CardCountStrip
         count={ownedCount}
-        printingId={item.printing.id}
-        cardName={item.printing.card.name}
-        shortCode={item.printing.shortCode}
-        siblings={dataView === "cards" ? printingsByCardId.get(item.printing.cardId) : undefined}
         totalCount={totalCount}
+        pillOverride={
+          <OwnedCollectionsPopover
+            printingId={item.printing.id}
+            cardName={item.printing.card.name}
+            shortCode={item.printing.shortCode}
+            count={ownedCount}
+            totalCount={totalCount}
+            siblings={
+              dataView === "cards" ? printingsByCardId.get(item.printing.cardId) : undefined
+            }
+          />
+        }
       />
     );
 
@@ -768,17 +788,37 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         dimmed={ownedCount === 0}
         stripSlot="topSlot"
         strip={
-          handleQuickAdd ? (
-            <CollectionAddStrip
-              printing={displayPrinting}
-              ownedCount={ownedCount}
-              totalOwnedCount={totalOwned}
-              hasVariants={dataView === "cards" && (siblings?.length ?? 0) > 1}
-              onQuickAdd={handleQuickAdd}
-              onUndoAdd={onUndoAdd}
-              onOpenVariants={handleOpenVariants}
-            />
-          ) : undefined
+          handleQuickAdd
+            ? (() => {
+                const variantTrigger =
+                  dataView === "cards" && (siblings?.length ?? 0) > 1 && handleOpenVariants
+                    ? handleOpenVariants
+                    : undefined;
+                return (
+                  <CardCountStrip
+                    count={ownedCount}
+                    totalCount={totalOwned}
+                    decrement={{
+                      onClick: (event) => onUndoAdd?.(displayPrinting, event.currentTarget),
+                      disabled: ownedCount === 0,
+                      ariaLabel: `Remove ${displayPrinting.card.name}`,
+                    }}
+                    increment={{
+                      onClick: () => handleQuickAdd(displayPrinting),
+                      ariaLabel: `Add ${displayPrinting.card.name}`,
+                    }}
+                    onPillClick={
+                      variantTrigger
+                        ? (event) => variantTrigger(displayPrinting, event.currentTarget)
+                        : undefined
+                    }
+                    pillAriaLabel={
+                      variantTrigger ? `Choose variant for ${displayPrinting.card.name}` : undefined
+                    }
+                  />
+                );
+              })()
+            : undefined
         }
       />
     );
