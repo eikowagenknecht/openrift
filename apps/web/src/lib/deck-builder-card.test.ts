@@ -188,13 +188,13 @@ describe("isDeckZoneFullForDrag", () => {
 });
 
 describe("getAllowedMoveTargets", () => {
-  it("offers main/sideboard/overflow plus champion for a Champion unit in main", () => {
+  it("offers champion + sideboard/overflow for a Champion unit currently in main, in sidebar order", () => {
     const card = {
       cardType: "unit" as const,
       superTypes: ["champion"] as SuperType[],
       zone: "main" as DeckZone,
     };
-    expect(getAllowedMoveTargets(card)).toEqual(["sideboard", "overflow", "champion"]);
+    expect(getAllowedMoveTargets(card)).toEqual(["champion", "sideboard", "overflow"]);
   });
 
   it("excludes the current zone", () => {

@@ -78,15 +78,16 @@ export function getDeckCardKey(card: {
   return deckCardKey(card.cardId, card.zone, card.preferredPrintingId);
 }
 
-// Display order for the "Move to" context menu — mirrors deck-overview stacking.
+// Display order for the "Move to" context menu — mirrors the sidebar zone
+// order (legend → champion → runes → battlefield → main → sideboard → overflow).
 const MOVE_TARGET_ORDER: readonly DeckZone[] = [
+  WellKnown.deckZone.LEGEND,
+  WellKnown.deckZone.CHAMPION,
+  WellKnown.deckZone.RUNES,
+  WellKnown.deckZone.BATTLEFIELD,
   WellKnown.deckZone.MAIN,
   WellKnown.deckZone.SIDEBOARD,
   WellKnown.deckZone.OVERFLOW,
-  WellKnown.deckZone.CHAMPION,
-  WellKnown.deckZone.LEGEND,
-  WellKnown.deckZone.BATTLEFIELD,
-  WellKnown.deckZone.RUNES,
 ];
 
 /**
