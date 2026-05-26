@@ -5,9 +5,11 @@ import type { EnumLabels } from "@/hooks/use-enums";
 
 /**
  * Human-readable label for a printing's distinguishing attributes.
- * Omits "Normal" defaults and attributes shared by all siblings. When language
- * varies among siblings, every row gets a `[XX]` tag (including English) so
- * the pairing reads symmetrically rather than leaving default rows blank.
+ * Omits "Normal" defaults. Most attributes are also omitted when shared by all
+ * siblings, but a non-normal art variant is always labeled — the alt-art status
+ * carries meaning even without a normal counterpart in the list. When language
+ * varies among siblings, every row gets a `[XX]` tag (including English) so the
+ * pairing reads symmetrically rather than leaving default rows blank.
  * @returns A label like "[EN] · Alt Art", or "Standard" when no distinguishing attributes.
  */
 export function formatPrintingLabel(
@@ -22,7 +24,7 @@ export function formatPrintingLabel(
   if (siblings && !allSame((c) => c.language)) {
     parts.push(`[${printing.language}]`);
   }
-  if (printing.artVariant !== "normal" && !allSame((c) => c.artVariant)) {
+  if (printing.artVariant !== "normal") {
     parts.push(labels.artVariants[printing.artVariant] ?? printing.artVariant);
   }
   if (printing.finish !== "normal" && !allSame((c) => c.finish)) {

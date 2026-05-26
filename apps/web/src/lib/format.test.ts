@@ -309,6 +309,17 @@ describe("formatPrintingLabel", () => {
   it("omits the language tag when no siblings are provided", () => {
     expect(formatPrintingLabel(stub({ language: "ZH" }), undefined, TEST_LABELS)).toBe("Standard");
   });
+
+  it("labels a non-normal art variant even when it is the only sibling", () => {
+    const p = stub({ artVariant: "altart" });
+    expect(formatPrintingLabel(p, [p], TEST_LABELS)).toBe("Alt Art");
+  });
+
+  it("labels a non-normal art variant when every sibling shares it", () => {
+    const p = stub({ artVariant: "altart" });
+    const siblings = [p, stub({ artVariant: "altart", isSigned: true })];
+    expect(formatPrintingLabel(p, siblings, TEST_LABELS)).toBe("Alt Art");
+  });
 });
 
 // ---------------------------------------------------------------------------
