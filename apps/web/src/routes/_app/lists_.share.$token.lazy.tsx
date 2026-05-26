@@ -23,13 +23,10 @@ import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { StaticCountTableActions } from "@/components/cards/static-count-table-actions";
 import {
   PAGE_TOP_BAR_STICKY,
-  PageTopBar,
   PageTopBarHeightContext,
-  PageTopBarTitle,
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
-import { listIntentLabel } from "@/components/list/create-list-dialog";
-import { ListValueLabel } from "@/components/list/list-value-label";
+import { ListHeader } from "@/components/list/list-header";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { useCardData } from "@/hooks/use-card-data";
@@ -64,34 +61,19 @@ function SharedListPage() {
   const search = Route.useSearch();
   const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
   const topBarHeight = useMeasuredHeight(topBarSlot);
-  const hydrated = useHydrated();
 
   const { list, owner, entries } = data;
-  const kindNoun =
-    list.kind === "copy" ? "copies" : list.kind === "printing" ? "printings" : "cards";
 
   return (
     <FilterSearchProvider value={search}>
       <PageTopBarHeightContext value={topBarHeight}>
         <div className="flex min-h-0 flex-1 flex-col">
           <div ref={setTopBarSlot} className={PAGE_TOP_BAR_STICKY}>
-            <PageTopBar>
-              <div className="flex min-w-0 flex-1 items-baseline gap-2">
-                <PageTopBarTitle>{list.name}</PageTopBarTitle>
-                <span className="text-muted-foreground hidden shrink-0 items-baseline gap-x-1.5 text-xs sm:flex">
-                  <span>Shared by {owner.displayName}</span>
-                  <span>
-                    · {listIntentLabel(list.intent)} list of {kindNoun}
-                  </span>
-                  {hydrated && entries.length > 0 && (
-                    <>
-                      <span>·</span>
-                      <ListValueLabel kind={list.kind} entries={entries} />
-                    </>
-                  )}
-                </span>
-              </div>
-            </PageTopBar>
+            <ListHeader
+              list={list}
+              entries={entries}
+              attribution={{ kind: "owner", ownerName: owner.displayName }}
+            />
           </div>
           <div className="flex min-w-0 flex-1 flex-col px-3 pb-3">
             <SharedListBody data={data} />

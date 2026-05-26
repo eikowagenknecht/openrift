@@ -1,21 +1,15 @@
-import type { ListEntryDetailResponse, ListIntent, ListKind, Printing } from "@openrift/shared";
+import type { ListEntryDetailResponse, ListKind, Printing } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import {
-  CheckIcon,
   DownloadIcon,
   EllipsisVerticalIcon,
-  FolderIcon,
-  HandshakeIcon,
-  HeartIcon,
   ListIcon,
   ListPlusIcon,
   PencilIcon,
   Share2Icon,
   Trash2Icon,
   UploadIcon,
-  XIcon,
 } from "lucide-react";
-import type { ComponentType, SVGProps } from "react";
 import { use, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
@@ -32,19 +26,17 @@ import { CardCell } from "@/components/cards/card-cell";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
-import { PageTopBar, PageTopBarActions, PageTopBarTitle } from "@/components/layout/page-top-bar";
-import { listKindIcon, listKindLabel } from "@/components/list/create-list-dialog";
+import { listKindIcon } from "@/components/list/create-list-dialog";
 import { DeleteListDialog } from "@/components/list/delete-list-dialog";
 import { ListEntryContextMenu } from "@/components/list/list-entry-context-menu";
 import { ListEntryTableActions } from "@/components/list/list-entry-table-actions";
 import { ListExportDialog } from "@/components/list/list-export-dialog";
-import { ListGroupSharesBadge } from "@/components/list/list-group-shares-badge";
+import { ListHeader } from "@/components/list/list-header";
 import { ListImportDialog } from "@/components/list/list-import-dialog";
+import { ListRenameDialog } from "@/components/list/list-rename-dialog";
 import { ListShareDialog } from "@/components/list/list-share-dialog";
-import { ListValueLabel } from "@/components/list/list-value-label";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -60,13 +52,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Input } from "@/components/ui/input";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { useChannelRegistry } from "@/hooks/use-enums";
-import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import {
@@ -74,7 +64,6 @@ import {
   useDeleteList,
   useListDetail,
   useRemoveListEntry,
-  useUpdateList,
   useUpdateListEntry,
 } from "@/hooks/use-lists";
 import { useOwnedCount } from "@/hooks/use-owned-count";
@@ -86,20 +75,6 @@ import { useSelectionStore } from "@/stores/selection-store";
 interface ListPageProps {
   listId: string;
 }
-
-type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
-
-const INTENT_LABEL: Record<ListIntent, string> = {
-  wish: "Wishlist",
-  trade: "Tradelist",
-  organize: "Organize",
-};
-
-const INTENT_ICON: Record<ListIntent, IconComponent> = {
-  wish: HeartIcon,
-  trade: HandshakeIcon,
-  organize: FolderIcon,
-};
 
 /**
  * Empty-state copy by kind. The "how to add" guidance is kind-specific —
@@ -145,21 +120,17 @@ export function ListPage({ listId }: ListPageProps) {
   const { toggleSidebar } = useSidebar();
   const topBarSlot = use(TopBarSlotContext);
   const { data } = useListDetail(listId);
-  const hydrated = useHydrated();
 
-  const [isRenaming, setIsRenaming] = useState(false);
-  const [name, setName] = useState(data.list.name);
+  const [renameOpen, setRenameOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
-  const updateList = useUpdateList();
   const deleteList = useDeleteList();
   const removeEntry = useRemoveListEntry();
   const updateEntry = useUpdateListEntry();
 
-  const IntentIcon = INTENT_ICON[data.list.intent];
   const KindIcon = listKindIcon(data.list.kind);
   const empty = emptyStateCopy(data.list.kind);
 
@@ -177,21 +148,6 @@ export function ListPage({ listId }: ListPageProps) {
       useDisplayStore.getState().toggleCatalogModeAdd();
     }
   }, [listId]);
-
-  const submitRename = () => {
-    const trimmed = name.trim();
-    if (!trimmed || trimmed === data.list.name) {
-      setIsRenaming(false);
-      setName(data.list.name);
-      return;
-    }
-    updateList.mutate(
-      { listId, name: trimmed },
-      {
-        onSuccess: () => setIsRenaming(false),
-      },
-    );
-  };
 
   const handleDelete = () => {
     deleteList.mutate(listId, {
@@ -218,62 +174,19 @@ export function ListPage({ listId }: ListPageProps) {
   const entriesCount = data.entries.length;
 
   const topBar = (
-    <PageTopBar>
-      {isRenaming ? (
-        <form
-          className="flex flex-1 items-center gap-2 px-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            submitRename();
-          }}
-        >
-          <Input
-            autoFocus // oxlint-disable-line jsx-a11y/no-autofocus -- intentional for inline rename
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            onBlur={submitRename}
-            className="h-8 max-w-xs"
-          />
-          <Button type="submit" variant="ghost" size="icon-sm" disabled={updateList.isPending}>
-            <CheckIcon className="size-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => {
-              setIsRenaming(false);
-              setName(data.list.name);
-            }}
-          >
-            <XIcon className="size-4" />
-          </Button>
-        </form>
-      ) : (
-        <div className="flex min-w-0 flex-1 items-baseline gap-2">
-          <PageTopBarTitle onToggleSidebar={toggleSidebar}>{data.list.name}</PageTopBarTitle>
-          <Badge variant="ghost" className="text-2xs hidden shrink-0 sm:inline-flex">
-            <IntentIcon className="size-3" />
-            {INTENT_LABEL[data.list.intent]}
-          </Badge>
-          <Badge variant="ghost" className="text-2xs hidden shrink-0 sm:inline-flex">
-            <KindIcon className="size-3" />
-            {listKindLabel(data.list.kind)}
-          </Badge>
-          {hydrated && entriesCount > 0 && (
-            <ListValueLabel kind={data.list.kind} entries={data.entries} />
-          )}
-          {hydrated && <ListGroupSharesBadge listId={listId} />}
-        </div>
-      )}
-      <PageTopBarActions>
+    <ListHeader
+      list={data.list}
+      entries={data.entries}
+      attribution={{ kind: "shares" }}
+      onToggleSidebar={toggleSidebar}
+      actions={
         <DropdownMenu>
           <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
             <EllipsisVerticalIcon className="size-4" />
             <span className="sr-only">List actions</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setIsRenaming(true)}>
+            <DropdownMenuItem onClick={() => setRenameOpen(true)}>
               <PencilIcon className="size-4" />
               Rename
             </DropdownMenuItem>
@@ -302,11 +215,20 @@ export function ListPage({ listId }: ListPageProps) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      </PageTopBarActions>
-    </PageTopBar>
+      }
+    />
   );
 
   const topBarPortal = topBarSlot && createPortal(topBar, topBarSlot);
+
+  const renameDialog = (
+    <ListRenameDialog
+      listId={listId}
+      currentName={data.list.name}
+      open={renameOpen}
+      onOpenChange={setRenameOpen}
+    />
+  );
 
   const deleteDialog = (
     <DeleteListDialog
@@ -361,6 +283,7 @@ export function ListPage({ listId }: ListPageProps) {
             )}
           </EmptyContent>
         </Empty>
+        {renameDialog}
         {deleteDialog}
         {shareDialog}
         {exportDialog}
@@ -385,6 +308,7 @@ export function ListPage({ listId }: ListPageProps) {
           updateEntry.isPending && updateEntry.variables?.entryId === entryId
         }
       />
+      {renameDialog}
       {deleteDialog}
       {shareDialog}
       {exportDialog}

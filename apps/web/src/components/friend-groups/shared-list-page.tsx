@@ -1,10 +1,9 @@
 import type { ListEntryDetailResponse } from "@openrift/shared";
 import { imageUrl } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { ChevronLeftIcon } from "lucide-react";
 
-import { listIntentLabel, listKindLabel } from "@/components/list/create-list-dialog";
-import { Badge } from "@/components/ui/badge";
+import { PAGE_TOP_BAR_STICKY, PageTopBarBack } from "@/components/layout/page-top-bar";
+import { ListHeader } from "@/components/list/list-header";
 import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useFriendGroupSharedList } from "@/hooks/use-friend-groups";
@@ -31,49 +30,36 @@ export function SharedListPage({ slug, listId }: SharedListPageProps) {
   const setsById = new Map(sets.map((set) => [set.id, set]));
 
   return (
-    <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING)}>
-      <Link
-        to="/groups/$slug"
-        params={{ slug }}
-        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm"
-      >
-        <ChevronLeftIcon className="size-4" />
-        Back to group
-      </Link>
-
-      <header className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold">{data.list.name}</h1>
-        <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm">
-          <Badge variant="outline">{listIntentLabel(data.list.intent)}</Badge>
-          {data.list.intent === "trade" ? null : (
-            <Badge variant="outline">{listKindLabel(data.list.kind)}</Badge>
-          )}
-          {data.list.ownerName ? <span>shared by {data.list.ownerName}</span> : null}
-          <span>
-            · {data.entries.length} {data.entries.length === 1 ? "entry" : "entries"}
-          </span>
-        </div>
-      </header>
-
-      {data.entries.length === 0 ? (
-        <p className="text-muted-foreground">
-          This list is empty. Check back later or ping {data.list.ownerName ?? "the owner"}{" "}
-          directly.
-        </p>
-      ) : (
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {data.entries.map((entry) => (
-            <SharedListEntryRow
-              key={entry.id}
-              entry={entry}
-              cardSlug={cardsById[(entry as { cardId?: string }).cardId ?? ""]?.slug}
-              setName={setNameFor(entry, setsById)}
-              rarityLabel={rarityLabelFor(entry, labels.rarities)}
-              finishLabel={finishLabelFor(entry, labels.finishes)}
-            />
-          ))}
-        </div>
-      )}
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className={PAGE_TOP_BAR_STICKY}>
+        <ListHeader
+          list={data.list}
+          entries={data.entries}
+          attribution={{ kind: "owner", ownerName: data.list.ownerName }}
+          backLink={<PageTopBarBack to="/groups/$slug" params={{ slug }} />}
+        />
+      </div>
+      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING)}>
+        {data.entries.length === 0 ? (
+          <p className="text-muted-foreground">
+            This list is empty. Check back later or ping {data.list.ownerName ?? "the owner"}{" "}
+            directly.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {data.entries.map((entry) => (
+              <SharedListEntryRow
+                key={entry.id}
+                entry={entry}
+                cardSlug={cardsById[(entry as { cardId?: string }).cardId ?? ""]?.slug}
+                setName={setNameFor(entry, setsById)}
+                rarityLabel={rarityLabelFor(entry, labels.rarities)}
+                finishLabel={finishLabelFor(entry, labels.finishes)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

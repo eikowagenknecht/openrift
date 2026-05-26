@@ -2,6 +2,7 @@
 
 ## 2026-05-26
 
+- feat: Wishlists and tradelists now use the same header across your own view, public share links, and group shares. Each shows the list name, type, entry count, total value, and (on group shares) a back arrow to the group page
 - feat: From a deck's Missing cards view, you can now create a wishlist in one click. The new list is pre-named after the deck and seeded with all the missing cards
 - feat: The Missing cards dialog now shows each card's rarity icon next to its set code, so the list is easier to scan
 - feat: Shared list pages now show how many of each card you want or have on offer, both as a badge in grid view and as a Qty column in table view

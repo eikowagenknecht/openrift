@@ -18,6 +18,7 @@ const { mockUseLoaderData } = vi.hoisted(() => ({
 
 vi.mock("@tanstack/react-router", () => ({
   getRouteApi: () => ({ useLoaderData: mockUseLoaderData }),
+  createLink: (Component: unknown) => Component,
 }));
 
 // Stub out the chrome components so the test focuses on the LCP-grid output

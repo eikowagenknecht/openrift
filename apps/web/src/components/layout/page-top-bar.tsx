@@ -1,6 +1,7 @@
-import { Link } from "@tanstack/react-router";
+import { createLink } from "@tanstack/react-router";
 import { ArrowLeftIcon, ChevronDownIcon } from "lucide-react";
-import { createContext, useLayoutEffect, useState } from "react";
+import type { AnchorHTMLAttributes } from "react";
+import { createContext, forwardRef, useLayoutEffect, useState } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -59,17 +60,24 @@ export function PageTopBar({ children, className }: PageTopBarProps) {
   return <div className={cn("flex h-8 items-center text-sm", className)}>{children}</div>;
 }
 
-/**
- * Back arrow linking to a parent route.
- * @returns The back arrow link element.
- */
-export function PageTopBarBack({ to }: { to: string }) {
-  return (
-    <Link to={to} className={buttonVariants({ variant: "ghost", size: "icon-sm" })}>
+const BackAnchor = forwardRef<HTMLAnchorElement, AnchorHTMLAttributes<HTMLAnchorElement>>(
+  ({ children: _children, className, ...rest }, ref) => (
+    <a
+      ref={ref}
+      {...rest}
+      className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }), className)}
+    >
       <ArrowLeftIcon className="size-4" />
-    </Link>
-  );
-}
+    </a>
+  ),
+);
+BackAnchor.displayName = "BackAnchor";
+
+/**
+ * Back arrow linking to a parent route. Fully type-checked against the
+ * registered route tree, so `to` and `params` must match a real route.
+ */
+export const PageTopBarBack = createLink(BackAnchor);
 
 interface PageTopBarTitleProps {
   onToggleSidebar?: () => void;

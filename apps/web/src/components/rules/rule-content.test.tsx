@@ -31,6 +31,7 @@ vi.mock("@tanstack/react-router", () => ({
       </a>
     );
   },
+  createLink: (Component: unknown) => Component,
 }));
 
 const { RuleContent, buildTermAnchors } = await import("./rules-page");
