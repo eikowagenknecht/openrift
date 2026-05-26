@@ -254,6 +254,13 @@ export function DeckMissingCardsDialog({
           onOpenChange={setWishlistOpen}
           defaultName={`${deckName} - Missing`}
           initialEntries={buildWishlistEntries}
+          title={`New wishlist for "${deckName}"`}
+          description="Already includes the cards you still need for this deck."
+          kindHints={{
+            card: "Any printing of each card counts. Pick this if you just want to play the deck.",
+            printing:
+              "Only the exact printings from the deck count. Pick this if you want a specific set, art, or finish.",
+          }}
           onCreated={(listId) => {
             onOpenChange(false);
             void navigate({

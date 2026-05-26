@@ -100,6 +100,22 @@ interface CreateListDialogProps {
    * "printing"). Return an empty array to skip the bulk-add.
    */
   initialEntries?: (kind: ListKind) => InitialEntry[];
+  /**
+   * Overrides the dialog title. Use when the dialog is opened from a
+   * surface where the generic "New wishlist" copy doesn't fit (e.g. a
+   * deck's missing-cards view).
+   */
+  title?: string;
+  /**
+   * Overrides the dialog body description. Replaces the default copy
+   * (including the "learn the difference" help link) entirely.
+   */
+  description?: string;
+  /**
+   * Per-kind overrides for the kind-picker hint text. Falls back to the
+   * default hints for any kind not present in the map.
+   */
+  kindHints?: Partial<Record<ListKind, string>>;
 }
 
 /**
@@ -116,6 +132,9 @@ export function CreateListDialog({
   onCreated,
   defaultName,
   initialEntries,
+  title,
+  description,
+  kindHints,
 }: CreateListDialogProps) {
   const availableKinds = KINDS_BY_INTENT[intent];
   const [kind, setKind] = useState<ListKind>(availableKinds[0] ?? "card");
@@ -156,18 +175,24 @@ export function CreateListDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{INTENT_TITLE[intent]}</DialogTitle>
+          <DialogTitle>{title ?? INTENT_TITLE[intent]}</DialogTitle>
           <DialogDescription>
-            {availableKinds.length === 1
-              ? "List specific copies you want to sell or trade away. For example all the bulk after opening one too many Booster Display."
-              : "Pick what this list tracks. You can't change it later, but you can always create a new list."}{" "}
-            <Link
-              to="/help/$slug"
-              params={{ slug: "cards-printings-copies" }}
-              className="text-primary hover:underline"
-            >
-              Learn the difference between cards, printings, and copies.
-            </Link>
+            {description === undefined ? (
+              <>
+                {availableKinds.length === 1
+                  ? "List specific copies you want to sell or trade away. For example all the bulk after opening one too many Booster Display."
+                  : "Pick what this list tracks. You can't change it later, but you can always create a new list."}{" "}
+                <Link
+                  to="/help/$slug"
+                  params={{ slug: "cards-printings-copies" }}
+                  className="text-primary hover:underline"
+                >
+                  Learn the difference between cards, printings, and copies.
+                </Link>
+              </>
+            ) : (
+              description
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -192,7 +217,7 @@ export function CreateListDialog({
                   <div className="flex-1">
                     <div className="font-medium">{meta.label}</div>
                     <div className="text-muted-foreground text-xs">
-                      {KIND_HINTS[intent][option]}
+                      {kindHints?.[option] ?? KIND_HINTS[intent][option]}
                     </div>
                   </div>
                 </button>
