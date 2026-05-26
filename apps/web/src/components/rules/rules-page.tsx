@@ -1613,8 +1613,8 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
           <PageToc items={tocItems} />
           <div className="min-w-0 flex-1">
             <div className={cn(PAGE_TOP_BAR_STICKY, "mb-4 flex flex-wrap items-center gap-3 px-0")}>
-              <RulesSearchBar />
               <PageTocMobileTrigger items={tocItems} />
+              <RulesSearchBar />
               {foldGroupKeys.length > 0 && !isSearching && (
                 <ExpandCollapseAllButton foldGroupKeys={foldGroupKeys} />
               )}

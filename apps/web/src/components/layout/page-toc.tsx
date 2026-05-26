@@ -159,19 +159,17 @@ export function PageTocMobileTrigger({
           <DrawerTitle>Contents</DrawerTitle>
           <DrawerDescription className="sr-only">Jump to a section on this page</DrawerDescription>
         </DrawerHeader>
-        <ScrollArea className="min-h-0 flex-1">
-          <nav className="space-y-0.5 px-4 pb-6">
-            {items.map((item) => (
-              <TocLink
-                key={item.id}
-                id={item.id}
-                label={item.label}
-                level={item.level ?? 0}
-                onSelect={() => setOpen(false)}
-              />
-            ))}
-          </nav>
-        </ScrollArea>
+        <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-4 pb-6">
+          {items.map((item) => (
+            <TocLink
+              key={item.id}
+              id={item.id}
+              label={item.label}
+              level={item.level ?? 0}
+              onSelect={() => setOpen(false)}
+            />
+          ))}
+        </nav>
       </DrawerContent>
     </Drawer>
   );
