@@ -1,6 +1,6 @@
 import type { Printing } from "@openrift/shared";
 import { MinusIcon, PlusIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { DisposeListBody, DisposeListHeader } from "@/components/collection/dispose-picker-popover";
 import { Button } from "@/components/ui/button";
@@ -54,6 +54,15 @@ export function VariantAddPopover({
 
   const isDispose =
     disposeTarget !== null && disposeTarget !== undefined && onDisposePick !== undefined;
+
+  // When entering the dispose sub-page, clear the highlight so cmdk auto-picks
+  // the first collection row. Without this, the variant id from before the
+  // swap stays in state and no row is visually selected on the new page.
+  useEffect(() => {
+    if (isDispose) {
+      setHighlightedId("");
+    }
+  }, [isDispose]);
 
   return (
     <PickerList
