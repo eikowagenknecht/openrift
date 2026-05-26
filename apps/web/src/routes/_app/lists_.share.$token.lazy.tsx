@@ -20,6 +20,7 @@ import { CardCell } from "@/components/cards/card-cell";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
+import { StaticCountTableActions } from "@/components/cards/static-count-table-actions";
 import {
   PAGE_TOP_BAR_STICKY,
   PageTopBar,
@@ -290,9 +291,17 @@ function SharedListGrid({ data }: { data: PublicListDetailResponse }) {
         aboveGrid={aboveGrid}
         rightPane={rightPane}
         addStripHeight={ADD_STRIP_HEIGHT}
-        table={{
-          actionsColumn: "none",
-        }}
+        table={
+          list.kind === "copy"
+            ? { actionsColumn: "none" }
+            : {
+                actionsColumn: "narrow",
+                actionsLabel: "Qty",
+                renderActions: (_printing, itemId) => (
+                  <StaticCountTableActions count={entryByItemId.get(itemId)?.quantity ?? 0} />
+                ),
+              }
+        }
       >
         {isMobile && (
           <SelectionMobileOverlay
