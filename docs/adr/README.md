@@ -30,3 +30,4 @@ The MADR documentation is available at <https://adr.github.io/madr/> while gener
 - **[ADR-011](011-compression-at-nginx-only.md)**: Handle HTTP compression in nginx only — accepted
 - **[ADR-012](012-switch-to-bun-image-processing.md)**: Switch to Bun image processing — rejected
 - **[ADR-015](015-preconstructed-product-catalog.md)**: Preconstructed Product Catalog — proposed
+- **[ADR-016](016-caching-layers.md)**: Caching layers — accepted
