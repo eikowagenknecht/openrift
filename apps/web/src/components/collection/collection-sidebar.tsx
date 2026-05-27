@@ -10,6 +10,7 @@ import {
   InboxIcon,
   LayersIcon,
   PlusIcon,
+  Share2Icon,
   XIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -17,6 +18,7 @@ import { useEffect, useState } from "react";
 
 import { CreateListDialog, listKindIcon } from "@/components/list/create-list-dialog";
 import { DroppableSidebarList } from "@/components/list/droppable-sidebar-list";
+import { UserShareDialog } from "@/components/list/user-share-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -111,6 +113,7 @@ function CollapsibleSidebarGroup({
 function ListsSidebarGroups({ activeId }: { activeId?: string }) {
   const { data: lists } = useLists();
   const [createIntent, setCreateIntent] = useState<ListIntent | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
 
   // Group lists by intent so each section only renders its own rows.
   const byIntent = Map.groupBy(lists, (list) => list.intent);
@@ -157,6 +160,16 @@ function ListsSidebarGroups({ activeId }: { activeId?: string }) {
           </CollapsibleSidebarGroup>
         );
       })}
+      <SidebarGroup>
+        <SidebarMenu className="gap-1">
+          <SidebarMenuItem>
+            <SidebarMenuButton className="text-muted-foreground" onClick={() => setShareOpen(true)}>
+              <Share2Icon className="size-4" />
+              <span>Share all my lists</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarGroup>
       {createIntent !== null && (
         <CreateListDialog
           intent={createIntent}
@@ -168,6 +181,7 @@ function ListsSidebarGroups({ activeId }: { activeId?: string }) {
           }}
         />
       )}
+      <UserShareDialog open={shareOpen} onOpenChange={setShareOpen} />
     </>
   );
 }

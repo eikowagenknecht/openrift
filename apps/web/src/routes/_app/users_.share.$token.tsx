@@ -1,0 +1,55 @@
+import type { PublicUserBundleResponse } from "@openrift/shared";
+import { createFileRoute, notFound } from "@tanstack/react-router";
+
+import { RouteErrorFallback, RouteNotFoundFallback } from "@/components/error-message";
+import { Skeleton } from "@/components/ui/skeleton";
+import { publicUserBundleQueryOptions } from "@/hooks/use-user-share";
+import { seoHead } from "@/lib/seo";
+import { getSiteUrl } from "@/lib/site-config";
+import { CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
+
+export const Route = createFileRoute("/_app/users_/share/$token")({
+  head: ({ loaderData, params }) => {
+    const siteUrl = getSiteUrl();
+    const path = `/users/share/${params.token}`;
+    const data = loaderData as PublicUserBundleResponse | undefined;
+    if (!data) {
+      return seoHead({ siteUrl, title: "Shared lists", path });
+    }
+    const wishCount = data.lists.filter((list) => list.intent === "wish").length;
+    const tradeCount = data.lists.filter((list) => list.intent === "trade").length;
+    const totalEntries = data.lists.reduce((sum, list) => sum + list.entryCount, 0);
+    const title = `${data.owner.displayName}'s wish & tradelists`;
+    const description = `${wishCount} wishlist${wishCount === 1 ? "" : "s"}, ${tradeCount} tradelist${tradeCount === 1 ? "" : "s"}, ${totalEntries} cards in total.`;
+    return seoHead({ siteUrl, title, description, path });
+  },
+  loader: async ({ context, params }): Promise<PublicUserBundleResponse> => {
+    try {
+      return await context.queryClient.ensureQueryData(publicUserBundleQueryOptions(params.token));
+    } catch (error) {
+      if (error instanceof Error && error.message === "NOT_FOUND") {
+        throw notFound();
+      }
+      throw error;
+    }
+  },
+  pendingComponent: SharedUserBundlePending,
+  errorComponent: RouteErrorFallback,
+  notFoundComponent: RouteNotFoundFallback,
+});
+
+function SharedUserBundlePending() {
+  return (
+    <div className={`${PAGE_PADDING} ${CONTAINER_WIDTH} flex flex-col gap-4 py-4`}>
+      <div className="flex items-center gap-3">
+        <Skeleton className="size-12 rounded-full" />
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-4 w-32" />
+        </div>
+      </div>
+      <Skeleton className="h-32 w-full" />
+      <Skeleton className="h-32 w-full" />
+    </div>
+  );
+}

@@ -109,6 +109,12 @@ export {
 } from "./trade-preferences.js";
 
 export type {
+  PublicUserBundleListResponse,
+  PublicUserBundleResponse,
+  UserShareStateResponse,
+} from "./user-share.js";
+
+export type {
   FriendGroupDetailResponse,
   FriendGroupInviteDirection,
   FriendGroupJoinPreviewResponse,

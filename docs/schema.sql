@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict A85noOfYZdFGw6CVEgCdklgozctdFmCAacdFNLK4ae8aBRQQvxG4Uq1tPUDU2Di
+\restrict vYIcMqYS2kQg9eQFhWt7LaLVlrbmFZOS1oevr29fISJcPUJe6Txru2D2VQ1NxIN
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1617,7 +1617,8 @@ CREATE TABLE public.users (
     email_verified boolean DEFAULT false NOT NULL,
     image text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    share_token text
 );
 
 
@@ -2799,6 +2800,13 @@ CREATE UNIQUE INDEX uq_list_entries_printing ON public.list_entries USING btree 
 
 
 --
+-- Name: uq_users_share_token; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_users_share_token ON public.users USING btree (share_token) WHERE (share_token IS NOT NULL);
+
+
+--
 -- Name: distribution_channels distribution_channels_validate; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -3764,5 +3772,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict A85noOfYZdFGw6CVEgCdklgozctdFmCAacdFNLK4ae8aBRQQvxG4Uq1tPUDU2Di
+\unrestrict vYIcMqYS2kQg9eQFhWt7LaLVlrbmFZOS1oevr29fISJcPUJe6Txru2D2VQ1NxIN
 

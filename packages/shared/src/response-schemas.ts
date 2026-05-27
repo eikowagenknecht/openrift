@@ -843,6 +843,34 @@ export const listShareResponseSchema = z
   .object({ shareToken: z.string(), isPublic: z.boolean() })
   .openapi("ListShareResponse");
 
+// ── User share bundle (ADR-018) ─────────────────────────────────────────────
+
+export const userShareStateResponseSchema = z
+  .object({ shareToken: z.string().nullable() })
+  .openapi("UserShareStateResponse");
+
+const publicUserBundleListResponseSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    intent: listIntentSchema,
+    kind: listKindSchema,
+    entryCount: z.number().int().nonnegative(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  })
+  .openapi("PublicUserBundleListResponse");
+
+export const publicUserBundleResponseSchema = z
+  .object({
+    owner: z.object({
+      displayName: z.string(),
+      gravatarHash: z.string(),
+    }),
+    lists: z.array(publicUserBundleListResponseSchema),
+  })
+  .openapi("PublicUserBundleResponse");
+
 export const listBulkAddResponseSchema = z
   .object({
     added: z.number().int().nonnegative(),

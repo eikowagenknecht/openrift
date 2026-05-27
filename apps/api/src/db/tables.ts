@@ -259,6 +259,7 @@ interface UsersTable {
   name: string | null;
   emailVerified: boolean;
   image: string | null;
+  shareToken: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

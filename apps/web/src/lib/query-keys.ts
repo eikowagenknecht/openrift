@@ -90,6 +90,12 @@ export const queryKeys = {
     publicByToken: (token: string) => ["lists", "share", token] as const,
     groupShares: (userId: string, id: string) => ["lists", userId, id, "group-shares"] as const,
   },
+  userShare: {
+    state: (userId: string) => ["user-share", userId] as const,
+    publicByToken: (token: string) => ["user-share", "public", token] as const,
+    publicListByToken: (token: string, listId: string) =>
+      ["user-share", "public", token, "lists", listId] as const,
+  },
   friendGroups: {
     all: (userId: string) => ["friend-groups", userId] as const,
     detail: (userId: string, slug: string) => ["friend-groups", userId, slug] as const,

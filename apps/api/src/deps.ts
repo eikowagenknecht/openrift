@@ -48,6 +48,7 @@ import { statusRepo } from "./repositories/status.js";
 import { superTypesRepo } from "./repositories/super-types.js";
 import { userFeatureFlagsRepo } from "./repositories/user-feature-flags.js";
 import { userPreferencesRepo } from "./repositories/user-preferences.js";
+import { userSharesRepo } from "./repositories/user-shares.js";
 import { usersRepo } from "./repositories/users.js";
 import { deleteCollection } from "./services/collections.js";
 import { addCopies, disposeCopies, moveCopies } from "./services/copies.js";
@@ -99,6 +100,7 @@ export interface Repos {
   providerSettings: ReturnType<typeof providerSettingsRepo>;
   siteSettings: ReturnType<typeof siteSettingsRepo>;
   userPreferences: ReturnType<typeof userPreferencesRepo>;
+  userShares: ReturnType<typeof userSharesRepo>;
   users: ReturnType<typeof usersRepo>;
   ingest: ReturnType<typeof ingestRepo>;
   marketplaceMapping: ReturnType<typeof marketplaceMappingRepo>;
@@ -165,6 +167,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     providerSettings: providerSettingsRepo(db),
     siteSettings: siteSettingsRepo(db),
     userPreferences: userPreferencesRepo(db),
+    userShares: userSharesRepo(db),
     users: usersRepo(db),
     ingest: ingestRepo(db),
     marketplaceMapping: marketplaceMappingRepo(db),

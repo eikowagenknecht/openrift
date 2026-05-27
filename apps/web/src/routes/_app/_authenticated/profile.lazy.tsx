@@ -9,6 +9,7 @@ import { DisplaySection } from "@/components/profile/display-section";
 import { LanguagesSection } from "@/components/profile/languages-section";
 import { MarketplacesSection } from "@/components/profile/marketplaces-section";
 import { PasswordSection } from "@/components/profile/password-section";
+import { PublicSharingSection } from "@/components/profile/public-sharing-section";
 import { TradingSection } from "@/components/profile/trading-section";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserAvatar } from "@/components/user-avatar";
@@ -27,6 +28,7 @@ const NAV_SECTIONS: PageTocItem[] = [
   { id: "marketplaces", label: "Marketplaces", level: 1 },
   { id: "languages", label: "Languages", level: 1 },
   { id: "trading", label: "Trading", level: 1 },
+  { id: "sharing", label: "Public sharing" },
   { id: "account", label: "Account" },
   { id: "security", label: "Security" },
   { id: "danger-zone", label: "Danger Zone" },
@@ -89,6 +91,13 @@ function ProfilePage() {
             <div id="trading" className="scroll-mt-16">
               <TradingSection />
             </div>
+          </section>
+
+          <section id="sharing" className="scroll-mt-16 space-y-6">
+            <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
+              Public sharing
+            </h2>
+            <PublicSharingSection />
           </section>
 
           <section id="account" className="scroll-mt-16 space-y-6">

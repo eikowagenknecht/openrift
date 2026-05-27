@@ -83,6 +83,7 @@ import * as m134 from "./134-friend-groups.js";
 import * as m135 from "./135-rename-list-intent.js";
 import * as m136 from "./136-shared-collections.js";
 import * as m137 from "./137-trade-preferences.js";
+import * as m138 from "./138-user-share-token.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -225,4 +226,5 @@ export const migrations: Record<string, Migration> = {
   "135-rename-list-intent": m135,
   "136-shared-collections": m136,
   "137-trade-preferences": m137,
+  "138-user-share-token": m138,
 };
