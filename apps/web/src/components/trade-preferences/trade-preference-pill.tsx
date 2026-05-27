@@ -104,7 +104,8 @@ export function TradePreferencePill(props: Props) {
       )}
       disabled={props.disabled}
     >
-      {pillBody ?? <TagIcon className="size-3" />}
+      <TagIcon className="size-3" />
+      {pillBody ? <span>{pillBody}</span> : null}
     </button>
   );
 
