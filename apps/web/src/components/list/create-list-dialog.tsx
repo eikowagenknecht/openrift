@@ -178,10 +178,11 @@ export function CreateListDialog({
         name: trimmed,
         intent,
         kind,
-        ...(supportsPrefs && {
-          tradeDefaults,
-          currency: tradeDefaults.pricePref === "absolute" ? currency : null,
-        }),
+        // Save currency for every wish/trade list so a later per-entry
+        // "fixed price" override has a unit to render. Only the absolute
+        // branch actually uses the value, but having it pre-set avoids the
+        // "?" the user would otherwise see when toggling to fixed price.
+        ...(supportsPrefs && { tradeDefaults, currency }),
       },
       {
         onSuccess: async (list) => {
@@ -276,7 +277,7 @@ export function CreateListDialog({
                 value={tradeDefaults}
                 onChange={setTradeDefaults}
                 currency={currency}
-                showCurrency={tradeDefaults.pricePref === "absolute"}
+                showCurrency
                 onCurrencyChange={setCurrency}
                 idPrefix="create-list"
               />

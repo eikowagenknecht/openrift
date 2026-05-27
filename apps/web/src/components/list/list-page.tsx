@@ -34,12 +34,12 @@ import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { listKindIcon } from "@/components/list/create-list-dialog";
 import { DeleteListDialog } from "@/components/list/delete-list-dialog";
+import { ListEditDialog } from "@/components/list/list-edit-dialog";
 import { ListEntryContextMenu } from "@/components/list/list-entry-context-menu";
 import { ListEntryTableActions } from "@/components/list/list-entry-table-actions";
 import { ListExportDialog } from "@/components/list/list-export-dialog";
 import { ListHeader } from "@/components/list/list-header";
 import { ListImportDialog } from "@/components/list/list-import-dialog";
-import { ListRenameDialog } from "@/components/list/list-rename-dialog";
 import { ListShareDialog } from "@/components/list/list-share-dialog";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
@@ -129,7 +129,7 @@ export function ListPage({ listId }: ListPageProps) {
   const topBarSlot = use(TopBarSlotContext);
   const { data } = useListDetail(listId);
 
-  const [renameOpen, setRenameOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -198,9 +198,9 @@ export function ListPage({ listId }: ListPageProps) {
             <span className="sr-only">List actions</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setRenameOpen(true)}>
+            <DropdownMenuItem onClick={() => setEditOpen(true)}>
               <PencilIcon className="size-4" />
-              Rename
+              Edit
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setShareOpen(true)}>
               <Share2Icon className="size-4" />
@@ -233,12 +233,15 @@ export function ListPage({ listId }: ListPageProps) {
 
   const topBarPortal = topBarSlot && createPortal(topBar, topBarSlot);
 
-  const renameDialog = (
-    <ListRenameDialog
+  const editDialog = (
+    <ListEditDialog
       listId={listId}
+      intent={data.list.intent}
       currentName={data.list.name}
-      open={renameOpen}
-      onOpenChange={setRenameOpen}
+      currentTradeDefaults={data.list.tradeDefaults}
+      currentCurrency={data.list.currency}
+      open={editOpen}
+      onOpenChange={setEditOpen}
     />
   );
 
@@ -295,7 +298,7 @@ export function ListPage({ listId }: ListPageProps) {
             )}
           </EmptyContent>
         </Empty>
-        {renameDialog}
+        {editDialog}
         {deleteDialog}
         {shareDialog}
         {exportDialog}
@@ -324,7 +327,7 @@ export function ListPage({ listId }: ListPageProps) {
           updateEntry.isPending && updateEntry.variables?.entryId === entryId
         }
       />
-      {renameDialog}
+      {editDialog}
       {deleteDialog}
       {shareDialog}
       {exportDialog}
