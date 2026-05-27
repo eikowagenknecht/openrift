@@ -11,6 +11,7 @@
 - feat: In the deck builder, right-click or long-press a card to move it to another allowed zone. This is the main way to move cards on mobile, where dragging is disabled
 - feat: Buy and sell lists are now called Wishlists and Tradelists, matching the names other TCG sites use
 - feat: In the variants picker, Enter does whatever you came in to do (add if you opened it by adding, remove if you opened it by removing), and Shift+Enter does the opposite. The literal +/- keys still work either way
+- fix: A collection's total value and unpriced count now update right away when you add, move, or remove cards, instead of staying stale until you refresh the page
 - fix: In the deck builder, switching to the legend, runes, or battlefield zone now clears the energy, might, and power filters, so cards stop disappearing because of stat filters carried over from the main zone
 - fix: Card thumbnails on a friend group member's shared list page now show the card art again, instead of empty placeholder boxes
 - fix: In the card detail pane, a printing that is an alt art is now labeled "Alt Art" instead of "Standard", even when it is the card's only printing

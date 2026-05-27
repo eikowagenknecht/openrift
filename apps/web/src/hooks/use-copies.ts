@@ -173,6 +173,13 @@ export function useAddCopies() {
           queryKey: queryKeys.copies.all(userId),
           refetchType: "none",
         });
+        // Refetch the collections list so the header's totalValueCents /
+        // unpricedCopyCount catch up. copyCount is already live (derived
+        // from the copies collection in useCollections), but value totals
+        // are computed server-side via joins to the price table.
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.collections.all(userId),
+        });
         trackEvent("collection-add", { count: apiResult.length });
         return apiResult;
       } catch (error) {
@@ -232,6 +239,12 @@ export function useMoveCopies() {
           void queryClient.invalidateQueries({
             queryKey: queryKeys.copies.all(userId),
             refetchType: "none",
+          });
+          // Refresh per-collection totals. The source and destination
+          // collections' totalValueCents shift even though the global total
+          // doesn't.
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.collections.all(userId),
           });
         },
       });
@@ -382,6 +395,11 @@ export function useDisposeCopies() {
           void queryClient.invalidateQueries({
             queryKey: queryKeys.copies.all(userId),
             refetchType: "none",
+          });
+          // Refresh the collections list so the header's totalValueCents /
+          // unpricedCopyCount drop to match the new copies state.
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.collections.all(userId),
           });
         },
       });
