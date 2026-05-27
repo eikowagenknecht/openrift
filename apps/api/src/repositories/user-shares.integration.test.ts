@@ -158,6 +158,8 @@ describe.skipIf(!ctx)("userSharesRepo (integration)", () => {
 
     const memberRows = await repo.listsForOwner(userId, viewerId);
     expect(memberRows.map((row) => row.list.id)).toContain(groupOnly.id);
+    const groupOnlyRow = memberRows.find((row) => row.list.id === groupOnly.id);
+    expect(groupOnlyRow?.viaGroups).toEqual([{ id: group.id, slug: group.slug, name: group.name }]);
 
     const outsiderId = "a0000000-0136-4000-a000-000000000003";
     await db

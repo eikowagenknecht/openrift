@@ -856,6 +856,14 @@ const publicUserBundleListResponseSchema = z
     intent: listIntentSchema,
     kind: listKindSchema,
     entryCount: z.number().int().nonnegative(),
+    isPubliclyShared: z.boolean(),
+    viaGroups: z.array(
+      z.object({
+        id: z.string(),
+        slug: z.string(),
+        name: z.string(),
+      }),
+    ),
     createdAt: z.string(),
     updatedAt: z.string(),
   })

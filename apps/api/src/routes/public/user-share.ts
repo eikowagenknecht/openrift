@@ -74,12 +74,14 @@ export const publicUserShareRoute = publicUserShareApp
         displayName: owner.displayName ?? "Anonymous",
         gravatarHash: gravatarHashForEmail(owner.email),
       },
-      lists: lists.map(({ list, entryCount }) => ({
+      lists: lists.map(({ list, entryCount, viaGroups }) => ({
         id: list.id,
         name: list.name,
         intent: list.intent,
         kind: list.kind,
         entryCount,
+        isPubliclyShared: list.shareToken !== null,
+        viaGroups,
         createdAt: list.createdAt.toISOString(),
         updatedAt: list.updatedAt.toISOString(),
       })),

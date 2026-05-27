@@ -2,6 +2,7 @@
 
 ## 2026-05-27
 
+- feat: On a shared user bundle page, each list now shows a small "Public" badge (when it has its own public link) and a badge per friend group it's shared with (matching groups you're a member of). Visible only to signed-in viewers
 - feat: On the All Cards view, clicking the owned-count pill on a card now opens a popover that lists each variant (with +/- buttons) and shows which of your collections every copy is in. On a specific collection page you'll still see the variant chooser, since "where is this card" is obvious there
 - feat: Shared list pages now group lists into Wishlists and Tradelists with an entry count on each row, both on your public bundle URL and on a friend group member's profile
 - feat: One link now covers your shared wishlists and tradelists, so you can paste a single URL into Discord or a group chat instead of sharing each list separately. Only lists you've already made public, or shared with a friend group the viewer is in, appear there; private lists stay private. Open the "Share all my lists" button in the sidebar or the new Public sharing section in your profile to grab the link

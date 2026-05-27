@@ -53,16 +53,20 @@ describe("userSharesRepo", () => {
     expect(await repo.findOwnerByShareToken("abc")).toBeUndefined();
   });
 
-  it("listsForOwner returns lists with entry counts", async () => {
+  it("listsForOwner returns lists with entry counts (anonymous viewer → no viaGroups)", async () => {
     const db = createMockDb([{ ...LIST, entryCount: 3 }]);
     const repo = userSharesRepo(db);
-    expect(await repo.listsForOwner("u1", null)).toEqual([{ list: LIST, entryCount: 3 }]);
+    expect(await repo.listsForOwner("u1", null)).toEqual([
+      { list: LIST, entryCount: 3, viaGroups: [] },
+    ]);
   });
 
   it("listsForOwner defaults a null entryCount to zero", async () => {
     const db = createMockDb([{ ...LIST, entryCount: null }]);
     const repo = userSharesRepo(db);
-    expect(await repo.listsForOwner("u1", null)).toEqual([{ list: LIST, entryCount: 0 }]);
+    expect(await repo.listsForOwner("u1", null)).toEqual([
+      { list: LIST, entryCount: 0, viaGroups: [] },
+    ]);
   });
 
   it("findListInBundle returns the list when it belongs to the token's owner", async () => {

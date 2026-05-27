@@ -12,6 +12,7 @@ export interface BundleOwner {
 export interface BundleListSummary {
   list: Selectable<ListsTable>;
   entryCount: number;
+  viaGroups: { id: string; slug: string; name: string }[];
 }
 
 /**
@@ -119,10 +120,36 @@ export function userSharesRepo(db: Kysely<Database>) {
         .orderBy("l.name", "asc")
         .execute();
 
-      return rows.map((row) => {
+      const lists = rows.map((row) => {
         const { entryCount, ...list } = row;
         return { list, entryCount: entryCount ?? 0 };
       });
+
+      if (viewerUserId === null || lists.length === 0) {
+        return lists.map((entry) => ({ ...entry, viaGroups: [] }));
+      }
+
+      const listIds = lists.map((entry) => entry.list.id);
+      const groupRows = await db
+        .selectFrom("friendGroupListShares as s")
+        .innerJoin("friendGroups as g", "g.id", "s.groupId")
+        .innerJoin("friendGroupMembers as m", "m.groupId", "s.groupId")
+        .select(["s.listId", "g.id as id", "g.slug", "g.name"])
+        .where("s.listId", "in", listIds)
+        .where("m.userId", "=", viewerUserId)
+        .orderBy("g.name", "asc")
+        .execute();
+
+      const groupsByListId = Map.groupBy(groupRows, (row) => row.listId);
+
+      return lists.map((entry) => ({
+        ...entry,
+        viaGroups: (groupsByListId.get(entry.list.id) ?? []).map(({ id, slug, name }) => ({
+          id,
+          slug,
+          name,
+        })),
+      }));
     },
 
     /**

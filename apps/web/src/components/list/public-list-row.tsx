@@ -2,7 +2,7 @@ import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import type { ListIntent, ListKind } from "@openrift/shared";
 import { FolderIcon, HandshakeIcon, HeartIcon } from "lucide-react";
-import type { ComponentType, SVGProps } from "react";
+import type { ComponentType, ReactNode, SVGProps } from "react";
 
 import { listKindIcon } from "@/components/list/create-list-dialog";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,8 @@ interface PublicListRowProps {
   kind: ListKind;
   name: string;
   entryCount: number;
+  /** Optional inline slot between the name and the entry-count, e.g. visibility badges. */
+  badges?: ReactNode;
 }
 
 /**
@@ -38,6 +40,7 @@ export function PublicListRow({
   kind,
   name,
   entryCount,
+  badges,
   className,
   render,
   ...props
@@ -57,6 +60,7 @@ export function PublicListRow({
           <>
             <IntentIcon className="text-muted-foreground size-5 shrink-0" />
             <span className="min-w-0 flex-1 truncate font-medium">{name}</span>
+            {badges ? <span className="flex shrink-0 items-center gap-1">{badges}</span> : null}
             <span className="text-muted-foreground text-2xs inline-flex shrink-0 items-center gap-1">
               <KindIcon className="size-3" />
               {entryCount} {noun}

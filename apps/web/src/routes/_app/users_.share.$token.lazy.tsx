@@ -1,8 +1,9 @@
 import type { ListIntent, PublicUserBundleListResponse } from "@openrift/shared";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
-import { HeartIcon } from "lucide-react";
+import { GlobeIcon, HeartIcon, UsersIcon } from "lucide-react";
 
 import { PublicListRow } from "@/components/list/public-list-row";
+import { Badge } from "@/components/ui/badge";
 import {
   Empty,
   EmptyDescription,
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/empty";
 import { UserAvatar } from "@/components/user-avatar";
 import { usePublicUserBundle } from "@/hooks/use-user-share";
+import { useUserId } from "@/lib/auth-session";
 import { CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
 
 export const Route = createLazyFileRoute("/_app/users_/share/$token")({
@@ -27,6 +29,8 @@ function SharedUserBundlePage() {
   const { token } = Route.useParams();
   const { data } = usePublicUserBundle(token);
   const { owner, lists } = data;
+  const viewerUserId = useUserId();
+  const showVisibility = viewerUserId !== null;
 
   return (
     <div className={`${PAGE_PADDING} ${CONTAINER_WIDTH} flex flex-col gap-6 py-4`}>
@@ -65,7 +69,12 @@ function SharedUserBundlePage() {
               </h2>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {sectionLists.map((list) => (
-                  <BundleListRow key={list.id} token={token} list={list} />
+                  <BundleListRow
+                    key={list.id}
+                    token={token}
+                    list={list}
+                    showVisibility={showVisibility}
+                  />
                 ))}
               </div>
             </section>
@@ -76,14 +85,47 @@ function SharedUserBundlePage() {
   );
 }
 
-function BundleListRow({ token, list }: { token: string; list: PublicUserBundleListResponse }) {
+function BundleListRow({
+  token,
+  list,
+  showVisibility,
+}: {
+  token: string;
+  list: PublicUserBundleListResponse;
+  showVisibility: boolean;
+}) {
   return (
     <PublicListRow
       intent={list.intent}
       kind={list.kind}
       name={list.name}
       entryCount={list.entryCount}
+      badges={showVisibility ? <VisibilityBadges list={list} /> : null}
       render={<Link to="/users/share/$token/lists/$listId" params={{ token, listId: list.id }} />}
     />
+  );
+}
+
+function VisibilityBadges({ list }: { list: PublicUserBundleListResponse }) {
+  return (
+    <>
+      {list.isPubliclyShared ? (
+        <Badge variant="outline" className="text-2xs gap-1" title="Has a public share link">
+          <GlobeIcon className="size-3" />
+          Public
+        </Badge>
+      ) : null}
+      {list.viaGroups.map((group) => (
+        <Badge
+          key={group.id}
+          variant="outline"
+          className="text-2xs max-w-[10rem] gap-1"
+          title={`Shared with ${group.name}`}
+        >
+          <UsersIcon className="size-3 shrink-0" />
+          <span className="truncate">{group.name}</span>
+        </Badge>
+      ))}
+    </>
   );
 }
