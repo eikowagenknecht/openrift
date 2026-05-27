@@ -134,7 +134,7 @@ export default function WhyOpenRiftArticle() {
           I&apos;m not sure.
         </p>
         <p className="text-muted-foreground mb-3">
-          Last verified on 2026-04-29. When you&apos;re reading this, it&apos;s probably already
+          Last verified on 2026-05-27. When you&apos;re reading this, it&apos;s probably already
           slightly out of date, as counts and features change regularly.
         </p>
 
@@ -320,10 +320,10 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   {
     kind: "row",
     feature: "English printings tracked",
-    values: [1559, 1365, 1085, 1085, 1032],
+    values: [1595, 1365, 1085, 1085, 1032],
     detail: {
       general:
-        "Count of English-language printings in each site's catalog as of 2026-04-29. Covers all sets released to date; higher is more complete.",
+        "Count of English-language printings in each site's catalog as of 2026-04-29. Covers all sets released to date.",
       riftmana:
         "Common/uncommon normal and foil variants are merged into single entries, so the effective count is higher.",
     },
@@ -437,10 +437,9 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   {
     kind: "row",
     feature: "Collection sharing",
-    values: ["no", "yes", "yes", "yes", "yes"],
+    values: ["yes", "yes", "yes", "yes", "yes"],
     detail: {
       general: "Share a collection via public link.",
-      openrift: "Not supported yet; planned.",
     },
   },
   {
@@ -495,11 +494,12 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   {
     kind: "row",
     feature: "Wishlists / tradelists",
-    values: ["no", "yes", "yes", "yes", "yes"],
+    values: ["yes", "yes", "yes", "yes", "yes"],
     detail: {
       general:
         "Dedicated lists for cards you want, and sometimes cards you're willing to trade away.",
-      openrift: "Not supported yet; planned.",
+      openrift:
+        "Multiple wishlists and tradelists, each shareable via public link or with a friend group.",
       piltoverArchive: "Single wishlist, not shareable.",
       riftmana: "One wishlist and one tradelist, not shareable.",
       riftboundGg: "One wishlist and one tradelist, both shareable.",
@@ -531,6 +531,14 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
     feature: "Deck statistics",
     values: ["yes", "yes", "yes", "yes", "yes"],
     detail: { general: "Energy curve, domain distribution, cost breakdown, and more." },
+  },
+  {
+    kind: "row",
+    feature: "Deck sharing",
+    values: ["yes", "yes", "yes", "yes", "yes"],
+    detail: {
+      general: "Share a single deck via public link, so anyone can view it without signing in.",
+    },
   },
   {
     kind: "row",
@@ -673,7 +681,7 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
     values: ["no", "yes", "yes", "yes", "yes"],
     detail: {
       general: "A public hub where users can browse community-submitted decks.",
-      openrift: "Deck code sharing works but no browsable community list yet.",
+      openrift: "Not planned.",
     },
   },
   {
