@@ -72,6 +72,7 @@ import {
   useDeleteList,
   useListDetail,
   useRemoveListEntry,
+  useUpdateList,
   useUpdateListEntry,
 } from "@/hooks/use-lists";
 import { useOwnedCount } from "@/hooks/use-owned-count";
@@ -138,6 +139,7 @@ export function ListPage({ listId }: ListPageProps) {
   const deleteList = useDeleteList();
   const removeEntry = useRemoveListEntry();
   const updateEntry = useUpdateListEntry();
+  const updateList = useUpdateList();
 
   const KindIcon = listKindIcon(data.list.kind);
   const empty = emptyStateCopy(data.list.kind);
@@ -179,7 +181,18 @@ export function ListPage({ listId }: ListPageProps) {
     updateEntry.mutate({ listId, entryId, quantity });
   };
 
-  const handleTradeOverrideChange = (entryId: string, tradeOverride: TradePreference) => {
+  const handleTradeOverrideChange = (
+    entryId: string,
+    tradeOverride: TradePreference,
+    listCurrencyToSet?: Currency,
+  ) => {
+    // The dialog asks the user for a currency when the list doesn't have one
+    // yet and they pick an absolute price. Patch the list first so the entry
+    // update applies against a list that already has a currency, and so the
+    // user doesn't have to open Edit list separately afterwards.
+    if (listCurrencyToSet) {
+      updateList.mutate({ listId, currency: listCurrencyToSet });
+    }
     updateEntry.mutate({ listId, entryId, tradeOverride });
   };
 
@@ -345,7 +358,11 @@ interface ListEntryBrowserProps {
   entries: ListEntryDetailResponse[];
   onRemoveEntry: (entryId: string, cardName: string) => void;
   onQuantityChange: (entryId: string, quantity: number) => void;
-  onTradeOverrideChange: (entryId: string, next: TradePreference) => void;
+  onTradeOverrideChange: (
+    entryId: string,
+    next: TradePreference,
+    listCurrencyToSet?: Currency,
+  ) => void;
   isRemovePendingFor: (entryId: string) => boolean;
   isQuantityPendingFor: (entryId: string) => boolean;
 }
@@ -810,7 +827,9 @@ function ListEntryBrowser({
             prefDialogEntry.tradeOverride.priceAbsoluteCents !== null ||
             prefDialogEntry.tradeOverride.tradeType !== null
           }
-          onSave={(next) => onTradeOverrideChange(prefDialogEntry.id, next)}
+          onSave={(next, listCurrencyToSet) =>
+            onTradeOverrideChange(prefDialogEntry.id, next, listCurrencyToSet)
+          }
         />
       )}
     </CardBrowserFilterProvider>

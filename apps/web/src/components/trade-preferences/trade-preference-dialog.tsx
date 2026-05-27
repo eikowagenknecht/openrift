@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useDisplayStore } from "@/stores/display-store";
 
 import { TradePreferenceEditor } from "./trade-preference-editor";
 
@@ -22,16 +23,24 @@ interface TradePreferenceDialogProps {
   override: TradePreference;
   /** List defaults (informational; the editor only writes the override). */
   listDefault: TradePreference;
-  /** List currency. */
+  /** Current list currency. When `null`, the dialog shows a currency picker
+   * (seeded from the user's default) and passes the chosen value back via
+   * `listCurrencyToSet` on save so the parent can patch the list. */
   currency: Currency | null;
   /** True iff the incoming override is non-empty. */
   isOverridden: boolean;
-  onSave: (next: TradePreference) => void;
+  /**
+   * Save handler. `listCurrencyToSet` is set when the dialog needed to ask
+   * the user for a currency (parent's `currency` was null at open time and
+   * the user picked an absolute price). Parent should push it onto the list
+   * before/with the entry override.
+   */
+  onSave: (next: TradePreference, listCurrencyToSet?: Currency) => void;
 }
 
 /**
  * Edit a list entry's trade-preference override in a dialog. Used from the
- * grid-view context menu where the inline pill wouldn't fit.
+ * grid-view context menu and from the row pill.
  * @returns The dialog node.
  */
 export function TradePreferenceDialog({
@@ -44,17 +53,28 @@ export function TradePreferenceDialog({
   isOverridden,
   onSave,
 }: TradePreferenceDialogProps) {
+  const defaultCurrency = useDisplayStore((s) => s.defaultCurrency);
   const [draft, setDraft] = useState<TradePreference>(override);
+  // Local currency draft — only meaningful when the list has no currency yet.
+  // Seeded from the user's default so the editor shows a real symbol instead
+  // of "?" the moment the user picks an absolute price.
+  const [draftCurrency, setDraftCurrency] = useState<Currency>(currency ?? defaultCurrency);
+  const listMissingCurrency = currency === null;
 
   // Re-sync when a different entry's override flows in (the dialog is
   // mounted once and reused for whichever entry the user right-clicked).
   useEffect(() => {
     if (open) {
       setDraft(override);
+      setDraftCurrency(currency ?? defaultCurrency);
     }
-  }, [open, override]);
+  }, [open, override, currency, defaultCurrency]);
 
   const absoluteNeedsAmount = draft.pricePref === "absolute" && draft.priceAbsoluteCents === null;
+  // Only push a list-currency back up when the list didn't have one to begin
+  // with and the user actually picked an absolute price.
+  const listCurrencyToSet: Currency | undefined =
+    listMissingCurrency && draft.pricePref === "absolute" ? draftCurrency : undefined;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -69,8 +89,12 @@ export function TradePreferenceDialog({
         <TradePreferenceEditor
           value={draft}
           onChange={setDraft}
-          currency={currency}
-          showCurrency={false}
+          currency={draftCurrency}
+          // Show the currency picker only when the list has no currency yet
+          // and the user is editing an absolute price. Once the user saves,
+          // the list keeps that currency and the picker stops appearing.
+          showCurrency={listMissingCurrency && draft.pricePref === "absolute"}
+          onCurrencyChange={setDraftCurrency}
           idPrefix="entry-dialog"
         />
 
@@ -101,7 +125,7 @@ export function TradePreferenceDialog({
               type="button"
               disabled={absoluteNeedsAmount}
               onClick={() => {
-                onSave(draft);
+                onSave(draft, listCurrencyToSet);
                 onOpenChange(false);
               }}
             >

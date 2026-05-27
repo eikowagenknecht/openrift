@@ -29,17 +29,11 @@ import {
 import { AppError, ERROR_CODES } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
-import { buildPatchUpdates } from "../../patch.js";
-import type { FieldMapping } from "../../patch.js";
 import type { ListEntryUpdate, ListUpdate, NewEntryValues } from "../../repositories/lists.js";
 import type { Variables } from "../../types.js";
 import { assertDeleted, assertFound } from "../../utils/assertions.js";
 import { toList, toListEntry, toListEntryDetail } from "../../utils/mappers.js";
 import { generateShareToken } from "../../utils/share-token.js";
-
-const listPatchFields: FieldMapping = {
-  name: "name",
-};
 
 const listLists = createRoute({
   method: "get",
@@ -278,9 +272,13 @@ export const listsRoute = listsApp
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
-    // Cast at the HTTP-boundary: buildPatchUpdates returns Record<string, unknown>
-    // because the field map is generic; downstream the repo wants a typed shape.
-    const updates = buildPatchUpdates(body, listPatchFields) as ListUpdate;
+    // Build updates manually so a tradeDefaults- or currency-only patch
+    // doesn't trip the generic patch helper's "no fields" guard. (Same
+    // pattern as the entry PATCH handler.)
+    const updates: ListUpdate = {};
+    if (body.name !== undefined) {
+      updates.name = body.name;
+    }
     if (body.tradeDefaults !== undefined) {
       updates.defaultPricePref = body.tradeDefaults.pricePref;
       updates.defaultPriceAbsoluteCents = body.tradeDefaults.priceAbsoluteCents;
@@ -288,6 +286,9 @@ export const listsRoute = listsApp
     }
     if (body.currency !== undefined) {
       updates.currency = body.currency;
+    }
+    if (Object.keys(updates).length === 0) {
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "No fields to update");
     }
     const row = await lists.update(id, userId, updates);
     assertFound(row, "Not found");

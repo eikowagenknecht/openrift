@@ -265,6 +265,44 @@ describe("PATCH /api/v1/lists/:id", () => {
     });
     expect(res.status).toBe(404);
   });
+
+  it("accepts a tradeDefaults-only patch", async () => {
+    mockListsRepo.update.mockResolvedValue(dbList);
+    const res = await app.request(`/api/v1/lists/${LIST_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        tradeDefaults: { pricePref: "cm_lowest", priceAbsoluteCents: null, tradeType: "cards" },
+      }),
+    });
+    expect(res.status).toBe(200);
+    expect(mockListsRepo.update).toHaveBeenCalledWith(LIST_ID, USER_ID, {
+      defaultPricePref: "cm_lowest",
+      defaultPriceAbsoluteCents: null,
+      defaultTradeType: "cards",
+    });
+  });
+
+  it("accepts a currency-only patch", async () => {
+    mockListsRepo.update.mockResolvedValue(dbList);
+    const res = await app.request(`/api/v1/lists/${LIST_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ currency: "USD" }),
+    });
+    expect(res.status).toBe(200);
+    expect(mockListsRepo.update).toHaveBeenCalledWith(LIST_ID, USER_ID, { currency: "USD" });
+  });
+
+  it("rejects a completely empty patch with 400", async () => {
+    const res = await app.request(`/api/v1/lists/${LIST_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(400);
+    expect(mockListsRepo.update).not.toHaveBeenCalled();
+  });
 });
 
 // ---------------------------------------------------------------------------
