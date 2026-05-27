@@ -56,18 +56,18 @@ describe("userSharesRepo", () => {
   it("listsForOwner returns lists with entry counts", async () => {
     const db = createMockDb([{ ...LIST, entryCount: 3 }]);
     const repo = userSharesRepo(db);
-    expect(await repo.listsForOwner("u1")).toEqual([{ list: LIST, entryCount: 3 }]);
+    expect(await repo.listsForOwner("u1", null)).toEqual([{ list: LIST, entryCount: 3 }]);
   });
 
   it("listsForOwner defaults a null entryCount to zero", async () => {
     const db = createMockDb([{ ...LIST, entryCount: null }]);
     const repo = userSharesRepo(db);
-    expect(await repo.listsForOwner("u1")).toEqual([{ list: LIST, entryCount: 0 }]);
+    expect(await repo.listsForOwner("u1", null)).toEqual([{ list: LIST, entryCount: 0 }]);
   });
 
   it("findListInBundle returns the list when it belongs to the token's owner", async () => {
     const db = createMockDb([LIST]);
     const repo = userSharesRepo(db);
-    expect(await repo.findListInBundle("abc", "lst-1")).toEqual(LIST);
+    expect(await repo.findListInBundle("abc", "lst-1", null)).toEqual(LIST);
   });
 });

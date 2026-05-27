@@ -7,6 +7,7 @@ import {
 import { z } from "zod";
 
 import { gravatarHashForEmail } from "../../lib/gravatar.js";
+import { loadSession } from "../../middleware/load-session.js";
 import type { Variables } from "../../types.js";
 import { assertFound } from "../../utils/assertions.js";
 import { toListEntryDetail, toPublicList } from "../../utils/mappers.js";
@@ -46,21 +47,27 @@ const getUserBundleList = createRoute({
   },
 });
 
+const publicUserShareApp = new OpenAPIHono<{ Variables: Variables }>();
+publicUserShareApp.use("/users/share/*", loadSession);
+
 /**
- * Public endpoints for the user share bundle (ADR-018). The bundle is the
- * authorization scope: any of the owner's wish/trade lists are readable via
- * the bundle token, without needing per-list share tokens.
+ * Public endpoints for the user share bundle (ADR-018). The bundle token
+ * resolves to the owner; per-list visibility additionally requires either a
+ * per-list share token or a friend-group share with the viewer's groups. The
+ * `loadSession` middleware is opt-in here so authenticated viewers can see
+ * their group-shared lists; anonymous viewers see public-only.
  */
-export const publicUserShareRoute = new OpenAPIHono<{ Variables: Variables }>()
+export const publicUserShareRoute = publicUserShareApp
   // ── GET /users/share/:token ─────────────────────────────────────────────
   .openapi(getUserBundle, async (c) => {
     const { userShares } = c.get("repos");
     const { token } = c.req.valid("param");
+    const viewerUserId = c.get("user")?.id ?? null;
 
     const owner = await userShares.findOwnerByShareToken(token);
     assertFound(owner, "Not found");
 
-    const lists = await userShares.listsForOwner(owner.userId);
+    const lists = await userShares.listsForOwner(owner.userId, viewerUserId);
 
     const response: PublicUserBundleResponse = {
       owner: {
@@ -78,7 +85,12 @@ export const publicUserShareRoute = new OpenAPIHono<{ Variables: Variables }>()
       })),
     };
 
-    c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+    c.header(
+      "Cache-Control",
+      viewerUserId
+        ? "private, max-age=60, stale-while-revalidate=300"
+        : "public, max-age=60, stale-while-revalidate=300",
+    );
     return c.json(response);
   })
 
@@ -86,8 +98,9 @@ export const publicUserShareRoute = new OpenAPIHono<{ Variables: Variables }>()
   .openapi(getUserBundleList, async (c) => {
     const { userShares, lists } = c.get("repos");
     const { token, listId } = c.req.valid("param");
+    const viewerUserId = c.get("user")?.id ?? null;
 
-    const list = await userShares.findListInBundle(token, listId);
+    const list = await userShares.findListInBundle(token, listId, viewerUserId);
     assertFound(list, "Not found");
 
     const owner = await userShares.findOwnerByShareToken(token);
@@ -101,6 +114,11 @@ export const publicUserShareRoute = new OpenAPIHono<{ Variables: Variables }>()
       owner: { displayName: owner.displayName ?? "Anonymous" },
     };
 
-    c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+    c.header(
+      "Cache-Control",
+      viewerUserId
+        ? "private, max-age=60, stale-while-revalidate=300"
+        : "public, max-age=60, stale-while-revalidate=300",
+    );
     return c.json(response);
   });

@@ -37,18 +37,26 @@ We want a **single public link per user** that exposes their wish + trade lists 
 
 ## Decision Outcome
 
-Chosen option: **C — opaque-token user share bundle**, because it is the only option that keeps publishing opt-in and revocable (rules out B), removes the per-list maintenance burden (rules out A), and stays simpler than building a generic many-to-many "bundle" abstraction (rules out D — D would re-introduce the maintenance problem we set out to remove).
+Chosen option: **C — opaque-token user share bundle**, because it is the only option that keeps publishing opt-in and revocable (rules out B), removes the per-list maintenance burden of pasting URLs (rules out A), and stays simpler than building a generic many-to-many "bundle" abstraction (rules out D).
 
-The bundle is **implicit**: it always contains all of the owner's `wish` and `trade` lists, live. There is no per-list opt-out at this stage; users who want a list off the bundle keep it as a draft they have not yet committed to, or move sensitive entries to a separate organize list. We accept this constraint — it is the simplest possible model and matches the "I want to share my whole want/trade situation" use case the feature exists for.
+The bundle is **a filtered view**, not an implicit "all wish + trade" dump. The bundle URL acts as a routing primitive — one paste-and-forget link — and visibility of each individual list is gated by the list's own existing sharing primitives:
+
+- A list with its own per-list public `share_token` is visible to anyone who has the bundle URL (anonymous + authenticated).
+- A list shared with a friend group is additionally visible to bundle viewers who are members of that group (requires the viewer to be signed in).
+- A list with neither is hidden, even from the owner's bundle URL.
+
+This means the bundle never publishes a list that is not already published via some other primitive; it just consolidates the publishing surface into one link. The original "user forgot to share a list" failure mode that motivated an implicit bundle is real, but on reflection the worse failure mode is "a user enables bundle sharing once, then later adds a private wishlist and unknowingly publishes it". The filtered design fails closed: enabling the bundle never exposes a list the user hasn't separately marked as shareable.
 
 ### Consequences
 
-- Good — sharing scales to N lists with one URL; new lists join the bundle automatically.
+- Good — fails closed: enabling the bundle cannot accidentally publish a list the user hasn't separately marked as shareable. Adding a new private wishlist later is safe.
+- Good — sharing scales to N lists with one URL; any list the user has already opted into sharing joins the bundle automatically.
 - Good — revocation is one column update; rotation is one column update.
 - Good — opaque token means the user's handle / email is not in the URL.
-- Good — composes additively. Per-list `share_token`s keep working independently for the "I just want to share this one list" case.
-- Bad — no fine-grained "share these two wishlists but not this third one" control. Users with that need are blocked until a later ADR introduces explicit bundles.
+- Good — composes additively. Per-list `share_token`s and friend-group shares keep working independently for their own use cases.
+- Bad — there is no "one switch publishes everything" affordance. Users who do want every wish/trade list public must enable the per-list share token on each one. We accept this trade because the failure mode of the implicit alternative is worse.
 - Bad — adds a third public-share surface (`/lists/share/`, `/decks/share/`, `/collections/share/`, now `/users/share/`). Mitigated by the surfaces being structurally identical and reusing the same `generateShareToken()` helper and dialog shape.
+- Bad — the bundle endpoint must load the session to decide visibility, so it can no longer be a CDN-cacheable public response for authenticated viewers (response varies by viewer's group memberships). Anonymous responses stay `public, max-age=60`.
 
 ## Design Decisions
 
@@ -60,11 +68,27 @@ The column lives on `users` rather than in a separate `user_shares` table. There
 
 ### Scope: which lists land in the bundle
 
-The bundle contains, at query time, every list owned by the token's user where `intent IN ('wish', 'trade')`. No materialisation, no membership rows, no opt-out toggle. `organize` lists are excluded.
+The bundle contains, at query time, every list owned by the token's user where:
 
-Rationale for hard-excluding `organize`: `organize` is the working-state intent ("I'm building this commander deck", "tracking foils I'm hunting"). Surfacing it in a public bundle would surprise users; promoting it to bundle-eligible only on a per-list flag would defeat the "no per-list maintenance" goal that motivates this feature.
+1. `intent IN ('wish', 'trade')` — `organize` lists are excluded unconditionally, and
+2. the list is visible to the viewer per the bundle visibility predicate:
 
-Rationale for hard-including all `wish` and `trade`: the failure mode we are trying to remove is "user forgot to share a list". A per-list opt-out re-introduces exactly that failure mode. Users who need to hide a single wishlist can defer it (don't make it a wishlist until ready to share) — this is the same answer the `decks.is_public` design landed on.
+```text
+lists.share_token IS NOT NULL
+  OR EXISTS (
+    SELECT 1
+      FROM friend_group_list_shares s
+      JOIN friend_group_members m ON m.group_id = s.group_id
+     WHERE s.list_id = lists.id
+       AND m.user_id = <viewer>
+  )
+```
+
+For anonymous viewers (no session), the predicate reduces to the first branch. The route applies the `loadSession` middleware so authenticated viewers benefit from the second branch automatically; the second branch is omitted entirely when the viewer is anonymous.
+
+Rationale for hard-excluding `organize`: `organize` is the working-state intent ("I'm building this commander deck", "tracking foils I'm hunting"). Surfacing it in a public bundle would surprise users.
+
+Rationale for the filtered visibility predicate: the bundle URL is a publishing convenience, not a publishing decision. Sharing is decided per list (own share token, or friend-group share). The bundle just routes those existing decisions through one URL. This way, enabling the bundle is a low-stakes choice — it never escalates a private list to public — and adding a list later cannot accidentally publish it.
 
 ### Recipient experience: index of lists only
 
@@ -78,7 +102,7 @@ The page header shows the sharer's display name, avatar (via Gravatar), and a on
 
 ### What the per-list nested route shows
 
-`/users/share/<token>/lists/<listId>` reuses the existing public-list view components and data shape. The only difference is the auth boundary: instead of the per-list `share_token` granting access, the user-bundle token grants access to any of the owner's wish/trade lists. The repository method that resolves "is this viewer allowed to see this list" gets a new entry point that takes `(userShareToken, listId)` and checks the list belongs to that user and is in the bundle scope (`intent IN ('wish','trade')`).
+`/users/share/<token>/lists/<listId>` reuses the existing public-list view components and data shape. The auth boundary is the same visibility predicate as the bundle index: the list must belong to the token's owner, sit in the bundle scope (`intent IN ('wish','trade')`), AND pass the per-list visibility check (own share token OR shared with a friend group the viewer belongs to). The repo entry point takes `(userShareToken, listId, viewerUserId | null)`.
 
 ### Lifecycle
 
@@ -91,7 +115,7 @@ The page header shows the sharer's display name, avatar (via Gravatar), and a on
 
 - **Lists overview page** carries a "Share all my lists" button that opens a `UserShareDialog` (mirrors the existing `ListShareDialog` shape: enabled-state shows copy + revoke; disabled-state shows a single "Create link" button). Rotate lives behind a small "Reset link" affordance inside the dialog when sharing is enabled.
 - **`/profile`** gains a "Public sharing" section housing the same controls, so the user can find and revoke the link from settings without going via the lists page.
-- **Per-list passive badge.** Lists already show a "shared with N friend groups" badge. We do not add a parallel "in your bundle" badge: every wish / trade list is implicitly in the bundle when sharing is enabled, so the badge would carry no information.
+- **Per-list passive badge.** Lists already show a "shared with N friend groups" badge and a separate per-list public-link affordance. We do not add a parallel "in your bundle" badge: a list is in the bundle exactly when it has its own public share token or at least one friend-group share — both of which already render their own indicators on the list page.
 
 ### Routes summary
 
@@ -131,7 +155,7 @@ That is the entire schema change. No new table, no triggers, no FK additions.
 
 ## Will Not Be Built
 
-- **Per-list opt-out.** The bundle is "all wish + trade, no exceptions". Users who need finer control wait for a later "explicit bundle" feature, which is a separate ADR.
+- **A bundle-specific per-list opt-in flag.** The bundle reuses the existing per-list `share_token` and friend-group share signals to decide visibility; it does not introduce a separate "include in bundle" column. One opt-in axis per list, not two.
 - **Username-based public URLs.** Opaque token only. We do not want a stable, guessable URL per user.
 - **Bundle includes `organize` lists.** Organize is private working state. Hard exclusion.
 - **OG preview image.** No PII (Gravatar) in third-party link cards.
@@ -141,7 +165,7 @@ That is the entire schema change. No new table, no triggers, no FK additions.
 - **Merged / unified card-browser view.** Dedup across `kind=card` wishes, `kind=printing` wishes, and `kind=copy` tradelist entries is non-trivial; the index view ships v1, the merged view waits for a real recipient ask.
 - **View counters / last-viewed-at.** Could land later if "is anyone actually opening my bundle" becomes a real question.
 - **Multiple bundles per user.** One bundle, one token. A user who wants two different audiences with different list subsets gets a single bundle today; the multi-bundle case is the trigger for the next iteration.
-- **Friend-group integration.** Groups continue to use the per-list opt-in flow from ADR-013. The bundle does not surface inside groups.
+- **Friend-group integration.** Groups continue to use the per-list opt-in flow from ADR-013. The bundle does not surface inside groups, but group shares feed into the bundle's visibility predicate so a group member viewing a friend's bundle sees the lists shared with them.
 - **Custom display name / vanity slug on the public page.** The user's existing `users.name` is shown verbatim.
 - **Per-bundle abuse rate-limiting.** The token's entropy is the only protection in this ADR; we revisit if scraping shows up.
 - **Embedded card-grid widget / oEmbed.** Plain web link only.
@@ -153,7 +177,9 @@ Integration tests on the repository / API layer:
 - Enabling sharing sets a token; revoking nulls it; rotating replaces it; the partial unique index forbids two users sharing the same token (an artificial collision test).
 - `GET /api/v1/users/share/:token` returns 404 when the token is null, unknown, or has just been rotated.
 - The viewer endpoint returns only `wish` and `trade` lists belonging to the token's owner; `organize` lists never appear.
-- `GET /users/share/:token/lists/:listId` returns 404 when the list belongs to a different user or has `intent='organize'`.
+- Anonymous viewer: bundle includes lists with `share_token IS NOT NULL`, excludes lists without a per-list share token even when shared with a friend group.
+- Authenticated viewer who is a member of a group the owner has shared a list into: bundle additionally includes that list. Non-member viewer of the same group share: list stays hidden.
+- `GET /users/share/:token/lists/:listId` returns 404 when the list belongs to a different user, has `intent='organize'`, or fails the visibility predicate for the viewer.
 - Account deletion removes the share row implicitly (no orphan share rows).
 
 Web-layer behaviour exercised in unit tests where possible (hooks, store) and verified manually for the routed views (`/users/share/$token`, `?view=merged`, nested per-list route, lists-overview entry button, profile-page section).

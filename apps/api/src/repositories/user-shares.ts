@@ -16,11 +16,13 @@ export interface BundleListSummary {
 
 /**
  * Per-user public share bundle: a single opaque token on `users.share_token`
- * that resolves to the owner's `wish` + `trade` lists. See ADR-018.
+ * that resolves to a filtered view of the owner's `wish` + `trade` lists. See
+ * ADR-018.
  *
- * Authorization is implicit: a non-null token means the user has opted into
- * public sharing. The repo never returns rows for users with `share_token IS
- * NULL`, and never surfaces `organize` lists regardless of share state.
+ * Authorization happens twice: the owner opts in by setting a `share_token`,
+ * and each list opts in either via its own per-list `share_token` (anonymous
+ * public) or by being shared with a friend group the viewer belongs to. The
+ * repo never surfaces `organize` lists regardless of share state.
  *
  * @returns An object with user-share query methods bound to the given `db`.
  */
@@ -76,12 +78,16 @@ export function userSharesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Lists in the bundle for the given owner: every `wish` and `trade` list
-     * the owner owns, with an entry-count for the index view's badges.
+     * Lists in the bundle for the given owner, restricted to lists the viewer
+     * can see (public share token or friend-group share with the viewer's
+     * groups). Anonymous viewers see public-only.
      *
      * @returns Bundle list summaries sorted by intent, then name.
      */
-    async listsForOwner(ownerUserId: string): Promise<BundleListSummary[]> {
+    async listsForOwner(
+      ownerUserId: string,
+      viewerUserId: string | null,
+    ): Promise<BundleListSummary[]> {
       const rows = await db
         .selectFrom("lists as l")
         .selectAll("l")
@@ -94,6 +100,21 @@ export function userSharesRepo(db: Kysely<Database>) {
         )
         .where("l.userId", "=", ownerUserId)
         .where("l.intent", "in", ["wish", "trade"])
+        .where((eb) => {
+          const isPublic = eb("l.shareToken", "is not", null);
+          if (viewerUserId === null) {
+            return isPublic;
+          }
+          const viaGroup = eb.exists(
+            eb
+              .selectFrom("friendGroupListShares as s")
+              .innerJoin("friendGroupMembers as m", "m.groupId", "s.groupId")
+              .select("s.listId")
+              .whereRef("s.listId", "=", "l.id")
+              .where("m.userId", "=", viewerUserId),
+          );
+          return eb.or([isPublic, viaGroup]);
+        })
         .orderBy("l.intent", "asc")
         .orderBy("l.name", "asc")
         .execute();
@@ -105,16 +126,17 @@ export function userSharesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Resolves a single list in the bundle, scoped to the token's owner and
-     * the bundle's intent filter. Used by `/users/share/:token/lists/:listId`
-     * to gate per-list reads without requiring the list's own `share_token`.
+     * Resolves a single list in the bundle, scoped to the token's owner, the
+     * bundle's intent filter, and the viewer's visibility. Used by
+     * `/users/share/:token/lists/:listId` to gate per-list reads.
      *
      * @returns The list row, or undefined if the list does not belong to the
-     *   token's owner or has `intent='organize'`.
+     *   token's owner, has `intent='organize'`, or is invisible to the viewer.
      */
     findListInBundle(
       shareToken: string,
       listId: string,
+      viewerUserId: string | null,
     ): Promise<Selectable<ListsTable> | undefined> {
       return db
         .selectFrom("lists as l")
@@ -123,6 +145,21 @@ export function userSharesRepo(db: Kysely<Database>) {
         .where("u.shareToken", "=", shareToken)
         .where("l.id", "=", listId)
         .where("l.intent", "in", ["wish", "trade"])
+        .where((eb) => {
+          const isPublic = eb("l.shareToken", "is not", null);
+          if (viewerUserId === null) {
+            return isPublic;
+          }
+          const viaGroup = eb.exists(
+            eb
+              .selectFrom("friendGroupListShares as s")
+              .innerJoin("friendGroupMembers as m", "m.groupId", "s.groupId")
+              .select("s.listId")
+              .whereRef("s.listId", "=", "l.id")
+              .where("m.userId", "=", viewerUserId),
+          );
+          return eb.or([isPublic, viaGroup]);
+        })
         .executeTakeFirst();
     },
   };

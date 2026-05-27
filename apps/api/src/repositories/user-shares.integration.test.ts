@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createDbContext } from "../test/integration-context.js";
+import { friendGroupsRepo } from "./friend-groups.js";
 import { listsRepo } from "./lists.js";
 import { userSharesRepo } from "./user-shares.js";
 
@@ -10,11 +11,12 @@ describe.skipIf(!ctx)("userSharesRepo (integration)", () => {
   const { db, userId } = ctx!;
   const repo = userSharesRepo(db);
   const lists = listsRepo(db);
+  const groups = friendGroupsRepo(db);
   const createdListIds: string[] = [];
+  const createdGroupIds: string[] = [];
+  const createdViewerIds: string[] = [];
 
   beforeAll(async () => {
-    // Ensure the test user row exists (the shared dev DB is reused, but a
-    // crashed prior run may have removed it).
     await db
       .insertInto("users")
       .values({
@@ -32,7 +34,12 @@ describe.skipIf(!ctx)("userSharesRepo (integration)", () => {
     if (createdListIds.length > 0) {
       await db.deleteFrom("lists").where("id", "in", createdListIds).execute();
     }
-    // Reset share state so the test does not leak into other suites.
+    if (createdGroupIds.length > 0) {
+      await db.deleteFrom("friendGroups").where("id", "in", createdGroupIds).execute();
+    }
+    if (createdViewerIds.length > 0) {
+      await db.deleteFrom("users").where("id", "in", createdViewerIds).execute();
+    }
     await db.updateTable("users").set({ shareToken: null }).where("id", "=", userId).execute();
   });
 
@@ -69,21 +76,33 @@ describe.skipIf(!ctx)("userSharesRepo (integration)", () => {
     expect(result).toBeUndefined();
   });
 
-  it("listsForOwner returns only wish and trade lists, excluding organize", async () => {
-    const wish = await lists.create({
+  it("listsForOwner: anonymous viewer sees only lists with their own share_token", async () => {
+    const publicWish = await lists.create({
       userId,
-      name: "Bundle Test Wish",
+      name: "Bundle Test Public Wish",
       intent: "wish",
       kind: "card",
     });
-    createdListIds.push(wish.id);
-    const trade = await lists.create({
+    createdListIds.push(publicWish.id);
+    await lists.setShareToken(publicWish.id, userId, "wish-tok", true);
+
+    const privateWish = await lists.create({
       userId,
-      name: "Bundle Test Trade",
+      name: "Bundle Test Private Wish",
+      intent: "wish",
+      kind: "card",
+    });
+    createdListIds.push(privateWish.id);
+
+    const publicTrade = await lists.create({
+      userId,
+      name: "Bundle Test Public Trade",
       intent: "trade",
       kind: "copy",
     });
-    createdListIds.push(trade.id);
+    createdListIds.push(publicTrade.id);
+    await lists.setShareToken(publicTrade.id, userId, "trade-tok", true);
+
     const organize = await lists.create({
       userId,
       name: "Bundle Test Organize",
@@ -91,24 +110,96 @@ describe.skipIf(!ctx)("userSharesRepo (integration)", () => {
       kind: "card",
     });
     createdListIds.push(organize.id);
+    await lists.setShareToken(organize.id, userId, "organize-tok", true);
 
-    const rows = await repo.listsForOwner(userId);
-    const ids = rows.map((r) => r.list.id);
-    expect(ids).toContain(wish.id);
-    expect(ids).toContain(trade.id);
+    const rows = await repo.listsForOwner(userId, null);
+    const ids = rows.map((row) => row.list.id);
+    expect(ids).toContain(publicWish.id);
+    expect(ids).toContain(publicTrade.id);
+    expect(ids).not.toContain(privateWish.id);
     expect(ids).not.toContain(organize.id);
   });
 
-  it("findListInBundle resolves wish + trade lists, rejects organize", async () => {
-    await repo.setShareToken(userId, "find-list-token");
+  it("listsForOwner: viewer in the same friend group sees group-shared lists", async () => {
+    const viewerId = "a0000000-0136-4000-a000-000000000002";
+    await db
+      .insertInto("users")
+      .values({
+        id: viewerId,
+        email: `viewer-${viewerId.slice(11, 15)}@test.com`,
+        name: "Bundle Viewer",
+        emailVerified: true,
+        image: null,
+      })
+      .onConflict((oc) => oc.column("id").doNothing())
+      .execute();
+    createdViewerIds.push(viewerId);
 
-    const wish = await lists.create({
+    const group = await groups.createWithOwner(
+      {
+        slug: `bundle-test-${Date.now()}`,
+        name: "Bundle Test Group",
+        description: null,
+        code: `BTG${Date.now()}`,
+      },
       userId,
-      name: "Find Bundle Wish",
+    );
+    createdGroupIds.push(group.id);
+    await groups.addMember(group.id, viewerId, "member");
+
+    const groupOnly = await lists.create({
+      userId,
+      name: "Bundle Test Group-only Wish",
       intent: "wish",
       kind: "card",
     });
-    createdListIds.push(wish.id);
+    createdListIds.push(groupOnly.id);
+    await groups.share(group.id, groupOnly.id, userId);
+
+    const memberRows = await repo.listsForOwner(userId, viewerId);
+    expect(memberRows.map((row) => row.list.id)).toContain(groupOnly.id);
+
+    const outsiderId = "a0000000-0136-4000-a000-000000000003";
+    await db
+      .insertInto("users")
+      .values({
+        id: outsiderId,
+        email: `outsider-${outsiderId.slice(11, 15)}@test.com`,
+        name: "Bundle Outsider",
+        emailVerified: true,
+        image: null,
+      })
+      .onConflict((oc) => oc.column("id").doNothing())
+      .execute();
+    createdViewerIds.push(outsiderId);
+
+    const outsiderRows = await repo.listsForOwner(userId, outsiderId);
+    expect(outsiderRows.map((row) => row.list.id)).not.toContain(groupOnly.id);
+
+    const anonymousRows = await repo.listsForOwner(userId, null);
+    expect(anonymousRows.map((row) => row.list.id)).not.toContain(groupOnly.id);
+  });
+
+  it("findListInBundle: rejects organize, gates by share_token + group membership", async () => {
+    await repo.setShareToken(userId, "find-list-token");
+
+    const publicWish = await lists.create({
+      userId,
+      name: "Find Bundle Public Wish",
+      intent: "wish",
+      kind: "card",
+    });
+    createdListIds.push(publicWish.id);
+    await lists.setShareToken(publicWish.id, userId, "find-public-tok", true);
+
+    const privateWish = await lists.create({
+      userId,
+      name: "Find Bundle Private Wish",
+      intent: "wish",
+      kind: "card",
+    });
+    createdListIds.push(privateWish.id);
+
     const organize = await lists.create({
       userId,
       name: "Find Bundle Organize",
@@ -117,13 +208,16 @@ describe.skipIf(!ctx)("userSharesRepo (integration)", () => {
     });
     createdListIds.push(organize.id);
 
-    const wishFound = await repo.findListInBundle("find-list-token", wish.id);
-    expect(wishFound?.id).toBe(wish.id);
+    const publicFound = await repo.findListInBundle("find-list-token", publicWish.id, null);
+    expect(publicFound?.id).toBe(publicWish.id);
 
-    const organizeFound = await repo.findListInBundle("find-list-token", organize.id);
+    const privateFound = await repo.findListInBundle("find-list-token", privateWish.id, null);
+    expect(privateFound).toBeUndefined();
+
+    const organizeFound = await repo.findListInBundle("find-list-token", organize.id, null);
     expect(organizeFound).toBeUndefined();
 
-    const wrongTokenFound = await repo.findListInBundle("wrong-token", wish.id);
+    const wrongTokenFound = await repo.findListInBundle("wrong-token", publicWish.id, null);
     expect(wrongTokenFound).toBeUndefined();
   });
 });
