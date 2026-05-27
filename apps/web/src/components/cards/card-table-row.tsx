@@ -40,6 +40,29 @@ export function getCardTableColumns(actionsColumn: ActionsColumn): string {
   return COLUMN_WIDTHS_NO_ACTIONS;
 }
 
+// Sum of fixed column widths + the 1fr's 180px minimum + gap-3 (12px) between
+// tracks. The table's horizontal-scroll wrapper uses this so cells stay readable
+// when the surrounding flex column is squeezed (e.g. detail pane open at
+// intermediate viewport widths).
+const COLUMN_GAP = 12;
+const FIXED_BASE_PX = 60 + 180 + 160 + 200 + 130;
+
+/**
+ * Minimum total width (in px) of the table at the given actions-column variant,
+ * used as the `min-width` of the horizontal-scroll wrapper.
+ *
+ * @returns Minimum table width in pixels.
+ */
+export function getCardTableMinWidth(actionsColumn: ActionsColumn): number {
+  if (actionsColumn === "wide") {
+    return FIXED_BASE_PX + 220 + 5 * COLUMN_GAP;
+  }
+  if (actionsColumn === "narrow") {
+    return FIXED_BASE_PX + 80 + 5 * COLUMN_GAP;
+  }
+  return FIXED_BASE_PX + 4 * COLUMN_GAP;
+}
+
 interface CardTableHeaderProps {
   columns: string;
   actionsColumn: ActionsColumn;

@@ -22,6 +22,7 @@ import {
   CardTableHeader,
   CardTableRow,
   getCardTableColumns,
+  getCardTableMinWidth,
 } from "./card-table-row";
 
 const GAP = 0;
@@ -342,6 +343,7 @@ export function CardTable({
   };
 
   const columns = getCardTableColumns(actionsColumn);
+  const minWidth = getCardTableMinWidth(actionsColumn);
 
   if (items.length === 0) {
     return (
@@ -373,70 +375,74 @@ export function CardTable({
   }
 
   return (
-    <div ref={containerRef}>
-      <CardTableHeader
-        columns={columns}
-        actionsColumn={actionsColumn}
-        sticky
-        stickyOffset={stickyOffset}
-        bordered={!multipleGroups}
-        actionsLabel={actionsLabel}
-      />
-      <div style={{ height: `${totalSize}px`, position: "relative" }}>
-        {virtualItems.map((vItem) => {
-          const row = virtualRows[vItem.index];
-          if (!row) {
-            return null;
-          }
-          return (
-            <div
-              key={vItem.key}
-              data-index={vItem.index}
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                transform: `translateY(${vItem.start - scrollMargin}px)`,
-              }}
-            >
-              {row.kind === "header" ? (
-                multipleGroups ? (
-                  <CardTableGroupHeader
-                    columns={columns}
-                    slug={row.group.slug}
-                    name={row.group.name}
-                    count={row.cardCount}
-                    onClick={() => scrollToGroup(row.group.id)}
-                  />
-                ) : null
-              ) : (
-                row.items.map((item) => {
-                  const rowNode = (
-                    <DataRow
-                      printing={item.printing}
-                      itemId={item.id}
-                      isSelected={item.id === selectedItemId || item.printing.id === selectedItemId}
-                      actionsColumn={actionsColumn}
+    <div ref={containerRef} className="overflow-x-auto overflow-y-clip">
+      <div style={{ minWidth }}>
+        <CardTableHeader
+          columns={columns}
+          actionsColumn={actionsColumn}
+          sticky
+          stickyOffset={stickyOffset}
+          bordered={!multipleGroups}
+          actionsLabel={actionsLabel}
+        />
+        <div style={{ height: `${totalSize}px`, position: "relative" }}>
+          {virtualItems.map((vItem) => {
+            const row = virtualRows[vItem.index];
+            if (!row) {
+              return null;
+            }
+            return (
+              <div
+                key={vItem.key}
+                data-index={vItem.index}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  transform: `translateY(${vItem.start - scrollMargin}px)`,
+                }}
+              >
+                {row.kind === "header" ? (
+                  multipleGroups ? (
+                    <CardTableGroupHeader
                       columns={columns}
-                      cardTypeLabels={labels.cardTypes}
-                      superTypeLabels={labels.superTypes}
-                      rarityLabels={labels.rarities}
-                      setNameBySlug={setNameBySlug}
-                      renderActions={renderActions}
+                      slug={row.group.slug}
+                      name={row.group.name}
+                      count={row.cardCount}
+                      onClick={() => scrollToGroup(row.group.id)}
                     />
-                  );
-                  if (!wrapRow) {
-                    return <Fragment key={item.id}>{rowNode}</Fragment>;
-                  }
-                  return (
-                    <Fragment key={item.id}>{wrapRow(item.printing, item.id, rowNode)}</Fragment>
-                  );
-                })
-              )}
-            </div>
-          );
-        })}
+                  ) : null
+                ) : (
+                  row.items.map((item) => {
+                    const rowNode = (
+                      <DataRow
+                        printing={item.printing}
+                        itemId={item.id}
+                        isSelected={
+                          item.id === selectedItemId || item.printing.id === selectedItemId
+                        }
+                        actionsColumn={actionsColumn}
+                        columns={columns}
+                        cardTypeLabels={labels.cardTypes}
+                        superTypeLabels={labels.superTypes}
+                        rarityLabels={labels.rarities}
+                        setNameBySlug={setNameBySlug}
+                        renderActions={renderActions}
+                      />
+                    );
+                    if (!wrapRow) {
+                      return <Fragment key={item.id}>{rowNode}</Fragment>;
+                    }
+                    return (
+                      <Fragment key={item.id}>{wrapRow(item.printing, item.id, rowNode)}</Fragment>
+                    );
+                  })
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

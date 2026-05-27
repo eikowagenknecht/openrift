@@ -15,6 +15,7 @@
 - feat: Resetting your public sharing link now asks for confirmation first, since the old link stops working immediately and anyone you'd shared it with will need the new one
 - feat: When dragging a card stack between collections, you can hold a number key from 2 to 9 to move that many copies. Shift still moves the whole stack
 - feat: Opening a friend group member's list now uses the same browser as a public share link — filters, sort, group-by, and the virtualised card grid — instead of the older plain thumbnail list
+- fix: In table view, opening a card detail no longer covers part of the table at mid-range viewport widths; the table now scrolls horizontally inside its own column instead
 - fix: The Value Over Time chart on the collection stats page now matches the Estimated Value shown in the Stats section, instead of undercounting older copies
 - fix: Trade preferences can now be edited from any list view. Right-click a card in the grid to open a small editor, or use the per-row pill in the table. The pill no longer wraps to two lines or clips behind the right edge, and setting a preference actually saves now instead of failing silently. On older lists with no currency set, picking Fixed price now asks which currency the price is in (instead of showing a literal "?") and saves the choice back to the list
 - fix: In the quick add menu, the owned count on the highlighted row is now readable, instead of green text on the gold background
