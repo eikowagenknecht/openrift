@@ -997,6 +997,7 @@ const friendGroupShareResponseSchema = z
     listName: z.string(),
     listIntent: z.enum(["wish", "trade", "organize"]),
     listKind: z.enum(["card", "printing", "copy"]),
+    entryCount: z.number().int().nonnegative(),
     userId: z.string(),
     userName: z.string().nullable(),
     sharedAt: z.string(),

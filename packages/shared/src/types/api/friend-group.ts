@@ -53,6 +53,7 @@ export interface FriendGroupShareResponse {
   listName: string;
   listIntent: ListIntent;
   listKind: ListKind;
+  entryCount: number;
   userId: string;
   userName: string | null;
   sharedAt: string;

@@ -125,6 +125,7 @@ interface ShareRow {
   listName: string;
   listIntent: string;
   listKind: string;
+  entryCount: number;
   userName: string | null;
 }
 
@@ -135,6 +136,7 @@ function toShare(row: ShareRow): FriendGroupShareResponse {
     listName: row.listName,
     listIntent: row.listIntent as FriendGroupShareResponse["listIntent"],
     listKind: row.listKind as FriendGroupShareResponse["listKind"],
+    entryCount: row.entryCount,
     userId: row.userId,
     userName: row.userName,
     sharedAt: row.sharedAt.toISOString(),

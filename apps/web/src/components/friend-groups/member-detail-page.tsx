@@ -1,8 +1,8 @@
 import type { FriendGroupRole, ListIntent } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { ChevronLeftIcon, FolderIcon, HandshakeIcon, HeartIcon } from "lucide-react";
-import type { ComponentType, SVGProps } from "react";
+import { ChevronLeftIcon } from "lucide-react";
 
+import { PublicListRow } from "@/components/list/public-list-row";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/user-avatar";
 import { useFriendGroupMemberDetail } from "@/hooks/use-friend-groups";
@@ -15,41 +15,23 @@ interface MemberDetailPageProps {
   userId: string;
 }
 
-const INTENT_LABEL: Record<ListIntent, string> = {
-  wish: "Wishlist",
-  trade: "Tradelist",
-  organize: "Organize list",
-};
-
-const INTENT_ICON: Record<ListIntent, ComponentType<SVGProps<SVGSVGElement>>> = {
-  wish: HeartIcon,
-  trade: HandshakeIcon,
-  organize: FolderIcon,
-};
-
-const INTENT_ORDER: Record<ListIntent, number> = {
-  wish: 0,
-  trade: 1,
-  organize: 2,
-};
-
 const ROLE_LABEL: Record<FriendGroupRole, string> = {
   owner: "Owner",
   admin: "Admin",
   member: "Member",
 };
 
+const LIST_SECTIONS: { intent: Extract<ListIntent, "wish" | "trade">; heading: string }[] = [
+  { intent: "wish", heading: "Wishlists" },
+  { intent: "trade", heading: "Tradelists" },
+];
+
 export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
   const { data } = useFriendGroupMemberDetail(slug, userId);
   const { member } = data;
 
-  const sortedShares = data.shares.toSorted((a, b) => {
-    const intentDiff = INTENT_ORDER[a.listIntent] - INTENT_ORDER[b.listIntent];
-    if (intentDiff !== 0) {
-      return intentDiff;
-    }
-    return a.listName.localeCompare(b.listName);
-  });
+  const sortedShares = data.shares.toSorted((a, b) => a.listName.localeCompare(b.listName));
+  const hasShares = sortedShares.length > 0;
 
   return (
     <div className={cn("mx-auto flex w-full max-w-4xl flex-col gap-6", PAGE_PADDING)}>
@@ -97,38 +79,42 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
         </section>
       )}
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-          Their shared lists
-        </h2>
-        {sortedShares.length === 0 ? (
-          <p className="text-muted-foreground">
-            {member.userName ?? "This member"} hasn&apos;t shared any lists with this group yet.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {sortedShares.map((share) => {
-              const Icon = INTENT_ICON[share.listIntent];
-              return (
-                <Link
-                  key={share.listId}
-                  to="/groups/$slug/lists/$listId"
-                  params={{ slug, listId: share.listId }}
-                  className="bg-card text-card-foreground hover:bg-muted flex items-center gap-3 rounded-lg border p-3 transition-colors"
-                >
-                  <Icon className="text-muted-foreground size-5 shrink-0" />
-                  <div className="flex min-w-0 flex-col">
-                    <span className="truncate font-medium">{share.listName}</span>
-                    <span className="text-muted-foreground text-2xs">
-                      {INTENT_LABEL[share.listIntent]}
-                    </span>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </section>
+      {hasShares ? (
+        LIST_SECTIONS.map(({ intent, heading }) => {
+          const sectionShares = sortedShares.filter((share) => share.listIntent === intent);
+          if (sectionShares.length === 0) {
+            return null;
+          }
+          return (
+            <section key={intent} className="flex flex-col gap-3">
+              <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
+                {heading}
+              </h2>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {sectionShares.map((share) => (
+                  <PublicListRow
+                    key={share.listId}
+                    intent={share.listIntent}
+                    kind={share.listKind}
+                    name={share.listName}
+                    entryCount={share.entryCount}
+                    render={
+                      <Link
+                        to="/groups/$slug/lists/$listId"
+                        params={{ slug, listId: share.listId }}
+                      />
+                    }
+                  />
+                ))}
+              </div>
+            </section>
+          );
+        })
+      ) : (
+        <p className="text-muted-foreground">
+          {member.userName ?? "This member"} hasn&apos;t shared any lists with this group yet.
+        </p>
+      )}
     </div>
   );
 }

@@ -386,6 +386,7 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         listName: string;
         listIntent: string;
         listKind: string;
+        entryCount: number;
         userName: string | null;
       })[]
     > {
@@ -398,6 +399,9 @@ export function friendGroupsRepo(db: Kysely<Database>) {
           "l.name as listName",
           "l.intent as listIntent",
           "l.kind as listKind",
+          sql<number>`(select count(*)::int from list_entries where list_entries.list_id = l.id)`.as(
+            "entryCount",
+          ),
           "u.name as userName",
         ])
         .where("s.groupId", "=", groupId)
