@@ -1,10 +1,10 @@
 import type { Currency, TradePricePref, TradeType } from "@openrift/shared";
 
 export const PRICE_PREF_LABEL: Record<TradePricePref, string> = {
-  cm_lowest: "Cardmarket lowest",
-  tcg_lowest: "TCGplayer lowest",
-  ct_zero: "Cardtrader Zero",
-  absolute: "Fixed price",
+  cm_lowest: "Marketplace (Cardmarket)",
+  tcg_lowest: "Marketplace (TCGplayer)",
+  ct_zero: "Marketplace (CardTrader)",
+  absolute: "Fixed",
 };
 
 /** Compact label for the inline pill. Falls back to the long label for unknown values. */
