@@ -18,7 +18,7 @@ function mockTransact(trxRepos: Repos): Transact {
 
 function createMockRepos(overrides: {
   inboxId?: string;
-  ownedCollections?: { id: string }[];
+  writableCollections?: string[];
   insertedCopies?: {
     id: string;
     printingId: string;
@@ -33,18 +33,26 @@ function createMockRepos(overrides: {
     collectionName: string;
   }[];
 }) {
+  const targetExists = overrides.targetCollection !== undefined;
   const repos = {
     collections: {
       ensureInbox: () => Promise.resolve(overrides.inboxId ?? "inbox-id"),
-      listIdsByIdsForUser: () => Promise.resolve(overrides.ownedCollections ?? []),
-      getIdAndName: () => Promise.resolve(overrides.targetCollection),
+      filterWritableByViewer: (ids: readonly string[]) => {
+        const writable = new Set<string>(overrides.writableCollections);
+        // The target collection is implicitly writable when provided —
+        // mirrors the route's "you must have write access to the target".
+        if (targetExists && overrides.targetCollection) {
+          writable.add(overrides.targetCollection.id);
+        }
+        return Promise.resolve(ids.filter((id) => writable.has(id)));
+      },
       listIdAndNameByIds: () => Promise.resolve(overrides.collections ?? []),
     },
     copies: {
       insertBatch: () => Promise.resolve(overrides.insertedCopies ?? []),
-      listWithCollectionName: () => Promise.resolve(overrides.fetchedCopies ?? []),
-      moveBatch: () => Promise.resolve(),
-      deleteBatch: () => Promise.resolve(),
+      listWithCollectionContext: () => Promise.resolve(overrides.fetchedCopies ?? []),
+      moveBatchById: () => Promise.resolve(),
+      deleteBatchById: () => Promise.resolve(),
     },
     collectionEvents: {
       insert: () => Promise.resolve(),
@@ -76,7 +84,7 @@ describe("addCopies", () => {
   it("validates that explicit collections belong to the user", async () => {
     const repos = createMockRepos({
       inboxId: "inbox-id",
-      ownedCollections: [{ id: "col-1" }],
+      writableCollections: ["col-1"],
     });
     const transact = mockTransact(repos);
 
@@ -90,7 +98,7 @@ describe("addCopies", () => {
 
   it("creates copies with explicit collection", async () => {
     const repos = createMockRepos({
-      ownedCollections: [{ id: "col-1" }],
+      writableCollections: ["col-1"],
       insertedCopies: [{ id: "copy-1", printingId: "p-1", collectionId: "col-1" }],
       collections: [{ id: "col-1", name: "Main" }],
     });
@@ -127,7 +135,9 @@ describe("moveCopies", () => {
 
   it("throws NOT_FOUND if some copies are not found", async () => {
     const repos = createMockRepos({
+      writableCollections: ["col-1"],
       targetCollection: { id: "col-2", name: "Target" },
+      collections: [{ id: "col-2", name: "Target" }],
       fetchedCopies: [
         { id: "copy-1", printingId: "p-1", collectionId: "col-1", collectionName: "Source" },
       ],
@@ -141,7 +151,9 @@ describe("moveCopies", () => {
 
   it("moves copies successfully", async () => {
     const repos = createMockRepos({
+      writableCollections: ["col-1"],
       targetCollection: { id: "col-2", name: "Target" },
+      collections: [{ id: "col-2", name: "Target" }],
       fetchedCopies: [
         { id: "copy-1", printingId: "p-1", collectionId: "col-1", collectionName: "Source" },
       ],
@@ -155,6 +167,7 @@ describe("moveCopies", () => {
 describe("disposeCopies", () => {
   it("throws NOT_FOUND if some copies are not found", async () => {
     const repos = createMockRepos({
+      writableCollections: ["col-1"],
       fetchedCopies: [
         {
           id: "copy-1",
@@ -173,6 +186,7 @@ describe("disposeCopies", () => {
 
   it("completes disposal flow including event logging", async () => {
     const repos = createMockRepos({
+      writableCollections: ["col-1"],
       fetchedCopies: [
         {
           id: "copy-1",
@@ -189,6 +203,7 @@ describe("disposeCopies", () => {
 
   it("disposes multiple copies at once", async () => {
     const repos = createMockRepos({
+      writableCollections: ["col-1"],
       fetchedCopies: [
         {
           id: "copy-1",
@@ -213,7 +228,7 @@ describe("disposeCopies", () => {
 describe("addCopies — additional branches", () => {
   it("deduplicates explicit collection IDs before validation", async () => {
     const repos = createMockRepos({
-      ownedCollections: [{ id: "col-1" }],
+      writableCollections: ["col-1"],
       insertedCopies: [
         { id: "copy-1", printingId: "p-1", collectionId: "col-1" },
         { id: "copy-2", printingId: "p-2", collectionId: "col-1" },
@@ -246,7 +261,9 @@ describe("addCopies — additional branches", () => {
 describe("moveCopies — additional branches", () => {
   it("calls moveBatch and logEvents with correct arguments", async () => {
     const repos = createMockRepos({
+      writableCollections: ["col-1"],
       targetCollection: { id: "col-2", name: "Target" },
+      collections: [{ id: "col-2", name: "Target" }],
       fetchedCopies: [
         { id: "copy-1", printingId: "p-1", collectionId: "col-1", collectionName: "Source" },
         { id: "copy-2", printingId: "p-2", collectionId: "col-1", collectionName: "Source" },

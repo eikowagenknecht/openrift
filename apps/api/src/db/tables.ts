@@ -304,7 +304,9 @@ interface VerificationsTable {
 /** @see collectionFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
 export interface CollectionsTable {
   id: Generated<string>;
-  userId: string;
+  /** Personal collections set user_id; shared collections set group_id. CHECK enforces exactly one. */
+  userId: string | null;
+  groupId: string | null;
   /** CHECK: <> '' */
   name: string;
   description: string | null;

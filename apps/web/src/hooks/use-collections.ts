@@ -70,8 +70,12 @@ export function useCollectionsMap(): Map<string, CollectionResponse> {
 
 const createCollectionFn = createServerFn({ method: "POST" })
   .inputValidator(
-    (input: { name: string; description?: string | null; availableForDeckbuilding?: boolean }) =>
-      input,
+    (input: {
+      name: string;
+      description?: string | null;
+      availableForDeckbuilding?: boolean;
+      groupSlug?: string;
+    }) => input,
   )
   .middleware([withCookies])
   .handler(({ context, data }) =>
@@ -91,6 +95,7 @@ export function useCreateCollection() {
       name: string;
       description?: string | null;
       availableForDeckbuilding?: boolean;
+      groupSlug?: string;
     }) => createCollectionFn({ data: body }),
     invalidates: [queryKeys.collections.all(userId)],
   });

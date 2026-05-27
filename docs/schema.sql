@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict h4VwxwIUlAGeglzoxgyvC6v01PvdcmuiaWY8JF1958F69zM4eSemScWVUsVO9C3
+\restrict QBAIiPXFT6d7lHrigu1ITN3MHXeFDntrhLMdrVR8iDf0XbD9AaMFiraXVadWR44
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -682,7 +682,7 @@ CREATE TABLE public.collection_events (
 
 CREATE TABLE public.collections (
     id uuid DEFAULT uuidv7() NOT NULL,
-    user_id text NOT NULL,
+    user_id text,
     name text NOT NULL,
     description text,
     available_for_deckbuilding boolean DEFAULT true NOT NULL,
@@ -692,7 +692,10 @@ CREATE TABLE public.collections (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     is_public boolean DEFAULT false NOT NULL,
-    CONSTRAINT chk_collections_name_not_empty CHECK ((name <> ''::text))
+    group_id uuid,
+    CONSTRAINT chk_collections_name_not_empty CHECK ((name <> ''::text)),
+    CONSTRAINT chk_collections_no_group_inbox CHECK (((group_id IS NULL) OR (is_inbox = false))),
+    CONSTRAINT chk_collections_ownership CHECK (((((user_id IS NOT NULL))::integer + ((group_id IS NOT NULL))::integer) = 1))
 );
 
 
@@ -2443,6 +2446,13 @@ CREATE INDEX idx_collection_events_user_created ON public.collection_events USIN
 
 
 --
+-- Name: idx_collections_group; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_collections_group ON public.collections USING btree (group_id);
+
+
+--
 -- Name: idx_collections_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3270,6 +3280,14 @@ ALTER TABLE ONLY public.collection_events
 
 
 --
+-- Name: collections collections_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.collections
+    ADD CONSTRAINT collections_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.friend_groups(id) ON DELETE CASCADE;
+
+
+--
 -- Name: collections collections_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3350,35 +3368,35 @@ ALTER TABLE ONLY public.cards
 
 
 --
--- Name: collection_events fk_collection_events_copy_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: collection_events fk_collection_events_copy; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.collection_events
-    ADD CONSTRAINT fk_collection_events_copy_user FOREIGN KEY (copy_id, user_id) REFERENCES public.copies(id, user_id) ON DELETE SET NULL (copy_id);
+    ADD CONSTRAINT fk_collection_events_copy FOREIGN KEY (copy_id) REFERENCES public.copies(id) ON DELETE SET NULL;
 
 
 --
--- Name: collection_events fk_collection_events_from_collection_user; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.collection_events
-    ADD CONSTRAINT fk_collection_events_from_collection_user FOREIGN KEY (from_collection_id, user_id) REFERENCES public.collections(id, user_id) ON DELETE SET NULL (from_collection_id);
-
-
---
--- Name: collection_events fk_collection_events_to_collection_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: collection_events fk_collection_events_from_collection; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.collection_events
-    ADD CONSTRAINT fk_collection_events_to_collection_user FOREIGN KEY (to_collection_id, user_id) REFERENCES public.collections(id, user_id) ON DELETE SET NULL (to_collection_id);
+    ADD CONSTRAINT fk_collection_events_from_collection FOREIGN KEY (from_collection_id) REFERENCES public.collections(id) ON DELETE SET NULL;
 
 
 --
--- Name: copies fk_copies_collection_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: collection_events fk_collection_events_to_collection; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.collection_events
+    ADD CONSTRAINT fk_collection_events_to_collection FOREIGN KEY (to_collection_id) REFERENCES public.collections(id) ON DELETE SET NULL;
+
+
+--
+-- Name: copies fk_copies_collection; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.copies
-    ADD CONSTRAINT fk_copies_collection_user FOREIGN KEY (collection_id, user_id) REFERENCES public.collections(id, user_id) ON DELETE CASCADE;
+    ADD CONSTRAINT fk_copies_collection FOREIGN KEY (collection_id) REFERENCES public.collections(id) ON DELETE CASCADE;
 
 
 --
@@ -3729,5 +3747,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict h4VwxwIUlAGeglzoxgyvC6v01PvdcmuiaWY8JF1958F69zM4eSemScWVUsVO9C3
+\unrestrict QBAIiPXFT6d7lHrigu1ITN3MHXeFDntrhLMdrVR8iDf0XbD9AaMFiraXVadWR44
 

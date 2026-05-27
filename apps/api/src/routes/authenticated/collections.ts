@@ -145,32 +145,51 @@ export const collectionsRoute = collectionsApp
     const repos = c.get("repos");
     const userId = getUserId(c);
     const favMarketplace = await getFavoriteMarketplace(repos, userId);
-    const [rows, values] = await Promise.all([
-      repos.collections.listForUser(userId),
-      repos.marketplace.collectionValues(userId, favMarketplace),
-    ]);
+    const rows = await repos.collections.listAccessibleForUser(userId);
+    const values = await repos.marketplace.collectionValues(
+      rows.map((row) => row.id),
+      favMarketplace,
+    );
     return c.json({
-      items: rows.map((row) => {
-        const value = values.get(row.id);
-        return toCollection(row, value);
-      }),
+      items: rows.map((row) => toCollection(row, values.get(row.id))),
     } satisfies CollectionListResponse);
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
   .openapi(createCollection, async (c) => {
-    const { collections } = c.get("repos");
+    const { collections, friendGroups } = c.get("repos");
     const userId = getUserId(c);
     const body = c.req.valid("json");
+
+    let groupId: string | null = null;
+    let groupSlug: string | null = null;
+    let groupName: string | null = null;
+    if (body.groupSlug) {
+      const group = await friendGroups.getBySlug(body.groupSlug);
+      assertFound(group, "Group not found");
+      const membership = await friendGroups.getMembership(group.id, userId);
+      if (!membership) {
+        throw new AppError(403, ERROR_CODES.FORBIDDEN, "You are not a member of this group");
+      }
+      groupId = group.id;
+      groupSlug = group.slug;
+      groupName = group.name;
+    }
+
     const row = await collections.create({
-      userId,
+      userId: groupId ? null : userId,
+      groupId,
       name: body.name,
       description: body.description ?? null,
       availableForDeckbuilding: body.availableForDeckbuilding ?? true,
       isInbox: false,
       sortOrder: 0,
     });
-    return c.json(toCollection(row), 201);
+
+    return c.json(
+      toCollection({ ...row, copyCount: 0, groupSlug, groupName, viewerCanAdmin: true }),
+      201,
+    );
   })
 
   // ── GET ONE ─────────────────────────────────────────────────────────────────
@@ -178,11 +197,13 @@ export const collectionsRoute = collectionsApp
     const repos = c.get("repos");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
-    const row = await repos.collections.getByIdForUser(id, userId);
-    assertFound(row, "Not found");
+    const access = await repos.collections.getAccessForUser(id, userId);
+    assertFound(access, "Not found");
     const favMarketplace = await getFavoriteMarketplace(repos, userId);
-    const value = await repos.marketplace.singleCollectionValue(row.id, favMarketplace);
-    return c.json(toCollection(row, value));
+    const value = await repos.marketplace.singleCollectionValue(id, favMarketplace);
+    return c.json(
+      toCollection({ ...access.collection, viewerCanAdmin: access.viewerCanAdmin }, value),
+    );
   })
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
@@ -191,14 +212,28 @@ export const collectionsRoute = collectionsApp
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
+    const access = await collections.getAccessForUser(id, userId);
+    assertFound(access, "Not found");
+    if (!access.viewerCanAdmin) {
+      throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only admins can edit this collection");
+    }
     const updates = buildPatchUpdates(body, patchFields);
-    const row = await collections.update(id, userId, updates);
+    const row = await collections.updateById(id, updates);
     assertFound(row, "Not found");
-    return c.json(toCollection(row));
+    return c.json(
+      toCollection({
+        ...row,
+        groupSlug: access.collection.groupSlug,
+        groupName: access.collection.groupName,
+        viewerCanAdmin: access.viewerCanAdmin,
+      }),
+    );
   })
 
   // ── DELETE /collections/:id ─────────────────────────────────────────────────
-  // Validates not inbox, auto-moves remaining copies to inbox, then deletes.
+  // Personal: blocks inbox, moves remaining copies to inbox, then deletes.
+  // Shared: requires group admin. There's no group "inbox" — deletion fails if
+  // the collection still has copies. The UI surfaces this.
   .openapi(deleteCollection, async (c) => {
     const repos = c.get("repos");
     const transact = c.get("transact");
@@ -206,15 +241,31 @@ export const collectionsRoute = collectionsApp
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
 
-    const collection = await repos.collections.getByIdForUser(id, userId);
-    assertFound(collection, "Not found");
+    const access = await repos.collections.getAccessForUser(id, userId);
+    assertFound(access, "Not found");
+    if (!access.viewerCanAdmin) {
+      throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only admins can delete this collection");
+    }
 
+    const { collection } = access;
     if (collection.isInbox) {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Cannot delete inbox collection");
     }
 
-    const inboxId = await ensureInbox(repos, userId);
+    if (collection.groupId) {
+      const copies = await repos.collections.listCopiesInCollection(id);
+      if (copies.length > 0) {
+        throw new AppError(
+          400,
+          ERROR_CODES.BAD_REQUEST,
+          "Empty the shared collection before deleting it",
+        );
+      }
+      await repos.collections.deleteById(id);
+      return c.body(null, 204);
+    }
 
+    const inboxId = await ensureInbox(repos, userId);
     await deleteCollectionService(transact, {
       collectionId: id,
       collectionName: collection.name,
@@ -233,9 +284,8 @@ export const collectionsRoute = collectionsApp
     const { id } = c.req.valid("param");
     const { cursor, limit } = c.req.valid("query");
 
-    // Verify collection belongs to user
-    const collection = await collections.exists(id, userId);
-    assertFound(collection, "Not found");
+    const access = await collections.getAccessForUser(id, userId);
+    assertFound(access, "Not found");
 
     const effectiveLimit = limit ?? 10_000;
     const rows = await copies.listForCollection(id, effectiveLimit, cursor);
@@ -251,13 +301,20 @@ export const collectionsRoute = collectionsApp
 
   // ── POST /collections/:id/share ───────────────────────────────────────────
   // Generates (or rotates) the collection's share token and flips is_public=true.
+  // Personal owners or group admins only.
   .openapi(shareCollection, async (c) => {
     const { collections } = c.get("repos");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
 
+    const access = await collections.getAccessForUser(id, userId);
+    assertFound(access, "Not found");
+    if (!access.viewerCanAdmin) {
+      throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only admins can share this collection");
+    }
+
     const token = generateShareToken();
-    const updated = await collections.setShareToken(id, userId, token, true);
+    const updated = await collections.setShareTokenById(id, token, true);
     assertFound(updated, "Not found");
 
     return c.json({ shareToken: token, isPublic: true });
@@ -270,7 +327,13 @@ export const collectionsRoute = collectionsApp
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
 
-    const updated = await collections.setShareToken(id, userId, null, false);
+    const access = await collections.getAccessForUser(id, userId);
+    assertFound(access, "Not found");
+    if (!access.viewerCanAdmin) {
+      throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only admins can unshare this collection");
+    }
+
+    const updated = await collections.setShareTokenById(id, null, false);
     assertFound(updated, "Not found");
 
     return c.body(null, 204);

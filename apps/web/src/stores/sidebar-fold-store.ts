@@ -1,17 +1,23 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type SidebarGroupKey = "collections" | "wish" | "trade" | "organize";
+/**
+ * Fold keys for the collections sidebar. Fixed keys cover the built-in
+ * sections; `shared:<groupId>` keys are emitted dynamically — one per friend
+ * group the viewer belongs to that has at least one shared collection.
+ */
+export type SidebarGroupKey = "collections" | "wish" | "trade" | "organize" | `shared:${string}`;
 
 interface SidebarFoldState {
   /** True means the group is open; false means folded. Default open. */
-  byKey: Record<SidebarGroupKey, boolean>;
+  byKey: Record<string, boolean>;
   setOpen: (key: SidebarGroupKey, open: boolean) => void;
   toggle: (key: SidebarGroupKey) => void;
+  isOpen: (key: SidebarGroupKey) => boolean;
   reset: () => void;
 }
 
-const DEFAULTS: Record<SidebarGroupKey, boolean> = {
+const FIXED_DEFAULTS: Record<string, boolean> = {
   collections: true,
   wish: true,
   trade: true,
@@ -21,36 +27,33 @@ const DEFAULTS: Record<SidebarGroupKey, boolean> = {
 /**
  * Per-user open/closed state for the collapsible groups in the collections
  * sidebar. Persisted to localStorage so a user's fold preferences survive a
- * reload.
+ * reload. Dynamic `shared:<groupId>` keys default to open when first seen.
  */
 export const useSidebarFoldStore = create<SidebarFoldState>()(
   persist(
-    (set) => ({
-      byKey: DEFAULTS,
+    (set, get) => ({
+      byKey: FIXED_DEFAULTS,
       setOpen: (key, open) => set((state) => ({ byKey: { ...state.byKey, [key]: open } })),
-      toggle: (key) => set((state) => ({ byKey: { ...state.byKey, [key]: !state.byKey[key] } })),
-      reset: () => set({ byKey: DEFAULTS }),
+      toggle: (key) =>
+        set((state) => ({
+          byKey: { ...state.byKey, [key]: !(state.byKey[key] ?? true) },
+        })),
+      isOpen: (key) => get().byKey[key] ?? true,
+      reset: () => set({ byKey: FIXED_DEFAULTS }),
     }),
     {
       name: "openrift-sidebar-fold",
       partialize: (state) => ({ byKey: state.byKey }),
       merge: (persisted, current) => {
-        const raw = persisted as { byKey?: Partial<Record<SidebarGroupKey, unknown>> } | undefined;
+        const raw = persisted as { byKey?: Record<string, unknown> } | undefined;
         const persistedByKey = raw?.byKey ?? {};
-        const isBool = (value: unknown): value is boolean => typeof value === "boolean";
-        return {
-          ...current,
-          byKey: {
-            collections: isBool(persistedByKey.collections)
-              ? persistedByKey.collections
-              : current.byKey.collections,
-            wish: isBool(persistedByKey.wish) ? persistedByKey.wish : current.byKey.wish,
-            trade: isBool(persistedByKey.trade) ? persistedByKey.trade : current.byKey.trade,
-            organize: isBool(persistedByKey.organize)
-              ? persistedByKey.organize
-              : current.byKey.organize,
-          },
-        };
+        const merged: Record<string, boolean> = { ...current.byKey };
+        for (const [key, value] of Object.entries(persistedByKey)) {
+          if (typeof value === "boolean") {
+            merged[key] = value;
+          }
+        }
+        return { ...current, byKey: merged };
       },
     },
   ),

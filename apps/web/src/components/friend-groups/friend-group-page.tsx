@@ -8,6 +8,7 @@ import type {
 } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
+  BookOpenIcon,
   CheckIcon,
   CopyIcon,
   EllipsisVerticalIcon,
@@ -15,6 +16,7 @@ import {
   HandshakeIcon,
   HeartIcon,
   KeyIcon,
+  PlusIcon,
   ShieldIcon,
   Trash2Icon,
   UsersIcon,
@@ -23,6 +25,7 @@ import {
 import type { ComponentType, SVGProps } from "react";
 import { useState } from "react";
 
+import { CreateCollectionDialog } from "@/components/collection/create-collection-dialog";
 import { listKindIcon } from "@/components/list/create-list-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,6 +51,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { UserAvatar } from "@/components/user-avatar";
+import { useCollections } from "@/hooks/use-collections";
 import {
   useAcceptFriendGroupInvite,
   useDeclineFriendGroupInvite,
@@ -150,9 +154,63 @@ function FriendGroupMemberView({ data, slug }: { data: FriendGroupDetailResponse
       </header>
 
       <MatchesSection slug={slug} data={data} />
+      <CollectionsSection data={data} />
       <MembersSection data={data} slug={slug} />
       <SettingsSection data={data} slug={slug} />
     </div>
+  );
+}
+
+function CollectionsSection({ data }: { data: FriendGroupDetailResponse }) {
+  const { data: collections } = useCollections();
+  const [createOpen, setCreateOpen] = useState(false);
+  const groupCollections = collections.filter((col) => col.groupId === data.group.id);
+
+  return (
+    <section id="collections" className="flex scroll-mt-16 flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
+          Shared collections
+        </h2>
+        <Button size="sm" variant="ghost" onClick={() => setCreateOpen(true)}>
+          <PlusIcon className="size-4" />
+          New shared collection
+        </Button>
+      </div>
+      {groupCollections.length === 0 ? (
+        <p className="text-muted-foreground text-sm">
+          No shared collections yet. Any member can create one. A shared collection is a pooled
+          inventory the whole group can add to and remove from.
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-1">
+          {groupCollections.map((col) => (
+            <li key={col.id}>
+              <Link
+                to="/collections/$collectionId"
+                params={{ collectionId: col.id }}
+                search={(prev) => prev}
+                className="hover:bg-accent flex items-center gap-2 rounded-md px-3 py-2"
+              >
+                <BookOpenIcon className="size-4" />
+                <span className="flex-1 truncate">{col.name}</span>
+                {col.copyCount > 0 ? (
+                  <Badge variant="ghost" className="text-2xs">
+                    {col.copyCount}
+                  </Badge>
+                ) : null}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      <CreateCollectionDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        groupSlug={data.group.slug}
+        groupName={data.group.name}
+      />
+    </section>
   );
 }
 

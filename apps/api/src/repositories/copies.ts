@@ -148,6 +148,28 @@ export function copiesRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /**
+     * Like {@link listWithCollectionName} but without filtering by acting user.
+     * Used by mutation services when the viewer's right to touch a copy comes
+     * from collection-level access (shared collections) rather than ownership.
+     * @returns Matching copies with their current collection name.
+     */
+    listWithCollectionContext(copyIds: string[]): Promise<
+      (Pick<Selectable<CopiesTable>, "id" | "printingId" | "collectionId"> & {
+        collectionName: string;
+      })[]
+    > {
+      if (copyIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("copies as cp")
+        .innerJoin("collections as col", "col.id", "cp.collectionId")
+        .select(["cp.id", "cp.printingId", "cp.collectionId", "col.name as collectionName"])
+        .where("cp.id", "in", copyIds)
+        .execute();
+    },
+
     /** Moves copies to a target collection. */
     async moveBatch(copyIds: string[], userId: string, toCollectionId: string): Promise<void> {
       await db
@@ -158,6 +180,18 @@ export function copiesRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /** Like {@link moveBatch} without user scoping; caller verified write access. */
+    async moveBatchById(copyIds: string[], toCollectionId: string): Promise<void> {
+      if (copyIds.length === 0) {
+        return;
+      }
+      await db
+        .updateTable("copies")
+        .set({ collectionId: toCollectionId })
+        .where("id", "in", copyIds)
+        .execute();
+    },
+
     /** Hard-deletes copies by IDs scoped to a user. */
     async deleteBatch(copyIds: string[], userId: string): Promise<void> {
       await db
@@ -165,6 +199,14 @@ export function copiesRepo(db: Kysely<Database>) {
         .where("id", "in", copyIds)
         .where("userId", "=", userId)
         .execute();
+    },
+
+    /** Like {@link deleteBatch} without user scoping; caller verified write access. */
+    async deleteBatchById(copyIds: string[]): Promise<void> {
+      if (copyIds.length === 0) {
+        return;
+      }
+      await db.deleteFrom("copies").where("id", "in", copyIds).execute();
     },
 
     /** @returns Owned count per card+printing from deckbuilding-available collections. */

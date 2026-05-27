@@ -31,11 +31,13 @@ describe("toCollection", () => {
     const result = toCollection({
       id: "col-1",
       userId: "user-1",
+      groupId: null,
       name: "My Cards",
       description: "A collection",
       availableForDeckbuilding: true,
       isInbox: false,
       sortOrder: 1,
+      isPublic: false,
       shareToken: "tok-abc",
       createdAt: NOW,
       updatedAt: LATER,
@@ -47,12 +49,17 @@ describe("toCollection", () => {
       availableForDeckbuilding: true,
       isInbox: false,
       sortOrder: 1,
+      isPublic: false,
       shareToken: "tok-abc",
       copyCount: 0,
       totalValueCents: null,
       unpricedCopyCount: null,
       createdAt: "2025-06-15T12:00:00.000Z",
       updatedAt: "2025-06-16T08:30:00.000Z",
+      groupId: null,
+      groupSlug: null,
+      groupName: null,
+      viewerCanAdmin: true,
     });
   });
 
@@ -60,16 +67,42 @@ describe("toCollection", () => {
     const result = toCollection({
       id: "col-1",
       userId: "user-1",
+      groupId: null,
       name: "Test",
       description: null,
       availableForDeckbuilding: true,
       isInbox: false,
       sortOrder: 0,
+      isPublic: false,
       shareToken: null,
       createdAt: NOW,
       updatedAt: LATER,
     });
     expect("userId" in result).toBe(false);
+  });
+
+  it("emits group context and viewerCanAdmin for shared collections", () => {
+    const result = toCollection({
+      id: "col-2",
+      userId: null,
+      groupId: "g-1",
+      name: "Pool",
+      description: null,
+      availableForDeckbuilding: true,
+      isInbox: false,
+      sortOrder: 0,
+      isPublic: false,
+      shareToken: null,
+      createdAt: NOW,
+      updatedAt: LATER,
+      groupSlug: "friday-night",
+      groupName: "Friday Night",
+      viewerCanAdmin: false,
+    });
+    expect(result.groupId).toBe("g-1");
+    expect(result.groupSlug).toBe("friday-night");
+    expect(result.groupName).toBe("Friday Night");
+    expect(result.viewerCanAdmin).toBe(false);
   });
 });
 

@@ -26,10 +26,20 @@ import type { CollectionValue } from "../repositories/marketplace.js";
 
 // ── Simple entity mappers ──────────────────────────────────────────────────
 
-export function toCollection(
-  row: Selectable<CollectionsTable> & { copyCount?: number },
-  value?: CollectionValue,
-): CollectionResponse {
+/**
+ * Row shape consumed by {@link toCollection}. Personal collections set group
+ * fields to null and `viewerCanAdmin` to true (only the owner can fetch them).
+ * Shared collections set groupId/Slug/Name and compute viewerCanAdmin from the
+ * caller's group role.
+ */
+export type CollectionViewRow = Selectable<CollectionsTable> & {
+  copyCount?: number;
+  groupSlug?: string | null;
+  groupName?: string | null;
+  viewerCanAdmin?: boolean;
+};
+
+export function toCollection(row: CollectionViewRow, value?: CollectionValue): CollectionResponse {
   return {
     id: row.id,
     name: row.name,
@@ -44,6 +54,10 @@ export function toCollection(
     unpricedCopyCount: value?.unpricedCopyCount ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    groupId: row.groupId,
+    groupSlug: row.groupSlug ?? null,
+    groupName: row.groupName ?? null,
+    viewerCanAdmin: row.viewerCanAdmin ?? row.userId !== null,
   };
 }
 

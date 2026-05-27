@@ -16,6 +16,13 @@ interface CreateCollectionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated?: (collectionId: string) => void;
+  /**
+   * Friend group slug to create the collection inside. When set, the collection
+   * is shared with that group instead of being personal.
+   */
+  groupSlug?: string;
+  /** Display name for the group, used in the dialog title/description. */
+  groupName?: string;
 }
 
 /**
@@ -27,9 +34,12 @@ export function CreateCollectionDialog({
   open,
   onOpenChange,
   onCreated,
+  groupSlug,
+  groupName,
 }: CreateCollectionDialogProps) {
   const [name, setName] = useState("");
   const createCollection = useCreateCollection();
+  const isShared = Boolean(groupSlug);
 
   const handleOpenChange = (next: boolean) => {
     if (!next) {
@@ -44,7 +54,7 @@ export function CreateCollectionDialog({
       return;
     }
     createCollection.mutate(
-      { name: trimmed },
+      { name: trimmed, ...(groupSlug ? { groupSlug } : {}) },
       {
         onSuccess: (collection) => {
           onCreated?.(collection.id);
@@ -58,9 +68,11 @@ export function CreateCollectionDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New collection</DialogTitle>
+          <DialogTitle>{isShared ? "New shared collection" : "New collection"}</DialogTitle>
           <DialogDescription>
-            A collection holds physical copies you own. You can rename or delete it later.
+            {isShared
+              ? `Shared with ${groupName ?? "this group"}. Any member can add or remove cards; group admins can rename or delete it.`
+              : "A collection holds physical copies you own. You can rename or delete it later."}
           </DialogDescription>
         </DialogHeader>
         <form

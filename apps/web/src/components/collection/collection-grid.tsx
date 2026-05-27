@@ -397,7 +397,13 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     });
   };
 
-  const canDeleteCollection = Boolean(currentCollection && !currentCollection.isInbox);
+  // Shared collections live in a friend group; rename/delete/share is gated on
+  // group owner/admin (or always allowed for personal collections, where viewerCanAdmin
+  // is true). The inbox is special-cased — it can never be deleted.
+  const canAdminCollection = Boolean(currentCollection?.viewerCanAdmin);
+  const canDeleteCollection = Boolean(
+    currentCollection && !currentCollection.isInbox && canAdminCollection,
+  );
 
   // ── Build items list ────────────────────────────────────────────────
   let items: CardViewerItem[];
@@ -864,9 +870,9 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       hasCards={stacks.length > 0}
       isAllSelected={selected.size === totalCopies}
       view={view}
-      canEdit={Boolean(currentCollection)}
+      canEdit={Boolean(currentCollection) && canAdminCollection}
       canDelete={canDeleteCollection}
-      canShare={Boolean(currentCollection)}
+      canShare={Boolean(currentCollection) && canAdminCollection}
       onEdit={() => setEditOpen(true)}
       onDelete={() => setDeleteOpen(true)}
       onShare={() => setShareOpen(true)}

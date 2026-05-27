@@ -87,7 +87,7 @@ function CollapsibleSidebarGroup({
   foldKey: SidebarGroupKey;
   children: ReactNode;
 }) {
-  const open = useSidebarFoldStore((state) => state.byKey[foldKey]);
+  const open = useSidebarFoldStore((state) => state.byKey[foldKey] ?? true);
   const setOpen = useSidebarFoldStore((state) => state.setOpen);
 
   return (
@@ -172,6 +172,46 @@ function ListsSidebarGroups({ activeId }: { activeId?: string }) {
   );
 }
 
+interface SharedGroupSection {
+  groupId: string;
+  groupSlug: string;
+  groupName: string;
+  collections: ReturnType<typeof useCollections>["data"];
+}
+
+/**
+ * Partitions collections into the personal section and one section per friend
+ * group the viewer belongs to. Groups with at least one shared collection get
+ * a section; groups with zero collections are not rendered.
+ * @returns The personal collections and the group sections (alphabetised by group name).
+ */
+function partitionCollections(collections: ReturnType<typeof useCollections>["data"]): {
+  personal: typeof collections;
+  groups: SharedGroupSection[];
+} {
+  const personal: typeof collections = [];
+  const byGroupId = new Map<string, SharedGroupSection>();
+  for (const col of collections) {
+    if (col.groupId && col.groupSlug && col.groupName) {
+      let section = byGroupId.get(col.groupId);
+      if (!section) {
+        section = {
+          groupId: col.groupId,
+          groupSlug: col.groupSlug,
+          groupName: col.groupName,
+          collections: [],
+        };
+        byGroupId.set(col.groupId, section);
+      }
+      section.collections.push(col);
+    } else {
+      personal.push(col);
+    }
+  }
+  const groups = [...byGroupId.values()].sort((a, b) => a.groupName.localeCompare(b.groupName));
+  return { personal, groups };
+}
+
 export function CollectionSidebar() {
   const matches = useMatches();
   const currentPath = matches.at(-1)?.fullPath;
@@ -190,12 +230,14 @@ export function CollectionSidebar() {
   }, [currentPath, collectionId, listId, isMobile, setOpenMobile]);
 
   const [createCollectionOpen, setCreateCollectionOpen] = useState(false);
+  const [createInGroup, setCreateInGroup] = useState<{ slug: string; name: string } | null>(null);
 
   const { active } = useDndContext();
   const dragSourceCollectionId = (active?.data.current as CardDragData | undefined)
     ?.sourceCollectionId;
 
-  const totalCopies = collections?.reduce((sum, col) => sum + col.copyCount, 0) ?? 0;
+  const { personal, groups } = partitionCollections(collections ?? []);
+  const totalCopies = personal.reduce((sum, col) => sum + col.copyCount, 0);
 
   return (
     <NestedSidebar className="ml-3" extraOffset="calc(0.75rem + 2rem + 0.75rem)">
@@ -220,7 +262,7 @@ export function CollectionSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <CollapsibleSidebarGroup label="Collections" foldKey="collections">
-          {collections?.map((col) => (
+          {personal.map((col) => (
             <DroppableCollection
               key={col.id}
               collectionId={col.id}
@@ -251,13 +293,64 @@ export function CollectionSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               className="text-muted-foreground"
-              onClick={() => setCreateCollectionOpen(true)}
+              onClick={() => {
+                setCreateInGroup(null);
+                setCreateCollectionOpen(true);
+              }}
             >
               <PlusIcon className="size-4" />
               <span>New collection</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </CollapsibleSidebarGroup>
+        {groups.map((section) => (
+          <CollapsibleSidebarGroup
+            key={section.groupId}
+            label={section.groupName}
+            foldKey={`shared:${section.groupId}`}
+          >
+            {section.collections.map((col) => (
+              <DroppableCollection
+                key={col.id}
+                collectionId={col.id}
+                disabled={col.id === dragSourceCollectionId}
+              >
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={collectionId === col.id}
+                    render={
+                      <Link
+                        to="/collections/$collectionId"
+                        params={{ collectionId: col.id }}
+                        search={(prev) => prev}
+                      />
+                    }
+                  >
+                    <BookOpenIcon />
+                    <span className="flex-1 truncate">{col.name}</span>
+                    {col.copyCount > 0 && (
+                      <Badge variant="ghost" className="text-2xs ml-auto">
+                        {col.copyCount}
+                      </Badge>
+                    )}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </DroppableCollection>
+            ))}
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                className="text-muted-foreground"
+                onClick={() => {
+                  setCreateInGroup({ slug: section.groupSlug, name: section.groupName });
+                  setCreateCollectionOpen(true);
+                }}
+              >
+                <PlusIcon className="size-4" />
+                <span>New shared collection</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </CollapsibleSidebarGroup>
+        ))}
         <ListsSidebarGroups activeId={listId} />
         <SidebarGroup>
           <SidebarGroupLabel>Manage</SidebarGroupLabel>
@@ -292,7 +385,12 @@ export function CollectionSidebar() {
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
-      <CreateCollectionDialog open={createCollectionOpen} onOpenChange={setCreateCollectionOpen} />
+      <CreateCollectionDialog
+        open={createCollectionOpen}
+        onOpenChange={setCreateCollectionOpen}
+        groupSlug={createInGroup?.slug}
+        groupName={createInGroup?.name}
+      />
     </NestedSidebar>
   );
 }

@@ -2,6 +2,7 @@
 
 ## 2026-05-27
 
+- feat: Friend groups now have shared collections. Any group member can create one, add or remove cards, and it shows up in the sidebar under the group's name. Group admins can rename or delete the shared collection
 - feat: On a friend group's settings page, the join code panel now has a Copy link button that copies a shareable URL with the code prefilled, so invitees only have to click it
 - feat: On the same page, your shared lists now show "Wishlist" or "Tradelist" and an entry count as badges, matching how list pages describe them
 - feat: Profile pictures now fall back to a Gravatar (if you have one set up) before showing initials, so most members end up with a real avatar instead of an empty circle

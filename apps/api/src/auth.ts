@@ -150,6 +150,7 @@ export function createAuth(deps: {
             await collections.ensureInbox(user.id);
             await collections.create({
               userId: user.id,
+              groupId: null,
               name: "Binder",
               description: null,
               availableForDeckbuilding: true,

@@ -451,6 +451,10 @@ export const collectionResponseSchema = z
     unpricedCopyCount: z.number().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
+    groupId: z.string().nullable(),
+    groupSlug: z.string().nullable(),
+    groupName: z.string().nullable(),
+    viewerCanAdmin: z.boolean(),
   })
   .openapi("CollectionResponse");
 

@@ -12,6 +12,10 @@ export interface CollectionResponse {
   unpricedCopyCount: number | null;
   createdAt: string;
   updatedAt: string;
+  groupId: string | null;
+  groupSlug: string | null;
+  groupName: string | null;
+  viewerCanAdmin: boolean;
 }
 
 export interface CollectionListResponse {

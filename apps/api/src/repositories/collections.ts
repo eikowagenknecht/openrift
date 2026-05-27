@@ -1,10 +1,28 @@
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import type { CollectionsTable, CopiesTable, Database } from "../db/index.js";
+import type { CollectionsTable, CopiesTable, Database, FriendGroupRole } from "../db/index.js";
 
 interface CollectionWithCount extends Selectable<CollectionsTable> {
   copyCount: number;
+}
+
+/** Collection row enriched with group context and viewer-role flags. */
+export interface AccessibleCollection extends CollectionWithCount {
+  groupSlug: string | null;
+  groupName: string | null;
+  /** True if viewer is the personal owner OR a group owner/admin. */
+  viewerCanAdmin: boolean;
+}
+
+/** Subset returned by single-row access lookups; viewerCanAdmin is computed inline. */
+export interface CollectionAccess {
+  collection: Selectable<CollectionsTable> & {
+    groupSlug: string | null;
+    groupName: string | null;
+  };
+  viewerRole: FriendGroupRole | null;
+  viewerCanAdmin: boolean;
 }
 
 /**
@@ -31,6 +49,41 @@ export function collectionsRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /**
+     * Personal collections plus shared collections from every group the user belongs to.
+     * Each row carries group context (slug/name) and a `viewerCanAdmin` flag that's true
+     * for personal owners and group owner/admin members.
+     *
+     * @returns Accessible collections ordered: personal first (inbox first), then groups
+     * (alphabetical by group name), then by collection sort order / name within each.
+     */
+    listAccessibleForUser(userId: string): Promise<AccessibleCollection[]> {
+      return db
+        .selectFrom("collections as c")
+        .leftJoin("friendGroups as g", "g.id", "c.groupId")
+        .leftJoin("friendGroupMembers as gm", (join) =>
+          join.onRef("gm.groupId", "=", "c.groupId").on("gm.userId", "=", userId),
+        )
+        .selectAll("c")
+        .select([
+          sql<number>`(select count(*)::int from copies where copies.collection_id = c.id)`.as(
+            "copyCount",
+          ),
+          "g.slug as groupSlug",
+          "g.name as groupName",
+          sql<boolean>`(c.user_id IS NOT NULL) OR (gm.role IN ('owner','admin'))`.as(
+            "viewerCanAdmin",
+          ),
+        ])
+        .where((eb) => eb.or([eb("c.userId", "=", userId), eb("gm.userId", "=", userId)]))
+        .orderBy(sql`c.group_id IS NULL`, "desc")
+        .orderBy("g.name")
+        .orderBy("c.isInbox", "desc")
+        .orderBy("c.sortOrder")
+        .orderBy("c.name")
+        .execute();
+    },
+
     /** @returns A single collection by ID scoped to a user, or `undefined`. */
     getByIdForUser(id: string, userId: string): Promise<Selectable<CollectionsTable> | undefined> {
       return db
@@ -41,9 +94,64 @@ export function collectionsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
+    /**
+     * Resolves a collection from the viewer's perspective. The viewer has access if they
+     * personally own the collection or are a member of its owning group.
+     * @returns The collection plus access flags, or `undefined` if the viewer can't see it.
+     */
+    async getAccessForUser(id: string, userId: string): Promise<CollectionAccess | undefined> {
+      const row = await db
+        .selectFrom("collections as c")
+        .leftJoin("friendGroups as g", "g.id", "c.groupId")
+        .leftJoin("friendGroupMembers as gm", (join) =>
+          join.onRef("gm.groupId", "=", "c.groupId").on("gm.userId", "=", userId),
+        )
+        .selectAll("c")
+        .select(["g.slug as groupSlug", "g.name as groupName", "gm.role as viewerRole"])
+        .where("c.id", "=", id)
+        .where((eb) => eb.or([eb("c.userId", "=", userId), eb("gm.userId", "=", userId)]))
+        .executeTakeFirst();
+
+      if (!row) {
+        return undefined;
+      }
+
+      const { groupSlug, groupName, viewerRole, ...collection } = row;
+      const isPersonalOwner = collection.userId === userId;
+      const viewerCanAdmin = isPersonalOwner || viewerRole === "owner" || viewerRole === "admin";
+
+      return {
+        collection: { ...collection, groupSlug, groupName },
+        viewerRole: viewerRole as FriendGroupRole | null,
+        viewerCanAdmin,
+      };
+    },
+
+    /**
+     * Subset of the given IDs that the viewer can write copies to (add/move/dispose).
+     * Personal collections require ownership; shared collections require membership.
+     * @returns IDs the viewer may write copies to; ordering is undefined.
+     */
+    async filterWritableByViewer(ids: readonly string[], userId: string): Promise<string[]> {
+      if (ids.length === 0) {
+        return [];
+      }
+      const rows = await db
+        .selectFrom("collections as c")
+        .leftJoin("friendGroupMembers as gm", (join) =>
+          join.onRef("gm.groupId", "=", "c.groupId").on("gm.userId", "=", userId),
+        )
+        .select("c.id")
+        .where("c.id", "in", ids as string[])
+        .where((eb) => eb.or([eb("c.userId", "=", userId), eb("gm.userId", "=", userId)]))
+        .execute();
+      return rows.map((row) => row.id);
+    },
+
     /** @returns The newly created collection row. */
     create(values: {
-      userId: string;
+      userId: string | null;
+      groupId: string | null;
       name: string;
       description: string | null;
       availableForDeckbuilding: boolean;
@@ -64,6 +172,23 @@ export function collectionsRepo(db: Kysely<Database>) {
         .set(updates)
         .where("id", "=", id)
         .where("userId", "=", userId)
+        .returningAll()
+        .executeTakeFirst();
+    },
+
+    /**
+     * Updates a collection by id without user scoping. Caller is responsible for
+     * verifying admin access first via `getAccessForUser`.
+     * @returns The updated row, or `undefined` if the id no longer exists.
+     */
+    updateById(
+      id: string,
+      updates: Record<string, unknown>,
+    ): Promise<Selectable<CollectionsTable> | undefined> {
+      return db
+        .updateTable("collections")
+        .set(updates)
+        .where("id", "=", id)
         .returningAll()
         .executeTakeFirst();
     },
@@ -147,6 +272,14 @@ export function collectionsRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Deletes a collection by id without user scoping. Caller must verify admin
+     * access first via `getAccessForUser`.
+     */
+    async deleteById(id: string): Promise<void> {
+      await db.deleteFrom("collections").where("id", "=", id).execute();
+    },
+
+    /**
      * Sets (or nulls) the share_token and is_public on a collection, scoped to the owning user.
      * @returns The updated collection row, or `undefined` if not owned by the user.
      */
@@ -166,18 +299,38 @@ export function collectionsRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Sets (or nulls) the share_token and is_public on a collection without user scoping.
+     * Caller must verify admin access first via `getAccessForUser`.
+     * @returns The updated collection row, or `undefined` if the id no longer exists.
+     */
+    setShareTokenById(
+      id: string,
+      shareToken: string | null,
+      isPublic: boolean,
+    ): Promise<Selectable<CollectionsTable> | undefined> {
+      return db
+        .updateTable("collections")
+        .set({ shareToken, isPublic, updatedAt: sql`now()` })
+        .where("id", "=", id)
+        .returningAll()
+        .executeTakeFirst();
+    },
+
+    /**
      * Looks up a public collection by its share token. Anonymous — no user scoping.
-     * @returns The collection row plus owner display name, or `undefined` if the
-     * token does not match a public collection.
+     * Personal collections expose the owner's display name; shared collections expose
+     * the group name in that slot (the share page treats it as an "owner" label).
+     * @returns The collection row plus owner label, or `undefined`.
      */
     async findByShareToken(
       shareToken: string,
     ): Promise<{ collection: Selectable<CollectionsTable>; ownerName: string | null } | undefined> {
       const row = await db
         .selectFrom("collections as c")
-        .innerJoin("users as u", "u.id", "c.userId")
+        .leftJoin("users as u", "u.id", "c.userId")
+        .leftJoin("friendGroups as g", "g.id", "c.groupId")
         .selectAll("c")
-        .select("u.name as ownerName")
+        .select([sql<string | null>`coalesce(u.name, g.name)`.as("ownerName")])
         .where("c.shareToken", "=", shareToken)
         .where("c.isPublic", "=", true)
         .executeTakeFirst();
@@ -191,6 +344,25 @@ export function collectionsRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Lists the shared collections owned by the given group, with copy counts.
+     * @returns Collections belonging to the group, ordered by sort_order then name.
+     */
+    listForGroup(groupId: string): Promise<CollectionWithCount[]> {
+      return db
+        .selectFrom("collections")
+        .selectAll("collections")
+        .select(
+          sql<number>`(select count(*)::int from copies where copies.collection_id = collections.id)`.as(
+            "copyCount",
+          ),
+        )
+        .where("groupId", "=", groupId)
+        .orderBy("sortOrder")
+        .orderBy("name")
+        .execute();
+    },
+
+    /**
      * Ensures the user has an inbox collection. Creates one if it doesn't exist,
      * handling race conditions via `ON CONFLICT DO NOTHING`.
      * @returns The inbox collection ID
@@ -200,6 +372,7 @@ export function collectionsRepo(db: Kysely<Database>) {
         .insertInto("collections")
         .values({
           userId,
+          groupId: null,
           name: "Inbox",
           isInbox: true,
           availableForDeckbuilding: true,

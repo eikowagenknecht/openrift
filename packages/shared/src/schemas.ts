@@ -98,6 +98,7 @@ export const createCollectionSchema = z.object({
   name: collectionFieldRules.name,
   description: z.string().max(1000).nullish(),
   availableForDeckbuilding: z.boolean().optional(),
+  groupSlug: z.string().optional(),
 });
 
 export const updateCollectionSchema = z.object({

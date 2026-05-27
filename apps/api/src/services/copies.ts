@@ -16,8 +16,11 @@ interface AddCopyResult {
 }
 
 /**
- * Batch-add copies. Inserts copies into the given collections
- * (or the user's inbox) and logs collection events.
+ * Batch-add copies. Inserts copies into the given collections (or the user's
+ * inbox) and logs collection events. Collection write access is checked via
+ * `filterWritableByViewer` — for personal collections the user must own them,
+ * for shared collections they must be a group member.
+ *
  * @returns The created copies with their IDs
  */
 export async function addCopies(
@@ -28,15 +31,15 @@ export async function addCopies(
 ): Promise<AddCopyResult[]> {
   const inboxId = await ensureInbox(repos, userId);
 
-  // Verify all explicit collectionIds belong to this user
+  // Verify every explicit collectionId is writable by this user
   const explicitIds = [...new Set(copies.map((c) => c.collectionId).filter(Boolean))] as string[];
   if (explicitIds.length > 0) {
-    const owned = await repos.collections.listIdsByIdsForUser(explicitIds, userId);
-    if (owned.length !== explicitIds.length) {
+    const writable = await repos.collections.filterWritableByViewer(explicitIds, userId);
+    if (writable.length !== explicitIds.length) {
       throw new AppError(
         403,
         ERROR_CODES.FORBIDDEN,
-        "One or more collections do not belong to you",
+        "One or more collections are not writable by you",
       );
     }
   }
@@ -79,7 +82,13 @@ export async function addCopies(
 
 /**
  * Move copies between collections.
- * Verifies the target collection, moves copies, and logs collection events.
+ *
+ * The viewer must have write access to:
+ *   - every source collection the copies are currently in
+ *   - the target collection
+ *
+ * Source access means the copy lives in one of the viewer's writable collections
+ * (personal owner OR group member of a shared collection that contains it).
  */
 export async function moveCopies(
   repos: Repos,
@@ -88,23 +97,29 @@ export async function moveCopies(
   copyIds: string[],
   toCollectionId: string,
 ): Promise<void> {
-  // Verify target collection belongs to user
-  const target = await repos.collections.getIdAndName(toCollectionId, userId);
-
+  const targetWritable = await repos.collections.filterWritableByViewer([toCollectionId], userId);
+  if (targetWritable.length === 0) {
+    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Target collection not found");
+  }
+  const targetMeta = await repos.collections.listIdAndNameByIds([toCollectionId]);
+  const target = targetMeta[0];
   assertFound(target, "Target collection not found");
 
   await transact(async (trxRepos) => {
-    // Fetch copies with their current collection info
-    const copies = await trxRepos.copies.listWithCollectionName(copyIds, userId);
+    const copies = await trxRepos.copies.listWithCollectionContext(copyIds);
 
     if (copies.length !== copyIds.length) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "One or more copies not found");
     }
 
-    // Update copies
-    await trxRepos.copies.moveBatch(
+    const sourceIds = [...new Set(copies.map((row) => row.collectionId))];
+    const writableSources = await trxRepos.collections.filterWritableByViewer(sourceIds, userId);
+    if (writableSources.length !== sourceIds.length) {
+      throw new AppError(403, ERROR_CODES.FORBIDDEN, "One or more copies are not writable by you");
+    }
+
+    await trxRepos.copies.moveBatchById(
       copies.map((row) => row.id),
-      userId,
       toCollectionId,
     );
 
@@ -126,7 +141,8 @@ export async function moveCopies(
 
 /**
  * Dispose copies — hard-deletes from the collection.
- * Logs removal events before deleting.
+ * Logs removal events before deleting. The viewer must have write access to
+ * every source collection (personal owner or group member of a shared one).
  */
 export async function disposeCopies(
   transact: Transact,
@@ -134,11 +150,16 @@ export async function disposeCopies(
   copyIds: string[],
 ): Promise<void> {
   await transact(async (trxRepos) => {
-    // Fetch copies with collection info for snapshots
-    const copies = await trxRepos.copies.listWithCollectionName(copyIds, userId);
+    const copies = await trxRepos.copies.listWithCollectionContext(copyIds);
 
     if (copies.length !== copyIds.length) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "One or more copies not found");
+    }
+
+    const sourceIds = [...new Set(copies.map((row) => row.collectionId))];
+    const writableSources = await trxRepos.collections.filterWritableByViewer(sourceIds, userId);
+    if (writableSources.length !== sourceIds.length) {
+      throw new AppError(403, ERROR_CODES.FORBIDDEN, "One or more copies are not writable by you");
     }
 
     // Log disposal events before deleting (so copy FK is still valid)
@@ -155,9 +176,6 @@ export async function disposeCopies(
     );
 
     // Hard-delete copies (collection_events.copy_id → SET NULL via FK)
-    await trxRepos.copies.deleteBatch(
-      copies.map((row) => row.id),
-      userId,
-    );
+    await trxRepos.copies.deleteBatchById(copies.map((row) => row.id));
   });
 }
