@@ -11,7 +11,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { CURRENCY_SYMBOL, PRICE_PREF_LABEL, TRADE_TYPE_LABEL } from "./trade-preference-labels";
+import {
+  CURRENCY_SYMBOL,
+  PRICE_PREF_LABEL,
+  PRICE_PREF_SHORT_LABEL,
+  TRADE_TYPE_LABEL,
+} from "./trade-preference-labels";
 
 const PRICE_PREF_NONE = "__none__";
 const TRADE_TYPE_NONE = "__none__";
@@ -63,7 +68,7 @@ export function TradePreferenceEditor({
   const pricePrefNoneLabel =
     listDefault?.pricePref === undefined || listDefault.pricePref === null
       ? "No preference (negotiate)"
-      : `Use list default (${PRICE_PREF_LABEL[listDefault.pricePref]})`;
+      : `Use list default (${PRICE_PREF_SHORT_LABEL[listDefault.pricePref]})`;
   const tradeTypeNoneLabel =
     listDefault?.tradeType === undefined || listDefault.tradeType === null
       ? "No preference (negotiate)"
@@ -135,7 +140,7 @@ export function TradePreferenceEditor({
             }
           }}
         >
-          <SelectTrigger id={`${idPrefix}-price`} className="flex-1">
+          <SelectTrigger id={`${idPrefix}-price`} className="min-w-0 flex-1">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -162,7 +167,7 @@ export function TradePreferenceEditor({
               }
             }}
           >
-            <SelectTrigger id={`${idPrefix}-currency`} className="flex-1">
+            <SelectTrigger id={`${idPrefix}-currency`} className="min-w-0 flex-1">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -209,7 +214,7 @@ export function TradePreferenceEditor({
             }
           }}
         >
-          <SelectTrigger id={`${idPrefix}-type`} className="flex-1">
+          <SelectTrigger id={`${idPrefix}-type`} className="min-w-0 flex-1">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

@@ -7,12 +7,15 @@ export const PRICE_PREF_LABEL: Record<TradePricePref, string> = {
   absolute: "Fixed",
 };
 
-/** Compact label for the inline pill. Falls back to the long label for unknown values. */
+/** Compact label used in tight contexts (inline pill, inherit hints). Drops
+ * the "Marketplace (...)" wrapping since the surrounding context already
+ * makes it clear we're pointing at a marketplace.
+ */
 export const PRICE_PREF_SHORT_LABEL: Record<TradePricePref, string> = {
-  cm_lowest: "CM lowest",
-  tcg_lowest: "TCG lowest",
-  ct_zero: "CT Zero",
-  absolute: "fixed",
+  cm_lowest: "Cardmarket",
+  tcg_lowest: "TCGplayer",
+  ct_zero: "CardTrader",
+  absolute: "Fixed",
 };
 
 export const TRADE_TYPE_LABEL: Record<TradeType, string> = {
