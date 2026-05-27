@@ -40,7 +40,9 @@ export function AccountInfoSection({
     <Card>
       <CardHeader>
         <CardTitle>Account Info</CardTitle>
-        <CardDescription>Your name and email address.</CardDescription>
+        <CardDescription>
+          Your display name and email address. The name is what shows up on shared lists.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <DisplayNameForm defaultName={defaultName} userId={userId} />

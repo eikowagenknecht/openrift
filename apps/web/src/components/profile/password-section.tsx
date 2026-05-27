@@ -53,7 +53,8 @@ export function PasswordSection() {
       <CardHeader>
         <CardTitle>Password</CardTitle>
         <CardDescription>
-          Update your password. You&apos;ll be signed out of other sessions.
+          Change your password. Any other browsers or devices you&apos;re signed in on will be
+          kicked out.
         </CardDescription>
       </CardHeader>
       <CardContent>

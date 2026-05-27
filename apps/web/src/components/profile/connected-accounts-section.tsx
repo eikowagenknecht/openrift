@@ -57,7 +57,9 @@ export function ConnectedAccountsSection() {
     <Card>
       <CardHeader>
         <CardTitle>Connected Accounts</CardTitle>
-        <CardDescription>Link your social accounts for faster sign-in.</CardDescription>
+        <CardDescription>
+          Sign in with Google or Discord instead of typing a password every time.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {loading ? (

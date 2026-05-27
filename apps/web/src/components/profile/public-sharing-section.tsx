@@ -1,6 +1,16 @@
 import { CheckIcon, CopyIcon, LinkIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -25,6 +35,7 @@ export function PublicSharingSection() {
   const disableShare = useDisableUserShare();
   const rotateShare = useRotateUserShare();
   const [justCopied, setJustCopied] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
 
   const shareToken = data?.shareToken ?? null;
   const shareUrl = shareToken ? `${getSiteUrl()}/users/share/${shareToken}` : null;
@@ -48,8 +59,8 @@ export function PublicSharingSection() {
       <CardHeader>
         <CardTitle>Public sharing</CardTitle>
         <CardDescription>
-          One link covering every wishlist and tradelist you have. New lists join automatically.
-          Organize lists are never included.
+          A single link that shows everything you&apos;re looking for and everything you&apos;re
+          offering. New wishlists and tradelists are included automatically as you create them.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -65,14 +76,40 @@ export function PublicSharingSection() {
               </Button>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                onClick={() => rotateShare.mutate()}
-                disabled={rotateShare.isPending}
-              >
-                <RefreshCwIcon />
-                Reset link
-              </Button>
+              <AlertDialog open={resetOpen} onOpenChange={setResetOpen}>
+                <AlertDialogTrigger
+                  render={
+                    <Button variant="destructive" disabled={rotateShare.isPending}>
+                      <RefreshCwIcon />
+                      Reset link
+                    </Button>
+                  }
+                />
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Reset your share link?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      The current link will stop working immediately. Anyone you previously shared
+                      it with will need the new link to view your lists.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <Button
+                      variant="destructive"
+                      disabled={rotateShare.isPending}
+                      onClick={() => {
+                        rotateShare.mutate(undefined, {
+                          onSuccess: () => setResetOpen(false),
+                        });
+                      }}
+                    >
+                      <RefreshCwIcon />
+                      Reset link
+                    </Button>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
               <Button
                 variant="destructive"
                 onClick={() => disableShare.mutate()}

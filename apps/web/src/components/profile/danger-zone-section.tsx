@@ -55,7 +55,8 @@ export function DangerZoneSection() {
       <CardHeader>
         <CardTitle>Danger Zone</CardTitle>
         <CardDescription>
-          Permanently delete your account and all associated data. This action cannot be undone.
+          Delete your account. Everything goes (cards, lists, decks), and there&apos;s no way to
+          bring it back.
         </CardDescription>
       </CardHeader>
       <CardContent>

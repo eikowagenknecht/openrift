@@ -12,6 +12,7 @@
 - feat: On the same page, your shared lists now show "Wishlist" or "Tradelist" and an entry count as badges, matching how list pages describe them
 - feat: Profile pictures now fall back to a Gravatar (if you have one set up) before showing initials, so most members end up with a real avatar instead of an empty circle
 - feat: Rotating or disabling a friend group's join code now asks for confirmation first, since both actions immediately break any outstanding invite links
+- feat: Resetting your public sharing link now asks for confirmation first, since the old link stops working immediately and anyone you'd shared it with will need the new one
 - feat: When dragging a card stack between collections, you can hold a number key from 2 to 9 to move that many copies. Shift still moves the whole stack
 - feat: Opening a friend group member's list now uses the same browser as a public share link — filters, sort, group-by, and the virtualised card grid — instead of the older plain thumbnail list
 - fix: The Value Over Time chart on the collection stats page now matches the Estimated Value shown in the Stats section, instead of undercounting older copies

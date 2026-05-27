@@ -37,7 +37,8 @@ export function TradingSection() {
           <div>
             <CardTitle>Trading</CardTitle>
             <CardDescription>
-              Defaults for new wishlists and tradelists. You can override the currency on each list.
+              Starting point for new wishlists and tradelists. Each list can use its own currency
+              once it&apos;s created, so this is just the default.
             </CardDescription>
           </div>
           {overrideSet && (

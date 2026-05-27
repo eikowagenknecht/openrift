@@ -34,7 +34,9 @@ export function DisplaySection() {
     <Card>
       <CardHeader>
         <CardTitle>Display</CardTitle>
-        <CardDescription>Theme and visual settings for how cards appear.</CardDescription>
+        <CardDescription>
+          Light or dark, plus a few knobs for how cards are rendered.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between gap-4">
