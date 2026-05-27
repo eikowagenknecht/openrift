@@ -68,11 +68,11 @@ export function TradePreferenceEditor({
   const pricePrefNoneLabel =
     listDefault?.pricePref === undefined || listDefault.pricePref === null
       ? "No preference (negotiate)"
-      : `Use list default (${PRICE_PREF_SHORT_LABEL[listDefault.pricePref]})`;
+      : `List default (${PRICE_PREF_SHORT_LABEL[listDefault.pricePref]})`;
   const tradeTypeNoneLabel =
     listDefault?.tradeType === undefined || listDefault.tradeType === null
       ? "No preference (negotiate)"
-      : `Use list default (${TRADE_TYPE_LABEL[listDefault.tradeType]})`;
+      : `List default (${TRADE_TYPE_LABEL[listDefault.tradeType]})`;
 
   const pricePrefItems: { value: string; label: string }[] = [
     { value: PRICE_PREF_NONE, label: pricePrefNoneLabel },
