@@ -48,7 +48,7 @@ export function TradePreferenceDialog({
   onOpenChange,
   cardName,
   override,
-  listDefault: _listDefault,
+  listDefault,
   currency,
   isOverridden,
   onSave,
@@ -97,6 +97,7 @@ export function TradePreferenceDialog({
           showCurrency={listMissingCurrency && draft.pricePref === "absolute"}
           onCurrencyChange={setDraftCurrency}
           idPrefix="entry-dialog"
+          listDefault={listDefault}
         />
 
         <DialogFooter className="flex items-center justify-between gap-2 sm:justify-between">

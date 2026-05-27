@@ -16,16 +16,6 @@ import { CURRENCY_SYMBOL, PRICE_PREF_LABEL, TRADE_TYPE_LABEL } from "./trade-pre
 const PRICE_PREF_NONE = "__none__";
 const TRADE_TYPE_NONE = "__none__";
 
-const PRICE_PREF_ITEMS: { value: string; label: string }[] = [
-  { value: PRICE_PREF_NONE, label: "No preference (negotiate)" },
-  ...TRADE_PRICE_PREFS.map((value) => ({ value, label: PRICE_PREF_LABEL[value] })),
-];
-
-const TRADE_TYPE_ITEMS: { value: string; label: string }[] = [
-  { value: TRADE_TYPE_NONE, label: "No preference (negotiate)" },
-  ...TRADE_TYPES.map((value) => ({ value, label: TRADE_TYPE_LABEL[value] })),
-];
-
 const CURRENCY_ITEMS: { value: Currency; label: string }[] = CURRENCIES.map((value) => ({
   value,
   label: value === "EUR" ? "Euro (EUR)" : "US Dollar (USD)",
@@ -41,6 +31,14 @@ export interface TradePreferenceEditorProps {
   onCurrencyChange?: (next: Currency) => void;
   /** ID prefix so multiple editors on one page don't collide on label htmlFor. */
   idPrefix?: string;
+  /**
+   * Parent list's default (per-entry override editor only). When set, the
+   * "no preference" dropdown options name what the entry would inherit
+   * (e.g. "Use list default (Cards or money)") instead of the bare
+   * "No preference (negotiate)" label that's only correct when there is
+   * no list default to fall back on.
+   */
+  listDefault?: TradePreference;
 }
 
 /**
@@ -56,10 +54,29 @@ export function TradePreferenceEditor({
   showCurrency = false,
   onCurrencyChange,
   idPrefix = "tp",
+  listDefault,
 }: TradePreferenceEditorProps) {
   const pricePrefValue = value.pricePref ?? PRICE_PREF_NONE;
   const tradeTypeValue = value.tradeType ?? TRADE_TYPE_NONE;
   const isAbsolute = value.pricePref === "absolute";
+
+  const pricePrefNoneLabel =
+    listDefault?.pricePref === undefined || listDefault.pricePref === null
+      ? "No preference (negotiate)"
+      : `Use list default (${PRICE_PREF_LABEL[listDefault.pricePref]})`;
+  const tradeTypeNoneLabel =
+    listDefault?.tradeType === undefined || listDefault.tradeType === null
+      ? "No preference (negotiate)"
+      : `Use list default (${TRADE_TYPE_LABEL[listDefault.tradeType]})`;
+
+  const pricePrefItems: { value: string; label: string }[] = [
+    { value: PRICE_PREF_NONE, label: pricePrefNoneLabel },
+    ...TRADE_PRICE_PREFS.map((option) => ({ value: option, label: PRICE_PREF_LABEL[option] })),
+  ];
+  const tradeTypeItems: { value: string; label: string }[] = [
+    { value: TRADE_TYPE_NONE, label: tradeTypeNoneLabel },
+    ...TRADE_TYPES.map((option) => ({ value: option, label: TRADE_TYPE_LABEL[option] })),
+  ];
 
   const handlePricePrefChange = (next: string) => {
     if (next === PRICE_PREF_NONE) {
@@ -110,7 +127,7 @@ export function TradePreferenceEditor({
           Price
         </Label>
         <Select
-          items={PRICE_PREF_ITEMS}
+          items={pricePrefItems}
           value={pricePrefValue}
           onValueChange={(next) => {
             if (next !== null) {
@@ -122,7 +139,7 @@ export function TradePreferenceEditor({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {PRICE_PREF_ITEMS.map((item) => (
+            {pricePrefItems.map((item) => (
               <SelectItem key={item.value} value={item.value}>
                 {item.label}
               </SelectItem>
@@ -184,7 +201,7 @@ export function TradePreferenceEditor({
           Accepts
         </Label>
         <Select
-          items={TRADE_TYPE_ITEMS}
+          items={tradeTypeItems}
           value={tradeTypeValue}
           onValueChange={(next) => {
             if (next !== null) {
@@ -196,7 +213,7 @@ export function TradePreferenceEditor({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {TRADE_TYPE_ITEMS.map((item) => (
+            {tradeTypeItems.map((item) => (
               <SelectItem key={item.value} value={item.value}>
                 {item.label}
               </SelectItem>
