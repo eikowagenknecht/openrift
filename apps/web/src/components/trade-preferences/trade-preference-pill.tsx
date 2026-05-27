@@ -6,13 +6,10 @@ import type {
   TradeType,
 } from "@openrift/shared";
 import { TagIcon } from "lucide-react";
-import { useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-import { TradePreferenceEditor } from "./trade-preference-editor";
 import {
   PRICE_PREF_SHORT_LABEL,
   TRADE_TYPE_SHORT_LABEL,
@@ -33,7 +30,9 @@ interface EditableProps {
   currency: Currency | null;
   /** True iff the entry override has any non-null field. */
   isOverridden: boolean;
-  onChange: (next: TradePreference) => void;
+  /** Opens the editor (a dialog) — wired by the parent to the same dialog as
+   * the context menu so we have one editor surface, not two. */
+  onEdit: () => void;
   /** Optional disabled state (e.g. while a mutation is in flight). */
   disabled?: boolean;
   readOnly?: false;
@@ -42,17 +41,19 @@ interface EditableProps {
 type Props = ReadOnlyProps | EditableProps;
 
 /**
- * Inline pill that summarises an entry's effective trade preference and (when
- * editable) opens a popover to override it.
+ * Compact indicator for an entry's effective trade preference.
  *
- * Renders nothing when there's no preference *and* no list default — the row
- * stays clean. When the user has a list default but no override, the pill
- * shows the default with an "inherited" hint via opacity.
- * @returns The pill node, or `null` when there is nothing to display.
+ * Read-only variant: renders the effective labels inline (used on shared-list
+ * browse where there's room beneath the card title).
+ *
+ * Editable variant: renders an icon-only button that opens the parent's
+ * dialog. The icon is muted when nothing is set, accented when an entry
+ * override is in effect, and tinted when the row is using the list default.
+ * A tooltip surfaces the current effective value so users can read it without
+ * opening the dialog.
+ * @returns The pill node, or `null` when read-only with nothing to display.
  */
 export function TradePreferencePill(props: Props) {
-  const [open, setOpen] = useState(false);
-
   if (props.readOnly) {
     const labels = preferenceLabels(props.effective);
     if (labels.length === 0) {
@@ -77,69 +78,35 @@ export function TradePreferencePill(props: Props) {
     currency: props.currency,
   };
   const labels = preferenceLabels(effective);
+  const hasAnyPref = labels.length > 0;
+  const ariaLabel = hasAnyPref
+    ? `Edit trade preference (${labels.join(" · ")})`
+    : "Set trade preference";
+
+  const button = (
+    <button
+      type="button"
+      aria-label={ariaLabel}
+      onClick={props.onEdit}
+      className={cn(
+        "hover:bg-muted inline-flex size-6 shrink-0 items-center justify-center rounded-full border transition-colors",
+        // visual states: empty (dashed muted), inherited from list (solid muted), overridden (accent)
+        !hasAnyPref && "text-muted-foreground border-dashed",
+        hasAnyPref && !props.isOverridden && "text-muted-foreground",
+        hasAnyPref && props.isOverridden && "text-primary border-primary/40",
+        props.disabled && "pointer-events-none opacity-50",
+      )}
+      disabled={props.disabled}
+    >
+      <TagIcon className="size-3" />
+    </button>
+  );
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        render={
-          <button
-            type="button"
-            aria-label={labels.length === 0 ? "Set trade preference" : "Edit trade preference"}
-            title={labels.length === 0 ? "Set trade preference" : "Edit trade preference"}
-            className={cn(
-              "hover:bg-muted inline-flex h-6 shrink-0 items-center gap-1 rounded-full border px-2 text-xs whitespace-nowrap transition-colors",
-              labels.length === 0 ? "text-muted-foreground border-dashed" : "text-foreground",
-              !props.isOverridden && labels.length > 0 && "opacity-70",
-              props.disabled && "pointer-events-none opacity-50",
-            )}
-            disabled={props.disabled}
-          >
-            {labels.length === 0 ? (
-              <TagIcon className="size-3" />
-            ) : (
-              labels.map((label, i) => (
-                <span key={i}>
-                  {i > 0 && <span className="mx-1 opacity-50">·</span>}
-                  {label}
-                </span>
-              ))
-            )}
-          </button>
-        }
-      />
-      <PopoverContent align="end" className="w-72 max-w-[calc(100vw-2rem)] space-y-3">
-        <div className="text-muted-foreground text-xs">
-          Override for this entry. Leave fields at the list default to inherit.
-        </div>
-        <TradePreferenceEditor
-          value={props.override}
-          onChange={props.onChange}
-          currency={props.currency}
-          showCurrency={false}
-          idPrefix="entry-override"
-        />
-        <div className="flex items-center justify-between gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={!props.isOverridden || props.disabled}
-            onClick={() =>
-              props.onChange({
-                pricePref: null,
-                priceAbsoluteCents: null,
-                tradeType: null,
-              })
-            }
-          >
-            Reset to list default
-          </Button>
-          <Button type="button" size="sm" onClick={() => setOpen(false)}>
-            Done
-          </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
+    <Tooltip>
+      <TooltipTrigger render={button} />
+      <TooltipContent>{hasAnyPref ? labels.join(" · ") : "Set trade preference"}</TooltipContent>
+    </Tooltip>
   );
 }
 

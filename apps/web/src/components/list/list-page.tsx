@@ -753,7 +753,7 @@ function ListEntryBrowser({
                   entry.tradeOverride.priceAbsoluteCents !== null ||
                   entry.tradeOverride.tradeType !== null
                 }
-                onChange={(next) => onTradeOverrideChange(entry.id, next)}
+                onEdit={() => setPrefDialogEntryId(entry.id)}
               />
             ) : null;
             return (
