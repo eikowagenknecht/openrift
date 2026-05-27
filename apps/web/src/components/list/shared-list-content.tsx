@@ -25,9 +25,17 @@ import {
   PageTopBarHeightContext,
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
+import { listKindIcon } from "@/components/list/create-list-dialog";
 import { ListHeader } from "@/components/list/list-header";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
@@ -50,17 +58,18 @@ const SHARED_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set([
 
 interface SharedListContentProps {
   data: PublicListDetailResponse;
-  /** Optional slot rendered above the list header — used for back-to-bundle nav. */
-  headerExtra?: React.ReactNode;
+  /** Back arrow rendered as the first slot inside the list header. */
+  backLink?: React.ReactNode;
 }
 
 /**
  * Public list browser: header + virtualised card grid. Shared between the
- * per-list public share route and the user-bundle nested list route.
+ * per-list public share route, the user-bundle nested list route, and the
+ * friend-group shared-list route.
  *
  * @returns The full page body.
  */
-export function SharedListContent({ data, headerExtra }: SharedListContentProps) {
+export function SharedListContent({ data, backLink }: SharedListContentProps) {
   const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
   const topBarHeight = useMeasuredHeight(topBarSlot);
   const { list, owner, entries } = data;
@@ -69,11 +78,11 @@ export function SharedListContent({ data, headerExtra }: SharedListContentProps)
     <PageTopBarHeightContext value={topBarHeight}>
       <div className="flex min-h-0 flex-1 flex-col">
         <div ref={setTopBarSlot} className={PAGE_TOP_BAR_STICKY}>
-          {headerExtra}
           <ListHeader
             list={list}
             entries={entries}
             attribution={{ kind: "owner", ownerName: owner.displayName }}
+            backLink={backLink}
           />
         </div>
         <div className="flex min-w-0 flex-1 flex-col px-3 pb-3">
@@ -253,7 +262,18 @@ function SharedListGrid({ data }: { data: PublicListDetailResponse }) {
   );
 
   if (listPrintings.length === 0) {
-    return <p className="text-muted-foreground py-3 text-sm">This list is empty.</p>;
+    const KindIcon = listKindIcon(list.kind);
+    return (
+      <Empty className="flex-1">
+        <EmptyHeader>
+          <EmptyMedia>
+            <KindIcon className="size-16 opacity-50" />
+          </EmptyMedia>
+          <EmptyTitle>{emptyTitleFor(list.kind)}</EmptyTitle>
+          <EmptyDescription>Check back later.</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
   }
 
   return (
@@ -296,6 +316,17 @@ function SharedListGrid({ data }: { data: PublicListDetailResponse }) {
       </CardViewer>
     </CardBrowserFilterProvider>
   );
+}
+
+/** @returns Empty-state title text appropriate for a read-only viewer. */
+function emptyTitleFor(kind: ListKind): string {
+  if (kind === "copy") {
+    return "No copies on this list yet";
+  }
+  if (kind === "printing") {
+    return "No printings on this list yet";
+  }
+  return "No cards on this list yet";
 }
 
 /** @returns The view mode that matches a list's kind. */

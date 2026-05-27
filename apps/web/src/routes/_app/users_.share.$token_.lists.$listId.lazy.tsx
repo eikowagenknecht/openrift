@@ -1,6 +1,6 @@
-import { Link, createLazyFileRoute } from "@tanstack/react-router";
-import { ChevronLeftIcon } from "lucide-react";
+import { createLazyFileRoute } from "@tanstack/react-router";
 
+import { PageTopBarBack } from "@/components/layout/page-top-bar";
 import { SharedListContent } from "@/components/list/shared-list-content";
 import { usePublicUserBundleList } from "@/hooks/use-user-share";
 import { FilterSearchProvider } from "@/lib/search-schemas";
@@ -14,20 +14,12 @@ function BundleListPage() {
   const { data } = usePublicUserBundleList(token, listId);
   const search = Route.useSearch();
 
-  const headerExtra = (
-    <Link
-      to="/users/share/$token"
-      params={{ token }}
-      className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 px-3 py-2 text-sm"
-    >
-      <ChevronLeftIcon className="size-4" />
-      Back to all lists
-    </Link>
-  );
-
   return (
     <FilterSearchProvider value={search}>
-      <SharedListContent data={data} headerExtra={headerExtra} />
+      <SharedListContent
+        data={data}
+        backLink={<PageTopBarBack to="/users/share/$token" params={{ token }} />}
+      />
     </FilterSearchProvider>
   );
 }
