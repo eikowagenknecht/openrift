@@ -84,6 +84,8 @@ import * as m135 from "./135-rename-list-intent.js";
 import * as m136 from "./136-shared-collections.js";
 import * as m137 from "./137-trade-preferences.js";
 import * as m138 from "./138-user-share-token.js";
+import * as m139 from "./139-backfill-missing-added-events.js";
+import * as m140 from "./140-collection-events-preserve-on-delete.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -227,4 +229,6 @@ export const migrations: Record<string, Migration> = {
   "136-shared-collections": m136,
   "137-trade-preferences": m137,
   "138-user-share-token": m138,
+  "139-backfill-missing-added-events": m139,
+  "140-collection-events-preserve-on-delete": m140,
 };

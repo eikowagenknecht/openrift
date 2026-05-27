@@ -40,11 +40,9 @@ export async function deleteCollection(
       );
     }
 
-    // Purge historical events that reference this collection. The FK uses
-    // ON DELETE SET NULL, but chk_collection_events_collection_presence
-    // forbids NULLs on 'removed' / 'moved' rows, so the cascade would fail.
-    await trxRepos.collectionEvents.deleteForCollection(collectionId, userId);
-
+    // Let the FK's ON DELETE SET NULL handle existing events. The check
+    // constraint allows rows with a name snapshot but no collection id, so
+    // historical events stay readable as "moved from <deleted collection>".
     await trxRepos.collections.deleteByIdForUser(collectionId, userId);
   });
 }

@@ -371,16 +371,16 @@ export function marketplaceRepo(db: Kysely<Database>) {
 
       // ── Query B: daily prices for those printings ──────────────────────
       // Mirrors mv_latest_printing_prices' headline rule per marketplace but
-      // grouped by day instead of "latest overall". For CardTrader that's
-      // COALESCE(zero_low_cents, low_cents) — prefer Zero-eligible pricing,
-      // fall back to overall-low per day. For TCG/CM it's
-      // COALESCE(market_cents, low_cents). Snapshots from before the Zero
-      // column existed (migration 099) have zero_low_cents=null and
-      // naturally fall back to low_cents.
+      // grouped by day instead of "latest overall". CardTrader prefers
+      // Zero-eligible pricing then overall-low; CardMarket prefers low then
+      // market (matches user-facing "buy from cheapest" intent); TCGplayer
+      // prefers market then low.
       const headlineExpr =
         marketplace === "cardtrader"
           ? sql`COALESCE(pp.zero_low_cents, pp.low_cents)`
-          : sql`COALESCE(pp.market_cents, pp.low_cents)`;
+          : marketplace === "cardmarket"
+            ? sql`COALESCE(pp.low_cents, pp.market_cents)`
+            : sql`COALESCE(pp.market_cents, pp.low_cents)`;
       const dailyPrices = await sql<{
         printingId: string;
         day: string;
@@ -408,6 +408,43 @@ export function marketplaceRepo(db: Kysely<Database>) {
           priceMap.set(row.printingId, dayMap);
         }
         dayMap.set(row.day, row.headlineCents);
+      }
+
+      // Sorted ascending list of snapshot days per printing — used to seed
+      // lastPriceByPrinting from the latest snapshot ≤ the day the printing
+      // enters composition. Without this, a printing whose only snapshots
+      // are older than the user's first `added` event for it contributes 0
+      // to the chart forever, even though the Stats card sees those prices
+      // via the materialized view.
+      const sortedPriceDays = new Map<string, string[]>();
+      for (const [printingId, dayMap] of priceMap) {
+        sortedPriceDays.set(printingId, [...dayMap.keys()].toSorted());
+      }
+
+      /**
+       * Latest snapshot price for `printingId` with snapshot day ≤ `dayStr`.
+       * @returns The price in cents, or undefined if no such snapshot exists.
+       */
+      function latestPriceAtOrBefore(printingId: string, dayStr: string): number | undefined {
+        const days = sortedPriceDays.get(printingId);
+        if (!days || days.length === 0) {
+          return undefined;
+        }
+        let lo = 0;
+        let hi = days.length;
+        while (lo < hi) {
+          const mid = (lo + hi) >> 1;
+          if (days[mid] <= dayStr) {
+            lo = mid + 1;
+          } else {
+            hi = mid;
+          }
+        }
+        const idx = lo - 1;
+        if (idx < 0) {
+          return undefined;
+        }
+        return priceMap.get(printingId)?.get(days[idx]);
       }
 
       // ── TypeScript replay ─────────────────────────────────────────────
@@ -508,11 +545,20 @@ export function marketplaceRepo(db: Kysely<Database>) {
           eventIndex++;
         }
 
-        // Update carry-forward prices for this day
+        // Update carry-forward prices for this day. Printings already
+        // tracked get refreshed on any new same-day snapshot; printings
+        // newly in composition (no carry-forward yet) get seeded from the
+        // latest snapshot ≤ dayStr so that prices recorded before the
+        // first `added` event still count.
         for (const printingId of composition.keys()) {
           const dayPrice = priceMap.get(printingId)?.get(dayStr);
           if (dayPrice !== undefined) {
             lastPriceByPrinting.set(printingId, dayPrice);
+          } else if (!lastPriceByPrinting.has(printingId)) {
+            const seed = latestPriceAtOrBefore(printingId, dayStr);
+            if (seed !== undefined) {
+              lastPriceByPrinting.set(printingId, seed);
+            }
           }
         }
 

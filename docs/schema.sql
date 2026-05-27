@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict vYIcMqYS2kQg9eQFhWt7LaLVlrbmFZOS1oevr29fISJcPUJe6Txru2D2VQ1NxIN
+\restrict Bs8PyOh4psJ5EwCsNsooNGbkx1AXuuRc6ai1XBpdzfKfVVHPy9lOeTKqrQvDbtK
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -672,7 +672,7 @@ CREATE TABLE public.collection_events (
     to_collection_name text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT chk_collection_events_action CHECK ((action = ANY (ARRAY['added'::text, 'removed'::text, 'moved'::text]))),
-    CONSTRAINT chk_collection_events_collection_presence CHECK ((((action = 'added'::text) AND (to_collection_id IS NOT NULL)) OR ((action = 'removed'::text) AND (from_collection_id IS NOT NULL)) OR ((action = 'moved'::text) AND (from_collection_id IS NOT NULL) AND (to_collection_id IS NOT NULL))))
+    CONSTRAINT chk_collection_events_collection_presence CHECK ((((action = 'added'::text) AND ((to_collection_id IS NOT NULL) OR (to_collection_name IS NOT NULL))) OR ((action = 'removed'::text) AND ((from_collection_id IS NOT NULL) OR (from_collection_name IS NOT NULL))) OR ((action = 'moved'::text) AND ((from_collection_id IS NOT NULL) OR (from_collection_name IS NOT NULL)) AND ((to_collection_id IS NOT NULL) OR (to_collection_name IS NOT NULL)))))
 );
 
 
@@ -3772,5 +3772,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict vYIcMqYS2kQg9eQFhWt7LaLVlrbmFZOS1oevr29fISJcPUJe6Txru2D2VQ1NxIN
+\unrestrict Bs8PyOh4psJ5EwCsNsooNGbkx1AXuuRc6ai1XBpdzfKfVVHPy9lOeTKqrQvDbtK
 
