@@ -39,6 +39,8 @@ export interface FriendGroupMemberResponse {
   userId: string;
   userName: string | null;
   userImage: string | null;
+  /** SHA-256 of the lowercased email — drives a Gravatar fallback without leaking the email. */
+  gravatarHash: string;
   role: FriendGroupRole;
   nickname: string | null;
   joinedAt: string;
@@ -60,6 +62,7 @@ export interface FriendGroupRequestResponse {
   userId: string;
   userName: string | null;
   userImage: string | null;
+  gravatarHash: string;
   createdAt: string;
 }
 
@@ -108,6 +111,7 @@ export interface FriendGroupMatchRow {
   counterpartyUserId: string;
   counterpartyName: string | null;
   counterpartyImage: string | null;
+  counterpartyGravatarHash: string;
   counterpartyNickname: string | null;
   /** Counterparty's source list (their sell list when they "have", their buy list when they "want"). */
   counterpartyListId: string;

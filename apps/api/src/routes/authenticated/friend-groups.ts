@@ -46,6 +46,7 @@ import {
 
 import type { Repos } from "../../deps.js";
 import { AppError, ERROR_CODES } from "../../errors.js";
+import { gravatarHashForEmail } from "../../lib/gravatar.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import type { Group, GroupMember, MemberWithUser } from "../../repositories/friend-groups.js";
@@ -109,6 +110,7 @@ function toMember(row: MemberWithUser): FriendGroupMemberResponse {
     userId: row.userId,
     userName: row.userName,
     userImage: row.userImage,
+    gravatarHash: gravatarHashForEmail(row.userEmail),
     role: row.role,
     nickname: row.nickname,
     joinedAt: row.joinedAt.toISOString(),
@@ -144,6 +146,7 @@ interface PendingRequestRow {
   userId: string;
   createdAt: Date;
   userName: string | null;
+  userEmail: string;
   userImage: string | null;
 }
 
@@ -153,6 +156,7 @@ function toRequest(row: PendingRequestRow): FriendGroupRequestResponse {
     userId: row.userId,
     userName: row.userName,
     userImage: row.userImage,
+    gravatarHash: gravatarHashForEmail(row.userEmail),
     createdAt: row.createdAt.toISOString(),
   };
 }

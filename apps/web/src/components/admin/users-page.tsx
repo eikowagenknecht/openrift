@@ -3,7 +3,9 @@ import type { AdminUserResponse } from "@openrift/shared";
 import { AdminTable } from "@/components/admin/admin-table";
 import type { AdminColumnDef } from "@/components/admin/admin-table";
 import { Badge } from "@/components/ui/badge";
+import { UserAvatar } from "@/components/user-avatar";
 import { useAdminUsers } from "@/hooks/use-admin-users";
+import { useGravatarHash } from "@/lib/gravatar";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
@@ -13,25 +15,27 @@ function formatDate(iso: string): string {
   });
 }
 
+function UserNameCell({ user }: { user: AdminUserResponse }) {
+  const gravatarHash = useGravatarHash(user.email);
+  return (
+    <div className="flex items-center gap-2">
+      <UserAvatar
+        image={user.image}
+        name={user.name}
+        email={user.email}
+        gravatarHash={gravatarHash}
+        size="sm"
+      />
+      <span className="font-medium">{user.name ?? "—"}</span>
+    </div>
+  );
+}
+
 const columns: AdminColumnDef<AdminUserResponse>[] = [
   {
     header: "Name",
     sortValue: (user) => user.name ?? "",
-    cell: (user) => (
-      <div className="flex items-center gap-2">
-        {user.image ? (
-          <img
-            src={user.image}
-            alt=""
-            className="size-6 rounded-full"
-            referrerPolicy="no-referrer"
-          />
-        ) : (
-          <div className="bg-muted size-6 rounded-full" />
-        )}
-        <span className="font-medium">{user.name ?? "—"}</span>
-      </div>
-    ),
+    cell: (user) => <UserNameCell user={user} />,
   },
   {
     header: "Email",

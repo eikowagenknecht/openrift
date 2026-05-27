@@ -2,6 +2,7 @@ import type { FriendGroupMatchRow } from "@openrift/shared";
 import { imageUrl } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
+import { UserAvatar } from "@/components/user-avatar";
 import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { cn } from "@/lib/utils";
@@ -100,6 +101,7 @@ interface CounterpartyGroup {
   name: string | null;
   nickname: string | null;
   image: string | null;
+  gravatarHash: string;
   rows: AggregatedMatch[];
 }
 
@@ -115,6 +117,7 @@ function groupByCounterparty(rows: AggregatedMatch[]): CounterpartyGroup[] {
         name: row.counterpartyName,
         nickname: row.counterpartyNickname,
         image: row.counterpartyImage,
+        gravatarHash: row.counterpartyGravatarHash,
         rows: [row],
       });
     }
@@ -150,12 +153,13 @@ export function MatchRowGroup({ rows, groupSlug, linkCounterparty, className }: 
     <div className={cn("flex flex-col gap-6", className)}>
       {grouped.map((group) => {
         const heading = (
-          <div className="flex items-center gap-2 font-medium">
-            {group.image ? (
-              <img src={group.image} alt="" className="size-6 rounded-full" />
-            ) : (
-              <span className="bg-muted size-6 rounded-full" />
-            )}
+          <div className="flex items-baseline gap-2 font-medium">
+            <UserAvatar
+              image={group.image}
+              name={group.name}
+              gravatarHash={group.gravatarHash}
+              size="sm"
+            />
             <span>{group.name ?? "Member"}</span>
             {group.nickname ? (
               <span className="text-muted-foreground text-xs">{group.nickname}</span>

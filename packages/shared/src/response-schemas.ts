@@ -918,6 +918,7 @@ export const friendGroupMemberResponseSchema = z
     userId: z.string(),
     userName: z.string().nullable(),
     userImage: z.string().nullable(),
+    gravatarHash: z.string(),
     role: friendGroupRoleSchema,
     nickname: z.string().nullable(),
     joinedAt: z.string(),
@@ -943,6 +944,7 @@ export const friendGroupRequestResponseSchema = z
     userId: z.string(),
     userName: z.string().nullable(),
     userImage: z.string().nullable(),
+    gravatarHash: z.string(),
     createdAt: z.string(),
   })
   .openapi("FriendGroupRequestResponse");
@@ -998,6 +1000,7 @@ const friendGroupMatchRowSchema = z
     counterpartyUserId: z.string(),
     counterpartyName: z.string().nullable(),
     counterpartyImage: z.string().nullable(),
+    counterpartyGravatarHash: z.string(),
     counterpartyNickname: z.string().nullable(),
     counterpartyListId: z.string(),
     counterpartyListName: z.string(),

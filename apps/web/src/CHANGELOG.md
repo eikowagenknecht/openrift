@@ -4,6 +4,8 @@
 
 - feat: On a friend group's settings page, the join code panel now has a Copy link button that copies a shareable URL with the code prefilled, so invitees only have to click it
 - feat: On the same page, your shared lists now show "Wishlist" or "Tradelist" and an entry count as badges, matching how list pages describe them
+- feat: Profile pictures now fall back to a Gravatar (if you have one set up) before showing initials, so most members end up with a real avatar instead of an empty circle
+- feat: Rotating or disabling a friend group's join code now asks for confirmation first, since both actions immediately break any outstanding invite links
 - fix: Profile pictures of friend group members and join requesters now load again, instead of showing empty circles
 
 ## 2026-05-26

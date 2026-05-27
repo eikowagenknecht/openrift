@@ -4,6 +4,7 @@ import { ChevronLeftIcon, FolderIcon, HandshakeIcon, HeartIcon } from "lucide-re
 import type { ComponentType, SVGProps } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { UserAvatar } from "@/components/user-avatar";
 import { useFriendGroupMemberDetail } from "@/hooks/use-friend-groups";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
@@ -62,16 +63,13 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
       </Link>
 
       <header className="flex items-center gap-4">
-        {member.userImage ? (
-          <img
-            src={member.userImage}
-            alt=""
-            className="size-14 rounded-full"
-            referrerPolicy="no-referrer"
-          />
-        ) : (
-          <div className="bg-muted size-14 rounded-full" />
-        )}
+        <UserAvatar
+          image={member.userImage}
+          name={member.userName}
+          gravatarHash={member.gravatarHash}
+          size="lg"
+          className="size-14"
+        />
         <div className="flex flex-col gap-0.5">
           <h1 className="text-2xl font-semibold">{member.userName ?? "Unknown user"}</h1>
           {member.nickname ? <p className="text-muted-foreground">{member.nickname}</p> : null}

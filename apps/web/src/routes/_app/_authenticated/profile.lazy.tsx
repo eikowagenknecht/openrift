@@ -9,12 +9,11 @@ import { DisplaySection } from "@/components/profile/display-section";
 import { LanguagesSection } from "@/components/profile/languages-section";
 import { MarketplacesSection } from "@/components/profile/marketplaces-section";
 import { PasswordSection } from "@/components/profile/password-section";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { UserAvatar } from "@/components/user-avatar";
 import { useLanguageList } from "@/hooks/use-enums";
 import { useSession } from "@/lib/auth-session";
-import { useGravatarUrl } from "@/lib/gravatar";
-import { getUserInitials } from "@/lib/user-initials";
+import { useGravatarHash } from "@/lib/gravatar";
 import { PAGE_PADDING } from "@/lib/utils";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/profile")({
@@ -35,13 +34,11 @@ function ProfilePage() {
   const { data: session } = useSession();
   const languages = useLanguageList();
   const user = session?.user;
-  const gravatarUrl = useGravatarUrl(user?.email);
+  const gravatarHash = useGravatarHash(user?.email);
 
   if (!user) {
     return null;
   }
-
-  const initials = getUserInitials(user.name, user.email);
 
   const createdAt = user.createdAt
     ? new Date(user.createdAt).toLocaleDateString(undefined, {
@@ -59,10 +56,13 @@ function ProfilePage() {
         <div className="flex min-w-0 flex-1 flex-col gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center gap-4">
-              <Avatar size="lg">
-                {gravatarUrl && <AvatarImage src={gravatarUrl} alt={user.name ?? user.email} />}
-                <AvatarFallback>{initials}</AvatarFallback>
-              </Avatar>
+              <UserAvatar
+                image={user.image}
+                name={user.name}
+                email={user.email}
+                gravatarHash={gravatarHash}
+                size="lg"
+              />
               <div className="flex flex-col gap-0.5">
                 <CardTitle>{user.name || user.email}</CardTitle>
                 <CardDescription>{user.email}</CardDescription>

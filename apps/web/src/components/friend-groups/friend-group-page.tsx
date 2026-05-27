@@ -47,6 +47,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { UserAvatar } from "@/components/user-avatar";
 import {
   useAcceptFriendGroupInvite,
   useDeclineFriendGroupInvite,
@@ -245,16 +246,13 @@ function MembersSection({ data, slug }: { data: FriendGroupDetailResponse; slug:
             {data.pendingRequests.map((req) => (
               <div key={req.id} className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  {req.userImage ? (
-                    <img
-                      src={req.userImage}
-                      alt=""
-                      className="size-7 rounded-full"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <div className="bg-muted size-7 rounded-full" />
-                  )}
+                  <UserAvatar
+                    image={req.userImage}
+                    name={req.userName}
+                    gravatarHash={req.gravatarHash}
+                    size="sm"
+                    className="size-7"
+                  />
                   <span className="font-medium">{req.userName ?? "Unknown user"}</span>
                 </div>
                 <div className="flex gap-2">
@@ -328,16 +326,12 @@ function MemberRow({
 
   return (
     <div className="bg-card hover:bg-muted hover:text-foreground flex items-center gap-3 rounded-md border p-3 transition-colors">
-      {member.userImage ? (
-        <img
-          src={member.userImage}
-          alt=""
-          className="size-9 rounded-full"
-          referrerPolicy="no-referrer"
-        />
-      ) : (
-        <div className="bg-muted size-9 rounded-full" />
-      )}
+      <UserAvatar
+        image={member.userImage}
+        name={member.userName}
+        gravatarHash={member.gravatarHash}
+        className="size-9"
+      />
       <Link
         to="/groups/$slug/members/$userId"
         params={{ slug, userId: member.userId }}
@@ -454,6 +448,8 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
   const [description, setDescription] = useState(data.group.description ?? "");
   const [newSlug, setNewSlug] = useState(data.group.slug);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [rotateConfirmOpen, setRotateConfirmOpen] = useState(false);
+  const [disableConfirmOpen, setDisableConfirmOpen] = useState(false);
 
   const slugChanged = newSlug !== data.group.slug;
 
@@ -544,22 +540,64 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
                 <CopyIcon className="size-4" />
                 Copy link
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => rotateCode.mutate(slug)}
-                disabled={rotateCode.isPending}
-              >
-                Rotate
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => disableCode.mutate(slug)}
-                disabled={disableCode.isPending}
-              >
-                Disable
-              </Button>
+              <Dialog open={rotateConfirmOpen} onOpenChange={setRotateConfirmOpen}>
+                <DialogTrigger render={<Button size="sm" variant="destructive" />}>
+                  Rotate
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Rotate the join code?</DialogTitle>
+                    <DialogDescription>
+                      The current code stops working immediately. Anyone holding an old invite link
+                      will need a new one.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <Button variant="ghost" onClick={() => setRotateConfirmOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={async () => {
+                        await rotateCode.mutateAsync(slug);
+                        setRotateConfirmOpen(false);
+                      }}
+                      disabled={rotateCode.isPending}
+                    >
+                      Rotate
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              <Dialog open={disableConfirmOpen} onOpenChange={setDisableConfirmOpen}>
+                <DialogTrigger render={<Button size="sm" variant="destructive" />}>
+                  Disable
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Disable code-based joining?</DialogTitle>
+                    <DialogDescription>
+                      The code stops working immediately. New members will only be able to join via
+                      direct email invites until you re-enable code-based joining.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <Button variant="ghost" onClick={() => setDisableConfirmOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={async () => {
+                        await disableCode.mutateAsync(slug);
+                        setDisableConfirmOpen(false);
+                      }}
+                      disabled={disableCode.isPending}
+                    >
+                      Disable
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           ) : (
             <div className="flex items-center justify-between">

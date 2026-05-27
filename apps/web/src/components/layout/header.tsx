@@ -27,7 +27,6 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { siDiscord, siGithub } from "simple-icons";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -54,13 +53,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { UserAvatar } from "@/components/user-avatar";
 import { useIsAdmin } from "@/hooks/use-admin";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { useFriendGroupPendingInvitesCount } from "@/hooks/use-friend-groups";
 import { signOut } from "@/lib/auth-client";
 import { sessionQueryOptions, useSession } from "@/lib/auth-session";
-import { useGravatarUrl } from "@/lib/gravatar";
-import { getUserInitials } from "@/lib/user-initials";
+import { useGravatarHash } from "@/lib/gravatar";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
@@ -209,20 +208,22 @@ function DesktopNav({
 
 function UserMenuTrigger({
   user,
-  gravatarUrl,
   pendingInvites,
 }: {
-  user: { name: string; email: string } | undefined;
-  gravatarUrl: string | undefined;
+  user: { name: string; email: string; image?: string | null } | undefined;
   pendingInvites: number;
 }) {
+  const gravatarHash = useGravatarHash(user?.email);
   if (user) {
     return (
       <div className="relative">
-        <Avatar size="sm">
-          {gravatarUrl && <AvatarImage src={gravatarUrl} alt={user.name ?? user.email} />}
-          <AvatarFallback>{getUserInitials(user.name, user.email)}</AvatarFallback>
-        </Avatar>
+        <UserAvatar
+          image={user.image}
+          name={user.name}
+          email={user.email}
+          gravatarHash={gravatarHash}
+          size="sm"
+        />
         {pendingInvites > 0 && (
           <span
             aria-label={`${pendingInvites} pending invites`}
@@ -324,11 +325,9 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
 function UserMenu({
   session,
   isPending,
-  gravatarUrl,
 }: {
   session: ReturnType<typeof useSession>["data"];
   isPending: boolean;
-  gravatarUrl: string | undefined;
 }) {
   const isLoggedIn = Boolean(session?.user);
   const { data: pendingInvitesData } = useFriendGroupPendingInvitesCount({ enabled: isLoggedIn });
@@ -353,7 +352,7 @@ function UserMenu({
       )}
       <DropdownMenu>
         <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Menu" />}>
-          <UserMenuTrigger user={user} gravatarUrl={gravatarUrl} pendingInvites={pendingInvites} />
+          <UserMenuTrigger user={user} pendingInvites={pendingInvites} />
         </DropdownMenuTrigger>
         <UserMenuItems isLoggedIn={isLoggedIn} />
       </DropdownMenu>
@@ -551,7 +550,6 @@ function FeedbackPopover() {
 
 export function Header() {
   const { data: session, isPending } = useSession();
-  const gravatarUrl = useGravatarUrl(session?.user?.email);
   const glossaryEnabled = useFeatureEnabled("glossary");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const showGlossary = glossaryEnabled;
@@ -594,7 +592,7 @@ export function Header() {
             <HeartIcon className="size-4" />
             Support
           </Link>
-          <UserMenu session={session} isPending={isPending} gravatarUrl={gravatarUrl} />
+          <UserMenu session={session} isPending={isPending} />
         </div>
       </div>
 

@@ -2,6 +2,7 @@ import type { CardType, Finish, Rarity } from "@openrift/shared/types";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../db/index.js";
+import { gravatarHashForEmail } from "../lib/gravatar.js";
 import { imageId } from "./query-helpers.js";
 
 /**
@@ -18,6 +19,7 @@ export interface MatchRow {
   counterpartyUserId: string;
   counterpartyName: string | null;
   counterpartyImage: string | null;
+  counterpartyGravatarHash: string;
   counterpartyNickname: string | null;
 
   /** The counterparty's source list (their tradelist in "they have", their wishlist in "they want"). */
@@ -181,6 +183,7 @@ async function runMatchQuery(
         : eb.ref("s_buy.userId").as("counterpartyUserId"),
       eb.ref("cp_user.name").as("counterpartyName"),
       eb.ref("cp_user.image").as("counterpartyImage"),
+      eb.ref("cp_user.email").as("counterpartyEmail"),
       eb.ref("cp_member.nickname").as("counterpartyNickname"),
 
       direction === "others-have-your-wants"
@@ -214,6 +217,7 @@ async function runMatchQuery(
       counterpartyUserId: row.counterpartyUserId as string,
       counterpartyName: row.counterpartyName,
       counterpartyImage: row.counterpartyImage,
+      counterpartyGravatarHash: gravatarHashForEmail(row.counterpartyEmail),
       counterpartyNickname: row.counterpartyNickname,
 
       counterpartyListId: row.counterpartyListId as string,
