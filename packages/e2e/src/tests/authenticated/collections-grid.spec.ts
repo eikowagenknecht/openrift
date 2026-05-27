@@ -353,6 +353,30 @@ test.describe("collections grid", () => {
         await expect(page.getByText("Annie, Fiery")).toBeHidden();
       });
     });
+
+    // Regression: the URL search filter narrows `catalogPrintingsByCardId` for
+    // the grid, but the QuickAddPalette must browse the full catalog. Before
+    // the fix in collection-grid.tsx the palette was fed the filtered map, so
+    // typing a non-matching card name returned zero results.
+    test("Ctrl+K palette finds cards outside the URL search filter", async ({ browser }) => {
+      await withSignedInContext(state.user, browser, async (context) => {
+        const page = await context.newPage();
+        await page.goto(`/collections/${state.inboxId}?search=Garen`);
+
+        // The grid filter excludes Annie.
+        await expect(page.getByText("Garen, Rugged")).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByText("Annie, Fiery")).toBeHidden();
+
+        await page.keyboard.press("Control+k");
+        const paletteInput = page.getByPlaceholder(/Add to ".*"\.\.\./u);
+        await expect(paletteInput).toBeVisible();
+
+        await paletteInput.fill("Annie");
+        await expect(page.getByRole("button", { name: /Annie, Fiery/iu }).first()).toBeVisible({
+          timeout: 10_000,
+        });
+      });
+    });
   });
 
   test.describe("per-collection scoping", () => {

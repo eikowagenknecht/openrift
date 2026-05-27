@@ -58,7 +58,12 @@ export function CardBrowser() {
   const showImages = useDisplayStore((s) => s.showImages);
   const catalogMode = useDisplayStore((s) => s.catalogMode);
   const cycleCatalogMode = useDisplayStore((s) => s.cycleCatalogMode);
-  const { allPrintings, printingsById, sets } = useCards();
+  const {
+    allPrintings,
+    printingsById,
+    sets,
+    printingsByCardId: catalogAllPrintingsByCardId,
+  } = useCards();
   const channels = useChannelRegistry();
   // Lifted out of <CardThumbnail> — see useCardThumbnailDisplay for the why.
   // We reuse display.prices / display.favoriteMarketplace below for useCardData.
@@ -399,7 +404,7 @@ export function CardBrowser() {
             onOpenChange={setQuickAddOpen}
             collectionId={inboxId}
             collectionName="Inbox"
-            printingsByCardId={printingsByCardId}
+            printingsByCardId={catalogAllPrintingsByCardId}
             ownedCountByPrinting={ownedCountByPrinting}
           />
         )}

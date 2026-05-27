@@ -11,6 +11,7 @@
 - feat: Rotating or disabling a friend group's join code now asks for confirmation first, since both actions immediately break any outstanding invite links
 - feat: When dragging a card stack between collections, you can hold a number key from 2 to 9 to move that many copies. Shift still moves the whole stack
 - fix: Profile pictures of friend group members and join requesters now load again, instead of showing empty circles
+- fix: The quick add menu now searches the full catalog even when the page's grid is narrowed by a search filter, so typing a different card name still finds it
 
 ## 2026-05-26
 

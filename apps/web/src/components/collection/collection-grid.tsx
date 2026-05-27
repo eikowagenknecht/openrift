@@ -134,7 +134,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // ── Filter state (active in all modes) ──────────────────────────────
   const { filters, sortBy, sortDir, view, groupBy, groupDir, hasActiveFilters } = useFilterValues();
   const { setSearch } = useFilterActions();
-  const { allPrintings, sets } = useCards();
+  const { allPrintings, sets, printingsByCardId: catalogAllPrintingsByCardId } = useCards();
   const channels = useChannelRegistry();
   const prices = display.prices;
   const { data: session } = useSession();
@@ -983,7 +983,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             onOpenChange={setQuickAddOpen}
             collectionId={addTarget}
             collectionName={currentCollection?.name ?? "Collection"}
-            printingsByCardId={catalogPrintingsByCardId}
+            printingsByCardId={catalogAllPrintingsByCardId}
             ownedCountByPrinting={ownedCountByPrinting}
             preferredLanguages={preferredLanguages}
           />
@@ -1245,7 +1245,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           onOpenChange={setQuickAddOpen}
           collectionId={addTarget}
           collectionName={currentCollection?.name ?? "Collection"}
-          printingsByCardId={catalogPrintingsByCardId}
+          printingsByCardId={catalogAllPrintingsByCardId}
           ownedCountByPrinting={ownedCountByPrinting}
           preferredLanguages={preferredLanguages}
         />
