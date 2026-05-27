@@ -408,9 +408,9 @@ export interface DeckCardsTable {
  * CHECK: intent ∈ ('wish','trade','organize'); kind ∈ ('card','printing','copy');
  * intent × kind matches one of the six allowed combos; name <> ''.
  */
-export type TradePricePref = "cm_lowest" | "tcg_lowest" | "ct_zero" | "absolute";
-export type TradeType = "cards" | "money" | "both";
-export type Currency = "EUR" | "USD";
+type TradePricePref = "cm_lowest" | "tcg_lowest" | "ct_zero" | "absolute";
+type TradeType = "cards" | "money" | "both";
+type Currency = "EUR" | "USD";
 
 export interface ListsTable {
   id: Generated<string>;
