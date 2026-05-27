@@ -145,7 +145,12 @@ export default defineConfig(({ mode, command }) => {
       ...(process.env.VITE_DISABLE_DEVTOOLS ? [] : [devtools()]),
       serveMediaPlugin,
       tailwindcss(),
-      tanstackStart(),
+      tanstackStart({
+        router: {
+          // Skip colocated vitest files in routes/; they don't export a Route.
+          routeFileIgnorePattern: "\\.test\\.",
+        },
+      }),
       // Only enable Nitro for production builds — in dev it caches stale SSR
       // HTML after HMR updates, causing hydration mismatches.
       // See https://github.com/TanStack/router/issues/6556
