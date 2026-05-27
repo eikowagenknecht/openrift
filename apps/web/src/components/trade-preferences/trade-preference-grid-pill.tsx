@@ -5,11 +5,11 @@ import type {
   TradePricePref,
   TradeType,
 } from "@openrift/shared";
-import { TagIcon } from "lucide-react";
 
 import { COUNT_PILL_BASE, COUNT_PILL_INTERACTIVE } from "@/components/cards/count-pill";
 import { cn } from "@/lib/utils";
 
+import { iconForTradeType } from "./trade-preference-icon";
 import {
   PRICE_PREF_ABBR,
   PRICE_PREF_SHORT_LABEL,
@@ -48,6 +48,7 @@ export function TradePreferenceGridPill({
   };
   const body = renderBody(effective);
   const tooltip = renderTooltip(effective);
+  const Icon = iconForTradeType(effective.tradeType);
 
   return (
     <button
@@ -67,7 +68,7 @@ export function TradePreferenceGridPill({
         isOverridden && "text-primary",
       )}
     >
-      <TagIcon className="size-3" />
+      <Icon className="size-3" />
       {body ? <span>{body}</span> : null}
     </button>
   );

@@ -5,11 +5,11 @@ import type {
   TradePricePref,
   TradeType,
 } from "@openrift/shared";
-import { TagIcon } from "lucide-react";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
+import { iconForTradeType } from "./trade-preference-icon";
 import {
   PRICE_PREF_ABBR,
   PRICE_PREF_SHORT_LABEL,
@@ -88,6 +88,7 @@ export function TradePreferencePill(props: Props) {
   // (only trade-type set, or nothing set at all). Keeps the actions cell
   // narrow while still telling the user the price reference at a glance.
   const pillBody = renderPillBody(effective);
+  const Icon = iconForTradeType(effective.tradeType);
 
   const button = (
     <button
@@ -104,7 +105,7 @@ export function TradePreferencePill(props: Props) {
       )}
       disabled={props.disabled}
     >
-      <TagIcon className="size-3" />
+      <Icon className="size-3" />
       {pillBody ? <span>{pillBody}</span> : null}
     </button>
   );
