@@ -930,315 +930,12 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     ? catalogPrintingsByCardId.get(variantPopover.cardId)
     : undefined;
 
-  // ── Empty state ─────────────────────────────────────────────────────
-  // Checks the unfiltered stack count, so an empty collection shows this
-  // prompt even when filters (including auto-seeded language prefs) are active.
-  // Gated on `copiesReady` so the empty state doesn't flash while the first
-  // copies fetch is still in flight.
-  if (!isAddMode && copiesReady && stacks.length === 0) {
-    return (
-      <Empty className="flex-1">
-        {topBarPortal}
-        <EmptyHeader>
-          <EmptyMedia>
-            <PackageIcon className="size-16 opacity-50" />
-          </EmptyMedia>
-          <EmptyTitle>No cards yet</EmptyTitle>
-          <EmptyDescription>
-            Browse the card catalog and add cards to{" "}
-            {currentCollection?.name
-              ? `"${currentCollection.name}"`
-              : inboxName
-                ? `"${inboxName}"`
-                : "your collection"}
-            .{" "}
-            <Link to="/help/$slug" params={{ slug: "cards-printings-copies" }}>
-              Learn about cards, printings &amp; copies
-            </Link>
-          </EmptyDescription>
-        </EmptyHeader>
-        <EmptyContent>
-          <div className="flex flex-wrap justify-center gap-2">
-            {addTarget && (
-              <>
-                <Button variant="outline" onClick={() => setQuickAddOpen(true)}>
-                  <ZapIcon className="mr-1 size-3.5" />
-                  Quick add
-                </Button>
-                <Button onClick={toggleAddMode}>
-                  <LibraryBigIcon className="mr-1 size-3.5" />
-                  Browse & add
-                </Button>
-              </>
-            )}
-            <Link to="/collections/import" className={buttonVariants({ variant: "outline" })}>
-              <DownloadIcon className="mr-1 size-3.5" />
-              Import from another tool
-            </Link>
-          </div>
-        </EmptyContent>
-        {addTarget && (
-          <QuickAddPalette
-            open={quickAddOpen}
-            onOpenChange={setQuickAddOpen}
-            collectionId={addTarget}
-            collectionName={currentCollection?.name ?? "Collection"}
-            printingsByCardId={catalogAllPrintingsByCardId}
-            ownedCountByPrinting={ownedCountByPrinting}
-            preferredLanguages={preferredLanguages}
-          />
-        )}
-        {currentCollection && !currentCollection.isInbox && (
-          <DeleteCollectionDialog
-            open={deleteOpen}
-            onOpenChange={setDeleteOpen}
-            collectionName={currentCollection.name}
-            copyCount={currentCollection.copyCount}
-            onConfirm={handleDeleteCollection}
-            isPending={deleteCollection.isPending}
-          />
-        )}
-        {currentCollection && (
-          <EditCollectionDialog
-            open={editOpen}
-            onOpenChange={setEditOpen}
-            collectionId={currentCollection.id}
-            currentName={currentCollection.name}
-            currentAvailableForDeckbuilding={currentCollection.availableForDeckbuilding}
-            isInbox={currentCollection.isInbox}
-          />
-        )}
-        {currentCollection && (
-          <CollectionShareDialog
-            open={shareOpen}
-            onOpenChange={setShareOpen}
-            collectionId={currentCollection.id}
-            isPublic={currentCollection.isPublic}
-            shareToken={currentCollection.shareToken}
-          />
-        )}
-      </Empty>
-    );
-  }
-
-  // ── Main render ─────────────────────────────────────────────────────
-  return (
-    <CardBrowserFilterProvider
-      availableFilters={availableFilters}
-      availableLanguages={availableLanguages}
-      setDisplayLabel={setDisplayLabel}
-      hiddenSections={COLLECTION_GRID_HIDDEN_FILTER_SECTIONS}
-    >
-      {topBarPortal}
-      <BrowserCardViewer
-        items={items}
-        totalItems={isAddMode ? allPrintings.length : totalCopies}
-        renderCard={renderCard}
-        setOrder={sets}
-        groupBy={groupBy}
-        groupDir={groupDir}
-        deferredSortedCards={deferredSortedCards}
-        printingsByCardId={printingsByCardId}
-        view={dataView}
-        stale={isGridStale}
-        toolbar={toolbar}
-        leftPane={leftPane}
-        aboveGrid={<BrowserActiveFilters />}
-        rightPane={rightPane}
-        addStripHeight={ADD_STRIP_HEIGHT}
-        table={{
-          // Browse + add show the +/- buttons (mode !== "select" path);
-          // select mode drops them and shows a read-only count.
-          actionsColumn: mode !== "select" && Boolean(handleQuickAdd) ? "wide" : "narrow",
-          renderActions: (printing) => (
-            <CollectionTableActions
-              printing={printing}
-              collectionId={collectionId}
-              isAddMode={isAddMode}
-              siblingIds={
-                // The catalog map carries every sibling variant (owned or not).
-                // In cards view the table sums across siblings so the count
-                // matches the grid's per-card aggregate.
-                dataView === "cards"
-                  ? catalogPrintingsByCardId.get(printing.cardId)?.map((sibling) => sibling.id)
-                  : undefined
-              }
-            />
-          ),
-          wrapRow: (printing, itemId, row) => {
-            const dragProps = buildDragProps(printing, itemId);
-            if (!dragProps) {
-              return row;
-            }
-            return (
-              <DraggableCard
-                id={itemId}
-                copyIds={dragProps.copyIds}
-                isStackDrag={dragProps.isStackDrag}
-                printing={printing}
-                previewPrintings={dragProps.previewPrintings}
-                sourceCollectionId={collectionId}
-              >
-                {row}
-              </DraggableCard>
-            );
-          },
-        }}
-      >
-        {/* Floating action bar (select mode) */}
-        {mode === "select" && selected.size > 0 && (
-          <FloatingActionBar
-            selectedCount={selected.size}
-            onMove={() => setMoveOpen(true)}
-            onDispose={() => setDisposeOpen(true)}
-            onAddToList={() => setAddToListOpen(true)}
-            onClear={clearSelection}
-            isMovePending={moveCopies.isPending}
-            isDisposePending={disposeCopies.isPending}
-          />
-        )}
-
-        {isMobile && (
-          <SelectionMobileOverlay
-            items={items}
-            printingsByCardId={printingsByCardId}
-            showImages={showImages}
-            onSearchAndClose={searchAndClose}
-          />
-        )}
-
-        <MoveDialog
-          open={moveOpen}
-          onOpenChange={setMoveOpen}
-          collections={collections.filter((collection) => collection.id !== collectionId)}
-          onMove={handleMove}
-          isPending={moveCopies.isPending}
-        />
-
-        <DisposeDialog
-          open={disposeOpen}
-          onOpenChange={setDisposeOpen}
-          count={selected.size}
-          onConfirm={handleDispose}
-          isPending={disposeCopies.isPending}
-        />
-
-        <AddToListDialog
-          open={addToListOpen}
-          onOpenChange={setAddToListOpen}
-          copyIds={[...selected]}
-          onAdded={clearSelection}
-        />
-
-        {currentCollection && !currentCollection.isInbox && (
-          <DeleteCollectionDialog
-            open={deleteOpen}
-            onOpenChange={setDeleteOpen}
-            collectionName={currentCollection.name}
-            copyCount={currentCollection.copyCount}
-            onConfirm={handleDeleteCollection}
-            isPending={deleteCollection.isPending}
-          />
-        )}
-        {currentCollection && (
-          <EditCollectionDialog
-            open={editOpen}
-            onOpenChange={setEditOpen}
-            collectionId={currentCollection.id}
-            currentName={currentCollection.name}
-            currentAvailableForDeckbuilding={currentCollection.availableForDeckbuilding}
-            isInbox={currentCollection.isInbox}
-          />
-        )}
-        {currentCollection && (
-          <CollectionShareDialog
-            open={shareOpen}
-            onOpenChange={setShareOpen}
-            collectionId={currentCollection.id}
-            isPublic={currentCollection.isPublic}
-            shareToken={currentCollection.shareToken}
-          />
-        )}
-      </BrowserCardViewer>
-
-      {/* Variant add popover (add mode only) */}
-      {variantPopover && variantPrintings && handleQuickAdd && handleUndoAdd && tryUndoAdd && (
-        <Popover
-          open
-          onOpenChange={(open, details) => {
-            if (open) {
-              return;
-            }
-            // ESC inside the dispose sub-page goes back to the variants list,
-            // mirroring how cmdk "pages" work. The popover stays mounted
-            // because `open` is hard-coded true; clearing variantDisposeTarget
-            // swaps the content back.
-            if (details.reason === "escape-key" && variantDisposeTarget) {
-              setVariantDisposeTarget(null);
-              return;
-            }
-            setVariantDisposeTarget(null);
-            closeVariants(details.reason === "outside-press" ? details.event.target : undefined);
-          }}
-        >
-          <PopoverContent
-            anchor={variantPopover.anchorEl}
-            side="bottom"
-            align="center"
-            className="max-h-72 w-max max-w-[min(90vw,24rem)] min-w-56 gap-0 overflow-y-auto p-0"
-          >
-            <VariantAddPopover
-              printings={variantPrintings}
-              ownedCounts={Object.fromEntries(
-                variantPrintings.map((p) => [
-                  p.id,
-                  adjustedCount(p.id, stackByPrintingId.get(p.id)?.copyIds.length ?? 0),
-                ]),
-              )}
-              onQuickAdd={handleQuickAdd}
-              onUndoAdd={async (printing) => {
-                const result = await tryUndoAdd(printing);
-                if (result === "ambiguous") {
-                  setVariantDisposeTarget(printing);
-                }
-              }}
-              initialHighlightId={selectedCardId}
-              intent={variantPopover.intent}
-              disposeTarget={variantDisposeTarget}
-              onDisposePick={async (printing, fromCollectionId) => {
-                await handleDisposeFromCollection(printing, fromCollectionId);
-                setVariantDisposeTarget(null);
-              }}
-            />
-          </PopoverContent>
-        </Popover>
-      )}
-
-      {/* Dispose picker popover (All Cards view, multi-collection minus) */}
-      {disposePicker && (
-        <Popover
-          open
-          onOpenChange={(open) => {
-            if (!open) {
-              closeDisposePicker();
-            }
-          }}
-        >
-          <PopoverContent
-            anchor={disposePicker.anchorEl}
-            side="bottom"
-            align="center"
-            className="w-max max-w-[min(90vw,24rem)] min-w-56 gap-0 p-0"
-          >
-            <DisposePickerPopover
-              printing={disposePicker.printing}
-              onPick={handleDisposeFromCollection}
-            />
-          </PopoverContent>
-        </Popover>
-      )}
-
-      {/* Quick-add palette — available in all modes */}
+  // Mounted once at a stable position so React preserves these instances
+  // across the empty↔populated transition. Otherwise an open QuickAddPalette
+  // would reset its internal state (input, expanded card) on the first add
+  // when the empty-state subtree unmounts.
+  const collectionOverlays = (
+    <>
       {addTarget && (
         <QuickAddPalette
           open={quickAddOpen}
@@ -1250,7 +947,282 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           preferredLanguages={preferredLanguages}
         />
       )}
-    </CardBrowserFilterProvider>
+      {currentCollection && !currentCollection.isInbox && (
+        <DeleteCollectionDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          collectionName={currentCollection.name}
+          copyCount={currentCollection.copyCount}
+          onConfirm={handleDeleteCollection}
+          isPending={deleteCollection.isPending}
+        />
+      )}
+      {currentCollection && (
+        <EditCollectionDialog
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          collectionId={currentCollection.id}
+          currentName={currentCollection.name}
+          currentAvailableForDeckbuilding={currentCollection.availableForDeckbuilding}
+          isInbox={currentCollection.isInbox}
+        />
+      )}
+      {currentCollection && (
+        <CollectionShareDialog
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          collectionId={currentCollection.id}
+          isPublic={currentCollection.isPublic}
+          shareToken={currentCollection.shareToken}
+        />
+      )}
+    </>
+  );
+
+  // ── Empty state ─────────────────────────────────────────────────────
+  // Checks the unfiltered stack count, so an empty collection shows this
+  // prompt even when filters (including auto-seeded language prefs) are active.
+  // Gated on `copiesReady` so the empty state doesn't flash while the first
+  // copies fetch is still in flight.
+  if (!isAddMode && copiesReady && stacks.length === 0) {
+    return (
+      <>
+        <Empty className="flex-1">
+          {topBarPortal}
+          <EmptyHeader>
+            <EmptyMedia>
+              <PackageIcon className="size-16 opacity-50" />
+            </EmptyMedia>
+            <EmptyTitle>No cards yet</EmptyTitle>
+            <EmptyDescription>
+              Browse the card catalog and add cards to{" "}
+              {currentCollection?.name
+                ? `"${currentCollection.name}"`
+                : inboxName
+                  ? `"${inboxName}"`
+                  : "your collection"}
+              .{" "}
+              <Link to="/help/$slug" params={{ slug: "cards-printings-copies" }}>
+                Learn about cards, printings &amp; copies
+              </Link>
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <div className="flex flex-wrap justify-center gap-2">
+              {addTarget && (
+                <>
+                  <Button variant="outline" onClick={() => setQuickAddOpen(true)}>
+                    <ZapIcon className="mr-1 size-3.5" />
+                    Quick add
+                  </Button>
+                  <Button onClick={toggleAddMode}>
+                    <LibraryBigIcon className="mr-1 size-3.5" />
+                    Browse & add
+                  </Button>
+                </>
+              )}
+              <Link to="/collections/import" className={buttonVariants({ variant: "outline" })}>
+                <DownloadIcon className="mr-1 size-3.5" />
+                Import from another tool
+              </Link>
+            </div>
+          </EmptyContent>
+        </Empty>
+        {collectionOverlays}
+      </>
+    );
+  }
+
+  // ── Main render ─────────────────────────────────────────────────────
+  return (
+    <>
+      <CardBrowserFilterProvider
+        availableFilters={availableFilters}
+        availableLanguages={availableLanguages}
+        setDisplayLabel={setDisplayLabel}
+        hiddenSections={COLLECTION_GRID_HIDDEN_FILTER_SECTIONS}
+      >
+        {topBarPortal}
+        <BrowserCardViewer
+          items={items}
+          totalItems={isAddMode ? allPrintings.length : totalCopies}
+          renderCard={renderCard}
+          setOrder={sets}
+          groupBy={groupBy}
+          groupDir={groupDir}
+          deferredSortedCards={deferredSortedCards}
+          printingsByCardId={printingsByCardId}
+          view={dataView}
+          stale={isGridStale}
+          toolbar={toolbar}
+          leftPane={leftPane}
+          aboveGrid={<BrowserActiveFilters />}
+          rightPane={rightPane}
+          addStripHeight={ADD_STRIP_HEIGHT}
+          table={{
+            // Browse + add show the +/- buttons (mode !== "select" path);
+            // select mode drops them and shows a read-only count.
+            actionsColumn: mode !== "select" && Boolean(handleQuickAdd) ? "wide" : "narrow",
+            renderActions: (printing) => (
+              <CollectionTableActions
+                printing={printing}
+                collectionId={collectionId}
+                isAddMode={isAddMode}
+                siblingIds={
+                  // The catalog map carries every sibling variant (owned or not).
+                  // In cards view the table sums across siblings so the count
+                  // matches the grid's per-card aggregate.
+                  dataView === "cards"
+                    ? catalogPrintingsByCardId.get(printing.cardId)?.map((sibling) => sibling.id)
+                    : undefined
+                }
+              />
+            ),
+            wrapRow: (printing, itemId, row) => {
+              const dragProps = buildDragProps(printing, itemId);
+              if (!dragProps) {
+                return row;
+              }
+              return (
+                <DraggableCard
+                  id={itemId}
+                  copyIds={dragProps.copyIds}
+                  isStackDrag={dragProps.isStackDrag}
+                  printing={printing}
+                  previewPrintings={dragProps.previewPrintings}
+                  sourceCollectionId={collectionId}
+                >
+                  {row}
+                </DraggableCard>
+              );
+            },
+          }}
+        >
+          {/* Floating action bar (select mode) */}
+          {mode === "select" && selected.size > 0 && (
+            <FloatingActionBar
+              selectedCount={selected.size}
+              onMove={() => setMoveOpen(true)}
+              onDispose={() => setDisposeOpen(true)}
+              onAddToList={() => setAddToListOpen(true)}
+              onClear={clearSelection}
+              isMovePending={moveCopies.isPending}
+              isDisposePending={disposeCopies.isPending}
+            />
+          )}
+
+          {isMobile && (
+            <SelectionMobileOverlay
+              items={items}
+              printingsByCardId={printingsByCardId}
+              showImages={showImages}
+              onSearchAndClose={searchAndClose}
+            />
+          )}
+
+          <MoveDialog
+            open={moveOpen}
+            onOpenChange={setMoveOpen}
+            collections={collections.filter((collection) => collection.id !== collectionId)}
+            onMove={handleMove}
+            isPending={moveCopies.isPending}
+          />
+
+          <DisposeDialog
+            open={disposeOpen}
+            onOpenChange={setDisposeOpen}
+            count={selected.size}
+            onConfirm={handleDispose}
+            isPending={disposeCopies.isPending}
+          />
+
+          <AddToListDialog
+            open={addToListOpen}
+            onOpenChange={setAddToListOpen}
+            copyIds={[...selected]}
+            onAdded={clearSelection}
+          />
+        </BrowserCardViewer>
+
+        {/* Variant add popover (add mode only) */}
+        {variantPopover && variantPrintings && handleQuickAdd && handleUndoAdd && tryUndoAdd && (
+          <Popover
+            open
+            onOpenChange={(open, details) => {
+              if (open) {
+                return;
+              }
+              // ESC inside the dispose sub-page goes back to the variants list,
+              // mirroring how cmdk "pages" work. The popover stays mounted
+              // because `open` is hard-coded true; clearing variantDisposeTarget
+              // swaps the content back.
+              if (details.reason === "escape-key" && variantDisposeTarget) {
+                setVariantDisposeTarget(null);
+                return;
+              }
+              setVariantDisposeTarget(null);
+              closeVariants(details.reason === "outside-press" ? details.event.target : undefined);
+            }}
+          >
+            <PopoverContent
+              anchor={variantPopover.anchorEl}
+              side="bottom"
+              align="center"
+              className="max-h-72 w-max max-w-[min(90vw,24rem)] min-w-56 gap-0 overflow-y-auto p-0"
+            >
+              <VariantAddPopover
+                printings={variantPrintings}
+                ownedCounts={Object.fromEntries(
+                  variantPrintings.map((p) => [
+                    p.id,
+                    adjustedCount(p.id, stackByPrintingId.get(p.id)?.copyIds.length ?? 0),
+                  ]),
+                )}
+                onQuickAdd={handleQuickAdd}
+                onUndoAdd={async (printing) => {
+                  const result = await tryUndoAdd(printing);
+                  if (result === "ambiguous") {
+                    setVariantDisposeTarget(printing);
+                  }
+                }}
+                initialHighlightId={selectedCardId}
+                intent={variantPopover.intent}
+                disposeTarget={variantDisposeTarget}
+                onDisposePick={async (printing, fromCollectionId) => {
+                  await handleDisposeFromCollection(printing, fromCollectionId);
+                  setVariantDisposeTarget(null);
+                }}
+              />
+            </PopoverContent>
+          </Popover>
+        )}
+
+        {/* Dispose picker popover (All Cards view, multi-collection minus) */}
+        {disposePicker && (
+          <Popover
+            open
+            onOpenChange={(open) => {
+              if (!open) {
+                closeDisposePicker();
+              }
+            }}
+          >
+            <PopoverContent
+              anchor={disposePicker.anchorEl}
+              side="bottom"
+              align="center"
+              className="w-max max-w-[min(90vw,24rem)] min-w-56 gap-0 p-0"
+            >
+              <DisposePickerPopover
+                printing={disposePicker.printing}
+                onPick={handleDisposeFromCollection}
+              />
+            </PopoverContent>
+          </Popover>
+        )}
+      </CardBrowserFilterProvider>
+      {collectionOverlays}
+    </>
   );
 }
 
