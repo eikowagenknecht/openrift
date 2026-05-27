@@ -63,7 +63,12 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
 
       <header className="flex items-center gap-4">
         {member.userImage ? (
-          <img src={member.userImage} alt="" className="size-14 rounded-full" />
+          <img
+            src={member.userImage}
+            alt=""
+            className="size-14 rounded-full"
+            referrerPolicy="no-referrer"
+          />
         ) : (
           <div className="bg-muted size-14 rounded-full" />
         )}

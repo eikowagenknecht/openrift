@@ -960,6 +960,7 @@ export const friendGroupsRoute = friendGroupsApp
         listIntent:
           row.listIntent as FriendGroupShareableListsResponse["items"][number]["listIntent"],
         listKind: row.listKind as FriendGroupShareableListsResponse["items"][number]["listKind"],
+        entryCount: row.entryCount,
         sharedAt: row.sharedAt ? row.sharedAt.toISOString() : null,
       })),
     };

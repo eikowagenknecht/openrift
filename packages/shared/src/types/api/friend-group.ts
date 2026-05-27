@@ -95,6 +95,7 @@ export interface FriendGroupShareableListResponse {
   listName: string;
   listIntent: ListIntent;
   listKind: ListKind;
+  entryCount: number;
   /** `null` when the list is not currently shared with this group. */
   sharedAt: string | null;
 }

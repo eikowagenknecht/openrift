@@ -182,6 +182,7 @@ describe("friendGroupsRepo", () => {
       listName: "My Wants",
       listIntent: "wish",
       listKind: "card",
+      entryCount: 12,
       sharedAt: null,
     };
     const repo = friendGroupsRepo(createMockDb([row]));

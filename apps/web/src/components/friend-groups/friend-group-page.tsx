@@ -3,20 +3,27 @@ import type {
   FriendGroupMemberResponse,
   FriendGroupRole,
   FriendGroupShareableListResponse,
+  ListIntent,
+  ListKind,
 } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   CheckIcon,
   CopyIcon,
   EllipsisVerticalIcon,
+  FolderIcon,
+  HandshakeIcon,
+  HeartIcon,
   KeyIcon,
   ShieldIcon,
   Trash2Icon,
   UsersIcon,
   XIcon,
 } from "lucide-react";
+import type { ComponentType, SVGProps } from "react";
 import { useState } from "react";
 
+import { listKindIcon } from "@/components/list/create-list-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -61,6 +68,7 @@ import {
   useUpdateFriendGroupRole,
 } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
+import { getSiteUrl } from "@/lib/site-config";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
 import { MatchRowGroup } from "./match-row-card";
@@ -69,6 +77,24 @@ const ROLE_LABEL: Record<FriendGroupRole, string> = {
   owner: "Owner",
   admin: "Admin",
   member: "Member",
+};
+
+const INTENT_LABEL: Record<ListIntent, string> = {
+  wish: "Wishlist",
+  trade: "Tradelist",
+  organize: "Organize",
+};
+
+const INTENT_ICON: Record<ListIntent, ComponentType<SVGProps<SVGSVGElement>>> = {
+  wish: HeartIcon,
+  trade: HandshakeIcon,
+  organize: FolderIcon,
+};
+
+const KIND_NOUN: Record<ListKind, { singular: string; plural: string }> = {
+  card: { singular: "Card", plural: "Cards" },
+  printing: { singular: "Printing", plural: "Printings" },
+  copy: { singular: "Copy", plural: "Copies" },
 };
 
 function isAdmin(role: FriendGroupRole | null): role is "admin" | "owner" {
@@ -220,7 +246,12 @@ function MembersSection({ data, slug }: { data: FriendGroupDetailResponse; slug:
               <div key={req.id} className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   {req.userImage ? (
-                    <img src={req.userImage} alt="" className="size-7 rounded-full" />
+                    <img
+                      src={req.userImage}
+                      alt=""
+                      className="size-7 rounded-full"
+                      referrerPolicy="no-referrer"
+                    />
                   ) : (
                     <div className="bg-muted size-7 rounded-full" />
                   )}
@@ -298,7 +329,12 @@ function MemberRow({
   return (
     <div className="bg-card hover:bg-muted hover:text-foreground flex items-center gap-3 rounded-md border p-3 transition-colors">
       {member.userImage ? (
-        <img src={member.userImage} alt="" className="size-9 rounded-full" />
+        <img
+          src={member.userImage}
+          alt=""
+          className="size-9 rounded-full"
+          referrerPolicy="no-referrer"
+        />
       ) : (
         <div className="bg-muted size-9 rounded-full" />
       )}
@@ -499,9 +535,14 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => navigator.clipboard.writeText(data.group.code ?? "")}
+                onClick={() =>
+                  navigator.clipboard.writeText(
+                    `${getSiteUrl()}/groups/join?code=${encodeURIComponent(data.group.code ?? "")}`,
+                  )
+                }
               >
                 <CopyIcon className="size-4" />
+                Copy link
               </Button>
               <Button
                 size="sm"
@@ -621,6 +662,10 @@ function ShareableListRow({
   unshare: ReturnType<typeof useUnshareListFromFriendGroup>;
 }) {
   const isShared = row.sharedAt !== null;
+  const IntentIcon = INTENT_ICON[row.listIntent];
+  const KindIcon = listKindIcon(row.listKind);
+  const kindNoun =
+    row.entryCount === 1 ? KIND_NOUN[row.listKind].singular : KIND_NOUN[row.listKind].plural;
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="flex items-center gap-3">
@@ -635,16 +680,23 @@ function ShareableListRow({
           }}
           disabled={share.isPending || unshare.isPending}
         />
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-1">
           <span className="font-medium">{row.listName}</span>
-          <span className="text-muted-foreground text-xs">
-            {row.listIntent} · {row.listKind}
-          </span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge variant="outline" className="text-2xs gap-1">
+              <IntentIcon className="size-3" />
+              {INTENT_LABEL[row.listIntent]}
+            </Badge>
+            <Badge variant="outline" className="text-2xs gap-1">
+              <KindIcon className="size-3" />
+              {row.entryCount} {kindNoun}
+            </Badge>
+          </div>
         </div>
       </div>
       {row.listIntent === "organize" ? (
         <Badge variant="outline" className="text-xs">
-          Informational only — doesn&apos;t appear in matches
+          Informational only, doesn&apos;t appear in matches
         </Badge>
       ) : null}
     </div>

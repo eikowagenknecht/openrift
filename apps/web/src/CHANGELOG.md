@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-05-27
+
+- feat: On a friend group's settings page, the join code panel now has a Copy link button that copies a shareable URL with the code prefilled, so invitees only have to click it
+- feat: On the same page, your shared lists now show "Wishlist" or "Tradelist" and an entry count as badges, matching how list pages describe them
+- fix: Profile pictures of friend group members and join requesters now load again, instead of showing empty circles
+
 ## 2026-05-26
 
 - feat: A friend group member's shared lists now appear as compact tiles with a heart, handshake, or folder icon for wishlists, tradelists, and organize lists, instead of stacked groups

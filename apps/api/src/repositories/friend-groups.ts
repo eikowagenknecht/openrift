@@ -1,3 +1,4 @@
+import { sql } from "kysely";
 import type { Insertable, Kysely, Selectable, Updateable } from "kysely";
 
 import type {
@@ -417,6 +418,7 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         listName: string;
         listIntent: string;
         listKind: string;
+        entryCount: number;
         sharedAt: Date | null;
       }[]
     > {
@@ -430,6 +432,9 @@ export function friendGroupsRepo(db: Kysely<Database>) {
           "l.name as listName",
           "l.intent as listIntent",
           "l.kind as listKind",
+          sql<number>`(select count(*)::int from list_entries where list_entries.list_id = l.id)`.as(
+            "entryCount",
+          ),
           "s.sharedAt as sharedAt",
         ])
         .where("l.userId", "=", userId)
