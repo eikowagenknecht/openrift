@@ -70,12 +70,12 @@ export function TradePreferenceDialog({
   }, [open, override, currency, defaultCurrency]);
 
   const absoluteNeedsAmount = draft.pricePref === "absolute" && draft.priceAbsoluteCents === null;
-  // When the user is in absolute-price territory, push the chosen currency
-  // back up to the list — either because the list had none yet, or because
-  // the user actively changed it from the value the list already has.
-  // Currency is list-level, so any change here applies to the whole list.
+  // Currency is a list-level setting — users change it from Edit list, not
+  // from here. The only exception is legacy lists with no currency yet:
+  // ask the user once when they pick absolute, then save it to the list.
+  const listMissingCurrency = currency === null;
   const listCurrencyToSet: Currency | undefined =
-    draft.pricePref === "absolute" && draftCurrency !== currency ? draftCurrency : undefined;
+    listMissingCurrency && draft.pricePref === "absolute" ? draftCurrency : undefined;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -91,10 +91,10 @@ export function TradePreferenceDialog({
           value={draft}
           onChange={setDraft}
           currency={draftCurrency}
-          // Always show the currency picker when fixed-price is selected so
-          // the user can verify or change it from this dialog. Changing it
-          // here updates the whole list's currency (it's a list-level field).
-          showCurrency={draft.pricePref === "absolute"}
+          // Currency is a list-level setting — only ask here as a fallback
+          // for legacy lists that don't have one yet. Users change it
+          // afterwards from Edit list.
+          showCurrency={listMissingCurrency && draft.pricePref === "absolute"}
           onCurrencyChange={setDraftCurrency}
           idPrefix="entry-dialog"
         />
