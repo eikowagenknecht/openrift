@@ -1,7 +1,7 @@
 import type { PublicUserBundleResponse } from "@openrift/shared";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
-import { RouteErrorFallback, RouteNotFoundFallback } from "@/components/error-message";
+import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
 import { publicUserBundleQueryOptions } from "@/hooks/use-user-share";
 import { seoHead } from "@/lib/seo";
@@ -35,7 +35,7 @@ export const Route = createFileRoute("/_app/users_/share/$token")({
   },
   pendingComponent: SharedUserBundlePending,
   errorComponent: RouteErrorFallback,
-  notFoundComponent: RouteNotFoundFallback,
+  notFoundComponent: NotFoundFallback,
 });
 
 function SharedUserBundlePending() {

@@ -2,7 +2,7 @@ import type { PublicDeckDetailResponse } from "@openrift/shared";
 import { WellKnown, imageUrl } from "@openrift/shared";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
-import { RouteErrorFallback, RouteNotFoundFallback } from "@/components/error-message";
+import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
 import { publicDeckQueryOptions } from "@/hooks/use-decks";
 import { seoHead, toAbsoluteUrl } from "@/lib/seo";
@@ -61,7 +61,7 @@ export const Route = createFileRoute("/_app/decks_/share/$token")({
   },
   pendingComponent: SharedDeckPending,
   errorComponent: RouteErrorFallback,
-  notFoundComponent: RouteNotFoundFallback,
+  notFoundComponent: NotFoundFallback,
 });
 
 function SharedDeckPending() {

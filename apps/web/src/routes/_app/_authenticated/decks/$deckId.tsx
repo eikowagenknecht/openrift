@@ -1,6 +1,6 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
-import { RouteErrorFallback, RouteNotFoundFallback } from "@/components/error-message";
+import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";
 import { deckDetailQueryOptions } from "@/hooks/use-decks";
 import { initQueryOptions } from "@/hooks/use-init";
 import { filterSearchSchema } from "@/lib/search-schemas";
@@ -26,5 +26,5 @@ export const Route = createFileRoute("/_app/_authenticated/decks/$deckId")({
     }
   },
   errorComponent: RouteErrorFallback,
-  notFoundComponent: RouteNotFoundFallback,
+  notFoundComponent: NotFoundFallback,
 });

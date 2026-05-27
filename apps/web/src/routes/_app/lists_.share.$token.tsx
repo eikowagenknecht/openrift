@@ -1,7 +1,7 @@
 import type { PublicListDetailResponse } from "@openrift/shared";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
-import { RouteErrorFallback, RouteNotFoundFallback } from "@/components/error-message";
+import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
 import { publicListQueryOptions } from "@/hooks/use-lists";
 import { filterSearchSchema } from "@/lib/search-schemas";
@@ -35,7 +35,7 @@ export const Route = createFileRoute("/_app/lists_/share/$token")({
   },
   pendingComponent: SharedListPending,
   errorComponent: RouteErrorFallback,
-  notFoundComponent: RouteNotFoundFallback,
+  notFoundComponent: NotFoundFallback,
 });
 
 function SharedListPending() {

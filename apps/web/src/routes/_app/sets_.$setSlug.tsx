@@ -1,7 +1,7 @@
 import type { SetDetailResponse } from "@openrift/shared";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
-import { RouteErrorFallback, RouteNotFoundFallback } from "@/components/error-message";
+import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";
 import { publicSetDetailQueryOptions } from "@/hooks/use-public-sets";
 import { breadcrumbJsonLd, collectionPageJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
@@ -70,5 +70,5 @@ export const Route = createFileRoute("/_app/sets_/$setSlug")({
   component: () => null,
   pendingComponent: () => null,
   errorComponent: RouteErrorFallback,
-  notFoundComponent: RouteNotFoundFallback,
+  notFoundComponent: NotFoundFallback,
 });

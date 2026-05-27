@@ -1,7 +1,7 @@
 import type { PublicCollectionDetailResponse } from "@openrift/shared";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
-import { RouteErrorFallback, RouteNotFoundFallback } from "@/components/error-message";
+import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
 import { publicCollectionQueryOptions } from "@/hooks/use-collections";
 import { filterSearchSchema } from "@/lib/search-schemas";
@@ -36,7 +36,7 @@ export const Route = createFileRoute("/_app/collections_/share/$token")({
   },
   pendingComponent: SharedCollectionPending,
   errorComponent: RouteErrorFallback,
-  notFoundComponent: RouteNotFoundFallback,
+  notFoundComponent: NotFoundFallback,
 });
 
 function SharedCollectionPending() {

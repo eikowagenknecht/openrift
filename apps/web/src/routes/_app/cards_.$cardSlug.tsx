@@ -2,7 +2,7 @@ import type { CardDetailResponse, Marketplace } from "@openrift/shared";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { RouteErrorFallback, RouteNotFoundFallback } from "@/components/error-message";
+import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { effectiveLanguageOrder } from "@/hooks/use-effective-language-order";
@@ -147,7 +147,7 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
   component: () => null,
   pendingComponent: CardDetailPending,
   errorComponent: RouteErrorFallback,
-  notFoundComponent: RouteNotFoundFallback,
+  notFoundComponent: NotFoundFallback,
 });
 
 function CardDetailPending() {

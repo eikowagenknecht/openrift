@@ -10,6 +10,7 @@
 - feat: Profile pictures now fall back to a Gravatar (if you have one set up) before showing initials, so most members end up with a real avatar instead of an empty circle
 - feat: Rotating or disabling a friend group's join code now asks for confirmation first, since both actions immediately break any outstanding invite links
 - feat: When dragging a card stack between collections, you can hold a number key from 2 to 9 to move that many copies. Shift still moves the whole stack
+- fix: When a share link or card URL points to something that no longer exists, the page no longer renders two stacked headers and footers around the "Nothing here but dust" message
 - fix: On the collection stats page, the domain donut chart and "by domain" completion rows now show the proper domain names (Fury, Calm, ...) instead of lowercase slugs
 - fix: Profile pictures of friend group members and join requesters now load again, instead of showing empty circles
 - fix: The quick add menu now searches the full catalog even when the page's grid is narrowed by a search filter, so typing a different card name still finds it
