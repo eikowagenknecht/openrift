@@ -80,26 +80,44 @@ function CollectionLayout() {
   const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
   const topBarHeight = useMeasuredHeight(topBarSlot);
   const [activeDrag, setActiveDrag] = useState<CardDragData | null>(null);
-  const [shiftHeld, setShiftHeld] = useState(false);
+  // null → move 1 (default), "all" → Shift held, number → digit key 2-9 held.
+  const [moveModifier, setMoveModifier] = useState<"all" | number | null>(null);
   const moveCopies = useMoveCopies();
   const bulkAddCopiesToList = useBulkAddCopiesToList();
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: DRAG_ACTIVATION }));
 
-  // Track Shift during drag so stack drags can "move all" on shift-release,
-  // default to moving a single copy otherwise.
+  // Track Shift and digit keys 2-9 during drag. Shift moves the whole stack;
+  // a digit moves that many copies. Default (no modifier) moves one copy.
   useEffect(() => {
     if (!activeDrag) {
       return;
     }
+    const parseDigit = (key: string) => {
+      if (key.length !== 1) {
+        return null;
+      }
+      const value = Number(key);
+      return Number.isInteger(value) && value >= 2 && value <= 9 ? value : null;
+    };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Shift") {
-        setShiftHeld(true);
+        setMoveModifier("all");
+        return;
+      }
+      const digit = parseDigit(event.key);
+      if (digit !== null) {
+        setMoveModifier(digit);
       }
     };
     const handleKeyUp = (event: KeyboardEvent) => {
       if (event.key === "Shift") {
-        setShiftHeld(false);
+        setMoveModifier((current) => (current === "all" ? null : current));
+        return;
+      }
+      const digit = parseDigit(event.key);
+      if (digit !== null) {
+        setMoveModifier((current) => (current === digit ? null : current));
       }
     };
     globalThis.addEventListener("keydown", handleKeyDown);
@@ -114,14 +132,14 @@ function CollectionLayout() {
     const data = event.active.data.current as CardDragData | undefined;
     if (data?.type === "collection-card") {
       setActiveDrag(data);
-      setShiftHeld(false);
+      setMoveModifier(null);
     }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
-    const moveAll = shiftHeld;
+    const modifier = moveModifier;
     setActiveDrag(null);
-    setShiftHeld(false);
+    setMoveModifier(null);
 
     const dragData = event.active.data.current as CardDragData | undefined;
     const dropData = event.over?.data.current as
@@ -139,7 +157,9 @@ function CollectionLayout() {
         return;
       }
       const copyIds =
-        dragData.isStackDrag && !moveAll ? dragData.copyIds.slice(0, 1) : dragData.copyIds;
+        dragData.isStackDrag && modifier !== "all"
+          ? dragData.copyIds.slice(0, typeof modifier === "number" ? modifier : 1)
+          : dragData.copyIds;
       const count = copyIds.length;
       moveCopies.mutate(
         { copyIds, toCollectionId: dropData.collectionId },
@@ -184,7 +204,7 @@ function CollectionLayout() {
               onDragEnd={handleDragEnd}
               onDragCancel={() => {
                 setActiveDrag(null);
-                setShiftHeld(false);
+                setMoveModifier(null);
               }}
             >
               <DndScrollWatcher />
@@ -193,7 +213,7 @@ function CollectionLayout() {
                 <CollectionContent />
               </TopBarSlotContext>
               <DragOverlay dropAnimation={null} modifiers={MODIFIERS}>
-                {activeDrag && <DragPreview drag={activeDrag} shiftHeld={shiftHeld} />}
+                {activeDrag && <DragPreview drag={activeDrag} modifier={moveModifier} />}
               </DragOverlay>
             </DndContext>
           </SidebarProvider>
@@ -220,9 +240,11 @@ const FAN_OFFSETS = [
   { x: 24, y: -2, rotate: 12 },
 ];
 
-function DragPreview({ drag, shiftHeld }: { drag: CardDragData; shiftHeld: boolean }) {
+function DragPreview({ drag, modifier }: { drag: CardDragData; modifier: "all" | number | null }) {
   const printings = drag.previewPrintings;
-  const count = drag.isStackDrag && !shiftHeld ? 1 : drag.copyIds.length;
+  const requested =
+    modifier === "all" ? drag.copyIds.length : typeof modifier === "number" ? modifier : 1;
+  const count = drag.isStackDrag ? Math.min(requested, drag.copyIds.length) : drag.copyIds.length;
   // Show up to 3 fanned cards, front card on top
   const cards = printings.slice(0, 3);
 
