@@ -65,14 +65,26 @@ export function TradePreferenceEditor({
   const tradeTypeValue = value.tradeType ?? TRADE_TYPE_NONE;
   const isAbsolute = value.pricePref === "absolute";
 
+  // `listDefault === undefined` means this editor is editing the list defaults
+  // themselves (list create/edit dialog), so there's nothing to inherit from
+  // and the option reads as the plain "no preference" label. When listDefault
+  // IS provided (per-entry override dialog), the option always names what's
+  // inherited — including "Negotiate" when the list itself has no value set,
+  // so the user can tell inheritance is happening either way.
   const pricePrefNoneLabel =
-    listDefault?.pricePref === undefined || listDefault.pricePref === null
+    listDefault === undefined
       ? "No preference (negotiate)"
-      : `List default (${PRICE_PREF_SHORT_LABEL[listDefault.pricePref]})`;
+      : `List default (${
+          listDefault.pricePref === null
+            ? "Negotiate"
+            : PRICE_PREF_SHORT_LABEL[listDefault.pricePref]
+        })`;
   const tradeTypeNoneLabel =
-    listDefault?.tradeType === undefined || listDefault.tradeType === null
+    listDefault === undefined
       ? "No preference (negotiate)"
-      : `List default (${TRADE_TYPE_LABEL[listDefault.tradeType]})`;
+      : `List default (${
+          listDefault.tradeType === null ? "Negotiate" : TRADE_TYPE_LABEL[listDefault.tradeType]
+        })`;
 
   const pricePrefItems: { value: string; label: string }[] = [
     { value: PRICE_PREF_NONE, label: pricePrefNoneLabel },
@@ -126,9 +138,9 @@ export function TradePreferenceEditor({
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex min-w-0 flex-col gap-3 overflow-hidden">
       <div className="flex items-center gap-2">
-        <Label htmlFor={`${idPrefix}-price`} className="w-28 shrink-0 font-normal">
+        <Label htmlFor={`${idPrefix}-price`} className="w-20 shrink-0 font-normal">
           Price
         </Label>
         <Select
@@ -155,7 +167,7 @@ export function TradePreferenceEditor({
 
       {showCurrency && (
         <div className="flex items-center gap-2">
-          <Label htmlFor={`${idPrefix}-currency`} className="w-28 shrink-0 font-normal">
+          <Label htmlFor={`${idPrefix}-currency`} className="w-20 shrink-0 font-normal">
             Currency
           </Label>
           <Select
@@ -183,7 +195,7 @@ export function TradePreferenceEditor({
 
       {isAbsolute && (
         <div className="flex items-center gap-2">
-          <Label htmlFor={`${idPrefix}-amount`} className="w-28 shrink-0 font-normal">
+          <Label htmlFor={`${idPrefix}-amount`} className="w-20 shrink-0 font-normal">
             Amount
           </Label>
           <div className="flex flex-1 items-center gap-2">
@@ -202,7 +214,7 @@ export function TradePreferenceEditor({
       )}
 
       <div className="flex items-center gap-2">
-        <Label htmlFor={`${idPrefix}-type`} className="w-28 shrink-0 font-normal">
+        <Label htmlFor={`${idPrefix}-type`} className="w-20 shrink-0 font-normal">
           Accepts
         </Label>
         <Select
