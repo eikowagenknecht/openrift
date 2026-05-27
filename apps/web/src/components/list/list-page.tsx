@@ -16,6 +16,7 @@ import {
   Trash2Icon,
   UploadIcon,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { use, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
@@ -44,6 +45,7 @@ import { ListShareDialog } from "@/components/list/list-share-dialog";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { TradePreferenceDialog } from "@/components/trade-preferences/trade-preference-dialog";
+import { TradePreferenceGridPill } from "@/components/trade-preferences/trade-preference-grid-pill";
 import { TradePreferencePill } from "@/components/trade-preferences/trade-preference-pill";
 import { Button } from "@/components/ui/button";
 import {
@@ -621,32 +623,56 @@ function ListEntryBrowser({
       );
     }
 
-    // Browse mode: quantity stepper above each tile, mirroring the /cards
-    // owned-count strip pattern but acting on the list entry. Suppressed on
-    // copy-kind lists — a copy is a single physical card by definition, so
-    // quantity > 1 is meaningless. Removal still goes through the right-click
-    // context menu.
-    const quantityStrip =
-      entry && kind !== "copy"
-        ? (() => {
-            const isPending = isQuantityPendingFor(entry.id);
-            return (
-              <CardCountStrip
-                count={entry.quantity}
-                decrement={{
-                  onClick: () => onQuantityChange(entry.id, entry.quantity - 1),
-                  disabled: isPending || entry.quantity <= 1,
-                  ariaLabel: `Decrease ${entry.cardName} quantity`,
-                }}
-                increment={{
-                  onClick: () => onQuantityChange(entry.id, entry.quantity + 1),
-                  disabled: isPending,
-                  ariaLabel: `Increase ${entry.cardName} quantity`,
-                }}
-              />
-            );
-          })()
-        : undefined;
+    // Browse mode strip: quantity stepper (card/printing-kind lists only)
+    // plus the trade-preference pill, both centered together between the
+    // -/+ buttons. Copy-kind lists hide the stepper but still get the pill
+    // alone in the same strip slot for consistency across cells.
+    const tradePill =
+      entry && supportsTradePrefs ? (
+        <TradePreferenceGridPill
+          override={entry.tradeOverride}
+          listDefault={listTradeDefaults}
+          currency={listCurrency}
+          isOverridden={
+            entry.tradeOverride.pricePref !== null ||
+            entry.tradeOverride.priceAbsoluteCents !== null ||
+            entry.tradeOverride.tradeType !== null
+          }
+          onEdit={() => setPrefDialogEntryId(entry.id)}
+        />
+      ) : null;
+
+    const buildQuantityStrip = (): ReactNode => {
+      if (!entry) {
+        return null;
+      }
+      if (kind === "copy") {
+        // Copy-kind: no count, no stepper. If we have a trade pill, render
+        // it alone in a strip matching the count-strip height so card sizes
+        // stay uniform with the other kinds.
+        return tradePill ? (
+          <div className="relative z-30 mb-1 flex h-5 items-center justify-center">{tradePill}</div>
+        ) : null;
+      }
+      const isPending = isQuantityPendingFor(entry.id);
+      return (
+        <CardCountStrip
+          count={entry.quantity}
+          decrement={{
+            onClick: () => onQuantityChange(entry.id, entry.quantity - 1),
+            disabled: isPending || entry.quantity <= 1,
+            ariaLabel: `Decrease ${entry.cardName} quantity`,
+          }}
+          increment={{
+            onClick: () => onQuantityChange(entry.id, entry.quantity + 1),
+            disabled: isPending,
+            ariaLabel: `Increase ${entry.cardName} quantity`,
+          }}
+          extras={tradePill}
+        />
+      );
+    };
+    const quantityStrip = buildQuantityStrip();
 
     return (
       <CardCell
@@ -659,6 +685,7 @@ function ListEntryBrowser({
         siblings={siblings}
         priceRange={priceRangeByCardId?.get(cardId)}
         strip={quantityStrip}
+        // oxlint-disable-next-line react/no-unstable-nested-components -- render prop, not a component definition; CardCell expects a wrapper function
         contextMenu={(cell) => (
           <ListEntryContextMenu onRemove={onRemove} onSetPreference={onSetPreference}>
             {cell}
@@ -758,6 +785,7 @@ function ListEntryBrowser({
           // entry id (so each row's Remove targets that specific entry); in
           // cards/printings view it's the printing id and we resolve via the
           // entry-by-item map.
+          // oxlint-disable-next-line react/no-unstable-nested-components -- render prop, not a component definition
           renderActions: (printing, itemId) => {
             const entry = entryByItemId.get(itemId) ?? entriesByPrintingId.get(printing.id)?.[0];
             if (!entry) {

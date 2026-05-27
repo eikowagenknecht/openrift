@@ -33,6 +33,8 @@ interface CardCountStripProps {
   decrement?: StripButtonSlot;
   /** Increment button on the right. Omit for read-only displays. */
   increment?: StripButtonSlot;
+  /** Optional sibling pill rendered next to the count pill, centered as a group between the buttons. Used by lists for the trade-pref pill. */
+  extras?: ReactNode;
 }
 
 /**
@@ -56,6 +58,7 @@ export function CardCountStrip({
   pillOverride,
   decrement,
   increment,
+  extras,
 }: CardCountStripProps) {
   const showTotal = totalCount !== undefined && totalCount !== count;
   const isDim = dim ?? (count === 0 && !showTotal);
@@ -102,7 +105,14 @@ export function CardCountStrip({
         ) : (
           <span className="size-5" />
         ))}
-      {pill}
+      {extras ? (
+        <div className="flex items-center gap-1">
+          {pill}
+          {extras}
+        </div>
+      ) : (
+        pill
+      )}
       {hasButtons &&
         (increment ? (
           <StripIconButton {...increment} icon={<PlusIcon />} />
