@@ -104,6 +104,11 @@ interface CompletionInput {
     rarities: readonly string[];
     cardTypes: readonly string[];
   };
+  labels?: {
+    domains: Record<string, string>;
+    rarities: Record<string, string>;
+    cardTypes: Record<string, string>;
+  };
 }
 
 /**
@@ -111,13 +116,13 @@ interface CompletionInput {
  * @returns Sorted completion entries.
  */
 export function computeCompletion(input: CompletionInput): CompletionEntry[] {
-  const { stacks, scopedPrintings, scope, sets, groupBy, countMode, orders } = input;
+  const { stacks, scopedPrintings, scope, sets, groupBy, countMode, orders, labels } = input;
 
   // Filter owned stacks to only those matching the scope
   const scopedStacks = filterStacksByScope(stacks, scope);
 
   // Determine key order and label function
-  const { keyOrder, labelFn, extraFn } = getGroupConfig(groupBy, sets, orders);
+  const { keyOrder, labelFn, extraFn } = getGroupConfig(groupBy, sets, orders, labels);
 
   // Build totals from scoped catalog
   const totalByKey = buildTotals(scopedPrintings, groupBy, countMode);
@@ -156,6 +161,7 @@ function getGroupConfig(
   groupBy: CompletionGroupBy,
   sets: SetListEntry[],
   orders: CompletionInput["orders"],
+  labels: CompletionInput["labels"],
 ) {
   switch (groupBy) {
     case "set": {
@@ -170,21 +176,21 @@ function getGroupConfig(
     case "domain": {
       return {
         keyOrder: [...orders.domains],
-        labelFn: (key: string) => key,
+        labelFn: (key: string) => labels?.domains[key] ?? key,
         extraFn: undefined,
       };
     }
     case "rarity": {
       return {
         keyOrder: [...orders.rarities],
-        labelFn: (key: string) => key,
+        labelFn: (key: string) => labels?.rarities[key] ?? key,
         extraFn: undefined,
       };
     }
     case "type": {
       return {
         keyOrder: [...orders.cardTypes],
-        labelFn: (key: string) => key,
+        labelFn: (key: string) => labels?.cardTypes[key] ?? key,
         extraFn: undefined,
       };
     }

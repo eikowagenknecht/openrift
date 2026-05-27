@@ -325,7 +325,7 @@ function CompletionSection({
   scope: CompletionScopePreference;
 }) {
   const domainColors = useDomainColors();
-  const { rarityColors } = useEnumOrders();
+  const { rarityColors, labels } = useEnumOrders();
 
   const scopedPrintings = filterByScope(stats.allPrintings, scope);
 
@@ -337,6 +337,11 @@ function CompletionSection({
     groupBy,
     countMode,
     orders: stats.orders,
+    labels: {
+      domains: labels.domains,
+      rarities: labels.rarities,
+      cardTypes: labels.cardTypes,
+    },
   });
 
   // For set grouping, split main/supplemental
@@ -544,6 +549,7 @@ function DistributionDonut({ data, config }: { data: DonutEntry[]; config: Chart
 
 function DomainDistributionChart({ data }: { data: DomainCount[] }) {
   const domainColors = useDomainColors();
+  const { labels } = useEnumOrders();
 
   if (data.length === 0) {
     return null;
@@ -551,15 +557,10 @@ function DomainDistributionChart({ data }: { data: DomainCount[] }) {
 
   const config: ChartConfig = {};
   const chartData: DonutEntry[] = data.map((entry) => {
-    config[entry.domain] = {
-      label: entry.domain,
-      color: getDomainColor(entry.domain, domainColors),
-    };
-    return {
-      name: entry.domain,
-      value: entry.count,
-      fill: getDomainColor(entry.domain, domainColors),
-    };
+    const label = labels.domains[entry.domain];
+    const color = getDomainColor(entry.domain, domainColors);
+    config[entry.domain] = { label, color };
+    return { name: label, value: entry.count, fill: color };
   });
 
   return <DistributionDonut data={chartData} config={config} />;

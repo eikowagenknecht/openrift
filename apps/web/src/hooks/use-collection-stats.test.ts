@@ -364,6 +364,55 @@ describe("computeCompletion", () => {
     expect(calm?.owned).toBe(1);
     expect(calm?.total).toBe(1);
   });
+
+  it("renders display labels (not slugs) for domain/rarity/type group rows", () => {
+    const stack = stubStack({
+      card: { slug: "a", domains: ["fury"] as Domain[], type: "unit" },
+      rarity: "common",
+      setId: "set-1",
+    });
+    const labels = {
+      domains: { fury: "Fury", calm: "Calm" },
+      rarities: { common: "Common", rare: "Rare" },
+      cardTypes: { unit: "Unit", spell: "Spell" },
+    };
+
+    const byDomain = computeCompletion({
+      stacks: [stack],
+      scopedPrintings: [stack.printing],
+      scope: {},
+      sets: [stubSet({ id: "set-1" })],
+      groupBy: "domain",
+      countMode: "cards",
+      orders: ORDERS,
+      labels,
+    });
+    expect(byDomain.find((entry) => entry.key === "fury")?.label).toBe("Fury");
+
+    const byRarity = computeCompletion({
+      stacks: [stack],
+      scopedPrintings: [stack.printing],
+      scope: {},
+      sets: [stubSet({ id: "set-1" })],
+      groupBy: "rarity",
+      countMode: "cards",
+      orders: ORDERS,
+      labels,
+    });
+    expect(byRarity.find((entry) => entry.key === "common")?.label).toBe("Common");
+
+    const byType = computeCompletion({
+      stacks: [stack],
+      scopedPrintings: [stack.printing],
+      scope: {},
+      sets: [stubSet({ id: "set-1" })],
+      groupBy: "type",
+      countMode: "cards",
+      orders: ORDERS,
+      labels,
+    });
+    expect(byType.find((entry) => entry.key === "unit")?.label).toBe("Unit");
+  });
 });
 
 describe("filterByScope", () => {
