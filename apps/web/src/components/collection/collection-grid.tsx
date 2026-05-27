@@ -32,6 +32,7 @@ import { OwnedCollectionsPopover } from "@/components/cards/card-detail/owned-co
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CollectionTableActions } from "@/components/cards/collection-table-actions";
+import { BrowseLocationsPopover } from "@/components/collection/browse-locations-popover";
 import { FloatingActionBar } from "@/components/collection/floating-action-bar";
 import { buildOnDecrement } from "@/components/collection/route-decrement";
 import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
@@ -676,6 +677,10 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         ? (printing: Printing, anchorEl: HTMLElement) =>
             handleOpenVariants(printing, anchorEl, "add")
         : undefined;
+    // On /collections (All Cards), the count pill opens a richer popover
+    // showing variants + per-collection breakdown. On a specific collection
+    // page, "where is this card?" is tautological — keep the variant chooser.
+    const useLocationsPill = showAddStrip && !collectionId && handleUndoAdd;
     const aboveCard = showAddStrip ? (
       <CardCountStrip
         count={ownedCount}
@@ -688,10 +693,29 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           onClick: () => handleQuickAdd(item.printing),
           ariaLabel: `Add ${item.printing.card.name}`,
         }}
-        onPillClick={
-          variantTrigger ? (event) => variantTrigger(item.printing, event.currentTarget) : undefined
+        pillOverride={
+          useLocationsPill ? (
+            <BrowseLocationsPopover
+              displayedPrinting={item.printing}
+              siblings={dataView === "cards" ? catalogSiblings : undefined}
+              ownedCount={ownedCount}
+              totalCount={totalCount}
+              ownedCountByPrinting={ownedCountByPrinting}
+              onAdd={handleQuickAdd}
+              onUndoAdd={handleUndoAdd}
+            />
+          ) : undefined
         }
-        pillAriaLabel={variantTrigger ? `Choose variant for ${item.printing.card.name}` : undefined}
+        onPillClick={
+          !useLocationsPill && variantTrigger
+            ? (event) => variantTrigger(item.printing, event.currentTarget)
+            : undefined
+        }
+        pillAriaLabel={
+          !useLocationsPill && variantTrigger
+            ? `Choose variant for ${item.printing.card.name}`
+            : undefined
+        }
       />
     ) : (
       <CardCountStrip

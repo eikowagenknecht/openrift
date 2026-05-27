@@ -2,6 +2,7 @@
 
 ## 2026-05-27
 
+- feat: On the All Cards view, clicking the owned-count pill on a card now opens a popover that lists each variant (with +/- buttons) and shows which of your collections every copy is in. On a specific collection page you'll still see the variant chooser, since "where is this card" is obvious there
 - feat: Shared list pages now group lists into Wishlists and Tradelists with an entry count on each row, both on your public bundle URL and on a friend group member's profile
 - feat: One link now covers your shared wishlists and tradelists, so you can paste a single URL into Discord or a group chat instead of sharing each list separately. Only lists you've already made public, or shared with a friend group the viewer is in, appear there; private lists stay private. Open the "Share all my lists" button in the sidebar or the new Public sharing section in your profile to grab the link
 - feat: Wishlists and tradelists can now carry trade preferences. Each list has a default — Cardmarket lowest, TCGplayer lowest, Cardtrader Zero, a fixed price, or "negotiate" — plus an "accepts cards/money/both" hint. Set them in the list create dialog, override per card with the inline pill, and they show up on match rows alongside the card so you know what each side is after before opening Discord
