@@ -14,6 +14,8 @@ import {
   RocketIcon,
   ScaleIcon,
   ScrollTextIcon,
+  Share2Icon,
+  ShuffleIcon,
   SmartphoneIcon,
   TrophyIcon,
   UploadIcon,
@@ -35,33 +37,9 @@ interface RoadmapItem {
 const roadmapItems: RoadmapItem[] = [
   // Upcoming
   {
-    title: "Rules",
-    description: "Searchable comprehensive rules reference alongside official text.",
-    icon: <ScrollTextIcon className="size-4" />,
-    done: false,
-  },
-  {
     title: "Tournament Decks",
     description: "Browse tournament-winning decklists.",
     icon: <TrophyIcon className="size-4" />,
-    done: false,
-  },
-  {
-    title: "Wishlist",
-    description: "Track cards you want to acquire and watch their prices.",
-    icon: <HeartIcon className="size-4" />,
-    done: false,
-  },
-  {
-    title: "Trade Coordination",
-    description: "Coordinate trades within your playgroup.",
-    icon: <UsersIcon className="size-4" />,
-    done: false,
-  },
-  {
-    title: "Playgroup",
-    description: "Follow friends and share collections and decks within your group.",
-    icon: <UsersIcon className="size-4" />,
     done: false,
   },
   {
@@ -83,6 +61,44 @@ const roadmapItems: RoadmapItem[] = [
     done: false,
   },
   // Done
+  {
+    title: "Friend Groups",
+    description:
+      "Small private groups to share wishlists and tradelists, with live matches of who has the cards you want.",
+    icon: <UsersIcon className="size-4" />,
+    done: true,
+    date: "May 2026",
+  },
+  {
+    title: "Wishlists & Tradelists",
+    description:
+      "Track cards you want to acquire or have for trade, shareable publicly or with friend groups.",
+    icon: <HeartIcon className="size-4" />,
+    done: true,
+    date: "May 2026",
+  },
+  {
+    title: "Rules Reference",
+    description: "Searchable comprehensive rules reference alongside official text.",
+    icon: <ScrollTextIcon className="size-4" />,
+    done: true,
+    date: "May 2026",
+  },
+  {
+    title: "Public Sharing",
+    description:
+      "Share collections, decks, and lists with public links. No sign-in needed to view.",
+    icon: <Share2Icon className="size-4" />,
+    done: true,
+    date: "May 2026",
+  },
+  {
+    title: "More Deck Formats",
+    description: "Freeform and Custom-Region formats alongside Constructed.",
+    icon: <ShuffleIcon className="size-4" />,
+    done: true,
+    date: "May 2026",
+  },
   {
     title: "Bans",
     description: "Banned cards are flagged in the browser and blocked from deck building.",
