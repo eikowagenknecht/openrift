@@ -73,20 +73,22 @@ function SharedCollectionPage() {
         <div className="flex min-h-0 flex-1 flex-col">
           <div ref={setTopBarSlot} className={PAGE_TOP_BAR_STICKY}>
             <PageTopBar>
-              <PageTopBarTitle>{collection.name}</PageTopBarTitle>
-              <span className="text-muted-foreground hidden shrink-0 items-center gap-x-1.5 text-xs sm:flex">
-                <span>Shared by {owner.displayName}</span>
-                {valueLabel !== null && (
-                  <span>
-                    · {valueLabel}
-                    {collection.unpricedCopyCount ? (
-                      <span className="text-muted-foreground/60 ml-1">
-                        ({collection.unpricedCopyCount} unpriced)
-                      </span>
-                    ) : null}
-                  </span>
-                )}
-              </span>
+              <div className="flex min-w-0 flex-1 items-baseline gap-2">
+                <PageTopBarTitle>{collection.name}</PageTopBarTitle>
+                <span className="text-muted-foreground hidden shrink-0 items-baseline gap-x-1.5 text-xs sm:flex">
+                  <span>Shared by {owner.displayName}</span>
+                  {valueLabel !== null && (
+                    <span>
+                      · {valueLabel}
+                      {collection.unpricedCopyCount ? (
+                        <span className="text-muted-foreground/60 ml-1">
+                          ({collection.unpricedCopyCount} unpriced)
+                        </span>
+                      ) : null}
+                    </span>
+                  )}
+                </span>
+              </div>
             </PageTopBar>
           </div>
           <div className="flex min-w-0 flex-1 flex-col px-3 pb-3">

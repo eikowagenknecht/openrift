@@ -400,20 +400,22 @@ function DeckEditorContent({
             <div className="hidden md:block">
               <PageTopBarBack to="/decks" />
             </div>
-            <PageTopBarTitle onToggleSidebar={toggleSidebar}>
-              <span className="md:hidden">
-                {activeZone ? (
-                  <>
-                    {ZONE_LABELS[activeZone]}
-                    <span className="text-muted-foreground ml-1">({zoneCount})</span>
-                  </>
-                ) : (
-                  "Zones"
-                )}
-              </span>
-              <span className="hidden md:inline">{data.deck.name}</span>
-            </PageTopBarTitle>
-            <DeckFormatBadge deckId={deckId} />
+            <div className="flex min-w-0 flex-1 items-baseline gap-2">
+              <PageTopBarTitle onToggleSidebar={toggleSidebar}>
+                <span className="md:hidden">
+                  {activeZone ? (
+                    <>
+                      {ZONE_LABELS[activeZone]}
+                      <span className="text-muted-foreground ml-1">({zoneCount})</span>
+                    </>
+                  ) : (
+                    "Zones"
+                  )}
+                </span>
+                <span className="hidden md:inline">{data.deck.name}</span>
+              </PageTopBarTitle>
+              <DeckFormatBadge deckId={deckId} />
+            </div>
             <PageTopBarActions>
               <div className="hidden md:flex md:items-center md:gap-1">
                 <DeckExportDialog

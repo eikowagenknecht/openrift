@@ -1275,22 +1275,24 @@ function CollectionTopBar({
 }: CollectionTopBarProps) {
   return (
     <PageTopBar>
-      <PageTopBarTitle onToggleSidebar={onToggleSidebar}>{title}</PageTopBarTitle>
+      <div className="flex min-w-0 flex-1 items-baseline gap-2">
+        <PageTopBarTitle onToggleSidebar={onToggleSidebar}>{title}</PageTopBarTitle>
 
-      {addTargetLabel && (
-        <span className="text-muted-foreground shrink-0 text-xs">→ {addTargetLabel}</span>
-      )}
-
-      <span className="text-muted-foreground hidden shrink-0 items-center gap-x-1.5 text-xs sm:flex">
-        {valueCents !== null && valueCents !== undefined && (
-          <span>
-            {formatValue(valueCents / 100)}
-            {unpricedCount ? (
-              <span className="text-muted-foreground/60 ml-1">({unpricedCount} unpriced)</span>
-            ) : null}
-          </span>
+        {addTargetLabel && (
+          <span className="text-muted-foreground shrink-0 text-xs">→ {addTargetLabel}</span>
         )}
-      </span>
+
+        <span className="text-muted-foreground hidden shrink-0 items-baseline gap-x-1.5 text-xs sm:flex">
+          {valueCents !== null && valueCents !== undefined && (
+            <span>
+              {formatValue(valueCents / 100)}
+              {unpricedCount ? (
+                <span className="text-muted-foreground/60 ml-1">({unpricedCount} unpriced)</span>
+              ) : null}
+            </span>
+          )}
+        </span>
+      </div>
 
       <PageTopBarActions>
         <div className="flex items-center gap-2">
