@@ -15,13 +15,18 @@ export type ActionsColumn = "none" | "narrow" | "wide";
 
 const COLUMN_WIDTHS_NO_ACTIONS = "60px minmax(180px, 1fr) 160px 200px 130px";
 const COLUMN_WIDTHS_NARROW = `${COLUMN_WIDTHS_NO_ACTIONS} 80px`;
-const COLUMN_WIDTHS_WIDE = `${COLUMN_WIDTHS_NO_ACTIONS} 150px`;
+// The "wide" actions cell fits the trade-pref pill (icon + abbreviation/price)
+// alongside the quantity stepper and trash button on list rows, with a little
+// breathing room. Catalog/deck surfaces only render the quantity stepper here,
+// so the extra width is harmless padding on those.
+const COLUMN_WIDTHS_WIDE = `${COLUMN_WIDTHS_NO_ACTIONS} 220px`;
 
 /**
  * Resolve the gridTemplateColumns string for the card table — keeps every row,
  * the column header, and any group headers locked to identical track widths.
  * Width follows the actions column: "narrow" (80px, read-only count), "wide"
- * (150px, +/- buttons), or "none" (column omitted entirely).
+ * (220px, +/- buttons plus a trade-pref pill on list rows), or "none" (column
+ * omitted entirely).
  *
  * @returns CSS grid-template-columns value.
  */
