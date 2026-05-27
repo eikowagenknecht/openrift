@@ -1,9 +1,10 @@
-import type { ListIntent, ListKind } from "@openrift/shared";
+import type { Currency, ListIntent, ListKind, TradePreference } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { CopyIcon, SquareIcon, SquareStackIcon } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import { useState } from "react";
 
+import { TradePreferenceEditor } from "@/components/trade-preferences/trade-preference-editor";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,6 +16,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useBulkAddListEntries, useCreateList } from "@/hooks/use-lists";
+import { useDisplayStore } from "@/stores/display-store";
+
+const EMPTY_TRADE_PREFERENCE: TradePreference = {
+  pricePref: null,
+  priceAbsoluteCents: null,
+  tradeType: null,
+};
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -139,25 +147,42 @@ export function CreateListDialog({
   const availableKinds = KINDS_BY_INTENT[intent];
   const [kind, setKind] = useState<ListKind>(availableKinds[0] ?? "card");
   const [name, setName] = useState(defaultName ?? "");
+  const defaultCurrency = useDisplayStore((s) => s.defaultCurrency);
+  const [tradeDefaults, setTradeDefaults] = useState<TradePreference>(EMPTY_TRADE_PREFERENCE);
+  const [currency, setCurrency] = useState<Currency>(defaultCurrency);
   const createList = useCreateList();
   const bulkAdd = useBulkAddListEntries();
+
+  const supportsPrefs = intent !== "organize";
+  const absoluteNeedsAmount =
+    tradeDefaults.pricePref === "absolute" && tradeDefaults.priceAbsoluteCents === null;
 
   // Reset state on close so the next open starts fresh.
   const handleOpenChange = (next: boolean) => {
     if (!next) {
       setName(defaultName ?? "");
       setKind(availableKinds[0] ?? "card");
+      setTradeDefaults(EMPTY_TRADE_PREFERENCE);
+      setCurrency(defaultCurrency);
     }
     onOpenChange(next);
   };
 
   const handleSubmit = () => {
     const trimmed = name.trim();
-    if (!trimmed || createList.isPending || bulkAdd.isPending) {
+    if (!trimmed || createList.isPending || bulkAdd.isPending || absoluteNeedsAmount) {
       return;
     }
     createList.mutate(
-      { name: trimmed, intent, kind },
+      {
+        name: trimmed,
+        intent,
+        kind,
+        ...(supportsPrefs && {
+          tradeDefaults,
+          currency: tradeDefaults.pricePref === "absolute" ? currency : null,
+        }),
+      },
       {
         onSuccess: async (list) => {
           const entries = initialEntries?.(kind) ?? [];
@@ -227,7 +252,7 @@ export function CreateListDialog({
         )}
 
         <form
-          className="flex flex-col gap-2"
+          className="flex flex-col gap-4"
           onSubmit={(event) => {
             event.preventDefault();
             handleSubmit();
@@ -239,6 +264,24 @@ export function CreateListDialog({
             onChange={(event) => setName(event.target.value)}
             placeholder="List name"
           />
+          {supportsPrefs && (
+            <div className="flex flex-col gap-2">
+              <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                Trade preferences
+              </div>
+              <div className="text-muted-foreground text-xs">
+                Defaults applied to every entry. You can override per card later.
+              </div>
+              <TradePreferenceEditor
+                value={tradeDefaults}
+                onChange={setTradeDefaults}
+                currency={currency}
+                showCurrency={tradeDefaults.pricePref === "absolute"}
+                onCurrencyChange={setCurrency}
+                idPrefix="create-list"
+              />
+            </div>
+          )}
           <DialogFooter>
             <Button
               type="button"
@@ -250,7 +293,9 @@ export function CreateListDialog({
             </Button>
             <Button
               type="submit"
-              disabled={!name.trim() || createList.isPending || bulkAdd.isPending}
+              disabled={
+                !name.trim() || createList.isPending || bulkAdd.isPending || absoluteNeedsAmount
+              }
             >
               Create
             </Button>

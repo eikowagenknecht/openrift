@@ -60,6 +60,7 @@ function getPrefsSnapshot(): UserPreferencesResponse & {
     languages: overrides.languages,
     completionScope: overrides.completionScope,
     defaultCardView: overrides.defaultCardView,
+    defaultCurrency: overrides.defaultCurrency,
     theme: themePreference,
     palette: palettePreference,
   } as UserPreferencesResponse;

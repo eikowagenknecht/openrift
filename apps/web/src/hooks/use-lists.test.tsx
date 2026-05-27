@@ -72,6 +72,8 @@ const LIST: ListResponse = {
   shareToken: null,
   createdAt: "2026-05-17T00:00:00Z",
   updatedAt: "2026-05-17T00:00:00Z",
+  tradeDefaults: { pricePref: null, priceAbsoluteCents: null, tradeType: null },
+  currency: null,
 };
 
 describe("useCreateList", () => {
@@ -164,6 +166,7 @@ describe("useUpdateListEntry", () => {
       kind: "card",
       cardId: "card-1",
       quantity: 3,
+      tradeOverride: { pricePref: null, priceAbsoluteCents: null, tradeType: null },
     });
     const { client, invalidateSpy } = makeClient();
     const { result } = renderHook(() => useUpdateListEntry(), { wrapper: wrap(client) });

@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict QBAIiPXFT6d7lHrigu1ITN3MHXeFDntrhLMdrVR8iDf0XbD9AaMFiraXVadWR44
+\restrict A85noOfYZdFGw6CVEgCdklgozctdFmCAacdFNLK4ae8aBRQQvxG4Uq1tPUDU2Di
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1095,9 +1095,16 @@ CREATE TABLE public.list_entries (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     kind text NOT NULL,
+    price_pref text,
+    price_absolute_cents integer,
+    trade_type text,
+    CONSTRAINT chk_list_entries_absolute_positive CHECK (((price_absolute_cents IS NULL) OR (price_absolute_cents > 0))),
+    CONSTRAINT chk_list_entries_absolute_shape CHECK (((price_pref = 'absolute'::text) = (price_absolute_cents IS NOT NULL))),
     CONSTRAINT chk_list_entries_kind CHECK ((kind = ANY (ARRAY['card'::text, 'printing'::text, 'copy'::text]))),
     CONSTRAINT chk_list_entries_kind_shape CHECK ((((kind = 'card'::text) AND (card_id IS NOT NULL) AND (printing_id IS NULL) AND (copy_id IS NULL)) OR ((kind = 'printing'::text) AND (printing_id IS NOT NULL) AND (card_id IS NULL) AND (copy_id IS NULL)) OR ((kind = 'copy'::text) AND (copy_id IS NOT NULL) AND (card_id IS NULL) AND (printing_id IS NULL)))),
-    CONSTRAINT chk_list_entries_quantity CHECK ((quantity > 0))
+    CONSTRAINT chk_list_entries_price_pref CHECK (((price_pref IS NULL) OR (price_pref = ANY (ARRAY['cm_lowest'::text, 'tcg_lowest'::text, 'ct_zero'::text, 'absolute'::text])))),
+    CONSTRAINT chk_list_entries_quantity CHECK ((quantity > 0)),
+    CONSTRAINT chk_list_entries_trade_type CHECK (((trade_type IS NULL) OR (trade_type = ANY (ARRAY['cards'::text, 'money'::text, 'both'::text]))))
 );
 
 
@@ -1115,10 +1122,20 @@ CREATE TABLE public.lists (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     kind text NOT NULL,
+    default_price_pref text,
+    default_price_absolute_cents integer,
+    default_trade_type text,
+    currency text,
+    CONSTRAINT chk_lists_currency CHECK (((currency IS NULL) OR (currency = ANY (ARRAY['EUR'::text, 'USD'::text])))),
+    CONSTRAINT chk_lists_default_absolute_positive CHECK (((default_price_absolute_cents IS NULL) OR (default_price_absolute_cents > 0))),
+    CONSTRAINT chk_lists_default_absolute_shape CHECK (((default_price_pref = 'absolute'::text) = (default_price_absolute_cents IS NOT NULL))),
+    CONSTRAINT chk_lists_default_price_pref CHECK (((default_price_pref IS NULL) OR (default_price_pref = ANY (ARRAY['cm_lowest'::text, 'tcg_lowest'::text, 'ct_zero'::text, 'absolute'::text])))),
+    CONSTRAINT chk_lists_default_trade_type CHECK (((default_trade_type IS NULL) OR (default_trade_type = ANY (ARRAY['cards'::text, 'money'::text, 'both'::text])))),
     CONSTRAINT chk_lists_intent CHECK ((intent = ANY (ARRAY['wish'::text, 'trade'::text, 'organize'::text]))),
     CONSTRAINT chk_lists_intent_kind CHECK ((((intent = 'wish'::text) AND (kind = ANY (ARRAY['card'::text, 'printing'::text]))) OR ((intent = 'trade'::text) AND (kind = 'copy'::text)) OR ((intent = 'organize'::text) AND (kind = ANY (ARRAY['card'::text, 'printing'::text, 'copy'::text]))))),
     CONSTRAINT chk_lists_kind CHECK ((kind = ANY (ARRAY['card'::text, 'printing'::text, 'copy'::text]))),
-    CONSTRAINT chk_lists_name_not_empty CHECK ((name <> ''::text))
+    CONSTRAINT chk_lists_name_not_empty CHECK ((name <> ''::text)),
+    CONSTRAINT chk_lists_prefs_only_on_trade_intents CHECK (((intent = ANY (ARRAY['wish'::text, 'trade'::text])) OR ((default_price_pref IS NULL) AND (default_price_absolute_cents IS NULL) AND (default_trade_type IS NULL) AND (currency IS NULL))))
 );
 
 
@@ -3747,5 +3764,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict QBAIiPXFT6d7lHrigu1ITN3MHXeFDntrhLMdrVR8iDf0XbD9AaMFiraXVadWR44
+\unrestrict A85noOfYZdFGw6CVEgCdklgozctdFmCAacdFNLK4ae8aBRQQvxG4Uq1tPUDU2Di
 

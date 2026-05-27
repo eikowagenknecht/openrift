@@ -1,7 +1,7 @@
 import type { ListEntryDetailResponse, Printing } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import { stubPrinting } from "@/test/factories";
+import { EMPTY_TRADE_PREFERENCE, stubPrinting } from "@/test/factories";
 
 import { resolveEntryImageId } from "./list-thumbnail";
 
@@ -14,6 +14,7 @@ function cardEntry(cardId: string): ListEntryDetailResponse {
     quantity: 1,
     kind: "card",
     cardId,
+    tradeOverride: EMPTY_TRADE_PREFERENCE,
   };
 }
 
@@ -30,6 +31,7 @@ function printingEntry(printingId: string, imageId: string | null): ListEntryDet
     rarity: "common",
     finish: "normal",
     imageId,
+    tradeOverride: EMPTY_TRADE_PREFERENCE,
   };
 }
 

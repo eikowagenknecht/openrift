@@ -262,6 +262,10 @@ describe("toList", () => {
       createdAt: NOW,
       updatedAt: LATER,
       entryCount: 12,
+      defaultPricePref: null,
+      defaultPriceAbsoluteCents: null,
+      defaultTradeType: null,
+      currency: null,
     });
     expect(result).toEqual({
       id: "lst-1",
@@ -273,6 +277,8 @@ describe("toList", () => {
       shareToken: null,
       createdAt: "2025-06-15T12:00:00.000Z",
       updatedAt: "2025-06-16T08:30:00.000Z",
+      tradeDefaults: { pricePref: null, priceAbsoluteCents: null, tradeType: null },
+      currency: null,
     });
   });
 
@@ -287,11 +293,39 @@ describe("toList", () => {
       shareToken: "tok-abc",
       createdAt: NOW,
       updatedAt: LATER,
+      defaultPricePref: null,
+      defaultPriceAbsoluteCents: null,
+      defaultTradeType: null,
+      currency: null,
     });
     expect(result.entryCount).toBe(0);
     expect(result.isPublic).toBe(true);
     expect(result.shareToken).toBe("tok-abc");
     expect(result.kind).toBe("printing");
+  });
+
+  it("carries through trade defaults and currency (ADR-017)", () => {
+    const result = toList({
+      id: "lst-1",
+      userId: "user-1",
+      name: "For trade",
+      intent: "trade",
+      kind: "copy",
+      isPublic: false,
+      shareToken: null,
+      createdAt: NOW,
+      updatedAt: LATER,
+      defaultPricePref: "cm_lowest",
+      defaultPriceAbsoluteCents: null,
+      defaultTradeType: "cards",
+      currency: "EUR",
+    });
+    expect(result.tradeDefaults).toEqual({
+      pricePref: "cm_lowest",
+      priceAbsoluteCents: null,
+      tradeType: "cards",
+    });
+    expect(result.currency).toBe("EUR");
   });
 });
 
@@ -311,6 +345,10 @@ describe("toPublicList", () => {
       shareToken: "tok-abc",
       createdAt: NOW,
       updatedAt: LATER,
+      defaultPricePref: null,
+      defaultPriceAbsoluteCents: null,
+      defaultTradeType: null,
+      currency: null,
     });
     expect(result).toEqual({
       id: "lst-1",
@@ -319,6 +357,8 @@ describe("toPublicList", () => {
       kind: "card",
       createdAt: "2025-06-15T12:00:00.000Z",
       updatedAt: "2025-06-16T08:30:00.000Z",
+      tradeDefaults: { pricePref: null, priceAbsoluteCents: null, tradeType: null },
+      currency: null,
     });
     expect((result as Record<string, unknown>).shareToken).toBeUndefined();
     expect((result as Record<string, unknown>).isPublic).toBeUndefined();
@@ -342,6 +382,9 @@ describe("toListEntry", () => {
       quantity: 4,
       createdAt: NOW,
       updatedAt: LATER,
+      pricePref: null,
+      priceAbsoluteCents: null,
+      tradeType: null,
     });
     expect(result).toEqual({
       id: "le-1",
@@ -349,6 +392,7 @@ describe("toListEntry", () => {
       kind: "card",
       cardId: "card-1",
       quantity: 4,
+      tradeOverride: { pricePref: null, priceAbsoluteCents: null, tradeType: null },
     });
   });
 
@@ -364,6 +408,9 @@ describe("toListEntry", () => {
       quantity: 1,
       createdAt: NOW,
       updatedAt: LATER,
+      pricePref: "absolute",
+      priceAbsoluteCents: 450,
+      tradeType: "money",
     });
     expect(result).toEqual({
       id: "le-2",
@@ -371,6 +418,7 @@ describe("toListEntry", () => {
       kind: "copy",
       copyId: "copy-1",
       quantity: 1,
+      tradeOverride: { pricePref: "absolute", priceAbsoluteCents: 450, tradeType: "money" },
     });
   });
 });

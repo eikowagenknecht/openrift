@@ -420,6 +420,10 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         listKind: string;
         entryCount: number;
         sharedAt: Date | null;
+        defaultPricePref: string | null;
+        defaultPriceAbsoluteCents: number | null;
+        defaultTradeType: string | null;
+        currency: string | null;
       }[]
     > {
       return db
@@ -436,6 +440,10 @@ export function friendGroupsRepo(db: Kysely<Database>) {
             "entryCount",
           ),
           "s.sharedAt as sharedAt",
+          "l.defaultPricePref",
+          "l.defaultPriceAbsoluteCents",
+          "l.defaultTradeType",
+          "l.currency",
         ])
         .where("l.userId", "=", userId)
         .orderBy("l.intent", "asc")
@@ -502,6 +510,10 @@ export function friendGroupsRepo(db: Kysely<Database>) {
             name: string;
             intent: string;
             kind: string;
+            defaultPricePref: string | null;
+            defaultPriceAbsoluteCents: number | null;
+            defaultTradeType: string | null;
+            currency: string | null;
           };
           ownerName: string | null;
         }
@@ -527,6 +539,10 @@ export function friendGroupsRepo(db: Kysely<Database>) {
           "l.name as listName",
           "l.intent as listIntent",
           "l.kind as listKind",
+          "l.defaultPricePref",
+          "l.defaultPriceAbsoluteCents",
+          "l.defaultTradeType",
+          "l.currency",
           "u.name as ownerName",
         ])
         .where("s.groupId", "=", groupId)
@@ -543,6 +559,10 @@ export function friendGroupsRepo(db: Kysely<Database>) {
           name: row.listName,
           intent: row.listIntent,
           kind: row.listKind,
+          defaultPricePref: row.defaultPricePref,
+          defaultPriceAbsoluteCents: row.defaultPriceAbsoluteCents,
+          defaultTradeType: row.defaultTradeType,
+          currency: row.currency,
         },
         ownerName: row.ownerName,
       };

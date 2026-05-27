@@ -1,5 +1,15 @@
-import type { CardType, Finish, Rarity } from "@openrift/shared/types";
+import type {
+  CardType,
+  Currency,
+  EffectiveTradePreference,
+  Finish,
+  Rarity,
+  TradePricePref,
+  TradeType,
+} from "@openrift/shared/types";
+import { resolveEffectiveTradePreference } from "@openrift/shared/types";
 import type { Kysely } from "kysely";
+import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
 import { gravatarHashForEmail } from "../lib/gravatar.js";
@@ -42,6 +52,11 @@ export interface MatchRow {
   buyListId: string;
   buyEntryKind: "card" | "printing";
   buyQuantity: number;
+
+  /** Counterparty (sell side) preference resolved via entry override ?? list default. */
+  sellPref: EffectiveTradePreference;
+  /** Viewer (buy side) preference resolved the same way. */
+  buyPref: EffectiveTradePreference;
 }
 
 interface MatchScope {
@@ -209,6 +224,34 @@ async function runMatchQuery(
       eb.ref("le_buy.listId").as("buyListId"),
       eb.ref("le_buy.kind").as("buyEntryKind"),
       eb.ref("le_buy.quantity").as("buyQuantity"),
+
+      // Effective trade preferences (entry override ?? list default), one
+      // pair per side. The shape constraint is re-applied in the row mapper.
+      sql<TradePricePref | null>`coalesce(le_sell.price_pref, l_sell.default_price_pref)`.as(
+        "sellPricePref",
+      ),
+      sql<
+        number | null
+      >`coalesce(le_sell.price_absolute_cents, l_sell.default_price_absolute_cents)`.as(
+        "sellPriceAbsoluteCents",
+      ),
+      sql<TradeType | null>`coalesce(le_sell.trade_type, l_sell.default_trade_type)`.as(
+        "sellTradeType",
+      ),
+      eb.ref("l_sell.currency").as("sellCurrency"),
+
+      sql<TradePricePref | null>`coalesce(le_buy.price_pref, l_buy.default_price_pref)`.as(
+        "buyPricePref",
+      ),
+      sql<
+        number | null
+      >`coalesce(le_buy.price_absolute_cents, l_buy.default_price_absolute_cents)`.as(
+        "buyPriceAbsoluteCents",
+      ),
+      sql<TradeType | null>`coalesce(le_buy.trade_type, l_buy.default_trade_type)`.as(
+        "buyTradeType",
+      ),
+      eb.ref("l_buy.currency").as("buyCurrency"),
     ])
     .execute();
 
@@ -239,6 +282,28 @@ async function runMatchQuery(
       buyListId: row.buyListId as string,
       buyEntryKind: row.buyEntryKind as "card" | "printing",
       buyQuantity: row.buyQuantity,
+
+      sellPref: resolveEffectiveTradePreference(
+        {
+          pricePref: row.sellPricePref,
+          priceAbsoluteCents: row.sellPriceAbsoluteCents,
+          tradeType: row.sellTradeType,
+        },
+        // Already coalesced server-side; pass an empty default so the helper
+        // just normalises shape (e.g. clears priceAbsoluteCents when pricePref
+        // is not 'absolute').
+        { pricePref: null, priceAbsoluteCents: null, tradeType: null },
+        row.sellCurrency as Currency | null,
+      ),
+      buyPref: resolveEffectiveTradePreference(
+        {
+          pricePref: row.buyPricePref,
+          priceAbsoluteCents: row.buyPriceAbsoluteCents,
+          tradeType: row.buyTradeType,
+        },
+        { pricePref: null, priceAbsoluteCents: null, tradeType: null },
+        row.buyCurrency as Currency | null,
+      ),
     }))
     .sort((a, b) => {
       const aName = a.counterpartyName ?? "";

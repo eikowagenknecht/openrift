@@ -1,9 +1,10 @@
-import type { ListEntryDetailResponse } from "@openrift/shared";
-import { imageUrl } from "@openrift/shared";
+import type { Currency, ListEntryDetailResponse, TradePreference } from "@openrift/shared";
+import { imageUrl, resolveEffectiveTradePreference } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
 import { PAGE_TOP_BAR_STICKY, PageTopBarBack } from "@/components/layout/page-top-bar";
 import { ListHeader } from "@/components/list/list-header";
+import { TradePreferencePill } from "@/components/trade-preferences/trade-preference-pill";
 import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useFriendGroupSharedList } from "@/hooks/use-friend-groups";
@@ -57,6 +58,9 @@ export function SharedListPage({ slug, listId }: SharedListPageProps) {
                 setName={setNameFor(entry, setsById)}
                 rarityLabel={rarityLabelFor(entry, labels.rarities)}
                 finishLabel={finishLabelFor(entry, labels.finishes)}
+                listTradeDefaults={data.list.tradeDefaults}
+                listCurrency={data.list.currency}
+                listIntent={data.list.intent}
               />
             ))}
           </div>
@@ -103,6 +107,9 @@ interface SharedListEntryRowProps {
   setName: string | null;
   rarityLabel: string | null;
   finishLabel: string | null;
+  listTradeDefaults: TradePreference;
+  listCurrency: Currency | null;
+  listIntent: "wish" | "trade" | "organize";
 }
 
 function SharedListEntryRow({
@@ -112,12 +119,20 @@ function SharedListEntryRow({
   setName,
   rarityLabel,
   finishLabel,
+  listTradeDefaults,
+  listCurrency,
+  listIntent,
 }: SharedListEntryRowProps) {
   const cardId = entry.kind === "card" ? entry.cardId : undefined;
   const metaParts = [setName, rarityLabel, finishLabel].filter(
     (part): part is string => part !== null,
   );
   const meta = metaParts.length > 0 ? metaParts.join(" · ") : null;
+
+  const effectivePref =
+    listIntent === "organize"
+      ? null
+      : resolveEffectiveTradePreference(entry.tradeOverride, listTradeDefaults, listCurrency);
 
   const tile = (
     <div className="bg-card hover:bg-muted hover:text-foreground flex items-center gap-3 rounded-md border p-2 transition-colors">
@@ -137,6 +152,7 @@ function SharedListEntryRow({
         {entry.quantity > 1 ? (
           <span className="text-muted-foreground text-xs">×{entry.quantity}</span>
         ) : null}
+        {effectivePref ? <TradePreferencePill readOnly effective={effectivePref} /> : null}
       </div>
     </div>
   );

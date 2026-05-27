@@ -1,9 +1,22 @@
-import type { CardType, Finish, ListIntent, ListKind, Rarity } from "@openrift/shared/types";
+import type {
+  CardType,
+  Finish,
+  ListIntent,
+  ListKind,
+  Rarity,
+  TradePreference,
+} from "@openrift/shared/types";
 import type { DeleteResult, Insertable, Kysely, Selectable, Updateable } from "kysely";
 import { sql } from "kysely";
 
 import type { Database, ListEntriesTable, ListsTable } from "../db/index.js";
 import { imageId } from "./query-helpers.js";
+
+const EMPTY_TRADE_PREFERENCE: TradePreference = {
+  pricePref: null,
+  priceAbsoluteCents: null,
+  tradeType: null,
+};
 
 export interface BulkUpsertResult {
   /** Brand-new entries created. */
@@ -22,6 +35,7 @@ interface ListEntryRowBase {
   quantity: number;
   cardName: string;
   cardType: CardType;
+  tradeOverride: TradePreference;
 }
 
 interface ListEntryRowPrintingFields {
@@ -56,13 +70,31 @@ export type ListEntryRow =
  */
 export type NewEntryValues = Pick<
   Insertable<ListEntriesTable>,
-  "listId" | "userId" | "kind" | "cardId" | "printingId" | "copyId"
+  | "listId"
+  | "userId"
+  | "kind"
+  | "cardId"
+  | "printingId"
+  | "copyId"
+  | "pricePref"
+  | "priceAbsoluteCents"
+  | "tradeType"
 > & {
   quantity: number;
 };
 
 /** Insert payload for `create`. `kind` is required and immutable post-creation. */
-export type NewListValues = Pick<Insertable<ListsTable>, "userId" | "name" | "intent" | "kind">;
+export type NewListValues = Pick<
+  Insertable<ListsTable>,
+  | "userId"
+  | "name"
+  | "intent"
+  | "kind"
+  | "defaultPricePref"
+  | "defaultPriceAbsoluteCents"
+  | "defaultTradeType"
+  | "currency"
+>;
 
 /**
  * Patch payload for `update`. Intent and kind are immutable post-creation —
@@ -489,6 +521,9 @@ async function cardEntryQuery(
       "le.listId",
       "le.quantity",
       "le.cardId",
+      "le.pricePref",
+      "le.priceAbsoluteCents",
+      "le.tradeType",
       "card.name as cardName",
       "card.type as cardType",
     ])
@@ -501,6 +536,7 @@ async function cardEntryQuery(
     cardId: row.cardId as string,
     cardName: row.cardName,
     cardType: row.cardType as CardType,
+    tradeOverride: tradeOverrideFromRow(row),
   }));
 }
 
@@ -534,6 +570,9 @@ async function printingEntryQuery(
       "le.listId",
       "le.quantity",
       "le.printingId",
+      "le.pricePref",
+      "le.priceAbsoluteCents",
+      "le.tradeType",
       "card.name as cardName",
       "card.type as cardType",
       "p.setId",
@@ -554,6 +593,7 @@ async function printingEntryQuery(
     rarity: row.rarity as Rarity,
     finish: row.finish as Finish,
     imageId: row.imageId,
+    tradeOverride: tradeOverrideFromRow(row),
   }));
 }
 
@@ -588,6 +628,9 @@ async function copyEntryQuery(
       "le.listId",
       "le.quantity",
       "le.copyId",
+      "le.pricePref",
+      "le.priceAbsoluteCents",
+      "le.tradeType",
       "card.name as cardName",
       "card.type as cardType",
       "p.setId",
@@ -612,5 +655,21 @@ async function copyEntryQuery(
     rarity: row.rarity as Rarity,
     finish: row.finish as Finish,
     imageId: row.imageId,
+    tradeOverride: tradeOverrideFromRow(row),
   }));
+}
+
+function tradeOverrideFromRow(row: {
+  pricePref: string | null;
+  priceAbsoluteCents: number | null;
+  tradeType: string | null;
+}): TradePreference {
+  if (row.pricePref === null && row.priceAbsoluteCents === null && row.tradeType === null) {
+    return EMPTY_TRADE_PREFERENCE;
+  }
+  return {
+    pricePref: row.pricePref as TradePreference["pricePref"],
+    priceAbsoluteCents: row.priceAbsoluteCents,
+    tradeType: row.tradeType as TradePreference["tradeType"],
+  };
 }

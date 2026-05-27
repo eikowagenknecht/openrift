@@ -1,4 +1,5 @@
 import type {
+  Currency,
   ListBulkAddResponse,
   ListDetailResponse,
   ListEntryResponse,
@@ -8,6 +9,7 @@ import type {
   ListResponse,
   ListShareResponse,
   PublicListDetailResponse,
+  TradePreference,
 } from "@openrift/shared";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
@@ -76,8 +78,18 @@ export function useListDetail(listId: string) {
 
 // ── MUTATIONS ────────────────────────────────────────────────────────────────
 
+interface CreateListInput {
+  name: string;
+  intent: ListIntent;
+  kind: ListKind;
+  /** ADR-017: list-level trade defaults. Ignored on organize lists. */
+  tradeDefaults?: TradePreference;
+  /** ADR-017: list currency. Required when any 'absolute' preference is set. */
+  currency?: Currency | null;
+}
+
 const createListFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { name: string; intent: ListIntent; kind: ListKind }) => input)
+  .inputValidator((input: CreateListInput) => input)
   .middleware([withCookies])
   .handler(({ context, data }) =>
     fetchApiJson<ListResponse>({
@@ -92,8 +104,7 @@ const createListFn = createServerFn({ method: "POST" })
 export function useCreateList() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
-    mutationFn: (body: { name: string; intent: ListIntent; kind: ListKind }) =>
-      createListFn({ data: body }),
+    mutationFn: (body: CreateListInput) => createListFn({ data: body }),
     // Invalidate the un-filtered key plus the intent-filtered key so both
     // the "all lists" and the per-intent sidebar groups refresh.
     invalidates: (variables) => [
@@ -103,8 +114,15 @@ export function useCreateList() {
   });
 }
 
+interface UpdateListInput {
+  listId: string;
+  name?: string;
+  tradeDefaults?: TradePreference;
+  currency?: Currency | null;
+}
+
 const updateListFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { listId: string; name?: string }) => input)
+  .inputValidator((input: UpdateListInput) => input)
   .middleware([withCookies])
   .handler(({ context, data }) => {
     const { listId, ...fields } = data;
@@ -119,8 +137,8 @@ const updateListFn = createServerFn({ method: "POST" })
 
 export function useUpdateList() {
   const userId = useRequiredUserId();
-  return useMutationWithInvalidation<ListResponse, { listId: string; name?: string }>({
-    mutationFn: ({ listId, name }) => updateListFn({ data: { listId, name } }),
+  return useMutationWithInvalidation<ListResponse, UpdateListInput>({
+    mutationFn: (input) => updateListFn({ data: input }),
     invalidates: (variables) => [
       queryKeys.lists.all(userId),
       queryKeys.lists.detail(userId, variables.listId),
@@ -273,18 +291,27 @@ export function useBulkAddCopiesToList() {
   });
 }
 
+interface UpdateListEntryInput {
+  listId: string;
+  entryId: string;
+  quantity?: number;
+  /** ADR-017 per-entry override. NULL fields fall through to list defaults. */
+  tradeOverride?: TradePreference;
+}
+
 const updateListEntryFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { listId: string; entryId: string; quantity: number }) => input)
+  .inputValidator((input: UpdateListEntryInput) => input)
   .middleware([withCookies])
-  .handler(({ context, data }) =>
-    fetchApiJson<ListEntryResponse>({
+  .handler(({ context, data }) => {
+    const { listId, entryId, ...fields } = data;
+    return fetchApiJson<ListEntryResponse>({
       errorTitle: "Couldn't update list entry",
       cookie: context.cookie,
-      path: `/api/v1/lists/${encodeURIComponent(data.listId)}/entries/${encodeURIComponent(data.entryId)}`,
+      path: `/api/v1/lists/${encodeURIComponent(listId)}/entries/${encodeURIComponent(entryId)}`,
       method: "PATCH",
-      body: { quantity: data.quantity },
-    }),
-  );
+      body: fields,
+    });
+  });
 
 export function useUpdateListEntry() {
   const userId = useRequiredUserId();
@@ -292,14 +319,13 @@ export function useUpdateListEntry() {
   return useMutation<
     ListEntryResponse,
     Error,
-    { listId: string; entryId: string; quantity: number },
+    UpdateListEntryInput,
     { prev: ListDetailResponse | undefined }
   >({
     mutationFn: (vars) => updateListEntryFn({ data: vars }),
     // Same optimistic-update pattern as useBulkAddListEntries — update the
-    // entry's quantity in the cache immediately so the stepper renders the
-    // new number on click, then reconcile with the server's response via
-    // the invalidation in onSettled.
+    // entry's quantity/override in the cache immediately so the row renders
+    // the new values on click, then reconcile via the invalidation in onSettled.
     onMutate: async (vars) => {
       const detailKey = queryKeys.lists.detail(userId, vars.listId);
       await queryClient.cancelQueries({ queryKey: detailKey });
@@ -311,7 +337,13 @@ export function useUpdateListEntry() {
         return {
           ...old,
           entries: old.entries.map((entry) =>
-            entry.id === vars.entryId ? { ...entry, quantity: vars.quantity } : entry,
+            entry.id === vars.entryId
+              ? {
+                  ...entry,
+                  ...(vars.quantity !== undefined && { quantity: vars.quantity }),
+                  ...(vars.tradeOverride !== undefined && { tradeOverride: vars.tradeOverride }),
+                }
+              : entry,
           ),
         };
       });

@@ -23,6 +23,33 @@ const listIntentSchema = z.enum(["wish", "trade", "organize"]);
 
 const listKindSchema = z.enum(["card", "printing", "copy"]);
 
+// Trade preferences (ADR-017) -------------------------------------------------
+
+const tradePricePrefSchema = z.enum(["cm_lowest", "tcg_lowest", "ct_zero", "absolute"]);
+const tradeTypeSchema = z.enum(["cards", "money", "both"]);
+const currencySchema = z.enum(["EUR", "USD"]);
+
+/**
+ * Triple stored on either a list (defaults) or an entry (override). All fields
+ * are independently nullable; the DB enforces `(pricePref = 'absolute') ↔
+ * (priceAbsoluteCents IS NOT NULL)`.
+ */
+const tradePreferenceInputSchema = z
+  .object({
+    pricePref: tradePricePrefSchema.nullable(),
+    priceAbsoluteCents: z.number().int().positive().max(10_000_000).nullable(),
+    tradeType: tradeTypeSchema.nullable(),
+  })
+  .refine((data) => (data.pricePref === "absolute") === (data.priceAbsoluteCents !== null), {
+    message: "priceAbsoluteCents must be set iff pricePref === 'absolute'",
+  });
+
+const emptyTradePreference = {
+  pricePref: null,
+  priceAbsoluteCents: null,
+  tradeType: null,
+} as const;
+
 /**
  * Allowed intent × kind combos. Mirrors the chk_lists_intent_kind DB
  * constraint (migration 133, renamed in 135).
@@ -183,19 +210,36 @@ export const listIntentQuerySchema = z.object({
   intent: listIntentSchema.optional(),
 });
 
+/**
+ * `organize` lists never carry trade defaults. The route layer drops these
+ * fields when intent === 'organize'; the schema lets clients pass them but the
+ * CHECK constraint on the DB also rejects non-null values there.
+ */
 export const createListSchema = z
   .object({
     name: z.string().min(1).max(200),
     intent: listIntentSchema,
     kind: listKindSchema,
+    tradeDefaults: tradePreferenceInputSchema.optional(),
+    currency: currencySchema.nullable().optional(),
   })
   .refine((data) => isAllowedIntentKind(data.intent, data.kind), {
     message:
       "Disallowed intent/kind combo. Wish: card|printing. Trade: copy. Organize: card|printing|copy.",
-  });
+  })
+  .refine(
+    (data) =>
+      data.intent !== "organize" ||
+      ((data.tradeDefaults === undefined ||
+        (data.tradeDefaults.pricePref === null && data.tradeDefaults.tradeType === null)) &&
+        (data.currency === undefined || data.currency === null)),
+    { message: "organize lists cannot carry trade defaults or a currency" },
+  );
 
 export const updateListSchema = z.object({
   name: z.string().min(1).max(200).optional(),
+  tradeDefaults: tradePreferenceInputSchema.optional(),
+  currency: currencySchema.nullable().optional(),
 });
 
 /**
@@ -217,6 +261,7 @@ const listEntryInputShape = {
   printingId: z.uuid().optional(),
   copyId: z.uuid().optional(),
   quantity: listEntryFieldRules.quantity.default(1),
+  tradeOverride: tradePreferenceInputSchema.default(emptyTradePreference),
 };
 
 export const createListEntrySchema = z.object(listEntryInputShape).refine(oneListEntryTarget, {
@@ -224,7 +269,8 @@ export const createListEntrySchema = z.object(listEntryInputShape).refine(oneLis
 });
 
 export const updateListEntrySchema = z.object({
-  quantity: listEntryFieldRules.quantity,
+  quantity: listEntryFieldRules.quantity.optional(),
+  tradeOverride: tradePreferenceInputSchema.optional(),
 });
 
 export const bulkCreateListEntriesSchema = z.object({
@@ -354,4 +400,5 @@ export const updatePreferencesSchema = z.object({
     .nullable()
     .optional(),
   defaultCardView: defaultCardViewEnum.nullable().optional(),
+  defaultCurrency: currencySchema.nullable().optional(),
 });

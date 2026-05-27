@@ -212,3 +212,18 @@ export type {
   PricesResponse,
   TcgplayerSnapshot,
 } from "./api/index.js";
+
+export type {
+  Currency,
+  EffectiveTradePreference,
+  TradePreference,
+  TradePricePref,
+  TradeType,
+} from "./api/index.js";
+export {
+  CURRENCIES,
+  TRADE_PRICE_PREFS,
+  TRADE_TYPES,
+  isEmptyTradePreference,
+  resolveEffectiveTradePreference,
+} from "./api/index.js";

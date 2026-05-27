@@ -1,5 +1,11 @@
-import type { CompletionScopePreference, Marketplace, Palette, Theme } from "@openrift/shared";
-import { ALL_MARKETPLACES, PALETTES } from "@openrift/shared";
+import type {
+  CompletionScopePreference,
+  Currency,
+  Marketplace,
+  Palette,
+  Theme,
+} from "@openrift/shared";
+import { ALL_MARKETPLACES, CURRENCIES, PALETTES } from "@openrift/shared";
 
 import type { DisplayOverrides } from "@/stores/display-store";
 
@@ -7,6 +13,7 @@ const VALID_MARKETPLACES = new Set<string>(ALL_MARKETPLACES);
 const VALID_THEMES = new Set<string>(["light", "dark", "auto"]);
 const VALID_PALETTES = new Set<string>(PALETTES);
 const VALID_DEFAULT_CARD_VIEWS = new Set<string>(["cards", "printings"]);
+const VALID_CURRENCIES = new Set<string>(CURRENCIES);
 
 interface SanitizedOverrides {
   overrides: DisplayOverrides;
@@ -96,6 +103,9 @@ export function sanitizeServerResponse(data: unknown): Partial<DisplayOverrides>
   if ("defaultCardView" in record) {
     result.defaultCardView = sanitizeDefaultCardView(record.defaultCardView);
   }
+  if ("defaultCurrency" in record) {
+    result.defaultCurrency = sanitizeCurrency(record.defaultCurrency);
+  }
   return result;
 }
 
@@ -133,12 +143,20 @@ function nullOverrides(): DisplayOverrides {
     languages: null,
     completionScope: null,
     defaultCardView: null,
+    defaultCurrency: null,
   };
 }
 
 function sanitizeDefaultCardView(value: unknown): "cards" | "printings" | null {
   if (typeof value === "string" && VALID_DEFAULT_CARD_VIEWS.has(value)) {
     return value as "cards" | "printings";
+  }
+  return null;
+}
+
+function sanitizeCurrency(value: unknown): Currency | null {
+  if (typeof value === "string" && VALID_CURRENCIES.has(value)) {
+    return value as Currency;
   }
   return null;
 }
@@ -186,6 +204,8 @@ function sanitizeOverrideFields(record: Record<string, unknown>): DisplayOverrid
 
   const safeDefaultCardView = sanitizeDefaultCardView(record.defaultCardView);
 
+  const safeDefaultCurrency = sanitizeCurrency(record.defaultCurrency);
+
   return {
     showImages,
     fancyFan,
@@ -195,6 +215,7 @@ function sanitizeOverrideFields(record: Record<string, unknown>): DisplayOverrid
     languages: safeLanguages,
     completionScope: safeCompletionScope,
     defaultCardView: safeDefaultCardView,
+    defaultCurrency: safeDefaultCurrency,
   };
 }
 

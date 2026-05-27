@@ -12,11 +12,19 @@ import type {
   PriceMap,
   Printing,
   SuperType,
+  TradePreference,
 } from "@openrift/shared";
 import { priceLookupFromMap } from "@openrift/shared";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+
+/** Empty trade preference (ADR-017). Useful for list/entry fixtures that don't exercise prefs. */
+export const EMPTY_TRADE_PREFERENCE: TradePreference = {
+  pricePref: null,
+  priceAbsoluteCents: null,
+  tradeType: null,
+};
 
 let idCounter = 0;
 

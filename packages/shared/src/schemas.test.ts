@@ -304,6 +304,55 @@ describe("createListSchema", () => {
       false,
     );
   });
+
+  it("accepts trade preferences on a wish list", () => {
+    const result = createListSchema.safeParse({
+      name: "Wants",
+      intent: "wish",
+      kind: "card",
+      tradeDefaults: { pricePref: "cm_lowest", priceAbsoluteCents: null, tradeType: "cards" },
+      currency: "EUR",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("requires priceAbsoluteCents iff pricePref is 'absolute'", () => {
+    expect(
+      createListSchema.safeParse({
+        name: "x",
+        intent: "trade",
+        kind: "copy",
+        tradeDefaults: { pricePref: "absolute", priceAbsoluteCents: null, tradeType: null },
+      }).success,
+    ).toBe(false);
+    expect(
+      createListSchema.safeParse({
+        name: "x",
+        intent: "trade",
+        kind: "copy",
+        tradeDefaults: { pricePref: "cm_lowest", priceAbsoluteCents: 100, tradeType: null },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects trade prefs on organize lists", () => {
+    expect(
+      createListSchema.safeParse({
+        name: "Tags",
+        intent: "organize",
+        kind: "card",
+        tradeDefaults: { pricePref: "cm_lowest", priceAbsoluteCents: null, tradeType: null },
+      }).success,
+    ).toBe(false);
+    expect(
+      createListSchema.safeParse({
+        name: "Tags",
+        intent: "organize",
+        kind: "card",
+        currency: "EUR",
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe("updateListSchema", () => {
@@ -313,6 +362,14 @@ describe("updateListSchema", () => {
 
   it("accepts an empty object", () => {
     expect(updateListSchema.safeParse({}).success).toBe(true);
+  });
+
+  it("accepts a tradeDefaults patch", () => {
+    expect(
+      updateListSchema.safeParse({
+        tradeDefaults: { pricePref: "cm_lowest", priceAbsoluteCents: null, tradeType: "cards" },
+      }).success,
+    ).toBe(true);
   });
 });
 

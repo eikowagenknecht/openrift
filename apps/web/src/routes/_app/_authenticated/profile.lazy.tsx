@@ -9,6 +9,7 @@ import { DisplaySection } from "@/components/profile/display-section";
 import { LanguagesSection } from "@/components/profile/languages-section";
 import { MarketplacesSection } from "@/components/profile/marketplaces-section";
 import { PasswordSection } from "@/components/profile/password-section";
+import { TradingSection } from "@/components/profile/trading-section";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserAvatar } from "@/components/user-avatar";
 import { useLanguageList } from "@/hooks/use-enums";
@@ -25,6 +26,7 @@ const NAV_SECTIONS: PageTocItem[] = [
   { id: "display", label: "Display", level: 1 },
   { id: "marketplaces", label: "Marketplaces", level: 1 },
   { id: "languages", label: "Languages", level: 1 },
+  { id: "trading", label: "Trading", level: 1 },
   { id: "account", label: "Account" },
   { id: "security", label: "Security" },
   { id: "danger-zone", label: "Danger Zone" },
@@ -83,6 +85,9 @@ function ProfilePage() {
             </div>
             <div id="languages" className="scroll-mt-16">
               <LanguagesSection availableLanguages={languages} />
+            </div>
+            <div id="trading" className="scroll-mt-16">
+              <TradingSection />
             </div>
           </section>
 

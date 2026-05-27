@@ -240,11 +240,20 @@ export const listsRoute = listsApp
     const { lists } = c.get("repos");
     const userId = getUserId(c);
     const body = c.req.valid("json");
+    // ADR-017: trade defaults only apply to wish/trade lists. The DB CHECK
+    // constraint rejects non-null prefs on organize lists; we strip here so
+    // the API never round-trips a 500.
+    const supportsPrefs = body.intent !== "organize";
+    const tradeDefaults = supportsPrefs ? body.tradeDefaults : undefined;
     const row = await lists.create({
       userId,
       name: body.name,
       intent: body.intent,
       kind: body.kind,
+      defaultPricePref: tradeDefaults?.pricePref ?? null,
+      defaultPriceAbsoluteCents: tradeDefaults?.priceAbsoluteCents ?? null,
+      defaultTradeType: tradeDefaults?.tradeType ?? null,
+      currency: supportsPrefs ? (body.currency ?? null) : null,
     });
     return c.json(toList(row), 201);
   })
@@ -267,7 +276,7 @@ export const listsRoute = listsApp
     return c.json(detail);
   })
 
-  // ── UPDATE (name only; intent is immutable post-creation) ───────────────────
+  // ── UPDATE (name + trade prefs; intent/kind immutable post-creation) ───────
   .openapi(updateList, async (c) => {
     const { lists } = c.get("repos");
     const userId = getUserId(c);
@@ -276,6 +285,14 @@ export const listsRoute = listsApp
     // Cast at the HTTP-boundary: buildPatchUpdates returns Record<string, unknown>
     // because the field map is generic; downstream the repo wants a typed shape.
     const updates = buildPatchUpdates(body, listPatchFields) as ListUpdate;
+    if (body.tradeDefaults !== undefined) {
+      updates.defaultPricePref = body.tradeDefaults.pricePref;
+      updates.defaultPriceAbsoluteCents = body.tradeDefaults.priceAbsoluteCents;
+      updates.defaultTradeType = body.tradeDefaults.tradeType;
+    }
+    if (body.currency !== undefined) {
+      updates.currency = body.currency;
+    }
     const row = await lists.update(id, userId, updates);
     assertFound(row, "Not found");
     return c.json(toList(row));
@@ -310,6 +327,9 @@ export const listsRoute = listsApp
       printingId: target.printingId,
       copyId: target.copyId,
       quantity: body.quantity,
+      pricePref: body.tradeOverride.pricePref,
+      priceAbsoluteCents: body.tradeOverride.priceAbsoluteCents,
+      tradeType: body.tradeOverride.tradeType,
     });
 
     return c.json(toListEntry(row), 201);
@@ -362,6 +382,9 @@ export const listsRoute = listsApp
       printingId: entry.printingId ?? null,
       copyId: entry.copyId ?? null,
       quantity: entry.quantity,
+      pricePref: entry.tradeOverride.pricePref,
+      priceAbsoluteCents: entry.tradeOverride.priceAbsoluteCents,
+      tradeType: entry.tradeOverride.tradeType,
     }));
 
     const result = await lists.bulkCreateEntries(list.kind, usable);
@@ -407,6 +430,11 @@ export const listsRoute = listsApp
     const { id: listId, itemId } = c.req.valid("param");
     const body = c.req.valid("json");
     const updates = buildPatchUpdates(body, entryPatchFields) as ListEntryUpdate;
+    if (body.tradeOverride !== undefined) {
+      updates.pricePref = body.tradeOverride.pricePref;
+      updates.priceAbsoluteCents = body.tradeOverride.priceAbsoluteCents;
+      updates.tradeType = body.tradeOverride.tradeType;
+    }
     const row = await lists.updateEntry(itemId, listId, userId, updates);
     assertFound(row, "Not found");
     return c.json(toListEntry(row));

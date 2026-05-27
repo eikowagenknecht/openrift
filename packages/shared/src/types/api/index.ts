@@ -94,6 +94,21 @@ export type {
 } from "./list.js";
 
 export type {
+  Currency,
+  EffectiveTradePreference,
+  TradePreference,
+  TradePricePref,
+  TradeType,
+} from "./trade-preferences.js";
+export {
+  CURRENCIES,
+  TRADE_PRICE_PREFS,
+  TRADE_TYPES,
+  isEmptyTradePreference,
+  resolveEffectiveTradePreference,
+} from "./trade-preferences.js";
+
+export type {
   FriendGroupDetailResponse,
   FriendGroupInviteDirection,
   FriendGroupJoinPreviewResponse,

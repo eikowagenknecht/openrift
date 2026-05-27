@@ -702,8 +702,36 @@ export const userPreferencesResponseSchema = z
     palette: z.enum(["default", "minimal"]).optional(),
     marketplaceOrder: z.array(z.enum(["tcgplayer", "cardmarket", "cardtrader"])).optional(),
     defaultCardView: z.enum(["cards", "printings"]).optional(),
+    defaultCurrency: z.enum(["EUR", "USD"]).optional(),
   })
   .openapi("UserPreferencesResponse");
+
+// ── Trade preferences (ADR-017) ─────────────────────────────────────────────
+
+const tradePricePrefSchema = z
+  .enum(["cm_lowest", "tcg_lowest", "ct_zero", "absolute"])
+  .openapi("TradePricePref");
+
+const tradeTypeSchema = z.enum(["cards", "money", "both"]).openapi("TradeType");
+
+const currencySchema = z.enum(["EUR", "USD"]).openapi("Currency");
+
+const tradePreferenceSchema = z
+  .object({
+    pricePref: tradePricePrefSchema.nullable(),
+    priceAbsoluteCents: z.number().int().positive().nullable(),
+    tradeType: tradeTypeSchema.nullable(),
+  })
+  .openapi("TradePreference");
+
+const effectiveTradePreferenceSchema = z
+  .object({
+    pricePref: tradePricePrefSchema.nullable(),
+    priceAbsoluteCents: z.number().int().positive().nullable(),
+    tradeType: tradeTypeSchema.nullable(),
+    currency: currencySchema.nullable(),
+  })
+  .openapi("EffectiveTradePreference");
 
 // ── Lists (unified wishlist / tradelist / organize) ─────────────────────────
 
@@ -722,6 +750,8 @@ export const listResponseSchema = z
     shareToken: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
+    tradeDefaults: tradePreferenceSchema,
+    currency: currencySchema.nullable(),
   })
   .openapi("ListResponse");
 
@@ -733,6 +763,7 @@ const listEntryBaseShape = {
   id: z.string(),
   listId: z.string(),
   quantity: z.number(),
+  tradeOverride: tradePreferenceSchema,
 };
 
 export const listEntryResponseSchema = z
@@ -795,6 +826,8 @@ const publicListResponseSchema = z
     kind: listKindSchema,
     createdAt: z.string(),
     updatedAt: z.string(),
+    tradeDefaults: tradePreferenceSchema,
+    currency: currencySchema.nullable(),
   })
   .openapi("PublicListResponse");
 
@@ -992,6 +1025,8 @@ export const friendGroupShareableListResponseSchema = z
     listKind: z.enum(["card", "printing", "copy"]),
     entryCount: z.number().int().nonnegative(),
     sharedAt: z.string().nullable(),
+    tradeDefaults: tradePreferenceSchema,
+    currency: currencySchema.nullable(),
   })
   .openapi("FriendGroupShareableListResponse");
 
@@ -1023,6 +1058,8 @@ const friendGroupMatchRowSchema = z
     buyListId: z.string(),
     buyEntryKind: z.enum(["card", "printing"]),
     buyQuantity: z.number().int().nonnegative(),
+    sellPref: effectiveTradePreferenceSchema,
+    buyPref: effectiveTradePreferenceSchema,
   })
   .openapi("FriendGroupMatchRow");
 
@@ -1067,6 +1104,8 @@ export const friendGroupSharedListDetailResponseSchema = z
       kind: z.enum(["card", "printing", "copy"]),
       ownerUserId: z.string(),
       ownerName: z.string().nullable(),
+      tradeDefaults: tradePreferenceSchema,
+      currency: currencySchema.nullable(),
     }),
     entries: z.array(listEntryDetailResponseSchema),
   })

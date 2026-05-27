@@ -18,11 +18,51 @@ import type {
   PublicListResponse,
   Rarity,
   SuperType,
+  TradePreference,
 } from "@openrift/shared";
 import type { Selectable } from "kysely";
 
 import type { CollectionsTable, DecksTable, ListEntriesTable, ListsTable } from "../db/index.js";
 import type { CollectionValue } from "../repositories/marketplace.js";
+
+const EMPTY_TRADE_PREFERENCE: TradePreference = {
+  pricePref: null,
+  priceAbsoluteCents: null,
+  tradeType: null,
+};
+
+function tradeDefaultsFromList(
+  row: Pick<
+    Selectable<ListsTable>,
+    "defaultPricePref" | "defaultPriceAbsoluteCents" | "defaultTradeType"
+  >,
+): TradePreference {
+  if (
+    row.defaultPricePref === null &&
+    row.defaultPriceAbsoluteCents === null &&
+    row.defaultTradeType === null
+  ) {
+    return EMPTY_TRADE_PREFERENCE;
+  }
+  return {
+    pricePref: row.defaultPricePref,
+    priceAbsoluteCents: row.defaultPriceAbsoluteCents,
+    tradeType: row.defaultTradeType,
+  };
+}
+
+function tradeOverrideFromEntry(
+  row: Pick<Selectable<ListEntriesTable>, "pricePref" | "priceAbsoluteCents" | "tradeType">,
+): TradePreference {
+  if (row.pricePref === null && row.priceAbsoluteCents === null && row.tradeType === null) {
+    return EMPTY_TRADE_PREFERENCE;
+  }
+  return {
+    pricePref: row.pricePref,
+    priceAbsoluteCents: row.priceAbsoluteCents,
+    tradeType: row.tradeType,
+  };
+}
 
 // ── Simple entity mappers ──────────────────────────────────────────────────
 
@@ -133,6 +173,8 @@ export function toList(row: Selectable<ListsTable> & { entryCount?: number }): L
     shareToken: row.shareToken,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    tradeDefaults: tradeDefaultsFromList(row),
+    currency: row.currency,
   };
 }
 
@@ -145,6 +187,8 @@ export function toPublicList(row: Selectable<ListsTable>): PublicListResponse {
     kind: row.kind,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    tradeDefaults: tradeDefaultsFromList(row),
+    currency: row.currency,
   };
 }
 
@@ -155,7 +199,12 @@ export function toPublicList(row: Selectable<ListsTable>): PublicListResponse {
  * @returns The narrowed list entry response.
  */
 export function toListEntry(row: Selectable<ListEntriesTable>): ListEntryResponse {
-  const base = { id: row.id, listId: row.listId, quantity: row.quantity };
+  const base = {
+    id: row.id,
+    listId: row.listId,
+    quantity: row.quantity,
+    tradeOverride: tradeOverrideFromEntry(row),
+  };
   if (row.kind === "card") {
     return { ...base, kind: "card", cardId: row.cardId as string };
   }
@@ -181,6 +230,7 @@ export function toListEntryDetail(
         cardId: string;
         cardName: string;
         cardType: string;
+        tradeOverride: TradePreference;
       }
     | {
         kind: "printing";
@@ -194,6 +244,7 @@ export function toListEntryDetail(
         rarity: string;
         finish: string;
         imageId: string | null;
+        tradeOverride: TradePreference;
       }
     | {
         kind: "copy";
@@ -209,6 +260,7 @@ export function toListEntryDetail(
         rarity: string;
         finish: string;
         imageId: string | null;
+        tradeOverride: TradePreference;
       },
 ): ListEntryDetailResponse {
   if (row.kind === "card") {
@@ -220,6 +272,7 @@ export function toListEntryDetail(
       cardId: row.cardId,
       cardName: row.cardName,
       cardType: row.cardType as CardType,
+      tradeOverride: row.tradeOverride,
     };
   }
   if (row.kind === "printing") {
@@ -235,6 +288,7 @@ export function toListEntryDetail(
       rarity: row.rarity as Rarity,
       finish: row.finish as Finish,
       imageId: row.imageId,
+      tradeOverride: row.tradeOverride,
     };
   }
   return {
@@ -251,6 +305,7 @@ export function toListEntryDetail(
     rarity: row.rarity as Rarity,
     finish: row.finish as Finish,
     imageId: row.imageId,
+    tradeOverride: row.tradeOverride,
   };
 }
 

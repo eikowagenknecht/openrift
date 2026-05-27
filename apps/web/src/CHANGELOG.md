@@ -2,6 +2,7 @@
 
 ## 2026-05-27
 
+- feat: Wishlists and tradelists can now carry trade preferences. Each list has a default — Cardmarket lowest, TCGplayer lowest, Cardtrader Zero, a fixed price, or "negotiate" — plus an "accepts cards/money/both" hint. Set them in the list create dialog, override per card with the inline pill, and they show up on match rows alongside the card so you know what each side is after before opening Discord
 - feat: Friend groups now have shared collections. Any group member can create one, add or remove cards, and it shows up in the sidebar under the group's name. Group admins can rename or delete the shared collection
 - feat: On a friend group's settings page, the join code panel now has a Copy link button that copies a shareable URL with the code prefilled, so invitees only have to click it
 - feat: On the same page, your shared lists now show "Wishlist" or "Tradelist" and an entry count as badges, matching how list pages describe them

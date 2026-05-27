@@ -407,6 +407,10 @@ export interface DeckCardsTable {
  * CHECK: intent ∈ ('wish','trade','organize'); kind ∈ ('card','printing','copy');
  * intent × kind matches one of the six allowed combos; name <> ''.
  */
+export type TradePricePref = "cm_lowest" | "tcg_lowest" | "ct_zero" | "absolute";
+export type TradeType = "cards" | "money" | "both";
+export type Currency = "EUR" | "USD";
+
 export interface ListsTable {
   id: Generated<string>;
   userId: string;
@@ -417,6 +421,13 @@ export interface ListsTable {
   shareToken: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
+  /** ADR-017: list-level default for entries that don't override. */
+  defaultPricePref: TradePricePref | null;
+  /** Set iff defaultPricePref === 'absolute'. Positive integer. */
+  defaultPriceAbsoluteCents: number | null;
+  defaultTradeType: TradeType | null;
+  /** Required for any 'absolute' default or override; ignored otherwise. */
+  currency: Currency | null;
 }
 
 /**
@@ -440,6 +451,11 @@ export interface ListEntriesTable {
   quantity: Generated<number>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
+  /** ADR-017: per-entry override. NULL = inherit parent list default. */
+  pricePref: TradePricePref | null;
+  /** Set iff pricePref === 'absolute'. */
+  priceAbsoluteCents: number | null;
+  tradeType: TradeType | null;
 }
 
 // ─── Friend groups (migration 134, ADR-013) ──────────────────────────────────

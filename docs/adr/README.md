@@ -31,3 +31,4 @@ The MADR documentation is available at <https://adr.github.io/madr/> while gener
 - **[ADR-012](012-switch-to-bun-image-processing.md)**: Switch to Bun image processing — rejected
 - **[ADR-015](015-preconstructed-product-catalog.md)**: Preconstructed Product Catalog — proposed
 - **[ADR-016](016-caching-layers.md)**: Caching layers — accepted
+- **[ADR-017](017-trade-preferences.md)**: Trade Preferences on Shared Lists — accepted

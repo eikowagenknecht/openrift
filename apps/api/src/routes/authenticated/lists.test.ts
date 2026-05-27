@@ -152,6 +152,10 @@ describe("POST /api/v1/lists", () => {
       name: "Wants",
       intent: "wish",
       kind: "card",
+      defaultPricePref: null,
+      defaultPriceAbsoluteCents: null,
+      defaultTradeType: null,
+      currency: null,
     });
   });
 
@@ -313,6 +317,9 @@ describe("POST /api/v1/lists/:id/entries", () => {
       printingId: null,
       copyId: null,
       quantity: 1,
+      pricePref: null,
+      priceAbsoluteCents: null,
+      tradeType: null,
     });
   });
 

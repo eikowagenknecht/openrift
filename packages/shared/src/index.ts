@@ -177,6 +177,11 @@ export type {
   Palette,
   Theme,
   UserPreferencesResponse,
+  Currency,
+  EffectiveTradePreference,
+  TradePreference,
+  TradePricePref,
+  TradeType,
 } from "./types/index.js";
 export type { EnumOrders } from "./types/index.js";
 export {
@@ -188,6 +193,11 @@ export {
   PREFERENCE_DEFAULTS,
   EUR_MARKETPLACES,
   TIME_RANGE_DAYS,
+  CURRENCIES,
+  TRADE_PRICE_PREFS,
+  TRADE_TYPES,
+  isEmptyTradePreference,
+  resolveEffectiveTradePreference,
 } from "./types/index.js";
 
 export type { AvailableFilters, FilterCounts } from "./filters.js";

@@ -1,4 +1,5 @@
 import type { CardType, Finish, Rarity } from "../enums.js";
+import type { Currency, TradePreference } from "./trade-preferences.js";
 
 export type ListIntent = "wish" | "trade" | "organize";
 
@@ -16,6 +17,14 @@ export interface ListResponse {
   shareToken: string | null;
   createdAt: string;
   updatedAt: string;
+  /**
+   * List-level default preference (ADR-017). All fields are `null` when no
+   * default has been set or when `intent === "organize"`. Entries inherit
+   * field-by-field via {@link resolveEffectiveTradePreference}.
+   */
+  tradeDefaults: TradePreference;
+  /** Currency used for `absolute` prices. Always `null` on `organize` lists. */
+  currency: Currency | null;
 }
 
 export interface ListListResponse {
@@ -26,6 +35,11 @@ interface ListEntryBase {
   id: string;
   listId: string;
   quantity: number;
+  /**
+   * Per-entry override (ADR-017). NULL fields fall through to the parent list's
+   * `tradeDefaults`. Always all-NULL on `organize` lists.
+   */
+  tradeOverride: TradePreference;
 }
 
 /**
@@ -86,6 +100,8 @@ export interface PublicListResponse {
   kind: ListKind;
   createdAt: string;
   updatedAt: string;
+  tradeDefaults: TradePreference;
+  currency: Currency | null;
 }
 
 export interface PublicListDetailResponse {

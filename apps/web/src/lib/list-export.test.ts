@@ -1,6 +1,8 @@
 import type { ListEntryDetailResponse } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
+import { EMPTY_TRADE_PREFERENCE } from "@/test/factories";
+
 import { formatCardListAsDeckText } from "./list-export";
 
 function cardEntry(
@@ -17,6 +19,7 @@ function cardEntry(
     quantity,
     cardName,
     cardType: "unit",
+    tradeOverride: EMPTY_TRADE_PREFERENCE,
   };
 }
 
@@ -53,6 +56,7 @@ describe("formatCardListAsDeckText", () => {
         rarity: "common",
         finish: "standard",
         imageId: null,
+        tradeOverride: EMPTY_TRADE_PREFERENCE,
       },
     ];
     expect(formatCardListAsDeckText(mixed)).toBe("1 Teemo, Scout");

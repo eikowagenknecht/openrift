@@ -155,6 +155,7 @@ describe("useDisplayStore", () => {
         languages: null,
         completionScope: null,
         defaultCardView: null,
+        defaultCurrency: null,
       });
       expect(state.showImages).toBe(PREFERENCE_DEFAULTS.showImages);
       expect(state.fancyFan).toBe(PREFERENCE_DEFAULTS.fancyFan);

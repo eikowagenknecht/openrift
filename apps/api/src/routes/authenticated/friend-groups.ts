@@ -966,6 +966,14 @@ export const friendGroupsRoute = friendGroupsApp
         listKind: row.listKind as FriendGroupShareableListsResponse["items"][number]["listKind"],
         entryCount: row.entryCount,
         sharedAt: row.sharedAt ? row.sharedAt.toISOString() : null,
+        tradeDefaults: {
+          pricePref:
+            row.defaultPricePref as FriendGroupShareableListsResponse["items"][number]["tradeDefaults"]["pricePref"],
+          priceAbsoluteCents: row.defaultPriceAbsoluteCents,
+          tradeType:
+            row.defaultTradeType as FriendGroupShareableListsResponse["items"][number]["tradeDefaults"]["tradeType"],
+        },
+        currency: row.currency as FriendGroupShareableListsResponse["items"][number]["currency"],
       })),
     };
     return c.json(response);
@@ -1052,6 +1060,14 @@ export const friendGroupsRoute = friendGroupsApp
         kind,
         ownerUserId: shared.list.userId,
         ownerName: shared.ownerName,
+        tradeDefaults: {
+          pricePref: shared.list
+            .defaultPricePref as FriendGroupSharedListDetailResponse["list"]["tradeDefaults"]["pricePref"],
+          priceAbsoluteCents: shared.list.defaultPriceAbsoluteCents,
+          tradeType: shared.list
+            .defaultTradeType as FriendGroupSharedListDetailResponse["list"]["tradeDefaults"]["tradeType"],
+        },
+        currency: shared.list.currency as FriendGroupSharedListDetailResponse["list"]["currency"],
       },
       entries: entries.map((row) => toListEntryDetail(row)),
     };

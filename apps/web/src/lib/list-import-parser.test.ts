@@ -1,6 +1,8 @@
 import type { ListEntryDetailResponse } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
+import { EMPTY_TRADE_PREFERENCE } from "@/test/factories";
+
 import { formatCardListAsDeckText } from "./list-export";
 import { parseCardListText } from "./list-import-parser";
 
@@ -18,6 +20,7 @@ function cardEntry(
     quantity,
     cardName,
     cardType: "unit",
+    tradeOverride: EMPTY_TRADE_PREFERENCE,
   };
 }
 

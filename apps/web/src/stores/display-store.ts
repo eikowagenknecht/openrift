@@ -1,4 +1,9 @@
-import type { CompletionScopePreference, DefaultCardView, Marketplace } from "@openrift/shared";
+import type {
+  CompletionScopePreference,
+  Currency,
+  DefaultCardView,
+  Marketplace,
+} from "@openrift/shared";
 import { PREFERENCE_DEFAULTS } from "@openrift/shared";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -16,6 +21,7 @@ export interface DisplayOverrides {
   languages: string[] | null;
   completionScope: CompletionScopePreference | null;
   defaultCardView: DefaultCardView | null;
+  defaultCurrency: Currency | null;
 }
 
 const NULL_OVERRIDES: DisplayOverrides = {
@@ -27,6 +33,7 @@ const NULL_OVERRIDES: DisplayOverrides = {
   languages: null,
   completionScope: null,
   defaultCardView: null,
+  defaultCurrency: null,
 };
 
 // ── Resolve helpers ─────────────────────────────────────────────────────────
@@ -41,6 +48,7 @@ function resolveAll(overrides: DisplayOverrides) {
     languages: overrides.languages ?? [...PREFERENCE_DEFAULTS.languages],
     completionScope: overrides.completionScope ?? { ...PREFERENCE_DEFAULTS.completionScope },
     defaultCardView: overrides.defaultCardView ?? PREFERENCE_DEFAULTS.defaultCardView,
+    defaultCurrency: overrides.defaultCurrency ?? PREFERENCE_DEFAULTS.defaultCurrency,
   };
 }
 
@@ -56,6 +64,7 @@ interface DisplayState {
   languages: string[];
   completionScope: CompletionScopePreference;
   defaultCardView: DefaultCardView;
+  defaultCurrency: Currency;
 
   // Nullable overrides — persisted to localStorage and synced to DB
   overrides: DisplayOverrides;
@@ -75,6 +84,7 @@ interface DisplayState {
   setLanguages: (value: string[]) => void;
   setCompletionScope: (value: CompletionScopePreference) => void;
   setDefaultCardView: (value: DefaultCardView) => void;
+  setDefaultCurrency: (value: Currency) => void;
 
   // Reset a top-level preference to its default
   resetPreference: (
@@ -86,7 +96,8 @@ interface DisplayState {
       | "marketplaceOrder"
       | "languages"
       | "completionScope"
-      | "defaultCardView",
+      | "defaultCardView"
+      | "defaultCurrency",
   ) => void;
 
   // Clear all account-scoped overrides (used on sign-out so the next visitor
@@ -166,6 +177,11 @@ export const useDisplayStore = create<DisplayState>()(
           defaultCardView: value,
           overrides: { ...state.overrides, defaultCardView: value },
         })),
+      setDefaultCurrency: (value) =>
+        set((state) => ({
+          defaultCurrency: value,
+          overrides: { ...state.overrides, defaultCurrency: value },
+        })),
 
       resetPreference: (key) =>
         set((state) => {
@@ -206,6 +222,10 @@ export const useDisplayStore = create<DisplayState>()(
               incoming.defaultCardView === undefined
                 ? state.overrides.defaultCardView
                 : incoming.defaultCardView,
+            defaultCurrency:
+              incoming.defaultCurrency === undefined
+                ? state.overrides.defaultCurrency
+                : incoming.defaultCurrency,
           };
           return { overrides: merged, ...resolveAll(merged), prefsHydrated: true };
         }),

@@ -1,7 +1,12 @@
 import type { ListEntryDetailResponse, Printing } from "@openrift/shared";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { resetIdCounter, stubPriceLookup, stubPrinting } from "@/test/factories";
+import {
+  EMPTY_TRADE_PREFERENCE,
+  resetIdCounter,
+  stubPriceLookup,
+  stubPrinting,
+} from "@/test/factories";
 
 import { computeListValue } from "./list-value";
 
@@ -18,6 +23,7 @@ function cardEntry(cardId: string, quantity: number): ListEntryDetailResponse {
     cardName: "Test",
     cardType: "unit",
     quantity,
+    tradeOverride: EMPTY_TRADE_PREFERENCE,
   };
 }
 
@@ -34,6 +40,7 @@ function printingEntry(printing: Printing, quantity: number): ListEntryDetailRes
     rarity: printing.rarity,
     finish: printing.finish,
     imageId: null,
+    tradeOverride: EMPTY_TRADE_PREFERENCE,
   };
 }
 
@@ -52,6 +59,7 @@ function copyEntry(printing: Printing, quantity: number): ListEntryDetailRespons
     rarity: printing.rarity,
     finish: printing.finish,
     imageId: null,
+    tradeOverride: EMPTY_TRADE_PREFERENCE,
   };
 }
 

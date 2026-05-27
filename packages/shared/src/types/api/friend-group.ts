@@ -1,5 +1,6 @@
 import type { CardType, Finish, Rarity } from "../enums.js";
 import type { ListEntryDetailResponse, ListIntent, ListKind } from "./list.js";
+import type { Currency, EffectiveTradePreference, TradePreference } from "./trade-preferences.js";
 
 export type FriendGroupRole = "owner" | "admin" | "member";
 export type FriendGroupInviteDirection = "invite" | "request";
@@ -101,6 +102,8 @@ export interface FriendGroupShareableListResponse {
   entryCount: number;
   /** `null` when the list is not currently shared with this group. */
   sharedAt: string | null;
+  tradeDefaults: TradePreference;
+  currency: Currency | null;
 }
 
 export interface FriendGroupShareableListsResponse {
@@ -131,6 +134,17 @@ export interface FriendGroupMatchRow {
   buyListId: string;
   buyEntryKind: "card" | "printing";
   buyQuantity: number;
+  /**
+   * Resolved (entry-override ?? list-default) preference of the counterparty's
+   * sell side — "what they want for it" when the row is in `othersHaveYourWants`,
+   * "what they'd pay" when in `othersWantYourHaves`.
+   */
+  sellPref: EffectiveTradePreference;
+  /**
+   * Resolved (entry-override ?? list-default) preference of the buy side —
+   * "what you'd pay" / "what they want for it", mirror of `sellPref`.
+   */
+  buyPref: EffectiveTradePreference;
 }
 
 export interface FriendGroupMatchesResponse {
@@ -161,6 +175,8 @@ export interface FriendGroupSharedListDetailResponse {
     kind: ListKind;
     ownerUserId: string;
     ownerName: string | null;
+    tradeDefaults: TradePreference;
+    currency: Currency | null;
   };
   entries: ListEntryDetailResponse[];
 }

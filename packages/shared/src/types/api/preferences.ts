@@ -1,5 +1,6 @@
 import { ALL_MARKETPLACES } from "../pricing.js";
 import type { Marketplace } from "../pricing.js";
+import type { Currency } from "./trade-preferences.js";
 
 export type Theme = "light" | "dark" | "auto";
 
@@ -47,6 +48,8 @@ export interface UserPreferencesResponse {
   languages?: string[];
   completionScope?: CompletionScopePreference;
   defaultCardView?: DefaultCardView;
+  /** Default currency for new wish/trade lists (ADR-017). Falls back to EUR. */
+  defaultCurrency?: Currency;
 }
 
 /** Fully resolved preferences — no optional fields. */
@@ -61,6 +64,7 @@ export interface ResolvedPreferences {
   languages: string[];
   completionScope: CompletionScopePreference;
   defaultCardView: DefaultCardView;
+  defaultCurrency: Currency;
 }
 
 /** Default values for every preference. Used to resolve missing/null fields. */
@@ -75,4 +79,5 @@ export const PREFERENCE_DEFAULTS: ResolvedPreferences = {
   languages: ["EN"],
   completionScope: {},
   defaultCardView: "cards",
+  defaultCurrency: "EUR",
 };

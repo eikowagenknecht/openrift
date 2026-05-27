@@ -1,4 +1,10 @@
-import type { ListEntryDetailResponse, ListKind, Printing } from "@openrift/shared";
+import type {
+  Currency,
+  ListEntryDetailResponse,
+  ListKind,
+  Printing,
+  TradePreference,
+} from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import {
   DownloadIcon,
@@ -37,6 +43,7 @@ import { ListRenameDialog } from "@/components/list/list-rename-dialog";
 import { ListShareDialog } from "@/components/list/list-share-dialog";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
+import { TradePreferencePill } from "@/components/trade-preferences/trade-preference-pill";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -171,6 +178,10 @@ export function ListPage({ listId }: ListPageProps) {
     updateEntry.mutate({ listId, entryId, quantity });
   };
 
+  const handleTradeOverrideChange = (entryId: string, tradeOverride: TradePreference) => {
+    updateEntry.mutate({ listId, entryId, tradeOverride });
+  };
+
   const entriesCount = data.entries.length;
 
   const topBar = (
@@ -298,9 +309,13 @@ export function ListPage({ listId }: ListPageProps) {
       <ListEntryBrowser
         listId={listId}
         kind={data.list.kind}
+        intent={data.list.intent}
+        listTradeDefaults={data.list.tradeDefaults}
+        listCurrency={data.list.currency}
         entries={data.entries}
         onRemoveEntry={handleRemoveEntry}
         onQuantityChange={handleQuantityChange}
+        onTradeOverrideChange={handleTradeOverrideChange}
         isRemovePendingFor={(entryId) =>
           removeEntry.isPending && removeEntry.variables?.entryId === entryId
         }
@@ -320,9 +335,13 @@ export function ListPage({ listId }: ListPageProps) {
 interface ListEntryBrowserProps {
   listId: string;
   kind: ListKind;
+  intent: "wish" | "trade" | "organize";
+  listTradeDefaults: TradePreference;
+  listCurrency: Currency | null;
   entries: ListEntryDetailResponse[];
   onRemoveEntry: (entryId: string, cardName: string) => void;
   onQuantityChange: (entryId: string, quantity: number) => void;
+  onTradeOverrideChange: (entryId: string, next: TradePreference) => void;
   isRemovePendingFor: (entryId: string) => boolean;
   isQuantityPendingFor: (entryId: string) => boolean;
 }
@@ -343,12 +362,17 @@ interface ListEntryBrowserProps {
 function ListEntryBrowser({
   listId,
   kind,
+  intent,
+  listTradeDefaults,
+  listCurrency,
   entries,
   onRemoveEntry,
   onQuantityChange,
+  onTradeOverrideChange,
   isRemovePendingFor,
   isQuantityPendingFor,
 }: ListEntryBrowserProps) {
+  const supportsTradePrefs = intent !== "organize";
   const { allPrintings, printingsById, printingsByCardId, sets } = useCards();
   const display = useCardThumbnailDisplay();
   const showImages = useDisplayStore((state) => state.showImages);
@@ -708,25 +732,40 @@ function ListEntryBrowser({
             if (!entry) {
               return null;
             }
-            if (kind === "copy") {
-              return (
-                <ListEntryTableActions
-                  showQuantity={false}
-                  onRemove={() => onRemoveEntry(entry.id, entry.cardName)}
-                  isRemovePending={isRemovePendingFor(entry.id)}
-                />
-              );
-            }
-            return (
-              <ListEntryTableActions
-                showQuantity
-                quantity={entry.quantity}
-                onIncrement={() => onQuantityChange(entry.id, entry.quantity + 1)}
-                onDecrement={() => onQuantityChange(entry.id, entry.quantity - 1)}
-                onRemove={() => onRemoveEntry(entry.id, entry.cardName)}
-                isQuantityPending={isQuantityPendingFor(entry.id)}
-                isRemovePending={isRemovePendingFor(entry.id)}
+            const tradePill = supportsTradePrefs ? (
+              <TradePreferencePill
+                override={entry.tradeOverride}
+                listDefault={listTradeDefaults}
+                currency={listCurrency}
+                isOverridden={
+                  entry.tradeOverride.pricePref !== null ||
+                  entry.tradeOverride.priceAbsoluteCents !== null ||
+                  entry.tradeOverride.tradeType !== null
+                }
+                onChange={(next) => onTradeOverrideChange(entry.id, next)}
               />
+            ) : null;
+            return (
+              <div className="flex items-center gap-2">
+                {tradePill}
+                {kind === "copy" ? (
+                  <ListEntryTableActions
+                    showQuantity={false}
+                    onRemove={() => onRemoveEntry(entry.id, entry.cardName)}
+                    isRemovePending={isRemovePendingFor(entry.id)}
+                  />
+                ) : (
+                  <ListEntryTableActions
+                    showQuantity
+                    quantity={entry.quantity}
+                    onIncrement={() => onQuantityChange(entry.id, entry.quantity + 1)}
+                    onDecrement={() => onQuantityChange(entry.id, entry.quantity - 1)}
+                    onRemove={() => onRemoveEntry(entry.id, entry.cardName)}
+                    isQuantityPending={isQuantityPendingFor(entry.id)}
+                    isRemovePending={isRemovePendingFor(entry.id)}
+                  />
+                )}
+              </div>
             );
           },
         }}

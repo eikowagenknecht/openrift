@@ -1,10 +1,12 @@
-import type { FriendGroupMatchRow } from "@openrift/shared";
+import type { FriendGroupMatchRow, Marketplace, MarketplaceInfo } from "@openrift/shared";
 import { imageUrl } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
+import { MatchPreferenceLine } from "@/components/trade-preferences/match-preference-line";
 import { UserAvatar } from "@/components/user-avatar";
 import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders } from "@/hooks/use-enums";
+import { useMarketplaceInfo } from "@/hooks/use-marketplace-info";
 import { cn } from "@/lib/utils";
 
 // Lightweight per-cell renderer for the matches panel. Doesn't go through
@@ -31,9 +33,10 @@ interface AggregatedMatch extends ResolvedMatchRow {
 
 interface MatchRowCardProps {
   match: AggregatedMatch;
+  marketplaceInfos: Record<Marketplace, MarketplaceInfo> | null;
 }
 
-function MatchRowCard({ match }: MatchRowCardProps) {
+function MatchRowCard({ match, marketplaceInfos }: MatchRowCardProps) {
   return (
     <Link
       to="/cards/$cardSlug"
@@ -61,6 +64,18 @@ function MatchRowCard({ match }: MatchRowCardProps) {
         <span className="text-muted-foreground truncate text-xs">
           from {match.counterpartyListName}
         </span>
+        <MatchPreferenceLine
+          prefix="They:"
+          pref={match.sellPref}
+          marketplaceInfos={marketplaceInfos}
+          searchQuery={match.cardName}
+        />
+        <MatchPreferenceLine
+          prefix="You:"
+          pref={match.buyPref}
+          marketplaceInfos={marketplaceInfos}
+          searchQuery={match.cardName}
+        />
       </div>
     </Link>
   );
@@ -136,6 +151,9 @@ export function MatchRowGroup({ rows, groupSlug, linkCounterparty, className }: 
   const { labels } = useEnumOrders();
   const setsById = new Map(sets.map((set) => [set.id, set]));
 
+  const printingIds = [...new Set(rows.map((row) => row.printingId))];
+  const { data: marketplaceInfo } = useMarketplaceInfo(printingIds);
+
   const resolved = rows.map((row): ResolvedMatchRow => {
     const card = cardsById[row.cardId];
     const set = setsById.get(row.setId);
@@ -182,7 +200,11 @@ export function MatchRowGroup({ rows, groupSlug, linkCounterparty, className }: 
             )}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {group.rows.map((match) => (
-                <MatchRowCard key={`${match.buyEntryId}:${match.printingId}`} match={match} />
+                <MatchRowCard
+                  key={`${match.buyEntryId}:${match.printingId}`}
+                  match={match}
+                  marketplaceInfos={marketplaceInfo?.infos[match.printingId] ?? null}
+                />
               ))}
             </div>
           </div>
