@@ -105,6 +105,32 @@ export function TradePreferenceEditor({
 
   return (
     <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <Label htmlFor={`${idPrefix}-price`} className="w-28 shrink-0 font-normal">
+          Price
+        </Label>
+        <Select
+          items={PRICE_PREF_ITEMS}
+          value={pricePrefValue}
+          onValueChange={(next) => {
+            if (next !== null) {
+              handlePricePrefChange(next);
+            }
+          }}
+        >
+          <SelectTrigger id={`${idPrefix}-price`} className="flex-1">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PRICE_PREF_ITEMS.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {showCurrency && (
         <div className="flex items-center gap-2">
           <Label htmlFor={`${idPrefix}-currency`} className="w-28 shrink-0 font-normal">
@@ -132,32 +158,6 @@ export function TradePreferenceEditor({
           </Select>
         </div>
       )}
-
-      <div className="flex items-center gap-2">
-        <Label htmlFor={`${idPrefix}-price`} className="w-28 shrink-0 font-normal">
-          Price
-        </Label>
-        <Select
-          items={PRICE_PREF_ITEMS}
-          value={pricePrefValue}
-          onValueChange={(next) => {
-            if (next !== null) {
-              handlePricePrefChange(next);
-            }
-          }}
-        >
-          <SelectTrigger id={`${idPrefix}-price`} className="flex-1">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {PRICE_PREF_ITEMS.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
 
       {isAbsolute && (
         <div className="flex items-center gap-2">
@@ -226,5 +226,5 @@ function formatCentsForInput(cents: number | null): string {
   }
   const whole = Math.trunc(cents / 100);
   const remainder = cents % 100;
-  return remainder === 0 ? `${whole}` : `${whole}.${String(remainder).padStart(2, "0")}`;
+  return `${whole}.${String(remainder).padStart(2, "0")}`;
 }

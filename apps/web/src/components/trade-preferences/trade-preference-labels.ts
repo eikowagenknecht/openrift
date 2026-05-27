@@ -33,9 +33,9 @@ export const CURRENCY_SYMBOL: Record<Currency, string> = {
 };
 
 /**
- * Formats a cents amount + currency as a human-readable string.
- * Drops the decimals when whole-euro.
- * @returns "4 EUR", "4.50 EUR", or `null` when the currency or amount is missing.
+ * Formats a cents amount + currency as a human-readable string. Always
+ * renders two decimals so prices read consistently across the app.
+ * @returns "4.00 EUR", "4.50 EUR", or `null` when the currency or amount is missing.
  */
 export function formatAbsolutePrice(
   cents: number | null,
@@ -46,6 +46,5 @@ export function formatAbsolutePrice(
   }
   const whole = Math.trunc(cents / 100);
   const remainder = cents % 100;
-  const formatted = remainder === 0 ? `${whole}` : `${whole}.${String(remainder).padStart(2, "0")}`;
-  return `${formatted} ${currency}`;
+  return `${whole}.${String(remainder).padStart(2, "0")} ${currency}`;
 }
