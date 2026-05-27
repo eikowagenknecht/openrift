@@ -87,12 +87,11 @@ function CollectionLayout() {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: DRAG_ACTIVATION }));
 
-  // Track Shift and digit keys 2-9 during drag. Shift moves the whole stack;
-  // a digit moves that many copies. Default (no modifier) moves one copy.
+  // Track Shift and digit keys 2-9 for the whole collections layout, not just
+  // while a drag is active — otherwise pressing a modifier before grabbing a
+  // card would be missed (the keydown fires before listeners attach). Editable
+  // targets are ignored so typing a "3" in a search field doesn't update state.
   useEffect(() => {
-    if (!activeDrag) {
-      return;
-    }
     const parseDigit = (key: string) => {
       if (key.length !== 1) {
         return null;
@@ -100,7 +99,17 @@ function CollectionLayout() {
       const value = Number(key);
       return Number.isInteger(value) && value >= 2 && value <= 9 ? value : null;
     };
+    const isEditableTarget = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) {
+        return false;
+      }
+      const tag = target.tagName;
+      return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
+    };
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (isEditableTarget(event.target)) {
+        return;
+      }
       if (event.key === "Shift") {
         setMoveModifier("all");
         return;
@@ -120,26 +129,29 @@ function CollectionLayout() {
         setMoveModifier((current) => (current === digit ? null : current));
       }
     };
+    // Clear on blur: if the user alt-tabs while holding a key, the keyup
+    // arrives in another window and we never see it.
+    const handleBlur = () => setMoveModifier(null);
     globalThis.addEventListener("keydown", handleKeyDown);
     globalThis.addEventListener("keyup", handleKeyUp);
+    globalThis.addEventListener("blur", handleBlur);
     return () => {
       globalThis.removeEventListener("keydown", handleKeyDown);
       globalThis.removeEventListener("keyup", handleKeyUp);
+      globalThis.removeEventListener("blur", handleBlur);
     };
-  }, [activeDrag]);
+  }, []);
 
   const handleDragStart = (event: DragStartEvent) => {
     const data = event.active.data.current as CardDragData | undefined;
     if (data?.type === "collection-card") {
       setActiveDrag(data);
-      setMoveModifier(null);
     }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const modifier = moveModifier;
     setActiveDrag(null);
-    setMoveModifier(null);
 
     const dragData = event.active.data.current as CardDragData | undefined;
     const dropData = event.over?.data.current as
@@ -204,7 +216,6 @@ function CollectionLayout() {
               onDragEnd={handleDragEnd}
               onDragCancel={() => {
                 setActiveDrag(null);
-                setMoveModifier(null);
               }}
             >
               <DndScrollWatcher />
