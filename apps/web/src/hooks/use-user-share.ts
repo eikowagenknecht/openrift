@@ -119,13 +119,18 @@ export function useRotateUserShare() {
   });
 }
 
-// ── Public: anonymous reads via the bundle token ────────────────────────────
+// ── Public reads via the bundle token ───────────────────────────────────────
+// These fetches forward the viewer's session cookie so the API can apply the
+// friend-group visibility bypass. Anonymous viewers (no cookie) still resolve
+// the response, just restricted to lists with their own public share token.
 
 const fetchPublicUserBundleFn = createServerFn({ method: "GET" })
+  .middleware([withCookies])
   .inputValidator((input: string) => input)
-  .handler(async ({ data: token }): Promise<PublicUserBundleResponse> => {
+  .handler(async ({ context, data: token }): Promise<PublicUserBundleResponse> => {
     const res = await fetchApi({
       errorTitle: "Couldn't load shared lists",
+      cookie: context.cookie,
       path: `/api/v1/users/share/${encodeURIComponent(token)}`,
       acceptStatuses: [404],
     });
@@ -147,10 +152,12 @@ export function usePublicUserBundle(token: string) {
 }
 
 const fetchPublicUserBundleListFn = createServerFn({ method: "GET" })
+  .middleware([withCookies])
   .inputValidator((input: { token: string; listId: string }) => input)
-  .handler(async ({ data }): Promise<PublicListDetailResponse> => {
+  .handler(async ({ context, data }): Promise<PublicListDetailResponse> => {
     const res = await fetchApi({
       errorTitle: "Couldn't load shared list",
+      cookie: context.cookie,
       path: `/api/v1/users/share/${encodeURIComponent(data.token)}/lists/${encodeURIComponent(
         data.listId,
       )}`,
