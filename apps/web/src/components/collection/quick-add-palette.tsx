@@ -485,9 +485,13 @@ function PaletteInner({
                           <span
                             className={cn(
                               "text-2xs w-5 text-center tabular-nums",
-                              sessionAdded > 0
-                                ? "text-green-600 dark:text-green-400"
-                                : "text-muted-foreground group-data-[selected=true]:text-accent-foreground/80",
+                              isPrintingSelected
+                                ? sessionAdded > 0
+                                  ? "text-accent-foreground"
+                                  : "text-accent-foreground/80"
+                                : sessionAdded > 0
+                                  ? "text-green-600 dark:text-green-400"
+                                  : "text-muted-foreground",
                             )}
                           >
                             {ownedForPrinting}
