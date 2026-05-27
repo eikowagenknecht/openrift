@@ -43,6 +43,7 @@ import { ListRenameDialog } from "@/components/list/list-rename-dialog";
 import { ListShareDialog } from "@/components/list/list-share-dialog";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
+import { TradePreferenceDialog } from "@/components/trade-preferences/trade-preference-dialog";
 import { TradePreferencePill } from "@/components/trade-preferences/trade-preference-pill";
 import { Button } from "@/components/ui/button";
 import {
@@ -373,6 +374,12 @@ function ListEntryBrowser({
   isQuantityPendingFor,
 }: ListEntryBrowserProps) {
   const supportsTradePrefs = intent !== "organize";
+  // Grid-view editing uses a dialog instead of an inline popover — there's
+  // no room on the cell. The dialog is mounted once and re-targets the
+  // entry the user picked via the context menu.
+  const [prefDialogEntryId, setPrefDialogEntryId] = useState<string | null>(null);
+  const prefDialogEntry =
+    prefDialogEntryId === null ? null : (entries.find((e) => e.id === prefDialogEntryId) ?? null);
   const { allPrintings, printingsById, printingsByCardId, sets } = useCards();
   const display = useCardThumbnailDisplay();
   const showImages = useDisplayStore((state) => state.showImages);
@@ -542,6 +549,8 @@ function ListEntryBrowser({
       : () => {
           /* noop — browse mode resolves every item to an entry by construction */
         };
+    const onSetPreference =
+      entry && supportsTradePrefs ? () => setPrefDialogEntryId(entry.id) : undefined;
     // Fan-out behind the tile:
     //   - browse + card-kind: every printing of the card in the user's
     //     preferred languages (entry doesn't pin a specific printing)
@@ -631,7 +640,9 @@ function ListEntryBrowser({
         priceRange={priceRangeByCardId?.get(cardId)}
         strip={quantityStrip}
         contextMenu={(cell) => (
-          <ListEntryContextMenu onRemove={onRemove}>{cell}</ListEntryContextMenu>
+          <ListEntryContextMenu onRemove={onRemove} onSetPreference={onSetPreference}>
+            {cell}
+          </ListEntryContextMenu>
         )}
       />
     );
@@ -779,6 +790,26 @@ function ListEntryBrowser({
           />
         )}
       </CardViewer>
+      {prefDialogEntry && (
+        <TradePreferenceDialog
+          open={prefDialogEntryId !== null}
+          onOpenChange={(next) => {
+            if (!next) {
+              setPrefDialogEntryId(null);
+            }
+          }}
+          cardName={prefDialogEntry.cardName}
+          override={prefDialogEntry.tradeOverride}
+          listDefault={listTradeDefaults}
+          currency={listCurrency}
+          isOverridden={
+            prefDialogEntry.tradeOverride.pricePref !== null ||
+            prefDialogEntry.tradeOverride.priceAbsoluteCents !== null ||
+            prefDialogEntry.tradeOverride.tradeType !== null
+          }
+          onSave={(next) => onTradeOverrideChange(prefDialogEntry.id, next)}
+        />
+      )}
     </CardBrowserFilterProvider>
   );
 }

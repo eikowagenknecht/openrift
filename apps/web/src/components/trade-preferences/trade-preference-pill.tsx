@@ -5,6 +5,7 @@ import type {
   TradePricePref,
   TradeType,
 } from "@openrift/shared";
+import { TagIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -83,8 +84,10 @@ export function TradePreferencePill(props: Props) {
         render={
           <button
             type="button"
+            aria-label={labels.length === 0 ? "Set trade preference" : "Edit trade preference"}
+            title={labels.length === 0 ? "Set trade preference" : "Edit trade preference"}
             className={cn(
-              "hover:bg-muted inline-flex h-6 items-center gap-1 rounded-full border px-2 text-xs transition-colors",
+              "hover:bg-muted inline-flex h-6 shrink-0 items-center gap-1 rounded-full border px-2 text-xs whitespace-nowrap transition-colors",
               labels.length === 0 ? "text-muted-foreground border-dashed" : "text-foreground",
               !props.isOverridden && labels.length > 0 && "opacity-70",
               props.disabled && "pointer-events-none opacity-50",
@@ -92,7 +95,7 @@ export function TradePreferencePill(props: Props) {
             disabled={props.disabled}
           >
             {labels.length === 0 ? (
-              <span>Set preference</span>
+              <TagIcon className="size-3" />
             ) : (
               labels.map((label, i) => (
                 <span key={i}>
@@ -104,7 +107,7 @@ export function TradePreferencePill(props: Props) {
           </button>
         }
       />
-      <PopoverContent className="w-80 space-y-3">
+      <PopoverContent align="end" className="w-72 max-w-[calc(100vw-2rem)] space-y-3">
         <div className="text-muted-foreground text-xs">
           Override for this entry. Leave fields at the list default to inherit.
         </div>

@@ -10,6 +10,8 @@ import {
 interface ListEntryContextMenuProps {
   onRemove: () => void;
   onViewDetail?: () => void;
+  /** When set, adds a "Trade preference…" item that opens the editor dialog. */
+  onSetPreference?: () => void;
   children: ReactNode;
 }
 
@@ -22,6 +24,7 @@ interface ListEntryContextMenuProps {
 export function ListEntryContextMenu({
   onRemove,
   onViewDetail,
+  onSetPreference,
   children,
 }: ListEntryContextMenuProps) {
   return (
@@ -32,7 +35,7 @@ export function ListEntryContextMenu({
       >
         {children}
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-44">
+      <ContextMenuContent className="w-48">
         {onViewDetail ? (
           <ContextMenuItem
             onClick={(event) => {
@@ -41,6 +44,16 @@ export function ListEntryContextMenu({
             }}
           >
             View details
+          </ContextMenuItem>
+        ) : null}
+        {onSetPreference ? (
+          <ContextMenuItem
+            onClick={(event) => {
+              event.stopPropagation();
+              onSetPreference();
+            }}
+          >
+            Trade preference…
           </ContextMenuItem>
         ) : null}
         <ContextMenuItem

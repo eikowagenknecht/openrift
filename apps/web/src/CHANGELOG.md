@@ -11,6 +11,7 @@
 - feat: Profile pictures now fall back to a Gravatar (if you have one set up) before showing initials, so most members end up with a real avatar instead of an empty circle
 - feat: Rotating or disabling a friend group's join code now asks for confirmation first, since both actions immediately break any outstanding invite links
 - feat: When dragging a card stack between collections, you can hold a number key from 2 to 9 to move that many copies. Shift still moves the whole stack
+- fix: Trade preferences can now be edited from any list view. Right-click a card in the grid to open a small editor, or use the per-row pill in the table. The pill no longer wraps to two lines or clips behind the right edge, and setting a preference actually saves now instead of failing silently
 - fix: In the quick add menu, the owned count on the highlighted row is now readable, instead of green text on the gold background
 - fix: When a share link or card URL points to something that no longer exists, the page no longer renders two stacked headers and footers around the "Nothing here but dust" message
 - fix: On the collection stats page, the domain donut chart and "by domain" completion rows now show the proper domain names (Fury, Calm, ...) instead of lowercase slugs

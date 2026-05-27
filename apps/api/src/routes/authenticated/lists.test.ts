@@ -530,6 +530,33 @@ describe("PATCH /api/v1/lists/:id/entries/:itemId", () => {
     });
     expect(res.status).toBe(404);
   });
+
+  it("accepts a tradeOverride-only patch (ADR-017)", async () => {
+    mockListsRepo.updateEntry.mockResolvedValue(dbEntry);
+    const res = await app.request(`/api/v1/lists/${LIST_ID}/entries/${ENTRY_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        tradeOverride: { pricePref: "cm_lowest", priceAbsoluteCents: null, tradeType: "cards" },
+      }),
+    });
+    expect(res.status).toBe(200);
+    expect(mockListsRepo.updateEntry).toHaveBeenCalledWith(ENTRY_ID, LIST_ID, USER_ID, {
+      pricePref: "cm_lowest",
+      priceAbsoluteCents: null,
+      tradeType: "cards",
+    });
+  });
+
+  it("rejects a completely empty patch with 400", async () => {
+    const res = await app.request(`/api/v1/lists/${LIST_ID}/entries/${ENTRY_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(400);
+    expect(mockListsRepo.updateEntry).not.toHaveBeenCalled();
+  });
 });
 
 describe("DELETE /api/v1/lists/:id/entries/:itemId", () => {

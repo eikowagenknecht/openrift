@@ -41,10 +41,6 @@ const listPatchFields: FieldMapping = {
   name: "name",
 };
 
-const entryPatchFields: FieldMapping = {
-  quantity: "quantity",
-};
-
 const listLists = createRoute({
   method: "get",
   path: "/",
@@ -429,11 +425,20 @@ export const listsRoute = listsApp
     const userId = getUserId(c);
     const { id: listId, itemId } = c.req.valid("param");
     const body = c.req.valid("json");
-    const updates = buildPatchUpdates(body, entryPatchFields) as ListEntryUpdate;
+    // Build the updates manually so we can mix two field categories
+    // (scalar `quantity` and the nested `tradeOverride` triple) without the
+    // generic patch helper rejecting a tradeOverride-only patch as empty.
+    const updates: ListEntryUpdate = {};
+    if (body.quantity !== undefined) {
+      updates.quantity = body.quantity;
+    }
     if (body.tradeOverride !== undefined) {
       updates.pricePref = body.tradeOverride.pricePref;
       updates.priceAbsoluteCents = body.tradeOverride.priceAbsoluteCents;
       updates.tradeType = body.tradeOverride.tradeType;
+    }
+    if (Object.keys(updates).length === 0) {
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "No fields to update");
     }
     const row = await lists.updateEntry(itemId, listId, userId, updates);
     assertFound(row, "Not found");
