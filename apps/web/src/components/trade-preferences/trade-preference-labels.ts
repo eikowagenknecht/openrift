@@ -18,6 +18,17 @@ export const PRICE_PREF_SHORT_LABEL: Record<TradePricePref, string> = {
   absolute: "Fixed",
 };
 
+/** Ultra-compact abbreviation used in the per-row pill, where the actions
+ * column only has a couple of characters to spare. The `absolute` entry is
+ * deliberately empty — that branch renders the formatted price instead.
+ */
+export const PRICE_PREF_ABBR: Record<TradePricePref, string> = {
+  cm_lowest: "CM",
+  tcg_lowest: "TCG",
+  ct_zero: "CT",
+  absolute: "",
+};
+
 export const TRADE_TYPE_LABEL: Record<TradeType, string> = {
   cards: "Cards",
   money: "Money",

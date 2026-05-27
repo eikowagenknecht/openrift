@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 
 import {
+  PRICE_PREF_ABBR,
   PRICE_PREF_SHORT_LABEL,
   TRADE_TYPE_SHORT_LABEL,
   formatAbsolutePrice,
@@ -82,6 +83,11 @@ export function TradePreferencePill(props: Props) {
   const ariaLabel = hasAnyPref
     ? `Edit trade preference (${labels.join(" · ")})`
     : "Set trade preference";
+  // Pill content: marketplace abbreviation ("CM" / "TCG" / "CT"), the
+  // formatted amount for absolute pricing, or the tag icon as a fallback
+  // (only trade-type set, or nothing set at all). Keeps the actions cell
+  // narrow while still telling the user the price reference at a glance.
+  const pillBody = renderPillBody(effective);
 
   const button = (
     <button
@@ -89,16 +95,16 @@ export function TradePreferencePill(props: Props) {
       aria-label={ariaLabel}
       onClick={props.onEdit}
       className={cn(
-        "hover:bg-muted inline-flex size-6 shrink-0 items-center justify-center rounded-full border transition-colors",
+        "hover:bg-muted inline-flex h-6 shrink-0 items-center justify-center gap-1 rounded-full border px-2 text-xs font-medium whitespace-nowrap transition-colors",
         // visual states: empty (dashed muted), inherited from list (solid muted), overridden (accent)
-        !hasAnyPref && "text-muted-foreground border-dashed",
+        !hasAnyPref && "text-muted-foreground size-6 border-dashed px-0",
         hasAnyPref && !props.isOverridden && "text-muted-foreground",
         hasAnyPref && props.isOverridden && "text-primary border-primary/40",
         props.disabled && "pointer-events-none opacity-50",
       )}
       disabled={props.disabled}
     >
-      <TagIcon className="size-3" />
+      {pillBody ?? <TagIcon className="size-3" />}
     </button>
   );
 
@@ -108,6 +114,16 @@ export function TradePreferencePill(props: Props) {
       <TooltipContent>{hasAnyPref ? labels.join(" · ") : "Set trade preference"}</TooltipContent>
     </Tooltip>
   );
+}
+
+function renderPillBody(effective: EffectiveTradePreference): string | null {
+  if (effective.pricePref === "absolute") {
+    return formatAbsolutePrice(effective.priceAbsoluteCents, effective.currency);
+  }
+  if (effective.pricePref !== null) {
+    return PRICE_PREF_ABBR[effective.pricePref];
+  }
+  return null;
 }
 
 function preferenceLabels(effective: EffectiveTradePreference): string[] {
