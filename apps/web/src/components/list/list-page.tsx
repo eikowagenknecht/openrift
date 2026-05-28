@@ -5,7 +5,7 @@ import type {
   Printing,
   TradePreference,
 } from "@openrift/shared";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   DownloadIcon,
   EllipsisVerticalIcon,
@@ -305,7 +305,16 @@ export function ListPage({ listId }: ListPageProps) {
               <KindIcon className="size-16 opacity-50" />
             </EmptyMedia>
             <EmptyTitle>{empty.title}</EmptyTitle>
-            <EmptyDescription>{empty.description}</EmptyDescription>
+            <EmptyDescription>
+              {empty.description}{" "}
+              <Link
+                to="/help/$slug"
+                params={{ slug: "lists" }}
+                className="text-primary hover:underline"
+              >
+                Learn how lists work.
+              </Link>
+            </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             {canEnterAddMode && (

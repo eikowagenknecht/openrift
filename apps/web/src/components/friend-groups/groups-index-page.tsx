@@ -223,7 +223,16 @@ export function GroupsIndexPage() {
               <UsersIcon className="text-muted-foreground size-10" />
             </EmptyMedia>
             <EmptyTitle>You&apos;re not in any groups yet.</EmptyTitle>
-            <EmptyDescription>Create one above, or paste an invite code to join.</EmptyDescription>
+            <EmptyDescription>
+              Create one above, or paste an invite code to join.{" "}
+              <Link
+                to="/help/$slug"
+                params={{ slug: "groups" }}
+                className="text-primary hover:underline"
+              >
+                Learn how groups work.
+              </Link>
+            </EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (

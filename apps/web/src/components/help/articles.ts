@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   ArrowRightLeftIcon,
   BookOpenIcon,
+  HeartIcon,
   LayersIcon,
   LibraryIcon,
   PrinterIcon,
@@ -75,6 +76,17 @@ export const helpArticles = new Map<string, HelpArticle>([
         "Move collections between OpenRift and other Riftbound tools (Piltover Archive, RiftCore, and more) using CSV.",
       icon: ArrowRightLeftIcon,
       component: () => import("./articles/import-export"),
+    },
+  ],
+  [
+    "lists",
+    {
+      slug: "lists",
+      title: "Wishlists & Tradelists",
+      description:
+        "Build, fill, and price the wishlists and tradelists that power group trading — including per-card overrides and the three list kinds.",
+      icon: HeartIcon,
+      component: () => import("./articles/lists"),
     },
   ],
   [

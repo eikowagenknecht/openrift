@@ -718,7 +718,14 @@ function ShareableListsPanel({ slug }: { slug: string }) {
           <CardTitle className="text-base">Share your lists</CardTitle>
           <CardDescription>
             You don&apos;t have any lists yet. Create a wishlist, tradelist, or organize list to
-            share it with this group.
+            share it with this group.{" "}
+            <Link
+              to="/help/$slug"
+              params={{ slug: "lists" }}
+              className="text-primary hover:underline"
+            >
+              Learn how lists work.
+            </Link>
           </CardDescription>
         </CardHeader>
       </Card>
