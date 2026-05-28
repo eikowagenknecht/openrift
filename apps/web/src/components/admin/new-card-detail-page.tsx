@@ -24,6 +24,7 @@ import {
 import type { CardSearchResult } from "@/components/admin/card-search-dropdown";
 import { CardSearchDropdown } from "@/components/admin/card-search-dropdown";
 import { GroupImagePreview } from "@/components/admin/image-preview";
+import { Heading } from "@/components/heading";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -205,7 +206,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
     <div className="space-y-6">
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div>
-        <h2 className="text-lg font-semibold">{unmatchedData.displayName}</h2>
+        <Heading level={2}>{unmatchedData.displayName}</Heading>
         <p className="text-muted-foreground text-sm">
           Candidate card ({sources.length} source
           {sources.length === 1 ? "" : "s"})

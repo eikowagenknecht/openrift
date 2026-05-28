@@ -1,6 +1,7 @@
 import type { RuleKind, RuleVersionResponse } from "@openrift/shared";
 import { useState } from "react";
 
+import { Heading } from "@/components/heading";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -76,7 +77,7 @@ export function RulesImportPage() {
   return (
     <div className="space-y-8 p-4">
       <div>
-        <h2 className="text-lg font-semibold">Import Rules</h2>
+        <Heading level={2}>Import Rules</Heading>
         <p className="text-muted-foreground text-sm">
           Paste rules as one per line: <code>{"<rule_number>. <markdown>"}</code>. Use{" "}
           <code># Heading</code> for titles, <code>## Subheading</code> for subtitles, and a literal{" "}

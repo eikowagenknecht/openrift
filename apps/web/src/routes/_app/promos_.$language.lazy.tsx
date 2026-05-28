@@ -25,6 +25,7 @@ import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { StaticCountTableActions } from "@/components/cards/static-count-table-actions";
 import { SuggestImageOverlay } from "@/components/cards/suggest-image-overlay";
+import { Heading } from "@/components/heading";
 import type { PageTocItem } from "@/components/layout/page-toc";
 import { PageToc } from "@/components/layout/page-toc";
 import { MarkdownText } from "@/components/markdown-text";
@@ -436,7 +437,7 @@ function PromosPage() {
       {hydrated && <OwnedCountBridge enabled={fetchOwned} onChange={setOwnedCountByPrinting} />}
       <div className="mb-6">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-bold">Promos</h1>
+          <Heading level={1}>Promos</Heading>
           {presentLanguages.length > 1 ? (
             <Select
               items={languageItems}

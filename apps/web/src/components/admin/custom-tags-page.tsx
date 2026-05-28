@@ -9,6 +9,7 @@ import type {
 } from "@/components/admin/admin-table";
 import { CardSearchDropdown } from "@/components/admin/card-search-dropdown";
 import type { CardSearchResult } from "@/components/admin/card-search-dropdown";
+import { Heading } from "@/components/heading";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -541,7 +542,9 @@ function CardTagEditor({ tags }: { tags: CustomTagResponse[] }) {
   return (
     <section className="space-y-4 rounded-md border p-4">
       <div>
-        <h3 className="text-lg font-semibold">Assign tags to a card</h3>
+        <Heading level={2} as="h3">
+          Assign tags to a card
+        </Heading>
         <p className="text-muted-foreground text-sm">
           Search for a card, then toggle which custom tags it carries.
         </p>
@@ -617,7 +620,9 @@ function BulkImport({ tags }: { tags: CustomTagResponse[] }) {
   return (
     <section className="space-y-4 rounded-md border p-4">
       <div>
-        <h3 className="text-lg font-semibold">Bulk import</h3>
+        <Heading level={2} as="h3">
+          Bulk import
+        </Heading>
         <p className="text-muted-foreground text-sm">
           Paste a decklist-style block (one card per line, optionally prefixed by a count) and
           attach the selected tag to every matched card. Re-importing is safe — cards already

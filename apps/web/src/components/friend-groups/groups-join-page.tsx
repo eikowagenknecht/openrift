@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { Heading } from "@/components/heading";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -41,7 +42,7 @@ export function GroupsJoinPage({ initialCode }: GroupsJoinPageProps) {
   return (
     <div className={cn("mx-auto flex w-full max-w-md flex-col gap-6", PAGE_PADDING)}>
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold">Join a group</h1>
+        <Heading level={1}>Join a group</Heading>
         <p className="text-muted-foreground text-sm">
           Paste the invite code an admin shared with you. Your join request goes to the group&apos;s
           admins for approval.

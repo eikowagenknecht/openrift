@@ -39,6 +39,11 @@ import {
   PageTopBarTitle,
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
+import {
+  SectionHeader,
+  SectionHeaderActions,
+  SectionHeaderTitle,
+} from "@/components/section-header";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { Button } from "@/components/ui/button";
@@ -86,13 +91,17 @@ function MobileSidebarHeader() {
   const { setOpenMobile } = useSidebar();
 
   return (
-    <div className="flex items-center justify-between p-4 md:hidden">
-      <h2 className="text-base font-medium">Deck Zones</h2>
-      <Button variant="ghost" size="icon-sm" onClick={() => setOpenMobile(false)}>
-        <XIcon />
-        <span className="sr-only">Close</span>
-      </Button>
-    </div>
+    <SectionHeader className="items-center p-4 md:hidden">
+      <SectionHeaderTitle level={3} as="h2">
+        Deck Zones
+      </SectionHeaderTitle>
+      <SectionHeaderActions>
+        <Button variant="ghost" size="icon-sm" onClick={() => setOpenMobile(false)}>
+          <XIcon />
+          <span className="sr-only">Close</span>
+        </Button>
+      </SectionHeaderActions>
+    </SectionHeader>
   );
 }
 

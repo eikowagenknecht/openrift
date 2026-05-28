@@ -5,6 +5,7 @@ import { Link, createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowLeftIcon } from "lucide-react";
 
 import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
+import { Heading } from "@/components/heading";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEffectiveLanguageOrder } from "@/hooks/use-effective-language-order";
 import { publicSetDetailQueryOptions } from "@/hooks/use-public-sets";
@@ -49,7 +50,7 @@ function SetDetailPage() {
           <ArrowLeftIcon className="size-4" />
           All sets
         </Link>
-        <h1 className="text-2xl font-bold">{data.set.name}</h1>
+        <Heading level={1}>{data.set.name}</Heading>
         <p className="text-muted-foreground text-sm">
           {uniquePrintings.length} {uniquePrintings.length === 1 ? "card" : "cards"},{" "}
           {data.printings.length} {data.printings.length === 1 ? "printing" : "printings"}

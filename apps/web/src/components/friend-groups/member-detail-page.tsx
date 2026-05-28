@@ -2,6 +2,7 @@ import type { FriendGroupRole, ListIntent } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ChevronLeftIcon } from "lucide-react";
 
+import { Heading } from "@/components/heading";
 import { PublicListRow } from "@/components/list/public-list-row";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/user-avatar";
@@ -53,7 +54,7 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
           className="size-14"
         />
         <div className="flex flex-col gap-0.5">
-          <h1 className="text-2xl font-semibold">{member.userName ?? "Unknown user"}</h1>
+          <Heading level={1}>{member.userName ?? "Unknown user"}</Heading>
           {member.nickname ? <p className="text-muted-foreground">{member.nickname}</p> : null}
           <Badge variant="outline" className="w-fit text-xs">
             {ROLE_LABEL[member.role]}

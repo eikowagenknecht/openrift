@@ -17,6 +17,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -230,20 +238,26 @@ export function DeckListPage() {
       </div>
 
       {deckItems.length === 0 ? (
-        <div className="text-muted-foreground flex flex-col items-center gap-3 py-16 text-center">
-          <SwordsIcon className="size-10 opacity-50" />
-          <p>No decks yet</p>
-          <div className="flex flex-wrap justify-center gap-2">
-            <Button onClick={() => setCreateOpen(true)}>
-              <PlusIcon className="size-4" />
-              Create your first deck
-            </Button>
-            <Link to="/decks/import" className={buttonVariants({ variant: "outline" })}>
-              <DownloadIcon className="size-4" />
-              Import a deck
-            </Link>
-          </div>
-        </div>
+        <Empty className="py-16">
+          <EmptyHeader>
+            <EmptyMedia>
+              <SwordsIcon className="text-muted-foreground size-10 opacity-50" />
+            </EmptyMedia>
+            <EmptyTitle>No decks yet</EmptyTitle>
+          </EmptyHeader>
+          <EmptyContent>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button onClick={() => setCreateOpen(true)}>
+                <PlusIcon className="size-4" />
+                Create your first deck
+              </Button>
+              <Link to="/decks/import" className={buttonVariants({ variant: "outline" })}>
+                <DownloadIcon className="size-4" />
+                Import a deck
+              </Link>
+            </div>
+          </EmptyContent>
+        </Empty>
       ) : (
         <div className="flex flex-col gap-4">
           <DeckListToolbar
@@ -254,9 +268,11 @@ export function DeckListPage() {
           />
 
           {sorted.length === 0 ? (
-            <div className="text-muted-foreground flex flex-col items-center gap-2 py-12 text-center text-sm">
-              <p>No decks match your filters.</p>
-            </div>
+            <Empty className="py-12">
+              <EmptyHeader>
+                <EmptyDescription>No decks match your filters.</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           ) : (
             <div className="flex flex-col gap-2">
               {groups.map((group) => (

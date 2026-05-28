@@ -19,6 +19,7 @@ import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 
+import { Heading } from "@/components/heading";
 import { PageToc, PageTocMobileTrigger } from "@/components/layout/page-toc";
 import type { PageTocItem } from "@/components/layout/page-toc";
 import { PAGE_TOP_BAR_STICKY } from "@/components/layout/page-top-bar";
@@ -1459,7 +1460,7 @@ function RulesEmpty({ kind }: { kind: RuleKind }) {
   return (
     <div className={`mx-auto w-full max-w-4xl ${PAGE_PADDING}`}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">{KIND_TITLES[kind]}</h1>
+        <Heading level={1}>{KIND_TITLES[kind]}</Heading>
       </div>
       <div className="mb-4">
         <KindTabs kind={kind} />
@@ -1569,7 +1570,7 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
   return (
     <div className={`mx-auto w-full max-w-4xl ${PAGE_PADDING}`}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">{KIND_TITLES[kind]}</h1>
+        <Heading level={1}>{KIND_TITLES[kind]}</Heading>
         {versions.length > 1 ? (
           <Select
             value={version}

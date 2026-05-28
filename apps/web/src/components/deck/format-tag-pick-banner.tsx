@@ -2,6 +2,7 @@ import type { DeckResponse } from "@openrift/shared";
 import { useState } from "react";
 
 import { TagMultiSelect, useCategoryTagSlugs } from "@/components/deck/format-tag-multi-select";
+import { Heading } from "@/components/heading";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useFilterActions } from "@/hooks/use-card-filters";
@@ -37,7 +38,7 @@ export function FormatTagPickBanner({ deck }: { deck: DeckResponse }) {
   if (availableSlugs.length === 0) {
     return (
       <section className="rounded-md border border-amber-500/40 bg-amber-500/5 p-4">
-        <h2 className="text-lg font-semibold">No {config.nounPlural} available</h2>
+        <Heading level={2}>No {config.nounPlural} available</Heading>
         <p className="text-muted-foreground text-sm">
           An admin needs to create at least one custom tag in the <code>{config.category}</code>{" "}
           category before this format can be built.
@@ -61,7 +62,7 @@ export function FormatTagPickBanner({ deck }: { deck: DeckResponse }) {
   return (
     <section className="space-y-4 rounded-md border p-6">
       <div>
-        <h2 className="text-lg font-semibold">Pick one or more {config.nounPlural}</h2>
+        <Heading level={2}>Pick one or more {config.nounPlural}</Heading>
         <p className="text-muted-foreground text-sm">
           Every card in this deck must carry one of the chosen {config.nounPlural}. Picking multiple
           widens the legal pool (any card tagged with one of them is legal). You can change them

@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { Heading } from "@/components/heading";
 import { AuthPageLayout } from "@/components/layout/auth-page-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -63,7 +64,7 @@ function VerifyEmailPage() {
       <Card className="overflow-hidden p-0">
         <CardContent className="flex flex-col items-center gap-4 p-6 text-center md:p-8">
           <img src="/logo-color.svg" alt="OpenRift" className="size-12" />
-          <h1 className="text-2xl font-bold">Verify your email</h1>
+          <Heading level={1}>Verify your email</Heading>
           <p className="text-muted-foreground text-balance">
             We sent a 6-digit code to <strong>{email}</strong>. Enter it below to verify your
             account.

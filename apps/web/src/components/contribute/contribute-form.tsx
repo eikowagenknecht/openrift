@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
 import { CardTextInput } from "@/components/contribute/card-text-input";
+import { Heading } from "@/components/heading";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -255,7 +256,7 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
 
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Printings</h2>
+          <Heading level={2}>Printings</Heading>
           <Button type="button" variant="outline" size="sm" onClick={addPrinting}>
             <PlusIcon className="size-4" />
             Add printing

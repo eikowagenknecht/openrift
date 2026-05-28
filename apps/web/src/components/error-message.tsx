@@ -1,6 +1,7 @@
 import { useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { Heading } from "@/components/heading";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { buttonVariants } from "@/components/ui/button";
@@ -115,7 +116,7 @@ export function ErrorMessageLayout({
       {emoji && (
         <div className="text-muted-foreground text-4xl font-medium select-none">{emoji}</div>
       )}
-      <h1 className="text-2xl font-bold">{heading}</h1>
+      <Heading level={1}>{heading}</Heading>
       {subtext && <p className="text-muted-foreground max-w-md text-sm">{subtext}</p>}
       {hasActions && (
         <div className="flex gap-3">

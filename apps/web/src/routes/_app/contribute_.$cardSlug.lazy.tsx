@@ -3,6 +3,7 @@ import { createLazyFileRoute, useCanGoBack, useNavigate, useRouter } from "@tans
 import { ArrowLeftIcon } from "lucide-react";
 
 import { ContributeForm } from "@/components/contribute/contribute-form";
+import { Heading } from "@/components/heading";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { prefillFromCard } from "@/lib/contribute-json";
 import { PAGE_PADDING } from "@/lib/utils";
@@ -40,7 +41,7 @@ function ContributeCorrectionPage() {
         Back
       </button>
       <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold">Suggest a correction</h1>
+        <Heading level={1}>Suggest a correction</Heading>
         <p className="text-muted-foreground">
           Spotted something off on <span className="font-medium">{data.card.name}</span>? Edit any
           field that needs fixing and we&apos;ll review the change.

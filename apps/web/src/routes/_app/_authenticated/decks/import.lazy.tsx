@@ -14,9 +14,18 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { Heading } from "@/components/heading";
 import { ImportCatalogSearch } from "@/components/import/import-catalog-search";
 import { ImportRowRawFields, ImportRowShell } from "@/components/import/import-row-shell";
+import {
+  SectionHeader,
+  SectionHeaderActions,
+  SectionHeaderDescription,
+  SectionHeaderGroup,
+  SectionHeaderTitle,
+} from "@/components/section-header";
 import { Accordion, AccordionContent, AccordionItem } from "@/components/ui/accordion";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -435,9 +444,7 @@ function InputStep({
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-6">
       <div>
-        <h2 className="text-lg font-semibold">
-          {isReplaceMode ? "Replace deck contents" : "Import Deck"}
-        </h2>
+        <Heading level={2}>{isReplaceMode ? "Replace deck contents" : "Import Deck"}</Heading>
         <p className="text-muted-foreground text-sm">
           {isReplaceMode ? (
             <>
@@ -504,13 +511,13 @@ function InputStep({
       </Tabs>
 
       {parseWarnings.length > 0 && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950">
-          {parseWarnings.map((warning) => (
-            <p key={warning} className="text-sm text-red-700 dark:text-red-400">
-              {warning}
-            </p>
-          ))}
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>
+            {parseWarnings.map((warning) => (
+              <p key={warning}>{warning}</p>
+            ))}
+          </AlertDescription>
+        </Alert>
       )}
     </div>
   );
@@ -580,12 +587,12 @@ function PreviewStep({
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 px-4 py-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">
+      <SectionHeader>
+        <SectionHeaderGroup>
+          <SectionHeaderTitle>
             {isReplaceMode ? "Replace Preview" : "Import Preview"}
-          </h2>
-          <p className="text-muted-foreground text-sm">
+          </SectionHeaderTitle>
+          <SectionHeaderDescription>
             {matchedEntries.length} card{matchedEntries.length === 1 ? "" : "s"} parsed
             {isReplaceMode && replaceDeckName ? (
               <>
@@ -594,12 +601,14 @@ function PreviewStep({
                 <strong className="text-foreground">&ldquo;{replaceDeckName}&rdquo;</strong>
               </>
             ) : null}
-          </p>
-        </div>
-        <Button variant="outline" size="sm" onClick={onBack}>
-          Back
-        </Button>
-      </div>
+          </SectionHeaderDescription>
+        </SectionHeaderGroup>
+        <SectionHeaderActions>
+          <Button variant="outline" size="sm" onClick={onBack}>
+            Back
+          </Button>
+        </SectionHeaderActions>
+      </SectionHeader>
 
       {/* Entry list */}
       <Accordion
@@ -627,18 +636,16 @@ function PreviewStep({
 
       {/* Parse warnings */}
       {parseWarnings.length > 0 && (
-        <div className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950">
-          <p className="px-3 py-2 font-medium text-amber-800 dark:text-amber-300">
+        <Alert variant="warning">
+          <AlertTitle>
             {parseWarnings.length} warning{parseWarnings.length === 1 ? "" : "s"} while parsing
-          </p>
-          <div className="space-y-1 border-t border-amber-200 px-3 py-2 dark:border-amber-900">
+          </AlertTitle>
+          <AlertDescription>
             {parseWarnings.map((warning) => (
-              <p key={warning} className="text-amber-700 dark:text-amber-400">
-                {warning}
-              </p>
+              <p key={warning}>{warning}</p>
             ))}
-          </div>
-        </div>
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* Summary + deck options + import button */}

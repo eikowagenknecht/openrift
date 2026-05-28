@@ -1,5 +1,6 @@
 import { siDiscord, siGoogle } from "simple-icons";
 
+import { Heading } from "@/components/heading";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldGroup, FieldSeparator } from "@/components/ui/field";
@@ -22,7 +23,7 @@ export function AuthFormCard({
             <FieldGroup>
               <div className="flex flex-col items-center gap-2 text-center">
                 <img src="/logo-color.svg" alt="OpenRift" className="size-12 md:hidden" />
-                <h1 className="text-2xl font-bold">{title}</h1>
+                <Heading level={1}>{title}</Heading>
                 <p className="text-muted-foreground text-balance">{subtitle}</p>
               </div>
               {children}

@@ -9,6 +9,7 @@ import {
 import { useEffect } from "react";
 
 import { ImportEntryRow } from "@/components/import/import-entry-row";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -136,13 +137,13 @@ function InputStep({
       </div>
 
       {parseErrors.length > 0 && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950">
-          {parseErrors.map((error) => (
-            <p key={error} className="text-red-700 dark:text-red-400">
-              {error}
-            </p>
-          ))}
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>
+            {parseErrors.map((error) => (
+              <p key={error}>{error}</p>
+            ))}
+          </AlertDescription>
+        </Alert>
       )}
     </div>
   );

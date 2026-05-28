@@ -3,6 +3,11 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { CheckIcon, PlusIcon, UsersIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
+import {
+  SectionHeader,
+  SectionHeaderActions,
+  SectionHeaderTitle,
+} from "@/components/section-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +19,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -145,9 +157,9 @@ export function GroupsIndexPage() {
 
   return (
     <div className={cn("mx-auto flex w-full max-w-4xl flex-col gap-6", PAGE_PADDING)}>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Groups</h1>
-        <div className="flex gap-2">
+      <SectionHeader className="items-center">
+        <SectionHeaderTitle level={1}>Groups</SectionHeaderTitle>
+        <SectionHeaderActions>
           <Button variant="outline" render={<Link to="/groups/join" />}>
             Join with code
           </Button>
@@ -156,8 +168,8 @@ export function GroupsIndexPage() {
             New group
           </Button>
           <CreateGroupDialog open={createOpen} onOpenChange={setCreateOpen} />
-        </div>
-      </div>
+        </SectionHeaderActions>
+      </SectionHeader>
 
       {data.pendingInvites.length > 0 && (
         <section className="flex flex-col gap-3">
@@ -205,11 +217,15 @@ export function GroupsIndexPage() {
       )}
 
       {data.items.length === 0 ? (
-        <div className="text-muted-foreground flex flex-col items-center gap-3 py-12 text-center">
-          <UsersIcon className="size-10" />
-          <p>You&apos;re not in any groups yet.</p>
-          <p className="text-xs">Create one above, or paste an invite code to join.</p>
-        </div>
+        <Empty className="py-12">
+          <EmptyHeader>
+            <EmptyMedia>
+              <UsersIcon className="text-muted-foreground size-10" />
+            </EmptyMedia>
+            <EmptyTitle>You&apos;re not in any groups yet.</EmptyTitle>
+            <EmptyDescription>Create one above, or paste an invite code to join.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {data.items.map((row) => {

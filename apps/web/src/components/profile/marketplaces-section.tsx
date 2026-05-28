@@ -143,10 +143,12 @@ function ResetButton({ onClick, label }: { onClick: () => void; label: string })
     <Tooltip>
       <TooltipTrigger
         render={
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-xs"
             onClick={onClick}
-            className="text-muted-foreground hover:text-foreground relative z-10 p-1 transition-colors"
+            className="relative z-10"
             aria-label={label}
           />
         }

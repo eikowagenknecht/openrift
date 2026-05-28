@@ -1,5 +1,6 @@
 import type { Printing } from "@openrift/shared";
 
+import { Heading } from "@/components/heading";
 import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +21,7 @@ export function CardDetailHeading({
   const typeIconPath = getTypeIconPath(card.type, card.superTypes);
   return (
     <div className={cn(truncate && "min-w-0")}>
-      <h2 className={cn("text-lg font-semibold", truncate && "truncate", titleClassName)}>
+      <Heading level={2} className={cn(truncate && "truncate", titleClassName)}>
         {printing.printedName && printing.printedName !== card.name ? (
           <>
             {printing.printedName}
@@ -30,7 +31,7 @@ export function CardDetailHeading({
           card.name
         )}
         <span className="text-muted-foreground ml-2 text-sm font-normal">{setNumber}</span>
-      </h2>
+      </Heading>
       <div className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-sm uppercase">
         <span className="inline-flex items-center gap-1">
           {typeIconPath && (

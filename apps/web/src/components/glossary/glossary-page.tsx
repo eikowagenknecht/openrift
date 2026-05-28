@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { SearchIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { Heading } from "@/components/heading";
 import { PageToc } from "@/components/layout/page-toc";
 import type { PageTocItem } from "@/components/layout/page-toc";
 import { Badge } from "@/components/ui/badge";
@@ -175,9 +176,9 @@ function GroupHeading({ id, title }: { id: string; title: string }) {
 
 function SectionHeading({ id, title }: Section) {
   return (
-    <h3 id={id} className="mt-8 scroll-mt-20 text-lg font-semibold">
+    <Heading level={2} as="h3" id={id} className="mt-8 scroll-mt-20">
       {title}
-    </h3>
+    </Heading>
   );
 }
 
@@ -955,7 +956,7 @@ export function GlossaryPage() {
 
   return (
     <div className={cn("mx-auto w-full max-w-6xl", PAGE_PADDING)}>
-      <h1 className="text-2xl font-bold">Glossary</h1>
+      <Heading level={1}>Glossary</Heading>
       <p className="text-muted-foreground mt-1">
         A reference for the terms, symbols, and printing details you&apos;ll see on Riftbound cards
         and across OpenRift. Entries link to the comprehensive rules where there&apos;s more to

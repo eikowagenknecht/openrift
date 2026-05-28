@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { LayersIcon, PackageIcon, SearchIcon, UnlockIcon } from "lucide-react";
 
+import { Heading } from "@/components/heading";
+
 const features = [
   {
     icon: SearchIcon,
@@ -43,7 +45,7 @@ export function FeatureHighlights() {
           className="bg-background/70 group flex flex-col items-center gap-2 rounded-xl p-5 text-center backdrop-blur-sm"
         >
           <feature.icon className="text-primary size-8 transition-transform group-hover:scale-110" />
-          <h2 className="text-lg font-semibold">{feature.title}</h2>
+          <Heading level={2}>{feature.title}</Heading>
           <p className="text-muted-foreground text-sm leading-relaxed">{feature.description}</p>
         </Link>
       ))}

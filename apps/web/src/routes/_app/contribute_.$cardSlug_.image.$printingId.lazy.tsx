@@ -9,6 +9,7 @@ import {
 import { ArrowLeftIcon } from "lucide-react";
 
 import { ImageSuggestForm } from "@/components/contribute/image-suggest-form";
+import { Heading } from "@/components/heading";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { PAGE_PADDING } from "@/lib/utils";
@@ -51,7 +52,7 @@ function ImageSuggestPage() {
         Back
       </button>
       <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold">Suggest an image</h1>
+        <Heading level={1}>Suggest an image</Heading>
         <p className="text-muted-foreground">
           For{" "}
           <span className="text-foreground font-medium">

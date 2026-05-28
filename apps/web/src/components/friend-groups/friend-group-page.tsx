@@ -26,6 +26,7 @@ import type { ComponentType, SVGProps } from "react";
 import { useState } from "react";
 
 import { CreateCollectionDialog } from "@/components/collection/create-collection-dialog";
+import { Heading } from "@/components/heading";
 import { listKindIcon } from "@/components/list/create-list-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -124,7 +125,7 @@ function PendingApprovalStub({ data }: { data: FriendGroupDetailResponse }) {
   const navigate = useNavigate();
   return (
     <div className={cn("mx-auto flex w-full max-w-md flex-col gap-4 text-center", PAGE_PADDING)}>
-      <h1 className="text-2xl font-semibold">{data.group.name}</h1>
+      <Heading level={1}>{data.group.name}</Heading>
       <p className="text-muted-foreground">Waiting for an admin to approve your request to join.</p>
       <Button
         variant="ghost"
@@ -145,7 +146,7 @@ function FriendGroupMemberView({ data, slug }: { data: FriendGroupDetailResponse
     <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-8", PAGE_PADDING)}>
       <header className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold">{data.group.name}</h1>
+          <Heading level={1}>{data.group.name}</Heading>
           <Badge variant="secondary">{ROLE_LABEL[data.viewerRole ?? "member"]}</Badge>
         </div>
         {data.group.description ? (

@@ -19,6 +19,11 @@ import { useEffect, useState } from "react";
 import { CreateListDialog, listKindIcon } from "@/components/list/create-list-dialog";
 import { DroppableSidebarList } from "@/components/list/droppable-sidebar-list";
 import { UserShareDialog } from "@/components/list/user-share-dialog";
+import {
+  SectionHeader,
+  SectionHeaderActions,
+  SectionHeaderTitle,
+} from "@/components/section-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -46,13 +51,17 @@ function MobileSidebarHeader() {
   const { setOpenMobile } = useSidebar();
 
   return (
-    <div className="flex items-center justify-between p-4 md:hidden">
-      <h2 className="text-base font-medium">Collections</h2>
-      <Button variant="ghost" size="icon-sm" onClick={() => setOpenMobile(false)}>
-        <XIcon />
-        <span className="sr-only">Close</span>
-      </Button>
-    </div>
+    <SectionHeader className="items-center p-4 md:hidden">
+      <SectionHeaderTitle level={3} as="h2">
+        Collections
+      </SectionHeaderTitle>
+      <SectionHeaderActions>
+        <Button variant="ghost" size="icon-sm" onClick={() => setOpenMobile(false)}>
+          <XIcon />
+          <span className="sr-only">Close</span>
+        </Button>
+      </SectionHeaderActions>
+    </SectionHeader>
   );
 }
 

@@ -32,6 +32,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ChartConfig } from "@/components/ui/chart";
 import { ChartContainer } from "@/components/ui/chart";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import {
   Select,
@@ -667,21 +675,23 @@ function StatsSkeleton() {
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center gap-3 py-20 text-center">
-      <ChartBarIcon className="text-muted-foreground size-12" />
-      <div>
-        <p className="font-medium">No cards in collection yet</p>
-        <p className="text-muted-foreground mt-1 max-w-xs text-sm">
+    <Empty className="py-20">
+      <EmptyHeader>
+        <EmptyMedia>
+          <ChartBarIcon className="text-muted-foreground size-12" />
+        </EmptyMedia>
+        <EmptyTitle>No cards in collection yet</EmptyTitle>
+        <EmptyDescription>
           Browse the catalog and add cards to see statistics about your collection.
-        </p>
-      </div>
-      <div className="mt-2 flex gap-2">
+        </EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent>
         <Button variant="default" render={<Link to="/cards" />}>
           <SearchIcon className="size-3.5" />
           Browse cards
         </Button>
-      </div>
-    </div>
+      </EmptyContent>
+    </Empty>
   );
 }
 

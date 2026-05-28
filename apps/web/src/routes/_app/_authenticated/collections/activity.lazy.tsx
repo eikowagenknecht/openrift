@@ -17,6 +17,7 @@ import { createPortal } from "react-dom";
 import { PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia } from "@/components/ui/empty";
 import {
   Select,
   SelectContent,
@@ -433,10 +434,14 @@ function EmptyState() {
 
 function FilteredEmptyState() {
   return (
-    <div className="flex flex-col items-center gap-2 py-16 text-center">
-      <HistoryIcon className="text-muted-foreground size-8" />
-      <p className="text-muted-foreground text-sm">No matching activity</p>
-    </div>
+    <Empty className="py-16">
+      <EmptyHeader>
+        <EmptyMedia>
+          <HistoryIcon className="text-muted-foreground size-8" />
+        </EmptyMedia>
+        <EmptyDescription>No matching activity</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
   );
 }
 

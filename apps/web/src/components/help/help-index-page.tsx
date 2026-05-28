@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { siDiscord } from "simple-icons";
 
+import { Heading } from "@/components/heading";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PAGE_PADDING } from "@/lib/utils";
 
@@ -12,7 +13,7 @@ export function HelpIndexPage() {
   return (
     <div className={`mx-auto w-full max-w-2xl flex-1 ${PAGE_PADDING}`}>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Help Center</h1>
+        <Heading level={1}>Help Center</Heading>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">

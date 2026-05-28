@@ -14,8 +14,17 @@ import { use, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
+import { Heading } from "@/components/heading";
 import { ImportEntryRow } from "@/components/import/import-entry-row";
 import { PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
+import {
+  SectionHeader,
+  SectionHeaderActions,
+  SectionHeaderDescription,
+  SectionHeaderGroup,
+  SectionHeaderTitle,
+} from "@/components/section-header";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -184,7 +193,7 @@ function ExportSection() {
   return (
     <div className="mx-auto max-w-2xl space-y-6 pt-3">
       <div>
-        <h2 className="text-lg font-semibold">Export Collection</h2>
+        <Heading level={2}>Export Collection</Heading>
         <p className="text-muted-foreground text-sm">Download your collection as a CSV file.</p>
       </div>
 
@@ -256,7 +265,7 @@ function InputStep({
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h2 className="text-lg font-semibold">Import Collection</h2>
+        <Heading level={2}>Import Collection</Heading>
         <p className="text-muted-foreground text-sm">
           Paste or upload a CSV export from{" "}
           <a
@@ -338,13 +347,13 @@ function InputStep({
       </div>
 
       {parseErrors.length > 0 && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950">
-          {parseErrors.map((error) => (
-            <p key={error} className="text-sm text-red-700 dark:text-red-400">
-              {error}
-            </p>
-          ))}
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>
+            {parseErrors.map((error) => (
+              <p key={error}>{error}</p>
+            ))}
+          </AlertDescription>
+        </Alert>
       )}
     </div>
   );
@@ -439,18 +448,20 @@ function PreviewStep({
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Import Preview</h2>
-          <p className="text-muted-foreground text-sm">
+      <SectionHeader>
+        <SectionHeaderGroup>
+          <SectionHeaderTitle>Import Preview</SectionHeaderTitle>
+          <SectionHeaderDescription>
             {rowCount} row{rowCount === 1 ? "" : "s"} parsed, {matchedEntries.length} unique
             printing{matchedEntries.length === 1 ? "" : "s"}
-          </p>
-        </div>
-        <Button variant="outline" size="sm" onClick={onBack}>
-          Back
-        </Button>
-      </div>
+          </SectionHeaderDescription>
+        </SectionHeaderGroup>
+        <SectionHeaderActions>
+          <Button variant="outline" size="sm" onClick={onBack}>
+            Back
+          </Button>
+        </SectionHeaderActions>
+      </SectionHeader>
 
       {/* Problematic entries — rendered directly so they're easy to spot */}
       {problematicEntries.length > 0 && (

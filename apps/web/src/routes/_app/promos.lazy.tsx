@@ -1,5 +1,6 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
+import { Heading } from "@/components/heading";
 import { PAGE_PADDING } from "@/lib/utils";
 
 export const Route = createLazyFileRoute("/_app/promos")({
@@ -11,7 +12,7 @@ export const Route = createLazyFileRoute("/_app/promos")({
 function PromosEmpty() {
   return (
     <div className={PAGE_PADDING}>
-      <h1 className="text-2xl font-bold">Promos</h1>
+      <Heading level={1}>Promos</Heading>
       <p className="text-muted-foreground mt-2 text-sm">No promos yet.</p>
     </div>
   );

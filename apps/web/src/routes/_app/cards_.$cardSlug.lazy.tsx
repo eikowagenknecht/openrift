@@ -28,6 +28,7 @@ import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image"
 import { CardText } from "@/components/cards/card-text";
 import { FinishIcon, hasFinishIcon } from "@/components/cards/finish-icon";
 import { TIME_RANGES } from "@/components/cards/price-history-chart-constants";
+import { Heading } from "@/components/heading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -230,7 +231,7 @@ function CardDetailPage() {
 
       {/* Card header */}
       <div className="flex items-start justify-between gap-3">
-        <h1 className="text-2xl font-bold">{card.name}</h1>
+        <Heading level={1}>{card.name}</Heading>
         <div className="flex shrink-0 items-center gap-2">
           <Button
             variant="outline"
@@ -798,13 +799,13 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <h2 className="text-lg font-semibold">
+        <Heading level={2}>
           Price History — {formatPublicCode(printing)}
           {printing.finish !== WellKnown.finish.NORMAL &&
             ` ${labels.finishes[printing.finish] ?? printing.finish}`}
           {printing.markers.length > 0 && ` (${printing.markers.map((m) => m.label).join(", ")})`}
           {printing.language !== "EN" && ` [${printing.language}]`}
-        </h2>
+        </Heading>
         <PricingSection printing={printing} range={effectiveRange} />
       </div>
 

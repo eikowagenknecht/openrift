@@ -23,6 +23,7 @@ import {
   WalletIcon,
 } from "lucide-react";
 
+import { Heading } from "@/components/heading";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
@@ -184,7 +185,7 @@ export function RoadmapPage() {
   return (
     <div className={`mx-auto w-full max-w-2xl ${PAGE_PADDING}`}>
       <div className="mb-6 flex items-baseline justify-between">
-        <h1 className="text-2xl font-bold">Roadmap</h1>
+        <Heading level={1}>Roadmap</Heading>
         <Link to="/changelog" className="text-muted-foreground hover:text-foreground text-sm">
           What&apos;s new &rarr;
         </Link>

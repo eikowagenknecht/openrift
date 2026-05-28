@@ -8,11 +8,11 @@ import type {
   AdminColumnDef,
   AdminDraftSlotProps,
 } from "@/components/admin/admin-table";
-import { SectionHeading } from "@/components/admin/section-heading";
+import { Eyebrow } from "@/components/heading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Field, FieldContent, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -264,7 +264,7 @@ export function SiteSettingsPage() {
       )}
 
       <div>
-        <SectionHeading>Analytics (this browser)</SectionHeading>
+        <Eyebrow>Analytics (this browser)</Eyebrow>
         <AnalyticsExclusionPanel />
       </div>
     </div>
@@ -294,26 +294,23 @@ function AnalyticsExclusionPanel() {
   }
 
   return (
-    <div className="rounded-md border px-4 py-3">
-      <div className="flex items-center justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <Label htmlFor="umami-exclude" className="cursor-pointer">
-            Exclude this browser from Umami analytics
-          </Label>
-          <p className="text-muted-foreground mt-0.5 text-xs">
-            Sets <span className="font-mono">localStorage[&quot;umami.disabled&quot;]</span> so
-            Umami skips tracking on this device. Applies to this browser only, clear site data to
-            reset.
-          </p>
-        </div>
-        <Switch
-          id="umami-exclude"
-          checked={excluded}
-          disabled={!hydrated}
-          onCheckedChange={handleToggle}
-        />
-      </div>
-    </div>
+    <Field orientation="horizontal" className="rounded-md border px-4 py-3">
+      <FieldContent>
+        <FieldLabel htmlFor="umami-exclude" className="cursor-pointer">
+          Exclude this browser from Umami analytics
+        </FieldLabel>
+        <FieldDescription>
+          Sets <span className="font-mono">localStorage[&quot;umami.disabled&quot;]</span> so Umami
+          skips tracking on this device. Applies to this browser only, clear site data to reset.
+        </FieldDescription>
+      </FieldContent>
+      <Switch
+        id="umami-exclude"
+        checked={excluded}
+        disabled={!hydrated}
+        onCheckedChange={handleToggle}
+      />
+    </Field>
   );
 }
 

@@ -2,6 +2,7 @@ import type { ListIntent, PublicUserBundleListResponse } from "@openrift/shared"
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import { GlobeIcon, HeartIcon, UsersIcon } from "lucide-react";
 
+import { Heading } from "@/components/heading";
 import { PublicListRow } from "@/components/list/public-list-row";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -41,7 +42,7 @@ function SharedUserBundlePage() {
           size="lg"
           className="size-12"
         />
-        <h1 className="text-2xl font-semibold">{owner.displayName}</h1>
+        <Heading level={1}>{owner.displayName}</Heading>
       </header>
 
       {lists.length === 0 ? (

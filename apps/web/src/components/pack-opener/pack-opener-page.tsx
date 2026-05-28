@@ -10,6 +10,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { PackagePlusIcon, SparklesIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { Heading } from "@/components/heading";
 import { PackBulkGrid } from "@/components/pack-opener/pack-bulk-grid";
 import { isBoosterEligible, toPackPrinting } from "@/components/pack-opener/pack-opener-utils";
 import { PackReveal } from "@/components/pack-opener/pack-reveal";
@@ -89,7 +90,7 @@ export function PackOpenerPage() {
       <header className="mb-6">
         <div className="flex items-center gap-2">
           <PackagePlusIcon className="size-6" />
-          <h1 className="text-2xl font-bold">Pack opener</h1>
+          <Heading level={1}>Pack opener</Heading>
           <span className="bg-primary/10 text-primary text-2xs rounded-sm px-1.5 py-0.5 leading-none font-semibold uppercase">
             Simulator
           </span>

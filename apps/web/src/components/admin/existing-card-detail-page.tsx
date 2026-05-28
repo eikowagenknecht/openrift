@@ -42,6 +42,7 @@ import { NewPrintingGroupCard } from "@/components/admin/new-printing-group-card
 import { PrintingImageSwitcher } from "@/components/admin/printing-image-switcher";
 import { PrintingMarketplaceBadges } from "@/components/admin/printing-marketplace-cells";
 import { PrintingSourceActions } from "@/components/admin/printing-source-actions";
+import { Heading } from "@/components/heading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -415,7 +416,7 @@ export function ExistingCardDetailPage({
   if (isError) {
     return (
       <div className="space-y-2">
-        <h2 className="text-lg font-semibold">Card not found</h2>
+        <Heading level={2}>Card not found</Heading>
         <p className="text-muted-foreground text-sm">
           No card with ID &ldquo;{identifier}&rdquo; exists.
         </p>
@@ -445,7 +446,7 @@ export function ExistingCardDetailPage({
   if (!card) {
     return (
       <div className="space-y-2">
-        <h2 className="text-lg font-semibold">Card not found</h2>
+        <Heading level={2}>Card not found</Heading>
         <p className="text-muted-foreground text-sm">
           No card data for &ldquo;{identifier}&rdquo;.
         </p>
@@ -550,7 +551,7 @@ export function ExistingCardDetailPage({
               <ChevronRightIcon />
             </Button>
           </div>
-          <h2 className="text-lg font-semibold">{canonicalName}</h2>
+          <Heading level={2}>{canonicalName}</Heading>
           <Button
             variant={hasUnchecked ? "default" : "outline"}
             className="gap-1.5"
