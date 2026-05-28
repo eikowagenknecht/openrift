@@ -32,6 +32,7 @@ import {
 import { CardCell } from "@/components/cards/card-cell";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
+import type { TableRowSlotProps } from "@/components/cards/card-table";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import type { ListEntryDragData } from "@/components/collection/dnd-types";
 import { listKindIcon } from "@/components/list/create-list-dialog";
@@ -350,6 +351,79 @@ export function ListPage({ listId }: ListPageProps) {
       {exportDialog}
       {importDialog}
     </>
+  );
+}
+
+interface ListActionsCellProps extends TableRowSlotProps {
+  kind: ListKind;
+  entryByItemId: Map<string, ListEntryDetailResponse>;
+  entriesByPrintingId: Map<string, ListEntryDetailResponse[]>;
+  supportsTradePrefs: boolean;
+  listTradeDefaults: TradePreference;
+  listCurrency: Currency | null;
+  onEditTradePref: (entryId: string) => void;
+  onRemoveEntry: (entryId: string, cardName: string) => void;
+  onQuantityChange: (entryId: string, quantity: number) => void;
+  isRemovePendingFor: (entryId: string) => boolean;
+  isQuantityPendingFor: (entryId: string) => boolean;
+}
+
+function ListActionsCell({
+  printing,
+  itemId,
+  kind,
+  entryByItemId,
+  entriesByPrintingId,
+  supportsTradePrefs,
+  listTradeDefaults,
+  listCurrency,
+  onEditTradePref,
+  onRemoveEntry,
+  onQuantityChange,
+  isRemovePendingFor,
+  isQuantityPendingFor,
+}: ListActionsCellProps) {
+  if (!printing || !itemId) {
+    return null;
+  }
+  const entry = entryByItemId.get(itemId) ?? entriesByPrintingId.get(printing.id)?.[0];
+  if (!entry) {
+    return null;
+  }
+  const tradePill = supportsTradePrefs ? (
+    <TradePreferencePill
+      override={entry.tradeOverride}
+      listDefault={listTradeDefaults}
+      currency={listCurrency}
+      isOverridden={
+        entry.tradeOverride.pricePref !== null ||
+        entry.tradeOverride.priceAbsoluteCents !== null ||
+        entry.tradeOverride.tradeType !== null
+      }
+      onEdit={() => onEditTradePref(entry.id)}
+    />
+  ) : null;
+  return (
+    <div className="flex items-center gap-2">
+      {tradePill}
+      {kind === "copy" ? (
+        <ListEntryTableActions
+          showQuantity={false}
+          onRemove={() => onRemoveEntry(entry.id, entry.cardName)}
+          isRemovePending={isRemovePendingFor(entry.id)}
+        />
+      ) : (
+        <ListEntryTableActions
+          showQuantity
+          quantity={entry.quantity}
+          onIncrement={() => onQuantityChange(entry.id, entry.quantity + 1)}
+          onDecrement={() => onQuantityChange(entry.id, entry.quantity - 1)}
+          onRemove={() => onRemoveEntry(entry.id, entry.cardName)}
+          isQuantityPending={isQuantityPendingFor(entry.id)}
+          isRemovePending={isRemovePendingFor(entry.id)}
+        />
+      )}
+    </div>
   );
 }
 
@@ -705,22 +779,8 @@ function ListEntryBrowser({
         siblings={siblings}
         priceRange={priceRangeByCardId?.get(cardId)}
         strip={quantityStrip}
-        // oxlint-disable-next-line react/no-unstable-nested-components -- render prop, not a component definition; CardCell expects a wrapper function
-        contextMenu={(cell) => (
-          <ListEntryContextMenu onRemove={onRemove} onSetPreference={onSetPreference}>
-            {cell}
-          </ListEntryContextMenu>
-        )}
-        wrap={
-          dragData && dragId
-            ? // oxlint-disable-next-line react/no-unstable-nested-components -- render prop, not a component definition
-              (cell) => (
-                <DraggableListEntry id={dragId} data={dragData}>
-                  {cell}
-                </DraggableListEntry>
-              )
-            : undefined
-        }
+        contextMenu={<ListEntryContextMenu onRemove={onRemove} onSetPreference={onSetPreference} />}
+        wrap={dragData && dragId ? <DraggableListEntry id={dragId} data={dragData} /> : undefined}
       />
     );
   };
@@ -815,48 +875,21 @@ function ListEntryBrowser({
           // entry id (so each row's Remove targets that specific entry); in
           // cards/printings view it's the printing id and we resolve via the
           // entry-by-item map.
-          // oxlint-disable-next-line react/no-unstable-nested-components -- render prop, not a component definition
-          renderActions: (printing, itemId) => {
-            const entry = entryByItemId.get(itemId) ?? entriesByPrintingId.get(printing.id)?.[0];
-            if (!entry) {
-              return null;
-            }
-            const tradePill = supportsTradePrefs ? (
-              <TradePreferencePill
-                override={entry.tradeOverride}
-                listDefault={listTradeDefaults}
-                currency={listCurrency}
-                isOverridden={
-                  entry.tradeOverride.pricePref !== null ||
-                  entry.tradeOverride.priceAbsoluteCents !== null ||
-                  entry.tradeOverride.tradeType !== null
-                }
-                onEdit={() => setPrefDialogEntryId(entry.id)}
-              />
-            ) : null;
-            return (
-              <div className="flex items-center gap-2">
-                {tradePill}
-                {kind === "copy" ? (
-                  <ListEntryTableActions
-                    showQuantity={false}
-                    onRemove={() => onRemoveEntry(entry.id, entry.cardName)}
-                    isRemovePending={isRemovePendingFor(entry.id)}
-                  />
-                ) : (
-                  <ListEntryTableActions
-                    showQuantity
-                    quantity={entry.quantity}
-                    onIncrement={() => onQuantityChange(entry.id, entry.quantity + 1)}
-                    onDecrement={() => onQuantityChange(entry.id, entry.quantity - 1)}
-                    onRemove={() => onRemoveEntry(entry.id, entry.cardName)}
-                    isQuantityPending={isQuantityPendingFor(entry.id)}
-                    isRemovePending={isRemovePendingFor(entry.id)}
-                  />
-                )}
-              </div>
-            );
-          },
+          actionsCell: (
+            <ListActionsCell
+              kind={kind}
+              entryByItemId={entryByItemId}
+              entriesByPrintingId={entriesByPrintingId}
+              supportsTradePrefs={supportsTradePrefs}
+              listTradeDefaults={listTradeDefaults}
+              listCurrency={listCurrency}
+              onEditTradePref={setPrefDialogEntryId}
+              onRemoveEntry={onRemoveEntry}
+              onQuantityChange={onQuantityChange}
+              isRemovePendingFor={isRemovePendingFor}
+              isQuantityPendingFor={isQuantityPendingFor}
+            />
+          ),
         }}
       >
         {isMobile && (

@@ -325,6 +325,55 @@ function buildCurve(
 
 // ── Custom tooltip ─────────────────────────────────────────────────────────
 
+interface CostToCompleteActiveDotProps {
+  cx?: number;
+  cy?: number;
+  payload?: CurvePoint;
+  marketplace: Marketplace;
+  searchUrl: (term: string) => string;
+}
+
+function CostToCompleteActiveDot({
+  cx,
+  cy,
+  payload,
+  marketplace,
+  searchUrl,
+}: CostToCompleteActiveDotProps) {
+  if (!payload?.label || cx === undefined || cy === undefined) {
+    return null;
+  }
+  const size = 20;
+  const label = payload.label;
+  return (
+    <g
+      className="cursor-pointer"
+      onClick={() => {
+        const url = searchUrl(label);
+        trackMarketplaceClick(marketplace, url);
+        window.open(url, "_blank", "noreferrer");
+      }}
+    >
+      <circle cx={cx} cy={cy} r={size / 2 + 1} fill="var(--color-background)" opacity={0.9} />
+      {/* Lucide ExternalLink icon scaled into a 20x20 area */}
+      <svg
+        x={cx - size / 2}
+        y={cy - size / 2}
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="var(--color-primary)"
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      </svg>
+    </g>
+  );
+}
+
 function CostToCompleteTooltipContent({
   active,
   payload,
@@ -478,48 +527,7 @@ export function CostToCompleteChart({
             strokeWidth={2}
             fill="url(#costToCompleteFill)"
             dot={false}
-            activeDot={(props: { cx?: number; cy?: number; payload: CurvePoint }) => {
-              if (!props.payload.label || props.cx === undefined || props.cy === undefined) {
-                return null;
-              }
-              const { cx, cy } = props;
-              const size = 20;
-              return (
-                <g
-                  className="cursor-pointer"
-                  onClick={() => {
-                    if (props.payload.label) {
-                      const url = searchUrl(props.payload.label);
-                      trackMarketplaceClick(marketplace, url);
-                      window.open(url, "_blank", "noreferrer");
-                    }
-                  }}
-                >
-                  <circle
-                    cx={cx}
-                    cy={cy}
-                    r={size / 2 + 1}
-                    fill="var(--color-background)"
-                    opacity={0.9}
-                  />
-                  {/* Lucide ExternalLink icon scaled into a 20x20 area */}
-                  <svg
-                    x={cx - size / 2}
-                    y={cy - size / 2}
-                    width={size}
-                    height={size}
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="var(--color-primary)"
-                    strokeWidth={2.5}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                  </svg>
-                </g>
-              );
-            }}
+            activeDot={<CostToCompleteActiveDot marketplace={marketplace} searchUrl={searchUrl} />}
           />
           {/* "You are here" marker */}
           <ReferenceDot

@@ -27,6 +27,7 @@ import { toast } from "sonner";
 
 import { AdminCardMarketplaceSection } from "@/components/admin/admin-card-marketplace-section";
 import { CandidateSpreadsheet } from "@/components/admin/candidate-spreadsheet";
+import type { FieldDef } from "@/components/admin/candidate-spreadsheet";
 import { CardBanManager } from "@/components/admin/card-ban-manager";
 import {
   buildPrintingGroups,
@@ -75,6 +76,105 @@ import {
   getCollapsedSections,
   useAdminCardFoldStore,
 } from "@/stores/admin-card-fold-store";
+
+interface ExistingCardColumnActionsProps {
+  row?: CandidateCardResponse | CandidatePrintingResponse;
+  cardId: string;
+  candidateCardFields: FieldDef[];
+  onAcceptField: (input: {
+    cardId: string;
+    field: string;
+    value: unknown;
+    source?: "manual" | "provider";
+  }) => void;
+  onIgnoreSource: (input: { provider: string; externalId: string }) => void;
+}
+
+function ExistingCardColumnActions({
+  row,
+  cardId,
+  candidateCardFields,
+  onAcceptField,
+  onIgnoreSource,
+}: ExistingCardColumnActionsProps) {
+  if (!row) {
+    return null;
+  }
+  const cardRow = row as CandidateCardResponse;
+  return (
+    <>
+      <DropdownMenuItem
+        onClick={() => {
+          const record = row as unknown as Record<string, unknown>;
+          for (const field of candidateCardFields) {
+            if (field.readOnly) {
+              continue;
+            }
+            const val = record[field.key];
+            if (val !== null && val !== undefined && val !== "") {
+              onAcceptField({ cardId, field: field.key, value: val, source: "provider" });
+            }
+          }
+        }}
+      >
+        <CopyCheckIcon className="mr-2" />
+        Accept all fields
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        onClick={() =>
+          onIgnoreSource({
+            provider: cardRow.provider,
+            externalId: row.externalId,
+          })
+        }
+      >
+        <BanIcon className="mr-2" />
+        Ignore permanently
+      </DropdownMenuItem>
+    </>
+  );
+}
+
+interface ExistingPrintingColumnActionsProps {
+  row?: CandidateCardResponse | CandidatePrintingResponse;
+  targets: { id: string; label: string }[];
+  sourceLabels: Record<string, string>;
+  onAssign: (input: { candidatePrintingIds: string[]; printingId: string | null }) => void;
+  onCopy: (input: { id: string; printingId: string }) => void;
+  onIgnore: (input: { provider: string; externalId: string; finish: string | null }) => void;
+  onDelete: (id: string) => void;
+}
+
+function ExistingPrintingColumnActions({
+  row,
+  targets,
+  sourceLabels,
+  onAssign,
+  onCopy,
+  onIgnore,
+  onDelete,
+}: ExistingPrintingColumnActionsProps) {
+  if (!row) {
+    return null;
+  }
+  const printingRow = row as CandidatePrintingResponse;
+  return (
+    <PrintingSourceActions
+      targets={targets}
+      onAssign={(pid) => onAssign({ candidatePrintingIds: [row.id], printingId: pid })}
+      onCopy={(pid) => onCopy({ id: row.id, printingId: pid })}
+      onUnassign={() => onAssign({ candidatePrintingIds: [row.id], printingId: null })}
+      onIgnore={() =>
+        onIgnore({
+          provider: sourceLabels[printingRow.candidateCardId] ?? "",
+          externalId: row.externalId,
+          finish: printingRow.finish,
+        })
+      }
+      onDelete={() => onDelete(row.id)}
+    />
+  );
+}
 
 export function ExistingCardDetailPage({
   identifier,
@@ -580,43 +680,14 @@ export function ExistingCardDetailPage({
               }}
               onCheck={(candidateId) => checkCandidateCard.mutate(candidateId)}
               onUncheck={(candidateId) => uncheckCandidateCard.mutate(candidateId)}
-              columnActions={(row) => (
-                <>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      const record = row as unknown as Record<string, unknown>;
-                      for (const field of candidateCardFields) {
-                        if (field.readOnly) {
-                          continue;
-                        }
-                        const val = record[field.key];
-                        if (val !== null && val !== undefined && val !== "") {
-                          acceptCardField.mutate({
-                            cardId: card.id,
-                            field: field.key,
-                            value: val,
-                            source: "provider",
-                          });
-                        }
-                      }
-                    }}
-                  >
-                    <CopyCheckIcon className="mr-2" />
-                    Accept all fields
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() =>
-                      ignoreCardSource.mutate({
-                        provider: (row as CandidateCardResponse).provider,
-                        externalId: row.externalId,
-                      })
-                    }
-                  >
-                    <BanIcon className="mr-2" />
-                    Ignore permanently
-                  </DropdownMenuItem>
-                </>
-              )}
+              columnActions={
+                <ExistingCardColumnActions
+                  cardId={card.id}
+                  candidateCardFields={candidateCardFields}
+                  onAcceptField={(input) => acceptCardField.mutate(input)}
+                  onIgnoreSource={(input) => ignoreCardSource.mutate(input)}
+                />
+              }
             />
             <CardBanManager
               cardId={card.id}
@@ -897,42 +968,21 @@ export function ExistingCardDetailPage({
                         }}
                         onCheck={(id) => checkPrintingSource.mutate(id)}
                         onUncheck={(id) => uncheckPrintingSource.mutate(id)}
-                        columnActions={(row) => (
-                          <PrintingSourceActions
+                        columnActions={
+                          <ExistingPrintingColumnActions
                             targets={printings
                               .filter((p) => p.id !== printingId)
                               .map((p) => ({
                                 id: p.id,
                                 label: p.expectedPrintingId,
                               }))}
-                            onAssign={(pid) =>
-                              linkPrintingSources.mutate({
-                                candidatePrintingIds: [row.id],
-                                printingId: pid,
-                              })
-                            }
-                            onCopy={(pid) =>
-                              copyPrintingSource.mutate({ id: row.id, printingId: pid })
-                            }
-                            onUnassign={() =>
-                              linkPrintingSources.mutate({
-                                candidatePrintingIds: [row.id],
-                                printingId: null,
-                              })
-                            }
-                            onIgnore={() =>
-                              ignorePrintingSource.mutate({
-                                provider:
-                                  sourceLabels[
-                                    (row as CandidatePrintingResponse).candidateCardId
-                                  ] ?? "",
-                                externalId: row.externalId,
-                                finish: (row as CandidatePrintingResponse).finish,
-                              })
-                            }
-                            onDelete={() => deletePrintingSource.mutate(row.id)}
+                            sourceLabels={sourceLabels}
+                            onAssign={(input) => linkPrintingSources.mutate(input)}
+                            onCopy={(input) => copyPrintingSource.mutate(input)}
+                            onIgnore={(input) => ignorePrintingSource.mutate(input)}
+                            onDelete={(id) => deletePrintingSource.mutate(id)}
                           />
-                        )}
+                        }
                       />
                     </div>
                   </div>

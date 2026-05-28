@@ -2,7 +2,11 @@ import { LoaderIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 
 import { AdminTable } from "@/components/admin/admin-table";
-import type { AdminColumnDef } from "@/components/admin/admin-table";
+import type {
+  AdminCellSlotProps,
+  AdminColumnDef,
+  AdminDraftSlotProps,
+} from "@/components/admin/admin-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -55,6 +59,170 @@ interface TranslationRow {
   label: string;
 }
 
+function KeywordCell({ row }: AdminCellSlotProps<KeywordRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="font-medium">{row.keyword}</span>;
+}
+
+function CountCell({ row }: AdminCellSlotProps<KeywordRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="font-mono text-sm">{row.count}</span>;
+}
+
+function ColorCell({ row }: AdminCellSlotProps<KeywordRow>) {
+  if (!row) {
+    return null;
+  }
+  if (!row.color) {
+    return <span className="text-muted-foreground">-</span>;
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <span className="inline-block size-4 rounded border" style={{ backgroundColor: row.color }} />
+      <span className="font-mono text-sm">{row.color}</span>
+    </div>
+  );
+}
+
+function DarkTextCell({ row }: AdminCellSlotProps<KeywordRow>) {
+  const updateStyle = useUpdateKeywordStyle();
+  if (!row || !row.color) {
+    return null;
+  }
+  const color = row.color;
+  return (
+    <Checkbox
+      checked={row.darkText}
+      onCheckedChange={(checked) =>
+        updateStyle.mutate({
+          name: row.keyword,
+          color,
+          darkText: checked,
+        })
+      }
+    />
+  );
+}
+
+function TranslationsCell({ row }: AdminCellSlotProps<KeywordRow>) {
+  if (!row) {
+    return null;
+  }
+  if (row.translations.length === 0) {
+    return <span className="text-muted-foreground">-</span>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1">
+      {row.translations.map((t) => (
+        <span key={t.language} className="text-muted-foreground text-xs">
+          {t.language}: {t.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function PreviewCell({ row }: AdminCellSlotProps<KeywordRow>) {
+  if (!row) {
+    return null;
+  }
+  return (
+    <Badge
+      style={
+        row.color
+          ? {
+              backgroundColor: row.color,
+              color: row.darkText ? "#1a1a1a" : "#ffffff",
+            }
+          : undefined
+      }
+      variant={row.color ? "default" : "secondary"}
+    >
+      {row.keyword}
+    </Badge>
+  );
+}
+
+function KeywordAddInput({ draft, setDraft }: AdminDraftSlotProps<KeywordDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.keyword}
+      onChange={(event) => setDraft((prev) => ({ ...prev, keyword: event.target.value }))}
+      placeholder="Keyword name"
+      className="h-8 w-40"
+    />
+  );
+}
+
+function ColorInput({ draft, setDraft }: AdminDraftSlotProps<KeywordDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.color}
+      onChange={(event) => setDraft((prev) => ({ ...prev, color: event.target.value }))}
+      placeholder="#6366f1"
+      className="h-8 w-28 font-mono"
+    />
+  );
+}
+
+function DarkTextInput({ draft, setDraft }: AdminDraftSlotProps<KeywordDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Checkbox
+      checked={draft.darkText}
+      onCheckedChange={(checked) => setDraft((prev) => ({ ...prev, darkText: checked }))}
+    />
+  );
+}
+
+const columns: AdminColumnDef<KeywordRow, KeywordDraft>[] = [
+  {
+    header: "Keyword",
+    sortValue: (row) => row.keyword,
+    cell: <KeywordCell />,
+    addCell: <KeywordAddInput />,
+  },
+  {
+    header: "Cards",
+    align: "right",
+    sortValue: (row) => row.count,
+    cell: <CountCell />,
+  },
+  {
+    header: "Color",
+    cell: <ColorCell />,
+    editCell: <ColorInput />,
+    addCell: <ColorInput />,
+  },
+  {
+    header: "Dark text",
+    align: "center",
+    cell: <DarkTextCell />,
+    editCell: <DarkTextInput />,
+    addCell: <DarkTextInput />,
+  },
+  {
+    header: "Translations",
+    cell: <TranslationsCell />,
+  },
+  {
+    header: "Preview",
+    cell: <PreviewCell />,
+  },
+];
+
 export function KeywordsPage() {
   const { data } = useKeywordStats();
   const recomputeKeywords = useRecomputeKeywords();
@@ -88,126 +256,6 @@ export function KeywordsPage() {
         darkText: s.darkText,
         translations: translationsByKeyword.get(s.name) ?? [],
       })),
-  ];
-
-  const columns: AdminColumnDef<KeywordRow, KeywordDraft>[] = [
-    {
-      header: "Keyword",
-      sortValue: (row) => row.keyword,
-      cell: (row) => <span className="font-medium">{row.keyword}</span>,
-      addCell: (draft, set) => (
-        <Input
-          value={draft.keyword}
-          onChange={(event) => set((prev) => ({ ...prev, keyword: event.target.value }))}
-          placeholder="Keyword name"
-          className="h-8 w-40"
-        />
-      ),
-    },
-    {
-      header: "Cards",
-      align: "right",
-      sortValue: (row) => row.count,
-      cell: (row) => <span className="font-mono text-sm">{row.count}</span>,
-    },
-    {
-      header: "Color",
-      cell: (row) =>
-        row.color ? (
-          <div className="flex items-center gap-2">
-            <span
-              className="inline-block size-4 rounded border"
-              style={{ backgroundColor: row.color }}
-            />
-            <span className="font-mono text-sm">{row.color}</span>
-          </div>
-        ) : (
-          <span className="text-muted-foreground">-</span>
-        ),
-      editCell: (draft, set) => (
-        <Input
-          value={draft.color}
-          onChange={(event) => set((prev) => ({ ...prev, color: event.target.value }))}
-          placeholder="#6366f1"
-          className="h-8 w-28 font-mono"
-        />
-      ),
-      addCell: (draft, set) => (
-        <Input
-          value={draft.color}
-          onChange={(event) => set((prev) => ({ ...prev, color: event.target.value }))}
-          placeholder="#6366f1"
-          className="h-8 w-28 font-mono"
-        />
-      ),
-    },
-    {
-      header: "Dark text",
-      align: "center",
-      cell: (row) => {
-        const { color } = row;
-        if (!color) {
-          return null;
-        }
-        return (
-          <Checkbox
-            checked={row.darkText}
-            onCheckedChange={(checked) =>
-              updateStyle.mutate({
-                name: row.keyword,
-                color,
-                darkText: checked,
-              })
-            }
-          />
-        );
-      },
-      editCell: (draft, set) => (
-        <Checkbox
-          checked={draft.darkText}
-          onCheckedChange={(checked) => set((prev) => ({ ...prev, darkText: checked }))}
-        />
-      ),
-      addCell: (draft, set) => (
-        <Checkbox
-          checked={draft.darkText}
-          onCheckedChange={(checked) => set((prev) => ({ ...prev, darkText: checked }))}
-        />
-      ),
-    },
-    {
-      header: "Translations",
-      cell: (row) =>
-        row.translations.length > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            {row.translations.map((t) => (
-              <span key={t.language} className="text-muted-foreground text-xs">
-                {t.language}: {t.label}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <span className="text-muted-foreground">-</span>
-        ),
-    },
-    {
-      header: "Preview",
-      cell: (row) => (
-        <Badge
-          style={
-            row.color
-              ? {
-                  backgroundColor: row.color,
-                  color: row.darkText ? "#1a1a1a" : "#ffffff",
-                }
-              : undefined
-          }
-          variant={row.color ? "default" : "secondary"}
-        >
-          {row.keyword}
-        </Badge>
-      ),
-    },
   ];
 
   return (

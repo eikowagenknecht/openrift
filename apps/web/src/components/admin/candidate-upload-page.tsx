@@ -16,7 +16,7 @@ import {
 import { useRef, useState } from "react";
 
 import { AdminTable } from "@/components/admin/admin-table";
-import type { AdminColumnDef } from "@/components/admin/admin-table";
+import type { AdminCellSlotProps, AdminColumnDef } from "@/components/admin/admin-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -590,6 +590,126 @@ interface ProviderRow {
   isFavorite: boolean;
 }
 
+function ProviderNameCell({ row }: AdminCellSlotProps<ProviderRow>) {
+  const updateSetting = useUpdateProviderSetting();
+  if (!row) {
+    return null;
+  }
+  return (
+    <span className={cn("flex items-center gap-2", row.isHidden && "opacity-50")}>
+      <button
+        type="button"
+        className="text-muted-foreground hover:text-foreground"
+        onClick={() => updateSetting.mutate({ provider: row.name, isHidden: !row.isHidden })}
+        title={row.isHidden ? "Show provider" : "Hide provider"}
+      >
+        {row.isHidden ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
+      </button>
+      <span className="text-sm font-medium">{row.name}</span>
+    </span>
+  );
+}
+
+function ProviderFavoriteCell({ row }: AdminCellSlotProps<ProviderRow>) {
+  const updateSetting = useUpdateProviderSetting();
+  if (!row) {
+    return null;
+  }
+  return (
+    <button
+      type="button"
+      className={cn(
+        "hover:text-foreground",
+        row.isFavorite ? "text-yellow-500" : "text-muted-foreground",
+      )}
+      onClick={() => updateSetting.mutate({ provider: row.name, isFavorite: !row.isFavorite })}
+      title={row.isFavorite ? "Remove from favorites" : "Add to favorites"}
+    >
+      <StarIcon className="size-4" fill={row.isFavorite ? "currentColor" : "none"} />
+    </button>
+  );
+}
+
+function ProviderCardCountCell({ row }: AdminCellSlotProps<ProviderRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="text-muted-foreground text-sm">{row.stats?.cardCount ?? 0}</span>;
+}
+
+function ProviderPrintingCountCell({ row }: AdminCellSlotProps<ProviderRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="text-muted-foreground text-sm">{row.stats?.printingCount ?? 0}</span>;
+}
+
+function ProviderLastUpdatedCell({ row }: AdminCellSlotProps<ProviderRow>) {
+  if (!row) {
+    return null;
+  }
+  return (
+    <span className="text-muted-foreground text-sm">
+      {row.stats
+        ? new Date(row.stats.lastUpdated).toISOString().replace("T", " ").slice(0, 19)
+        : "—"}
+    </span>
+  );
+}
+
+function ProviderCheckAction({ row }: AdminCellSlotProps<ProviderRow>) {
+  const checkProvider = useCheckProvider();
+  if (!row) {
+    return null;
+  }
+  return (
+    <Button
+      variant="ghost"
+      disabled={checkProvider.isPending}
+      onClick={() => checkProvider.mutate(row.name)}
+    >
+      {checkProvider.isPending ? (
+        <LoaderIcon className="size-4 animate-spin" />
+      ) : (
+        <ListChecksIcon className="size-4" />
+      )}
+      Check all
+    </Button>
+  );
+}
+
+const providerColumns: AdminColumnDef<ProviderRow>[] = [
+  {
+    header: "Provider",
+    cell: <ProviderNameCell />,
+  },
+  {
+    header: "Favorite",
+    width: "w-20",
+    cell: <ProviderFavoriteCell />,
+  },
+  {
+    header: "Cards",
+    width: "w-24",
+    align: "right",
+    sortValue: (r) => r.stats?.cardCount ?? 0,
+    cell: <ProviderCardCountCell />,
+  },
+  {
+    header: "Printings",
+    width: "w-24",
+    align: "right",
+    sortValue: (r) => r.stats?.printingCount ?? 0,
+    cell: <ProviderPrintingCountCell />,
+  },
+  {
+    header: "Last Updated",
+    width: "w-44",
+    sortValue: (r) => r.stats?.lastUpdated ?? null,
+    cell: <ProviderLastUpdatedCell />,
+  },
+];
+
 function ManageProvidersCard({
   providerNames,
   providerStats,
@@ -600,7 +720,6 @@ function ManageProvidersCard({
   const checkProvider = useCheckProvider();
   const deleteProvider = useDeleteProvider();
   const { data: settingsData } = useProviderSettings();
-  const updateSetting = useUpdateProviderSetting();
   const reorderMutation = useReorderProviderSettings();
   const statsByProvider = new Map(providerStats.map((s) => [s.provider, s]));
   const settingsMap = new Map(
@@ -632,70 +751,6 @@ function ManageProvidersCard({
     reorderMutation.mutate(reordered);
   }
 
-  const columns: AdminColumnDef<ProviderRow>[] = [
-    {
-      header: "Provider",
-      cell: (r) => (
-        <span className={cn("flex items-center gap-2", r.isHidden && "opacity-50")}>
-          <button
-            type="button"
-            className="text-muted-foreground hover:text-foreground"
-            onClick={() => updateSetting.mutate({ provider: r.name, isHidden: !r.isHidden })}
-            title={r.isHidden ? "Show provider" : "Hide provider"}
-          >
-            {r.isHidden ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
-          </button>
-          <span className="text-sm font-medium">{r.name}</span>
-        </span>
-      ),
-    },
-    {
-      header: "Favorite",
-      width: "w-20",
-      cell: (r) => (
-        <button
-          type="button"
-          className={cn(
-            "hover:text-foreground",
-            r.isFavorite ? "text-yellow-500" : "text-muted-foreground",
-          )}
-          onClick={() => updateSetting.mutate({ provider: r.name, isFavorite: !r.isFavorite })}
-          title={r.isFavorite ? "Remove from favorites" : "Add to favorites"}
-        >
-          <StarIcon className="size-4" fill={r.isFavorite ? "currentColor" : "none"} />
-        </button>
-      ),
-    },
-    {
-      header: "Cards",
-      width: "w-24",
-      align: "right",
-      sortValue: (r) => r.stats?.cardCount ?? 0,
-      cell: (r) => <span className="text-muted-foreground text-sm">{r.stats?.cardCount ?? 0}</span>,
-    },
-    {
-      header: "Printings",
-      width: "w-24",
-      align: "right",
-      sortValue: (r) => r.stats?.printingCount ?? 0,
-      cell: (r) => (
-        <span className="text-muted-foreground text-sm">{r.stats?.printingCount ?? 0}</span>
-      ),
-    },
-    {
-      header: "Last Updated",
-      width: "w-44",
-      sortValue: (r) => r.stats?.lastUpdated ?? null,
-      cell: (r) => (
-        <span className="text-muted-foreground text-sm">
-          {r.stats
-            ? new Date(r.stats.lastUpdated).toISOString().replace("T", " ").slice(0, 19)
-            : "—"}
-        </span>
-      ),
-    },
-  ];
-
   return (
     <Card>
       <CardHeader>
@@ -709,7 +764,7 @@ function ManageProvidersCard({
       </CardHeader>
       <CardContent className="space-y-3">
         <AdminTable
-          columns={columns}
+          columns={providerColumns}
           data={rows}
           getRowKey={(r) => r.name}
           emptyText="No providers yet."
@@ -724,20 +779,7 @@ function ManageProvidersCard({
               description: `This will permanently delete all candidate cards and printings from \u201C${r.name}\u201D. This cannot be undone.`,
             }),
           }}
-          actions={(r) => (
-            <Button
-              variant="ghost"
-              disabled={checkProvider.isPending}
-              onClick={() => checkProvider.mutate(r.name)}
-            >
-              {checkProvider.isPending ? (
-                <LoaderIcon className="size-4 animate-spin" />
-              ) : (
-                <ListChecksIcon className="size-4" />
-              )}
-              Check all
-            </Button>
-          )}
+          actions={<ProviderCheckAction />}
         />
         {checkProvider.isSuccess && (
           <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">

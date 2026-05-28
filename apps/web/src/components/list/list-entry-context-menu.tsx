@@ -12,7 +12,7 @@ interface ListEntryContextMenuProps {
   onViewDetail?: () => void;
   /** When set, adds a "Trade preference…" item that opens the editor dialog. */
   onSetPreference?: () => void;
-  children: ReactNode;
+  children?: ReactNode;
 }
 
 /**

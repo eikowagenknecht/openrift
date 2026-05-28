@@ -1,5 +1,6 @@
 import type { Printing } from "@openrift/shared";
-import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
+import type { MouseEvent as ReactMouseEvent, ReactElement, ReactNode } from "react";
+import { cloneElement } from "react";
 
 import type { CardRenderContext } from "@/components/card-viewer-types";
 import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
@@ -53,10 +54,14 @@ export interface CardCellProps {
   dragData?: Record<string, unknown>;
   dragId?: string;
 
-  /** Outer wrap (e.g. <DraggableCard> from the collection grid). */
-  wrap?: (cell: ReactNode) => ReactNode;
+  /**
+   * Outer wrap (e.g. <DraggableCard> from the collection grid). Pass a JSX
+   * element with the wrapper's props; CardCell injects the composed cell as
+   * its children via cloneElement.
+   */
+  wrap?: ReactElement<{ children?: ReactNode }>;
   /** Inner wrap, applied before {@link wrap} (e.g. <DeckCardDetailMenu>). */
-  contextMenu?: (cell: ReactNode) => ReactNode;
+  contextMenu?: ReactElement<{ children?: ReactNode }>;
 }
 
 /**
@@ -131,10 +136,10 @@ export function CardCell({
     );
   }
   if (contextMenu) {
-    content = contextMenu(content);
+    content = cloneElement(contextMenu, undefined, content);
   }
   if (wrap) {
-    content = wrap(content);
+    content = cloneElement(wrap, undefined, content);
   }
   return content;
 }

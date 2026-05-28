@@ -9,7 +9,7 @@ import {
 
 interface DeckCardDetailMenuProps {
   onViewDetail: () => void;
-  children: ReactNode;
+  children?: ReactNode;
 }
 
 /**

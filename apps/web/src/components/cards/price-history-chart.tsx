@@ -17,6 +17,54 @@ const chartConfig = {
   low: { label: "Low", color: "var(--chart-2)" },
 } satisfies ChartConfig;
 
+interface PriceHistoryTooltipContentProps {
+  active?: boolean;
+  payload?: { payload: { date: string; value: number | null; low: number | null } }[];
+  source: Marketplace;
+  currencyFormatter: (value: number) => string;
+}
+
+function PriceHistoryTooltipContent({
+  active,
+  payload,
+  source,
+  currencyFormatter,
+}: PriceHistoryTooltipContentProps) {
+  if (!active || !payload?.length) {
+    return null;
+  }
+  const snap = payload[0].payload;
+  const headlineLabel = source === "cardtrader" ? "Zero" : "Market";
+  return (
+    <div className="border-border/50 bg-background rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
+      <p className="mb-1 font-medium">{snap.date}</p>
+      <div className="space-y-0.5">
+        {snap.value !== null && snap.value !== undefined && (
+          <div className="flex items-center gap-2">
+            <span
+              className="size-2 rounded-full"
+              style={{ backgroundColor: "var(--color-value)" }}
+            />
+            <span className="text-muted-foreground">{headlineLabel}</span>
+            <span className="ml-auto font-mono font-medium tabular-nums">
+              {currencyFormatter(snap.value)}
+            </span>
+          </div>
+        )}
+        {snap.low !== null && snap.low !== undefined && (
+          <div className="flex items-center gap-2">
+            <span className="size-2 rounded-full" style={{ backgroundColor: "var(--color-low)" }} />
+            <span className="text-muted-foreground">Low</span>
+            <span className="ml-auto font-mono font-medium tabular-nums">
+              {currencyFormatter(snap.low)}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 interface PriceHistoryChartProps {
   printingId: string;
   range?: TimeRange;
@@ -206,48 +254,9 @@ export function PriceHistoryChart({
               padding={{ top: 8 }}
             />
             <ChartTooltip
-              content={({ active, payload }) => {
-                if (!active || !payload?.length) {
-                  return null;
-                }
-                const snap = payload[0].payload as {
-                  date: string;
-                  value: number | null;
-                  low: number | null;
-                };
-                const headlineLabel = source === "cardtrader" ? "Zero" : "Market";
-                return (
-                  <div className="border-border/50 bg-background rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
-                    <p className="mb-1 font-medium">{snap.date}</p>
-                    <div className="space-y-0.5">
-                      {snap.value !== null && snap.value !== undefined && (
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="size-2 rounded-full"
-                            style={{ backgroundColor: "var(--color-value)" }}
-                          />
-                          <span className="text-muted-foreground">{headlineLabel}</span>
-                          <span className="ml-auto font-mono font-medium tabular-nums">
-                            {currencyFormatter(snap.value)}
-                          </span>
-                        </div>
-                      )}
-                      {snap.low !== null && snap.low !== undefined && (
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="size-2 rounded-full"
-                            style={{ backgroundColor: "var(--color-low)" }}
-                          />
-                          <span className="text-muted-foreground">Low</span>
-                          <span className="ml-auto font-mono font-medium tabular-nums">
-                            {currencyFormatter(snap.low)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              }}
+              content={
+                <PriceHistoryTooltipContent source={source} currencyFormatter={currencyFormatter} />
+              }
             />
             {/* Headline value: filled area + solid line */}
             <Area

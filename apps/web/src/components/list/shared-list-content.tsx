@@ -49,6 +49,20 @@ import { useSelectionStore } from "@/stores/selection-store";
 // Public visitor has no owned-count context; lists also don't carry catalog-
 // wide channels / markers / custom-tag assignments. Match the public
 // collection share's hidden set.
+function SharedListQuantityCell({
+  itemId,
+  entryByItemId,
+}: {
+  printing?: Printing;
+  itemId?: string;
+  entryByItemId: Map<string, ListEntryDetailResponse>;
+}) {
+  if (!itemId) {
+    return null;
+  }
+  return <StaticCountTableActions count={entryByItemId.get(itemId)?.quantity ?? 0} />;
+}
+
 const SHARED_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set([
   "owned",
   "markers",
@@ -299,9 +313,7 @@ function SharedListGrid({ data }: { data: PublicListDetailResponse }) {
             : {
                 actionsColumn: "narrow",
                 actionsLabel: "Qty",
-                renderActions: (_printing, itemId) => (
-                  <StaticCountTableActions count={entryByItemId.get(itemId)?.quantity ?? 0} />
-                ),
+                actionsCell: <SharedListQuantityCell entryByItemId={entryByItemId} />,
               }
         }
       >

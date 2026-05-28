@@ -1,7 +1,11 @@
 import type { MarkerResponse } from "@openrift/shared";
 
 import { AdminTable } from "@/components/admin/admin-table";
-import type { AdminColumnDef } from "@/components/admin/admin-table";
+import type {
+  AdminCellSlotProps,
+  AdminColumnDef,
+  AdminDraftSlotProps,
+} from "@/components/admin/admin-table";
 import { Input } from "@/components/ui/input";
 import {
   useCreateMarker,
@@ -20,6 +24,112 @@ interface MarkerDraft {
 
 const KEBAB_RE = /^[a-z][a-z0-9]+(-[a-z0-9]+)*$/u;
 
+function SlugCell({ row }: AdminCellSlotProps<MarkerResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="font-mono text-sm">{row.slug}</span>;
+}
+
+function LabelCell({ row }: AdminCellSlotProps<MarkerResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <span>{row.label}</span>;
+}
+
+function DescriptionCell({ row }: AdminCellSlotProps<MarkerResponse>) {
+  if (!row) {
+    return null;
+  }
+  return (
+    <span
+      className="text-muted-foreground block max-w-xs truncate"
+      title={row.description ?? undefined}
+    >
+      {row.description ?? "—"}
+    </span>
+  );
+}
+
+function SlugAddInput({ draft, setDraft }: AdminDraftSlotProps<MarkerDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.slug}
+      onChange={(e) => setDraft((prev) => ({ ...prev, slug: e.target.value.toLowerCase() }))}
+      placeholder="top-8"
+      className="h-8 w-48 font-mono"
+    />
+  );
+}
+
+function LabelInput({ draft, setDraft }: AdminDraftSlotProps<MarkerDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.label}
+      onChange={(e) => setDraft((prev) => ({ ...prev, label: e.target.value }))}
+      className="h-8"
+    />
+  );
+}
+
+function LabelAddInput({ draft, setDraft }: AdminDraftSlotProps<MarkerDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.label}
+      onChange={(e) => setDraft((prev) => ({ ...prev, label: e.target.value }))}
+      placeholder="Top 8"
+      className="h-8"
+    />
+  );
+}
+
+function DescriptionInput({ draft, setDraft }: AdminDraftSlotProps<MarkerDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.description}
+      onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
+      placeholder="Optional description"
+      className="h-8"
+    />
+  );
+}
+
+const columns: AdminColumnDef<MarkerResponse, MarkerDraft>[] = [
+  {
+    header: "Slug",
+    sortValue: (m) => m.slug,
+    cell: <SlugCell />,
+    addCell: <SlugAddInput />,
+  },
+  {
+    header: "Label",
+    sortValue: (m) => m.label,
+    cell: <LabelCell />,
+    editCell: <LabelInput />,
+    addCell: <LabelAddInput />,
+  },
+  {
+    header: "Description",
+    sortValue: (m) => m.description ?? "",
+    cell: <DescriptionCell />,
+    editCell: <DescriptionInput />,
+    addCell: <DescriptionInput />,
+  },
+];
+
 export function MarkersPage() {
   const { data } = useMarkers();
   const createMutation = useCreateMarker();
@@ -37,70 +147,6 @@ export function MarkersPage() {
     [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
     reorderMutation.mutate(reordered);
   }
-
-  const columns: AdminColumnDef<MarkerResponse, MarkerDraft>[] = [
-    {
-      header: "Slug",
-      sortValue: (m) => m.slug,
-      cell: (m) => <span className="font-mono text-sm">{m.slug}</span>,
-      addCell: (d, set) => (
-        <Input
-          value={d.slug}
-          onChange={(e) => set((prev) => ({ ...prev, slug: e.target.value.toLowerCase() }))}
-          placeholder="top-8"
-          className="h-8 w-48 font-mono"
-        />
-      ),
-    },
-    {
-      header: "Label",
-      sortValue: (m) => m.label,
-      cell: (m) => <span>{m.label}</span>,
-      editCell: (d, set) => (
-        <Input
-          value={d.label}
-          onChange={(e) => set((prev) => ({ ...prev, label: e.target.value }))}
-          className="h-8"
-        />
-      ),
-      addCell: (d, set) => (
-        <Input
-          value={d.label}
-          onChange={(e) => set((prev) => ({ ...prev, label: e.target.value }))}
-          placeholder="Top 8"
-          className="h-8"
-        />
-      ),
-    },
-    {
-      header: "Description",
-      sortValue: (m) => m.description ?? "",
-      cell: (m) => (
-        <span
-          className="text-muted-foreground block max-w-xs truncate"
-          title={m.description ?? undefined}
-        >
-          {m.description ?? "—"}
-        </span>
-      ),
-      editCell: (d, set) => (
-        <Input
-          value={d.description}
-          onChange={(e) => set((prev) => ({ ...prev, description: e.target.value }))}
-          placeholder="Optional description"
-          className="h-8"
-        />
-      ),
-      addCell: (d, set) => (
-        <Input
-          value={d.description}
-          onChange={(e) => set((prev) => ({ ...prev, description: e.target.value }))}
-          placeholder="Optional description"
-          className="h-8"
-        />
-      ),
-    },
-  ];
 
   return (
     <AdminTable

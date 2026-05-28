@@ -10,6 +10,7 @@ vi.mock("@piltoverarchive/riftbound-deck-codes", () => ({
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { getDeckFromCode } from "@piltoverarchive/riftbound-deck-codes";
+
 const mockGetDeckFromCode = vi.mocked(getDeckFromCode);
 
 describe("parseDeckImportData — piltover format", () => {

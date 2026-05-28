@@ -1,5 +1,9 @@
 import { AdminTable } from "@/components/admin/admin-table";
-import type { AdminColumnDef } from "@/components/admin/admin-table";
+import type {
+  AdminCellSlotProps,
+  AdminColumnDef,
+  AdminDraftSlotProps,
+} from "@/components/admin/admin-table";
 import { Input } from "@/components/ui/input";
 import {
   useCreateFinish,
@@ -21,6 +25,90 @@ interface FinishDraft {
   label: string;
 }
 
+function SlugCell({ row }: AdminCellSlotProps<FinishRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="font-mono text-sm">{row.slug}</span>;
+}
+
+function LabelCell({ row }: AdminCellSlotProps<FinishRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="text-sm">{row.label}</span>;
+}
+
+function WellKnownCell({ row }: AdminCellSlotProps<FinishRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="text-muted-foreground text-sm">{row.isWellKnown ? "Yes" : "No"}</span>;
+}
+
+function SlugAddInput({ draft, setDraft }: AdminDraftSlotProps<FinishDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.slug}
+      onChange={(event) =>
+        setDraft((prev) => ({ ...prev, slug: event.target.value.toLowerCase() }))
+      }
+      placeholder="foil"
+      className="h-8 w-40 font-mono"
+    />
+  );
+}
+
+function LabelInput({ draft, setDraft }: AdminDraftSlotProps<FinishDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.label}
+      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
+      className="h-8"
+    />
+  );
+}
+
+function LabelAddInput({ draft, setDraft }: AdminDraftSlotProps<FinishDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.label}
+      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
+      placeholder="Foil"
+      className="h-8"
+    />
+  );
+}
+
+const columns: AdminColumnDef<FinishRow, FinishDraft>[] = [
+  {
+    header: "Slug",
+    sortValue: (finish) => finish.slug,
+    cell: <SlugCell />,
+    addCell: <SlugAddInput />,
+  },
+  {
+    header: "Label",
+    sortValue: (finish) => finish.label,
+    cell: <LabelCell />,
+    editCell: <LabelInput />,
+    addCell: <LabelAddInput />,
+  },
+  {
+    header: "Well-known",
+    cell: <WellKnownCell />,
+  },
+];
+
 export function FinishesPage() {
   const { data } = useFinishes();
   const createMutation = useCreateFinish();
@@ -38,48 +126,6 @@ export function FinishesPage() {
     [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
     reorderMutation.mutate(reordered);
   }
-
-  const columns: AdminColumnDef<FinishRow, FinishDraft>[] = [
-    {
-      header: "Slug",
-      sortValue: (finish) => finish.slug,
-      cell: (finish) => <span className="font-mono text-sm">{finish.slug}</span>,
-      addCell: (draft, set) => (
-        <Input
-          value={draft.slug}
-          onChange={(event) => set((prev) => ({ ...prev, slug: event.target.value.toLowerCase() }))}
-          placeholder="foil"
-          className="h-8 w-40 font-mono"
-        />
-      ),
-    },
-    {
-      header: "Label",
-      sortValue: (finish) => finish.label,
-      cell: (finish) => <span className="text-sm">{finish.label}</span>,
-      editCell: (draft, set) => (
-        <Input
-          value={draft.label}
-          onChange={(event) => set((prev) => ({ ...prev, label: event.target.value }))}
-          className="h-8"
-        />
-      ),
-      addCell: (draft, set) => (
-        <Input
-          value={draft.label}
-          onChange={(event) => set((prev) => ({ ...prev, label: event.target.value }))}
-          placeholder="Foil"
-          className="h-8"
-        />
-      ),
-    },
-    {
-      header: "Well-known",
-      cell: (finish) => (
-        <span className="text-muted-foreground text-sm">{finish.isWellKnown ? "Yes" : "No"}</span>
-      ),
-    },
-  ];
 
   return (
     <AdminTable

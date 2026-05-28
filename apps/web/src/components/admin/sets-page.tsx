@@ -2,7 +2,11 @@ import type { AdminSetResponse } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
 import { AdminTable } from "@/components/admin/admin-table";
-import type { AdminColumnDef } from "@/components/admin/admin-table";
+import type {
+  AdminCellSlotProps,
+  AdminColumnDef,
+  AdminDraftSlotProps,
+} from "@/components/admin/admin-table";
 import { CountBadge } from "@/components/admin/count-badge";
 import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -32,6 +36,266 @@ interface SetDraft {
   setType: "main" | "supplemental";
 }
 
+function IdCell({ row }: AdminCellSlotProps<AdminSetResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="font-mono">{row.slug}</span>;
+}
+
+function NameCell({ row }: AdminCellSlotProps<AdminSetResponse>) {
+  if (!row) {
+    return null;
+  }
+  return row.name;
+}
+
+function PrintedTotalCell({ row }: AdminCellSlotProps<AdminSetResponse>) {
+  if (!row) {
+    return null;
+  }
+  return row.printedTotal;
+}
+
+function ReleasedAtCell({ row }: AdminCellSlotProps<AdminSetResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="text-muted-foreground font-mono">{row.releasedAt ?? "—"}</span>;
+}
+
+function ReleasedCell({ row }: AdminCellSlotProps<AdminSetResponse>) {
+  if (!row) {
+    return null;
+  }
+  return (
+    <Badge variant={row.released ? "default" : "secondary"}>
+      {row.released ? "yes" : "preview"}
+    </Badge>
+  );
+}
+
+function SetTypeCell({ row }: AdminCellSlotProps<AdminSetResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <Badge variant={row.setType === "main" ? "default" : "secondary"}>{row.setType}</Badge>;
+}
+
+function CardsCell({ row }: AdminCellSlotProps<AdminSetResponse>) {
+  if (!row) {
+    return null;
+  }
+  if (row.cardCount === 0) {
+    return <CountBadge count={0} />;
+  }
+  return (
+    <Link to="/admin/cards" search={{ set: row.slug }} className="hover:opacity-70">
+      <CountBadge count={row.cardCount} />
+    </Link>
+  );
+}
+
+function PrintingsCell({ row }: AdminCellSlotProps<AdminSetResponse>) {
+  if (!row) {
+    return null;
+  }
+  if (row.printingCount === 0) {
+    return <CountBadge count={0} />;
+  }
+  return (
+    <Link to="/admin/cards" search={{ set: row.slug }} className="hover:opacity-70">
+      <CountBadge count={row.printingCount} />
+    </Link>
+  );
+}
+
+function IdInput({ draft, setDraft }: AdminDraftSlotProps<SetDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.id}
+      onChange={(e) => setDraft((prev) => ({ ...prev, id: e.target.value }))}
+      placeholder="ID"
+      className="font-mono"
+    />
+  );
+}
+
+function NameInput({ draft, setDraft }: AdminDraftSlotProps<SetDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.name}
+      onChange={(e) => setDraft((prev) => ({ ...prev, name: e.target.value }))}
+    />
+  );
+}
+
+function NameAddInput({ draft, setDraft }: AdminDraftSlotProps<SetDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.name}
+      onChange={(e) => setDraft((prev) => ({ ...prev, name: e.target.value }))}
+      placeholder="Name"
+    />
+  );
+}
+
+function PrintedTotalInput({ draft, setDraft }: AdminDraftSlotProps<SetDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      inputMode="numeric"
+      value={draft.printedTotal}
+      onChange={(e) => setDraft((prev) => ({ ...prev, printedTotal: e.target.value }))}
+      className="ml-auto text-right"
+    />
+  );
+}
+
+function PrintedTotalAddInput({ draft, setDraft }: AdminDraftSlotProps<SetDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      inputMode="numeric"
+      value={draft.printedTotal}
+      onChange={(e) => setDraft((prev) => ({ ...prev, printedTotal: e.target.value }))}
+      placeholder="0"
+      className="ml-auto text-right"
+    />
+  );
+}
+
+function ReleasedAtPicker({ draft, setDraft }: AdminDraftSlotProps<SetDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <DatePicker
+      value={draft.releasedAt || null}
+      onChange={(iso) => setDraft((prev) => ({ ...prev, releasedAt: iso }))}
+      onClear={() => setDraft((prev) => ({ ...prev, releasedAt: "" }))}
+      className="font-mono"
+    />
+  );
+}
+
+function ReleasedSwitch({ draft, setDraft }: AdminDraftSlotProps<SetDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Switch
+      checked={draft.released}
+      onCheckedChange={(checked) => setDraft((prev) => ({ ...prev, released: checked }))}
+    />
+  );
+}
+
+function SetTypeSelect({ draft, setDraft }: AdminDraftSlotProps<SetDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Select
+      value={draft.setType}
+      onValueChange={(value) => {
+        if (value) {
+          setDraft((prev) => ({ ...prev, setType: value as "main" | "supplemental" }));
+        }
+      }}
+    >
+      <SelectTrigger className="h-8 w-32">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="main">main</SelectItem>
+        <SelectItem value="supplemental">supplemental</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
+
+function DeleteSetDescription({ name }: { name: string }) {
+  return (
+    <>
+      This will permanently delete the set <strong>{name}</strong>. Sets with printings cannot be
+      deleted. Remove their printings first.
+    </>
+  );
+}
+
+const columns: AdminColumnDef<AdminSetResponse, SetDraft>[] = [
+  {
+    header: "ID",
+    width: "w-28",
+    cell: <IdCell />,
+    addCell: <IdInput />,
+  },
+  {
+    header: "Name",
+    cell: <NameCell />,
+    editCell: <NameInput />,
+    addCell: <NameAddInput />,
+  },
+  {
+    header: "Printed Total",
+    width: "w-32",
+    align: "right",
+    cell: <PrintedTotalCell />,
+    editCell: <PrintedTotalInput />,
+    addCell: <PrintedTotalAddInput />,
+  },
+  {
+    header: "Release Date",
+    width: "w-36",
+    cell: <ReleasedAtCell />,
+    editCell: <ReleasedAtPicker />,
+    addCell: <ReleasedAtPicker />,
+  },
+  {
+    header: "Released",
+    width: "w-24",
+    headerTitle: "Whether this set has been officially released for play",
+    cell: <ReleasedCell />,
+    editCell: <ReleasedSwitch />,
+    addCell: <ReleasedSwitch />,
+  },
+  {
+    header: "Type",
+    width: "w-36",
+    cell: <SetTypeCell />,
+    editCell: <SetTypeSelect />,
+    addCell: <SetTypeSelect />,
+  },
+  {
+    header: "Cards",
+    width: "w-24",
+    align: "right",
+    headerTitle: "Cards in this set",
+    cell: <CardsCell />,
+  },
+  {
+    header: "Printings",
+    width: "w-24",
+    align: "right",
+    headerTitle: "Printings in this set",
+    cell: <PrintingsCell />,
+  },
+];
+
 export function SetsPage() {
   const { data } = useSets();
   const updateMutation = useUpdateSet();
@@ -49,176 +313,6 @@ export function SetsPage() {
     [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
     reorderMutation.mutate(reordered);
   }
-
-  const columns: AdminColumnDef<AdminSetResponse, SetDraft>[] = [
-    {
-      header: "ID",
-      width: "w-28",
-      cell: (s) => <span className="font-mono">{s.slug}</span>,
-      addCell: (d, set) => (
-        <Input
-          value={d.id}
-          onChange={(e) => set((prev) => ({ ...prev, id: e.target.value }))}
-          placeholder="ID"
-          className="font-mono"
-        />
-      ),
-    },
-    {
-      header: "Name",
-      cell: (s) => s.name,
-      editCell: (d, set) => (
-        <Input
-          value={d.name}
-          onChange={(e) => set((prev) => ({ ...prev, name: e.target.value }))}
-        />
-      ),
-      addCell: (d, set) => (
-        <Input
-          value={d.name}
-          onChange={(e) => set((prev) => ({ ...prev, name: e.target.value }))}
-          placeholder="Name"
-        />
-      ),
-    },
-    {
-      header: "Printed Total",
-      width: "w-32",
-      align: "right",
-      cell: (s) => s.printedTotal,
-      editCell: (d, set) => (
-        <Input
-          inputMode="numeric"
-          value={d.printedTotal}
-          onChange={(e) => set((prev) => ({ ...prev, printedTotal: e.target.value }))}
-          className="ml-auto text-right"
-        />
-      ),
-      addCell: (d, set) => (
-        <Input
-          inputMode="numeric"
-          value={d.printedTotal}
-          onChange={(e) => set((prev) => ({ ...prev, printedTotal: e.target.value }))}
-          placeholder="0"
-          className="ml-auto text-right"
-        />
-      ),
-    },
-    {
-      header: "Release Date",
-      width: "w-36",
-      cell: (s) => <span className="text-muted-foreground font-mono">{s.releasedAt ?? "—"}</span>,
-      editCell: (d, set) => (
-        <DatePicker
-          value={d.releasedAt || null}
-          onChange={(iso) => set((prev) => ({ ...prev, releasedAt: iso }))}
-          onClear={() => set((prev) => ({ ...prev, releasedAt: "" }))}
-          className="font-mono"
-        />
-      ),
-      addCell: (d, set) => (
-        <DatePicker
-          value={d.releasedAt || null}
-          onChange={(iso) => set((prev) => ({ ...prev, releasedAt: iso }))}
-          onClear={() => set((prev) => ({ ...prev, releasedAt: "" }))}
-          className="font-mono"
-        />
-      ),
-    },
-    {
-      header: "Released",
-      width: "w-24",
-      headerTitle: "Whether this set has been officially released for play",
-      cell: (s) => (
-        <Badge variant={s.released ? "default" : "secondary"}>
-          {s.released ? "yes" : "preview"}
-        </Badge>
-      ),
-      editCell: (d, set) => (
-        <Switch
-          checked={d.released}
-          onCheckedChange={(checked) => set((prev) => ({ ...prev, released: checked }))}
-        />
-      ),
-      addCell: (d, set) => (
-        <Switch
-          checked={d.released}
-          onCheckedChange={(checked) => set((prev) => ({ ...prev, released: checked }))}
-        />
-      ),
-    },
-    {
-      header: "Type",
-      width: "w-36",
-      cell: (s) => (
-        <Badge variant={s.setType === "main" ? "default" : "secondary"}>{s.setType}</Badge>
-      ),
-      editCell: (d, set) => (
-        <Select
-          value={d.setType}
-          onValueChange={(value) => {
-            if (value) {
-              set((prev) => ({ ...prev, setType: value as "main" | "supplemental" }));
-            }
-          }}
-        >
-          <SelectTrigger className="h-8 w-32">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="main">main</SelectItem>
-            <SelectItem value="supplemental">supplemental</SelectItem>
-          </SelectContent>
-        </Select>
-      ),
-      addCell: (d, set) => (
-        <Select
-          value={d.setType}
-          onValueChange={(value) => {
-            if (value) {
-              set((prev) => ({ ...prev, setType: value as "main" | "supplemental" }));
-            }
-          }}
-        >
-          <SelectTrigger className="h-8 w-32">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="main">main</SelectItem>
-            <SelectItem value="supplemental">supplemental</SelectItem>
-          </SelectContent>
-        </Select>
-      ),
-    },
-    {
-      header: "Cards",
-      width: "w-24",
-      align: "right",
-      headerTitle: "Cards in this set",
-      cell: (s) =>
-        s.cardCount > 0 ? (
-          <Link to="/admin/cards" search={{ set: s.slug }} className="hover:opacity-70">
-            <CountBadge count={s.cardCount} />
-          </Link>
-        ) : (
-          <CountBadge count={0} />
-        ),
-    },
-    {
-      header: "Printings",
-      width: "w-24",
-      align: "right",
-      headerTitle: "Printings in this set",
-      cell: (s) =>
-        s.printingCount > 0 ? (
-          <Link to="/admin/cards" search={{ set: s.slug }} className="hover:opacity-70">
-            <CountBadge count={s.printingCount} />
-          </Link>
-        ) : (
-          <CountBadge count={0} />
-        ),
-    },
-  ];
 
   return (
     <AdminTable
@@ -297,14 +391,10 @@ export function SetsPage() {
       }}
       delete={{
         onDelete: (s) => deleteMutation.mutateAsync(s.id),
+        // oxlint-disable-next-line react/no-unstable-nested-components -- callback returns a {title, description} record; JSX in description is via a hoisted DeleteSetDescription, not an inline component
         confirm: (s) => ({
-          title: `Delete set \u201C${s.slug}\u201D?`,
-          description: (
-            <>
-              This will permanently delete the set <strong>{s.name}</strong>. Sets with printings
-              cannot be deleted. Remove their printings first.
-            </>
-          ),
+          title: `Delete set “${s.slug}”?`,
+          description: <DeleteSetDescription name={s.name} />,
         }),
       }}
     />

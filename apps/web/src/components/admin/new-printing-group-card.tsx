@@ -1,4 +1,9 @@
-import type { AdminPrintingResponse, ProviderSettingResponse } from "@openrift/shared";
+import type {
+  AdminPrintingResponse,
+  CandidateCardResponse,
+  CandidatePrintingResponse,
+  ProviderSettingResponse,
+} from "@openrift/shared";
 import { formatPrintingLabel } from "@openrift/shared";
 import {
   ArrowRightIcon,
@@ -26,6 +31,62 @@ const REQUIRED_PRINTING_KEYS = [
   "artist",
   "publicCode",
 ];
+
+interface NewPrintingColumnActionsProps {
+  row?: CandidateCardResponse | CandidatePrintingResponse;
+  existingPrintings: AdminPrintingResponse[];
+  printingFields: FieldDef[];
+  onLink: (printingId: string, candidatePrintingIds: string[]) => void;
+  onCopy: (id: string, printingId: string) => void;
+  onAcceptAllForRow: (rowId: string, values: Record<string, unknown>) => void;
+  onIgnore: (externalId: string, finish: string) => void;
+  onDelete: (id: string) => void;
+}
+
+function NewPrintingColumnActions({
+  row,
+  existingPrintings,
+  printingFields,
+  onLink,
+  onCopy,
+  onAcceptAllForRow,
+  onIgnore,
+  onDelete,
+}: NewPrintingColumnActionsProps) {
+  if (!row) {
+    return null;
+  }
+  return (
+    <PrintingSourceActions
+      targets={existingPrintings.map((p) => ({
+        id: p.id,
+        label: p.expectedPrintingId,
+      }))}
+      onAssign={(pid) => onLink(pid, [row.id])}
+      onCopy={(pid) => onCopy(row.id, pid)}
+      onAcceptAll={() => {
+        const record = row as unknown as Record<string, unknown>;
+        const values: Record<string, unknown> = {};
+        for (const field of printingFields) {
+          if (field.readOnly) {
+            continue;
+          }
+          const val = record[field.key];
+          if (val === null || val === undefined || val === "") {
+            continue;
+          }
+          if (field.options && !field.options.includes(String(val))) {
+            continue;
+          }
+          values[field.key] = val;
+        }
+        onAcceptAllForRow(row.id, values);
+      }}
+      onIgnore={() => onIgnore(row.externalId, (row as unknown as Record<string, string>).finish)}
+      onDelete={() => onDelete(row.id)}
+    />
+  );
+}
 
 export function NewPrintingGroupCard({
   group,
@@ -211,38 +272,19 @@ export function NewPrintingGroupCard({
                 }}
                 onCheck={(id) => checkPrintingSource.mutate(id)}
                 onUncheck={(id) => uncheckPrintingSource.mutate(id)}
-                columnActions={(row) => (
-                  <PrintingSourceActions
-                    targets={existingPrintings.map((p) => ({
-                      id: p.id,
-                      label: p.expectedPrintingId,
-                    }))}
-                    onAssign={(pid) => onLink(pid, [row.id])}
-                    onCopy={(pid) => onCopy(row.id, pid)}
-                    onAcceptAll={() => {
-                      const record = row as unknown as Record<string, unknown>;
-                      const values: Record<string, unknown> = {};
-                      for (const field of printingFields) {
-                        if (field.readOnly) {
-                          continue;
-                        }
-                        const val = record[field.key];
-                        if (val === null || val === undefined || val === "") {
-                          continue;
-                        }
-                        if (field.options && !field.options.includes(String(val))) {
-                          continue;
-                        }
-                        values[field.key] = val;
-                      }
-                      setActivePrinting((prev) => withSetTotal({ ...prev, ...values }));
-                    }}
-                    onIgnore={() =>
-                      onIgnore(row.externalId, (row as unknown as Record<string, string>).finish)
+                columnActions={
+                  <NewPrintingColumnActions
+                    existingPrintings={existingPrintings}
+                    printingFields={printingFields}
+                    onLink={onLink}
+                    onCopy={onCopy}
+                    onAcceptAllForRow={(_rowId, values) =>
+                      setActivePrinting((prev) => withSetTotal({ ...prev, ...values }))
                     }
-                    onDelete={() => onDelete(row.id)}
+                    onIgnore={onIgnore}
+                    onDelete={onDelete}
                   />
-                )}
+                }
               />
             </div>
           </div>

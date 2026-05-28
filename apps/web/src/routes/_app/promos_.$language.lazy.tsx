@@ -1152,9 +1152,6 @@ function CompactBranchTable({
   const { labels } = useEnumOrders();
   const actionsColumn: ActionsColumn = ownedCounts === undefined ? "none" : "narrow";
   const columns = getCardTableColumns(actionsColumn);
-  const renderActions = ownedCounts
-    ? (printing: Printing) => <StaticCountTableActions count={ownedCounts[printing.id] ?? 0} />
-    : undefined;
   const branches = node.children
     .map((child) => ({ child, printings: sortPrintings(child.printings) }))
     .filter(({ printings }) => printings.length > 0);
@@ -1198,7 +1195,11 @@ function CompactBranchTable({
                   rarityLabels={labels.rarities}
                   setNameBySlug={setNameBySlug}
                   onRowClick={onCardClick}
-                  renderActions={renderActions}
+                  actionsCell={
+                    ownedCounts ? (
+                      <StaticCountTableActions count={ownedCounts[printing.id] ?? 0} />
+                    ) : undefined
+                  }
                 />
               ))}
             </div>
@@ -1252,9 +1253,6 @@ function PromoListView({
   const { labels } = useEnumOrders();
   const actionsColumn: ActionsColumn = ownedCounts === undefined ? "none" : "narrow";
   const columns = getCardTableColumns(actionsColumn);
-  const renderActions = ownedCounts
-    ? (printing: Printing) => <StaticCountTableActions count={ownedCounts[printing.id] ?? 0} />
-    : undefined;
   return (
     <>
       {/* Desktop: shared CardTable layout */}
@@ -1271,7 +1269,11 @@ function PromoListView({
             rarityLabels={labels.rarities}
             setNameBySlug={setNameBySlug}
             onRowClick={onRowClick}
-            renderActions={renderActions}
+            actionsCell={
+              ownedCounts ? (
+                <StaticCountTableActions count={ownedCounts[printing.id] ?? 0} />
+              ) : undefined
+            }
           />
         ))}
       </div>

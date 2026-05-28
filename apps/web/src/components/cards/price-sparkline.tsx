@@ -23,6 +23,28 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
+interface SparklineTooltipContentProps {
+  active?: boolean;
+  payload?: { payload: { value: number | null; date: string } }[];
+  fmt: (value: number) => string;
+}
+
+function SparklineTooltipContent({ active, payload, fmt }: SparklineTooltipContentProps) {
+  if (!active || !payload?.length) {
+    return null;
+  }
+  const snap = payload[0].payload;
+  if (snap.value === null) {
+    return null;
+  }
+  return (
+    <div className="bg-popover rounded-md px-2 py-1 text-xs shadow-md">
+      <span className="font-medium">{fmt(snap.value)}</span>
+      <span className="text-muted-foreground ml-1.5">{snap.date}</span>
+    </div>
+  );
+}
+
 // CardTrader's `zero_low_cents` is a recently-added column. While Zero data
 // is sparse, the sparkline falls back to `zeroLow ?? low` per snapshot so
 // users still see a continuous 30-day trend line. Once there are more than
@@ -96,21 +118,7 @@ export function PriceSparkline({ printingId, onRangeChange }: PriceSparklineProp
             </linearGradient>
           </defs>
           <Tooltip
-            content={({ active, payload }) => {
-              if (!active || !payload?.length) {
-                return null;
-              }
-              const snap = payload[0].payload as { value: number | null; date: string };
-              if (snap.value === null) {
-                return null;
-              }
-              return (
-                <div className="bg-popover rounded-md px-2 py-1 text-xs shadow-md">
-                  <span className="font-medium">{fmt(snap.value)}</span>
-                  <span className="text-muted-foreground ml-1.5">{snap.date}</span>
-                </div>
-              );
-            }}
+            content={<SparklineTooltipContent fmt={fmt} />}
             cursor={{ stroke: "var(--color-value)", strokeWidth: 1, strokeDasharray: "3 3" }}
             isAnimationActive={false}
           />

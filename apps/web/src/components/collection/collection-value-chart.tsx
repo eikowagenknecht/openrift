@@ -22,6 +22,44 @@ const chartConfig = {
   value: { label: "Value", color: "var(--chart-1)" },
 } satisfies ChartConfig;
 
+interface CollectionValueTooltipContentProps {
+  active?: boolean;
+  payload?: { payload: { date: string; value: number; copyCount: number } }[];
+  currencyFormatter: (value: number) => string;
+}
+
+function CollectionValueTooltipContent({
+  active,
+  payload,
+  currencyFormatter,
+}: CollectionValueTooltipContentProps) {
+  if (!active || !payload?.length) {
+    return null;
+  }
+  const point = payload[0].payload;
+  return (
+    <div className="border-border/50 bg-background rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
+      <p className="mb-1 font-medium">{point.date}</p>
+      <div className="space-y-0.5">
+        <div className="flex items-center gap-2">
+          <span className="size-2 rounded-full" style={{ backgroundColor: "var(--color-value)" }} />
+          <span className="text-muted-foreground">Value</span>
+          <span className="ml-auto font-mono font-medium tabular-nums">
+            {currencyFormatter(point.value)}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="size-2" />
+          <span className="text-muted-foreground">Cards</span>
+          <span className="ml-auto font-mono font-medium tabular-nums">
+            {point.copyCount.toLocaleString()}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface CollectionValueChartProps {
   collectionId?: string;
   scope: CompletionScopePreference;
@@ -115,40 +153,7 @@ export function CollectionValueChart({ collectionId, scope }: CollectionValueCha
               padding={{ top: 8 }}
             />
             <ChartTooltip
-              content={({ active, payload }) => {
-                if (!active || !payload?.length) {
-                  return null;
-                }
-                const point = payload[0].payload as {
-                  date: string;
-                  value: number;
-                  copyCount: number;
-                };
-                return (
-                  <div className="border-border/50 bg-background rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
-                    <p className="mb-1 font-medium">{point.date}</p>
-                    <div className="space-y-0.5">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="size-2 rounded-full"
-                          style={{ backgroundColor: "var(--color-value)" }}
-                        />
-                        <span className="text-muted-foreground">Value</span>
-                        <span className="ml-auto font-mono font-medium tabular-nums">
-                          {currencyFormatter(point.value)}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="size-2" />
-                        <span className="text-muted-foreground">Cards</span>
-                        <span className="ml-auto font-mono font-medium tabular-nums">
-                          {point.copyCount.toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              }}
+              content={<CollectionValueTooltipContent currencyFormatter={currencyFormatter} />}
             />
             <Area
               dataKey="value"

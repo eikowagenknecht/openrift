@@ -1,5 +1,9 @@
 import { AdminTable } from "@/components/admin/admin-table";
-import type { AdminColumnDef } from "@/components/admin/admin-table";
+import type {
+  AdminCellSlotProps,
+  AdminColumnDef,
+  AdminDraftSlotProps,
+} from "@/components/admin/admin-table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
@@ -25,6 +29,146 @@ interface DomainDraft {
   color: string;
 }
 
+function SlugCell({ row }: AdminCellSlotProps<DomainRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="font-mono text-sm">{row.slug}</span>;
+}
+
+function LabelCell({ row }: AdminCellSlotProps<DomainRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="text-sm">{row.label}</span>;
+}
+
+function ColorCell({ row }: AdminCellSlotProps<DomainRow>) {
+  if (!row) {
+    return null;
+  }
+  if (!row.color) {
+    return <span className="text-muted-foreground">-</span>;
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <span className="inline-block size-4 rounded border" style={{ backgroundColor: row.color }} />
+      <span className="font-mono text-sm">{row.color}</span>
+    </div>
+  );
+}
+
+function PreviewCell({ row }: AdminCellSlotProps<DomainRow>) {
+  if (!row) {
+    return null;
+  }
+  return (
+    <Badge
+      style={row.color ? { backgroundColor: row.color, color: contrastText(row.color) } : undefined}
+      variant={row.color ? "default" : "secondary"}
+    >
+      {row.label}
+    </Badge>
+  );
+}
+
+function WellKnownCell({ row }: AdminCellSlotProps<DomainRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="text-muted-foreground text-sm">{row.isWellKnown ? "Yes" : "No"}</span>;
+}
+
+function SlugAddInput({ draft, setDraft }: AdminDraftSlotProps<DomainDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.slug}
+      onChange={(event) => setDraft((prev) => ({ ...prev, slug: event.target.value }))}
+      placeholder="NewDomain"
+      className="h-8 w-40 font-mono"
+    />
+  );
+}
+
+function LabelInput({ draft, setDraft }: AdminDraftSlotProps<DomainDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.label}
+      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
+      className="h-8"
+    />
+  );
+}
+
+function LabelAddInput({ draft, setDraft }: AdminDraftSlotProps<DomainDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.label}
+      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
+      placeholder="New Domain"
+      className="h-8"
+    />
+  );
+}
+
+function ColorInput({ draft, setDraft }: AdminDraftSlotProps<DomainDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.color}
+      onChange={(event) => setDraft((prev) => ({ ...prev, color: event.target.value }))}
+      placeholder="#CB212D"
+      className="h-8 w-28 font-mono"
+    />
+  );
+}
+
+const columns: AdminColumnDef<DomainRow, DomainDraft>[] = [
+  {
+    header: "Slug",
+    width: "w-40",
+    sortValue: (domain) => domain.slug,
+    cell: <SlugCell />,
+    addCell: <SlugAddInput />,
+  },
+  {
+    header: "Label",
+    width: "w-40",
+    sortValue: (domain) => domain.label,
+    cell: <LabelCell />,
+    editCell: <LabelInput />,
+    addCell: <LabelAddInput />,
+  },
+  {
+    header: "Color",
+    width: "w-36",
+    cell: <ColorCell />,
+    editCell: <ColorInput />,
+    addCell: <ColorInput />,
+  },
+  {
+    header: "Preview",
+    width: "w-28",
+    cell: <PreviewCell />,
+  },
+  {
+    header: "Well-known",
+    width: "w-24",
+    cell: <WellKnownCell />,
+  },
+];
+
 export function DomainsPage() {
   const { data } = useDomains();
   const createMutation = useCreateDomain();
@@ -42,99 +186,6 @@ export function DomainsPage() {
     [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
     reorderMutation.mutate(reordered);
   }
-
-  const columns: AdminColumnDef<DomainRow, DomainDraft>[] = [
-    {
-      header: "Slug",
-      width: "w-40",
-      sortValue: (domain) => domain.slug,
-      cell: (domain) => <span className="font-mono text-sm">{domain.slug}</span>,
-      addCell: (draft, set) => (
-        <Input
-          value={draft.slug}
-          onChange={(event) => set((prev) => ({ ...prev, slug: event.target.value }))}
-          placeholder="NewDomain"
-          className="h-8 w-40 font-mono"
-        />
-      ),
-    },
-    {
-      header: "Label",
-      width: "w-40",
-      sortValue: (domain) => domain.label,
-      cell: (domain) => <span className="text-sm">{domain.label}</span>,
-      editCell: (draft, set) => (
-        <Input
-          value={draft.label}
-          onChange={(event) => set((prev) => ({ ...prev, label: event.target.value }))}
-          className="h-8"
-        />
-      ),
-      addCell: (draft, set) => (
-        <Input
-          value={draft.label}
-          onChange={(event) => set((prev) => ({ ...prev, label: event.target.value }))}
-          placeholder="New Domain"
-          className="h-8"
-        />
-      ),
-    },
-    {
-      header: "Color",
-      width: "w-36",
-      cell: (domain) =>
-        domain.color ? (
-          <div className="flex items-center gap-2">
-            <span
-              className="inline-block size-4 rounded border"
-              style={{ backgroundColor: domain.color }}
-            />
-            <span className="font-mono text-sm">{domain.color}</span>
-          </div>
-        ) : (
-          <span className="text-muted-foreground">-</span>
-        ),
-      editCell: (draft, set) => (
-        <Input
-          value={draft.color}
-          onChange={(event) => set((prev) => ({ ...prev, color: event.target.value }))}
-          placeholder="#CB212D"
-          className="h-8 w-28 font-mono"
-        />
-      ),
-      addCell: (draft, set) => (
-        <Input
-          value={draft.color}
-          onChange={(event) => set((prev) => ({ ...prev, color: event.target.value }))}
-          placeholder="#CB212D"
-          className="h-8 w-28 font-mono"
-        />
-      ),
-    },
-    {
-      header: "Preview",
-      width: "w-28",
-      cell: (domain) => (
-        <Badge
-          style={
-            domain.color
-              ? { backgroundColor: domain.color, color: contrastText(domain.color) }
-              : undefined
-          }
-          variant={domain.color ? "default" : "secondary"}
-        >
-          {domain.label}
-        </Badge>
-      ),
-    },
-    {
-      header: "Well-known",
-      width: "w-24",
-      cell: (domain) => (
-        <span className="text-muted-foreground text-sm">{domain.isWellKnown ? "Yes" : "No"}</span>
-      ),
-    },
-  ];
 
   return (
     <AdminTable

@@ -1,7 +1,11 @@
 import type { LanguageResponse } from "@openrift/shared";
 
 import { AdminTable } from "@/components/admin/admin-table";
-import type { AdminColumnDef } from "@/components/admin/admin-table";
+import type {
+  AdminCellSlotProps,
+  AdminColumnDef,
+  AdminDraftSlotProps,
+} from "@/components/admin/admin-table";
 import { Input } from "@/components/ui/input";
 import {
   useCreateLanguage,
@@ -15,6 +19,79 @@ interface LanguageDraft {
   code: string;
   name: string;
 }
+
+function CodeCell({ row }: AdminCellSlotProps<LanguageResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="font-mono text-sm">{row.code}</span>;
+}
+
+function NameCell({ row }: AdminCellSlotProps<LanguageResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="text-sm">{row.name}</span>;
+}
+
+function CodeAddInput({ draft, setDraft }: AdminDraftSlotProps<LanguageDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.code}
+      onChange={(event) =>
+        setDraft((prev) => ({ ...prev, code: event.target.value.toUpperCase() }))
+      }
+      placeholder="EN"
+      className="h-8 w-24 font-mono"
+    />
+  );
+}
+
+function NameInput({ draft, setDraft }: AdminDraftSlotProps<LanguageDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.name}
+      onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))}
+      className="h-8"
+    />
+  );
+}
+
+function NameAddInput({ draft, setDraft }: AdminDraftSlotProps<LanguageDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.name}
+      onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))}
+      placeholder="English"
+      className="h-8"
+    />
+  );
+}
+
+const columns: AdminColumnDef<LanguageResponse, LanguageDraft>[] = [
+  {
+    header: "Code",
+    sortValue: (lang) => lang.code,
+    cell: <CodeCell />,
+    addCell: <CodeAddInput />,
+  },
+  {
+    header: "Name",
+    sortValue: (lang) => lang.name,
+    cell: <NameCell />,
+    editCell: <NameInput />,
+    addCell: <NameAddInput />,
+  },
+];
 
 export function LanguagesPage() {
   const { data } = useLanguages();
@@ -33,42 +110,6 @@ export function LanguagesPage() {
     [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
     reorderMutation.mutate(reordered);
   }
-
-  const columns: AdminColumnDef<LanguageResponse, LanguageDraft>[] = [
-    {
-      header: "Code",
-      sortValue: (lang) => lang.code,
-      cell: (lang) => <span className="font-mono text-sm">{lang.code}</span>,
-      addCell: (draft, set) => (
-        <Input
-          value={draft.code}
-          onChange={(event) => set((prev) => ({ ...prev, code: event.target.value.toUpperCase() }))}
-          placeholder="EN"
-          className="h-8 w-24 font-mono"
-        />
-      ),
-    },
-    {
-      header: "Name",
-      sortValue: (lang) => lang.name,
-      cell: (lang) => <span className="text-sm">{lang.name}</span>,
-      editCell: (draft, set) => (
-        <Input
-          value={draft.name}
-          onChange={(event) => set((prev) => ({ ...prev, name: event.target.value }))}
-          className="h-8"
-        />
-      ),
-      addCell: (draft, set) => (
-        <Input
-          value={draft.name}
-          onChange={(event) => set((prev) => ({ ...prev, name: event.target.value }))}
-          placeholder="English"
-          className="h-8"
-        />
-      ),
-    },
-  ];
 
   return (
     <AdminTable

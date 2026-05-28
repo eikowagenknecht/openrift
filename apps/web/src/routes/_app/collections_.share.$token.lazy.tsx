@@ -41,6 +41,20 @@ export const Route = createLazyFileRoute("/_app/collections_/share/$token")({
   component: SharedCollectionPage,
 });
 
+function SharedCollectionCountCell({
+  printing,
+  countByPrintingId,
+}: {
+  printing?: Printing;
+  itemId?: string;
+  countByPrintingId: Record<string, number>;
+}) {
+  if (!printing) {
+    return null;
+  }
+  return <StaticCountTableActions count={countByPrintingId[printing.id] ?? 0} />;
+}
+
 // "copies" is a collection-owner concept (one tile per physical copy keyed by
 // copyId); a public viewer doesn't own anything, so clamp to "printings".
 // "owned" is meaningless without an authed user. The rest mirror what
@@ -259,9 +273,7 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
           // The public visitor has no auth-keyed inventory; we render the
           // per-printing count straight from the share payload via
           // StaticCountTableActions (no live query).
-          renderActions: (printing) => (
-            <StaticCountTableActions count={countByPrintingId[printing.id] ?? 0} />
-          ),
+          actionsCell: <SharedCollectionCountCell countByPrintingId={countByPrintingId} />,
         }}
       >
         {isMobile && (

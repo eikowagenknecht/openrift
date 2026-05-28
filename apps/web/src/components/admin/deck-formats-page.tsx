@@ -1,5 +1,9 @@
 import { AdminTable } from "@/components/admin/admin-table";
-import type { AdminColumnDef } from "@/components/admin/admin-table";
+import type {
+  AdminCellSlotProps,
+  AdminColumnDef,
+  AdminDraftSlotProps,
+} from "@/components/admin/admin-table";
 import { Input } from "@/components/ui/input";
 import {
   useCreateDeckFormat,
@@ -21,6 +25,90 @@ interface DeckFormatDraft {
   label: string;
 }
 
+function SlugCell({ row }: AdminCellSlotProps<DeckFormatRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="font-mono text-sm">{row.slug}</span>;
+}
+
+function LabelCell({ row }: AdminCellSlotProps<DeckFormatRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="text-sm">{row.label}</span>;
+}
+
+function WellKnownCell({ row }: AdminCellSlotProps<DeckFormatRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="text-muted-foreground text-sm">{row.isWellKnown ? "Yes" : "No"}</span>;
+}
+
+function SlugAddInput({ draft, setDraft }: AdminDraftSlotProps<DeckFormatDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.slug}
+      onChange={(event) =>
+        setDraft((prev) => ({ ...prev, slug: event.target.value.toLowerCase() }))
+      }
+      placeholder="constructed"
+      className="h-8 w-40 font-mono"
+    />
+  );
+}
+
+function LabelInput({ draft, setDraft }: AdminDraftSlotProps<DeckFormatDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.label}
+      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
+      className="h-8"
+    />
+  );
+}
+
+function LabelAddInput({ draft, setDraft }: AdminDraftSlotProps<DeckFormatDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.label}
+      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
+      placeholder="Constructed"
+      className="h-8"
+    />
+  );
+}
+
+const columns: AdminColumnDef<DeckFormatRow, DeckFormatDraft>[] = [
+  {
+    header: "Slug",
+    sortValue: (deckFormat) => deckFormat.slug,
+    cell: <SlugCell />,
+    addCell: <SlugAddInput />,
+  },
+  {
+    header: "Label",
+    sortValue: (deckFormat) => deckFormat.label,
+    cell: <LabelCell />,
+    editCell: <LabelInput />,
+    addCell: <LabelAddInput />,
+  },
+  {
+    header: "Well-known",
+    cell: <WellKnownCell />,
+  },
+];
+
 export function DeckFormatsPage() {
   const { data } = useDeckFormats();
   const createMutation = useCreateDeckFormat();
@@ -38,50 +126,6 @@ export function DeckFormatsPage() {
     [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
     reorderMutation.mutate(reordered);
   }
-
-  const columns: AdminColumnDef<DeckFormatRow, DeckFormatDraft>[] = [
-    {
-      header: "Slug",
-      sortValue: (deckFormat) => deckFormat.slug,
-      cell: (deckFormat) => <span className="font-mono text-sm">{deckFormat.slug}</span>,
-      addCell: (draft, set) => (
-        <Input
-          value={draft.slug}
-          onChange={(event) => set((prev) => ({ ...prev, slug: event.target.value.toLowerCase() }))}
-          placeholder="constructed"
-          className="h-8 w-40 font-mono"
-        />
-      ),
-    },
-    {
-      header: "Label",
-      sortValue: (deckFormat) => deckFormat.label,
-      cell: (deckFormat) => <span className="text-sm">{deckFormat.label}</span>,
-      editCell: (draft, set) => (
-        <Input
-          value={draft.label}
-          onChange={(event) => set((prev) => ({ ...prev, label: event.target.value }))}
-          className="h-8"
-        />
-      ),
-      addCell: (draft, set) => (
-        <Input
-          value={draft.label}
-          onChange={(event) => set((prev) => ({ ...prev, label: event.target.value }))}
-          placeholder="Constructed"
-          className="h-8"
-        />
-      ),
-    },
-    {
-      header: "Well-known",
-      cell: (deckFormat) => (
-        <span className="text-muted-foreground text-sm">
-          {deckFormat.isWellKnown ? "Yes" : "No"}
-        </span>
-      ),
-    },
-  ];
 
   return (
     <AdminTable

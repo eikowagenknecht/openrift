@@ -2,7 +2,11 @@ import type { DistributionChannelKind, DistributionChannelResponse } from "@open
 import { useMemo } from "react";
 
 import { AdminTable } from "@/components/admin/admin-table";
-import type { AdminColumnDef } from "@/components/admin/admin-table";
+import type {
+  AdminCellSlotProps,
+  AdminColumnDef,
+  AdminDraftSlotProps,
+} from "@/components/admin/admin-table";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -18,6 +22,7 @@ import {
   useReorderDistributionChannels,
   useUpdateDistributionChannel,
 } from "@/hooks/use-distribution-channels";
+import type { ChannelTreeNode } from "@/lib/distribution-channel-tree";
 import { buildChannelTree, canReparent } from "@/lib/distribution-channel-tree";
 
 interface ChannelDraft {
@@ -36,6 +41,277 @@ const KIND_LABEL: Record<DistributionChannelKind, string> = {
   product: "Product",
 };
 const ROOT_VALUE = "__root__";
+
+interface LabelCellProps extends AdminCellSlotProps<DistributionChannelResponse> {
+  nodeById: Map<string, ChannelTreeNode>;
+}
+
+function LabelCell({ row, nodeById }: LabelCellProps) {
+  if (!row) {
+    return null;
+  }
+  const node = nodeById.get(row.id);
+  const depth = node?.depth ?? 0;
+  return (
+    <div className="flex items-center gap-2">
+      {depth > 0 && (
+        <span aria-hidden className="text-muted-foreground/60 select-none">
+          {`${"│ ".repeat(depth - 1)}└─`}
+        </span>
+      )}
+      <span className={node?.hasChildren ? "font-semibold" : undefined}>{row.label}</span>
+    </div>
+  );
+}
+
+function SlugCell({ row }: AdminCellSlotProps<DistributionChannelResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="font-mono">{row.slug}</span>;
+}
+
+interface ParentCellProps extends AdminCellSlotProps<DistributionChannelResponse> {
+  labelById: Map<string, string>;
+}
+
+function ParentCell({ row, labelById }: ParentCellProps) {
+  if (!row) {
+    return null;
+  }
+  if (!row.parentId) {
+    return <span className="text-muted-foreground/60">—</span>;
+  }
+  return (
+    <span className="text-muted-foreground">{labelById.get(row.parentId) ?? row.parentId}</span>
+  );
+}
+
+function KindCell({ row }: AdminCellSlotProps<DistributionChannelResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="capitalize">{KIND_LABEL[row.kind]}</span>;
+}
+
+function ChildrenLabelCell({ row }: AdminCellSlotProps<DistributionChannelResponse>) {
+  if (!row) {
+    return null;
+  }
+  return (
+    <span className="text-muted-foreground">
+      {row.childrenLabel ?? <span className="text-muted-foreground/60">—</span>}
+    </span>
+  );
+}
+
+function DescriptionCell({ row }: AdminCellSlotProps<DistributionChannelResponse>) {
+  if (!row) {
+    return null;
+  }
+  return (
+    <span
+      className="text-muted-foreground block max-w-xs truncate"
+      title={row.description ?? undefined}
+    >
+      {row.description ?? "—"}
+    </span>
+  );
+}
+
+function PrintingCountCell({ row }: AdminCellSlotProps<DistributionChannelResponse>) {
+  if (!row) {
+    return null;
+  }
+  if (row.printingCount === 0) {
+    return <span className="text-muted-foreground/60">0</span>;
+  }
+  return <span>{row.printingCount.toLocaleString()}</span>;
+}
+
+function LabelInput({ draft, setDraft }: AdminDraftSlotProps<ChannelDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.label}
+      onChange={(e) => setDraft((prev) => ({ ...prev, label: e.target.value }))}
+      className="h-8"
+    />
+  );
+}
+
+function LabelAddInput({ draft, setDraft }: AdminDraftSlotProps<ChannelDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.label}
+      onChange={(e) => setDraft((prev) => ({ ...prev, label: e.target.value }))}
+      placeholder="Nexus Night 2025"
+      className="h-8"
+    />
+  );
+}
+
+function SlugInput({ draft, setDraft }: AdminDraftSlotProps<ChannelDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.slug}
+      onChange={(e) => setDraft((prev) => ({ ...prev, slug: e.target.value.toLowerCase() }))}
+      placeholder="nexus-night-2025"
+      className="h-8 w-56 font-mono"
+    />
+  );
+}
+
+interface ParentSelectProps extends AdminDraftSlotProps<ChannelDraft> {
+  tree: ChannelTreeNode[];
+  channels: DistributionChannelResponse[];
+}
+
+function ParentSelect({ draft, setDraft, tree, channels }: ParentSelectProps) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  const sourceForChecks: DistributionChannelResponse =
+    draft.id === ""
+      ? {
+          id: "__draft__",
+          slug: "",
+          label: "",
+          description: null,
+          kind: draft.kind,
+          sortOrder: 0,
+          parentId: null,
+          childrenLabel: null,
+          createdAt: "",
+          updatedAt: "",
+          printingCount: 0,
+        }
+      : (channels.find((c) => c.id === draft.id) ?? {
+          id: draft.id,
+          slug: draft.slug,
+          label: draft.label,
+          description: null,
+          kind: draft.kind,
+          sortOrder: 0,
+          parentId: draft.parentId,
+          childrenLabel: null,
+          createdAt: "",
+          updatedAt: "",
+          printingCount: 0,
+        });
+  const eligible = tree.filter((n) => canReparent(sourceForChecks, n.channel.id, tree));
+  const value = draft.parentId ?? ROOT_VALUE;
+  const items = [
+    { value: ROOT_VALUE, label: "(root)" },
+    ...eligible.map((n) => ({
+      value: n.channel.id,
+      label: `${"  ".repeat(n.depth)}${n.channel.label}`,
+    })),
+  ];
+  return (
+    <Select
+      items={items}
+      value={value}
+      onValueChange={(next) =>
+        setDraft((prev) => ({ ...prev, parentId: next === ROOT_VALUE ? null : (next ?? null) }))
+      }
+    >
+      <SelectTrigger className="h-8 w-56">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {items.map((item) => (
+          <SelectItem key={item.value} value={item.value}>
+            {item.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function KindEditCell({ draft, setDraft }: AdminDraftSlotProps<ChannelDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  if (draft.parentId !== null) {
+    return <span className="text-muted-foreground capitalize">{KIND_LABEL[draft.kind]}</span>;
+  }
+  return (
+    <Select
+      value={draft.kind}
+      onValueChange={(value) =>
+        value && setDraft((prev) => ({ ...prev, kind: value as DistributionChannelKind }))
+      }
+    >
+      <SelectTrigger className="h-8 w-32">
+        <SelectValue>{(value: string) => KIND_LABEL[value as DistributionChannelKind]}</SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="event">Event</SelectItem>
+        <SelectItem value="product">Product</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
+
+function KindAddSelect({ draft, setDraft }: AdminDraftSlotProps<ChannelDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Select
+      value={draft.kind}
+      onValueChange={(value) =>
+        value && setDraft((prev) => ({ ...prev, kind: value as DistributionChannelKind }))
+      }
+    >
+      <SelectTrigger className="h-8 w-32">
+        <SelectValue>{(value: string) => KIND_LABEL[value as DistributionChannelKind]}</SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="event">Event</SelectItem>
+        <SelectItem value="product">Product</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
+
+function ChildrenLabelInput({ draft, setDraft }: AdminDraftSlotProps<ChannelDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.childrenLabel}
+      onChange={(e) => setDraft((prev) => ({ ...prev, childrenLabel: e.target.value }))}
+      placeholder="Edition, Placement, Type, …"
+      className="h-8"
+    />
+  );
+}
+
+function DescriptionInput({ draft, setDraft }: AdminDraftSlotProps<ChannelDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.description}
+      onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
+      placeholder="Optional description (markdown links supported)"
+      className="h-8"
+    />
+  );
+}
 
 export function DistributionChannelsPage() {
   const { data } = useDistributionChannels();
@@ -73,243 +349,51 @@ export function DistributionChannelsPage() {
     reorderMutation.mutate(reordered.map((c) => c.id));
   }
 
-  function renderParentSelect(
-    draft: ChannelDraft,
-    set: (fn: (prev: ChannelDraft) => ChannelDraft) => void,
-  ) {
-    const sourceForChecks: DistributionChannelResponse =
-      draft.id === ""
-        ? {
-            id: "__draft__",
-            slug: "",
-            label: "",
-            description: null,
-            kind: draft.kind,
-            sortOrder: 0,
-            parentId: null,
-            childrenLabel: null,
-            createdAt: "",
-            updatedAt: "",
-            printingCount: 0,
-          }
-        : (channels.find((c) => c.id === draft.id) ?? {
-            id: draft.id,
-            slug: draft.slug,
-            label: draft.label,
-            description: null,
-            kind: draft.kind,
-            sortOrder: 0,
-            parentId: draft.parentId,
-            childrenLabel: null,
-            createdAt: "",
-            updatedAt: "",
-            printingCount: 0,
-          });
-    const eligible = tree.filter((n) => canReparent(sourceForChecks, n.channel.id, tree));
-    const value = draft.parentId ?? ROOT_VALUE;
-    const items = [
-      { value: ROOT_VALUE, label: "(root)" },
-      ...eligible.map((n) => ({
-        value: n.channel.id,
-        label: `${"\u00A0\u00A0".repeat(n.depth)}${n.channel.label}`,
-      })),
-    ];
-    return (
-      <Select
-        items={items}
-        value={value}
-        onValueChange={(next) =>
-          set((prev) => ({ ...prev, parentId: next === ROOT_VALUE ? null : (next ?? null) }))
-        }
-      >
-        <SelectTrigger className="h-8 w-56">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {items.map((item) => (
-            <SelectItem key={item.value} value={item.value}>
-              {item.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    );
-  }
-
   const columns: AdminColumnDef<DistributionChannelResponse, ChannelDraft>[] = [
     {
       header: "Label",
-      cell: (c) => {
-        const node = nodeById.get(c.id);
-        const depth = node?.depth ?? 0;
-        return (
-          <div className="flex items-center gap-2">
-            {depth > 0 && (
-              <span aria-hidden className="text-muted-foreground/60 select-none">
-                {"\u2502\u00A0".repeat(depth - 1)}
-                {"\u2514\u2500"}
-              </span>
-            )}
-            <span className={node?.hasChildren ? "font-semibold" : undefined}>{c.label}</span>
-          </div>
-        );
-      },
-      editCell: (d, set) => (
-        <Input
-          value={d.label}
-          onChange={(e) => set((prev) => ({ ...prev, label: e.target.value }))}
-          className="h-8"
-        />
-      ),
-      addCell: (d, set) => (
-        <Input
-          value={d.label}
-          onChange={(e) => set((prev) => ({ ...prev, label: e.target.value }))}
-          placeholder="Nexus Night 2025"
-          className="h-8"
-        />
-      ),
+      cell: <LabelCell nodeById={nodeById} />,
+      editCell: <LabelInput />,
+      addCell: <LabelAddInput />,
     },
     {
       header: "Slug",
-      cell: (c) => <span className="font-mono">{c.slug}</span>,
-      editCell: (d, set) => (
-        <Input
-          value={d.slug}
-          onChange={(e) => set((prev) => ({ ...prev, slug: e.target.value.toLowerCase() }))}
-          placeholder="nexus-night-2025"
-          className="h-8 w-56 font-mono"
-        />
-      ),
-      addCell: (d, set) => (
-        <Input
-          value={d.slug}
-          onChange={(e) => set((prev) => ({ ...prev, slug: e.target.value.toLowerCase() }))}
-          placeholder="nexus-night-2025"
-          className="h-8 w-56 font-mono"
-        />
-      ),
+      cell: <SlugCell />,
+      editCell: <SlugInput />,
+      addCell: <SlugInput />,
     },
     {
       header: "Parent",
-      cell: (c) =>
-        c.parentId ? (
-          <span className="text-muted-foreground">{labelById.get(c.parentId) ?? c.parentId}</span>
-        ) : (
-          <span className="text-muted-foreground/60">—</span>
-        ),
-      editCell: renderParentSelect,
-      addCell: renderParentSelect,
+      cell: <ParentCell labelById={labelById} />,
+      editCell: <ParentSelect tree={tree} channels={channels} />,
+      addCell: <ParentSelect tree={tree} channels={channels} />,
     },
     {
       header: "Kind",
-      cell: (c) => <span className="capitalize">{KIND_LABEL[c.kind]}</span>,
-      editCell: (d, set) => {
-        if (d.parentId !== null) {
-          return <span className="text-muted-foreground capitalize">{KIND_LABEL[d.kind]}</span>;
-        }
-        return (
-          <Select
-            value={d.kind}
-            onValueChange={(value) =>
-              value && set((prev) => ({ ...prev, kind: value as DistributionChannelKind }))
-            }
-          >
-            <SelectTrigger className="h-8 w-32">
-              <SelectValue>
-                {(value: string) => KIND_LABEL[value as DistributionChannelKind]}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="event">Event</SelectItem>
-              <SelectItem value="product">Product</SelectItem>
-            </SelectContent>
-          </Select>
-        );
-      },
-      addCell: (d, set) => (
-        <Select
-          value={d.kind}
-          onValueChange={(value) =>
-            value && set((prev) => ({ ...prev, kind: value as DistributionChannelKind }))
-          }
-        >
-          <SelectTrigger className="h-8 w-32">
-            <SelectValue>
-              {(value: string) => KIND_LABEL[value as DistributionChannelKind]}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="event">Event</SelectItem>
-            <SelectItem value="product">Product</SelectItem>
-          </SelectContent>
-        </Select>
-      ),
+      cell: <KindCell />,
+      editCell: <KindEditCell />,
+      addCell: <KindAddSelect />,
     },
     {
       header: "Children label",
       headerTitle:
         "Used as the column header when /promos collapses sparse children into a compact table",
-      cell: (c) => (
-        <span className="text-muted-foreground">
-          {c.childrenLabel ?? <span className="text-muted-foreground/60">—</span>}
-        </span>
-      ),
-      editCell: (d, set) => (
-        <Input
-          value={d.childrenLabel}
-          onChange={(e) => set((prev) => ({ ...prev, childrenLabel: e.target.value }))}
-          placeholder="Edition, Placement, Type, …"
-          className="h-8"
-        />
-      ),
-      addCell: (d, set) => (
-        <Input
-          value={d.childrenLabel}
-          onChange={(e) => set((prev) => ({ ...prev, childrenLabel: e.target.value }))}
-          placeholder="Edition, Placement, Type, …"
-          className="h-8"
-        />
-      ),
+      cell: <ChildrenLabelCell />,
+      editCell: <ChildrenLabelInput />,
+      addCell: <ChildrenLabelInput />,
     },
     {
       header: "Description",
-      cell: (c) => (
-        <span
-          className="text-muted-foreground block max-w-xs truncate"
-          title={c.description ?? undefined}
-        >
-          {c.description ?? "—"}
-        </span>
-      ),
-      editCell: (d, set) => (
-        <Input
-          value={d.description}
-          onChange={(e) => set((prev) => ({ ...prev, description: e.target.value }))}
-          placeholder="Optional description (markdown links supported)"
-          className="h-8"
-        />
-      ),
-      addCell: (d, set) => (
-        <Input
-          value={d.description}
-          onChange={(e) => set((prev) => ({ ...prev, description: e.target.value }))}
-          placeholder="Optional description (markdown links supported)"
-          className="h-8"
-        />
-      ),
+      cell: <DescriptionCell />,
+      editCell: <DescriptionInput />,
+      addCell: <DescriptionInput />,
     },
     {
       header: "In use",
       headerTitle: "Number of printings linked to this channel",
       align: "right",
       width: "w-20",
-      cell: (c) =>
-        c.printingCount > 0 ? (
-          <span>{c.printingCount.toLocaleString()}</span>
-        ) : (
-          <span className="text-muted-foreground/60">0</span>
-        ),
+      cell: <PrintingCountCell />,
     },
   ];
 

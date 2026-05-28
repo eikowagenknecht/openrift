@@ -1,4 +1,8 @@
-import type { CandidateCardResponse, UnmatchedCardDetailResponse } from "@openrift/shared";
+import type {
+  CandidateCardResponse,
+  CandidatePrintingResponse,
+  UnmatchedCardDetailResponse,
+} from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowRightIcon,
@@ -11,6 +15,7 @@ import {
 import { useState } from "react";
 
 import { CandidateSpreadsheet } from "@/components/admin/candidate-spreadsheet";
+import type { FieldDef } from "@/components/admin/candidate-spreadsheet";
 import {
   buildPrintingGroups,
   buildSourceLabels,
@@ -37,6 +42,57 @@ import {
 } from "@/hooks/use-admin-card-mutations";
 import { useAllCards, useUnmatchedCardDetail } from "@/hooks/use-admin-card-queries";
 import { queryKeys } from "@/lib/query-keys";
+
+interface NewCardColumnActionsProps {
+  row?: CandidateCardResponse | CandidatePrintingResponse;
+  candidateCardFields: FieldDef[];
+  setActiveCard: (updater: (prev: Record<string, unknown>) => Record<string, unknown>) => void;
+  onIgnoreSource: (input: { provider: string; externalId: string }) => void;
+}
+
+function NewCardColumnActions({
+  row,
+  candidateCardFields,
+  setActiveCard,
+  onIgnoreSource,
+}: NewCardColumnActionsProps) {
+  if (!row) {
+    return null;
+  }
+  const cardRow = row as CandidateCardResponse;
+  return (
+    <>
+      <DropdownMenuItem
+        onClick={() => {
+          const record = row as unknown as Record<string, unknown>;
+          for (const field of candidateCardFields) {
+            if (field.readOnly) {
+              continue;
+            }
+            const val = record[field.key];
+            if (val !== null && val !== undefined && val !== "") {
+              setActiveCard((prev) => ({ ...prev, [field.key]: val }));
+            }
+          }
+        }}
+      >
+        <CopyCheckIcon className="mr-2 size-3.5" />
+        Accept all fields
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        onClick={() =>
+          onIgnoreSource({
+            provider: cardRow.provider,
+            externalId: row.externalId,
+          })
+        }
+      >
+        <BanIcon className="mr-2 size-3.5" />
+        Ignore permanently
+      </DropdownMenuItem>
+    </>
+  );
+}
 
 export function NewCardDetailPage({ identifier }: { identifier: string }) {
   const navigate = useNavigate();
@@ -229,38 +285,13 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
           }}
           onCheck={(candidateId) => checkCandidateCard.mutate(candidateId)}
           onUncheck={(candidateId) => uncheckCandidateCard.mutate(candidateId)}
-          columnActions={(row) => (
-            <>
-              <DropdownMenuItem
-                onClick={() => {
-                  const record = row as unknown as Record<string, unknown>;
-                  for (const field of candidateCardFields) {
-                    if (field.readOnly) {
-                      continue;
-                    }
-                    const val = record[field.key];
-                    if (val !== null && val !== undefined && val !== "") {
-                      setActiveCard((prev) => ({ ...prev, [field.key]: val }));
-                    }
-                  }
-                }}
-              >
-                <CopyCheckIcon className="mr-2 size-3.5" />
-                Accept all fields
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() =>
-                  ignoreCardSource.mutate({
-                    provider: (row as CandidateCardResponse).provider,
-                    externalId: row.externalId,
-                  })
-                }
-              >
-                <BanIcon className="mr-2 size-3.5" />
-                Ignore permanently
-              </DropdownMenuItem>
-            </>
-          )}
+          columnActions={
+            <NewCardColumnActions
+              candidateCardFields={candidateCardFields}
+              setActiveCard={setActiveCard}
+              onIgnoreSource={(input) => ignoreCardSource.mutate(input)}
+            />
+          }
         />
       </section>
 

@@ -181,15 +181,15 @@ interface CardTableRowProps {
   setNameBySlug: Map<string, string>;
   onRowClick: (printing: Printing) => void;
   /**
-   * Content for the rightmost cell. Required when `actionsColumn !== "none"`.
-   * The wrapper styling (right-aligned text for "narrow", flex+gap for "wide")
-   * is owned by the row; the renderer returns inline content.
+   * Pre-bound content for the rightmost cell. Required when
+   * `actionsColumn !== "none"`. The wrapper styling (right-aligned text for
+   * "narrow", flex+gap for "wide") is owned by the row.
    */
-  renderActions?: (printing: Printing, itemId: string) => ReactNode;
+  actionsCell?: ReactNode;
   /**
-   * Item id for this row. Threaded to `renderActions` so surfaces with multiple
-   * items per printing (e.g. copy-kind lists) can target the specific entry.
-   * Falls back to `printing.id` when the surface has 1:1 items-to-printings.
+   * Item id for this row. Surfaces with multiple items per printing (e.g.
+   * copy-kind lists) target the specific entry; falls back to `printing.id`
+   * when the surface has 1:1 items-to-printings.
    */
   itemId?: string;
 }
@@ -197,7 +197,7 @@ interface CardTableRowProps {
 /**
  * Pure-presentation row for the card table. Owned counts, +/- buttons, and
  * any per-row data subscriptions live in the actions component passed via
- * {@link CardTableRowProps.renderActions} (e.g. CatalogTableActions,
+ * {@link CardTableRowProps.actionsCell} (e.g. CatalogTableActions,
  * CollectionTableActions, StaticCountTableActions, DeckTableActions). The row
  * only owns the static cells (image, name, set, type, rarity) and the click
  * dispatch.
@@ -205,7 +205,7 @@ interface CardTableRowProps {
  */
 export function CardTableRow({
   printing,
-  itemId,
+  itemId: _itemId,
   isSelected,
   actionsColumn,
   columns,
@@ -214,7 +214,7 @@ export function CardTableRow({
   rarityLabels,
   setNameBySlug,
   onRowClick,
-  renderActions,
+  actionsCell,
 }: CardTableRowProps) {
   const image = printing.images[0];
   const setName = setNameBySlug.get(printing.setSlug) ?? printing.setSlug;
@@ -281,13 +281,9 @@ export function CardTableRow({
         <span className="truncate">{rarityLabel}</span>
       </div>
       {actionsColumn === "wide" ? (
-        <div className="flex items-center justify-end gap-1.5 px-3">
-          {renderActions?.(printing, itemId ?? printing.id)}
-        </div>
+        <div className="flex items-center justify-end gap-1.5 px-3">{actionsCell}</div>
       ) : actionsColumn === "narrow" ? (
-        <div className="px-3 text-right tabular-nums">
-          {renderActions?.(printing, itemId ?? printing.id)}
-        </div>
+        <div className="px-3 text-right tabular-nums">{actionsCell}</div>
       ) : null}
     </div>
   );

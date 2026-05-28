@@ -7,7 +7,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 interface DraggableListEntryProps {
   id: string;
   data: ListEntryDragData;
-  children: ReactNode;
+  children?: ReactNode;
 }
 
 /**

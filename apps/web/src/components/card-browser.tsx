@@ -48,6 +48,35 @@ const CARD_BROWSER_HIDDEN_LOGGED_IN: ReadonlySet<string> = new Set(["customTags"
 // Owned is only meaningful for logged-in users (counts would otherwise read 0).
 const CARD_BROWSER_HIDDEN_LOGGED_OUT: ReadonlySet<string> = new Set(["owned", "customTags"]);
 
+interface CatalogActionsCellProps {
+  printing?: Printing;
+  isAddMode: boolean;
+  view: "cards" | "printings";
+  printingsByCardId: Map<string, Printing[]>;
+}
+
+function CatalogActionsCell({
+  printing,
+  isAddMode,
+  view,
+  printingsByCardId,
+}: CatalogActionsCellProps) {
+  if (!printing) {
+    return null;
+  }
+  return (
+    <CatalogTableActions
+      printing={printing}
+      isAddMode={isAddMode}
+      siblingIds={
+        isAddMode && view === "cards"
+          ? printingsByCardId.get(printing.cardId)?.map((sibling) => sibling.id)
+          : undefined
+      }
+    />
+  );
+}
+
 /**
  * Standalone catalog browser for the /cards route.
  * Provides filters, search, and a card detail pane — no collection or add-mode features.
@@ -375,19 +404,13 @@ export function CardBrowser() {
         addStripHeight={showStrip ? ADD_STRIP_HEIGHT : undefined}
         table={{
           actionsColumn: showStrip ? (isAddMode ? "wide" : "narrow") : "none",
-          renderActions: showStrip
-            ? (printing) => (
-                <CatalogTableActions
-                  printing={printing}
-                  isAddMode={isAddMode}
-                  siblingIds={
-                    isAddMode && view === "cards"
-                      ? printingsByCardId.get(printing.cardId)?.map((sibling) => sibling.id)
-                      : undefined
-                  }
-                />
-              )
-            : undefined,
+          actionsCell: showStrip ? (
+            <CatalogActionsCell
+              isAddMode={isAddMode}
+              view={view}
+              printingsByCardId={printingsByCardId}
+            />
+          ) : undefined,
         }}
       >
         {isMobile && (

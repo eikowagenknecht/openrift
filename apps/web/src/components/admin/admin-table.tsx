@@ -13,8 +13,8 @@ import {
   DownloadIcon,
   Trash2Icon,
 } from "lucide-react";
-import type { ReactNode } from "react";
-import { Fragment, useState } from "react";
+import type { ReactElement, ReactNode } from "react";
+import { Fragment, cloneElement, useState } from "react";
 
 import {
   AlertDialog,
@@ -42,6 +42,18 @@ import { cn } from "@/lib/utils";
 // Column definition (public API — consumed by all admin pages)
 // ---------------------------------------------------------------------------
 
+/** Per-row data injected into `cell` elements via cloneElement. */
+export interface AdminCellSlotProps<TData> {
+  row?: TData;
+  index?: number;
+}
+
+/** Per-draft data injected into `editCell` / `addCell` elements via cloneElement. */
+export interface AdminDraftSlotProps<TDraft> {
+  draft?: TDraft;
+  setDraft?: (fn: (prev: TDraft) => TDraft) => void;
+}
+
 export interface AdminColumnDef<TData, TDraft = TData> {
   /** Header label */
   header: string;
@@ -55,14 +67,18 @@ export interface AdminColumnDef<TData, TDraft = TData> {
   /** Return a sortable value for this column. If provided, the column header becomes clickable. */
   sortValue?: (row: TData) => string | number | null;
 
-  /** Render a cell in display mode */
-  cell: (row: TData, index: number) => ReactNode;
+  /**
+   * JSX element rendered as the display-mode cell. The per-row `row` and
+   * `index` are injected via cloneElement, so the component should declare
+   * them as optional props.
+   */
+  cell: ReactElement<AdminCellSlotProps<TData>>;
 
-  /** Render a cell when the row is being edited. Falls back to `cell` if omitted. */
-  editCell?: (draft: TDraft, setDraft: (fn: (prev: TDraft) => TDraft) => void) => ReactNode;
+  /** JSX element rendered when the row is being edited. Falls back to `cell` if omitted. */
+  editCell?: ReactElement<AdminDraftSlotProps<TDraft>>;
 
-  /** Render a cell in the "add" row. If omitted, renders an empty cell. */
-  addCell?: (draft: TDraft, setDraft: (fn: (prev: TDraft) => TDraft) => void) => ReactNode;
+  /** JSX element rendered in the "add" row. If omitted, renders an empty cell. */
+  addCell?: ReactElement<AdminDraftSlotProps<TDraft>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -73,8 +89,8 @@ interface AdminColumnMeta<TDraft> {
   headerTitle?: string;
   width?: string;
   align?: "left" | "center" | "right";
-  editCell?: (draft: TDraft, setDraft: (fn: (prev: TDraft) => TDraft) => void) => ReactNode;
-  addCell?: (draft: TDraft, setDraft: (fn: (prev: TDraft) => TDraft) => void) => ReactNode;
+  editCell?: ReactElement<AdminDraftSlotProps<TDraft>>;
+  addCell?: ReactElement<AdminDraftSlotProps<TDraft>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -146,8 +162,11 @@ interface AdminTableProps<TData, TDraft = TData> {
     transform?: (data: TData[]) => unknown;
   };
 
-  /** Extra content in each row's action cell (rendered before Edit/Delete). */
-  actions?: (row: TData, index: number) => ReactNode;
+  /**
+   * Extra JSX element rendered in each row's action cell (before Edit/Delete).
+   * Per-row `row` and `index` are injected via cloneElement.
+   */
+  actions?: ReactElement<AdminCellSlotProps<TData>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -171,7 +190,7 @@ function toTanStackColumns<TData, TDraft>(
     const def: ColumnDef<TData> = {
       id: col.header,
       header: col.header,
-      cell: (info) => col.cell(info.row.original, info.row.index),
+      cell: (info) => cloneElement(col.cell, { row: info.row.original, index: info.row.index }),
       enableSorting: enableSort && Boolean(col.sortValue),
       meta: {
         headerTitle: col.headerTitle,
@@ -357,9 +376,10 @@ export function AdminTable<TData, TDraft = TData>({
         {adminColumns.map((col) => (
           <TableCell key={col.header} className={alignClass(col.align)}>
             {col.addCell
-              ? col.addCell(addDraft, (fn) =>
-                  setAddDraft((prev) => (prev === null ? prev : fn(prev))),
-                )
+              ? cloneElement(col.addCell, {
+                  draft: addDraft,
+                  setDraft: (fn) => setAddDraft((prev) => (prev === null ? prev : fn(prev))),
+                })
               : null}
           </TableCell>
         ))}
@@ -501,9 +521,11 @@ export function AdminTable<TData, TDraft = TData>({
                       return (
                         <TableCell key={cell.id} className={alignClass(meta?.align)}>
                           {isEditing && meta?.editCell
-                            ? meta.editCell(editDraft, (fn) =>
-                                setEditDraft((prev) => (prev === null ? prev : fn(prev))),
-                              )
+                            ? cloneElement(meta.editCell, {
+                                draft: editDraft,
+                                setDraft: (fn) =>
+                                  setEditDraft((prev) => (prev === null ? prev : fn(prev))),
+                              })
                             : flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </TableCell>
                       );
@@ -520,7 +542,7 @@ export function AdminTable<TData, TDraft = TData>({
                           />
                         ) : (
                           <div className="flex items-center justify-end gap-1">
-                            {actions?.(original, index)}
+                            {actions ? cloneElement(actions, { row: original, index }) : null}
                             {showAddChild && childCfg && (
                               <Button
                                 variant="ghost"

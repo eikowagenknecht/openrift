@@ -43,6 +43,68 @@ import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
+interface DeckActionsCellProps {
+  printing?: Printing;
+  deckQuantityByCard: Map<string, number>;
+  isSingleCardZone: boolean;
+  singleCardZoneOccupied: boolean;
+  deckCards: { cardId: string; zone: DeckZone }[];
+  activeZone: DeckZone;
+  isMaxReached: (item: CardViewerItem) => boolean;
+  shiftHeld: boolean;
+  runeTotal: number;
+  copyLimitTotalByCard: Map<string, number>;
+  handleQuickAdd: (printing: Printing, event: { shiftKey?: boolean }) => void;
+  handleRemove: (printing: Printing, event: { shiftKey?: boolean }) => void;
+}
+
+function DeckActionsCell({
+  printing,
+  deckQuantityByCard,
+  isSingleCardZone,
+  singleCardZoneOccupied,
+  deckCards,
+  activeZone,
+  isMaxReached,
+  shiftHeld,
+  runeTotal,
+  copyLimitTotalByCard,
+  handleQuickAdd,
+  handleRemove,
+}: DeckActionsCellProps) {
+  if (!printing) {
+    return null;
+  }
+  const cardId = printing.cardId;
+  const deckQty = deckQuantityByCard.get(cardId) ?? 0;
+  const isInActiveSingleZone =
+    isSingleCardZone &&
+    deckCards.some((card) => card.cardId === cardId && card.zone === activeZone);
+  return (
+    <DeckTableActions
+      printing={printing}
+      deckQuantity={deckQty}
+      maxReached={isMaxReached({ id: printing.id, printing })}
+      addLabel={
+        isSingleCardZone
+          ? singleCardZoneOccupied && !isInActiveSingleZone
+            ? "Switch"
+            : "Choose"
+          : undefined
+      }
+      removeLabel={isInActiveSingleZone ? "Remove" : undefined}
+      shiftHeld={shiftHeld}
+      remainingCount={
+        activeZone === "runes"
+          ? Math.max(0, 12 - runeTotal)
+          : 3 - (copyLimitTotalByCard.get(cardId) ?? 0)
+      }
+      onQuickAdd={handleQuickAdd}
+      onRemove={handleRemove}
+    />
+  );
+}
+
 /**
  * Build a map of domain → rune DeckBuilderCards from the full catalog.
  * @returns A map keyed by domain name, each value an array of rune cards in that domain.
@@ -457,11 +519,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
             onRemove={handleRemove}
           />
         }
-        contextMenu={(cell) => (
-          <DeckCardDetailMenu onViewDetail={() => handleCardClick(item.printing)}>
-            {cell}
-          </DeckCardDetailMenu>
-        )}
+        contextMenu={<DeckCardDetailMenu onViewDetail={() => handleCardClick(item.printing)} />}
       />
     );
   };
@@ -512,36 +570,21 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
         table={{
           actionsColumn: "wide",
           actionsLabel: "Deck",
-          renderActions: (printing) => {
-            const cardId = printing.cardId;
-            const deckQty = deckQuantityByCard.get(cardId) ?? 0;
-            const isInActiveSingleZone =
-              isSingleCardZone &&
-              deckCards.some((card) => card.cardId === cardId && card.zone === activeZone);
-            return (
-              <DeckTableActions
-                printing={printing}
-                deckQuantity={deckQty}
-                maxReached={isMaxReached({ id: printing.id, printing })}
-                addLabel={
-                  isSingleCardZone
-                    ? singleCardZoneOccupied && !isInActiveSingleZone
-                      ? "Switch"
-                      : "Choose"
-                    : undefined
-                }
-                removeLabel={isInActiveSingleZone ? "Remove" : undefined}
-                shiftHeld={shiftHeld}
-                remainingCount={
-                  activeZone === "runes"
-                    ? Math.max(0, 12 - runeTotal)
-                    : 3 - (copyLimitTotalByCard.get(cardId) ?? 0)
-                }
-                onQuickAdd={handleQuickAdd}
-                onRemove={handleRemove}
-              />
-            );
-          },
+          actionsCell: (
+            <DeckActionsCell
+              deckQuantityByCard={deckQuantityByCard}
+              isSingleCardZone={isSingleCardZone}
+              singleCardZoneOccupied={singleCardZoneOccupied}
+              deckCards={deckCards}
+              activeZone={activeZone}
+              isMaxReached={isMaxReached}
+              shiftHeld={shiftHeld}
+              runeTotal={runeTotal}
+              copyLimitTotalByCard={copyLimitTotalByCard}
+              handleQuickAdd={handleQuickAdd}
+              handleRemove={handleRemove}
+            />
+          ),
         }}
       >
         {isMobile && (

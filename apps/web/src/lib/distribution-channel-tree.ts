@@ -1,6 +1,6 @@
 import type { DistributionChannelResponse } from "@openrift/shared";
 
-interface ChannelTreeNode {
+export interface ChannelTreeNode {
   channel: DistributionChannelResponse;
   depth: number;
   /** Ordered ids from root → this node (inclusive). */

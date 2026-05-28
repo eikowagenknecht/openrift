@@ -1,5 +1,9 @@
 import { AdminTable } from "@/components/admin/admin-table";
-import type { AdminColumnDef } from "@/components/admin/admin-table";
+import type {
+  AdminCellSlotProps,
+  AdminColumnDef,
+  AdminDraftSlotProps,
+} from "@/components/admin/admin-table";
 import { Input } from "@/components/ui/input";
 import { useDeckZones, useReorderDeckZones, useUpdateDeckZone } from "@/hooks/use-deck-zones";
 
@@ -14,6 +18,47 @@ interface DeckZoneDraft {
   slug: string;
   label: string;
 }
+
+function SlugCell({ row }: AdminCellSlotProps<DeckZoneRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="font-mono text-sm">{row.slug}</span>;
+}
+
+function LabelCell({ row }: AdminCellSlotProps<DeckZoneRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="text-sm">{row.label}</span>;
+}
+
+function LabelInput({ draft, setDraft }: AdminDraftSlotProps<DeckZoneDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.label}
+      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
+      className="h-8"
+    />
+  );
+}
+
+const columns: AdminColumnDef<DeckZoneRow, DeckZoneDraft>[] = [
+  {
+    header: "Slug",
+    sortValue: (zone) => zone.slug,
+    cell: <SlugCell />,
+  },
+  {
+    header: "Label",
+    sortValue: (zone) => zone.label,
+    cell: <LabelCell />,
+    editCell: <LabelInput />,
+  },
+];
 
 export function DeckZonesPage() {
   const { data } = useDeckZones();
@@ -30,26 +75,6 @@ export function DeckZonesPage() {
     [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
     reorderMutation.mutate(reordered);
   }
-
-  const columns: AdminColumnDef<DeckZoneRow, DeckZoneDraft>[] = [
-    {
-      header: "Slug",
-      sortValue: (zone) => zone.slug,
-      cell: (zone) => <span className="font-mono text-sm">{zone.slug}</span>,
-    },
-    {
-      header: "Label",
-      sortValue: (zone) => zone.label,
-      cell: (zone) => <span className="text-sm">{zone.label}</span>,
-      editCell: (draft, set) => (
-        <Input
-          value={draft.label}
-          onChange={(event) => set((prev) => ({ ...prev, label: event.target.value }))}
-          className="h-8"
-        />
-      ),
-    },
-  ];
 
   return (
     <AdminTable

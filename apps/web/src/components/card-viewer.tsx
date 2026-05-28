@@ -1,11 +1,12 @@
 import type { GroupByField, Printing } from "@openrift/shared";
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 
 import { CardBrowserLayout, useCardBrowserLayoutOffsets } from "@/components/card-browser-layout";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { CardGrid } from "@/components/cards/card-grid";
 import type { GroupInfo } from "@/components/cards/card-grid-types";
 import { CardTable } from "@/components/cards/card-table";
+import type { TableRowSlotProps } from "@/components/cards/card-table";
 import type { ActionsColumn } from "@/components/cards/card-table-row";
 import { useGridKeyboardNav } from "@/components/cards/use-grid-keyboard-nav";
 import { useIsMobile } from "@/hooks/use-is-mobile";
@@ -15,19 +16,21 @@ export interface CardTableProps {
   /** Width + presence of the rightmost actions column. "none" omits the column entirely. */
   actionsColumn: ActionsColumn;
   /**
-   * Renders the contents of the actions cell for each row. The second arg is
-   * the item id (so surfaces with multiple items per printing — e.g. copy-kind
-   * lists — can target the specific entry the row stands for).
+   * JSX element rendered inside each row's actions cell. Per-row data
+   * (`printing`, `itemId`) is injected via cloneElement, so the actions
+   * component should declare those as optional props.
    */
-  renderActions?: (printing: Printing, itemId: string) => ReactNode;
+  actionsCell?: ReactElement<TableRowSlotProps>;
   /** Label for the rightmost column header. Defaults to "Owned". */
   actionsLabel?: string;
   /**
-   * Optional wrapper applied around each data row. Mirrors the grid's per-cell
-   * `wrap` slot — surfaces use this for drag wiring (e.g. /collections wraps
-   * rows in `<DraggableCard>` so table rows are draggable just like grid cells).
+   * Optional wrapper element applied around each data row. Mirrors the grid's
+   * per-cell `wrap` slot — surfaces use this for drag wiring (e.g. /collections
+   * wraps rows in `<DraggableCard>` so table rows are draggable just like grid
+   * cells). Per-row data is injected via cloneElement and the row node is
+   * provided as children.
    */
-  wrapRow?: (printing: Printing, itemId: string, row: ReactNode) => ReactNode;
+  rowWrapper?: ReactElement<TableRowSlotProps & { children?: ReactNode }>;
 }
 
 interface CardViewerProps {

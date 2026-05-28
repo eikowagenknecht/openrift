@@ -476,6 +476,37 @@ interface DonutEntry {
   fill: string;
 }
 
+function DonutActiveShape(props: PieSectorDataItem & { isActive?: boolean }) {
+  return <Sector {...props} outerRadius={(props.outerRadius ?? 0) + (props.isActive ? 4 : 0)} />;
+}
+
+interface DonutCenterLabelProps {
+  viewBox?: { cx?: number; cy?: number } | unknown;
+  active?: DonutEntry;
+}
+
+function DonutCenterLabel({ viewBox, active }: DonutCenterLabelProps) {
+  if (!viewBox || typeof viewBox !== "object" || !("cx" in viewBox) || !("cy" in viewBox)) {
+    return null;
+  }
+  const cx = viewBox.cx as number | undefined;
+  const cy = viewBox.cy as number | undefined;
+  return (
+    <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle">
+      {active ? (
+        <>
+          <tspan x={cx} y={(cy ?? 0) - 6} className="fill-foreground text-sm font-bold">
+            {active.value.toLocaleString()}
+          </tspan>
+          <tspan x={cx} y={(cy ?? 0) + 10} className="fill-muted-foreground text-2xs">
+            {active.name}
+          </tspan>
+        </>
+      ) : null}
+    </text>
+  );
+}
+
 function DistributionDonut({ data, config }: { data: DonutEntry[]; config: ChartConfig }) {
   const [activeIndex, setActiveIndex] = useState<number>();
   const active = activeIndex === undefined ? undefined : data[activeIndex];
@@ -491,44 +522,11 @@ function DistributionDonut({ data, config }: { data: DonutEntry[]; config: Chart
             innerRadius="55%"
             outerRadius="90%"
             strokeWidth={2}
-            shape={(props: PieSectorDataItem & { isActive: boolean }) => (
-              <Sector
-                {...props}
-                outerRadius={(props.outerRadius ?? 0) + (props.isActive ? 4 : 0)}
-              />
-            )}
+            shape={DonutActiveShape}
             onMouseEnter={(_, index) => setActiveIndex(index)}
             onMouseLeave={() => setActiveIndex(undefined)}
           >
-            <Label
-              content={({ viewBox }) => {
-                if (!viewBox || !("cx" in viewBox) || !("cy" in viewBox)) {
-                  return null;
-                }
-                return (
-                  <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
-                    {active ? (
-                      <>
-                        <tspan
-                          x={viewBox.cx}
-                          y={(viewBox.cy ?? 0) - 6}
-                          className="fill-foreground text-sm font-bold"
-                        >
-                          {active.value.toLocaleString()}
-                        </tspan>
-                        <tspan
-                          x={viewBox.cx}
-                          y={(viewBox.cy ?? 0) + 10}
-                          className="fill-muted-foreground text-2xs"
-                        >
-                          {active.name}
-                        </tspan>
-                      </>
-                    ) : null}
-                  </text>
-                );
-              }}
-            />
+            <Label content={<DonutCenterLabel active={active} />} />
           </Pie>
         </PieChart>
       </ChartContainer>

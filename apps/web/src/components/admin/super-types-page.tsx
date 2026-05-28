@@ -1,5 +1,9 @@
 import { AdminTable } from "@/components/admin/admin-table";
-import type { AdminColumnDef } from "@/components/admin/admin-table";
+import type {
+  AdminCellSlotProps,
+  AdminColumnDef,
+  AdminDraftSlotProps,
+} from "@/components/admin/admin-table";
 import { Input } from "@/components/ui/input";
 import {
   useCreateSuperType,
@@ -21,6 +25,90 @@ interface SuperTypeDraft {
   label: string;
 }
 
+function SlugCell({ row }: AdminCellSlotProps<SuperTypeRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="font-mono text-sm">{row.slug}</span>;
+}
+
+function LabelCell({ row }: AdminCellSlotProps<SuperTypeRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="text-sm">{row.label}</span>;
+}
+
+function WellKnownCell({ row }: AdminCellSlotProps<SuperTypeRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="text-muted-foreground text-sm">{row.isWellKnown ? "Yes" : "No"}</span>;
+}
+
+function SlugAddInput({ draft, setDraft }: AdminDraftSlotProps<SuperTypeDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.slug}
+      onChange={(event) =>
+        setDraft((prev) => ({ ...prev, slug: event.target.value.toLowerCase() }))
+      }
+      placeholder="champion"
+      className="h-8 w-40 font-mono"
+    />
+  );
+}
+
+function LabelInput({ draft, setDraft }: AdminDraftSlotProps<SuperTypeDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.label}
+      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
+      className="h-8"
+    />
+  );
+}
+
+function LabelAddInput({ draft, setDraft }: AdminDraftSlotProps<SuperTypeDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.label}
+      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
+      placeholder="Champion"
+      className="h-8"
+    />
+  );
+}
+
+const columns: AdminColumnDef<SuperTypeRow, SuperTypeDraft>[] = [
+  {
+    header: "Slug",
+    sortValue: (superType) => superType.slug,
+    cell: <SlugCell />,
+    addCell: <SlugAddInput />,
+  },
+  {
+    header: "Label",
+    sortValue: (superType) => superType.label,
+    cell: <LabelCell />,
+    editCell: <LabelInput />,
+    addCell: <LabelAddInput />,
+  },
+  {
+    header: "Well-known",
+    cell: <WellKnownCell />,
+  },
+];
+
 export function SuperTypesPage() {
   const { data } = useSuperTypes();
   const createMutation = useCreateSuperType();
@@ -38,50 +126,6 @@ export function SuperTypesPage() {
     [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
     reorderMutation.mutate(reordered);
   }
-
-  const columns: AdminColumnDef<SuperTypeRow, SuperTypeDraft>[] = [
-    {
-      header: "Slug",
-      sortValue: (superType) => superType.slug,
-      cell: (superType) => <span className="font-mono text-sm">{superType.slug}</span>,
-      addCell: (draft, set) => (
-        <Input
-          value={draft.slug}
-          onChange={(event) => set((prev) => ({ ...prev, slug: event.target.value.toLowerCase() }))}
-          placeholder="champion"
-          className="h-8 w-40 font-mono"
-        />
-      ),
-    },
-    {
-      header: "Label",
-      sortValue: (superType) => superType.label,
-      cell: (superType) => <span className="text-sm">{superType.label}</span>,
-      editCell: (draft, set) => (
-        <Input
-          value={draft.label}
-          onChange={(event) => set((prev) => ({ ...prev, label: event.target.value }))}
-          className="h-8"
-        />
-      ),
-      addCell: (draft, set) => (
-        <Input
-          value={draft.label}
-          onChange={(event) => set((prev) => ({ ...prev, label: event.target.value }))}
-          placeholder="Champion"
-          className="h-8"
-        />
-      ),
-    },
-    {
-      header: "Well-known",
-      cell: (superType) => (
-        <span className="text-muted-foreground text-sm">
-          {superType.isWellKnown ? "Yes" : "No"}
-        </span>
-      ),
-    },
-  ];
 
   return (
     <AdminTable

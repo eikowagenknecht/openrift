@@ -3,7 +3,11 @@ import { PlusIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { AdminTable } from "@/components/admin/admin-table";
-import type { AdminColumnDef } from "@/components/admin/admin-table";
+import type {
+  AdminCellSlotProps,
+  AdminColumnDef,
+  AdminDraftSlotProps,
+} from "@/components/admin/admin-table";
 import { SectionHeading } from "@/components/admin/section-heading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,6 +61,121 @@ const KNOWN_SETTINGS: KnownSetting[] = [
   },
 ];
 
+function KeyCell({ row }: AdminCellSlotProps<SiteSettingResponse>) {
+  if (!row) {
+    return null;
+  }
+  const known = KNOWN_SETTINGS.find((ks) => ks.key === row.key);
+  return (
+    <div>
+      <span className="font-mono text-sm">{row.key}</span>
+      {known && <p className="text-muted-foreground mt-0.5 text-xs">{known.description}</p>}
+    </div>
+  );
+}
+
+function ValueCell({ row }: AdminCellSlotProps<SiteSettingResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="max-w-xs truncate font-mono text-sm">{row.value}</span>;
+}
+
+function ScopeCell({ row }: AdminCellSlotProps<SiteSettingResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <Badge variant={row.scope === "web" ? "default" : "secondary"}>{row.scope}</Badge>;
+}
+
+function KeyAddInput({ draft, setDraft }: AdminDraftSlotProps<SettingDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.key}
+      onChange={(event) => setDraft((prev) => ({ ...prev, key: event.target.value.toLowerCase() }))}
+      placeholder="my-custom-key"
+      className="h-8 w-48 font-mono"
+    />
+  );
+}
+
+function ValueInput({ draft, setDraft }: AdminDraftSlotProps<SettingDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.value}
+      onChange={(event) => setDraft((prev) => ({ ...prev, value: event.target.value }))}
+      className="h-8 font-mono"
+    />
+  );
+}
+
+function ValueAddInput({ draft, setDraft }: AdminDraftSlotProps<SettingDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.value}
+      onChange={(event) => setDraft((prev) => ({ ...prev, value: event.target.value }))}
+      placeholder="https://..."
+      className="h-8 font-mono"
+    />
+  );
+}
+
+function ScopeSelect({ draft, setDraft }: AdminDraftSlotProps<SettingDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Select
+      value={draft.scope}
+      onValueChange={(scope) => {
+        if (scope) {
+          setDraft((prev) => ({ ...prev, scope }));
+        }
+      }}
+    >
+      <SelectTrigger className="h-8 w-24">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="web">web</SelectItem>
+        <SelectItem value="api">api</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
+
+const columns: AdminColumnDef<SiteSettingResponse, SettingDraft>[] = [
+  {
+    header: "Key",
+    sortValue: (setting) => setting.key,
+    cell: <KeyCell />,
+    addCell: <KeyAddInput />,
+  },
+  {
+    header: "Value",
+    cell: <ValueCell />,
+    editCell: <ValueInput />,
+    addCell: <ValueAddInput />,
+  },
+  {
+    header: "Scope",
+    align: "center",
+    width: "w-28",
+    cell: <ScopeCell />,
+    editCell: <ScopeSelect />,
+    addCell: <ScopeSelect />,
+  },
+];
+
 // ── Component ───────────────────────────────────────────────────────────────
 
 export function SiteSettingsPage() {
@@ -68,95 +187,6 @@ export function SiteSettingsPage() {
 
   const existingKeys = new Set(settings.map((s) => s.key));
   const missingKnown = KNOWN_SETTINGS.filter((ks) => !existingKeys.has(ks.key));
-
-  const columns: AdminColumnDef<SiteSettingResponse, SettingDraft>[] = [
-    {
-      header: "Key",
-      sortValue: (setting) => setting.key,
-      cell: (setting) => {
-        const known = KNOWN_SETTINGS.find((ks) => ks.key === setting.key);
-        return (
-          <div>
-            <span className="font-mono text-sm">{setting.key}</span>
-            {known && <p className="text-muted-foreground mt-0.5 text-xs">{known.description}</p>}
-          </div>
-        );
-      },
-      addCell: (draft, set) => (
-        <Input
-          value={draft.key}
-          onChange={(event) => set((prev) => ({ ...prev, key: event.target.value.toLowerCase() }))}
-          placeholder="my-custom-key"
-          className="h-8 w-48 font-mono"
-        />
-      ),
-    },
-    {
-      header: "Value",
-      cell: (setting) => (
-        <span className="max-w-xs truncate font-mono text-sm">{setting.value}</span>
-      ),
-      editCell: (draft, set) => (
-        <Input
-          value={draft.value}
-          onChange={(event) => set((prev) => ({ ...prev, value: event.target.value }))}
-          className="h-8 font-mono"
-        />
-      ),
-      addCell: (draft, set) => (
-        <Input
-          value={draft.value}
-          onChange={(event) => set((prev) => ({ ...prev, value: event.target.value }))}
-          placeholder="https://..."
-          className="h-8 font-mono"
-        />
-      ),
-    },
-    {
-      header: "Scope",
-      align: "center",
-      width: "w-28",
-      cell: (setting) => (
-        <Badge variant={setting.scope === "web" ? "default" : "secondary"}>{setting.scope}</Badge>
-      ),
-      editCell: (draft, set) => (
-        <Select
-          value={draft.scope}
-          onValueChange={(scope) => {
-            if (scope) {
-              set((prev) => ({ ...prev, scope }));
-            }
-          }}
-        >
-          <SelectTrigger className="h-8 w-24">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="web">web</SelectItem>
-            <SelectItem value="api">api</SelectItem>
-          </SelectContent>
-        </Select>
-      ),
-      addCell: (draft, set) => (
-        <Select
-          value={draft.scope}
-          onValueChange={(scope) => {
-            if (scope) {
-              set((prev) => ({ ...prev, scope }));
-            }
-          }}
-        >
-          <SelectTrigger className="h-8 w-24">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="web">web</SelectItem>
-            <SelectItem value="api">api</SelectItem>
-          </SelectContent>
-        </Select>
-      ),
-    },
-  ];
 
   return (
     <div className="space-y-6">

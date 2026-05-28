@@ -2,7 +2,7 @@ import type { MarketplaceGroupKind } from "@openrift/shared";
 import { useState } from "react";
 
 import { AdminTable } from "@/components/admin/admin-table";
-import type { AdminColumnDef } from "@/components/admin/admin-table";
+import type { AdminCellSlotProps, AdminColumnDef } from "@/components/admin/admin-table";
 import { CountBadge } from "@/components/admin/count-badge";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -136,87 +136,77 @@ const marketplaceLabels: Record<string, string> = {
   cardmarket: "Cardmarket",
 };
 
-function buildColumns(
-  setItems: SetItem[],
-  setLabelById: Map<string, string>,
-): AdminColumnDef<MarketplaceGroup>[] {
-  return [
-    {
-      header: "Marketplace",
-      width: "w-28",
-      sortValue: (g) => g.marketplace,
-      cell: (g) => (
-        <Badge variant="outline">{marketplaceLabels[g.marketplace] ?? g.marketplace}</Badge>
-      ),
-    },
-    {
-      header: "Group ID",
-      width: "w-24",
-      sortValue: (g) => g.groupId,
-      cell: (g) => {
-        const urlFn = externalUrls[g.marketplace];
-        if (urlFn) {
-          return (
-            <a
-              href={urlFn(g.groupId)}
-              target="_blank"
-              rel="noreferrer"
-              className="text-primary hover:text-primary/80 font-mono underline underline-offset-4"
-            >
-              {g.groupId}
-            </a>
-          );
-        }
-        return <span className="font-mono">{g.groupId}</span>;
-      },
-    },
-    {
-      header: "Name",
-      sortValue: (g) => g.name,
-      cell: (g) =>
-        g.marketplace === "cardmarket" ? (
-          <EditableName group={g} />
-        ) : (
-          <div className="flex h-8 items-center">{g.name}</div>
-        ),
-    },
-    {
-      header: "Abbreviation",
-      width: "w-28",
-      cell: (g) => <span className="font-mono">{g.abbreviation}</span>,
-    },
-    {
-      header: "Kind",
-      width: "w-32",
-      headerTitle: "Basic = set/supplemental printings. Special = promo/special printings.",
-      sortValue: (g) => g.groupKind,
-      cell: (g) => <KindSelect group={g} />,
-    },
-    {
-      header: "Set",
-      width: "w-44",
-      headerTitle:
-        "Scope auto-suggestions to printings of this set. Leave unset to suggest from any set.",
-      sortValue: (g) => (g.setId ? (setLabelById.get(g.setId) ?? "") : ""),
-      cell: (g) => <SetSelect group={g} items={setItems} />,
-    },
-    {
-      header: "Assigned",
-      width: "w-24",
-      align: "right",
-      headerTitle: "Products mapped to printings",
-      sortValue: (g) => g.assignedCount,
-      cell: (g) => <CountBadge count={g.assignedCount} />,
-    },
-    {
-      header: "Staged",
-      width: "w-24",
-      align: "right",
-      headerTitle: "Distinct products in staging, not yet mapped to printings",
-      sortValue: (g) => g.stagedCount,
-      cell: (g) => <CountBadge count={g.stagedCount} />,
-    },
-  ];
+function MarketplaceCell({ row }: AdminCellSlotProps<MarketplaceGroup>) {
+  if (!row) {
+    return null;
+  }
+  return <Badge variant="outline">{marketplaceLabels[row.marketplace] ?? row.marketplace}</Badge>;
+}
+
+function GroupIdCell({ row }: AdminCellSlotProps<MarketplaceGroup>) {
+  if (!row) {
+    return null;
+  }
+  const urlFn = externalUrls[row.marketplace];
+  if (urlFn) {
+    return (
+      <a
+        href={urlFn(row.groupId)}
+        target="_blank"
+        rel="noreferrer"
+        className="text-primary hover:text-primary/80 font-mono underline underline-offset-4"
+      >
+        {row.groupId}
+      </a>
+    );
+  }
+  return <span className="font-mono">{row.groupId}</span>;
+}
+
+function NameCell({ row }: AdminCellSlotProps<MarketplaceGroup>) {
+  if (!row) {
+    return null;
+  }
+  return row.marketplace === "cardmarket" ? (
+    <EditableName group={row} />
+  ) : (
+    <div className="flex h-8 items-center">{row.name}</div>
+  );
+}
+
+function AbbreviationCell({ row }: AdminCellSlotProps<MarketplaceGroup>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="font-mono">{row.abbreviation}</span>;
+}
+
+function KindCell({ row }: AdminCellSlotProps<MarketplaceGroup>) {
+  if (!row) {
+    return null;
+  }
+  return <KindSelect group={row} />;
+}
+
+function SetCell({ row, items }: AdminCellSlotProps<MarketplaceGroup> & { items: SetItem[] }) {
+  if (!row) {
+    return null;
+  }
+  return <SetSelect group={row} items={items} />;
+}
+
+function AssignedCountCell({ row }: AdminCellSlotProps<MarketplaceGroup>) {
+  if (!row) {
+    return null;
+  }
+  return <CountBadge count={row.assignedCount} />;
+}
+
+function StagedCountCell({ row }: AdminCellSlotProps<MarketplaceGroup>) {
+  if (!row) {
+    return null;
+  }
+  return <CountBadge count={row.stagedCount} />;
 }
 
 export function MarketplaceGroupsPage() {
@@ -230,7 +220,62 @@ export function MarketplaceGroupsPage() {
     ...sortedSets.map((s) => ({ value: s.id, label: s.name })),
   ];
   const setLabelById = new Map(sortedSets.map((s) => [s.id, s.name]));
-  const columns = buildColumns(setItems, setLabelById);
+
+  const columns: AdminColumnDef<MarketplaceGroup>[] = [
+    {
+      header: "Marketplace",
+      width: "w-28",
+      sortValue: (g) => g.marketplace,
+      cell: <MarketplaceCell />,
+    },
+    {
+      header: "Group ID",
+      width: "w-24",
+      sortValue: (g) => g.groupId,
+      cell: <GroupIdCell />,
+    },
+    {
+      header: "Name",
+      sortValue: (g) => g.name,
+      cell: <NameCell />,
+    },
+    {
+      header: "Abbreviation",
+      width: "w-28",
+      cell: <AbbreviationCell />,
+    },
+    {
+      header: "Kind",
+      width: "w-32",
+      headerTitle: "Basic = set/supplemental printings. Special = promo/special printings.",
+      sortValue: (g) => g.groupKind,
+      cell: <KindCell />,
+    },
+    {
+      header: "Set",
+      width: "w-44",
+      headerTitle:
+        "Scope auto-suggestions to printings of this set. Leave unset to suggest from any set.",
+      sortValue: (g) => (g.setId ? (setLabelById.get(g.setId) ?? "") : ""),
+      cell: <SetCell items={setItems} />,
+    },
+    {
+      header: "Assigned",
+      width: "w-24",
+      align: "right",
+      headerTitle: "Products mapped to printings",
+      sortValue: (g) => g.assignedCount,
+      cell: <AssignedCountCell />,
+    },
+    {
+      header: "Staged",
+      width: "w-24",
+      align: "right",
+      headerTitle: "Distinct products in staging, not yet mapped to printings",
+      sortValue: (g) => g.stagedCount,
+      cell: <StagedCountCell />,
+    },
+  ];
 
   return (
     <AdminTable

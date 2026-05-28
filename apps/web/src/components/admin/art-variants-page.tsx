@@ -1,5 +1,9 @@
 import { AdminTable } from "@/components/admin/admin-table";
-import type { AdminColumnDef } from "@/components/admin/admin-table";
+import type {
+  AdminCellSlotProps,
+  AdminColumnDef,
+  AdminDraftSlotProps,
+} from "@/components/admin/admin-table";
 import { Input } from "@/components/ui/input";
 import {
   useArtVariants,
@@ -21,6 +25,90 @@ interface ArtVariantDraft {
   label: string;
 }
 
+function SlugCell({ row }: AdminCellSlotProps<ArtVariantRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="font-mono text-sm">{row.slug}</span>;
+}
+
+function LabelCell({ row }: AdminCellSlotProps<ArtVariantRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="text-sm">{row.label}</span>;
+}
+
+function WellKnownCell({ row }: AdminCellSlotProps<ArtVariantRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="text-muted-foreground text-sm">{row.isWellKnown ? "Yes" : "No"}</span>;
+}
+
+function SlugAddInput({ draft, setDraft }: AdminDraftSlotProps<ArtVariantDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.slug}
+      onChange={(event) =>
+        setDraft((prev) => ({ ...prev, slug: event.target.value.toLowerCase() }))
+      }
+      placeholder="alternate"
+      className="h-8 w-40 font-mono"
+    />
+  );
+}
+
+function LabelInput({ draft, setDraft }: AdminDraftSlotProps<ArtVariantDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.label}
+      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
+      className="h-8"
+    />
+  );
+}
+
+function LabelAddInput({ draft, setDraft }: AdminDraftSlotProps<ArtVariantDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.label}
+      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
+      placeholder="Alternate Art"
+      className="h-8"
+    />
+  );
+}
+
+const columns: AdminColumnDef<ArtVariantRow, ArtVariantDraft>[] = [
+  {
+    header: "Slug",
+    sortValue: (artVariant) => artVariant.slug,
+    cell: <SlugCell />,
+    addCell: <SlugAddInput />,
+  },
+  {
+    header: "Label",
+    sortValue: (artVariant) => artVariant.label,
+    cell: <LabelCell />,
+    editCell: <LabelInput />,
+    addCell: <LabelAddInput />,
+  },
+  {
+    header: "Well-known",
+    cell: <WellKnownCell />,
+  },
+];
+
 export function ArtVariantsPage() {
   const { data } = useArtVariants();
   const createMutation = useCreateArtVariant();
@@ -38,50 +126,6 @@ export function ArtVariantsPage() {
     [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
     reorderMutation.mutate(reordered);
   }
-
-  const columns: AdminColumnDef<ArtVariantRow, ArtVariantDraft>[] = [
-    {
-      header: "Slug",
-      sortValue: (artVariant) => artVariant.slug,
-      cell: (artVariant) => <span className="font-mono text-sm">{artVariant.slug}</span>,
-      addCell: (draft, set) => (
-        <Input
-          value={draft.slug}
-          onChange={(event) => set((prev) => ({ ...prev, slug: event.target.value.toLowerCase() }))}
-          placeholder="alternate"
-          className="h-8 w-40 font-mono"
-        />
-      ),
-    },
-    {
-      header: "Label",
-      sortValue: (artVariant) => artVariant.label,
-      cell: (artVariant) => <span className="text-sm">{artVariant.label}</span>,
-      editCell: (draft, set) => (
-        <Input
-          value={draft.label}
-          onChange={(event) => set((prev) => ({ ...prev, label: event.target.value }))}
-          className="h-8"
-        />
-      ),
-      addCell: (draft, set) => (
-        <Input
-          value={draft.label}
-          onChange={(event) => set((prev) => ({ ...prev, label: event.target.value }))}
-          placeholder="Alternate Art"
-          className="h-8"
-        />
-      ),
-    },
-    {
-      header: "Well-known",
-      cell: (artVariant) => (
-        <span className="text-muted-foreground text-sm">
-          {artVariant.isWellKnown ? "Yes" : "No"}
-        </span>
-      ),
-    },
-  ];
 
   return (
     <AdminTable

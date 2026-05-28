@@ -97,6 +97,96 @@ const COLLECTION_GRID_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set([
   "customTags",
 ]);
 
+interface CollectionActionsCellProps {
+  printing?: Printing;
+  collectionId?: string;
+  isAddMode: boolean;
+  dataView: "cards" | "printings" | "copies";
+  catalogPrintingsByCardId: Map<string, Printing[]>;
+}
+
+function CollectionActionsCell({
+  printing,
+  collectionId,
+  isAddMode,
+  dataView,
+  catalogPrintingsByCardId,
+}: CollectionActionsCellProps) {
+  if (!printing) {
+    return null;
+  }
+  return (
+    <CollectionTableActions
+      printing={printing}
+      collectionId={collectionId}
+      isAddMode={isAddMode}
+      siblingIds={
+        dataView === "cards"
+          ? catalogPrintingsByCardId.get(printing.cardId)?.map((sibling) => sibling.id)
+          : undefined
+      }
+    />
+  );
+}
+
+interface CollectionRowWrapperProps {
+  printing?: Printing;
+  itemId?: string;
+  children?: React.ReactNode;
+  collectionId: string | undefined;
+  stackByItemId: Map<string, StackedEntry>;
+  allCopyIdsByCardId: Map<string, string[]>;
+  mode: "browse" | "select" | "add";
+  stacked: boolean;
+  selected: Set<string>;
+  dragPreviewPrintings: Printing[];
+}
+
+function CollectionRowWrapper({
+  printing,
+  itemId,
+  children,
+  collectionId,
+  stackByItemId,
+  allCopyIdsByCardId,
+  mode,
+  stacked,
+  selected,
+  dragPreviewPrintings,
+}: CollectionRowWrapperProps) {
+  if (!printing || !itemId) {
+    return children;
+  }
+  const stack = stackByItemId.get(itemId);
+  if (!stack) {
+    return children;
+  }
+  const cardCopyIds = allCopyIdsByCardId.get(printing.cardId);
+  const effectiveCopyIds = cardCopyIds ?? stack.copyIds;
+  const isItemSelected =
+    mode === "select"
+      ? stacked
+        ? effectiveCopyIds.every((id) => selected.has(id))
+        : selected.has(itemId)
+      : false;
+  const isFromSelection = mode === "select" && isItemSelected && selected.size > 0;
+  const copyIds = isFromSelection ? [...selected] : stacked ? effectiveCopyIds : [itemId];
+  const isStackDrag = !isFromSelection && stacked && effectiveCopyIds.length > 1;
+  const previewPrintings = dragPreviewPrintings.length > 0 ? dragPreviewPrintings : [printing];
+  return (
+    <DraggableCard
+      id={itemId}
+      copyIds={copyIds}
+      isStackDrag={isStackDrag}
+      printing={printing}
+      previewPrintings={previewPrintings}
+      sourceCollectionId={collectionId}
+    >
+      {children}
+    </DraggableCard>
+  );
+}
+
 interface CollectionGridProps {
   collectionId?: string;
   title: string;
@@ -756,7 +846,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             </>
           ) : undefined
         }
-        wrap={(cell) =>
+        wrap={
           dragProps ? (
             <DraggableCard
               id={item.id}
@@ -765,12 +855,8 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
               printing={item.printing}
               previewPrintings={dragProps.previewPrintings}
               sourceCollectionId={collectionId}
-            >
-              {cell}
-            </DraggableCard>
-          ) : (
-            cell
-          )
+            />
+          ) : undefined
         }
       />
     );
@@ -817,6 +903,12 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           }
         : handleUndoAdd;
 
+    const variantTrigger =
+      handleQuickAdd && dataView === "cards" && (siblings?.length ?? 0) > 1 && handleOpenVariants
+        ? (printing: Printing, anchorEl: HTMLElement) =>
+            handleOpenVariants(printing, anchorEl, "add")
+        : undefined;
+
     return (
       <CardCell
         printing={displayPrinting}
@@ -831,38 +923,29 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         dimmed={ownedCount === 0}
         stripSlot="topSlot"
         strip={
-          handleQuickAdd
-            ? (() => {
-                const variantTrigger =
-                  dataView === "cards" && (siblings?.length ?? 0) > 1 && handleOpenVariants
-                    ? (printing: Printing, anchorEl: HTMLElement) =>
-                        handleOpenVariants(printing, anchorEl, "add")
-                    : undefined;
-                return (
-                  <CardCountStrip
-                    count={ownedCount}
-                    totalCount={totalOwned}
-                    decrement={{
-                      onClick: (event) => onUndoAdd?.(displayPrinting, event.currentTarget),
-                      disabled: ownedCount === 0,
-                      ariaLabel: `Remove ${displayPrinting.card.name}`,
-                    }}
-                    increment={{
-                      onClick: () => handleQuickAdd(displayPrinting),
-                      ariaLabel: `Add ${displayPrinting.card.name}`,
-                    }}
-                    onPillClick={
-                      variantTrigger
-                        ? (event) => variantTrigger(displayPrinting, event.currentTarget)
-                        : undefined
-                    }
-                    pillAriaLabel={
-                      variantTrigger ? `Choose variant for ${displayPrinting.card.name}` : undefined
-                    }
-                  />
-                );
-              })()
-            : undefined
+          handleQuickAdd ? (
+            <CardCountStrip
+              count={ownedCount}
+              totalCount={totalOwned}
+              decrement={{
+                onClick: (event) => onUndoAdd?.(displayPrinting, event.currentTarget),
+                disabled: ownedCount === 0,
+                ariaLabel: `Remove ${displayPrinting.card.name}`,
+              }}
+              increment={{
+                onClick: () => handleQuickAdd(displayPrinting),
+                ariaLabel: `Add ${displayPrinting.card.name}`,
+              }}
+              onPillClick={
+                variantTrigger
+                  ? (event) => variantTrigger(displayPrinting, event.currentTarget)
+                  : undefined
+              }
+              pillAriaLabel={
+                variantTrigger ? `Choose variant for ${displayPrinting.card.name}` : undefined
+              }
+            />
+          ) : undefined
         }
       />
     );
@@ -1087,39 +1170,28 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             // Browse + add show the +/- buttons (mode !== "select" path);
             // select mode drops them and shows a read-only count.
             actionsColumn: mode !== "select" && Boolean(handleQuickAdd) ? "wide" : "narrow",
-            renderActions: (printing) => (
-              <CollectionTableActions
-                printing={printing}
+            // The catalog map carries every sibling variant (owned or not).
+            // In cards view the table sums across siblings so the count
+            // matches the grid's per-card aggregate.
+            actionsCell: (
+              <CollectionActionsCell
                 collectionId={collectionId}
                 isAddMode={isAddMode}
-                siblingIds={
-                  // The catalog map carries every sibling variant (owned or not).
-                  // In cards view the table sums across siblings so the count
-                  // matches the grid's per-card aggregate.
-                  dataView === "cards"
-                    ? catalogPrintingsByCardId.get(printing.cardId)?.map((sibling) => sibling.id)
-                    : undefined
-                }
+                dataView={dataView}
+                catalogPrintingsByCardId={catalogPrintingsByCardId}
               />
             ),
-            wrapRow: (printing, itemId, row) => {
-              const dragProps = buildDragProps(printing, itemId);
-              if (!dragProps) {
-                return row;
-              }
-              return (
-                <DraggableCard
-                  id={itemId}
-                  copyIds={dragProps.copyIds}
-                  isStackDrag={dragProps.isStackDrag}
-                  printing={printing}
-                  previewPrintings={dragProps.previewPrintings}
-                  sourceCollectionId={collectionId}
-                >
-                  {row}
-                </DraggableCard>
-              );
-            },
+            rowWrapper: (
+              <CollectionRowWrapper
+                collectionId={collectionId}
+                stackByItemId={stackByItemId}
+                allCopyIdsByCardId={allCopyIdsByCardId}
+                mode={mode}
+                stacked={stacked}
+                selected={selected}
+                dragPreviewPrintings={dragPreviewPrintings}
+              />
+            ),
           }}
         >
           {/* Floating action bar (select mode) */}

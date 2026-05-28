@@ -13,7 +13,7 @@ interface DraggableCardProps {
   printing: Printing;
   previewPrintings: Printing[];
   sourceCollectionId: string | undefined;
-  children: ReactNode;
+  children?: ReactNode;
 }
 
 export function DraggableCard({

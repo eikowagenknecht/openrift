@@ -117,6 +117,8 @@ function Calendar({
         hidden: cn("invisible", defaultClassNames.hidden),
         ...classNames,
       }}
+      // custom: suppress oxlint rule for react-day-picker's inline component prop
+      // oxlint-disable react/no-unstable-nested-components -- shadcn scaffold; react-day-picker's components prop expects inline subcomponents
       components={{
         Root: ({ className, rootRef, ...props }) => {
           return <div data-slot="calendar" ref={rootRef} className={cn(className)} {...props} />;
@@ -144,6 +146,8 @@ function Calendar({
         },
         ...components,
       }}
+      // custom: re-enable rule after the inline components block
+      // oxlint-enable react/no-unstable-nested-components
       {...props}
     />
   );

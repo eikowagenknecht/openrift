@@ -1,8 +1,8 @@
 import type { EnumOrders, GroupByField, Printing } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 import { SearchXIcon, WifiOffIcon } from "lucide-react";
-import type { ReactNode } from "react";
-import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { ReactElement, ReactNode } from "react";
+import { Fragment, cloneElement, memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -159,13 +159,12 @@ function buildVirtualRows(groups: CardGroup[]): VRow[] {
 }
 
 // Data subscriptions (live owned-count, per-cell) live inside the actions
-// component the surface passes through `renderActions` — see
+// component the surface passes through `actionsCell` — see
 // CatalogTableActions / CollectionTableActions / StaticCountTableActions.
-// DataRow is a presentation wrapper that only owns the click dispatch and
-// the renderActions handoff; `renderActions` identity changes with each
-// parent render (it closes over parent state) but the memoized children
-// inside the actions component are cached by React Compiler, so the
-// re-render cost stays per-row-local.
+// The actions element identity changes with each parent render (it closes
+// over parent state), but the memoized children inside the actions
+// component are cached by React Compiler, so the re-render cost stays
+// per-row-local.
 // oxlint-disable-next-line eslint/prefer-arrow-callback -- named for React DevTools
 const DataRow = memo(function DataRow({
   printing,
@@ -177,7 +176,7 @@ const DataRow = memo(function DataRow({
   superTypeLabels,
   rarityLabels,
   setNameBySlug,
-  renderActions,
+  actionsCell,
 }: {
   printing: Printing;
   itemId: string;
@@ -188,7 +187,7 @@ const DataRow = memo(function DataRow({
   superTypeLabels: Record<string, string>;
   rarityLabels: Record<string, string>;
   setNameBySlug: Map<string, string>;
-  renderActions?: (printing: Printing, itemId: string) => ReactNode;
+  actionsCell?: ReactNode;
 }) {
   return (
     <CardTableRow
@@ -202,10 +201,16 @@ const DataRow = memo(function DataRow({
       rarityLabels={rarityLabels}
       setNameBySlug={setNameBySlug}
       onRowClick={(p) => useCardRowActionsStore.getState().handlers.onRowClick?.(p)}
-      renderActions={renderActions}
+      actionsCell={actionsCell}
     />
   );
 });
+
+/** Per-row props that `actionsCell` and `rowWrapper` elements receive via cloneElement. */
+export interface TableRowSlotProps {
+  printing?: Printing;
+  itemId?: string;
+}
 
 interface CardTableProps {
   items: CardViewerItem[];
@@ -218,16 +223,21 @@ interface CardTableProps {
   stickyOffset?: number;
   /** Width + presence of the rightmost actions column. See {@link ActionsColumn}. */
   actionsColumn: ActionsColumn;
-  /** Renders the contents of the actions cell for each row. */
-  renderActions?: (printing: Printing, itemId: string) => ReactNode;
+  /**
+   * JSX element rendered inside the actions cell for each row. Per-row data
+   * (`printing`, `itemId`) is injected via cloneElement, so the actions
+   * component should declare those as optional props.
+   */
+  actionsCell?: ReactElement<TableRowSlotProps>;
   /** Label for the rightmost column header. Defaults to "Owned". */
   actionsLabel?: string;
   /**
-   * Optional wrapper applied around each data row. Surfaces use this for drag
-   * wiring — e.g. /collections wraps rows in `<DraggableCard>` so the table
-   * row becomes a drag handle alongside grid cells.
+   * Optional wrapper element applied around each data row. Surfaces use this
+   * for drag wiring — e.g. /collections wraps rows in `<DraggableCard>` so the
+   * table row becomes a drag handle alongside grid cells. Per-row data is
+   * injected via cloneElement and the row node is provided as children.
    */
-  wrapRow?: (printing: Printing, itemId: string, row: ReactNode) => ReactNode;
+  rowWrapper?: ReactElement<TableRowSlotProps & { children?: ReactNode }>;
 }
 
 let cachedScrollMargin = 0;
@@ -251,9 +261,9 @@ export function CardTable({
   selectedItemId,
   stickyOffset = getHeaderHeight(),
   actionsColumn,
-  renderActions,
+  actionsCell,
   actionsLabel,
-  wrapRow,
+  rowWrapper,
 }: CardTableProps) {
   const { orders, labels } = useEnumOrders();
 
@@ -415,6 +425,9 @@ export function CardTable({
                   ) : null
                 ) : (
                   row.items.map((item) => {
+                    const cellForRow = actionsCell
+                      ? cloneElement(actionsCell, { printing: item.printing, itemId: item.id })
+                      : undefined;
                     const rowNode = (
                       <DataRow
                         printing={item.printing}
@@ -428,14 +441,20 @@ export function CardTable({
                         superTypeLabels={labels.superTypes}
                         rarityLabels={labels.rarities}
                         setNameBySlug={setNameBySlug}
-                        renderActions={renderActions}
+                        actionsCell={cellForRow}
                       />
                     );
-                    if (!wrapRow) {
+                    if (!rowWrapper) {
                       return <Fragment key={item.id}>{rowNode}</Fragment>;
                     }
                     return (
-                      <Fragment key={item.id}>{wrapRow(item.printing, item.id, rowNode)}</Fragment>
+                      <Fragment key={item.id}>
+                        {cloneElement(
+                          rowWrapper,
+                          { printing: item.printing, itemId: item.id },
+                          rowNode,
+                        )}
+                      </Fragment>
                     );
                   })
                 )}

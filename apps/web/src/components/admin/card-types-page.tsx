@@ -1,5 +1,9 @@
 import { AdminTable } from "@/components/admin/admin-table";
-import type { AdminColumnDef } from "@/components/admin/admin-table";
+import type {
+  AdminCellSlotProps,
+  AdminColumnDef,
+  AdminDraftSlotProps,
+} from "@/components/admin/admin-table";
 import { Input } from "@/components/ui/input";
 import {
   useCardTypes,
@@ -21,6 +25,90 @@ interface CardTypeDraft {
   label: string;
 }
 
+function SlugCell({ row }: AdminCellSlotProps<CardTypeRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="font-mono text-sm">{row.slug}</span>;
+}
+
+function LabelCell({ row }: AdminCellSlotProps<CardTypeRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="text-sm">{row.label}</span>;
+}
+
+function WellKnownCell({ row }: AdminCellSlotProps<CardTypeRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="text-muted-foreground text-sm">{row.isWellKnown ? "Yes" : "No"}</span>;
+}
+
+function SlugAddInput({ draft, setDraft }: AdminDraftSlotProps<CardTypeDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.slug}
+      onChange={(event) =>
+        setDraft((prev) => ({ ...prev, slug: event.target.value.toLowerCase() }))
+      }
+      placeholder="unit"
+      className="h-8 w-40 font-mono"
+    />
+  );
+}
+
+function LabelInput({ draft, setDraft }: AdminDraftSlotProps<CardTypeDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.label}
+      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
+      className="h-8"
+    />
+  );
+}
+
+function LabelAddInput({ draft, setDraft }: AdminDraftSlotProps<CardTypeDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.label}
+      onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value }))}
+      placeholder="Unit"
+      className="h-8"
+    />
+  );
+}
+
+const columns: AdminColumnDef<CardTypeRow, CardTypeDraft>[] = [
+  {
+    header: "Slug",
+    sortValue: (cardType) => cardType.slug,
+    cell: <SlugCell />,
+    addCell: <SlugAddInput />,
+  },
+  {
+    header: "Label",
+    sortValue: (cardType) => cardType.label,
+    cell: <LabelCell />,
+    editCell: <LabelInput />,
+    addCell: <LabelAddInput />,
+  },
+  {
+    header: "Well-known",
+    cell: <WellKnownCell />,
+  },
+];
+
 export function CardTypesPage() {
   const { data } = useCardTypes();
   const createMutation = useCreateCardType();
@@ -38,48 +126,6 @@ export function CardTypesPage() {
     [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
     reorderMutation.mutate(reordered);
   }
-
-  const columns: AdminColumnDef<CardTypeRow, CardTypeDraft>[] = [
-    {
-      header: "Slug",
-      sortValue: (cardType) => cardType.slug,
-      cell: (cardType) => <span className="font-mono text-sm">{cardType.slug}</span>,
-      addCell: (draft, set) => (
-        <Input
-          value={draft.slug}
-          onChange={(event) => set((prev) => ({ ...prev, slug: event.target.value.toLowerCase() }))}
-          placeholder="unit"
-          className="h-8 w-40 font-mono"
-        />
-      ),
-    },
-    {
-      header: "Label",
-      sortValue: (cardType) => cardType.label,
-      cell: (cardType) => <span className="text-sm">{cardType.label}</span>,
-      editCell: (draft, set) => (
-        <Input
-          value={draft.label}
-          onChange={(event) => set((prev) => ({ ...prev, label: event.target.value }))}
-          className="h-8"
-        />
-      ),
-      addCell: (draft, set) => (
-        <Input
-          value={draft.label}
-          onChange={(event) => set((prev) => ({ ...prev, label: event.target.value }))}
-          placeholder="Unit"
-          className="h-8"
-        />
-      ),
-    },
-    {
-      header: "Well-known",
-      cell: (cardType) => (
-        <span className="text-muted-foreground text-sm">{cardType.isWellKnown ? "Yes" : "No"}</span>
-      ),
-    },
-  ];
 
   return (
     <AdminTable

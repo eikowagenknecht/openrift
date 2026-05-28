@@ -1,7 +1,7 @@
 import { Undo2Icon } from "lucide-react";
 
 import { AdminTable } from "@/components/admin/admin-table";
-import type { AdminColumnDef } from "@/components/admin/admin-table";
+import type { AdminCellSlotProps, AdminColumnDef } from "@/components/admin/admin-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,66 +25,129 @@ interface IgnoredPrinting {
   createdAt: string;
 }
 
+function ProviderBadgeCell({ row }: AdminCellSlotProps<IgnoredCard | IgnoredPrinting>) {
+  if (!row) {
+    return null;
+  }
+  return <Badge variant="outline">{row.provider}</Badge>;
+}
+
+function ExternalIdCell({ row }: AdminCellSlotProps<IgnoredCard | IgnoredPrinting>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="font-mono">{row.externalId}</span>;
+}
+
+function CreatedAtCell({ row }: AdminCellSlotProps<IgnoredCard | IgnoredPrinting>) {
+  if (!row) {
+    return null;
+  }
+  return (
+    <span className="text-muted-foreground">{row.createdAt.slice(0, 16).replace("T", " ")}</span>
+  );
+}
+
+function PrintingFinishCell({ row }: AdminCellSlotProps<IgnoredPrinting>) {
+  if (!row) {
+    return null;
+  }
+  return row.finish ? (
+    <Badge variant="outline">{row.finish}</Badge>
+  ) : (
+    <Badge variant="outline">all</Badge>
+  );
+}
+
+const cardColumns: AdminColumnDef<IgnoredCard>[] = [
+  {
+    header: "Provider",
+    width: "w-36",
+    sortValue: (r) => r.provider,
+    cell: <ProviderBadgeCell />,
+  },
+  {
+    header: "External ID",
+    sortValue: (r) => r.externalId,
+    cell: <ExternalIdCell />,
+  },
+  {
+    header: "Ignored At",
+    width: "w-36",
+    sortValue: (r) => r.createdAt,
+    cell: <CreatedAtCell />,
+  },
+];
+
+const printingColumns: AdminColumnDef<IgnoredPrinting>[] = [
+  {
+    header: "Provider",
+    width: "w-36",
+    sortValue: (r) => r.provider,
+    cell: <ProviderBadgeCell />,
+  },
+  {
+    header: "External ID",
+    sortValue: (r) => r.externalId,
+    cell: <ExternalIdCell />,
+  },
+  {
+    header: "Finish",
+    width: "w-24",
+    sortValue: (r) => r.finish,
+    cell: <PrintingFinishCell />,
+  },
+  {
+    header: "Ignored At",
+    width: "w-36",
+    sortValue: (r) => r.createdAt,
+    cell: <CreatedAtCell />,
+  },
+];
+
+function CardUnignoreAction({ row }: AdminCellSlotProps<IgnoredCard>) {
+  const unignoreCard = useUnignoreCandidateCard();
+  if (!row) {
+    return null;
+  }
+  return (
+    <Button
+      variant="ghost"
+      onClick={() => unignoreCard.mutate({ provider: row.provider, externalId: row.externalId })}
+      disabled={unignoreCard.isPending}
+    >
+      <Undo2Icon className="size-3.5" />
+      Unignore
+    </Button>
+  );
+}
+
+function PrintingUnignoreAction({ row }: AdminCellSlotProps<IgnoredPrinting>) {
+  const unignorePrinting = useUnignoreCandidatePrinting();
+  if (!row) {
+    return null;
+  }
+  return (
+    <Button
+      variant="ghost"
+      onClick={() =>
+        unignorePrinting.mutate({
+          provider: row.provider,
+          externalId: row.externalId,
+          finish: row.finish ?? null,
+        })
+      }
+      disabled={unignorePrinting.isPending}
+    >
+      <Undo2Icon className="size-3.5" />
+      Unignore
+    </Button>
+  );
+}
+
 export function IgnoredCandidatesPage() {
   const { data } = useIgnoredCandidates();
-  const unignoreCard = useUnignoreCandidateCard();
-  const unignorePrinting = useUnignoreCandidatePrinting();
   const { cards, printings } = data;
-
-  const cardColumns: AdminColumnDef<IgnoredCard>[] = [
-    {
-      header: "Provider",
-      width: "w-36",
-      sortValue: (r) => r.provider,
-      cell: (r) => <Badge variant="outline">{r.provider}</Badge>,
-    },
-    {
-      header: "External ID",
-      sortValue: (r) => r.externalId,
-      cell: (r) => <span className="font-mono">{r.externalId}</span>,
-    },
-    {
-      header: "Ignored At",
-      width: "w-36",
-      sortValue: (r) => r.createdAt,
-      cell: (r) => (
-        <span className="text-muted-foreground">{r.createdAt.slice(0, 16).replace("T", " ")}</span>
-      ),
-    },
-  ];
-
-  const printingColumns: AdminColumnDef<IgnoredPrinting>[] = [
-    {
-      header: "Provider",
-      width: "w-36",
-      sortValue: (r) => r.provider,
-      cell: (r) => <Badge variant="outline">{r.provider}</Badge>,
-    },
-    {
-      header: "External ID",
-      sortValue: (r) => r.externalId,
-      cell: (r) => <span className="font-mono">{r.externalId}</span>,
-    },
-    {
-      header: "Finish",
-      width: "w-24",
-      sortValue: (r) => r.finish,
-      cell: (r) =>
-        r.finish ? (
-          <Badge variant="outline">{r.finish}</Badge>
-        ) : (
-          <Badge variant="outline">all</Badge>
-        ),
-    },
-    {
-      header: "Ignored At",
-      width: "w-36",
-      sortValue: (r) => r.createdAt,
-      cell: (r) => (
-        <span className="text-muted-foreground">{r.createdAt.slice(0, 16).replace("T", " ")}</span>
-      ),
-    },
-  ];
 
   return (
     <div className="space-y-8">
@@ -96,18 +159,7 @@ export function IgnoredCandidatesPage() {
           getRowKey={(r) => r.id}
           emptyText="No ignored candidate cards."
           defaultSort={{ column: "Ignored At", direction: "desc" }}
-          actions={(r) => (
-            <Button
-              variant="ghost"
-              onClick={() =>
-                unignoreCard.mutate({ provider: r.provider, externalId: r.externalId })
-              }
-              disabled={unignoreCard.isPending}
-            >
-              <Undo2Icon className="size-3.5" />
-              Unignore
-            </Button>
-          )}
+          actions={<CardUnignoreAction />}
         />
       </section>
 
@@ -119,22 +171,7 @@ export function IgnoredCandidatesPage() {
           getRowKey={(r) => r.id}
           emptyText="No ignored candidate printings."
           defaultSort={{ column: "Ignored At", direction: "desc" }}
-          actions={(r) => (
-            <Button
-              variant="ghost"
-              onClick={() =>
-                unignorePrinting.mutate({
-                  provider: r.provider,
-                  externalId: r.externalId,
-                  finish: r.finish ?? null,
-                })
-              }
-              disabled={unignorePrinting.isPending}
-            >
-              <Undo2Icon className="size-3.5" />
-              Unignore
-            </Button>
-          )}
+          actions={<PrintingUnignoreAction />}
         />
       </section>
     </div>

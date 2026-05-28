@@ -12,7 +12,7 @@ import {
   TriangleAlertIcon,
   XIcon,
 } from "lucide-react";
-import { Fragment, useRef, useState } from "react";
+import { Fragment, cloneElement, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -193,8 +193,14 @@ interface CandidateSpreadsheetProps {
   onActiveChange?: (field: string, value: unknown | null) => void;
   onCheck?: (candidateId: string) => void;
   onUncheck?: (candidateId: string) => void;
-  /** Render extra action buttons in each candidate column header. */
-  columnActions?: (row: CandidateCardResponse | CandidatePrintingResponse) => React.ReactNode;
+  /**
+   * Extra action items rendered in each candidate column header's dropdown
+   * menu. The candidate `row` is injected via cloneElement, so the wrapper
+   * component should declare it as an optional prop.
+   */
+  columnActions?: React.ReactElement<{
+    row?: CandidateCardResponse | CandidatePrintingResponse;
+  }>;
   /** Extra CSS classes for a candidate column header `<th>`. */
   columnClassName?: (row: CandidateCardResponse | CandidatePrintingResponse) => string | undefined;
   /** Return a warning tooltip for a candidate cell; shown as a small icon. */
@@ -499,7 +505,7 @@ export function CandidateSpreadsheet({
                           Mark as unchecked
                         </DropdownMenuItem>
                       )}
-                      {columnActions?.(row)}
+                      {columnActions ? cloneElement(columnActions, { row }) : null}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>

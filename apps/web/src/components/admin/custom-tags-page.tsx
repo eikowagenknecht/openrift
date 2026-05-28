@@ -2,7 +2,11 @@ import type { CustomTagCategoryResponse, CustomTagResponse } from "@openrift/sha
 import { useMemo, useState } from "react";
 
 import { AdminTable } from "@/components/admin/admin-table";
-import type { AdminColumnDef } from "@/components/admin/admin-table";
+import type {
+  AdminCellSlotProps,
+  AdminColumnDef,
+  AdminDraftSlotProps,
+} from "@/components/admin/admin-table";
 import { CardSearchDropdown } from "@/components/admin/card-search-dropdown";
 import type { CardSearchResult } from "@/components/admin/card-search-dropdown";
 import { Button } from "@/components/ui/button";
@@ -74,84 +78,136 @@ export function CustomTagsPage() {
 
 // ── Categories ────────────────────────────────────────────────────────────
 
+function CategorySlugCell({ row }: AdminCellSlotProps<CustomTagCategoryResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="font-mono text-sm">{row.slug}</span>;
+}
+
+function CategoryLabelCell({ row }: AdminCellSlotProps<CustomTagCategoryResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <span>{row.label}</span>;
+}
+
+function CategoryDescriptionCell({ row }: AdminCellSlotProps<CustomTagCategoryResponse>) {
+  if (!row) {
+    return null;
+  }
+  return (
+    <span
+      className="text-muted-foreground block max-w-xs truncate"
+      title={row.description ?? undefined}
+    >
+      {row.description ?? "—"}
+    </span>
+  );
+}
+
+function CategoryTagCountCell({ row }: AdminCellSlotProps<CustomTagCategoryResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="font-mono text-sm">{row.tagCount}</span>;
+}
+
+function CategorySlugAddInput({ draft, setDraft }: AdminDraftSlotProps<CustomTagCategoryDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.slug}
+      onChange={(e) => setDraft((prev) => ({ ...prev, slug: e.target.value.toLowerCase() }))}
+      placeholder="region"
+      className="h-8 w-48 font-mono"
+    />
+  );
+}
+
+function CategoryLabelInput({ draft, setDraft }: AdminDraftSlotProps<CustomTagCategoryDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.label}
+      onChange={(e) => setDraft((prev) => ({ ...prev, label: e.target.value }))}
+      className="h-8"
+    />
+  );
+}
+
+function CategoryLabelAddInput({ draft, setDraft }: AdminDraftSlotProps<CustomTagCategoryDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.label}
+      onChange={(e) => setDraft((prev) => ({ ...prev, label: e.target.value }))}
+      placeholder="Region"
+      className="h-8"
+    />
+  );
+}
+
+function CategoryDescriptionInput({
+  draft,
+  setDraft,
+}: AdminDraftSlotProps<CustomTagCategoryDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.description}
+      onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
+      placeholder="Optional description"
+      className="h-8"
+    />
+  );
+}
+
+const categoryColumns: AdminColumnDef<CustomTagCategoryResponse, CustomTagCategoryDraft>[] = [
+  {
+    header: "Slug",
+    sortValue: (cat) => cat.slug,
+    cell: <CategorySlugCell />,
+    addCell: <CategorySlugAddInput />,
+  },
+  {
+    header: "Label",
+    sortValue: (cat) => cat.label,
+    cell: <CategoryLabelCell />,
+    editCell: <CategoryLabelInput />,
+    addCell: <CategoryLabelAddInput />,
+  },
+  {
+    header: "Description",
+    sortValue: (cat) => cat.description ?? "",
+    cell: <CategoryDescriptionCell />,
+    editCell: <CategoryDescriptionInput />,
+    addCell: <CategoryDescriptionInput />,
+  },
+  {
+    header: "Tags",
+    sortValue: (cat) => cat.tagCount,
+    align: "right",
+    cell: <CategoryTagCountCell />,
+  },
+];
+
 function CategoriesSection({ categories }: { categories: CustomTagCategoryResponse[] }) {
   const createMutation = useCreateCustomTagCategory();
   const updateMutation = useUpdateCustomTagCategory();
   const deleteMutation = useDeleteCustomTagCategory();
 
-  const columns: AdminColumnDef<CustomTagCategoryResponse, CustomTagCategoryDraft>[] = [
-    {
-      header: "Slug",
-      sortValue: (cat) => cat.slug,
-      cell: (cat) => <span className="font-mono text-sm">{cat.slug}</span>,
-      addCell: (d, set) => (
-        <Input
-          value={d.slug}
-          onChange={(e) => set((prev) => ({ ...prev, slug: e.target.value.toLowerCase() }))}
-          placeholder="region"
-          className="h-8 w-48 font-mono"
-        />
-      ),
-    },
-    {
-      header: "Label",
-      sortValue: (cat) => cat.label,
-      cell: (cat) => <span>{cat.label}</span>,
-      editCell: (d, set) => (
-        <Input
-          value={d.label}
-          onChange={(e) => set((prev) => ({ ...prev, label: e.target.value }))}
-          className="h-8"
-        />
-      ),
-      addCell: (d, set) => (
-        <Input
-          value={d.label}
-          onChange={(e) => set((prev) => ({ ...prev, label: e.target.value }))}
-          placeholder="Region"
-          className="h-8"
-        />
-      ),
-    },
-    {
-      header: "Description",
-      sortValue: (cat) => cat.description ?? "",
-      cell: (cat) => (
-        <span
-          className="text-muted-foreground block max-w-xs truncate"
-          title={cat.description ?? undefined}
-        >
-          {cat.description ?? "—"}
-        </span>
-      ),
-      editCell: (d, set) => (
-        <Input
-          value={d.description}
-          onChange={(e) => set((prev) => ({ ...prev, description: e.target.value }))}
-          placeholder="Optional description"
-          className="h-8"
-        />
-      ),
-      addCell: (d, set) => (
-        <Input
-          value={d.description}
-          onChange={(e) => set((prev) => ({ ...prev, description: e.target.value }))}
-          placeholder="Optional description"
-          className="h-8"
-        />
-      ),
-    },
-    {
-      header: "Tags",
-      sortValue: (cat) => cat.tagCount,
-      align: "right",
-      cell: (cat) => <span className="font-mono text-sm">{cat.tagCount}</span>,
-    },
-  ];
-
   return (
     <AdminTable
-      columns={columns}
+      columns={categoryColumns}
       data={categories}
       getRowKey={(cat) => cat.id}
       emptyText="No categories yet — create one before adding tags."
@@ -206,6 +262,120 @@ function CategoriesSection({ categories }: { categories: CustomTagCategoryRespon
 
 // ── Tags ──────────────────────────────────────────────────────────────────
 
+function TagSlugCell({ row }: AdminCellSlotProps<CustomTagResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="font-mono text-sm">{row.slug}</span>;
+}
+
+function TagLabelCell({ row }: AdminCellSlotProps<CustomTagResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <span>{row.label}</span>;
+}
+
+function TagCategoryCell({ row }: AdminCellSlotProps<CustomTagResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <span>{row.categoryLabel}</span>;
+}
+
+function TagDescriptionCell({ row }: AdminCellSlotProps<CustomTagResponse>) {
+  if (!row) {
+    return null;
+  }
+  return (
+    <span
+      className="text-muted-foreground block max-w-xs truncate"
+      title={row.description ?? undefined}
+    >
+      {row.description ?? "—"}
+    </span>
+  );
+}
+
+function TagCardCountCell({ row }: AdminCellSlotProps<CustomTagResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="font-mono text-sm">{row.cardCount}</span>;
+}
+
+function TagSlugAddInput({ draft, setDraft }: AdminDraftSlotProps<CustomTagDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.slug}
+      onChange={(e) => setDraft((prev) => ({ ...prev, slug: e.target.value.toLowerCase() }))}
+      placeholder="bandle-city"
+      className="h-8 w-48 font-mono"
+    />
+  );
+}
+
+function TagLabelInput({ draft, setDraft }: AdminDraftSlotProps<CustomTagDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.label}
+      onChange={(e) => setDraft((prev) => ({ ...prev, label: e.target.value }))}
+      className="h-8"
+    />
+  );
+}
+
+function TagLabelAddInput({ draft, setDraft }: AdminDraftSlotProps<CustomTagDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.label}
+      onChange={(e) => setDraft((prev) => ({ ...prev, label: e.target.value }))}
+      placeholder="Bandle City"
+      className="h-8"
+    />
+  );
+}
+
+interface TagCategorySelectProps extends AdminDraftSlotProps<CustomTagDraft> {
+  items: { value: string; label: string }[];
+}
+
+function TagCategorySelect({ draft, setDraft, items }: TagCategorySelectProps) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <CategorySelect
+      items={items}
+      value={draft.categoryId}
+      onChange={(id) => setDraft((prev) => ({ ...prev, categoryId: id }))}
+    />
+  );
+}
+
+function TagDescriptionInput({ draft, setDraft }: AdminDraftSlotProps<CustomTagDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.description}
+      onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
+      placeholder="Optional description"
+      className="h-8"
+    />
+  );
+}
+
 function TagsSection({
   tags,
   categories,
@@ -224,88 +394,35 @@ function TagsSection({
     {
       header: "Slug",
       sortValue: (t) => t.slug,
-      cell: (t) => <span className="font-mono text-sm">{t.slug}</span>,
-      addCell: (d, set) => (
-        <Input
-          value={d.slug}
-          onChange={(e) => set((prev) => ({ ...prev, slug: e.target.value.toLowerCase() }))}
-          placeholder="bandle-city"
-          className="h-8 w-48 font-mono"
-        />
-      ),
+      cell: <TagSlugCell />,
+      addCell: <TagSlugAddInput />,
     },
     {
       header: "Label",
       sortValue: (t) => t.label,
-      cell: (t) => <span>{t.label}</span>,
-      editCell: (d, set) => (
-        <Input
-          value={d.label}
-          onChange={(e) => set((prev) => ({ ...prev, label: e.target.value }))}
-          className="h-8"
-        />
-      ),
-      addCell: (d, set) => (
-        <Input
-          value={d.label}
-          onChange={(e) => set((prev) => ({ ...prev, label: e.target.value }))}
-          placeholder="Bandle City"
-          className="h-8"
-        />
-      ),
+      cell: <TagLabelCell />,
+      editCell: <TagLabelInput />,
+      addCell: <TagLabelAddInput />,
     },
     {
       header: "Category",
       sortValue: (t) => t.categoryLabel,
-      cell: (t) => <span>{t.categoryLabel}</span>,
-      editCell: (d, set) => (
-        <CategorySelect
-          items={categoryItems}
-          value={d.categoryId}
-          onChange={(id) => set((prev) => ({ ...prev, categoryId: id }))}
-        />
-      ),
-      addCell: (d, set) => (
-        <CategorySelect
-          items={categoryItems}
-          value={d.categoryId}
-          onChange={(id) => set((prev) => ({ ...prev, categoryId: id }))}
-        />
-      ),
+      cell: <TagCategoryCell />,
+      editCell: <TagCategorySelect items={categoryItems} />,
+      addCell: <TagCategorySelect items={categoryItems} />,
     },
     {
       header: "Description",
       sortValue: (t) => t.description ?? "",
-      cell: (t) => (
-        <span
-          className="text-muted-foreground block max-w-xs truncate"
-          title={t.description ?? undefined}
-        >
-          {t.description ?? "—"}
-        </span>
-      ),
-      editCell: (d, set) => (
-        <Input
-          value={d.description}
-          onChange={(e) => set((prev) => ({ ...prev, description: e.target.value }))}
-          placeholder="Optional description"
-          className="h-8"
-        />
-      ),
-      addCell: (d, set) => (
-        <Input
-          value={d.description}
-          onChange={(e) => set((prev) => ({ ...prev, description: e.target.value }))}
-          placeholder="Optional description"
-          className="h-8"
-        />
-      ),
+      cell: <TagDescriptionCell />,
+      editCell: <TagDescriptionInput />,
+      addCell: <TagDescriptionInput />,
     },
     {
       header: "Cards",
       sortValue: (t) => t.cardCount,
       align: "right",
-      cell: (t) => <span className="font-mono text-sm">{t.cardCount}</span>,
+      cell: <TagCardCountCell />,
     },
   ];
 

@@ -3,7 +3,11 @@ import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 
 import { AdminTable } from "@/components/admin/admin-table";
-import type { AdminColumnDef } from "@/components/admin/admin-table";
+import type {
+  AdminCellSlotProps,
+  AdminColumnDef,
+  AdminDraftSlotProps,
+} from "@/components/admin/admin-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,9 +57,97 @@ const KNOWN_FLAGS: KnownFlag[] = [
   },
 ];
 
+function FlagKeyCell({ row }: AdminCellSlotProps<FeatureFlagResponse>) {
+  if (!row) {
+    return null;
+  }
+  const known = KNOWN_FLAGS.find((kf) => kf.key === row.key);
+  return (
+    <div>
+      <span className="font-mono text-sm">{row.key}</span>
+      {known && <p className="text-muted-foreground mt-0.5 text-xs">{known.description}</p>}
+    </div>
+  );
+}
+
+function FlagDescriptionCell({ row }: AdminCellSlotProps<FeatureFlagResponse>) {
+  if (!row) {
+    return null;
+  }
+  return (
+    row.description || <span className="text-muted-foreground text-sm italic">No description</span>
+  );
+}
+
+function FlagStatusCell({ row }: AdminCellSlotProps<FeatureFlagResponse>) {
+  const toggleMutation = useToggleFeatureFlag();
+  if (!row) {
+    return null;
+  }
+  return (
+    <div className="flex items-center justify-center gap-2">
+      <Switch
+        checked={row.enabled}
+        onCheckedChange={(checked: boolean) =>
+          toggleMutation.mutate({ key: row.key, enabled: checked })
+        }
+        disabled={toggleMutation.isPending}
+      />
+      <Badge variant={row.enabled ? "default" : "secondary"}>{row.enabled ? "On" : "Off"}</Badge>
+    </div>
+  );
+}
+
+function FlagKeyAddInput({ draft, setDraft }: AdminDraftSlotProps<FlagDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.key}
+      onChange={(e) => setDraft((prev) => ({ ...prev, key: e.target.value.toLowerCase() }))}
+      placeholder="deck-builder"
+      className="h-8 w-48 font-mono"
+    />
+  );
+}
+
+function FlagDescriptionAddInput({ draft, setDraft }: AdminDraftSlotProps<FlagDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <Input
+      value={draft.description}
+      onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
+      placeholder="What this flag controls"
+      className="h-8"
+    />
+  );
+}
+
+const globalFlagColumns: AdminColumnDef<FeatureFlagResponse, FlagDraft>[] = [
+  {
+    header: "Key",
+    sortValue: (f) => f.key,
+    cell: <FlagKeyCell />,
+    addCell: <FlagKeyAddInput />,
+  },
+  {
+    header: "Description",
+    cell: <FlagDescriptionCell />,
+    addCell: <FlagDescriptionAddInput />,
+  },
+  {
+    header: "Status",
+    align: "center",
+    width: "w-24",
+    cell: <FlagStatusCell />,
+  },
+];
+
 function GlobalFlagsSection() {
   const { data } = useFeatureFlags();
-  const toggleMutation = useToggleFeatureFlag();
   const createMutation = useCreateFeatureFlag();
   const deleteMutation = useDeleteFeatureFlag();
   const { flags } = data;
@@ -63,66 +155,10 @@ function GlobalFlagsSection() {
   const existingKeys = new Set(flags.map((flag) => flag.key));
   const missingKnown = KNOWN_FLAGS.filter((kf) => !existingKeys.has(kf.key));
 
-  const columns: AdminColumnDef<FeatureFlagResponse, FlagDraft>[] = [
-    {
-      header: "Key",
-      sortValue: (f) => f.key,
-      cell: (f) => {
-        const known = KNOWN_FLAGS.find((kf) => kf.key === f.key);
-        return (
-          <div>
-            <span className="font-mono text-sm">{f.key}</span>
-            {known && <p className="text-muted-foreground mt-0.5 text-xs">{known.description}</p>}
-          </div>
-        );
-      },
-      addCell: (d, set) => (
-        <Input
-          value={d.key}
-          onChange={(e) => set((prev) => ({ ...prev, key: e.target.value.toLowerCase() }))}
-          placeholder="deck-builder"
-          className="h-8 w-48 font-mono"
-        />
-      ),
-    },
-    {
-      header: "Description",
-      cell: (f) =>
-        f.description || (
-          <span className="text-muted-foreground text-sm italic">No description</span>
-        ),
-      addCell: (d, set) => (
-        <Input
-          value={d.description}
-          onChange={(e) => set((prev) => ({ ...prev, description: e.target.value }))}
-          placeholder="What this flag controls"
-          className="h-8"
-        />
-      ),
-    },
-    {
-      header: "Status",
-      align: "center",
-      width: "w-24",
-      cell: (f) => (
-        <div className="flex items-center justify-center gap-2">
-          <Switch
-            checked={f.enabled}
-            onCheckedChange={(checked: boolean) =>
-              toggleMutation.mutate({ key: f.key, enabled: checked })
-            }
-            disabled={toggleMutation.isPending}
-          />
-          <Badge variant={f.enabled ? "default" : "secondary"}>{f.enabled ? "On" : "Off"}</Badge>
-        </div>
-      ),
-    },
-  ];
-
   return (
     <div className="space-y-6">
       <AdminTable
-        columns={columns}
+        columns={globalFlagColumns}
         data={flags}
         getRowKey={(f) => f.key}
         emptyText="No feature flags yet."
@@ -235,92 +271,136 @@ interface OverrideDraft {
   enabled: boolean;
 }
 
+function OverrideUserCell({ row }: AdminCellSlotProps<OverrideRow>) {
+  if (!row) {
+    return null;
+  }
+  return (
+    <span className="text-sm">
+      {row.userEmail}
+      {row.userName ? <span className="text-muted-foreground ml-1">({row.userName})</span> : null}
+    </span>
+  );
+}
+
+function OverrideFlagCell({ row }: AdminCellSlotProps<OverrideRow>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="font-mono text-sm">{row.flagKey}</span>;
+}
+
+function OverrideStatusCell({ row }: AdminCellSlotProps<OverrideRow>) {
+  const upsertMutation = useUpsertFeatureFlagOverride();
+  if (!row) {
+    return null;
+  }
+  return (
+    <div className="flex items-center justify-center gap-2">
+      <Switch
+        checked={row.enabled}
+        onCheckedChange={(checked: boolean) =>
+          upsertMutation.mutate({ userId: row.userId, flagKey: row.flagKey, enabled: checked })
+        }
+        disabled={upsertMutation.isPending}
+      />
+      <Badge variant={row.enabled ? "default" : "secondary"}>{row.enabled ? "On" : "Off"}</Badge>
+    </div>
+  );
+}
+
+function OverrideUserAddSelect({ draft, setDraft }: AdminDraftSlotProps<OverrideDraft>) {
+  const { data: usersData } = useAdminUsers();
+  const users = usersData.users.toSorted((a, b) => a.email.localeCompare(b.email));
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <select
+      className="border-input bg-background h-8 rounded-md border px-2 text-sm"
+      value={draft.userId}
+      onChange={(e) => setDraft((prev) => ({ ...prev, userId: e.target.value }))}
+    >
+      <option value="">Select user...</option>
+      {users.map((u) => (
+        <option key={u.id} value={u.id}>
+          {u.email}
+          {u.name ? ` (${u.name})` : ""}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function OverrideFlagAddSelect({ draft, setDraft }: AdminDraftSlotProps<OverrideDraft>) {
+  const { data: flagsData } = useFeatureFlags();
+  const flagKeys = flagsData.flags.map((f) => f.key).toSorted();
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <select
+      className="border-input bg-background h-8 rounded-md border px-2 font-mono text-sm"
+      value={draft.flagKey}
+      onChange={(e) => setDraft((prev) => ({ ...prev, flagKey: e.target.value }))}
+    >
+      <option value="">Select flag...</option>
+      {flagKeys.map((key) => (
+        <option key={key} value={key}>
+          {key}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function OverrideStatusAddCell({ draft, setDraft }: AdminDraftSlotProps<OverrideDraft>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <div className="flex items-center justify-center gap-2">
+      <Switch
+        checked={draft.enabled}
+        onCheckedChange={(checked: boolean) => setDraft((prev) => ({ ...prev, enabled: checked }))}
+      />
+      <Badge variant={draft.enabled ? "default" : "secondary"}>
+        {draft.enabled ? "On" : "Off"}
+      </Badge>
+    </div>
+  );
+}
+
+const overrideColumns: AdminColumnDef<OverrideRow, OverrideDraft>[] = [
+  {
+    header: "User",
+    sortValue: (r) => r.userEmail,
+    cell: <OverrideUserCell />,
+    addCell: <OverrideUserAddSelect />,
+  },
+  {
+    header: "Flag",
+    sortValue: (r) => r.flagKey,
+    cell: <OverrideFlagCell />,
+    addCell: <OverrideFlagAddSelect />,
+  },
+  {
+    header: "Override",
+    align: "center",
+    width: "w-24",
+    cell: <OverrideStatusCell />,
+    addCell: <OverrideStatusAddCell />,
+  },
+];
+
 function OverridesSection() {
   const { data } = useFeatureFlagOverrides();
-  const { data: flagsData } = useFeatureFlags();
-  const { data: usersData } = useAdminUsers();
   const upsertMutation = useUpsertFeatureFlagOverride();
   const deleteMutation = useDeleteFeatureFlagOverride();
 
-  const flagKeys = flagsData.flags.map((f) => f.key).toSorted();
-  const users = usersData.users.toSorted((a, b) => a.email.localeCompare(b.email));
-
-  const columns: AdminColumnDef<OverrideRow, OverrideDraft>[] = [
-    {
-      header: "User",
-      sortValue: (r) => r.userEmail,
-      cell: (r) => (
-        <span className="text-sm">
-          {r.userEmail}
-          {r.userName ? <span className="text-muted-foreground ml-1">({r.userName})</span> : null}
-        </span>
-      ),
-      addCell: (d, set) => (
-        <select
-          className="border-input bg-background h-8 rounded-md border px-2 text-sm"
-          value={d.userId}
-          onChange={(e) => set((prev) => ({ ...prev, userId: e.target.value }))}
-        >
-          <option value="">Select user...</option>
-          {users.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.email}
-              {u.name ? ` (${u.name})` : ""}
-            </option>
-          ))}
-        </select>
-      ),
-    },
-    {
-      header: "Flag",
-      sortValue: (r) => r.flagKey,
-      cell: (r) => <span className="font-mono text-sm">{r.flagKey}</span>,
-      addCell: (d, set) => (
-        <select
-          className="border-input bg-background h-8 rounded-md border px-2 font-mono text-sm"
-          value={d.flagKey}
-          onChange={(e) => set((prev) => ({ ...prev, flagKey: e.target.value }))}
-        >
-          <option value="">Select flag...</option>
-          {flagKeys.map((key) => (
-            <option key={key} value={key}>
-              {key}
-            </option>
-          ))}
-        </select>
-      ),
-    },
-    {
-      header: "Override",
-      align: "center",
-      width: "w-24",
-      cell: (r) => (
-        <div className="flex items-center justify-center gap-2">
-          <Switch
-            checked={r.enabled}
-            onCheckedChange={(checked: boolean) =>
-              upsertMutation.mutate({ userId: r.userId, flagKey: r.flagKey, enabled: checked })
-            }
-            disabled={upsertMutation.isPending}
-          />
-          <Badge variant={r.enabled ? "default" : "secondary"}>{r.enabled ? "On" : "Off"}</Badge>
-        </div>
-      ),
-      addCell: (d, set) => (
-        <div className="flex items-center justify-center gap-2">
-          <Switch
-            checked={d.enabled}
-            onCheckedChange={(checked: boolean) => set((prev) => ({ ...prev, enabled: checked }))}
-          />
-          <Badge variant={d.enabled ? "default" : "secondary"}>{d.enabled ? "On" : "Off"}</Badge>
-        </div>
-      ),
-    },
-  ];
-
   return (
     <AdminTable
-      columns={columns}
+      columns={overrideColumns}
       data={data.overrides}
       getRowKey={(r) => `${r.userId}-${r.flagKey}`}
       emptyText="No per-user overrides."
