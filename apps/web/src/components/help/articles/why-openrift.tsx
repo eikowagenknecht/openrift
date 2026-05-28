@@ -566,6 +566,14 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
       riftcore: "Also supports Pixelborn import and export.",
     },
   },
+  {
+    kind: "row",
+    feature: "Play on RiftAtlas",
+    values: ["yes", "yes", "no", "no", "no"],
+    detail: {
+      general: "One-click link that opens the deck in RiftAtlas's online playtester.",
+    },
+  },
   { kind: "section", title: "User Experience" },
   {
     kind: "row",

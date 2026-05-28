@@ -8,6 +8,7 @@ import {
   FileTextIcon,
   LinkIcon,
   PencilIcon,
+  PlayIcon,
   PrinterIcon,
   RefreshCwIcon,
   Share2Icon,
@@ -68,7 +69,7 @@ import { useCards } from "@/hooks/use-cards";
 import { useDeckCards } from "@/hooks/use-deck-builder";
 import { useDeckItems } from "@/hooks/use-deck-items";
 import { useDeckOwnership } from "@/hooks/use-deck-ownership";
-import { useDeckDetail, useUpdateDeck } from "@/hooks/use-decks";
+import { useDeckDetail, useExportDeck, useUpdateDeck } from "@/hooks/use-decks";
 import { useDeckFormatList } from "@/hooks/use-enums";
 import { useDeckBuildingCounts } from "@/hooks/use-owned-count";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
@@ -149,10 +150,32 @@ function DeckEditorContent({
   const [missingOpen, setMissingOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const updateDeck = useUpdateDeck();
+  const exportDeck = useExportDeck();
   const { formats } = useDeckFormatList();
   const otherFormats = formats.filter((entry) => entry.slug !== data.deck.format);
   const handleFormatChange = (slug: string) => {
     updateDeck.mutate({ deckId, format: slug });
+  };
+
+  const handlePlayOnRiftAtlas = () => {
+    // Open the placeholder tab synchronously so it survives the popup blocker
+    // while we fetch the piltover deck code; navigate it once the code arrives.
+    const playTab = window.open("about:blank", "_blank");
+    if (!playTab) {
+      return;
+    }
+    playTab.opener = null;
+    exportDeck.mutate(
+      { deckId, format: "piltover" },
+      {
+        onSuccess: ({ code }) => {
+          playTab.location.href = `https://play.riftatlas.com/?deckCode=${encodeURIComponent(code)}`;
+        },
+        onError: () => {
+          playTab.close();
+        },
+      },
+    );
   };
 
   // Ownership data — split available vs locked so the deck builder respects
@@ -479,6 +502,10 @@ function DeckEditorContent({
                   <DropdownMenuItem onClick={() => setShareOpen(true)}>
                     <LinkIcon className="size-4" />
                     Share deck
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handlePlayOnRiftAtlas}>
+                    <PlayIcon className="size-4" />
+                    Play on RiftAtlas
                   </DropdownMenuItem>
                   <div className="md:hidden">
                     <DropdownMenuSeparator />
