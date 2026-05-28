@@ -48,6 +48,7 @@ export function ListGroupSharesBadge({ listId }: Props) {
   return (
     <Popover>
       <PopoverTrigger
+        nativeButton={false}
         render={
           <Badge
             variant="ghost"

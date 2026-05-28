@@ -2,6 +2,7 @@
 
 ## 2026-05-28
 
+- feat: On a group's possible trades, several printings of the same wishlist card from one member now collapse into a single row. The title leads with the quantity wanted (like "1× Fury Rune") and the row shows how many they have available; expand it to see each printing with its own count and price
 - feat: The group page is now organized into Trading, Collections, and Members tabs. Trading shows a single "Possible trades" list where each row marks whether the card comes to you or goes to another member, plus a per-member directory of every wishlist and tradelist shared with the group; Collections shows the group's pooled collections alongside each member's shared personal collections; Members is the roster. Sharing your own lists and collections, group settings, the join code, email invites, and leaving or deleting the group all move behind a "Manage" link in the header
 - feat: You can now drag the rows in the sidebar to reorder your personal collections and your lists. Hover a row to see the grip handle on the right; the Inbox stays pinned at the top and shared group collections stay alphabetical
 - feat: A deck's menu now has a "Play on RiftAtlas" link that opens the deck in RiftAtlas's online playtester
