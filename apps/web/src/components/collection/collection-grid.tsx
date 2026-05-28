@@ -10,9 +10,9 @@ import {
   PackagePlusIcon,
   PencilIcon,
   Share2Icon,
+  SquarePlusIcon,
   Trash2Icon,
   XIcon,
-  ZapIcon,
 } from "lucide-react";
 import { use, useEffect, useDeferredValue, useState } from "react";
 import { createPortal } from "react-dom";
@@ -1119,7 +1119,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
               {addTarget && (
                 <>
                   <Button variant="outline" onClick={() => setQuickAddOpen(true)}>
-                    <ZapIcon className="mr-1 size-3.5" />
+                    <SquarePlusIcon className="mr-1 size-3.5" />
                     Quick add
                   </Button>
                   <Button onClick={toggleAddMode}>
@@ -1395,10 +1395,10 @@ function CollectionTopBar({
           {addTarget && hasCards && (
             <>
               <Button variant="ghost" size="icon" onClick={onQuickAdd} className="sm:hidden">
-                <ZapIcon className="size-4" />
+                <SquarePlusIcon className="size-4" />
               </Button>
               <Button variant="ghost" onClick={onQuickAdd} className="hidden sm:flex">
-                <ZapIcon className="size-4" />
+                <SquarePlusIcon className="size-4" />
                 Quick add
               </Button>
             </>
