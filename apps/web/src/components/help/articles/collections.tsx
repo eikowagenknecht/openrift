@@ -119,7 +119,6 @@ export default function CollectionsArticle() {
               panel as &quot;locked&quot;, so you can see what you&apos;d have available if you
               turned the collection back on.
             </p>
-            <p>The Inbox is always available for deck building and can&apos;t be toggled.</p>
           </AlertDescription>
         </Alert>
       </section>

@@ -55,7 +55,7 @@ export function EditCollectionDialog({
     if (trimmed && trimmed !== currentName) {
       updates.name = trimmed;
     }
-    if (!isInbox && availableForDeckbuilding !== currentAvailableForDeckbuilding) {
+    if (availableForDeckbuilding !== currentAvailableForDeckbuilding) {
       updates.availableForDeckbuilding = availableForDeckbuilding;
     }
     if (Object.keys(updates).length === 0) {
@@ -112,14 +112,8 @@ export function EditCollectionDialog({
               id="available-for-deckbuilding"
               checked={availableForDeckbuilding}
               onCheckedChange={setAvailableForDeckbuilding}
-              disabled={isInbox}
             />
           </div>
-          {isInbox && (
-            <p className="text-muted-foreground text-xs">
-              The Inbox is always available for deck building.
-            </p>
-          )}
         </div>
         <DialogFooter>
           <Button
