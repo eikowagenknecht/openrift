@@ -108,10 +108,14 @@ function DesktopNav({
   showGlossary,
   showCollection,
   showDecks,
+  showGroups,
+  pendingInvites,
 }: {
   showGlossary: boolean;
   showCollection: boolean;
   showDecks: boolean;
+  showGroups: boolean;
+  pendingInvites: number;
 }) {
   return (
     <NavigationMenu>
@@ -147,6 +151,27 @@ function DesktopNav({
               className={navigationMenuTriggerStyle()}
             >
               Decks
+            </NavigationMenuLink>
+          </NavigationMenuItem>
+        )}
+        {showGroups && (
+          <NavigationMenuItem>
+            <NavigationMenuLink
+              render={<Link to="/groups" />}
+              className={cn(
+                navigationMenuTriggerStyle(),
+                "data-[status=active]:bg-muted data-[status=active]:font-semibold",
+              )}
+            >
+              Groups
+              {pendingInvites > 0 && (
+                <span
+                  aria-label={`${pendingInvites} pending invites`}
+                  className="bg-primary text-primary-foreground ml-1.5 rounded-full px-1.5 text-[10px] font-medium"
+                >
+                  {pendingInvites > 9 ? "9+" : pendingInvites}
+                </span>
+              )}
             </NavigationMenuLink>
           </NavigationMenuItem>
         )}
@@ -208,31 +233,19 @@ function DesktopNav({
 
 function UserMenuTrigger({
   user,
-  pendingInvites,
 }: {
   user: { name: string; email: string; image?: string | null } | undefined;
-  pendingInvites: number;
 }) {
   const gravatarHash = useGravatarHash(user?.email);
   if (user) {
     return (
-      <div className="relative">
-        <UserAvatar
-          image={user.image}
-          name={user.name}
-          email={user.email}
-          gravatarHash={gravatarHash}
-          size="sm"
-        />
-        {pendingInvites > 0 && (
-          <span
-            aria-label={`${pendingInvites} pending invites`}
-            className="bg-primary text-primary-foreground absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full text-[10px] font-medium"
-          >
-            {pendingInvites > 9 ? "9+" : pendingInvites}
-          </span>
-        )}
-      </div>
+      <UserAvatar
+        image={user.image}
+        name={user.name}
+        email={user.email}
+        gravatarHash={gravatarHash}
+        size="sm"
+      />
     );
   }
   return <EllipsisVerticalIcon className="size-5" />;
@@ -243,8 +256,6 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
   const darkMode = theme === "dark";
   const { data: isAdmin } = useIsAdmin();
-  const { data: pendingInvitesData } = useFriendGroupPendingInvitesCount({ enabled: isLoggedIn });
-  const pendingInvites = pendingInvitesData?.count ?? 0;
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -273,17 +284,6 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
         <DropdownMenuItem render={<Link to="/profile" />}>
           <UserIcon className="size-4" />
           Profile
-        </DropdownMenuItem>
-      )}
-      {isLoggedIn && (
-        <DropdownMenuItem render={<Link to="/groups" />}>
-          <UsersIcon className="size-4" />
-          Friend groups
-          {pendingInvites > 0 && (
-            <span className="bg-primary text-primary-foreground ml-auto rounded-full px-1.5 text-[10px] font-medium">
-              {pendingInvites}
-            </span>
-          )}
         </DropdownMenuItem>
       )}
       {isLoggedIn && isAdmin && (
@@ -330,8 +330,6 @@ function UserMenu({
   isPending: boolean;
 }) {
   const isLoggedIn = Boolean(session?.user);
-  const { data: pendingInvitesData } = useFriendGroupPendingInvitesCount({ enabled: isLoggedIn });
-  const pendingInvites = pendingInvitesData?.count ?? 0;
 
   if (isPending) {
     return <div className="size-8" />;
@@ -352,7 +350,7 @@ function UserMenu({
       )}
       <DropdownMenu>
         <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Menu" />}>
-          <UserMenuTrigger user={user} pendingInvites={pendingInvites} />
+          <UserMenuTrigger user={user} />
         </DropdownMenuTrigger>
         <UserMenuItems isLoggedIn={isLoggedIn} />
       </DropdownMenu>
@@ -365,11 +363,13 @@ function MobileNavLink({
   search,
   icon,
   children,
+  badge,
 }: {
   to: string;
   search?: (prev: Record<string, unknown>) => Record<string, unknown>;
   icon: ReactNode;
   children: ReactNode;
+  badge?: number;
 }) {
   return (
     <SheetClose
@@ -379,6 +379,14 @@ function MobileNavLink({
     >
       {icon}
       {children}
+      {badge !== undefined && badge > 0 && (
+        <span
+          aria-label={`${badge} pending invites`}
+          className="bg-primary text-primary-foreground ml-auto rounded-full px-1.5 text-[10px] font-medium"
+        >
+          {badge > 9 ? "9+" : badge}
+        </span>
+      )}
     </SheetClose>
   );
 }
@@ -389,12 +397,16 @@ function MobileNav({
   showGlossary,
   showCollection,
   showDecks,
+  showGroups,
+  pendingInvites,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   showGlossary: boolean;
   showCollection: boolean;
   showDecks: boolean;
+  showGroups: boolean;
+  pendingInvites: number;
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -436,6 +448,15 @@ function MobileNav({
               icon={<BookOpenIcon className="text-muted-foreground size-5" />}
             >
               Decks
+            </MobileNavLink>
+          )}
+          {showGroups && (
+            <MobileNavLink
+              to="/groups"
+              icon={<UsersIcon className="text-muted-foreground size-5" />}
+              badge={pendingInvites}
+            >
+              Groups
             </MobileNavLink>
           )}
           <div className="text-muted-foreground mt-3 px-3 pb-1 font-semibold tracking-wide uppercase">
@@ -553,8 +574,12 @@ export function Header() {
   const glossaryEnabled = useFeatureEnabled("glossary");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const showGlossary = glossaryEnabled;
-  const showCollection = Boolean(session?.user);
-  const showDecks = Boolean(session?.user);
+  const isLoggedIn = Boolean(session?.user);
+  const showCollection = isLoggedIn;
+  const showDecks = isLoggedIn;
+  const showGroups = isLoggedIn;
+  const { data: pendingInvitesData } = useFriendGroupPendingInvitesCount({ enabled: isLoggedIn });
+  const pendingInvites = pendingInvitesData?.count ?? 0;
 
   return (
     <header className="bg-background/80 border-border-accent sticky top-0 z-50 border-b backdrop-blur-lg">
@@ -573,6 +598,8 @@ export function Header() {
             showGlossary={showGlossary}
             showCollection={showCollection}
             showDecks={showDecks}
+            showGroups={showGroups}
+            pendingInvites={pendingInvites}
           />
         </div>
 
@@ -602,6 +629,8 @@ export function Header() {
         showGlossary={showGlossary}
         showCollection={showCollection}
         showDecks={showDecks}
+        showGroups={showGroups}
+        pendingInvites={pendingInvites}
       />
     </header>
   );

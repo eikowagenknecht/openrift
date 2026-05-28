@@ -2,6 +2,7 @@
 
 ## 2026-05-28
 
+- feat: Friend groups now have a top-level Groups link in the main menu (and mobile sidebar), so you can jump straight there without opening the avatar menu. The pending-invite badge moves with it
 - feat: You can now drag a card from one wishlist to another (or tradelist to tradelist) to move it between lists of the same kind. The card is removed from the source and added to the destination, with quantities merged if the destination already has the same card
 - fix: On a friend group member's matches panel, the marketplace links inside each match row now work as expected, and the rows no longer trigger hydration warnings on page load
 - fix: Promote to admin, demote, transfer ownership, and remove on a friend group member's overflow menu now actually do something when clicked, instead of just closing the menu
