@@ -62,7 +62,9 @@ import { usePrices } from "@/hooks/use-prices";
 import { getDomainColor } from "@/lib/domain";
 import { getFilterIconPath } from "@/lib/icons";
 import { MARKETPLACE_META } from "@/lib/marketplace-meta";
+import type { FilterSearch } from "@/lib/search-schemas";
 import type { DomainCount, RarityCount } from "@/lib/stat-types";
+import { buildMissingSearch } from "@/lib/stats-missing-search";
 import { cn } from "@/lib/utils";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 
@@ -245,12 +247,12 @@ function CompletionRow({
   entry,
   icon,
   barColor,
-  missingHref,
+  missingSearch,
 }: {
   entry: CompletionEntry;
   icon?: string;
   barColor?: string;
-  missingHref?: string;
+  missingSearch?: Partial<FilterSearch>;
 }) {
   const missing = entry.total - entry.owned;
 
@@ -275,9 +277,10 @@ function CompletionRow({
       <span className="w-12 shrink-0 text-right text-xs font-medium tabular-nums">
         {entry.percent.toFixed(0)}%
       </span>
-      {missingHref ? (
-        <a
-          href={missingHref}
+      {missingSearch ? (
+        <Link
+          to="/cards"
+          search={missingSearch}
           title={`Browse ${missing} missing`}
           className={cn(
             "shrink-0",
@@ -288,7 +291,7 @@ function CompletionRow({
           tabIndex={missing > 0 ? undefined : -1}
         >
           <ExternalLinkIcon className="size-3.5" />
-        </a>
+        </Link>
       ) : (
         <span className="w-3.5 shrink-0" />
       )}
@@ -364,68 +367,9 @@ function CompletionSection({
     return undefined;
   }
 
-  // Build URL search params for "View missing" link per completion row.
-  // Only available in "cards" count mode (the card browser filters at the card level).
   const setIdToSlug = new Map(stats.sets.map((set) => [set.id, set.slug]));
-
-  function missingHref(key: string): string | undefined {
-    if (countMode !== "cards") {
-      return undefined;
-    }
-    const params = new URLSearchParams();
-    params.set("owned", "false");
-    switch (groupBy) {
-      case "set": {
-        const slug = setIdToSlug.get(key);
-        if (slug) {
-          params.set("sets", slug);
-        }
-        break;
-      }
-      case "domain": {
-        params.set("domains", key);
-        break;
-      }
-      case "rarity": {
-        params.set("rarities", key);
-        break;
-      }
-      case "type": {
-        params.set("types", key);
-        break;
-      }
-    }
-    // Pass scope filters so the card browser matches the completion view
-    const arrayFields = [
-      ["sets", scope.sets],
-      ["languages", scope.languages],
-      ["domains", scope.domains],
-      ["types", scope.types],
-      ["rarities", scope.rarities],
-      ["finishes", scope.finishes],
-      ["artVariants", scope.artVariants],
-    ] as const;
-    for (const [paramName, values] of arrayFields) {
-      if (values && values.length > 0) {
-        params.set(paramName, values.join(","));
-      }
-    }
-    if (scope.promos === "only") {
-      params.set("promo", "true");
-    } else if (scope.promos === "exclude") {
-      params.set("promo", "false");
-    }
-    if (scope.signed !== undefined) {
-      params.set("signed", String(scope.signed));
-    }
-    if (scope.banned !== undefined) {
-      params.set("banned", String(scope.banned));
-    }
-    if (scope.errata !== undefined) {
-      params.set("errata", String(scope.errata));
-    }
-    return `/cards?${params.toString()}`;
-  }
+  const missingSearch = (key: string): Partial<FilterSearch> | undefined =>
+    buildMissingSearch({ countMode, groupBy, key, scope, setIdToSlug });
 
   return (
     <section>
@@ -442,7 +386,7 @@ function CompletionSection({
                 entry={entry}
                 icon={getRowIcon(groupBy, entry.key)}
                 barColor={rowBarColor(entry.key)}
-                missingHref={missingHref(entry.key)}
+                missingSearch={missingSearch(entry.key)}
               />
             ))}
           </div>
@@ -457,7 +401,7 @@ function CompletionSection({
                   entry={entry}
                   icon={getRowIcon(groupBy, entry.key)}
                   barColor={rowBarColor(entry.key)}
-                  missingHref={missingHref(entry.key)}
+                  missingSearch={missingSearch(entry.key)}
                 />
               ))}
             </div>
