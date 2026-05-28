@@ -728,7 +728,8 @@ function ShareableListsPanel({ slug }: { slug: string }) {
       <CardHeader>
         <CardTitle className="text-base">Share your lists</CardTitle>
         <CardDescription>
-          Sharing makes a list visible to every member. Unsharing is just for this group.
+          Shared lists are visible to everyone in this group. Each list is shared with each group
+          separately, so changes here don&apos;t affect any other groups you&apos;ve shared it with.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
