@@ -7,6 +7,7 @@
 - feat: There's a new help article that walks you through how groups work, covering roles, joining, sharing lists, matches, and shared collections
 - feat: Friend groups are now called Groups throughout the app, with a top-level Groups link in the main menu and mobile sidebar so you can jump straight there without opening the avatar menu. The pending-invite badge moves with it
 - feat: You can now drag a card from one wishlist to another (or tradelist to tradelist) to move it between lists of the same kind. The card is removed from the source and added to the destination, with quantities merged if the destination already has the same card
+- fix: On a printings or copies list, the search bar now reads "Search printings…" or "Search copies…" with a matching unit count, instead of always saying "Search cards"
 - fix: Group, shared user, and groups-join page titles now use the same weight as page titles elsewhere in the app, so they no longer look slightly thinner than other page headers
 - fix: Empty states across deck list, collection stats, groups, and the activity feed now share a consistent layout, and the amber "warnings while parsing" boxes in deck and collection import now read correctly in dark mode
 - fix: On a friend group member's matches panel, the marketplace links inside each match row now work as expected, and the rows no longer trigger hydration warnings on page load

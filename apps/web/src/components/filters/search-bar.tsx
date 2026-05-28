@@ -80,7 +80,7 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
   const hasPrefixes = parseSearchTerms(localSearch).some((t) => t.field !== null);
 
   const placeholder = allSelected
-    ? "Search cards..."
+    ? `Search ${unitLabel}...`
     : `Search by ${searchScope.map((f) => SEARCH_FIELD_LABELS[f].label.toLowerCase()).join(", ")}...`;
 
   const cardCountLabel =

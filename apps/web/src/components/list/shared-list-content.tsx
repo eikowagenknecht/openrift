@@ -43,6 +43,7 @@ import { useChannelRegistry } from "@/hooks/use-enums";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
+import { FilterSearchProvider, useFilterSearch } from "@/lib/search-schemas";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
@@ -133,6 +134,7 @@ function SharedListGrid({ data }: { data: PublicListDetailResponse }) {
 
   const { filters, sortBy, sortDir, groupBy, hasActiveFilters } = useFilterValues();
   const { setSearch } = useFilterActions();
+  const filterSearch = useFilterSearch();
   // Public share mirrors the authenticated list page: the view is locked to
   // the list's kind, and the view-mode toggle is hidden in the toolbar.
   const view: "cards" | "printings" | "copies" = kindToView(list.kind);
@@ -290,43 +292,48 @@ function SharedListGrid({ data }: { data: PublicListDetailResponse }) {
     );
   }
 
+  // Override the filter-search `view` so the SearchBar's "Search X..." label
+  // and unit count match the locked view. Without this it falls back to the
+  // URL/default ("cards") on printing- and copy-kind lists.
   return (
-    <CardBrowserFilterProvider
-      availableFilters={availableFilters}
-      availableLanguages={availableLanguages}
-      filterCounts={filterCounts}
-      setDisplayLabel={setDisplayLabel}
-      hiddenSections={SHARED_HIDDEN_FILTER_SECTIONS}
-    >
-      <CardViewer
-        items={items}
-        totalItems={view === "copies" ? entries.length : listPrintings.length}
-        renderCard={renderCard}
-        toolbar={toolbar}
-        leftPane={leftPane}
-        aboveGrid={aboveGrid}
-        rightPane={rightPane}
-        addStripHeight={ADD_STRIP_HEIGHT}
-        table={
-          list.kind === "copy"
-            ? { actionsColumn: "none" }
-            : {
-                actionsColumn: "narrow",
-                actionsLabel: "Qty",
-                actionsCell: <SharedListQuantityCell entryByItemId={entryByItemId} />,
-              }
-        }
+    <FilterSearchProvider value={{ ...filterSearch, view }}>
+      <CardBrowserFilterProvider
+        availableFilters={availableFilters}
+        availableLanguages={availableLanguages}
+        filterCounts={filterCounts}
+        setDisplayLabel={setDisplayLabel}
+        hiddenSections={SHARED_HIDDEN_FILTER_SECTIONS}
       >
-        {isMobile && (
-          <SelectionMobileOverlay
-            items={items}
-            printingsByCardId={detailPanePrintingsByCardId}
-            showImages={showImages}
-            onSearchAndClose={handleSearchAndClose}
-          />
-        )}
-      </CardViewer>
-    </CardBrowserFilterProvider>
+        <CardViewer
+          items={items}
+          totalItems={view === "copies" ? entries.length : listPrintings.length}
+          renderCard={renderCard}
+          toolbar={toolbar}
+          leftPane={leftPane}
+          aboveGrid={aboveGrid}
+          rightPane={rightPane}
+          addStripHeight={ADD_STRIP_HEIGHT}
+          table={
+            list.kind === "copy"
+              ? { actionsColumn: "none" }
+              : {
+                  actionsColumn: "narrow",
+                  actionsLabel: "Qty",
+                  actionsCell: <SharedListQuantityCell entryByItemId={entryByItemId} />,
+                }
+          }
+        >
+          {isMobile && (
+            <SelectionMobileOverlay
+              items={items}
+              printingsByCardId={detailPanePrintingsByCardId}
+              showImages={showImages}
+              onSearchAndClose={handleSearchAndClose}
+            />
+          )}
+        </CardViewer>
+      </CardBrowserFilterProvider>
+    </FilterSearchProvider>
   );
 }
 

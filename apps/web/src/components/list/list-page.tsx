@@ -82,6 +82,7 @@ import {
 } from "@/hooks/use-lists";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-session";
+import { FilterSearchProvider, useFilterSearch } from "@/lib/search-schemas";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
@@ -856,83 +857,90 @@ function ListEntryBrowser({
     />
   );
 
+  // Override the filter-search `view` so the SearchBar's "Search X..." label
+  // and unit count match the locked view. Without this it falls back to the
+  // URL/default ("cards") on printing- and copy-kind lists.
+  const filterSearch = useFilterSearch();
+
   return (
-    <CardBrowserFilterProvider
-      availableFilters={availableFilters}
-      availableLanguages={availableLanguages}
-      filterCounts={filterCounts}
-      setDisplayLabel={setDisplayLabel}
-      hiddenSections={isAddMode ? undefined : LIST_HIDDEN_FILTER_SECTIONS}
-    >
-      <CardViewer
-        items={items}
-        totalItems={totalListItems}
-        renderCard={renderCard}
-        toolbar={toolbar}
-        leftPane={leftPane}
-        aboveGrid={aboveGrid}
-        rightPane={rightPane}
-        addStripHeight={ADD_STRIP_HEIGHT}
-        table={{
-          // Copy-kind lists are quantity-fixed (a copy = one physical card),
-          // so the stepper is hidden and we use the narrow column with a
-          // trash-only action. Card/printing lists get the wide column with
-          // the full stepper.
-          actionsColumn: kind === "copy" ? "narrow" : "wide",
-          actionsLabel: "",
-          // Table row keys mirror grid item keys: in copies view that's the
-          // entry id (so each row's Remove targets that specific entry); in
-          // cards/printings view it's the printing id and we resolve via the
-          // entry-by-item map.
-          actionsCell: (
-            <ListActionsCell
-              kind={kind}
-              entryByItemId={entryByItemId}
-              entriesByPrintingId={entriesByPrintingId}
-              supportsTradePrefs={supportsTradePrefs}
-              listTradeDefaults={listTradeDefaults}
-              listCurrency={listCurrency}
-              onEditTradePref={setPrefDialogEntryId}
-              onRemoveEntry={onRemoveEntry}
-              onQuantityChange={onQuantityChange}
-              isRemovePendingFor={isRemovePendingFor}
-              isQuantityPendingFor={isQuantityPendingFor}
-            />
-          ),
-        }}
+    <FilterSearchProvider value={{ ...filterSearch, view }}>
+      <CardBrowserFilterProvider
+        availableFilters={availableFilters}
+        availableLanguages={availableLanguages}
+        filterCounts={filterCounts}
+        setDisplayLabel={setDisplayLabel}
+        hiddenSections={isAddMode ? undefined : LIST_HIDDEN_FILTER_SECTIONS}
       >
-        {isMobile && (
-          <SelectionMobileOverlay
-            items={items}
-            printingsByCardId={detailPanePrintingsByCardId}
-            showImages={showImages}
-            onSearchAndClose={handleSearchAndClose}
+        <CardViewer
+          items={items}
+          totalItems={totalListItems}
+          renderCard={renderCard}
+          toolbar={toolbar}
+          leftPane={leftPane}
+          aboveGrid={aboveGrid}
+          rightPane={rightPane}
+          addStripHeight={ADD_STRIP_HEIGHT}
+          table={{
+            // Copy-kind lists are quantity-fixed (a copy = one physical card),
+            // so the stepper is hidden and we use the narrow column with a
+            // trash-only action. Card/printing lists get the wide column with
+            // the full stepper.
+            actionsColumn: kind === "copy" ? "narrow" : "wide",
+            actionsLabel: "",
+            // Table row keys mirror grid item keys: in copies view that's the
+            // entry id (so each row's Remove targets that specific entry); in
+            // cards/printings view it's the printing id and we resolve via the
+            // entry-by-item map.
+            actionsCell: (
+              <ListActionsCell
+                kind={kind}
+                entryByItemId={entryByItemId}
+                entriesByPrintingId={entriesByPrintingId}
+                supportsTradePrefs={supportsTradePrefs}
+                listTradeDefaults={listTradeDefaults}
+                listCurrency={listCurrency}
+                onEditTradePref={setPrefDialogEntryId}
+                onRemoveEntry={onRemoveEntry}
+                onQuantityChange={onQuantityChange}
+                isRemovePendingFor={isRemovePendingFor}
+                isQuantityPendingFor={isQuantityPendingFor}
+              />
+            ),
+          }}
+        >
+          {isMobile && (
+            <SelectionMobileOverlay
+              items={items}
+              printingsByCardId={detailPanePrintingsByCardId}
+              showImages={showImages}
+              onSearchAndClose={handleSearchAndClose}
+            />
+          )}
+        </CardViewer>
+        {prefDialogEntry && (
+          <TradePreferenceDialog
+            open={prefDialogEntryId !== null}
+            onOpenChange={(next) => {
+              if (!next) {
+                setPrefDialogEntryId(null);
+              }
+            }}
+            cardName={prefDialogEntry.cardName}
+            override={prefDialogEntry.tradeOverride}
+            listDefault={listTradeDefaults}
+            currency={listCurrency}
+            isOverridden={
+              prefDialogEntry.tradeOverride.pricePref !== null ||
+              prefDialogEntry.tradeOverride.priceAbsoluteCents !== null ||
+              prefDialogEntry.tradeOverride.tradeType !== null
+            }
+            onSave={(next, listCurrencyToSet) =>
+              onTradeOverrideChange(prefDialogEntry.id, next, listCurrencyToSet)
+            }
           />
         )}
-      </CardViewer>
-      {prefDialogEntry && (
-        <TradePreferenceDialog
-          open={prefDialogEntryId !== null}
-          onOpenChange={(next) => {
-            if (!next) {
-              setPrefDialogEntryId(null);
-            }
-          }}
-          cardName={prefDialogEntry.cardName}
-          override={prefDialogEntry.tradeOverride}
-          listDefault={listTradeDefaults}
-          currency={listCurrency}
-          isOverridden={
-            prefDialogEntry.tradeOverride.pricePref !== null ||
-            prefDialogEntry.tradeOverride.priceAbsoluteCents !== null ||
-            prefDialogEntry.tradeOverride.tradeType !== null
-          }
-          onSave={(next, listCurrencyToSet) =>
-            onTradeOverrideChange(prefDialogEntry.id, next, listCurrencyToSet)
-          }
-        />
-      )}
-    </CardBrowserFilterProvider>
+      </CardBrowserFilterProvider>
+    </FilterSearchProvider>
   );
 }
 
