@@ -78,6 +78,10 @@ export function CollectionShareDialog({
           </div>
         ) : null}
 
+        <Suspense fallback={null}>
+          <CollectionGroupShareSection collectionId={collectionId} />
+        </Suspense>
+
         <DialogFooter>
           {sharing ? (
             <Button
@@ -98,10 +102,6 @@ export function CollectionShareDialog({
             </Button>
           )}
         </DialogFooter>
-
-        <Suspense fallback={null}>
-          <CollectionGroupShareSection collectionId={collectionId} />
-        </Suspense>
       </DialogContent>
     </Dialog>
   );
