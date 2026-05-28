@@ -441,7 +441,7 @@ function MemberRow({
           <DropdownMenuContent align="end">
             {canPromote && (
               <DropdownMenuItem
-                onSelect={() => updateRole.mutate({ slug, userId: member.userId, role: "admin" })}
+                onClick={() => updateRole.mutate({ slug, userId: member.userId, role: "admin" })}
               >
                 <ShieldIcon className="size-4" />
                 Promote to admin
@@ -449,14 +449,14 @@ function MemberRow({
             )}
             {canDemote && (
               <DropdownMenuItem
-                onSelect={() => updateRole.mutate({ slug, userId: member.userId, role: "member" })}
+                onClick={() => updateRole.mutate({ slug, userId: member.userId, role: "member" })}
               >
                 Demote to member
               </DropdownMenuItem>
             )}
             {canTransfer && (
               <DropdownMenuItem
-                onSelect={() => transferOwnership.mutate({ slug, userId: member.userId })}
+                onClick={() => transferOwnership.mutate({ slug, userId: member.userId })}
               >
                 Transfer ownership
               </DropdownMenuItem>
@@ -465,7 +465,7 @@ function MemberRow({
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onSelect={() => kickMember.mutate({ slug, userId: member.userId })}
+                  onClick={() => kickMember.mutate({ slug, userId: member.userId })}
                   className="text-destructive"
                 >
                   <Trash2Icon className="size-4" />
