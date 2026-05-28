@@ -135,6 +135,16 @@ export const updateCollectionSchema = z.object({
   sortOrder: z.number().int().optional(),
 });
 
+/**
+ * Bulk reorder for the user's personal collections. The server re-numbers
+ * `sort_order` so that the rows appear in the order given here on the next
+ * fetch. Group-owned collections are not reorderable and are ignored if
+ * passed; the inbox is treated like any other row.
+ */
+export const reorderCollectionsSchema = z.object({
+  orderedIds: z.array(z.uuid()).min(1).max(500),
+});
+
 export const addCopiesSchema = z.object({
   copies: z
     .array(
@@ -240,6 +250,16 @@ export const updateListSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   tradeDefaults: tradePreferenceInputSchema.optional(),
   currency: currencySchema.nullable().optional(),
+});
+
+/**
+ * Bulk reorder for the user's lists in a single intent bucket. The server
+ * re-numbers `sort_order` so the rows appear in the order given on the next
+ * fetch. Sidebar groups lists by intent, so reorder is bucket-scoped.
+ */
+export const reorderListsSchema = z.object({
+  intent: listIntentSchema,
+  orderedIds: z.array(z.uuid()).min(1).max(500),
 });
 
 /**

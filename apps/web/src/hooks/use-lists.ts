@@ -17,6 +17,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
+import { reorderInPlace } from "@/lib/reorder-in-place";
 import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -164,6 +165,59 @@ export function useDeleteList() {
   return useMutationWithInvalidation<unknown, string>({
     mutationFn: (listId) => deleteListFn({ data: listId }),
     invalidates: [queryKeys.lists.all(userId)],
+  });
+}
+
+const reorderListsFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { intent: ListIntent; orderedIds: string[] }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    await fetchApi({
+      errorTitle: "Couldn't reorder lists",
+      cookie: context.cookie,
+      path: "/api/v1/lists/reorder",
+      method: "POST",
+      body: data,
+    });
+  });
+
+/**
+ * Reorders the user's lists within one intent bucket. Lists from other
+ * intents stay where they are in the cache. On error we restore the
+ * snapshot we took in `onMutate`.
+ *
+ * @returns A mutation that takes `{ intent, orderedIds }` and reorders the
+ *   matching intent bucket in the sidebar.
+ */
+export function useReorderLists() {
+  const userId = useRequiredUserId();
+  const queryClient = useQueryClient();
+  return useMutation<
+    unknown,
+    Error,
+    { intent: ListIntent; orderedIds: string[] },
+    { previous: ListListResponse | undefined }
+  >({
+    mutationFn: (variables) => reorderListsFn({ data: variables }),
+    onMutate: ({ orderedIds }) => {
+      const key = queryKeys.lists.all(userId);
+      const previous = queryClient.getQueryData<ListListResponse>(key);
+      if (previous) {
+        queryClient.setQueryData<ListListResponse>(key, {
+          ...previous,
+          items: reorderInPlace(previous.items, orderedIds),
+        });
+      }
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.lists.all(userId), context.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.lists.all(userId) });
+    },
   });
 }
 

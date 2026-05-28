@@ -10,6 +10,11 @@ interface DroppableSidebarListProps {
   listName: string;
   listKind: ListKind;
   listIntent: ListIntent;
+  /**
+   * Suppress card-drop highlighting and accept. Used while a sidebar-reorder
+   * drag is in flight so its visuals don't compete with the sortable row.
+   */
+  disabled?: boolean;
   children: ReactNode;
 }
 
@@ -38,6 +43,7 @@ export function DroppableSidebarList({
   listName,
   listKind,
   listIntent,
+  disabled,
   children,
 }: DroppableSidebarListProps) {
   const { setNodeRef, isOver, active } = useDroppable({
@@ -49,11 +55,12 @@ export function DroppableSidebarList({
       listKind,
       listIntent,
     } satisfies SidebarListDropData,
+    disabled,
   });
 
   const dragData = active?.data.current as AnyDragData | undefined;
   const compatible = isCompatibleDrop(dragData, { listId, listKind, listIntent });
-  const showHighlight = isOver && compatible;
+  const showHighlight = !disabled && isOver && compatible;
 
   return (
     <div
@@ -80,6 +87,9 @@ export function isCompatibleDrop(
   }
   if (drag.type === "collection-card") {
     return true;
+  }
+  if (drag.type !== "list-entry") {
+    return false;
   }
   // list-entry: same kind + intent + different list. The destination intent /
   // kind constraints mirror the server-side check in moveListEntries — keeping

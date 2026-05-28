@@ -429,6 +429,7 @@ export interface ListsTable {
   defaultTradeType: TradeType | null;
   /** Required for any 'absolute' default or override; ignored otherwise. */
   currency: Currency | null;
+  sortOrder: Generated<number>;
 }
 
 /**

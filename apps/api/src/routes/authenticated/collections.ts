@@ -11,6 +11,7 @@ import {
   copiesQuerySchema,
   createCollectionSchema,
   idParamSchema,
+  reorderCollectionsSchema,
   updateCollectionSchema,
 } from "@openrift/shared/schemas";
 
@@ -151,6 +152,18 @@ const collectionGroupShares = createRoute({
   },
 });
 
+const reorderCollections = createRoute({
+  method: "post",
+  path: "/reorder",
+  tags: ["Collections"],
+  request: {
+    body: { content: { "application/json": { schema: reorderCollectionsSchema } } },
+  },
+  responses: {
+    204: { description: "No Content" },
+  },
+});
+
 const collectionsApp = new OpenAPIHono<{ Variables: Variables }>().basePath("/collections");
 collectionsApp.use(requireAuth);
 export const collectionsRoute = collectionsApp
@@ -190,6 +203,10 @@ export const collectionsRoute = collectionsApp
       groupName = group.name;
     }
 
+    // Group collections stay alphabetical (`sort_order: 0` falls through to
+    // name ordering in `listAccessibleForUser`). Personal collections get
+    // appended to the user's list via max+1.
+    const sortOrder = groupId ? 0 : await collections.nextPersonalSortOrder(userId);
     const row = await collections.create({
       userId: groupId ? null : userId,
       groupId,
@@ -197,7 +214,7 @@ export const collectionsRoute = collectionsApp
       description: body.description ?? null,
       availableForDeckbuilding: body.availableForDeckbuilding ?? true,
       isInbox: false,
-      sortOrder: 0,
+      sortOrder,
     });
 
     return c.json(
@@ -369,4 +386,16 @@ export const collectionsRoute = collectionsApp
 
     const items = await friendGroups.groupsSharingCollection(id);
     return c.json({ items });
+  })
+
+  // ── POST /collections/reorder ─────────────────────────────────────────────
+  // Bulk reorder for the user's personal collections. Group-owned rows are
+  // silently ignored (they stay alphabetical) so the client can pass any
+  // visible-order subset without filtering first.
+  .openapi(reorderCollections, async (c) => {
+    const { collections } = c.get("repos");
+    const userId = getUserId(c);
+    const { orderedIds } = c.req.valid("json");
+    await collections.reorderPersonal(userId, orderedIds);
+    return c.body(null, 204);
   });

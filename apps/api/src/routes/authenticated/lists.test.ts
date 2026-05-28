@@ -24,6 +24,7 @@ const mockListsRepo = {
   bulkCreateEntriesFromCopies: vi.fn(() => Promise.resolve({ added: 0, updated: 0, skipped: 0 })),
   updateEntry: vi.fn(() => Promise.resolve(undefined as object | undefined)),
   deleteEntry: vi.fn(() => Promise.resolve({ numDeletedRows: 0n })),
+  reorder: vi.fn(() => Promise.resolve()),
 };
 
 const mockCopiesRepo = {
@@ -670,5 +671,45 @@ describe("DELETE /api/v1/lists/:id/share", () => {
     mockListsRepo.setShareToken.mockResolvedValue(undefined);
     const res = await app.request(`/api/v1/lists/${LIST_ID}/share`, { method: "DELETE" });
     expect(res.status).toBe(404);
+  });
+});
+
+describe("POST /api/v1/lists/reorder", () => {
+  beforeEach(() => {
+    mockListsRepo.reorder.mockReset();
+    mockListsRepo.reorder.mockResolvedValue(undefined);
+  });
+
+  it("returns 204 and forwards (intent, orderedIds) to the repo", async () => {
+    const orderedIds = [
+      "a0000000-0001-4000-a000-000000000010",
+      "a0000000-0001-4000-a000-000000000011",
+    ];
+    const res = await app.request("/api/v1/lists/reorder", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ intent: "wish", orderedIds }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockListsRepo.reorder).toHaveBeenCalledWith(USER_ID, "wish", orderedIds);
+  });
+
+  it("returns 400 when intent is missing", async () => {
+    const res = await app.request("/api/v1/lists/reorder", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ orderedIds: ["a0000000-0001-4000-a000-000000000010"] }),
+    });
+    expect(res.status).toBe(400);
+    expect(mockListsRepo.reorder).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when orderedIds is empty", async () => {
+    const res = await app.request("/api/v1/lists/reorder", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ intent: "trade", orderedIds: [] }),
+    });
+    expect(res.status).toBe(400);
   });
 });

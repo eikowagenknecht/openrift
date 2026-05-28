@@ -149,7 +149,7 @@ export function listsRepo(db: Kysely<Database>) {
       if (intent) {
         query = query.where("intent", "=", intent);
       }
-      return query.orderBy("name").execute();
+      return query.orderBy("sortOrder").orderBy("name").execute();
     },
 
     /** @returns A single list by ID scoped to a user, or `undefined`. */
@@ -175,9 +175,51 @@ export function listsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns The newly created list row. */
+    /**
+     * Inserts a new list at the end of its (user, intent) bucket so it appears
+     * after the user's existing lists in the sidebar rather than landing at
+     * position 0 and re-ordering on every create.
+     * @returns The newly created list row.
+     */
     create(values: NewListValues): Promise<Selectable<ListsTable>> {
-      return db.insertInto("lists").values(values).returningAll().executeTakeFirstOrThrow();
+      return db
+        .insertInto("lists")
+        .values({
+          ...values,
+          sortOrder: sql<number>`coalesce((select max(sort_order) + 1 from lists where user_id = ${values.userId} and intent = ${values.intent}), 0)`,
+        })
+        .returningAll()
+        .executeTakeFirstOrThrow();
+    },
+
+    /**
+     * Re-numbers `sort_order` for the lists in the given intent bucket to
+     * match `orderedIds`, in a single statement so the bucket is never seen
+     * partially re-numbered. IDs not owned by the user (or not in the given
+     * intent) are silently ignored — the caller is expected to send the
+     * current view of the bucket.
+     * @returns Nothing.
+     */
+    async reorder(
+      userId: string,
+      intent: ListIntent,
+      orderedIds: readonly string[],
+    ): Promise<void> {
+      if (orderedIds.length === 0) {
+        return;
+      }
+      const ids = [...orderedIds];
+      await sql`
+        update lists
+        set sort_order = ranked.new_order
+        from (
+          select id, ord::int - 1 as new_order
+          from unnest(${ids}::uuid[]) with ordinality as t(id, ord)
+        ) as ranked
+        where lists.id = ranked.id
+          and lists.user_id = ${userId}
+          and lists.intent = ${intent}
+      `.execute(db);
     },
 
     /** @returns The updated list row, or `undefined` if not found. */

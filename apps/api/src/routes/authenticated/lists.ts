@@ -24,6 +24,7 @@ import {
   idParamSchema,
   listIntentQuerySchema,
   moveListEntriesSchema,
+  reorderListsSchema,
   updateListEntrySchema,
   updateListSchema,
 } from "@openrift/shared/schemas";
@@ -212,6 +213,18 @@ const unshareList = createRoute({
   path: "/{id}/share",
   tags: ["Lists"],
   request: { params: idParamSchema },
+  responses: {
+    204: { description: "No Content" },
+  },
+});
+
+const reorderLists = createRoute({
+  method: "post",
+  path: "/reorder",
+  tags: ["Lists"],
+  request: {
+    body: { content: { "application/json": { schema: reorderListsSchema } } },
+  },
   responses: {
     204: { description: "No Content" },
   },
@@ -540,6 +553,18 @@ export const listsRoute = listsApp
 
     const items = await friendGroups.listGroupsSharingList(id);
     return c.json({ items });
+  })
+
+  // ── POST /lists/reorder ───────────────────────────────────────────────────
+  // Bulk reorder for the user's lists in a single intent bucket. Lists in
+  // other intents are silently ignored so the client only needs to send the
+  // current bucket's view.
+  .openapi(reorderLists, async (c) => {
+    const { lists } = c.get("repos");
+    const userId = getUserId(c);
+    const { intent, orderedIds } = c.req.valid("json");
+    await lists.reorder(userId, intent, orderedIds);
+    return c.body(null, 204);
   });
 
 /**

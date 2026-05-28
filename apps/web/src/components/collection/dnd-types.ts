@@ -35,4 +35,24 @@ export interface ListEntryDragData {
   cardName: string;
 }
 
-export type AnyDragData = CardDragData | ListEntryDragData;
+/**
+ * Tagged on a sidebar row's `useSortable` so the layout-level `handleDragEnd`
+ * knows to skip it — sidebar reorder is handled locally via `useDndMonitor`
+ * inside `CollectionSidebar`, not by the route handler.
+ */
+export interface SidebarReorderCollectionDragData {
+  type: "sidebar-reorder-collection";
+  collectionId: string;
+}
+
+export interface SidebarReorderListDragData {
+  type: "sidebar-reorder-list";
+  listId: string;
+  intent: ListIntent;
+}
+
+export type AnyDragData =
+  | CardDragData
+  | ListEntryDragData
+  | SidebarReorderCollectionDragData
+  | SidebarReorderListDragData;

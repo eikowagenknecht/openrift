@@ -1,5 +1,7 @@
-import { useDndContext } from "@dnd-kit/core";
-import type { ListIntent } from "@openrift/shared";
+import { useDndContext, useDndMonitor } from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import type { ListIntent, ListResponse } from "@openrift/shared";
 import { Link, useMatches, useParams } from "@tanstack/react-router";
 import {
   BookOpenIcon,
@@ -38,14 +40,23 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { useCollections } from "@/hooks/use-collections";
-import { useLists } from "@/hooks/use-lists";
+import { useCollections, useReorderCollections } from "@/hooks/use-collections";
+import { useLists, useReorderLists } from "@/hooks/use-lists";
 import type { SidebarGroupKey } from "@/stores/sidebar-fold-store";
 import { useSidebarFoldStore } from "@/stores/sidebar-fold-store";
 
 import { CreateCollectionDialog } from "./create-collection-dialog";
-import type { CardDragData } from "./dnd-types";
+import type {
+  AnyDragData,
+  CardDragData,
+  SidebarReorderCollectionDragData,
+  SidebarReorderListDragData,
+} from "./dnd-types";
 import { DroppableCollection } from "./droppable-collection";
+import { SortableSidebarRow } from "./sortable-sidebar-row";
+
+const SORTABLE_COLLECTION_PREFIX = "sortable-collection-";
+const SORTABLE_LIST_PREFIX = "sortable-list-";
 
 function MobileSidebarHeader() {
   const { setOpenMobile } = useSidebar();
@@ -119,50 +130,72 @@ function CollapsibleSidebarGroup({
   );
 }
 
-function ListsSidebarGroups({ activeId }: { activeId?: string }) {
+function ListsSidebarGroups({
+  activeId,
+  isReorderActive,
+}: {
+  activeId?: string;
+  isReorderActive: boolean;
+}) {
   const { data: lists } = useLists();
   const [createIntent, setCreateIntent] = useState<ListIntent | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
 
-  // Group lists by intent so each section only renders its own rows.
   const byIntent = Map.groupBy(lists, (list) => list.intent);
 
   return (
     <>
       {INTENT_GROUPS.map(({ intent, groupLabel, newButtonLabel, foldKey }) => {
         const rows = byIntent.get(intent) ?? [];
+        const sortableIds = rows.map((row) => `${SORTABLE_LIST_PREFIX}${row.id}`);
         return (
           <CollapsibleSidebarGroup key={intent} label={groupLabel} foldKey={foldKey}>
-            {rows.map((list) => {
-              const KindIcon = listKindIcon(list.kind);
-              // Every list kind accepts dropped copies — the server derives
-              // card / printing / copy entries from the list's kind via the
-              // /entries/from-copies endpoint.
-              return (
-                <DroppableSidebarList
-                  key={list.id}
-                  listId={list.id}
-                  listName={list.name}
-                  listKind={list.kind}
-                  listIntent={list.intent}
-                >
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      isActive={activeId === list.id}
-                      render={<Link to="/collections/lists/$listId" params={{ listId: list.id }} />}
-                    >
-                      <KindIcon />
-                      <span className="flex-1 truncate">{list.name}</span>
-                      {list.entryCount > 0 && (
-                        <Badge variant="ghost" className="text-2xs ml-auto">
-                          {list.entryCount}
-                        </Badge>
-                      )}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </DroppableSidebarList>
-              );
-            })}
+            <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
+              {rows.map((list) => {
+                const KindIcon = listKindIcon(list.kind);
+                const dragData: SidebarReorderListDragData = {
+                  type: "sidebar-reorder-list",
+                  listId: list.id,
+                  intent: list.intent,
+                };
+                return (
+                  <SortableSidebarRow
+                    key={list.id}
+                    id={`${SORTABLE_LIST_PREFIX}${list.id}`}
+                    data={dragData}
+                    label={list.name}
+                  >
+                    {(handle) => (
+                      <DroppableSidebarList
+                        listId={list.id}
+                        listName={list.name}
+                        listKind={list.kind}
+                        listIntent={list.intent}
+                        disabled={isReorderActive}
+                      >
+                        <SidebarMenuItem>
+                          <SidebarMenuButton
+                            isActive={activeId === list.id}
+                            render={
+                              <Link to="/collections/lists/$listId" params={{ listId: list.id }} />
+                            }
+                          >
+                            <KindIcon />
+                            <span className="flex-1 truncate">{list.name}</span>
+                            {list.entryCount > 0 && (
+                              <Badge variant="ghost" className="text-2xs ml-auto">
+                                {list.entryCount}
+                              </Badge>
+                            )}
+                          </SidebarMenuButton>
+                          {handle}
+                        </SidebarMenuItem>
+                      </DroppableSidebarList>
+                    )}
+                  </SortableSidebarRow>
+                );
+              })}
+            </SortableContext>
             <SidebarMenuItem>
               <SidebarMenuButton
                 className="text-muted-foreground"
@@ -241,6 +274,90 @@ function partitionCollections(collections: ReturnType<typeof useCollections>["da
   return { personal, groups };
 }
 
+/**
+ * Wires the sidebar's drag-end events to the reorder mutations. Lives as a
+ * child of the route-level `DndContext` so `useDndMonitor` sees the same
+ * events the route does. Non-reorder drags (card / list-entry) are ignored
+ * here — those keep flowing to the route handler.
+ * @returns Nothing (invisible helper).
+ */
+function SidebarReorderMonitor({
+  personalSortableIds,
+  listIdsByIntent,
+}: {
+  personalSortableIds: string[];
+  listIdsByIntent: Map<ListIntent, string[]>;
+}) {
+  const reorderCollections = useReorderCollections();
+  const reorderLists = useReorderLists();
+
+  useDndMonitor({
+    onDragEnd: (event: DragEndEvent) => {
+      const dragData = event.active.data.current as AnyDragData | undefined;
+      if (!dragData) {
+        return;
+      }
+      if (dragData.type === "sidebar-reorder-collection") {
+        handleCollectionReorder(event, dragData);
+        return;
+      }
+      if (dragData.type === "sidebar-reorder-list") {
+        handleListReorder(event, dragData);
+      }
+    },
+  });
+
+  function handleCollectionReorder(
+    event: DragEndEvent,
+    dragData: SidebarReorderCollectionDragData,
+  ) {
+    const overId = event.over?.id;
+    if (typeof overId !== "string" || overId === event.active.id) {
+      return;
+    }
+    const overCollectionId = overId.startsWith(SORTABLE_COLLECTION_PREFIX)
+      ? overId.slice(SORTABLE_COLLECTION_PREFIX.length)
+      : null;
+    if (!overCollectionId) {
+      return;
+    }
+    const oldIndex = personalSortableIds.indexOf(dragData.collectionId);
+    const newIndex = personalSortableIds.indexOf(overCollectionId);
+    if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) {
+      return;
+    }
+    const orderedIds = [...personalSortableIds];
+    orderedIds.splice(oldIndex, 1);
+    orderedIds.splice(newIndex, 0, dragData.collectionId);
+    reorderCollections.mutate({ orderedIds });
+  }
+
+  function handleListReorder(event: DragEndEvent, dragData: SidebarReorderListDragData) {
+    const overId = event.over?.id;
+    if (typeof overId !== "string" || overId === event.active.id) {
+      return;
+    }
+    const overListId = overId.startsWith(SORTABLE_LIST_PREFIX)
+      ? overId.slice(SORTABLE_LIST_PREFIX.length)
+      : null;
+    if (!overListId) {
+      return;
+    }
+    const bucket = listIdsByIntent.get(dragData.intent) ?? [];
+    const oldIndex = bucket.indexOf(dragData.listId);
+    const newIndex = bucket.indexOf(overListId);
+    if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) {
+      return;
+    }
+    const orderedIds = [...bucket];
+    orderedIds.splice(oldIndex, 1);
+    orderedIds.splice(newIndex, 0, dragData.listId);
+    reorderLists.mutate({ intent: dragData.intent, orderedIds });
+  }
+
+  return null;
+}
+
 export function CollectionSidebar() {
   const matches = useMatches();
   const currentPath = matches.at(-1)?.fullPath;
@@ -250,8 +367,8 @@ export function CollectionSidebar() {
   };
   const { isMobile, setOpenMobile } = useSidebar();
   const { data: collections } = useCollections();
+  const { data: lists } = useLists();
 
-  // Close the mobile sidebar when the user navigates to a different page
   useEffect(() => {
     if (isMobile) {
       setOpenMobile(false);
@@ -262,11 +379,28 @@ export function CollectionSidebar() {
   const [createInGroup, setCreateInGroup] = useState<{ slug: string; name: string } | null>(null);
 
   const { active } = useDndContext();
+  const activeType = active?.data.current?.type;
+  const isReorderActive =
+    activeType === "sidebar-reorder-collection" || activeType === "sidebar-reorder-list";
   const dragSourceCollectionId = (active?.data.current as CardDragData | undefined)
     ?.sourceCollectionId;
 
   const { personal, groups } = partitionCollections(collections ?? []);
   const totalCopies = personal.reduce((sum, col) => sum + col.copyCount, 0);
+
+  // Inbox is pinned at the top of the personal section (`isInbox DESC` in the
+  // server query) — reorder applies to non-inbox personal collections only.
+  const personalNonInbox = personal.filter((col) => !col.isInbox);
+  const inbox = personal.find((col) => col.isInbox);
+  const personalSortableIds = personalNonInbox.map((col) => col.id);
+
+  const listIdsByIntent = new Map<ListIntent, string[]>();
+  for (const intent of ["wish", "trade", "organize"] as const) {
+    listIdsByIntent.set(
+      intent,
+      lists.filter((list: ListResponse) => list.intent === intent).map((list) => list.id),
+    );
+  }
 
   return (
     <NestedSidebar className="ml-3" extraOffset="calc(0.75rem + 2rem + 0.75rem)">
@@ -291,34 +425,76 @@ export function CollectionSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <CollapsibleSidebarGroup label="Collections" foldKey="collections">
-          {personal.map((col) => (
+          {inbox && (
             <DroppableCollection
-              key={col.id}
-              collectionId={col.id}
-              disabled={col.id === dragSourceCollectionId}
+              key={inbox.id}
+              collectionId={inbox.id}
+              disabled={inbox.id === dragSourceCollectionId || isReorderActive}
             >
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  isActive={collectionId === col.id}
+                  isActive={collectionId === inbox.id}
                   render={
                     <Link
                       to="/collections/$collectionId"
-                      params={{ collectionId: col.id }}
+                      params={{ collectionId: inbox.id }}
                       search={(prev) => prev}
                     />
                   }
                 >
-                  {col.isInbox ? <InboxIcon /> : <BookOpenIcon />}
-                  <span className="flex-1 truncate">{col.name}</span>
-                  {col.copyCount > 0 && (
-                    <Badge variant={col.isInbox ? "default" : "ghost"} className="text-2xs ml-auto">
-                      {col.copyCount}
+                  <InboxIcon />
+                  <span className="flex-1 truncate">{inbox.name}</span>
+                  {inbox.copyCount > 0 && (
+                    <Badge variant="default" className="text-2xs ml-auto">
+                      {inbox.copyCount}
                     </Badge>
                   )}
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </DroppableCollection>
-          ))}
+          )}
+          <SortableContext
+            items={personalSortableIds.map((id) => `${SORTABLE_COLLECTION_PREFIX}${id}`)}
+            strategy={verticalListSortingStrategy}
+          >
+            {personalNonInbox.map((col) => (
+              <SortableSidebarRow
+                key={col.id}
+                id={`${SORTABLE_COLLECTION_PREFIX}${col.id}`}
+                data={{ type: "sidebar-reorder-collection", collectionId: col.id }}
+                label={col.name}
+              >
+                {(handle) => (
+                  <DroppableCollection
+                    collectionId={col.id}
+                    disabled={col.id === dragSourceCollectionId || isReorderActive}
+                  >
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        isActive={collectionId === col.id}
+                        render={
+                          <Link
+                            to="/collections/$collectionId"
+                            params={{ collectionId: col.id }}
+                            search={(prev) => prev}
+                          />
+                        }
+                      >
+                        <BookOpenIcon />
+                        <span className="flex-1 truncate">{col.name}</span>
+                        {col.copyCount > 0 && (
+                          <Badge variant="ghost" className="text-2xs ml-auto">
+                            {col.copyCount}
+                          </Badge>
+                        )}
+                      </SidebarMenuButton>
+                      {handle}
+                    </SidebarMenuItem>
+                  </DroppableCollection>
+                )}
+              </SortableSidebarRow>
+            ))}
+          </SortableContext>
           <SidebarMenuItem>
             <SidebarMenuButton
               className="text-muted-foreground"
@@ -342,7 +518,7 @@ export function CollectionSidebar() {
               <DroppableCollection
                 key={col.id}
                 collectionId={col.id}
-                disabled={col.id === dragSourceCollectionId}
+                disabled={col.id === dragSourceCollectionId || isReorderActive}
               >
                 <SidebarMenuItem>
                   <SidebarMenuButton
@@ -380,7 +556,7 @@ export function CollectionSidebar() {
             </SidebarMenuItem>
           </CollapsibleSidebarGroup>
         ))}
-        <ListsSidebarGroups activeId={listId} />
+        <ListsSidebarGroups activeId={listId} isReorderActive={isReorderActive} />
         <SidebarGroup>
           <SidebarGroupLabel>Manage</SidebarGroupLabel>
           <SidebarMenu className="gap-1">
@@ -419,6 +595,10 @@ export function CollectionSidebar() {
         onOpenChange={setCreateCollectionOpen}
         groupSlug={createInGroup?.slug}
         groupName={createInGroup?.name}
+      />
+      <SidebarReorderMonitor
+        personalSortableIds={personalSortableIds}
+        listIdsByIntent={listIdsByIntent}
       />
     </NestedSidebar>
   );

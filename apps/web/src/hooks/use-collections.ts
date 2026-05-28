@@ -11,6 +11,7 @@ import { useRequiredUserId } from "@/lib/auth-session";
 import { collectionsQueryOptions } from "@/lib/collections-query";
 import { useCopiesCollection } from "@/lib/copies-collection";
 import { queryKeys } from "@/lib/query-keys";
+import { reorderInPlace } from "@/lib/reorder-in-place";
 import type { CollectionsResponse } from "@/lib/server-fns/api-types";
 import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
@@ -132,6 +133,60 @@ export function useUpdateCollection() {
       availableForDeckbuilding?: boolean;
     }) => updateCollectionFn({ data: body }),
     invalidates: [queryKeys.collections.all(userId)],
+  });
+}
+
+const reorderCollectionsFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { orderedIds: string[] }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    await fetchApi({
+      errorTitle: "Couldn't reorder collections",
+      cookie: context.cookie,
+      path: "/api/v1/collections/reorder",
+      method: "POST",
+      body: data,
+    });
+  });
+
+/**
+ * Reorders the user's personal collections. The optimistic update reorders
+ * the cached items in-place by `orderedIds`; rows not in the list (e.g.
+ * group-owned collections) stay where they are. On error we roll back to
+ * the snapshot we took in `onMutate`.
+ *
+ * @returns A mutation that takes `{ orderedIds }` and reorders personal
+ *   collections in the sidebar.
+ */
+export function useReorderCollections() {
+  const userId = useRequiredUserId();
+  const queryClient = useQueryClient();
+  return useMutation<
+    unknown,
+    Error,
+    { orderedIds: string[] },
+    { previous: CollectionsResponse | undefined }
+  >({
+    mutationFn: (variables) => reorderCollectionsFn({ data: variables }),
+    onMutate: ({ orderedIds }) => {
+      const key = queryKeys.collections.all(userId);
+      const previous = queryClient.getQueryData<CollectionsResponse>(key);
+      if (previous) {
+        queryClient.setQueryData<CollectionsResponse>(key, {
+          ...previous,
+          items: reorderInPlace(previous.items, orderedIds),
+        });
+      }
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.collections.all(userId), context.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.collections.all(userId) });
+    },
   });
 }
 

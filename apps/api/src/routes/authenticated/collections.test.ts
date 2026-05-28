@@ -25,6 +25,8 @@ const mockCollectionsRepo = {
   deleteById: vi.fn(() => Promise.resolve()),
   setShareToken: vi.fn(() => Promise.resolve(undefined as object | undefined)),
   setShareTokenById: vi.fn(() => Promise.resolve(undefined as object | undefined)),
+  nextPersonalSortOrder: vi.fn(() => Promise.resolve(0)),
+  reorderPersonal: vi.fn(() => Promise.resolve()),
 };
 
 const mockFriendGroupsRepo = {
@@ -512,5 +514,36 @@ describe("DELETE /api/v1/collections/:id/share", () => {
       method: "DELETE",
     });
     expect(res.status).toBe(404);
+  });
+});
+
+describe("POST /api/v1/collections/reorder", () => {
+  beforeEach(() => {
+    mockCollectionsRepo.reorderPersonal.mockReset();
+    mockCollectionsRepo.reorderPersonal.mockResolvedValue(undefined);
+  });
+
+  it("returns 204 and forwards orderedIds to the repo", async () => {
+    const orderedIds = [
+      "a0000000-0001-4000-a000-000000000010",
+      "a0000000-0001-4000-a000-000000000011",
+    ];
+    const res = await app.request("/api/v1/collections/reorder", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ orderedIds }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockCollectionsRepo.reorderPersonal).toHaveBeenCalledWith(USER_ID, orderedIds);
+  });
+
+  it("returns 400 when orderedIds is empty", async () => {
+    const res = await app.request("/api/v1/collections/reorder", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ orderedIds: [] }),
+    });
+    expect(res.status).toBe(400);
+    expect(mockCollectionsRepo.reorderPersonal).not.toHaveBeenCalled();
   });
 });

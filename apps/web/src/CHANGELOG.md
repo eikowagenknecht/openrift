@@ -3,7 +3,7 @@
 ## 2026-05-28
 
 - feat: The group page is now organized into Trading, Collections, and Members tabs. Trading shows a single "Possible trades" list where each row marks whether the card comes to you or goes to another member, plus a per-member directory of every wishlist and tradelist shared with the group; Collections shows the group's pooled collections alongside each member's shared personal collections; Members is the roster. Sharing your own lists and collections, group settings, the join code, email invites, and leaving or deleting the group all move behind a "Manage" link in the header
-- fix: On a group's possible trades, the price shown for a card someone wants from you is now correctly labeled as their offer, instead of being mislabeled as what they're asking
+- feat: You can now drag the rows in the sidebar to reorder your personal collections and your lists. Hover a row to see the grip handle on the right; the Inbox stays pinned at the top and shared group collections stay alphabetical
 - feat: A deck's menu now has a "Play on RiftAtlas" link that opens the deck in RiftAtlas's online playtester
 - feat: The Inbox's deck-building availability can now be toggled off, the same as any other collection
 - feat: On a group's matches, each tile now shows both sides' price preferences as a labeled "They want" / "You'd pay" panel, with the full marketplace name spelled out so it doesn't read as someone's identity. The other side's preference always shows, falling back to "Not set" when nobody has picked one
@@ -18,6 +18,7 @@
 - feat: On the All Cards page, the catalog mode toggle has been simplified to a single on/off "Show owned count" button. When on, every tile shows your owned count, with the per-card total in parens when you own multiple variants. Adding cards happens from a collection or wishlist instead — visit a collection or list page and toggle the library on
 - feat: You can now drag a card from one wishlist to another (or tradelist to tradelist) to move it between lists of the same kind. The card is removed from the source and added to the destination, with quantities merged if the destination already has the same card
 - feat: A list's Share dialog now also has per-group toggles, matching the collection share dialog. You can decide which of your groups can see a wishlist or tradelist from the list page itself, alongside the public link controls. The dropdown entry is now just "Share" on both collections and lists
+- fix: On a group's possible trades, the price shown for a card someone wants from you is now correctly labeled as their offer, instead of being mislabeled as what they're asking
 - fix: On a collection's share dialog, the friend-groups list now sits inside the dialog with the action button below it, instead of appearing to spill out past the dialog's bottom edge
 - fix: On a printings or copies list, the search bar now reads "Search printings…" or "Search copies…" with a matching unit count, instead of always saying "Search cards"
 - fix: Group, shared user, and groups-join page titles now use the same weight as page titles elsewhere in the app, so they no longer look slightly thinner than other page headers

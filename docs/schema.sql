@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict S2UGg4LeE0JVdL9pP2f8wtwkFri7ocpwRkKFm8YUygk7Cw6eLEQmZE7NfKBB6ng
+\restrict 0Ad5xzBxVe9QLVUQ5dij38IrUb8lShvlRechlOSXOJYelrRzNaKMxt3k1MldZcf
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1138,6 +1138,7 @@ CREATE TABLE public.lists (
     default_price_absolute_cents integer,
     default_trade_type text,
     currency text,
+    sort_order integer DEFAULT 0 NOT NULL,
     CONSTRAINT chk_lists_currency CHECK (((currency IS NULL) OR (currency = ANY (ARRAY['EUR'::text, 'USD'::text])))),
     CONSTRAINT chk_lists_default_absolute_positive CHECK (((default_price_absolute_cents IS NULL) OR (default_price_absolute_cents > 0))),
     CONSTRAINT chk_lists_default_absolute_shape CHECK (((default_price_pref = 'absolute'::text) = (default_price_absolute_cents IS NOT NULL))),
@@ -3822,5 +3823,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict S2UGg4LeE0JVdL9pP2f8wtwkFri7ocpwRkKFm8YUygk7Cw6eLEQmZE7NfKBB6ng
+\unrestrict 0Ad5xzBxVe9QLVUQ5dij38IrUb8lShvlRechlOSXOJYelrRzNaKMxt3k1MldZcf
 

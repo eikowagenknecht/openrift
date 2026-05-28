@@ -161,6 +161,47 @@ export function collectionsRepo(db: Kysely<Database>) {
       return db.insertInto("collections").values(values).returningAll().executeTakeFirstOrThrow();
     },
 
+    /**
+     * @returns The next `sort_order` value to assign to a new personal collection
+     * so it lands at the bottom of the user's list instead of stacking onto
+     * position 0 with everyone else.
+     */
+    async nextPersonalSortOrder(userId: string): Promise<number> {
+      const row = await db
+        .selectFrom("collections")
+        .select(sql<number>`coalesce(max(sort_order) + 1, 0)`.as("next"))
+        .where("userId", "=", userId)
+        .where("groupId", "is", null)
+        .executeTakeFirst();
+      return row?.next ?? 0;
+    },
+
+    /**
+     * Re-numbers `sort_order` for the user's personal collections to match
+     * `orderedIds`, in a single statement. Group-owned collections are not
+     * reorderable and are silently ignored if present in `orderedIds`. The
+     * inbox is treated like any other personal collection — the repo doesn't
+     * pin it; that's the UI's job.
+     * @returns Nothing.
+     */
+    async reorderPersonal(userId: string, orderedIds: readonly string[]): Promise<void> {
+      if (orderedIds.length === 0) {
+        return;
+      }
+      const ids = [...orderedIds];
+      await sql`
+        update collections
+        set sort_order = ranked.new_order
+        from (
+          select id, ord::int - 1 as new_order
+          from unnest(${ids}::uuid[]) with ordinality as t(id, ord)
+        ) as ranked
+        where collections.id = ranked.id
+          and collections.user_id = ${userId}
+          and collections.group_id is null
+      `.execute(db);
+    },
+
     /** @returns The updated collection row, or `undefined` if not found. */
     update(
       id: string,
