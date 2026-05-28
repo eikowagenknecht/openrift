@@ -5,7 +5,7 @@ import { create } from "zustand";
  * Scoped so /cards, /collections and /lists don't bleed overrides into each
  * other when the user switches pages mid-session.
  */
-export type SiblingOverrideScope = "cards" | "collection" | "list";
+type SiblingOverrideScope = "cards" | "collection" | "list";
 
 interface SiblingOverrideState {
   overrides: Record<SiblingOverrideScope, Map<string, string>>;
