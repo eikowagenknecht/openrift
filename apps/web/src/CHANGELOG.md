@@ -3,6 +3,7 @@
 ## 2026-05-28
 
 - feat: You can now drag a card from one wishlist to another (or tradelist to tradelist) to move it between lists of the same kind. The card is removed from the source and added to the destination, with quantities merged if the destination already has the same card
+- fix: A collection's total value now shows in the page header on mobile too, not just on wider screens. If the collection name is long the value shortens to keep it out of the way
 
 ## 2026-05-27
 

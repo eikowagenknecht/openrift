@@ -1378,16 +1378,14 @@ function CollectionTopBar({
           <span className="text-muted-foreground shrink-0 text-xs">→ {addTargetLabel}</span>
         )}
 
-        <span className="text-muted-foreground hidden shrink-0 items-baseline gap-x-1.5 text-xs sm:flex">
-          {valueCents !== null && valueCents !== undefined && (
-            <span>
-              {formatValue(valueCents / 100)}
-              {unpricedCount ? (
-                <span className="text-muted-foreground/60 ml-1">({unpricedCount} unpriced)</span>
-              ) : null}
-            </span>
-          )}
-        </span>
+        {valueCents !== null && valueCents !== undefined && (
+          <span className="text-muted-foreground min-w-0 truncate text-xs">
+            {formatValue(valueCents / 100)}
+            {unpricedCount ? (
+              <span className="text-muted-foreground/60 ml-1">({unpricedCount} unpriced)</span>
+            ) : null}
+          </span>
+        )}
       </div>
 
       <PageTopBarActions>
