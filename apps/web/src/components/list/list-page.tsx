@@ -9,14 +9,12 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import {
   DownloadIcon,
   EllipsisVerticalIcon,
-  ListIcon,
-  ListPlusIcon,
+  LibraryBigIcon,
   PencilIcon,
   Share2Icon,
   Trash2Icon,
   UploadIcon,
 } from "lucide-react";
-import type { ReactNode } from "react";
 import { use, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
@@ -29,26 +27,21 @@ import {
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
-import { CardCell } from "@/components/cards/card-cell";
-import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import type { TableRowSlotProps } from "@/components/cards/card-table";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
-import type { ListEntryDragData } from "@/components/collection/dnd-types";
 import { listKindIcon } from "@/components/list/create-list-dialog";
 import { DeleteListDialog } from "@/components/list/delete-list-dialog";
-import { DraggableListEntry } from "@/components/list/draggable-list-entry";
 import { ListEditDialog } from "@/components/list/list-edit-dialog";
-import { ListEntryContextMenu } from "@/components/list/list-entry-context-menu";
 import { ListEntryTableActions } from "@/components/list/list-entry-table-actions";
 import { ListExportDialog } from "@/components/list/list-export-dialog";
+import { ListGridCell } from "@/components/list/list-grid-cell";
 import { ListHeader } from "@/components/list/list-header";
 import { ListImportDialog } from "@/components/list/list-import-dialog";
 import { ListShareDialog } from "@/components/list/list-share-dialog";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { TradePreferenceDialog } from "@/components/trade-preferences/trade-preference-dialog";
-import { TradePreferenceGridPill } from "@/components/trade-preferences/trade-preference-grid-pill";
 import { TradePreferencePill } from "@/components/trade-preferences/trade-preference-pill";
 import { Button } from "@/components/ui/button";
 import {
@@ -84,8 +77,11 @@ import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-session";
 import { FilterSearchProvider, useFilterSearch } from "@/lib/search-schemas";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
+import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDisplayStore } from "@/stores/display-store";
+import { useListEntriesStore } from "@/stores/list-entries-store";
 import { useSelectionStore } from "@/stores/selection-store";
+import { useSiblingOverrideStore } from "@/stores/sibling-override-store";
 
 interface ListPageProps {
   listId: string;
@@ -150,19 +146,18 @@ export function ListPage({ listId }: ListPageProps) {
   const KindIcon = listKindIcon(data.list.kind);
   const empty = emptyStateCopy(data.list.kind);
 
-  // Catalog add mode is a global display-store flag shared with /cards and
-  // /collections. Copy-kind lists don't expose add mode (a "copy" only exists
-  // inside a collection; the float-bar / sidebar DnD are the canonical paths).
-  const catalogMode = useDisplayStore((state) => state.catalogMode);
-  const isAddMode = catalogMode === "add" && data.list.kind !== "copy";
+  // Per-session library toggle: when on, the grid renders the whole catalog
+  // so the user can add cards. Copy-kind lists can't add via the catalog (a
+  // "copy" only exists inside a collection; the float-bar / sidebar DnD are
+  // the canonical paths), so the toggle is hidden for them.
+  const [showLibrary, setShowLibrary] = useState(false);
+  const showLibraryActive = showLibrary && data.list.kind !== "copy";
 
-  // Switching lists flips catalogMode back to off so the user doesn't land
-  // in add mode on the new list by surprise. Mirrors the same reset the
-  // collection grid does on collectionId change.
+  // Switching lists resets the toggle so the user doesn't land in library
+  // view on the new list by surprise. Mirrors the same reset the collection
+  // grid does on collectionId change.
   useEffect(() => {
-    if (useDisplayStore.getState().catalogMode === "add") {
-      useDisplayStore.getState().toggleCatalogModeAdd();
-    }
+    setShowLibrary(false);
   }, [listId]);
 
   const handleDelete = () => {
@@ -293,10 +288,10 @@ export function ListPage({ listId }: ListPageProps) {
     <ListImportDialog listId={listId} open={importOpen} onOpenChange={setImportOpen} />
   );
 
-  // When add mode is active we fall through to the browser even with zero
+  // When the library is shown we fall through to the browser even with zero
   // entries — the grid renders the whole catalog so the user can start adding.
-  if (entriesCount === 0 && !isAddMode) {
-    const canEnterAddMode = data.list.kind !== "copy";
+  if (entriesCount === 0 && !showLibraryActive) {
+    const canShowLibrary = data.list.kind !== "copy";
     return (
       <>
         {topBarPortal}
@@ -318,10 +313,10 @@ export function ListPage({ listId }: ListPageProps) {
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            {canEnterAddMode && (
-              <Button onClick={() => useDisplayStore.getState().toggleCatalogModeAdd()}>
-                <ListPlusIcon className="size-4" />
-                Browse catalog
+            {canShowLibrary && (
+              <Button onClick={() => setShowLibrary(true)}>
+                <LibraryBigIcon className="size-4" />
+                Show library
               </Button>
             )}
           </EmptyContent>
@@ -345,6 +340,8 @@ export function ListPage({ listId }: ListPageProps) {
         listTradeDefaults={data.list.tradeDefaults}
         listCurrency={data.list.currency}
         entries={data.entries}
+        showLibrary={showLibraryActive}
+        onToggleShowLibrary={() => setShowLibrary((prev) => !prev)}
         onRemoveEntry={handleRemoveEntry}
         onQuantityChange={handleQuantityChange}
         onTradeOverrideChange={handleTradeOverrideChange}
@@ -444,6 +441,9 @@ interface ListEntryBrowserProps {
   listTradeDefaults: TradePreference;
   listCurrency: Currency | null;
   entries: ListEntryDetailResponse[];
+  /** True when the library toggle is on (catalog mode). Never true for copy-kind lists. */
+  showLibrary: boolean;
+  onToggleShowLibrary: () => void;
   onRemoveEntry: (entryId: string, cardName: string) => void;
   onQuantityChange: (entryId: string, quantity: number) => void;
   onTradeOverrideChange: (
@@ -475,6 +475,8 @@ function ListEntryBrowser({
   listTradeDefaults,
   listCurrency,
   entries,
+  showLibrary,
+  onToggleShowLibrary,
   onRemoveEntry,
   onQuantityChange,
   onTradeOverrideChange,
@@ -495,8 +497,14 @@ function ListEntryBrowser({
   const keywordReverseMap = useKeywordReverseMap();
   const isMobile = useIsMobile();
 
-  const catalogMode = useDisplayStore((state) => state.catalogMode);
-  const isAddMode = catalogMode === "add" && kind !== "copy";
+  // Sibling-swap overrides live in the shared store (scope: "list"). Reset
+  // when this browser unmounts (listId change) so a pin on a previous list
+  // doesn't leak in.
+  useEffect(() => {
+    useSiblingOverrideStore.getState().clearScope("list");
+    return () => useSiblingOverrideStore.getState().clearScope("list");
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- once-on-mount, once-on-unmount
+  }, []);
 
   const { data: session } = useSession();
   const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
@@ -570,22 +578,27 @@ function ListEntryBrowser({
     sortDir,
     view: dataView,
     groupBy,
-    ownedCountByPrinting,
+    // Only thread the owned-count map when the owned-bucket filter is
+    // actually active. Otherwise the global map mutates on every +/- and
+    // invalidates this hook's "use memo" cache, rebuilding every cell's
+    // siblings / priceRange refs on every entry mutation. Mirrors the
+    // guards in /cards and /collections.
+    ownedCountByPrinting: filters.ownedFilter.length > 0 ? ownedCountByPrinting : undefined,
     favoriteMarketplace: display.favoriteMarketplace,
     prices: display.prices,
     keywordReverseMap,
     channels,
   });
 
-  const sortedCards = isAddMode ? catalogSortedCards : listSortedCards;
-  const filteredPrintingsByCardId = isAddMode ? catalogPrintingsByCardId : listPrintingsByCardId;
-  const priceRangeByCardId = isAddMode ? catalogPriceRangeByCardId : listPriceRangeByCardId;
-  const availableFilters = isAddMode ? catalogAvailableFilters : listAvailableFilters;
-  const availableLanguages = isAddMode ? catalogAvailableLanguages : listAvailableLanguages;
-  const filterCounts = isAddMode ? catalogFilterCounts : listFilterCounts;
-  const setDisplayLabel = isAddMode ? catalogSetDisplayLabel : listSetDisplayLabel;
-  const totalUniqueCards = isAddMode ? catalogTotalUniqueCards : listTotalUniqueCards;
-  const filteredCount = isAddMode ? catalogFilteredCount : listFilteredCount;
+  const sortedCards = showLibrary ? catalogSortedCards : listSortedCards;
+  const filteredPrintingsByCardId = showLibrary ? catalogPrintingsByCardId : listPrintingsByCardId;
+  const priceRangeByCardId = showLibrary ? catalogPriceRangeByCardId : listPriceRangeByCardId;
+  const availableFilters = showLibrary ? catalogAvailableFilters : listAvailableFilters;
+  const availableLanguages = showLibrary ? catalogAvailableLanguages : listAvailableLanguages;
+  const filterCounts = showLibrary ? catalogFilterCounts : listFilterCounts;
+  const setDisplayLabel = showLibrary ? catalogSetDisplayLabel : listSetDisplayLabel;
+  const totalUniqueCards = showLibrary ? catalogTotalUniqueCards : listTotalUniqueCards;
+  const filteredCount = showLibrary ? catalogFilteredCount : listFilteredCount;
 
   // User-scoped fan: for card-kind lists we want the fan + detail pane to
   // show every printing of the card *from the global catalog*, but limited
@@ -599,11 +612,11 @@ function ListEntryBrowser({
   // the user sees every physical copy separately; other views collapse to one
   // tile per printing. Add mode iterates over the catalog (one tile per
   // printing) — no per-entry expansion since most catalog tiles have no entry.
-  const { items, entryByItemId } = isAddMode
+  const { items, entryByItemId } = showLibrary
     ? buildItemsFromCatalog(sortedCards)
     : buildItems(view, sortedCards, entriesByPrintingId);
 
-  // ── Entry lookup for add-mode + quantity display ─────────────────────
+  // ── Entry lookup for library mode + quantity display ─────────────────
   // Keyed by cardId on card-kind lists and printingId on printing-kind lists.
   // Quantity comes straight from `entry.quantity`. Mutations write to the
   // query cache optimistically (see useBulkAddListEntries / useUpdateListEntry),
@@ -612,6 +625,14 @@ function ListEntryBrowser({
   const bulkAddEntries = useBulkAddListEntries();
   const updateEntryMutation = useUpdateListEntry();
 
+  // Feed the per-cell entry store so cells can self-subscribe by key without
+  // taking parent-derived maps as unstable props. Effect deps include the
+  // recomputed maps directly — when entries don't change, the upstream maps'
+  // identities are stable across renders.
+  useEffect(() => {
+    useListEntriesStore.getState().setEntries(entryByItemId, entryByKey);
+  }, [entryByItemId, entryByKey]);
+
   // When grouping by set in cards view, each (cardId, setId) gets its own
   // tile, so clicks need to navigate by printing rather than card — same
   // reason as CardBrowser / public collection share.
@@ -619,6 +640,11 @@ function ListEntryBrowser({
 
   const handleCardClick = (printing: Printing) => {
     useSelectionStore.getState().selectCard(printing, items, findBy);
+  };
+
+  const handleSiblingClick = (printing: Printing) => {
+    handleCardClick(printing);
+    useSiblingOverrideStore.getState().setOverride("list", printing.cardId, printing.id);
   };
 
   const handleSearchAndClose = (query: string) => {
@@ -649,171 +675,90 @@ function ListEntryBrowser({
     updateEntryMutation.mutate({ listId, entryId: entry.id, quantity: entry.quantity - 1 });
   };
 
-  const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
-    const cardId = item.printing.cardId;
-    const entry = entryByItemId.get(item.id);
-    const onRemove = entry
-      ? () => onRemoveEntry(entry.id, entry.cardName)
-      : () => {
-          /* noop — browse mode resolves every item to an entry by construction */
-        };
-    const onSetPreference =
-      entry && supportsTradePrefs ? () => setPrefDialogEntryId(entry.id) : undefined;
-    // Fan-out behind the tile:
-    //   - browse + card-kind: every printing of the card in the user's
-    //     preferred languages (entry doesn't pin a specific printing)
-    //   - browse + other kinds: only the printings already on the list
-    //   - add mode + cards view: every printing of the card per catalog
-    //     filters (the visible fan should match what's filtered)
-    const siblings =
-      view === "cards"
-        ? (isAddMode
-            ? filteredPrintingsByCardId
-            : kind === "card"
-              ? userScopedPrintingsByCardId
-              : filteredPrintingsByCardId
-          ).get(cardId)
-        : undefined;
-
-    if (isAddMode) {
-      const key = kind === "card" ? cardId : item.printing.id;
-      const displayedCount = entryByKey.get(key)?.quantity ?? 0;
-      return (
-        <CardCell
-          printing={item.printing}
-          ctx={ctx}
-          display={display}
-          showImages={showImages}
-          view={dataView}
-          onClick={handleCardClick}
-          siblings={siblings}
-          priceRange={priceRangeByCardId?.get(cardId)}
-          dimmed={displayedCount === 0}
-          stripSlot="topSlot"
-          strip={
-            <CardCountStrip
-              count={displayedCount}
-              icon={ListIcon}
-              decrement={{
-                onClick: () => handleDecrement(item.printing),
-                disabled: displayedCount <= 1,
-                ariaLabel: `Decrease ${item.printing.card.name} quantity on list`,
-              }}
-              increment={{
-                onClick: () => handleIncrement(item.printing),
-                ariaLabel: `Add ${item.printing.card.name} to list`,
-              }}
-            />
-          }
-        />
-      );
-    }
-
-    // Browse mode strip: quantity stepper (card/printing-kind lists only)
-    // plus the trade-preference pill, both centered together between the
-    // -/+ buttons. Copy-kind lists hide the stepper but still get the pill
-    // alone in the same strip slot for consistency across cells.
-    const tradePill =
-      entry && supportsTradePrefs ? (
-        <TradePreferenceGridPill
-          override={entry.tradeOverride}
-          listDefault={listTradeDefaults}
-          currency={listCurrency}
-          isOverridden={
-            entry.tradeOverride.pricePref !== null ||
-            entry.tradeOverride.priceAbsoluteCents !== null ||
-            entry.tradeOverride.tradeType !== null
-          }
-          onEdit={() => setPrefDialogEntryId(entry.id)}
-        />
-      ) : null;
-
-    const buildQuantityStrip = (): ReactNode => {
-      if (!entry) {
-        return null;
-      }
-      if (kind === "copy") {
-        // Copy-kind: no count, no stepper. If we have a trade pill, render
-        // it alone in a strip matching the count-strip height so card sizes
-        // stay uniform with the other kinds.
-        return tradePill ? (
-          <div className="relative z-30 mb-1 flex h-5 items-center justify-center">{tradePill}</div>
-        ) : null;
-      }
-      const isPending = isQuantityPendingFor(entry.id);
-      return (
-        <CardCountStrip
-          count={entry.quantity}
-          decrement={{
-            onClick: () => onQuantityChange(entry.id, entry.quantity - 1),
-            disabled: isPending || entry.quantity <= 1,
-            ariaLabel: `Decrease ${entry.cardName} quantity`,
-          }}
-          increment={{
-            onClick: () => onQuantityChange(entry.id, entry.quantity + 1),
-            disabled: isPending,
-            ariaLabel: `Increase ${entry.cardName} quantity`,
-          }}
-          extras={tradePill}
-        />
-      );
-    };
-    const quantityStrip = buildQuantityStrip();
-
-    // Drag wiring: only browse-mode tiles with a backing entry are draggable.
-    // Add-mode tiles came from the catalog, not from the list, so they have
-    // nothing to move. The drag carries the single entry the tile represents
-    // (see the kind/view invariants in buildItems — each tile resolves 1:1).
-    const dragData: ListEntryDragData | undefined = entry
-      ? {
-          type: "list-entry",
-          entryIds: [entry.id],
-          sourceListId: listId,
-          sourceKind: kind,
-          sourceIntent: intent,
-          totalQuantity: entry.quantity,
-          printing: item.printing,
-          cardName: entry.cardName,
+  // Register list-grid action dispatchers so the per-cell ListGridCell can
+  // hand off click / +/- / remove / set-preference without taking parent
+  // closures as props. Re-register every render so handlers close over the
+  // freshest mutation results and pending flags.
+  // oxlint-disable-next-line react-hooks/exhaustive-deps -- intentional: re-register every render
+  useEffect(() => {
+    useCardRowActionsStore.getState().setHandlers({
+      onRowClick: handleCardClick,
+      onSiblingClick: handleSiblingClick,
+      onIncrement: handleIncrement,
+      onDecrement: handleDecrement,
+      onEntryQuantityChange: (entryId, quantity) => {
+        // Library-mode decrement passes empty entryId when there's no entry;
+        // the cell already disables the button in that case but guard here too.
+        if (!entryId) {
+          return;
         }
-      : undefined;
-    const dragId = entry ? `list-entry-${entry.id}` : undefined;
+        onQuantityChange(entryId, quantity);
+      },
+      onRemoveEntry: (entryId, cardName) => onRemoveEntry(entryId, cardName),
+      onSetPreference: (entryId) => setPrefDialogEntryId(entryId),
+      isQuantityPendingFor: (entryId) => isQuantityPendingFor(entryId),
+    });
+    return () => {
+      useCardRowActionsStore.getState().setHandlers({});
+    };
+  });
 
-    return (
-      <CardCell
-        printing={item.printing}
-        ctx={ctx}
-        display={display}
-        showImages={showImages}
-        view={dataView}
-        onClick={handleCardClick}
-        siblings={siblings}
-        priceRange={priceRangeByCardId?.get(cardId)}
-        strip={quantityStrip}
-        contextMenu={<ListEntryContextMenu onRemove={onRemove} onSetPreference={onSetPreference} />}
-        wrap={dragData && dragId ? <DraggableListEntry id={dragId} data={dragData} /> : undefined}
-      />
-    );
-  };
+  // Fan-out behind each tile (cards view only):
+  //   - browse + card-kind: every printing of the card in the user's
+  //     preferred languages (entry doesn't pin a specific printing)
+  //   - browse + other kinds: only the printings already on the list
+  //   - library + cards view: every printing of the card per catalog filters
+  //     (the visible fan should match what's filtered)
+  const siblingsSource = showLibrary
+    ? filteredPrintingsByCardId
+    : kind === "card"
+      ? userScopedPrintingsByCardId
+      : filteredPrintingsByCardId;
 
-  const totalDisplay = view === "copies" && !isAddMode ? items.length : totalUniqueCards;
-  const filteredDisplay = view === "copies" && !isAddMode ? items.length : filteredCount;
-  const totalListItems = isAddMode
+  // Thin wrapper — the cell takes only stable item-level props and
+  // self-subscribes to its sibling override + entry data so a single entry
+  // mutation only re-renders the affected cell.
+  const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => (
+    <ListGridCell
+      printing={item.printing}
+      itemId={item.id}
+      cardWidth={ctx.cardWidth}
+      priority={ctx.priority}
+      dataView={dataView}
+      view={view}
+      kind={kind}
+      intent={intent}
+      listId={listId}
+      listTradeDefaults={listTradeDefaults}
+      listCurrency={listCurrency}
+      showLibrary={showLibrary}
+      supportsTradePrefs={supportsTradePrefs}
+      siblings={view === "cards" ? siblingsSource.get(item.printing.cardId) : undefined}
+      display={display}
+      showImages={showImages}
+      priceRange={priceRangeByCardId?.get(item.printing.cardId)}
+    />
+  );
+
+  const totalDisplay = view === "copies" && !showLibrary ? items.length : totalUniqueCards;
+  const filteredDisplay = view === "copies" && !showLibrary ? items.length : filteredCount;
+  const totalListItems = showLibrary
     ? allPrintings.length
     : view === "copies"
       ? entries.length
       : listPrintings.length;
 
-  const toggleAddMode = () => useDisplayStore.getState().toggleCatalogModeAdd();
-  const addModeButton =
+  const showLibraryButton =
     kind === "copy" ? null : (
       <Button
-        variant={isAddMode ? "default" : "outline"}
+        variant={showLibrary ? "default" : "outline"}
         size="icon"
-        onClick={toggleAddMode}
-        title={isAddMode ? "Stop browsing catalog" : "Browse catalog to add to list"}
-        aria-label={isAddMode ? "Stop browsing catalog" : "Browse catalog to add to list"}
+        onClick={onToggleShowLibrary}
+        title={showLibrary ? "Hide library" : "Show whole library"}
+        aria-label={showLibrary ? "Hide library" : "Show whole library"}
+        aria-pressed={showLibrary}
       >
-        {isAddMode ? <ListPlusIcon className="size-4" /> : <ListIcon className="size-4" />}
+        <LibraryBigIcon className="size-4" />
       </Button>
     );
 
@@ -827,7 +772,7 @@ function ListEntryBrowser({
           : undefined
       }
       hideViewToggle
-      extras={addModeButton}
+      extras={showLibraryButton}
     />
   );
 
@@ -842,7 +787,7 @@ function ListEntryBrowser({
   // the user picked specific printings or copies. In add mode the pane fans
   // the catalog (filtered) so the user can inspect any card they're about
   // to add.
-  const detailPanePrintingsByCardId = isAddMode
+  const detailPanePrintingsByCardId = showLibrary
     ? filteredPrintingsByCardId
     : kind === "card"
       ? userScopedPrintingsByCardId
@@ -869,7 +814,7 @@ function ListEntryBrowser({
         availableLanguages={availableLanguages}
         filterCounts={filterCounts}
         setDisplayLabel={setDisplayLabel}
-        hiddenSections={isAddMode ? undefined : LIST_HIDDEN_FILTER_SECTIONS}
+        hiddenSections={showLibrary ? undefined : LIST_HIDDEN_FILTER_SECTIONS}
       >
         <CardViewer
           items={items}

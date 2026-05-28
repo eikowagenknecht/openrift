@@ -5,6 +5,7 @@ import type { VariantPopoverIntent } from "@/stores/add-mode-store";
 
 export interface CardRowClickModifiers {
   shift?: boolean;
+  ctrl?: boolean;
 }
 
 interface CardRowHandlers {
@@ -21,6 +22,22 @@ interface CardRowHandlers {
     anchorEl: HTMLElement,
     intent: VariantPopoverIntent,
   ) => void;
+  /**
+   * Cell-aware click: dispatched on the grid tile with modifier keys. The
+   * handler resolves mode-specific behavior (browse → open detail, select →
+   * toggle / shift-range, ctrl in browse → enter select mode + toggle).
+   */
+  onItemClick?: (itemId: string, printing: Printing, modifiers: CardRowClickModifiers) => void;
+  /** Toggle the cell's stack in select mode (used by the cell's checkbox). */
+  onItemToggle?: (itemId: string) => void;
+  /** /lists: set an entry's quantity directly (browse-mode +/- buttons on the quantity strip). */
+  onEntryQuantityChange?: (entryId: string, quantity: number) => void;
+  /** /lists: remove an entry (right-click context menu). */
+  onRemoveEntry?: (entryId: string, cardName: string) => void;
+  /** /lists: open the trade-preference editor for an entry. */
+  onSetPreference?: (entryId: string) => void;
+  /** /lists: is the given entry currently waiting on a pending quantity mutation? */
+  isQuantityPendingFor?: (entryId: string) => boolean;
 }
 
 interface CardRowActionsState {
@@ -70,4 +87,32 @@ export function dispatchOpenVariants(
   intent: VariantPopoverIntent,
 ): void {
   useCardRowActionsStore.getState().handlers.onOpenVariants?.(printing, anchorEl, intent);
+}
+
+export function dispatchItemClick(
+  itemId: string,
+  printing: Printing,
+  modifiers: CardRowClickModifiers,
+): void {
+  useCardRowActionsStore.getState().handlers.onItemClick?.(itemId, printing, modifiers);
+}
+
+export function dispatchItemToggle(itemId: string): void {
+  useCardRowActionsStore.getState().handlers.onItemToggle?.(itemId);
+}
+
+export function dispatchEntryQuantityChange(entryId: string, quantity: number): void {
+  useCardRowActionsStore.getState().handlers.onEntryQuantityChange?.(entryId, quantity);
+}
+
+export function dispatchRemoveEntry(entryId: string, cardName: string): void {
+  useCardRowActionsStore.getState().handlers.onRemoveEntry?.(entryId, cardName);
+}
+
+export function dispatchSetPreference(entryId: string): void {
+  useCardRowActionsStore.getState().handlers.onSetPreference?.(entryId);
+}
+
+export function isQuantityPending(entryId: string): boolean {
+  return useCardRowActionsStore.getState().handlers.isQuantityPendingFor?.(entryId) ?? false;
 }

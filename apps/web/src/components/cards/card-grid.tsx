@@ -15,6 +15,7 @@ import { getHeaderHeight } from "@/lib/header-height";
 import { cn } from "@/lib/utils";
 import { useWindowVirtualizerFresh } from "@/lib/virtualizer-fresh";
 import { useDisplayStore } from "@/stores/display-store";
+import { useGridFocusStore } from "@/stores/grid-focus-store";
 
 import {
   BUTTON_PAD,
@@ -261,8 +262,6 @@ const CardRowContent = memo(function CardRowContent({
   columns,
   labelHeight,
   addStripHeight,
-  selectedItemId,
-  flashCardId,
   cardWidth,
   eagerCount,
   renderCard,
@@ -271,8 +270,6 @@ const CardRowContent = memo(function CardRowContent({
   columns: number;
   labelHeight: number;
   addStripHeight: number;
-  selectedItemId?: string;
-  flashCardId: string | null;
   cardWidth: number;
   eagerCount: number;
   renderCard: (item: CardViewerItem, ctx: CardRenderContext) => ReactNode;
@@ -335,11 +332,15 @@ const CardRowContent = memo(function CardRowContent({
     <div style={gridStyle}>
       {row.items.map((item, colIndex) => {
         const flatIndex = row.cardsBefore + colIndex;
+        // isSelected / isFlashing default to false here — each cell subscribes
+        // to useGridFocusStore by its own itemId and overrides them. Keeping
+        // them out of this map's ctx closure is what lets the per-cell memo
+        // skip on +/- (the only `ctx` inputs left are stable per render).
         return (
           <Fragment key={item.id}>
             {renderCard(item, {
-              isSelected: item.id === selectedItemId || item.printing.id === selectedItemId,
-              isFlashing: item.id === flashCardId || item.printing.id === flashCardId,
+              isSelected: false,
+              isFlashing: false,
               cardWidth,
               priority: flatIndex < eagerCount,
             })}
@@ -502,15 +503,18 @@ export function CardGrid({
     }
   };
 
-  const [flashCardId, setFlashCardId] = useState<string | null>(null);
-
+  // Flash state lives in useGridFocusStore (alongside selectedItemId) so the
+  // per-cell `isFlashing` subscription in each grid cell sees only its own
+  // value flip — broadcasting flashCardId as a CardRowContent prop forced
+  // every row + cell to re-render whenever the flash started or cleared.
   useEffect(() => {
     if (!selectedItemId) {
+      useGridFocusStore.getState().setFlashCardId(null);
       return;
     }
     scrollToCard(selectedItemId);
-    setFlashCardId(selectedItemId);
-    const timer = setTimeout(() => setFlashCardId(null), 800);
+    useGridFocusStore.getState().setFlashCardId(selectedItemId);
+    const timer = setTimeout(() => useGridFocusStore.getState().setFlashCardId(null), 800);
     return () => clearTimeout(timer);
   }, [selectedItemId]);
 
@@ -657,8 +661,6 @@ export function CardGrid({
                   columns={columns}
                   labelHeight={labelHeight}
                   addStripHeight={addStripHeight}
-                  selectedItemId={selectedItemId}
-                  flashCardId={flashCardId}
                   cardWidth={thumbWidth}
                   eagerCount={eagerCount}
                   renderCard={renderCard}

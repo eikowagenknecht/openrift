@@ -153,4 +153,56 @@ describe("useCollectionCardData", () => {
     const languages = result.current.sortedCards.map((printing) => printing.language);
     expect(languages).toEqual(["EN"]);
   });
+
+  it("filters by ownedFilter using per-collection stack counts", () => {
+    // Regression: `filters.owned` was wired into the collection filter UI but
+    // the hook never applied it, so every bucket showed every owned card.
+    const partial = stubPrinting({ card: { slug: "partial-card" } });
+    const full = stubPrinting({ card: { slug: "full-card" } });
+    const extra = stubPrinting({ card: { slug: "extra-card" } });
+    mockStacks.mockReturnValue({
+      stacks: [
+        // Default playset for unit/no-keywords is 3.
+        { printingId: partial.id, printing: partial, copyIds: ["c-p1"] },
+        { printingId: full.id, printing: full, copyIds: ["c-f1", "c-f2", "c-f3"] },
+        {
+          printingId: extra.id,
+          printing: extra,
+          copyIds: ["c-e1", "c-e2", "c-e3", "c-e4"],
+        },
+      ],
+      totalCopies: 8,
+      isReady: true,
+    });
+
+    const partialResult = renderHook(() =>
+      useCollectionCardData({ ...baseParams(), ownedFilter: ["partial"] }),
+    );
+    expect(partialResult.result.current.sortedCards.map((p) => p.id)).toEqual([partial.id]);
+
+    const fullResult = renderHook(() =>
+      useCollectionCardData({ ...baseParams(), ownedFilter: ["full"] }),
+    );
+    expect(fullResult.result.current.sortedCards.map((p) => p.id)).toEqual([full.id]);
+
+    const extraResult = renderHook(() =>
+      useCollectionCardData({ ...baseParams(), ownedFilter: ["extra"] }),
+    );
+    expect(extraResult.result.current.sortedCards.map((p) => p.id)).toEqual([extra.id]);
+  });
+
+  it("leaves results untouched when ownedFilter is empty", () => {
+    const a = stubPrinting();
+    const b = stubPrinting();
+    mockStacks.mockReturnValue({
+      stacks: [makeStack(a), makeStack(b)],
+      totalCopies: 2,
+      isReady: true,
+    });
+
+    const { result } = renderHook(() =>
+      useCollectionCardData({ ...baseParams(), ownedFilter: [] }),
+    );
+    expect(result.current.sortedCards).toHaveLength(2);
+  });
 });

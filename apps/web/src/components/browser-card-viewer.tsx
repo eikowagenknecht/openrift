@@ -1,10 +1,12 @@
 import type { GroupByField, Printing } from "@openrift/shared";
 import type { ReactNode } from "react";
+import { useEffect } from "react";
 
 import type { CardTableProps } from "@/components/card-viewer";
 import { CardViewer } from "@/components/card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import type { GroupInfo } from "@/components/cards/card-grid-types";
+import { useGridFocusStore } from "@/stores/grid-focus-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
 const EMPTY_SIBLINGS: Printing[] = [];
@@ -62,6 +64,14 @@ export function BrowserCardViewer({
             selectedCard.id)
           : selectedCard.id))
       : undefined);
+
+  // Push the resolved id into useGridFocusStore so per-cell components can
+  // subscribe to "am I selected?" via a granular selector instead of taking
+  // the value as a prop (which would cascade through every row + cell on a
+  // selection change).
+  useEffect(() => {
+    useGridFocusStore.getState().setSelectedItemId(gridSelectedId ?? null);
+  }, [gridSelectedId]);
 
   const siblingPrintings = selectedCard
     ? (printingsByCardId.get(selectedCard.cardId) ?? EMPTY_SIBLINGS)

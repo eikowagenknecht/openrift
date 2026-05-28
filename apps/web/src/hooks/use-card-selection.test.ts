@@ -1,7 +1,13 @@
 import { renderHook, act } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+
+import { useGridSelectionStore } from "@/stores/grid-selection-store";
 
 import { useCardSelection } from "./use-card-selection";
+
+beforeEach(() => {
+  useGridSelectionStore.setState({ selected: new Set() });
+});
 
 describe("useCardSelection", () => {
   it("starts with an empty selection and no last-selected ID", () => {

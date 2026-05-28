@@ -1,5 +1,6 @@
 import type { Printing } from "@openrift/shared";
 import type { ReactNode } from "react";
+import { memo } from "react";
 
 import type { CardRenderContext } from "@/components/card-viewer-types";
 import { CardCell } from "@/components/cards/card-cell";
@@ -8,105 +9,95 @@ import { OwnedCollectionsPopover } from "@/components/cards/card-detail/owned-co
 import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { SuggestImageOverlay } from "@/components/cards/suggest-image-overlay";
 import { useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
-import {
-  dispatchDecrement,
-  dispatchIncrement,
-  dispatchOpenVariants,
-  dispatchRowClick,
-  dispatchSiblingClick,
-} from "@/stores/card-row-actions-store";
+import { dispatchRowClick, dispatchSiblingClick } from "@/stores/card-row-actions-store";
+import { useGridFocusStore } from "@/stores/grid-focus-store";
+import { useSiblingOverrideStore } from "@/stores/sibling-override-store";
 
 interface BrowserCardCellProps {
+  /** The item's underlying printing (pre-override-resolution). */
   printing: Printing;
+  /** Stable item id (printingId for the catalog grid). */
+  itemId: string;
   /** Sibling printings of the same card (cards view) for the variant chevron + per-variant breakdown. */
   siblings: Printing[] | undefined;
-  ctx: CardRenderContext;
+  /** Layout dimensions + load priority from the row (primitive props so the
+   * per-cell memo isn't busted by `ctx`'s identity flipping every row render). */
+  cardWidth: number;
+  priority: boolean;
   showImages: boolean;
   view: "cards" | "printings";
   display: CardThumbnailDisplay;
   priceRange: { min: number; max: number } | undefined;
-  /** True when owned counts should be visible (logged-in browse or add mode). */
+  /** True when owned counts should be visible (logged-in + cardsShowCounts on). */
   showStrip: boolean;
-  /** True when add mode is on (renders +/- strip instead of read-only count). */
-  showAddControls: boolean;
   inCardsView: boolean;
 }
 
 /**
  * Per-cell wrapper for the catalog browser grid. Self-subscribes to its own
- * owned count via {@link useOwnedCountsForPrintings} and dispatches click /
- * +/- via the module-stable trampolines in `card-row-actions-store`. With
- * unstable closures lifted out of the parent's `renderCard`, only the cell
- * whose data actually changed re-renders on add/remove.
+ * owned count and sibling-swap override so the parent's `renderCard` closure
+ * stays stable across +/- and sibling clicks — only the cell whose data
+ * actually changed re-renders.
  *
- * The JSX wiring is handed off to {@link CardCell}; this component owns the
- * catalog-specific concerns (live owned-count subscription + strip choice).
+ * Wrapped in `React.memo`: every prop is primitive or comes from a
+ * reference-stable source (printing/siblings from useCards, display from
+ * useCardThumbnailDisplay's "use memo", priceRange from useCardData's "use
+ * memo"), so shallow equality reliably skips unchanged cells.
  *
  * @returns The card cell with its strip, owned-count, and click wiring.
  */
-export function BrowserCardCell({
+// oxlint-disable-next-line eslint/prefer-arrow-callback -- named for React DevTools
+export const BrowserCardCell = memo(function BrowserCardCell({
   printing,
+  itemId,
   siblings,
-  ctx,
+  cardWidth,
+  priority,
   showImages,
   view,
   display,
   priceRange,
   showStrip,
-  showAddControls,
   inCardsView,
 }: BrowserCardCellProps) {
-  const siblingIds = siblings ? siblings.map((sibling) => sibling.id) : [printing.id];
-  const enabled = showStrip || showAddControls;
-  const { data: counts } = useOwnedCountsForPrintings(siblingIds, enabled);
+  // Per-cell subscription: when the user pins a different variant on this
+  // card the store updates and this cell re-renders. Other cells (different
+  // cardId) get the same string back from their selector and skip.
+  const overrideId = useSiblingOverrideStore((s) =>
+    inCardsView ? s.overrides.cards.get(printing.cardId) : undefined,
+  );
+  const displayPrinting =
+    overrideId && siblings
+      ? (siblings.find((sibling) => sibling.id === overrideId) ?? printing)
+      : printing;
 
-  const ownedCount = counts?.total ?? 0;
-  const ownedVariantCount =
+  const siblingIds = siblings ? siblings.map((sibling) => sibling.id) : [displayPrinting.id];
+  const { data: counts } = useOwnedCountsForPrintings(siblingIds, showStrip);
+
+  // Primary count = the displayed printing's owned count. The "(M)" hint is
+  // the per-card sum across siblings — only meaningful in cards view when
+  // more than one variant has copies.
+  const ownedCount = counts?.totals[displayPrinting.id] ?? 0;
+  const cardTotal = counts?.total ?? 0;
+  const hasMultipleOwnedVariants =
     counts && inCardsView && siblings
-      ? siblings.filter((sibling) => (counts.totals[sibling.id] ?? 0) > 0).length
-      : 0;
-  // Cards view: minus on a card with copies across multiple variants is
-  // ambiguous — route to the variant popover (with "remove" intent so Enter
-  // there decrements) instead of silently disposing the displayed printing.
-  const onUndoAdd = (target: Printing, anchorEl: HTMLElement) => {
-    if (ownedVariantCount > 1) {
-      dispatchOpenVariants(target, anchorEl, "remove");
-    } else {
-      dispatchDecrement(target, anchorEl);
-    }
-  };
+      ? siblings.filter((sibling) => (counts.totals[sibling.id] ?? 0) > 0).length > 1
+      : false;
+  const totalCount = hasMultipleOwnedVariants ? cardTotal : undefined;
 
   let strip: ReactNode | undefined;
-  if (enabled) {
-    const hasVariants = inCardsView && (siblings?.length ?? 0) > 1;
-    strip = showAddControls ? (
+  if (showStrip) {
+    strip = (
       <CardCountStrip
         count={ownedCount}
-        decrement={{
-          onClick: (event) => onUndoAdd(printing, event.currentTarget),
-          disabled: ownedCount === 0,
-          ariaLabel: `Remove ${printing.card.name}`,
-        }}
-        increment={{
-          onClick: () => dispatchIncrement(printing),
-          ariaLabel: `Add ${printing.card.name}`,
-        }}
-        onPillClick={
-          hasVariants
-            ? (event) => dispatchOpenVariants(printing, event.currentTarget, "add")
-            : undefined
-        }
-        pillAriaLabel={hasVariants ? `Choose variant for ${printing.card.name}` : undefined}
-      />
-    ) : (
-      <CardCountStrip
-        count={ownedCount}
+        totalCount={totalCount}
         pillOverride={
           <OwnedCollectionsPopover
-            printingId={printing.id}
-            cardName={printing.card.name}
-            shortCode={printing.shortCode}
+            printingId={displayPrinting.id}
+            cardName={displayPrinting.card.name}
+            shortCode={displayPrinting.shortCode}
             count={ownedCount}
+            totalCount={totalCount}
             siblings={inCardsView ? siblings : undefined}
           />
         }
@@ -114,9 +105,19 @@ export function BrowserCardCell({
     );
   }
 
+  // Build the ctx that CardCell + CardThumbnail expect. isSelected /
+  // isFlashing are read per-cell from useGridFocusStore so the parent's
+  // .map closure stays unstable-prop-free.
+  const isSelected = useGridFocusStore(
+    (s) => s.selectedItemId === itemId || s.selectedItemId === printing.id,
+  );
+  const isFlashing = useGridFocusStore(
+    (s) => s.flashCardId === itemId || s.flashCardId === printing.id,
+  );
+  const ctx: CardRenderContext = { isSelected, isFlashing, cardWidth, priority };
   return (
     <CardCell
-      printing={printing}
+      printing={displayPrinting}
       ctx={ctx}
       display={display}
       showImages={showImages}
@@ -125,9 +126,9 @@ export function BrowserCardCell({
       onSiblingClick={dispatchSiblingClick}
       siblings={inCardsView ? siblings : undefined}
       priceRange={priceRange}
-      dimmed={enabled && ownedCount === 0}
+      dimmed={showStrip && cardTotal === 0}
       strip={strip}
       imageOverlay={<SuggestImageOverlay printing={printing} />}
     />
   );
-}
+});

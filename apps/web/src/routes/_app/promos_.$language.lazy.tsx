@@ -266,8 +266,9 @@ function PromosPage() {
   const languageLabelMap = new Map(languageList.map((l) => [l.code, l.name]));
   const { data: session } = useSession();
   const isLoggedIn = Boolean(session?.user);
-  const catalogMode = useDisplayStore((s) => s.catalogMode);
-  const showOwned = isLoggedIn && catalogMode !== "off";
+  const cardsShowCounts = useDisplayStore((s) => s.cardsShowCounts);
+  const toggleCardsShowCounts = useDisplayStore((s) => s.toggleCardsShowCounts);
+  const showOwned = isLoggedIn && cardsShowCounts;
   const { filters, ranges, filterState, groupDir, hasActiveFilters } = useFilterValues();
   const ownedFilterActive = filters.ownedFilter.length > 0;
   const fetchOwned = isLoggedIn && (showOwned || ownedFilterActive);
@@ -282,7 +283,7 @@ function PromosPage() {
   >();
   const ownedCounts = showOwned ? ownedCountByPrinting : undefined;
   const togglePromoOwned = () => {
-    useDisplayStore.setState({ catalogMode: catalogMode === "off" ? "count" : "off" });
+    toggleCardsShowCounts();
   };
   const { orders: enumOrders } = useEnumOrders();
   const { setSearch } = useFilterActions();

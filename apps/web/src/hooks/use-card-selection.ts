@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 
-import { isTempCopyId } from "@/lib/temp-copy-id";
+import { useGridSelectionStore } from "@/stores/grid-selection-store";
 
 interface UseCardSelectionResult {
   selected: Set<string>;
@@ -16,96 +16,38 @@ interface UseCardSelectionResult {
 }
 
 /**
- * Manages multi-select state for card copies.
+ * Thin wrapper around {@link useGridSelectionStore} that exposes the
+ * historical hook interface and keeps `lastSelectedItemId` as a per-mount
+ * ref. The selected set lives in a Zustand store so per-cell components can
+ * subscribe to "am I selected?" without re-rendering when unrelated cells
+ * flip.
  * @returns Selection state and toggle helpers.
  */
 export function useCardSelection(): UseCardSelectionResult {
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const selected = useGridSelectionStore((s) => s.selected);
+  // Zustand actions are referentially stable for the lifetime of the store,
+  // so selecting them via per-field selectors never causes a re-render —
+  // the equality check is `Object.is(prevFn, sameFn)` which is always true.
+  const toggleSelect = useGridSelectionStore((s) => s.toggleSelect);
+  const toggleStack = useGridSelectionStore((s) => s.toggleStack);
+  const toggleSelectAll = useGridSelectionStore((s) => s.toggleSelectAll);
+  const addToSelection = useGridSelectionStore((s) => s.addToSelection);
+  const storeClearSelection = useGridSelectionStore((s) => s.clearSelection);
   const lastSelectedItemIdRef = useRef<string | null>(null);
-
-  // Optimistic rows inserted by useBatchedAddCopies live in the grid with a
-  // temp- prefixed id until the add API returns a server-assigned uuid. Those
-  // rows must not enter the selection set: dispose/move would 400 on the API
-  // (invalid uuid) or race with the in-flight add. Filtering at the hook
-  // makes every callsite (click, shift-range, select-all, stack-toggle) safe
-  // without sprinkling the same guard through the grid.
-
-  const toggleSelect = (copyId: string) => {
-    if (isTempCopyId(copyId)) {
-      return;
-    }
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(copyId)) {
-        next.delete(copyId);
-      } else {
-        next.add(copyId);
-      }
-      return next;
-    });
-  };
-
-  const toggleStack = (copyIds: string[]) => {
-    const realIds = copyIds.filter((id) => !isTempCopyId(id));
-    if (realIds.length === 0) {
-      return;
-    }
-    setSelected((prev) => {
-      const next = new Set(prev);
-      const allSelected = realIds.every((id) => next.has(id));
-      for (const id of realIds) {
-        if (allSelected) {
-          next.delete(id);
-        } else {
-          next.add(id);
-        }
-      }
-      return next;
-    });
-  };
-
-  const toggleSelectAll = (allCopyIds: string[]) => {
-    const realIds = allCopyIds.filter((id) => !isTempCopyId(id));
-    if (selected.size === realIds.length) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(realIds));
-    }
-  };
-
-  const clearSelection = () => {
-    setSelected(new Set());
-    lastSelectedItemIdRef.current = null;
-  };
-
-  const addToSelection = (ids: string[]) => {
-    const realIds = ids.filter((id) => !isTempCopyId(id));
-    if (realIds.length === 0) {
-      return;
-    }
-    setSelected((prev) => {
-      const next = new Set(prev);
-      for (const id of realIds) {
-        next.add(id);
-      }
-      return next;
-    });
-  };
-
-  const setLastSelectedItemId = (id: string) => {
-    lastSelectedItemIdRef.current = id;
-  };
-
-  const getLastSelectedItemId = () => lastSelectedItemIdRef.current;
 
   return {
     selected,
     toggleSelect,
     toggleStack,
     toggleSelectAll,
-    clearSelection,
-    getLastSelectedItemId,
-    setLastSelectedItemId,
+    clearSelection: () => {
+      storeClearSelection();
+      lastSelectedItemIdRef.current = null;
+    },
     addToSelection,
+    setLastSelectedItemId: (id) => {
+      lastSelectedItemIdRef.current = id;
+    },
+    getLastSelectedItemId: () => lastSelectedItemIdRef.current,
   };
 }

@@ -102,7 +102,7 @@ interface DisplayState {
 
   // Clear all account-scoped overrides (used on sign-out so the next visitor
   // sees the unauthenticated defaults). Device-local state (maxColumns,
-  // filtersExpanded, catalogMode, layout) is preserved.
+  // filtersExpanded, cardsShowCounts, layout) is preserved.
   reset: () => void;
 
   // Hydrate overrides from server data (used by sync hook)
@@ -113,9 +113,8 @@ interface DisplayState {
   setMaxColumns: (value: number | null | ((prev: number | null) => number | null)) => void;
   filtersExpanded: boolean;
   setFiltersExpanded: (value: boolean) => void;
-  catalogMode: "off" | "count" | "add";
-  cycleCatalogMode: () => void;
-  toggleCatalogModeAdd: () => void;
+  cardsShowCounts: boolean;
+  toggleCardsShowCounts: () => void;
   displayMode: "grid" | "table";
   setDisplayMode: (value: "grid" | "table") => void;
 
@@ -237,14 +236,8 @@ export const useDisplayStore = create<DisplayState>()(
         })),
       filtersExpanded: false,
       setFiltersExpanded: (value) => set({ filtersExpanded: value }),
-      catalogMode: "off" as const,
-      cycleCatalogMode: () =>
-        set((state) => {
-          const next = { off: "count", count: "add", add: "off" } as const;
-          return { catalogMode: next[state.catalogMode] };
-        }),
-      toggleCatalogModeAdd: () =>
-        set((state) => ({ catalogMode: state.catalogMode === "add" ? "off" : "add" })),
+      cardsShowCounts: true,
+      toggleCardsShowCounts: () => set((state) => ({ cardsShowCounts: !state.cardsShowCounts })),
       displayMode: "grid" as const,
       setDisplayMode: (value) => set({ displayMode: value }),
 
@@ -261,7 +254,7 @@ export const useDisplayStore = create<DisplayState>()(
         overrides: state.overrides,
         maxColumns: state.maxColumns,
         filtersExpanded: state.filtersExpanded,
-        catalogMode: state.catalogMode,
+        cardsShowCounts: state.cardsShowCounts,
         displayMode: state.displayMode,
       }),
       merge: (persisted, current) => {
@@ -275,17 +268,21 @@ export const useDisplayStore = create<DisplayState>()(
             typeof (persisted as Record<string, unknown>)?.filtersExpanded === "boolean"
               ? ((persisted as Record<string, unknown>).filtersExpanded as boolean)
               : current.filtersExpanded,
-          catalogMode: (() => {
-            const raw = (persisted as Record<string, unknown>)?.catalogMode;
-            if (raw === "off" || raw === "count" || raw === "add") {
+          cardsShowCounts: (() => {
+            const raw = (persisted as Record<string, unknown>)?.cardsShowCounts;
+            if (typeof raw === "boolean") {
               return raw;
             }
-            // Migrate old boolean showOwnedCount
-            const legacy = (persisted as Record<string, unknown>)?.showOwnedCount;
-            if (legacy === true) {
-              return "count";
+            // Migrate legacy catalogMode: "off" mapped to no overlay; "count"
+            // and "add" both surfaced counts, so both end up true.
+            const legacy = (persisted as Record<string, unknown>)?.catalogMode;
+            if (legacy === "off") {
+              return false;
             }
-            return current.catalogMode;
+            if (legacy === "count" || legacy === "add") {
+              return true;
+            }
+            return current.cardsShowCounts;
           })(),
           displayMode: (() => {
             const raw = (persisted as Record<string, unknown>)?.displayMode;

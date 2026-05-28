@@ -171,14 +171,14 @@ describe("useDisplayStore", () => {
       store.setLanguages(["DE"]);
       store.setMaxColumns(4);
       store.setFiltersExpanded(true);
-      store.cycleCatalogMode(); // off → count
+      store.toggleCardsShowCounts(); // true → false
 
       useDisplayStore.getState().reset();
 
       const state = useDisplayStore.getState();
       expect(state.maxColumns).toBe(4);
       expect(state.filtersExpanded).toBe(true);
-      expect(state.catalogMode).toBe("count");
+      expect(state.cardsShowCounts).toBe(false);
     });
   });
 
@@ -229,14 +229,12 @@ describe("useDisplayStore", () => {
       expect(useDisplayStore.getState().filtersExpanded).toBe(true);
     });
 
-    it("cycleCatalogMode cycles through off → count → add → off", () => {
-      expect(useDisplayStore.getState().catalogMode).toBe("off");
-      useDisplayStore.getState().cycleCatalogMode();
-      expect(useDisplayStore.getState().catalogMode).toBe("count");
-      useDisplayStore.getState().cycleCatalogMode();
-      expect(useDisplayStore.getState().catalogMode).toBe("add");
-      useDisplayStore.getState().cycleCatalogMode();
-      expect(useDisplayStore.getState().catalogMode).toBe("off");
+    it("toggleCardsShowCounts flips between true and false", () => {
+      expect(useDisplayStore.getState().cardsShowCounts).toBe(true);
+      useDisplayStore.getState().toggleCardsShowCounts();
+      expect(useDisplayStore.getState().cardsShowCounts).toBe(false);
+      useDisplayStore.getState().toggleCardsShowCounts();
+      expect(useDisplayStore.getState().cardsShowCounts).toBe(true);
     });
 
     it("setDisplayMode toggles between grid and table", () => {

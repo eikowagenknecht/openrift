@@ -7,7 +7,6 @@ import {
   EllipsisVerticalIcon,
   LibraryBigIcon,
   PackageIcon,
-  PackagePlusIcon,
   PencilIcon,
   Share2Icon,
   SquarePlusIcon,
@@ -26,16 +25,12 @@ import {
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
-import { CardCell } from "@/components/cards/card-cell";
-import { CardCountStrip } from "@/components/cards/card-count-strip";
-import { OwnedCollectionsPopover } from "@/components/cards/card-detail/owned-collections-popover";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CollectionTableActions } from "@/components/cards/collection-table-actions";
-import { BrowseLocationsPopover } from "@/components/collection/browse-locations-popover";
+import { CollectionGridCell } from "@/components/collection/collection-grid-cell";
 import { FloatingActionBar } from "@/components/collection/floating-action-bar";
 import { buildOnDecrement } from "@/components/collection/route-decrement";
-import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
 import { VariantAddPopover } from "@/components/collection/variant-add-popover";
 import { PageTopBar, PageTopBarActions, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { AddToListDialog } from "@/components/list/add-to-list-dialog";
@@ -77,7 +72,9 @@ import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/rout
 import { useAddModeStore } from "@/stores/add-mode-store";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDisplayStore } from "@/stores/display-store";
+import { useDragPreviewStore } from "@/stores/drag-preview-store";
 import { useSelectionStore } from "@/stores/selection-store";
+import { useSiblingOverrideStore } from "@/stores/sibling-override-store";
 
 import { CollectionShareDialog } from "./collection-share-dialog";
 import { DeleteCollectionDialog } from "./delete-collection-dialog";
@@ -97,10 +94,60 @@ const COLLECTION_GRID_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set([
   "customTags",
 ]);
 
+interface DragPreviewArgs {
+  mode: "browse" | "select";
+  selected: Set<string>;
+  items: CardViewerItem[];
+  stackByItemId: Map<string, StackedEntry>;
+  stacked: boolean;
+}
+
+function computeDragPreview({
+  mode,
+  selected,
+  items,
+  stackByItemId,
+  stacked,
+}: DragPreviewArgs): Printing[] {
+  if (mode !== "select" || selected.size === 0) {
+    return [];
+  }
+  const preview: Printing[] = [];
+  const seen = new Set<string>();
+  for (const item of items) {
+    if (preview.length >= 3) {
+      break;
+    }
+    const stack = stackByItemId.get(item.id);
+    if (!stack) {
+      continue;
+    }
+    const hasSelectedCopy = stacked
+      ? stack.copyIds.some((id) => selected.has(id))
+      : selected.has(item.id);
+    if (hasSelectedCopy && !seen.has(item.printing.id)) {
+      seen.add(item.printing.id);
+      preview.push(item.printing);
+    }
+  }
+  return preview;
+}
+
+function printingsArrayEqual(a: readonly Printing[], b: readonly Printing[]): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  for (let idx = 0; idx < a.length; idx++) {
+    if (a[idx] !== b[idx]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 interface CollectionActionsCellProps {
   printing?: Printing;
   collectionId?: string;
-  isAddMode: boolean;
   dataView: "cards" | "printings" | "copies";
   catalogPrintingsByCardId: Map<string, Printing[]>;
 }
@@ -108,7 +155,6 @@ interface CollectionActionsCellProps {
 function CollectionActionsCell({
   printing,
   collectionId,
-  isAddMode,
   dataView,
   catalogPrintingsByCardId,
 }: CollectionActionsCellProps) {
@@ -119,7 +165,6 @@ function CollectionActionsCell({
     <CollectionTableActions
       printing={printing}
       collectionId={collectionId}
-      isAddMode={isAddMode}
       siblingIds={
         dataView === "cards"
           ? catalogPrintingsByCardId.get(printing.cardId)?.map((sibling) => sibling.id)
@@ -136,10 +181,9 @@ interface CollectionRowWrapperProps {
   collectionId: string | undefined;
   stackByItemId: Map<string, StackedEntry>;
   allCopyIdsByCardId: Map<string, string[]>;
-  mode: "browse" | "select" | "add";
+  mode: "browse" | "select";
   stacked: boolean;
   selected: Set<string>;
-  dragPreviewPrintings: Printing[];
 }
 
 function CollectionRowWrapper({
@@ -152,8 +196,10 @@ function CollectionRowWrapper({
   mode,
   stacked,
   selected,
-  dragPreviewPrintings,
 }: CollectionRowWrapperProps) {
+  // Drag preview is shared from the parent's selection-driven store so all
+  // rows agree on the same fanned set of cards during a select-mode drag.
+  const dragPreviewPrintings = useDragPreviewStore((s) => s.preview);
   if (!printing || !itemId) {
     return children;
   }
@@ -192,15 +238,6 @@ interface CollectionGridProps {
   title: string;
 }
 
-function buildCopyCountByCardId(stacks: StackedEntry[]): Map<string, number> {
-  const map = new Map<string, number>();
-  for (const stack of stacks) {
-    const cardId = stack.printing.cardId;
-    map.set(cardId, (map.get(cardId) ?? 0) + stack.copyIds.length);
-  }
-  return map;
-}
-
 export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const isMobile = useIsMobile();
   const { toggleSidebar } = useSidebar();
@@ -214,13 +251,13 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const favoriteMarketplace = display.favoriteMarketplace;
 
   // ── Mode state ──────────────────────────────────────────────────────
-  // Shared with /cards via display-store, so the catalog mode persists across
-  // pages. On /collections we only use the "off" ↔ "add" transition; "count"
-  // (set on /cards) is treated as "not adding" here since the owned-only grid
-  // already shows counts in browse mode.
-  const catalogMode = useDisplayStore((state) => state.catalogMode);
+  // `showLibrary` widens the grid from "cards in this collection" to "every
+  // card in the catalog", with unowned cards rendered as a + affordance only.
+  // Per-session local state so a fresh page load always starts in the
+  // collection-only view; the toggle never persists.
   const [selectMode, setSelectMode] = useState(false);
-  const mode = catalogMode === "add" ? "add" : selectMode ? "select" : "browse";
+  const [showLibrary, setShowLibrary] = useState(false);
+  const mode = selectMode ? "select" : "browse";
 
   // ── Filter state (active in all modes) ──────────────────────────────
   const { filters, sortBy, sortDir, view, groupBy, groupDir, hasActiveFilters } = useFilterValues();
@@ -271,10 +308,13 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     keywordReverseMap,
     languageOrder: languageFilter,
     channels,
+    ownedFilter: filters.ownedFilter,
   });
 
-  // ── Catalog data (used by add mode grid + quick-add palette in all modes) ──
-  const isAddMode = mode === "add";
+  // ── Catalog data (drives "show library" view + the quick-add palette in
+  //    every mode). The bucket filter uses global counts here because
+  //    "Full Playset" against the full library is a global notion. The
+  //    collection hook applies the per-collection version separately.
   const {
     availableFilters: catalogAvailableFilters,
     availableLanguages: catalogAvailableLanguages,
@@ -290,24 +330,32 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     sortBy,
     sortDir,
     view: dataView,
-    // Intentionally not threading groupBy: collection's add-mode renderer
-    // assumes one cell per cardId for sibling/variant logic. Skipping the
-    // dedup here would require a parallel pass over those branches; the
-    // /cards catalog browser is the only consumer wired up so far.
-    ownedCountByPrinting,
+    // Intentionally not threading groupBy: the cell renderer assumes one cell
+    // per cardId for sibling/variant logic. Skipping the dedup here would
+    // require a parallel pass over those branches; the /cards catalog browser
+    // is the only consumer wired up so far.
+    //
+    // `ownedCountByPrinting` is only consumed by the owned-bucket filter —
+    // passing the map unconditionally would bust this hook's memo on every
+    // +/- (the map is a fresh projection of the global copies set on every
+    // copy mutation), which in turn rebuilds `printingsByCardId` /
+    // `priceRangeByCardId` and forces every visible cell to re-render. Same
+    // guard /cards uses.
+    ownedCountByPrinting: filters.ownedFilter.length > 0 ? ownedCountByPrinting : undefined,
+    ownedFilter: filters.ownedFilter,
     favoriteMarketplace,
     prices,
     keywordReverseMap,
     channels,
   });
 
-  // ── Pick active data set based on mode ──────────────────────────────
-  const availableFilters = isAddMode ? catalogAvailableFilters : collectionAvailableFilters;
-  const availableLanguages = isAddMode ? catalogAvailableLanguages : collectionAvailableLanguages;
-  const sortedCards = isAddMode ? catalogSortedCards : collectionSortedCards;
-  const printingsByCardId = isAddMode ? catalogPrintingsByCardId : collectionPrintingsByCardId;
-  const totalUniqueCards = isAddMode ? catalogTotalUniqueCards : collectionTotalUniqueCards;
-  const setDisplayLabel = isAddMode ? catalogSetDisplayLabel : collectionSetDisplayLabel;
+  // ── Pick active data set based on whether the library is shown ──────
+  const availableFilters = showLibrary ? catalogAvailableFilters : collectionAvailableFilters;
+  const availableLanguages = showLibrary ? catalogAvailableLanguages : collectionAvailableLanguages;
+  const sortedCards = showLibrary ? catalogSortedCards : collectionSortedCards;
+  const printingsByCardId = showLibrary ? catalogPrintingsByCardId : collectionPrintingsByCardId;
+  const totalUniqueCards = showLibrary ? catalogTotalUniqueCards : collectionTotalUniqueCards;
+  const setDisplayLabel = showLibrary ? catalogSetDisplayLabel : collectionSetDisplayLabel;
 
   // Defer the card grid re-render so filter UI responds immediately
   const deferredSortedCards = useDeferredValue(sortedCards);
@@ -339,8 +387,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     setLastSelectedItemId,
     addToSelection,
   } = useCardSelection();
-  // In "cards" view, sum copy counts across all printings of the same card
-  const copyCountByCardId = buildCopyCountByCardId(stacks);
 
   // In "cards" view, collect all copy IDs and printing IDs per card for selection/popover
   const allCopyIdsByCardId = new Map<string, string[]>();
@@ -363,8 +409,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     }
   }
 
-  // "copies" view expands individual copies; "cards"/"printings" stay stacked
-  const stacked = view !== "copies";
+  // "copies" view expands individual copies. When the library is shown the
+  // toolbar hides the "copies" option, but if the user had it selected from
+  // a previous visit we treat the grid as stacked anyway — unowned cards
+  // have no copies to expand.
+  const stacked = showLibrary || view !== "copies";
   const [moveOpen, setMoveOpen] = useState(false);
   const [disposeOpen, setDisposeOpen] = useState(false);
   const [addToListOpen, setAddToListOpen] = useState(false);
@@ -384,7 +433,8 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const currentCollection = collectionId ? collectionsMap.get(collectionId) : undefined;
   const addTarget = collectionId ?? inboxId;
 
-  // ── Add mode state ──────────────────────────────────────────────────
+  // ── Variant-popover state (used by the count-pill, locations popover, and
+  //    keyboard +/- on table rows) ─────────────────────────────────────
   const variantPopover = useAddModeStore((s) => s.variantPopover);
   const disposePicker = useAddModeStore((s) => s.disposePicker);
   const closeDisposePicker = useAddModeStore((s) => s.closeDisposePicker);
@@ -396,7 +446,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     handleOpenVariants,
     handleDisposeFromCollection,
     closeVariants,
-    adjustedCount,
   } = useQuickAddActions(addTarget, collectionId);
   const [variantDisposeTarget, setVariantDisposeTarget] = useState<Printing | null>(null);
   // Clear the in-popover dispose page whenever the variants popover closes or
@@ -406,19 +455,18 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     setVariantDisposeTarget(null);
   }, [variantPopover?.cardId]);
 
-  // Fan-card sibling overrides (cards view, add mode)
-  const [topPrintingOverrides, setTopPrintingOverrides] = useState<Map<string, string>>(new Map());
-
-  const toggleAddMode = () => {
-    if (!isAddMode && selectMode) {
-      setSelectMode(false);
-      clearSelection();
-    }
-    if (isAddMode) {
-      setTopPrintingOverrides(new Map());
-      globalThis.scrollTo(0, 0);
-    }
-    useDisplayStore.getState().toggleCatalogModeAdd();
+  const toggleShowLibrary = () => {
+    setShowLibrary((prev) => {
+      const next = !prev;
+      if (next && selectMode) {
+        setSelectMode(false);
+        clearSelection();
+      }
+      if (!next) {
+        globalThis.scrollTo(0, 0);
+      }
+      return next;
+    });
   };
 
   const enterSelectMode = () => setSelectMode(true);
@@ -429,11 +477,13 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
 
   // Switching collections drops any in-progress selection — a selected
   // copy from the previous collection wouldn't be visible in the new grid,
-  // and the floating action bar would operate on invisible rows. Session
-  // add-mode state is also per-collection (the "N new" counts and copyIds
-  // reference the previous collection), so clear it too.
+  // and the floating action bar would operate on invisible rows. The
+  // library toggle is per-session by design, so it resets too. Sibling
+  // overrides also reset because pinned variants are scoped to this view.
   useEffect(() => {
     setSelectMode(false);
+    setShowLibrary(false);
+    useSiblingOverrideStore.getState().clearScope("collection");
     clearSelection();
     useAddModeStore.getState().reset();
   }, [collectionId, clearSelection]);
@@ -500,11 +550,17 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   let items: CardViewerItem[];
   const stackByItemId = new Map<string, StackedEntry>();
 
-  if (isAddMode) {
-    items = deferredSortedCards.map((printing) => ({
-      id: printing.id,
-      printing,
-    }));
+  if (showLibrary) {
+    // Library view: every catalog row gets a cell. Owned printings still
+    // resolve to their stack so +/-/select/drag keep working on them; unowned
+    // printings have no stack and the renderer drops the strip + overlays.
+    items = deferredSortedCards.map((printing) => {
+      const stack = stackByPrintingId.get(printing.id);
+      if (stack) {
+        stackByItemId.set(printing.id, stack);
+      }
+      return { id: printing.id, printing };
+    });
   } else {
     // Browse/select: use stacked collection data
     const filteredStacks = deferredSortedCards.map((printing) => ({
@@ -538,6 +594,21 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // ── Grid click handlers ─────────────────────────────────────────────
   const findBy = dataView === "cards" ? "card" : ("printing" as const);
 
+  // Drag-overlay preview: walk items + selection to find the first three
+  // unique printings whose copies are selected. Fed into useDragPreviewStore
+  // here so cells can subscribe with a stable ref — a +/- click leaves
+  // `selected` untouched, so the same printing refs come back from the walk
+  // and we skip the store update via the shallow array compare below.
+  // Without that compare, cells would re-render on every +/- since the
+  // store would publish a fresh array reference every render.
+  const newPreview = computeDragPreview({ mode, selected, items, stackByItemId, stacked });
+  useEffect(() => {
+    const current = useDragPreviewStore.getState().preview;
+    if (!printingsArrayEqual(newPreview, current)) {
+      useDragPreviewStore.getState().setPreview(newPreview);
+    }
+  });
+
   const handleGridCardClick = (printing: Printing) => {
     useAddModeStore.getState().closeVariants();
     useSelectionStore.getState().selectCard(printing, items, findBy);
@@ -545,14 +616,67 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
 
   const handleSiblingClick = (printing: Printing) => {
     handleGridCardClick(printing);
-    setTopPrintingOverrides((prev) => new Map(prev).set(printing.cardId, printing.id));
+    useSiblingOverrideStore.getState().setOverride("collection", printing.cardId, printing.id);
+  };
+
+  const toggleStackForItem = (itemId: string, stack: StackedEntry) => {
+    if (stacked) {
+      const cardCopyIds = allCopyIdsByCardId.get(stack.printing.cardId) ?? stack.copyIds;
+      toggleStack(cardCopyIds);
+    } else {
+      toggleSelect(itemId);
+    }
+  };
+
+  const shiftSelectRange = (itemId: string) => {
+    const lastId = getLastSelectedItemId();
+    if (lastId === null) {
+      const stack = stackByItemId.get(itemId);
+      if (stack) {
+        toggleStackForItem(itemId, stack);
+        setLastSelectedItemId(itemId);
+      }
+      return;
+    }
+    const startIdx = items.findIndex((i) => i.id === lastId);
+    const endIdx = items.findIndex((i) => i.id === itemId);
+    if (startIdx === -1 || endIdx === -1) {
+      const stack = stackByItemId.get(itemId);
+      if (stack) {
+        toggleStackForItem(itemId, stack);
+        setLastSelectedItemId(itemId);
+      }
+      return;
+    }
+    const lo = Math.min(startIdx, endIdx);
+    const hi = Math.max(startIdx, endIdx);
+    const rangeIds: string[] = [];
+    for (let idx = lo; idx <= hi; idx++) {
+      const rangeItem = items[idx];
+      if (stacked) {
+        const rangeCardCopyIds = allCopyIdsByCardId.get(rangeItem.printing.cardId);
+        if (rangeCardCopyIds) {
+          rangeIds.push(...rangeCardCopyIds);
+        } else {
+          const rangeStack = stackByItemId.get(rangeItem.id);
+          if (rangeStack) {
+            rangeIds.push(...rangeStack.copyIds);
+          }
+        }
+      } else {
+        rangeIds.push(rangeItem.id);
+      }
+    }
+    addToSelection(rangeIds);
+    setLastSelectedItemId(itemId);
   };
 
   // Register table-row action handlers in the no-subscribe store so the
-  // virtualized CardTable can dispatch row clicks and +/- without taking
-  // these unstable closures as props. Mirrors card-browser.tsx's wiring; see
-  // card-row-actions-store.ts for the why. Re-register every render so rows
-  // pick up the freshest implementation.
+  // virtualized CardTable + per-cell CollectionGridCell can dispatch row
+  // clicks / +/- / select-mode actions without taking these unstable closures
+  // as props. Mirrors card-browser.tsx's wiring; see card-row-actions-store.ts
+  // for the why. Re-register every render so rows pick up the freshest
+  // implementation.
   // oxlint-disable-next-line react-hooks/exhaustive-deps -- intentional: re-register every render
   useEffect(() => {
     useCardRowActionsStore.getState().setHandlers({
@@ -566,6 +690,39 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         handleUndoAdd,
       }),
       onOpenVariants: handleOpenVariants,
+      onItemClick: (itemId, printing, modifiers) => {
+        const stack = stackByItemId.get(itemId);
+        // Browse mode: ctrl-click on an owned card flips into select mode and
+        // toggles. Plain click opens the detail pane.
+        if (mode === "browse") {
+          if (modifiers.ctrl && stack) {
+            setSelectMode(true);
+            toggleStackForItem(itemId, stack);
+            setLastSelectedItemId(itemId);
+            return;
+          }
+          handleGridCardClick(printing);
+          return;
+        }
+        // Select mode: shift-click extends the range, regular click toggles.
+        if (!stack) {
+          return;
+        }
+        if (modifiers.shift) {
+          shiftSelectRange(itemId);
+        } else {
+          toggleStackForItem(itemId, stack);
+          setLastSelectedItemId(itemId);
+        }
+      },
+      onItemToggle: (itemId) => {
+        const stack = stackByItemId.get(itemId);
+        if (!stack) {
+          return;
+        }
+        toggleStackForItem(itemId, stack);
+        setLastSelectedItemId(itemId);
+      },
     });
     return () => {
       useCardRowActionsStore.getState().setHandlers({});
@@ -579,377 +736,28 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     }
   };
 
-  // ── Drag preview printings (up to 3 unique printings from selection) ─
-  const dragPreviewPrintings: Printing[] = [];
-  if (mode === "select" && selected.size > 0) {
-    const seen = new Set<string>();
-    for (const item of items) {
-      if (dragPreviewPrintings.length >= 3) {
-        break;
-      }
-      const stack = stackByItemId.get(item.id);
-      if (!stack) {
-        continue;
-      }
-      const hasSelectedCopy = stacked
-        ? stack.copyIds.some((id) => selected.has(id))
-        : selected.has(item.id);
-      if (hasSelectedCopy && !seen.has(item.printing.id)) {
-        seen.add(item.printing.id);
-        dragPreviewPrintings.push(item.printing);
-      }
-    }
-  }
-
-  // Per-item drag derivation, shared between the grid cell wrap and the table
-  // row wrap. Returns null when the item isn't draggable (no backing stack,
-  // e.g. add mode or filtered-out copies).
-  const buildDragProps = (
-    printing: Printing,
-    itemId: string,
-  ): {
-    copyIds: string[];
-    isStackDrag: boolean;
-    previewPrintings: Printing[];
-  } | null => {
-    const stack = stackByItemId.get(itemId);
-    if (!stack) {
-      return null;
-    }
-    const cardCopyIds = allCopyIdsByCardId.get(printing.cardId);
-    const effectiveCopyIds = cardCopyIds ?? stack.copyIds;
-    const isItemSelected =
-      mode === "select"
-        ? stacked
-          ? effectiveCopyIds.every((id) => selected.has(id))
-          : selected.has(itemId)
-        : false;
-    const isFromSelection = mode === "select" && isItemSelected && selected.size > 0;
-    const copyIds = isFromSelection ? [...selected] : stacked ? effectiveCopyIds : [itemId];
-    const isStackDrag = !isFromSelection && stacked && effectiveCopyIds.length > 1;
-    const previewPrintings = dragPreviewPrintings.length > 0 ? dragPreviewPrintings : [printing];
-    return { copyIds, isStackDrag, previewPrintings };
-  };
-
   // ── Render card ─────────────────────────────────────────────────────
-  const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
-    if (isAddMode) {
-      return renderAddModeCard(item, ctx);
-    }
-    return renderCollectionCard(item, ctx);
-  };
-
-  const renderCollectionCard = (item: CardViewerItem, ctx: CardRenderContext) => {
-    const stack = stackByItemId.get(item.id);
-    if (!stack) {
-      return null;
-    }
-
-    // In "cards" view, operate on all copies across all printings of the same card
-    const cardCopyIds = allCopyIdsByCardId.get(item.printing.cardId);
-    const effectiveCopyIds = cardCopyIds ?? stack.copyIds;
-
-    const isItemSelected =
-      mode === "select"
-        ? stacked
-          ? effectiveCopyIds.every((id) => selected.has(id))
-          : selected.has(item.id)
-        : false;
-
-    const handleToggle = () => {
-      if (stacked) {
-        toggleStack(effectiveCopyIds);
-      } else {
-        toggleSelect(item.id);
-      }
-      setLastSelectedItemId(item.id);
-    };
-
-    const handleShiftSelect = () => {
-      const lastId = getLastSelectedItemId();
-      if (lastId === null) {
-        handleToggle();
-        return;
-      }
-      const startIdx = items.findIndex((i) => i.id === lastId);
-      const endIdx = items.findIndex((i) => i.id === item.id);
-      if (startIdx === -1 || endIdx === -1) {
-        handleToggle();
-        return;
-      }
-      const lo = Math.min(startIdx, endIdx);
-      const hi = Math.max(startIdx, endIdx);
-      const rangeIds: string[] = [];
-      for (let idx = lo; idx <= hi; idx++) {
-        const rangeItem = items[idx];
-        if (stacked) {
-          const rangeCardCopyIds = allCopyIdsByCardId.get(rangeItem.printing.cardId);
-          if (rangeCardCopyIds) {
-            rangeIds.push(...rangeCardCopyIds);
-          } else {
-            const rangeStack = stackByItemId.get(rangeItem.id);
-            if (rangeStack) {
-              rangeIds.push(...rangeStack.copyIds);
-            }
-          }
-        } else {
-          rangeIds.push(rangeItem.id);
-        }
-      }
-      addToSelection(rangeIds);
-      setLastSelectedItemId(item.id);
-    };
-
-    const handleClick = (printing: Printing, event?: { shiftKey: boolean; ctrlKey: boolean }) => {
-      // Ctrl+click auto-enters select mode
-      if (mode === "browse" && event?.ctrlKey) {
-        setSelectMode(true);
-        handleToggle();
-        return;
-      }
-      if (mode === "select") {
-        if (event?.shiftKey) {
-          handleShiftSelect();
-        } else {
-          handleToggle();
-        }
-      } else {
-        handleGridCardClick(printing);
-      }
-    };
-
-    const ownedCount = stacked
-      ? ((dataView === "cards"
-          ? copyCountByCardId.get(item.printing.cardId)
-          : stack.copyIds.length) ?? 0)
-      : 1;
-
-    // Resolve which copy IDs this card represents for drag-and-drop.
-    // Only stack drags get trimmed to 1 on default (non-shift) drop. Explicit
-    // select-mode selections always move every selected copy. See
-    // `buildDragProps` above — also reused by the table-view row wrap.
-    const dragProps = buildDragProps(item.printing, item.id);
-
-    // In browse mode, show the +/- add strip (matches add mode). Select mode
-    // keeps the read-only count + collection-breakdown popover.
-    const catalogSiblings = catalogPrintingsByCardId.get(item.printing.cardId);
-    const ownedVariantIds = allPrintingIdsByCardId.get(item.printing.cardId);
-    // In "cards" view the shown count aggregates across owned variants; a blind
-    // minus would only touch the representative printing, so route ambiguous
-    // removals through the variant popover to let the user pick.
-    const hasAmbiguousRemoval = dataView === "cards" && (ownedVariantIds?.length ?? 0) > 1;
-    const onUndoAdd =
-      hasAmbiguousRemoval && handleOpenVariants
-        ? (printing: Printing, anchorEl?: HTMLElement) => {
-            if (anchorEl) {
-              handleOpenVariants(printing, anchorEl, "remove");
-            }
-          }
-        : handleUndoAdd;
-    // Wider scope for the "(M)" hint next to the in-collection count: per-printing
-    // globally in printings view; sum across catalog siblings (any owned variant
-    // in any collection) in cards view.
-    let totalCount: number | undefined;
-    if (ownedCountByPrinting) {
-      if (dataView === "cards") {
-        let sum = 0;
-        for (const sibling of catalogSiblings ?? []) {
-          sum += ownedCountByPrinting[sibling.id] ?? 0;
-        }
-        totalCount = sum;
-      } else {
-        totalCount = ownedCountByPrinting[item.printing.id] ?? 0;
-      }
-    }
-    const showAddStrip = mode === "browse" && handleQuickAdd;
-    const variantTrigger =
-      dataView === "cards" && (catalogSiblings?.length ?? 0) > 1 && handleOpenVariants
-        ? (printing: Printing, anchorEl: HTMLElement) =>
-            handleOpenVariants(printing, anchorEl, "add")
-        : undefined;
-    // On /collections (All Cards), the count pill opens a richer popover
-    // showing variants + per-collection breakdown. On a specific collection
-    // page, "where is this card?" is tautological — keep the variant chooser.
-    const useLocationsPill = showAddStrip && !collectionId && handleUndoAdd;
-    const aboveCard = showAddStrip ? (
-      <CardCountStrip
-        count={ownedCount}
-        decrement={{
-          onClick: (event) => onUndoAdd?.(item.printing, event.currentTarget),
-          disabled: ownedCount === 0,
-          ariaLabel: `Remove ${item.printing.card.name}`,
-        }}
-        increment={{
-          onClick: () => handleQuickAdd(item.printing),
-          ariaLabel: `Add ${item.printing.card.name}`,
-        }}
-        pillOverride={
-          useLocationsPill ? (
-            <BrowseLocationsPopover
-              displayedPrinting={item.printing}
-              siblings={dataView === "cards" ? catalogSiblings : undefined}
-              ownedCount={ownedCount}
-              totalCount={totalCount}
-              ownedCountByPrinting={ownedCountByPrinting}
-              onAdd={handleQuickAdd}
-              onUndoAdd={handleUndoAdd}
-            />
-          ) : undefined
-        }
-        onPillClick={
-          !useLocationsPill && variantTrigger
-            ? (event) => variantTrigger(item.printing, event.currentTarget)
-            : undefined
-        }
-        pillAriaLabel={
-          !useLocationsPill && variantTrigger
-            ? `Choose variant for ${item.printing.card.name}`
-            : undefined
-        }
-      />
-    ) : (
-      <CardCountStrip
-        count={ownedCount}
-        totalCount={totalCount}
-        pillOverride={
-          <OwnedCollectionsPopover
-            printingId={item.printing.id}
-            cardName={item.printing.card.name}
-            shortCode={item.printing.shortCode}
-            count={ownedCount}
-            totalCount={totalCount}
-            siblings={
-              dataView === "cards" ? printingsByCardId.get(item.printing.cardId) : undefined
-            }
-          />
-        }
-      />
-    );
-
-    return (
-      <CardCell
-        printing={item.printing}
-        ctx={ctx}
-        display={display}
-        showImages={showImages}
-        view={dataView}
-        onClick={(printing, event) => handleClick(printing, event)}
-        siblings={dataView === "cards" ? printingsByCardId.get(item.printing.cardId) : undefined}
-        strip={aboveCard}
-        leftOverlay={
-          mode === "select" ? (
-            <>
-              <SelectionCheckbox isSelected={isItemSelected} onToggle={handleToggle} />
-              {isItemSelected && (
-                <div className="ring-primary/50 pointer-events-none absolute inset-1.5 z-10 rounded-lg ring-2" />
-              )}
-            </>
-          ) : undefined
-        }
-        wrap={
-          dragProps ? (
-            <DraggableCard
-              id={item.id}
-              copyIds={dragProps.copyIds}
-              isStackDrag={dragProps.isStackDrag}
-              printing={item.printing}
-              previewPrintings={dragProps.previewPrintings}
-              sourceCollectionId={collectionId}
-            />
-          ) : undefined
-        }
-      />
-    );
-  };
-
-  const renderAddModeCard = (item: CardViewerItem, ctx: CardRenderContext) => {
-    const cardId = item.printing.cardId;
-    const siblings = catalogPrintingsByCardId.get(cardId);
-
-    const overrideId = topPrintingOverrides.get(cardId);
-    const displayPrinting =
-      overrideId && siblings
-        ? (siblings.find((sibling) => sibling.id === overrideId) ?? item.printing)
-        : item.printing;
-
-    // Counts are scoped to the viewing collection so they match what browse
-    // mode shows on the same card — switching modes shouldn't change the number.
-    const hasMultipleVariants = dataView === "cards" && (siblings?.length ?? 0) > 1;
-    const totalOwned = hasMultipleVariants
-      ? siblings?.reduce(
-          (sum, printing) =>
-            sum +
-            adjustedCount(printing.id, stackByPrintingId.get(printing.id)?.copyIds.length ?? 0),
-          0,
-        )
-      : undefined;
-
-    const ownedCount = adjustedCount(
-      displayPrinting.id,
-      stackByPrintingId.get(displayPrinting.id)?.copyIds.length ?? 0,
-    );
-
-    // When the card has owned copies spread across multiple printings, minus
-    // would silently remove only the displayed variant — route through the
-    // variant popover so the user picks which printing to remove from.
-    const ownedVariantIds = allPrintingIdsByCardId.get(cardId);
-    const hasAmbiguousRemoval = dataView === "cards" && (ownedVariantIds?.length ?? 0) > 1;
-    const onUndoAdd =
-      hasAmbiguousRemoval && handleOpenVariants
-        ? (printing: Printing, anchorEl?: HTMLElement) => {
-            if (anchorEl) {
-              handleOpenVariants(printing, anchorEl, "remove");
-            }
-          }
-        : handleUndoAdd;
-
-    const variantTrigger =
-      handleQuickAdd && dataView === "cards" && (siblings?.length ?? 0) > 1 && handleOpenVariants
-        ? (printing: Printing, anchorEl: HTMLElement) =>
-            handleOpenVariants(printing, anchorEl, "add")
-        : undefined;
-
-    return (
-      <CardCell
-        printing={displayPrinting}
-        ctx={ctx}
-        display={display}
-        showImages={showImages}
-        view={dataView}
-        onClick={handleGridCardClick}
-        onSiblingClick={handleSiblingClick}
-        siblings={dataView === "cards" ? siblings : undefined}
-        priceRange={catalogPriceRangeByCardId?.get(cardId)}
-        dimmed={ownedCount === 0}
-        stripSlot="topSlot"
-        strip={
-          handleQuickAdd ? (
-            <CardCountStrip
-              count={ownedCount}
-              totalCount={totalOwned}
-              decrement={{
-                onClick: (event) => onUndoAdd?.(displayPrinting, event.currentTarget),
-                disabled: ownedCount === 0,
-                ariaLabel: `Remove ${displayPrinting.card.name}`,
-              }}
-              increment={{
-                onClick: () => handleQuickAdd(displayPrinting),
-                ariaLabel: `Add ${displayPrinting.card.name}`,
-              }}
-              onPillClick={
-                variantTrigger
-                  ? (event) => variantTrigger(displayPrinting, event.currentTarget)
-                  : undefined
-              }
-              pillAriaLabel={
-                variantTrigger ? `Choose variant for ${displayPrinting.card.name}` : undefined
-              }
-            />
-          ) : undefined
-        }
-      />
-    );
-  };
+  // Thin wrapper around CollectionGridCell. The cell takes only stable
+  // item-level props and self-subscribes to override / count / selection /
+  // copy IDs so this closure doesn't bust the per-row memo when stacks change
+  // on +/-.
+  const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => (
+    <CollectionGridCell
+      printing={item.printing}
+      itemId={item.id}
+      cardWidth={ctx.cardWidth}
+      priority={ctx.priority}
+      dataView={dataView}
+      mode={mode}
+      showLibrary={showLibrary}
+      stacked={stacked}
+      siblings={catalogPrintingsByCardId.get(item.printing.cardId)}
+      collectionId={collectionId}
+      display={display}
+      showImages={showImages}
+      priceRange={catalogPriceRangeByCardId?.get(item.printing.cardId)}
+    />
+  );
 
   // ── Toolbar ─────────────────────────────────────────────────────────
   const formatValue = formatterForMarketplace(favoriteMarketplace as Marketplace);
@@ -969,7 +777,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       unpricedCount={unpricedCount}
       formatValue={formatValue}
       addTarget={addTarget}
-      addTargetLabel={isAddMode && !currentCollection ? inboxName : undefined}
       onQuickAdd={() => setQuickAddOpen(true)}
       onSelectAll={() => toggleSelectAll(stacks.flatMap((stack) => stack.copyIds))}
       onEnterSelect={enterSelectMode}
@@ -988,15 +795,16 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
 
   const topBarPortal = topBarSlot && createPortal(collectionTopBar, topBarSlot);
 
-  const addModeButton = addTarget ? (
+  const showLibraryButton = addTarget ? (
     <Button
-      variant={isAddMode ? "default" : "outline"}
+      variant={showLibrary ? "default" : "outline"}
       size="icon"
-      onClick={toggleAddMode}
-      title={isAddMode ? "Stop adding" : "Browse catalog to add cards"}
-      aria-label={isAddMode ? "Stop adding" : "Browse catalog to add cards"}
+      onClick={toggleShowLibrary}
+      title={showLibrary ? "Hide library" : "Show whole library"}
+      aria-label={showLibrary ? "Hide library" : "Show whole library"}
+      aria-pressed={showLibrary}
     >
-      {isAddMode ? <PackagePlusIcon className="size-4" /> : <PackageIcon className="size-4" />}
+      <LibraryBigIcon className="size-4" />
     </Button>
   ) : null;
 
@@ -1016,8 +824,8 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           ? `Show ${sortedCards.length} ${dataView === "cards" ? "cards" : "printings"}`
           : undefined
       }
-      extras={addModeButton}
-      showCopies={mode !== "add"}
+      extras={showLibraryButton}
+      showCopies={!showLibrary}
     />
   );
 
@@ -1091,7 +899,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // prompt even when filters (including auto-seeded language prefs) are active.
   // Gated on `copiesReady` so the empty state doesn't flash while the first
   // copies fetch is still in flight.
-  if (!isAddMode && copiesReady && stacks.length === 0) {
+  if (!showLibrary && copiesReady && stacks.length === 0) {
     return (
       <>
         <Empty className="flex-1">
@@ -1122,7 +930,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
                     <SquarePlusIcon className="mr-1 size-3.5" />
                     Quick add
                   </Button>
-                  <Button onClick={toggleAddMode}>
+                  <Button onClick={toggleShowLibrary}>
                     <LibraryBigIcon className="mr-1 size-3.5" />
                     Browse & add
                   </Button>
@@ -1152,7 +960,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         {topBarPortal}
         <BrowserCardViewer
           items={items}
-          totalItems={isAddMode ? allPrintings.length : totalCopies}
+          totalItems={showLibrary ? allPrintings.length : totalCopies}
           renderCard={renderCard}
           setOrder={sets}
           groupBy={groupBy}
@@ -1167,8 +975,8 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           rightPane={rightPane}
           addStripHeight={ADD_STRIP_HEIGHT}
           table={{
-            // Browse + add show the +/- buttons (mode !== "select" path);
-            // select mode drops them and shows a read-only count.
+            // Browse shows the +/- buttons; select mode drops them and shows
+            // a read-only count.
             actionsColumn: mode !== "select" && Boolean(handleQuickAdd) ? "wide" : "narrow",
             // The catalog map carries every sibling variant (owned or not).
             // In cards view the table sums across siblings so the count
@@ -1176,7 +984,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             actionsCell: (
               <CollectionActionsCell
                 collectionId={collectionId}
-                isAddMode={isAddMode}
                 dataView={dataView}
                 catalogPrintingsByCardId={catalogPrintingsByCardId}
               />
@@ -1189,7 +996,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
                 mode={mode}
                 stacked={stacked}
                 selected={selected}
-                dragPreviewPrintings={dragPreviewPrintings}
               />
             ),
           }}
@@ -1271,7 +1077,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
                 ownedCounts={Object.fromEntries(
                   variantPrintings.map((p) => [
                     p.id,
-                    adjustedCount(p.id, stackByPrintingId.get(p.id)?.copyIds.length ?? 0),
+                    stackByPrintingId.get(p.id)?.copyIds.length ?? 0,
                   ]),
                 )}
                 onQuickAdd={handleQuickAdd}
@@ -1325,12 +1131,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
 interface CollectionTopBarProps {
   title: string;
   onToggleSidebar: () => void;
-  mode: "browse" | "select" | "add";
+  mode: "browse" | "select";
   valueCents: number | null | undefined;
   unpricedCount: number | null | undefined;
   formatValue: (value: number) => string;
   addTarget?: string;
-  addTargetLabel?: string;
   onQuickAdd: () => void;
   onSelectAll: () => void;
   onEnterSelect: () => void;
@@ -1354,7 +1159,6 @@ function CollectionTopBar({
   unpricedCount,
   formatValue,
   addTarget,
-  addTargetLabel,
   onQuickAdd,
   onSelectAll,
   onEnterSelect,
@@ -1373,10 +1177,6 @@ function CollectionTopBar({
     <PageTopBar>
       <div className="flex min-w-0 flex-1 items-baseline gap-2">
         <PageTopBarTitle onToggleSidebar={onToggleSidebar}>{title}</PageTopBarTitle>
-
-        {addTargetLabel && (
-          <span className="text-muted-foreground shrink-0 text-xs">→ {addTargetLabel}</span>
-        )}
 
         {valueCents !== null && valueCents !== undefined && (
           <span className="text-muted-foreground min-w-0 truncate text-xs">
@@ -1418,7 +1218,6 @@ function CollectionTopBar({
               </Button>
             </>
           ) : (
-            mode !== "add" &&
             hasCards && (
               <>
                 <Button variant="ghost" size="icon" onClick={onEnterSelect} className="sm:hidden">

@@ -180,6 +180,45 @@ export function useOwnedCountsForPrintings(
 }
 
 /**
+ * Per-card copy IDs (in-collection when `collectionId` is set, otherwise
+ * global). Same live-query subscription shape as
+ * {@link useOwnedCountsForPrintings} but returns the raw IDs so the cell can
+ * power its own drag-and-drop without taking the parent's `allCopyIdsByCardId`
+ * map as a prop. Only re-fires when one of the listed siblings' copies
+ * actually changes.
+ *
+ * @returns A flat array of copy IDs across the sibling set, or undefined
+ *   when disabled or still loading.
+ */
+export function useOwnedCopyIdsForPrintings(
+  printingIds: readonly string[],
+  enabled: boolean,
+  collectionId?: string,
+): { data: string[] | undefined } {
+  const copiesCollection = useCopiesCollection();
+  const idsKey = printingIds.join(",");
+
+  const { data: copies } = useLiveQuery(
+    (q) =>
+      enabled && copiesCollection && printingIds.length > 0
+        ? q
+            .from({ copy: copiesCollection })
+            .where(({ copy }) => inArray(copy.printingId, [...printingIds]))
+        : null,
+    [idsKey, enabled, copiesCollection],
+  );
+
+  if (!enabled || !copies) {
+    return { data: undefined };
+  }
+  const filtered =
+    collectionId === undefined
+      ? copies
+      : copies.filter((copy) => copy.collectionId === collectionId);
+  return { data: filtered.map((copy) => copy.id) };
+}
+
+/**
  * Splits owned copies into deck-building-available and locked-away buckets,
  * based on each copy's collection `availableForDeckbuilding` flag.
  * @returns Both maps keyed by printingId, or undefined when disabled or still loading.

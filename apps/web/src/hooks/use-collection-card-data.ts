@@ -19,6 +19,8 @@ import type { SetInfo } from "@/components/cards/card-grid";
 import { useEffectiveLanguageOrder } from "@/hooks/use-effective-language-order";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useStackedCopies } from "@/hooks/use-stacked-copies";
+import { applyOwnedBucketFilter } from "@/lib/owned-bucket";
+import type { OwnedBucket } from "@/lib/search-schemas";
 
 interface UseCollectionCardDataParams {
   collectionId?: string;
@@ -34,6 +36,13 @@ interface UseCollectionCardDataParams {
   languageOrder?: string[];
   /** Full channel registry so the filter UI can render breadcrumbs. */
   channels?: readonly DistributionChannel[];
+  /**
+   * Selected ownership buckets. Counts are scoped to this collection — so
+   * "Full Playset" means a full playset's worth of copies inside _this_
+   * collection, not aggregated across every collection the user owns. Empty
+   * array means no owned filter.
+   */
+  ownedFilter?: readonly OwnedBucket[];
 }
 
 /**
@@ -54,6 +63,7 @@ export function useCollectionCardData({
   keywordReverseMap,
   languageOrder,
   channels,
+  ownedFilter,
 }: UseCollectionCardDataParams) {
   "use memo";
   const { stacks, totalCopies, isReady } = useStackedCopies(collectionId);
@@ -94,10 +104,23 @@ export function useCollectionCardData({
     collectionPrintings,
     effectiveLanguageOrder,
   );
-  const filteredCards = filterCards(canonicallyOrderedCollection, filters, {
+  let filteredCards = filterCards(canonicallyOrderedCollection, filters, {
     keywordReverseMap,
     getPrice,
   });
+
+  // Bucket filter uses per-collection copy counts (one entry per stack) rather
+  // than the global owned-count map. In a single-collection view "Full Playset"
+  // is most naturally read as "this collection has a full playset"; on the
+  // all-collections view, `stacks` already aggregates every collection so the
+  // same map gives the global count for free.
+  if (ownedFilter && ownedFilter.length > 0) {
+    const countByPrintingId: Record<string, number> = {};
+    for (const stack of stacks) {
+      countByPrintingId[stack.printingId] = stack.copyIds.length;
+    }
+    filteredCards = applyOwnedBucketFilter(filteredCards, ownedFilter, countByPrintingId);
+  }
 
   // In "cards" view, keep one printing per cardId (the first = canonical pick).
   const displayCards = view === "cards" ? firstPrintingPerCard(filteredCards) : filteredCards;
