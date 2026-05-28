@@ -8,5 +8,15 @@ export const Route = createLazyFileRoute("/_app/_authenticated/groups/$slug")({
 
 function GroupDetailRoute() {
   const { slug } = Route.useParams();
-  return <FriendGroupPage slug={slug} />;
+  const { tab } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  return (
+    <FriendGroupPage
+      slug={slug}
+      tab={tab}
+      onTabChange={(next) =>
+        void navigate({ search: (prev) => ({ ...prev, tab: next }), replace: true })
+      }
+    />
+  );
 }

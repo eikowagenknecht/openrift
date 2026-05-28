@@ -3,13 +3,13 @@ import { Link } from "@tanstack/react-router";
 import { ChevronLeftIcon } from "lucide-react";
 
 import { Heading } from "@/components/heading";
-import { PublicListRow } from "@/components/list/public-list-row";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/user-avatar";
 import { useFriendGroupMemberDetail } from "@/hooks/use-friend-groups";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
-import { MatchRowGroup } from "./match-row-card";
+import { MatchTradeList } from "./match-row-card";
+import { SharedListRow } from "./shared-list-row";
 
 interface MemberDetailPageProps {
   slug: string;
@@ -62,23 +62,19 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
         </div>
       </header>
 
-      {data.matches.length > 0 && (
+      {data.matches.length > 0 || data.reverseMatches.length > 0 ? (
         <section className="flex flex-col gap-3">
           <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-            They have what you want
+            Possible trades
           </h2>
-          <MatchRowGroup rows={data.matches} groupSlug={slug} />
+          <MatchTradeList
+            incoming={data.matches}
+            outgoing={data.reverseMatches}
+            groupSlug={slug}
+            showCounterparty={false}
+          />
         </section>
-      )}
-
-      {data.reverseMatches.length > 0 && (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-            They want what you have
-          </h2>
-          <MatchRowGroup rows={data.reverseMatches} groupSlug={slug} />
-        </section>
-      )}
+      ) : null}
 
       {hasShares ? (
         LIST_SECTIONS.map(({ intent, heading }) => {
@@ -91,21 +87,14 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
               <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
                 {heading}
               </h2>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="flex flex-col gap-2">
                 {sectionShares.map((share) => (
-                  <PublicListRow
+                  <SharedListRow
                     key={share.listId}
-                    intent={share.listIntent}
-                    kind={share.listKind}
-                    name={share.listName}
-                    entryCount={share.entryCount}
-                    render={
-                      <Link
-                        to="/groups/$slug/lists/$listId"
-                        params={{ slug, listId: share.listId }}
-                        search={{ fromUser: userId }}
-                      />
-                    }
+                    slug={slug}
+                    member={member}
+                    share={share}
+                    showMember={false}
                   />
                 ))}
               </div>

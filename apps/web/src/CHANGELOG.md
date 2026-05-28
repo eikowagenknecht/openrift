@@ -2,6 +2,8 @@
 
 ## 2026-05-28
 
+- feat: The group page is now organized into Trading, Collections, and Members tabs. Trading shows a single "Possible trades" list where each row marks whether the card comes to you or goes to another member, plus a per-member directory of every wishlist and tradelist shared with the group; Collections shows the group's pooled collections alongside each member's shared personal collections; Members is the roster. Sharing your own lists and collections, group settings, the join code, email invites, and leaving or deleting the group all move behind a "Manage" link in the header
+- fix: On a group's possible trades, the price shown for a card someone wants from you is now correctly labeled as their offer, instead of being mislabeled as what they're asking
 - feat: A deck's menu now has a "Play on RiftAtlas" link that opens the deck in RiftAtlas's online playtester
 - feat: The Inbox's deck-building availability can now be toggled off, the same as any other collection
 - feat: On a group's matches, each tile now shows both sides' price preferences as a labeled "They want" / "You'd pay" panel, with the full marketplace name spelled out so it doesn't read as someone's identity. The other side's preference always shows, falling back to "Not set" when nobody has picked one

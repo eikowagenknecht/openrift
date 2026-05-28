@@ -2,47 +2,27 @@ import type {
   FriendGroupDetailResponse,
   FriendGroupMemberResponse,
   FriendGroupRole,
-  FriendGroupShareableListResponse,
-  ListIntent,
-  ListKind,
+  FriendGroupShareResponse,
 } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   BookOpenIcon,
   CheckIcon,
   ChevronDownIcon,
-  CopyIcon,
   EllipsisVerticalIcon,
-  FolderIcon,
-  HandshakeIcon,
-  HeartIcon,
-  KeyIcon,
   PlusIcon,
+  SettingsIcon,
   ShieldIcon,
   Trash2Icon,
-  UsersIcon,
   XIcon,
 } from "lucide-react";
-import type { ComponentType, SVGProps } from "react";
 import { useState } from "react";
 
 import { CreateCollectionDialog } from "@/components/collection/create-collection-dialog";
 import { Heading } from "@/components/heading";
-import { listKindIcon } from "@/components/list/create-list-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,77 +31,51 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserAvatar } from "@/components/user-avatar";
 import { useCollections } from "@/hooks/use-collections";
 import {
   useAcceptFriendGroupInvite,
   useDeclineFriendGroupInvite,
-  useDeleteFriendGroup,
-  useDisableFriendGroupCode,
-  useEnableFriendGroupCode,
   useFriendGroupDetail,
   useFriendGroupMatches,
-  useFriendGroupShareableCollections,
-  useFriendGroupShareableLists,
-  useInviteFriendByEmail,
   useKickFriendGroupMember,
-  useLeaveFriendGroup,
-  useRotateFriendGroupCode,
-  useShareCollectionWithFriendGroup,
-  useShareListWithFriendGroup,
   useTransferFriendGroupOwnership,
-  useUnshareCollectionFromFriendGroup,
-  useUnshareListFromFriendGroup,
-  useUpdateFriendGroup,
   useUpdateFriendGroupNickname,
   useUpdateFriendGroupRole,
 } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { getSiteUrl } from "@/lib/site-config";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
-import { MatchRowGroup } from "./match-row-card";
+import { MatchTradeList } from "./match-row-card";
+import { SharedListRow } from "./shared-list-row";
 
-const ROLE_LABEL: Record<FriendGroupRole, string> = {
+export const ROLE_LABEL: Record<FriendGroupRole, string> = {
   owner: "Owner",
   admin: "Admin",
   member: "Member",
 };
 
-const INTENT_LABEL: Record<ListIntent, string> = {
-  wish: "Wishlist",
-  trade: "Tradelist",
-  organize: "Organize",
-};
+const SECTION_HEADING = "text-muted-foreground text-sm font-medium tracking-wide uppercase";
 
-const INTENT_ICON: Record<ListIntent, ComponentType<SVGProps<SVGSVGElement>>> = {
-  wish: HeartIcon,
-  trade: HandshakeIcon,
-  organize: FolderIcon,
-};
+export type GroupTab = "trading" | "collections" | "members";
 
-const KIND_NOUN: Record<ListKind, { singular: string; plural: string }> = {
-  card: { singular: "Card", plural: "Cards" },
-  printing: { singular: "Printing", plural: "Printings" },
-  copy: { singular: "Copy", plural: "Copies" },
-};
-
-function isAdmin(role: FriendGroupRole | null): role is "admin" | "owner" {
+export function isAdmin(role: FriendGroupRole | null): role is "admin" | "owner" {
   return role === "admin" || role === "owner";
 }
 
 interface FriendGroupPageProps {
   slug: string;
+  tab: GroupTab;
+  onTabChange: (tab: GroupTab) => void;
 }
 
-export function FriendGroupPage({ slug }: FriendGroupPageProps) {
+export function FriendGroupPage({ slug, tab, onTabChange }: FriendGroupPageProps) {
   const { data } = useFriendGroupDetail(slug);
   if (data.viewerStatus === "pending") {
     return <PendingApprovalStub data={data} />;
   }
-  return <FriendGroupMemberView data={data} slug={slug} />;
+  return <FriendGroupMemberView data={data} slug={slug} tab={tab} onTabChange={onTabChange} />;
 }
 
 function PendingApprovalStub({ data }: { data: FriendGroupDetailResponse }) {
@@ -146,25 +100,202 @@ function PendingApprovalStub({ data }: { data: FriendGroupDetailResponse }) {
   );
 }
 
-function FriendGroupMemberView({ data, slug }: { data: FriendGroupDetailResponse; slug: string }) {
+function FriendGroupMemberView({
+  data,
+  slug,
+  tab,
+  onTabChange,
+}: {
+  data: FriendGroupDetailResponse;
+  slug: string;
+  tab: GroupTab;
+  onTabChange: (tab: GroupTab) => void;
+}) {
   return (
-    <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-8", PAGE_PADDING)}>
+    <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING)}>
       <header className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <Heading level={1}>{data.group.name}</Heading>
-          <Badge variant="secondary">{ROLE_LABEL[data.viewerRole ?? "member"]}</Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">{ROLE_LABEL[data.viewerRole ?? "member"]}</Badge>
+            <Button
+              size="sm"
+              variant="ghost"
+              render={<Link to="/groups/$slug/manage" params={{ slug }} />}
+            >
+              <SettingsIcon className="size-4" />
+              Manage
+            </Button>
+          </div>
         </div>
         {data.group.description ? (
           <p className="text-muted-foreground">{data.group.description}</p>
         ) : null}
       </header>
 
-      <MatchesSection slug={slug} data={data} />
-      <CollectionsSection data={data} />
-      <PersonalCollectionsSection data={data} />
-      <MembersSection data={data} slug={slug} />
-      <SettingsSection data={data} slug={slug} />
+      <Tabs value={tab} onValueChange={(value) => onTabChange(value as GroupTab)} className="gap-6">
+        <TabsList>
+          <TabsTrigger value="trading">Trading</TabsTrigger>
+          <TabsTrigger value="collections">Collections</TabsTrigger>
+          <TabsTrigger value="members">Members</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="trading" className="flex flex-col gap-8">
+          <MatchesSection slug={slug} data={data} />
+          <SharedListsSection slug={slug} data={data} />
+        </TabsContent>
+
+        <TabsContent value="collections" className="flex flex-col gap-6">
+          <GroupCollectionsSection data={data} />
+          <PersonalCollectionsSection data={data} />
+        </TabsContent>
+
+        <TabsContent value="members">
+          <MembersSection data={data} slug={slug} />
+        </TabsContent>
+      </Tabs>
     </div>
+  );
+}
+
+function MatchesSection({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
+  const { data: matches } = useFriendGroupMatches(slug);
+  const hasMatches =
+    matches.othersHaveYourWants.length > 0 || matches.othersWantYourHaves.length > 0;
+
+  return (
+    <section className="flex flex-col gap-4">
+      <h2 className={SECTION_HEADING}>Possible trades</h2>
+      {hasMatches ? (
+        <MatchTradeList
+          incoming={matches.othersHaveYourWants}
+          outgoing={matches.othersWantYourHaves}
+          groupSlug={slug}
+        />
+      ) : (
+        <MatchesEmptyState data={data} />
+      )}
+    </section>
+  );
+}
+
+function MatchesEmptyState({ data }: { data: FriendGroupDetailResponse }) {
+  const viewerId = useRequiredUserId();
+  const viewerShares = data.shares.filter((share) => share.userId === viewerId);
+  const othersShare = data.shares.some((share) => share.userId !== viewerId);
+
+  if (!othersShare) {
+    return (
+      <p className="text-muted-foreground">
+        No members are sharing lists with this group yet. Ask them to share a wishlist or tradelist
+        to start seeing trades.
+      </p>
+    );
+  }
+  if (!viewerShares.some((share) => share.listIntent === "wish" || share.listIntent === "trade")) {
+    return (
+      <p className="text-muted-foreground">
+        Share a wishlist or tradelist with this group from Manage to see possible trades.
+      </p>
+    );
+  }
+  return (
+    <p className="text-muted-foreground">
+      No matches right now. You&apos;ll see possible trades here when your wants and haves overlap
+      with another member&apos;s.
+    </p>
+  );
+}
+
+function SharedListsSection({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
+  // Flat directory of the wishlists and tradelists shared with this group, one
+  // row per list with the owner inlined (same shape as the trades list).
+  // Joined to the roster for the owner's avatar; ordered by member, then list.
+  const membersById = new Map(data.members.map((member) => [member.userId, member]));
+  const rows: { member: FriendGroupMemberResponse; share: FriendGroupShareResponse }[] = [];
+  for (const share of data.shares) {
+    if (share.listIntent !== "wish" && share.listIntent !== "trade") {
+      continue;
+    }
+    const member = membersById.get(share.userId);
+    if (!member) {
+      continue;
+    }
+    rows.push({ member, share });
+  }
+  rows.sort((a, b) => {
+    const aName = a.member.userName ?? "￿";
+    const bName = b.member.userName ?? "￿";
+    const byMember = aName.localeCompare(bName);
+    return byMember === 0 ? a.share.listName.localeCompare(b.share.listName) : byMember;
+  });
+
+  return (
+    <section className="flex flex-col gap-4">
+      <h2 className={SECTION_HEADING}>Shared lists</h2>
+      {rows.length === 0 ? (
+        <p className="text-muted-foreground text-sm">
+          No members have shared a wishlist or tradelist with this group yet.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {rows.map(({ member, share }) => (
+            <SharedListRow key={share.listId} slug={slug} member={member} share={share} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function GroupCollectionsSection({ data }: { data: FriendGroupDetailResponse }) {
+  const { data: collections } = useCollections();
+  const [createOpen, setCreateOpen] = useState(false);
+  const groupCollections = collections.filter((col) => col.groupId === data.group.id);
+
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <h2 className={SECTION_HEADING}>Group collections</h2>
+        <Button size="sm" variant="ghost" onClick={() => setCreateOpen(true)}>
+          <PlusIcon className="size-4" />
+          New shared collection
+        </Button>
+      </div>
+      {groupCollections.length === 0 ? (
+        <p className="text-muted-foreground text-sm">
+          No group collections yet. Any member can create one. A group collection is a pooled
+          inventory the whole group can add to and remove from.
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-1">
+          {groupCollections.map((col) => (
+            <li key={col.id}>
+              <Link
+                to="/collections/$collectionId"
+                params={{ collectionId: col.id }}
+                search={(prev) => prev}
+                className="hover:bg-muted/50 flex items-center gap-2 rounded-md px-3 py-2"
+              >
+                <BookOpenIcon className="size-4" />
+                <span className="flex-1 truncate">{col.name}</span>
+                {col.copyCount > 0 ? (
+                  <Badge variant="ghost" className="text-2xs">
+                    {col.copyCount}
+                  </Badge>
+                ) : null}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      <CreateCollectionDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        groupSlug={data.group.slug}
+        groupName={data.group.name}
+      />
+    </section>
   );
 }
 
@@ -196,14 +327,12 @@ function PersonalCollectionsSection({ data }: { data: FriendGroupDetailResponse 
   });
 
   return (
-    <section id="personal-collections" className="flex scroll-mt-16 flex-col gap-4">
-      <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-        Personal collections
-      </h2>
+    <section className="flex flex-col gap-3">
+      <h2 className={SECTION_HEADING}>Personal collections</h2>
       {owners.length === 0 ? (
         <p className="text-muted-foreground text-sm">
           No members have shared a personal collection with this group yet. You can share one of
-          yours from its share dialog.
+          yours from Manage.
         </p>
       ) : (
         <div className="flex flex-col gap-2">
@@ -248,132 +377,6 @@ function PersonalCollectionsSection({ data }: { data: FriendGroupDetailResponse 
   );
 }
 
-function CollectionsSection({ data }: { data: FriendGroupDetailResponse }) {
-  const { data: collections } = useCollections();
-  const [createOpen, setCreateOpen] = useState(false);
-  const groupCollections = collections.filter((col) => col.groupId === data.group.id);
-
-  return (
-    <section id="collections" className="flex scroll-mt-16 flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-          Group collections
-        </h2>
-        <Button size="sm" variant="ghost" onClick={() => setCreateOpen(true)}>
-          <PlusIcon className="size-4" />
-          New shared collection
-        </Button>
-      </div>
-      {groupCollections.length === 0 ? (
-        <p className="text-muted-foreground text-sm">
-          No group collections yet. Any member can create one. A group collection is a pooled
-          inventory the whole group can add to and remove from.
-        </p>
-      ) : (
-        <ul className="flex flex-col gap-1">
-          {groupCollections.map((col) => (
-            <li key={col.id}>
-              <Link
-                to="/collections/$collectionId"
-                params={{ collectionId: col.id }}
-                search={(prev) => prev}
-                className="hover:bg-muted/50 flex items-center gap-2 rounded-md px-3 py-2"
-              >
-                <BookOpenIcon className="size-4" />
-                <span className="flex-1 truncate">{col.name}</span>
-                {col.copyCount > 0 ? (
-                  <Badge variant="ghost" className="text-2xs">
-                    {col.copyCount}
-                  </Badge>
-                ) : null}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-      <CreateCollectionDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        groupSlug={data.group.slug}
-        groupName={data.group.name}
-      />
-    </section>
-  );
-}
-
-function MatchesSection({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
-  const { data: matches } = useFriendGroupMatches(slug);
-  const viewerId = useRequiredUserId();
-  const viewerShares = data.shares.filter((share) => share.userId === viewerId);
-  const othersShare = data.shares.some((share) => share.userId !== viewerId);
-
-  return (
-    <section id="matches" className="flex scroll-mt-16 flex-col gap-4">
-      <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">Matches</h2>
-
-      <div className="flex flex-col gap-4">
-        <h3 className="font-semibold">Members have what you want</h3>
-        {matches.othersHaveYourWants.length > 0 ? (
-          <MatchRowGroup rows={matches.othersHaveYourWants} groupSlug={slug} linkCounterparty />
-        ) : (
-          <EmptyMatchPanel
-            viewerHasShares={viewerShares.some((s) => s.listIntent === "wish")}
-            othersHaveShares={othersShare}
-            mode="wants"
-          />
-        )}
-      </div>
-
-      <div className="flex flex-col gap-4">
-        <h3 className="font-semibold">Members want what you have</h3>
-        {matches.othersWantYourHaves.length > 0 ? (
-          <MatchRowGroup rows={matches.othersWantYourHaves} groupSlug={slug} linkCounterparty />
-        ) : (
-          <EmptyMatchPanel
-            viewerHasShares={viewerShares.some((s) => s.listIntent === "trade")}
-            othersHaveShares={othersShare}
-            mode="haves"
-          />
-        )}
-      </div>
-    </section>
-  );
-}
-
-function EmptyMatchPanel({
-  viewerHasShares,
-  othersHaveShares,
-  mode,
-}: {
-  viewerHasShares: boolean;
-  othersHaveShares: boolean;
-  mode: "wants" | "haves";
-}) {
-  if (!othersHaveShares) {
-    return (
-      <p className="text-muted-foreground">
-        No members are sharing lists with this group yet. Ask them to share a wishlist or tradelist
-        to start seeing matches.
-      </p>
-    );
-  }
-  if (!viewerHasShares) {
-    return (
-      <p className="text-muted-foreground">
-        Share at least one {mode === "wants" ? "wishlist" : "tradelist"} with this group to see what
-        members can {mode === "wants" ? "offer" : "want"}.
-      </p>
-    );
-  }
-  return (
-    <p className="text-muted-foreground">
-      No matches right now. You&apos;ll see opportunities here when someone&apos;s
-      {mode === "wants" ? " haves" : " wants"} overlap with someone&apos;s
-      {mode === "wants" ? " wants" : " haves"}.
-    </p>
-  );
-}
-
 function MembersSection({ data, slug }: { data: FriendGroupDetailResponse; slug: string }) {
   const viewerId = useRequiredUserId();
   const viewerRole = data.viewerRole ?? "member";
@@ -381,9 +384,7 @@ function MembersSection({ data, slug }: { data: FriendGroupDetailResponse; slug:
   const declineInvite = useDeclineFriendGroupInvite();
 
   return (
-    <section id="members" className="flex scroll-mt-16 flex-col gap-4">
-      <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">Members</h2>
-
+    <section className="flex flex-col gap-4">
       {isAdmin(viewerRole) && data.pendingRequests.length > 0 ? (
         <div className="flex flex-col gap-2 rounded-md border border-dashed p-3">
           <h3 className="font-medium">Pending requests</h3>
@@ -564,455 +565,5 @@ function MemberRow({
         </DropdownMenu>
       )}
     </div>
-  );
-}
-
-function SettingsSection({ data, slug }: { data: FriendGroupDetailResponse; slug: string }) {
-  const viewerRole = data.viewerRole ?? "member";
-  return (
-    <section id="settings" className="flex scroll-mt-16 flex-col gap-4">
-      <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-        Settings
-      </h2>
-      {isAdmin(viewerRole) ? <AdminSettings data={data} slug={slug} /> : null}
-      <ShareableListsPanel slug={slug} />
-      <ShareableCollectionsPanel slug={slug} />
-      <LeaveOrDeletePanel data={data} slug={slug} />
-    </section>
-  );
-}
-
-function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: string }) {
-  const navigate = useNavigate();
-  const update = useUpdateFriendGroup();
-  const rotateCode = useRotateFriendGroupCode();
-  const disableCode = useDisableFriendGroupCode();
-  const enableCode = useEnableFriendGroupCode();
-  const invite = useInviteFriendByEmail();
-
-  const [name, setName] = useState(data.group.name);
-  const [description, setDescription] = useState(data.group.description ?? "");
-  const [newSlug, setNewSlug] = useState(data.group.slug);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [rotateConfirmOpen, setRotateConfirmOpen] = useState(false);
-  const [disableConfirmOpen, setDisableConfirmOpen] = useState(false);
-
-  const slugChanged = newSlug !== data.group.slug;
-
-  async function handleSave() {
-    const trimmedName = name.trim();
-    const trimmedDescription = description.trim();
-    const result = await update.mutateAsync({
-      slug,
-      name: trimmedName === data.group.name ? undefined : trimmedName,
-      description:
-        trimmedDescription === (data.group.description ?? "")
-          ? undefined
-          : trimmedDescription || null,
-      newSlug: slugChanged ? newSlug.trim() : undefined,
-    });
-    if (slugChanged) {
-      void navigate({ to: "/groups/$slug", params: { slug: result.slug } });
-    }
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Group settings</CardTitle>
-        <CardDescription>Visible to admins and the owner only.</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="fg-edit-name">Name</Label>
-          <Input
-            id="fg-edit-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            maxLength={60}
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="fg-edit-slug">Slug</Label>
-          <Input
-            id="fg-edit-slug"
-            value={newSlug}
-            onChange={(e) => setNewSlug(e.target.value.toLowerCase())}
-            maxLength={30}
-          />
-          {slugChanged ? (
-            <span className="text-xs text-amber-700">
-              Renaming the slug breaks any existing bookmarks to this group.
-            </span>
-          ) : null}
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="fg-edit-desc">Description</Label>
-          <Textarea
-            id="fg-edit-desc"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            maxLength={500}
-            rows={3}
-          />
-        </div>
-        <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={update.isPending}>
-            Save changes
-          </Button>
-        </div>
-
-        <hr />
-
-        <div className="flex flex-col gap-2">
-          <Label className="flex items-center gap-2">
-            <KeyIcon className="size-4" />
-            Join code
-          </Label>
-          {data.group.code ? (
-            <div className="flex items-center gap-2">
-              <code className="bg-muted flex-1 rounded px-2 py-1 font-mono text-sm">
-                {data.group.code}
-              </code>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() =>
-                  navigator.clipboard.writeText(
-                    `${getSiteUrl()}/groups/join?code=${encodeURIComponent(data.group.code ?? "")}`,
-                  )
-                }
-              >
-                <CopyIcon className="size-4" />
-                Copy link
-              </Button>
-              <Dialog open={rotateConfirmOpen} onOpenChange={setRotateConfirmOpen}>
-                <DialogTrigger render={<Button size="sm" variant="destructive" />}>
-                  Rotate
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Rotate the join code?</DialogTitle>
-                    <DialogDescription>
-                      The current code stops working immediately. Anyone holding an old invite link
-                      will need a new one.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <Button variant="ghost" onClick={() => setRotateConfirmOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={async () => {
-                        await rotateCode.mutateAsync(slug);
-                        setRotateConfirmOpen(false);
-                      }}
-                      disabled={rotateCode.isPending}
-                    >
-                      Rotate
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-              <Dialog open={disableConfirmOpen} onOpenChange={setDisableConfirmOpen}>
-                <DialogTrigger render={<Button size="sm" variant="destructive" />}>
-                  Disable
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Disable code-based joining?</DialogTitle>
-                    <DialogDescription>
-                      The code stops working immediately. New members will only be able to join via
-                      direct email invites until you re-enable code-based joining.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <Button variant="ghost" onClick={() => setDisableConfirmOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={async () => {
-                        await disableCode.mutateAsync(slug);
-                        setDisableConfirmOpen(false);
-                      }}
-                      disabled={disableCode.isPending}
-                    >
-                      Disable
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground text-sm">
-                Code-based joining is disabled. Direct invites only.
-              </span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => enableCode.mutate(slug)}
-                disabled={enableCode.isPending}
-              >
-                Enable code
-              </Button>
-            </div>
-          )}
-        </div>
-
-        <hr />
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="fg-invite-email" className="flex items-center gap-2">
-            <UsersIcon className="size-4" />
-            Invite by email
-          </Label>
-          <div className="flex gap-2">
-            <Input
-              id="fg-invite-email"
-              type="email"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="friend@example.com"
-            />
-            <Button
-              onClick={async () => {
-                await invite.mutateAsync({ slug, email: inviteEmail.trim() });
-                setInviteEmail("");
-              }}
-              disabled={!inviteEmail || invite.isPending}
-            >
-              Send invite
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function ShareableListsPanel({ slug }: { slug: string }) {
-  const { data } = useFriendGroupShareableLists(slug);
-  const share = useShareListWithFriendGroup();
-  const unshare = useUnshareListFromFriendGroup();
-
-  if (data.items.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Share your lists</CardTitle>
-          <CardDescription>
-            You don&apos;t have any lists yet. Create a wishlist, tradelist, or organize list to
-            share it with this group.{" "}
-            <Link
-              to="/help/$slug"
-              params={{ slug: "lists" }}
-              className="text-primary hover:underline"
-            >
-              Learn how lists work.
-            </Link>
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Share your lists</CardTitle>
-        <CardDescription>
-          Shared lists are visible to everyone in this group. Each list is shared with each group
-          separately, so changes here don&apos;t affect any other groups you&apos;ve shared it with.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2">
-        {data.items.map((row) => (
-          <ShareableListRow
-            key={row.listId}
-            slug={slug}
-            row={row}
-            share={share}
-            unshare={unshare}
-          />
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
-
-function ShareableListRow({
-  slug,
-  row,
-  share,
-  unshare,
-}: {
-  slug: string;
-  row: FriendGroupShareableListResponse;
-  share: ReturnType<typeof useShareListWithFriendGroup>;
-  unshare: ReturnType<typeof useUnshareListFromFriendGroup>;
-}) {
-  const isShared = row.sharedAt !== null;
-  const IntentIcon = INTENT_ICON[row.listIntent];
-  const KindIcon = listKindIcon(row.listKind);
-  const kindNoun =
-    row.entryCount === 1 ? KIND_NOUN[row.listKind].singular : KIND_NOUN[row.listKind].plural;
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <div className="flex items-center gap-3">
-        <Checkbox
-          checked={isShared}
-          onCheckedChange={(checked) => {
-            if (checked) {
-              share.mutate({ slug, listId: row.listId });
-            } else {
-              unshare.mutate({ slug, listId: row.listId });
-            }
-          }}
-          disabled={share.isPending || unshare.isPending}
-        />
-        <div className="flex flex-col gap-1">
-          <span className="font-medium">{row.listName}</span>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Badge variant="outline" className="text-2xs gap-1">
-              <IntentIcon className="size-3" />
-              {INTENT_LABEL[row.listIntent]}
-            </Badge>
-            <Badge variant="outline" className="text-2xs gap-1">
-              <KindIcon className="size-3" />
-              {row.entryCount} {kindNoun}
-            </Badge>
-          </div>
-        </div>
-      </div>
-      {row.listIntent === "organize" ? (
-        <Badge variant="outline" className="text-xs">
-          Informational only, doesn&apos;t appear in matches
-        </Badge>
-      ) : null}
-    </div>
-  );
-}
-
-function ShareableCollectionsPanel({ slug }: { slug: string }) {
-  const { data } = useFriendGroupShareableCollections(slug);
-  const share = useShareCollectionWithFriendGroup();
-  const unshare = useUnshareCollectionFromFriendGroup();
-
-  if (data.items.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Share your collections</CardTitle>
-          <CardDescription>
-            You don&apos;t have any personal collections yet. Create one to share it with this
-            group.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Share your collections</CardTitle>
-        <CardDescription>
-          Shared collections are visible (read-only) to everyone in this group. Each collection is
-          shared with each group separately, so changes here don&apos;t affect any other groups
-          you&apos;ve shared it with.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2">
-        {data.items.map((row) => {
-          const isShared = row.sharedAt !== null;
-          return (
-            <div key={row.collectionId} className="flex items-center gap-3">
-              <Checkbox
-                checked={isShared}
-                onCheckedChange={(checked) => {
-                  if (checked) {
-                    share.mutate({ slug, collectionId: row.collectionId });
-                  } else {
-                    unshare.mutate({ slug, collectionId: row.collectionId });
-                  }
-                }}
-                disabled={share.isPending || unshare.isPending}
-              />
-              <div className="flex items-center gap-2">
-                <BookOpenIcon className="size-4" />
-                <span className="font-medium">{row.collectionName}</span>
-              </div>
-            </div>
-          );
-        })}
-      </CardContent>
-    </Card>
-  );
-}
-
-function LeaveOrDeletePanel({ data, slug }: { data: FriendGroupDetailResponse; slug: string }) {
-  const navigate = useNavigate();
-  const leave = useLeaveFriendGroup();
-  const remove = useDeleteFriendGroup();
-  const isOwner = data.viewerRole === "owner";
-  const [confirmOpen, setConfirmOpen] = useState(false);
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Membership</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        {isOwner ? (
-          <>
-            <p className="text-muted-foreground text-sm">
-              You&apos;re the owner. Transfer ownership to another member before leaving.
-            </p>
-            <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-              <DialogTrigger render={<Button variant="destructive" />}>
-                <Trash2Icon className="size-4" />
-                Delete group
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Delete this group?</DialogTitle>
-                  <DialogDescription>
-                    The group, its members, invites, and list-shares will be permanently removed.
-                    Lists themselves stay; only their share with this group goes.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <Button variant="ghost" onClick={() => setConfirmOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={async () => {
-                      await remove.mutateAsync(slug);
-                      void navigate({ to: "/groups" });
-                    }}
-                    disabled={remove.isPending}
-                  >
-                    Delete
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </>
-        ) : (
-          <Button
-            variant="ghost"
-            onClick={async () => {
-              await leave.mutateAsync(slug);
-              void navigate({ to: "/groups" });
-            }}
-            disabled={leave.isPending}
-          >
-            Leave group
-          </Button>
-        )}
-      </CardContent>
-    </Card>
   );
 }
