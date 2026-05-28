@@ -293,6 +293,16 @@ export const bulkAddCopiesToListSchema = z.object({
   copyIds: z.array(z.uuid()).min(1).max(500),
 });
 
+/**
+ * Move entries from one list to another. The destination must have the same
+ * `kind` and `intent` as the source — different `kind` would reshape every
+ * entry, different `intent` would silently re-purpose them.
+ */
+export const moveListEntriesSchema = z.object({
+  toListId: z.uuid(),
+  entryIds: z.array(z.uuid()).min(1).max(500),
+});
+
 const marketplaceEnum = z.enum(["tcgplayer", "cardmarket", "cardtrader"]);
 
 const themeEnum = z.enum(["light", "dark", "auto"]);

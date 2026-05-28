@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { ListIntent, ListKind, Printing } from "@openrift/shared";
 
 /** Data attached to every draggable card in the collection grid. */
 export interface CardDragData {
@@ -15,3 +15,24 @@ export interface CardDragData {
   previewPrintings: Printing[];
   sourceCollectionId: string | undefined;
 }
+
+/**
+ * Data attached to a tile dragged from a list page. The route-level handler
+ * routes this to {@link useMoveListEntries} when dropped on a sidebar list of
+ * the matching `sourceKind` + `sourceIntent`. There is no stack-trim modifier
+ * — moving a single tile carries the whole entry (with its full quantity).
+ */
+export interface ListEntryDragData {
+  type: "list-entry";
+  entryIds: string[];
+  sourceListId: string;
+  sourceKind: ListKind;
+  sourceIntent: ListIntent;
+  /** Total quantity across the dragged entries — for the overlay badge. */
+  totalQuantity: number;
+  /** Display printing for the front of the fan. */
+  printing: Printing;
+  cardName: string;
+}
+
+export type AnyDragData = CardDragData | ListEntryDragData;

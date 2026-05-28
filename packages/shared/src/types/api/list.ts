@@ -123,3 +123,18 @@ export interface ListBulkAddResponse {
   /** Inputs that produced neither — non-owned copies, etc. */
   skipped: number;
 }
+
+export interface ListMoveResponse {
+  /**
+   * Source entries successfully removed. May be less than the requested count
+   * if some entries were stale (already deleted, or no longer on the source).
+   */
+  moved: number;
+  /**
+   * Of the moved entries, how many landed on an existing destination entry —
+   * for card / printing kind that means quantity was summed; for copy kind
+   * that means the source entry was discarded because the same copy was
+   * already on the destination.
+   */
+  merged: number;
+}

@@ -11,6 +11,7 @@ import {
   listEntryResponseSchema,
   listGroupSharesResponseSchema,
   listListResponseSchema,
+  listMoveResponseSchema,
   listResponseSchema,
   listShareResponseSchema,
 } from "@openrift/shared/response-schemas";
@@ -22,6 +23,7 @@ import {
   idAndItemIdParamSchema,
   idParamSchema,
   listIntentQuerySchema,
+  moveListEntriesSchema,
   updateListEntrySchema,
   updateListSchema,
 } from "@openrift/shared/schemas";
@@ -145,6 +147,22 @@ const bulkAddCopiesToListRoute = createRoute({
   responses: {
     200: {
       content: { "application/json": { schema: listBulkAddResponseSchema } },
+      description: "Success",
+    },
+  },
+});
+
+const moveListEntriesRoute = createRoute({
+  method: "post",
+  path: "/{id}/entries/move",
+  tags: ["Lists"],
+  request: {
+    params: idParamSchema,
+    body: { content: { "application/json": { schema: moveListEntriesSchema } } },
+  },
+  responses: {
+    200: {
+      content: { "application/json": { schema: listMoveResponseSchema } },
       description: "Success",
     },
   },
@@ -418,6 +436,30 @@ export const listsRoute = listsApp
     const result = await lists.bulkCreateEntriesFromCopies(listId, list.kind, userId, copyIds);
 
     return c.json(result satisfies ListBulkAddResponse);
+  })
+
+  // ── POST /lists/:id/entries/move ─────────────────────────────────────────
+  // Move entries from this list (the {id} in the path) to another list owned
+  // by the same user. The destination must match the source on kind + intent
+  // — different kind would reshape every entry, different intent would
+  // silently re-purpose them (turning a wishlist into a tradelist row).
+  .openapi(moveListEntriesRoute, async (c) => {
+    const { moveListEntries } = c.get("services");
+    const repos = c.get("repos");
+    const transact = c.get("transact");
+    const userId = getUserId(c);
+    const { id: fromListId } = c.req.valid("param");
+    const body = c.req.valid("json");
+
+    const result = await moveListEntries(
+      repos,
+      transact,
+      userId,
+      fromListId,
+      body.toListId,
+      body.entryIds,
+    );
+    return c.json(result);
   })
 
   // ── PATCH /lists/:id/entries/:itemId ──────────────────────────────────────

@@ -173,6 +173,7 @@ export type {
   ListIntent,
   ListKind,
   ListListResponse,
+  ListMoveResponse,
   ListResponse,
   ListShareResponse,
   PublicListDetailResponse,

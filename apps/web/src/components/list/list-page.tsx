@@ -33,8 +33,10 @@ import { CardCell } from "@/components/cards/card-cell";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
+import type { ListEntryDragData } from "@/components/collection/dnd-types";
 import { listKindIcon } from "@/components/list/create-list-dialog";
 import { DeleteListDialog } from "@/components/list/delete-list-dialog";
+import { DraggableListEntry } from "@/components/list/draggable-list-entry";
 import { ListEditDialog } from "@/components/list/list-edit-dialog";
 import { ListEntryContextMenu } from "@/components/list/list-entry-context-menu";
 import { ListEntryTableActions } from "@/components/list/list-entry-table-actions";
@@ -674,6 +676,24 @@ function ListEntryBrowser({
     };
     const quantityStrip = buildQuantityStrip();
 
+    // Drag wiring: only browse-mode tiles with a backing entry are draggable.
+    // Add-mode tiles came from the catalog, not from the list, so they have
+    // nothing to move. The drag carries the single entry the tile represents
+    // (see the kind/view invariants in buildItems — each tile resolves 1:1).
+    const dragData: ListEntryDragData | undefined = entry
+      ? {
+          type: "list-entry",
+          entryIds: [entry.id],
+          sourceListId: listId,
+          sourceKind: kind,
+          sourceIntent: intent,
+          totalQuantity: entry.quantity,
+          printing: item.printing,
+          cardName: entry.cardName,
+        }
+      : undefined;
+    const dragId = entry ? `list-entry-${entry.id}` : undefined;
+
     return (
       <CardCell
         printing={item.printing}
@@ -691,6 +711,16 @@ function ListEntryBrowser({
             {cell}
           </ListEntryContextMenu>
         )}
+        wrap={
+          dragData && dragId
+            ? // oxlint-disable-next-line react/no-unstable-nested-components -- render prop, not a component definition
+              (cell) => (
+                <DraggableListEntry id={dragId} data={dragData}>
+                  {cell}
+                </DraggableListEntry>
+              )
+            : undefined
+        }
       />
     );
   };

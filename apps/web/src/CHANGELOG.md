@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-05-28
+
+- feat: You can now drag a card from one wishlist to another (or tradelist to tradelist) to move it between lists of the same kind. The card is removed from the source and added to the destination, with quantities merged if the destination already has the same card
+
 ## 2026-05-27
 
 - feat: On a shared user bundle page, each list now shows a small "Public" badge (when it has its own public link) and a badge per friend group it's shared with (matching groups you're a member of). Visible only to signed-in viewers

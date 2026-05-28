@@ -6,6 +6,7 @@ import type {
   ListIntent,
   ListKind,
   ListListResponse,
+  ListMoveResponse,
   ListResponse,
   ListShareResponse,
   PublicListDetailResponse,
@@ -287,6 +288,37 @@ export function useBulkAddCopiesToList() {
     invalidates: (variables) => [
       queryKeys.lists.all(userId),
       queryKeys.lists.detail(userId, variables.listId),
+    ],
+  });
+}
+
+// List-to-list move. The server enforces same-kind + same-intent + same-user.
+// We invalidate both list details + the lists index so the source's grid
+// drops the entries and the destination's gains them.
+const moveListEntriesFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { fromListId: string; toListId: string; entryIds: string[] }) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }) =>
+    fetchApiJson<ListMoveResponse>({
+      errorTitle: "Couldn't move entries",
+      cookie: context.cookie,
+      path: `/api/v1/lists/${encodeURIComponent(data.fromListId)}/entries/move`,
+      method: "POST",
+      body: { toListId: data.toListId, entryIds: data.entryIds },
+    }),
+  );
+
+export function useMoveListEntries() {
+  const userId = useRequiredUserId();
+  return useMutationWithInvalidation<
+    ListMoveResponse,
+    { fromListId: string; toListId: string; entryIds: string[] }
+  >({
+    mutationFn: (vars) => moveListEntriesFn({ data: vars }),
+    invalidates: (variables) => [
+      queryKeys.lists.all(userId),
+      queryKeys.lists.detail(userId, variables.fromListId),
+      queryKeys.lists.detail(userId, variables.toListId),
     ],
   });
 }

@@ -482,6 +482,69 @@ export function listsRepo(db: Kysely<Database>) {
         .where("userId", "=", userId)
         .executeTakeFirst();
     },
+
+    /**
+     * Reads raw entry rows for a list-to-list move. Scoped to a single list +
+     * the owning user so a stray entry id from another list (or another user's
+     * list) is filtered out, not 403'd.
+     * @returns The matching insertable subset of each entry row.
+     */
+    entriesForMove(
+      listId: string,
+      userId: string,
+      entryIds: readonly string[],
+    ): Promise<
+      Pick<
+        Selectable<ListEntriesTable>,
+        | "id"
+        | "kind"
+        | "cardId"
+        | "printingId"
+        | "copyId"
+        | "quantity"
+        | "pricePref"
+        | "priceAbsoluteCents"
+        | "tradeType"
+      >[]
+    > {
+      if (entryIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("listEntries")
+        .select([
+          "id",
+          "kind",
+          "cardId",
+          "printingId",
+          "copyId",
+          "quantity",
+          "pricePref",
+          "priceAbsoluteCents",
+          "tradeType",
+        ])
+        .where("listId", "=", listId)
+        .where("userId", "=", userId)
+        .where("id", "in", [...entryIds])
+        .execute();
+    },
+
+    /** @returns Delete result — `numDeletedRows` is the count actually removed. */
+    deleteEntriesByIds(
+      entryIds: readonly string[],
+      listId: string,
+      userId: string,
+    ): Promise<DeleteResult> {
+      if (entryIds.length === 0) {
+        return Promise.resolve({ numDeletedRows: 0n } as DeleteResult);
+      }
+      return db
+        .deleteFrom("listEntries")
+        .where("id", "in", [...entryIds])
+        .where("listId", "=", listId)
+        .where("userId", "=", userId)
+        .executeTakeFirst();
+    },
   };
 }
 

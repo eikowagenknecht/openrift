@@ -300,6 +300,116 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
     });
   });
 
+  // ── POST /lists/:id/entries/move (drag-list-to-list) ──────────────────────
+
+  describe("POST /lists/:id/entries/move", () => {
+    it("moves a card entry between two same-kind same-intent lists", async () => {
+      const source = await createList("Move source", "wish", "card");
+      const dest = await createList("Move dest", "wish", "card");
+      const createRes = await app.fetch(
+        req("POST", `/lists/${source}/entries`, { cardId: CARD_FURY_UNIT.id, quantity: 3 }),
+      );
+      const created = (await createRes.json()) as { id: string };
+
+      const moveRes = await app.fetch(
+        req("POST", `/lists/${source}/entries/move`, {
+          toListId: dest,
+          entryIds: [created.id],
+        }),
+      );
+      expect(moveRes.status).toBe(200);
+      const moved = (await moveRes.json()) as { moved: number; merged: number };
+      expect(moved).toEqual({ moved: 1, merged: 0 });
+
+      const sourceRes = await app.fetch(req("GET", `/lists/${source}`));
+      const sourceDetail = (await sourceRes.json()) as { entries: unknown[] };
+      expect(sourceDetail.entries).toHaveLength(0);
+
+      const destRes = await app.fetch(req("GET", `/lists/${dest}`));
+      const destDetail = (await destRes.json()) as {
+        entries: { kind: string; quantity: number }[];
+      };
+      expect(destDetail.entries).toHaveLength(1);
+      expect(destDetail.entries[0]).toMatchObject({ kind: "card", quantity: 3 });
+    });
+
+    it("merges quantities when the destination already has an entry for the same card", async () => {
+      const source = await createList("Move merge source", "wish", "card");
+      const dest = await createList("Move merge dest", "wish", "card");
+      await app.fetch(
+        req("POST", `/lists/${dest}/entries`, { cardId: CARD_FURY_UNIT.id, quantity: 2 }),
+      );
+      const createRes = await app.fetch(
+        req("POST", `/lists/${source}/entries`, { cardId: CARD_FURY_UNIT.id, quantity: 3 }),
+      );
+      const created = (await createRes.json()) as { id: string };
+
+      const moveRes = await app.fetch(
+        req("POST", `/lists/${source}/entries/move`, {
+          toListId: dest,
+          entryIds: [created.id],
+        }),
+      );
+      expect(moveRes.status).toBe(200);
+      expect(await moveRes.json()).toEqual({ moved: 1, merged: 1 });
+
+      const destRes = await app.fetch(req("GET", `/lists/${dest}`));
+      const destDetail = (await destRes.json()) as { entries: { quantity: number }[] };
+      expect(destDetail.entries).toHaveLength(1);
+      expect(destDetail.entries[0]?.quantity).toBe(5);
+    });
+
+    it("rejects moves to a different kind", async () => {
+      const source = await createList("Kind source", "wish", "card");
+      const dest = await createList("Kind dest", "wish", "printing");
+      const createRes = await app.fetch(
+        req("POST", `/lists/${source}/entries`, { cardId: CARD_FURY_UNIT.id }),
+      );
+      const created = (await createRes.json()) as { id: string };
+
+      const res = await app.fetch(
+        req("POST", `/lists/${source}/entries/move`, {
+          toListId: dest,
+          entryIds: [created.id],
+        }),
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it("rejects moves to a different intent", async () => {
+      const source = await createList("Intent source", "wish", "card");
+      const dest = await createList("Intent dest", "trade", "card");
+      const createRes = await app.fetch(
+        req("POST", `/lists/${source}/entries`, { cardId: CARD_FURY_UNIT.id }),
+      );
+      const created = (await createRes.json()) as { id: string };
+
+      const res = await app.fetch(
+        req("POST", `/lists/${source}/entries/move`, {
+          toListId: dest,
+          entryIds: [created.id],
+        }),
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it("rejects moves where source and destination are the same list", async () => {
+      const list = await createList("Self move", "wish", "card");
+      const createRes = await app.fetch(
+        req("POST", `/lists/${list}/entries`, { cardId: CARD_FURY_UNIT.id }),
+      );
+      const created = (await createRes.json()) as { id: string };
+
+      const res = await app.fetch(
+        req("POST", `/lists/${list}/entries/move`, {
+          toListId: list,
+          entryIds: [created.id],
+        }),
+      );
+      expect(res.status).toBe(400);
+    });
+  });
+
   // ── GET /lists/:id (with enriched entries) ─────────────────────────────────
 
   describe("GET /lists/:id", () => {

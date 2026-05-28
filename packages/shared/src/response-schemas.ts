@@ -887,6 +887,13 @@ export const listBulkAddResponseSchema = z
   })
   .openapi("ListBulkAddResponse");
 
+export const listMoveResponseSchema = z
+  .object({
+    moved: z.number().int().nonnegative(),
+    merged: z.number().int().nonnegative(),
+  })
+  .openapi("ListMoveResponse");
+
 // ── Rules ───────────────────────────────────────────────────────────────────
 
 export const ruleKindSchema = z.enum(["core", "tournament"]);

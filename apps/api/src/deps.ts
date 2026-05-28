@@ -56,6 +56,7 @@ import { logEvents } from "./services/event-logger.js";
 import { importErrata } from "./services/import-errata.js";
 import { ensureInbox } from "./services/inbox.js";
 import { ingestCandidates } from "./services/ingest-candidates.js";
+import { moveListEntries } from "./services/lists.js";
 import { getMappingOverview } from "./services/marketplace-mapping.js";
 
 export interface Repos {
@@ -115,6 +116,7 @@ export interface Services {
   deleteCollection: typeof deleteCollection;
   addCopies: typeof addCopies;
   moveCopies: typeof moveCopies;
+  moveListEntries: typeof moveListEntries;
   disposeCopies: typeof disposeCopies;
   getMappingOverview: typeof getMappingOverview;
   ingestCandidates: typeof ingestCandidates;
@@ -196,6 +198,7 @@ export const services: Services = {
   deleteCollection,
   addCopies,
   moveCopies,
+  moveListEntries,
   disposeCopies,
   getMappingOverview,
   ingestCandidates,

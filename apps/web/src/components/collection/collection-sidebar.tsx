@@ -130,7 +130,13 @@ function ListsSidebarGroups({ activeId }: { activeId?: string }) {
               // card / printing / copy entries from the list's kind via the
               // /entries/from-copies endpoint.
               return (
-                <DroppableSidebarList key={list.id} listId={list.id} listName={list.name}>
+                <DroppableSidebarList
+                  key={list.id}
+                  listId={list.id}
+                  listName={list.name}
+                  listKind={list.kind}
+                  listIntent={list.intent}
+                >
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       isActive={activeId === list.id}

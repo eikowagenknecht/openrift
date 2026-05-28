@@ -15,16 +15,21 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { CollectionSidebar } from "@/components/collection/collection-sidebar";
-import type { CardDragData } from "@/components/collection/dnd-types";
+import type {
+  AnyDragData,
+  CardDragData,
+  ListEntryDragData,
+} from "@/components/collection/dnd-types";
 import { Footer } from "@/components/layout/footer";
 import {
   PAGE_TOP_BAR_STICKY,
   PageTopBarHeightContext,
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
+import type { SidebarListDropData } from "@/components/list/droppable-sidebar-list";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useMoveCopies } from "@/hooks/use-copies";
-import { useBulkAddCopiesToList } from "@/hooks/use-lists";
+import { useBulkAddCopiesToList, useMoveListEntries } from "@/hooks/use-lists";
 import { describeListAdd } from "@/lib/list-toast";
 import { FilterSearchProvider } from "@/lib/search-schemas";
 
@@ -79,11 +84,14 @@ function CollectionLayout() {
   const search = Route.useSearch();
   const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
   const topBarHeight = useMeasuredHeight(topBarSlot);
-  const [activeDrag, setActiveDrag] = useState<CardDragData | null>(null);
+  const [activeDrag, setActiveDrag] = useState<AnyDragData | null>(null);
   // null → move 1 (default), "all" → Shift held, number → digit key 2-9 held.
+  // Only meaningful for `collection-card` drags — list-entry drags always
+  // carry the whole entry (no per-key trimming).
   const [moveModifier, setMoveModifier] = useState<"all" | number | null>(null);
   const moveCopies = useMoveCopies();
   const bulkAddCopiesToList = useBulkAddCopiesToList();
+  const moveListEntries = useMoveListEntries();
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: DRAG_ACTIVATION }));
 
@@ -143,8 +151,8 @@ function CollectionLayout() {
   }, []);
 
   const handleDragStart = (event: DragStartEvent) => {
-    const data = event.active.data.current as CardDragData | undefined;
-    if (data?.type === "collection-card") {
+    const data = event.active.data.current as AnyDragData | undefined;
+    if (data?.type === "collection-card" || data?.type === "list-entry") {
       setActiveDrag(data);
     }
   };
@@ -153,16 +161,31 @@ function CollectionLayout() {
     const modifier = moveModifier;
     setActiveDrag(null);
 
-    const dragData = event.active.data.current as CardDragData | undefined;
+    const dragData = event.active.data.current as AnyDragData | undefined;
     const dropData = event.over?.data.current as
       | { type: "collection"; collectionId: string }
-      | { type: "list"; listId: string; listName: string }
+      | SidebarListDropData
       | undefined;
 
-    if (!dropData || dragData?.type !== "collection-card") {
+    if (!dropData || !dragData) {
       return;
     }
 
+    if (dragData.type === "collection-card") {
+      handleCollectionCardDrop(dragData, dropData, modifier);
+      return;
+    }
+
+    if (dragData.type === "list-entry" && dropData.type === "list") {
+      handleListEntryDrop(dragData, dropData);
+    }
+  };
+
+  function handleCollectionCardDrop(
+    dragData: CardDragData,
+    dropData: { type: "collection"; collectionId: string } | SidebarListDropData,
+    modifier: "all" | number | null,
+  ) {
     if (dropData.type === "collection") {
       // Same-collection drop is a no-op; the route used to bail on this.
       if (dragData.sourceCollectionId === dropData.collectionId) {
@@ -184,24 +207,56 @@ function CollectionLayout() {
       return;
     }
 
-    if (dropData.type === "list") {
-      // Adding to a list is non-destructive (copies stay in their collection),
-      // so the stack-trim-to-one default doesn't apply — all copies under the
-      // dragged tile flow into the server, which derives the right entry shape
-      // (card / printing / copy) from the list's kind and dedupes.
-      bulkAddCopiesToList.mutate(
-        { listId: dropData.listId, copyIds: dragData.copyIds },
-        {
-          onSuccess: (result) => {
-            const listName = dropData.listName;
-            toast[result.added + result.updated === 0 ? "info" : "success"](
-              describeListAdd(result, listName),
-            );
-          },
+    // Adding to a list is non-destructive (copies stay in their collection),
+    // so the stack-trim-to-one default doesn't apply — all copies under the
+    // dragged tile flow into the server, which derives the right entry shape
+    // (card / printing / copy) from the list's kind and dedupes.
+    bulkAddCopiesToList.mutate(
+      { listId: dropData.listId, copyIds: dragData.copyIds },
+      {
+        onSuccess: (result) => {
+          const listName = dropData.listName;
+          toast[result.added + result.updated === 0 ? "info" : "success"](
+            describeListAdd(result, listName),
+          );
         },
-      );
+      },
+    );
+  }
+
+  function handleListEntryDrop(dragData: ListEntryDragData, dropData: SidebarListDropData) {
+    // Defense-in-depth: the sidebar already refuses to highlight incompatible
+    // targets and the server re-checks. Keeping the gate here too avoids
+    // firing a pointless mutation on a no-op same-list drop.
+    if (
+      dropData.listId === dragData.sourceListId ||
+      dropData.listKind !== dragData.sourceKind ||
+      dropData.listIntent !== dragData.sourceIntent
+    ) {
+      return;
     }
-  };
+    moveListEntries.mutate(
+      {
+        fromListId: dragData.sourceListId,
+        toListId: dropData.listId,
+        entryIds: dragData.entryIds,
+      },
+      {
+        onSuccess: (result) => {
+          if (result.moved === 0) {
+            return;
+          }
+          const noun =
+            dragData.sourceKind === "copy"
+              ? `cop${result.moved === 1 ? "y" : "ies"}`
+              : dragData.sourceKind === "printing"
+                ? `printing${result.moved === 1 ? "" : "s"}`
+                : `card${result.moved === 1 ? "" : "s"}`;
+          toast.success(`Moved ${result.moved} ${noun} to ${dropData.listName}`);
+        },
+      },
+    );
+  }
 
   return (
     <FilterSearchProvider value={search}>
@@ -224,7 +279,10 @@ function CollectionLayout() {
                 <CollectionContent />
               </TopBarSlotContext>
               <DragOverlay dropAnimation={null} modifiers={MODIFIERS}>
-                {activeDrag && <DragPreview drag={activeDrag} modifier={moveModifier} />}
+                {activeDrag?.type === "collection-card" && (
+                  <DragPreview drag={activeDrag} modifier={moveModifier} />
+                )}
+                {activeDrag?.type === "list-entry" && <ListEntryDragPreview drag={activeDrag} />}
               </DragOverlay>
             </DndContext>
           </SidebarProvider>
@@ -250,6 +308,29 @@ const FAN_OFFSETS = [
   { x: 12, y: -4, rotate: 6 },
   { x: 24, y: -2, rotate: 12 },
 ];
+
+function ListEntryDragPreview({ drag }: { drag: ListEntryDragData }) {
+  const firstImageId = drag.printing.images[0]?.imageId;
+  const thumbnail = firstImageId ? imageUrl(firstImageId, "240w") : undefined;
+  return (
+    <div className="relative h-48 w-28">
+      <img
+        src={thumbnail ?? ""}
+        alt=""
+        className="absolute top-0 left-0 w-28 rounded-lg shadow-lg"
+        draggable={false}
+      />
+      <div className="bg-background/80 absolute right-0 bottom-0 left-0 rounded-b-lg px-1.5 py-1 backdrop-blur-sm">
+        <p className="truncate text-center text-xs font-medium">{drag.cardName}</p>
+      </div>
+      {drag.totalQuantity > 1 && (
+        <div className="bg-primary text-primary-foreground absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full text-xs font-bold shadow">
+          {drag.totalQuantity}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function DragPreview({ drag, modifier }: { drag: CardDragData; modifier: "all" | number | null }) {
   const printings = drag.previewPrintings;
