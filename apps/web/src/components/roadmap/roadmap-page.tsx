@@ -62,7 +62,7 @@ const roadmapItems: RoadmapItem[] = [
   },
   // Done
   {
-    title: "Friend Groups",
+    title: "Groups",
     description:
       "Small private groups to share wishlists and tradelists, with live matches of who has the cards you want.",
     icon: <UsersIcon className="size-4" />,
@@ -72,7 +72,7 @@ const roadmapItems: RoadmapItem[] = [
   {
     title: "Wishlists & Tradelists",
     description:
-      "Track cards you want to acquire or have for trade, shareable publicly or with friend groups.",
+      "Track cards you want to acquire or have for trade, shareable publicly or with groups.",
     icon: <HeartIcon className="size-4" />,
     done: true,
     date: "May 2026",

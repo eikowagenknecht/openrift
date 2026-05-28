@@ -41,7 +41,7 @@ export function GroupsJoinPage({ initialCode }: GroupsJoinPageProps) {
   return (
     <div className={cn("mx-auto flex w-full max-w-md flex-col gap-6", PAGE_PADDING)}>
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold">Join a friend group</h1>
+        <h1 className="text-2xl font-semibold">Join a group</h1>
         <p className="text-muted-foreground text-sm">
           Paste the invite code an admin shared with you. Your join request goes to the group&apos;s
           admins for approval.

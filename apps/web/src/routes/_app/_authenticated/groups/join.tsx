@@ -10,7 +10,7 @@ const searchSchema = z.object({
 });
 
 export const Route = createFileRoute("/_app/_authenticated/groups/join")({
-  head: () => seoHead({ siteUrl: getSiteUrl(), title: "Join friend group", noIndex: true }),
+  head: () => seoHead({ siteUrl: getSiteUrl(), title: "Join group", noIndex: true }),
   validateSearch: (search) => searchSchema.parse(search),
   errorComponent: RouteErrorFallback,
 });

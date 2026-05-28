@@ -87,7 +87,7 @@ export default function WhyOpenRiftArticle() {
           <FeatureCard
             icon={<HeartIcon className="size-4" />}
             title="Community, not social network"
-            description="I have exciting ideas around small friend groups, sharing, and trading. No forums though, or anything else that needs full-time content moderation."
+            description="I have exciting ideas around small private groups, sharing, and trading. No forums though, or anything else that needs full-time content moderation."
           />
           <FeatureCard
             icon={<SparklesIcon className="size-4" />}
@@ -499,7 +499,7 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
       general:
         "Dedicated lists for cards you want, and sometimes cards you're willing to trade away.",
       openrift:
-        "Multiple wishlists and tradelists, each shareable via public link or with a friend group.",
+        "Multiple wishlists and tradelists, each shareable via public link or with a group.",
       piltoverArchive: "Single wishlist, not shareable.",
       riftmana: "One wishlist and one tradelist, not shareable.",
       riftboundGg: "One wishlist and one tradelist, both shareable.",

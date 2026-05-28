@@ -69,7 +69,7 @@ function CreateGroupDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create friend group</DialogTitle>
+          <DialogTitle>Create group</DialogTitle>
           <DialogDescription>
             Closed by default. Members opt in their own lists per group.
           </DialogDescription>
@@ -146,7 +146,7 @@ export function GroupsIndexPage() {
   return (
     <div className={cn("mx-auto flex w-full max-w-4xl flex-col gap-6", PAGE_PADDING)}>
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Friend groups</h1>
+        <h1 className="text-2xl font-semibold">Groups</h1>
         <div className="flex gap-2">
           <Button variant="outline" render={<Link to="/groups/join" />}>
             Join with code
@@ -207,7 +207,7 @@ export function GroupsIndexPage() {
       {data.items.length === 0 ? (
         <div className="text-muted-foreground flex flex-col items-center gap-3 py-12 text-center">
           <UsersIcon className="size-10" />
-          <p>You&apos;re not in any friend groups yet.</p>
+          <p>You&apos;re not in any groups yet.</p>
           <p className="text-xs">Create one above, or paste an invite code to join.</p>
         </div>
       ) : (

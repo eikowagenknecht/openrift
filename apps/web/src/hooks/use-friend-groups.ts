@@ -26,7 +26,7 @@ const fetchGroups = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<FriendGroupListResponse> =>
       fetchApiJson<FriendGroupListResponse>({
-        errorTitle: "Couldn't load friend groups",
+        errorTitle: "Couldn't load groups",
         cookie: context.cookie,
         path: "/api/v1/friend-groups",
       }),
