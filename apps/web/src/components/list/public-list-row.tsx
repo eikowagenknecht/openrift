@@ -30,8 +30,10 @@ interface PublicListRowProps {
 
 /**
  * Read-only row summarising a list on public surfaces (user share bundle,
- * group member detail). Intent icon on the left, name in the middle, kind + entry
- * count on the right. Pass `render={<Link ... />}` to make the row navigable.
+ * group member detail). Intent icon on the left, name + badges in the middle
+ * (badges wrap to additional rows when they don't fit alongside the name),
+ * kind + entry count on the right. Pass `render={<Link ... />}` to make the
+ * row navigable.
  *
  * @returns A row element rendered as the supplied `render` target (defaults to `div`).
  */
@@ -53,15 +55,17 @@ export function PublicListRow({
     props: mergeProps<"div">(
       {
         className: cn(
-          "bg-card text-card-foreground hover:bg-muted focus-visible:ring-ring/50 flex items-center gap-3 rounded-lg border p-3 transition-colors outline-none focus-visible:ring-2",
+          "bg-card text-card-foreground hover:bg-muted focus-visible:ring-ring/50 flex items-start gap-3 rounded-lg border p-3 transition-colors outline-none focus-visible:ring-2",
           className,
         ),
         children: (
           <>
-            <IntentIcon className="text-muted-foreground size-5 shrink-0" />
-            <span className="min-w-0 flex-1 truncate font-medium">{name}</span>
-            {badges ? <span className="flex shrink-0 items-center gap-1">{badges}</span> : null}
-            <span className="text-muted-foreground text-2xs inline-flex shrink-0 items-center gap-1">
+            <IntentIcon className="text-muted-foreground mt-0.5 size-5 shrink-0" />
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="font-medium break-words">{name}</span>
+              {badges}
+            </div>
+            <span className="text-muted-foreground text-2xs mt-1 inline-flex shrink-0 items-center gap-1">
               <KindIcon className="size-3" />
               {entryCount} {noun}
             </span>

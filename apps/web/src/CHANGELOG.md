@@ -5,6 +5,7 @@
 - feat: You can now drag a card from one wishlist to another (or tradelist to tradelist) to move it between lists of the same kind. The card is removed from the source and added to the destination, with quantities merged if the destination already has the same card
 - fix: A collection's total value now shows in the page header on mobile too, not just on wider screens. If the collection name is long the value shortens to keep it out of the way
 - fix: On the collection stats page, the "View missing" link next to each completion bar now opens the card browser filtered to the cards you're still missing in that group, instead of landing on /cards with no filters applied
+- fix: On a shared user page, long friend-group share badges no longer cut off the list name; the badges now wrap to a new row when they don't fit
 
 ## 2026-05-27
 
