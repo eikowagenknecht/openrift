@@ -503,6 +503,13 @@ export interface FriendGroupListSharesTable {
   sharedAt: ColumnType<Date, Date | undefined, Date>;
 }
 
+export interface FriendGroupCollectionSharesTable {
+  groupId: string;
+  collectionId: string;
+  userId: string;
+  sharedAt: ColumnType<Date, Date | undefined, Date>;
+}
+
 // ─── Candidate cards (migration 018, renamed in 038) ─────────────────────────
 
 /** @see candidateCardFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
@@ -1039,6 +1046,7 @@ export interface Database {
   friendGroupMembers: FriendGroupMembersTable;
   friendGroupInvites: FriendGroupInvitesTable;
   friendGroupListShares: FriendGroupListSharesTable;
+  friendGroupCollectionShares: FriendGroupCollectionSharesTable;
 
   // Candidate cards (migration 018, renamed in 038)
   candidateCards: CandidateCardsTable;

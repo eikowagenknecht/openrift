@@ -59,6 +59,15 @@ export interface FriendGroupShareResponse {
   sharedAt: string;
 }
 
+export interface FriendGroupCollectionShareResponse {
+  groupId: string;
+  collectionId: string;
+  collectionName: string;
+  userId: string;
+  userName: string | null;
+  sharedAt: string;
+}
+
 export interface FriendGroupRequestResponse {
   id: string;
   userId: string;
@@ -79,6 +88,8 @@ export interface FriendGroupDetailResponse {
   members: FriendGroupMemberResponse[];
   /** Empty when `viewerStatus === "pending"`. */
   shares: FriendGroupShareResponse[];
+  /** Empty when `viewerStatus === "pending"`. */
+  collectionShares: FriendGroupCollectionShareResponse[];
   /** Empty for plain members and pending users; populated for admins/owner. */
   pendingRequests: FriendGroupRequestResponse[];
 }
@@ -109,6 +120,17 @@ export interface FriendGroupShareableListResponse {
 
 export interface FriendGroupShareableListsResponse {
   items: FriendGroupShareableListResponse[];
+}
+
+export interface FriendGroupShareableCollectionResponse {
+  collectionId: string;
+  collectionName: string;
+  /** `null` when the collection is not currently shared with this group. */
+  sharedAt: string | null;
+}
+
+export interface FriendGroupShareableCollectionsResponse {
+  items: FriendGroupShareableCollectionResponse[];
 }
 
 export interface FriendGroupMatchRow {
@@ -156,6 +178,7 @@ export interface FriendGroupMatchesResponse {
 export interface FriendGroupMemberDetailResponse {
   member: FriendGroupMemberResponse;
   shares: FriendGroupShareResponse[];
+  collectionShares: FriendGroupCollectionShareResponse[];
   matches: FriendGroupMatchRow[];
   reverseMatches: FriendGroupMatchRow[];
 }
@@ -165,6 +188,10 @@ export interface FriendGroupPendingInvitesCountResponse {
 }
 
 export interface ListGroupSharesResponse {
+  items: { groupId: string; groupSlug: string; groupName: string }[];
+}
+
+export interface CollectionGroupSharesResponse {
   items: { groupId: string; groupSlug: string; groupName: string }[];
 }
 
@@ -180,4 +207,19 @@ export interface FriendGroupSharedListDetailResponse {
     currency: Currency | null;
   };
   entries: ListEntryDetailResponse[];
+}
+
+export interface FriendGroupSharedCollectionDetailResponse {
+  collection: {
+    id: string;
+    name: string;
+    description: string | null;
+    copyCount: number;
+    totalValueCents: number | null;
+    unpricedCopyCount: number | null;
+    ownerUserId: string;
+    ownerName: string | null;
+  };
+  copies: { id: string; printingId: string; collectionId: string }[];
+  viewerRole: FriendGroupRole;
 }

@@ -869,6 +869,21 @@ const publicUserBundleListResponseSchema = z
   })
   .openapi("PublicUserBundleListResponse");
 
+const publicUserBundleCollectionResponseSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    description: z.string().nullable(),
+    viaGroups: z.array(
+      z.object({
+        id: z.string(),
+        slug: z.string(),
+        name: z.string(),
+      }),
+    ),
+  })
+  .openapi("PublicUserBundleCollectionResponse");
+
 export const publicUserBundleResponseSchema = z
   .object({
     owner: z.object({
@@ -876,6 +891,7 @@ export const publicUserBundleResponseSchema = z
       gravatarHash: z.string(),
     }),
     lists: z.array(publicUserBundleListResponseSchema),
+    collections: z.array(publicUserBundleCollectionResponseSchema),
   })
   .openapi("PublicUserBundleResponse");
 
@@ -1019,6 +1035,17 @@ const friendGroupShareResponseSchema = z
   })
   .openapi("FriendGroupShareResponse");
 
+const friendGroupCollectionShareResponseSchema = z
+  .object({
+    groupId: z.string(),
+    collectionId: z.string(),
+    collectionName: z.string(),
+    userId: z.string(),
+    userName: z.string().nullable(),
+    sharedAt: z.string(),
+  })
+  .openapi("FriendGroupCollectionShareResponse");
+
 export const friendGroupRequestResponseSchema = z
   .object({
     id: z.string(),
@@ -1041,6 +1068,7 @@ export const friendGroupDetailResponseSchema = z
     viewerRole: friendGroupRoleSchema.nullable(),
     members: z.array(friendGroupMemberResponseSchema),
     shares: z.array(friendGroupShareResponseSchema),
+    collectionShares: z.array(friendGroupCollectionShareResponseSchema),
     pendingRequests: z.array(friendGroupRequestResponseSchema),
   })
   .openapi("FriendGroupDetailResponse");
@@ -1077,6 +1105,18 @@ export const friendGroupShareableListResponseSchema = z
 export const friendGroupShareableListsResponseSchema = z
   .object({ items: z.array(friendGroupShareableListResponseSchema) })
   .openapi("FriendGroupShareableListsResponse");
+
+export const friendGroupShareableCollectionResponseSchema = z
+  .object({
+    collectionId: z.string(),
+    collectionName: z.string(),
+    sharedAt: z.string().nullable(),
+  })
+  .openapi("FriendGroupShareableCollectionResponse");
+
+export const friendGroupShareableCollectionsResponseSchema = z
+  .object({ items: z.array(friendGroupShareableCollectionResponseSchema) })
+  .openapi("FriendGroupShareableCollectionsResponse");
 
 const friendGroupMatchRowSchema = z
   .object({
@@ -1118,6 +1158,7 @@ export const friendGroupMemberDetailResponseSchema = z
   .object({
     member: friendGroupMemberResponseSchema,
     shares: z.array(friendGroupShareResponseSchema),
+    collectionShares: z.array(friendGroupCollectionShareResponseSchema),
     matches: z.array(friendGroupMatchRowSchema),
     reverseMatches: z.array(friendGroupMatchRowSchema),
   })
@@ -1139,6 +1180,18 @@ export const listGroupSharesResponseSchema = z
   })
   .openapi("ListGroupSharesResponse");
 
+export const collectionGroupSharesResponseSchema = z
+  .object({
+    items: z.array(
+      z.object({
+        groupId: z.string(),
+        groupSlug: z.string(),
+        groupName: z.string(),
+      }),
+    ),
+  })
+  .openapi("CollectionGroupSharesResponse");
+
 export const friendGroupSharedListDetailResponseSchema = z
   .object({
     list: z.object({
@@ -1154,3 +1207,26 @@ export const friendGroupSharedListDetailResponseSchema = z
     entries: z.array(listEntryDetailResponseSchema),
   })
   .openapi("FriendGroupSharedListDetailResponse");
+
+export const friendGroupSharedCollectionDetailResponseSchema = z
+  .object({
+    collection: z.object({
+      id: z.string(),
+      name: z.string(),
+      description: z.string().nullable(),
+      copyCount: z.number().int().nonnegative(),
+      totalValueCents: z.number().int().nullable(),
+      unpricedCopyCount: z.number().int().nullable(),
+      ownerUserId: z.string(),
+      ownerName: z.string().nullable(),
+    }),
+    copies: z.array(
+      z.object({
+        id: z.string(),
+        printingId: z.string(),
+        collectionId: z.string(),
+      }),
+    ),
+    viewerRole: friendGroupRoleSchema,
+  })
+  .openapi("FriendGroupSharedCollectionDetailResponse");

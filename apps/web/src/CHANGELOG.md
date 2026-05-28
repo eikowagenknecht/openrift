@@ -2,6 +2,7 @@
 
 ## 2026-05-28
 
+- feat: You can now share a personal collection with one or more of your groups for read-only viewing. Open the collection's share dialog to toggle which groups see it, and group members can browse it from the group page or your share link
 - feat: There's a new help article on wishlists and tradelists, covering the different list kinds, ways to fill a list, and how trade preferences work
 - feat: There's a new help article that walks you through how groups work, covering roles, joining, sharing lists, matches, and shared collections
 - feat: Friend groups are now called Groups throughout the app, with a top-level Groups link in the main menu and mobile sidebar so you can jump straight there without opening the avatar menu. The pending-invite badge moves with it

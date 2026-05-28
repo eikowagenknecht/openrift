@@ -3,6 +3,7 @@ import type { Insertable, Kysely, Selectable, Updateable } from "kysely";
 
 import type {
   Database,
+  FriendGroupCollectionSharesTable,
   FriendGroupInviteDirection,
   FriendGroupInvitesTable,
   FriendGroupListSharesTable,
@@ -15,6 +16,7 @@ export type Group = Selectable<FriendGroupsTable>;
 export type GroupMember = Selectable<FriendGroupMembersTable>;
 export type GroupInvite = Selectable<FriendGroupInvitesTable>;
 export type GroupShare = Selectable<FriendGroupListSharesTable>;
+export type GroupCollectionShare = Selectable<FriendGroupCollectionSharesTable>;
 
 export type NewGroupValues = Pick<
   Insertable<FriendGroupsTable>,
@@ -570,6 +572,254 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         },
         ownerName: row.ownerName,
       };
+    },
+
+    // ── Collection shares ──────────────────────────────────────────────────
+    /**
+     * All personal-collection shares in a group, joined with each
+     * collection's owner. Pooled (group-owned) collections never appear here:
+     * they're enforced out by the composite FK to collections(id, user_id).
+     * @returns Share rows enriched with collection and user info.
+     */
+    collectionSharesForGroup(groupId: string): Promise<
+      (GroupCollectionShare & {
+        collectionName: string;
+        collectionSortOrder: number;
+        userName: string | null;
+      })[]
+    > {
+      return db
+        .selectFrom("friendGroupCollectionShares as s")
+        .innerJoin("collections as c", "c.id", "s.collectionId")
+        .innerJoin("users as u", "u.id", "s.userId")
+        .selectAll("s")
+        .select([
+          "c.name as collectionName",
+          "c.sortOrder as collectionSortOrder",
+          "u.name as userName",
+        ])
+        .where("s.groupId", "=", groupId)
+        .orderBy("u.name", "asc")
+        .orderBy("c.sortOrder", "asc")
+        .orderBy("c.name", "asc")
+        .execute();
+    },
+
+    /**
+     * The viewer's own collection-shares in a single group. Drives the
+     * checkbox panel on the collection-share dialog. Only personal
+     * collections (user_id IS NOT NULL) are returned.
+     * @returns Collection rows annotated with `sharedAt` when shared, else null.
+     */
+    collectionShareableForUserInGroup(
+      groupId: string,
+      userId: string,
+    ): Promise<
+      {
+        collectionId: string;
+        collectionName: string;
+        sharedAt: Date | null;
+      }[]
+    > {
+      return db
+        .selectFrom("collections as c")
+        .leftJoin("friendGroupCollectionShares as s", (join) =>
+          join.onRef("s.collectionId", "=", "c.id").on("s.groupId", "=", groupId),
+        )
+        .select(["c.id as collectionId", "c.name as collectionName", "s.sharedAt as sharedAt"])
+        .where("c.userId", "=", userId)
+        .orderBy("c.sortOrder", "asc")
+        .orderBy("c.name", "asc")
+        .execute();
+    },
+
+    /**
+     * Groups a given collection is currently shared with — for a passive
+     * "shared with N groups" badge on the collection page.
+     * @returns Lightweight rows: group id, slug, name.
+     */
+    groupsSharingCollection(
+      collectionId: string,
+    ): Promise<{ groupId: string; groupSlug: string; groupName: string }[]> {
+      return db
+        .selectFrom("friendGroupCollectionShares as s")
+        .innerJoin("friendGroups as g", "g.id", "s.groupId")
+        .select(["g.id as groupId", "g.slug as groupSlug", "g.name as groupName"])
+        .where("s.collectionId", "=", collectionId)
+        .orderBy("g.name", "asc")
+        .execute();
+    },
+
+    /**
+     * Idempotent share insert. The composite FK to
+     * friend_group_members(user_id, group_id) enforces "you can only share
+     * into a group you're a member of"; the composite FK to
+     * collections(id, user_id) blocks pooled collections.
+     */
+    async shareCollection(groupId: string, collectionId: string, userId: string): Promise<void> {
+      await db
+        .insertInto("friendGroupCollectionShares")
+        .values({ groupId, collectionId, userId })
+        .onConflict((oc) => oc.columns(["groupId", "collectionId"]).doNothing())
+        .execute();
+    },
+
+    /** Hard-deletes the share. */
+    async unshareCollection(groupId: string, collectionId: string): Promise<void> {
+      await db
+        .deleteFrom("friendGroupCollectionShares")
+        .where("groupId", "=", groupId)
+        .where("collectionId", "=", collectionId)
+        .execute();
+    },
+
+    /**
+     * Resolves a collection shared with a group, scoped to a viewer who must
+     * be a member of that group. Gates the read-only "browse a shared
+     * collection" view.
+     * @returns The collection, its owner's display name, and the viewer's
+     *   role in the group; `undefined` if not shared or not a member.
+     */
+    async getSharedCollection(
+      groupId: string,
+      collectionId: string,
+      viewerUserId: string,
+    ): Promise<
+      | {
+          collection: {
+            id: string;
+            userId: string;
+            name: string;
+            description: string | null;
+            sortOrder: number;
+          };
+          ownerName: string | null;
+          viewerRole: FriendGroupRole;
+        }
+      | undefined
+    > {
+      const viewerMembership = await db
+        .selectFrom("friendGroupMembers")
+        .select("role")
+        .where("groupId", "=", groupId)
+        .where("userId", "=", viewerUserId)
+        .executeTakeFirst();
+      if (!viewerMembership) {
+        return undefined;
+      }
+
+      const row = await db
+        .selectFrom("friendGroupCollectionShares as s")
+        .innerJoin("collections as c", "c.id", "s.collectionId")
+        .innerJoin("users as u", "u.id", "s.userId")
+        .select([
+          "c.id as collectionId",
+          "s.userId as ownerUserId",
+          "c.name as collectionName",
+          "c.description as collectionDescription",
+          "c.sortOrder as collectionSortOrder",
+          "u.name as ownerName",
+        ])
+        .where("s.groupId", "=", groupId)
+        .where("s.collectionId", "=", collectionId)
+        .executeTakeFirst();
+      if (!row) {
+        return undefined;
+      }
+
+      return {
+        collection: {
+          id: row.collectionId,
+          userId: row.ownerUserId,
+          name: row.collectionName,
+          description: row.collectionDescription,
+          sortOrder: row.collectionSortOrder,
+        },
+        ownerName: row.ownerName,
+        viewerRole: viewerMembership.role as FriendGroupRole,
+      };
+    },
+
+    /**
+     * Authorization helper: does the viewer have read access to this
+     * collection through any shared-with-group channel? True iff the
+     * collection is shared to at least one group the viewer belongs to.
+     *
+     * @returns True when the viewer has read access via group membership.
+     */
+    async viewerCanReadCollection(viewerUserId: string, collectionId: string): Promise<boolean> {
+      const row = await db
+        .selectFrom("friendGroupCollectionShares as s")
+        .innerJoin("friendGroupMembers as m", (join) =>
+          join.onRef("m.groupId", "=", "s.groupId").on("m.userId", "=", viewerUserId),
+        )
+        .select(sql<number>`1`.as("one"))
+        .where("s.collectionId", "=", collectionId)
+        .limit(1)
+        .executeTakeFirst();
+      return row !== undefined;
+    },
+
+    /**
+     * Collections an owner has shared with any group the viewer belongs to.
+     * Used to surface a "Collections" section on the owner's bundle page
+     * when the bundle viewer is authenticated and a fellow group member.
+     * @returns Per-collection rows annotated with the via-groups list.
+     */
+    async collectionsBundleForViewer(
+      ownerUserId: string,
+      viewerUserId: string,
+    ): Promise<
+      {
+        collectionId: string;
+        collectionName: string;
+        collectionDescription: string | null;
+        viaGroups: { id: string; slug: string; name: string }[];
+      }[]
+    > {
+      const rows = await db
+        .selectFrom("friendGroupCollectionShares as s")
+        .innerJoin("collections as c", "c.id", "s.collectionId")
+        .innerJoin("friendGroups as g", "g.id", "s.groupId")
+        .innerJoin("friendGroupMembers as m", (join) =>
+          join.onRef("m.groupId", "=", "s.groupId").on("m.userId", "=", viewerUserId),
+        )
+        .select([
+          "c.id as collectionId",
+          "c.name as collectionName",
+          "c.description as collectionDescription",
+          "g.id as groupId",
+          "g.slug as groupSlug",
+          "g.name as groupName",
+        ])
+        .where("s.userId", "=", ownerUserId)
+        .orderBy("c.sortOrder", "asc")
+        .orderBy("c.name", "asc")
+        .execute();
+
+      const byCollection = new Map<
+        string,
+        {
+          collectionId: string;
+          collectionName: string;
+          collectionDescription: string | null;
+          viaGroups: { id: string; slug: string; name: string }[];
+        }
+      >();
+      for (const row of rows) {
+        let entry = byCollection.get(row.collectionId);
+        if (!entry) {
+          entry = {
+            collectionId: row.collectionId,
+            collectionName: row.collectionName,
+            collectionDescription: row.collectionDescription,
+            viaGroups: [],
+          };
+          byCollection.set(row.collectionId, entry);
+        }
+        entry.viaGroups.push({ id: row.groupId, slug: row.groupSlug, name: row.groupName });
+      }
+      return [...byCollection.values()];
     },
   };
 }

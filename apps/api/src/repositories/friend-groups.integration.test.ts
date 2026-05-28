@@ -571,4 +571,151 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     // PRINTING_2 wasn't involved — sanity check.
     expect(rows.every((row) => row.printingId !== PRINTING_2.id)).toBe(true);
   });
+
+  // ── Collection shares ─────────────────────────────────────────────────────
+
+  async function createPersonalCollection(userId: string, name = "Test Binder") {
+    const created = await db
+      .insertInto("collections")
+      .values({
+        userId,
+        name,
+        availableForDeckbuilding: true,
+        isInbox: false,
+        sortOrder: 1,
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+    createdCollectionIds.push(created.id);
+    return created;
+  }
+
+  async function createPooledCollection(groupId: string, name = "Pooled Binder") {
+    const created = await db
+      .insertInto("collections")
+      .values({
+        groupId,
+        name,
+        availableForDeckbuilding: true,
+        isInbox: false,
+        sortOrder: 1,
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+    createdCollectionIds.push(created.id);
+    return created;
+  }
+
+  it("shareCollection inserts a row and is idempotent", async () => {
+    const group = await createGroup(VIEWER_ID);
+    const col = await createPersonalCollection(VIEWER_ID);
+    await repo.shareCollection(group.id, col.id, VIEWER_ID);
+    await repo.shareCollection(group.id, col.id, VIEWER_ID);
+    expect(await repo.collectionSharesForGroup(group.id)).toHaveLength(1);
+  });
+
+  it("unshareCollection removes the row", async () => {
+    const group = await createGroup(VIEWER_ID);
+    const col = await createPersonalCollection(VIEWER_ID);
+    await repo.shareCollection(group.id, col.id, VIEWER_ID);
+    await repo.unshareCollection(group.id, col.id);
+    expect(await repo.collectionSharesForGroup(group.id)).toHaveLength(0);
+  });
+
+  it("rejects sharing into a group the user is not a member of", async () => {
+    const group = await createGroup(VIEWER_ID);
+    const col = await createPersonalCollection(OUTSIDER_ID);
+    await expect(repo.shareCollection(group.id, col.id, OUTSIDER_ID)).rejects.toThrow();
+  });
+
+  it("rejects sharing a pooled (group-owned) collection", async () => {
+    const group = await createGroup(VIEWER_ID);
+    const pooled = await createPooledCollection(group.id);
+    // The share row's user_id is NOT NULL, but the pooled collection has
+    // user_id IS NULL — composite FK to collections(id, user_id) blocks it.
+    await expect(repo.shareCollection(group.id, pooled.id, VIEWER_ID)).rejects.toThrow();
+  });
+
+  it("rejects sharing another user's collection (FK enforces ownership match)", async () => {
+    const group = await createGroup(VIEWER_ID);
+    await repo.addMember(group.id, SELLER_ID, "member");
+    const col = await createPersonalCollection(SELLER_ID);
+    // VIEWER tries to claim ownership of SELLER's collection via the share.
+    await expect(repo.shareCollection(group.id, col.id, VIEWER_ID)).rejects.toThrow();
+  });
+
+  it("leave-cascade drops the user's collection-shares for that group", async () => {
+    const group = await createGroup(VIEWER_ID);
+    await repo.addMember(group.id, SELLER_ID, "member");
+    const col = await createPersonalCollection(SELLER_ID);
+    await repo.shareCollection(group.id, col.id, SELLER_ID);
+    expect(await repo.collectionSharesForGroup(group.id)).toHaveLength(1);
+
+    await repo.removeMember(group.id, SELLER_ID);
+    expect(await repo.collectionSharesForGroup(group.id)).toHaveLength(0);
+  });
+
+  it("collectionShareableForUserInGroup returns the user's collections with shared flag", async () => {
+    const group = await createGroup(VIEWER_ID);
+    const colA = await createPersonalCollection(VIEWER_ID, "Binder A");
+    const colB = await createPersonalCollection(VIEWER_ID, "Binder B");
+    await repo.shareCollection(group.id, colA.id, VIEWER_ID);
+
+    const rows = await repo.collectionShareableForUserInGroup(group.id, VIEWER_ID);
+    const byId = new Map(rows.map((row) => [row.collectionId, row]));
+    expect(byId.get(colA.id)?.sharedAt).toBeInstanceOf(Date);
+    expect(byId.get(colB.id)?.sharedAt).toBeNull();
+  });
+
+  it("groupsSharingCollection returns each group the collection is in", async () => {
+    const groupA = await createGroup(VIEWER_ID);
+    const groupB = await createGroup(VIEWER_ID);
+    const col = await createPersonalCollection(VIEWER_ID);
+    await repo.shareCollection(groupA.id, col.id, VIEWER_ID);
+    await repo.shareCollection(groupB.id, col.id, VIEWER_ID);
+
+    const groups = await repo.groupsSharingCollection(col.id);
+    const ids = new Set(groups.map((g) => g.groupId));
+    expect(ids.has(groupA.id)).toBe(true);
+    expect(ids.has(groupB.id)).toBe(true);
+  });
+
+  it("viewerCanReadCollection: true via shared group, false without membership", async () => {
+    const group = await createGroup(VIEWER_ID);
+    await repo.addMember(group.id, SELLER_ID, "member");
+    const col = await createPersonalCollection(VIEWER_ID);
+    await repo.shareCollection(group.id, col.id, VIEWER_ID);
+
+    expect(await repo.viewerCanReadCollection(SELLER_ID, col.id)).toBe(true);
+    expect(await repo.viewerCanReadCollection(OUTSIDER_ID, col.id)).toBe(false);
+  });
+
+  it("getSharedCollection returns owner info when viewer is a member, undefined otherwise", async () => {
+    const group = await createGroup(VIEWER_ID);
+    await repo.addMember(group.id, SELLER_ID, "member");
+    const col = await createPersonalCollection(VIEWER_ID, "Viewer's binder");
+    await repo.shareCollection(group.id, col.id, VIEWER_ID);
+
+    const seenByMember = await repo.getSharedCollection(group.id, col.id, SELLER_ID);
+    expect(seenByMember?.collection.id).toBe(col.id);
+    expect(seenByMember?.collection.name).toBe("Viewer's binder");
+
+    const seenByOutsider = await repo.getSharedCollection(group.id, col.id, OUTSIDER_ID);
+    expect(seenByOutsider).toBeUndefined();
+  });
+
+  it("collectionsBundleForViewer groups multiple via-groups under one collection", async () => {
+    const groupA = await createGroup(VIEWER_ID);
+    const groupB = await createGroup(VIEWER_ID);
+    await repo.addMember(groupA.id, SELLER_ID, "member");
+    await repo.addMember(groupB.id, SELLER_ID, "member");
+    const col = await createPersonalCollection(VIEWER_ID, "Bundle binder");
+    await repo.shareCollection(groupA.id, col.id, VIEWER_ID);
+    await repo.shareCollection(groupB.id, col.id, VIEWER_ID);
+
+    const bundle = await repo.collectionsBundleForViewer(VIEWER_ID, SELLER_ID);
+    const entry = bundle.find((b) => b.collectionId === col.id);
+    expect(entry).toBeDefined();
+    expect(entry?.viaGroups.map((g) => g.id).sort()).toEqual([groupA.id, groupB.id].sort());
+  });
 });

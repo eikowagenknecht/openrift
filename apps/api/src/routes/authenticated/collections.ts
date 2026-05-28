@@ -1,6 +1,7 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { CollectionListResponse, CopyListResponse } from "@openrift/shared";
 import {
+  collectionGroupSharesResponseSchema,
   collectionListResponseSchema,
   collectionResponseSchema,
   collectionShareResponseSchema,
@@ -134,6 +135,19 @@ const unshareCollection = createRoute({
   request: { params: idParamSchema },
   responses: {
     204: { description: "No Content" },
+  },
+});
+
+const collectionGroupShares = createRoute({
+  method: "get",
+  path: "/{id}/group-shares",
+  tags: ["Collections"],
+  request: { params: idParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: collectionGroupSharesResponseSchema } },
+      description: "Groups this collection is shared with",
+    },
   },
 });
 
@@ -337,4 +351,22 @@ export const collectionsRoute = collectionsApp
     assertFound(updated, "Not found");
 
     return c.body(null, 204);
+  })
+
+  // ── GET /collections/:id/group-shares ─────────────────────────────────────
+  // "Shared with N groups" badge on the collection page. Scoped to personal
+  // collections the viewer owns; non-owned/pooled collections 404.
+  .openapi(collectionGroupShares, async (c) => {
+    const { collections, friendGroups } = c.get("repos");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+
+    const access = await collections.getAccessForUser(id, userId);
+    assertFound(access, "Not found");
+    if (access.collection.userId !== userId) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Collection not found");
+    }
+
+    const items = await friendGroups.groupsSharingCollection(id);
+    return c.json({ items });
   });

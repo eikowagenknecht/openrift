@@ -60,14 +60,21 @@ publicUserShareApp.use("/users/share/*", loadSession);
 export const publicUserShareRoute = publicUserShareApp
   // ── GET /users/share/:token ─────────────────────────────────────────────
   .openapi(getUserBundle, async (c) => {
-    const { userShares } = c.get("repos");
+    const { userShares, friendGroups } = c.get("repos");
     const { token } = c.req.valid("param");
     const viewerUserId = c.get("user")?.id ?? null;
 
     const owner = await userShares.findOwnerByShareToken(token);
     assertFound(owner, "Not found");
 
-    const lists = await userShares.listsForOwner(owner.userId, viewerUserId);
+    const [lists, collections] = await Promise.all([
+      userShares.listsForOwner(owner.userId, viewerUserId),
+      // Group-shared collections only appear for authenticated viewers who
+      // share at least one friend group with the owner.
+      viewerUserId
+        ? friendGroups.collectionsBundleForViewer(owner.userId, viewerUserId)
+        : Promise.resolve([]),
+    ]);
 
     const response: PublicUserBundleResponse = {
       owner: {
@@ -84,6 +91,12 @@ export const publicUserShareRoute = publicUserShareApp
         viaGroups,
         createdAt: list.createdAt.toISOString(),
         updatedAt: list.updatedAt.toISOString(),
+      })),
+      collections: collections.map((col) => ({
+        id: col.collectionId,
+        name: col.collectionName,
+        description: col.collectionDescription,
+        viaGroups: col.viaGroups,
       })),
     };
 

@@ -11,6 +11,19 @@ vi.mock("@/hooks/use-collections", () => ({
   useUnshareCollection: () => ({ mutate: unshareMutate, isPending: false }),
 }));
 
+// Friend-group sharing is exercised at the route level; here we just stub the
+// hooks so the dialog renders without a QueryClientProvider. An empty groups
+// list short-circuits the new "Share with friend groups" section.
+vi.mock("@/hooks/use-friend-groups", () => ({
+  useFriendGroups: () => ({ data: { items: [], pendingInvites: [] } }),
+  useShareCollectionWithFriendGroup: () => ({ mutate: vi.fn(), isPending: false }),
+  useUnshareCollectionFromFriendGroup: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
+vi.mock("@/hooks/use-collection-group-shares", () => ({
+  useCollectionGroupShares: () => ({ data: { items: [] } }),
+}));
+
 vi.mock("@/lib/site-config", () => ({
   getSiteUrl: () => "https://openrift.test",
 }));

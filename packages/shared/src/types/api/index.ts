@@ -111,6 +111,7 @@ export {
 
 export type {
   PublicUserBundleListResponse,
+  PublicUserBundleCollectionResponse,
   PublicUserBundleResponse,
   UserShareStateResponse,
 } from "./user-share.js";
@@ -133,10 +134,15 @@ export type {
   FriendGroupShareResponse,
   FriendGroupShareableListResponse,
   FriendGroupShareableListsResponse,
+  FriendGroupShareableCollectionResponse,
+  FriendGroupShareableCollectionsResponse,
   FriendGroupSharedListDetailResponse,
+  FriendGroupSharedCollectionDetailResponse,
+  FriendGroupCollectionShareResponse,
   FriendGroupSummaryResponse,
   FriendGroupViewerStatus,
   ListGroupSharesResponse,
+  CollectionGroupSharesResponse,
 } from "./friend-group.js";
 
 export type {

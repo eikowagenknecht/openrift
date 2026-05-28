@@ -1,4 +1,5 @@
 import {
+  BookOpenIcon,
   CrownIcon,
   FolderIcon,
   HandshakeIcon,
@@ -20,8 +21,8 @@ export default function GroupsArticle() {
       <p className="text-muted-foreground">
         A group is a small, closed circle of OpenRift users, like a regular playgroup, your locals,
         or a Discord trade channel. Inside a group, members share wishlists and tradelists with each
-        other, pool cards into shared collections, and see matches when one member&apos;s wants
-        overlap with another&apos;s haves.
+        other, pool cards into group collections, share their personal binders for others to peek
+        at, and see matches when one member&apos;s wants overlap with another&apos;s haves.
       </p>
 
       {/* Anatomy diagram */}
@@ -36,9 +37,13 @@ export default function GroupsArticle() {
               Admin
             </span>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
             <SectionChip icon={<HandshakeIcon className="size-3.5" />} label="Matches" />
-            <SectionChip icon={<FolderIcon className="size-3.5" />} label="Shared collections" />
+            <SectionChip icon={<FolderIcon className="size-3.5" />} label="Group collections" />
+            <SectionChip
+              icon={<BookOpenIcon className="size-3.5" />}
+              label="Personal collections"
+            />
             <SectionChip icon={<UsersIcon className="size-3.5" />} label="Members" />
             <SectionChip icon={<KeyIcon className="size-3.5" />} label="Settings" />
           </div>
@@ -187,16 +192,16 @@ export default function GroupsArticle() {
         </p>
       </section>
 
-      {/* Shared collections */}
+      {/* Group collections */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Shared collections</h2>
+        <h2 className="mb-2 text-lg font-semibold">Group collections</h2>
         <p className="text-muted-foreground">
-          A shared collection is a pooled inventory that any member of the group can add to or
-          remove from. It&apos;s useful for a club cube, a draft pool, or a binder you run together
-          with friends.
+          A group collection is a pooled inventory that any member of the group can add to or remove
+          from. It&apos;s useful for a club cube, a draft pool, or a binder you run together with
+          friends.
         </p>
         <p className="text-muted-foreground mt-2">
-          Shared collections appear in your own collection sidebar alongside your private
+          Group collections appear in your own collection sidebar alongside your private
           collections, with a group badge so you can tell them apart. They behave the same way as
           any other collection: cards can be moved in and out, filtered, searched, and printed as
           proxies. See{" "}
@@ -204,6 +209,24 @@ export default function GroupsArticle() {
             Managing Your Collection
           </a>{" "}
           for the details.
+        </p>
+      </section>
+
+      {/* Personal collections shared with the group */}
+      <section>
+        <h2 className="mb-2 text-lg font-semibold">Personal collections</h2>
+        <p className="text-muted-foreground">
+          You can also let group members peek at one of your own personal binders without giving up
+          control. Open a collection&apos;s share dialog and tick the groups you want to share it
+          with under <strong className="text-foreground">Share with friend groups</strong>. Members
+          see a read-only view of the cards, just like an anonymous share link, but only while
+          they&apos;re signed in and a member of the group.
+        </p>
+        <p className="text-muted-foreground mt-2">
+          On the group page, every shared personal binder is listed under{" "}
+          <strong className="text-foreground">Personal collections</strong>, subgrouped by owner.
+          Click one to open its read-only browser. Leaving the group, or unticking the group in the
+          share dialog, immediately revokes access.
         </p>
       </section>
 

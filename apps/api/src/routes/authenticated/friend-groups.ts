@@ -1,5 +1,6 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type {
+  FriendGroupCollectionShareResponse,
   FriendGroupDetailResponse,
   FriendGroupJoinPreviewResponse,
   FriendGroupListResponse,
@@ -11,7 +12,9 @@ import type {
   FriendGroupResponse,
   FriendGroupRole,
   FriendGroupShareResponse,
+  FriendGroupShareableCollectionsResponse,
   FriendGroupShareableListsResponse,
+  FriendGroupSharedCollectionDetailResponse,
   FriendGroupSharedListDetailResponse,
   FriendGroupSummaryResponse,
   ListIntent,
@@ -26,7 +29,9 @@ import {
   friendGroupMemberResponseSchema,
   friendGroupPendingInvitesCountResponseSchema,
   friendGroupResponseSchema,
+  friendGroupShareableCollectionsResponseSchema,
   friendGroupShareableListsResponseSchema,
+  friendGroupSharedCollectionDetailResponseSchema,
   friendGroupSharedListDetailResponseSchema,
 } from "@openrift/shared/response-schemas";
 import {
@@ -34,7 +39,9 @@ import {
   friendGroupCodeQuerySchema,
   friendGroupInviteByEmailSchema,
   friendGroupJoinByCodeSchema,
+  friendGroupShareCollectionSchema,
   friendGroupShareListSchema,
+  friendGroupSlugAndCollectionIdParamSchema,
   friendGroupSlugAndListIdParamSchema,
   friendGroupSlugAndUserParamSchema,
   friendGroupSlugParamSchema,
@@ -52,6 +59,7 @@ import { requireAuth } from "../../middleware/require-auth.js";
 import type { Group, GroupMember, MemberWithUser } from "../../repositories/friend-groups.js";
 import type { Variables } from "../../types.js";
 import { toListEntryDetail } from "../../utils/mappers.js";
+import { getFavoriteMarketplace } from "../../utils/preferences.js";
 import { generateShareToken } from "../../utils/share-token.js";
 
 // ─── Authz helpers ──────────────────────────────────────────────────────────
@@ -137,6 +145,26 @@ function toShare(row: ShareRow): FriendGroupShareResponse {
     listIntent: row.listIntent as FriendGroupShareResponse["listIntent"],
     listKind: row.listKind as FriendGroupShareResponse["listKind"],
     entryCount: row.entryCount,
+    userId: row.userId,
+    userName: row.userName,
+    sharedAt: row.sharedAt.toISOString(),
+  };
+}
+
+interface CollectionShareRow {
+  groupId: string;
+  collectionId: string;
+  userId: string;
+  sharedAt: Date;
+  collectionName: string;
+  userName: string | null;
+}
+
+function toCollectionShare(row: CollectionShareRow): FriendGroupCollectionShareResponse {
+  return {
+    groupId: row.groupId,
+    collectionId: row.collectionId,
+    collectionName: row.collectionName,
     userId: row.userId,
     userName: row.userName,
     sharedAt: row.sharedAt.toISOString(),
@@ -444,6 +472,54 @@ const unshareList = createRoute({
   responses: { 204: { description: "No Content" } },
 });
 
+const shareableCollections = createRoute({
+  method: "get",
+  path: "/friend-groups/{slug}/shareable-collections",
+  tags: ["FriendGroups"],
+  request: { params: friendGroupSlugParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: friendGroupShareableCollectionsResponseSchema } },
+      description: "Success",
+    },
+  },
+});
+
+const shareCollection = createRoute({
+  method: "post",
+  path: "/friend-groups/{slug}/collections",
+  tags: ["FriendGroups"],
+  request: {
+    params: friendGroupSlugParamSchema,
+    body: {
+      content: { "application/json": { schema: friendGroupShareCollectionSchema } },
+      required: true,
+    },
+  },
+  responses: { 204: { description: "No Content" } },
+});
+
+const unshareCollection = createRoute({
+  method: "delete",
+  path: "/friend-groups/{slug}/collections/{collectionId}",
+  tags: ["FriendGroups"],
+  request: { params: friendGroupSlugAndCollectionIdParamSchema },
+  responses: { 204: { description: "No Content" } },
+});
+
+const getSharedCollection = createRoute({
+  method: "get",
+  path: "/friend-groups/{slug}/collections/{collectionId}",
+  tags: ["FriendGroups"],
+  request: { params: friendGroupSlugAndCollectionIdParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: friendGroupSharedCollectionDetailResponseSchema } },
+      description: "Success",
+    },
+  },
+});
+
 const getMatches = createRoute({
   method: "get",
   path: "/friend-groups/{slug}/matches",
@@ -626,6 +702,7 @@ export const friendGroupsRoute = friendGroupsApp
         viewerRole: null,
         members: [],
         shares: [],
+        collectionShares: [],
         pendingRequests: [],
       };
       return c.json(response);
@@ -636,9 +713,10 @@ export const friendGroupsRoute = friendGroupsApp
     }
 
     const isAdmin = membership.role === "owner" || membership.role === "admin";
-    const [members, shares, pendingRequests] = await Promise.all([
+    const [members, shares, collectionShares, pendingRequests] = await Promise.all([
       friendGroups.listMembers(group.id),
       friendGroups.listSharesForGroup(group.id),
+      friendGroups.collectionSharesForGroup(group.id),
       isAdmin ? friendGroups.listRequestsForGroup(group.id) : Promise.resolve([]),
     ]);
 
@@ -648,6 +726,7 @@ export const friendGroupsRoute = friendGroupsApp
       viewerRole: membership.role,
       members: members.map((row) => toMember(row)),
       shares: shares.map((row) => toShare(row)),
+      collectionShares: collectionShares.map((row) => toCollectionShare(row)),
       pendingRequests: pendingRequests.map((row) => toRequest(row)),
     };
     return c.json(response);
@@ -1090,8 +1169,14 @@ export const friendGroupsRoute = friendGroupsApp
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Member not found");
     }
 
-    const allShares = await friendGroups.listSharesForGroup(ctx.group.id);
+    const [allShares, allCollectionShares] = await Promise.all([
+      friendGroups.listSharesForGroup(ctx.group.id),
+      friendGroups.collectionSharesForGroup(ctx.group.id),
+    ]);
     const memberShares = allShares.filter((share) => share.userId === counterpartyUserId);
+    const memberCollectionShares = allCollectionShares.filter(
+      (share) => share.userId === counterpartyUserId,
+    );
 
     const [matches, reverseMatches] = await Promise.all([
       friendGroupMatches.othersHaveYourWants({
@@ -1109,8 +1194,110 @@ export const friendGroupsRoute = friendGroupsApp
     const response: FriendGroupMemberDetailResponse = {
       member: toMember(counterparty),
       shares: memberShares.map((row) => toShare(row)),
+      collectionShares: memberCollectionShares.map((row) => toCollectionShare(row)),
       matches,
       reverseMatches,
+    };
+    return c.json(response);
+  })
+
+  // ── SHAREABLE COLLECTIONS (viewer's own) ────────────────────────────────
+  .openapi(shareableCollections, async (c) => {
+    const viewerId = getUserId(c);
+    const { friendGroups } = c.get("repos");
+    const { slug } = c.req.valid("param");
+
+    const ctx = await loadGroupForMember(c.get("repos"), slug, viewerId);
+
+    const rows = await friendGroups.collectionShareableForUserInGroup(ctx.group.id, viewerId);
+    const response: FriendGroupShareableCollectionsResponse = {
+      items: rows.map((row) => ({
+        collectionId: row.collectionId,
+        collectionName: row.collectionName,
+        sharedAt: row.sharedAt ? row.sharedAt.toISOString() : null,
+      })),
+    };
+    return c.json(response);
+  })
+
+  // ── SHARE A COLLECTION (self only) ──────────────────────────────────────
+  .openapi(shareCollection, async (c) => {
+    const viewerId = getUserId(c);
+    const { friendGroups, collections } = c.get("repos");
+    const { slug } = c.req.valid("param");
+    const { collectionId } = c.req.valid("json");
+
+    const ctx = await loadGroupForMember(c.get("repos"), slug, viewerId);
+
+    // Confirm viewer owns this personal collection. Pooled collections will
+    // be rejected by the composite FK anyway, but a 404 here is clearer than
+    // a 500 from the DB.
+    const access = await collections.getAccessForUser(collectionId, viewerId);
+    if (!access || access.collection.userId !== viewerId) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Collection not found or not yours to share");
+    }
+
+    await friendGroups.shareCollection(ctx.group.id, collectionId, viewerId);
+    return c.body(null, 204);
+  })
+
+  // ── UNSHARE A COLLECTION (self only) ────────────────────────────────────
+  .openapi(unshareCollection, async (c) => {
+    const viewerId = getUserId(c);
+    const { friendGroups, collections } = c.get("repos");
+    const { slug, collectionId } = c.req.valid("param");
+
+    const ctx = await loadGroupForMember(c.get("repos"), slug, viewerId);
+
+    const access = await collections.getAccessForUser(collectionId, viewerId);
+    if (!access || access.collection.userId !== viewerId) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Collection not found");
+    }
+
+    await friendGroups.unshareCollection(ctx.group.id, collectionId);
+    return c.body(null, 204);
+  })
+
+  // ── SHARED COLLECTION DETAIL (browsable by any group member) ────────────
+  .openapi(getSharedCollection, async (c) => {
+    const viewerId = getUserId(c);
+    const repos = c.get("repos");
+    const { friendGroups, copies, marketplace } = repos;
+    const { slug, collectionId } = c.req.valid("param");
+
+    const group = await friendGroups.getBySlug(slug);
+    if (!group) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Group not found");
+    }
+
+    const shared = await friendGroups.getSharedCollection(group.id, collectionId, viewerId);
+    if (!shared) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Collection not shared with this group");
+    }
+
+    // Value uses the owner's favorite marketplace, matching what the owner
+    // sees and what the public-share-token page does.
+    const favMarketplace = await getFavoriteMarketplace(repos, shared.collection.userId);
+    const value = await marketplace.singleCollectionValue(collectionId, favMarketplace);
+    const copyRows = await copies.listForCollection(collectionId, 10_000);
+
+    const response: FriendGroupSharedCollectionDetailResponse = {
+      collection: {
+        id: shared.collection.id,
+        name: shared.collection.name,
+        description: shared.collection.description,
+        copyCount: copyRows.length,
+        totalValueCents: value?.totalValueCents ?? null,
+        unpricedCopyCount: value?.unpricedCopyCount ?? null,
+        ownerUserId: shared.collection.userId,
+        ownerName: shared.ownerName,
+      },
+      copies: copyRows.map((row) => ({
+        id: row.id,
+        printingId: row.printingId,
+        collectionId: row.collectionId,
+      })),
+      viewerRole: shared.viewerRole,
     };
     return c.json(response);
   });

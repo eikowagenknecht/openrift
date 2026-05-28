@@ -7,7 +7,9 @@ import type {
   FriendGroupMemberResponse,
   FriendGroupPendingInvitesCountResponse,
   FriendGroupResponse,
+  FriendGroupShareableCollectionsResponse,
   FriendGroupShareableListsResponse,
+  FriendGroupSharedCollectionDetailResponse,
   FriendGroupSharedListDetailResponse,
 } from "@openrift/shared";
 import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
@@ -127,6 +129,34 @@ const fetchSharedList = createServerFn({ method: "GET" })
     return res.json() as Promise<FriendGroupSharedListDetailResponse>;
   });
 
+const fetchShareableCollections = createServerFn({ method: "GET" })
+  .inputValidator((input: string) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data: slug }): Promise<FriendGroupShareableCollectionsResponse> =>
+      fetchApiJson<FriendGroupShareableCollectionsResponse>({
+        errorTitle: "Couldn't load collections",
+        cookie: context.cookie,
+        path: `/api/v1/friend-groups/${encodeURIComponent(slug)}/shareable-collections`,
+      }),
+  );
+
+const fetchSharedCollection = createServerFn({ method: "GET" })
+  .inputValidator((input: { slug: string; collectionId: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }): Promise<FriendGroupSharedCollectionDetailResponse> => {
+    const res = await fetchApi({
+      errorTitle: "Couldn't load collection",
+      cookie: context.cookie,
+      path: `/api/v1/friend-groups/${encodeURIComponent(data.slug)}/collections/${encodeURIComponent(data.collectionId)}`,
+      acceptStatuses: [404],
+    });
+    if (res.status === 404) {
+      throw new Error("NOT_FOUND");
+    }
+    return res.json() as Promise<FriendGroupSharedCollectionDetailResponse>;
+  });
+
 // ── Hooks ───────────────────────────────────────────────────────────────────
 
 export function friendGroupsQueryOptions(userId: string) {
@@ -204,6 +234,32 @@ export function useFriendGroupShareableLists(slug: string) {
       queryFn: () => fetchShareableLists({ data: slug }),
     }),
   );
+}
+
+export function useFriendGroupShareableCollections(slug: string) {
+  const userId = useRequiredUserId();
+  return useSuspenseQuery(
+    queryOptions({
+      queryKey: queryKeys.friendGroups.shareableCollections(userId, slug),
+      queryFn: () => fetchShareableCollections({ data: slug }),
+    }),
+  );
+}
+
+function friendGroupSharedCollectionQueryOptions(
+  userId: string,
+  slug: string,
+  collectionId: string,
+) {
+  return queryOptions({
+    queryKey: queryKeys.friendGroups.sharedCollection(userId, slug, collectionId),
+    queryFn: () => fetchSharedCollection({ data: { slug, collectionId } }),
+  });
+}
+
+export function useFriendGroupSharedCollection(slug: string, collectionId: string) {
+  const userId = useRequiredUserId();
+  return useSuspenseQuery(friendGroupSharedCollectionQueryOptions(userId, slug, collectionId));
 }
 
 /**
@@ -442,6 +498,31 @@ const unshareListFn = createServerFn({ method: "POST" })
     });
   });
 
+const shareCollectionFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { slug: string; collectionId: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    await fetchApi({
+      errorTitle: "Couldn't share collection",
+      cookie: context.cookie,
+      path: `/api/v1/friend-groups/${encodeURIComponent(data.slug)}/collections`,
+      method: "POST",
+      body: { collectionId: data.collectionId },
+    });
+  });
+
+const unshareCollectionFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { slug: string; collectionId: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    await fetchApi({
+      errorTitle: "Couldn't unshare collection",
+      cookie: context.cookie,
+      path: `/api/v1/friend-groups/${encodeURIComponent(data.slug)}/collections/${encodeURIComponent(data.collectionId)}`,
+      method: "DELETE",
+    });
+  });
+
 // ── Mutation hooks ──────────────────────────────────────────────────────────
 
 export function useCreateFriendGroup() {
@@ -618,6 +699,30 @@ export function useUnshareListFromFriendGroup() {
       queryKeys.friendGroups.shareableLists(userId, variables.slug),
       queryKeys.friendGroups.matches(userId, variables.slug),
       queryKeys.lists.groupShares(userId, variables.listId),
+    ],
+  });
+}
+
+export function useShareCollectionWithFriendGroup() {
+  const userId = useRequiredUserId();
+  return useMutationWithInvalidation<unknown, { slug: string; collectionId: string }>({
+    mutationFn: (data) => shareCollectionFn({ data }),
+    invalidates: (variables) => [
+      queryKeys.friendGroups.detail(userId, variables.slug),
+      queryKeys.friendGroups.shareableCollections(userId, variables.slug),
+      queryKeys.collections.groupShares(userId, variables.collectionId),
+    ],
+  });
+}
+
+export function useUnshareCollectionFromFriendGroup() {
+  const userId = useRequiredUserId();
+  return useMutationWithInvalidation<unknown, { slug: string; collectionId: string }>({
+    mutationFn: (data) => unshareCollectionFn({ data }),
+    invalidates: (variables) => [
+      queryKeys.friendGroups.detail(userId, variables.slug),
+      queryKeys.friendGroups.shareableCollections(userId, variables.slug),
+      queryKeys.collections.groupShares(userId, variables.collectionId),
     ],
   });
 }

@@ -8,6 +8,7 @@ const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const OTHER_ID = "a0000000-0002-4000-a000-000000000001";
 const GROUP_ID = "00000000-0000-4000-a000-000000000001";
 const LIST_ID = "00000000-0000-4000-a000-000000000010";
+const COLLECTION_ID = "00000000-0000-4000-a000-000000000020";
 
 const now = new Date("2026-05-19T00:00:00Z");
 
@@ -43,6 +44,10 @@ function makeApp(overrides: {
   friendGroups?: Record<string, unknown>;
   friendGroupMatches?: Record<string, unknown>;
   lists?: Record<string, unknown>;
+  collections?: Record<string, unknown>;
+  copies?: Record<string, unknown>;
+  marketplace?: Record<string, unknown>;
+  userPreferences?: Record<string, unknown>;
   users?: Record<string, unknown>;
   user?: { id: string };
 }) {
@@ -73,6 +78,14 @@ function makeApp(overrides: {
     listGroupsSharingList: vi.fn(() => Promise.resolve([])),
     share: vi.fn(),
     unshare: vi.fn(),
+    collectionSharesForGroup: vi.fn(() => Promise.resolve([])),
+    collectionShareableForUserInGroup: vi.fn(() => Promise.resolve([])),
+    groupsSharingCollection: vi.fn(() => Promise.resolve([])),
+    shareCollection: vi.fn(),
+    unshareCollection: vi.fn(),
+    getSharedCollection: vi.fn(),
+    viewerCanReadCollection: vi.fn(),
+    collectionsBundleForViewer: vi.fn(() => Promise.resolve([])),
     ...overrides.friendGroups,
   };
   const friendGroupMatches = {
@@ -84,6 +97,22 @@ function makeApp(overrides: {
     getByIdForUser: vi.fn(),
     ...overrides.lists,
   };
+  const collections = {
+    getAccessForUser: vi.fn(),
+    ...overrides.collections,
+  };
+  const copies = {
+    listForCollection: vi.fn(() => Promise.resolve([])),
+    ...overrides.copies,
+  };
+  const marketplace = {
+    singleCollectionValue: vi.fn(() => Promise.resolve(undefined)),
+    ...overrides.marketplace,
+  };
+  const userPreferences = {
+    getByUserId: vi.fn(() => Promise.resolve(undefined)),
+    ...overrides.userPreferences,
+  };
   const users = {
     getByEmail: vi.fn(),
     ...overrides.users,
@@ -92,7 +121,16 @@ function makeApp(overrides: {
   const app = new Hono()
     .use("*", async (c, next) => {
       c.set("user", overrides.user ?? { id: USER_ID });
-      c.set("repos", { friendGroups, friendGroupMatches, lists, users } as never);
+      c.set("repos", {
+        friendGroups,
+        friendGroupMatches,
+        lists,
+        collections,
+        copies,
+        marketplace,
+        userPreferences,
+        users,
+      } as never);
       await next();
     })
     .route("/api/v1", friendGroupsRoute)
@@ -103,7 +141,17 @@ function makeApp(overrides: {
       throw err;
     });
 
-  return { app, friendGroups, friendGroupMatches, lists, users };
+  return {
+    app,
+    friendGroups,
+    friendGroupMatches,
+    lists,
+    collections,
+    copies,
+    marketplace,
+    userPreferences,
+    users,
+  };
 }
 
 describe("friend-groups route", () => {
@@ -482,6 +530,162 @@ describe("friend-groups route", () => {
       body: JSON.stringify({ listId: LIST_ID }),
     });
     expect(res.status).toBe(404);
+  });
+
+  // ── Collection shares ───────────────────────────────────────────────────
+  it("POST /{slug}/collections shares a personal collection the viewer owns", async () => {
+    const shareCollection = vi.fn(() => Promise.resolve());
+    const { app } = makeApp({
+      friendGroups: {
+        getBySlug: vi.fn(() => Promise.resolve(group)),
+        getMembership: vi.fn(() => Promise.resolve(memberMembership)),
+        shareCollection,
+      },
+      collections: {
+        getAccessForUser: vi.fn(() =>
+          Promise.resolve({
+            collection: { id: COLLECTION_ID, userId: USER_ID },
+            viewerCanAdmin: true,
+          }),
+        ),
+      },
+    });
+    const res = await app.request("/api/v1/friend-groups/playgroup/collections", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ collectionId: COLLECTION_ID }),
+    });
+    expect(res.status).toBe(204);
+    expect(shareCollection).toHaveBeenCalledWith(GROUP_ID, COLLECTION_ID, USER_ID);
+  });
+
+  it("POST /{slug}/collections rejects sharing a pooled (group-owned) collection with 404", async () => {
+    const { app } = makeApp({
+      friendGroups: {
+        getBySlug: vi.fn(() => Promise.resolve(group)),
+        getMembership: vi.fn(() => Promise.resolve(memberMembership)),
+      },
+      // Pooled collection has userId: null, so the ownership check rejects it.
+      collections: {
+        getAccessForUser: vi.fn(() =>
+          Promise.resolve({
+            collection: { id: COLLECTION_ID, userId: null },
+            viewerCanAdmin: true,
+          }),
+        ),
+      },
+    });
+    const res = await app.request("/api/v1/friend-groups/playgroup/collections", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ collectionId: COLLECTION_ID }),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it("POST /{slug}/collections rejects sharing someone else's collection with 404", async () => {
+    const { app } = makeApp({
+      friendGroups: {
+        getBySlug: vi.fn(() => Promise.resolve(group)),
+        getMembership: vi.fn(() => Promise.resolve(memberMembership)),
+      },
+      collections: {
+        getAccessForUser: vi.fn(() =>
+          Promise.resolve({
+            collection: { id: COLLECTION_ID, userId: OTHER_ID },
+            viewerCanAdmin: false,
+          }),
+        ),
+      },
+    });
+    const res = await app.request("/api/v1/friend-groups/playgroup/collections", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ collectionId: COLLECTION_ID }),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it("DELETE /{slug}/collections/{id} unshares a collection the viewer owns", async () => {
+    const unshareCollection = vi.fn(() => Promise.resolve());
+    const { app } = makeApp({
+      friendGroups: {
+        getBySlug: vi.fn(() => Promise.resolve(group)),
+        getMembership: vi.fn(() => Promise.resolve(memberMembership)),
+        unshareCollection,
+      },
+      collections: {
+        getAccessForUser: vi.fn(() =>
+          Promise.resolve({
+            collection: { id: COLLECTION_ID, userId: USER_ID },
+            viewerCanAdmin: true,
+          }),
+        ),
+      },
+    });
+    const res = await app.request(`/api/v1/friend-groups/playgroup/collections/${COLLECTION_ID}`, {
+      method: "DELETE",
+    });
+    expect(res.status).toBe(204);
+    expect(unshareCollection).toHaveBeenCalledWith(GROUP_ID, COLLECTION_ID);
+  });
+
+  it("GET /{slug}/collections/{id} returns the shared collection when viewer is a member", async () => {
+    const { app } = makeApp({
+      friendGroups: {
+        getBySlug: vi.fn(() => Promise.resolve(group)),
+        getSharedCollection: vi.fn(() =>
+          Promise.resolve({
+            collection: {
+              id: COLLECTION_ID,
+              userId: OTHER_ID,
+              name: "Friend's Binder",
+              description: null,
+              sortOrder: 0,
+            },
+            ownerName: "Friend",
+            viewerRole: "member",
+          }),
+        ),
+      },
+    });
+    const res = await app.request(`/api/v1/friend-groups/playgroup/collections/${COLLECTION_ID}`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { collection: { name: string }; viewerRole: string };
+    expect(body.collection.name).toBe("Friend's Binder");
+    expect(body.viewerRole).toBe("member");
+  });
+
+  it("GET /{slug}/collections/{id} returns 404 when viewer is not a group member", async () => {
+    const { app } = makeApp({
+      friendGroups: {
+        getBySlug: vi.fn(() => Promise.resolve(group)),
+        getSharedCollection: vi.fn(() => Promise.resolve(undefined)),
+      },
+    });
+    const res = await app.request(`/api/v1/friend-groups/playgroup/collections/${COLLECTION_ID}`);
+    expect(res.status).toBe(404);
+  });
+
+  it("GET /{slug}/shareable-collections returns the viewer's collections", async () => {
+    const { app } = makeApp({
+      friendGroups: {
+        getBySlug: vi.fn(() => Promise.resolve(group)),
+        getMembership: vi.fn(() => Promise.resolve(memberMembership)),
+        collectionShareableForUserInGroup: vi.fn(() =>
+          Promise.resolve([
+            { collectionId: COLLECTION_ID, collectionName: "Binder A", sharedAt: now },
+            { collectionId: "other-col", collectionName: "Binder B", sharedAt: null },
+          ]),
+        ),
+      },
+    });
+    const res = await app.request("/api/v1/friend-groups/playgroup/shareable-collections");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { items: { sharedAt: string | null }[] };
+    expect(body.items).toHaveLength(2);
+    expect(body.items[0]?.sharedAt).toBe(now.toISOString());
+    expect(body.items[1]?.sharedAt).toBeNull();
   });
 
   // ── Match view ──────────────────────────────────────────────────────────

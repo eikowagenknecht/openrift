@@ -381,6 +381,10 @@ export const friendGroupShareListSchema = z.object({
   listId: z.uuid(),
 });
 
+export const friendGroupShareCollectionSchema = z.object({
+  collectionId: z.uuid(),
+});
+
 export const friendGroupSlugAndUserParamSchema = z.object({
   slug: friendGroupSlugSchema,
   userId: z.string().min(1),
@@ -389,6 +393,11 @@ export const friendGroupSlugAndUserParamSchema = z.object({
 export const friendGroupSlugAndListIdParamSchema = z.object({
   slug: friendGroupSlugSchema,
   listId: z.uuid(),
+});
+
+export const friendGroupSlugAndCollectionIdParamSchema = z.object({
+  slug: friendGroupSlugSchema,
+  collectionId: z.uuid(),
 });
 
 export const updatePreferencesSchema = z.object({

@@ -24,7 +24,8 @@ export type {
   SetsTable,
   ListEntriesTable,
   ListsTable,
-  // Friend groups (migration 134)
+  // Friend groups (migration 134, 141)
+  FriendGroupCollectionSharesTable,
   FriendGroupInviteDirection,
   FriendGroupInvitesTable,
   FriendGroupListSharesTable,

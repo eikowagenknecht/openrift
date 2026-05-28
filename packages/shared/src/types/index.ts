@@ -179,6 +179,7 @@ export type {
   PublicListDetailResponse,
   PublicListResponse,
   PublicUserBundleListResponse,
+  PublicUserBundleCollectionResponse,
   PublicUserBundleResponse,
   UserShareStateResponse,
   FriendGroupDetailResponse,
@@ -198,10 +199,15 @@ export type {
   FriendGroupShareResponse,
   FriendGroupShareableListResponse,
   FriendGroupShareableListsResponse,
+  FriendGroupShareableCollectionResponse,
+  FriendGroupShareableCollectionsResponse,
   FriendGroupSharedListDetailResponse,
+  FriendGroupSharedCollectionDetailResponse,
+  FriendGroupCollectionShareResponse,
   FriendGroupSummaryResponse,
   FriendGroupViewerStatus,
   ListGroupSharesResponse,
+  CollectionGroupSharesResponse,
 } from "./api/index.js";
 
 export type {

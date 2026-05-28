@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict Bs8PyOh4psJ5EwCsNsooNGbkx1AXuuRc6ai1XBpdzfKfVVHPy9lOeTKqrQvDbtK
+\restrict S2UGg4LeE0JVdL9pP2f8wtwkFri7ocpwRkKFm8YUygk7Cw6eLEQmZE7NfKBB6ng
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -884,6 +884,18 @@ CREATE TABLE public.formats (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT chk_formats_id_not_empty CHECK ((id <> ''::text)),
     CONSTRAINT chk_formats_name_not_empty CHECK ((name <> ''::text))
+);
+
+
+--
+-- Name: friend_group_collection_shares; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.friend_group_collection_shares (
+    group_id uuid NOT NULL,
+    collection_id uuid NOT NULL,
+    user_id text NOT NULL,
+    shared_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -1917,6 +1929,14 @@ ALTER TABLE ONLY public.formats
 
 
 --
+-- Name: friend_group_collection_shares friend_group_collection_shares_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_collection_shares
+    ADD CONSTRAINT friend_group_collection_shares_pkey PRIMARY KEY (group_id, collection_id);
+
+
+--
 -- Name: friend_group_invites friend_group_invites_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2517,6 +2537,20 @@ CREATE INDEX idx_decks_user_id ON public.decks USING btree (user_id);
 --
 
 CREATE INDEX idx_distribution_channels_parent_id ON public.distribution_channels USING btree (parent_id);
+
+
+--
+-- Name: idx_friend_group_collection_shares_collection; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_friend_group_collection_shares_collection ON public.friend_group_collection_shares USING btree (collection_id);
+
+
+--
+-- Name: idx_friend_group_collection_shares_group; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_friend_group_collection_shares_group ON public.friend_group_collection_shares USING btree (group_id);
 
 
 --
@@ -3441,6 +3475,22 @@ ALTER TABLE ONLY public.decks
 
 
 --
+-- Name: friend_group_collection_shares fk_friend_group_collection_shares_collection; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_collection_shares
+    ADD CONSTRAINT fk_friend_group_collection_shares_collection FOREIGN KEY (collection_id, user_id) REFERENCES public.collections(id, user_id) ON DELETE CASCADE;
+
+
+--
+-- Name: friend_group_collection_shares fk_friend_group_collection_shares_membership; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_collection_shares
+    ADD CONSTRAINT fk_friend_group_collection_shares_membership FOREIGN KEY (user_id, group_id) REFERENCES public.friend_group_members(user_id, group_id) ON DELETE CASCADE;
+
+
+--
 -- Name: friend_group_list_shares fk_friend_group_list_shares_membership; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3772,5 +3822,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Bs8PyOh4psJ5EwCsNsooNGbkx1AXuuRc6ai1XBpdzfKfVVHPy9lOeTKqrQvDbtK
+\unrestrict S2UGg4LeE0JVdL9pP2f8wtwkFri7ocpwRkKFm8YUygk7Cw6eLEQmZE7NfKBB6ng
 

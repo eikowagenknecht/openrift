@@ -156,9 +156,70 @@ function FriendGroupMemberView({ data, slug }: { data: FriendGroupDetailResponse
 
       <MatchesSection slug={slug} data={data} />
       <CollectionsSection data={data} />
+      <PersonalCollectionsSection data={data} />
       <MembersSection data={data} slug={slug} />
       <SettingsSection data={data} slug={slug} />
     </div>
+  );
+}
+
+function PersonalCollectionsSection({ data }: { data: FriendGroupDetailResponse }) {
+  // Group the shares by owner so the list is scannable when many members
+  // contribute. Owners sort alphabetically by display name (anonymous owners
+  // fall to the end).
+  const byOwner = new Map<
+    string,
+    { userId: string; userName: string | null; collections: typeof data.collectionShares }
+  >();
+  for (const share of data.collectionShares) {
+    let bucket = byOwner.get(share.userId);
+    if (!bucket) {
+      bucket = { userId: share.userId, userName: share.userName, collections: [] };
+      byOwner.set(share.userId, bucket);
+    }
+    bucket.collections.push(share);
+  }
+  const owners = [...byOwner.values()].sort((a, b) => {
+    const aName = a.userName ?? "￿";
+    const bName = b.userName ?? "￿";
+    return aName.localeCompare(bName);
+  });
+
+  return (
+    <section id="personal-collections" className="flex scroll-mt-16 flex-col gap-4">
+      <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
+        Personal collections
+      </h2>
+      {owners.length === 0 ? (
+        <p className="text-muted-foreground text-sm">
+          No members have shared a personal collection with this group yet. You can share one of
+          yours from its share dialog.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {owners.map((owner) => (
+            <div key={owner.userId} className="flex flex-col gap-1">
+              <h3 className="text-sm font-medium">{owner.userName ?? "Unknown member"}</h3>
+              <ul className="flex flex-col gap-1">
+                {owner.collections.map((share) => (
+                  <li key={share.collectionId}>
+                    <Link
+                      to="/groups/$slug/collections/$collectionId"
+                      params={{ slug: data.group.slug, collectionId: share.collectionId }}
+                      search={(prev) => prev}
+                      className="hover:bg-accent flex items-center gap-2 rounded-md px-3 py-2"
+                    >
+                      <BookOpenIcon className="size-4" />
+                      <span className="flex-1 truncate">{share.collectionName}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -171,7 +232,7 @@ function CollectionsSection({ data }: { data: FriendGroupDetailResponse }) {
     <section id="collections" className="flex scroll-mt-16 flex-col gap-4">
       <div className="flex items-center justify-between">
         <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-          Shared collections
+          Group collections
         </h2>
         <Button size="sm" variant="ghost" onClick={() => setCreateOpen(true)}>
           <PlusIcon className="size-4" />
@@ -180,7 +241,7 @@ function CollectionsSection({ data }: { data: FriendGroupDetailResponse }) {
       </div>
       {groupCollections.length === 0 ? (
         <p className="text-muted-foreground text-sm">
-          No shared collections yet. Any member can create one. A shared collection is a pooled
+          No group collections yet. Any member can create one. A group collection is a pooled
           inventory the whole group can add to and remove from.
         </p>
       ) : (

@@ -1,6 +1,10 @@
-import type { ListIntent, PublicUserBundleListResponse } from "@openrift/shared";
+import type {
+  ListIntent,
+  PublicUserBundleCollectionResponse,
+  PublicUserBundleListResponse,
+} from "@openrift/shared";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
-import { GlobeIcon, HeartIcon, UsersIcon } from "lucide-react";
+import { BookOpenIcon, GlobeIcon, HeartIcon, UsersIcon } from "lucide-react";
 
 import { Heading } from "@/components/heading";
 import { PublicListRow } from "@/components/list/public-list-row";
@@ -29,9 +33,10 @@ const SECTIONS: { intent: Extract<ListIntent, "wish" | "trade">; heading: string
 function SharedUserBundlePage() {
   const { token } = Route.useParams();
   const { data } = usePublicUserBundle(token);
-  const { owner, lists } = data;
+  const { owner, lists, collections } = data;
   const viewerUserId = useUserId();
   const showVisibility = viewerUserId !== null;
+  const isEmpty = lists.length === 0 && collections.length === 0;
 
   return (
     <div className={`${PAGE_PADDING} ${CONTAINER_WIDTH} flex flex-col gap-6 py-4`}>
@@ -45,7 +50,7 @@ function SharedUserBundlePage() {
         <Heading level={1}>{owner.displayName}</Heading>
       </header>
 
-      {lists.length === 0 ? (
+      {isEmpty ? (
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -58,31 +63,83 @@ function SharedUserBundlePage() {
           </EmptyHeader>
         </Empty>
       ) : (
-        SECTIONS.map(({ intent, heading }) => {
-          const sectionLists = lists.filter((list) => list.intent === intent);
-          if (sectionLists.length === 0) {
-            return null;
-          }
-          return (
-            <section key={intent} className="flex flex-col gap-3">
+        <>
+          {SECTIONS.map(({ intent, heading }) => {
+            const sectionLists = lists.filter((list) => list.intent === intent);
+            if (sectionLists.length === 0) {
+              return null;
+            }
+            return (
+              <section key={intent} className="flex flex-col gap-3">
+                <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
+                  {heading}
+                </h2>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {sectionLists.map((list) => (
+                    <BundleListRow
+                      key={list.id}
+                      token={token}
+                      list={list}
+                      showVisibility={showVisibility}
+                    />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+
+          {collections.length > 0 ? (
+            <section className="flex flex-col gap-3">
               <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-                {heading}
+                Collections
               </h2>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {sectionLists.map((list) => (
-                  <BundleListRow
-                    key={list.id}
-                    token={token}
-                    list={list}
-                    showVisibility={showVisibility}
-                  />
+                {collections.map((collection) => (
+                  <BundleCollectionRow key={collection.id} collection={collection} />
                 ))}
               </div>
             </section>
-          );
-        })
+          ) : null}
+        </>
       )}
     </div>
+  );
+}
+
+function BundleCollectionRow({ collection }: { collection: PublicUserBundleCollectionResponse }) {
+  // Group-shared collections always link through one of the via-groups; pick
+  // the first as the canonical route. Membership is required server-side.
+  const viaGroup = collection.viaGroups[0];
+  if (!viaGroup) {
+    return null;
+  }
+  return (
+    <Link
+      to="/groups/$slug/collections/$collectionId"
+      params={{ slug: viaGroup.slug, collectionId: collection.id }}
+      className="hover:bg-accent flex flex-col gap-1 rounded-md border px-3 py-3"
+    >
+      <div className="flex items-center gap-2">
+        <BookOpenIcon className="size-4 shrink-0" />
+        <span className="flex-1 truncate font-medium">{collection.name}</span>
+      </div>
+      {collection.description ? (
+        <p className="text-muted-foreground line-clamp-2 text-sm">{collection.description}</p>
+      ) : null}
+      <div className="mt-1 flex flex-wrap gap-1">
+        {collection.viaGroups.map((group) => (
+          <Badge
+            key={group.id}
+            variant="outline"
+            className="text-2xs max-w-[10rem] gap-1"
+            title={`Shared with ${group.name}`}
+          >
+            <UsersIcon className="size-3 shrink-0" />
+            <span className="truncate">{group.name}</span>
+          </Badge>
+        ))}
+      </div>
+    </Link>
   );
 }
 
