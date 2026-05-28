@@ -103,6 +103,7 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
                       <Link
                         to="/groups/$slug/lists/$listId"
                         params={{ slug, listId: share.listId }}
+                        search={{ fromUser: userId }}
                       />
                     }
                   />

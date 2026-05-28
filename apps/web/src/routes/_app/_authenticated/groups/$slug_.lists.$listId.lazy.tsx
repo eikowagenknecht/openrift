@@ -14,6 +14,7 @@ function SharedListRoute() {
   const { slug, listId } = Route.useParams();
   const { data } = useFriendGroupSharedList(slug, listId);
   const search = Route.useSearch();
+  const { fromUser } = search;
 
   // The friend-group endpoint omits createdAt/updatedAt on the list and nests
   // the owner inside `list`; the shared browser expects the public-share
@@ -34,12 +35,15 @@ function SharedListRoute() {
     owner: { displayName: data.list.ownerName ?? "Unknown" },
   };
 
+  const backLink = fromUser ? (
+    <PageTopBarBack to="/groups/$slug/members/$userId" params={{ slug, userId: fromUser }} />
+  ) : (
+    <PageTopBarBack to="/groups/$slug" params={{ slug }} />
+  );
+
   return (
     <FilterSearchProvider value={search}>
-      <SharedListContent
-        data={publicShape}
-        backLink={<PageTopBarBack to="/groups/$slug" params={{ slug }} />}
-      />
+      <SharedListContent data={publicShape} backLink={backLink} />
     </FilterSearchProvider>
   );
 }

@@ -13,6 +13,7 @@
 - fix: A collection's total value now shows in the page header on mobile too, not just on wider screens. If the collection name is long the value shortens to keep it out of the way
 - fix: On the collection stats page, the "View missing" link next to each completion bar now opens the card browser filtered to the cards you're still missing in that group, instead of landing on /cards with no filters applied
 - fix: On a shared user page, long friend-group share badges no longer cut off the list name; the badges now wrap to a new row when they don't fit
+- fix: Opening one of a group member's wishlists or tradelists from their profile now returns you to the member when you hit Back, instead of jumping all the way back to the group
 
 ## 2026-05-27
 
