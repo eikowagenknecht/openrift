@@ -7,6 +7,7 @@ import {
   PrinterIcon,
   ScaleIcon,
   SwordsIcon,
+  UsersIcon,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -74,6 +75,17 @@ export const helpArticles = new Map<string, HelpArticle>([
         "Move collections between OpenRift and other Riftbound tools (Piltover Archive, RiftCore, and more) using CSV.",
       icon: ArrowRightLeftIcon,
       component: () => import("./articles/import-export"),
+    },
+  ],
+  [
+    "groups",
+    {
+      slug: "groups",
+      title: "Groups",
+      description:
+        "Set up a closed circle of friends to share wishlists and tradelists, pool cards into shared collections, and see who has what you want.",
+      icon: UsersIcon,
+      component: () => import("./articles/groups"),
     },
   ],
   [

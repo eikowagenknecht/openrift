@@ -1,0 +1,304 @@
+import {
+  CrownIcon,
+  FolderIcon,
+  HandshakeIcon,
+  HeartIcon,
+  KeyIcon,
+  MailIcon,
+  ShieldIcon,
+  UserIcon,
+  UsersIcon,
+} from "lucide-react";
+
+import { DefinitionList, DefinitionRow } from "@/components/help/definition-list";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
+export default function GroupsArticle() {
+  return (
+    <div className="space-y-8">
+      <p className="text-muted-foreground">
+        A group is a small, closed circle of OpenRift users, like a regular playgroup, your locals,
+        or a Discord trade channel. Inside a group, members share wishlists and tradelists with each
+        other, pool cards into shared collections, and see matches when one member&apos;s wants
+        overlap with another&apos;s haves.
+      </p>
+
+      {/* Anatomy diagram */}
+      <div className="border-border bg-muted/30 rounded-lg border p-4">
+        <p className="text-muted-foreground mb-3 text-center text-xs font-medium tracking-wider uppercase">
+          A group page at a glance
+        </p>
+        <div className="bg-background border-border flex flex-col gap-3 rounded-lg border p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-base font-semibold">Tuesday Night Crew</span>
+            <span className="bg-secondary text-secondary-foreground text-2xs rounded-full px-2 py-0.5 font-medium">
+              Admin
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <SectionChip icon={<HandshakeIcon className="size-3.5" />} label="Matches" />
+            <SectionChip icon={<FolderIcon className="size-3.5" />} label="Shared collections" />
+            <SectionChip icon={<UsersIcon className="size-3.5" />} label="Members" />
+            <SectionChip icon={<KeyIcon className="size-3.5" />} label="Settings" />
+          </div>
+        </div>
+      </div>
+
+      <Alert>
+        <ShieldIcon className="text-primary" />
+        <AlertTitle>Closed by default, opt-in sharing</AlertTitle>
+        <AlertDescription>
+          <p>
+            Joining a group always requires an admin to approve. Nobody can see your lists by
+            joining anonymously.
+          </p>
+          <p>
+            Sharing a list with a group is per-list and per-group. Sharing your wishlist with
+            &quot;Tuesday Crew&quot; doesn&apos;t share it with &quot;Cube Night&quot;, and
+            unsharing later only affects that one group. The list itself never leaves your account,
+            only the contents become visible to the members of that one group.
+          </p>
+        </AlertDescription>
+      </Alert>
+
+      {/* Roles */}
+      <section>
+        <h2 className="mb-2 text-lg font-semibold">Roles and permissions</h2>
+        <p className="text-muted-foreground">
+          Every member has one of three roles. Each group has exactly one owner.
+        </p>
+        <DefinitionList className="mt-3">
+          <DefinitionRow icon={<CrownIcon className="size-3.5" />} label="Owner">
+            Everything an admin can do, plus delete the group and transfer ownership. The role stays
+            with the person who created the group until they hand it off.
+          </DefinitionRow>
+          <DefinitionRow icon={<ShieldIcon className="size-3.5" />} label="Admin">
+            Invite by email, approve or deny join requests, rotate or disable the join code, edit
+            the group&apos;s name and description, promote members, and remove members.
+          </DefinitionRow>
+          <DefinitionRow icon={<UserIcon className="size-3.5" />} label="Member">
+            Share their own lists, create shared collections, set a nickname, and leave the group at
+            any time.
+          </DefinitionRow>
+        </DefinitionList>
+      </section>
+
+      {/* Starting a group */}
+      <section>
+        <h2 className="mb-2 text-lg font-semibold">Starting a group</h2>
+        <p className="text-muted-foreground">
+          Open <strong className="text-foreground">Groups</strong> from the top navigation and click{" "}
+          <strong className="text-foreground">New group</strong>.
+        </p>
+        <div className="mt-3 space-y-2">
+          <StepRow
+            step={1}
+            title="Name it after the playgroup, not the cards"
+            description="The name shows up to every member. Pick something they'll recognize like 'Tuesday Night Crew' or 'Hamburg locals'."
+          />
+          <StepRow
+            step={2}
+            title="Pick a URL slug"
+            description="Used in the URL: /groups/<slug>. Lowercase letters, digits, and dashes. You can rename it later, but old bookmarks will break."
+          />
+          <StepRow
+            step={3}
+            title="Decide on a join code"
+            description="Leave the join code on if you want to share an invite link. Turn it off if you only want to invite people one at a time by email. You can rotate or disable it later either way."
+          />
+        </div>
+      </section>
+
+      {/* Joining */}
+      <section>
+        <h2 className="mb-2 text-lg font-semibold">Joining a group</h2>
+        <p className="text-muted-foreground">
+          There are two ways to end up in someone else&apos;s group. Both require an admin to let
+          you in.
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <FeatureCard
+            icon={<KeyIcon className="size-4" />}
+            title="Invite code"
+            description="Paste a code on /groups/join. The page previews the group before you commit; submitting sends a join request to its admins. You're a member once one of them approves."
+          />
+          <FeatureCard
+            icon={<MailIcon className="size-4" />}
+            title="Email invite"
+            description="An admin sends an invite to your account email. It shows up under 'Pending invites' on the Groups page with Accept and Decline buttons."
+          />
+        </div>
+      </section>
+
+      {/* Sharing lists */}
+      <section>
+        <h2 className="mb-2 text-lg font-semibold">Sharing your lists</h2>
+        <p className="text-muted-foreground">
+          Open the group, scroll to{" "}
+          <strong className="text-foreground">Settings &rarr; Share your lists</strong>, and tick
+          the lists you want to share. Untick to stop sharing. Wishlists and tradelists feed the
+          matches section; organize lists are visible to members but don&apos;t generate matches.
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <FeatureCard
+            icon={<HeartIcon className="size-4" />}
+            title="Wishlist"
+            description="What you're looking for. Shows up under 'Members have what you want' when a tradelist matches."
+          />
+          <FeatureCard
+            icon={<HandshakeIcon className="size-4" />}
+            title="Tradelist"
+            description="What you're offering. Shows up under 'Members want what you have' when a wishlist matches."
+          />
+          <FeatureCard
+            icon={<FolderIcon className="size-4" />}
+            title="Organize list"
+            description="Reference lists you want members to see. Informational only, doesn't generate matches."
+          />
+        </div>
+      </section>
+
+      {/* Matches */}
+      <section>
+        <h2 className="mb-2 text-lg font-semibold">Matches</h2>
+        <p className="text-muted-foreground">
+          The Matches section at the top of the group page shows two views:
+        </p>
+        <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1">
+          <li>
+            <strong className="text-foreground">Members have what you want</strong> — a member is
+            offering a card on a tradelist they&apos;ve shared with the group, and the card is on a
+            wishlist you&apos;ve shared with the group.
+          </li>
+          <li>
+            <strong className="text-foreground">Members want what you have</strong> — the reverse.
+          </li>
+        </ul>
+        <p className="text-muted-foreground mt-2">
+          Click a member name on any match row to jump to their profile inside the group, which
+          shows every match you have with that specific person. If a section is empty, it&apos;s
+          either because nobody&apos;s shared the relevant kind of list yet, or because nothing
+          actually overlaps right now. See{" "}
+          <a href="/help/cards-printings-copies" className="text-primary hover:underline">
+            Cards, Printings &amp; Copies
+          </a>{" "}
+          for how matches handle different printings of the same card.
+        </p>
+      </section>
+
+      {/* Shared collections */}
+      <section>
+        <h2 className="mb-2 text-lg font-semibold">Shared collections</h2>
+        <p className="text-muted-foreground">
+          A shared collection is a pooled inventory that any member of the group can add to or
+          remove from. It&apos;s useful for a club cube, a draft pool, or a binder you run together
+          with friends.
+        </p>
+        <p className="text-muted-foreground mt-2">
+          Shared collections appear in your own collection sidebar alongside your private
+          collections, with a group badge so you can tell them apart. They behave the same way as
+          any other collection: cards can be moved in and out, filtered, searched, and printed as
+          proxies. See{" "}
+          <a href="/help/collections" className="text-primary hover:underline">
+            Managing Your Collection
+          </a>{" "}
+          for the details.
+        </p>
+      </section>
+
+      {/* Members and nicknames */}
+      <section>
+        <h2 className="mb-2 text-lg font-semibold">Members and nicknames</h2>
+        <p className="text-muted-foreground">
+          The Members section lists everyone in the group with their role. Click a member to open
+          their profile inside this group, which shows their shared lists and your matches with them
+          specifically.
+        </p>
+        <p className="text-muted-foreground mt-2">
+          Set a <strong className="text-foreground">nickname</strong> on yourself in each group as a
+          place to leave contact info, like your Discord handle, store name, or phone number, so the
+          people you&apos;re trading with know how to reach you. Nicknames are visible to everyone
+          in the group and only to them.
+        </p>
+      </section>
+
+      {/* Leaving, deleting, transferring */}
+      <section>
+        <h2 className="mb-2 text-lg font-semibold">Leaving, deleting, transferring</h2>
+        <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1">
+          <li>
+            <strong className="text-foreground">Leave:</strong> members and admins can leave at any
+            time from the group&apos;s Settings panel. Your shared lists detach automatically; the
+            lists themselves stay on your account.
+          </li>
+          <li>
+            <strong className="text-foreground">Transfer ownership:</strong> owners can hand the
+            role to any other member from the member action menu. Once transferred, you become a
+            regular admin and can then leave like anyone else.
+          </li>
+          <li>
+            <strong className="text-foreground">Delete:</strong> only the owner can delete a group.
+            Members, invites, list-shares, and the shared-collection metadata are all removed.
+            Members&apos; private lists and their copies inside shared collections are unaffected.
+          </li>
+        </ul>
+      </section>
+    </div>
+  );
+}
+
+function SectionChip({ icon, label }: { icon: React.ReactNode; label: string }) {
+  return (
+    <div className="bg-muted/60 text-foreground flex items-center gap-1.5 rounded px-2 py-1 text-xs">
+      <span className="text-muted-foreground">{icon}</span>
+      <span className="truncate">{label}</span>
+    </div>
+  );
+}
+
+function StepRow({
+  step,
+  title,
+  description,
+}: {
+  step: number;
+  title: string;
+  description: string;
+}) {
+  return (
+    <Card>
+      <CardContent className="flex gap-3">
+        <span className="bg-primary/10 text-primary flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
+          {step}
+        </span>
+        <div className="flex flex-col gap-1">
+          <CardTitle>{title}</CardTitle>
+          <CardDescription>{description}</CardDescription>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function FeatureCard({
+  icon,
+  title,
+  description,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <span className="text-primary">{icon}</span>
+          {title}
+        </CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+    </Card>
+  );
+}
