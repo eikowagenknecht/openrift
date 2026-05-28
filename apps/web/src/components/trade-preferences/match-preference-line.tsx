@@ -84,7 +84,7 @@ function renderPrice(
       href={href}
       target="_blank"
       rel="noreferrer"
-      className="hover:text-foreground underline-offset-2 hover:underline"
+      className="hover:text-foreground relative underline-offset-2 hover:underline"
       onClick={(event) => event.stopPropagation()}
     >
       {PRICE_PREF_SHORT_LABEL[pref.pricePref]}

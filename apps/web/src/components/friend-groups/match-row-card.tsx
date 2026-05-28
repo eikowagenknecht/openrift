@@ -27,7 +27,7 @@ interface ResolvedMatchRow extends FriendGroupMatchRow {
  * ADR-005), so N copies of the same printing collapse into one tile with an
  * `availableCount`.
  */
-interface AggregatedMatch extends ResolvedMatchRow {
+export interface AggregatedMatch extends ResolvedMatchRow {
   availableCount: number;
 }
 
@@ -36,13 +36,9 @@ interface MatchRowCardProps {
   marketplaceInfos: Record<Marketplace, MarketplaceInfo> | null;
 }
 
-function MatchRowCard({ match, marketplaceInfos }: MatchRowCardProps) {
+export function MatchRowCard({ match, marketplaceInfos }: MatchRowCardProps) {
   return (
-    <Link
-      to="/cards/$cardSlug"
-      params={{ cardSlug: match.cardSlug }}
-      className="bg-card hover:bg-muted hover:text-foreground group flex items-center gap-3 rounded-md border p-2 transition-colors"
-    >
+    <div className="bg-card hover:bg-muted hover:text-foreground group relative flex items-center gap-3 rounded-md border p-2 transition-colors">
       <div className="bg-muted relative aspect-[5/7] w-12 shrink-0 overflow-hidden rounded">
         {match.imageId ? (
           <img
@@ -54,7 +50,15 @@ function MatchRowCard({ match, marketplaceInfos }: MatchRowCardProps) {
         ) : null}
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate font-medium">{match.cardName}</span>
+        <span className="truncate font-medium">
+          <Link
+            to="/cards/$cardSlug"
+            params={{ cardSlug: match.cardSlug }}
+            className="before:absolute before:inset-0 before:rounded-md before:content-['']"
+          >
+            {match.cardName}
+          </Link>
+        </span>
         <span className="text-muted-foreground text-xs">
           {match.setName} · {match.rarityLabel} · {match.finishLabel} · ×{match.availableCount}
           {match.buyEntryKind === "card" && match.buyQuantity > 1
@@ -77,7 +81,7 @@ function MatchRowCard({ match, marketplaceInfos }: MatchRowCardProps) {
           searchQuery={match.cardName}
         />
       </div>
-    </Link>
+    </div>
   );
 }
 
