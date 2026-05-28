@@ -138,7 +138,9 @@ The architectural decisions above land in these routes and affordances. Pixel-le
 
 ### Sharing affordance
 
-List-share toggles live on the **group page**, not on the list page. From `/lists/$id`, a passive read-only badge says "shared with N groups" and links to a small dialog that lists the group names, but toggling happens at the group settings panel. This keeps the list page free of group concepts and avoids per-list × per-group fan-out in two places.
+List-share toggles live on the **group page** _and_ on the list's share dialog. From `/lists/$id`, a passive read-only badge says "shared with N groups" and links to a popover that lists the group names; the share dialog (opened from the list's overflow menu) exposes the same per-group checkboxes alongside the public link controls. Both surfaces write to the same `friend_group_list_shares` rows and invalidate each other's caches.
+
+> **2026-05-28 update:** Originally this ADR placed toggles only on the group page, to keep the list page free of group concepts. When shared collections shipped (a sibling feature with the same per-group shape), the collection share dialog combined link sharing and group toggles in one place, which read as more discoverable. Lists now follow the same shape for parity. The per-list × per-group fan-out concern didn't materialise — the same mutation hooks drive both surfaces, so there is no duplicated write path.
 
 ### Cross-surface integration
 

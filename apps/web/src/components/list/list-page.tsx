@@ -223,7 +223,7 @@ export function ListPage({ listId }: ListPageProps) {
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setShareOpen(true)}>
               <Share2Icon className="size-4" />
-              {data.list.shareToken === null ? "Share" : "Manage sharing"}
+              Share
             </DropdownMenuItem>
             {data.list.kind === "card" && (
               <>

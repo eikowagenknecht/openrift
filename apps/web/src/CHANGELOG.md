@@ -9,6 +9,7 @@
 - feat: There's a new help article that walks you through how groups work, covering roles, joining, sharing lists, matches, and shared collections
 - feat: Friend groups are now called Groups throughout the app, with a top-level Groups link in the main menu and mobile sidebar so you can jump straight there without opening the avatar menu. The pending-invite badge moves with it
 - feat: You can now drag a card from one wishlist to another (or tradelist to tradelist) to move it between lists of the same kind. The card is removed from the source and added to the destination, with quantities merged if the destination already has the same card
+- feat: A list's Share dialog now also has per-group toggles, matching the collection share dialog. You can decide which of your groups can see a wishlist or tradelist from the list page itself, alongside the public link controls. The dropdown entry is now just "Share" on both collections and lists
 - fix: On a collection's share dialog, the friend-groups list now sits inside the dialog with the action button below it, instead of appearing to spill out past the dialog's bottom edge
 - fix: On a printings or copies list, the search bar now reads "Search printings…" or "Search copies…" with a matching unit count, instead of always saying "Search cards"
 - fix: Group, shared user, and groups-join page titles now use the same weight as page titles elsewhere in the app, so they no longer look slightly thinner than other page headers

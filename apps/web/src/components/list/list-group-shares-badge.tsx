@@ -29,8 +29,8 @@ interface Props {
 
 /**
  * Passive "shared with N friend groups" badge for the list page. Click opens
- * a popover listing each group; toggling happens at the group settings, not
- * here, per ADR-013.
+ * a popover listing each group; toggling lives in the list share dialog and
+ * on each group's settings panel.
  * @returns The badge node, or `null` when the list isn't shared anywhere.
  */
 export function ListGroupSharesBadge({ listId }: Props) {
@@ -60,7 +60,7 @@ export function ListGroupSharesBadge({ listId }: Props) {
       </PopoverTrigger>
       <PopoverContent className="flex w-56 flex-col gap-1 p-2" align="start">
         <span className="text-muted-foreground px-2 py-1 text-xs">
-          Toggle sharing from each group&apos;s settings.
+          These groups can view this list.
         </span>
         {data.items.map((item) => (
           <Link

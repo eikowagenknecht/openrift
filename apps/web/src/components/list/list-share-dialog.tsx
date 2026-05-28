@@ -1,7 +1,8 @@
 import { CheckIcon, CopyIcon, LinkIcon, Trash2Icon } from "lucide-react";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +12,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  useFriendGroups,
+  useShareListWithFriendGroup,
+  useUnshareListFromFriendGroup,
+} from "@/hooks/use-friend-groups";
+import { useListGroupShares } from "@/hooks/use-list-group-shares";
 import { useShareList, useUnshareList } from "@/hooks/use-lists";
 import { getSiteUrl } from "@/lib/site-config";
 
@@ -64,6 +71,10 @@ export function ListShareDialog({ listId, shareToken, open, onOpenChange }: List
           </div>
         ) : null}
 
+        <Suspense fallback={null}>
+          <ListGroupShareSection listId={listId} />
+        </Suspense>
+
         <DialogFooter>
           {sharing ? (
             <Button
@@ -83,5 +94,54 @@ export function ListShareDialog({ listId, shareToken, open, onOpenChange }: List
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ListGroupShareSection({ listId }: { listId: string }) {
+  const { data: groups } = useFriendGroups();
+  const { data: sharedWith } = useListGroupShares(listId);
+  const share = useShareListWithFriendGroup();
+  const unshare = useUnshareListFromFriendGroup();
+
+  if (groups.items.length === 0) {
+    return null;
+  }
+
+  const sharedSet = new Set(sharedWith.items.map((row) => row.groupId));
+
+  return (
+    <div className="space-y-3 border-t pt-4">
+      <div>
+        <h3 className="font-medium">Share with friend groups</h3>
+        <p className="text-muted-foreground text-sm">
+          Members of the selected groups can view this list while signed in.
+        </p>
+      </div>
+      <ul className="space-y-2">
+        {groups.items.map((group) => {
+          const isShared = sharedSet.has(group.id);
+          const checkboxId = `share-list-group-${group.id}`;
+          return (
+            <li key={group.id} className="flex items-center gap-2">
+              <Checkbox
+                id={checkboxId}
+                checked={isShared}
+                disabled={share.isPending || unshare.isPending}
+                onCheckedChange={(checked) => {
+                  if (checked === true) {
+                    share.mutate({ slug: group.slug, listId });
+                  } else if (checked === false) {
+                    unshare.mutate({ slug: group.slug, listId });
+                  }
+                }}
+              />
+              <label htmlFor={checkboxId} className="cursor-pointer text-sm">
+                {group.name}
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }

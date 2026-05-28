@@ -1447,7 +1447,7 @@ function CollectionTopBar({
                 {canShare && (
                   <DropdownMenuItem onClick={onShare}>
                     <Share2Icon className="size-4" />
-                    Share collection
+                    Share
                   </DropdownMenuItem>
                 )}
                 {canDelete && (
