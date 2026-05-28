@@ -2,7 +2,7 @@ import type { FriendGroupMatchRow, Marketplace, MarketplaceInfo } from "@openrif
 import { imageUrl } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
-import { MatchPreferenceLine } from "@/components/trade-preferences/match-preference-line";
+import { MatchPreferenceCell } from "@/components/trade-preferences/match-preference-cell";
 import { UserAvatar } from "@/components/user-avatar";
 import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -38,8 +38,8 @@ interface MatchRowCardProps {
 
 export function MatchRowCard({ match, marketplaceInfos }: MatchRowCardProps) {
   return (
-    <div className="bg-card hover:bg-muted hover:text-foreground group relative flex items-center gap-3 rounded-md border p-2 transition-colors">
-      <div className="bg-muted relative aspect-[5/7] w-12 shrink-0 overflow-hidden rounded">
+    <div className="bg-card hover:bg-muted hover:text-foreground group relative flex items-stretch gap-3 rounded-md border p-2 transition-colors">
+      <div className="bg-muted relative aspect-[5/7] w-12 shrink-0 self-start overflow-hidden rounded">
         {match.imageId ? (
           <img
             src={imageUrl(match.imageId, "120w")}
@@ -49,37 +49,41 @@ export function MatchRowCard({ match, marketplaceInfos }: MatchRowCardProps) {
           />
         ) : null}
       </div>
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate font-medium">
-          <Link
-            to="/cards/$cardSlug"
-            params={{ cardSlug: match.cardSlug }}
-            className="before:absolute before:inset-0 before:rounded-md before:content-['']"
-          >
-            {match.cardName}
-          </Link>
-        </span>
-        <span className="text-muted-foreground text-xs">
-          {match.setName} · {match.rarityLabel} · {match.finishLabel} · ×{match.availableCount}
-          {match.buyEntryKind === "card" && match.buyQuantity > 1
-            ? ` · wants ×${match.buyQuantity}`
-            : null}
-        </span>
-        <span className="text-muted-foreground truncate text-xs">
-          from {match.counterpartyListName}
-        </span>
-        <MatchPreferenceLine
-          prefix="They:"
-          pref={match.sellPref}
-          marketplaceInfos={marketplaceInfos}
-          searchQuery={match.cardName}
-        />
-        <MatchPreferenceLine
-          prefix="You:"
-          pref={match.buyPref}
-          marketplaceInfos={marketplaceInfos}
-          searchQuery={match.cardName}
-        />
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <div className="flex flex-col gap-0.5">
+          <span className="truncate font-medium">
+            <Link
+              to="/cards/$cardSlug"
+              params={{ cardSlug: match.cardSlug }}
+              className="before:absolute before:inset-0 before:rounded-md before:content-['']"
+            >
+              {match.cardName}
+            </Link>
+          </span>
+          <span className="text-muted-foreground text-xs">
+            {match.setName} · {match.rarityLabel} · {match.finishLabel} · ×{match.availableCount}
+            {match.buyEntryKind === "card" && match.buyQuantity > 1
+              ? ` · wants ×${match.buyQuantity}`
+              : null}
+          </span>
+          <span className="text-muted-foreground truncate text-xs">
+            from {match.counterpartyListName}
+          </span>
+        </div>
+        <div className="divide-border/60 border-border/60 grid grid-cols-2 divide-x overflow-hidden rounded border">
+          <MatchPreferenceCell
+            label="They want"
+            pref={match.sellPref}
+            marketplaceInfos={marketplaceInfos}
+            searchQuery={match.cardName}
+          />
+          <MatchPreferenceCell
+            label="You'd pay"
+            pref={match.buyPref}
+            marketplaceInfos={marketplaceInfos}
+            searchQuery={match.cardName}
+          />
+        </div>
       </div>
     </div>
   );
@@ -202,7 +206,7 @@ export function MatchRowGroup({ rows, groupSlug, linkCounterparty, className }: 
             ) : (
               heading
             )}
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {group.rows.map((match) => (
                 <MatchRowCard
                   key={`${match.buyEntryId}:${match.printingId}`}

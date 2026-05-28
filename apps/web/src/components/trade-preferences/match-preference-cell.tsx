@@ -8,7 +8,7 @@ import type {
 import { MARKETPLACE_META } from "@/lib/marketplace-meta";
 
 import {
-  PRICE_PREF_SHORT_LABEL,
+  PRICE_PREF_LABEL,
   TRADE_TYPE_SHORT_LABEL,
   formatAbsolutePrice,
 } from "./trade-preference-labels";
@@ -20,8 +20,8 @@ const PREF_TO_MARKETPLACE: Record<TradePricePref, Marketplace | null> = {
   absolute: null,
 };
 
-interface MatchPreferenceLineProps {
-  prefix: string;
+interface MatchPreferenceCellProps {
+  label: string;
   pref: EffectiveTradePreference;
   /**
    * Marketplace product IDs for the printing this side references. When
@@ -35,29 +35,29 @@ interface MatchPreferenceLineProps {
 }
 
 /**
- * Renders one side's resolved preference next to a match row. Marketplace
- * presets become external links (product page when we know the marketplace
- * product ID, search page otherwise). Absolute prices and "no preference"
- * render as plain text. Renders nothing when both fields are NULL.
- * @returns The line node, or `null` when there is nothing to display.
+ * One side of the matches-tile preference panel ("They want" / "You'd pay").
+ * Always renders, even when the side has no resolved preference — null prefs
+ * fall back to "Not set" so both panels stay visually balanced. Marketplace
+ * presets render as external links (product page when the marketplace product
+ * ID is known, search page otherwise).
+ * @returns The panel cell.
  */
-export function MatchPreferenceLine({
-  prefix,
+export function MatchPreferenceCell({
+  label,
   pref,
   marketplaceInfos,
   searchQuery,
-}: MatchPreferenceLineProps) {
+}: MatchPreferenceCellProps) {
   const priceNode = renderPrice(pref, marketplaceInfos, searchQuery);
   const typeNode = pref.tradeType ? TRADE_TYPE_SHORT_LABEL[pref.tradeType] : null;
-  if (priceNode === null && typeNode === null) {
-    return null;
-  }
   return (
-    <span className="text-muted-foreground text-xs">
-      <span className="font-medium">{prefix}</span> {priceNode}
-      {priceNode && typeNode ? <span className="mx-1 opacity-50">·</span> : null}
-      {typeNode}
-    </span>
+    <div className="flex min-w-0 flex-col gap-0.5 px-2 py-1.5">
+      <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
+        {label}
+      </span>
+      <span className="text-xs">{priceNode ?? "Not set"}</span>
+      {typeNode ? <span className="text-muted-foreground text-2xs">{typeNode}</span> : null}
+    </div>
   );
 }
 
@@ -74,7 +74,7 @@ function renderPrice(
   }
   const marketplace = PREF_TO_MARKETPLACE[pref.pricePref];
   if (marketplace === null) {
-    return PRICE_PREF_SHORT_LABEL[pref.pricePref];
+    return PRICE_PREF_LABEL[pref.pricePref];
   }
   const meta = MARKETPLACE_META[marketplace];
   const productId = marketplaceInfos?.[marketplace]?.productId ?? null;
@@ -87,7 +87,7 @@ function renderPrice(
       className="hover:text-foreground relative underline-offset-2 hover:underline"
       onClick={(event) => event.stopPropagation()}
     >
-      {PRICE_PREF_SHORT_LABEL[pref.pricePref]}
+      {PRICE_PREF_LABEL[pref.pricePref]}
     </a>
   );
 }

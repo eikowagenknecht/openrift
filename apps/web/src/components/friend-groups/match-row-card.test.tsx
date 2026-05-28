@@ -86,7 +86,7 @@ function makeMarketplaceInfos(): Record<Marketplace, MarketplaceInfo> {
 
 describe("MatchRowCard", () => {
   // Regression test: the card used to wrap everything in a single <Link>,
-  // which caused a hydration error because MatchPreferenceLine renders its
+  // which caused a hydration error because MatchPreferenceCell renders its
   // marketplace text as an external <a>. Nested anchors are invalid HTML.
   it("does not nest anchors when preference lines render marketplace links", () => {
     const { container } = render(

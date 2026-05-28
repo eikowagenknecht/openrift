@@ -2,6 +2,7 @@
 
 ## 2026-05-28
 
+- feat: On a group's matches, each tile now shows both sides' price preferences as a labeled "They want" / "You'd pay" panel, with the full marketplace name spelled out so it doesn't read as someone's identity. The other side's preference always shows, falling back to "Not set" when nobody has picked one
 - feat: You can now share a personal collection with one or more of your groups for read-only viewing. Open the collection's share dialog to toggle which groups see it, and group members can browse it from the group page or your share link
 - feat: There's a new help article on wishlists and tradelists, covering the different list kinds, ways to fill a list, and how trade preferences work
 - feat: There's a new help article that walks you through how groups work, covering roles, joining, sharing lists, matches, and shared collections
