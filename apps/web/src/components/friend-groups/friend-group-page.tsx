@@ -10,6 +10,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import {
   BookOpenIcon,
   CheckIcon,
+  ChevronDownIcon,
   CopyIcon,
   EllipsisVerticalIcon,
   FolderIcon,
@@ -32,6 +33,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -167,24 +169,29 @@ function FriendGroupMemberView({ data, slug }: { data: FriendGroupDetailResponse
 }
 
 function PersonalCollectionsSection({ data }: { data: FriendGroupDetailResponse }) {
-  // Group the shares by owner so the list is scannable when many members
-  // contribute. Owners sort alphabetically by display name (anonymous owners
-  // fall to the end).
+  // Join shares with the members roster to get avatar / nickname for the
+  // same heading style the Matches section uses. Anonymous owners fall to
+  // the end. Members with no shares don't render.
+  const membersById = new Map(data.members.map((member) => [member.userId, member]));
   const byOwner = new Map<
     string,
-    { userId: string; userName: string | null; collections: typeof data.collectionShares }
+    { member: FriendGroupMemberResponse; collections: typeof data.collectionShares }
   >();
   for (const share of data.collectionShares) {
+    const member = membersById.get(share.userId);
+    if (!member) {
+      continue;
+    }
     let bucket = byOwner.get(share.userId);
     if (!bucket) {
-      bucket = { userId: share.userId, userName: share.userName, collections: [] };
+      bucket = { member, collections: [] };
       byOwner.set(share.userId, bucket);
     }
     bucket.collections.push(share);
   }
   const owners = [...byOwner.values()].sort((a, b) => {
-    const aName = a.userName ?? "￿";
-    const bName = b.userName ?? "￿";
+    const aName = a.member.userName ?? "￿";
+    const bName = b.member.userName ?? "￿";
     return aName.localeCompare(bName);
   });
 
@@ -199,26 +206,41 @@ function PersonalCollectionsSection({ data }: { data: FriendGroupDetailResponse 
           yours from its share dialog.
         </p>
       ) : (
-        <div className="flex flex-col gap-3">
-          {owners.map((owner) => (
-            <div key={owner.userId} className="flex flex-col gap-1">
-              <h3 className="text-sm font-medium">{owner.userName ?? "Unknown member"}</h3>
-              <ul className="flex flex-col gap-1">
-                {owner.collections.map((share) => (
-                  <li key={share.collectionId}>
-                    <Link
-                      to="/groups/$slug/collections/$collectionId"
-                      params={{ slug: data.group.slug, collectionId: share.collectionId }}
-                      search={(prev) => prev}
-                      className="hover:bg-accent flex items-center gap-2 rounded-md px-3 py-2"
-                    >
-                      <BookOpenIcon className="size-4" />
-                      <span className="flex-1 truncate">{share.collectionName}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
+        <div className="flex flex-col gap-2">
+          {owners.map(({ member, collections }) => (
+            <Collapsible key={member.userId}>
+              <CollapsibleTrigger className="hover:bg-muted/50 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left font-medium">
+                <UserAvatar
+                  image={member.userImage}
+                  name={member.userName}
+                  gravatarHash={member.gravatarHash}
+                  size="sm"
+                />
+                <span>{member.userName ?? "Member"}</span>
+                {member.nickname ? (
+                  <span className="text-muted-foreground text-xs">{member.nickname}</span>
+                ) : null}
+                <span className="text-muted-foreground text-xs">({collections.length})</span>
+                <ChevronDownIcon className="text-muted-foreground ml-auto size-4 shrink-0 transition-transform data-[panel-open]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <ul className="mt-1 ml-8 flex flex-col gap-1">
+                  {collections.map((share) => (
+                    <li key={share.collectionId}>
+                      <Link
+                        to="/groups/$slug/collections/$collectionId"
+                        params={{ slug: data.group.slug, collectionId: share.collectionId }}
+                        search={(prev) => prev}
+                        className="hover:bg-muted/50 flex items-center gap-2 rounded-md px-2 py-1.5"
+                      >
+                        <BookOpenIcon className="size-4" />
+                        <span className="flex-1 truncate">{share.collectionName}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </CollapsibleContent>
+            </Collapsible>
           ))}
         </div>
       )}
@@ -255,7 +277,7 @@ function CollectionsSection({ data }: { data: FriendGroupDetailResponse }) {
                 to="/collections/$collectionId"
                 params={{ collectionId: col.id }}
                 search={(prev) => prev}
-                className="hover:bg-accent flex items-center gap-2 rounded-md px-3 py-2"
+                className="hover:bg-muted/50 flex items-center gap-2 rounded-md px-3 py-2"
               >
                 <BookOpenIcon className="size-4" />
                 <span className="flex-1 truncate">{col.name}</span>

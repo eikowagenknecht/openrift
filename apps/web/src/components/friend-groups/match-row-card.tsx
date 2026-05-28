@@ -178,8 +178,8 @@ export function MatchRowGroup({ rows, groupSlug, linkCounterparty, className }: 
   return (
     <div className={cn("flex flex-col gap-6", className)}>
       {grouped.map((group) => {
-        const heading = (
-          <div className="flex items-baseline gap-2 font-medium">
+        const headingInner = (
+          <>
             <UserAvatar
               image={group.image}
               name={group.name}
@@ -191,7 +191,7 @@ export function MatchRowGroup({ rows, groupSlug, linkCounterparty, className }: 
               <span className="text-muted-foreground text-xs">{group.nickname}</span>
             ) : null}
             <span className="text-muted-foreground text-xs">({group.rows.length})</span>
-          </div>
+          </>
         );
         return (
           <div key={group.userId} className="flex flex-col gap-3">
@@ -199,12 +199,12 @@ export function MatchRowGroup({ rows, groupSlug, linkCounterparty, className }: 
               <Link
                 to="/groups/$slug/members/$userId"
                 params={{ slug: groupSlug, userId: group.userId }}
-                className="hover:underline"
+                className="hover:bg-muted/50 flex items-center gap-2 rounded-md px-2 py-1.5 font-medium"
               >
-                {heading}
+                {headingInner}
               </Link>
             ) : (
-              heading
+              <div className="flex items-center gap-2 px-2 py-1.5 font-medium">{headingInner}</div>
             )}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {group.rows.map((match) => (
