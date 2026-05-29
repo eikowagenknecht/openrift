@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   bulkCreateListEntriesSchema,
+  bulkDeleteListEntriesSchema,
   collectionEventsQuerySchema,
   collectionValueHistoryQuerySchema,
   addCopiesSchema,
@@ -448,6 +449,27 @@ describe("bulkCreateListEntriesSchema", () => {
   it("rejects a batch over 500", () => {
     const entries = Array.from({ length: 501 }, () => ({ cardId: CARD_ID }));
     expect(bulkCreateListEntriesSchema.safeParse({ entries }).success).toBe(false);
+  });
+});
+
+describe("bulkDeleteListEntriesSchema", () => {
+  it("accepts a list of entry ids", () => {
+    expect(
+      bulkDeleteListEntriesSchema.safeParse({ entryIds: [PRINTING_ID, COPY_ID] }).success,
+    ).toBe(true);
+  });
+
+  it("rejects an empty list", () => {
+    expect(bulkDeleteListEntriesSchema.safeParse({ entryIds: [] }).success).toBe(false);
+  });
+
+  it("rejects non-uuid entry ids", () => {
+    expect(bulkDeleteListEntriesSchema.safeParse({ entryIds: ["not-a-uuid"] }).success).toBe(false);
+  });
+
+  it("rejects more than 500 ids", () => {
+    const entryIds = Array.from({ length: 501 }, () => PRINTING_ID);
+    expect(bulkDeleteListEntriesSchema.safeParse({ entryIds }).success).toBe(false);
   });
 });
 

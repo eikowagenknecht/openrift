@@ -364,6 +364,11 @@ export const moveListEntriesSchema = z.object({
   entryIds: z.array(z.uuid()).min(1).max(500),
 });
 
+/** Bulk-remove entries from a list. Scoped to the list + owner server-side. */
+export const bulkDeleteListEntriesSchema = z.object({
+  entryIds: z.array(z.uuid()).min(1).max(500),
+});
+
 const marketplaceEnum = z.enum(["tcgplayer", "cardmarket", "cardtrader"]);
 
 const themeEnum = z.enum(["light", "dark", "auto"]);

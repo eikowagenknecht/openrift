@@ -1,27 +1,31 @@
-import { BookOpenIcon, ListPlusIcon, Trash2Icon, XIcon } from "lucide-react";
+import { XIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 
-interface FloatingActionBarProps {
-  selectedCount: number;
-  onMove: () => void;
-  onDispose: () => void;
-  onAddToList?: () => void;
-  onClear: () => void;
-  isMovePending: boolean;
-  isDisposePending: boolean;
+export interface FloatingAction {
+  label: string;
+  icon: ReactNode;
+  onClick: () => void;
+  variant?: "secondary" | "destructive";
+  disabled?: boolean;
 }
 
-export function FloatingActionBar({
-  selectedCount,
-  onMove,
-  onDispose,
-  onAddToList,
-  onClear,
-  isMovePending,
-  isDisposePending,
-}: FloatingActionBarProps) {
+interface FloatingActionBarProps {
+  selectedCount: number;
+  /** Action buttons rendered between the count and the clear button. */
+  actions: FloatingAction[];
+  onClear: () => void;
+}
+
+/**
+ * Bottom-centered bar shown in select mode. The owning surface supplies the
+ * action buttons (Move / Add to list / Dispose for collections, Move / Remove
+ * for lists); this component only owns the count, mobile sizing, and clear.
+ * @returns The floating action bar.
+ */
+export function FloatingActionBar({ selectedCount, actions, onClear }: FloatingActionBarProps) {
   const isMobile = useIsMobile();
   const buttonSize = isMobile ? "sm" : undefined;
   return (
@@ -33,25 +37,18 @@ export function FloatingActionBar({
         {selectedCount}
       </span>
       <span className="hidden text-base font-medium md:inline">{selectedCount} selected</span>
-      <Button variant="secondary" size={buttonSize} onClick={onMove} disabled={isMovePending}>
-        <BookOpenIcon />
-        Move
-      </Button>
-      {onAddToList && (
-        <Button variant="secondary" size={buttonSize} onClick={onAddToList}>
-          <ListPlusIcon />
-          Add to list
+      {actions.map((action) => (
+        <Button
+          key={action.label}
+          variant={action.variant ?? "secondary"}
+          size={buttonSize}
+          onClick={() => action.onClick()}
+          disabled={action.disabled}
+        >
+          {action.icon}
+          {action.label}
         </Button>
-      )}
-      <Button
-        variant="destructive"
-        size={buttonSize}
-        onClick={onDispose}
-        disabled={isDisposePending}
-      >
-        <Trash2Icon />
-        Dispose
-      </Button>
+      ))}
       <Button
         variant="ghost"
         size={isMobile ? "icon-sm" : "icon"}

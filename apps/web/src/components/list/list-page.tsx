@@ -7,9 +7,11 @@ import type {
 } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
+  CheckSquareIcon,
   DownloadIcon,
   EllipsisVerticalIcon,
   LibraryBigIcon,
+  ListIcon,
   PencilIcon,
   Share2Icon,
   Trash2Icon,
@@ -30,6 +32,7 @@ import {
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import type { TableRowSlotProps } from "@/components/cards/card-table";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
+import { FloatingActionBar } from "@/components/collection/floating-action-bar";
 import { listKindIcon } from "@/components/list/create-list-dialog";
 import { DeleteListDialog } from "@/components/list/delete-list-dialog";
 import { ListEditDialog } from "@/components/list/list-edit-dialog";
@@ -38,7 +41,9 @@ import { ListExportDialog } from "@/components/list/list-export-dialog";
 import { ListGridCell } from "@/components/list/list-grid-cell";
 import { ListHeader } from "@/components/list/list-header";
 import { ListImportDialog } from "@/components/list/list-import-dialog";
+import { ListRemoveDialog } from "@/components/list/list-remove-dialog";
 import { ListShareDialog } from "@/components/list/list-share-dialog";
+import { MoveToListDialog } from "@/components/list/move-to-list-dialog";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { TradePreferenceDialog } from "@/components/trade-preferences/trade-preference-dialog";
@@ -61,14 +66,18 @@ import {
 import { useSidebar } from "@/components/ui/sidebar";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
+import { useCardSelection } from "@/hooks/use-card-selection";
 import { useCards } from "@/hooks/use-cards";
 import { useChannelRegistry } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import {
   useBulkAddListEntries,
+  useBulkRemoveListEntries,
   useDeleteList,
   useListDetail,
+  useLists,
+  useMoveListEntries,
   useRemoveListEntry,
   useUpdateList,
   useUpdateListEntry,
@@ -76,6 +85,7 @@ import {
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-session";
 import { FilterSearchProvider, useFilterSearch } from "@/lib/search-schemas";
+import { resolveContextActionTarget } from "@/lib/stack-selection";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDisplayStore } from "@/stores/display-store";
@@ -497,6 +507,42 @@ function ListEntryBrowser({
   const keywordReverseMap = useKeywordReverseMap();
   const isMobile = useIsMobile();
 
+  // ── Select mode (bulk move / remove) ────────────────────────────────
+  // Selection is keyed by entry id (one tile = one entry), reusing the shared
+  // grid-selection store and the same chrome as /collections.
+  const [selectMode, setSelectMode] = useState(false);
+  const mode = selectMode ? "select" : "browse";
+  const {
+    selected,
+    toggleSelect,
+    clearSelection,
+    getLastSelectedItemId,
+    setLastSelectedItemId,
+    addToSelection,
+  } = useCardSelection();
+  // What the Move / Remove dialogs act on — the selection from the float bar,
+  // or the selection-or-single resolution from the right-click menu.
+  const [actionEntryIds, setActionEntryIds] = useState<string[]>([]);
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [removeOpen, setRemoveOpen] = useState(false);
+  const { data: allLists } = useLists();
+  const moveEntries = useMoveListEntries();
+  const bulkRemove = useBulkRemoveListEntries();
+
+  // Drop any in-progress selection when the list changes, and force browse
+  // mode in the catalog (library) view where most tiles have no entry to act
+  // on. Mirrors the collection grid's resets.
+  useEffect(() => {
+    setSelectMode(false);
+    clearSelection();
+  }, [listId, clearSelection]);
+  useEffect(() => {
+    if (showLibrary) {
+      setSelectMode(false);
+      clearSelection();
+    }
+  }, [showLibrary, clearSelection]);
+
   // Sibling-swap overrides live in the shared store (scope: "list"). Reset
   // when this browser unmounts (listId change) so a pin on a previous list
   // doesn't leak in.
@@ -675,6 +721,81 @@ function ListEntryBrowser({
     updateEntryMutation.mutate({ listId, entryId: entry.id, quantity: entry.quantity - 1 });
   };
 
+  // ── Select-mode handlers ─────────────────────────────────────────────
+  const toggleSelectMode = () => {
+    setSelectMode((prev) => {
+      if (prev) {
+        clearSelection();
+      }
+      return !prev;
+    });
+  };
+
+  // Shift-click range select: every entry between the last-clicked tile and
+  // this one, in display order. One tile = one entry, so no stack expansion.
+  const shiftSelectRange = (itemId: string) => {
+    const targetEntry = entryByItemId.get(itemId);
+    if (!targetEntry) {
+      return;
+    }
+    const lastId = getLastSelectedItemId();
+    const startIdx = lastId === null ? -1 : items.findIndex((item) => item.id === lastId);
+    const endIdx = items.findIndex((item) => item.id === itemId);
+    if (startIdx === -1 || endIdx === -1) {
+      toggleSelect(targetEntry.id);
+      setLastSelectedItemId(itemId);
+      return;
+    }
+    const lo = Math.min(startIdx, endIdx);
+    const hi = Math.max(startIdx, endIdx);
+    const rangeIds: string[] = [];
+    for (let idx = lo; idx <= hi; idx++) {
+      const rangeEntry = entryByItemId.get(items[idx].id);
+      if (rangeEntry) {
+        rangeIds.push(rangeEntry.id);
+      }
+    }
+    addToSelection(rangeIds);
+    setLastSelectedItemId(itemId);
+  };
+
+  // Snapshot the target entry ids, then open the matching dialog.
+  const openListAction = (action: "move" | "remove", entryIds: string[]) => {
+    setActionEntryIds(entryIds);
+    if (action === "move") {
+      setMoveOpen(true);
+    } else {
+      setRemoveOpen(true);
+    }
+  };
+
+  const handleBulkMove = (toListId: string) => {
+    moveEntries.mutate(
+      { fromListId: listId, toListId, entryIds: actionEntryIds },
+      {
+        onSuccess: (result) => {
+          toast.success(`Moved ${result.moved} card${result.moved === 1 ? "" : "s"} to list`);
+          clearSelection();
+          setMoveOpen(false);
+        },
+      },
+    );
+  };
+
+  const handleBulkRemove = () => {
+    const count = actionEntryIds.length;
+    bulkRemove.mutate(
+      { listId, entryIds: actionEntryIds },
+      {
+        onSuccess: () => {
+          toast.success(`Removed ${count} card${count === 1 ? "" : "s"} from list`);
+          clearSelection();
+          setRemoveOpen(false);
+        },
+      },
+    );
+  };
+
   // Register list-grid action dispatchers so the per-cell ListGridCell can
   // hand off click / +/- / remove / set-preference without taking parent
   // closures as props. Re-register every render so handlers close over the
@@ -686,6 +807,49 @@ function ListEntryBrowser({
       onSiblingClick: handleSiblingClick,
       onIncrement: handleIncrement,
       onDecrement: handleDecrement,
+      // Grid tile click: browse opens the detail pane; select toggles the
+      // tile's entry (shift extends the range).
+      onItemClick: (itemId, printing, modifiers) => {
+        if (mode === "browse") {
+          handleCardClick(printing);
+          return;
+        }
+        const entry = entryByItemId.get(itemId);
+        if (!entry) {
+          return;
+        }
+        if (modifiers.shift) {
+          shiftSelectRange(itemId);
+        } else {
+          toggleSelect(entry.id);
+          setLastSelectedItemId(itemId);
+        }
+      },
+      onItemToggle: (itemId) => {
+        const entry = entryByItemId.get(itemId);
+        if (!entry) {
+          return;
+        }
+        toggleSelect(entry.id);
+        setLastSelectedItemId(itemId);
+      },
+      onListBulkAction: (entryId, action) => {
+        // Same selection-or-single resolution as the collection right-click
+        // menu — entries are singular ids, so stacked: false.
+        const { copyIds, narrowSelectionTo } = resolveContextActionTarget({
+          mode,
+          stacked: false,
+          itemId: entryId,
+          cardCopyIds: [entryId],
+          selected,
+        });
+        if (narrowSelectionTo) {
+          clearSelection();
+          addToSelection(narrowSelectionTo);
+          setLastSelectedItemId(entryId);
+        }
+        openListAction(action, copyIds);
+      },
       onEntryQuantityChange: (entryId, quantity) => {
         // Library-mode decrement passes empty entryId when there's no entry;
         // the cell already disables the button in that case but guard here too.
@@ -731,6 +895,7 @@ function ListEntryBrowser({
       listId={listId}
       listTradeDefaults={listTradeDefaults}
       listCurrency={listCurrency}
+      mode={mode}
       showLibrary={showLibrary}
       supportsTradePrefs={supportsTradePrefs}
       siblings={view === "cards" ? siblingsSource.get(item.printing.cardId) : undefined}
@@ -762,6 +927,21 @@ function ListEntryBrowser({
       </Button>
     );
 
+  // Select mode is only meaningful over the list's own entries — hide the
+  // toggle in library (catalog) mode where most tiles have no entry.
+  const selectButton = showLibrary ? null : (
+    <Button
+      variant={selectMode ? "default" : "outline"}
+      size="icon"
+      onClick={toggleSelectMode}
+      title={selectMode ? "Exit select mode" : "Select cards"}
+      aria-label={selectMode ? "Exit select mode" : "Select cards"}
+      aria-pressed={selectMode}
+    >
+      <CheckSquareIcon className="size-4" />
+    </Button>
+  );
+
   const toolbar = (
     <BrowserToolbar
       totalCards={totalDisplay}
@@ -772,8 +952,19 @@ function ListEntryBrowser({
           : undefined
       }
       hideViewToggle
-      extras={showLibraryButton}
+      extras={
+        <>
+          {selectButton}
+          {showLibraryButton}
+        </>
+      }
     />
+  );
+
+  // Move targets: same kind + intent (the API rejects mismatches), this list
+  // excluded.
+  const moveTargetLists = allLists.filter(
+    (list) => list.id !== listId && list.kind === kind && list.intent === intent,
   );
 
   const leftPane = <BrowserLeftPane />;
@@ -861,6 +1052,41 @@ function ListEntryBrowser({
               onSearchAndClose={handleSearchAndClose}
             />
           )}
+          {mode === "select" && selected.size > 0 && (
+            <FloatingActionBar
+              selectedCount={selected.size}
+              actions={[
+                {
+                  label: "Move",
+                  icon: <ListIcon />,
+                  onClick: () => openListAction("move", [...selected]),
+                  disabled: moveEntries.isPending,
+                },
+                {
+                  label: "Remove",
+                  icon: <Trash2Icon />,
+                  variant: "destructive",
+                  onClick: () => openListAction("remove", [...selected]),
+                  disabled: bulkRemove.isPending,
+                },
+              ]}
+              onClear={clearSelection}
+            />
+          )}
+          <MoveToListDialog
+            open={moveOpen}
+            onOpenChange={setMoveOpen}
+            lists={moveTargetLists}
+            onMove={handleBulkMove}
+            isPending={moveEntries.isPending}
+          />
+          <ListRemoveDialog
+            open={removeOpen}
+            onOpenChange={setRemoveOpen}
+            count={actionEntryIds.length}
+            onConfirm={handleBulkRemove}
+            isPending={bulkRemove.isPending}
+          />
         </CardViewer>
         {prefDialogEntry && (
           <TradePreferenceDialog

@@ -12,19 +12,24 @@ interface ListEntryContextMenuProps {
   onViewDetail?: () => void;
   /** When set, adds a "Trade preference…" item that opens the editor dialog. */
   onSetPreference?: () => void;
+  /** When set, adds a "Move to list…" item. */
+  onMove?: () => void;
   children?: ReactNode;
 }
 
 /**
  * Right-click / long-press menu on a list-entry tile. Mirrors the deck
- * card-detail menu pattern but offers Remove (and an optional View details)
- * since lists don't have zone-aware quantity adjustment.
+ * card-detail menu pattern but offers Move / Remove (and an optional View
+ * details) since lists don't have zone-aware quantity adjustment. When the
+ * entry is part of the current select-mode selection, Move and Remove act on
+ * the whole selection; otherwise just this entry (resolved by the browser).
  * @returns The wrapped children with a context menu attached.
  */
 export function ListEntryContextMenu({
   onRemove,
   onViewDetail,
   onSetPreference,
+  onMove,
   children,
 }: ListEntryContextMenuProps) {
   return (
@@ -54,6 +59,16 @@ export function ListEntryContextMenu({
             }}
           >
             Trade preference…
+          </ContextMenuItem>
+        ) : null}
+        {onMove ? (
+          <ContextMenuItem
+            onClick={(event) => {
+              event.stopPropagation();
+              onMove();
+            }}
+          >
+            Move to list…
           </ContextMenuItem>
         ) : null}
         <ContextMenuItem

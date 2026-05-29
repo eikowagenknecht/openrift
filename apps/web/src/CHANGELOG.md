@@ -22,6 +22,7 @@
 - feat: On a group, the shared wishlists and tradelists are now clickable across the whole row to open the list, not just on the list name
 - feat: The Groups overview now shows each group on its own full-width row, with your role, member count, and any pending join requests visible at a glance
 - feat: On a collection page, right-click (or long-press on touch) a card to move it, add it to a list, or dispose of it, without opening the action bar first. If the card is part of a current multi-selection the action applies to everything selected; otherwise it applies to just that card
+- feat: On a wishlist or tradelist, a new select button lets you pick several cards at once (click to toggle, shift-click for a range) and then move them to another list or remove them in one go. Right-click a card for the same actions
 - fix: On a collection page, dragging a multi-selection of cards to another collection or a list now moves all of them at once, and the drag preview shows how many you're moving (like "5 printings") instead of just the top card's name. Before, only the top card moved and the label named just that card
 - fix: In a collection's printings view, selecting a card that has more than one printing now shows the checkmark on that printing, instead of leaving the box unchecked while the selection bar still counted it
 

@@ -1,12 +1,14 @@
 import type { Marketplace, Printing } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
+  BookOpenIcon,
   CheckIcon,
   CheckSquareIcon,
   DownloadIcon,
   EllipsisVerticalIcon,
   LayersIcon,
   LibraryBigIcon,
+  ListPlusIcon,
   PackageIcon,
   PencilIcon,
   Share2Icon,
@@ -1047,12 +1049,27 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           {mode === "select" && selected.size > 0 && (
             <FloatingActionBar
               selectedCount={selected.size}
-              onMove={() => openAction("move", [...selected])}
-              onDispose={() => openAction("dispose", [...selected])}
-              onAddToList={() => openAction("addToList", [...selected])}
+              actions={[
+                {
+                  label: "Move",
+                  icon: <BookOpenIcon />,
+                  onClick: () => openAction("move", [...selected]),
+                  disabled: moveCopies.isPending,
+                },
+                {
+                  label: "Add to list",
+                  icon: <ListPlusIcon />,
+                  onClick: () => openAction("addToList", [...selected]),
+                },
+                {
+                  label: "Dispose",
+                  icon: <Trash2Icon />,
+                  variant: "destructive",
+                  onClick: () => openAction("dispose", [...selected]),
+                  disabled: disposeCopies.isPending,
+                },
+              ]}
               onClear={clearSelection}
-              isMovePending={moveCopies.isPending}
-              isDisposePending={disposeCopies.isPending}
             />
           )}
 

@@ -11,6 +11,9 @@ export interface CardRowClickModifiers {
 /** Bulk actions offered by the /collections right-click menu (mirror the floating action bar). */
 export type CollectionContextAction = "move" | "addToList" | "dispose";
 
+/** Bulk actions offered by the /lists right-click menu (mirror the floating action bar). */
+export type ListBulkAction = "move" | "remove";
+
 interface CardRowHandlers {
   onRowClick?: (printing: Printing) => void;
   onSiblingClick?: (printing: Printing) => void;
@@ -47,6 +50,12 @@ interface CardRowHandlers {
   onSetPreference?: (entryId: string) => void;
   /** /lists: is the given entry currently waiting on a pending quantity mutation? */
   isQuantityPendingFor?: (entryId: string) => boolean;
+  /**
+   * /lists: a right-click menu bulk action on an entry. The browser resolves
+   * the target — the current multi-selection when this entry is part of it,
+   * otherwise just this entry — then opens the matching dialog.
+   */
+  onListBulkAction?: (entryId: string, action: ListBulkAction) => void;
 }
 
 interface CardRowActionsState {
@@ -124,6 +133,10 @@ export function dispatchRemoveEntry(entryId: string, cardName: string): void {
 
 export function dispatchSetPreference(entryId: string): void {
   useCardRowActionsStore.getState().handlers.onSetPreference?.(entryId);
+}
+
+export function dispatchListBulkAction(entryId: string, action: ListBulkAction): void {
+  useCardRowActionsStore.getState().handlers.onListBulkAction?.(entryId, action);
 }
 
 export function isQuantityPending(entryId: string): boolean {

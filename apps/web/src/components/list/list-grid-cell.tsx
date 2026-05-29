@@ -8,19 +8,22 @@ import { CardCell } from "@/components/cards/card-cell";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
 import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import type { ListEntryDragData } from "@/components/collection/dnd-types";
+import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
 import { DraggableListEntry } from "@/components/list/draggable-list-entry";
 import { ListEntryContextMenu } from "@/components/list/list-entry-context-menu";
 import { TradePreferenceGridPill } from "@/components/trade-preferences/trade-preference-grid-pill";
 import {
   dispatchEntryQuantityChange,
   dispatchIncrement,
-  dispatchRemoveEntry,
-  dispatchRowClick,
+  dispatchItemClick,
+  dispatchItemToggle,
+  dispatchListBulkAction,
   dispatchSetPreference,
   dispatchSiblingClick,
   isQuantityPending,
 } from "@/stores/card-row-actions-store";
 import { useGridFocusStore } from "@/stores/grid-focus-store";
+import { useGridSelectionStore } from "@/stores/grid-selection-store";
 import { useListEntriesStore } from "@/stores/list-entries-store";
 import { useSiblingOverrideStore } from "@/stores/sibling-override-store";
 
@@ -43,6 +46,8 @@ interface ListGridCellProps {
   listId: string;
   listTradeDefaults: TradePreference;
   listCurrency: Currency | null;
+  /** Browse renders +/-, drag, and trade controls; select renders a checkbox. */
+  mode: "browse" | "select";
   /** True when the grid is rendering the catalog (library mode). */
   showLibrary: boolean;
   supportsTradePrefs: boolean;
@@ -80,6 +85,7 @@ export const ListGridCell = memo(function ListGridCell({
   intent,
   listTradeDefaults,
   listCurrency,
+  mode,
   showLibrary,
   supportsTradePrefs,
   siblings,
@@ -88,6 +94,7 @@ export const ListGridCell = memo(function ListGridCell({
   priceRange,
 }: ListGridCellProps) {
   const inCardsView = view === "cards";
+  const inSelectMode = mode === "select";
 
   // Per-cell focus + flash subscriptions (granular selectors return
   // identity-equal booleans for cells that didn't toggle).
@@ -123,15 +130,25 @@ export const ListGridCell = memo(function ListGridCell({
     showLibrary ? s.entryByKey.get(key) : s.entryByItemId.get(itemId),
   );
 
-  const strip = buildStrip({
-    showLibrary,
-    kind,
-    entry,
-    displayPrinting,
-    listTradeDefaults,
-    listCurrency,
-    supportsTradePrefs,
-  });
+  // Selection keyed by entry id (one tile = one entry). The selector returns a
+  // bare boolean, so only the cell whose selection flipped re-renders.
+  const isItemSelected = useGridSelectionStore(
+    (state) => inSelectMode && entry !== undefined && state.selected.has(entry.id),
+  );
+
+  // Select mode hides the browse controls (quantity stepper, trade pill) and
+  // the drag wrap, and shows a checkbox instead — mirrors /collections.
+  const strip = inSelectMode
+    ? undefined
+    : buildStrip({
+        showLibrary,
+        kind,
+        entry,
+        displayPrinting,
+        listTradeDefaults,
+        listCurrency,
+        supportsTradePrefs,
+      });
 
   // Drag wiring: browse-mode tiles with a backing entry are draggable. The
   // drag payload is the single entry the tile represents — buildItems
@@ -150,16 +167,33 @@ export const ListGridCell = memo(function ListGridCell({
     : undefined;
   const dragId = entry ? `list-entry-${entry.id}` : undefined;
   const wrap =
-    !showLibrary && dragData && dragId ? (
+    !inSelectMode && !showLibrary && dragData && dragId ? (
       <DraggableListEntry id={dragId} data={dragData} />
     ) : undefined;
 
+  // Move / Remove act on the current selection when this entry is part of it,
+  // otherwise just this entry — the browser resolves which via the bulk-action
+  // handler. Trade preference stays single-entry.
   const contextMenu = entry ? (
     <ListEntryContextMenu
-      onRemove={() => dispatchRemoveEntry(entry.id, entry.cardName)}
+      onRemove={() => dispatchListBulkAction(entry.id, "remove")}
+      onMove={() => dispatchListBulkAction(entry.id, "move")}
       onSetPreference={supportsTradePrefs ? () => dispatchSetPreference(entry.id) : undefined}
     />
   ) : undefined;
+
+  const leftOverlay =
+    inSelectMode && entry ? (
+      <>
+        <SelectionCheckbox
+          isSelected={isItemSelected}
+          onToggle={() => dispatchItemToggle(itemId)}
+        />
+        {isItemSelected && (
+          <div className="ring-primary/50 pointer-events-none absolute inset-1.5 z-10 rounded-lg ring-2" />
+        )}
+      </>
+    ) : undefined;
 
   return (
     <CardCell
@@ -168,13 +202,19 @@ export const ListGridCell = memo(function ListGridCell({
       display={display}
       showImages={showImages}
       view={dataView}
-      onClick={dispatchRowClick}
+      onClick={(clicked, event) =>
+        dispatchItemClick(itemId, clicked, {
+          shift: event?.shiftKey ?? false,
+          ctrl: event?.ctrlKey ?? false,
+        })
+      }
       onSiblingClick={dispatchSiblingClick}
       siblings={inCardsView ? siblings : undefined}
       priceRange={priceRange}
       dimmed={showLibrary && (entry?.quantity ?? 0) === 0}
       stripSlot={showLibrary ? "topSlot" : undefined}
       strip={strip}
+      leftOverlay={leftOverlay}
       contextMenu={contextMenu}
       wrap={wrap}
     />

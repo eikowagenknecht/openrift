@@ -476,6 +476,30 @@ export function useRemoveListEntry() {
   });
 }
 
+const bulkRemoveListEntriesFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { listId: string; entryIds: string[] }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    await callApi(
+      serverApiClient(context.cookie).api.v1.lists[":id"].entries["bulk-delete"].$post({
+        param: encodeParams({ id: data.listId }),
+        json: { entryIds: data.entryIds },
+      }),
+      "Couldn't remove from list",
+    );
+  });
+
+export function useBulkRemoveListEntries() {
+  const userId = useRequiredUserId();
+  return useMutationWithInvalidation<unknown, { listId: string; entryIds: string[] }>({
+    mutationFn: (vars) => bulkRemoveListEntriesFn({ data: vars }),
+    invalidates: (variables) => [
+      queryKeys.lists.all(userId),
+      queryKeys.lists.detail(userId, variables.listId),
+    ],
+  });
+}
+
 // ── SHARING ──────────────────────────────────────────────────────────────────
 
 const shareListFn = createServerFn({ method: "POST" })

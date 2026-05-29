@@ -20,6 +20,7 @@ import {
 import {
   bulkAddCopiesToListSchema,
   bulkCreateListEntriesSchema,
+  bulkDeleteListEntriesSchema,
   createListEntrySchema,
   createListSchema,
   idAndItemIdParamSchema,
@@ -238,6 +239,19 @@ const getShareState = createRoute({
       description: "Current share state (shareToken null + isPublic false if unshared)",
     },
     ...errorResponses(401, 404),
+  },
+});
+
+const bulkDeleteListEntriesRoute = createRoute({
+  method: "post",
+  path: "/{id}/entries/bulk-delete",
+  tags: ["Lists"],
+  request: {
+    params: idParamSchema,
+    body: { content: { "application/json": { schema: bulkDeleteListEntriesSchema } } },
+  },
+  responses: {
+    204: { description: "No Content" },
   },
 });
 
@@ -624,6 +638,24 @@ export const listsRoute = listsApp
     assertFound(state, "Not found");
 
     return c.json(state satisfies ListShareResponse, 200);
+  })
+
+  // ── POST /lists/:id/entries/bulk-delete ───────────────────────────────────
+  // Bulk-remove from select mode. deleteEntriesByIds is scoped to the list +
+  // owner, so entry ids from another list (or another user) are filtered out
+  // rather than erroring. We still 404 a missing list so a stale URL is loud.
+  .openapi(bulkDeleteListEntriesRoute, async (c) => {
+    const { lists } = c.get("repos");
+    const userId = getUserId(c);
+    const { id: listId } = c.req.valid("param");
+    const { entryIds } = c.req.valid("json");
+
+    const list = await lists.getIdAndKind(listId, userId);
+    assertFound(list, "List not found");
+
+    await lists.deleteEntriesByIds(entryIds, listId, userId);
+
+    return c.body(null, 204);
   })
 
   // ── POST /lists/:id/share ─────────────────────────────────────────────────

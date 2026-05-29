@@ -1,6 +1,11 @@
 import { afterAll, describe, expect, it } from "vitest";
 
-import { CARD_FURY_UNIT, PRINTING_1 } from "../test/fixtures/constants.js";
+import {
+  CARD_CALM_UNIT,
+  CARD_FURY_SPELL,
+  CARD_FURY_UNIT,
+  PRINTING_1,
+} from "../test/fixtures/constants.js";
 import { createDbContext } from "../test/integration-context.js";
 import { listsRepo } from "./lists.js";
 
@@ -813,6 +818,45 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     });
     const result = await repo.deleteEntry(entry.id, list.id, userId);
     expect(result.numDeletedRows).toBe(1n);
+  });
+
+  it("deleteEntriesByIds removes only the given entries, scoped to the list", async () => {
+    const list = await repo.create({ userId, name: "Bulk delete", intent: "wish", kind: "card" });
+    createdListIds.push(list.id);
+    const other = await repo.create({ userId, name: "Other list", intent: "wish", kind: "card" });
+    createdListIds.push(other.id);
+
+    const makeEntry = (listId: string, cardId: string) =>
+      repo.createEntry({
+        listId,
+        userId,
+        kind: "card",
+        cardId,
+        printingId: null,
+        copyId: null,
+        quantity: 1,
+      });
+    const fury = await makeEntry(list.id, CARD_FURY_UNIT.id);
+    const spell = await makeEntry(list.id, CARD_FURY_SPELL.id);
+    const calm = await makeEntry(list.id, CARD_CALM_UNIT.id);
+    // An entry on a different list — passing its id must not delete it.
+    const foreign = await makeEntry(other.id, CARD_FURY_UNIT.id);
+
+    const result = await repo.deleteEntriesByIds([fury.id, calm.id, foreign.id], list.id, userId);
+    expect(result.numDeletedRows).toBe(2n);
+
+    // spell stayed on the list; foreign stayed on the other list.
+    const spellDeleted = await repo.deleteEntry(spell.id, list.id, userId);
+    expect(spellDeleted.numDeletedRows).toBe(1n);
+    const foreignDeleted = await repo.deleteEntry(foreign.id, other.id, userId);
+    expect(foreignDeleted.numDeletedRows).toBe(1n);
+  });
+
+  it("deleteEntriesByIds is a no-op for an empty id list", async () => {
+    const list = await repo.create({ userId, name: "Empty delete", intent: "wish", kind: "card" });
+    createdListIds.push(list.id);
+    const result = await repo.deleteEntriesByIds([], list.id, userId);
+    expect(result.numDeletedRows).toBe(0n);
   });
 
   it("deleting a list cascades its entries", async () => {
