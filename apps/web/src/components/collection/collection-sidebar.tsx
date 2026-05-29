@@ -176,8 +176,8 @@ function ListsSidebarGroups({
                         <SidebarMenuItem>
                           <SidebarMenuButton
                             isActive={activeId === list.id}
-                            // Keep the row highlighted while the cursor is over the drag grip (which sits on top of the button).
-                            className="group-hover/menu-item:bg-sidebar-accent group-hover/menu-item:text-sidebar-accent-foreground"
+                            // Keep the row highlighted while the cursor is over the desktop grip (which overlays the button); max-md:pr-8 reserves room for the mobile grip on the right.
+                            className="group-hover/menu-item:bg-sidebar-accent group-hover/menu-item:text-sidebar-accent-foreground max-md:pr-8"
                             render={
                               <Link to="/collections/lists/$listId" params={{ listId: list.id }} />
                             }
@@ -474,8 +474,8 @@ export function CollectionSidebar() {
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         isActive={collectionId === col.id}
-                        // Keep the row highlighted while the cursor is over the drag grip (which sits on top of the button).
-                        className="group-hover/menu-item:bg-sidebar-accent group-hover/menu-item:text-sidebar-accent-foreground"
+                        // Keep the row highlighted while the cursor is over the desktop grip (which overlays the button); max-md:pr-8 reserves room for the mobile grip on the right.
+                        className="group-hover/menu-item:bg-sidebar-accent group-hover/menu-item:text-sidebar-accent-foreground max-md:pr-8"
                         render={
                           <Link
                             to="/collections/$collectionId"

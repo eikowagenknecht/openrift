@@ -11,15 +11,12 @@ import type {
 import { cn } from "@/lib/utils";
 
 /**
- * Apply to a reorderable sidebar row's leading icon so it yields its slot to the
- * drag handle, which sits on top of it. The grip and the icon share the same
- * left position; this class swaps which one is visible. It mirrors the handle's
- * reveal logic: on touch (below `md`) the handle is always shown, so the icon
- * stays hidden; on desktop the icon shows at rest and fades out while the row is
- * hovered or focused.
+ * Apply to a reorderable sidebar row's leading icon. On desktop the grip sits on
+ * top of the icon, so the icon fades out only while the row is hovered (the grip
+ * takes its place). On touch (below `md`) there's no hover and the grip lives on
+ * the right instead, so the icon stays visible — both the icon and the grip show.
  */
-export const SIDEBAR_ROW_ICON_CLASS =
-  "opacity-0 transition-opacity md:opacity-100 md:group-hover/menu-item:opacity-0 md:group-focus-within/menu-item:opacity-0";
+export const SIDEBAR_ROW_ICON_CLASS = "transition-opacity md:group-hover/menu-item:opacity-0";
 
 interface SortableSidebarRowProps {
   /** Unique sortable id; namespaced ("sortable-collection-…" / "sortable-list-…"). */
@@ -83,16 +80,17 @@ export function SortableSidebarRow({ id, data, label, children }: SortableSideba
       aria-label={`Reorder ${label}`}
       type="button"
       className={cn(
-        // Sits exactly over the row's leading icon (button p-2 + size-4 icon).
-        // No background of its own, so it never paints a mismatched patch over
+        // Touch: on the right (alongside the icon). Desktop (md+): moves on top of
+        // the row's leading icon (button p-2 + size-4 icon line it up exactly). It
+        // has no background of its own, so it never paints a mismatched patch over
         // the row's hover highlight — the hidden icon underneath is all it covers.
-        "absolute top-1.5 left-1.5 flex aspect-square w-5 items-center justify-center rounded-md outline-hidden",
+        "absolute top-1.5 right-1 flex aspect-square w-5 items-center justify-center rounded-md outline-hidden md:right-auto md:left-1.5",
         "cursor-grab transition-opacity active:cursor-grabbing",
-        "text-sidebar-foreground group-hover/menu-item:text-sidebar-accent-foreground group-focus-within/menu-item:text-sidebar-accent-foreground peer-data-active/menu-button:text-sidebar-accent-foreground",
-        // Hidden at rest on desktop; revealed on hover/focus. Always shown on touch (below md).
-        "group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 md:opacity-0",
+        "text-sidebar-foreground group-hover/menu-item:text-sidebar-accent-foreground peer-data-active/menu-button:text-sidebar-accent-foreground",
+        // Touch: always shown. Desktop: hidden at rest, revealed only on hover (or when the grip itself is keyboard-focused) — never just because the row is active/focused.
+        "focus-visible:opacity-100 md:opacity-0 md:group-hover/menu-item:opacity-100",
         // While hidden on desktop, stay click-through so clicking the icon still follows the row link.
-        "md:pointer-events-none md:group-focus-within/menu-item:pointer-events-auto md:group-hover/menu-item:pointer-events-auto",
+        "md:pointer-events-none md:group-hover/menu-item:pointer-events-auto",
         // Enlarge the touch target on mobile, where the grip is always shown.
         "after:absolute after:-inset-2 md:after:hidden",
         "focus-visible:ring-sidebar-ring focus-visible:ring-2",
