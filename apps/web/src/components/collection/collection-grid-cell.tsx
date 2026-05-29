@@ -116,8 +116,11 @@ export const CollectionGridCell = memo(function CollectionGridCell({
       : printing;
 
   // In-collection counts via per-cell live query. siblingIds is the cell's
-  // card's catalog siblings (or just this printing's id in printings view).
-  const siblingIds = siblings ? siblings.map((s) => s.id) : [displayPrinting.id];
+  // card's catalog siblings in cards view, or just this printing's id in
+  // printings view — where each printing is its own cell, so it must never
+  // fold in copies from other printings of the same card (that would make a
+  // single-printing select fail the "every copy selected" checkbox test).
+  const siblingIds = inCardsView && siblings ? siblings.map((s) => s.id) : [displayPrinting.id];
   const { data: counts } = useOwnedCountsForPrintings(siblingIds, true, collectionId);
 
   // Per-cell copy IDs for select-mode toggles and drag wrap. The underlying

@@ -733,7 +733,9 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       mode={mode}
       showLibrary={showLibrary}
       stacked={stacked}
-      siblings={catalogPrintingsByCardId.get(item.printing.cardId)}
+      siblings={
+        dataView === "cards" ? catalogPrintingsByCardId.get(item.printing.cardId) : undefined
+      }
       collectionId={collectionId}
       display={display}
       showImages={showImages}
