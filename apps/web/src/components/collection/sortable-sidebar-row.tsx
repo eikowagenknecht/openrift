@@ -52,23 +52,34 @@ export function SortableSidebarRow({ id, data, label, children }: SortableSideba
   const isReorderActive =
     activeType === "sidebar-reorder-collection" || activeType === "sidebar-reorder-list";
 
-  const sortable = useSortable({
+  // Destructure into locals before using in JSX: the React Compiler treats
+  // member access on the hook's return object (sortable.listeners, etc.) as a
+  // ref read during render and bails. Matches DraggableCard / DraggableListEntry.
+  const {
+    setNodeRef,
+    setActivatorNodeRef,
+    listeners,
+    attributes,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id,
     data,
     disabled: { droppable: !isReorderActive, draggable: false },
   });
 
   const style: CSSProperties = {
-    transform: CSS.Transform.toString(sortable.transform),
-    transition: sortable.transition,
-    opacity: sortable.isDragging ? 0.3 : undefined,
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.3 : undefined,
   };
 
   const handle = (
     <button
-      ref={sortable.setActivatorNodeRef}
-      {...sortable.attributes}
-      {...sortable.listeners}
+      ref={setActivatorNodeRef}
+      {...attributes}
+      {...listeners}
       aria-label={`Reorder ${label}`}
       type="button"
       className={cn(
@@ -94,7 +105,7 @@ export function SortableSidebarRow({ id, data, label, children }: SortableSideba
   );
 
   return (
-    <div ref={sortable.setNodeRef} style={style}>
+    <div ref={setNodeRef} style={style}>
       {children(handle)}
     </div>
   );
