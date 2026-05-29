@@ -55,6 +55,7 @@ import {
 } from "@/components/ui/sheet";
 import { UserAvatar } from "@/components/user-avatar";
 import { useIsAdmin } from "@/hooks/use-admin";
+import { useTradeActionCounts } from "@/hooks/use-card-trades";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { useFriendGroupPendingInvitesCount } from "@/hooks/use-friend-groups";
 import { signOut } from "@/lib/auth-client";
@@ -109,13 +110,13 @@ function DesktopNav({
   showCollection,
   showDecks,
   showGroups,
-  pendingInvites,
+  groupsBadge,
 }: {
   showGlossary: boolean;
   showCollection: boolean;
   showDecks: boolean;
   showGroups: boolean;
-  pendingInvites: number;
+  groupsBadge: number;
 }) {
   return (
     <NavigationMenu>
@@ -164,12 +165,12 @@ function DesktopNav({
               )}
             >
               Groups
-              {pendingInvites > 0 && (
+              {groupsBadge > 0 && (
                 <span
-                  aria-label={`${pendingInvites} pending invites`}
+                  aria-label={`${groupsBadge} items need your attention`}
                   className="bg-primary text-primary-foreground ml-1.5 rounded-full px-1.5 text-[10px] font-medium"
                 >
-                  {pendingInvites > 9 ? "9+" : pendingInvites}
+                  {groupsBadge > 9 ? "9+" : groupsBadge}
                 </span>
               )}
             </NavigationMenuLink>
@@ -381,7 +382,7 @@ function MobileNavLink({
       {children}
       {badge !== undefined && badge > 0 && (
         <span
-          aria-label={`${badge} pending invites`}
+          aria-label={`${badge} items need your attention`}
           className="bg-primary text-primary-foreground ml-auto rounded-full px-1.5 text-[10px] font-medium"
         >
           {badge > 9 ? "9+" : badge}
@@ -398,7 +399,7 @@ function MobileNav({
   showCollection,
   showDecks,
   showGroups,
-  pendingInvites,
+  groupsBadge,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -406,7 +407,7 @@ function MobileNav({
   showCollection: boolean;
   showDecks: boolean;
   showGroups: boolean;
-  pendingInvites: number;
+  groupsBadge: number;
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -454,7 +455,7 @@ function MobileNav({
             <MobileNavLink
               to="/groups"
               icon={<UsersIcon className="text-muted-foreground size-5" />}
-              badge={pendingInvites}
+              badge={groupsBadge}
             >
               Groups
             </MobileNavLink>
@@ -579,7 +580,9 @@ export function Header() {
   const showDecks = isLoggedIn;
   const showGroups = isLoggedIn;
   const { data: pendingInvitesData } = useFriendGroupPendingInvitesCount({ enabled: isLoggedIn });
-  const pendingInvites = pendingInvitesData?.count ?? 0;
+  const { data: tradeActionCounts } = useTradeActionCounts();
+  // One "Groups need your attention" badge: pending invites + trades awaiting action.
+  const groupsBadge = (pendingInvitesData?.count ?? 0) + (tradeActionCounts?.total ?? 0);
 
   return (
     <header className="bg-background/80 border-border-accent sticky top-0 z-50 border-b backdrop-blur-lg">
@@ -599,7 +602,7 @@ export function Header() {
             showCollection={showCollection}
             showDecks={showDecks}
             showGroups={showGroups}
-            pendingInvites={pendingInvites}
+            groupsBadge={groupsBadge}
           />
         </div>
 
@@ -630,7 +633,7 @@ export function Header() {
         showCollection={showCollection}
         showDecks={showDecks}
         showGroups={showGroups}
-        pendingInvites={pendingInvites}
+        groupsBadge={groupsBadge}
       />
     </header>
   );

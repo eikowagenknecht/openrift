@@ -148,6 +148,17 @@ export type {
 } from "./friend-group.js";
 
 export type {
+  CardTradeActionNeeded,
+  CardTradeCounterparty,
+  CardTradeInitiator,
+  CardTradeListResponse,
+  CardTradeResponse,
+  CardTradeRole,
+  CardTradeStatus,
+  CardTradeActionCountsResponse,
+} from "./card-trade.js";
+
+export type {
   AnySnapshot,
   CardmarketSnapshot,
   CardtraderSnapshot,

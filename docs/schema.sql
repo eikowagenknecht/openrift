@@ -616,6 +616,47 @@ CREATE TABLE public.card_super_types (
 
 
 --
+-- Name: card_trade_copies; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.card_trade_copies (
+    trade_id uuid NOT NULL,
+    copy_id uuid NOT NULL
+);
+
+
+--
+-- Name: card_trades; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.card_trades (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    group_id uuid NOT NULL,
+    giver_user_id text NOT NULL,
+    receiver_user_id text NOT NULL,
+    initiator text NOT NULL,
+    printing_id uuid NOT NULL,
+    card_id uuid NOT NULL,
+    quantity integer NOT NULL,
+    status text DEFAULT 'pending'::text NOT NULL,
+    receiver_wish_entry_id uuid,
+    last_actor_user_id text,
+    giver_sync_applied_at timestamp with time zone,
+    receiver_sync_applied_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    accepted_at timestamp with time zone,
+    completed_at timestamp with time zone,
+    closed_at timestamp with time zone,
+    expires_at timestamp with time zone,
+    CONSTRAINT chk_card_trades_distinct_parties CHECK ((giver_user_id <> receiver_user_id)),
+    CONSTRAINT chk_card_trades_initiator CHECK ((initiator = ANY (ARRAY['giver'::text, 'receiver'::text]))),
+    CONSTRAINT chk_card_trades_quantity CHECK ((quantity > 0)),
+    CONSTRAINT chk_card_trades_status CHECK ((status = ANY (ARRAY['pending'::text, 'reserved'::text, 'completed'::text, 'declined'::text, 'cancelled'::text, 'expired'::text])))
+);
+
+
+--
 -- Name: card_types; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1763,6 +1804,22 @@ ALTER TABLE ONLY public.card_super_types
 
 
 --
+-- Name: card_trade_copies card_trade_copies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_trade_copies
+    ADD CONSTRAINT card_trade_copies_pkey PRIMARY KEY (trade_id, copy_id);
+
+
+--
+-- Name: card_trades card_trades_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_trades
+    ADD CONSTRAINT card_trades_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: card_types card_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2291,6 +2348,14 @@ ALTER TABLE ONLY public.super_types
 
 
 --
+-- Name: card_trade_copies uq_card_trade_copies_copy; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_trade_copies
+    ADD CONSTRAINT uq_card_trade_copies_copy UNIQUE (copy_id);
+
+
+--
 -- Name: collections uq_collections_id_user; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2470,6 +2535,34 @@ CREATE INDEX idx_card_custom_tags_custom_tag_id ON public.card_custom_tags USING
 --
 
 CREATE INDEX idx_card_domains_domain_slug ON public.card_domains USING btree (domain_slug);
+
+
+--
+-- Name: idx_card_trades_expiry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_card_trades_expiry ON public.card_trades USING btree (expires_at) WHERE (status = 'pending'::text);
+
+
+--
+-- Name: idx_card_trades_giver; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_card_trades_giver ON public.card_trades USING btree (giver_user_id, status);
+
+
+--
+-- Name: idx_card_trades_group; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_card_trades_group ON public.card_trades USING btree (group_id, status);
+
+
+--
+-- Name: idx_card_trades_receiver; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_card_trades_receiver ON public.card_trades USING btree (receiver_user_id, status);
 
 
 --
@@ -2799,6 +2892,13 @@ CREATE UNIQUE INDEX marketplace_products_sku_key ON public.marketplace_products 
 --
 
 CREATE UNIQUE INDEX uq_card_bans_active ON public.card_bans USING btree (card_id, format_id) WHERE (unbanned_at IS NULL);
+
+
+--
+-- Name: uq_card_trades_live; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_card_trades_live ON public.card_trades USING btree (group_id, giver_user_id, receiver_user_id, printing_id) WHERE (status = ANY (ARRAY['pending'::text, 'reserved'::text]));
 
 
 --
@@ -3337,6 +3437,78 @@ ALTER TABLE ONLY public.card_super_types
 
 ALTER TABLE ONLY public.card_super_types
     ADD CONSTRAINT card_super_types_super_type_slug_fkey FOREIGN KEY (super_type_slug) REFERENCES public.super_types(slug);
+
+
+--
+-- Name: card_trade_copies card_trade_copies_copy_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_trade_copies
+    ADD CONSTRAINT card_trade_copies_copy_id_fkey FOREIGN KEY (copy_id) REFERENCES public.copies(id) ON DELETE CASCADE;
+
+
+--
+-- Name: card_trade_copies card_trade_copies_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_trade_copies
+    ADD CONSTRAINT card_trade_copies_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.card_trades(id) ON DELETE CASCADE;
+
+
+--
+-- Name: card_trades card_trades_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_trades
+    ADD CONSTRAINT card_trades_card_id_fkey FOREIGN KEY (card_id) REFERENCES public.cards(id);
+
+
+--
+-- Name: card_trades card_trades_giver_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_trades
+    ADD CONSTRAINT card_trades_giver_user_id_fkey FOREIGN KEY (giver_user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: card_trades card_trades_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_trades
+    ADD CONSTRAINT card_trades_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.friend_groups(id) ON DELETE CASCADE;
+
+
+--
+-- Name: card_trades card_trades_last_actor_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_trades
+    ADD CONSTRAINT card_trades_last_actor_user_id_fkey FOREIGN KEY (last_actor_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: card_trades card_trades_printing_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_trades
+    ADD CONSTRAINT card_trades_printing_id_fkey FOREIGN KEY (printing_id) REFERENCES public.printings(id);
+
+
+--
+-- Name: card_trades card_trades_receiver_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_trades
+    ADD CONSTRAINT card_trades_receiver_user_id_fkey FOREIGN KEY (receiver_user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: card_trades card_trades_receiver_wish_entry_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_trades
+    ADD CONSTRAINT card_trades_receiver_wish_entry_id_fkey FOREIGN KEY (receiver_wish_entry_id) REFERENCES public.list_entries(id) ON DELETE SET NULL;
 
 
 --

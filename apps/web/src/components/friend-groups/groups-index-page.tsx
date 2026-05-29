@@ -29,6 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { useTradeActionCounts } from "@/hooks/use-card-trades";
 import {
   useAcceptFriendGroupInvite,
   useCreateFriendGroup,
@@ -149,6 +150,10 @@ function CreateGroupDialog({
 
 export function GroupsIndexPage() {
   const { data } = useFriendGroups();
+  const { data: actionCounts } = useTradeActionCounts();
+  const actionCountByGroup = new Map(
+    (actionCounts?.byGroup ?? []).map((entry) => [entry.groupId, entry.count]),
+  );
   const [createOpen, setCreateOpen] = useState(false);
   const acceptInvite = useAcceptFriendGroupInvite();
   const declineInvite = useDeclineFriendGroupInvite();
@@ -238,6 +243,7 @@ export function GroupsIndexPage() {
         <div className="flex flex-col gap-2">
           {data.items.map((row) => {
             const badge = ROLE_BADGE[row.viewerRole];
+            const actionCount = actionCountByGroup.get(row.id) ?? 0;
             return (
               <Link
                 key={row.id}
@@ -263,6 +269,11 @@ export function GroupsIndexPage() {
                   <span className="whitespace-nowrap">
                     {row.memberCount} {row.memberCount === 1 ? "member" : "members"}
                   </span>
+                  {actionCount > 0 ? (
+                    <Badge className="bg-primary text-primary-foreground whitespace-nowrap">
+                      {actionCount} action{actionCount === 1 ? "" : "s"} needed
+                    </Badge>
+                  ) : null}
                   {row.pendingRequestCount > 0 ? (
                     <Badge variant="secondary" className="whitespace-nowrap">
                       {row.pendingRequestCount} pending

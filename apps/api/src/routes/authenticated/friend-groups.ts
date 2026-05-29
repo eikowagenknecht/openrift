@@ -974,7 +974,6 @@ export const friendGroupsRoute = friendGroupsApp
   // ── LEAVE ───────────────────────────────────────────────────────────────
   .openapi(leaveGroup, async (c) => {
     const viewerId = getUserId(c);
-    const { friendGroups } = c.get("repos");
     const { slug } = c.req.valid("param");
 
     const ctx = await loadGroupForMember(c.get("repos"), slug, viewerId);
@@ -986,7 +985,12 @@ export const friendGroupsRoute = friendGroupsApp
       );
     }
 
-    await friendGroups.removeMember(ctx.group.id, viewerId);
+    // Cancel the leaver's live trades in this group (releasing reserved copies)
+    // atomically with dropping membership (ADR-019).
+    await c.get("transact")(async (trxRepos) => {
+      await trxRepos.cardTrades.cancelForDepartingMember(ctx.group.id, viewerId);
+      await trxRepos.friendGroups.removeMember(ctx.group.id, viewerId);
+    });
     return c.body(null, 204);
   })
 
@@ -1090,7 +1094,12 @@ export const friendGroupsRoute = friendGroupsApp
       throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only the owner can remove admins");
     }
 
-    await friendGroups.removeMember(ctx.group.id, targetUserId);
+    // Cancel the kicked member's live trades in this group (releasing reserved
+    // copies) atomically with dropping membership (ADR-019).
+    await c.get("transact")(async (trxRepos) => {
+      await trxRepos.cardTrades.cancelForDepartingMember(ctx.group.id, targetUserId);
+      await trxRepos.friendGroups.removeMember(ctx.group.id, targetUserId);
+    });
     return c.body(null, 204);
   })
 

@@ -21,6 +21,7 @@ import { createMetricsMiddleware } from "./middleware/metrics.js";
 import { otelRequestMiddleware } from "./middleware/otel-request.js";
 import { createApiApp } from "./openapi.js";
 import { adminRoute } from "./routes/admin/index.js";
+import { cardTradesRoute } from "./routes/authenticated/card-trades.js";
 import { collectionEventsRoute } from "./routes/authenticated/collection-events.js";
 import { collectionValueHistoryRoute } from "./routes/authenticated/collection-value-history.js";
 import { collectionsRoute } from "./routes/authenticated/collections.js";
@@ -427,6 +428,7 @@ export function createApp(deps: AppDeps) {
       .route("/api/v1", userShareRoute)
       .route("/api/v1", listsRoute)
       .route("/api/v1", friendGroupsRoute)
+      .route("/api/v1", cardTradesRoute)
 
       // ── Admin routes (require admin role) ────────────────────────────────
       // mounted under /api/admin/v1 (not /api/v1/admin) so admin churn is

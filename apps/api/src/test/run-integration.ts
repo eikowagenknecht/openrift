@@ -96,6 +96,10 @@ const TEST_USERS: TestUser[] = [
   { id: "a0000000-0053-4000-a000-000000000001", email: "repo-0053@test.com", isAdmin: false },
   // Second user for the deck-clone route test ("clone as another user").
   { id: "a0000000-0008-4000-a000-000000000002", email: "user-0008b@test.com", isAdmin: false },
+  // Card-trades repo integration tests (ADR-019)
+  { id: "a0000000-0054-4000-a000-000000000001", email: "repo-0054@test.com", isAdmin: false },
+  { id: "a0000000-0055-4000-a000-000000000001", email: "repo-0055@test.com", isAdmin: false },
+  { id: "a0000000-0056-4000-a000-000000000001", email: "repo-0056@test.com", isAdmin: false },
 ];
 
 // ---------------------------------------------------------------------------
@@ -178,6 +182,8 @@ const PARALLEL_FILES = [
   "src/repositories/site-settings.integration.test.ts",
   "src/repositories/user-preferences.integration.test.ts",
   "src/repositories/user-shares.integration.test.ts",
+  // Card trades (ADR-019)
+  "src/repositories/card-trades.integration.test.ts",
 ];
 
 /** Files that formerly used mock.module() — now empty since services are injected via context */

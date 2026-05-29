@@ -32,6 +32,7 @@ function createMockRepos(overrides: {
     collectionId: string;
     collectionName: string;
   }[];
+  reservedCopies?: string[];
 }) {
   const targetExists = overrides.targetCollection !== undefined;
   const repos = {
@@ -64,6 +65,10 @@ function createMockRepos(overrides: {
     },
     collectionEvents: {
       insert: () => Promise.resolve(),
+    },
+    cardTrades: {
+      filterReservedCopyIds: (copyIds: readonly string[]) =>
+        Promise.resolve((overrides.reservedCopies ?? []).filter((id) => copyIds.includes(id))),
     },
   } as unknown as Repos;
 
@@ -247,6 +252,21 @@ describe("disposeCopies", () => {
     const transact = mockTransact(repos);
 
     await disposeCopies(transact, "user-1", ["copy-1", "copy-2"]);
+  });
+
+  it("rejects a copy reserved by a live trade (ADR-019)", async () => {
+    const repos = createMockRepos({
+      writableCollections: ["col-1"],
+      fetchedCopies: [
+        { id: "copy-1", printingId: "p-1", collectionId: "col-1", collectionName: "Main" },
+      ],
+      reservedCopies: ["copy-1"],
+    });
+    const transact = mockTransact(repos);
+
+    await expect(disposeCopies(transact, "user-1", ["copy-1"])).rejects.toMatchObject({
+      status: 409,
+    });
   });
 });
 

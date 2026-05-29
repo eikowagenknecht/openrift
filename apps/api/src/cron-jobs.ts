@@ -7,4 +7,5 @@ export const cronJobs = {
   printingEvents: null as Cron | null,
   changelog: null as Cron | null,
   jobRunsCleanup: null as Cron | null,
+  cardTradesExpire: null as Cron | null,
 };

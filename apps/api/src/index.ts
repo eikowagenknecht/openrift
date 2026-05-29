@@ -225,6 +225,20 @@ if (config.cron.changelogSchedule) {
   jrLog.info("Cron registered (0 4 * * *)");
 }
 
+{
+  const cteLog = log.child({ service: "card-trades-expire" });
+  cronJobs.cardTradesExpire = new Cron("*/15 * * * *", { protect: true }, async () => {
+    await runJob(
+      { repos, log: cteLog },
+      "card_trades.expire_pending",
+      "cron",
+      () => repos.cardTrades.expirePending(),
+      { summarize: (result) => result },
+    );
+  });
+  cteLog.info("Cron registered (*/15 * * * *)");
+}
+
 // ── 4. Start server ─────────────────────────────────────────────────────────
 
 const app = createApp({ db, auth, config, log });

@@ -33,6 +33,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserAvatar } from "@/components/user-avatar";
+import { useTradeActionCounts } from "@/hooks/use-card-trades";
 import { useCollections } from "@/hooks/use-collections";
 import {
   useAcceptFriendGroupInvite,
@@ -49,6 +50,7 @@ import { cn, PAGE_PADDING } from "@/lib/utils";
 
 import { MatchTradeList } from "./match-row-card";
 import { SharedListRow } from "./shared-list-row";
+import { TradesSection } from "./trades-section";
 
 const ROLE_LABEL: Record<FriendGroupRole, string> = {
   owner: "Owner",
@@ -58,7 +60,7 @@ const ROLE_LABEL: Record<FriendGroupRole, string> = {
 
 const SECTION_HEADING = "text-muted-foreground text-sm font-medium tracking-wide uppercase";
 
-type GroupTab = "trading" | "collections" | "members";
+type GroupTab = "trading" | "trades" | "collections" | "members";
 
 export function isAdmin(role: FriendGroupRole | null): role is "admin" | "owner" {
   return role === "admin" || role === "owner";
@@ -111,6 +113,9 @@ function FriendGroupMemberView({
   tab: GroupTab;
   onTabChange: (tab: GroupTab) => void;
 }) {
+  const { data: actionCounts } = useTradeActionCounts();
+  const tradesActionCount =
+    actionCounts?.byGroup.find((entry) => entry.groupId === data.group.id)?.count ?? 0;
   return (
     <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING)}>
       <header className="flex flex-col gap-2">
@@ -136,6 +141,17 @@ function FriendGroupMemberView({
       <Tabs value={tab} onValueChange={(value) => onTabChange(value as GroupTab)} className="gap-6">
         <TabsList>
           <TabsTrigger value="trading">Trading</TabsTrigger>
+          <TabsTrigger value="trades">
+            Trades
+            {tradesActionCount > 0 ? (
+              <span
+                aria-label={`${tradesActionCount} need your action`}
+                className="bg-primary text-primary-foreground ml-1.5 rounded-full px-1.5 text-[10px] font-medium"
+              >
+                {tradesActionCount > 9 ? "9+" : tradesActionCount}
+              </span>
+            ) : null}
+          </TabsTrigger>
           <TabsTrigger value="collections">Collections</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
         </TabsList>
@@ -143,6 +159,10 @@ function FriendGroupMemberView({
         <TabsContent value="trading" className="flex flex-col gap-8">
           <MatchesSection slug={slug} data={data} />
           <SharedListsSection slug={slug} data={data} />
+        </TabsContent>
+
+        <TabsContent value="trades">
+          <TradesSection groupId={data.group.id} />
         </TabsContent>
 
         <TabsContent value="collections" className="flex flex-col gap-6">

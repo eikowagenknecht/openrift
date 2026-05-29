@@ -89,6 +89,7 @@ import * as m140 from "./140-collection-events-preserve-on-delete.js";
 import * as m141 from "./141-friend-group-collection-shares.js";
 import * as m142 from "./142-list-sort-order.js";
 import * as m143 from "./143-copy-ownership-from-collection.js";
+import * as m144 from "./144-card-trades.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -237,4 +238,5 @@ export const migrations: Record<string, Migration> = {
   "141-friend-group-collection-shares": m141,
   "142-list-sort-order": m142,
   "143-copy-ownership-from-collection": m143,
+  "144-card-trades": m144,
 };

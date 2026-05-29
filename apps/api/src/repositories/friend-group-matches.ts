@@ -161,6 +161,19 @@ async function runMatchQuery(
     .where("s_sell.groupId", "=", scope.groupId)
     .where("l_sell.intent", "=", "trade")
     .where("le_sell.kind", "=", "copy")
+    // ADR-019: a copy reserved (or completed-pending-giver-sync) by a live trade
+    // is invisible to everyone. The trade side is always `cp` regardless of
+    // direction, so this single clause covers both panels.
+    .where((eb) =>
+      eb.not(
+        eb.exists(
+          eb
+            .selectFrom("cardTradeCopies as ctc")
+            .select(sql`1`.as("one"))
+            .whereRef("ctc.copyId", "=", "cp.id"),
+        ),
+      ),
+    )
     // Match rule: card-kind wishes match any printing of the card; printing-
     // kind wishes match the exact printing.
     .where((eb) =>

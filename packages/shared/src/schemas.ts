@@ -483,6 +483,42 @@ const completionScopeWriteSchema = z.object({
   errata: z.boolean().optional(),
 });
 
+// ─── Card trades (ADR-019) ───────────────────────────────────────────────────
+
+export const CARD_TRADE_STATUSES = [
+  "pending",
+  "reserved",
+  "completed",
+  "declined",
+  "cancelled",
+  "expired",
+] as const;
+
+const cardTradeStatusSchema = z.enum(CARD_TRADE_STATUSES);
+
+/**
+ * Create a trade from a match row. `role` is the *caller's* side: `receiver`
+ * is the "I want this card" request (giver = counterparty), `giver` is the
+ * "I have this, want it?" offer (receiver = counterparty).
+ */
+export const createCardTradeSchema = z.object({
+  groupSlug: friendGroupSlugSchema,
+  counterpartyUserId: z.string().min(1),
+  role: z.enum(["giver", "receiver"]),
+  printingId: z.uuid(),
+  quantity: z.number().int().min(1),
+});
+
+export const cardTradesQuerySchema = z.object({
+  groupId: z.uuid().optional(),
+  status: cardTradeStatusSchema.optional(),
+});
+
+/** Receiver-sync target collection; omitted defaults to the receiver's inbox. */
+export const cardTradeSyncSchema = z.object({
+  targetCollectionId: z.uuid().optional(),
+});
+
 export const updatePreferencesSchema = z.object({
   showImages: z.boolean().nullable().optional(),
   fancyFan: z.boolean().nullable().optional(),

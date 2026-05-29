@@ -553,6 +553,24 @@ export function listsRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Reads a single entry by id, scoped to its owner, regardless of which list
+     * it belongs to. Used by trade-sync (ADR-019) to decrement a snapshotted
+     * wish entry whose `listId` was not carried alongside the entry id.
+     * @returns The entry row, or `undefined` if not found / not owned by the user.
+     */
+    getEntryByIdForUser(
+      entryId: string,
+      userId: string,
+    ): Promise<Selectable<ListEntriesTable> | undefined> {
+      return db
+        .selectFrom("listEntries")
+        .selectAll()
+        .where("id", "=", entryId)
+        .where("userId", "=", userId)
+        .executeTakeFirst();
+    },
+
+    /**
      * Reads raw entry rows for a list-to-list move. Scoped to a single list +
      * the owning user so a stray entry id from another list (or another user's
      * list) is filtered out, not 403'd.

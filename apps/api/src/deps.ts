@@ -8,6 +8,7 @@ import { candidateCardsRepo } from "./repositories/candidate-cards.js";
 import { candidateMutationsRepo } from "./repositories/candidate-mutations.js";
 import { canonicalPrintingsRepo } from "./repositories/canonical-printings.js";
 import { cardBansRepo } from "./repositories/card-bans.js";
+import { cardTradesRepo } from "./repositories/card-trades.js";
 import { cardTypesRepo } from "./repositories/card-types.js";
 import { catalogRepo } from "./repositories/catalog.js";
 import { collectionDeckbuildingPrefsRepo } from "./repositories/collection-deckbuilding-prefs.js";
@@ -51,6 +52,15 @@ import { userFeatureFlagsRepo } from "./repositories/user-feature-flags.js";
 import { userPreferencesRepo } from "./repositories/user-preferences.js";
 import { userSharesRepo } from "./repositories/user-shares.js";
 import { usersRepo } from "./repositories/users.js";
+import {
+  acceptTrade,
+  applyTradeSync,
+  cancelTrade,
+  completeTrade,
+  createTrade,
+  declineTrade,
+  skipTradeSync,
+} from "./services/card-trades.js";
 import { deleteCollection } from "./services/collections.js";
 import { addCopies, disposeCopies, moveCopies } from "./services/copies.js";
 import { logEvents } from "./services/event-logger.js";
@@ -65,6 +75,7 @@ export interface Repos {
   admins: ReturnType<typeof adminsRepo>;
   artVariants: ReturnType<typeof artVariantsRepo>;
   cardBans: ReturnType<typeof cardBansRepo>;
+  cardTrades: ReturnType<typeof cardTradesRepo>;
   cardTypes: ReturnType<typeof cardTypesRepo>;
   canonicalPrintings: ReturnType<typeof canonicalPrintingsRepo>;
   candidateMutations: ReturnType<typeof candidateMutationsRepo>;
@@ -123,6 +134,13 @@ export interface Services {
   getMappingOverview: typeof getMappingOverview;
   ingestCandidates: typeof ingestCandidates;
   importErrata: typeof importErrata;
+  createTrade: typeof createTrade;
+  acceptTrade: typeof acceptTrade;
+  declineTrade: typeof declineTrade;
+  cancelTrade: typeof cancelTrade;
+  completeTrade: typeof completeTrade;
+  applyTradeSync: typeof applyTradeSync;
+  skipTradeSync: typeof skipTradeSync;
 }
 
 export function createRepos(db: Kysely<Database>): Repos {
@@ -134,6 +152,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     admins: adminsRepo(db),
     artVariants: artVariantsRepo(db),
     cardBans: cardBansRepo(db),
+    cardTrades: cardTradesRepo(db),
     cardTypes: cardTypesRepo(db),
     canonicalPrintings: canonicalPrintingsRepo(db),
     candidateMutations: candidateMutationsRepo(db),
@@ -206,4 +225,11 @@ export const services: Services = {
   getMappingOverview,
   ingestCandidates,
   importErrata,
+  createTrade,
+  acceptTrade,
+  declineTrade,
+  cancelTrade,
+  completeTrade,
+  applyTradeSync,
+  skipTradeSync,
 };

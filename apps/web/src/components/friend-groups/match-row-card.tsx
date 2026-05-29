@@ -1,15 +1,130 @@
-import type { FriendGroupMatchRow, Marketplace, MarketplaceInfo } from "@openrift/shared";
+import type {
+  CardTradeResponse,
+  CardTradeStatus,
+  FriendGroupMatchRow,
+  Marketplace,
+  MarketplaceInfo,
+} from "@openrift/shared";
 import { imageUrl } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ArrowDownLeftIcon, ArrowUpRightIcon, ChevronDownIcon } from "lucide-react";
+import { useState } from "react";
 
+import { FinishIcon } from "@/components/cards/finish-icon";
 import { MatchPreferenceCell } from "@/components/trade-preferences/match-preference-cell";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/user-avatar";
+import {
+  useAcceptTrade,
+  useCreateTrade,
+  useDeclineTrade,
+  useUserTrades,
+} from "@/hooks/use-card-trades";
 import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useMarketplaceInfo } from "@/hooks/use-marketplace-info";
+import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useMatchVariantsFoldStore } from "@/stores/match-variants-fold-store";
+
+import { RequestTradeDialog } from "./request-trade-dialog";
+
+/**
+ * Key into the live-trade lookup: the other member + the exact printing.
+ * @returns The composite lookup key.
+ */
+function liveTradeKey(counterpartyUserId: string, printingId: string): string {
+  return `${counterpartyUserId}\0${printingId}`;
+}
+
+/**
+ * The per-row trade action. When a live trade already exists between the two of
+ * you for this printing: if it's awaiting your response, show Accept/Decline
+ * inline; otherwise show its status. With no live trade, show Request/Offer.
+ * @returns The action element.
+ */
+function MatchRowTradeAction({
+  match,
+  groupSlug,
+  liveTrade,
+}: {
+  match: DirectedMatch;
+  groupSlug: string;
+  liveTrade?: CardTradeResponse;
+}) {
+  const [open, setOpen] = useState(false);
+  const createTrade = useCreateTrade();
+  const acceptTrade = useAcceptTrade();
+  const declineTrade = useDeclineTrade();
+
+  if (liveTrade !== undefined) {
+    // A request/offer awaiting the viewer — let them act without leaving the tab.
+    if (liveTrade.actionNeeded === "accept-or-decline") {
+      const busy = acceptTrade.isPending || declineTrade.isPending;
+      const args = { tradeId: liveTrade.id, groupSlug };
+      return (
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Button size="sm" disabled={busy} onClick={() => acceptTrade.mutate(args)}>
+            Accept
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={() => declineTrade.mutate(args)}
+          >
+            Decline
+          </Button>
+        </div>
+      );
+    }
+    // Your own pending request awaiting them, or a reserved trade.
+    return (
+      <Badge variant="secondary" className="shrink-0">
+        {liveTrade.status === "reserved" ? "Reserved" : "Pending"}
+      </Badge>
+    );
+  }
+
+  const incoming = match.direction === "incoming";
+  const role = incoming ? "receiver" : "giver";
+
+  return (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        className="shrink-0"
+        disabled={createTrade.isPending || match.availableCount <= 0}
+        onClick={() => setOpen(true)}
+      >
+        {incoming ? "Request" : "Offer"}
+      </Button>
+      <RequestTradeDialog
+        open={open}
+        onOpenChange={setOpen}
+        mode={incoming ? "request" : "offer"}
+        cardName={match.cardName}
+        availableCount={match.availableCount}
+        demandQuantity={match.buyQuantity}
+        pending={createTrade.isPending}
+        onConfirm={(quantity) => {
+          createTrade.mutate(
+            {
+              groupSlug,
+              counterpartyUserId: match.counterpartyUserId,
+              role,
+              printingId: match.printingId,
+              quantity,
+            },
+            { onSuccess: () => setOpen(false) },
+          );
+        }}
+      />
+    </>
+  );
+}
 
 // Lightweight per-cell renderer for the matches panel. Doesn't go through
 // the full <CardCell> pipeline because match rows already carry enough
@@ -18,6 +133,7 @@ import { useMatchVariantsFoldStore } from "@/stores/match-variants-fold-store";
 // CardCell is a follow-up when the matches panel needs siblings / chevrons.
 interface ResolvedMatchRow extends FriendGroupMatchRow {
   cardSlug: string;
+  shortCode: string;
   setName: string;
   rarityLabel: string;
   finishLabel: string;
@@ -48,6 +164,7 @@ interface DirectedMatch extends AggregatedMatch {
 function resolveMatchRows(
   rows: FriendGroupMatchRow[],
   cardsById: ReturnType<typeof useCards>["cardsById"],
+  printingsById: ReturnType<typeof useCards>["printingsById"],
   sets: ReturnType<typeof useCards>["sets"],
   labels: ReturnType<typeof useEnumOrders>["labels"],
 ): ResolvedMatchRow[] {
@@ -58,11 +175,39 @@ function resolveMatchRows(
     return {
       ...row,
       cardSlug: card?.slug ?? row.cardId,
+      shortCode: printingsById[row.printingId]?.shortCode ?? "",
       setName: set?.name ?? row.setId,
       rarityLabel: labels.rarities[row.rarity] ?? row.rarity,
       finishLabel: labels.finishes[row.finish] ?? row.finish,
     };
   });
+}
+
+/**
+ * The compact metadata line for a match row: shortcode, rarity icon, finish icon,
+ * and the available count. The shortcode already encodes the set, so the set
+ * name is dropped; rarity and finish render as icons rather than words.
+ * @returns The metadata line element.
+ */
+function MatchRowMeta({ match }: { match: AggregatedMatch }) {
+  const rarityIcon = getFilterIconPath("rarities", match.rarity);
+  return (
+    <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+      <span className="font-medium">{match.shortCode}</span>
+      {rarityIcon ? (
+        <img
+          src={rarityIcon}
+          alt={match.rarityLabel}
+          title={match.rarityLabel}
+          width={28}
+          height={28}
+          className="size-3.5"
+        />
+      ) : null}
+      <FinishIcon finish={match.finish} title={match.finishLabel} />
+      <span>· ×{match.availableCount} available</span>
+    </span>
+  );
 }
 
 interface MatchRowCardProps {
@@ -86,18 +231,9 @@ export function MatchRowCard({ match, marketplaceInfos }: MatchRowCardProps) {
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <div className="flex flex-col gap-0.5">
           <span className="truncate font-medium">
-            <Link
-              to="/cards/$cardSlug"
-              params={{ cardSlug: match.cardSlug }}
-              className="before:absolute before:inset-0 before:rounded-md before:content-['']"
-            >
-              {match.buyQuantity}× {match.cardName}
-            </Link>
+            {match.buyQuantity}× {match.cardName}
           </span>
-          <span className="text-muted-foreground text-xs">
-            {match.setName} · {match.rarityLabel} · {match.finishLabel} · ×{match.availableCount}{" "}
-            available
-          </span>
+          <MatchRowMeta match={match} />
           <span className="text-muted-foreground truncate text-xs">
             from {match.counterpartyListName}
           </span>
@@ -133,12 +269,15 @@ function MatchRow({
   groupSlug,
   marketplaceInfos,
   showCounterparty,
+  liveTrade,
 }: {
   match: DirectedMatch;
   groupSlug: string;
   marketplaceInfos: Record<Marketplace, MarketplaceInfo> | null;
   /** When false (member-detail page), the counterparty is fixed, so the chip is hidden. */
   showCounterparty: boolean;
+  /** An existing live trade for this (counterparty, printing), if any. */
+  liveTrade?: CardTradeResponse;
 }) {
   const incoming = match.direction === "incoming";
   const DirectionIcon = incoming ? ArrowDownLeftIcon : ArrowUpRightIcon;
@@ -147,6 +286,10 @@ function MatchRow({
   // goes to them they're the buyer (buyPref = their offer).
   const counterpartyPref = incoming ? match.sellPref : match.buyPref;
   const priceLabel = incoming ? "They want" : "They'd pay";
+  // Hide the price cell entirely when the counterparty has no preference set —
+  // a bare "They want · Not set" just clutters the row.
+  const hasCounterpartyPref =
+    counterpartyPref.pricePref !== null || counterpartyPref.tradeType !== null;
 
   return (
     <div className="bg-card hover:bg-muted flex items-center gap-3 rounded-md border p-2 transition-colors">
@@ -178,27 +321,22 @@ function MatchRow({
         className="flex min-w-0 flex-1 flex-col gap-0.5"
         title={`From ${match.counterpartyListName}`}
       >
-        <Link
-          to="/cards/$cardSlug"
-          params={{ cardSlug: match.cardSlug }}
-          className="truncate font-medium hover:underline"
-        >
+        <span className="truncate font-medium">
           {match.buyQuantity}× {match.cardName}
-        </Link>
-        <span className="text-muted-foreground text-xs">
-          {match.setName} · {match.rarityLabel} · {match.finishLabel} · ×{match.availableCount}{" "}
-          available
         </span>
+        <MatchRowMeta match={match} />
       </div>
 
-      <div className="w-32 shrink-0 text-right">
-        <MatchPreferenceCell
-          label={priceLabel}
-          pref={counterpartyPref}
-          marketplaceInfos={marketplaceInfos}
-          searchQuery={match.cardName}
-        />
-      </div>
+      {hasCounterpartyPref ? (
+        <div className="w-32 shrink-0 text-right">
+          <MatchPreferenceCell
+            label={priceLabel}
+            pref={counterpartyPref}
+            marketplaceInfos={marketplaceInfos}
+            searchQuery={match.cardName}
+          />
+        </div>
+      ) : null}
 
       {showCounterparty ? (
         <Link
@@ -215,6 +353,8 @@ function MatchRow({
           <span className="hidden text-sm sm:inline">{match.counterpartyName ?? "Member"}</span>
         </Link>
       ) : null}
+
+      <MatchRowTradeAction match={match} groupSlug={groupSlug} liveTrade={liveTrade} />
     </div>
   );
 }
@@ -312,16 +452,30 @@ function MatchTradeRowGroup({
   groupSlug,
   infosByPrinting,
   showCounterparty,
+  liveTradeByKey,
 }: {
   group: MatchTradeGroup;
   groupSlug: string;
   infosByPrinting: Record<string, Record<Marketplace, MarketplaceInfo>>;
   showCounterparty: boolean;
+  liveTradeByKey: Map<string, CardTradeResponse>;
 }) {
   const expanded = useMatchVariantsFoldStore((state) => state.expanded.has(group.foldId));
   const toggle = useMatchVariantsFoldStore((state) => state.toggle);
   const incoming = group.direction === "incoming";
   const DirectionIcon = incoming ? ArrowDownLeftIcon : ArrowUpRightIcon;
+
+  // Surface live-trade activity on the collapsed header (a specific variant's
+  // accept/decline still lives on the expanded row). Reserved outranks pending.
+  const variantStatuses = group.variants.map(
+    (variant) =>
+      liveTradeByKey.get(liveTradeKey(variant.counterpartyUserId, variant.printingId))?.status,
+  );
+  const headerStatus: CardTradeStatus | null = variantStatuses.includes("reserved")
+    ? "reserved"
+    : variantStatuses.includes("pending")
+      ? "pending"
+      : null;
 
   return (
     <div className="bg-card overflow-hidden rounded-md border">
@@ -389,6 +543,12 @@ function MatchTradeRowGroup({
             <span className="hidden text-sm sm:inline">{group.counterpartyName ?? "Member"}</span>
           </Link>
         ) : null}
+
+        {headerStatus ? (
+          <Badge variant="secondary" className="shrink-0">
+            {headerStatus === "reserved" ? "Reserved" : "Pending"}
+          </Badge>
+        ) : null}
       </div>
 
       {expanded ? (
@@ -400,6 +560,9 @@ function MatchTradeRowGroup({
               groupSlug={groupSlug}
               marketplaceInfos={infosByPrinting[variant.printingId] ?? null}
               showCounterparty={false}
+              liveTrade={liveTradeByKey.get(
+                liveTradeKey(variant.counterpartyUserId, variant.printingId),
+              )}
             />
           ))}
         </div>
@@ -431,18 +594,32 @@ export function MatchTradeList({
   groupSlug,
   showCounterparty = true,
 }: MatchTradeListProps) {
-  const { cardsById, sets } = useCards();
+  const { cardsById, printingsById, sets } = useCards();
   const { labels } = useEnumOrders();
+  const { data: userTrades } = useUserTrades();
+
+  // Lookup of the viewer's live trades in THIS group, so a matched row can show
+  // accept/decline (when awaiting the viewer) or its status inline instead of a
+  // Request/Offer button.
+  const liveTradeByKey = new Map<string, CardTradeResponse>();
+  for (const trade of userTrades?.items ?? []) {
+    if (
+      trade.groupSlug === groupSlug &&
+      (trade.status === "pending" || trade.status === "reserved")
+    ) {
+      liveTradeByKey.set(liveTradeKey(trade.counterparty.userId, trade.printingId), trade);
+    }
+  }
 
   const printingIds = [...new Set([...incoming, ...outgoing].map((row) => row.printingId))];
   const { data: marketplaceInfo } = useMarketplaceInfo(printingIds);
 
-  const incomingRows = aggregateMatches(resolveMatchRows(incoming, cardsById, sets, labels)).map(
-    (match): DirectedMatch => ({ ...match, direction: "incoming" }),
-  );
-  const outgoingRows = aggregateMatches(resolveMatchRows(outgoing, cardsById, sets, labels)).map(
-    (match): DirectedMatch => ({ ...match, direction: "outgoing" }),
-  );
+  const incomingRows = aggregateMatches(
+    resolveMatchRows(incoming, cardsById, printingsById, sets, labels),
+  ).map((match): DirectedMatch => ({ ...match, direction: "incoming" }));
+  const outgoingRows = aggregateMatches(
+    resolveMatchRows(outgoing, cardsById, printingsById, sets, labels),
+  ).map((match): DirectedMatch => ({ ...match, direction: "outgoing" }));
   const groups = groupTradeMatches([...incomingRows, ...outgoingRows]);
   const infosByPrinting = marketplaceInfo?.infos ?? {};
 
@@ -456,6 +633,7 @@ export function MatchTradeList({
             groupSlug={groupSlug}
             infosByPrinting={infosByPrinting}
             showCounterparty={showCounterparty}
+            liveTradeByKey={liveTradeByKey}
           />
         ) : (
           <MatchRow
@@ -464,6 +642,9 @@ export function MatchTradeList({
             groupSlug={groupSlug}
             marketplaceInfos={infosByPrinting[group.variants[0].printingId] ?? null}
             showCounterparty={showCounterparty}
+            liveTrade={liveTradeByKey.get(
+              liveTradeKey(group.variants[0].counterpartyUserId, group.variants[0].printingId),
+            )}
           />
         ),
       )}

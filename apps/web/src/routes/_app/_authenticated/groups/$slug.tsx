@@ -8,7 +8,7 @@ import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
 const groupSearchSchema = z.object({
-  tab: z.enum(["trading", "collections", "members"]).default("trading").catch("trading"),
+  tab: z.enum(["trading", "collections", "members", "trades"]).default("trading").catch("trading"),
 });
 
 export const Route = createFileRoute("/_app/_authenticated/groups/$slug")({

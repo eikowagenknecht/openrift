@@ -70,6 +70,7 @@ function makeMatch(): AggregatedMatch {
       currency: "USD",
     },
     cardSlug: "fury-rune",
+    shortCode: "OGN-001",
     setName: "Origins",
     rarityLabel: "Common",
     finishLabel: "Foil",

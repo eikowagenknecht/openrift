@@ -1504,3 +1504,60 @@ export const unifiedMappingsCardResponseSchema = z
     allCards: z.array(assignableCardResponseSchema),
   })
   .openapi("UnifiedMappingsCardResponse");
+
+// ─── Card trades (ADR-019) ───────────────────────────────────────────────────
+
+const cardTradeStatusResponseSchema = z
+  .enum(["pending", "reserved", "completed", "declined", "cancelled", "expired"])
+  .openapi("CardTradeStatus");
+
+const cardTradeCounterpartySchema = z
+  .object({
+    userId: z.string(),
+    name: z.string().nullable(),
+    image: z.string().nullable(),
+    gravatarHash: z.string(),
+    nickname: z.string().nullable(),
+  })
+  .openapi("CardTradeCounterparty");
+
+export const cardTradeResponseSchema = z
+  .object({
+    id: z.string(),
+    groupId: z.string(),
+    groupSlug: z.string(),
+    role: z.enum(["giver", "receiver"]),
+    initiator: z.enum(["giver", "receiver"]),
+    counterparty: cardTradeCounterpartySchema,
+    printingId: z.string(),
+    cardId: z.string(),
+    quantity: z.number().int().positive(),
+    status: cardTradeStatusResponseSchema,
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    acceptedAt: z.string().nullable(),
+    completedAt: z.string().nullable(),
+    closedAt: z.string().nullable(),
+    expiresAt: z.string().nullable(),
+    viewerSyncAppliedAt: z.string().nullable(),
+    counterpartySyncAppliedAt: z.string().nullable(),
+    actionNeeded: z.enum(["accept-or-decline", "cancel", "complete", "apply-sync"]).nullable(),
+  })
+  .openapi("CardTradeResponse");
+
+export const cardTradeListResponseSchema = z
+  .object({ items: z.array(cardTradeResponseSchema) })
+  .openapi("CardTradeListResponse");
+
+export const cardTradeActionCountsResponseSchema = z
+  .object({
+    total: z.number().int().nonnegative(),
+    byGroup: z.array(
+      z.object({
+        groupId: z.string(),
+        groupSlug: z.string(),
+        count: z.number().int().nonnegative(),
+      }),
+    ),
+  })
+  .openapi("CardTradeActionCountsResponse");

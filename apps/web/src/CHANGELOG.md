@@ -19,6 +19,7 @@
 
 ## 2026-05-29
 
+- feat: Ask a group member for a card you want. Accepting reserves it for you, and after the trade your collection, wishlist, and tradelist update with one click. Each group has a Trades tab for everything in progress, and any group that needs your action (a request to answer or changes to apply) shows a count on its card and on the Groups menu
 - feat: On a group, the shared wishlists and tradelists are now clickable across the whole row to open the list, not just on the list name
 - feat: The Groups overview now shows each group on its own full-width row, with your role, member count, and any pending join requests visible at a glance
 - feat: On a collection page, right-click (or long-press on touch) a card to move it, add it to a list, or dispose of it, without opening the action bar first. If the card is part of a current multi-selection the action applies to everything selected; otherwise it applies to just that card

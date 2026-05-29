@@ -154,39 +154,69 @@ export async function moveCopies(
  * Dispose copies — hard-deletes from the collection.
  * Logs removal events before deleting. The viewer must have write access to
  * every source collection (personal owner or group member of a shared one).
+ *
+ * Rejects copies reserved by a live trade (ADR-019). Trade-sync's giver path
+ * releases its reservation rows first and then disposes within the same
+ * transaction via {@link disposeCopiesInTransaction} with the guard skipped.
  */
 export async function disposeCopies(
   transact: Transact,
   userId: string,
   copyIds: string[],
 ): Promise<void> {
-  await transact(async (trxRepos) => {
-    const copies = await trxRepos.copies.listWithCollectionContext(copyIds);
+  await transact((trxRepos) => disposeCopiesInTransaction(trxRepos, userId, copyIds));
+}
 
-    if (copies.length !== copyIds.length) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "One or more copies not found");
+/**
+ * The body of {@link disposeCopies}, runnable inside an existing transaction.
+ * Lets trade-sync (ADR-019) combine reservation-release + dispose atomically
+ * while keeping a single copy-deletion choke point that emits `removed` events.
+ *
+ * @returns Nothing; throws `AppError` on missing/unwritable/reserved copies.
+ */
+export async function disposeCopiesInTransaction(
+  trxRepos: Repos,
+  userId: string,
+  copyIds: string[],
+  options?: { skipReservationGuard?: boolean },
+): Promise<void> {
+  const copies = await trxRepos.copies.listWithCollectionContext(copyIds);
+
+  if (copies.length !== copyIds.length) {
+    throw new AppError(404, ERROR_CODES.NOT_FOUND, "One or more copies not found");
+  }
+
+  const sourceIds = [...new Set(copies.map((row) => row.collectionId))];
+  const writableSources = await trxRepos.collections.filterWritableByViewer(sourceIds, userId);
+  if (writableSources.length !== sourceIds.length) {
+    throw new AppError(403, ERROR_CODES.FORBIDDEN, "One or more copies are not writable by you");
+  }
+
+  // A reserved copy is physically promised to a trade — refuse to destroy it.
+  if (options?.skipReservationGuard !== true) {
+    const reserved = await trxRepos.cardTrades.filterReservedCopyIds(copyIds);
+    if (reserved.length > 0) {
+      throw new AppError(
+        409,
+        ERROR_CODES.CONFLICT,
+        "This card is reserved in an active trade — cancel the trade to free it.",
+      );
     }
+  }
 
-    const sourceIds = [...new Set(copies.map((row) => row.collectionId))];
-    const writableSources = await trxRepos.collections.filterWritableByViewer(sourceIds, userId);
-    if (writableSources.length !== sourceIds.length) {
-      throw new AppError(403, ERROR_CODES.FORBIDDEN, "One or more copies are not writable by you");
-    }
+  // Log disposal events before deleting (so copy FK is still valid)
+  await logEvents(
+    trxRepos,
+    copies.map((copy) => ({
+      userId,
+      action: "removed" as const,
+      printingId: copy.printingId,
+      copyId: copy.id,
+      fromCollectionId: copy.collectionId,
+      fromCollectionName: copy.collectionName,
+    })),
+  );
 
-    // Log disposal events before deleting (so copy FK is still valid)
-    await logEvents(
-      trxRepos,
-      copies.map((copy) => ({
-        userId,
-        action: "removed" as const,
-        printingId: copy.printingId,
-        copyId: copy.id,
-        fromCollectionId: copy.collectionId,
-        fromCollectionName: copy.collectionName,
-      })),
-    );
-
-    // Hard-delete copies (collection_events.copy_id → SET NULL via FK)
-    await trxRepos.copies.deleteBatchById(copies.map((row) => row.id));
-  });
+  // Hard-delete copies (collection_events.copy_id → SET NULL via FK)
+  await trxRepos.copies.deleteBatchById(copies.map((row) => row.id));
 }

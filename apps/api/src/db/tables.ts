@@ -521,6 +521,54 @@ export interface FriendGroupCollectionSharesTable {
   sharedAt: ColumnType<Date, Date | undefined, Date>;
 }
 
+// ─── Card trades (migration 143, ADR-019) ────────────────────────────────────
+
+/** Who started the trade. The party who must accept is always the non-initiator. */
+export type CardTradeInitiator = "giver" | "receiver";
+
+export type CardTradeStatus =
+  | "pending"
+  | "reserved"
+  | "completed"
+  | "declined"
+  | "cancelled"
+  | "expired";
+
+export interface CardTradesTable {
+  id: Generated<string>;
+  groupId: string;
+  /** Owns the copies (supply / tradelist side). */
+  giverUserId: string;
+  /** Wants the card (demand / wishlist side). */
+  receiverUserId: string;
+  initiator: CardTradeInitiator;
+  printingId: string;
+  /** Denormalised from the printing, for grouping/display. */
+  cardId: string;
+  /** CHECK: > 0 */
+  quantity: number;
+  status: Generated<CardTradeStatus>;
+  /** Demand-side sync target; SET NULL if the wish entry is deleted. */
+  receiverWishEntryId: string | null;
+  /** Who caused the most recent transition; NULL = system (cron expiry). */
+  lastActorUserId: string | null;
+  giverSyncAppliedAt: Date | null;
+  receiverSyncAppliedAt: Date | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+  acceptedAt: Date | null;
+  completedAt: Date | null;
+  /** declined / cancelled / expired */
+  closedAt: Date | null;
+  /** pending TTL (created_at + 24h); cleared once not pending. */
+  expiresAt: Date | null;
+}
+
+export interface CardTradeCopiesTable {
+  tradeId: string;
+  copyId: string;
+}
+
 // ─── Candidate cards (migration 018, renamed in 038) ─────────────────────────
 
 /** @see candidateCardFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
@@ -1059,6 +1107,10 @@ export interface Database {
   friendGroupInvites: FriendGroupInvitesTable;
   friendGroupListShares: FriendGroupListSharesTable;
   friendGroupCollectionShares: FriendGroupCollectionSharesTable;
+
+  // Card trades (migration 143, ADR-019)
+  cardTrades: CardTradesTable;
+  cardTradeCopies: CardTradeCopiesTable;
 
   // Candidate cards (migration 018, renamed in 038)
   candidateCards: CandidateCardsTable;
