@@ -241,43 +241,6 @@ function aggregateMatches(rows: ResolvedMatchRow[]): AggregatedMatch[] {
   return [...aggregated.values()];
 }
 
-interface MatchGroupProps {
-  rows: FriendGroupMatchRow[];
-  groupSlug: string;
-  /** When set, counterparty headings link to the member-detail page. */
-  linkCounterparty?: boolean;
-  className?: string;
-}
-
-interface CounterpartyGroup {
-  userId: string;
-  name: string | null;
-  nickname: string | null;
-  image: string | null;
-  gravatarHash: string;
-  rows: AggregatedMatch[];
-}
-
-function groupByCounterparty(rows: AggregatedMatch[]): CounterpartyGroup[] {
-  const byUser = new Map<string, CounterpartyGroup>();
-  for (const row of rows) {
-    const existing = byUser.get(row.counterpartyUserId);
-    if (existing) {
-      existing.rows.push(row);
-    } else {
-      byUser.set(row.counterpartyUserId, {
-        userId: row.counterpartyUserId,
-        name: row.counterpartyName,
-        nickname: row.counterpartyNickname,
-        image: row.counterpartyImage,
-        gravatarHash: row.counterpartyGravatarHash,
-        rows: [row],
-      });
-    }
-  }
-  return [...byUser.values()];
-}
-
 interface MatchTradeGroup {
   /** Stable, per-counterparty key used both as the React key and the fold-store id. */
   foldId: string;
@@ -504,68 +467,6 @@ export function MatchTradeList({
           />
         ),
       )}
-    </div>
-  );
-}
-
-/**
- * Groups match rows by counterparty and renders a tile-grid per counterparty.
- * Used by the member-detail page, where direction is already conveyed by the
- * surrounding section heading.
- * @returns The stacked sections of match tiles.
- */
-export function MatchRowGroup({ rows, groupSlug, linkCounterparty, className }: MatchGroupProps) {
-  const { cardsById, sets } = useCards();
-  const { labels } = useEnumOrders();
-
-  const printingIds = [...new Set(rows.map((row) => row.printingId))];
-  const { data: marketplaceInfo } = useMarketplaceInfo(printingIds);
-
-  const resolved = resolveMatchRows(rows, cardsById, sets, labels);
-  const grouped = groupByCounterparty(aggregateMatches(resolved));
-  return (
-    <div className={cn("flex flex-col gap-6", className)}>
-      {grouped.map((group) => {
-        const headingInner = (
-          <>
-            <UserAvatar
-              image={group.image}
-              name={group.name}
-              gravatarHash={group.gravatarHash}
-              size="sm"
-            />
-            <span>{group.name ?? "Member"}</span>
-            {group.nickname ? (
-              <span className="text-muted-foreground text-xs">{group.nickname}</span>
-            ) : null}
-            <span className="text-muted-foreground text-xs">({group.rows.length})</span>
-          </>
-        );
-        return (
-          <div key={group.userId} className="flex flex-col gap-3">
-            {linkCounterparty ? (
-              <Link
-                to="/groups/$slug/members/$userId"
-                params={{ slug: groupSlug, userId: group.userId }}
-                className="hover:bg-muted/50 flex items-center gap-2 rounded-md px-2 py-1.5 font-medium"
-              >
-                {headingInner}
-              </Link>
-            ) : (
-              <div className="flex items-center gap-2 px-2 py-1.5 font-medium">{headingInner}</div>
-            )}
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {group.rows.map((match) => (
-                <MatchRowCard
-                  key={`${match.buyEntryId}:${match.printingId}`}
-                  match={match}
-                  marketplaceInfos={marketplaceInfo?.infos[match.printingId] ?? null}
-                />
-              ))}
-            </div>
-          </div>
-        );
-      })}
     </div>
   );
 }

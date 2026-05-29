@@ -50,7 +50,7 @@ import { cn, PAGE_PADDING } from "@/lib/utils";
 import { MatchTradeList } from "./match-row-card";
 import { SharedListRow } from "./shared-list-row";
 
-export const ROLE_LABEL: Record<FriendGroupRole, string> = {
+const ROLE_LABEL: Record<FriendGroupRole, string> = {
   owner: "Owner",
   admin: "Admin",
   member: "Member",
@@ -58,7 +58,7 @@ export const ROLE_LABEL: Record<FriendGroupRole, string> = {
 
 const SECTION_HEADING = "text-muted-foreground text-sm font-medium tracking-wide uppercase";
 
-export type GroupTab = "trading" | "collections" | "members";
+type GroupTab = "trading" | "collections" | "members";
 
 export function isAdmin(role: FriendGroupRole | null): role is "admin" | "owner" {
   return role === "admin" || role === "owner";
