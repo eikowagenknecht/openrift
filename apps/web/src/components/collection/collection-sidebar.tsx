@@ -53,7 +53,7 @@ import type {
   SidebarReorderListDragData,
 } from "./dnd-types";
 import { DroppableCollection } from "./droppable-collection";
-import { SortableSidebarRow } from "./sortable-sidebar-row";
+import { SIDEBAR_ROW_ICON_CLASS, SortableSidebarRow } from "./sortable-sidebar-row";
 
 const SORTABLE_COLLECTION_PREFIX = "sortable-collection-";
 const SORTABLE_LIST_PREFIX = "sortable-list-";
@@ -176,11 +176,13 @@ function ListsSidebarGroups({
                         <SidebarMenuItem>
                           <SidebarMenuButton
                             isActive={activeId === list.id}
+                            // Keep the row highlighted while the cursor is over the drag grip (which sits on top of the button).
+                            className="group-hover/menu-item:bg-sidebar-accent group-hover/menu-item:text-sidebar-accent-foreground"
                             render={
                               <Link to="/collections/lists/$listId" params={{ listId: list.id }} />
                             }
                           >
-                            <KindIcon />
+                            <KindIcon className={SIDEBAR_ROW_ICON_CLASS} />
                             <span className="flex-1 truncate">{list.name}</span>
                             {list.entryCount > 0 && (
                               <Badge variant="ghost" className="text-2xs ml-auto">
@@ -472,6 +474,8 @@ export function CollectionSidebar() {
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         isActive={collectionId === col.id}
+                        // Keep the row highlighted while the cursor is over the drag grip (which sits on top of the button).
+                        className="group-hover/menu-item:bg-sidebar-accent group-hover/menu-item:text-sidebar-accent-foreground"
                         render={
                           <Link
                             to="/collections/$collectionId"
@@ -480,7 +484,7 @@ export function CollectionSidebar() {
                           />
                         }
                       >
-                        <BookOpenIcon />
+                        <BookOpenIcon className={SIDEBAR_ROW_ICON_CLASS} />
                         <span className="flex-1 truncate">{col.name}</span>
                         {col.copyCount > 0 && (
                           <Badge variant="ghost" className="text-2xs ml-auto">
