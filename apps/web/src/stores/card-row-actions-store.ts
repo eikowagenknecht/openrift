@@ -8,6 +8,9 @@ export interface CardRowClickModifiers {
   ctrl?: boolean;
 }
 
+/** Bulk actions offered by the /collections right-click menu (mirror the floating action bar). */
+export type CollectionContextAction = "move" | "addToList" | "dispose";
+
 interface CardRowHandlers {
   onRowClick?: (printing: Printing) => void;
   onSiblingClick?: (printing: Printing) => void;
@@ -30,6 +33,12 @@ interface CardRowHandlers {
   onItemClick?: (itemId: string, printing: Printing, modifiers: CardRowClickModifiers) => void;
   /** Toggle the cell's stack in select mode (used by the cell's checkbox). */
   onItemToggle?: (itemId: string) => void;
+  /**
+   * /collections: a right-click menu action on a card. The grid resolves the
+   * target — the current multi-selection when this card is part of it,
+   * otherwise just this card — then opens the matching dialog.
+   */
+  onContextAction?: (itemId: string, action: CollectionContextAction) => void;
   /** /lists: set an entry's quantity directly (browse-mode +/- buttons on the quantity strip). */
   onEntryQuantityChange?: (entryId: string, quantity: number) => void;
   /** /lists: remove an entry (right-click context menu). */
@@ -99,6 +108,10 @@ export function dispatchItemClick(
 
 export function dispatchItemToggle(itemId: string): void {
   useCardRowActionsStore.getState().handlers.onItemToggle?.(itemId);
+}
+
+export function dispatchContextAction(itemId: string, action: CollectionContextAction): void {
+  useCardRowActionsStore.getState().handlers.onContextAction?.(itemId, action);
 }
 
 export function dispatchEntryQuantityChange(entryId: string, quantity: number): void {

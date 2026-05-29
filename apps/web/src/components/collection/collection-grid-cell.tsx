@@ -8,9 +8,11 @@ import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { OwnedCollectionsPopover } from "@/components/cards/card-detail/owned-collections-popover";
 import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { BrowseLocationsPopover } from "@/components/collection/browse-locations-popover";
+import { CollectionCardContextMenu } from "@/components/collection/collection-card-context-menu";
 import { DraggableCard } from "@/components/collection/draggable-card";
 import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
 import { useOwnedCopyIdsForPrintings, useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
+import { isStackSelected } from "@/lib/stack-selection";
 import {
   dispatchDecrement,
   dispatchIncrement,
@@ -137,15 +139,10 @@ export const CollectionGridCell = memo(function CollectionGridCell({
   // The selector compares the boolean result, so only flipping THIS cell's
   // selection state triggers a render.
   const effectiveCopyIds = cardCopyIds ?? [];
-  const isItemSelected = useGridSelectionStore((state) => {
-    if (mode !== "select") {
-      return false;
-    }
-    if (stacked) {
-      return effectiveCopyIds.length > 0 && effectiveCopyIds.every((id) => state.selected.has(id));
-    }
-    return state.selected.has(itemId);
-  });
+  const isItemSelected = useGridSelectionStore(
+    (state) =>
+      mode === "select" && isStackSelected(stacked, itemId, effectiveCopyIds, state.selected),
+  );
 
   const variantTrigger =
     inCardsView && (siblings?.length ?? 0) > 1
@@ -278,6 +275,11 @@ export const CollectionGridCell = memo(function CollectionGridCell({
       dimmed={cardTotalInCollection === 0}
       strip={strip}
       leftOverlay={leftOverlay}
+      contextMenu={
+        // Right-click move / add-to-list / dispose. Only owned cards have copies
+        // to act on, so unowned library tiles get no menu.
+        cardTotalInCollection > 0 ? <CollectionCardContextMenu itemId={itemId} /> : undefined
+      }
       wrap={wrap}
     />
   );

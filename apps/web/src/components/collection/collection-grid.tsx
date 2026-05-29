@@ -74,8 +74,10 @@ import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { useSession } from "@/lib/auth-session";
 import { formatterForMarketplace } from "@/lib/format";
+import { isStackSelected, resolveContextActionTarget } from "@/lib/stack-selection";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useAddModeStore } from "@/stores/add-mode-store";
+import type { CollectionContextAction } from "@/stores/card-row-actions-store";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useDragPreviewStore } from "@/stores/drag-preview-store";
@@ -178,11 +180,7 @@ function CollectionRowWrapper({
   const cardCopyIds = allCopyIdsByCardId.get(printing.cardId);
   const effectiveCopyIds = cardCopyIds ?? stack.copyIds;
   const isItemSelected =
-    mode === "select"
-      ? stacked
-        ? effectiveCopyIds.every((id) => selected.has(id))
-        : selected.has(itemId)
-      : false;
+    mode === "select" && isStackSelected(stacked, itemId, effectiveCopyIds, selected);
   const isFromSelection = mode === "select" && isItemSelected && selected.size > 0;
   const copyIds = isFromSelection ? [...selected] : stacked ? effectiveCopyIds : [itemId];
   const isStackDrag = !isFromSelection && stacked && effectiveCopyIds.length > 1;
@@ -386,6 +384,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const [moveOpen, setMoveOpen] = useState(false);
   const [disposeOpen, setDisposeOpen] = useState(false);
   const [addToListOpen, setAddToListOpen] = useState(false);
+  // Copy IDs the Move / Add-to-list / Dispose dialogs operate on. The floating
+  // action bar sets this to the whole selection; the right-click menu sets it
+  // to the selection or to just the clicked card. Decoupled from `selected` so
+  // a browse-mode right-click can act on one card without entering select mode.
+  const [actionCopyIds, setActionCopyIds] = useState<string[]>([]);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -470,12 +473,17 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   }, []);
 
   // ── Mutation handlers ───────────────────────────────────────────────
+  // All three bulk actions operate on `actionCopyIds` (set when the dialog is
+  // opened), not on `selected` directly — a browse-mode right-click targets a
+  // single card without a visible selection. clearSelection() on success is a
+  // no-op in that case and clears the selection in the select-mode paths.
   const handleMove = (toCollectionId: string) => {
+    const count = actionCopyIds.length;
     moveCopies.mutate(
-      { copyIds: [...selected], toCollectionId },
+      { copyIds: actionCopyIds, toCollectionId },
       {
         onSuccess: () => {
-          toast.success(`Moved ${selected.size} card${selected.size > 1 ? "s" : ""}`);
+          toast.success(`Moved ${count} card${count > 1 ? "s" : ""}`);
           clearSelection();
           setMoveOpen(false);
         },
@@ -484,16 +492,29 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   };
 
   const handleDispose = () => {
+    const count = actionCopyIds.length;
     disposeCopies.mutate(
-      { copyIds: [...selected] },
+      { copyIds: actionCopyIds },
       {
         onSuccess: () => {
-          toast.success(`Removed ${selected.size} card${selected.size > 1 ? "s" : ""}`);
+          toast.success(`Removed ${count} card${count > 1 ? "s" : ""}`);
           clearSelection();
           setDisposeOpen(false);
         },
       },
     );
+  };
+
+  // Snapshot the action target, then open the matching dialog.
+  const openAction = (action: CollectionContextAction, copyIds: string[]) => {
+    setActionCopyIds(copyIds);
+    if (action === "move") {
+      setMoveOpen(true);
+    } else if (action === "addToList") {
+      setAddToListOpen(true);
+    } else {
+      setDisposeOpen(true);
+    }
   };
 
   const handleDeleteCollection = () => {
@@ -653,6 +674,32 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     setLastSelectedItemId(itemId);
   };
 
+  // Right-click menu action on a card. See resolveContextActionTarget for the
+  // browse-vs-select rules; here we apply any selection narrowing and open the
+  // matching dialog on the resolved copy ids.
+  const handleContextAction = (itemId: string, action: CollectionContextAction) => {
+    const stack = stackByItemId.get(itemId);
+    if (!stack) {
+      return;
+    }
+    const cardCopyIds = stacked
+      ? (allCopyIdsByCardId.get(stack.printing.cardId) ?? stack.copyIds)
+      : [itemId];
+    const { copyIds, narrowSelectionTo } = resolveContextActionTarget({
+      mode,
+      stacked,
+      itemId,
+      cardCopyIds,
+      selected,
+    });
+    if (narrowSelectionTo) {
+      clearSelection();
+      addToSelection(narrowSelectionTo);
+      setLastSelectedItemId(itemId);
+    }
+    openAction(action, copyIds);
+  };
+
   // Register table-row action handlers in the no-subscribe store so the
   // virtualized CardTable + per-cell CollectionGridCell can dispatch row
   // clicks / +/- / select-mode actions without taking these unstable closures
@@ -705,6 +752,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         toggleStackForItem(itemId, stack);
         setLastSelectedItemId(itemId);
       },
+      onContextAction: handleContextAction,
     });
     return () => {
       useCardRowActionsStore.getState().setHandlers({});
@@ -999,9 +1047,9 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           {mode === "select" && selected.size > 0 && (
             <FloatingActionBar
               selectedCount={selected.size}
-              onMove={() => setMoveOpen(true)}
-              onDispose={() => setDisposeOpen(true)}
-              onAddToList={() => setAddToListOpen(true)}
+              onMove={() => openAction("move", [...selected])}
+              onDispose={() => openAction("dispose", [...selected])}
+              onAddToList={() => openAction("addToList", [...selected])}
               onClear={clearSelection}
               isMovePending={moveCopies.isPending}
               isDisposePending={disposeCopies.isPending}
@@ -1028,7 +1076,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           <DisposeDialog
             open={disposeOpen}
             onOpenChange={setDisposeOpen}
-            count={selected.size}
+            count={actionCopyIds.length}
             onConfirm={handleDispose}
             isPending={disposeCopies.isPending}
           />
@@ -1036,7 +1084,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           <AddToListDialog
             open={addToListOpen}
             onOpenChange={setAddToListOpen}
-            copyIds={[...selected]}
+            copyIds={actionCopyIds}
             onAdded={clearSelection}
           />
         </BrowserCardViewer>

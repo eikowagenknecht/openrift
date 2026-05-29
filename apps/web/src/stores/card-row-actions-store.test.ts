@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createStoreResetter } from "@/test/store-helpers";
 
-import { useCardRowActionsStore } from "./card-row-actions-store";
+import { dispatchContextAction, useCardRowActionsStore } from "./card-row-actions-store";
 
 let resetStore: () => void;
 
@@ -44,5 +44,16 @@ describe("useCardRowActionsStore", () => {
     expect(() => {
       useCardRowActionsStore.getState().handlers.onIncrement?.(printing);
     }).not.toThrow();
+  });
+
+  it("dispatchContextAction forwards the itemId and action to the registered handler", () => {
+    const onContextAction = vi.fn();
+    useCardRowActionsStore.getState().setHandlers({ onContextAction });
+    dispatchContextAction("item-1", "dispose");
+    expect(onContextAction).toHaveBeenCalledWith("item-1", "dispose");
+  });
+
+  it("dispatchContextAction is a no-op when no handler is registered", () => {
+    expect(() => dispatchContextAction("item-1", "move")).not.toThrow();
   });
 });
