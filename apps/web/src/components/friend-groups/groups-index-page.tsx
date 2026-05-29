@@ -1,6 +1,6 @@
 import type { FriendGroupRole } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { CheckIcon, PlusIcon, UsersIcon, XIcon } from "lucide-react";
+import { CheckIcon, ChevronRightIcon, PlusIcon, UsersIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
 import {
@@ -10,7 +10,6 @@ import {
 } from "@/components/section-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -236,30 +235,41 @@ export function GroupsIndexPage() {
           </EmptyHeader>
         </Empty>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-2">
           {data.items.map((row) => {
             const badge = ROLE_BADGE[row.viewerRole];
             return (
-              <Link key={row.id} to="/groups/$slug" params={{ slug: row.slug }} className="block">
-                <Card className="hover:bg-accent h-full transition-colors">
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between gap-2">
-                      <span className="truncate">{row.name}</span>
-                      <Badge className={badge.className}>{badge.label}</Badge>
-                    </CardTitle>
-                    {row.description ? (
-                      <CardDescription className="line-clamp-2">{row.description}</CardDescription>
-                    ) : null}
-                  </CardHeader>
-                  <CardContent className="text-muted-foreground flex items-center justify-between text-sm">
-                    <span>
-                      {row.memberCount} {row.memberCount === 1 ? "member" : "members"}
+              <Link
+                key={row.id}
+                to="/groups/$slug"
+                params={{ slug: row.slug }}
+                className="bg-card hover:bg-muted flex items-center gap-4 rounded-md border p-4 transition-colors"
+              >
+                <div className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-md">
+                  <UsersIcon className="size-5" />
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate font-medium">{row.name}</span>
+                    <Badge className={cn("shrink-0", badge.className)}>{badge.label}</Badge>
+                  </div>
+                  {row.description ? (
+                    <span className="text-muted-foreground line-clamp-1 text-sm">
+                      {row.description}
                     </span>
-                    {row.pendingRequestCount > 0 ? (
-                      <Badge variant="secondary">{row.pendingRequestCount} pending</Badge>
-                    ) : null}
-                  </CardContent>
-                </Card>
+                  ) : null}
+                </div>
+                <div className="text-muted-foreground flex shrink-0 items-center gap-3 text-sm">
+                  <span className="whitespace-nowrap">
+                    {row.memberCount} {row.memberCount === 1 ? "member" : "members"}
+                  </span>
+                  {row.pendingRequestCount > 0 ? (
+                    <Badge variant="secondary" className="whitespace-nowrap">
+                      {row.pendingRequestCount} pending
+                    </Badge>
+                  ) : null}
+                  <ChevronRightIcon className="size-4" />
+                </div>
               </Link>
             );
           })}

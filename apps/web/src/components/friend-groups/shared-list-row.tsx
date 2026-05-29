@@ -52,16 +52,16 @@ export function SharedListRow({
       ? LIST_KIND_NOUN[share.listKind].singular
       : LIST_KIND_NOUN[share.listKind].plural;
   return (
-    <div className="bg-card hover:bg-muted flex items-center gap-3 rounded-md border p-2 transition-colors">
+    <div className="bg-card hover:bg-muted relative flex items-center gap-3 rounded-md border p-2 transition-colors">
       <IntentIcon className="text-muted-foreground size-5 shrink-0" />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <Link
           to="/groups/$slug/lists/$listId"
           params={{ slug, listId: share.listId }}
           search={{ fromUser: share.userId }}
-          className="truncate font-medium hover:underline"
+          className="font-medium before:absolute before:inset-0 before:content-['']"
         >
-          {share.listName}
+          <span className="block truncate">{share.listName}</span>
         </Link>
         <span className="text-muted-foreground text-xs">
           {LIST_INTENT_LABEL[share.listIntent]} · {share.entryCount} {noun}
@@ -71,7 +71,7 @@ export function SharedListRow({
         <Link
           to="/groups/$slug/members/$userId"
           params={{ slug, userId: member.userId }}
-          className="hover:bg-muted/60 flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1"
+          className="hover:bg-muted/60 relative z-10 flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1"
         >
           <UserAvatar
             image={member.userImage}

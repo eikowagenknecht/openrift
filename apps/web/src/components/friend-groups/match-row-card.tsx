@@ -324,8 +324,8 @@ function MatchTradeRowGroup({
   const DirectionIcon = incoming ? ArrowDownLeftIcon : ArrowUpRightIcon;
 
   return (
-    <div className="bg-card rounded-md border">
-      <div className="flex items-center gap-3 p-2">
+    <div className="bg-card overflow-hidden rounded-md border">
+      <div className="hover:bg-muted flex items-center gap-3 p-2 transition-colors">
         <button
           type="button"
           onClick={() => toggle(group.foldId)}

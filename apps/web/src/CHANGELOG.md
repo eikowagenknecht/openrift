@@ -17,6 +17,11 @@
 - feat: Each member can now choose, per shared group collection, whether its cards count toward their own deck building. Pick "Include in my deck building" from the collection's menu; group collections start excluded so they don't change your deck counts until you opt in
 - fix: Cards added to a group's shared collection are now visible to every member. Previously only the person who added them could see them, so a pooled "bulk box" looked empty to everyone else
 
+## 2026-05-29
+
+- feat: On a group, the shared wishlists and tradelists are now clickable across the whole row to open the list, not just on the list name
+- feat: The Groups overview now shows each group on its own full-width row, with your role, member count, and any pending join requests visible at a glance
+
 ## 2026-05-28
 
 - feat: On a group's possible trades, several printings of the same wishlist card from one member now collapse into a single row. The title leads with the quantity wanted (like "1× Fury Rune") and the row shows how many they have available; expand it to see each printing with its own count and price
