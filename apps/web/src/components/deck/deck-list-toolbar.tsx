@@ -10,6 +10,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDeckFormatList } from "@/hooks/use-enums";
 import type { DeckListFilterAvailability } from "@/lib/deck-list-utils";
+import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import type { DeckListGroupBy, DeckListSortField } from "@/stores/deck-list-prefs-store";
 import { useDeckListPrefsStore } from "@/stores/deck-list-prefs-store";
@@ -224,9 +225,8 @@ export function DeckListToolbar({
                 aria-label="Domain filter"
               >
                 {availableDomains.map((domain) => {
-                  const lower = domain.toLowerCase();
                   const isColorless = domain === WellKnown.domain.COLORLESS;
-                  const ext = isColorless ? "svg" : "webp";
+                  const domainIcon = getFilterIconPath("domains", domain);
                   return (
                     <Tooltip key={domain}>
                       <TooltipTrigger
@@ -234,11 +234,13 @@ export function DeckListToolbar({
                           <ToggleGroupItem value={domain} aria-label={`Filter by ${domain}`} />
                         }
                       >
-                        <img
-                          src={`/images/domains/${lower}.${ext}`}
-                          alt=""
-                          className={cn("size-4", isColorless && "brightness-0 dark:invert")}
-                        />
+                        {domainIcon && (
+                          <img
+                            src={domainIcon}
+                            alt=""
+                            className={cn("size-4", isColorless && "brightness-0 dark:invert")}
+                          />
+                        )}
                       </TooltipTrigger>
                       <TooltipContent>{domain}</TooltipContent>
                     </Tooltip>

@@ -39,4 +39,21 @@ describe("getFilterIconPath", () => {
     expect(getFilterIconPath("domains", "fury")).toBe("/images/domains/fury.webp");
     expect(getFilterIconPath("domains", "calm")).toBe("/images/domains/calm.webp");
   });
+
+  it("returns the 28×28 rarity thumbnail by default and lowercases the slug", () => {
+    expect(getFilterIconPath("rarities", "common")).toBe("/images/rarities/common-28x28.webp");
+    expect(getFilterIconPath("rarities", "Showcase")).toBe("/images/rarities/showcase-28x28.webp");
+    expect(getFilterIconPath("rarities", "common", { size: "thumbnail" })).toBe(
+      "/images/rarities/common-28x28.webp",
+    );
+  });
+
+  it("returns the full-size rarity asset when size is 'full'", () => {
+    expect(getFilterIconPath("rarities", "common", { size: "full" })).toBe(
+      "/images/rarities/common.webp",
+    );
+    expect(getFilterIconPath("rarities", "Showcase", { size: "full" })).toBe(
+      "/images/rarities/showcase.webp",
+    );
+  });
 });

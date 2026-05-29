@@ -19,6 +19,7 @@ import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { getDomainGradientStyle, getDomainTintStyle } from "@/lib/domain";
 import { formatPublicCode } from "@/lib/format";
+import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -59,6 +60,7 @@ export function CardDetail({
   const setNumber = formatPublicCode(printing);
   const orientation = getOrientation(card.type);
   const isFoil = printing.finish === WellKnown.finish.FOIL;
+  const rarityIcon = getFilterIconPath("rarities", printing.rarity);
 
   const foilEffect = useDisplayStore((s) => s.foilEffect);
   const cardTilt = useDisplayStore((s) => s.cardTilt);
@@ -182,25 +184,30 @@ export function CardDetail({
               <StatChip label="Might" value={card.might} icon="/images/might.svg" />
             )}
             {!card.domains.includes(WellKnown.domain.COLORLESS) &&
-              card.domains.map((d) => (
-                <img
-                  key={d}
-                  src={`/images/domains/${d.toLowerCase()}.webp`}
-                  alt={d}
-                  title={d}
-                  width={64}
-                  height={64}
-                  className="size-5"
-                />
-              ))}
-            <img
-              src={`/images/rarities/${printing.rarity.toLowerCase()}-28x28.webp`}
-              alt={printing.rarity}
-              title={printing.rarity}
-              width={28}
-              height={28}
-              className="size-5"
-            />
+              card.domains.map((d) => {
+                const domainIcon = getFilterIconPath("domains", d);
+                return domainIcon ? (
+                  <img
+                    key={d}
+                    src={domainIcon}
+                    alt={d}
+                    title={d}
+                    width={64}
+                    height={64}
+                    className="size-5"
+                  />
+                ) : null;
+              })}
+            {rarityIcon && (
+              <img
+                src={rarityIcon}
+                alt={printing.rarity}
+                title={printing.rarity}
+                width={28}
+                height={28}
+                className="size-5"
+              />
+            )}
             {hasFinishIcon(printing.finish) && (
               <span className="bg-muted inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold">
                 <FinishIcon finish={printing.finish} />

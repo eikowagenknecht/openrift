@@ -229,7 +229,7 @@ export function CardPlaceholderImage({
       <div className="absolute inset-x-0 bottom-[2%] flex flex-col items-center gap-[0.5cqw] px-[4cqw]">
         {rarity && (
           <img
-            src={`/images/rarities/${rarity.toLowerCase()}.webp`}
+            src={getFilterIconPath("rarities", rarity, { size: "full" })}
             alt={rarity}
             className="size-[3cqw]"
           />

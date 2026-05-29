@@ -31,7 +31,20 @@ export function getTypeIconPath(type: string, superTypes: string[]): string | un
   return `/images/types/${type.toLowerCase()}.svg`;
 }
 
-export function getFilterIconPath(category: FilterCategory, value: string): string | undefined {
+/**
+ * Resolves the asset path for a filter-facet icon. Returns undefined for facets
+ * that have no icon asset (the "other" card type, non-Champion supertypes).
+ *
+ * For rarities, `options.size` picks the badge variant: "thumbnail" (the
+ * default) returns the 28×28 asset used in dense UI, "full" returns the
+ * full-resolution asset used on card faces and the support tiers.
+ * @returns The image path, or undefined if no asset exists for the facet.
+ */
+export function getFilterIconPath(
+  category: FilterCategory,
+  value: string,
+  options?: { size?: "thumbnail" | "full" },
+): string | undefined {
   const lower = value.toLowerCase();
   switch (category) {
     case "domains": {
@@ -51,7 +64,8 @@ export function getFilterIconPath(category: FilterCategory, value: string): stri
       return SUPERTYPE_ICONS.has(value) ? `/images/supertypes/${lower}.svg` : undefined;
     }
     case "rarities": {
-      return `/images/rarities/${lower}-28x28.webp`;
+      const suffix = options?.size === "full" ? "" : "-28x28";
+      return `/images/rarities/${lower}${suffix}.webp`;
     }
     default: {
       return undefined;

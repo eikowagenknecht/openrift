@@ -11,18 +11,21 @@ import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatterForMarketplace } from "@/lib/format";
 import { resolveFormatTagSummary } from "@/lib/format-tag-config";
+import { getFilterIconPath } from "@/lib/icons";
 import { useDisplayStore } from "@/stores/display-store";
 
 import { DeckActionsMenu } from "./deck-actions-menu";
 import { DeckDomainBar } from "./deck-domain-bar";
 
 function DomainIcon({ domain }: { domain: string }) {
-  const lower = domain.toLowerCase();
-  const ext = domain === WellKnown.domain.COLORLESS ? "svg" : "webp";
+  const domainIcon = getFilterIconPath("domains", domain);
+  if (!domainIcon) {
+    return null;
+  }
   return (
     <Tooltip>
       <TooltipTrigger>
-        <img src={`/images/domains/${lower}.${ext}`} alt={domain} className="size-6" />
+        <img src={domainIcon} alt={domain} className="size-6" />
       </TooltipTrigger>
       <TooltipContent>{domain}</TooltipContent>
     </Tooltip>

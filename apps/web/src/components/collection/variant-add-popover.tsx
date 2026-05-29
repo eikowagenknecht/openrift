@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { PickerList, PickerRow } from "@/components/ui/picker-list";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
+import { getFilterIconPath } from "@/lib/icons";
 import type { VariantPopoverIntent } from "@/stores/add-mode-store";
 
 interface VariantAddPopoverProps {
@@ -135,6 +136,7 @@ export function VariantAddPopover({
       ) : (
         printings.map((printing) => {
           const owned = ownedCounts?.[printing.id] ?? 0;
+          const rarityIcon = getFilterIconPath("rarities", printing.rarity);
 
           return (
             <PickerRow
@@ -146,9 +148,9 @@ export function VariantAddPopover({
               }}
             >
               <div className="flex flex-1 items-center gap-1.5 whitespace-nowrap">
-                {hasMixedRarities && (
+                {hasMixedRarities && rarityIcon && (
                   <img
-                    src={`/images/rarities/${printing.rarity.toLowerCase()}-28x28.webp`}
+                    src={rarityIcon}
                     alt={printing.rarity}
                     title={printing.rarity}
                     width={28}

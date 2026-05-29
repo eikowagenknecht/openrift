@@ -133,17 +133,12 @@ function CardDetailPage() {
     "Language",
     languageLabels[selectedPrinting.language] ?? selectedPrinting.language,
   ]);
+  const rarityIcon = getFilterIconPath("rarities", selectedPrinting.rarity);
   leftRows.push([
     "Rarity",
     <span key="rarity" className="inline-flex items-center gap-1.5">
       <span className="inline-flex w-4 shrink-0 justify-center">
-        <img
-          src={`/images/rarities/${selectedPrinting.rarity.toLowerCase()}-28x28.webp`}
-          alt=""
-          width={28}
-          height={28}
-          className="size-4"
-        />
+        {rarityIcon && <img src={rarityIcon} alt="" width={28} height={28} className="size-4" />}
       </span>
       {labels.rarities[selectedPrinting.rarity]}
     </span>,

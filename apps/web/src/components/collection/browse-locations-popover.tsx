@@ -13,6 +13,7 @@ import { useEnumOrders } from "@/hooks/use-enums";
 import { useOwnedCollections, useOwnedCollectionsByVariants } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-session";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
+import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 interface BrowseLocationsPopoverProps {
@@ -149,6 +150,7 @@ function VariantsSection({
     >
       {printingsList.map((printing) => {
         const owned = ownedCountByPrinting?.[printing.id] ?? 0;
+        const rarityIcon = getFilterIconPath("rarities", printing.rarity);
         return (
           <PickerRow
             key={printing.id}
@@ -159,9 +161,9 @@ function VariantsSection({
             }}
           >
             <div className="flex flex-1 items-center gap-1.5 whitespace-nowrap">
-              {hasMixedRarities && (
+              {hasMixedRarities && rarityIcon && (
                 <img
-                  src={`/images/rarities/${printing.rarity.toLowerCase()}-28x28.webp`}
+                  src={rarityIcon}
                   alt={printing.rarity}
                   title={printing.rarity}
                   width={28}

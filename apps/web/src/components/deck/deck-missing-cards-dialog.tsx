@@ -20,6 +20,7 @@ import type { CardOwnership } from "@/hooks/use-deck-ownership";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useMarketplaceInfo } from "@/hooks/use-marketplace-info";
 import { formatterForMarketplace } from "@/lib/format";
+import { getFilterIconPath } from "@/lib/icons";
 import { MARKETPLACE_META } from "@/lib/marketplace-meta";
 
 const ZONE_LABELS: Record<string, string> = {
@@ -173,7 +174,7 @@ export function DeckMissingCardsDialog({
                       >
                         {card.displayPrinting && (
                           <img
-                            src={`/images/rarities/${card.displayPrinting.rarity.toLowerCase()}-28x28.webp`}
+                            src={getFilterIconPath("rarities", card.displayPrinting.rarity)}
                             alt={enumLabels.rarities[card.displayPrinting.rarity]}
                             title={enumLabels.rarities[card.displayPrinting.rarity]}
                             width={28}

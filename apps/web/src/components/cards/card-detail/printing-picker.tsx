@@ -11,6 +11,7 @@ import {
   formatPrintingLabel,
   priceColorClass,
 } from "@/lib/format";
+import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -37,6 +38,7 @@ export function PrintingPicker({
         {printings.map((p) => {
           const isActive = p.id === current.id;
           const label = formatPrintingLabel(p, printings, labels);
+          const rarityIcon = getFilterIconPath("rarities", p.rarity);
           return (
             <div
               key={p.id}
@@ -66,9 +68,9 @@ export function PrintingPicker({
                   {formatCardId(p)}
                 </Link>
                 {label}
-                {hasMixedRarities && (
+                {hasMixedRarities && rarityIcon && (
                   <img
-                    src={`/images/rarities/${p.rarity.toLowerCase()}-28x28.webp`}
+                    src={rarityIcon}
                     alt={p.rarity}
                     title={p.rarity}
                     width={28}

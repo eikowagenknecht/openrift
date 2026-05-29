@@ -13,6 +13,7 @@ import { useEnumOrders } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { searchCards } from "@/hooks/use-quick-add-search";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
+import { getFilterIconPath } from "@/lib/icons";
 import { LANDSCAPE_ROTATION_STYLE, needsCssRotation } from "@/lib/images";
 import { summarizeBatchAdd } from "@/lib/summarize-batch-add";
 import { cn } from "@/lib/utils";
@@ -444,6 +445,7 @@ function PaletteInner({
                     const addedEntry = addedItems.get(printing.id);
                     const sessionAdded =
                       (addedEntry?.quantity ?? 0) + (addedEntry?.pendingCount ?? 0);
+                    const rarityIcon = getFilterIconPath("rarities", printing.rarity);
                     return (
                       <div
                         key={printing.id}
@@ -455,14 +457,16 @@ function PaletteInner({
                         onMouseEnter={() => setExpandedIndex(printingIndex)}
                       >
                         <div className="flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1.5">
-                          <img
-                            src={`/images/rarities/${printing.rarity.toLowerCase()}-28x28.webp`}
-                            alt={printing.rarity}
-                            title={printing.rarity}
-                            width={28}
-                            height={28}
-                            className="size-3.5 shrink-0"
-                          />
+                          {rarityIcon && (
+                            <img
+                              src={rarityIcon}
+                              alt={printing.rarity}
+                              title={printing.rarity}
+                              width={28}
+                              height={28}
+                              className="size-3.5 shrink-0"
+                            />
+                          )}
                           <span className="text-muted-foreground group-data-[selected=true]:text-accent-foreground/80 text-2xs w-[3.5rem] shrink-0 font-mono">
                             {formatCardId(printing)}
                           </span>

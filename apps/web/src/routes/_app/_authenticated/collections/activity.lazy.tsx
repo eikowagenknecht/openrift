@@ -31,7 +31,7 @@ import { useCollections } from "@/hooks/use-collections";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { usePrices } from "@/hooks/use-prices";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
-import { getTypeIconPath } from "@/lib/icons";
+import { getFilterIconPath, getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useDisplayStore } from "@/stores/display-store";
@@ -229,6 +229,7 @@ function EventCard({
     (event.toCollectionName ?? event.fromCollectionName);
   const showCollection = isMove || isUnfilteredAddRemove;
   const typeIconPath = getTypeIconPath(event.cardType, event.cardSuperTypes);
+  const rarityIconPath = getFilterIconPath("rarities", event.rarity);
 
   return (
     <Link
@@ -280,12 +281,9 @@ function EventCard({
               className="size-3.5 brightness-0 dark:invert"
             />
           )}
-          <img
-            src={`/images/rarities/${event.rarity.toLowerCase()}-28x28.webp`}
-            alt={rarityLabel}
-            title={rarityLabel}
-            className="size-3.5"
-          />
+          {rarityIconPath && (
+            <img src={rarityIconPath} alt={rarityLabel} title={rarityLabel} className="size-3.5" />
+          )}
           {totalPrice !== undefined && (
             <span className={cn("font-medium", priceColorClass(totalPrice))}>
               {formatPrice(totalPrice)}

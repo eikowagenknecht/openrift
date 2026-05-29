@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 import { FinishIcon } from "@/components/cards/finish-icon";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { getTypeIconPath } from "@/lib/icons";
+import { getFilterIconPath, getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 interface CardMetaLabelProps {
@@ -49,6 +49,7 @@ export function CardMetaLabel({
 }: CardMetaLabelProps) {
   const typeLabel = superTypes.length > 0 ? `${superTypes.join(" ")} ${type}` : type;
   const typeIconPath = getTypeIconPath(type, superTypes);
+  const rarityIconPath = getFilterIconPath("rarities", rarity);
 
   return (
     // ⚠ space-y-0.5 and py-0.5 are mirrored as META_LINE_GAP / META_LABEL_PY in card-grid-constants.ts — update both together
@@ -68,14 +69,16 @@ export function CardMetaLabel({
               className="size-3.5 brightness-0 dark:invert"
             />
           )}
-          <img
-            src={`/images/rarities/${rarity.toLowerCase()}-28x28.webp`}
-            alt={rarity}
-            title={rarity}
-            width={28}
-            height={28}
-            className="size-3.5"
-          />
+          {rarityIconPath && (
+            <img
+              src={rarityIconPath}
+              alt={rarity}
+              title={rarity}
+              width={28}
+              height={28}
+              className="size-3.5"
+            />
+          )}
           {finish && <FinishIcon finish={finish} title={finishTitle} />}
           {bans && bans.length > 0 && (
             <span

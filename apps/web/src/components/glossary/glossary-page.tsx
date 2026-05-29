@@ -13,6 +13,7 @@ import { initQueryOptions } from "@/hooks/use-init";
 import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
 import type { KeywordEntry } from "@/lib/glossary";
 import { KEYWORD_INFO, keywordAnchorSlug } from "@/lib/glossary";
+import { getFilterIconPath } from "@/lib/icons";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
 interface Section {
@@ -83,8 +84,6 @@ interface SupertypeEntry {
   description: string;
   ruleNumber: string;
 }
-
-const SUPERTYPE_ICONS = new Set(["champion"]);
 
 const SUPERTYPES: SupertypeEntry[] = [
   {
@@ -216,15 +215,16 @@ function DomainsSection({
         {visible.map((domain) => {
           const slug = domain.slug.toLowerCase();
           const hasIcon = slug !== "colorless";
+          const domainIcon = getFilterIconPath("domains", domain.slug);
           const ruleNumber = DOMAIN_RULES[slug];
           return (
             <li
               key={domain.slug}
               className="border-border flex items-center gap-3 rounded-md border p-3"
             >
-              {hasIcon && (
+              {hasIcon && domainIcon && (
                 <img
-                  src={`/images/domains/${slug}.webp`}
+                  src={domainIcon}
                   alt={domain.label}
                   width={40}
                   height={40}
@@ -297,15 +297,16 @@ function CardTypesSection({
             {visible.map((cardType) => {
               const slug = cardType.slug.toLowerCase();
               const hasIcon = knownIcons.has(slug);
+              const typeIcon = getFilterIconPath("types", cardType.slug);
               const ruleNumber = CARD_TYPE_RULES[slug];
               return (
                 <li
                   key={cardType.slug}
                   className="border-border flex items-center gap-3 rounded-md border p-3"
                 >
-                  {hasIcon && (
+                  {hasIcon && typeIcon && (
                     <img
-                      src={`/images/types/${slug}.svg`}
+                      src={typeIcon}
                       alt={cardType.label}
                       width={32}
                       height={32}
@@ -343,16 +344,16 @@ function CardTypesSection({
           </p>
           <ul className="mt-3 space-y-2">
             {visibleSupertypes.map((supertype) => {
-              const hasIcon = SUPERTYPE_ICONS.has(supertype.slug);
+              const supertypeIcon = getFilterIconPath("superTypes", supertype.slug);
               return (
                 <li
                   key={supertype.slug}
                   className="border-border flex flex-col gap-1 rounded-md border p-3 sm:flex-row sm:items-baseline sm:gap-3"
                 >
                   <span className="flex items-center gap-2 font-medium sm:w-32 sm:shrink-0">
-                    {hasIcon && (
+                    {supertypeIcon && (
                       <img
-                        src={`/images/supertypes/${supertype.slug}.svg`}
+                        src={supertypeIcon}
                         alt=""
                         width={20}
                         height={20}
@@ -404,14 +405,15 @@ function RaritiesSection({
       <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {visible.map((rarity) => {
           const slug = rarity.slug.toLowerCase();
+          const rarityIcon = getFilterIconPath("rarities", rarity.slug);
           return (
             <li
               key={rarity.slug}
               className="border-border flex items-center gap-3 rounded-md border p-3"
             >
-              {withImage.has(slug) && (
+              {withImage.has(slug) && rarityIcon && (
                 <img
-                  src={`/images/rarities/${slug}-28x28.webp`}
+                  src={rarityIcon}
                   alt={rarity.label}
                   width={28}
                   height={28}

@@ -1,6 +1,5 @@
 import { useDraggable } from "@dnd-kit/core";
 import type { DeckZone } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
 import { AlertTriangleIcon, MinusIcon, PlusIcon, XIcon } from "lucide-react";
 
 import type { DeckCardDragData } from "@/components/deck/deck-dnd-context";
@@ -10,6 +9,7 @@ import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getDomainColor, getDomainGradientStyle } from "@/lib/domain";
+import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 type ControlMode =
@@ -41,11 +41,8 @@ function PowerDomainIcon({
   colors: Record<string, string>;
 }) {
   if (domains.length === 1) {
-    const lower = domains[0].toLowerCase();
-    const ext = domains[0] === WellKnown.domain.COLORLESS ? "svg" : "webp";
-    return (
-      <img src={`/images/domains/${lower}.${ext}`} alt={domains[0]} className="inline size-3" />
-    );
+    const domainIcon = getFilterIconPath("domains", domains[0]);
+    return domainIcon ? <img src={domainIcon} alt={domains[0]} className="inline size-3" /> : null;
   }
   const c1 = getDomainColor(domains[0], colors);
   const c2 = getDomainColor(domains[1], colors);
