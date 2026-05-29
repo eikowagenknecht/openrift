@@ -214,19 +214,26 @@ export const CollectionGridCell = memo(function CollectionGridCell({
   }
 
   // Drag wrap: only owned cells get a drag (need at least one copy to move).
+  // A cell that's part of the active multi-selection drags the whole selection,
+  // not just its own copies, but it can't know the full selection here without
+  // subscribing to (and re-rendering on) every selection change. So it flags
+  // `fromSelection` and the route resolves the live copy IDs at grab/drop time
+  // (see resolveSelectionDrag). `ownCopyIds` is the fallback for an unselected
+  // tile, which drags only its own stack (or single copy in copies view).
   // Preview comes from the shared drag-preview store (parent rebuilds on
   // selection changes only, so a +/- click leaves this reference identical
   // and skips the cell's drag-wrap re-render). Falls back to the displayed
   // printing when no select-mode preview is active.
   const dragPreview = useDragPreviewStore((s) => s.preview);
-  const dragCopyIds = stacked ? effectiveCopyIds : [itemId];
-  const isStackDrag = stacked && dragCopyIds.length > 1;
+  const ownCopyIds = stacked ? effectiveCopyIds : [itemId];
+  const isStackDrag = !isItemSelected && stacked && ownCopyIds.length > 1;
   const previewPrintings = dragPreview.length > 0 ? dragPreview : [displayPrinting];
   const wrap =
-    dragCopyIds.length > 0 ? (
+    ownCopyIds.length > 0 ? (
       <DraggableCard
         id={itemId}
-        copyIds={dragCopyIds}
+        copyIds={ownCopyIds}
+        fromSelection={isItemSelected}
         isStackDrag={isStackDrag}
         printing={displayPrinting}
         previewPrintings={previewPrintings}

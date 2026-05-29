@@ -82,6 +82,7 @@ import { useDragPreviewStore } from "@/stores/drag-preview-store";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useSiblingOverrideStore } from "@/stores/sibling-override-store";
 
+import { computeDragSelectionSummary, dragSelectionNoun } from "./collection-drag";
 import { CollectionShareDialog } from "./collection-share-dialog";
 import { DeleteCollectionDialog } from "./delete-collection-dialog";
 import { DisposeDialog } from "./dispose-dialog";
@@ -99,45 +100,6 @@ const COLLECTION_GRID_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set([
   // physical attributes you actually own copies of.
   "customTags",
 ]);
-
-interface DragPreviewArgs {
-  mode: "browse" | "select";
-  selected: Set<string>;
-  items: CardViewerItem[];
-  stackByItemId: Map<string, StackedEntry>;
-  stacked: boolean;
-}
-
-function computeDragPreview({
-  mode,
-  selected,
-  items,
-  stackByItemId,
-  stacked,
-}: DragPreviewArgs): Printing[] {
-  if (mode !== "select" || selected.size === 0) {
-    return [];
-  }
-  const preview: Printing[] = [];
-  const seen = new Set<string>();
-  for (const item of items) {
-    if (preview.length >= 3) {
-      break;
-    }
-    const stack = stackByItemId.get(item.id);
-    if (!stack) {
-      continue;
-    }
-    const hasSelectedCopy = stacked
-      ? stack.copyIds.some((id) => selected.has(id))
-      : selected.has(item.id);
-    if (hasSelectedCopy && !seen.has(item.printing.id)) {
-      seen.add(item.printing.id);
-      preview.push(item.printing);
-    }
-  }
-  return preview;
-}
 
 function printingsArrayEqual(a: readonly Printing[], b: readonly Printing[]): boolean {
   if (a.length !== b.length) {
@@ -229,6 +191,7 @@ function CollectionRowWrapper({
     <DraggableCard
       id={itemId}
       copyIds={copyIds}
+      fromSelection={isFromSelection}
       isStackDrag={isStackDrag}
       printing={printing}
       previewPrintings={previewPrintings}
@@ -601,18 +564,30 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // ── Grid click handlers ─────────────────────────────────────────────
   const findBy = dataView === "cards" ? "card" : ("printing" as const);
 
-  // Drag-overlay preview: walk items + selection to find the first three
-  // unique printings whose copies are selected. Fed into useDragPreviewStore
-  // here so cells can subscribe with a stable ref — a +/- click leaves
+  // Drag-overlay summary: walk items + selection for the first three unique
+  // printings whose copies are selected (the fan) plus the selected-tile count
+  // (the overlay label, e.g. "3 printings"). Fed into useDragPreviewStore here
+  // so cells can subscribe to the fan with a stable ref — a +/- click leaves
   // `selected` untouched, so the same printing refs come back from the walk
-  // and we skip the store update via the shallow array compare below.
-  // Without that compare, cells would re-render on every +/- since the
-  // store would publish a fresh array reference every render.
-  const newPreview = computeDragPreview({ mode, selected, items, stackByItemId, stacked });
+  // and we skip the store update via the shallow compare below. Without that
+  // compare, cells would re-render on every +/- since the store would publish
+  // a fresh array reference every render.
+  const dragSummary = computeDragSelectionSummary({
+    mode,
+    selected,
+    items,
+    stackByItemId,
+    stacked,
+  });
+  const dragNoun = dragSelectionNoun(view);
   useEffect(() => {
-    const current = useDragPreviewStore.getState().preview;
-    if (!printingsArrayEqual(newPreview, current)) {
-      useDragPreviewStore.getState().setPreview(newPreview);
+    const state = useDragPreviewStore.getState();
+    if (
+      !printingsArrayEqual(dragSummary.printings, state.preview) ||
+      dragSummary.count !== state.selectionCount ||
+      dragNoun !== state.selectionNoun
+    ) {
+      state.setPreview(dragSummary.printings, dragSummary.count, dragNoun);
     }
   });
 

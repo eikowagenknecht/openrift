@@ -5,6 +5,15 @@ export interface CardDragData {
   type: "collection-card";
   copyIds: string[];
   /**
+   * True when the drag started from a tile that's part of an active
+   * multi-selection — the whole selection moves. Because `copyIds` is frozen at
+   * render time and already-selected grid cells don't re-render as more cards
+   * join the selection, the real copy IDs are resolved from the live selection
+   * store at grab/drop time (see {@link resolveSelectionDrag}); the `copyIds`
+   * baked in here is only a fallback. False for a lone stack/copy drag.
+   */
+  fromSelection: boolean;
+  /**
    * True when the drag represents a multi-copy stack that should be trimmed to
    * one copy unless Shift is held at drop time. False for unit drags (single
    * copy, or an explicit select-mode selection the user built up by hand).

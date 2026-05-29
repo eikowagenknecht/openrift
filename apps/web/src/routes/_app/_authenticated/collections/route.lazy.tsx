@@ -14,6 +14,7 @@ import { createLazyFileRoute, Outlet } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { resolveSelectionDrag } from "@/components/collection/collection-drag";
 import { CollectionSidebar } from "@/components/collection/collection-sidebar";
 import type {
   AnyDragData,
@@ -32,6 +33,8 @@ import { useMoveCopies } from "@/hooks/use-copies";
 import { useBulkAddCopiesToList, useMoveListEntries } from "@/hooks/use-lists";
 import { describeListAdd } from "@/lib/list-toast";
 import { FilterSearchProvider } from "@/lib/search-schemas";
+import { useDragPreviewStore } from "@/stores/drag-preview-store";
+import { useGridSelectionStore } from "@/stores/grid-selection-store";
 
 import { TopBarSlotContext } from "./route";
 
@@ -152,7 +155,13 @@ function CollectionLayout() {
 
   const handleDragStart = (event: DragStartEvent) => {
     const data = event.active.data.current as AnyDragData | undefined;
-    if (data?.type === "collection-card" || data?.type === "list-entry") {
+    if (data?.type === "collection-card") {
+      // Resolve the live multi-selection at grab time so the overlay fans and
+      // counts the whole selection, not just the grabbed tile's copies.
+      setActiveDrag(resolveSelectionDrag(data));
+      return;
+    }
+    if (data?.type === "list-entry") {
       setActiveDrag(data);
     }
   };
@@ -172,7 +181,7 @@ function CollectionLayout() {
     }
 
     if (dragData.type === "collection-card") {
-      handleCollectionCardDrop(dragData, dropData, modifier);
+      handleCollectionCardDrop(resolveSelectionDrag(dragData), dropData, modifier);
       return;
     }
 
@@ -201,6 +210,11 @@ function CollectionLayout() {
         {
           onSuccess: () => {
             toast.success(`Moved ${count} card${count > 1 ? "s" : ""}`);
+            // The dragged copies left this collection; drop the selection that
+            // pointed at them, matching the floating action bar's move.
+            if (dragData.fromSelection) {
+              useGridSelectionStore.getState().clearSelection();
+            }
           },
         },
       );
@@ -219,6 +233,11 @@ function CollectionLayout() {
           toast[result.added + result.updated === 0 ? "info" : "success"](
             describeListAdd(result, listName),
           );
+          // Mirror the "add to list" dialog, which clears the selection once
+          // the cards are added.
+          if (dragData.fromSelection) {
+            useGridSelectionStore.getState().clearSelection();
+          }
         },
       },
     );
@@ -334,9 +353,29 @@ function ListEntryDragPreview({ drag }: { drag: ListEntryDragData }) {
 
 function DragPreview({ drag, modifier }: { drag: CardDragData; modifier: "all" | number | null }) {
   const printings = drag.previewPrintings;
-  const requested =
-    modifier === "all" ? drag.copyIds.length : typeof modifier === "number" ? modifier : 1;
-  const count = drag.isStackDrag ? Math.min(requested, drag.copyIds.length) : drag.copyIds.length;
+  // The selected-tile count + noun are published by the grid as the selection
+  // changes (frozen for the duration of a drag, since selection can't change
+  // mid-drag).
+  const selectionCount = useDragPreviewStore((s) => s.selectionCount);
+  const selectionNoun = useDragPreviewStore((s) => s.selectionNoun);
+
+  let count: number;
+  let label: string;
+  if (drag.fromSelection && selectionCount >= 1) {
+    // Multi-selection drag: label the selected tiles ("3 printings"), not the
+    // underlying copies, and never trim (the whole selection moves). A single
+    // selected tile shows its card name, like any lone drag.
+    count = selectionCount;
+    const plural = selectionNoun === "copy" ? "copies" : `${selectionNoun}s`;
+    label = selectionCount === 1 ? drag.printing.card.name : `${selectionCount} ${plural}`;
+  } else {
+    // Lone stack/copy drag: the modifier may trim a stack down, and a single
+    // card shows its name.
+    const requested =
+      modifier === "all" ? drag.copyIds.length : typeof modifier === "number" ? modifier : 1;
+    count = drag.isStackDrag ? Math.min(requested, drag.copyIds.length) : drag.copyIds.length;
+    label = count === 1 ? drag.printing.card.name : `${count} copies`;
+  }
   // Show up to 3 fanned cards, front card on top
   const cards = printings.slice(0, 3);
 
@@ -365,9 +404,7 @@ function DragPreview({ drag, modifier }: { drag: CardDragData; modifier: "all" |
         className="bg-background/80 absolute bottom-0 left-0 w-28 rounded-b-lg px-1.5 py-1 backdrop-blur-sm"
         style={{ zIndex: cards.length }}
       >
-        <p className="truncate text-center text-xs font-medium">
-          {count === 1 ? drag.printing.card.name : `${count} copies`}
-        </p>
+        <p className="truncate text-center text-xs font-medium">{label}</p>
       </div>
       {count > 1 && (
         <div

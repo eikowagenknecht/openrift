@@ -16,6 +16,7 @@ const target = {
 const collectionDrag: CardDragData = {
   type: "collection-card",
   copyIds: ["copy-1"],
+  fromSelection: false,
   isStackDrag: false,
   printing: STUB_PRINTING,
   previewPrintings: [STUB_PRINTING],

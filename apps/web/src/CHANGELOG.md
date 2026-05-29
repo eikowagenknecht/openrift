@@ -21,6 +21,7 @@
 
 - feat: On a group, the shared wishlists and tradelists are now clickable across the whole row to open the list, not just on the list name
 - feat: The Groups overview now shows each group on its own full-width row, with your role, member count, and any pending join requests visible at a glance
+- fix: On a collection page, dragging a multi-selection of cards to another collection or a list now moves all of them at once, and the drag preview shows how many you're moving (like "5 printings") instead of just the top card's name. Before, only the top card moved and the label named just that card
 
 ## 2026-05-28
 
