@@ -203,7 +203,6 @@ describe("POST /api/v1/collections", () => {
       groupId: null,
       name: "Main Binder",
       description: null,
-      availableForDeckbuilding: true,
       isInbox: false,
       sortOrder: 0,
     });

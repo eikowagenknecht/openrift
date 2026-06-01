@@ -28,8 +28,8 @@ const mockListsRepo = {
 };
 
 const mockCopiesRepo = {
-  existsForUser: vi.fn(() => Promise.resolve(undefined as object | undefined)),
-  filterUserOwned: vi.fn(() => Promise.resolve([] as string[])),
+  existsForViewer: vi.fn(() => Promise.resolve(undefined as object | undefined)),
+  filterAccessibleByViewer: vi.fn(() => Promise.resolve([] as string[])),
 };
 
 // ---------------------------------------------------------------------------
@@ -336,7 +336,7 @@ describe("POST /api/v1/lists/:id/entries", () => {
   beforeEach(() => {
     mockListsRepo.getIdAndKind.mockReset();
     mockListsRepo.createEntry.mockReset();
-    mockCopiesRepo.existsForUser.mockReset();
+    mockCopiesRepo.existsForViewer.mockReset();
   });
 
   it("returns 201 for a card-kind list with cardId", async () => {
@@ -375,7 +375,7 @@ describe("POST /api/v1/lists/:id/entries", () => {
 
   it("validates copy ownership for copy-kind lists", async () => {
     mockListsRepo.getIdAndKind.mockResolvedValue({ id: LIST_ID, kind: "copy" });
-    mockCopiesRepo.existsForUser.mockResolvedValue({ id: COPY_ID });
+    mockCopiesRepo.existsForViewer.mockResolvedValue({ id: COPY_ID });
     mockListsRepo.createEntry.mockResolvedValue(dbCopyEntry);
     const res = await app.request(`/api/v1/lists/${LIST_ID}/entries`, {
       method: "POST",
@@ -383,12 +383,12 @@ describe("POST /api/v1/lists/:id/entries", () => {
       body: JSON.stringify({ copyId: COPY_ID }),
     });
     expect(res.status).toBe(201);
-    expect(mockCopiesRepo.existsForUser).toHaveBeenCalledWith(COPY_ID, USER_ID);
+    expect(mockCopiesRepo.existsForViewer).toHaveBeenCalledWith(COPY_ID, USER_ID);
   });
 
   it("returns 404 when copy is not owned", async () => {
     mockListsRepo.getIdAndKind.mockResolvedValue({ id: LIST_ID, kind: "copy" });
-    mockCopiesRepo.existsForUser.mockResolvedValue(undefined);
+    mockCopiesRepo.existsForViewer.mockResolvedValue(undefined);
     const res = await app.request(`/api/v1/lists/${LIST_ID}/entries`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -437,12 +437,12 @@ describe("POST /api/v1/lists/:id/entries/bulk", () => {
   beforeEach(() => {
     mockListsRepo.getIdAndKind.mockReset();
     mockListsRepo.bulkCreateEntries.mockReset();
-    mockCopiesRepo.filterUserOwned.mockReset();
+    mockCopiesRepo.filterAccessibleByViewer.mockReset();
   });
 
   it("filters non-owned copies (copy-kind list)", async () => {
     mockListsRepo.getIdAndKind.mockResolvedValue({ id: LIST_ID, kind: "copy" });
-    mockCopiesRepo.filterUserOwned.mockResolvedValue([COPY_ID]);
+    mockCopiesRepo.filterAccessibleByViewer.mockResolvedValue([COPY_ID]);
     mockListsRepo.bulkCreateEntries.mockResolvedValue({ inserted: 1, updated: 0 });
 
     const res = await app.request(`/api/v1/lists/${LIST_ID}/entries/bulk`, {

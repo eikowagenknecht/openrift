@@ -9,7 +9,7 @@ import { copiesRoute } from "./copies";
 // ---------------------------------------------------------------------------
 
 const mockRepo = {
-  listForUser: vi.fn(() => Promise.resolve([] as object[])),
+  listForAccessibleCollections: vi.fn(() => Promise.resolve([] as object[])),
 };
 
 const mockAddCopies = vi.fn(() => Promise.resolve([] as object[]));
@@ -52,6 +52,7 @@ const dbCopy = {
   id: "a0000000-0001-4000-a000-000000000020",
   printingId: "OGS-001:rare:normal:",
   collectionId: "a0000000-0001-4000-a000-000000000010",
+  groupId: null,
   createdAt: now,
 };
 
@@ -65,11 +66,11 @@ const COLLECTION_ID = "a0000000-0001-4000-a000-000000000010";
 
 describe("GET /api/v1/copies", () => {
   beforeEach(() => {
-    mockRepo.listForUser.mockReset();
+    mockRepo.listForAccessibleCollections.mockReset();
   });
 
   it("returns 200 with list of copies", async () => {
-    mockRepo.listForUser.mockResolvedValue([dbCopy]);
+    mockRepo.listForAccessibleCollections.mockResolvedValue([dbCopy]);
     const res = await app.request("/api/v1/copies");
     expect(res.status).toBe(200);
     const json = await res.json();
@@ -79,7 +80,7 @@ describe("GET /api/v1/copies", () => {
   });
 
   it("returns empty array when no copies", async () => {
-    mockRepo.listForUser.mockResolvedValue([]);
+    mockRepo.listForAccessibleCollections.mockResolvedValue([]);
     const res = await app.request("/api/v1/copies");
     const json = await res.json();
     expect(json.items).toEqual([]);
@@ -92,7 +93,7 @@ describe("GET /api/v1/copies", () => {
       id: `a0000000-0001-4000-a000-${String(i).padStart(12, "0")}`,
       createdAt: new Date(now.getTime() - i * 1000),
     }));
-    mockRepo.listForUser.mockResolvedValue(items);
+    mockRepo.listForAccessibleCollections.mockResolvedValue(items);
     const res = await app.request("/api/v1/copies?limit=10");
     const json = await res.json();
     expect(json.items).toHaveLength(10);
@@ -105,7 +106,7 @@ describe("GET /api/v1/copies", () => {
       id: `a0000000-0001-4000-a000-${String(i).padStart(12, "0")}`,
       createdAt: new Date(now.getTime() - i * 1000),
     }));
-    mockRepo.listForUser.mockResolvedValue(items);
+    mockRepo.listForAccessibleCollections.mockResolvedValue(items);
     const res = await app.request("/api/v1/copies");
     const json = await res.json();
     expect(json.items).toHaveLength(10_000);
@@ -113,9 +114,13 @@ describe("GET /api/v1/copies", () => {
   });
 
   it("passes cursor and limit to repo", async () => {
-    mockRepo.listForUser.mockResolvedValue([]);
+    mockRepo.listForAccessibleCollections.mockResolvedValue([]);
     await app.request("/api/v1/copies?limit=10&cursor=2026-03-17T00:00:00.000Z");
-    expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, 10, "2026-03-17T00:00:00.000Z");
+    expect(mockRepo.listForAccessibleCollections).toHaveBeenCalledWith(
+      USER_ID,
+      10,
+      "2026-03-17T00:00:00.000Z",
+    );
   });
 });
 
@@ -240,12 +245,12 @@ describe("POST /api/v1/copies/dispose — service arguments", () => {
 
 describe("GET /api/v1/copies — default limit", () => {
   beforeEach(() => {
-    mockRepo.listForUser.mockReset();
+    mockRepo.listForAccessibleCollections.mockReset();
   });
 
   it("passes default limit of 10000 to repo when none provided", async () => {
-    mockRepo.listForUser.mockResolvedValue([]);
+    mockRepo.listForAccessibleCollections.mockResolvedValue([]);
     await app.request("/api/v1/copies");
-    expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, 10_000, undefined);
+    expect(mockRepo.listForAccessibleCollections).toHaveBeenCalledWith(USER_ID, 10_000, undefined);
   });
 });
