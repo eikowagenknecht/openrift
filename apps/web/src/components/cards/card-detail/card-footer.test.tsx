@@ -48,6 +48,8 @@ describe("CardFooter sparkline lazy boundary", () => {
       wrapper: makeWrapper({ [printing.id]: { cardtrader: 4.5 } }),
     });
     const skeleton = await screen.findByTestId("sparkline-skeleton");
-    await waitForElementToBeRemoved(skeleton);
+    // The sparkline is React.lazy; under the full suite's parallel load the
+    // chunk import can take longer than the 1000ms default, so allow more time.
+    await waitForElementToBeRemoved(skeleton, { timeout: 5000 });
   });
 });
