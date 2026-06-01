@@ -1,9 +1,9 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { RegenerateImagesCheckpoint, RegenerateImagesKickoffResponse } from "@openrift/shared";
 import { createLogger } from "@openrift/shared/logger";
-import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 
+import { AppError, ERROR_CODES } from "../../errors.js";
 import {
   REGENERATE_IMAGES_KIND,
   cleanupOrphanedFiles,
@@ -390,13 +390,13 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { jobRuns } = c.get("repos");
     const running = await jobRuns.findRunning(REGENERATE_IMAGES_KIND);
     if (!running) {
-      throw new HTTPException(404, { message: "No regenerate-images job is running" });
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "No regenerate-images job is running");
     }
     const current = await jobRuns.getResult(running.id);
     if (!isRegenerateCheckpoint(current)) {
       // Job started but hasn't written its first checkpoint yet — nothing to
       // flag. The caller can retry once progress shows up.
-      throw new HTTPException(409, { message: "Job is still initializing; try again shortly" });
+      throw new AppError(409, ERROR_CODES.CONFLICT, "Job is still initializing; try again shortly");
     }
     await jobRuns.updateResult(running.id, { ...current, cancelRequested: true });
     return c.json({ runId: running.id, cancelRequested: true as const });

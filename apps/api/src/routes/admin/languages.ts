@@ -133,7 +133,7 @@ export const adminLanguagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     if (codes.length !== allLangs.length) {
       throw new AppError(
         400,
-        "BAD_REQUEST",
+        ERROR_CODES.BAD_REQUEST,
         `Expected ${allLangs.length} language codes, got ${codes.length}.`,
       );
     }
@@ -195,7 +195,7 @@ export const adminLanguagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     if (inUse) {
       throw new AppError(
         409,
-        "CONFLICT",
+        ERROR_CODES.CONFLICT,
         "Cannot delete: language is in use by one or more printings",
       );
     }

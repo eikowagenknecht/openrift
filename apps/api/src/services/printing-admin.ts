@@ -226,7 +226,7 @@ export async function acceptPrinting(
   if (existing && existing.cardId !== cardId) {
     throw new AppError(
       409,
-      "CONFLICT",
+      ERROR_CODES.CONFLICT,
       `Printing "${printingFields.shortCode}:${finish}:${language}" already belongs to a different card`,
     );
   }
@@ -261,7 +261,7 @@ export async function acceptPrinting(
     if (!normalizedRarity) {
       throw new AppError(
         400,
-        "BAD_REQUEST",
+        ERROR_CODES.BAD_REQUEST,
         `Invalid rarity "${rawRarity}". Must be one of: ${raritySlugs.join(", ")}`,
       );
     }

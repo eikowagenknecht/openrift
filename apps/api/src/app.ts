@@ -14,7 +14,7 @@ import { matchOrigin } from "./cors.js";
 import type { Database } from "./db/index.js";
 import type { Services } from "./deps.js";
 import { createRepos, createTransact, services as defaultServices } from "./deps.js";
-import { AppError, ERROR_CODES } from "./errors.js";
+import { AppError, ERROR_CODES, codeForStatus } from "./errors.js";
 import { defaultIo } from "./io.js";
 import type { Io } from "./io.js";
 import { createMetricsMiddleware } from "./middleware/metrics.js";
@@ -101,14 +101,16 @@ export function createApp(deps: AppDeps) {
     if (err instanceof z.ZodError) {
       const body: ApiErrorResponse = {
         error: "Invalid request body",
-        code: "VALIDATION_ERROR",
+        code: ERROR_CODES.VALIDATION_ERROR,
         details: err.issues.map((i) => ({ path: i.path, message: i.message })),
       };
       return c.json(body, 400);
     }
 
     if (err instanceof HTTPException) {
-      const body: ApiErrorResponse = { error: err.message, code: "HTTP_ERROR" };
+      // Framework-thrown HTTPExceptions carry a status but no code; map the
+      // status to the canonical code so the envelope stays uniform.
+      const body: ApiErrorResponse = { error: err.message, code: codeForStatus(err.status) };
       return c.json(body, err.status);
     }
 

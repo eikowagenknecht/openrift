@@ -173,7 +173,7 @@ export const catalogRoute = new OpenAPIHono<{ Variables: Variables }>()
     if (printingCount > 0) {
       throw new AppError(
         409,
-        "CONFLICT",
+        ERROR_CODES.CONFLICT,
         `Cannot delete set "${id}" — it still has ${printingCount} printing(s). Remove them first.`,
       );
     }
@@ -198,7 +198,7 @@ export const catalogRoute = new OpenAPIHono<{ Variables: Variables }>()
     if (ids.length !== allSets.length) {
       throw new AppError(
         400,
-        "BAD_REQUEST",
+        ERROR_CODES.BAD_REQUEST,
         `Expected ${allSets.length} set IDs but received ${ids.length}. All sets must be included in the reorder.`,
       );
     }

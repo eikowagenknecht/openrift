@@ -54,7 +54,7 @@ export async function acceptFavoritePrintingsForCard(
   // 2. Find all candidate cards for this card (via name aliases)
   const aliases = await mut.getCardAliases(card.id);
   if (aliases.length === 0) {
-    throw new AppError(500, "MISSING_ALIAS", `Card "${cardSlug}" has no name aliases`);
+    throw new AppError(500, ERROR_CODES.MISSING_ALIAS, `Card "${cardSlug}" has no name aliases`);
   }
   const normNames = aliases.map((a) => a.normName);
   const allCandidates = await repos.candidateCards.candidateCardsForDetail(normNames);

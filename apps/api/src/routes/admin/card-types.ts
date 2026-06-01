@@ -205,7 +205,7 @@ export const adminCardTypesRoute = new OpenAPIHono<{ Variables: Variables }>()
     if (inUse) {
       throw new AppError(
         409,
-        "CONFLICT",
+        ERROR_CODES.CONFLICT,
         "Cannot delete: card type is in use by one or more cards",
       );
     }

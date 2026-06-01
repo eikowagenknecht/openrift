@@ -205,7 +205,7 @@ export const adminDeckFormatsRoute = new OpenAPIHono<{ Variables: Variables }>()
     if (inUse) {
       throw new AppError(
         409,
-        "CONFLICT",
+        ERROR_CODES.CONFLICT,
         "Cannot delete: deck format is in use by one or more decks",
       );
     }

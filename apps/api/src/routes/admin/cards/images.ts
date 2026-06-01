@@ -263,7 +263,7 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     if (!image.originalUrl) {
       throw new AppError(
         400,
-        "BAD_REQUEST",
+        ERROR_CODES.BAD_REQUEST,
         "Cannot un-rehost: image has no original URL to fall back to",
       );
     }

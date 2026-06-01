@@ -782,7 +782,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       if (!parsed.success) {
         throw new AppError(
           400,
-          "VALIDATION_ERROR",
+          ERROR_CODES.VALIDATION_ERROR,
           `Invalid value for ${field}: ${parsed.error.issues[0].message}`,
         );
       }
@@ -810,7 +810,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       if (error instanceof Error && "code" in error && error.code === "23503") {
         throw new AppError(
           400,
-          "VALIDATION_ERROR",
+          ERROR_CODES.VALIDATION_ERROR,
           `Invalid value for ${field}: ${String(finalValue)}`,
         );
       }
@@ -871,7 +871,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       if (!parsed.success) {
         throw new AppError(
           400,
-          "VALIDATION_ERROR",
+          ERROR_CODES.VALIDATION_ERROR,
           `Invalid value for ${field}: ${parsed.error.issues[0].message}`,
         );
       }
@@ -949,7 +949,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       if (error instanceof Error && "code" in error && error.code === "23503") {
         throw new AppError(
           400,
-          "VALIDATION_ERROR",
+          ERROR_CODES.VALIDATION_ERROR,
           `Invalid value for ${field}: ${String(normalizedValue)}`,
         );
       }

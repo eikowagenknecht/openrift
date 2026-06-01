@@ -218,7 +218,11 @@ export const adminDomainsRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     const inUse = await repo.isInUse(slug);
     if (inUse) {
-      throw new AppError(409, "CONFLICT", "Cannot delete: domain is in use by one or more cards");
+      throw new AppError(
+        409,
+        ERROR_CODES.CONFLICT,
+        "Cannot delete: domain is in use by one or more cards",
+      );
     }
 
     await repo.deleteBySlug(slug);

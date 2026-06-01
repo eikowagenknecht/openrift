@@ -12,7 +12,7 @@ import type { Selectable } from "kysely";
 
 import type { CandidateCardsTable, CandidatePrintingsTable } from "../db/index.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias
-import { AppError } from "../errors.js";
+import { AppError, ERROR_CODES } from "../errors.js";
 import type { candidateCardsRepo } from "../repositories/candidate-cards.js";
 import type { marketplaceMappingRepo } from "../repositories/marketplace-mapping.js";
 
@@ -565,7 +565,7 @@ export async function buildCardDetail(
   if (aliases.length === 0) {
     throw new AppError(
       500,
-      "MISSING_ALIAS",
+      ERROR_CODES.MISSING_ALIAS,
       `Card "${card.slug}" has no name aliases — this should never happen. Re-create the alias to fix.`,
     );
   }

@@ -111,11 +111,12 @@ describe("onError handler", () => {
     expect(Array.isArray(json.details)).toBe(true);
   });
 
-  it("handles HTTPException", async () => {
+  it("handles HTTPException, mapping its status to a canonical code", async () => {
     const res = await app.fetch(new Request("http://localhost/api/test-error/http-exception"));
     expect(res.status).toBe(403);
     const json = (await res.json()) as Record<string, unknown>;
-    expect(json.code).toBe("HTTP_ERROR");
+    // 403 maps to FORBIDDEN via codeForStatus — never the old un-enumerated "HTTP_ERROR".
+    expect(json.code).toBe("FORBIDDEN");
     expect(json.error).toBe("Forbidden");
   });
 

@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { AppError } from "../../errors.js";
 import {
   REGENERATE_IMAGES_KIND,
   cleanupOrphanedFiles,
@@ -83,6 +84,14 @@ const app = new Hono()
       jobRuns: mockJobRuns,
     } as never);
     await next();
+  })
+  // Mirror the production onError so thrown AppErrors map to their status
+  // (the real app.onError handles this; the bare test harness must too).
+  .onError((err, c) => {
+    if (err instanceof AppError) {
+      return c.json({ error: err.message, code: err.code }, err.status as 400);
+    }
+    throw err;
   })
   .route("/api/v1", imagesRoute);
 

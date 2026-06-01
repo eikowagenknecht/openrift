@@ -54,7 +54,7 @@ export const adminCacheRoute = new OpenAPIHono<{ Variables: Variables }>()
     if (!config.cloudflare) {
       throw new AppError(
         503,
-        ERROR_CODES.INTERNAL_ERROR,
+        ERROR_CODES.SERVICE_UNAVAILABLE,
         "Cloudflare credentials not configured (CLOUDFLARE_API_TOKEN, CLOUDFLARE_ZONE_ID)",
       );
     }

@@ -205,7 +205,7 @@ export const adminFinishesRoute = new OpenAPIHono<{ Variables: Variables }>()
     if (inUse) {
       throw new AppError(
         409,
-        "CONFLICT",
+        ERROR_CODES.CONFLICT,
         "Cannot delete: finish is in use by one or more printings",
       );
     }
