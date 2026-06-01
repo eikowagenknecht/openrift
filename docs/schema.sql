@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 0Ad5xzBxVe9QLVUQ5dij38IrUb8lShvlRechlOSXOJYelrRzNaKMxt3k1MldZcf
+\restrict rPuWVU3tu7xa2a4LfOHCDrYK1q8oVUgctN8dD4k9I9zfiuBH5dKFfP5voPcxaPI
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -657,6 +657,17 @@ CREATE TABLE public.cards (
 
 
 --
+-- Name: collection_deckbuilding_prefs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.collection_deckbuilding_prefs (
+    user_id text NOT NULL,
+    collection_id uuid NOT NULL,
+    available boolean NOT NULL
+);
+
+
+--
 -- Name: collection_events; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -685,7 +696,6 @@ CREATE TABLE public.collections (
     user_id text,
     name text NOT NULL,
     description text,
-    available_for_deckbuilding boolean DEFAULT true NOT NULL,
     is_inbox boolean DEFAULT false NOT NULL,
     sort_order integer DEFAULT 0 NOT NULL,
     share_token text,
@@ -705,7 +715,6 @@ CREATE TABLE public.collections (
 
 CREATE TABLE public.copies (
     id uuid DEFAULT uuidv7() NOT NULL,
-    user_id text NOT NULL,
     collection_id uuid NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -1778,6 +1787,14 @@ ALTER TABLE ONLY public.cards
 
 
 --
+-- Name: collection_deckbuilding_prefs collection_deckbuilding_prefs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.collection_deckbuilding_prefs
+    ADD CONSTRAINT collection_deckbuilding_prefs_pkey PRIMARY KEY (user_id, collection_id);
+
+
+--
 -- Name: collection_events collection_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2282,14 +2299,6 @@ ALTER TABLE ONLY public.collections
 
 
 --
--- Name: copies uq_copies_id_user; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.copies
-    ADD CONSTRAINT uq_copies_id_user UNIQUE (id, user_id);
-
-
---
 -- Name: decks uq_decks_id_user; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2471,6 +2480,13 @@ CREATE INDEX idx_cards_norm_name ON public.cards USING btree (norm_name);
 
 
 --
+-- Name: idx_collection_deckbuilding_prefs_collection; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_collection_deckbuilding_prefs_collection ON public.collection_deckbuilding_prefs USING btree (collection_id);
+
+
+--
 -- Name: idx_collection_events_copy; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2506,10 +2522,10 @@ CREATE INDEX idx_copies_collection ON public.copies USING btree (collection_id);
 
 
 --
--- Name: idx_copies_user_printing; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_copies_printing; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_copies_user_printing ON public.copies USING btree (user_id, printing_id);
+CREATE INDEX idx_copies_printing ON public.copies USING btree (printing_id);
 
 
 --
@@ -3364,14 +3380,6 @@ ALTER TABLE ONLY public.copies
 
 
 --
--- Name: copies copies_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.copies
-    ADD CONSTRAINT copies_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
 -- Name: custom_tags custom_tags_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3425,6 +3433,22 @@ ALTER TABLE ONLY public.distribution_channels
 
 ALTER TABLE ONLY public.cards
     ADD CONSTRAINT fk_cards_type FOREIGN KEY (type) REFERENCES public.card_types(slug);
+
+
+--
+-- Name: collection_deckbuilding_prefs fk_collection_deckbuilding_prefs_collection; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.collection_deckbuilding_prefs
+    ADD CONSTRAINT fk_collection_deckbuilding_prefs_collection FOREIGN KEY (collection_id) REFERENCES public.collections(id) ON DELETE CASCADE;
+
+
+--
+-- Name: collection_deckbuilding_prefs fk_collection_deckbuilding_prefs_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.collection_deckbuilding_prefs
+    ADD CONSTRAINT fk_collection_deckbuilding_prefs_user FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --
@@ -3500,11 +3524,11 @@ ALTER TABLE ONLY public.friend_group_list_shares
 
 
 --
--- Name: list_entries fk_list_entries_copy_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: list_entries fk_list_entries_copy; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.list_entries
-    ADD CONSTRAINT fk_list_entries_copy_user FOREIGN KEY (copy_id, user_id) REFERENCES public.copies(id, user_id) ON DELETE CASCADE;
+    ADD CONSTRAINT fk_list_entries_copy FOREIGN KEY (copy_id) REFERENCES public.copies(id) ON DELETE CASCADE;
 
 
 --
@@ -3823,5 +3847,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 0Ad5xzBxVe9QLVUQ5dij38IrUb8lShvlRechlOSXOJYelrRzNaKMxt3k1MldZcf
+\unrestrict rPuWVU3tu7xa2a4LfOHCDrYK1q8oVUgctN8dD4k9I9zfiuBH5dKFfP5voPcxaPI
 

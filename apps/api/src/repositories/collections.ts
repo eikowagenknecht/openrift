@@ -11,6 +11,13 @@ interface CollectionWithCount extends Selectable<CollectionsTable> {
 export interface AccessibleCollection extends CollectionWithCount {
   groupSlug: string | null;
   groupName: string | null;
+  /**
+   * The viewer's effective deck-building availability for this collection:
+   * `COALESCE(pref.available, group_id IS NULL)`. Per-viewer, not a property
+   * of the collection — personal collections default on, group collections
+   * are opt-in per member.
+   */
+  availableForDeckbuilding: boolean;
   /** True if viewer is the personal owner OR a group owner/admin. */
   viewerCanAdmin: boolean;
 }
@@ -20,6 +27,8 @@ export interface CollectionAccess {
   collection: Selectable<CollectionsTable> & {
     groupSlug: string | null;
     groupName: string | null;
+    /** Viewer's effective deck-building availability (see {@link AccessibleCollection}). */
+    availableForDeckbuilding: boolean;
   };
   viewerRole: FriendGroupRole | null;
   viewerCanAdmin: boolean;
@@ -64,6 +73,9 @@ export function collectionsRepo(db: Kysely<Database>) {
         .leftJoin("friendGroupMembers as gm", (join) =>
           join.onRef("gm.groupId", "=", "c.groupId").on("gm.userId", "=", userId),
         )
+        .leftJoin("collectionDeckbuildingPrefs as pref", (join) =>
+          join.onRef("pref.collectionId", "=", "c.id").on("pref.userId", "=", userId),
+        )
         .selectAll("c")
         .select([
           sql<number>`(select count(*)::int from copies where copies.collection_id = c.id)`.as(
@@ -71,6 +83,7 @@ export function collectionsRepo(db: Kysely<Database>) {
           ),
           "g.slug as groupSlug",
           "g.name as groupName",
+          sql<boolean>`coalesce(pref.available, c.group_id is null)`.as("availableForDeckbuilding"),
           sql<boolean>`(c.user_id IS NOT NULL) OR (gm.role IN ('owner','admin'))`.as(
             "viewerCanAdmin",
           ),
@@ -106,8 +119,16 @@ export function collectionsRepo(db: Kysely<Database>) {
         .leftJoin("friendGroupMembers as gm", (join) =>
           join.onRef("gm.groupId", "=", "c.groupId").on("gm.userId", "=", userId),
         )
+        .leftJoin("collectionDeckbuildingPrefs as pref", (join) =>
+          join.onRef("pref.collectionId", "=", "c.id").on("pref.userId", "=", userId),
+        )
         .selectAll("c")
-        .select(["g.slug as groupSlug", "g.name as groupName", "gm.role as viewerRole"])
+        .select([
+          "g.slug as groupSlug",
+          "g.name as groupName",
+          "gm.role as viewerRole",
+          sql<boolean>`coalesce(pref.available, c.group_id is null)`.as("availableForDeckbuilding"),
+        ])
         .where("c.id", "=", id)
         .where((eb) => eb.or([eb("c.userId", "=", userId), eb("gm.userId", "=", userId)]))
         .executeTakeFirst();
@@ -154,7 +175,6 @@ export function collectionsRepo(db: Kysely<Database>) {
       groupId: string | null;
       name: string;
       description: string | null;
-      availableForDeckbuilding: boolean;
       isInbox: boolean;
       sortOrder: number;
     }): Promise<Selectable<CollectionsTable>> {
@@ -416,7 +436,6 @@ export function collectionsRepo(db: Kysely<Database>) {
           groupId: null,
           name: "Inbox",
           isInbox: true,
-          availableForDeckbuilding: true,
           sortOrder: 0,
         })
         .onConflict((oc) => oc.doNothing())

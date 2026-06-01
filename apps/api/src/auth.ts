@@ -153,7 +153,6 @@ export function createAuth(deps: {
               groupId: null,
               name: "Binder",
               description: null,
-              availableForDeckbuilding: true,
               isInbox: false,
               sortOrder: 1,
             });

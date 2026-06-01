@@ -5,6 +5,7 @@ import {
   CheckSquareIcon,
   DownloadIcon,
   EllipsisVerticalIcon,
+  LayersIcon,
   LibraryBigIcon,
   PackageIcon,
   PencilIcon,
@@ -58,7 +59,12 @@ import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCardSelection } from "@/hooks/use-card-selection";
 import { useCards } from "@/hooks/use-cards";
 import { useCollectionCardData } from "@/hooks/use-collection-card-data";
-import { useCollections, useCollectionsMap, useDeleteCollection } from "@/hooks/use-collections";
+import {
+  useCollections,
+  useCollectionsMap,
+  useDeleteCollection,
+  useSetCollectionDeckbuilding,
+} from "@/hooks/use-collections";
 import { useDisposeCopies, useMoveCopies } from "@/hooks/use-copies";
 import { useChannelRegistry } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
@@ -424,6 +430,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const moveCopies = useMoveCopies();
   const disposeCopies = useDisposeCopies();
   const deleteCollection = useDeleteCollection();
+  const setDeckbuilding = useSetCollectionDeckbuilding();
   const navigate = useNavigate();
 
   // ── Navigation helpers ──────────────────────────────────────────────
@@ -787,9 +794,21 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       canEdit={Boolean(currentCollection) && canAdminCollection}
       canDelete={canDeleteCollection}
       canShare={Boolean(currentCollection) && canAdminCollection}
+      // Per-viewer preference: every member with access can toggle whether a
+      // collection feeds *their own* deck inventory, not just group admins.
+      canToggleDeckbuilding={Boolean(currentCollection)}
+      deckbuildingAvailable={currentCollection?.availableForDeckbuilding ?? false}
       onEdit={() => setEditOpen(true)}
       onDelete={() => setDeleteOpen(true)}
       onShare={() => setShareOpen(true)}
+      onToggleDeckbuilding={() => {
+        if (currentCollection) {
+          setDeckbuilding.mutate({
+            id: currentCollection.id,
+            available: !currentCollection.availableForDeckbuilding,
+          });
+        }
+      }}
     />
   );
 
@@ -878,7 +897,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           onOpenChange={setEditOpen}
           collectionId={currentCollection.id}
           currentName={currentCollection.name}
-          currentAvailableForDeckbuilding={currentCollection.availableForDeckbuilding}
           isInbox={currentCollection.isInbox}
         />
       )}
@@ -1146,9 +1164,12 @@ interface CollectionTopBarProps {
   canEdit: boolean;
   canDelete: boolean;
   canShare: boolean;
+  canToggleDeckbuilding: boolean;
+  deckbuildingAvailable: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onShare: () => void;
+  onToggleDeckbuilding: () => void;
 }
 
 function CollectionTopBar({
@@ -1169,9 +1190,12 @@ function CollectionTopBar({
   canEdit,
   canDelete,
   canShare,
+  canToggleDeckbuilding,
+  deckbuildingAvailable,
   onEdit,
   onDelete,
   onShare,
+  onToggleDeckbuilding,
 }: CollectionTopBarProps) {
   return (
     <PageTopBar>
@@ -1230,7 +1254,7 @@ function CollectionTopBar({
               </>
             )
           )}
-          {(canEdit || canDelete || canShare) && (
+          {(canEdit || canDelete || canShare || canToggleDeckbuilding) && (
             <DropdownMenu>
               <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
                 <EllipsisVerticalIcon className="size-4" />
@@ -1241,6 +1265,14 @@ function CollectionTopBar({
                   <DropdownMenuItem onClick={onEdit}>
                     <PencilIcon className="size-4" />
                     Edit collection
+                  </DropdownMenuItem>
+                )}
+                {canToggleDeckbuilding && (
+                  <DropdownMenuItem onClick={onToggleDeckbuilding}>
+                    <LayersIcon className="size-4" />
+                    {deckbuildingAvailable
+                      ? "Exclude from my deck building"
+                      : "Include in my deck building"}
                   </DropdownMenuItem>
                 )}
                 {canShare && (

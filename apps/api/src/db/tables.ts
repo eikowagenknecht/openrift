@@ -311,7 +311,6 @@ export interface CollectionsTable {
   /** CHECK: <> '' */
   name: string;
   description: string | null;
-  availableForDeckbuilding: boolean;
   isInbox: boolean;
   sortOrder: number;
   isPublic: Generated<boolean>;
@@ -322,11 +321,22 @@ export interface CollectionsTable {
 
 export interface CopiesTable {
   id: Generated<string>;
-  userId: string;
   printingId: string;
   collectionId: string;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
+}
+
+/**
+ * Per-viewer deck-building availability override for a collection. A row means
+ * the user has explicitly chosen whether this collection feeds *their* deck
+ * inventory. Absence falls back to a type default of `group_id IS NULL`
+ * (personal collections feed decks by default; group collections are opt-in).
+ */
+interface CollectionDeckbuildingPrefsTable {
+  userId: string;
+  collectionId: string;
+  available: boolean;
 }
 
 /**
@@ -1036,6 +1046,7 @@ export interface Database {
   // Collection tracking (migration 009)
   collections: CollectionsTable;
   copies: CopiesTable;
+  collectionDeckbuildingPrefs: CollectionDeckbuildingPrefsTable;
   collectionEvents: CollectionEventsTable;
   decks: DecksTable;
   deckCards: DeckCardsTable;

@@ -9,6 +9,13 @@ import { useCopiesCollection } from "@/lib/copies-collection";
 function aggregateTotals(copies: readonly CopyResponse[]): Record<string, number> {
   const totals: Record<string, number> = {};
   for (const copy of copies) {
+    // Global "owned" totals count personal copies only — copies in group
+    // collections belong to the group, not the viewer, so they must not
+    // inflate the viewer's owned badges. Collection-scoped counts (keyed by
+    // collectionId below) still include every copy in that collection.
+    if (copy.groupId !== null) {
+      continue;
+    }
     totals[copy.printingId] = (totals[copy.printingId] ?? 0) + 1;
   }
   return totals;
@@ -24,10 +31,18 @@ export function aggregateScopedCount(
   copies: readonly CopyResponse[],
   collectionId?: string,
 ): { count: number; totalCount: number } {
-  const totalCount = copies.length;
+  // Global figure = personal copies only (group copies aren't the viewer's).
+  let totalCount = 0;
+  for (const copy of copies) {
+    if (copy.groupId === null) {
+      totalCount += 1;
+    }
+  }
   if (collectionId === undefined) {
     return { count: totalCount, totalCount };
   }
+  // In-collection figure includes every copy in that collection (personal or
+  // group), since the viewer is looking at that specific collection.
   let count = 0;
   for (const copy of copies) {
     if (copy.collectionId === collectionId) {
@@ -213,7 +228,9 @@ export function useOwnedCopyIdsForPrintings(
   }
   const filtered =
     collectionId === undefined
-      ? copies
+      ? // Global owned-copy IDs = personal copies only (group copies aren't the
+        // viewer's). Scoped to a collection, include every copy in it.
+        copies.filter((copy) => copy.groupId === null)
       : copies.filter((copy) => copy.collectionId === collectionId);
   return { data: filtered.map((copy) => copy.id) };
 }
@@ -259,10 +276,18 @@ export function useDeckBuildingCounts(enabled: boolean): {
   for (const copy of copies) {
     // Default to available when the collection is unknown (race during create
     // or stale collections cache) — better to count an in-flight copy than to
-    // mis-flag it as locked.
+    // mis-flag it as locked. `availableForDeckbuilding` is viewer-effective:
+    // personal collections default on, group collections are opt-in per member.
     const isAvailable = availabilityById.get(copy.collectionId) ?? true;
-    const bucket = isAvailable ? available : locked;
-    bucket[copy.printingId] = (bucket[copy.printingId] ?? 0) + 1;
+    if (isAvailable) {
+      // Includes opted-in group copies — they feed the viewer's deck inventory.
+      available[copy.printingId] = (available[copy.printingId] ?? 0) + 1;
+    } else if (copy.groupId === null) {
+      // "Locked away" means owned-but-excluded, which only applies to the
+      // viewer's personal copies. Group copies the viewer hasn't opted into
+      // aren't theirs, so they're neither available nor locked.
+      locked[copy.printingId] = (locked[copy.printingId] ?? 0) + 1;
+    }
   }
 
   return { data: { available, locked } };
@@ -274,6 +299,11 @@ function aggregateByCollection(
 ): CopyCollectionBreakdownEntry[] {
   const counts = new Map<string, number>();
   for (const copy of copies) {
+    // Owned breakdown = personal collections only (group copies aren't owned
+    // by the viewer); consistent with the owned-count badges.
+    if (copy.groupId !== null) {
+      continue;
+    }
     counts.set(copy.collectionId, (counts.get(copy.collectionId) ?? 0) + 1);
   }
   const result: CopyCollectionBreakdownEntry[] = [];
@@ -338,6 +368,10 @@ export function aggregateByVariant(
     buckets.set(variant.id, new Map());
   }
   for (const copy of copies) {
+    // Owned breakdown = personal collections only (see aggregateByCollection).
+    if (copy.groupId !== null) {
+      continue;
+    }
     const bucket = buckets.get(copy.printingId);
     if (!bucket) {
       continue;

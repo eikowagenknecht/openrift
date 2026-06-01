@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { decideRemoval, pickNewestCopy } from "./use-quick-add-actions-helpers";
 
 function copy(id: string, printingId: string, collectionId: string): CopyResponse {
-  return { id, printingId, collectionId };
+  return { id, printingId, collectionId, groupId: null };
 }
 
 describe("pickNewestCopy", () => {

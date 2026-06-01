@@ -489,6 +489,12 @@ const copyResponseSchema = z
     id: z.string(),
     printingId: z.string(),
     collectionId: z.string(),
+    /**
+     * Owning group of the copy's collection, or null for personal collections.
+     * The client uses it to keep group-owned copies out of personal "owned"
+     * totals while still showing them inside the group collection.
+     */
+    groupId: z.string().nullable(),
   })
   .openapi("CopyResponse");
 
@@ -1220,13 +1226,7 @@ export const friendGroupSharedCollectionDetailResponseSchema = z
       ownerUserId: z.string(),
       ownerName: z.string().nullable(),
     }),
-    copies: z.array(
-      z.object({
-        id: z.string(),
-        printingId: z.string(),
-        collectionId: z.string(),
-      }),
-    ),
+    copies: z.array(copyResponseSchema),
     viewerRole: friendGroupRoleSchema,
   })
   .openapi("FriendGroupSharedCollectionDetailResponse");

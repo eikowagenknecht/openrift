@@ -1296,6 +1296,7 @@ export const friendGroupsRoute = friendGroupsApp
         id: row.id,
         printingId: row.printingId,
         collectionId: row.collectionId,
+        groupId: row.groupId,
       })),
       viewerRole: shared.viewerRole,
     };

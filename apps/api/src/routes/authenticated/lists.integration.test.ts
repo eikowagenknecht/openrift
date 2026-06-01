@@ -46,7 +46,6 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       .values({
         userId: USER_ID,
         name: `Test binder ${Date.now()}-${Math.random()}`,
-        availableForDeckbuilding: true,
         isInbox: false,
         sortOrder: 1,
       })
@@ -55,7 +54,6 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
     const copy = await db
       .insertInto("copies")
       .values({
-        userId: USER_ID,
         collectionId: collection.id,
         printingId: PRINTING_1.id,
       })

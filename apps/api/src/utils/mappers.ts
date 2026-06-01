@@ -73,6 +73,12 @@ function tradeOverrideFromEntry(
  * caller's group role.
  */
 export type CollectionViewRow = Selectable<CollectionsTable> & {
+  /**
+   * The viewer's effective deck-building availability. Derived per-viewer
+   * (`COALESCE(pref.available, group_id IS NULL)`), not stored on the
+   * collection — callers must supply it.
+   */
+  availableForDeckbuilding: boolean;
   copyCount?: number;
   groupSlug?: string | null;
   groupName?: string | null;
@@ -359,11 +365,13 @@ export function toCopy(row: {
   id: string;
   printingId: string;
   collectionId: string;
+  groupId: string | null;
 }): CopyResponse {
   return {
     id: row.id,
     printingId: row.printingId,
     collectionId: row.collectionId,
+    groupId: row.groupId,
   };
 }
 

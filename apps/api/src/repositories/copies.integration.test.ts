@@ -2,6 +2,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import { PRINTING_1, PRINTING_2, PRINTING_3, PRINTING_4 } from "../test/fixtures/constants.js";
 import { createDbContext } from "../test/integration-context.js";
+import { collectionDeckbuildingPrefsRepo } from "./collection-deckbuilding-prefs.js";
 import { collectionsRepo } from "./collections.js";
 import { buildCopiesCursor, copiesRepo } from "./copies.js";
 
@@ -11,6 +12,7 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
   const { db, userId } = ctx!;
   const copies = copiesRepo(db);
   const collections = collectionsRepo(db);
+  const deckbuildingPrefs = collectionDeckbuildingPrefsRepo(db);
 
   // Seed printing IDs from the OGS set
   const printingId1 = PRINTING_1.id; // OGS-001
@@ -41,9 +43,9 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
   it("setup: creates collections for copy tests", async () => {
     const col = await collections.create({
       userId,
+      groupId: null,
       name: "Copy Test Collection",
       description: null,
-      availableForDeckbuilding: true,
       isInbox: false,
       sortOrder: 0,
     });
@@ -52,14 +54,19 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
 
     const col2 = await collections.create({
       userId,
+      groupId: null,
       name: "Second Collection",
       description: null,
-      availableForDeckbuilding: false,
       isInbox: false,
       sortOrder: 1,
     });
     secondCollectionId = col2.id;
     createdCollectionIds.push(col2.id);
+
+    // Deck-building availability is now a per-viewer preference. Personal
+    // collections default ON, so opt the second one OUT to mirror the old
+    // `availableForDeckbuilding: false` and exercise the prefs path.
+    await deckbuildingPrefs.set(userId, secondCollectionId, false);
   });
 
   // ---------------------------------------------------------------------------
@@ -68,9 +75,9 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
 
   it("inserts copies and lists them for a collection", async () => {
     const inserted = await copies.insertBatch([
-      { userId, printingId: printingId1, collectionId },
-      { userId, printingId: printingId2, collectionId },
-      { userId, printingId: printingId3, collectionId },
+      { printingId: printingId1, collectionId },
+      { printingId: printingId2, collectionId },
+      { printingId: printingId3, collectionId },
     ]);
     for (const row of inserted) {
       insertedCopyIds.push(row.id);
@@ -82,78 +89,57 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
     const list = await copies.listForCollection(collectionId, 200);
     expect(list.length).toBeGreaterThanOrEqual(3);
 
-    // Verify slim copy fields are present
+    // Verify slim copy fields are present; personal collections have no group.
     for (const copy of list) {
       expect(copy.printingId).toBeDefined();
       expect(copy.collectionId).toBeDefined();
+      expect(copy.groupId).toBeNull();
     }
   });
 
   // ---------------------------------------------------------------------------
-  // listForUser
+  // listForAccessibleCollections
   // ---------------------------------------------------------------------------
 
-  it("lists all copies for a user", async () => {
-    const list = await copies.listForUser(userId, 200);
+  it("lists all copies in the viewer's accessible collections", async () => {
+    const list = await copies.listForAccessibleCollections(userId, 200);
     expect(list.length).toBeGreaterThanOrEqual(3);
 
-    // All copies should belong to this user (verified by the where clause)
     for (const copy of list) {
       expect(copy.printingId).toBeDefined();
     }
   });
 
-  it("returns empty for a user with no copies", async () => {
-    const result = await copies.listForUser("a0000000-9999-4000-a000-000000000001", 200);
+  it("returns empty for a user with no accessible collections", async () => {
+    const result = await copies.listForAccessibleCollections(
+      "a0000000-9999-4000-a000-000000000001",
+      200,
+    );
     expect(result).toEqual([]);
   });
 
   // ---------------------------------------------------------------------------
-  // getByIdForUser
+  // existsForViewer
   // ---------------------------------------------------------------------------
 
-  it("returns a copy by id for the owning user", async () => {
+  it("returns id when the copy is in a collection the viewer can access", async () => {
     const copyId = insertedCopyIds[0];
-    const result = await copies.getByIdForUser(copyId, userId);
-    expect(result).toBeDefined();
-    expect(result!.id).toBe(copyId);
-    expect(result!.printingId).toBe(printingId1);
-    expect(result!.collectionId).toBeDefined();
-  });
-
-  it("returns undefined for a copy with wrong userId", async () => {
-    const copyId = insertedCopyIds[0];
-    const result = await copies.getByIdForUser(copyId, "a0000000-9999-4000-a000-000000000001");
-    expect(result).toBeUndefined();
-  });
-
-  it("returns undefined for nonexistent copy", async () => {
-    const result = await copies.getByIdForUser("00000000-0000-0000-0000-000000000000", userId);
-    expect(result).toBeUndefined();
-  });
-
-  // ---------------------------------------------------------------------------
-  // existsForUser
-  // ---------------------------------------------------------------------------
-
-  it("returns id when copy exists for user", async () => {
-    const copyId = insertedCopyIds[0];
-    const result = await copies.existsForUser(copyId, userId);
+    const result = await copies.existsForViewer(copyId, userId);
     expect(result).toEqual({ id: copyId });
   });
 
-  it("existsForUser returns undefined for wrong user", async () => {
+  it("existsForViewer returns undefined for a user without access", async () => {
     const copyId = insertedCopyIds[0];
-    const result = await copies.existsForUser(copyId, "a0000000-9999-4000-a000-000000000001");
+    const result = await copies.existsForViewer(copyId, "a0000000-9999-4000-a000-000000000001");
     expect(result).toBeUndefined();
   });
 
   // ---------------------------------------------------------------------------
-  // listWithCollectionName
+  // listWithCollectionContext
   // ---------------------------------------------------------------------------
 
   it("returns copies with their collection name", async () => {
-    const result = await copies.listWithCollectionName(insertedCopyIds, userId);
+    const result = await copies.listWithCollectionContext(insertedCopyIds);
     expect(result.length).toBeGreaterThanOrEqual(1);
 
     for (const row of result) {
@@ -163,28 +149,30 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
   });
 
   // ---------------------------------------------------------------------------
-  // moveBatch
+  // moveBatchById
   // ---------------------------------------------------------------------------
 
   it("moves copies to a different collection", async () => {
     const copyToMove = insertedCopyIds[2]; // The third copy
-    await copies.moveBatch([copyToMove], userId, secondCollectionId);
+    await copies.moveBatchById([copyToMove], secondCollectionId);
 
-    const moved = await copies.getByIdForUser(copyToMove, userId);
-    expect(moved).toBeDefined();
-    expect(moved!.collectionId).toBe(secondCollectionId);
+    const inSecond = await copies.listForCollection(secondCollectionId, 200);
+    expect(inSecond.map((copy) => copy.id)).toContain(copyToMove);
 
     // Move it back for cleanup consistency
-    await copies.moveBatch([copyToMove], userId, collectionId);
+    await copies.moveBatchById([copyToMove], collectionId);
+    const inFirst = await copies.listForCollection(collectionId, 200);
+    expect(inFirst.map((copy) => copy.id)).toContain(copyToMove);
   });
 
   // ---------------------------------------------------------------------------
   // countByCardAndPrintingForDeckbuilding
   // ---------------------------------------------------------------------------
 
-  it("returns counts from deckbuilding-available collections only", async () => {
+  it("returns counts from the viewer's deck-building-available collections only", async () => {
     const counts = await copies.countByCardAndPrintingForDeckbuilding(userId);
-    // Our first collection is availableForDeckbuilding=true, second is false
+    // The copies live in the first collection (deck-available by default); the
+    // second is opted out via a pref but currently holds no copies.
     expect(counts.length).toBeGreaterThanOrEqual(1);
 
     for (const row of counts) {
@@ -195,18 +183,16 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
   });
 
   // ---------------------------------------------------------------------------
-  // deleteBatch
+  // deleteBatchById
   // ---------------------------------------------------------------------------
 
-  it("deletes copies by ids for the owning user", async () => {
+  it("deletes copies by ids", async () => {
     // Insert a copy specifically to delete
-    const [toDelete] = await copies.insertBatch([
-      { userId, printingId: printingId1, collectionId },
-    ]);
+    const [toDelete] = await copies.insertBatch([{ printingId: printingId1, collectionId }]);
 
-    await copies.deleteBatch([toDelete.id], userId);
+    await copies.deleteBatchById([toDelete.id]);
 
-    const result = await copies.existsForUser(toDelete.id, userId);
+    const result = await copies.existsForViewer(toDelete.id, userId);
     expect(result).toBeUndefined();
   });
 });
@@ -215,7 +201,9 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
 // Pagination tests
 // ---------------------------------------------------------------------------
 
-type CopyRow = Awaited<ReturnType<ReturnType<typeof copiesRepo>["listForUser"]>>[number];
+type CopyRow = Awaited<
+  ReturnType<ReturnType<typeof copiesRepo>["listForAccessibleCollections"]>
+>[number];
 
 /**
  * Simulates the route handler pagination loop: fetches limit+1 rows, slices,
@@ -274,9 +262,9 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
   it("setup: create collection for pagination tests", async () => {
     const col = await collections.create({
       userId,
+      groupId: null,
       name: "Pagination Test Collection",
       description: null,
-      availableForDeckbuilding: true,
       isInbox: false,
       sortOrder: 0,
     });
@@ -290,7 +278,7 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
 
   it("returns zero items when there are no copies", async () => {
     const { items, pageCount } = await paginateAll(
-      (limit, cursor) => copies.listForUser(userId, limit, cursor),
+      (limit, cursor) => copies.listForAccessibleCollections(userId, limit, cursor),
       10,
     );
     expect(items).toHaveLength(0);
@@ -302,13 +290,11 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
   // ---------------------------------------------------------------------------
 
   it("returns exactly one item with no extra pages", async () => {
-    const [inserted] = await copies.insertBatch([
-      { userId, printingId: printingIds[0], collectionId },
-    ]);
+    const [inserted] = await copies.insertBatch([{ printingId: printingIds[0], collectionId }]);
     insertedCopyIds.push(inserted.id);
 
     const { items, pageCount } = await paginateAll(
-      (limit, cursor) => copies.listForUser(userId, limit, cursor),
+      (limit, cursor) => copies.listForAccessibleCollections(userId, limit, cursor),
       10,
     );
     expect(items).toHaveLength(1);
@@ -316,7 +302,7 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
     expect(pageCount).toBe(1);
 
     // cleanup
-    await copies.deleteBatch([inserted.id], userId);
+    await copies.deleteBatchById([inserted.id]);
     insertedCopyIds.pop();
   });
 
@@ -327,7 +313,7 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
   it("handles timestamp collisions: batch-inserted copies all paginate correctly", async () => {
     // Insert 7 copies in one batch — they all share the same createdAt from now()
     const batchValues = [...printingIds, ...printingIds.slice(0, 3)] // 4 + 3 = 7 copies
-      .map((printingId) => ({ userId, printingId, collectionId }));
+      .map((printingId) => ({ printingId, collectionId }));
 
     const inserted = await copies.insertBatch(batchValues);
     for (const row of inserted) {
@@ -337,7 +323,7 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
 
     // Paginate with page size 2 — forces multiple pages through same-timestamp rows
     const { items, pageCount } = await paginateAll(
-      (limit, cursor) => copies.listForUser(userId, limit, cursor),
+      (limit, cursor) => copies.listForAccessibleCollections(userId, limit, cursor),
       2,
     );
 
@@ -357,14 +343,14 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
     expect(pageCount).toBe(4);
 
     // cleanup
-    await copies.deleteBatch([...insertedIds], userId);
+    await copies.deleteBatchById([...insertedIds]);
     insertedCopyIds.length = 0;
   });
 
   it("handles timestamp collisions with page size 1", async () => {
     // Insert 4 copies in one batch — all same createdAt
     const inserted = await copies.insertBatch(
-      printingIds.map((printingId) => ({ userId, printingId, collectionId })),
+      printingIds.map((printingId) => ({ printingId, collectionId })),
     );
     for (const row of inserted) {
       insertedCopyIds.push(row.id);
@@ -373,7 +359,7 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
 
     // Page size 1 — every row is its own page, maximum cursor stress
     const { items, pageCount } = await paginateAll(
-      (limit, cursor) => copies.listForUser(userId, limit, cursor),
+      (limit, cursor) => copies.listForAccessibleCollections(userId, limit, cursor),
       1,
     );
 
@@ -386,7 +372,7 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
     expect(pageCount).toBe(4);
 
     // cleanup
-    await copies.deleteBatch([...insertedIds], userId);
+    await copies.deleteBatchById([...insertedIds]);
     insertedCopyIds.length = 0;
   });
 
@@ -397,14 +383,14 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
   it("paginates across different timestamps without gaps or duplicates", async () => {
     // Insert in separate batches to get different createdAt values
     const batch1 = await copies.insertBatch([
-      { userId, printingId: printingIds[0], collectionId },
-      { userId, printingId: printingIds[1], collectionId },
+      { printingId: printingIds[0], collectionId },
+      { printingId: printingIds[1], collectionId },
     ]);
     // Small delay to ensure different timestamp
     await Bun.sleep(10);
     const batch2 = await copies.insertBatch([
-      { userId, printingId: printingIds[2], collectionId },
-      { userId, printingId: printingIds[3], collectionId },
+      { printingId: printingIds[2], collectionId },
+      { printingId: printingIds[3], collectionId },
     ]);
 
     const allInserted = [...batch1, ...batch2];
@@ -415,7 +401,7 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
 
     // Page size 3 — spans the timestamp boundary
     const { items, pageCount } = await paginateAll(
-      (limit, cursor) => copies.listForUser(userId, limit, cursor),
+      (limit, cursor) => copies.listForAccessibleCollections(userId, limit, cursor),
       3,
     );
 
@@ -428,7 +414,7 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
     expect(pageCount).toBe(2);
 
     // cleanup
-    await copies.deleteBatch([...allIds], userId);
+    await copies.deleteBatchById([...allIds]);
     insertedCopyIds.length = 0;
   });
 
@@ -438,7 +424,7 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
 
   it("returns all items in one page when count equals limit exactly", async () => {
     const inserted = await copies.insertBatch(
-      printingIds.map((printingId) => ({ userId, printingId, collectionId })),
+      printingIds.map((printingId) => ({ printingId, collectionId })),
     );
     for (const row of inserted) {
       insertedCopyIds.push(row.id);
@@ -447,7 +433,7 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
 
     // Page size = exactly the number of items
     const { items, pageCount } = await paginateAll(
-      (limit, cursor) => copies.listForUser(userId, limit, cursor),
+      (limit, cursor) => copies.listForAccessibleCollections(userId, limit, cursor),
       4,
     );
 
@@ -458,7 +444,7 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
     }
 
     // cleanup
-    await copies.deleteBatch([...insertedIds], userId);
+    await copies.deleteBatchById([...insertedIds]);
     insertedCopyIds.length = 0;
   });
 
@@ -469,7 +455,6 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
   it("listForCollection paginates correctly with timestamp collisions", async () => {
     // Insert 5 copies in one batch into the same collection
     const batchValues = [...printingIds, printingIds[0]].map((printingId) => ({
-      userId,
       printingId,
       collectionId,
     }));
@@ -495,7 +480,7 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
     expect(pageCount).toBe(3);
 
     // cleanup
-    await copies.deleteBatch([...insertedIds], userId);
+    await copies.deleteBatchById([...insertedIds]);
     insertedCopyIds.length = 0;
   });
 
@@ -505,11 +490,11 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
 
   it("returns items in descending createdAt then ascending id order", async () => {
     const batch1 = await copies.insertBatch([
-      { userId, printingId: printingIds[0], collectionId },
-      { userId, printingId: printingIds[1], collectionId },
+      { printingId: printingIds[0], collectionId },
+      { printingId: printingIds[1], collectionId },
     ]);
     await Bun.sleep(10);
-    const batch2 = await copies.insertBatch([{ userId, printingId: printingIds[2], collectionId }]);
+    const batch2 = await copies.insertBatch([{ printingId: printingIds[2], collectionId }]);
 
     const allInserted = [...batch1, ...batch2];
     for (const row of allInserted) {
@@ -518,7 +503,7 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
     const allIds = allInserted.map((row) => row.id);
 
     const { items } = await paginateAll(
-      (limit, cursor) => copies.listForUser(userId, limit, cursor),
+      (limit, cursor) => copies.listForAccessibleCollections(userId, limit, cursor),
       10,
     );
 
@@ -540,7 +525,70 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
     }
 
     // cleanup
-    await copies.deleteBatch(allIds, userId);
+    await copies.deleteBatchById(allIds);
     insertedCopyIds.length = 0;
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Group (pooled) collection visibility — regression for the bug where copies
+// in a group collection were only visible to whoever added them.
+// ---------------------------------------------------------------------------
+
+const groupCtx = createDbContext("a0000000-0029-4000-a000-000000000001");
+
+describe.skipIf(!groupCtx)("copies in group collections (integration)", () => {
+  const { db, userId } = groupCtx!;
+  const copies = copiesRepo(db);
+
+  let groupId: string;
+  let pooledCollectionId: string;
+  const insertedCopyIds: string[] = [];
+
+  afterAll(async () => {
+    if (insertedCopyIds.length > 0) {
+      await db.deleteFrom("copies").where("id", "in", insertedCopyIds).execute();
+    }
+    if (pooledCollectionId) {
+      await db.deleteFrom("collections").where("id", "=", pooledCollectionId).execute();
+    }
+    if (groupId) {
+      await db.deleteFrom("friendGroups").where("id", "=", groupId).execute();
+    }
+  });
+
+  it("a member sees copies in the group's pooled collection they did not add", async () => {
+    // Slug must match ^[a-z0-9][a-z0-9-]{2,29}$ and be unique per run.
+    const group = await db
+      .insertInto("friendGroups")
+      .values({ slug: `cp-grp-${Date.now()}`, name: "Copy Group" })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+    groupId = group.id;
+
+    // The viewer is a plain member — they will NOT be the one adding the copy.
+    await db.insertInto("friendGroupMembers").values({ groupId, userId, role: "member" }).execute();
+
+    // A group-owned collection (user_id NULL, group_id set).
+    const pooled = await db
+      .insertInto("collections")
+      .values({ groupId, name: "Pooled Box", isInbox: false, sortOrder: 0 })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+    pooledCollectionId = pooled.id;
+
+    // A copy lands in the pooled collection (ownership is the group's; no
+    // per-contributor attribution exists anymore).
+    const [copy] = await copies.insertBatch([
+      { printingId: PRINTING_1.id, collectionId: pooled.id },
+    ]);
+    insertedCopyIds.push(copy.id);
+
+    // The member sees it through their accessible-collections feed, tagged
+    // with the owning group.
+    const accessible = await copies.listForAccessibleCollections(userId, 200);
+    const found = accessible.find((row) => row.id === copy.id);
+    expect(found).toBeDefined();
+    expect(found!.groupId).toBe(groupId);
   });
 });

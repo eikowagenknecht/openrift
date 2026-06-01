@@ -45,8 +45,9 @@ export async function addCopies(
   }
 
   const created = await transact(async (trxRepos) => {
+    // Copies no longer carry an owner column — ownership derives from the
+    // collection. The acting `userId` is still recorded as the event actor below.
     const copyValues = copies.map((item) => ({
-      userId,
       printingId: item.printingId,
       collectionId: item.collectionId ?? inboxId,
     }));

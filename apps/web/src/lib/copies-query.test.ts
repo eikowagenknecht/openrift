@@ -8,6 +8,7 @@ function makeCopy(id: string): CopyResponse {
     id,
     printingId: `print-${id}`,
     collectionId: "col-1",
+    groupId: null,
   };
 }
 

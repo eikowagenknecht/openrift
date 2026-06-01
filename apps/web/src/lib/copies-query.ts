@@ -2,9 +2,8 @@ import type { CopyListResponse, CopyResponse } from "@openrift/shared";
 import { queryOptions } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
-import type { CopiesResponse } from "@/lib/server-fns/api-types";
 
-export async function fetchCopies(collectionId?: string): Promise<CopiesResponse> {
+export async function fetchCopies(collectionId?: string): Promise<CopyListResponse> {
   const baseUrl = collectionId
     ? `/api/v1/collections/${encodeURIComponent(collectionId)}/copies`
     : "/api/v1/copies";
@@ -25,7 +24,7 @@ export async function fetchCopies(collectionId?: string): Promise<CopiesResponse
     if (!res.ok) {
       throw new Error(`Copies fetch failed: ${res.status}`);
     }
-    const page = (await res.json()) as CopiesResponse;
+    const page = (await res.json()) as CopyListResponse;
     allItems.push(...page.items);
     cursor = page.nextCursor;
   } while (cursor);

@@ -220,6 +220,6 @@ export interface FriendGroupSharedCollectionDetailResponse {
     ownerUserId: string;
     ownerName: string | null;
   };
-  copies: { id: string; printingId: string; collectionId: string }[];
+  copies: { id: string; printingId: string; collectionId: string; groupId: string | null }[];
   viewerRole: FriendGroupRole;
 }

@@ -40,7 +40,6 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
         .values({
           userId,
           name: "Lists Test Binder",
-          availableForDeckbuilding: true,
           isInbox: false,
           sortOrder: 1,
         })
@@ -51,7 +50,6 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     const copy = await db
       .insertInto("copies")
       .values({
-        userId,
         collectionId: collection.id,
         printingId: PRINTING_1.id,
       })

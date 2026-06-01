@@ -418,16 +418,22 @@ export function listsRepo(db: Kysely<Database>) {
         return { added: 0, updated: 0, skipped: 0 };
       }
 
-      // Resolve { copyId, printingId, cardId } for the user-owned subset.
-      // The userId predicate silently drops non-owned copies; we recover the
-      // count via `copyIds.length - owned.length` so they still surface as
-      // skipped instead of vanishing from the toast.
+      // Resolve { copyId, printingId, cardId } for the subset the viewer can
+      // access — copies in their personal collections plus shared group
+      // collections they belong to. Copies the viewer can't access are
+      // silently dropped; we recover the count via `copyIds.length -
+      // owned.length` so they still surface as skipped instead of vanishing
+      // from the toast.
       const owned = await db
         .selectFrom("copies as cp")
         .innerJoin("printings as p", "p.id", "cp.printingId")
+        .innerJoin("collections as col", "col.id", "cp.collectionId")
+        .leftJoin("friendGroupMembers as gm", (join) =>
+          join.onRef("gm.groupId", "=", "col.groupId").on("gm.userId", "=", userId),
+        )
         .select(["cp.id as copyId", "cp.printingId", "p.cardId"])
         .where("cp.id", "in", [...copyIds])
-        .where("cp.userId", "=", userId)
+        .where((eb) => eb.or([eb("col.userId", "=", userId), eb("gm.userId", "=", userId)]))
         .execute();
 
       const nonOwnedCount = copyIds.length - owned.length;

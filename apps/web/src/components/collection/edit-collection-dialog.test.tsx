@@ -26,7 +26,6 @@ function Harness({ initialName }: { initialName: string }) {
       <EditCollectionDialog
         collectionId="abc"
         currentName={currentName}
-        currentAvailableForDeckbuilding
         isInbox={false}
         open={open}
         onOpenChange={setOpen}

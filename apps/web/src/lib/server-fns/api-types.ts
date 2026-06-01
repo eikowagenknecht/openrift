@@ -96,6 +96,5 @@ export type AdminDeckFormatsResponse = InferResponseType<
 // ── Public endpoints ────────────────────────────────────────────────────────
 export type InitResponse = InferResponseType<Client["api"]["v1"]["init"]["$get"]>;
 export type CollectionsResponse = InferResponseType<Client["api"]["v1"]["collections"]["$get"]>;
-export type CopiesResponse = InferResponseType<Client["api"]["v1"]["copies"]["$get"]>;
 // ── MarketplaceGroup derived type ───────────────────────────────────────────
 export type MarketplaceGroup = MarketplaceGroupsResponse["groups"][number];

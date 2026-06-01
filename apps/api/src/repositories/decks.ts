@@ -276,7 +276,14 @@ export function decksRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Owned copy count per card from deckbuilding-available collections, filtered to the given card IDs. */
+    /**
+     * Owned copy count per card from collections that feed the viewer's deck
+     * inventory, filtered to the given card IDs. A collection counts when it's
+     * accessible to the viewer (personal owner or group member) AND
+     * deck-building-available for them: `COALESCE(pref.available,
+     * group_id IS NULL)` — personal default on, group collections opt-in.
+     * @returns Owned copy count per card across the viewer's deck-available collections.
+     */
     availableCopiesByCard(
       userId: string,
       cardIds: string[],
@@ -285,12 +292,18 @@ export function decksRepo(db: Kysely<Database>) {
         .selectFrom("copies as cp")
         .innerJoin("collections as col", "col.id", "cp.collectionId")
         .innerJoin("printings as p", "p.id", "cp.printingId")
+        .leftJoin("friendGroupMembers as gm", (join) =>
+          join.onRef("gm.groupId", "=", "col.groupId").on("gm.userId", "=", userId),
+        )
+        .leftJoin("collectionDeckbuildingPrefs as pref", (join) =>
+          join.onRef("pref.collectionId", "=", "col.id").on("pref.userId", "=", userId),
+        )
         .select((eb) => [
           "p.cardId" as const,
           eb.cast<number>(eb.fn.countAll(), "integer").as("count"),
         ])
-        .where("cp.userId", "=", userId)
-        .where("col.availableForDeckbuilding", "=", true)
+        .where((eb) => eb.or([eb("col.userId", "=", userId), eb("gm.userId", "=", userId)]))
+        .where(sql`coalesce(pref.available, col.group_id is null)`, "=", true)
         .where("p.cardId", "in", cardIds)
         .groupBy("p.cardId")
         .execute();

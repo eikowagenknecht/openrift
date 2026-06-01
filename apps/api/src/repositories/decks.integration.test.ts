@@ -304,7 +304,6 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
         userId,
         name: "Deckbuilding Test",
         description: null,
-        availableForDeckbuilding: true,
         isInbox: false,
         sortOrder: 50,
       })
@@ -315,7 +314,7 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
     const seedPrintingId = PRINTING_1.id;
     await db
       .insertInto("copies")
-      .values({ userId, printingId: seedPrintingId, collectionId: col.id })
+      .values({ printingId: seedPrintingId, collectionId: col.id })
       .execute();
 
     const result = await repo.availableCopiesByCard(userId, [seedCardId]);

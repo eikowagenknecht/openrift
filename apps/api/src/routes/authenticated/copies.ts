@@ -67,14 +67,17 @@ const copiesApp = new OpenAPIHono<{ Variables: Variables }>().basePath("/copies"
 copiesApp.use(requireAuth);
 export const copiesRoute = copiesApp
   // ── GET /copies ─────────────────────────────────────────────────────────────
-  // All copies for the authenticated user (combined view)
+  // All copies the viewer can access: their personal collections plus the
+  // shared collections of every group they belong to. Group-owned copies
+  // (added by any member) appear to all members. Each row carries `groupId`
+  // so the client can keep group copies out of personal "owned" totals.
 
   .openapi(listCopies, async (c) => {
     const { copies } = c.get("repos");
     const { cursor, limit } = c.req.valid("query");
     const effectiveLimit = limit ?? 10_000;
 
-    const rows = await copies.listForUser(getUserId(c), effectiveLimit, cursor);
+    const rows = await copies.listForAccessibleCollections(getUserId(c), effectiveLimit, cursor);
     const hasMore = rows.length > effectiveLimit;
     const items = rows.slice(0, effectiveLimit);
     const lastItem = items.at(-1);

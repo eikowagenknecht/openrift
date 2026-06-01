@@ -29,7 +29,6 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
       userId,
       name: "Test Binder",
       description: null,
-      availableForDeckbuilding: true,
       isInbox: false,
       sortOrder: 1,
     });
@@ -38,7 +37,6 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
     expect(col.id).toBeDefined();
     expect(col.name).toBe("Test Binder");
     expect(col.userId).toBe(userId);
-    expect(col.availableForDeckbuilding).toBe(true);
     expect(col.isInbox).toBe(false);
 
     const fetched = await repo.getByIdForUser(col.id, userId);
@@ -56,7 +54,6 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
       userId,
       name: "Private Collection",
       description: null,
-      availableForDeckbuilding: false,
       isInbox: false,
       sortOrder: 2,
     });
@@ -76,7 +73,6 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
       userId,
       name: "Inbox",
       description: null,
-      availableForDeckbuilding: true,
       isInbox: true,
       sortOrder: 0,
     });
@@ -86,7 +82,6 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
       userId,
       name: "Alpha Binder",
       description: null,
-      availableForDeckbuilding: true,
       isInbox: false,
       sortOrder: 5,
     });
@@ -115,7 +110,6 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
       userId,
       name: "Before Update",
       description: null,
-      availableForDeckbuilding: true,
       isInbox: false,
       sortOrder: 10,
     });
@@ -139,7 +133,6 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
       userId,
       name: "Owned by 0026",
       description: null,
-      availableForDeckbuilding: true,
       isInbox: false,
       sortOrder: 11,
     });
@@ -160,7 +153,6 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
       userId,
       name: "Named One",
       description: null,
-      availableForDeckbuilding: true,
       isInbox: false,
       sortOrder: 20,
     });
@@ -236,7 +228,6 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
       userId,
       name: "To Delete",
       description: null,
-      availableForDeckbuilding: false,
       isInbox: false,
       sortOrder: 99,
     });
@@ -272,7 +263,6 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
       userId,
       name: "Source Collection",
       description: null,
-      availableForDeckbuilding: true,
       isInbox: false,
       sortOrder: 30,
     });
@@ -282,7 +272,6 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
       userId,
       name: "Dest Collection",
       description: null,
-      availableForDeckbuilding: true,
       isInbox: false,
       sortOrder: 31,
     });
@@ -290,7 +279,7 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
 
     // Insert a copy into colA using a seed printing
     const printingId = PRINTING_1.id;
-    await db.insertInto("copies").values({ userId, printingId, collectionId: colA.id }).execute();
+    await db.insertInto("copies").values({ printingId, collectionId: colA.id }).execute();
 
     // List copies in colA
     const copies = await repo.listCopiesInCollection(colA.id);

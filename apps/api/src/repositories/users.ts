@@ -35,10 +35,14 @@ export function usersRepo(db: Kysely<Database>) {
           eb
             .exists(eb.selectFrom("admins").select("userId").whereRef("admins.userId", "=", "u.id"))
             .as("isAdmin"),
+          // Copies no longer carry an owner; ownership derives from the
+          // collection. "Cards" for a user = copies in their personal
+          // collections (group-owned copies belong to the group, not a person).
           eb
             .selectFrom("copies")
+            .innerJoin("collections", "collections.id", "copies.collectionId")
             .select(eb.cast<number>(eb.fn.countAll(), "integer").as("c"))
-            .whereRef("copies.userId", "=", "u.id")
+            .whereRef("collections.userId", "=", "u.id")
             .as("cardCount"),
           eb
             .selectFrom("decks")

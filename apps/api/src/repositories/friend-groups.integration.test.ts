@@ -105,7 +105,6 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
       .values({
         userId,
         name: "Friend-Groups Test Binder",
-        availableForDeckbuilding: true,
         isInbox: false,
         sortOrder: 1,
       })
@@ -119,7 +118,7 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     const collection = await ensureCollection(userId);
     const copy = await db
       .insertInto("copies")
-      .values({ userId, printingId, collectionId: collection.id })
+      .values({ printingId, collectionId: collection.id })
       .returningAll()
       .executeTakeFirstOrThrow();
     createdCopyIds.push(copy.id);
@@ -580,7 +579,6 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
       .values({
         userId,
         name,
-        availableForDeckbuilding: true,
         isInbox: false,
         sortOrder: 1,
       })
@@ -596,7 +594,6 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
       .values({
         groupId,
         name,
-        availableForDeckbuilding: true,
         isInbox: false,
         sortOrder: 1,
       })

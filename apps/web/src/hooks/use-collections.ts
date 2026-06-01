@@ -103,14 +103,7 @@ export function useCreateCollection() {
 }
 
 const updateCollectionFn = createServerFn({ method: "POST" })
-  .inputValidator(
-    (input: {
-      id: string;
-      name?: string;
-      description?: string | null;
-      availableForDeckbuilding?: boolean;
-    }) => input,
-  )
+  .inputValidator((input: { id: string; name?: string; description?: string | null }) => input)
   .middleware([withCookies])
   .handler(({ context, data }) => {
     const { id, ...fields } = data;
@@ -126,12 +119,39 @@ const updateCollectionFn = createServerFn({ method: "POST" })
 export function useUpdateCollection() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
-    mutationFn: (body: {
-      id: string;
-      name?: string;
-      description?: string | null;
-      availableForDeckbuilding?: boolean;
-    }) => updateCollectionFn({ data: body }),
+    mutationFn: (body: { id: string; name?: string; description?: string | null }) =>
+      updateCollectionFn({ data: body }),
+    invalidates: [queryKeys.collections.all(userId)],
+  });
+}
+
+const setDeckbuildingFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { id: string; available: boolean }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    await fetchApi({
+      errorTitle: "Couldn't update deck-building availability",
+      cookie: context.cookie,
+      path: `/api/v1/collections/${encodeURIComponent(data.id)}/deckbuilding`,
+      method: "PUT",
+      body: { available: data.available },
+    });
+  });
+
+/**
+ * Sets the *current viewer's* deck-building availability for a collection.
+ * This is a per-member preference — every member with access can set it for
+ * themselves, including for shared group collections — so it is not gated on
+ * group-admin rights. Invalidating the collections list refreshes the
+ * viewer-effective `availableForDeckbuilding` flag, which in turn drives the
+ * owned/locked deck-building counts.
+ *
+ * @returns A mutation taking `{ id, available }`.
+ */
+export function useSetCollectionDeckbuilding() {
+  const userId = useRequiredUserId();
+  return useMutationWithInvalidation({
+    mutationFn: (body: { id: string; available: boolean }) => setDeckbuildingFn({ data: body }),
     invalidates: [queryKeys.collections.all(userId)],
   });
 }

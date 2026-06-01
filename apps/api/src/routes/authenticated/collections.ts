@@ -12,6 +12,7 @@ import {
   createCollectionSchema,
   idParamSchema,
   reorderCollectionsSchema,
+  setCollectionDeckbuildingSchema,
   updateCollectionSchema,
 } from "@openrift/shared/schemas";
 
@@ -30,7 +31,6 @@ import { generateShareToken } from "../../utils/share-token.js";
 const patchFields: FieldMapping = {
   name: "name",
   description: "description",
-  availableForDeckbuilding: "availableForDeckbuilding",
   sortOrder: "sortOrder",
 };
 
@@ -164,6 +164,19 @@ const reorderCollections = createRoute({
   },
 });
 
+const setDeckbuilding = createRoute({
+  method: "put",
+  path: "/{id}/deckbuilding",
+  tags: ["Collections"],
+  request: {
+    params: idParamSchema,
+    body: { content: { "application/json": { schema: setCollectionDeckbuildingSchema } } },
+  },
+  responses: {
+    204: { description: "No Content" },
+  },
+});
+
 const collectionsApp = new OpenAPIHono<{ Variables: Variables }>().basePath("/collections");
 collectionsApp.use(requireAuth);
 export const collectionsRoute = collectionsApp
@@ -184,7 +197,7 @@ export const collectionsRoute = collectionsApp
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
   .openapi(createCollection, async (c) => {
-    const { collections, friendGroups } = c.get("repos");
+    const { collections, collectionDeckbuildingPrefs, friendGroups } = c.get("repos");
     const userId = getUserId(c);
     const body = c.req.valid("json");
 
@@ -212,13 +225,30 @@ export const collectionsRoute = collectionsApp
       groupId,
       name: body.name,
       description: body.description ?? null,
-      availableForDeckbuilding: body.availableForDeckbuilding ?? true,
       isInbox: false,
       sortOrder,
     });
 
+    // Deck-building availability is now a per-viewer preference, not a column.
+    // The type default is "available if it's my own collection" (group_id IS
+    // NULL), so a personal collection only needs an explicit row when the
+    // creator opts it OUT. Group collections default off and are opted in via
+    // the per-member toggle, so we ignore an `available: true` hint here.
+    let availableForDeckbuilding = groupId === null;
+    if (groupId === null && body.availableForDeckbuilding === false) {
+      await collectionDeckbuildingPrefs.set(userId, row.id, false);
+      availableForDeckbuilding = false;
+    }
+
     return c.json(
-      toCollection({ ...row, copyCount: 0, groupSlug, groupName, viewerCanAdmin: true }),
+      toCollection({
+        ...row,
+        availableForDeckbuilding,
+        copyCount: 0,
+        groupSlug,
+        groupName,
+        viewerCanAdmin: true,
+      }),
       201,
     );
   })
@@ -254,6 +284,9 @@ export const collectionsRoute = collectionsApp
     return c.json(
       toCollection({
         ...row,
+        // Deck-building availability is per-viewer and untouched by this
+        // admin-gated edit; carry over the value resolved during access check.
+        availableForDeckbuilding: access.collection.availableForDeckbuilding,
         groupSlug: access.collection.groupSlug,
         groupName: access.collection.groupName,
         viewerCanAdmin: access.viewerCanAdmin,
@@ -397,5 +430,22 @@ export const collectionsRoute = collectionsApp
     const userId = getUserId(c);
     const { orderedIds } = c.req.valid("json");
     await collections.reorderPersonal(userId, orderedIds);
+    return c.body(null, 204);
+  })
+
+  // ── PUT /collections/:id/deckbuilding ──────────────────────────────────────
+  // Sets the *caller's own* deck-building availability for a collection. This
+  // is a per-viewer preference, so any member with access may set it for
+  // themselves — including for shared group collections (not admin-gated).
+  .openapi(setDeckbuilding, async (c) => {
+    const { collections, collectionDeckbuildingPrefs } = c.get("repos");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+    const { available } = c.req.valid("json");
+
+    const access = await collections.getAccessForUser(id, userId);
+    assertFound(access, "Not found");
+
+    await collectionDeckbuildingPrefs.set(userId, id, available);
     return c.body(null, 204);
   });

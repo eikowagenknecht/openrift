@@ -7,6 +7,7 @@ const COPY_ROW = {
   id: "cp-1",
   printingId: "p-1",
   collectionId: "col-1",
+  groupId: null,
   createdAt: new Date(),
 };
 
@@ -18,28 +19,30 @@ describe("buildCopiesCursor", () => {
 });
 
 describe("copiesRepo", () => {
-  it("listForUser returns copies without cursor", async () => {
+  it("listForAccessibleCollections returns copies without cursor", async () => {
     const db = createMockDb([COPY_ROW]);
     const repo = copiesRepo(db);
-    expect(await repo.listForUser("u1", 20)).toEqual([COPY_ROW]);
+    expect(await repo.listForAccessibleCollections("u1", 20)).toEqual([COPY_ROW]);
   });
 
-  it("listForUser applies cursor filter", async () => {
+  it("listForAccessibleCollections applies cursor filter", async () => {
     const db = createMockDb([]);
     const repo = copiesRepo(db);
-    expect(await repo.listForUser("u1", 20, "2026-01-01T00:00:00.000Z_cp-last")).toEqual([]);
+    expect(
+      await repo.listForAccessibleCollections("u1", 20, "2026-01-01T00:00:00.000Z_cp-last"),
+    ).toEqual([]);
   });
 
-  it("getByIdForUser returns a copy", async () => {
-    const db = createMockDb([COPY_ROW]);
-    const repo = copiesRepo(db);
-    expect(await repo.getByIdForUser("cp-1", "u1")).toEqual(COPY_ROW);
-  });
-
-  it("existsForUser returns id when found", async () => {
+  it("existsForViewer returns id when found", async () => {
     const db = createMockDb([{ id: "cp-1" }]);
     const repo = copiesRepo(db);
-    expect(await repo.existsForUser("cp-1", "u1")).toEqual({ id: "cp-1" });
+    expect(await repo.existsForViewer("cp-1", "u1")).toEqual({ id: "cp-1" });
+  });
+
+  it("filterAccessibleByViewer returns matching ids", async () => {
+    const db = createMockDb([{ id: "cp-1" }]);
+    const repo = copiesRepo(db);
+    expect(await repo.filterAccessibleByViewer(["cp-1"], "u1")).toEqual(["cp-1"]);
   });
 
   it("listForCollection returns copies without cursor", async () => {
@@ -59,36 +62,33 @@ describe("copiesRepo", () => {
   it("insertBatch returns inserted copies", async () => {
     const db = createMockDb([{ id: "cp-1", printingId: "p-1", collectionId: "col-1" }]);
     const repo = copiesRepo(db);
-    const result = await repo.insertBatch([
-      { userId: "u1", printingId: "p-1", collectionId: "col-1" } as any,
-    ]);
+    const result = await repo.insertBatch([{ printingId: "p-1", collectionId: "col-1" }]);
     expect(result).toHaveLength(1);
   });
 
-  it("listWithCollectionName returns copies with collection name", async () => {
+  it("listWithCollectionContext returns copies with collection name", async () => {
     const db = createMockDb([
       {
         id: "cp-1",
         printingId: "p-1",
         collectionId: "col-1",
-
         collectionName: "Main",
       },
     ]);
     const repo = copiesRepo(db);
-    expect(await repo.listWithCollectionName(["cp-1"], "u1")).toHaveLength(1);
+    expect(await repo.listWithCollectionContext(["cp-1"])).toHaveLength(1);
   });
 
-  it("moveBatch moves copies", async () => {
+  it("moveBatchById moves copies", async () => {
     const db = createMockDb([]);
     const repo = copiesRepo(db);
-    await expect(repo.moveBatch(["cp-1"], "u1", "col-2")).resolves.toBeUndefined();
+    await expect(repo.moveBatchById(["cp-1"], "col-2")).resolves.toBeUndefined();
   });
 
-  it("deleteBatch deletes copies", async () => {
+  it("deleteBatchById deletes copies", async () => {
     const db = createMockDb([]);
     const repo = copiesRepo(db);
-    await expect(repo.deleteBatch(["cp-1"], "u1")).resolves.toBeUndefined();
+    await expect(repo.deleteBatchById(["cp-1"])).resolves.toBeUndefined();
   });
 
   it("countByCardAndPrintingForDeckbuilding returns counts", async () => {

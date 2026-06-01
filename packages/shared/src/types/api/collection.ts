@@ -60,4 +60,10 @@ export interface CopyResponse {
   id: string;
   printingId: string;
   collectionId: string;
+  /**
+   * Owning group of the copy's collection, or null for personal collections.
+   * Lets the client keep group-owned copies out of personal "owned" totals
+   * while still showing them inside the group collection.
+   */
+  groupId: string | null;
 }

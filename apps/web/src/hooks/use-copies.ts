@@ -1,6 +1,7 @@
 import type { CopyResponse } from "@openrift/shared";
 import { createTransaction, eq, useLiveQuery } from "@tanstack/react-db";
 import { useBatcher } from "@tanstack/react-pacer";
+import type { QueryClient } from "@tanstack/react-query";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
 
@@ -8,10 +9,29 @@ import { trackEvent } from "@/lib/analytics";
 import { useUserId } from "@/lib/auth-session";
 import { useCopiesCollection } from "@/lib/copies-collection";
 import { queryKeys } from "@/lib/query-keys";
+import type { CollectionsResponse } from "@/lib/server-fns/api-types";
 import { isTempCopyId, TEMP_COPY_ID_PREFIX } from "@/lib/temp-copy-id";
 import { withTimeout } from "@/lib/with-timeout";
 
 const BATCH_SIZE = 500;
+
+/**
+ * Resolves a collection's owning group from the cached collections list, so
+ * optimistic copy rows carry the same `groupId` the server feed would assign.
+ * Without it, a copy added to a group collection would briefly count as a
+ * personal "owned" copy until the next feed refetch. Returns null for personal
+ * collections (and when the collection isn't cached yet — the common case is
+ * personal, and a refetch corrects any miss).
+ * @returns The collection's group id, or null.
+ */
+function groupIdForCollection(
+  queryClient: QueryClient,
+  userId: string,
+  collectionId: string,
+): string | null {
+  const cached = queryClient.getQueryData<CollectionsResponse>(queryKeys.collections.all(userId));
+  return cached?.items.find((col) => col.id === collectionId)?.groupId ?? null;
+}
 
 function chunks<T>(array: T[], size: number): T[][] {
   const result: T[][] = [];
@@ -153,6 +173,7 @@ export function useAddCopies() {
           id: item.id,
           printingId: item.printingId,
           collectionId: item.collectionId,
+          groupId: groupIdForCollection(queryClient, userId, item.collectionId),
         }));
         if (copiesCollection) {
           if (hasTempIds) {
@@ -294,6 +315,8 @@ interface BatchedAddCallbacks {
 export function useBatchedAddCopies(callbacks?: BatchedAddCallbacks) {
   const copiesCollection = useCopiesCollection();
   const addCopies = useAddCopies();
+  const queryClient = useQueryClient();
+  const userId = useUserId();
   // useBatcher captures its handler once; ref keeps the latest callbacks
   // so we don't recreate the batcher whenever the consumer re-renders.
   // Update in an effect — writing to a ref during render trips React Compiler.
@@ -345,7 +368,8 @@ export function useBatchedAddCopies(callbacks?: BatchedAddCallbacks) {
       // swap for the real id after the API confirms.
       const tempId = `${TEMP_COPY_ID_PREFIX}${crypto.randomUUID()}`;
       if (copiesCollection) {
-        copiesCollection.utils.writeInsert([{ id: tempId, printingId, collectionId }]);
+        const groupId = userId ? groupIdForCollection(queryClient, userId, collectionId) : null;
+        copiesCollection.utils.writeInsert([{ id: tempId, printingId, collectionId, groupId }]);
       }
       // oxlint-disable-next-line promise/avoid-new -- deferred pattern needed to batch individual calls into one POST
       const result = new Promise<AddCopyResult>((resolve, reject) => {
@@ -353,7 +377,7 @@ export function useBatchedAddCopies(callbacks?: BatchedAddCallbacks) {
       });
       return { tempId, result };
     },
-    [copiesCollection, batcher],
+    [copiesCollection, batcher, queryClient, userId],
   );
 
   return { add, isPending: addCopies.isPending };

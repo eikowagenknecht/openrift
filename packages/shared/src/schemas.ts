@@ -131,8 +131,16 @@ export const createCollectionSchema = z.object({
 export const updateCollectionSchema = z.object({
   name: collectionFieldRules.name.optional(),
   description: z.string().max(1000).nullish(),
-  availableForDeckbuilding: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
+});
+
+/**
+ * Sets the caller's own deck-building availability for a collection. This is a
+ * per-viewer preference (not a property of the collection), so any member with
+ * access can set it for themselves — including for shared group collections.
+ */
+export const setCollectionDeckbuildingSchema = z.object({
+  available: z.boolean(),
 });
 
 /**

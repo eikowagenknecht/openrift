@@ -3,8 +3,15 @@ import { sql } from "kysely";
 
 import type { CopiesTable, Database } from "../db/index.js";
 
-/** Slim copy row — printing details are resolved client-side from the catalog. */
-type CopyRow = Pick<Selectable<CopiesTable>, "id" | "printingId" | "collectionId" | "createdAt">;
+/**
+ * Slim copy row — printing details are resolved client-side from the catalog.
+ * `groupId` is the owning group of the copy's collection (null for personal
+ * collections); the client uses it to keep group-owned copies out of personal
+ * "owned" totals while still showing them inside the group collection.
+ */
+type CopyRow = Pick<Selectable<CopiesTable>, "id" | "printingId" | "collectionId" | "createdAt"> & {
+  groupId: string | null;
+};
 
 const CURSOR_SEPARATOR = "_";
 
@@ -31,88 +38,124 @@ function parseCursor(cursor: string): { time: Date; id: string | null } {
 /**
  * Read-only queries for user copy data.
  *
+ * Copy ownership is derived from the collection (personal collections set
+ * user_id, group collections set group_id) — copies carry no owner column of
+ * their own. Visibility therefore keys off collection access: a viewer sees a
+ * copy if they personally own its collection or are a member of its group.
+ *
  * @returns An object with copy query methods bound to the given `db`.
  */
 export function copiesRepo(db: Kysely<Database>) {
   return {
-    /** @returns Copies for a user. When `limit` is provided, fetches `limit + 1` rows to detect `hasMore`. */
-    listForUser(userId: string, limit?: number, cursor?: string): Promise<CopyRow[]> {
+    /**
+     * Copies across every collection the viewer can access — their personal
+     * collections plus the shared collections of every group they belong to.
+     * This is the source feed for the collection browser; group-owned copies
+     * (added by any member) appear to all members. When `limit` is provided,
+     * fetches `limit + 1` rows to detect `hasMore`.
+     * @returns Accessible copies, newest first.
+     */
+    listForAccessibleCollections(
+      userId: string,
+      limit?: number,
+      cursor?: string,
+    ): Promise<CopyRow[]> {
       let query = db
-        .selectFrom("copies")
-        .select(["id", "printingId", "collectionId", "createdAt"])
-        .where("userId", "=", userId)
-        .orderBy("createdAt", "desc")
-        .orderBy("id");
+        .selectFrom("copies as cp")
+        .innerJoin("collections as col", "col.id", "cp.collectionId")
+        .leftJoin("friendGroupMembers as gm", (join) =>
+          join.onRef("gm.groupId", "=", "col.groupId").on("gm.userId", "=", userId),
+        )
+        .select([
+          "cp.id",
+          "cp.printingId",
+          "cp.collectionId",
+          "cp.createdAt",
+          "col.groupId as groupId",
+        ])
+        .where((eb) => eb.or([eb("col.userId", "=", userId), eb("gm.userId", "=", userId)]))
+        .orderBy("cp.createdAt", "desc")
+        .orderBy("cp.id");
       if (limit !== undefined) {
         query = query.limit(limit + 1);
       }
       if (cursor) {
         const { time, id } = parseCursor(cursor);
         // Truncate to milliseconds so PostgreSQL's µs precision matches JS Date's ms precision
-        const tsMs = sql<Date>`date_trunc('milliseconds', ${sql.ref("createdAt")})`;
+        const tsMs = sql<Date>`date_trunc('milliseconds', ${sql.ref("cp.createdAt")})`;
         query = id
           ? query.where((eb) =>
-              eb.or([eb(tsMs, "<", time), eb.and([eb(tsMs, "=", time), eb("id", ">", id)])]),
+              eb.or([eb(tsMs, "<", time), eb.and([eb(tsMs, "=", time), eb("cp.id", ">", id)])]),
             )
           : query.where(tsMs, "<", time);
       }
       return query.execute();
     },
 
-    /** @returns A single copy by ID scoped to a user, or `undefined`. */
-    getByIdForUser(id: string, userId: string): Promise<CopyRow | undefined> {
-      return db
-        .selectFrom("copies")
-        .select(["id", "printingId", "collectionId", "createdAt"])
-        .where("id", "=", id)
-        .where("userId", "=", userId)
-        .executeTakeFirst();
-    },
-
-    /** @returns Whether a copy exists for the given user (for ownership verification), or `undefined`. */
-    existsForUser(
+    /** @returns Whether a copy is in a collection the viewer can access, or `undefined`. */
+    existsForViewer(
       id: string,
       userId: string,
     ): Promise<Pick<Selectable<CopiesTable>, "id"> | undefined> {
       return db
-        .selectFrom("copies")
-        .select("id")
-        .where("id", "=", id)
-        .where("userId", "=", userId)
+        .selectFrom("copies as cp")
+        .innerJoin("collections as col", "col.id", "cp.collectionId")
+        .leftJoin("friendGroupMembers as gm", (join) =>
+          join.onRef("gm.groupId", "=", "col.groupId").on("gm.userId", "=", userId),
+        )
+        .select("cp.id")
+        .where("cp.id", "=", id)
+        .where((eb) => eb.or([eb("col.userId", "=", userId), eb("gm.userId", "=", userId)]))
         .executeTakeFirst();
     },
 
-    /** @returns The subset of input IDs that are owned by the given user. */
-    async filterUserOwned(ids: readonly string[], userId: string): Promise<string[]> {
+    /** @returns The subset of input IDs the viewer can access (via collection ownership/membership). */
+    async filterAccessibleByViewer(ids: readonly string[], userId: string): Promise<string[]> {
       if (ids.length === 0) {
         return [];
       }
       const rows = await db
-        .selectFrom("copies")
-        .select("id")
-        .where("userId", "=", userId)
-        .where("id", "in", ids)
+        .selectFrom("copies as cp")
+        .innerJoin("collections as col", "col.id", "cp.collectionId")
+        .leftJoin("friendGroupMembers as gm", (join) =>
+          join.onRef("gm.groupId", "=", "col.groupId").on("gm.userId", "=", userId),
+        )
+        .select("cp.id")
+        .where("cp.id", "in", ids as string[])
+        .where((eb) => eb.or([eb("col.userId", "=", userId), eb("gm.userId", "=", userId)]))
         .execute();
       return rows.map((row) => row.id);
     },
 
-    /** @returns Copies in a specific collection. When `limit` is provided, fetches `limit + 1` rows to detect `hasMore`. */
+    /**
+     * Copies in a specific collection. Authorization is the caller's
+     * responsibility (via `collections.getAccessForUser`). When `limit` is
+     * provided, fetches `limit + 1` rows to detect `hasMore`.
+     * @returns Copies in the collection, newest first.
+     */
     listForCollection(collectionId: string, limit?: number, cursor?: string): Promise<CopyRow[]> {
       let query = db
-        .selectFrom("copies")
-        .select(["id", "printingId", "collectionId", "createdAt"])
-        .where("collectionId", "=", collectionId)
-        .orderBy("createdAt", "desc")
-        .orderBy("id");
+        .selectFrom("copies as cp")
+        .innerJoin("collections as col", "col.id", "cp.collectionId")
+        .select([
+          "cp.id",
+          "cp.printingId",
+          "cp.collectionId",
+          "cp.createdAt",
+          "col.groupId as groupId",
+        ])
+        .where("cp.collectionId", "=", collectionId)
+        .orderBy("cp.createdAt", "desc")
+        .orderBy("cp.id");
       if (limit !== undefined) {
         query = query.limit(limit + 1);
       }
       if (cursor) {
         const { time, id } = parseCursor(cursor);
-        const tsMs = sql<Date>`date_trunc('milliseconds', ${sql.ref("createdAt")})`;
+        const tsMs = sql<Date>`date_trunc('milliseconds', ${sql.ref("cp.createdAt")})`;
         query = id
           ? query.where((eb) =>
-              eb.or([eb(tsMs, "<", time), eb.and([eb(tsMs, "=", time), eb("id", ">", id)])]),
+              eb.or([eb(tsMs, "<", time), eb.and([eb(tsMs, "=", time), eb("cp.id", ">", id)])]),
             )
           : query.where(tsMs, "<", time);
       }
@@ -130,28 +173,10 @@ export function copiesRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Copies with their current collection name, for move/dispose operations. */
-    listWithCollectionName(
-      copyIds: string[],
-      userId: string,
-    ): Promise<
-      (Pick<Selectable<CopiesTable>, "id" | "printingId" | "collectionId"> & {
-        collectionName: string;
-      })[]
-    > {
-      return db
-        .selectFrom("copies as cp")
-        .innerJoin("collections as col", "col.id", "cp.collectionId")
-        .select(["cp.id", "cp.printingId", "cp.collectionId", "col.name as collectionName"])
-        .where("cp.id", "in", copyIds)
-        .where("cp.userId", "=", userId)
-        .execute();
-    },
-
     /**
-     * Like {@link listWithCollectionName} but without filtering by acting user.
-     * Used by mutation services when the viewer's right to touch a copy comes
-     * from collection-level access (shared collections) rather than ownership.
+     * Copies with their current collection name, for move/dispose operations.
+     * Not user-scoped: the viewer's right to touch a copy comes from
+     * collection-level access (checked by the caller), not copy ownership.
      * @returns Matching copies with their current collection name.
      */
     listWithCollectionContext(copyIds: string[]): Promise<
@@ -170,17 +195,7 @@ export function copiesRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Moves copies to a target collection. */
-    async moveBatch(copyIds: string[], userId: string, toCollectionId: string): Promise<void> {
-      await db
-        .updateTable("copies")
-        .set({ collectionId: toCollectionId })
-        .where("id", "in", copyIds)
-        .where("userId", "=", userId)
-        .execute();
-    },
-
-    /** Like {@link moveBatch} without user scoping; caller verified write access. */
+    /** Moves copies to a target collection; caller verified write access. */
     async moveBatchById(copyIds: string[], toCollectionId: string): Promise<void> {
       if (copyIds.length === 0) {
         return;
@@ -192,16 +207,7 @@ export function copiesRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Hard-deletes copies by IDs scoped to a user. */
-    async deleteBatch(copyIds: string[], userId: string): Promise<void> {
-      await db
-        .deleteFrom("copies")
-        .where("id", "in", copyIds)
-        .where("userId", "=", userId)
-        .execute();
-    },
-
-    /** Like {@link deleteBatch} without user scoping; caller verified write access. */
+    /** Hard-deletes copies by IDs; caller verified write access. */
     async deleteBatchById(copyIds: string[]): Promise<void> {
       if (copyIds.length === 0) {
         return;
@@ -209,7 +215,14 @@ export function copiesRepo(db: Kysely<Database>) {
       await db.deleteFrom("copies").where("id", "in", copyIds).execute();
     },
 
-    /** @returns Owned count per card+printing from deckbuilding-available collections. */
+    /**
+     * Owned count per card+printing from collections that feed the viewer's
+     * deck inventory. A collection counts when it's accessible to the viewer
+     * AND deck-building-available for them: `COALESCE(pref.available,
+     * group_id IS NULL)` — personal collections default on, group collections
+     * are opt-in per member.
+     * @returns Count per card+printing across the viewer's deck-available collections.
+     */
     countByCardAndPrintingForDeckbuilding(
       userId: string,
     ): Promise<{ cardId: string; printingId: string; count: number }[]> {
@@ -217,13 +230,19 @@ export function copiesRepo(db: Kysely<Database>) {
         .selectFrom("copies as cp")
         .innerJoin("collections as col", "col.id", "cp.collectionId")
         .innerJoin("printings as p", "p.id", "cp.printingId")
+        .leftJoin("friendGroupMembers as gm", (join) =>
+          join.onRef("gm.groupId", "=", "col.groupId").on("gm.userId", "=", userId),
+        )
+        .leftJoin("collectionDeckbuildingPrefs as pref", (join) =>
+          join.onRef("pref.collectionId", "=", "col.id").on("pref.userId", "=", userId),
+        )
         .select((eb) => [
           "p.cardId" as const,
           "cp.printingId" as const,
           eb.cast<number>(eb.fn.countAll(), "integer").as("count"),
         ])
-        .where("cp.userId", "=", userId)
-        .where("col.availableForDeckbuilding", "=", true)
+        .where((eb) => eb.or([eb("col.userId", "=", userId), eb("gm.userId", "=", userId)]))
+        .where(sql`coalesce(pref.available, col.group_id is null)`, "=", true)
         .groupBy(["p.cardId", "cp.printingId"])
         .execute();
     },

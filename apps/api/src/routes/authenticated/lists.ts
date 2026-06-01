@@ -386,19 +386,22 @@ export const listsRoute = listsApp
       }
     }
 
-    // Copy-kind lists: filter to copies the user actually owns; drop non-
-    // owned silently rather than 400-ing the whole batch. Card/printing kinds
-    // pass through (FK enforces target row existence).
+    // Copy-kind lists: filter to copies the user can access (their personal
+    // collections plus shared group collections); drop the rest silently
+    // rather than 400-ing the whole batch. Card/printing kinds pass through
+    // (FK enforces target row existence).
     let usableEntries = entries;
     if (list.kind === "copy") {
       const copyIdsRequested = entries
         .map((entry) => entry.copyId)
         .filter((id): id is string => id !== undefined);
-      const ownedCopyIds = new Set(
-        copyIdsRequested.length > 0 ? await copies.filterUserOwned(copyIdsRequested, userId) : [],
+      const accessibleCopyIds = new Set(
+        copyIdsRequested.length > 0
+          ? await copies.filterAccessibleByViewer(copyIdsRequested, userId)
+          : [],
       );
       usableEntries = entries.filter(
-        (entry) => entry.copyId !== undefined && ownedCopyIds.has(entry.copyId),
+        (entry) => entry.copyId !== undefined && accessibleCopyIds.has(entry.copyId),
       );
     }
 
@@ -577,7 +580,7 @@ async function resolveEntryTarget(
   kind: ListKind,
   body: { cardId?: string; printingId?: string; copyId?: string },
   userId: string,
-  copies: { existsForUser: (id: string, userId: string) => Promise<unknown> },
+  copies: { existsForViewer: (id: string, userId: string) => Promise<unknown> },
 ): Promise<{ cardId: string | null; printingId: string | null; copyId: string | null }> {
   if (!targetMatchesKind(kind, body)) {
     throw new AppError(
@@ -595,8 +598,8 @@ async function resolveEntryTarget(
   // kind === "copy"
   const copyId = body.copyId;
   if (copyId !== undefined) {
-    const owned = await copies.existsForUser(copyId, userId);
-    assertFound(owned, "Copy not found");
+    const accessible = await copies.existsForViewer(copyId, userId);
+    assertFound(accessible, "Copy not found");
   }
   return { cardId: null, printingId: null, copyId: copyId ?? null };
 }

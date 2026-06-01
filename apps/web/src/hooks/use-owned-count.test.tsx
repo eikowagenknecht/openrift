@@ -46,8 +46,8 @@ function copy(printingId: string, collectionId: string): CopyResponse {
     id: `${printingId}-${collectionId}-${Math.random()}`,
     printingId,
     collectionId,
-    addedAt: new Date().toISOString(),
-  } as CopyResponse;
+    groupId: null,
+  };
 }
 
 const NAME_MAP = new Map([

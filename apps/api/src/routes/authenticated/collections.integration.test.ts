@@ -160,13 +160,14 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       expect(json.description).toBe("Updated desc");
     });
 
-    it("updates availableForDeckbuilding", async () => {
+    it("sets the viewer's deck-building availability via PUT /deckbuilding", async () => {
       const res = await app.fetch(
-        req("PATCH", `/collections/${collectionId}`, { availableForDeckbuilding: false }),
+        req("PUT", `/collections/${collectionId}/deckbuilding`, { available: false }),
       );
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(204);
 
-      const json = (await res.json()) as CollectionResponse;
+      const getRes = await app.fetch(req("GET", `/collections/${collectionId}`));
+      const json = (await getRes.json()) as CollectionResponse;
       expect(json.availableForDeckbuilding).toBe(false);
     });
 
