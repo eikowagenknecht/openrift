@@ -81,6 +81,14 @@ export function createApp(deps: AppDeps) {
 
   const app = new OpenAPIHono<{ Variables: Variables }>();
 
+  // Repos and the transaction helper are stateless given a fixed `db`, so build
+  // them once at app construction rather than re-instrumenting all ~50 repos on
+  // every request. Each instrumented repo method still opens its own OTel span
+  // per call; createTransact rebuilds repos against the trx handle inside each
+  // transaction, so writes stay transaction-scoped.
+  const repos = createRepos(db);
+  const transact = createTransact(db);
+
   // ── Global error handler ────────────────────────────────────────────────
   // Normalizes all thrown errors into a consistent { error, code, details? } JSON shape.
   // In dev mode, details (stack traces, Zod issues) are included for debugging.
@@ -255,9 +263,9 @@ export function createApp(deps: AppDeps) {
     c.set("io", deps.io ?? defaultIo);
     c.set("auth", auth);
     c.set("config", config);
-    c.set("repos", createRepos(db));
+    c.set("repos", repos);
     c.set("services", services);
-    c.set("transact", createTransact(db));
+    c.set("transact", transact);
     await next();
   });
 
