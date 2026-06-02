@@ -1,7 +1,7 @@
 import { WellKnown } from "@openrift/shared";
-import type { Kysely } from "kysely";
 
 import type { Database } from "../db/index.js";
+import type { wellKnownRepo } from "../repositories/well-known.js";
 
 /**
  * Reference table info for each WellKnown category.
@@ -25,7 +25,9 @@ const TABLE_MAP: Record<string, { table: keyof Database; pk: string }> = {
  *
  * Call this at startup after migrations have run, before accepting traffic.
  */
-export async function validateWellKnownSlugs(db: Kysely<Database>): Promise<void> {
+export async function validateWellKnownSlugs(
+  repo: ReturnType<typeof wellKnownRepo>,
+): Promise<void> {
   const errors: string[] = [];
 
   for (const [category, slugs] of Object.entries(WellKnown)) {
@@ -37,13 +39,9 @@ export async function validateWellKnownSlugs(db: Kysely<Database>): Promise<void
     const { table, pk } = entry;
     const expectedSlugs = Object.values(slugs) as string[];
 
-    const rows = (await db
-      .selectFrom(table as any)
-      .select([pk as any, "isWellKnown" as any])
-      .where(pk as any, "in", expectedSlugs)
-      .execute()) as { isWellKnown: boolean; [key: string]: unknown }[];
+    const rows = await repo.wellKnownStatus(table, pk, expectedSlugs);
 
-    const found = new Map(rows.map((row) => [row[pk] as string, row.isWellKnown]));
+    const found = new Map(rows.map((row) => [row.slug, row.isWellKnown]));
 
     for (const [name, slug] of Object.entries(slugs)) {
       if (!found.has(slug)) {

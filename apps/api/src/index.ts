@@ -16,6 +16,7 @@ import { createDb } from "./db/connect.js";
 import { migrate } from "./db/migrate.js";
 import { createRepos } from "./deps.js";
 import { createEmailSender } from "./email.js";
+import { wellKnownRepo } from "./repositories/well-known.js";
 import { extractWatermark, postChangelogToDiscord } from "./services/changelog-discord.js";
 import { flushPendingPrintingEvents } from "./services/flush-printing-events.js";
 import {
@@ -95,7 +96,7 @@ await migrate(db, log.child({ service: "migrate" }));
 // ── 2. Validate well-known reference data ──────────────────────────────────
 
 log.info("Validating well-known slugs");
-await validateWellKnownSlugs(db);
+await validateWellKnownSlugs(wellKnownRepo(db));
 
 // ── 3. Register cron jobs (non-blocking timers) ─────────────────────────────
 
