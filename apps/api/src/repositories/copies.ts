@@ -23,6 +23,21 @@ export function buildCopiesCursor(createdAt: Date, id: string): string {
   return `${createdAt.toISOString()}${CURSOR_SEPARATOR}${id}`;
 }
 
+/** Default page size, and hard maximum, for cursor-paginated copy listings. */
+export const COPIES_PAGE_DEFAULT = 500;
+export const COPIES_PAGE_MAX = 1000;
+
+/**
+ * Clamps a client-supplied page limit to at most {@link COPIES_PAGE_MAX},
+ * defaulting to {@link COPIES_PAGE_DEFAULT} when absent. Replaces the per-route
+ * `limit ?? 10_000` soft-cap so no single request pulls an oversized page;
+ * clients page through with the returned cursor instead.
+ * @returns The effective page limit to request.
+ */
+export function clampCopiesLimit(limit?: number): number {
+  return Math.min(limit ?? COPIES_PAGE_DEFAULT, COPIES_PAGE_MAX);
+}
+
 function parseCursor(cursor: string): { time: Date; id: string | null } {
   const separatorIndex = cursor.indexOf(CURSOR_SEPARATOR);
   if (separatorIndex === -1) {

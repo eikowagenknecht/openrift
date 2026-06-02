@@ -11,7 +11,7 @@ import {
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { createApiApp } from "../../openapi.js";
-import { buildCopiesCursor } from "../../repositories/copies.js";
+import { buildCopiesCursor, clampCopiesLimit } from "../../repositories/copies.js";
 import { toCopy } from "../../utils/mappers.js";
 
 const listCopies = createRoute({
@@ -75,7 +75,7 @@ export const copiesRoute = copiesApp
   .openapi(listCopies, async (c) => {
     const { copies } = c.get("repos");
     const { cursor, limit } = c.req.valid("query");
-    const effectiveLimit = limit ?? 10_000;
+    const effectiveLimit = clampCopiesLimit(limit);
 
     const rows = await copies.listForAccessibleCollections(getUserId(c), effectiveLimit, cursor);
     const hasMore = rows.length > effectiveLimit;

@@ -1279,7 +1279,8 @@ export const friendGroupsRoute = friendGroupsApp
     // sees and what the public-share-token page does.
     const favMarketplace = await getFavoriteMarketplace(repos, shared.collection.userId);
     const value = await marketplace.singleCollectionValue(collectionId, favMarketplace);
-    const copyRows = await copies.listForCollection(collectionId, 10_000);
+    // Full set (no pagination): the match computation below needs every copy.
+    const copyRows = await copies.listForCollection(collectionId);
 
     const response: FriendGroupSharedCollectionDetailResponse = {
       collection: {

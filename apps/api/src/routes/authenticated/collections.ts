@@ -24,7 +24,7 @@ import { requireAuth } from "../../middleware/require-auth.js";
 import { createApiApp } from "../../openapi.js";
 import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
-import { buildCopiesCursor } from "../../repositories/copies.js";
+import { buildCopiesCursor, clampCopiesLimit } from "../../repositories/copies.js";
 import { assertFound } from "../../utils/assertions.js";
 import { toCollection, toCopy } from "../../utils/mappers.js";
 import { getFavoriteMarketplace } from "../../utils/preferences.js";
@@ -353,7 +353,7 @@ export const collectionsRoute = collectionsApp
     const access = await collections.getAccessForUser(id, userId);
     assertFound(access, "Not found");
 
-    const effectiveLimit = limit ?? 10_000;
+    const effectiveLimit = clampCopiesLimit(limit);
     const rows = await copies.listForCollection(id, effectiveLimit, cursor);
     const hasMore = rows.length > effectiveLimit;
     const items = rows.slice(0, effectiveLimit);

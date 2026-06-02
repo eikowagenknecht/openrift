@@ -430,15 +430,11 @@ describe("GET /api/v1/collections/:id/copies", () => {
     expect(json.nextCursor).toBeTruthy();
   });
 
-  it("passes default limit of 10000 to repo when none provided", async () => {
+  it("passes the default page size to the repo when no limit is provided", async () => {
     mockCollectionsRepo.getAccessForUser.mockResolvedValue(access(dbCollection));
     mockCopiesRepo.listForCollection.mockResolvedValue([]);
     await app.request(`/api/v1/collections/${dbCollection.id}/copies`);
-    expect(mockCopiesRepo.listForCollection).toHaveBeenCalledWith(
-      dbCollection.id,
-      10_000,
-      undefined,
-    );
+    expect(mockCopiesRepo.listForCollection).toHaveBeenCalledWith(dbCollection.id, 500, undefined);
   });
 });
 

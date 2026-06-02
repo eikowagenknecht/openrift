@@ -5,7 +5,7 @@ import { copiesQuerySchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
 import { createApiApp } from "../../openapi.js";
-import { buildCopiesCursor } from "../../repositories/copies.js";
+import { buildCopiesCursor, clampCopiesLimit } from "../../repositories/copies.js";
 import { assertFound } from "../../utils/assertions.js";
 import { toCopy, toPublicCollection } from "../../utils/mappers.js";
 import { getFavoriteMarketplace } from "../../utils/preferences.js";
@@ -45,7 +45,7 @@ export const publicCollectionsRoute = createApiApp().openapi(
     const favMarketplace = await getFavoriteMarketplace(repos, found.collection.userId);
     const value = await marketplace.singleCollectionValue(found.collection.id, favMarketplace);
 
-    const effectiveLimit = limit ?? 10_000;
+    const effectiveLimit = clampCopiesLimit(limit);
     const rows = await copies.listForCollection(found.collection.id, effectiveLimit, cursor);
     const hasMore = rows.length > effectiveLimit;
     const items = rows.slice(0, effectiveLimit);
