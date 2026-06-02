@@ -8,7 +8,7 @@ import type {
   SuperType,
 } from "@openrift/shared/types";
 import { sql } from "kysely";
-import type { DeleteResult, Kysely, Selectable, UpdateResult } from "kysely";
+import type { DeleteResult, Kysely, Selectable, Updateable, UpdateResult } from "kysely";
 
 import type { CandidatePrintingsTable, CardsTable, Database, PrintingsTable } from "../db/index.js";
 
@@ -140,7 +140,10 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
      * Patch allowed fields on a candidate printing.
      * @returns Update result.
      */
-    patchCandidatePrinting(id: string, updates: Record<string, unknown>): Promise<UpdateResult> {
+    patchCandidatePrinting(
+      id: string,
+      updates: Updateable<CandidatePrintingsTable>,
+    ): Promise<UpdateResult> {
       return db
         .updateTable("candidatePrintings")
         .set(updates)
@@ -260,7 +263,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
     },
 
     /** Update arbitrary fields on a printing by UUID. */
-    async updatePrintingById(id: string, updates: Record<string, unknown>): Promise<void> {
+    async updatePrintingById(id: string, updates: Updateable<PrintingsTable>): Promise<void> {
       await db.updateTable("printings").set(updates).where("id", "=", id).execute();
     },
 
@@ -384,7 +387,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
     },
 
     /** Update arbitrary fields on a card by UUID. */
-    async updateCardById(id: string, updates: Record<string, unknown>): Promise<void> {
+    async updateCardById(id: string, updates: Updateable<CardsTable>): Promise<void> {
       await db.updateTable("cards").set(updates).where("id", "=", id).execute();
     },
 

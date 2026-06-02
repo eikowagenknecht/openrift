@@ -6,7 +6,7 @@ import type {
   Domain,
   SuperType,
 } from "@openrift/shared/types";
-import type { DeleteResult, Kysely, Selectable } from "kysely";
+import type { DeleteResult, Kysely, Selectable, Updateable } from "kysely";
 import { sql } from "kysely";
 
 import type { CardsTable, Database, DeckCardsTable, DecksTable } from "../db/index.js";
@@ -38,6 +38,15 @@ function withParsedFormatConfig<T extends { formatConfig: DeckFormatConfig | str
 ): T & { formatConfig: DeckFormatConfig | null } {
   return { ...row, formatConfig: parseFormatConfig(row.formatConfig) };
 }
+
+/**
+ * Input for {@link decksRepo}.`update`: every editable deck column, but with
+ * `formatConfig` as the structured {@link DeckFormatConfig} (the repo
+ * serializes it before writing) rather than the column's stored string form.
+ */
+export type DeckUpdateInput = Omit<Updateable<DecksTable>, "formatConfig"> & {
+  formatConfig?: DeckFormatConfig | null;
+};
 
 /** Slim deck card row — card metadata is resolved client-side from the catalog. */
 type DeckCardRow = Pick<
@@ -146,15 +155,16 @@ export function decksRepo(db: Kysely<Database>) {
     async update(
       id: string,
       userId: string,
-      updates: Record<string, unknown>,
+      updates: DeckUpdateInput,
     ): Promise<Selectable<DecksTable> | undefined> {
-      const next = { ...updates };
-      if ("formatConfig" in next) {
-        next.formatConfig = serializeFormatConfig(next.formatConfig as DeckFormatConfig | null);
+      const { formatConfig, ...rest } = updates;
+      const dbUpdates: Updateable<DecksTable> = { ...rest };
+      if ("formatConfig" in updates) {
+        dbUpdates.formatConfig = serializeFormatConfig(formatConfig ?? null);
       }
       const row = await db
         .updateTable("decks")
-        .set(next)
+        .set(dbUpdates)
         .where("id", "=", id)
         .where("userId", "=", userId)
         .returningAll()

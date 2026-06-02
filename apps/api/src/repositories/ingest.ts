@@ -1,4 +1,4 @@
-import type { Insertable, Kysely, Selectable } from "kysely";
+import type { Insertable, Kysely, Selectable, Updateable } from "kysely";
 
 import type { CandidateCardsTable, Database, CandidatePrintingsTable } from "../db/index.js";
 
@@ -89,7 +89,7 @@ export function ingestRepo(db: Db) {
     // ── Writes ──────────────────────────────────────────────────────────────
 
     /** Update a candidate card by ID. */
-    async updateCandidateCard(id: string, updates: Record<string, unknown>): Promise<void> {
+    async updateCandidateCard(id: string, updates: Updateable<CandidateCardsTable>): Promise<void> {
       await db.updateTable("candidateCards").set(updates).where("id", "=", id).execute();
     },
 
@@ -107,7 +107,10 @@ export function ingestRepo(db: Db) {
     },
 
     /** Update a candidate printing by ID. */
-    async updateCandidatePrinting(id: string, updates: Record<string, unknown>): Promise<void> {
+    async updateCandidatePrinting(
+      id: string,
+      updates: Updateable<CandidatePrintingsTable>,
+    ): Promise<void> {
       await db.updateTable("candidatePrintings").set(updates).where("id", "=", id).execute();
     },
 

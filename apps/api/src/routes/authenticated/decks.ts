@@ -41,6 +41,7 @@ import { requireAuth } from "../../middleware/require-auth.js";
 import { createApiApp } from "../../openapi.js";
 import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
+import type { DeckUpdateInput } from "../../repositories/decks.js";
 import { encodeText, encodeTTS, piltoverCodec } from "../../services/deck-codecs/index.js";
 import type { TextCodecCard } from "../../services/deck-codecs/index.js";
 import { assertDeleted, assertFound } from "../../utils/assertions.js";
@@ -122,7 +123,7 @@ async function validateFormatConfig(
   );
 }
 
-const patchFields: FieldMapping = {
+const patchFields: FieldMapping<DeckUpdateInput> = {
   name: "name",
   description: "description",
   format: "format",
@@ -520,7 +521,7 @@ export const decksRoute = decksApp
     } else if (body.format !== undefined && body.formatConfig === undefined) {
       normalized.formatConfig = null;
     }
-    const updates = buildPatchUpdates(normalized, patchFields);
+    const updates = buildPatchUpdates<DeckUpdateInput>(normalized, patchFields);
     const row = await decks.update(id, userId, updates);
     assertFound(row, "Not found");
     return c.json(toDeck(row));
