@@ -1,27 +1,40 @@
 import { AppError, ERROR_CODES } from "./errors.js";
 
-export type FieldMapping = Record<string, string | ((value: unknown) => [string, unknown])>;
+/**
+ * Maps request-body fields to columns of the update target `T`. Each value is
+ * either a column name (`keyof T`) or a transform returning `[column, dbValue]`.
+ * Constraining values to `keyof T` makes the writable-column set a compile-time
+ * allowlist: a typo'd or non-existent column fails to compile. `T` defaults to
+ * `Record<string, unknown>` for callers that have not yet adopted a typed
+ * update target.
+ */
+export type FieldMapping<T = Record<string, unknown>> = Record<
+  string,
+  (keyof T & string) | ((value: unknown) => [keyof T & string, unknown])
+>;
 
 /**
  * Build a PATCH updates object from a parsed request body and a field mapping.
- * Each key in fieldMap is a camelCase body field. The value is either a string
- * (the snake_case column name) or a transform fn returning [column, dbValue].
+ * Each key in fieldMap is a body field; the value is either the target column
+ * name or a transform fn returning `[column, dbValue]`. Only present body
+ * fields are included.
  * @throws {AppError} 400 if no fields are present.
- * @returns The updates object with snake_case column keys.
+ * @returns A partial of `T` containing only the mapped, present columns.
  */
-export function buildPatchUpdates(
+export function buildPatchUpdates<T = Record<string, unknown>>(
   body: Record<string, unknown>,
-  fieldMap: FieldMapping,
-): Record<string, unknown> {
-  const updates: Record<string, unknown> = {};
+  fieldMap: FieldMapping<T>,
+): Partial<T> {
+  const updates: Partial<T> = {};
+  const writable = updates as Record<string, unknown>;
 
   for (const [bodyKey, mapping] of Object.entries(fieldMap)) {
     if (body[bodyKey] !== undefined) {
       if (typeof mapping === "string") {
-        updates[mapping] = body[bodyKey];
+        writable[mapping] = body[bodyKey];
       } else {
         const [column, dbValue] = mapping(body[bodyKey]);
-        updates[column] = dbValue;
+        writable[column] = dbValue;
       }
     }
   }

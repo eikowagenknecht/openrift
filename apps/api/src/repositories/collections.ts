@@ -1,4 +1,4 @@
-import type { Kysely, Selectable } from "kysely";
+import type { Kysely, Selectable, Updateable } from "kysely";
 import { sql } from "kysely";
 
 import type { CollectionsTable, CopiesTable, Database, FriendGroupRole } from "../db/index.js";
@@ -226,7 +226,7 @@ export function collectionsRepo(db: Kysely<Database>) {
     update(
       id: string,
       userId: string,
-      updates: Record<string, unknown>,
+      updates: Updateable<CollectionsTable>,
     ): Promise<Selectable<CollectionsTable> | undefined> {
       return db
         .updateTable("collections")
@@ -244,7 +244,7 @@ export function collectionsRepo(db: Kysely<Database>) {
      */
     updateById(
       id: string,
-      updates: Record<string, unknown>,
+      updates: Updateable<CollectionsTable>,
     ): Promise<Selectable<CollectionsTable> | undefined> {
       return db
         .updateTable("collections")

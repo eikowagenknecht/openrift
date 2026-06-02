@@ -15,7 +15,9 @@ import {
   setCollectionDeckbuildingSchema,
   updateCollectionSchema,
 } from "@openrift/shared/schemas";
+import type { Updateable } from "kysely";
 
+import type { CollectionsTable } from "../../db/index.js";
 import { AppError, ERROR_CODES } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
@@ -28,7 +30,7 @@ import { toCollection, toCopy } from "../../utils/mappers.js";
 import { getFavoriteMarketplace } from "../../utils/preferences.js";
 import { generateShareToken } from "../../utils/share-token.js";
 
-const patchFields: FieldMapping = {
+const patchFields: FieldMapping<Updateable<CollectionsTable>> = {
   name: "name",
   description: "description",
   sortOrder: "sortOrder",
@@ -278,7 +280,7 @@ export const collectionsRoute = collectionsApp
     if (!access.viewerCanAdmin) {
       throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only admins can edit this collection");
     }
-    const updates = buildPatchUpdates(body, patchFields);
+    const updates = buildPatchUpdates<Updateable<CollectionsTable>>(body, patchFields);
     const row = await collections.updateById(id, updates);
     assertFound(row, "Not found");
     return c.json(
