@@ -54,6 +54,32 @@ describe("POST /api/v1/sentry-tunnel", () => {
     expect(forwardedBody).toBe(body);
   });
 
+  it("does not reflect upstream response headers (e.g. Set-Cookie) to the client", async () => {
+    mockFetch.mockResolvedValue(
+      new Response('{"id":"abc"}', {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+          "set-cookie": "session=secret; HttpOnly",
+          "x-upstream-secret": "leak-me",
+        },
+      }),
+    );
+    const app = buildApp(ALLOWED_DSN);
+
+    const res = await app.request("/api/v1/sentry-tunnel", {
+      method: "POST",
+      headers: { "content-type": "application/x-sentry-envelope" },
+      body: envelope(ALLOWED_DSN),
+    });
+
+    expect(res.status).toBe(200);
+    // Only the allow-listed content-type is forwarded; upstream headers are dropped.
+    expect(res.headers.get("content-type")).toBe("application/json");
+    expect(res.headers.get("set-cookie")).toBeNull();
+    expect(res.headers.get("x-upstream-secret")).toBeNull();
+  });
+
   it("preserves Content-Encoding when the SDK sends a gzipped envelope", async () => {
     mockFetch.mockResolvedValue(new Response(null, { status: 200 }));
     const app = buildApp(ALLOWED_DSN);

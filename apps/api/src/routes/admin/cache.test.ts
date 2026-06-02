@@ -83,7 +83,7 @@ describe("POST /api/v1/cache/purge", () => {
     expect(json.error).toContain("not configured");
   });
 
-  it("returns 502 with Cloudflare error body when upstream fails", async () => {
+  it("returns 502 without leaking the Cloudflare error body to the client", async () => {
     mockFetch.mockResolvedValue(
       Response.json({ errors: [{ message: "bad zone" }] }, { status: 400 }),
     );
@@ -94,6 +94,7 @@ describe("POST /api/v1/cache/purge", () => {
     expect(res.status).toBe(502);
     const json = await res.json();
     expect(json.error).toContain("Cloudflare purge failed");
-    expect(json.error).toContain("bad zone");
+    // The upstream body is logged server-side, not reflected to the client.
+    expect(json.error).not.toContain("bad zone");
   });
 });

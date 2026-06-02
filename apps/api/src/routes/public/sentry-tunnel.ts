@@ -64,9 +64,18 @@ export const sentryTunnelRoute = new OpenAPIHono<{ Variables: Variables }>().pos
       redirect: "manual",
     });
 
+    // Forward only a minimal, safe set of response headers. This is an
+    // unauthenticated public proxy, so reflecting upstream headers wholesale
+    // (Set-Cookie, content-encoding, etc.) would let Sentry's origin set
+    // headers on our origin. The browser only needs the status + content-type.
+    const responseHeaders = new Headers();
+    const upstreamContentType = upstream.headers.get("content-type");
+    if (upstreamContentType) {
+      responseHeaders.set("content-type", upstreamContentType);
+    }
     return new Response(upstream.body, {
       status: upstream.status,
-      headers: upstream.headers,
+      headers: responseHeaders,
     });
   },
 );

@@ -1,8 +1,11 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createLogger } from "@openrift/shared/logger";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
+
+const log = createLogger("admin-cache");
 
 // ── Route definitions ───────────────────────────────────────────────────────
 
@@ -73,11 +76,14 @@ export const adminCacheRoute = new OpenAPIHono<{ Variables: Variables }>()
     );
 
     if (!res.ok) {
+      // Log the upstream body server-side for diagnostics; don't splice it into
+      // the client-facing error (it can carry upstream-controlled content).
       const body = await res.text();
+      log.error({ status: res.status, body: body.slice(0, 1000) }, "Cloudflare cache purge failed");
       throw new AppError(
         502,
         ERROR_CODES.INTERNAL_ERROR,
-        `Cloudflare purge failed (${res.status}): ${body.slice(0, 500)}`,
+        `Cloudflare purge failed (${res.status})`,
       );
     }
 
