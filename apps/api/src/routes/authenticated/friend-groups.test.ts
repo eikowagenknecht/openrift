@@ -120,8 +120,7 @@ function makeApp(overrides: {
 
   const app = new Hono()
     .use("*", async (c, next) => {
-      c.set("user", overrides.user ?? { id: USER_ID });
-      c.set("repos", {
+      const repos = {
         friendGroups,
         friendGroupMatches,
         lists,
@@ -130,7 +129,11 @@ function makeApp(overrides: {
         marketplace,
         userPreferences,
         users,
-      } as never);
+      };
+      c.set("user", overrides.user ?? { id: USER_ID });
+      c.set("repos", repos as never);
+      // Test transact just runs the callback against the same mock repos.
+      c.set("transact", (async (fn: (r: typeof repos) => unknown) => fn(repos)) as never);
       await next();
     })
     .route("/api/v1", friendGroupsRoute)
@@ -500,6 +503,34 @@ describe("friend-groups route", () => {
       method: "POST",
     });
     expect(res.status).toBe(403);
+  });
+
+  it("POST /{slug}/invites/{userId}/accept adds the member and consumes the invite (204)", async () => {
+    const addMember = vi.fn();
+    const deleteInvite = vi.fn();
+    const { app } = makeApp({
+      friendGroups: {
+        getBySlug: vi.fn(() => Promise.resolve(group)),
+        // viewer (USER_ID) accepts their own invite
+        getInvite: vi.fn(() =>
+          Promise.resolve({
+            id: "inv",
+            groupId: GROUP_ID,
+            userId: USER_ID,
+            direction: "invite",
+            createdAt: now,
+          }),
+        ),
+        addMember,
+        deleteInvite,
+      },
+    });
+    const res = await app.request(`/api/v1/friend-groups/playgroup/invites/${USER_ID}/accept`, {
+      method: "POST",
+    });
+    expect(res.status).toBe(204);
+    expect(addMember).toHaveBeenCalledWith(group.id, USER_ID, "member");
+    expect(deleteInvite).toHaveBeenCalledWith(group.id, USER_ID);
   });
 
   it("POST /{slug}/invites/{userId}/accept on request requires admin/owner", async () => {

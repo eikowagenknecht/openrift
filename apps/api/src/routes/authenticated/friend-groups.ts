@@ -358,7 +358,7 @@ const acceptInvite = createRoute({
   path: "/friend-groups/{slug}/invites/{userId}/accept",
   tags: ["FriendGroups"],
   request: { params: friendGroupSlugAndUserParamSchema },
-  responses: { 200: { description: "Invite accepted / request approved" } },
+  responses: { 204: { description: "Invite accepted / request approved" } },
 });
 
 const declineInvite = createRoute({
@@ -873,9 +873,13 @@ export const friendGroupsRoute = friendGroupsApp
       }
     }
 
-    await friendGroups.addMember(group.id, targetUserId, "member");
-    await friendGroups.deleteInvite(group.id, targetUserId);
-    return c.body(null, 200);
+    // Add the member and consume the invite atomically so a failure can't
+    // leave a member without clearing the pending invite (or vice versa).
+    await c.get("transact")(async (repos) => {
+      await repos.friendGroups.addMember(group.id, targetUserId, "member");
+      await repos.friendGroups.deleteInvite(group.id, targetUserId);
+    });
+    return c.body(null, 204);
   })
 
   // ── DECLINE (invite or request) ─────────────────────────────────────────
