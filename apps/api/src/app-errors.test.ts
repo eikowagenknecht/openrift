@@ -144,6 +144,15 @@ describe("onError handler", () => {
     expect(json.code).toBe("BAD_REQUEST");
     expect(json.error).toBe("Invalid JSON in request body");
   });
+
+  it("returns a JSON 404 envelope for unmatched API routes", async () => {
+    const res = await app.fetch(new Request("http://localhost/api/v1/does-not-exist"));
+    expect(res.status).toBe(404);
+    expect(res.headers.get("content-type")).toContain("application/json");
+    const json = (await res.json()) as Record<string, unknown>;
+    expect(json.code).toBe("NOT_FOUND");
+    expect(json.error).toBe("Not found");
+  });
 });
 
 describe("onError handler (production)", () => {

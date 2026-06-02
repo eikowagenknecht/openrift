@@ -138,6 +138,18 @@ export function createApp(deps: AppDeps) {
     return c.json(body, 500);
   });
 
+  // Unmatched API routes return the same JSON envelope as every other error,
+  // not Hono's default text/plain 404. Non-API paths keep a plain 404.
+  app.notFound((c) => {
+    if (c.req.path.startsWith("/api/")) {
+      return c.json(
+        { error: "Not found", code: ERROR_CODES.NOT_FOUND } satisfies ApiErrorResponse,
+        404,
+      );
+    }
+    return c.text("Not Found", 404);
+  });
+
   // Open an OTel `http.server` span per request and activate it in the OTel
   // context, so child spans (notably the Kysely `db.query` spans) inherit it.
   // Registered before metrics + deps + auth middlewares since they all run
