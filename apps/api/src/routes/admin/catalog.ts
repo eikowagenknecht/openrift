@@ -1,10 +1,10 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { AdminSetResponse } from "@openrift/shared";
 import { idParamSchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 import { createSetSchema, reorderSetsSchema, updateSetSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
@@ -100,8 +100,7 @@ const reorderSets = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const catalogRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const catalogRoute = createApiApp()
   // ── Sets CRUD ─────────────────────────────────────────────────────────────────
 
   .openapi(listSets, async (c) => {

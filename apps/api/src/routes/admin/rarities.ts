@@ -1,8 +1,8 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 
 const raritySchema = z.object({
   slug: z.string().openapi({ example: "Rare" }),
@@ -120,8 +120,7 @@ const deleteRarity = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const adminRaritiesRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const adminRaritiesRoute = createApiApp()
   // ── GET /admin/rarities ──────────────────────────────────────────────
   .openapi(listRarities, async (c) => {
     const { rarities: repo } = c.get("repos");

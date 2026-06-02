@@ -1,10 +1,10 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { MarkerResponse } from "@openrift/shared";
 import { idParamSchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 import { assertFound } from "../../utils/assertions.js";
 import { createMarkerSchema, updateMarkerSchema } from "./schemas.js";
 
@@ -78,7 +78,7 @@ const reorderMarkers = createRoute({
   responses: { 204: { description: "Markers reordered" } },
 });
 
-export const adminMarkersRoute = new OpenAPIHono<{ Variables: Variables }>()
+export const adminMarkersRoute = createApiApp()
   .openapi(listMarkers, async (c) => {
     const { markers: repo } = c.get("repos");
     const rows = await repo.listAll();

@@ -1,11 +1,11 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { JobRunStartedResponse } from "@openrift/shared";
 import { createLogger } from "@openrift/shared/logger";
 import { z } from "zod";
 
+import { createApiApp } from "../../openapi.js";
 import { flushPendingPrintingEvents } from "../../services/flush-printing-events.js";
 import { runJobAsync } from "../../services/run-job.js";
-import type { Variables } from "../../types.js";
 
 const log = createLogger("admin");
 
@@ -101,7 +101,7 @@ const retryRoute = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const adminPrintingEventsRoute = new OpenAPIHono<{ Variables: Variables }>()
+export const adminPrintingEventsRoute = createApiApp()
   .openapi(flushRoute, async (c) => {
     const repos = c.get("repos");
     const config = c.get("config");

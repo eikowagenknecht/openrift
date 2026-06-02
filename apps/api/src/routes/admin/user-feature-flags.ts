@@ -1,8 +1,8 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 import { assertDeleted } from "../../utils/assertions.js";
 import { upsertOverrideSchema, userKeyParamSchema } from "./schemas.js";
 
@@ -59,8 +59,7 @@ const deleteUserOverride = createRoute({
 
 // ── Router ──────────────────────────────────────────────────────────────────
 
-export const adminUserFeatureFlagsRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const adminUserFeatureFlagsRoute = createApiApp()
   // ── GET /feature-flags/overrides ────────────────────────────────────────
   .openapi(listAllOverrides, async (c) => {
     const { userFeatureFlags } = c.get("repos");

@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { CollectionListResponse, CopyListResponse } from "@openrift/shared";
 import {
   collectionGroupSharesResponseSchema,
@@ -19,10 +19,10 @@ import {
 import { AppError, ERROR_CODES } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
+import { createApiApp } from "../../openapi.js";
 import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
 import { buildCopiesCursor } from "../../repositories/copies.js";
-import type { Variables } from "../../types.js";
 import { assertFound } from "../../utils/assertions.js";
 import { toCollection, toCopy } from "../../utils/mappers.js";
 import { getFavoriteMarketplace } from "../../utils/preferences.js";
@@ -177,7 +177,7 @@ const setDeckbuilding = createRoute({
   },
 });
 
-const collectionsApp = new OpenAPIHono<{ Variables: Variables }>().basePath("/collections");
+const collectionsApp = createApiApp().basePath("/collections");
 collectionsApp.use(requireAuth);
 export const collectionsRoute = collectionsApp
   // ── LIST ────────────────────────────────────────────────────────────────────

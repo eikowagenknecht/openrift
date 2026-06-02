@@ -1,10 +1,10 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { UserShareStateResponse } from "@openrift/shared";
 import { userShareStateResponseSchema } from "@openrift/shared/response-schemas";
 
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 import { assertFound } from "../../utils/assertions.js";
 import { generateShareToken } from "../../utils/share-token.js";
 
@@ -53,7 +53,7 @@ const rotateShare = createRoute({
   },
 });
 
-const userShareApp = new OpenAPIHono<{ Variables: Variables }>().basePath("/users/me/share");
+const userShareApp = createApiApp().basePath("/users/me/share");
 userShareApp.use(requireAuth);
 
 /**

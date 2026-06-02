@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { CopyListResponse } from "@openrift/shared";
 import { copyListResponseSchema } from "@openrift/shared/response-schemas";
 import {
@@ -10,8 +10,8 @@ import {
 
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
+import { createApiApp } from "../../openapi.js";
 import { buildCopiesCursor } from "../../repositories/copies.js";
-import type { Variables } from "../../types.js";
 import { toCopy } from "../../utils/mappers.js";
 
 const listCopies = createRoute({
@@ -63,7 +63,7 @@ const disposeCopies = createRoute({
   },
 });
 
-const copiesApp = new OpenAPIHono<{ Variables: Variables }>().basePath("/copies");
+const copiesApp = createApiApp().basePath("/copies");
 copiesApp.use(requireAuth);
 export const copiesRoute = copiesApp
   // ── GET /copies ─────────────────────────────────────────────────────────────

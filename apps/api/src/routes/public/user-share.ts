@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { PublicListDetailResponse, PublicUserBundleResponse } from "@openrift/shared";
 import {
   publicListDetailResponseSchema,
@@ -8,7 +8,7 @@ import { z } from "zod";
 
 import { gravatarHashForEmail } from "../../lib/gravatar.js";
 import { loadSession } from "../../middleware/load-session.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 import { assertFound } from "../../utils/assertions.js";
 import { toListEntryDetail, toPublicList } from "../../utils/mappers.js";
 
@@ -47,7 +47,7 @@ const getUserBundleList = createRoute({
   },
 });
 
-const publicUserShareApp = new OpenAPIHono<{ Variables: Variables }>();
+const publicUserShareApp = createApiApp();
 publicUserShareApp.use("/users/share/*", loadSession);
 
 /**

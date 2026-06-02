@@ -1,10 +1,10 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { SiteSettingResponse } from "@openrift/shared";
 import { keyParamSchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 import { assertDeleted, assertFound } from "../../utils/assertions.js";
 import { createSettingSchema, updateSettingSchema } from "./schemas.js";
 
@@ -75,8 +75,7 @@ const deleteSetting = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const adminSiteSettingsRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const adminSiteSettingsRoute = createApiApp()
   .openapi(listSettings, async (c) => {
     const { siteSettings } = c.get("repos");
     const rows = await siteSettings.listAll();

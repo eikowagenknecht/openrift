@@ -1,7 +1,7 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { JobRunsListResponse, JobRunView } from "@openrift/shared";
 
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 import { jobRunsListResponseSchema, jobRunsQuerySchema } from "./schemas.js";
 
 const listJobRuns = createRoute({
@@ -19,27 +19,24 @@ const listJobRuns = createRoute({
   },
 });
 
-export const adminJobRunsRoute = new OpenAPIHono<{ Variables: Variables }>().openapi(
-  listJobRuns,
-  async (c) => {
-    const { jobRuns } = c.get("repos");
-    const { kind, limit } = c.req.valid("query");
+export const adminJobRunsRoute = createApiApp().openapi(listJobRuns, async (c) => {
+  const { jobRuns } = c.get("repos");
+  const { kind, limit } = c.req.valid("query");
 
-    const rows = await jobRuns.listRecent({ kind, limit });
-    const runs: JobRunView[] = rows.map((row) => ({
-      id: row.id,
-      kind: row.kind,
-      trigger: row.trigger,
-      status: row.status,
-      startedAt: row.startedAt.toISOString(),
-      finishedAt: row.finishedAt?.toISOString() ?? null,
-      durationMs: row.durationMs,
-      errorMessage: row.errorMessage,
-      result:
-        row.result === null || typeof row.result !== "object"
-          ? null
-          : (row.result as Record<string, unknown>),
-    }));
-    return c.json({ runs } satisfies JobRunsListResponse);
-  },
-);
+  const rows = await jobRuns.listRecent({ kind, limit });
+  const runs: JobRunView[] = rows.map((row) => ({
+    id: row.id,
+    kind: row.kind,
+    trigger: row.trigger,
+    status: row.status,
+    startedAt: row.startedAt.toISOString(),
+    finishedAt: row.finishedAt?.toISOString() ?? null,
+    durationMs: row.durationMs,
+    errorMessage: row.errorMessage,
+    result:
+      row.result === null || typeof row.result !== "object"
+        ? null
+        : (row.result as Record<string, unknown>),
+  }));
+  return c.json({ runs } satisfies JobRunsListResponse);
+});

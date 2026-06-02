@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { centsToDollars } from "@openrift/shared";
 import type {
   CatalogCardResponse,
@@ -13,7 +13,7 @@ import { etag } from "hono/etag";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-response.js";
 
 const setSlugParamSchema = z.object({ setSlug: z.string() });
@@ -43,7 +43,7 @@ const getSetDetail = createRoute({
   },
 });
 
-const setsApp = new OpenAPIHono<{ Variables: Variables }>();
+const setsApp = createApiApp();
 setsApp.use("/sets", etag());
 setsApp.use("/sets/:setSlug", etag());
 export const setsRoute = setsApp

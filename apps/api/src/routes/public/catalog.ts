@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type {
   CatalogResponse,
   CatalogResponseCardValue,
@@ -7,7 +7,7 @@ import type {
 import { catalogResponseSchema } from "@openrift/shared/response-schemas";
 import { etag } from "hono/etag";
 
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-response.js";
 
 const getCatalog = createRoute({
@@ -22,7 +22,7 @@ const getCatalog = createRoute({
   },
 });
 
-const catalogApp = new OpenAPIHono<{ Variables: Variables }>();
+const catalogApp = createApiApp();
 catalogApp.use("/catalog", etag());
 export const catalogRoute = catalogApp
   /**

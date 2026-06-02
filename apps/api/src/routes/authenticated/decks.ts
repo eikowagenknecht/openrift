@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type {
   CardType,
   DeckAvailabilityItemResponse,
@@ -38,11 +38,11 @@ import type { Repos } from "../../deps.js";
 import { AppError, ERROR_CODES } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
+import { createApiApp } from "../../openapi.js";
 import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
 import { encodeText, encodeTTS, piltoverCodec } from "../../services/deck-codecs/index.js";
 import type { TextCodecCard } from "../../services/deck-codecs/index.js";
-import type { Variables } from "../../types.js";
 import { assertDeleted, assertFound } from "../../utils/assertions.js";
 import { toDeck, toDeckAvailabilityItem, toDeckCard, toDeckSummary } from "../../utils/mappers.js";
 import { generateShareToken } from "../../utils/share-token.js";
@@ -328,7 +328,7 @@ const cloneSharedDeck = createRoute({
   },
 });
 
-const decksApp = new OpenAPIHono<{ Variables: Variables }>().basePath("/decks");
+const decksApp = createApiApp().basePath("/decks");
 decksApp.use(requireAuth);
 export const decksRoute = decksApp
   // ── LIST ────────────────────────────────────────────────────────────────────

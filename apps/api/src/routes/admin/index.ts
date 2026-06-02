@@ -1,9 +1,9 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
 import { cronJobs } from "../../cron-jobs.js";
 import { requireAdmin } from "../../middleware/require-admin.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 import { adminArtVariantsRoute } from "./art-variants.js";
 import { adminCacheRoute } from "./cache.js";
 import { adminCardTypesRoute } from "./card-types.js";
@@ -82,7 +82,7 @@ const getCronStatus = createRoute({
 
 // ── Router ───────────────────────────────────────────────────────────────────
 
-const app = new OpenAPIHono<{ Variables: Variables }>();
+const app = createApiApp();
 
 // ── Auth: all /admin/* routes require admin ───────────────────────────────
 app.use("/admin/*", requireAdmin);

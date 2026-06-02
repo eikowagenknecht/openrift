@@ -1,10 +1,10 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { ProviderSettingResponse } from "@openrift/shared";
 import { providerParamSchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 import { reorderProvidersSchema, updateProviderSettingSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
@@ -61,8 +61,7 @@ const updateProviderSetting = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const adminProviderSettingsRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const adminProviderSettingsRoute = createApiApp()
   // ── GET /admin/provider-settings ──────────────────────────────────────────
 
   .openapi(listProviderSettings, async (c) => {

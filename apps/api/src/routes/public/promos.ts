@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { centsToDollars } from "@openrift/shared";
 import type {
   CatalogCardResponse,
@@ -11,7 +11,7 @@ import type {
 import { promosListResponseSchema } from "@openrift/shared/response-schemas";
 import { etag } from "hono/etag";
 
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-response.js";
 
 const getPromos = createRoute({
@@ -27,7 +27,7 @@ const getPromos = createRoute({
   },
 });
 
-const promosApp = new OpenAPIHono<{ Variables: Variables }>();
+const promosApp = createApiApp();
 promosApp.use("/promos", etag());
 export const promosRoute = promosApp.openapi(getPromos, async (c) => {
   const repos = c.get("repos");

@@ -1,9 +1,10 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { RegenerateImagesCheckpoint, RegenerateImagesKickoffResponse } from "@openrift/shared";
 import { createLogger } from "@openrift/shared/logger";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
+import { createApiApp } from "../../openapi.js";
 import {
   REGENERATE_IMAGES_KIND,
   cleanupOrphanedFiles,
@@ -18,7 +19,6 @@ import {
   unrehostImages,
 } from "../../services/image-rehost.js";
 import { runJobAsync } from "../../services/run-job.js";
-import type { Variables } from "../../types.js";
 
 const log = createLogger("admin");
 
@@ -332,8 +332,7 @@ const migrateDirectories = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const imagesRoute = createApiApp()
   // ── Image rehosting ─────────────────────────────────────────────────────────
 
   .openapi(rehostImagesRoute, async (c) => {

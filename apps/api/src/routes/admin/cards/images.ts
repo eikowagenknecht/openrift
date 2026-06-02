@@ -1,11 +1,12 @@
 // oxlint-disable-next-line import/no-nodejs-modules -- server-side file needs filesystem path join
 import { join } from "node:path";
 
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { v7 as uuidv7 } from "uuid";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../../errors.js";
+import { createApiApp } from "../../../openapi.js";
 import {
   CARD_MEDIA_DIR,
   deleteRehostFiles,
@@ -15,7 +16,6 @@ import {
   regenerateFromOrig,
   rehostSingleImage,
 } from "../../../services/image-rehost.js";
-import type { Variables } from "../../../types.js";
 import { assertFound } from "../../../utils/assertions.js";
 import {
   activateImageSchema,
@@ -167,7 +167,7 @@ const uploadImage = createRoute({
 // ── Route ───────────────────────────────────────────────────────────────────
 
 // ── POST /candidate-printings/:id/set-image ────────────────────────────────────
-export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
+export const imagesRoute = createApiApp()
   .openapi(setImage, async (c) => {
     const { printingImages } = c.get("repos");
     const { id } = c.req.valid("param");

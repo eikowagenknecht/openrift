@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type {
   FriendGroupCollectionShareResponse,
   FriendGroupDetailResponse,
@@ -56,8 +56,8 @@ import { AppError, ERROR_CODES } from "../../errors.js";
 import { gravatarHashForEmail } from "../../lib/gravatar.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
+import { createApiApp } from "../../openapi.js";
 import type { Group, GroupMember, MemberWithUser } from "../../repositories/friend-groups.js";
-import type { Variables } from "../../types.js";
 import { toListEntryDetail } from "../../utils/mappers.js";
 import { getFavoriteMarketplace } from "../../utils/preferences.js";
 import { generateShareToken } from "../../utils/share-token.js";
@@ -561,7 +561,7 @@ const getMemberDetail = createRoute({
 
 // ─── App ────────────────────────────────────────────────────────────────────
 
-const friendGroupsApp = new OpenAPIHono<{ Variables: Variables }>();
+const friendGroupsApp = createApiApp();
 friendGroupsApp.use("/friend-groups/*", requireAuth);
 
 function canSeeCode(role: FriendGroupRole): boolean {

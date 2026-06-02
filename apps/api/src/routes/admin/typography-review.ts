@@ -1,8 +1,8 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { fixTypography } from "@openrift/shared";
 import { z } from "zod";
 
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 import { acceptTypographyFixSchema, typographyDiffItemSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
@@ -61,8 +61,7 @@ function fixTagList(tags: string[]): string[] {
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const typographyReviewRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const typographyReviewRoute = createApiApp()
   .openapi(getTypographyDiffs, async (c) => {
     const { catalog } = c.get("repos");
     const diffs: z.infer<typeof typographyDiffItemSchema>[] = [];

@@ -1,10 +1,10 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { createLogger } from "@openrift/shared/logger";
 import { z } from "zod";
 
+import { createApiApp } from "../../openapi.js";
 import { extractWatermark, postChangelogToDiscord } from "../../services/changelog-discord.js";
 import { runJob } from "../../services/run-job.js";
-import type { Variables } from "../../types.js";
 
 const log = createLogger("admin");
 
@@ -31,31 +31,28 @@ const postChangelog = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const adminChangelogRoute = new OpenAPIHono<{ Variables: Variables }>().openapi(
-  postChangelog,
-  async (c) => {
-    const config = c.get("config");
-    const repos = c.get("repos");
-    const prior = await repos.jobRuns.findLatestForResume("discord.post_changelog");
-    const fromDate = extractWatermark(prior?.result);
+export const adminChangelogRoute = createApiApp().openapi(postChangelog, async (c) => {
+  const config = c.get("config");
+  const repos = c.get("repos");
+  const prior = await repos.jobRuns.findLatestForResume("discord.post_changelog");
+  const fromDate = extractWatermark(prior?.result);
 
-    const result = await runJob(
-      { repos, log },
-      "discord.post_changelog",
-      "admin",
-      (runId) =>
-        postChangelogToDiscord({
-          webhookUrl: config.discordWebhooks.changelog,
-          changelogPath: config.changelogPath,
-          jobRuns: repos.jobRuns,
-          runId,
-          fromDate,
-          log,
-        }),
-      { summarize: (jobResult) => jobResult },
-    );
+  const result = await runJob(
+    { repos, log },
+    "discord.post_changelog",
+    "admin",
+    (runId) =>
+      postChangelogToDiscord({
+        webhookUrl: config.discordWebhooks.changelog,
+        changelogPath: config.changelogPath,
+        jobRuns: repos.jobRuns,
+        runId,
+        fromDate,
+        log,
+      }),
+    { summarize: (jobResult) => jobResult },
+  );
 
-    const count = result?.posted ?? 0;
-    return c.json({ posted: count > 0, count });
-  },
-);
+  const count = result?.posted ?? 0;
+  return c.json({ posted: count > 0, count });
+});

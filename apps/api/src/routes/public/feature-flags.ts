@@ -1,9 +1,9 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { FeatureFlagsResponse } from "@openrift/shared";
 import { featureFlagsResponseSchema } from "@openrift/shared/response-schemas";
 
 import { loadSession } from "../../middleware/load-session.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 
 const getFeatureFlags = createRoute({
   method: "get",
@@ -17,7 +17,7 @@ const getFeatureFlags = createRoute({
   },
 });
 
-const featureFlagsApp = new OpenAPIHono<{ Variables: Variables }>();
+const featureFlagsApp = createApiApp();
 featureFlagsApp.use("/feature-flags", loadSession);
 
 /** Public: GET /feature-flags — returns `{ flags: { key: enabled } }` map for the client to consume at boot. */

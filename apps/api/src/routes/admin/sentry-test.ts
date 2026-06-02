@@ -1,7 +1,7 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 
 // Distinct message so it's easy to spot these on Sentry smoke tests vs
 // real incidents. Includes a timestamp so repeated clicks don't dedupe
@@ -26,9 +26,6 @@ const throwFromApi = createRoute({
   },
 });
 
-export const adminSentryTestRoute = new OpenAPIHono<{ Variables: Variables }>().openapi(
-  throwFromApi,
-  () => {
-    throw smokeTestError("api");
-  },
-);
+export const adminSentryTestRoute = createApiApp().openapi(throwFromApi, () => {
+  throw smokeTestError("api");
+});

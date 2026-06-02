@@ -1,11 +1,11 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { PublicCollectionDetailResponse } from "@openrift/shared";
 import { publicCollectionDetailResponseSchema } from "@openrift/shared/response-schemas";
 import { copiesQuerySchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
+import { createApiApp } from "../../openapi.js";
 import { buildCopiesCursor } from "../../repositories/copies.js";
-import type { Variables } from "../../types.js";
 import { assertFound } from "../../utils/assertions.js";
 import { toCopy, toPublicCollection } from "../../utils/mappers.js";
 import { getFavoriteMarketplace } from "../../utils/preferences.js";
@@ -31,7 +31,7 @@ const getPublicCollectionByShareToken = createRoute({
  *  Copies are paginated cursor-style, same shape as the authenticated copies endpoint.
  *  Value is computed using the owner's favorite marketplace, matching the figure
  *  the owner sees when sharing. 404 if the token does not match a public collection. */
-export const publicCollectionsRoute = new OpenAPIHono<{ Variables: Variables }>().openapi(
+export const publicCollectionsRoute = createApiApp().openapi(
   getPublicCollectionByShareToken,
   async (c) => {
     const repos = c.get("repos");

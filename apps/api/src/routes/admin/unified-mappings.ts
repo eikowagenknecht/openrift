@@ -1,12 +1,12 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
+import { createApiApp } from "../../openapi.js";
 import { saveMappings, unmapPrinting } from "../../services/marketplace-mapping.js";
 import {
   buildUnifiedMappingsCardResponse,
   buildUnifiedMappingsResponse,
 } from "../../services/unified-mapping-merge.js";
-import type { Variables } from "../../types.js";
 import { createMarketplaceConfigs } from "./marketplace-configs.js";
 import { marketplaceSchema, saveMappingsSchema, unmapSchema } from "./schemas.js";
 
@@ -86,8 +86,7 @@ const unmapPrintingRoute = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const unifiedMappingsRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const unifiedMappingsRoute = createApiApp()
   .openapi(listMappings, async (c) => {
     const repos = c.get("repos");
     const { getMappingOverview } = c.get("services");

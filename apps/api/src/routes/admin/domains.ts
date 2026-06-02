@@ -1,8 +1,8 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 
 const domainSchema = z.object({
   slug: z.string().openapi({ example: "Chaos" }),
@@ -120,8 +120,7 @@ const deleteDomain = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const adminDomainsRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const adminDomainsRoute = createApiApp()
   // ── GET /admin/domains ──────────────────────────────────────────────
   .openapi(listDomains, async (c) => {
     const { domains: repo } = c.get("repos");

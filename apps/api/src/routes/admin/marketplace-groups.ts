@@ -1,10 +1,10 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { MarketplaceGroupResponse } from "@openrift/shared";
 import { marketplaceGroupParamSchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 import { marketplaceGroupKindEnum, updateGroupSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
@@ -57,8 +57,7 @@ const updateGroup = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const marketplaceGroupsRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const marketplaceGroupsRoute = createApiApp()
   .openapi(listGroups, async (c) => {
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
 

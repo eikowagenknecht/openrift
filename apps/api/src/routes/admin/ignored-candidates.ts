@@ -1,7 +1,7 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 import {
   ignoreCandidateCardSchema,
   ignoreCandidatePrintingSchema,
@@ -94,8 +94,7 @@ const unignorePrinting = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const ignoredCandidatesRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const ignoredCandidatesRoute = createApiApp()
   // ── GET /admin/ignored-candidates ──────────────────────────────────────────────
 
   .openapi(listIgnoredCandidates, async (c) => {

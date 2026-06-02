@@ -1,9 +1,9 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { SitemapDataResponse } from "@openrift/shared";
 import { sitemapDataResponseSchema } from "@openrift/shared/response-schemas";
 import { etag } from "hono/etag";
 
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 
 const getSitemapData = createRoute({
   method: "get",
@@ -17,7 +17,7 @@ const getSitemapData = createRoute({
   },
 });
 
-const sitemapApp = new OpenAPIHono<{ Variables: Variables }>();
+const sitemapApp = createApiApp();
 sitemapApp.use("/sitemap-data", etag());
 export const sitemapDataRoute = sitemapApp
   /**

@@ -1,9 +1,9 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { LanguageResponse } from "@openrift/shared";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 import { assertFound } from "../../utils/assertions.js";
 import {
   codeParamSchema,
@@ -98,8 +98,7 @@ const deleteLanguage = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const adminLanguagesRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const adminLanguagesRoute = createApiApp()
   // ── GET /admin/languages ──────────────────────────────────────────────
 
   .openapi(listLanguages, async (c) => {

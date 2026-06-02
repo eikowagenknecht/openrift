@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type {
   ListBulkAddResponse,
   ListDetailResponse,
@@ -32,8 +32,8 @@ import {
 import { AppError, ERROR_CODES } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
+import { createApiApp } from "../../openapi.js";
 import type { ListEntryUpdate, ListUpdate, NewEntryValues } from "../../repositories/lists.js";
-import type { Variables } from "../../types.js";
 import { assertDeleted, assertFound } from "../../utils/assertions.js";
 import { toList, toListEntry, toListEntryDetail } from "../../utils/mappers.js";
 import { generateShareToken } from "../../utils/share-token.js";
@@ -243,7 +243,7 @@ const listGroupShares = createRoute({
   },
 });
 
-const listsApp = new OpenAPIHono<{ Variables: Variables }>().basePath("/lists");
+const listsApp = createApiApp().basePath("/lists");
 listsApp.use(requireAuth);
 export const listsRoute = listsApp
   // ── LIST ────────────────────────────────────────────────────────────────────

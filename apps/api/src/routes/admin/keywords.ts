@@ -1,8 +1,8 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
+import { createApiApp } from "../../openapi.js";
 import { discoverKeywordTranslations } from "../../services/keyword-translation-discovery.js";
-import type { Variables } from "../../types.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
 
@@ -172,8 +172,7 @@ const deleteTranslation = createRoute({
 
 // ── Router ──────────────────────────────────────────────────────────────────
 
-export const adminKeywordsRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const adminKeywordsRoute = createApiApp()
   .openapi(getKeywordStats, async (c) => {
     const { keywords } = c.get("repos");
     const [counts, allStyles, translations] = await Promise.all([

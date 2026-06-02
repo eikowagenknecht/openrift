@@ -1,6 +1,6 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 import { deleteOverrideSchema, stagingCardOverrideSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
@@ -31,8 +31,7 @@ const deleteOverride = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const stagingCardOverridesRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const stagingCardOverridesRoute = createApiApp()
   // ── POST /admin/staging-card-overrides ────────────────────────────────────
 
   .openapi(createOverride, async (c) => {

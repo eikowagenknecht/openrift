@@ -1,9 +1,9 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { RuleKind } from "@openrift/shared";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
 
@@ -170,8 +170,7 @@ export function parseRulesText(text: string): ParsedRule[] {
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const adminRulesRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const adminRulesRoute = createApiApp()
   // ── POST /admin/rules/import ──────────────────────────────────────────
   .openapi(importRules, async (c) => {
     const { rules: repo } = c.get("repos");

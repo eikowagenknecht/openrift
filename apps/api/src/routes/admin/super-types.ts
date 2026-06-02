@@ -1,8 +1,8 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 
 const superTypeSchema = z.object({
   slug: z.string().openapi({ example: "champion" }),
@@ -113,8 +113,7 @@ const deleteSuperType = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const adminSuperTypesRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const adminSuperTypesRoute = createApiApp()
   // ── GET /admin/super-types ───────────────────────────────────────────
   .openapi(listSuperTypes, async (c) => {
     const { superTypes: repo } = c.get("repos");

@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { CandidateCardUploadResponse, CardType, Domain, SuperType } from "@openrift/shared";
 import { appendSetTotal, fixTypography } from "@openrift/shared";
 import { extractKeywords } from "@openrift/shared/keywords";
@@ -6,6 +6,7 @@ import { normalizeNameForMatching } from "@openrift/shared/utils";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../../errors.js";
+import { createApiApp } from "../../../openapi.js";
 import { acceptFavoritePrintingsForCard } from "../../../services/accept-favorite-printings.js";
 import { acceptFavoriteNewCard } from "../../../services/accept-gallery.js";
 import {
@@ -15,7 +16,6 @@ import {
   updatePrintingMarkers,
 } from "../../../services/printing-admin.js";
 import { recordPrintingChangeEvent } from "../../../services/record-printing-event.js";
-import type { Variables } from "../../../types.js";
 import { assertDeleted, assertFound, assertUpdated } from "../../../utils/assertions.js";
 import {
   acceptFieldSchema,
@@ -560,7 +560,7 @@ const uploadErrata = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
+export const mutationsRoute = createApiApp()
   // ── POST /:candidateCardId/check ──────────────────────────────────────────────
   .openapi(checkCandidateCard, async (c) => {
     const { candidateMutations: mut } = c.get("repos");

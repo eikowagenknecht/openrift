@@ -1,13 +1,13 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
+import { createApiApp } from "../../../openapi.js";
 import {
   buildCardDetail,
   buildCandidateCardList,
   buildExport,
   buildUnmatchedDetail,
 } from "../../../services/candidate-queries.js";
-import type { Variables } from "../../../types.js";
 import { candidateCardSummarySchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
@@ -155,7 +155,7 @@ const getUnmatchedDetail = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const queriesRoute = new OpenAPIHono<{ Variables: Variables }>()
+export const queriesRoute = createApiApp()
   .openapi(allCards, async (c) => {
     const { candidateCards } = c.get("repos");
     return c.json(await candidateCards.listAllCards());

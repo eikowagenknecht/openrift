@@ -1,8 +1,8 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { AdminUserResponse } from "@openrift/shared";
 import { z } from "zod";
 
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
 
@@ -42,27 +42,24 @@ const listUsers = createRoute({
 
 // ── Router ──────────────────────────────────────────────────────────────────
 
-export const adminUsersRoute = new OpenAPIHono<{ Variables: Variables }>().openapi(
-  listUsers,
-  async (c) => {
-    const { users: usersRepo } = c.get("repos");
-    const rows = await usersRepo.listWithCounts();
+export const adminUsersRoute = createApiApp().openapi(listUsers, async (c) => {
+  const { users: usersRepo } = c.get("repos");
+  const rows = await usersRepo.listWithCounts();
 
-    return c.json({
-      users: rows.map(
-        (r): AdminUserResponse => ({
-          id: r.id,
-          email: r.email,
-          name: r.name,
-          image: r.image,
-          isAdmin: r.isAdmin,
-          cardCount: r.cardCount,
-          deckCount: r.deckCount,
-          collectionCount: r.collectionCount,
-          createdAt: r.createdAt.toISOString(),
-          lastActiveAt: r.lastActiveAt ? r.lastActiveAt.toISOString() : null,
-        }),
-      ),
-    });
-  },
-);
+  return c.json({
+    users: rows.map(
+      (r): AdminUserResponse => ({
+        id: r.id,
+        email: r.email,
+        name: r.name,
+        image: r.image,
+        isAdmin: r.isAdmin,
+        cardCount: r.cardCount,
+        deckCount: r.deckCount,
+        collectionCount: r.collectionCount,
+        createdAt: r.createdAt.toISOString(),
+        lastActiveAt: r.lastActiveAt ? r.lastActiveAt.toISOString() : null,
+      }),
+    ),
+  });
+});

@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type {
   RuleKind,
   RuleResponse,
@@ -12,7 +12,7 @@ import {
 } from "@openrift/shared/response-schemas";
 import { z } from "zod";
 
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 
 const ruleKindEnum = z.enum(["core", "tournament"]);
 
@@ -86,8 +86,7 @@ function toRuleResponse(row: {
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const rulesRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const rulesRoute = createApiApp()
   // ── GET /rules ──────────────────────────────────────────────────────────
   .openapi(listRules, async (c) => {
     const { rules: repo } = c.get("repos");

@@ -1,5 +1,4 @@
 import { swaggerUI } from "@hono/swagger-ui";
-import { OpenAPIHono } from "@hono/zod-openapi";
 import type { ApiErrorResponse } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
 import * as Sentry from "@sentry/bun";
@@ -19,6 +18,7 @@ import { defaultIo } from "./io.js";
 import type { Io } from "./io.js";
 import { createMetricsMiddleware } from "./middleware/metrics.js";
 import { otelRequestMiddleware } from "./middleware/otel-request.js";
+import { createApiApp } from "./openapi.js";
 import { adminRoute } from "./routes/admin/index.js";
 import { collectionEventsRoute } from "./routes/authenticated/collection-events.js";
 import { collectionValueHistoryRoute } from "./routes/authenticated/collection-value-history.js";
@@ -79,7 +79,7 @@ export function createApp(deps: AppDeps) {
     ? { ...defaultServices, ...deps.services }
     : defaultServices;
 
-  const app = new OpenAPIHono<{ Variables: Variables }>();
+  const app = createApiApp();
 
   // Repos and the transaction helper are stateless given a fixed `db`, so build
   // them once at app construction rather than re-instrumenting all ~50 repos on

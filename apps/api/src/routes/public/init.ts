@@ -1,8 +1,8 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { CustomTag, DistributionChannel, InitResponse, KeywordEntry } from "@openrift/shared";
 import { initResponseSchema } from "@openrift/shared/response-schemas";
 
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 
 const getInit = createRoute({
   method: "get",
@@ -17,7 +17,7 @@ const getInit = createRoute({
 });
 
 /** Public: GET /init — returns enums + keywords in a single request. */
-export const initRoute = new OpenAPIHono<{ Variables: Variables }>().openapi(getInit, async (c) => {
+export const initRoute = createApiApp().openapi(getInit, async (c) => {
   const { enums, keywords, distributionChannels, customTags, catalog } = c.get("repos");
   const [enumData, keywordRows, translations, channelRows, customTagRows, championIdentifierTags] =
     await Promise.all([

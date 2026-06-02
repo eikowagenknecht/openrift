@@ -1,9 +1,9 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { LandingSummaryResponse } from "@openrift/shared";
 import { landingSummaryResponseSchema } from "@openrift/shared/response-schemas";
 import { etag } from "hono/etag";
 
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 
 // Cap the scatter at desktop's full deck (36 cards) — mobile uses fewer.
 const THUMBNAIL_SAMPLE_SIZE = 36;
@@ -20,7 +20,7 @@ const getLandingSummary = createRoute({
   },
 });
 
-const landingSummaryApp = new OpenAPIHono<{ Variables: Variables }>();
+const landingSummaryApp = createApiApp();
 landingSummaryApp.use("/landing-summary", etag());
 export const landingSummaryRoute = landingSummaryApp
   /**

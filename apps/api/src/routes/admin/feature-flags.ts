@@ -1,10 +1,10 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { FeatureFlagResponse } from "@openrift/shared";
 import { keyParamSchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 import { assertDeleted, assertFound } from "../../utils/assertions.js";
 import { createFlagSchema, updateFlagSchema } from "./schemas.js";
 
@@ -75,8 +75,7 @@ const deleteFlag = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const adminFeatureFlagsRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const adminFeatureFlagsRoute = createApiApp()
   // ── GET /feature-flags ───────────────────────────────────────────────────
 
   .openapi(listFlags, async (c) => {

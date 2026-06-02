@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { TIME_RANGE_DAYS, centsToDollars, formatDateUTC } from "@openrift/shared";
 import type {
   Marketplace,
@@ -15,7 +15,7 @@ import {
 } from "@openrift/shared/response-schemas";
 import { etag } from "hono/etag";
 
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 import { marketplaceInfoQuerySchema, printingIdParamSchema, rangeQuerySchema } from "./schemas.js";
 
 const getPrices = createRoute({
@@ -66,7 +66,7 @@ function emptyMarketplaceInfo(): MarketplaceInfo {
   };
 }
 
-const pricesApp = new OpenAPIHono<{ Variables: Variables }>();
+const pricesApp = createApiApp();
 pricesApp.use("/prices", etag());
 pricesApp.use("/prices/:printingId/history", etag());
 pricesApp.use("/prices/marketplace-info", etag());

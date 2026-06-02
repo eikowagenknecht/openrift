@@ -1,12 +1,12 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { CollectionEventListResponse } from "@openrift/shared";
 import { collectionEventListResponseSchema } from "@openrift/shared/response-schemas";
 import { collectionEventsQuerySchema } from "@openrift/shared/schemas";
 
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
+import { createApiApp } from "../../openapi.js";
 import { buildEventsCursor } from "../../repositories/collection-events.js";
-import type { Variables } from "../../types.js";
 import { toCollectionEvent } from "../../utils/mappers.js";
 
 const listEvents = createRoute({
@@ -22,9 +22,7 @@ const listEvents = createRoute({
   },
 });
 
-const collectionEventsApp = new OpenAPIHono<{ Variables: Variables }>().basePath(
-  "/collection-events",
-);
+const collectionEventsApp = createApiApp().basePath("/collection-events");
 collectionEventsApp.use(requireAuth);
 export const collectionEventsRoute = collectionEventsApp.openapi(listEvents, async (c) => {
   const { collectionEvents } = c.get("repos");

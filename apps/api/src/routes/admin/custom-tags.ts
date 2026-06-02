@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type {
   AdminCustomTagAssignmentsResponse,
   AdminCustomTagCategoryListResponse,
@@ -10,7 +10,7 @@ import { idParamSchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 import { assertFound } from "../../utils/assertions.js";
 import {
   addCardsToCustomTagSchema,
@@ -210,7 +210,7 @@ const addCardsToCustomTag = createRoute({
   },
 });
 
-export const adminCustomTagsRoute = new OpenAPIHono<{ Variables: Variables }>()
+export const adminCustomTagsRoute = createApiApp()
   // ── Categories ─────────────────────────────────────────────────────────
   .openapi(listCustomTagCategories, async (c) => {
     const { customTagCategories: catRepo, customTags: tagRepo } = c.get("repos");

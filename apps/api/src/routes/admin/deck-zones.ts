@@ -1,8 +1,8 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 
 const deckZoneSchema = z.object({
   slug: z.string().openapi({ example: "main" }),
@@ -68,8 +68,7 @@ const updateDeckZone = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const adminDeckZonesRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const adminDeckZonesRoute = createApiApp()
   // ── GET /admin/deck-zones ────────────────────────────────────────────
   .openapi(listDeckZones, async (c) => {
     const { deckZones: repo } = c.get("repos");

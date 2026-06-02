@@ -1,8 +1,8 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { IgnoredProductResponse } from "@openrift/shared";
 import { z } from "zod";
 
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 import { ignoreProductsSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
@@ -84,8 +84,7 @@ const unignoreProducts = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const ignoredProductsRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const ignoredProductsRoute = createApiApp()
   // ── GET /admin/ignored-products ─────────────────────────────────────────────
 
   .openapi(listIgnoredProducts, async (c) => {

@@ -1,8 +1,8 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 
 const cardTypeSchema = z.object({
   slug: z.string().openapi({ example: "unit" }),
@@ -113,8 +113,7 @@ const deleteCardType = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const adminCardTypesRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const adminCardTypesRoute = createApiApp()
   // ── GET /admin/card-types ────────────────────────────────────────────
   .openapi(listCardTypes, async (c) => {
     const { cardTypes: repo } = c.get("repos");

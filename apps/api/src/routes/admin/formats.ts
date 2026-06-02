@@ -1,7 +1,7 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
 
@@ -30,11 +30,8 @@ const listFormats = createRoute({
 
 // ── Router ──────────────────────────────────────────────────────────────────
 
-export const adminFormatsRoute = new OpenAPIHono<{ Variables: Variables }>().openapi(
-  listFormats,
-  async (c) => {
-    const { cardBans } = c.get("repos");
-    const formats = await cardBans.listFormats();
-    return c.json({ formats });
-  },
-);
+export const adminFormatsRoute = createApiApp().openapi(listFormats, async (c) => {
+  const { cardBans } = c.get("repos");
+  const formats = await cardBans.listFormats();
+  return c.json({ formats });
+});

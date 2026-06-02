@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { TIME_RANGE_DAYS, centsToDollars } from "@openrift/shared";
 import type { TimeRange } from "@openrift/shared";
 import { collectionValueHistoryResponseSchema } from "@openrift/shared/response-schemas";
@@ -6,7 +6,7 @@ import { collectionValueHistoryQuerySchema } from "@openrift/shared/schemas";
 
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 
 const getValueHistory = createRoute({
   method: "get",
@@ -21,9 +21,7 @@ const getValueHistory = createRoute({
   },
 });
 
-const collectionValueHistoryApp = new OpenAPIHono<{ Variables: Variables }>().basePath(
-  "/collection-value-history",
-);
+const collectionValueHistoryApp = createApiApp().basePath("/collection-value-history");
 collectionValueHistoryApp.use(requireAuth);
 
 export const collectionValueHistoryRoute = collectionValueHistoryApp.openapi(

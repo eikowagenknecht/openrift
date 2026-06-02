@@ -1,8 +1,8 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 
 const finishSchema = z.object({
   slug: z.string().openapi({ example: "foil" }),
@@ -113,8 +113,7 @@ const deleteFinish = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const adminFinishesRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const adminFinishesRoute = createApiApp()
   // ── GET /admin/finishes ──────────────────────────────────────────────
   .openapi(listFinishes, async (c) => {
     const { finishes: repo } = c.get("repos");

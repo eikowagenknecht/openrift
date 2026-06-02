@@ -1,8 +1,8 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 
 const artVariantSchema = z.object({
   slug: z.string().openapi({ example: "alternate" }),
@@ -113,8 +113,7 @@ const deleteArtVariant = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const adminArtVariantsRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const adminArtVariantsRoute = createApiApp()
   // ── GET /admin/art-variants ──────────────────────────────────────────
   .openapi(listArtVariants, async (c) => {
     const { artVariants: repo } = c.get("repos");

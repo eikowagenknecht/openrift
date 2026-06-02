@@ -1,11 +1,11 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { userPreferencesResponseSchema } from "@openrift/shared/response-schemas";
 import { updatePreferencesSchema } from "@openrift/shared/schemas";
 
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
+import { createApiApp } from "../../openapi.js";
 import type { PartialPreferences } from "../../repositories/user-preferences.js";
-import type { Variables } from "../../types.js";
 
 const getPreferences = createRoute({
   method: "get",
@@ -34,7 +34,7 @@ const updatePreferences = createRoute({
   },
 });
 
-const preferencesApp = new OpenAPIHono<{ Variables: Variables }>().basePath("/preferences");
+const preferencesApp = createApiApp().basePath("/preferences");
 preferencesApp.use(requireAuth);
 export const preferencesRoute = preferencesApp
   .openapi(getPreferences, async (c) => {

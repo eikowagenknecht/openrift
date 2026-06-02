@@ -1,10 +1,10 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { DistributionChannelResponse } from "@openrift/shared";
 import { idParamSchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 import { assertFound } from "../../utils/assertions.js";
 import { createDistributionChannelSchema, updateDistributionChannelSchema } from "./schemas.js";
 
@@ -96,7 +96,7 @@ const reorderChannels = createRoute({
   responses: { 204: { description: "Distribution channels reordered" } },
 });
 
-export const adminDistributionChannelsRoute = new OpenAPIHono<{ Variables: Variables }>()
+export const adminDistributionChannelsRoute = createApiApp()
   .openapi(listChannels, async (c) => {
     const { distributionChannels: repo } = c.get("repos");
     const [rows, counts] = await Promise.all([repo.listAll(), repo.usageCountsByChannel()]);

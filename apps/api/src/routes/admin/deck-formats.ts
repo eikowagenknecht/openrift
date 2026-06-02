@@ -1,8 +1,8 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 
 const deckFormatSchema = z.object({
   slug: z.string().openapi({ example: "constructed" }),
@@ -113,8 +113,7 @@ const deleteDeckFormat = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const adminDeckFormatsRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const adminDeckFormatsRoute = createApiApp()
   // ── GET /admin/deck-formats ──────────────────────────────────────────
   .openapi(listDeckFormats, async (c) => {
     const { deckFormats: repo } = c.get("repos");

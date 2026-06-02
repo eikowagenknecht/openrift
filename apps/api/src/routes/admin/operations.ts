@@ -1,15 +1,15 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { ClearPricesResponse, JobRunStartedResponse } from "@openrift/shared";
 import { createLogger } from "@openrift/shared/logger";
 import { z } from "zod";
 
+import { createApiApp } from "../../openapi.js";
 import {
   refreshCardmarketPrices,
   refreshCardtraderPrices,
   refreshTcgplayerPrices,
 } from "../../services/price-refresh/index.js";
 import { runJobAsync } from "../../services/run-job.js";
-import type { Variables } from "../../types.js";
 import { clearPricesSchema, jobRunStartedResponseSchema } from "./schemas.js";
 
 const log = createLogger("admin");
@@ -89,8 +89,7 @@ const refreshMatviews = createRoute({
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const operationsRoute = new OpenAPIHono<{ Variables: Variables }>()
-
+export const operationsRoute = createApiApp()
   // ── Clear price data ─────────────────────────────────────────────────────────
 
   .openapi(clearPrices, async (c) => {
