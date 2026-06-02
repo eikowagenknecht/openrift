@@ -915,8 +915,8 @@ export const friendGroupsRoute = friendGroupsApp
     const ctx = await loadGroupForMember(c.get("repos"), slug, viewerId);
     if (ctx.membership.role === "owner") {
       throw new AppError(
-        400,
-        ERROR_CODES.BAD_REQUEST,
+        409,
+        ERROR_CODES.CONFLICT,
         "Owner cannot leave without first transferring ownership",
       );
     }
@@ -962,7 +962,7 @@ export const friendGroupsRoute = friendGroupsApp
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Member not found");
     }
     if (target.role === "owner") {
-      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Cannot demote the owner");
+      throw new AppError(409, ERROR_CODES.CONFLICT, "Cannot demote the owner");
     }
 
     const updated = await friendGroups.updateRole(ctx.group.id, targetUserId, role);
@@ -1019,7 +1019,7 @@ export const friendGroupsRoute = friendGroupsApp
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Member not found");
     }
     if (target.role === "owner") {
-      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Cannot kick the owner");
+      throw new AppError(409, ERROR_CODES.CONFLICT, "Cannot kick the owner");
     }
     if (target.role === "admin" && ctx.membership.role !== "owner") {
       throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only the owner can remove admins");

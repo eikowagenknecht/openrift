@@ -313,15 +313,15 @@ export const collectionsRoute = collectionsApp
 
     const { collection } = access;
     if (collection.isInbox) {
-      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Cannot delete inbox collection");
+      throw new AppError(409, ERROR_CODES.CONFLICT, "Cannot delete inbox collection");
     }
 
     if (collection.groupId) {
       const copies = await repos.collections.listCopiesInCollection(id);
       if (copies.length > 0) {
         throw new AppError(
-          400,
-          ERROR_CODES.BAD_REQUEST,
+          409,
+          ERROR_CODES.CONFLICT,
           "Empty the shared collection before deleting it",
         );
       }

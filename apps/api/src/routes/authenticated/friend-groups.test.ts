@@ -393,7 +393,7 @@ describe("friend-groups route", () => {
     expect(res.status).toBe(403);
   });
 
-  it("POST /{slug}/leave rejects the owner with 400", async () => {
+  it("POST /{slug}/leave rejects the owner with 409", async () => {
     const { app } = makeApp({
       friendGroups: {
         getBySlug: vi.fn(() => Promise.resolve(group)),
@@ -401,7 +401,7 @@ describe("friend-groups route", () => {
       },
     });
     const res = await app.request("/api/v1/friend-groups/playgroup/leave", { method: "POST" });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(409);
   });
 
   it("POST /{slug}/transfer-ownership rejects self-transfer", async () => {
@@ -432,6 +432,35 @@ describe("friend-groups route", () => {
       body: JSON.stringify({ userId: OTHER_ID }),
     });
     expect(res.status).toBe(400);
+  });
+
+  it("PATCH /{slug}/members/{userId}/role returns 409 when demoting the owner", async () => {
+    const { app } = makeApp({
+      friendGroups: {
+        getBySlug: vi.fn(() => Promise.resolve(group)),
+        // viewer resolves as owner (passes the admin gate); the target is the owner.
+        getMembership: vi.fn(() => Promise.resolve(ownerMembership)),
+      },
+    });
+    const res = await app.request(`/api/v1/friend-groups/playgroup/members/${OTHER_ID}/role`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ role: "member" }),
+    });
+    expect(res.status).toBe(409);
+  });
+
+  it("DELETE /{slug}/members/{userId} returns 409 when kicking the owner", async () => {
+    const { app } = makeApp({
+      friendGroups: {
+        getBySlug: vi.fn(() => Promise.resolve(group)),
+        getMembership: vi.fn(() => Promise.resolve(ownerMembership)),
+      },
+    });
+    const res = await app.request(`/api/v1/friend-groups/playgroup/members/${OTHER_ID}`, {
+      method: "DELETE",
+    });
+    expect(res.status).toBe(409);
   });
 
   // ── Invites ─────────────────────────────────────────────────────────────

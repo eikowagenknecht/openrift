@@ -357,13 +357,13 @@ describe("DELETE /api/v1/collections/:id", () => {
     expect(mockEnsureInbox).not.toHaveBeenCalled();
   });
 
-  it("returns 400 when trying to delete a non-empty shared collection", async () => {
+  it("returns 409 when trying to delete a non-empty shared collection", async () => {
     mockCollectionsRepo.getAccessForUser.mockResolvedValue(access(dbSharedCollection));
     mockCollectionsRepo.listCopiesInCollection.mockResolvedValue([{ id: "c", printingId: "p" }]);
     const res = await app.request(`/api/v1/collections/${dbSharedCollection.id}`, {
       method: "DELETE",
     });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(409);
     expect(mockCollectionsRepo.deleteById).not.toHaveBeenCalled();
   });
 
@@ -383,12 +383,12 @@ describe("DELETE /api/v1/collections/:id", () => {
     expect(res.status).toBe(404);
   });
 
-  it("returns 400 when trying to delete inbox", async () => {
+  it("returns 409 when trying to delete inbox", async () => {
     mockCollectionsRepo.getAccessForUser.mockResolvedValue(access(dbInbox));
     const res = await app.request(`/api/v1/collections/${dbInbox.id}`, {
       method: "DELETE",
     });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(409);
   });
 });
 
