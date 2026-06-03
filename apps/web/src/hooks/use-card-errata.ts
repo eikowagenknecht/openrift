@@ -1,8 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { API_URL } from "@/lib/server-fns/api-url";
-import { fetchApi } from "@/lib/server-fns/fetch-api";
+import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -123,24 +122,19 @@ export interface BulkErrataUploadResponse {
   skippedMatchesPrinted: EntryRef[];
 }
 
-// TODO: migrate to fetchApi — this endpoint extracts a specific `body.error`
-// text from the API response for the user-facing toast, which the helper
-// would replace with the generic errorTitle.
 const uploadErrataFn = createServerFn({ method: "POST" })
   .inputValidator((input: BulkErrataUploadBody) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/cards/errata/upload`, {
-      method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) {
-      const body = (await res.json().catch(() => null)) as { error?: string } | null;
-      throw new Error(body?.error ?? `Upload errata failed: ${res.status}`);
-    }
-    return (await res.json()) as BulkErrataUploadResponse;
-  });
+  .handler(
+    ({ context, data }): Promise<BulkErrataUploadResponse> =>
+      fetchApiJson<BulkErrataUploadResponse>({
+        errorTitle: "Couldn't upload errata",
+        cookie: context.cookie,
+        path: "/api/v1/admin/cards/errata/upload",
+        method: "POST",
+        body: data,
+      }),
+  );
 
 /**
  * Bulk-upload card errata from a JSON payload.

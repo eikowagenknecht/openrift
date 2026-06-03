@@ -3,7 +3,6 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { API_URL } from "@/lib/server-fns/api-url";
 import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -42,23 +41,19 @@ interface CreateChannelInput {
   childrenLabel?: string | null;
 }
 
-// TODO: migrate to fetchApi — surfaces server-generated error text as the
-// user-facing toast, which the helper would replace with the generic errorTitle.
 const createChannelFn = createServerFn({ method: "POST" })
   .inputValidator((input: CreateChannelInput) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/distribution-channels`, {
-      method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(text || `Create distribution channel failed: ${res.status}`);
-    }
-    return res.json();
-  });
+  .handler(
+    ({ context, data }): Promise<DistributionChannelResponse> =>
+      fetchApiJson<DistributionChannelResponse>({
+        errorTitle: "Couldn't create distribution channel",
+        cookie: context.cookie,
+        path: "/api/v1/admin/distribution-channels",
+        method: "POST",
+        body: data,
+      }),
+  );
 
 export function useCreateDistributionChannel() {
   return useMutationWithInvalidation({
@@ -77,25 +72,18 @@ interface UpdateChannelInput {
   childrenLabel?: string | null;
 }
 
-// TODO: migrate to fetchApi — surfaces server-generated error text as the
-// user-facing toast, which the helper would replace with the generic errorTitle.
 const updateChannelFn = createServerFn({ method: "POST" })
   .inputValidator((input: UpdateChannelInput) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     const { id, ...patch } = data;
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/distribution-channels/${encodeURIComponent(id)}`,
-      {
-        method: "PATCH",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify(patch),
-      },
-    );
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(text || `Update distribution channel failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't update distribution channel",
+      cookie: context.cookie,
+      path: `/api/v1/admin/distribution-channels/${encodeURIComponent(id)}`,
+      method: "PATCH",
+      body: patch,
+    });
   });
 
 export function useUpdateDistributionChannel() {
@@ -105,36 +93,17 @@ export function useUpdateDistributionChannel() {
   });
 }
 
-// TODO: migrate to fetchApi — extracts `body.error` from API response and
-// surfaces it as the user-facing toast, which the helper would replace with the
-// generic errorTitle.
 const deleteChannelFn = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string; force?: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     const query = data.force ? "?force=true" : "";
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/distribution-channels/${encodeURIComponent(data.id)}${query}`,
-      {
-        method: "DELETE",
-        headers: { cookie: context.cookie },
-      },
-    );
-    if (!res.ok) {
-      const text = await res.text();
-      let message = `Delete distribution channel failed: ${res.status}`;
-      try {
-        const body = JSON.parse(text) as { error?: string };
-        if (body.error) {
-          message = body.error;
-        }
-      } catch {
-        if (text) {
-          message = text;
-        }
-      }
-      throw new Error(message);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't delete distribution channel",
+      cookie: context.cookie,
+      path: `/api/v1/admin/distribution-channels/${encodeURIComponent(data.id)}${query}`,
+      method: "DELETE",
+    });
   });
 
 export function useDeleteDistributionChannel() {

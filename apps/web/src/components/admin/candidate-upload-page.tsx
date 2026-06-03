@@ -39,7 +39,8 @@ import {
   useProviderSettings,
   useUpdateProviderSetting,
 } from "@/hooks/use-provider-settings";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { isApiError } from "@/lib/server-fns/api-error";
+import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { cn } from "@/lib/utils";
 
@@ -68,21 +69,16 @@ function parseCandidates(text: string): ParseResult {
   }
 }
 
-// TODO: migrate to fetchApi — this endpoint extracts a specific `body.error`
-// text from the API response for the user-facing toast, which the helper
-// would replace with the generic errorTitle.
 const exportCardsFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/cards/export`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => null);
-      throw new Error((body as { error?: string } | null)?.error ?? `Export failed: ${res.status}`);
-    }
-    return res.json();
-  });
+  .handler(
+    ({ context }): Promise<unknown> =>
+      fetchApiJson<unknown>({
+        errorTitle: "Couldn't export cards",
+        cookie: context.cookie,
+        path: "/api/v1/admin/cards/export",
+      }),
+  );
 
 export function CandidateUploadPage() {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -544,7 +540,14 @@ function ExportCardsCard() {
       URL.revokeObjectURL(url);
       setExporting(false);
     } catch (error_) {
-      setError(error_ instanceof Error ? error_.message : "Export failed");
+      // isApiError handles the ApiError after it crosses the server-fn boundary
+      // (prototype dropped); fall back to a plain Error message, else generic.
+      const message = isApiError(error_)
+        ? error_.message
+        : error_ instanceof Error
+          ? error_.message
+          : "Export failed";
+      setError(message);
       setExporting(false);
     }
   }
