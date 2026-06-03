@@ -1,18 +1,16 @@
 import { useMutation } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { fetchApi } from "@/lib/server-fns/fetch-api";
+import { callApi, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 const refreshMatviewsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context }) => {
-    await fetchApi({
-      errorTitle: "Couldn't refresh materialized views",
-      cookie: context.cookie,
-      path: "/api/v1/admin/refresh-materialized-views",
-      method: "POST",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["refresh-materialized-views"].$post(),
+      "Couldn't refresh materialized views",
+    );
   });
 
 /**

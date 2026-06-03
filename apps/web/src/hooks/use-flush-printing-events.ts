@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient, queryOptions } from "@tanstack/r
 import { createServerFn } from "@tanstack/react-start";
 
 import { getLatestJobRunFn } from "@/components/admin/refresh-actions";
+import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import type { JobRunView } from "@/lib/server-fns/api-types";
 import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
@@ -28,12 +29,10 @@ const flushPrintingEventsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<JobRunStartedResponse> =>
-      fetchApiJson<JobRunStartedResponse>({
-        errorTitle: "Couldn't start flush",
-        cookie: context.cookie,
-        path: "/api/v1/admin/printing-events/flush",
-        method: "POST",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin["printing-events"].flush.$post(),
+        "Couldn't start flush",
+      ),
   );
 
 export function useFlushPrintingEvents() {
@@ -105,6 +104,11 @@ interface PrintingEventsListResponse {
 const fetchPrintingEvents = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
+    // TODO(sweep): wrapped response vs bare annotation — the route's
+    // printingEventViewSchema returns `frontImageId`, but this fn's
+    // PrintingEventsListResponse type declares `frontImageUrl`, so the
+    // hc-inferred body does not match the annotation. Reconcile the field name
+    // (and any consumer) before migrating to the typed client.
     ({ context }): Promise<PrintingEventsListResponse> =>
       fetchApiJson<PrintingEventsListResponse>({
         errorTitle: "Couldn't load printing events",
@@ -128,13 +132,12 @@ const retryPrintingEventsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<{ retried: number }> =>
-      fetchApiJson<{ retried: number }>({
-        errorTitle: "Couldn't retry printing events",
-        cookie: context.cookie,
-        path: "/api/v1/admin/printing-events/retry",
-        method: "POST",
-        body: data,
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin["printing-events"].retry.$post({
+          json: data,
+        }),
+        "Couldn't retry printing events",
+      ),
   );
 
 export function useRetryPrintingEvents() {

@@ -2,19 +2,18 @@ import { queryOptions, useMutation, useSuspenseQuery, useQueryClient } from "@ta
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
+import { callApi, callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import type { IgnoredCandidatesResponse } from "@/lib/server-fns/api-types";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 const fetchIgnoredCandidates = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<IgnoredCandidatesResponse> =>
-      fetchApiJson<IgnoredCandidatesResponse>({
-        errorTitle: "Couldn't load ignored candidates",
-        cookie: context.cookie,
-        path: "/api/v1/admin/ignored-candidates",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin["ignored-candidates"].$get(),
+        "Couldn't load ignored candidates",
+      ),
   );
 
 export const ignoredCandidatesQueryOptions = queryOptions({
@@ -30,13 +29,12 @@ const ignoreCandidateCardFn = createServerFn({ method: "POST" })
   .inputValidator((input: { provider: string; externalId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't ignore candidate card",
-      cookie: context.cookie,
-      path: "/api/v1/admin/ignored-candidates/cards",
-      method: "POST",
-      body: data,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["ignored-candidates"].cards.$post({
+        json: data,
+      }),
+      "Couldn't ignore candidate card",
+    );
   });
 
 export function useIgnoreCandidateCard() {
@@ -55,13 +53,12 @@ const unignoreCandidateCardFn = createServerFn({ method: "POST" })
   .inputValidator((input: { provider: string; externalId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't unignore candidate card",
-      cookie: context.cookie,
-      path: "/api/v1/admin/ignored-candidates/cards",
-      method: "DELETE",
-      body: data,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["ignored-candidates"].cards.$delete({
+        json: data,
+      }),
+      "Couldn't unignore candidate card",
+    );
   });
 
 export function useUnignoreCandidateCard() {
@@ -82,13 +79,12 @@ const ignoreCandidatePrintingFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't ignore candidate printing",
-      cookie: context.cookie,
-      path: "/api/v1/admin/ignored-candidates/printings",
-      method: "POST",
-      body: data,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["ignored-candidates"].printings.$post({
+        json: data,
+      }),
+      "Couldn't ignore candidate printing",
+    );
   });
 
 export function useIgnoreCandidatePrinting() {
@@ -107,13 +103,12 @@ const unignoreCandidatePrintingFn = createServerFn({ method: "POST" })
   .inputValidator((input: { provider: string; externalId: string; finish: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't unignore candidate printing",
-      cookie: context.cookie,
-      path: "/api/v1/admin/ignored-candidates/printings",
-      method: "DELETE",
-      body: data,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["ignored-candidates"].printings.$delete({
+        json: data,
+      }),
+      "Couldn't unignore candidate printing",
+    );
   });
 
 export function useUnignoreCandidatePrinting() {

@@ -7,23 +7,26 @@ import {
   getLatestJobRunFn,
   refreshActions,
 } from "@/components/admin/refresh-actions";
+import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import type { JobRunView } from "@/lib/server-fns/api-types";
-import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 // ── Server function for clear prices ─────────────────────────────────────────
 
 const clearPricesFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { marketplace: string }) => input)
+  // The typed client enforces the route's marketplace enum (was `string` under
+  // fetchApi, which skipped body typing); callers pass clearActions[*].source,
+  // which is already one of these literals.
+  .inputValidator((input: { marketplace: "cardmarket" | "cardtrader" | "tcgplayer" }) => input)
   .middleware([withCookies])
-  .handler(({ context, data }) =>
-    fetchApiJson<ClearPricesResponse>({
-      errorTitle: "Couldn't clear prices",
-      cookie: context.cookie,
-      path: "/api/v1/admin/clear-prices",
-      method: "POST",
-      body: { marketplace: data.marketplace },
-    }),
+  .handler(
+    ({ context, data }): Promise<ClearPricesResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin["clear-prices"].$post({
+          json: { marketplace: data.marketplace },
+        }),
+        "Couldn't clear prices",
+      ),
   );
 
 // ── Mutations ─────────────────────────────────────────────────────────────────

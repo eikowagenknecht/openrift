@@ -2,8 +2,8 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
+import { callApi, callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import type { TypographyReviewResponse } from "@/lib/server-fns/api-types";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -11,11 +11,10 @@ const fetchTypographyReview = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<TypographyReviewResponse> =>
-      fetchApiJson<TypographyReviewResponse>({
-        errorTitle: "Couldn't load typography review",
-        cookie: context.cookie,
-        path: "/api/v1/admin/typography-review",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin["typography-review"].$get(),
+        "Couldn't load typography review",
+      ),
   );
 
 export const typographyReviewQueryOptions = queryOptions({
@@ -33,13 +32,12 @@ const acceptTypographyFixFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't accept typography fix",
-      cookie: context.cookie,
-      path: "/api/v1/admin/typography-review/accept",
-      method: "POST",
-      body: data,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["typography-review"].accept.$post({
+        json: data,
+      }),
+      "Couldn't accept typography fix",
+    );
   });
 
 export function useAcceptTypographyFix() {

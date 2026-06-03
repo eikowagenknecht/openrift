@@ -5,7 +5,7 @@ import { createServerFn } from "@tanstack/react-start";
 import type { SetInfo } from "@/components/cards/card-grid";
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
-import { fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 
 export interface UseCardsResult {
   allPrintings: Printing[];
@@ -28,11 +28,7 @@ export interface UseCardsResult {
 export function readCatalogFromServerCache(): Promise<CatalogResponse> {
   return serverCache.fetchQuery({
     queryKey: ["server-cache", "catalog"],
-    queryFn: () =>
-      fetchApiJson<CatalogResponse>({
-        errorTitle: "Couldn't load catalog",
-        path: "/api/v1/catalog",
-      }),
+    queryFn: () => callApiJson(serverApiClient().api.v1.catalog.$get(), "Couldn't load catalog"),
   });
 }
 

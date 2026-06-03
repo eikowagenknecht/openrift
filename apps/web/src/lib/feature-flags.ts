@@ -6,7 +6,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "./query-keys";
 import { serverCache } from "./server-cache";
-import { fetchApiJson } from "./server-fns/fetch-api";
+import { callApiJson, serverApiClient } from "./server-fns/api-client";
 import { withCookies } from "./server-fns/middleware";
 
 export type FeatureFlags = Record<string, boolean>;
@@ -17,11 +17,10 @@ function hasSessionCookie(cookie: string): boolean {
 }
 
 async function fetchFlagsFromApi(cookie?: string): Promise<FeatureFlags> {
-  const data = await fetchApiJson<{ items: FeatureFlags }>({
-    errorTitle: "Couldn't load feature flags",
-    path: "/api/v1/feature-flags",
-    cookie,
-  });
+  const data = await callApiJson(
+    serverApiClient(cookie).api.v1["feature-flags"].$get(),
+    "Couldn't load feature flags",
+  );
   return data.items;
 }
 

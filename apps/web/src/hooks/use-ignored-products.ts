@@ -2,8 +2,8 @@ import { queryOptions, useMutation, useSuspenseQuery, useQueryClient } from "@ta
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
+import { callApi, callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import type { IgnoredProductsResponse } from "@/lib/server-fns/api-types";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 type Marketplace = "tcgplayer" | "cardmarket" | "cardtrader";
@@ -31,11 +31,10 @@ const fetchIgnoredProducts = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<IgnoredProductsResponse> =>
-      fetchApiJson<IgnoredProductsResponse>({
-        errorTitle: "Couldn't load ignored products",
-        cookie: context.cookie,
-        path: "/api/v1/admin/ignored-products",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin["ignored-products"].$get(),
+        "Couldn't load ignored products",
+      ),
   );
 
 export const ignoredProductsQueryOptions = queryOptions({
@@ -66,13 +65,12 @@ const unignoreProductFn = createServerFn({ method: "POST" })
             ],
           };
 
-    await fetchApi({
-      errorTitle: "Couldn't unignore product",
-      cookie: context.cookie,
-      path: "/api/v1/admin/ignored-products",
-      method: "DELETE",
-      body,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["ignored-products"].$delete({
+        json: body,
+      }),
+      "Couldn't unignore product",
+    );
   });
 
 export function useUnignoreProduct() {

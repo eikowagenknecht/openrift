@@ -3,18 +3,15 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
+import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import type { InitResponse } from "@/lib/server-fns/api-types";
-import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 
 const fetchInit = createServerFn({ method: "GET" }).handler(
   (): Promise<InitResponse> =>
     serverCache.fetchQuery({
       queryKey: ["server-cache", "init"],
       queryFn: () =>
-        fetchApiJson<InitResponse>({
-          errorTitle: "Couldn't load initial data",
-          path: "/api/v1/init",
-        }),
+        callApiJson(serverApiClient().api.v1.init.$get(), "Couldn't load initial data"),
     }),
 );
 

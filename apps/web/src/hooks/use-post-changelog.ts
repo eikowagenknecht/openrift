@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 interface PostChangelogResponse {
@@ -13,12 +13,10 @@ const postChangelogFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<PostChangelogResponse> =>
-      fetchApiJson<PostChangelogResponse>({
-        errorTitle: "Couldn't post changelog",
-        cookie: context.cookie,
-        path: "/api/v1/admin/changelog/post",
-        method: "POST",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin.changelog.post.$post(),
+        "Couldn't post changelog",
+      ),
   );
 
 export function usePostChangelog() {

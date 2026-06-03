@@ -4,19 +4,19 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
-import { fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
+import { withCookies } from "@/lib/server-fns/middleware";
 
-const fetchPromoList = createServerFn({ method: "GET" }).handler(
-  (): Promise<PromosListResponse> =>
-    serverCache.fetchQuery({
-      queryKey: ["server-cache", "promos"],
-      queryFn: () =>
-        fetchApiJson<PromosListResponse>({
-          errorTitle: "Couldn't load promos",
-          path: "/api/v1/promos",
-        }),
-    }),
-);
+const fetchPromoList = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(
+    ({ context }): Promise<PromosListResponse> =>
+      serverCache.fetchQuery({
+        queryKey: ["server-cache", "promos"],
+        queryFn: () =>
+          callApiJson(serverApiClient(context.cookie).api.v1.promos.$get(), "Couldn't load promos"),
+      }),
+  );
 
 interface EnrichedPromoList {
   channels: PromosListResponse["channels"];

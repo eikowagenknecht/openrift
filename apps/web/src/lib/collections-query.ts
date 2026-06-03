@@ -2,19 +2,18 @@ import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
+import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import type { CollectionsResponse } from "@/lib/server-fns/api-types";
-import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 const fetchCollections = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<CollectionsResponse> =>
-      fetchApiJson<CollectionsResponse>({
-        errorTitle: "Couldn't load collections",
-        cookie: context.cookie,
-        path: "/api/v1/collections",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.collections.$get(),
+        "Couldn't load collections",
+      ),
   );
 
 export function collectionsQueryOptions(userId: string) {

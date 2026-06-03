@@ -15,36 +15,29 @@ vi.mock("@/lib/server-cache", async () => {
   return { serverCache: new QueryClient({ defaultOptions: { queries: { retry: false } } }) };
 });
 
-const fetchApiMock = vi.fn();
-const fetchApiJsonMock = vi.fn();
-vi.mock("@/lib/server-fns/fetch-api", () => ({
-  fetchApi: (...args: unknown[]) => fetchApiMock(...args),
-  fetchApiJson: (...args: unknown[]) => fetchApiJsonMock(...args),
-}));
-
 const { serverCache } = await import("@/lib/server-cache");
 const { publicSetDetailQueryOptions } = await import("./use-public-sets");
 
 describe("publicSetDetailQueryOptions", () => {
   beforeEach(() => {
-    fetchApiMock.mockReset();
-    fetchApiJsonMock.mockReset();
     serverCache.clear();
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     serverCache.clear();
   });
 
   it("throws Error('NOT_FOUND') when the API returns 404", async () => {
-    fetchApiMock.mockResolvedValueOnce(new Response(null, { status: 404 }));
+    // callApi accepts the 404 (acceptStatuses) and returns it; the handler maps
+    // it to NOT_FOUND. Mock global fetch — the boundary the hc client calls.
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(null, { status: 404 }));
+    vi.stubGlobal("fetch", fetchMock);
+
     const { queryFn } = publicSetDetailQueryOptions("missing");
     await expect((queryFn as () => Promise<unknown>)()).rejects.toThrow("NOT_FOUND");
-    expect(fetchApiMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        path: "/api/v1/sets/missing",
-        acceptStatuses: [404],
-      }),
-    );
+
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toBe("http://localhost:3000/api/v1/sets/missing");
   });
 });

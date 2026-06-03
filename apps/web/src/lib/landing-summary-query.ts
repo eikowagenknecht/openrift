@@ -4,17 +4,17 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
-import { fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 
 const fetchLandingSummary = createServerFn({ method: "GET" }).handler(
   (): Promise<LandingSummaryResponse> =>
     serverCache.fetchQuery({
       queryKey: ["server-cache", "landing-summary"],
       queryFn: () =>
-        fetchApiJson<LandingSummaryResponse>({
-          errorTitle: "Couldn't load landing summary",
-          path: "/api/v1/landing-summary",
-        }),
+        callApiJson(
+          serverApiClient().api.v1["landing-summary"].$get(),
+          "Couldn't load landing summary",
+        ),
     }),
 );
 

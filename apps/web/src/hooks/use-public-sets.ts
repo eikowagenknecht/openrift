@@ -4,17 +4,13 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 
 const fetchSetList = createServerFn({ method: "GET" }).handler(
   (): Promise<SetListResponse> =>
     serverCache.fetchQuery({
       queryKey: ["server-cache", "sets"],
-      queryFn: () =>
-        fetchApiJson<SetListResponse>({
-          errorTitle: "Couldn't load sets",
-          path: "/api/v1/sets",
-        }),
+      queryFn: () => callApiJson(serverApiClient().api.v1.sets.$get(), "Couldn't load sets"),
     }),
 );
 
@@ -26,12 +22,17 @@ const fetchSetDetail = createServerFn({ method: "GET" })
         queryKey: ["server-cache", "set-detail", data],
         queryFn: async () => {
           // 404 is legitimate (unknown slug) — map to NOT_FOUND without logging.
-          const res = await fetchApi({
-            errorTitle: "Couldn't load set",
-            path: `/api/v1/sets/${encodeURIComponent(data)}`,
-            acceptStatuses: [404],
-          });
-          if (res.status === 404) {
+          const res = await callApi(
+            serverApiClient().api.v1.sets[":setSlug"].$get({
+              param: encodeParams({ setSlug: data }),
+            }),
+            "Couldn't load set",
+            [404],
+          );
+          // hc types `status` as the declared 200 only (the 404 goes through the
+          // API's global error handler, not the route's OpenAPI responses), so
+          // widen for the accepted-status check.
+          if ((res.status as number) === 404) {
             throw new Error("NOT_FOUND");
           }
           return res.json() as Promise<SetDetailResponse>;

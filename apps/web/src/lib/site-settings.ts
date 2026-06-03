@@ -6,7 +6,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "./query-keys";
 import { serverCache } from "./server-cache";
-import { fetchApiJson } from "./server-fns/fetch-api";
+import { callApiJson, serverApiClient } from "./server-fns/api-client";
 
 export type SiteSettings = Record<string, string>;
 
@@ -14,10 +14,10 @@ const fetchSiteSettings = createServerFn({ method: "GET" }).handler(() =>
   serverCache.fetchQuery({
     queryKey: ["server-cache", "site-settings"],
     queryFn: async () => {
-      const data = await fetchApiJson<{ items: SiteSettings }>({
-        errorTitle: "Couldn't load site settings",
-        path: "/api/v1/site-settings",
-      });
+      const data = await callApiJson(
+        serverApiClient().api.v1["site-settings"].$get(),
+        "Couldn't load site settings",
+      );
       return data.items;
     },
   }),

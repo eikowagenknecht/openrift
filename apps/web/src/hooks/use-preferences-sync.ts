@@ -7,7 +7,7 @@ import { useEffect, useRef } from "react";
 import { useUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
 import { sanitizePalette, sanitizeServerResponse, sanitizeTheme } from "@/lib/sanitize-preferences";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { callApi, callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useDisplayStore } from "@/stores/display-store";
 import { usePaletteStore } from "@/stores/palette-store";
@@ -15,25 +15,24 @@ import { useThemeStore } from "@/stores/theme-store";
 
 const fetchPreferencesFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(({ context }) =>
-    fetchApiJson<UserPreferencesResponse>({
-      errorTitle: "Couldn't load preferences",
-      cookie: context.cookie,
-      path: "/api/v1/preferences",
-    }),
+  .handler(
+    ({ context }): Promise<UserPreferencesResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.preferences.$get(),
+        "Couldn't load preferences",
+      ),
   );
 
 const patchPreferencesFn = createServerFn({ method: "POST" })
   .inputValidator((input: { prefs: UserPreferencesResponse }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't save preferences",
-      cookie: context.cookie,
-      path: "/api/v1/preferences",
-      method: "PATCH",
-      body: data.prefs,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.preferences.$patch({
+        json: data.prefs,
+      }),
+      "Couldn't save preferences",
+    );
   });
 
 /**

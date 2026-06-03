@@ -1,11 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { describe, expect, it, beforeEach, vi } from "vitest";
-
-const fetchApiJsonMock = vi.fn();
-
-vi.mock("@/lib/server-fns/fetch-api", () => ({
-  fetchApiJson: (opts: unknown) => fetchApiJsonMock(opts),
-}));
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/server-cache", async () => {
   const { QueryClient: QC } = await import("@tanstack/react-query");
@@ -19,63 +13,78 @@ const { serverCache } = (await import("./server-cache")) as { serverCache: Query
 const SESSION_COOKIE = "better-auth.session_token=abc123; theme=dark";
 const NO_SESSION_COOKIE = "theme=dark";
 
+// The hc client calls global fetch with (url, { headers: Headers, ... }); mock at
+// that boundary so the test exercises serverApiClient's real cookie forwarding.
+function mockFlagsResponse(items: Record<string, boolean>) {
+  return {
+    ok: true,
+    status: 200,
+    statusText: "OK",
+    url: "http://localhost:3000/api/v1/feature-flags",
+    json: async () => ({ items }),
+    text: async () => JSON.stringify({ items }),
+  } as Response;
+}
+
 describe("loadFeatureFlags", () => {
   beforeEach(() => {
-    fetchApiJsonMock.mockReset();
     serverCache.clear();
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("forwards the session cookie to the API when authenticated", async () => {
-    fetchApiJsonMock.mockResolvedValue({ items: { "beta-flag": true } });
+    const fetchMock = vi.fn().mockResolvedValue(mockFlagsResponse({ "beta-flag": true }));
+    vi.stubGlobal("fetch", fetchMock);
 
     const flags = await loadFeatureFlags(SESSION_COOKIE);
 
     expect(flags).toEqual({ "beta-flag": true });
-    expect(fetchApiJsonMock).toHaveBeenCalledTimes(1);
-    expect(fetchApiJsonMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        path: "/api/v1/feature-flags",
-        cookie: SESSION_COOKIE,
-      }),
-    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0] as [string, { headers: Headers }];
+    expect(url).toBe("http://localhost:3000/api/v1/feature-flags");
+    expect(init.headers.get("cookie")).toBe(SESSION_COOKIE);
   });
 
   it("bypasses the shared serverCache for authenticated users", async () => {
     // Two authenticated requests with different session cookies must each hit
     // the API — otherwise user A's overrides would leak to user B.
-    fetchApiJsonMock
-      .mockResolvedValueOnce({ items: { a: true } })
-      .mockResolvedValueOnce({ items: { b: true } });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(mockFlagsResponse({ a: true }))
+      .mockResolvedValueOnce(mockFlagsResponse({ b: true }));
+    vi.stubGlobal("fetch", fetchMock);
 
     const first = await loadFeatureFlags("better-auth.session_token=user-a");
     const second = await loadFeatureFlags("better-auth.session_token=user-b");
 
     expect(first).toEqual({ a: true });
     expect(second).toEqual({ b: true });
-    expect(fetchApiJsonMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("does not forward cookies when no session cookie is present", async () => {
-    fetchApiJsonMock.mockResolvedValue({ items: { "public-flag": true } });
+    const fetchMock = vi.fn().mockResolvedValue(mockFlagsResponse({ "public-flag": true }));
+    vi.stubGlobal("fetch", fetchMock);
 
     await loadFeatureFlags(NO_SESSION_COOKIE);
 
-    expect(fetchApiJsonMock).toHaveBeenCalledTimes(1);
-    expect(fetchApiJsonMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        path: "/api/v1/feature-flags",
-        cookie: undefined,
-      }),
-    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // Anonymous path calls the API with no cookie at all (not the non-session cookie).
+    const [, init] = fetchMock.mock.calls[0] as [string, { headers: Headers }];
+    expect(init.headers.get("cookie")).toBeNull();
   });
 
   it("coalesces concurrent anonymous requests via serverCache", async () => {
-    fetchApiJsonMock.mockResolvedValue({ items: { "public-flag": true } });
+    const fetchMock = vi.fn().mockResolvedValue(mockFlagsResponse({ "public-flag": true }));
+    vi.stubGlobal("fetch", fetchMock);
 
     const [a, b] = await Promise.all([loadFeatureFlags(""), loadFeatureFlags("")]);
 
     expect(a).toEqual({ "public-flag": true });
     expect(b).toEqual({ "public-flag": true });
-    expect(fetchApiJsonMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
