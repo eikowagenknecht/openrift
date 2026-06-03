@@ -17,6 +17,29 @@ export type UploadCandidatesResponse = InferResponseType<
   Client["api"]["v1"]["admin"]["cards"]["upload"]["$post"]
 >;
 
+// ── Admin card field-map mutation bodies ─────────────────────────────────────
+// The admin editor is a generic field editor; these derived types are the
+// concrete route shapes its dynamic output is cast to at the call boundary
+// (the API validates the real shape server-side).
+export type AcceptNewCardBody = InferRequestType<
+  Client["api"]["v1"]["admin"]["cards"]["new"][":name"]["accept"]["$post"]
+>["json"];
+export type PatchCandidatePrintingBody = InferRequestType<
+  Client["api"]["v1"]["admin"]["cards"]["candidate-printings"][":id"]["$patch"]
+>["json"];
+export type AcceptPrintingBody = InferRequestType<
+  Client["api"]["v1"]["admin"]["cards"][":cardId"]["accept-printing"]["$post"]
+>["json"];
+// acceptNewCard and createCard share the card-fields shape (acceptNewCardSchema
+// nests it under `cardFields`; createCardSchema is the same object at the top
+// level), but they are derived independently to stay aligned with each route.
+export type CreateCardBody = InferRequestType<
+  Client["api"]["v1"]["admin"]["cards"]["create"]["$post"]
+>["json"];
+export type CreatePrintingBody = InferRequestType<
+  Client["api"]["v1"]["admin"]["cards"][":cardId"]["printings"]["$post"]
+>["json"];
+
 // ── Admin card endpoints ────────────────────────────────────────────────────
 export type AdminCardListResponse = InferResponseType<
   Client["api"]["v1"]["admin"]["cards"]["$get"]
@@ -111,6 +134,15 @@ export type AdminSuperTypesResponse = InferResponseType<
 >;
 export type AdminDeckFormatsResponse = InferResponseType<
   Client["api"]["v1"]["admin"]["deck-formats"]["$get"]
+>;
+// Unified marketplace mappings — both GETs now have concrete response schemas
+// (unifiedMappingsResponseSchema / unifiedMappingsCardResponseSchema), so hc
+// infers the full shape and the web types drop their hand-written annotations.
+export type UnifiedMappingsResponse = InferResponseType<
+  Client["api"]["v1"]["admin"]["marketplace-mappings"]["$get"]
+>;
+export type UnifiedMappingsCardResponse = InferResponseType<
+  Client["api"]["v1"]["admin"]["marketplace-mappings"]["card"][":cardId"]["$get"]
 >;
 
 // ── Public endpoints ────────────────────────────────────────────────────────

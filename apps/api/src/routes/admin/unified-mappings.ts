@@ -1,4 +1,8 @@
 import { createRoute } from "@hono/zod-openapi";
+import {
+  unifiedMappingsCardResponseSchema,
+  unifiedMappingsResponseSchema,
+} from "@openrift/shared/response-schemas";
 import { z } from "zod";
 
 import { createApiApp } from "../../openapi.js";
@@ -19,7 +23,7 @@ const listMappings = createRoute({
   responses: {
     200: {
       content: {
-        "application/json": { schema: z.object({}).passthrough() },
+        "application/json": { schema: unifiedMappingsResponseSchema },
       },
       description: "Unified mappings",
     },
@@ -36,7 +40,7 @@ const cardMappings = createRoute({
   responses: {
     200: {
       content: {
-        "application/json": { schema: z.object({}).passthrough() },
+        "application/json": { schema: unifiedMappingsCardResponseSchema },
       },
       description: "Unified mappings for a single card",
     },

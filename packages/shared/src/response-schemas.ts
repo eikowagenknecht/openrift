@@ -1248,3 +1248,142 @@ export const friendGroupSharedCollectionDetailResponseSchema = z
     viewerRole: friendGroupRoleSchema,
   })
   .openapi("FriendGroupSharedCollectionDetailResponse");
+
+// ── Unified marketplace mappings (admin) ─────────────────────────────────────
+// Concrete schemas for the two unified-mappings GETs. Authored zod-first; the
+// matching TS interfaces in types/api/admin.ts are `z.infer`-ed from these so
+// there is a single source of truth, and the route response schemas use these
+// directly so hc can infer the web response types. The service builders
+// (buildUnifiedMappingsResponse / buildUnifiedMappingsCardResponse) return the
+// inferred types, so their handler output satisfies these schemas.
+
+const marketplaceGroupKindSchema = z.enum(["basic", "special"]);
+
+// One staged/assigned/unmatched marketplace product (a SKU + its latest prices
+// and group provenance). `groupKind` / `groupSetSlug` drive the suggester.
+export const stagedProductResponseSchema = z
+  .object({
+    externalId: z.number().openapi({ example: 748_215 }),
+    productName: z.string().openapi({ example: "Jinx, Rebel (Foil)" }),
+    finish: z.string().openapi({ example: "foil" }),
+    /**
+     * `null` when the marketplace doesn't expose language as a SKU dimension
+     * (Cardmarket's cross-language price guide, TCGPlayer's English-only
+     * catalog). A real language code otherwise (CardTrader).
+     */
+    language: z.string().nullable().openapi({ example: "EN" }),
+    marketCents: z.number().nullable().openapi({ example: 452 }),
+    lowCents: z.number().nullable().openapi({ example: 325 }),
+    currency: z.string().openapi({ example: "USD" }),
+    recordedAt: z.string().openapi({ example: "2026-04-01T12:00:00.000Z" }),
+    midCents: z.number().nullable().openapi({ example: 400 }),
+    highCents: z.number().nullable().openapi({ example: 600 }),
+    trendCents: z.number().nullable().openapi({ example: 430 }),
+    avg1Cents: z.number().nullable().openapi({ example: 445 }),
+    avg7Cents: z.number().nullable().openapi({ example: 460 }),
+    avg30Cents: z.number().nullable().openapi({ example: 470 }),
+    isOverride: z.boolean().optional().openapi({ example: false }),
+    groupId: z.number().optional().openapi({ example: 23_482 }),
+    groupName: z.string().optional().openapi({ example: "Origins" }),
+    /**
+     * Admin-assigned tag for the marketplace group this product belongs to.
+     * Drives the suggestion scorer: `basic` penalises promo/special printings,
+     * `special` prefers them. Omitted for products whose group resolution
+     * wasn't needed (unassigned staging without a group).
+     */
+    groupKind: marketplaceGroupKindSchema.optional().openapi({ example: "basic" }),
+    /**
+     * Slug of the OpenRift set this product's marketplace group is scoped to,
+     * if any. When non-null, the suggester only proposes printings whose
+     * `setId` (slug) matches. `null` means no scoping (default).
+     */
+    groupSetSlug: z.string().nullable().optional().openapi({ example: null }),
+  })
+  .openapi("StagedProductResponse");
+
+// A single (product × printing) mapping row.
+const marketplaceAssignmentResponseSchema = z
+  .object({
+    externalId: z.number().openapi({ example: 748_215 }),
+    printingId: z.string().openapi({ example: "019cfc3b-03d3-7dac-86c9-27900cd43727" }),
+    finish: z.string().openapi({ example: "foil" }),
+    language: z.string().nullable().openapi({ example: "EN" }),
+  })
+  .openapi("MarketplaceAssignmentResponse");
+
+const unifiedMappingPrintingResponseSchema = z
+  .object({
+    printingId: z.string().openapi({ example: "019cfc3b-03d3-7dac-86c9-27900cd43727" }),
+    /** Slug of the printing's set, used by the suggester to scope by group.setId. */
+    setId: z.string().openapi({ example: "OGN" }),
+    shortCode: z.string().openapi({ example: "OGN-202" }),
+    rarity: raritySchema,
+    artVariant: artVariantSchema,
+    isSigned: z.boolean().openapi({ example: false }),
+    markerSlugs: z.array(z.string()).openapi({ example: [] }),
+    finish: finishSchema,
+    language: z.string().openapi({ example: "EN" }),
+    imageUrl: z.string().nullable().openapi({ example: null }),
+    tcgExternalId: z.number().nullable().openapi({ example: 582_391 }),
+    cmExternalId: z.number().nullable().openapi({ example: 748_215 }),
+    ctExternalId: z.number().nullable().openapi({ example: null }),
+  })
+  .openapi("UnifiedMappingPrintingResponse");
+
+const assignableCardResponseSchema = z
+  .object({
+    cardId: z.string().openapi({ example: "019cfc3b-0389-744b-837c-792fd586300e" }),
+    cardSlug: z.string().openapi({ example: "jinx-rebel" }),
+    cardName: z.string().openapi({ example: "Jinx, Rebel" }),
+    setName: z.string().openapi({ example: "Origins" }),
+    /** Short codes of this card's printings (first one, sorted, is shown in the assign dropdown). */
+    shortCodes: z.array(z.string()).openapi({ example: ["OGN-202"] }),
+  })
+  .openapi("AssignableCardResponse");
+
+const unifiedMappingMarketplaceSchema = z.object({
+  stagedProducts: z.array(stagedProductResponseSchema),
+  assignedProducts: z.array(stagedProductResponseSchema),
+  assignments: z.array(marketplaceAssignmentResponseSchema),
+});
+
+export const unifiedMappingGroupResponseSchema = z
+  .object({
+    cardId: z.string().openapi({ example: "019cfc3b-0389-744b-837c-792fd586300e" }),
+    cardSlug: z.string().openapi({ example: "jinx-rebel" }),
+    cardName: z.string().openapi({ example: "Jinx, Rebel" }),
+    cardType: cardTypeSchema,
+    superTypes: z.array(superTypeSchema).openapi({ example: ["Champion"] }),
+    domains: z.array(domainSchema).openapi({ example: ["Chaos"] }),
+    energy: z.number().nullable().openapi({ example: 5 }),
+    might: z.number().nullable().openapi({ example: 5 }),
+    setId: z.string().openapi({ example: "019cfc3b-0369-7890-a450-7859471cc3f6" }),
+    setName: z.string().openapi({ example: "Origins" }),
+    printings: z.array(unifiedMappingPrintingResponseSchema),
+    primaryShortCode: z.string().openapi({ example: "OGN-202" }),
+    tcgplayer: unifiedMappingMarketplaceSchema,
+    cardmarket: unifiedMappingMarketplaceSchema,
+    cardtrader: unifiedMappingMarketplaceSchema,
+  })
+  .openapi("UnifiedMappingGroupResponse");
+
+export const unifiedMappingsResponseSchema = z
+  .object({
+    groups: z.array(unifiedMappingGroupResponseSchema),
+    unmatchedProducts: z.object({
+      tcgplayer: z.array(stagedProductResponseSchema),
+      cardmarket: z.array(stagedProductResponseSchema),
+      cardtrader: z.array(stagedProductResponseSchema),
+    }),
+    allCards: z.array(assignableCardResponseSchema),
+  })
+  .openapi("UnifiedMappingsResponse");
+
+/** Single-card variant of {@link unifiedMappingsResponseSchema}. */
+export const unifiedMappingsCardResponseSchema = z
+  .object({
+    /** Null when the card has no printings or no marketplace activity. */
+    group: unifiedMappingGroupResponseSchema.nullable(),
+    allCards: z.array(assignableCardResponseSchema),
+  })
+  .openapi("UnifiedMappingsCardResponse");

@@ -1,26 +1,23 @@
-import type { UnifiedMappingsCardResponse, UnifiedMappingsResponse } from "@openrift/shared";
 import { queryOptions, useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
-import { fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
+import type {
+  UnifiedMappingsCardResponse,
+  UnifiedMappingsResponse,
+} from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 const fetchUnifiedMappings = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<UnifiedMappingsResponse> =>
-      // TODO(sweep): route response schema is `z.object({}).passthrough()`, which hc
-      // infers as an empty/index type — it does not match the concrete
-      // `UnifiedMappingsResponse` annotation. Resolve by giving the route a real
-      // response schema before migrating to hc.
-      fetchApiJson<UnifiedMappingsResponse>({
-        errorTitle: "Couldn't load unified mappings",
-        cookie: context.cookie,
-        path: "/api/v1/admin/marketplace-mappings",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin["marketplace-mappings"].$get(),
+        "Couldn't load unified mappings",
+      ),
   );
 
 export function unifiedMappingsQueryOptions() {
@@ -39,15 +36,12 @@ const fetchUnifiedMappingsForCard = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<UnifiedMappingsCardResponse> =>
-      // TODO(sweep): route response schema is `z.object({}).passthrough()`, which hc
-      // infers as an empty/index type — it does not match the concrete
-      // `UnifiedMappingsCardResponse` annotation. Resolve by giving the route a real
-      // response schema before migrating to hc.
-      fetchApiJson<UnifiedMappingsCardResponse>({
-        errorTitle: "Couldn't load marketplace mappings for card",
-        cookie: context.cookie,
-        path: `/api/v1/admin/marketplace-mappings/card/${encodeURIComponent(data.cardId)}`,
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin["marketplace-mappings"].card[":cardId"].$get({
+          param: encodeParams({ cardId: data.cardId }),
+        }),
+        "Couldn't load marketplace mappings for card",
+      ),
   );
 
 export function unifiedMappingsForCardQueryOptions(cardId: string) {

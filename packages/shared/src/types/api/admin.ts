@@ -1,4 +1,12 @@
-import type { DiffValue } from "../../response-schemas.js";
+import type { z } from "zod";
+
+import type {
+  DiffValue,
+  stagedProductResponseSchema,
+  unifiedMappingGroupResponseSchema,
+  unifiedMappingsCardResponseSchema,
+  unifiedMappingsResponseSchema,
+} from "../../response-schemas.js";
 import type { CardErrata, DistributionChannelKind } from "../catalog.js";
 import type { CardFace, SetType } from "../enums.js";
 
@@ -565,107 +573,40 @@ export interface MappingPrintingResponse {
   externalId: number | null;
 }
 
-export interface UnifiedMappingPrintingResponse extends Omit<
-  MappingPrintingResponse,
-  "externalId" | "language"
-> {
-  language: string;
-  tcgExternalId: number | null;
-  cmExternalId: number | null;
-  ctExternalId: number | null;
-}
+/**
+ * Inferred from {@link unifiedMappingGroupResponseSchema} (zod-first, the single
+ * source of truth). Shares the {@link MappingPrintingResponse} fields minus its
+ * single `externalId`, replacing it with the merged per-marketplace external
+ * IDs (`tcgExternalId` / `cmExternalId` / `ctExternalId`).
+ */
+export type UnifiedMappingPrintingResponse = z.infer<
+  typeof unifiedMappingGroupResponseSchema
+>["printings"][number];
 
-export interface StagedProductResponse {
-  externalId: number;
-  productName: string;
-  finish: string;
-  /**
-   * `null` when the marketplace doesn't expose language as a SKU dimension
-   * (Cardmarket's cross-language price guide, TCGPlayer's English-only
-   * catalog). A real language code otherwise (CardTrader).
-   */
-  language: string | null;
-  marketCents: number | null;
-  lowCents: number | null;
-  currency: string;
-  recordedAt: string;
-  midCents: number | null;
-  highCents: number | null;
-  trendCents: number | null;
-  avg1Cents: number | null;
-  avg7Cents: number | null;
-  avg30Cents: number | null;
-  isOverride?: boolean;
-  groupId?: number;
-  groupName?: string;
-  /**
-   * Admin-assigned tag for the marketplace group this product belongs to.
-   * Drives the suggestion scorer: `basic` penalises promo/special printings,
-   * `special` prefers them. Omitted for products whose group resolution
-   * wasn't needed (unassigned staging without a group).
-   */
-  groupKind?: MarketplaceGroupKind;
-  /**
-   * Slug of the OpenRift set this product's marketplace group is scoped to,
-   * if any. When non-null, the suggester only proposes printings whose
-   * `setId` (slug) matches — products in another set get a hard
-   * disqualification. `null` means no scoping (default).
-   */
-  groupSetSlug?: string | null;
-}
+/**
+ * One staged/assigned/unmatched marketplace product. Inferred from
+ * {@link stagedProductResponseSchema}. `language` / `groupSetSlug` are `null`
+ * when the marketplace doesn't expose that dimension.
+ */
+export type StagedProductResponse = z.infer<typeof stagedProductResponseSchema>;
 
 /**
  * A single (product × printing) mapping row. Authoritative: survives cases
  * where one printing is bound to multiple variants of the same marketplace
  * (can happen when two upstream products target the same printing).
  * `language` is `null` when the marketplace doesn't expose language as a
- * SKU dimension (CM/TCG).
+ * SKU dimension (CM/TCG). Inferred from {@link unifiedMappingGroupResponseSchema}.
  */
-export interface MarketplaceAssignmentResponse {
-  externalId: number;
-  printingId: string;
-  finish: string;
-  language: string | null;
-}
+export type MarketplaceAssignmentResponse = z.infer<
+  typeof unifiedMappingGroupResponseSchema
+>["tcgplayer"]["assignments"][number];
 
-export interface UnifiedMappingGroupResponse {
-  cardId: string;
-  cardSlug: string;
-  cardName: string;
-  cardType: string;
-  superTypes: string[];
-  domains: string[];
-  energy: number | null;
-  might: number | null;
-  setId: string;
-  setName: string;
-  printings: UnifiedMappingPrintingResponse[];
-  primaryShortCode: string;
-  tcgplayer: {
-    stagedProducts: StagedProductResponse[];
-    assignedProducts: StagedProductResponse[];
-    assignments: MarketplaceAssignmentResponse[];
-  };
-  cardmarket: {
-    stagedProducts: StagedProductResponse[];
-    assignedProducts: StagedProductResponse[];
-    assignments: MarketplaceAssignmentResponse[];
-  };
-  cardtrader: {
-    stagedProducts: StagedProductResponse[];
-    assignedProducts: StagedProductResponse[];
-    assignments: MarketplaceAssignmentResponse[];
-  };
-}
+export type UnifiedMappingGroupResponse = z.infer<typeof unifiedMappingGroupResponseSchema>;
 
-export interface AssignableCardResponse {
-  cardId: string;
-  cardSlug: string;
-  cardName: string;
-  setName: string;
-  /** Short codes of this card's printings (first one, sorted, is shown in the assign dropdown). */
-  shortCodes: string[];
-}
+/** Inferred from {@link unifiedMappingsResponseSchema}'s `allCards` entries. */
+export type AssignableCardResponse = z.infer<
+  typeof unifiedMappingsResponseSchema
+>["allCards"][number];
 
 export interface AdminUserResponse {
   id: string;
@@ -680,19 +621,7 @@ export interface AdminUserResponse {
   lastActiveAt: string | null;
 }
 
-export interface UnifiedMappingsResponse {
-  groups: UnifiedMappingGroupResponse[];
-  unmatchedProducts: {
-    tcgplayer: StagedProductResponse[];
-    cardmarket: StagedProductResponse[];
-    cardtrader: StagedProductResponse[];
-  };
-  allCards: AssignableCardResponse[];
-}
+export type UnifiedMappingsResponse = z.infer<typeof unifiedMappingsResponseSchema>;
 
 /** Single-card variant of {@link UnifiedMappingsResponse} for the admin card-detail page. */
-export interface UnifiedMappingsCardResponse {
-  /** Null when the card has no printings or no marketplace activity — UI shows an empty state. */
-  group: UnifiedMappingGroupResponse | null;
-  allCards: AssignableCardResponse[];
-}
+export type UnifiedMappingsCardResponse = z.infer<typeof unifiedMappingsCardResponseSchema>;

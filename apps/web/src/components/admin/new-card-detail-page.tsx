@@ -35,7 +35,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { AcceptNewCardBody } from "@/hooks/use-admin-card-mutations";
+import type {
+  AcceptNewCardBody,
+  PatchCandidatePrintingBody,
+} from "@/hooks/use-admin-card-mutations";
 import {
   useAcceptNewCard,
   useLinkCard,
@@ -328,6 +331,11 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
                               onClick={() => {
                                 const t = target.candidates[0];
                                 group.candidates.forEach((s) =>
+                                  // Cast preserves the existing wire payload: the
+                                  // source candidate's fields are nullable and
+                                  // include markerSlugs, neither of which the
+                                  // route's patch schema declares (it strips/validates
+                                  // them server-side, as it always has).
                                   reassignPrinting.mutate({
                                     id: s.id,
                                     fields: {
@@ -337,7 +345,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
                                       markerSlugs: t.markerSlugs,
                                       rarity: t.rarity,
                                       finish: t.finish,
-                                    },
+                                    } as PatchCandidatePrintingBody,
                                   }),
                                 );
                               }}

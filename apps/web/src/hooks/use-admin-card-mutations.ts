@@ -2,18 +2,26 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
+import type {
+  AcceptNewCardBody,
+  AcceptPrintingBody,
+  CreateCardBody,
+  CreatePrintingBody,
+  PatchCandidatePrintingBody,
+} from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-export interface AcceptNewCardBody {
-  cardFields: Record<string, unknown>;
-}
-
-export interface AcceptPrintingBody {
-  printingFields: Record<string, unknown>;
-  candidatePrintingIds: string[];
-}
+// Request bodies derived from the route schemas (api-types). Re-exported for the
+// admin field-editor callers, which cast their dynamic field maps to these
+// concrete shapes at the mutation boundary.
+export type {
+  AcceptNewCardBody,
+  AcceptPrintingBody,
+  CreateCardBody,
+  CreatePrintingBody,
+  PatchCandidatePrintingBody,
+};
 
 // ── Server functions ─────────────────────────────────────────────────────────
 
@@ -143,20 +151,16 @@ const acceptPrintingFieldFn = createServerFn({ method: "POST" })
   });
 
 const acceptNewCardFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { name: string; cardFields: Record<string, unknown> }) => input)
+  .inputValidator((input: { name: string; cardFields: AcceptNewCardBody["cardFields"] }) => input)
   .middleware([withCookies])
-  // TODO(sweep): keep on fetchApi — `cardFields` is typed `Record<string, unknown>`,
-  // but the route's `acceptNewCardSchema.cardFields` is a concrete object with required
-  // `id`/`name`/`type`/`domains`, so the hc-typed `json` arg rejects the bare record.
-  // Resolve by typing `cardFields` against the route's `cardFields` shape before migrating.
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't accept new card",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/new/${encodeURIComponent(data.name)}/accept`,
-      method: "POST",
-      body: { cardFields: data.cardFields },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards.new[":name"].accept.$post({
+        param: encodeParams({ name: data.name }),
+        json: { cardFields: data.cardFields },
+      }),
+      "Couldn't accept new card",
+    );
   });
 
 export const acceptFavoritesFn = createServerFn({ method: "POST" })
@@ -185,21 +189,16 @@ const linkCardFn = createServerFn({ method: "POST" })
   });
 
 const reassignCandidatePrintingFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { id: string; fields: Record<string, unknown> }) => input)
+  .inputValidator((input: { id: string; fields: PatchCandidatePrintingBody }) => input)
   .middleware([withCookies])
-  // TODO(sweep): keep on fetchApi — the body (`data.fields`) is typed
-  // `Record<string, unknown>`, but the route's `patchCandidatePrintingSchema` declares
-  // specific optional fields (`artVariant`/`isSigned`/`finish`/`setId`/`shortCode`/
-  // `rarity`), so the hc-typed `json` arg rejects the bare record. Resolve by typing
-  // `fields` against the patch schema before migrating to hc.
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't reassign candidate printing",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/candidate-printings/${encodeURIComponent(data.id)}`,
-      method: "PATCH",
-      body: data.fields,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards["candidate-printings"][":id"].$patch({
+        param: encodeParams({ id: data.id }),
+        json: data.fields,
+      }),
+      "Couldn't reassign candidate printing",
+    );
   });
 
 const deleteCandidatePrintingFn = createServerFn({ method: "POST" })
@@ -255,27 +254,22 @@ const acceptPrintingGroupFn = createServerFn({ method: "POST" })
   .inputValidator(
     (input: {
       cardId: string;
-      printingFields: Record<string, unknown>;
+      printingFields: AcceptPrintingBody["printingFields"];
       candidatePrintingIds: string[];
     }) => input,
   )
   .middleware([withCookies])
-  // TODO(sweep): keep on fetchApiJson — `printingFields` is typed
-  // `Record<string, unknown>`, but the route's `acceptPrintingSchema.printingFields` is a
-  // concrete object with required `shortCode`/`artist`/`publicCode`, so the hc-typed
-  // `json` arg rejects the bare record. Resolve by typing `printingFields` against the
-  // route's `printingFields` shape before migrating to hc.
   .handler(({ context, data }) =>
-    fetchApiJson<{ printingId: string }>({
-      errorTitle: "Couldn't accept printing group",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/accept-printing`,
-      method: "POST",
-      body: {
-        printingFields: data.printingFields,
-        candidatePrintingIds: data.candidatePrintingIds,
-      },
-    }),
+    callApiJson(
+      serverApiClient(context.cookie).api.v1.admin.cards[":cardId"]["accept-printing"].$post({
+        param: encodeParams({ cardId: data.cardId }),
+        json: {
+          printingFields: data.printingFields,
+          candidatePrintingIds: data.candidatePrintingIds,
+        },
+      }),
+      "Couldn't accept printing group",
+    ),
   );
 
 const checkProviderFn = createServerFn({ method: "POST" })
@@ -440,26 +434,20 @@ export function useAcceptNewCard() {
 }
 
 const createCardFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { cardFields: Record<string, unknown> }) => input)
+  .inputValidator((input: { cardFields: CreateCardBody }) => input)
   .middleware([withCookies])
-  // TODO(sweep): keep on fetchApiJson — the body (`data.cardFields`) is typed
-  // `Record<string, unknown>`, but the route's `createCardSchema` is a concrete object
-  // with required `id`/`name`/`type`/`domains`, so the hc-typed `json` arg rejects the
-  // bare record. Resolve by typing `cardFields` against `createCardSchema` before migrating.
   .handler(({ context, data }) =>
-    fetchApiJson<{ cardSlug: string }>({
-      errorTitle: "Couldn't create card",
-      cookie: context.cookie,
-      path: "/api/v1/admin/cards/create",
-      method: "POST",
-      body: data.cardFields,
-    }),
+    callApiJson(
+      serverApiClient(context.cookie).api.v1.admin.cards.create.$post({
+        json: data.cardFields,
+      }),
+      "Couldn't create card",
+    ),
   );
 
 export function useCreateCard() {
   return useMutationWithInvalidation({
-    mutationFn: (cardFields: AcceptNewCardBody["cardFields"]) =>
-      createCardFn({ data: { cardFields } }),
+    mutationFn: (cardFields: CreateCardBody) => createCardFn({ data: { cardFields } }),
     invalidates: (_variables, data) => [
       queryKeys.admin.cards.detail(data.cardSlug),
       queryKeys.admin.cards.list,
@@ -469,21 +457,16 @@ export function useCreateCard() {
 }
 
 const createPrintingFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { cardId: string; printingFields: Record<string, unknown> }) => input)
+  .inputValidator((input: { cardId: string; printingFields: CreatePrintingBody }) => input)
   .middleware([withCookies])
-  // TODO(sweep): keep on fetchApiJson — the body (`data.printingFields`) is typed
-  // `Record<string, unknown>`, but the route's `createPrintingSchema` is a concrete object
-  // with required `shortCode`/`setId`/`artist`/`publicCode`, so the hc-typed `json` arg
-  // rejects the bare record. Resolve by typing `printingFields` against `createPrintingSchema`
-  // before migrating.
   .handler(({ context, data }) =>
-    fetchApiJson<{ printingId: string }>({
-      errorTitle: "Couldn't create printing",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/printings`,
-      method: "POST",
-      body: data.printingFields,
-    }),
+    callApiJson(
+      serverApiClient(context.cookie).api.v1.admin.cards[":cardId"].printings.$post({
+        param: encodeParams({ cardId: data.cardId }),
+        json: data.printingFields,
+      }),
+      "Couldn't create printing",
+    ),
   );
 
 export function useCreatePrinting() {
@@ -494,7 +477,7 @@ export function useCreatePrinting() {
     }: {
       cardId: string;
       cardSlug?: string;
-      printingFields: AcceptPrintingBody["printingFields"];
+      printingFields: CreatePrintingBody;
     }) => createPrintingFn({ data: { cardId, printingFields } }),
     invalidates: ({ cardId, cardSlug }) => {
       const keys: (readonly unknown[])[] = [
@@ -538,7 +521,7 @@ export function useLinkCard() {
 
 export function useReassignCandidatePrinting(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
-    mutationFn: async ({ id, fields }: { id: string; fields: Record<string, unknown> }) => {
+    mutationFn: async ({ id, fields }: { id: string; fields: PatchCandidatePrintingBody }) => {
       await reassignCandidatePrintingFn({ data: { id, fields } });
     },
     invalidates,

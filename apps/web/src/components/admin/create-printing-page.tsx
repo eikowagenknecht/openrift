@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useCreatePrinting } from "@/hooks/use-admin-card-mutations";
+import type { CreatePrintingBody } from "@/hooks/use-admin-card-mutations";
 import { useAdminCardDetail } from "@/hooks/use-admin-card-queries";
 import { useDistributionChannels } from "@/hooks/use-distribution-channels";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -156,7 +157,7 @@ export function CreatePrintingPage({
     }
 
     createPrinting.mutate(
-      { cardId, cardSlug, printingFields },
+      { cardId, cardSlug, printingFields: printingFields as CreatePrintingBody },
       {
         onSuccess: () => {
           void navigate({ to: "/admin/cards/$cardSlug", params: { cardSlug } });
