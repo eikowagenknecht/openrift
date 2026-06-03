@@ -3,7 +3,8 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
+import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -15,11 +16,10 @@ const fetchChannels = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminDistributionChannelsResponse> =>
-      fetchApiJson<AdminDistributionChannelsResponse>({
-        errorTitle: "Couldn't load distribution channels",
-        cookie: context.cookie,
-        path: "/api/v1/admin/distribution-channels",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin["distribution-channels"].$get(),
+        "Couldn't load distribution channels",
+      ),
   );
 
 export const adminDistributionChannelsQueryOptions = queryOptions({
@@ -41,6 +41,12 @@ interface CreateChannelInput {
   childrenLabel?: string | null;
 }
 
+// TODO(phase-1d): migrate to hc. Deferred deliberately: the 201 response body is
+// `{ distributionChannel: ... }`, but this fn is typed as the bare
+// `DistributionChannelResponse`. The current `fetchApiJson<DistributionChannelResponse>`
+// cast hides that the shapes don't match (the hc-inferred type would surface it).
+// Resolve in the sweep — either unwrap (`body.distributionChannel`) or change the
+// contract — and verify whether any consumer reads the mutation result.
 const createChannelFn = createServerFn({ method: "POST" })
   .inputValidator((input: CreateChannelInput) => input)
   .middleware([withCookies])
@@ -77,13 +83,13 @@ const updateChannelFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     const { id, ...patch } = data;
-    await fetchApi({
-      errorTitle: "Couldn't update distribution channel",
-      cookie: context.cookie,
-      path: `/api/v1/admin/distribution-channels/${encodeURIComponent(id)}`,
-      method: "PATCH",
-      body: patch,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["distribution-channels"][":id"].$patch({
+        param: encodeParams({ id }),
+        json: patch,
+      }),
+      "Couldn't update distribution channel",
+    );
   });
 
 export function useUpdateDistributionChannel() {
@@ -97,13 +103,16 @@ const deleteChannelFn = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string; force?: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const query = data.force ? "?force=true" : "";
-    await fetchApi({
-      errorTitle: "Couldn't delete distribution channel",
-      cookie: context.cookie,
-      path: `/api/v1/admin/distribution-channels/${encodeURIComponent(data.id)}${query}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["distribution-channels"][":id"].$delete({
+        param: encodeParams({ id: data.id }),
+        // The route declares a query schema, so hc requires the `query` arg even
+        // when empty; `{}` means "no force" → API default (refuse if in use). An
+        // empty `{}` adds a harmless trailing `?` to the URL (unavoidable here).
+        query: data.force ? { force: "true" } : {},
+      }),
+      "Couldn't delete distribution channel",
+    );
   });
 
 export function useDeleteDistributionChannel() {
@@ -117,13 +126,12 @@ const reorderChannelsFn = createServerFn({ method: "POST" })
   .inputValidator((input: { ids: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't reorder distribution channels",
-      cookie: context.cookie,
-      path: "/api/v1/admin/distribution-channels/reorder",
-      method: "PUT",
-      body: { ids: data.ids },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["distribution-channels"].reorder.$put({
+        json: { ids: data.ids },
+      }),
+      "Couldn't reorder distribution channels",
+    );
   });
 
 export function useReorderDistributionChannels() {

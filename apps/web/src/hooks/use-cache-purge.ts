@@ -2,7 +2,7 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { callApi, callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -14,11 +14,10 @@ const fetchCacheStatus = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<CacheStatusResponse> =>
-      fetchApiJson<CacheStatusResponse>({
-        errorTitle: "Couldn't load cache status",
-        cookie: context.cookie,
-        path: "/api/v1/admin/cache/status",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin.cache.status.$get(),
+        "Couldn't load cache status",
+      ),
   );
 
 export const adminCacheStatusQueryOptions = queryOptions({
@@ -33,14 +32,12 @@ export function useCacheStatus() {
 const purgeCacheFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context }) => {
-    // fetchApi now surfaces the API's { error } message (e.g. "Cloudflare
-    // credentials not configured") in the toast, so the manual parse is gone.
-    await fetchApi({
-      errorTitle: "Couldn't purge cache",
-      cookie: context.cookie,
-      path: "/api/v1/admin/cache/purge",
-      method: "POST",
-    });
+    // callApi surfaces the API's { error } message (e.g. "Cloudflare
+    // credentials not configured") in the toast, so no manual parse is needed.
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cache.purge.$post(),
+      "Couldn't purge cache",
+    );
   });
 
 export function usePurgeCache() {
