@@ -73,6 +73,13 @@ export type AdminFeatureFlagOverridesResponse = InferResponseType<
 export type TypographyReviewResponse = InferResponseType<
   Client["api"]["v1"]["admin"]["typography-review"]["$get"]
 >;
+export type PrintingEventsListResponse = InferResponseType<
+  Client["api"]["v1"]["admin"]["printing-events"]["$get"]
+>;
+// Derived from the API (not hand-written): the field-diff `from`/`to` are
+// arbitrary JSON, which hc types as its own JSON value — deriving keeps the web
+// type exactly aligned with what the endpoint returns.
+export type PrintingEventView = PrintingEventsListResponse["events"][number];
 export type AdminSetsResponse = InferResponseType<Client["api"]["v1"]["admin"]["sets"]["$get"]>;
 export type AdminDomainsResponse = InferResponseType<
   Client["api"]["v1"]["admin"]["domains"]["$get"]

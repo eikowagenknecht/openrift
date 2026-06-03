@@ -1,6 +1,8 @@
 import { createRoute } from "@hono/zod-openapi";
 import type { JobRunStartedResponse } from "@openrift/shared";
 import { createLogger } from "@openrift/shared/logger";
+import { diffValueSchema } from "@openrift/shared/response-schemas";
+import type { DiffValue } from "@openrift/shared/response-schemas";
 import { z } from "zod";
 
 import { createApiApp } from "../../openapi.js";
@@ -20,8 +22,9 @@ const flushStartedResponseSchema = z.object({
 
 const fieldChangeSchema = z.object({
   field: z.string(),
-  from: z.unknown(),
-  to: z.unknown(),
+  // Heterogeneous field values (scalars / scalar arrays); serializable, typed.
+  from: diffValueSchema,
+  to: diffValueSchema,
 });
 
 const printingEventViewSchema = z.object({
@@ -146,7 +149,9 @@ export const adminPrintingEventsRoute = createApiApp()
         language: e.language,
         languageName: e.languageName,
         frontImageId: e.frontImageId,
-        changes: e.changes,
+        // The DB column is opaque JSON (FieldChange.from/to are `unknown`); the
+        // API contract narrows it to the serializable diff values it holds.
+        changes: e.changes as { field: string; from: DiffValue; to: DiffValue }[] | null,
         createdAt: e.createdAt.toISOString(),
       })),
     });

@@ -2,6 +2,21 @@
 import "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
 
+// ── Field-diff values ────────────────────────────────────────────────────────
+// A diffed field's value: a JSON scalar or an array of scalars. This is the
+// heterogeneous-but-not-nested shape that card/printing field values take in a
+// change diff (string, number, boolean, null, string[], …).
+//
+// Deliberately NON-recursive: a fully recursive JSON type breaks both
+// @hono/zod-openapi (TS2589 "excessively deep") and hc's response-type inference
+// (it leaks the ZodType through). And it must not be `unknown` — TanStack Start's
+// createServerFn return-type check rejects `unknown` as non-serializable. This
+// bounded union satisfies all three.
+
+const diffScalarSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
+export type DiffValue = z.infer<typeof diffScalarSchema> | z.infer<typeof diffScalarSchema>[];
+export const diffValueSchema = z.union([diffScalarSchema, z.array(diffScalarSchema)]);
+
 // ── Enums ────────────────────────────────────────────────────────────────────
 
 const cardTypeSchema = z.string().openapi({ example: "Unit" });

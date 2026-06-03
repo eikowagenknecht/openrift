@@ -4,8 +4,11 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { getLatestJobRunFn } from "@/components/admin/refresh-actions";
 import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
-import type { JobRunView } from "@/lib/server-fns/api-types";
-import { fetchApiJson } from "@/lib/server-fns/fetch-api";
+import type {
+  JobRunView,
+  PrintingEventsListResponse,
+  PrintingEventView,
+} from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 interface WebhookFailure {
@@ -74,49 +77,19 @@ export function isFlushPrintingEventsResult(value: unknown): value is FlushPrint
   return typeof candidate.sent === "number" && typeof candidate.failed === "number";
 }
 
-type FieldValue = string | number | boolean | null;
+// Re-exported for consumers (printing-events-page); the shape is derived from
+// the API response in api-types, so it stays aligned with the route schema
+// (including the corrected `frontImageId` field).
+export type { PrintingEventView };
 
-export interface PrintingEventView {
-  id: string;
-  eventType: "new" | "changed";
-  status: "pending" | "sent" | "failed";
-  retryCount: number;
-  printingId: string;
-  cardName: string | null;
-  cardSlug: string | null;
-  setName: string | null;
-  shortCode: string | null;
-  rarity: string | null;
-  finish: string | null;
-  finishLabel: string | null;
-  artist: string | null;
-  language: string | null;
-  languageName: string | null;
-  // The API returns the image ID (the route field is frontImageId); the old
-  // `frontImageUrl` name was wrong (undefined at runtime) and unused.
-  frontImageId: string | null;
-  changes: { field: string; from: FieldValue; to: FieldValue }[] | null;
-  createdAt: string;
-}
-
-interface PrintingEventsListResponse {
-  events: PrintingEventView[];
-}
-
-// TODO(sweep): kept on fetchApiJson. The route types changes[].from/to as
-// z.unknown() (the DB FieldChange.from/to are unknown), but a createServerFn
-// return type can't carry `unknown` (not serializable per TanStack Start). To
-// migrate, give the route a serializable JSON-value schema for from/to and use
-// that type here. The frontImageId field name above is already corrected.
 const fetchPrintingEvents = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<PrintingEventsListResponse> =>
-      fetchApiJson<PrintingEventsListResponse>({
-        errorTitle: "Couldn't load printing events",
-        cookie: context.cookie,
-        path: "/api/v1/admin/printing-events",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin["printing-events"].$get(),
+        "Couldn't load printing events",
+      ),
   );
 
 export const adminPrintingEventsQueryOptions = queryOptions({
