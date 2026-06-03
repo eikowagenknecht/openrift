@@ -1,4 +1,4 @@
-import type { CollectionResponse } from "@openrift/shared";
+import type { CollectionResponse, CollectionShareResponse } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import { PRINTING_1, PRINTING_2 } from "../../test/fixtures/constants.js";
@@ -305,6 +305,150 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
     it("returns 404 when deleting non-existent collection", async () => {
       const fakeId = "00000000-0000-4000-a000-000000000000";
       const res = await app.fetch(req("DELETE", `/collections/${fakeId}`));
+      expect(res.status).toBe(404);
+    });
+  });
+
+  // ── Share endpoints (GET / POST / POST rotate / DELETE) ───────────────────
+
+  describe("collection sharing", () => {
+    let shareCollectionId: string;
+
+    async function createShareCollection(name: string): Promise<string> {
+      const res = await app.fetch(req("POST", "/collections", { name }));
+      expect(res.status).toBe(201);
+      const json = (await res.json()) as CollectionResponse;
+      return json.id;
+    }
+
+    it("GET reflects the unshared state without 404ing", async () => {
+      shareCollectionId = await createShareCollection("Shareable");
+
+      const res = await app.fetch(req("GET", `/collections/${shareCollectionId}/share`));
+      expect(res.status).toBe(200);
+
+      const json = (await res.json()) as CollectionShareResponse;
+      expect(json.shareToken).toBeNull();
+      expect(json.isPublic).toBe(false);
+    });
+
+    it("POST shares the collection and returns a token", async () => {
+      const res = await app.fetch(req("POST", `/collections/${shareCollectionId}/share`));
+      expect(res.status).toBe(200);
+
+      const json = (await res.json()) as CollectionShareResponse;
+      expect(json.shareToken).toBeTypeOf("string");
+      expect(json.shareToken).not.toBe("");
+      expect(json.isPublic).toBe(true);
+    });
+
+    it("GET reflects the shared state after sharing", async () => {
+      // Re-fetch the token that the previous POST minted so the idempotency
+      // assertion below has a stable reference even though tests share state.
+      const res = await app.fetch(req("GET", `/collections/${shareCollectionId}/share`));
+      expect(res.status).toBe(200);
+
+      const json = (await res.json()) as CollectionShareResponse;
+      expect(json.shareToken).toBeTypeOf("string");
+      expect(json.isPublic).toBe(true);
+    });
+
+    it("POST is idempotent — re-sharing returns the same token", async () => {
+      const firstRes = await app.fetch(req("GET", `/collections/${shareCollectionId}/share`));
+      const first = (await firstRes.json()) as CollectionShareResponse;
+      expect(first.shareToken).toBeTypeOf("string");
+
+      const secondRes = await app.fetch(req("POST", `/collections/${shareCollectionId}/share`));
+      expect(secondRes.status).toBe(200);
+      const second = (await secondRes.json()) as CollectionShareResponse;
+
+      expect(second.shareToken).toBe(first.shareToken);
+      expect(second.isPublic).toBe(true);
+
+      // The shared token resolves on the public endpoint.
+      const publicRes = await app.fetch(
+        req("GET", `/collections/share/${second.shareToken as string}`),
+      );
+      expect(publicRes.status).toBe(200);
+    });
+
+    it("POST rotate mints a new token and the old one stops resolving", async () => {
+      const beforeRes = await app.fetch(req("GET", `/collections/${shareCollectionId}/share`));
+      const before = (await beforeRes.json()) as CollectionShareResponse;
+      const oldToken = before.shareToken as string;
+      expect(oldToken).toBeTypeOf("string");
+
+      // The old token currently resolves on the public endpoint.
+      const oldResolvesRes = await app.fetch(req("GET", `/collections/share/${oldToken}`));
+      expect(oldResolvesRes.status).toBe(200);
+
+      const rotateRes = await app.fetch(
+        req("POST", `/collections/${shareCollectionId}/share/rotate`),
+      );
+      expect(rotateRes.status).toBe(200);
+      const rotated = (await rotateRes.json()) as CollectionShareResponse;
+
+      expect(rotated.shareToken).toBeTypeOf("string");
+      expect(rotated.shareToken).not.toBe(oldToken);
+      expect(rotated.isPublic).toBe(true);
+
+      // Old token no longer resolves; the new one does.
+      const oldNowRes = await app.fetch(req("GET", `/collections/share/${oldToken}`));
+      expect(oldNowRes.status).toBe(404);
+      const newRes = await app.fetch(
+        req("GET", `/collections/share/${rotated.shareToken as string}`),
+      );
+      expect(newRes.status).toBe(200);
+
+      // GET reflects the rotated token.
+      const stateRes = await app.fetch(req("GET", `/collections/${shareCollectionId}/share`));
+      const state = (await stateRes.json()) as CollectionShareResponse;
+      expect(state.shareToken).toBe(rotated.shareToken);
+    });
+
+    it("POST rotate on an unshared collection acts as share-now", async () => {
+      const freshId = await createShareCollection("Rotate Fresh");
+
+      const rotateRes = await app.fetch(req("POST", `/collections/${freshId}/share/rotate`));
+      expect(rotateRes.status).toBe(200);
+      const rotated = (await rotateRes.json()) as CollectionShareResponse;
+
+      expect(rotated.shareToken).toBeTypeOf("string");
+      expect(rotated.isPublic).toBe(true);
+
+      const publicRes = await app.fetch(
+        req("GET", `/collections/share/${rotated.shareToken as string}`),
+      );
+      expect(publicRes.status).toBe(200);
+    });
+
+    it("DELETE unshares and the token stops resolving", async () => {
+      const stateRes = await app.fetch(req("GET", `/collections/${shareCollectionId}/share`));
+      const state = (await stateRes.json()) as CollectionShareResponse;
+      const liveToken = state.shareToken as string;
+      expect(liveToken).toBeTypeOf("string");
+
+      const delRes = await app.fetch(req("DELETE", `/collections/${shareCollectionId}/share`));
+      expect(delRes.status).toBe(204);
+
+      const afterRes = await app.fetch(req("GET", `/collections/${shareCollectionId}/share`));
+      const after = (await afterRes.json()) as CollectionShareResponse;
+      expect(after.shareToken).toBeNull();
+      expect(after.isPublic).toBe(false);
+
+      const publicRes = await app.fetch(req("GET", `/collections/share/${liveToken}`));
+      expect(publicRes.status).toBe(404);
+    });
+
+    it("GET share returns 404 for a non-existent collection", async () => {
+      const fakeId = "00000000-0000-4000-a000-000000000000";
+      const res = await app.fetch(req("GET", `/collections/${fakeId}/share`));
+      expect(res.status).toBe(404);
+    });
+
+    it("POST rotate returns 404 for a non-existent collection", async () => {
+      const fakeId = "00000000-0000-4000-a000-000000000000";
+      const res = await app.fetch(req("POST", `/collections/${fakeId}/share/rotate`));
       expect(res.status).toBe(404);
     });
   });

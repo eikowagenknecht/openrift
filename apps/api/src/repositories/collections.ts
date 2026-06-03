@@ -300,6 +300,21 @@ export function collectionsRepo(db: Kysely<Database>) {
       return db.selectFrom("collections").select(["id", "name"]).where("id", "in", ids).execute();
     },
 
+    /**
+     * @returns `id`, `name`, and `groupId` for the given collection IDs.
+     * `groupId` is null for personal collections; callers use it to populate a
+     * copy's owning-group field (so the client no longer synthesizes it).
+     */
+    listIdNameGroupByIds(
+      ids: string[],
+    ): Promise<Pick<Selectable<CollectionsTable>, "id" | "name" | "groupId">[]> {
+      return db
+        .selectFrom("collections")
+        .select(["id", "name", "groupId"])
+        .where("id", "in", ids)
+        .execute();
+    },
+
     /** @returns Copies in the given collection (id and printingId only). */
     listCopiesInCollection(
       collectionId: string,

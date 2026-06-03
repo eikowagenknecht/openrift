@@ -1,6 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
-import type { CopyListResponse } from "@openrift/shared";
-import { copyListResponseSchema } from "@openrift/shared/response-schemas";
+import type { CopyAddResponse, CopyListResponse } from "@openrift/shared";
+import { copyAddResponseSchema, copyListResponseSchema } from "@openrift/shared/response-schemas";
 import {
   addCopiesSchema,
   copiesQuerySchema,
@@ -35,7 +35,10 @@ const addCopies = createRoute({
     body: { content: { "application/json": { schema: addCopiesSchema } } },
   },
   responses: {
-    201: { description: "Created" },
+    201: {
+      content: { "application/json": { schema: copyAddResponseSchema } },
+      description: "Created",
+    },
   },
 });
 
@@ -98,7 +101,7 @@ export const copiesRoute = copiesApp
     const userId = getUserId(c);
     const body = c.req.valid("json");
     const created = await addCopiesService(repos, transact, userId, body.copies);
-    return c.json(created, 201);
+    return c.json(created satisfies CopyAddResponse, 201);
   })
 
   // ── POST /copies/move ───────────────────────────────────────────────────────

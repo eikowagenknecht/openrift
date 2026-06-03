@@ -16,6 +16,9 @@ const mockListsRepo = {
   update: vi.fn(() => Promise.resolve(undefined as object | undefined)),
   deleteByIdForUser: vi.fn(() => Promise.resolve({ numDeletedRows: 0n })),
   setShareToken: vi.fn(() => Promise.resolve(undefined as object | undefined)),
+  getShareState: vi.fn(() =>
+    Promise.resolve(undefined as { shareToken: string | null; isPublic: boolean } | undefined),
+  ),
   findByShareToken: vi.fn(() => Promise.resolve(undefined as object | undefined)),
   entriesWithDetails: vi.fn(() => Promise.resolve([] as object[])),
   entriesWithDetailsAnon: vi.fn(() => Promise.resolve([] as object[])),
@@ -627,9 +630,11 @@ describe("DELETE /api/v1/lists/:id/entries/:itemId", () => {
 describe("POST /api/v1/lists/:id/share", () => {
   beforeEach(() => {
     mockListsRepo.setShareToken.mockReset();
+    mockListsRepo.getShareState.mockReset();
   });
 
-  it("returns a fresh share token + isPublic=true", async () => {
+  it("mints a fresh share token + isPublic=true when not yet shared", async () => {
+    mockListsRepo.getShareState.mockResolvedValue({ shareToken: null, isPublic: false });
     mockListsRepo.setShareToken.mockResolvedValue({
       ...dbList,
       isPublic: true,
@@ -648,9 +653,68 @@ describe("POST /api/v1/lists/:id/share", () => {
     expect(args[3]).toBe(true);
   });
 
+  it("is idempotent: returns the existing token without re-minting", async () => {
+    mockListsRepo.getShareState.mockResolvedValue({ shareToken: "existing", isPublic: true });
+    const res = await app.request(`/api/v1/lists/${LIST_ID}/share`, { method: "POST" });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.shareToken).toBe("existing");
+    expect(json.isPublic).toBe(true);
+    expect(mockListsRepo.setShareToken).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when not owned", async () => {
+    mockListsRepo.getShareState.mockResolvedValue(undefined);
+    const res = await app.request(`/api/v1/lists/${LIST_ID}/share`, { method: "POST" });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("GET /api/v1/lists/:id/share", () => {
+  beforeEach(() => {
+    mockListsRepo.getShareState.mockReset();
+  });
+
+  it("reflects unshared state without 404", async () => {
+    mockListsRepo.getShareState.mockResolvedValue({ shareToken: null, isPublic: false });
+    const res = await app.request(`/api/v1/lists/${LIST_ID}/share`);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ shareToken: null, isPublic: false });
+  });
+
+  it("reflects shared state", async () => {
+    mockListsRepo.getShareState.mockResolvedValue({ shareToken: "tok", isPublic: true });
+    const res = await app.request(`/api/v1/lists/${LIST_ID}/share`);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ shareToken: "tok", isPublic: true });
+  });
+
+  it("returns 404 when not owned", async () => {
+    mockListsRepo.getShareState.mockResolvedValue(undefined);
+    const res = await app.request(`/api/v1/lists/${LIST_ID}/share`);
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("POST /api/v1/lists/:id/share/rotate", () => {
+  beforeEach(() => {
+    mockListsRepo.setShareToken.mockReset();
+  });
+
+  it("mints a new token + isPublic=true", async () => {
+    mockListsRepo.setShareToken.mockResolvedValue({ ...dbList, isPublic: true, shareToken: "new" });
+    const res = await app.request(`/api/v1/lists/${LIST_ID}/share/rotate`, { method: "POST" });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(typeof json.shareToken).toBe("string");
+    expect(json.isPublic).toBe(true);
+    const args = mockListsRepo.setShareToken.mock.calls[0] ?? [];
+    expect(args[3]).toBe(true);
+  });
+
   it("returns 404 when not owned", async () => {
     mockListsRepo.setShareToken.mockResolvedValue(undefined);
-    const res = await app.request(`/api/v1/lists/${LIST_ID}/share`, { method: "POST" });
+    const res = await app.request(`/api/v1/lists/${LIST_ID}/share/rotate`, { method: "POST" });
     expect(res.status).toBe(404);
   });
 });

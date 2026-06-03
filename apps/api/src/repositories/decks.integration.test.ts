@@ -165,6 +165,41 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // getShareState / setShareToken
+  // ---------------------------------------------------------------------------
+
+  it("getShareState reports an unshared deck as { shareToken: null, isPublic: false }", async () => {
+    const deckId = createdDeckIds[0];
+    const state = await repo.getShareState(deckId, userId);
+
+    expect(state).toEqual({ shareToken: null, isPublic: false });
+  });
+
+  it("getShareState reflects a shared deck after setShareToken", async () => {
+    const deckId = createdDeckIds[0];
+    await repo.setShareToken(deckId, userId, "AbCdEfGhIjKl", true);
+
+    const state = await repo.getShareState(deckId, userId);
+    expect(state).toEqual({ shareToken: "AbCdEfGhIjKl", isPublic: true });
+
+    // Reset so later tests see the deck unshared again.
+    await repo.setShareToken(deckId, userId, null, false);
+  });
+
+  it("getShareState returns undefined for a deck owned by another user", async () => {
+    const deckId = createdDeckIds[0];
+    const state = await repo.getShareState(deckId, "a0000000-9999-4000-a000-000000000001");
+
+    expect(state).toBeUndefined();
+  });
+
+  it("getShareState returns undefined for a nonexistent deck", async () => {
+    const state = await repo.getShareState("a0000000-0000-4000-a000-000000000000", userId);
+
+    expect(state).toBeUndefined();
+  });
+
+  // ---------------------------------------------------------------------------
   // update
   // ---------------------------------------------------------------------------
 

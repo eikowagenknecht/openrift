@@ -41,7 +41,7 @@ export interface PublicCollectionDetailResponse {
 }
 
 export interface CollectionShareResponse {
-  shareToken: string;
+  shareToken: string | null;
   isPublic: boolean;
 }
 
@@ -67,3 +67,10 @@ export interface CopyResponse {
    */
   groupId: string | null;
 }
+
+/**
+ * Response body for `POST /copies`: the copies just created, each in the full
+ * {@link CopyResponse} shape (including `groupId` derived from the owning
+ * collection, so clients no longer have to synthesize it).
+ */
+export type CopyAddResponse = CopyResponse[];

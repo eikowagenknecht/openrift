@@ -15,6 +15,11 @@ interface AddCopyResult {
   id: string;
   printingId: string;
   collectionId: string;
+  /**
+   * Owning group of the copy's collection, or null for personal collections.
+   * Derived from the collection so the client no longer has to synthesize it.
+   */
+  groupId: string | null;
 }
 
 /**
@@ -56,10 +61,12 @@ export async function addCopies(
 
     const copyRows = await trxRepos.copies.insertBatch(copyValues);
 
-    // Look up collection names for event logging
+    // Look up collection name + owning group for event logging and to populate
+    // each created copy's `groupId` (derived from the collection).
     const collectionIds = [...new Set(copyRows.map((r) => r.collectionId))];
-    const collectionRows = await trxRepos.collections.listIdAndNameByIds(collectionIds);
+    const collectionRows = await trxRepos.collections.listIdNameGroupByIds(collectionIds);
     const collectionNames = new Map(collectionRows.map((col) => [col.id, col.name]));
+    const collectionGroupIds = new Map(collectionRows.map((col) => [col.id, col.groupId]));
 
     await logEvents(
       trxRepos,
@@ -73,14 +80,15 @@ export async function addCopies(
       })),
     );
 
-    return copyRows;
+    return copyRows.map((row) => ({
+      id: row.id,
+      printingId: row.printingId,
+      collectionId: row.collectionId,
+      groupId: collectionGroupIds.get(row.collectionId) ?? null,
+    }));
   });
 
-  return created.map((r) => ({
-    id: r.id,
-    printingId: r.printingId,
-    collectionId: r.collectionId,
-  }));
+  return created;
 }
 
 /**

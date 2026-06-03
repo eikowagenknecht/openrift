@@ -131,7 +131,11 @@ export interface PublicDeckDetailResponse {
 }
 
 export interface DeckShareResponse {
-  shareToken: string;
+  /**
+   * Null for an owned-but-unshared deck (GET /decks/:id/share). Share / rotate
+   * always return a string token.
+   */
+  shareToken: string | null;
   isPublic: boolean;
 }
 

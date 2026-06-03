@@ -450,6 +450,25 @@ export function decksRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Reads the current share state of a deck, scoped to the owning user.
+     * Non-mutating — used by GET /decks/:id/share so an owned-but-unshared
+     * deck reports `{ shareToken: null, isPublic: false }` instead of 404ing.
+     * @returns `{ shareToken, isPublic }`, or `undefined` if the deck is not
+     * owned by the user (lets the route 404 only for missing/foreign decks).
+     */
+    getShareState(
+      id: string,
+      userId: string,
+    ): Promise<Pick<Selectable<DecksTable>, "shareToken" | "isPublic"> | undefined> {
+      return db
+        .selectFrom("decks")
+        .select(["shareToken", "isPublic"])
+        .where("id", "=", id)
+        .where("userId", "=", userId)
+        .executeTakeFirst();
+    },
+
+    /**
      * Sets (or nulls) the share_token and is_public on a deck, scoped to the owning user.
      * @returns The updated deck row, or `undefined` if the deck is not owned by the user.
      */

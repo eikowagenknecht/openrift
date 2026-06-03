@@ -8,6 +8,7 @@ import type {
   DeckFormatConfig,
   DeckListItemResponse,
   DeckListResponse,
+  DeckShareResponse,
   DeckZone,
   Domain,
   SuperType,
@@ -293,6 +294,19 @@ const setDeckArchived = createRoute({
   },
 });
 
+const getDeckShare = createRoute({
+  method: "get",
+  path: "/{id}/share",
+  tags: ["Decks"],
+  request: { params: idParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: deckShareResponseSchema } },
+      description: "Current share state (shareToken is null when not shared)",
+    },
+  },
+});
+
 const shareDeck = createRoute({
   method: "post",
   path: "/{id}/share",
@@ -301,7 +315,20 @@ const shareDeck = createRoute({
   responses: {
     200: {
       content: { "application/json": { schema: deckShareResponseSchema } },
-      description: "Shared",
+      description: "Shared (idempotent — returns the existing token if already shared)",
+    },
+  },
+});
+
+const rotateDeckShare = createRoute({
+  method: "post",
+  path: "/{id}/share/rotate",
+  tags: ["Decks"],
+  request: { params: idParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: deckShareResponseSchema } },
+      description: "Share token rotated (old token stops resolving)",
     },
   },
 });
@@ -691,9 +718,56 @@ export const decksRoute = decksApp
     return c.json(toDeck(updated));
   })
 
+  // ── GET /decks/:id/share ──────────────────────────────────────────────────
+  // Reports the deck's current share state. Owner-only. An owned-but-unshared
+  // deck returns { shareToken: null, isPublic: false } rather than 404ing;
+  // only a missing or foreign deck 404s.
+  .openapi(getDeckShare, async (c) => {
+    const { decks } = c.get("repos");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+
+    const state = await decks.getShareState(id, userId);
+    assertFound(state, "Not found");
+
+    return c.json({
+      shareToken: state.shareToken,
+      isPublic: state.isPublic,
+    } satisfies DeckShareResponse);
+  })
+
   // ── POST /decks/:id/share ─────────────────────────────────────────────────
-  // Generates (or rotates) the deck's share token and flips is_public=true.
+  // Idempotent enable: if the deck already has a token, return the existing
+  // share state unchanged; otherwise mint one and flip is_public=true.
+  // Rotation lives at POST /decks/:id/share/rotate to avoid surprise churn.
   .openapi(shareDeck, async (c) => {
+    const { decks } = c.get("repos");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+
+    const existing = await decks.getShareState(id, userId);
+    assertFound(existing, "Not found");
+    if (existing.shareToken !== null && existing.isPublic) {
+      return c.json({
+        shareToken: existing.shareToken,
+        isPublic: existing.isPublic,
+      } satisfies DeckShareResponse);
+    }
+
+    const token = generateShareToken();
+    const updated = await decks.setShareToken(id, userId, token, true);
+    assertFound(updated, "Not found");
+
+    return c.json({ shareToken: token, isPublic: true } satisfies DeckShareResponse);
+  })
+
+  // ── POST /decks/:id/share/rotate ──────────────────────────────────────────
+  // Overwrites the existing token with a fresh one; the previous URL stops
+  // resolving immediately. Owner-only. When the deck isn't shared yet, rotate
+  // acts as "share now" (mints a token and flips is_public=true) — chosen over
+  // 409 since setShareToken already supports the create-from-unshared path
+  // cleanly and it matches the user-share rotate precedent.
+  .openapi(rotateDeckShare, async (c) => {
     const { decks } = c.get("repos");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
@@ -702,7 +776,7 @@ export const decksRoute = decksApp
     const updated = await decks.setShareToken(id, userId, token, true);
     assertFound(updated, "Not found");
 
-    return c.json({ shareToken: token, isPublic: true });
+    return c.json({ shareToken: token, isPublic: true } satisfies DeckShareResponse);
   })
 
   // ── DELETE /decks/:id/share ───────────────────────────────────────────────

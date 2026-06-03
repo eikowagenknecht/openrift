@@ -492,14 +492,17 @@ export const publicCollectionResponseSchema = z
 
 export const collectionShareResponseSchema = z
   .object({
-    shareToken: z.string(),
+    // Nullable so GET /{id}/share can report an owned-but-unshared collection
+    // as { shareToken: null, isPublic: false } without 404ing. POST/rotate
+    // always return a non-null token; this only widens the unshared case.
+    shareToken: z.string().nullable(),
     isPublic: z.boolean(),
   })
   .openapi("CollectionShareResponse");
 
 // ── Copies ───────────────────────────────────────────────────────────────────
 
-const copyResponseSchema = z
+export const copyResponseSchema = z
   .object({
     id: z.string(),
     printingId: z.string(),
@@ -519,6 +522,14 @@ export const copyListResponseSchema = z
     nextCursor: z.string().nullable(),
   })
   .openapi("CopyListResponse");
+
+/**
+ * Response body for `POST /copies`: the copies just created, each carrying the
+ * full {@link copyResponseSchema} shape including `groupId` (derived from the
+ * owning collection). Additive — older clients read a subset and ignore the
+ * extra fields.
+ */
+export const copyAddResponseSchema = z.array(copyResponseSchema).openapi("CopyAddResponse");
 
 export const publicCollectionDetailResponseSchema = z
   .object({
@@ -601,7 +612,10 @@ export const publicDeckResponseSchema = z
 
 export const deckShareResponseSchema = z
   .object({
-    shareToken: z.string(),
+    // Nullable so GET /decks/:id/share can report an owned-but-unshared deck
+    // as { shareToken: null, isPublic: false } rather than 404ing. Share /
+    // rotate always populate a string token.
+    shareToken: z.string().nullable(),
     isPublic: z.boolean(),
   })
   .openapi("DeckShareResponse");
@@ -864,7 +878,10 @@ export const publicListDetailResponseSchema = z
   .openapi("PublicListDetailResponse");
 
 export const listShareResponseSchema = z
-  .object({ shareToken: z.string(), isPublic: z.boolean() })
+  // shareToken is nullable so GET /lists/{id}/share can report an owned-but-
+  // unshared list (shareToken: null, isPublic: false) without 404-ing. Share /
+  // rotate always return a non-null token.
+  .object({ shareToken: z.string().nullable(), isPublic: z.boolean() })
   .openapi("ListShareResponse");
 
 // ── User share bundle (ADR-018) ─────────────────────────────────────────────

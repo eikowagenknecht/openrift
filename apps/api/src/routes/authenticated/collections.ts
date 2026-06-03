@@ -1,6 +1,10 @@
 import { createRoute } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
-import type { CollectionListResponse, CopyListResponse } from "@openrift/shared";
+import type {
+  CollectionListResponse,
+  CollectionShareResponse,
+  CopyListResponse,
+} from "@openrift/shared";
 import {
   collectionGroupSharesResponseSchema,
   collectionListResponseSchema,
@@ -128,6 +132,32 @@ const shareCollection = createRoute({
     200: {
       content: { "application/json": { schema: collectionShareResponseSchema } },
       description: "Shared",
+    },
+  },
+});
+
+const getShareState = createRoute({
+  method: "get",
+  path: "/{id}/share",
+  tags: ["Collections"],
+  request: { params: idParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: collectionShareResponseSchema } },
+      description: "Current share state (shareToken null / isPublic false if not shared)",
+    },
+  },
+});
+
+const rotateShareCollection = createRoute({
+  method: "post",
+  path: "/{id}/share/rotate",
+  tags: ["Collections"],
+  request: { params: idParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: collectionShareResponseSchema } },
+      description: "Share token rotated (old token stops resolving)",
     },
   },
 });
@@ -366,9 +396,36 @@ export const collectionsRoute = collectionsApp
     } satisfies CopyListResponse);
   })
 
+  // ── GET /collections/:id/share ────────────────────────────────────────────
+  // Reports the current share state. Owner/group-admin only. An owned-but-
+  // unshared collection returns { shareToken: null, isPublic: false } — it does
+  // NOT 404 (404 is reserved for collections the viewer can't access at all).
+  .openapi(getShareState, async (c) => {
+    const { collections } = c.get("repos");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+
+    const access = await collections.getAccessForUser(id, userId);
+    assertFound(access, "Not found");
+    if (!access.viewerCanAdmin) {
+      throw new AppError(
+        403,
+        ERROR_CODES.FORBIDDEN,
+        "Only admins can view this collection's share state",
+      );
+    }
+
+    return c.json({
+      shareToken: access.collection.shareToken,
+      isPublic: access.collection.isPublic,
+    } satisfies CollectionShareResponse);
+  })
+
   // ── POST /collections/:id/share ───────────────────────────────────────────
-  // Generates (or rotates) the collection's share token and flips is_public=true.
-  // Personal owners or group admins only.
+  // Enables sharing and returns the share token + is_public=true. Idempotent:
+  // re-sharing an already-shared collection returns the EXISTING token unchanged
+  // rather than minting a new one. Use POST /share/rotate to deliberately churn
+  // the token. Personal owners or group admins only.
   .openapi(shareCollection, async (c) => {
     const { collections } = c.get("repos");
     const userId = getUserId(c);
@@ -380,11 +437,42 @@ export const collectionsRoute = collectionsApp
       throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only admins can share this collection");
     }
 
+    // Idempotent: if already public with a token, hand back the existing state.
+    if (access.collection.isPublic && access.collection.shareToken) {
+      return c.json({
+        shareToken: access.collection.shareToken,
+        isPublic: true,
+      } satisfies CollectionShareResponse);
+    }
+
     const token = generateShareToken();
     const updated = await collections.setShareTokenById(id, token, true);
     assertFound(updated, "Not found");
 
-    return c.json({ shareToken: token, isPublic: true });
+    return c.json({ shareToken: token, isPublic: true } satisfies CollectionShareResponse);
+  })
+
+  // ── POST /collections/:id/share/rotate ────────────────────────────────────
+  // Mints a NEW share token, invalidating the old one (old links 404 forever),
+  // and ensures is_public=true. If the collection isn't shared yet, this acts as
+  // "share now" — the repo's setShareTokenById handles both cases identically.
+  // Owner/group-admin only.
+  .openapi(rotateShareCollection, async (c) => {
+    const { collections } = c.get("repos");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+
+    const access = await collections.getAccessForUser(id, userId);
+    assertFound(access, "Not found");
+    if (!access.viewerCanAdmin) {
+      throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only admins can rotate this share link");
+    }
+
+    const token = generateShareToken();
+    const updated = await collections.setShareTokenById(id, token, true);
+    assertFound(updated, "Not found");
+
+    return c.json({ shareToken: token, isPublic: true } satisfies CollectionShareResponse);
   })
 
   // ── DELETE /collections/:id/share ─────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 
 import { PRINTING_1, PRINTING_2 } from "../../test/fixtures/constants.js";
 import { createTestContext, req } from "../../test/integration-context.js";
@@ -18,7 +18,7 @@ const ctx = createTestContext("a0000000-0003-4000-a000-000000000001");
 
 describe.skipIf(!ctx)("Copies routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
-  const { app } = ctx!;
+  const { app, db, userId } = ctx!;
 
   let collectionId: string;
   let secondCollectionId: string;
@@ -52,11 +52,20 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       );
       expect(res.status).toBe(201);
 
-      const json = (await res.json()) as { id: string; printingId: string; collectionId: string }[];
+      const json = (await res.json()) as {
+        id: string;
+        printingId: string;
+        collectionId: string;
+        groupId: string | null;
+      }[];
       expect(json).toHaveLength(3);
       expect(json[0].id).toBeTypeOf("string");
       expect(json[0].printingId).toBe(PRINTING_1.id);
       expect(json[0].collectionId).toBe(collectionId);
+      // The 201 body now carries the full CopyResponse shape including groupId,
+      // which is null for a personal collection.
+      expect(json[0]).toHaveProperty("groupId");
+      expect(json.every((copy) => copy.groupId === null)).toBe(true);
       copyIds = json.map((c) => c.id);
     });
 
@@ -69,6 +78,70 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       const json = (await res.json()) as { collectionId: string }[];
       // Should go to inbox, which is different from our test collection
       expect(json[0].collectionId).not.toBe(collectionId);
+    });
+
+    // ── groupId derivation for group-owned collections ─────────────────────
+    // A copy added to a group-owned collection must come back with groupId set
+    // to the owning group (the field the web used to synthesize client-side).
+
+    describe("groupId for a group-owned collection", () => {
+      let groupId: string;
+      let groupCollectionId: string;
+      const groupCopyIds: string[] = [];
+
+      afterAll(async () => {
+        if (groupCopyIds.length > 0) {
+          await db.deleteFrom("copies").where("id", "in", groupCopyIds).execute();
+        }
+        if (groupCollectionId) {
+          await db.deleteFrom("collections").where("id", "=", groupCollectionId).execute();
+        }
+        if (groupId) {
+          // friend_group_members cascades on group delete.
+          await db.deleteFrom("friendGroups").where("id", "=", groupId).execute();
+        }
+      });
+
+      it("returns the owning groupId for copies added to a group collection", async () => {
+        // Slug must match ^[a-z0-9][a-z0-9-]{2,29}$ and be unique per run.
+        const group = await db
+          .insertInto("friendGroups")
+          .values({ slug: `rt-grp-${Date.now()}`, name: "Route Copy Group" })
+          .returningAll()
+          .executeTakeFirstOrThrow();
+        groupId = group.id;
+
+        // The acting user must be a member so the collection is writable.
+        await db
+          .insertInto("friendGroupMembers")
+          .values({ groupId, userId, role: "member" })
+          .execute();
+
+        // A group-owned collection (user_id NULL, group_id set).
+        const pooled = await db
+          .insertInto("collections")
+          .values({ groupId, name: "Pooled Box", isInbox: false, sortOrder: 0 })
+          .returningAll()
+          .executeTakeFirstOrThrow();
+        groupCollectionId = pooled.id;
+
+        const res = await app.fetch(
+          req("POST", "/copies", {
+            copies: [{ printingId: PRINTING_1.id, collectionId: pooled.id }],
+          }),
+        );
+        expect(res.status).toBe(201);
+
+        const json = (await res.json()) as {
+          id: string;
+          collectionId: string;
+          groupId: string | null;
+        }[];
+        expect(json).toHaveLength(1);
+        expect(json[0].collectionId).toBe(pooled.id);
+        expect(json[0].groupId).toBe(groupId);
+        groupCopyIds.push(json[0].id);
+      });
     });
 
     it("rejects with empty copies array", async () => {

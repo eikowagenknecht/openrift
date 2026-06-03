@@ -146,6 +146,7 @@ export type {
   CollectionListResponse,
   CollectionResponse,
   CollectionShareResponse,
+  CopyAddResponse,
   CopyCollectionBreakdownEntry,
   CopyListResponse,
   CopyResponse,

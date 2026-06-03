@@ -111,7 +111,11 @@ export interface PublicListDetailResponse {
 }
 
 export interface ListShareResponse {
-  shareToken: string;
+  /**
+   * Null only for an owned-but-unshared list reported by GET
+   * /lists/{id}/share. Share / rotate always return a non-null token.
+   */
+  shareToken: string | null;
   isPublic: boolean;
 }
 

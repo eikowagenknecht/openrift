@@ -24,7 +24,7 @@ function createMockRepos(overrides: {
     printingId: string;
     collectionId: string;
   }[];
-  collections?: { id: string; name: string }[];
+  collections?: { id: string; name: string; groupId?: string | null }[];
   targetCollection?: { id: string; name: string } | undefined;
   fetchedCopies?: {
     id: string;
@@ -47,6 +47,14 @@ function createMockRepos(overrides: {
         return Promise.resolve(ids.filter((id) => writable.has(id)));
       },
       listIdAndNameByIds: () => Promise.resolve(overrides.collections ?? []),
+      listIdNameGroupByIds: () =>
+        Promise.resolve(
+          (overrides.collections ?? []).map((col) => ({
+            id: col.id,
+            name: col.name,
+            groupId: col.groupId ?? null,
+          })),
+        ),
     },
     copies: {
       insertBatch: () => Promise.resolve(overrides.insertedCopies ?? []),
@@ -79,6 +87,23 @@ describe("addCopies", () => {
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("copy-1");
     expect(result[0].collectionId).toBe("inbox-id");
+    // Personal collection (inbox) → groupId null
+    expect(result[0].groupId).toBeNull();
+  });
+
+  it("populates groupId from a group-owned collection", async () => {
+    const repos = createMockRepos({
+      writableCollections: ["group-col"],
+      insertedCopies: [{ id: "copy-1", printingId: "p-1", collectionId: "group-col" }],
+      collections: [{ id: "group-col", name: "Shared", groupId: "grp-9" }],
+    });
+    const transact = mockTransact(repos);
+
+    const result = await addCopies(repos, transact, "user-1", [
+      { printingId: "p-1", collectionId: "group-col" },
+    ]);
+
+    expect(result[0].groupId).toBe("grp-9");
   });
 
   it("validates that explicit collections belong to the user", async () => {

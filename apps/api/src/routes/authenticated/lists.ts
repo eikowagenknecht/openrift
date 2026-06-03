@@ -5,6 +5,7 @@ import type {
   ListDetailResponse,
   ListKind,
   ListListResponse,
+  ListShareResponse,
 } from "@openrift/shared";
 import {
   listBulkAddResponseSchema,
@@ -196,6 +197,19 @@ const deleteListEntry = createRoute({
   },
 });
 
+const getShareState = createRoute({
+  method: "get",
+  path: "/{id}/share",
+  tags: ["Lists"],
+  request: { params: idParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: listShareResponseSchema } },
+      description: "Current share state (shareToken null + isPublic false if unshared)",
+    },
+  },
+});
+
 const shareList = createRoute({
   method: "post",
   path: "/{id}/share",
@@ -204,7 +218,20 @@ const shareList = createRoute({
   responses: {
     200: {
       content: { "application/json": { schema: listShareResponseSchema } },
-      description: "Shared",
+      description: "Shared (idempotent — returns the existing token if already shared)",
+    },
+  },
+});
+
+const rotateShareList = createRoute({
+  method: "post",
+  path: "/{id}/share/rotate",
+  tags: ["Lists"],
+  request: { params: idParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: listShareResponseSchema } },
+      description: "Share token rotated (old token stops resolving)",
     },
   },
 });
@@ -517,9 +544,49 @@ export const listsRoute = listsApp
     return c.body(null, 204);
   })
 
+  // ── GET /lists/:id/share ──────────────────────────────────────────────────
+  // Owner-only. Reports the current share state. An owned-but-unshared list
+  // resolves to { shareToken: null, isPublic: false } rather than 404 — 404 is
+  // reserved for lists the caller doesn't own.
+  .openapi(getShareState, async (c) => {
+    const { lists } = c.get("repos");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+
+    const state = await lists.getShareState(id, userId);
+    assertFound(state, "Not found");
+
+    return c.json(state satisfies ListShareResponse);
+  })
+
   // ── POST /lists/:id/share ─────────────────────────────────────────────────
-  // Generates (or rotates) the share token and sets is_public=true.
+  // Idempotent enable: if the list already has a token, return the existing
+  // share state unchanged (no token churn). Otherwise mint a token and flip
+  // is_public=true. Token rotation lives in the dedicated /share/rotate route.
   .openapi(shareList, async (c) => {
+    const { lists } = c.get("repos");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+
+    const current = await lists.getShareState(id, userId);
+    assertFound(current, "Not found");
+    if (current.shareToken !== null) {
+      return c.json(current satisfies ListShareResponse);
+    }
+
+    const token = generateShareToken();
+    const updated = await lists.setShareToken(id, userId, token, true);
+    assertFound(updated, "Not found");
+
+    return c.json({ shareToken: token, isPublic: true } satisfies ListShareResponse);
+  })
+
+  // ── POST /lists/:id/share/rotate ──────────────────────────────────────────
+  // Owner-only. Mints a NEW token (the previous URL stops resolving) and
+  // ensures is_public=true. Treats rotate-while-unshared as "share now" rather
+  // than 409 — setShareToken supports it cleanly, so a client that rotates
+  // before sharing just ends up shared, matching the bundle-share precedent.
+  .openapi(rotateShareList, async (c) => {
     const { lists } = c.get("repos");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
@@ -528,7 +595,7 @@ export const listsRoute = listsApp
     const updated = await lists.setShareToken(id, userId, token, true);
     assertFound(updated, "Not found");
 
-    return c.json({ shareToken: token, isPublic: true });
+    return c.json({ shareToken: token, isPublic: true } satisfies ListShareResponse);
   })
 
   // ── DELETE /lists/:id/share ───────────────────────────────────────────────

@@ -473,5 +473,98 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       const after = await app.fetch(req("GET", `/lists/share/${shareBody.shareToken}`));
       expect(after.status).toBe(404);
     });
+
+    it("re-sharing an already-shared list is idempotent (same token, no churn)", async () => {
+      const id = await createList("Idempotent share", "organize", "card");
+
+      const first = await app.fetch(req("POST", `/lists/${id}/share`));
+      expect(first.status).toBe(200);
+      const firstBody = (await first.json()) as { shareToken: string; isPublic: boolean };
+      expect(firstBody.shareToken.length).toBeGreaterThan(0);
+      expect(firstBody.isPublic).toBe(true);
+
+      const second = await app.fetch(req("POST", `/lists/${id}/share`));
+      expect(second.status).toBe(200);
+      const secondBody = (await second.json()) as { shareToken: string; isPublic: boolean };
+      // Same token returned — POST /share must not rotate.
+      expect(secondBody.shareToken).toBe(firstBody.shareToken);
+      expect(secondBody.isPublic).toBe(true);
+
+      // The original token still resolves after the second share call.
+      const publicRes = await app.fetch(req("GET", `/lists/share/${firstBody.shareToken}`));
+      expect(publicRes.status).toBe(200);
+    });
+
+    it("GET /share reflects unshared then shared state for an owned list", async () => {
+      const id = await createList("Share state", "organize", "card");
+
+      // Owned but unshared → token null, not a 404.
+      const unshared = await app.fetch(req("GET", `/lists/${id}/share`));
+      expect(unshared.status).toBe(200);
+      const unsharedBody = (await unshared.json()) as {
+        shareToken: string | null;
+        isPublic: boolean;
+      };
+      expect(unsharedBody.shareToken).toBeNull();
+      expect(unsharedBody.isPublic).toBe(false);
+
+      const shareRes = await app.fetch(req("POST", `/lists/${id}/share`));
+      const shareBody = (await shareRes.json()) as { shareToken: string };
+
+      const shared = await app.fetch(req("GET", `/lists/${id}/share`));
+      expect(shared.status).toBe(200);
+      const sharedBody = (await shared.json()) as { shareToken: string; isPublic: boolean };
+      expect(sharedBody.shareToken).toBe(shareBody.shareToken);
+      expect(sharedBody.isPublic).toBe(true);
+    });
+
+    it("GET /share 404s for a list the caller doesn't own", async () => {
+      // A random list id that doesn't belong to USER_ID.
+      const res = await app.fetch(req("GET", `/lists/${USER_ID}/share`));
+      expect(res.status).toBe(404);
+    });
+
+    it("rotate mints a new token; the old token stops resolving", async () => {
+      const id = await createList("Rotatable", "organize", "card");
+
+      const shareRes = await app.fetch(req("POST", `/lists/${id}/share`));
+      const shareBody = (await shareRes.json()) as { shareToken: string };
+      const oldToken = shareBody.shareToken;
+
+      // The old token resolves before rotation.
+      const before = await app.fetch(req("GET", `/lists/share/${oldToken}`));
+      expect(before.status).toBe(200);
+
+      const rotateRes = await app.fetch(req("POST", `/lists/${id}/share/rotate`));
+      expect(rotateRes.status).toBe(200);
+      const rotateBody = (await rotateRes.json()) as { shareToken: string; isPublic: boolean };
+      expect(rotateBody.shareToken.length).toBeGreaterThan(0);
+      expect(rotateBody.shareToken).not.toBe(oldToken);
+      expect(rotateBody.isPublic).toBe(true);
+
+      // Old token stops resolving; the new token resolves.
+      const oldAfter = await app.fetch(req("GET", `/lists/share/${oldToken}`));
+      expect(oldAfter.status).toBe(404);
+      const newAfter = await app.fetch(req("GET", `/lists/share/${rotateBody.shareToken}`));
+      expect(newAfter.status).toBe(200);
+
+      // GET /share now reflects the rotated token.
+      const state = await app.fetch(req("GET", `/lists/${id}/share`));
+      const stateBody = (await state.json()) as { shareToken: string };
+      expect(stateBody.shareToken).toBe(rotateBody.shareToken);
+    });
+
+    it("rotate on an unshared list shares it (mints a token)", async () => {
+      const id = await createList("Rotate-then-share", "organize", "card");
+
+      const rotateRes = await app.fetch(req("POST", `/lists/${id}/share/rotate`));
+      expect(rotateRes.status).toBe(200);
+      const rotateBody = (await rotateRes.json()) as { shareToken: string; isPublic: boolean };
+      expect(rotateBody.shareToken.length).toBeGreaterThan(0);
+      expect(rotateBody.isPublic).toBe(true);
+
+      const publicRes = await app.fetch(req("GET", `/lists/share/${rotateBody.shareToken}`));
+      expect(publicRes.status).toBe(200);
+    });
   });
 });

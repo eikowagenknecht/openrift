@@ -247,6 +247,25 @@ export function listsRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Reads the current share state (token + public flag) for a list the user
+     * owns. Used by GET /lists/{id}/share and the idempotent POST /share, which
+     * must distinguish "not owned" (→ 404) from "owned but unshared" (→ token
+     * null). Returns `undefined` only when the list isn't owned by the user.
+     * @returns `{ shareToken, isPublic }` for an owned list, else `undefined`.
+     */
+    getShareState(
+      id: string,
+      userId: string,
+    ): Promise<{ shareToken: string | null; isPublic: boolean } | undefined> {
+      return db
+        .selectFrom("lists")
+        .select(["shareToken", "isPublic"])
+        .where("id", "=", id)
+        .where("userId", "=", userId)
+        .executeTakeFirst();
+    },
+
+    /**
      * Sets (or nulls) the share_token and is_public flag. Mirrors the deck
      * pattern: `is_public=true` with a token means "shareable by link"; both
      * null + false means private.
