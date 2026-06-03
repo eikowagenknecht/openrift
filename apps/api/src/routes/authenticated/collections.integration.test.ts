@@ -1,5 +1,5 @@
 import type { CollectionResponse, CollectionShareResponse } from "@openrift/shared";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import { PRINTING_1, PRINTING_2 } from "../../test/fixtures/constants.js";
 import { createTestContext, req } from "../../test/integration-context.js";
@@ -10,7 +10,9 @@ import { createTestContext, req } from "../../test/integration-context.js";
 // Uses the shared integration database. Only auth is mocked.
 // ---------------------------------------------------------------------------
 
-const ctx = createTestContext("a0000000-0002-4000-a000-000000000001");
+const USER_ID = "a0000000-0002-4000-a000-000000000001";
+
+const ctx = createTestContext(USER_ID);
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -18,12 +20,24 @@ const ctx = createTestContext("a0000000-0002-4000-a000-000000000001");
 
 describe.skipIf(!ctx)("Collections routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
-  const { app } = ctx!;
+  const { app, db } = ctx!;
 
   // Track IDs created during tests
   let collectionId: string;
   let secondCollectionId: string;
   let inboxId: string;
+
+  beforeAll(async () => {
+    // In production the inbox collection is created by the signup hook
+    // (auth.ts → collections.ensureInbox). Integration users are inserted
+    // directly into the users table, bypassing that hook, so seed the inbox
+    // here to mirror a real account. GET /collections does not auto-create it.
+    await db
+      .insertInto("collections")
+      .values({ userId: USER_ID, groupId: null, name: "Inbox", isInbox: true, sortOrder: 0 })
+      .onConflict((oc) => oc.doNothing())
+      .execute();
+  });
 
   // ── POST /collections ─────────────────────────────────────────────────────
 
@@ -38,7 +52,9 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       expect(json.description).toBeNull();
       expect(json.isInbox).toBe(false);
       expect(json.availableForDeckbuilding).toBe(true);
-      expect(json.sortOrder).toBe(0);
+      // sortOrder is assigned as max(existing)+1; with the seeded inbox at 0
+      // the exact value depends on baseline, so just assert the shape.
+      expect(json.sortOrder).toBeTypeOf("number");
       expect(json.createdAt).toBeTypeOf("string");
       expect(json.updatedAt).toBeTypeOf("string");
       collectionId = json.id;
@@ -85,7 +101,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
   // ── GET /collections ──────────────────────────────────────────────────────
 
   describe("GET /collections", () => {
-    it("auto-creates an inbox on first list", async () => {
+    it("includes the user's inbox collection", async () => {
       const res = await app.fetch(req("GET", "/collections"));
       expect(res.status).toBe(200);
 
@@ -102,7 +118,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
 
       const json = (await res.json()) as { items: CollectionResponse[] };
       expect(Array.isArray(json.items)).toBe(true);
-      // 3 created + 1 auto-inbox = 4
+      // 3 created above + the seeded inbox = 4
       expect(json.items.length).toBeGreaterThanOrEqual(4);
     });
 
@@ -111,10 +127,11 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const json = (await res.json()) as { items: CollectionResponse[] };
       // Inbox should always come first
       expect(json.items[0].isInbox).toBe(true);
-      // The rest should be sorted by sortOrder then name
-      const rest = json.items.slice(1).map((c) => c.name);
-      const sorted = rest.toSorted((a, b) => a.localeCompare(b));
-      expect(rest).toEqual(sorted);
+      // Personal collections are ordered by sortOrder (then name as a tiebreak),
+      // not by name alone — verify the rest are in ascending sortOrder.
+      const rest = json.items.slice(1);
+      const bySortOrder = rest.toSorted((a, b) => a.sortOrder - b.sortOrder);
+      expect(rest).toEqual(bySortOrder);
     });
   });
 
@@ -210,7 +227,8 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
   describe("DELETE /collections/:id", () => {
     it("rejects deleting the inbox collection", async () => {
       const res = await app.fetch(req("DELETE", `/collections/${inboxId}`));
-      expect(res.status).toBe(400);
+      // The route guards the inbox with 409 Conflict ("Cannot delete inbox").
+      expect(res.status).toBe(409);
     });
 
     it("deletes a collection and auto-moves its copies to inbox", async () => {

@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import {
   CARD_FURY_UNIT,
@@ -43,7 +43,13 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     if (createdCollectionIds.length > 0) {
       await db.deleteFrom("collections").where("id", "in", createdCollectionIds).execute();
     }
-    // Restore users we deleted mid-test so other test files can use them.
+  });
+
+  // Restore any users a test deleted (cascade scenarios) BEFORE the next test —
+  // otherwise later tests that reference VIEWER_ID/OUTSIDER_ID hit the
+  // friend_group_members_user_id FK. (Deleting in afterAll left them gone for
+  // the rest of the suite.)
+  afterEach(async () => {
     for (const userId of recreatedUserIds) {
       await db
         .insertInto("users")
@@ -57,6 +63,7 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
         .onConflict((oc) => oc.column("id").doNothing())
         .execute();
     }
+    recreatedUserIds.length = 0;
   });
 
   beforeAll(async () => {

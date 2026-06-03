@@ -1,3 +1,4 @@
+import { sql } from "kysely";
 import { describe, expect, it } from "vitest";
 
 import { createTestContext, req } from "../../test/integration-context.js";
@@ -203,7 +204,9 @@ if (ctx) {
     .values({
       marketplace: "cardtrader",
       externalId: 90_003,
-      groupId: null,
+      // group_id is NOT NULL with an FK to marketplace_groups(marketplace,
+      // group_id); 4166 is the seeded cardtrader "Origins" group.
+      groupId: 4166,
       productName: "PRC Price Card Normal",
       finish: "normal",
       language: "EN",
@@ -240,6 +243,11 @@ if (ctx) {
       },
     ])
     .execute();
+
+  // GET /prices reads headline prices from the mv_latest_printing_prices
+  // materialized view. The runner refreshes it during setup, before this
+  // file seeds its prices at import time — so refresh again to surface them.
+  await sql`REFRESH MATERIALIZED VIEW mv_latest_printing_prices`.execute(db);
 }
 
 // ---------------------------------------------------------------------------
@@ -262,15 +270,19 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       expect(typeof json.prices).toBe("object");
     });
 
-    it("includes the seeded printing with prices for both marketplaces", async () => {
+    it("includes the seeded printing with a headline price per marketplace", async () => {
       const res = await app.fetch(req("GET", "/prices"));
       const json = await res.json();
 
-      // tcgplayer headline = market_cents = 250 -> $2.50
-      // cardmarket headline = market_cents = 180 -> $1.80
+      // mv_latest_printing_prices picks the headline per marketplace:
+      //   tcgplayer  → COALESCE(market_cents, low_cents) = 250 → $2.50
+      //   cardmarket → COALESCE(low_cents, market_cents) = 100 → $1.00
+      //   cardtrader → COALESCE(zero_low_cents, low_cents) = 420 → $4.20
+      //     (latest row prefers the one with a zero-eligible low: 2 days ago)
       expect(json.prices[printingId]).toEqual({
         tcgplayer: 2.5,
-        cardmarket: 1.8,
+        cardmarket: 1,
+        cardtrader: 4.2,
       });
     });
 

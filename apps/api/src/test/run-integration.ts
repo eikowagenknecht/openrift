@@ -8,7 +8,7 @@
  * Usage: bun --env-file=../../.env run src/test/run-integration.ts
  */
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import postgres from "postgres";
@@ -94,21 +94,44 @@ const TEST_USERS: TestUser[] = [
   { id: "a0000000-0051-4000-a000-000000000001", email: "repo-0051@test.com", isAdmin: false },
   { id: "a0000000-0052-4000-a000-000000000001", email: "repo-0052@test.com", isAdmin: false },
   { id: "a0000000-0053-4000-a000-000000000001", email: "repo-0053@test.com", isAdmin: false },
+  // Second user for the deck-clone route test ("clone as another user").
+  { id: "a0000000-0008-4000-a000-000000000002", email: "user-0008b@test.com", isAdmin: false },
 ];
 
 // ---------------------------------------------------------------------------
 // Test file groups
 // ---------------------------------------------------------------------------
 
-/** Files that can all run in a single parallel bun test invocation */
+/**
+ * Files that can all run in a single parallel bun test invocation.
+ *
+ * This list is kept in sync with the actual integration test files — `bun test`
+ * silently ignores file args that don't exist, so a stale/mistyped path means a
+ * test file is dropped from the run without any error. Earlier these had drifted
+ * (route tests live under routes/authenticated/, several files moved to
+ * routes/public/, and a few listed files had been deleted), which silently
+ * dropped ~124 tests. If you add/move/delete an integration test file, update
+ * this list (it must equal every src/**\/*.integration.test.ts except the
+ * migrations file, which runs separately below).
+ */
 const PARALLEL_FILES = [
+  "src/auth-rate-limit.integration.test.ts",
   "src/authorization.integration.test.ts",
-  "src/routes/collections.integration.test.ts",
-  "src/routes/copies.integration.test.ts",
-  "src/routes/collection-events.integration.test.ts",
-  "src/routes/lists.integration.test.ts",
-  "src/routes/decks.integration.test.ts",
-  "src/routes/sources.integration.test.ts",
+  // Authenticated routes
+  "src/routes/authenticated/collections.integration.test.ts",
+  "src/routes/authenticated/copies.integration.test.ts",
+  "src/routes/authenticated/collection-events.integration.test.ts",
+  "src/routes/authenticated/lists.integration.test.ts",
+  "src/routes/authenticated/decks.integration.test.ts",
+  "src/routes/authenticated/preferences.integration.test.ts",
+  // Public routes
+  "src/routes/public/health.integration.test.ts",
+  "src/routes/public/init.integration.test.ts",
+  "src/routes/public/site-settings.integration.test.ts",
+  "src/routes/public/prices.integration.test.ts",
+  "src/routes/public/catalog.integration.test.ts",
+  "src/routes/public/landing-summary.integration.test.ts",
+  // Admin routes
   "src/routes/admin/admin-core.integration.test.ts",
   "src/routes/admin/catalog.integration.test.ts",
   "src/routes/admin/marketplace-groups.integration.test.ts",
@@ -116,56 +139,45 @@ const PARALLEL_FILES = [
   "src/routes/admin/unified-mappings.integration.test.ts",
   "src/routes/admin/ignored-products.integration.test.ts",
   "src/routes/admin/feature-flags.integration.test.ts",
+  "src/routes/admin/ignored-candidates.integration.test.ts",
+  "src/routes/admin/operations.integration.test.ts",
+  "src/routes/admin/images.integration.test.ts",
+  "src/routes/admin/provider-settings.integration.test.ts",
+  "src/routes/admin/site-settings.integration.test.ts",
+  "src/routes/admin/rules.integration.test.ts",
   "src/routes/admin/cards/queries.integration.test.ts",
   "src/routes/admin/cards/mutations.integration.test.ts",
+  "src/routes/admin/cards/images.integration.test.ts",
+  // Services
   "src/services/price-refresh/upsert.integration.test.ts",
   "src/services/ingest-candidates.integration.test.ts",
   "src/services/printing-admin.integration.test.ts",
-  "src/routes/prices.integration.test.ts",
-  "src/routes/catalog.integration.test.ts",
-  "src/routes/admin/operations.integration.test.ts",
-  "src/routes/admin/images.integration.test.ts",
-  "src/routes/admin/cards/images.integration.test.ts",
-  // Repository integration tests
+  // Repositories
+  "src/repositories/admins.integration.test.ts",
+  "src/repositories/candidate-cards.integration.test.ts",
+  "src/repositories/catalog.integration.test.ts",
   "src/repositories/collection-events.integration.test.ts",
   "src/repositories/collections.integration.test.ts",
   "src/repositories/copies.integration.test.ts",
   "src/repositories/decks.integration.test.ts",
-  "src/repositories/sources.integration.test.ts",
-  "src/repositories/marketplace.integration.test.ts",
   "src/repositories/feature-flags.integration.test.ts",
-  "src/repositories/lists.integration.test.ts",
-  // Batch 2 — repo coverage tests
-  "src/repositories/site-settings.integration.test.ts",
-  "src/repositories/provider-settings.integration.test.ts",
-  "src/repositories/promo-types.integration.test.ts",
-  "src/repositories/user-preferences.integration.test.ts",
-  "src/repositories/admins.integration.test.ts",
-  "src/repositories/ignored-candidates.integration.test.ts",
+  "src/repositories/friend-groups.integration.test.ts",
   "src/repositories/health.integration.test.ts",
+  "src/repositories/ignored-candidates.integration.test.ts",
   "src/repositories/job-runs.integration.test.ts",
-  "src/repositories/catalog.integration.test.ts",
-  "src/repositories/sets.integration.test.ts",
   "src/repositories/keywords.integration.test.ts",
-  // Route integration tests — public + authenticated coverage
-  "src/routes/public/health.integration.test.ts",
-  "src/routes/public/init.integration.test.ts",
-  "src/routes/public/site-settings.integration.test.ts",
-  "src/routes/authenticated/preferences.integration.test.ts",
-  // Batch 3 — admin route integration tests
-  "src/routes/admin/promo-types.integration.test.ts",
-  "src/routes/admin/provider-settings.integration.test.ts",
-  "src/routes/admin/site-settings.integration.test.ts",
-  "src/routes/admin/ignored-candidates.integration.test.ts",
-  "src/routes/admin/rules.integration.test.ts",
-  // Rules repository
-  "src/repositories/rules.integration.test.ts",
-  // Batch 4 — additional repo coverage
-  "src/repositories/printing-images.integration.test.ts",
-  "src/repositories/price-refresh.integration.test.ts",
-  "src/repositories/marketplace-transfer.integration.test.ts",
-  "src/repositories/candidate-cards.integration.test.ts",
+  "src/repositories/lists.integration.test.ts",
   "src/repositories/marketplace-admin.integration.test.ts",
+  "src/repositories/marketplace-mapping.integration.test.ts",
+  "src/repositories/marketplace.integration.test.ts",
+  "src/repositories/price-refresh.integration.test.ts",
+  "src/repositories/printing-images.integration.test.ts",
+  "src/repositories/provider-settings.integration.test.ts",
+  "src/repositories/rules.integration.test.ts",
+  "src/repositories/sets.integration.test.ts",
+  "src/repositories/site-settings.integration.test.ts",
+  "src/repositories/user-preferences.integration.test.ts",
+  "src/repositories/user-shares.integration.test.ts",
 ];
 
 /** Files that formerly used mock.module() — now empty since services are injected via context */
@@ -182,6 +194,23 @@ const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
   console.log("DATABASE_URL not set — skipping integration tests");
   process.exit(0);
+}
+
+// Fail loudly if any listed test file is missing. bun test silently ignores
+// non-existent file args, so without this a mistyped/stale path drops a whole
+// test file from the run with no error (this is how ~124 tests went dark).
+{
+  const repoRoot = resolve(import.meta.dirname!, "../..");
+  const missing = [...PARALLEL_FILES, ...MOCK_MODULE_FILES, MIGRATIONS_FILE].filter(
+    (file) => !existsSync(resolve(repoRoot, file)),
+  );
+  if (missing.length > 0) {
+    console.error(
+      `Integration runner: ${missing.length} listed test file(s) do not exist:\n  ${missing.join("\n  ")}\n` +
+        "Update PARALLEL_FILES in run-integration.ts to match the real files.",
+    );
+    process.exit(1);
+  }
 }
 
 const coverageArgs = process.env.COVERAGE
@@ -271,12 +300,23 @@ try {
     }
   }
 
-  // Batch 3: migrations test (own temp DB, uses DATABASE_URL directly)
+  // Batch 3: migrations test (own temp DB, uses DATABASE_URL directly).
+  // Needs a longer timeout than bun's 5s default: setupTestDb applies all ~100
+  // migrations in beforeAll, and the up/down cycle rolls every one back and
+  // re-applies — comfortably over 5s under DB contention from the parallel batch.
   console.log(`\nRunning ${MIGRATIONS_FILE} (own temp DB)...`);
   const migrationsCoverageDir =
     coverageArgs.length > 0 ? ["--coverage-dir=./coverage/integration-migrations"] : [];
   const migrationsResult = Bun.spawnSync(
-    ["bun", "test", ...coverageArgs, ...migrationsCoverageDir, MIGRATIONS_FILE],
+    [
+      "bun",
+      "test",
+      "--timeout",
+      "60000",
+      ...coverageArgs,
+      ...migrationsCoverageDir,
+      MIGRATIONS_FILE,
+    ],
     {
       cwd: resolve(import.meta.dirname!, "../.."),
       env: { ...process.env },

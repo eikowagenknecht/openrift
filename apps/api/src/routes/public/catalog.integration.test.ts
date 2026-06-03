@@ -18,24 +18,51 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
 
   let productId = "";
 
+  // A dedicated printing + active rehosted image, used only by the "images
+  // array" assertion. The seed printings all have images too, but sibling
+  // tests (printing-images / candidate-cards repos) deactivate and reactivate
+  // them mid-run, so asserting against a seed printing is racy. This printing
+  // is created here and touched by nobody else.
+  let imagePrintingId = "";
   let imageFileId = "";
 
   beforeAll(async () => {
-    const inserted = await db
-      .insertInto("imageFiles")
-      .values({ originalUrl: "https://example.com/cat-test-front.png" })
+    const [imagePrinting] = await db
+      .insertInto("printings")
+      .values({
+        cardId: CARD_FURY_UNIT.id,
+        setId: SEED_SET_ID,
+        shortCode: "CAT-IMG-001",
+        rarity: "common",
+        artVariant: "normal",
+        isSigned: false,
+        finish: "normal",
+        artist: "Catalog Image Test",
+        publicCode: "CAT",
+        printedRulesText: null,
+        printedEffectText: null,
+        flavorText: null,
+        comment: null,
+      })
       .returning("id")
-      .executeTakeFirstOrThrow();
-    imageFileId = inserted.id;
+      .execute();
+    imagePrintingId = imagePrinting.id;
+
+    // rehosted_url must be non-null — the public catalog only surfaces rehosted
+    // images (see imageId() in query-helpers).
+    const [imageFile] = await db
+      .insertInto("imageFiles")
+      .values({
+        originalUrl: "https://example.com/cat-img-front.png",
+        rehostedUrl: "/media/cat-img/cat-img-front.png",
+      })
+      .returning("id")
+      .execute();
+    imageFileId = imageFile.id;
 
     await db
       .insertInto("printingImages")
-      .values({
-        printingId: SEED_PRINTING_ID,
-        face: "front",
-        imageFileId,
-        isActive: true,
-      })
+      .values({ printingId: imagePrintingId, face: "front", imageFileId, isActive: true })
       .execute();
 
     // Seed data has a tcgplayer variant for this printing; look up its
@@ -118,6 +145,9 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       await db.deleteFrom("printingImages").where("imageFileId", "=", imageFileId).execute();
       await db.deleteFrom("imageFiles").where("id", "=", imageFileId).execute();
     }
+    if (imagePrintingId) {
+      await db.deleteFrom("printings").where("id", "=", imagePrintingId).execute();
+    }
     if (productId) {
       await db
         .deleteFrom("marketplaceProductPrices")
@@ -191,9 +221,13 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       const res = await app.fetch(req("GET", "/catalog"));
       const json = await res.json();
 
-      const printing = json.printings[SEED_PRINTING_ID];
+      // Assert against the dedicated printing seeded in beforeAll (isolated from
+      // sibling tests that toggle the seed printings' images mid-run).
+      const printing = json.printings[imagePrintingId];
+      expect(printing).toBeDefined();
       expect(Array.isArray(printing.images)).toBe(true);
-      expect(printing.images.length).toBeGreaterThanOrEqual(1);
+      expect(printing.images.length).toBeGreaterThan(0);
+      expect(printing.images[0].face).toBe("front");
     });
 
     it("returns Cache-Control header", async () => {

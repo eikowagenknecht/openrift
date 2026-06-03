@@ -19,9 +19,16 @@ afterAll(async () => {
   if (!ctx) {
     return;
   }
-  // lists cascade list_entries; copies need explicit cleanup.
+  // lists cascade list_entries; copies need explicit cleanup. Copies have no
+  // user_id column — they belong to a user via their collection, so scope the
+  // delete to collections this user owns before removing the collections.
   await ctx.db.deleteFrom("lists").where("userId", "=", USER_ID).execute();
-  await ctx.db.deleteFrom("copies").where("userId", "=", USER_ID).execute();
+  await ctx.db
+    .deleteFrom("copies")
+    .where("collectionId", "in", (eb) =>
+      eb.selectFrom("collections").select("id").where("userId", "=", USER_ID),
+    )
+    .execute();
   await ctx.db.deleteFrom("collections").where("userId", "=", USER_ID).execute();
 });
 
@@ -375,8 +382,12 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
     });
 
     it("rejects moves to a different intent", async () => {
+      // Same kind (card), different intent (wish vs organize) — both are
+      // allowed intent/kind combos, but the move must be rejected because the
+      // intents differ. (trade+card is itself a disallowed combo, so it can't
+      // be used as the destination here.)
       const source = await createList("Intent source", "wish", "card");
-      const dest = await createList("Intent dest", "trade", "card");
+      const dest = await createList("Intent dest", "organize", "card");
       const createRes = await app.fetch(
         req("POST", `/lists/${source}/entries`, { cardId: CARD_FURY_UNIT.id }),
       );

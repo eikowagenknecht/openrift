@@ -94,9 +94,12 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       const res = await app.fetch(req("GET", "/decks?wanted=true"));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as { items: { isWanted: boolean }[] };
+      // The list item shape is { deck: { id, ... }, isValid, ... } — there is
+      // no top-level isWanted field, so verify the filter by identity: only the
+      // wanted deck created above comes back.
+      const json = (await res.json()) as { items: { deck: { id: string } }[] };
       expect(json.items.length).toBe(1);
-      expect(json.items[0].isWanted).toBe(true);
+      expect(json.items[0].deck.id).toBe(wantedDeckId);
     });
   });
 
@@ -172,21 +175,37 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       const res = await app.fetch(req("GET", `/decks/${deckId}`));
       const json = await res.json();
       expect(json.cards.length).toBe(2);
-      // Card rows should include card info
-      expect(json.cards[0].cardName).toBeTypeOf("string");
+      // Authenticated deck-card rows carry { cardId, zone, quantity,
+      // preferredPrintingId } — no denormalized cardName (that lives on the
+      // public deck-share shape).
+      expect(json.cards[0].cardId).toBeTypeOf("string");
       expect(json.cards[0].zone).toBe("main");
     });
 
-    it("rejects standard deck with fewer than 40 main cards", async () => {
+    // Deck-size rules are advisory, not enforced at save time: PUT /cards saves
+    // any composition (so work-in-progress decks persist) and the constructed
+    // deck-validation rules surface as the `isValid` flag on GET /decks.
+    async function isDeckValid(): Promise<boolean> {
+      const listRes = await app.fetch(req("GET", "/decks"));
+      const list = (await listRes.json()) as {
+        items: { deck: { id: string }; isValid: boolean }[];
+      };
+      const entry = list.items.find((item) => item.deck.id === deckId);
+      expect(entry).toBeDefined();
+      return (entry as NonNullable<typeof entry>).isValid;
+    }
+
+    it("saves a constructed deck with fewer than 40 main cards but reports it invalid", async () => {
       const res = await app.fetch(
         req("PUT", `/decks/${deckId}/cards`, {
           cards: [{ cardId: CARD_FURY_UNIT.id, zone: "main", quantity: 10 }],
         }),
       );
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(200);
+      expect(await isDeckValid()).toBe(false);
     });
 
-    it("rejects standard deck with more than 8 sideboard cards", async () => {
+    it("saves a constructed deck with more than 8 sideboard cards but reports it invalid", async () => {
       const res = await app.fetch(
         req("PUT", `/decks/${deckId}/cards`, {
           cards: [
@@ -195,7 +214,8 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
           ],
         }),
       );
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(200);
+      expect(await isDeckValid()).toBe(false);
     });
 
     it("replaces all cards on subsequent PUT", async () => {
