@@ -1,5 +1,7 @@
+import type { ErrorCode } from "@openrift/shared";
 import { context, propagation } from "@opentelemetry/api";
 
+import { ApiError } from "./api-error";
 import { API_URL } from "./api-url";
 
 interface FetchApiOptions {
@@ -19,12 +21,14 @@ interface FetchApiOptions {
 
 /**
  * Fetches the API with structured error reporting. On a non-2xx response
- * (that isn't listed in acceptStatuses), captures the body, logs it to the
- * server console, and throws an Error whose message carries both the toast
- * title (errorTitle) and the full diagnostic details, separated by "\n---\n".
- * The global mutation onError splits on that marker: the title goes to
- * Sonner, the details go to console.error.
- * @returns The Response for ok or accepted statuses; throws otherwise.
+ * (that isn't listed in acceptStatuses), it parses the standard
+ * `{ error, code, details }` envelope and throws an {@link ApiError} carrying
+ * the server's `error` message (so it can reach the user-facing toast), the
+ * `code`, and a `diagnostic` (method/url/status/body) for the console. Parsing
+ * is best-effort: a non-envelope body (HTML, better-auth, network error) falls
+ * back to `errorTitle` as the message. The ok / acceptStatuses path returns the
+ * Response untouched, before any parsing.
+ * @returns The Response for ok or accepted statuses; throws ApiError otherwise.
  */
 export async function fetchApi(options: FetchApiOptions): Promise<Response> {
   const {
@@ -54,11 +58,25 @@ export async function fetchApi(options: FetchApiOptions): Promise<Response> {
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!res.ok && !acceptStatuses?.includes(res.status)) {
-    const respBody = await res.text().catch(() => "<no body>");
-    console.error(`[${errorTitle}]`, { url, method, status: res.status, body: respBody });
-    throw new Error(
-      `${errorTitle}\n---\n${method} ${url} → ${res.status} ${res.statusText}\n${respBody}`,
-    );
+    const raw = await res.text().catch(() => "<no body>");
+    // Best-effort parse of the { error, code, details } envelope; the server's
+    // message wins the toast when present, else fall back to errorTitle.
+    let message = errorTitle;
+    let code: ErrorCode | undefined;
+    let details: unknown;
+    try {
+      const parsed = JSON.parse(raw) as { error?: unknown; code?: unknown; details?: unknown };
+      if (typeof parsed.error === "string") {
+        message = parsed.error;
+        code = typeof parsed.code === "string" ? (parsed.code as ErrorCode) : undefined;
+        details = parsed.details;
+      }
+    } catch {
+      // Non-JSON body (HTML error page, better-auth, network failure) — keep errorTitle.
+    }
+    const diagnostic = `${method} ${url} → ${res.status} ${res.statusText}\n${raw}`;
+    console.error(`[${errorTitle}]`, { url, method, status: res.status, body: raw });
+    throw new ApiError(message, { code, details, diagnostic });
   }
   return res;
 }

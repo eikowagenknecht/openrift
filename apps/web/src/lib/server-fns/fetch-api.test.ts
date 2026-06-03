@@ -8,6 +8,7 @@ import {
 } from "@opentelemetry/sdk-trace-base";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { isApiError } from "./api-error";
 import { fetchApi, fetchApiJson } from "./fetch-api";
 
 function mockResponse(
@@ -66,22 +67,52 @@ describe("fetchApi", () => {
     expect(init.body).toBe(JSON.stringify({ name: "A" }));
   });
 
-  it("throws a title/details structured error on !res.ok", async () => {
+  it("throws an ApiError with the server message + code on a JSON envelope", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      mockResponse('{"error":"Collection not found","code":"NOT_FOUND"}', {
+        ok: false,
+        status: 404,
+        statusText: "Not Found",
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const err = await fetchApi({
+      errorTitle: "Couldn't delete collection",
+      path: "/api/v1/collections/1",
+      method: "DELETE",
+    }).catch((error: unknown) => error);
+
+    if (!isApiError(err)) {
+      throw new Error("expected an ApiError");
+    }
+    expect(err.message).toBe("Collection not found"); // server message wins, not errorTitle
+    expect(err.code).toBe("NOT_FOUND");
+    // diagnostic carries the raw response body (the JSON envelope), for the console.
+    expect(err.diagnostic).toMatch(/DELETE .+ → 404 Not Found/u);
+    expect(err.diagnostic).toContain('"error":"Collection not found"');
+  });
+
+  it("falls back to errorTitle when the body is not a JSON envelope", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
-        mockResponse("Not found", { ok: false, status: 404, statusText: "Not Found" }),
+        mockResponse("<html>oops</html>", { ok: false, status: 500, statusText: "Server Error" }),
       );
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(
-      fetchApi({
-        errorTitle: "Couldn't delete collection",
-        path: "/api/v1/collections/1",
-        method: "DELETE",
-      }),
-    ).rejects.toThrow(/^Couldn't delete collection\n---\nDELETE .+ → 404 Not Found\nNot found$/u);
+    const err = await fetchApi({ errorTitle: "Couldn't do thing", path: "/api/v1/x" }).catch(
+      (error: unknown) => error,
+    );
+
+    if (!isApiError(err)) {
+      throw new Error("expected an ApiError");
+    }
+    expect(err.message).toBe("Couldn't do thing");
+    expect(err.code).toBeUndefined();
+    expect(err.diagnostic).toContain("<html>oops</html>");
   });
 
   it("logs the failure details to console.error on !res.ok", async () => {
@@ -131,16 +162,19 @@ describe("fetchApi", () => {
       );
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(
-      fetchApi({
-        errorTitle: "Couldn't check admin access",
-        path: "/api/v1/admin/me",
-        acceptStatuses: [401, 403],
-      }),
-    ).rejects.toThrow(/500 Server Error/u);
+    const err = await fetchApi({
+      errorTitle: "Couldn't check admin access",
+      path: "/api/v1/admin/me",
+      acceptStatuses: [401, 403],
+    }).catch((error: unknown) => error);
+
+    if (!isApiError(err)) {
+      throw new Error("expected an ApiError");
+    }
+    expect(err.diagnostic).toContain("500 Server Error");
   });
 
-  it("falls back to '<no body>' when the response body cannot be read", async () => {
+  it("uses '<no body>' in the diagnostic when the response body cannot be read", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const badResponse = {
       ok: false,
@@ -153,9 +187,15 @@ describe("fetchApi", () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(badResponse);
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(fetchApi({ errorTitle: "Couldn't load", path: "/api/v1/x" })).rejects.toThrow(
-      /<no body>$/u,
+    const err = await fetchApi({ errorTitle: "Couldn't load", path: "/api/v1/x" }).catch(
+      (error: unknown) => error,
     );
+
+    if (!isApiError(err)) {
+      throw new Error("expected an ApiError");
+    }
+    expect(err.message).toBe("Couldn't load");
+    expect(err.diagnostic).toContain("<no body>");
   });
 });
 

@@ -1,11 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-// Server-function errors thrown via fetchApi encode structured detail into
-// the error message: "<title>\n---\n<details>". Split here so the toast stays
-// short and the full diagnostic (URL, status, response body) lands in the
-// browser console — copyable from devtools.
-const ERROR_DETAILS_SEPARATOR = "\n---\n";
+import { isApiError } from "./server-fns/api-error";
 
 /**
  * Factory for QueryClient — called once per request on the server (to avoid
@@ -20,16 +16,17 @@ export function createQueryClient() {
       // on an action they triggered.
       mutations: {
         onError: (err) => {
-          const [title, ...rest] = err.message.split(ERROR_DETAILS_SEPARATOR);
-          if (rest.length > 0) {
-            console.error(
-              `[mutation error] ${title}\n\n${rest.join(ERROR_DETAILS_SEPARATOR)}`,
-              err,
-            );
+          // fetchApi throws an ApiError whose `message` is the server's error
+          // text (the user-facing toast) and whose `diagnostic` (method/url/
+          // status/body) is for the console only. isApiError is structural
+          // because the prototype is lost across the server-function boundary.
+          const diagnostic = isApiError(err) ? err.diagnostic : undefined;
+          if (diagnostic) {
+            console.error(`[mutation error] ${err.message}\n\n${diagnostic}`, err);
           } else {
             console.error(err);
           }
-          toast.error(title);
+          toast.error(err.message);
         },
       },
     },

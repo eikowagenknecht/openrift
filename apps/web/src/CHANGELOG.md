@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-06-03
+
+- fix: When an action can't be completed, the error message now explains the specific reason from the server (for example "Cannot delete the inbox collection") instead of a generic message
+
 ## 2026-06-01
 
 - feat: Each member can now choose, per shared group collection, whether its cards count toward their own deck building. Pick "Include in my deck building" from the collection's menu; group collections start excluded so they don't change your deck counts until you opt in
