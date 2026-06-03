@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -20,86 +21,87 @@ const checkCandidateCardFn = createServerFn({ method: "POST" })
   .inputValidator((input: { candidateCardId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't check candidate card",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/${encodeURIComponent(data.candidateCardId)}/check`,
-      method: "POST",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards[":candidateCardId"].check.$post({
+        param: encodeParams({ candidateCardId: data.candidateCardId }),
+      }),
+      "Couldn't check candidate card",
+    );
   });
 
 const uncheckCandidateCardFn = createServerFn({ method: "POST" })
   .inputValidator((input: { candidateCardId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't uncheck candidate card",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/${encodeURIComponent(data.candidateCardId)}/uncheck`,
-      method: "POST",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards[":candidateCardId"].uncheck.$post({
+        param: encodeParams({ candidateCardId: data.candidateCardId }),
+      }),
+      "Couldn't uncheck candidate card",
+    );
   });
 
 const checkAllCandidateCardsFn = createServerFn({ method: "POST" })
   .inputValidator((input: { cardId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't check all candidate cards",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/check-all`,
-      method: "POST",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards[":cardId"]["check-all"].$post({
+        param: encodeParams({ cardId: data.cardId }),
+      }),
+      "Couldn't check all candidate cards",
+    );
   });
 
 const checkCandidatePrintingFn = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't check candidate printing",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/candidate-printings/${encodeURIComponent(data.id)}/check`,
-      method: "POST",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards["candidate-printings"][":id"].check.$post({
+        param: encodeParams({ id: data.id }),
+      }),
+      "Couldn't check candidate printing",
+    );
   });
 
 const uncheckCandidatePrintingFn = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't uncheck candidate printing",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/candidate-printings/${encodeURIComponent(data.id)}/uncheck`,
-      method: "POST",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards["candidate-printings"][
+        ":id"
+      ].uncheck.$post({
+        param: encodeParams({ id: data.id }),
+      }),
+      "Couldn't uncheck candidate printing",
+    );
   });
 
 const checkAllCandidatePrintingsFn = createServerFn({ method: "POST" })
   .inputValidator((input: { printingId?: string; extraIds?: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't check all candidate printings",
-      cookie: context.cookie,
-      path: "/api/v1/admin/cards/candidate-printings/check-all",
-      method: "POST",
-      body: { printingId: data.printingId, extraIds: data.extraIds },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards["candidate-printings"]["check-all"].$post({
+        json: { printingId: data.printingId, extraIds: data.extraIds },
+      }),
+      "Couldn't check all candidate printings",
+    );
   });
 
 const renameCardFn = createServerFn({ method: "POST" })
   .inputValidator((input: { cardId: string; newId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't rename card",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/rename`,
-      method: "POST",
-      body: { newId: data.newId },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards[":cardId"].rename.$post({
+        param: encodeParams({ cardId: data.cardId }),
+        json: { newId: data.newId },
+      }),
+      "Couldn't rename card",
+    );
   });
 
 const acceptCardFieldFn = createServerFn({ method: "POST" })
@@ -107,6 +109,11 @@ const acceptCardFieldFn = createServerFn({ method: "POST" })
     (input: { cardId: string; field: string; value: unknown; source?: string }) => input,
   )
   .middleware([withCookies])
+  // TODO(sweep): keep on fetchApi — the inputValidator types `source` as `string`,
+  // but the route's `acceptFieldSchema` types it as `z.enum(["provider","manual"])`,
+  // so the hc-typed `json` arg rejects `string`. Resolve by narrowing the validator's
+  // `source` to the `"provider" | "manual"` union (or widening the route) before
+  // migrating to hc.
   .handler(async ({ context, data }) => {
     await fetchApi({
       errorTitle: "Couldn't accept card field",
@@ -122,6 +129,11 @@ const acceptPrintingFieldFn = createServerFn({ method: "POST" })
     (input: { printingId: string; field: string; value: unknown; source?: string }) => input,
   )
   .middleware([withCookies])
+  // TODO(sweep): keep on fetchApi — the inputValidator types `source` as `string`,
+  // but the route's `acceptFieldSchema` types it as `z.enum(["provider","manual"])`,
+  // so the hc-typed `json` arg rejects `string`. Resolve by narrowing the validator's
+  // `source` to the `"provider" | "manual"` union (or widening the route) before
+  // migrating to hc.
   .handler(async ({ context, data }) => {
     await fetchApi({
       errorTitle: "Couldn't accept printing field",
@@ -135,6 +147,10 @@ const acceptPrintingFieldFn = createServerFn({ method: "POST" })
 const acceptNewCardFn = createServerFn({ method: "POST" })
   .inputValidator((input: { name: string; cardFields: Record<string, unknown> }) => input)
   .middleware([withCookies])
+  // TODO(sweep): keep on fetchApi — `cardFields` is typed `Record<string, unknown>`,
+  // but the route's `acceptNewCardSchema.cardFields` is a concrete object with required
+  // `id`/`name`/`type`/`domains`, so the hc-typed `json` arg rejects the bare record.
+  // Resolve by typing `cardFields` against the route's `cardFields` shape before migrating.
   .handler(async ({ context, data }) => {
     await fetchApi({
       errorTitle: "Couldn't accept new card",
@@ -149,30 +165,35 @@ export const acceptFavoritesFn = createServerFn({ method: "POST" })
   .inputValidator((input: { name: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't accept favorites",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/new/${encodeURIComponent(data.name)}/accept-favorites`,
-      method: "POST",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards.new[":name"]["accept-favorites"].$post({
+        param: encodeParams({ name: data.name }),
+      }),
+      "Couldn't accept favorites",
+    );
   });
 
 const linkCardFn = createServerFn({ method: "POST" })
   .inputValidator((input: { name: string; cardId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't link card",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/new/${encodeURIComponent(data.name)}/link`,
-      method: "POST",
-      body: { cardId: data.cardId },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards.new[":name"].link.$post({
+        param: encodeParams({ name: data.name }),
+        json: { cardId: data.cardId },
+      }),
+      "Couldn't link card",
+    );
   });
 
 const reassignCandidatePrintingFn = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string; fields: Record<string, unknown> }) => input)
   .middleware([withCookies])
+  // TODO(sweep): keep on fetchApi — the body (`data.fields`) is typed
+  // `Record<string, unknown>`, but the route's `patchCandidatePrintingSchema` declares
+  // specific optional fields (`artVariant`/`isSigned`/`finish`/`setId`/`shortCode`/
+  // `rarity`), so the hc-typed `json` arg rejects the bare record. Resolve by typing
+  // `fields` against the patch schema before migrating to hc.
   .handler(async ({ context, data }) => {
     await fetchApi({
       errorTitle: "Couldn't reassign candidate printing",
@@ -187,50 +208,49 @@ const deleteCandidatePrintingFn = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't delete candidate printing",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/candidate-printings/${encodeURIComponent(data.id)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards["candidate-printings"][":id"].$delete({
+        param: encodeParams({ id: data.id }),
+      }),
+      "Couldn't delete candidate printing",
+    );
   });
 
 const copyCandidatePrintingFn = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string; printingId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't copy candidate printing",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/candidate-printings/${encodeURIComponent(data.id)}/copy`,
-      method: "POST",
-      body: { printingId: data.printingId },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards["candidate-printings"][":id"].copy.$post({
+        param: encodeParams({ id: data.id }),
+        json: { printingId: data.printingId },
+      }),
+      "Couldn't copy candidate printing",
+    );
   });
 
 const linkCandidatePrintingsFn = createServerFn({ method: "POST" })
   .inputValidator((input: { candidatePrintingIds: string[]; printingId: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't link candidate printings",
-      cookie: context.cookie,
-      path: "/api/v1/admin/cards/candidate-printings/link",
-      method: "POST",
-      body: data,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards["candidate-printings"].link.$post({
+        json: data,
+      }),
+      "Couldn't link candidate printings",
+    );
   });
 
 const deletePrintingFn = createServerFn({ method: "POST" })
   .inputValidator((input: { printingId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't delete printing",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/printing/${encodeURIComponent(data.printingId)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards.printing[":printingId"].$delete({
+        param: encodeParams({ printingId: data.printingId }),
+      }),
+      "Couldn't delete printing",
+    );
   });
 
 const acceptPrintingGroupFn = createServerFn({ method: "POST" })
@@ -242,6 +262,11 @@ const acceptPrintingGroupFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
+  // TODO(sweep): keep on fetchApiJson — `printingFields` is typed
+  // `Record<string, unknown>`, but the route's `acceptPrintingSchema.printingFields` is a
+  // concrete object with required `shortCode`/`artist`/`publicCode`, so the hc-typed
+  // `json` arg rejects the bare record. Resolve by typing `printingFields` against the
+  // route's `printingFields` shape before migrating to hc.
   .handler(({ context, data }) =>
     fetchApiJson<{ printingId: string }>({
       errorTitle: "Couldn't accept printing group",
@@ -258,25 +283,27 @@ const acceptPrintingGroupFn = createServerFn({ method: "POST" })
 const checkProviderFn = createServerFn({ method: "POST" })
   .inputValidator((input: { provider: string }) => input)
   .middleware([withCookies])
-  .handler(({ context, data }) =>
-    fetchApiJson<{ cardsChecked: number; printingsChecked: number }>({
-      errorTitle: "Couldn't check provider",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/by-provider/${encodeURIComponent(data.provider)}/check`,
-      method: "POST",
-    }),
+  .handler(
+    ({ context, data }): Promise<{ cardsChecked: number; printingsChecked: number }> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin.cards["by-provider"][":provider"].check.$post({
+          param: encodeParams({ provider: data.provider }),
+        }),
+        "Couldn't check provider",
+      ),
   );
 
 const deleteProviderFn = createServerFn({ method: "POST" })
   .inputValidator((input: { provider: string }) => input)
   .middleware([withCookies])
-  .handler(({ context, data }) =>
-    fetchApiJson<{ deleted: number; provider: string }>({
-      errorTitle: "Couldn't delete provider",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/by-provider/${encodeURIComponent(data.provider)}`,
-      method: "DELETE",
-    }),
+  .handler(
+    ({ context, data }): Promise<{ deleted: number; provider: string }> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin.cards["by-provider"][":provider"].$delete({
+          param: encodeParams({ provider: data.provider }),
+        }),
+        "Couldn't delete provider",
+      ),
   );
 
 // ── Hook exports ─────────────────────────────────────────────────────────────
@@ -417,6 +444,10 @@ export function useAcceptNewCard() {
 const createCardFn = createServerFn({ method: "POST" })
   .inputValidator((input: { cardFields: Record<string, unknown> }) => input)
   .middleware([withCookies])
+  // TODO(sweep): keep on fetchApiJson — the body (`data.cardFields`) is typed
+  // `Record<string, unknown>`, but the route's `createCardSchema` is a concrete object
+  // with required `id`/`name`/`type`/`domains`, so the hc-typed `json` arg rejects the
+  // bare record. Resolve by typing `cardFields` against `createCardSchema` before migrating.
   .handler(({ context, data }) =>
     fetchApiJson<{ cardSlug: string }>({
       errorTitle: "Couldn't create card",
@@ -442,6 +473,11 @@ export function useCreateCard() {
 const createPrintingFn = createServerFn({ method: "POST" })
   .inputValidator((input: { cardId: string; printingFields: Record<string, unknown> }) => input)
   .middleware([withCookies])
+  // TODO(sweep): keep on fetchApiJson — the body (`data.printingFields`) is typed
+  // `Record<string, unknown>`, but the route's `createPrintingSchema` is a concrete object
+  // with required `shortCode`/`setId`/`artist`/`publicCode`, so the hc-typed `json` arg
+  // rejects the bare record. Resolve by typing `printingFields` against `createPrintingSchema`
+  // before migrating.
   .handler(({ context, data }) =>
     fetchApiJson<{ printingId: string }>({
       errorTitle: "Couldn't create printing",
@@ -575,16 +611,22 @@ export function useCheckProvider() {
 export const acceptFavoritePrintingsFn = createServerFn({ method: "POST" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
-  .handler(({ context, data: cardSlug }) =>
-    fetchApiJson<{
+  .handler(
+    ({
+      context,
+      data: cardSlug,
+    }): Promise<{
       printingsCreated: number;
       skipped: { shortCode: string; reason: string }[];
-    }>({
-      errorTitle: "Couldn't accept favorite printings",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/${encodeURIComponent(cardSlug)}/accept-favorite-printings`,
-      method: "POST",
-    }),
+    }> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin.cards[":cardSlug"][
+          "accept-favorite-printings"
+        ].$post({
+          param: encodeParams({ cardSlug }),
+        }),
+        "Couldn't accept favorite printings",
+      ),
   );
 
 export function useAcceptFavoritePrintings() {
@@ -614,6 +656,10 @@ const unmapMarketplacePrintingFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
+  // TODO(sweep): keep on fetchApi — the inputValidator types `marketplace` as `string`,
+  // but the route's query schema is `z.enum(["tcgplayer","cardmarket","cardtrader"])`, so
+  // the hc-typed `query` arg rejects `string`. Resolve by narrowing the validator's
+  // `marketplace` to the literal union (the hook's public type already is) before migrating.
   .handler(async ({ context, data }) => {
     await fetchApi({
       errorTitle: "Couldn't unmap marketplace printing",

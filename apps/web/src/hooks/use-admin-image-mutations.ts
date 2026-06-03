@@ -1,8 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
+import { callApi, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { API_URL } from "@/lib/server-fns/api-url";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -46,49 +47,55 @@ const deletePrintingImageFn = createServerFn({ method: "POST" })
   .inputValidator((input: { imageId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't delete printing image",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/printing-images/${encodeURIComponent(data.imageId)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards["printing-images"][":imageId"].$delete({
+        param: encodeParams({ imageId: data.imageId }),
+      }),
+      "Couldn't delete printing image",
+    );
   });
 
 const activatePrintingImageFn = createServerFn({ method: "POST" })
   .inputValidator((input: { imageId: string; active: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't activate printing image",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/printing-images/${encodeURIComponent(data.imageId)}/activate`,
-      method: "POST",
-      body: { active: data.active },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards["printing-images"][
+        ":imageId"
+      ].activate.$post({
+        param: encodeParams({ imageId: data.imageId }),
+        json: { active: data.active },
+      }),
+      "Couldn't activate printing image",
+    );
   });
 
 const rehostPrintingImageFn = createServerFn({ method: "POST" })
   .inputValidator((input: { imageId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't rehost printing image",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/printing-images/${encodeURIComponent(data.imageId)}/rehost`,
-      method: "POST",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards["printing-images"][
+        ":imageId"
+      ].rehost.$post({
+        param: encodeParams({ imageId: data.imageId }),
+      }),
+      "Couldn't rehost printing image",
+    );
   });
 
 const unrehostPrintingImageFn = createServerFn({ method: "POST" })
   .inputValidator((input: { imageId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't unrehost printing image",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/printing-images/${encodeURIComponent(data.imageId)}/unrehost`,
-      method: "POST",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards["printing-images"][
+        ":imageId"
+      ].unrehost.$post({
+        param: encodeParams({ imageId: data.imageId }),
+      }),
+      "Couldn't unrehost printing image",
+    );
   });
 
 type Rotation = 0 | 90 | 180 | 270;
@@ -97,54 +104,68 @@ const rotatePrintingImageFn = createServerFn({ method: "POST" })
   .inputValidator((input: { imageId: string; rotation: Rotation }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't rotate printing image",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/printing-images/${encodeURIComponent(data.imageId)}/rotate`,
-      method: "POST",
-      body: { rotation: data.rotation },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards["printing-images"][
+        ":imageId"
+      ].rotate.$post({
+        param: encodeParams({ imageId: data.imageId }),
+        json: { rotation: data.rotation },
+      }),
+      "Couldn't rotate printing image",
+    );
   });
 
 const setNeedsTrimFn = createServerFn({ method: "POST" })
   .inputValidator((input: { imageId: string; needsTrim: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't update needs-trim",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/printing-images/${encodeURIComponent(data.imageId)}/set-needs-trim`,
-      method: "POST",
-      body: { needsTrim: data.needsTrim },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards["printing-images"][":imageId"][
+        "set-needs-trim"
+      ].$post({
+        param: encodeParams({ imageId: data.imageId }),
+        json: { needsTrim: data.needsTrim },
+      }),
+      "Couldn't update needs-trim",
+    );
   });
 
 const addImageFromUrlFn = createServerFn({ method: "POST" })
   .inputValidator((input: { printingId: string; url: string; mode?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't add image from URL",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/printing/${encodeURIComponent(data.printingId)}/add-image-url`,
-      method: "POST",
-      body: { url: data.url, mode: data.mode },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards.printing[":printingId"][
+        "add-image-url"
+      ].$post({
+        param: encodeParams({ printingId: data.printingId }),
+        json: { url: data.url, mode: data.mode as "main" | "additional" | undefined },
+      }),
+      "Couldn't add image from URL",
+    );
   });
 
 const setCandidatePrintingImageFn = createServerFn({ method: "POST" })
   .inputValidator((input: { candidatePrintingId: string; mode: "main" | "additional" }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't set candidate printing image",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/candidate-printings/${encodeURIComponent(data.candidatePrintingId)}/set-image`,
-      method: "POST",
-      body: { mode: data.mode },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards["candidate-printings"][":id"][
+        "set-image"
+      ].$post({
+        param: encodeParams({ id: data.candidatePrintingId }),
+        json: { mode: data.mode },
+      }),
+      "Couldn't set candidate printing image",
+    );
   });
 
+// TODO(sweep): keep on fetchApiJson — the /upload route response schema types the
+// `updatedCards[].fields[].from/to` and `updatedPrintings[].fields[].from/to` as
+// `z.unknown()`, but this fn is annotated as `UploadCandidatesResponse` (those
+// fields typed as `string`). The hc-inferred body type (`unknown`) does not fit
+// the concrete annotation, so callApiJson would surface a mismatch. Resolve in the
+// sweep by aligning the local type with the route's `unknown` fields (or vice versa).
 const uploadCandidatesFn = createServerFn({ method: "POST" })
   .inputValidator((input: UploadCandidatesBody) => input)
   .middleware([withCookies])

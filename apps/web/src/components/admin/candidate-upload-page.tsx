@@ -39,9 +39,8 @@ import {
   useProviderSettings,
   useUpdateProviderSetting,
 } from "@/hooks/use-provider-settings";
+import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import { isApiError } from "@/lib/server-fns/api-error";
-import type { CardsExportResponse } from "@/lib/server-fns/api-types";
-import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { cn } from "@/lib/utils";
 
@@ -76,11 +75,10 @@ const exportCardsFn = createServerFn({ method: "GET" })
     // The export is a loose passthrough JSON array; serialize it server-side to
     // a string (trivially serializable across the server-fn boundary) — the
     // client just writes it to a download blob.
-    const data = await fetchApiJson<CardsExportResponse>({
-      errorTitle: "Couldn't export cards",
-      cookie: context.cookie,
-      path: "/api/v1/admin/cards/export",
-    });
+    const data = await callApiJson(
+      serverApiClient(context.cookie).api.v1.admin.cards.export.$get(),
+      "Couldn't export cards",
+    );
     return JSON.stringify(data, null, 2);
   });
 

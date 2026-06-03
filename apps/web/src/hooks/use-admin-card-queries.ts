@@ -2,6 +2,7 @@ import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanst
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
+import { callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import type {
   AdminCardDetailResponse,
   AdminCardListResponse,
@@ -10,18 +11,16 @@ import type {
   ProviderStatsResponse,
   UnmatchedCardDetailResponse,
 } from "@/lib/server-fns/api-types";
-import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 const fetchAdminCardList = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminCardListResponse> =>
-      fetchApiJson<AdminCardListResponse>({
-        errorTitle: "Couldn't load admin card list",
-        cookie: context.cookie,
-        path: "/api/v1/admin/cards",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin.cards.$get(),
+        "Couldn't load admin card list",
+      ),
   );
 
 export const adminCardListQueryOptions = queryOptions({
@@ -67,11 +66,10 @@ const fetchAllCards = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AllCardsResponse> =>
-      fetchApiJson<AllCardsResponse>({
-        errorTitle: "Couldn't load all cards",
-        cookie: context.cookie,
-        path: "/api/v1/admin/cards/all-cards",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin.cards["all-cards"].$get(),
+        "Couldn't load all cards",
+      ),
   );
 
 export const allCardsQueryOptions = queryOptions({
@@ -89,11 +87,12 @@ const fetchAdminCardDetail = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data: cardSlug }): Promise<AdminCardDetailResponse> =>
-      fetchApiJson<AdminCardDetailResponse>({
-        errorTitle: "Couldn't load admin card detail",
-        cookie: context.cookie,
-        path: `/api/v1/admin/cards/${encodeURIComponent(cardSlug)}`,
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin.cards[":cardSlug"].$get({
+          param: encodeParams({ cardSlug }),
+        }),
+        "Couldn't load admin card detail",
+      ),
   );
 
 export function adminCardDetailQueryOptions(cardSlug: string) {
@@ -116,11 +115,12 @@ const fetchUnmatchedCardDetail = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data: name }): Promise<UnmatchedCardDetailResponse> =>
-      fetchApiJson<UnmatchedCardDetailResponse>({
-        errorTitle: "Couldn't load unmatched card detail",
-        cookie: context.cookie,
-        path: `/api/v1/admin/cards/new/${encodeURIComponent(name)}`,
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin.cards.new[":name"].$get({
+          param: encodeParams({ name }),
+        }),
+        "Couldn't load unmatched card detail",
+      ),
   );
 
 export function unmatchedCardDetailQueryOptions(name: string) {
@@ -141,11 +141,10 @@ const fetchProviderStats = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<ProviderStatsResponse> =>
-      fetchApiJson<ProviderStatsResponse>({
-        errorTitle: "Couldn't load provider stats",
-        cookie: context.cookie,
-        path: "/api/v1/admin/cards/provider-stats",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin.cards["provider-stats"].$get(),
+        "Couldn't load provider stats",
+      ),
   );
 
 export const providerStatsQueryOptions = queryOptions({
@@ -161,11 +160,10 @@ const fetchProviderNames = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<ProviderNamesResponse> =>
-      fetchApiJson<ProviderNamesResponse>({
-        errorTitle: "Couldn't load provider names",
-        cookie: context.cookie,
-        path: "/api/v1/admin/cards/provider-names",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin.cards["provider-names"].$get(),
+        "Couldn't load provider names",
+      ),
   );
 
 const providerNamesQueryOptions = queryOptions({

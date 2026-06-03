@@ -14,7 +14,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 // ── Authenticated: read + manage your own bundle token ──────────────────────
@@ -23,11 +23,10 @@ const fetchUserShareStateFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<UserShareStateResponse> =>
-      fetchApiJson<UserShareStateResponse>({
-        errorTitle: "Couldn't load share state",
-        cookie: context.cookie,
-        path: "/api/v1/users/me/share",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.users.me.share.$get(),
+        "Couldn't load share state",
+      ),
   );
 
 function userShareStateQueryOptions(userId: string) {
@@ -53,35 +52,29 @@ const enableUserShareFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<UserShareStateResponse> =>
-      fetchApiJson<UserShareStateResponse>({
-        errorTitle: "Couldn't enable sharing",
-        cookie: context.cookie,
-        path: "/api/v1/users/me/share",
-        method: "POST",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.users.me.share.$post(),
+        "Couldn't enable sharing",
+      ),
   );
 
 const disableUserShareFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context }) => {
-    await fetchApi({
-      errorTitle: "Couldn't disable sharing",
-      cookie: context.cookie,
-      path: "/api/v1/users/me/share",
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.users.me.share.$delete(),
+      "Couldn't disable sharing",
+    );
   });
 
 const rotateUserShareFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<UserShareStateResponse> =>
-      fetchApiJson<UserShareStateResponse>({
-        errorTitle: "Couldn't rotate share link",
-        cookie: context.cookie,
-        path: "/api/v1/users/me/share/rotate",
-        method: "POST",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.users.me.share.rotate.$post(),
+        "Couldn't rotate share link",
+      ),
   );
 
 export function useEnableUserShare() {
@@ -128,16 +121,17 @@ const fetchPublicUserBundleFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .inputValidator((input: string) => input)
   .handler(async ({ context, data: token }): Promise<PublicUserBundleResponse> => {
-    const res = await fetchApi({
-      errorTitle: "Couldn't load shared lists",
-      cookie: context.cookie,
-      path: `/api/v1/users/share/${encodeURIComponent(token)}`,
-      acceptStatuses: [404],
-    });
-    if (res.status === 404) {
+    const res = await callApi(
+      serverApiClient(context.cookie).api.v1.users.share[":token"].$get({
+        param: encodeParams({ token }),
+      }),
+      "Couldn't load shared lists",
+      [404],
+    );
+    if ((res.status as number) === 404) {
       throw new Error("NOT_FOUND");
     }
-    return res.json() as Promise<PublicUserBundleResponse>;
+    return res.json();
   });
 
 export function publicUserBundleQueryOptions(token: string) {
@@ -155,18 +149,17 @@ const fetchPublicUserBundleListFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .inputValidator((input: { token: string; listId: string }) => input)
   .handler(async ({ context, data }): Promise<PublicListDetailResponse> => {
-    const res = await fetchApi({
-      errorTitle: "Couldn't load shared list",
-      cookie: context.cookie,
-      path: `/api/v1/users/share/${encodeURIComponent(data.token)}/lists/${encodeURIComponent(
-        data.listId,
-      )}`,
-      acceptStatuses: [404],
-    });
-    if (res.status === 404) {
+    const res = await callApi(
+      serverApiClient(context.cookie).api.v1.users.share[":token"].lists[":listId"].$get({
+        param: encodeParams({ token: data.token, listId: data.listId }),
+      }),
+      "Couldn't load shared list",
+      [404],
+    );
+    if ((res.status as number) === 404) {
       throw new Error("NOT_FOUND");
     }
-    return res.json() as Promise<PublicListDetailResponse>;
+    return res.json();
   });
 
 export function publicUserBundleListQueryOptions(token: string, listId: string) {

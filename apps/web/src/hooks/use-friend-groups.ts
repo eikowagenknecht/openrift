@@ -17,7 +17,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -27,35 +27,34 @@ const fetchGroups = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<FriendGroupListResponse> =>
-      fetchApiJson<FriendGroupListResponse>({
-        errorTitle: "Couldn't load groups",
-        cookie: context.cookie,
-        path: "/api/v1/friend-groups",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["friend-groups"].$get(),
+        "Couldn't load groups",
+      ),
   );
 
 const fetchPendingInvitesCount = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<FriendGroupPendingInvitesCountResponse> =>
-      fetchApiJson<FriendGroupPendingInvitesCountResponse>({
-        errorTitle: "Couldn't load invite count",
-        cookie: context.cookie,
-        path: "/api/v1/friend-groups/pending-invites-count",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["friend-groups"]["pending-invites-count"].$get(),
+        "Couldn't load invite count",
+      ),
   );
 
 const fetchGroupDetail = createServerFn({ method: "GET" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: slug }): Promise<FriendGroupDetailResponse> => {
-    const res = await fetchApi({
-      errorTitle: "Couldn't load group",
-      cookie: context.cookie,
-      path: `/api/v1/friend-groups/${encodeURIComponent(slug)}`,
-      acceptStatuses: [404],
-    });
-    if (res.status === 404) {
+    const res = await callApi(
+      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].$get({
+        param: encodeParams({ slug }),
+      }),
+      "Couldn't load group",
+      [404],
+    );
+    if ((res.status as number) === 404) {
       throw new Error("NOT_FOUND");
     }
     return res.json() as Promise<FriendGroupDetailResponse>;
@@ -66,11 +65,12 @@ const fetchGroupMatches = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data: slug }): Promise<FriendGroupMatchesResponse> =>
-      fetchApiJson<FriendGroupMatchesResponse>({
-        errorTitle: "Couldn't load matches",
-        cookie: context.cookie,
-        path: `/api/v1/friend-groups/${encodeURIComponent(slug)}/matches`,
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].matches.$get({
+          param: encodeParams({ slug }),
+        }),
+        "Couldn't load matches",
+      ),
   );
 
 const fetchMemberDetail = createServerFn({ method: "GET" })
@@ -78,11 +78,12 @@ const fetchMemberDetail = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<FriendGroupMemberDetailResponse> =>
-      fetchApiJson<FriendGroupMemberDetailResponse>({
-        errorTitle: "Couldn't load member",
-        cookie: context.cookie,
-        path: `/api/v1/friend-groups/${encodeURIComponent(data.slug)}/members/${encodeURIComponent(data.userId)}`,
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].members[":userId"].$get({
+          param: encodeParams({ slug: data.slug, userId: data.userId }),
+        }),
+        "Couldn't load member",
+      ),
   );
 
 const fetchShareableLists = createServerFn({ method: "GET" })
@@ -90,24 +91,26 @@ const fetchShareableLists = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data: slug }): Promise<FriendGroupShareableListsResponse> =>
-      fetchApiJson<FriendGroupShareableListsResponse>({
-        errorTitle: "Couldn't load lists",
-        cookie: context.cookie,
-        path: `/api/v1/friend-groups/${encodeURIComponent(slug)}/shareable-lists`,
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"]["shareable-lists"].$get({
+          param: encodeParams({ slug }),
+        }),
+        "Couldn't load lists",
+      ),
   );
 
 const fetchJoinPreview = createServerFn({ method: "GET" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: code }): Promise<FriendGroupJoinPreviewResponse> => {
-    const res = await fetchApi({
-      errorTitle: "Couldn't load preview",
-      cookie: context.cookie,
-      path: `/api/v1/friend-groups/preview?code=${encodeURIComponent(code)}`,
-      acceptStatuses: [404],
-    });
-    if (res.status === 404) {
+    const res = await callApi(
+      serverApiClient(context.cookie).api.v1["friend-groups"].preview.$get({
+        query: { code },
+      }),
+      "Couldn't load preview",
+      [404],
+    );
+    if ((res.status as number) === 404) {
       throw new Error("NOT_FOUND");
     }
     return res.json() as Promise<FriendGroupJoinPreviewResponse>;
@@ -117,13 +120,14 @@ const fetchSharedList = createServerFn({ method: "GET" })
   .inputValidator((input: { slug: string; listId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }): Promise<FriendGroupSharedListDetailResponse> => {
-    const res = await fetchApi({
-      errorTitle: "Couldn't load list",
-      cookie: context.cookie,
-      path: `/api/v1/friend-groups/${encodeURIComponent(data.slug)}/lists/${encodeURIComponent(data.listId)}`,
-      acceptStatuses: [404],
-    });
-    if (res.status === 404) {
+    const res = await callApi(
+      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].lists[":listId"].$get({
+        param: encodeParams({ slug: data.slug, listId: data.listId }),
+      }),
+      "Couldn't load list",
+      [404],
+    );
+    if ((res.status as number) === 404) {
       throw new Error("NOT_FOUND");
     }
     return res.json() as Promise<FriendGroupSharedListDetailResponse>;
@@ -134,24 +138,30 @@ const fetchShareableCollections = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data: slug }): Promise<FriendGroupShareableCollectionsResponse> =>
-      fetchApiJson<FriendGroupShareableCollectionsResponse>({
-        errorTitle: "Couldn't load collections",
-        cookie: context.cookie,
-        path: `/api/v1/friend-groups/${encodeURIComponent(slug)}/shareable-collections`,
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"][
+          "shareable-collections"
+        ].$get({
+          param: encodeParams({ slug }),
+        }),
+        "Couldn't load collections",
+      ),
   );
 
 const fetchSharedCollection = createServerFn({ method: "GET" })
   .inputValidator((input: { slug: string; collectionId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }): Promise<FriendGroupSharedCollectionDetailResponse> => {
-    const res = await fetchApi({
-      errorTitle: "Couldn't load collection",
-      cookie: context.cookie,
-      path: `/api/v1/friend-groups/${encodeURIComponent(data.slug)}/collections/${encodeURIComponent(data.collectionId)}`,
-      acceptStatuses: [404],
-    });
-    if (res.status === 404) {
+    const res = await callApi(
+      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].collections[
+        ":collectionId"
+      ].$get({
+        param: encodeParams({ slug: data.slug, collectionId: data.collectionId }),
+      }),
+      "Couldn't load collection",
+      [404],
+    );
+    if ((res.status as number) === 404) {
       throw new Error("NOT_FOUND");
     }
     return res.json() as Promise<FriendGroupSharedCollectionDetailResponse>;
@@ -285,14 +295,14 @@ const createGroupFn = createServerFn({ method: "POST" })
       input,
   )
   .middleware([withCookies])
-  .handler(({ context, data }) =>
-    fetchApiJson<FriendGroupResponse>({
-      errorTitle: "Couldn't create group",
-      cookie: context.cookie,
-      path: "/api/v1/friend-groups",
-      method: "POST",
-      body: data,
-    }),
+  .handler(
+    ({ context, data }): Promise<FriendGroupResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["friend-groups"].$post({
+          json: data,
+        }),
+        "Couldn't create group",
+      ),
   );
 
 const updateGroupFn = createServerFn({ method: "POST" })
@@ -301,226 +311,238 @@ const updateGroupFn = createServerFn({ method: "POST" })
       input,
   )
   .middleware([withCookies])
-  .handler(({ context, data }) => {
+  .handler(({ context, data }): Promise<FriendGroupResponse> => {
     const { slug, newSlug, ...fields } = data;
-    return fetchApiJson<FriendGroupResponse>({
-      errorTitle: "Couldn't update group",
-      cookie: context.cookie,
-      path: `/api/v1/friend-groups/${encodeURIComponent(slug)}`,
-      method: "PATCH",
-      body: { ...fields, slug: newSlug },
-    });
+    return callApiJson(
+      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].$patch({
+        param: encodeParams({ slug }),
+        json: { ...fields, slug: newSlug },
+      }),
+      "Couldn't update group",
+    );
   });
 
 const deleteGroupFn = createServerFn({ method: "POST" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: slug }) => {
-    await fetchApi({
-      errorTitle: "Couldn't delete group",
-      cookie: context.cookie,
-      path: `/api/v1/friend-groups/${encodeURIComponent(slug)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].$delete({
+        param: encodeParams({ slug }),
+      }),
+      "Couldn't delete group",
+    );
   });
 
 const rotateCodeFn = createServerFn({ method: "POST" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
-  .handler(({ context, data: slug }) =>
-    fetchApiJson<FriendGroupResponse>({
-      errorTitle: "Couldn't rotate code",
-      cookie: context.cookie,
-      path: `/api/v1/friend-groups/${encodeURIComponent(slug)}/code/rotate`,
-      method: "POST",
-    }),
+  .handler(
+    ({ context, data: slug }): Promise<FriendGroupResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].code.rotate.$post({
+          param: encodeParams({ slug }),
+        }),
+        "Couldn't rotate code",
+      ),
   );
 
 const disableCodeFn = createServerFn({ method: "POST" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
-  .handler(({ context, data: slug }) =>
-    fetchApiJson<FriendGroupResponse>({
-      errorTitle: "Couldn't disable code",
-      cookie: context.cookie,
-      path: `/api/v1/friend-groups/${encodeURIComponent(slug)}/code`,
-      method: "DELETE",
-    }),
+  .handler(
+    ({ context, data: slug }): Promise<FriendGroupResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].code.$delete({
+          param: encodeParams({ slug }),
+        }),
+        "Couldn't disable code",
+      ),
   );
 
 const enableCodeFn = createServerFn({ method: "POST" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
-  .handler(({ context, data: slug }) =>
-    fetchApiJson<FriendGroupResponse>({
-      errorTitle: "Couldn't enable code",
-      cookie: context.cookie,
-      path: `/api/v1/friend-groups/${encodeURIComponent(slug)}/code`,
-      method: "POST",
-    }),
+  .handler(
+    ({ context, data: slug }): Promise<FriendGroupResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].code.$post({
+          param: encodeParams({ slug }),
+        }),
+        "Couldn't enable code",
+      ),
   );
 
 const joinByCodeFn = createServerFn({ method: "POST" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: code }) => {
-    await fetchApi({
-      errorTitle: "Couldn't submit join request",
-      cookie: context.cookie,
-      path: "/api/v1/friend-groups/join",
-      method: "POST",
-      body: { code },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1["friend-groups"].join.$post({
+        json: { code },
+      }),
+      "Couldn't submit join request",
+    );
   });
 
 const inviteByEmailFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; email: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't send invite",
-      cookie: context.cookie,
-      path: `/api/v1/friend-groups/${encodeURIComponent(data.slug)}/invites`,
-      method: "POST",
-      body: { email: data.email },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].invites.$post({
+        param: encodeParams({ slug: data.slug }),
+        json: { email: data.email },
+      }),
+      "Couldn't send invite",
+    );
   });
 
 const acceptInviteFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; userId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't accept",
-      cookie: context.cookie,
-      path: `/api/v1/friend-groups/${encodeURIComponent(data.slug)}/invites/${encodeURIComponent(data.userId)}/accept`,
-      method: "POST",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].invites[
+        ":userId"
+      ].accept.$post({
+        param: encodeParams({ slug: data.slug, userId: data.userId }),
+      }),
+      "Couldn't accept",
+    );
   });
 
 const declineInviteFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; userId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't decline",
-      cookie: context.cookie,
-      path: `/api/v1/friend-groups/${encodeURIComponent(data.slug)}/invites/${encodeURIComponent(data.userId)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].invites[":userId"].$delete({
+        param: encodeParams({ slug: data.slug, userId: data.userId }),
+      }),
+      "Couldn't decline",
+    );
   });
 
 const leaveFn = createServerFn({ method: "POST" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: slug }) => {
-    await fetchApi({
-      errorTitle: "Couldn't leave group",
-      cookie: context.cookie,
-      path: `/api/v1/friend-groups/${encodeURIComponent(slug)}/leave`,
-      method: "POST",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].leave.$post({
+        param: encodeParams({ slug }),
+      }),
+      "Couldn't leave group",
+    );
   });
 
 const transferOwnershipFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; userId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't transfer ownership",
-      cookie: context.cookie,
-      path: `/api/v1/friend-groups/${encodeURIComponent(data.slug)}/transfer-ownership`,
-      method: "POST",
-      body: { userId: data.userId },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"]["transfer-ownership"].$post({
+        param: encodeParams({ slug: data.slug }),
+        json: { userId: data.userId },
+      }),
+      "Couldn't transfer ownership",
+    );
   });
 
 const updateRoleFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; userId: string; role: "admin" | "member" }) => input)
   .middleware([withCookies])
-  .handler(({ context, data }) =>
-    fetchApiJson<FriendGroupMemberResponse>({
-      errorTitle: "Couldn't update role",
-      cookie: context.cookie,
-      path: `/api/v1/friend-groups/${encodeURIComponent(data.slug)}/members/${encodeURIComponent(data.userId)}/role`,
-      method: "PATCH",
-      body: { role: data.role },
-    }),
+  .handler(
+    ({ context, data }): Promise<FriendGroupMemberResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].members[
+          ":userId"
+        ].role.$patch({
+          param: encodeParams({ slug: data.slug, userId: data.userId }),
+          json: { role: data.role },
+        }),
+        "Couldn't update role",
+      ),
   );
 
 const updateNicknameFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; userId: string; nickname: string | null }) => input)
   .middleware([withCookies])
-  .handler(({ context, data }) =>
-    fetchApiJson<FriendGroupMemberResponse>({
-      errorTitle: "Couldn't update nickname",
-      cookie: context.cookie,
-      path: `/api/v1/friend-groups/${encodeURIComponent(data.slug)}/members/${encodeURIComponent(data.userId)}/nickname`,
-      method: "PATCH",
-      body: { nickname: data.nickname },
-    }),
+  .handler(
+    ({ context, data }): Promise<FriendGroupMemberResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].members[
+          ":userId"
+        ].nickname.$patch({
+          param: encodeParams({ slug: data.slug, userId: data.userId }),
+          json: { nickname: data.nickname },
+        }),
+        "Couldn't update nickname",
+      ),
   );
 
 const kickMemberFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; userId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't remove member",
-      cookie: context.cookie,
-      path: `/api/v1/friend-groups/${encodeURIComponent(data.slug)}/members/${encodeURIComponent(data.userId)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].members[":userId"].$delete({
+        param: encodeParams({ slug: data.slug, userId: data.userId }),
+      }),
+      "Couldn't remove member",
+    );
   });
 
 const shareListFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; listId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't share list",
-      cookie: context.cookie,
-      path: `/api/v1/friend-groups/${encodeURIComponent(data.slug)}/lists`,
-      method: "POST",
-      body: { listId: data.listId },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].lists.$post({
+        param: encodeParams({ slug: data.slug }),
+        json: { listId: data.listId },
+      }),
+      "Couldn't share list",
+    );
   });
 
 const unshareListFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; listId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't unshare list",
-      cookie: context.cookie,
-      path: `/api/v1/friend-groups/${encodeURIComponent(data.slug)}/lists/${encodeURIComponent(data.listId)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].lists[":listId"].$delete({
+        param: encodeParams({ slug: data.slug, listId: data.listId }),
+      }),
+      "Couldn't unshare list",
+    );
   });
 
 const shareCollectionFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; collectionId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't share collection",
-      cookie: context.cookie,
-      path: `/api/v1/friend-groups/${encodeURIComponent(data.slug)}/collections`,
-      method: "POST",
-      body: { collectionId: data.collectionId },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].collections.$post({
+        param: encodeParams({ slug: data.slug }),
+        json: { collectionId: data.collectionId },
+      }),
+      "Couldn't share collection",
+    );
   });
 
 const unshareCollectionFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; collectionId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't unshare collection",
-      cookie: context.cookie,
-      path: `/api/v1/friend-groups/${encodeURIComponent(data.slug)}/collections/${encodeURIComponent(data.collectionId)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].collections[
+        ":collectionId"
+      ].$delete({
+        param: encodeParams({ slug: data.slug, collectionId: data.collectionId }),
+      }),
+      "Couldn't unshare collection",
+    );
   });
 
 // ── Mutation hooks ──────────────────────────────────────────────────────────
