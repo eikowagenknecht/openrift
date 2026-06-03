@@ -4,7 +4,6 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
-import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -41,25 +40,19 @@ interface CreateChannelInput {
   childrenLabel?: string | null;
 }
 
-// TODO(phase-1d): migrate to hc. Deferred deliberately: the 201 response body is
-// `{ distributionChannel: ... }`, but this fn is typed as the bare
-// `DistributionChannelResponse`. The current `fetchApiJson<DistributionChannelResponse>`
-// cast hides that the shapes don't match (the hc-inferred type would surface it).
-// Resolve in the sweep — either unwrap (`body.distributionChannel`) or change the
-// contract — and verify whether any consumer reads the mutation result.
 const createChannelFn = createServerFn({ method: "POST" })
   .inputValidator((input: CreateChannelInput) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<DistributionChannelResponse> =>
-      fetchApiJson<DistributionChannelResponse>({
-        errorTitle: "Couldn't create distribution channel",
-        cookie: context.cookie,
-        path: "/api/v1/admin/distribution-channels",
-        method: "POST",
-        body: data,
-      }),
-  );
+  .handler(async ({ context, data }): Promise<DistributionChannelResponse> => {
+    // The 201 returns `{ distributionChannel }`; unwrap to the bare response the
+    // callers expect. (The old fetchApiJson<DistributionChannelResponse> cast
+    // lied about this shape — the typed client surfaced it.)
+    const body = await callApiJson(
+      serverApiClient(context.cookie).api.v1.admin["distribution-channels"].$post({ json: data }),
+      "Couldn't create distribution channel",
+    );
+    return body.distributionChannel;
+  });
 
 export function useCreateDistributionChannel() {
   return useMutationWithInvalidation({
