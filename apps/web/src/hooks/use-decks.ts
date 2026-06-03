@@ -17,7 +17,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { useRequiredUserId, useUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
 import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -40,22 +39,15 @@ async function fetchDeckDetailImpl(
   // 404 is legitimate (unknown/deleted deck id, or one belonging to another
   // user) — map to NOT_FOUND so the route can render a not-found page
   // without logging the response as an error.
-  // TODO(sweep): hc-inferred response omits `preferredPrintingId` on deck cards
-  // — `deckCardResponseSchema` (response-schemas.ts) only declares
-  // { cardId, zone, quantity }, but `DeckCardResponse` (and thus
-  // `DeckDetailResponse.cards`) requires `preferredPrintingId`. Migrating would
-  // narrow the return type and drop that field. Fix the response schema (add
-  // `preferredPrintingId`), then migrate.
-  const res = await fetchApi({
-    errorTitle: "Couldn't load deck",
-    cookie,
-    path: `/api/v1/decks/${encodeURIComponent(deckId)}`,
-    acceptStatuses: [404],
-  });
-  if (res.status === 404) {
+  const res = await callApi(
+    serverApiClient(cookie).api.v1.decks[":id"].$get({ param: encodeParams({ id: deckId }) }),
+    "Couldn't load deck",
+    [404],
+  );
+  if ((res.status as number) === 404) {
     throw new Error("NOT_FOUND");
   }
-  return (await res.json()) as DeckDetailResponse;
+  return res.json();
 }
 
 const fetchDeckDetail = createServerFn({ method: "GET" })
@@ -156,20 +148,15 @@ export const saveDeckCardsFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
-  // TODO(sweep): hc-inferred response omits `preferredPrintingId` on deck cards
-  // — `deckCardResponseSchema` (response-schemas.ts) only declares
-  // { cardId, zone, quantity }, but the annotated `DeckCardResponse` requires
-  // `preferredPrintingId`, which the optimistic cache in `useSaveDeckCards`
-  // writes into `DeckDetailResponse.cards`. Migrating would narrow the return
-  // type and drop that field. Fix the response schema, then migrate.
-  .handler(({ context, data }) =>
-    fetchApiJson<{ cards: DeckCardResponse[] }>({
-      errorTitle: "Couldn't save deck cards",
-      cookie: context.cookie,
-      path: `/api/v1/decks/${encodeURIComponent(data.deckId)}/cards`,
-      method: "PUT",
-      body: { cards: data.cards },
-    }),
+  .handler(
+    ({ context, data }): Promise<{ cards: DeckCardResponse[] }> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.decks[":id"].cards.$put({
+          param: encodeParams({ id: data.deckId }),
+          json: { cards: data.cards },
+        }),
+        "Couldn't save deck cards",
+      ),
   );
 
 export function useSaveDeckCards() {

@@ -632,6 +632,9 @@ const deckCardResponseSchema = z
     cardId: z.string(),
     zone: deckZoneSchema,
     quantity: z.number(),
+    // Optional pin to a specific printing for display. Null means "default art".
+    // The handlers already return this; the schema had drifted behind the type.
+    preferredPrintingId: z.string().nullable(),
   })
   .openapi("DeckCardResponse");
 

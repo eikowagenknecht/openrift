@@ -523,8 +523,9 @@ const entryDiffSchema = entryRefSchema.extend({
   fields: z.array(
     z.object({
       field: z.string().openapi({ example: "correctedRulesText" }),
-      from: z.unknown().openapi({ example: "Deal 3 damage." }),
-      to: z.unknown().openapi({ example: "Deal 4 damage." }),
+      // Errata fields (corrected rules/effect text) are string | null.
+      from: z.string().nullable().openapi({ example: "Deal 3 damage." }),
+      to: z.string().nullable().openapi({ example: "Deal 4 damage." }),
     }),
   ),
 });

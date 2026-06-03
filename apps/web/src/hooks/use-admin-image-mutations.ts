@@ -160,23 +160,23 @@ const setCandidatePrintingImageFn = createServerFn({ method: "POST" })
     );
   });
 
-// TODO(sweep): keep on fetchApiJson — the /upload route response schema types the
-// `updatedCards[].fields[].from/to` and `updatedPrintings[].fields[].from/to` as
-// `z.unknown()`, but this fn is annotated as `UploadCandidatesResponse` (those
-// fields typed as `string`). The hc-inferred body type (`unknown`) does not fit
-// the concrete annotation, so callApiJson would surface a mismatch. Resolve in the
-// sweep by aligning the local type with the route's `unknown` fields (or vice versa).
+// TODO(sweep, group C): kept on fetchApiJson. The request body `candidates` is a
+// loose `Record<string, unknown>[]`, but the route's upload schema declares a
+// concrete `{ card, printings }[]` shape, so the hc-typed `json` arg rejects it.
+// (The response diff `from`/`to` are also arbitrary JSON — `unknown` — which a
+// createServerFn return type can't carry.) Type the upload body concretely to migrate.
 const uploadCandidatesFn = createServerFn({ method: "POST" })
   .inputValidator((input: UploadCandidatesBody) => input)
   .middleware([withCookies])
-  .handler(({ context, data }) =>
-    fetchApiJson<UploadCandidatesResponse>({
-      errorTitle: "Couldn't upload candidates",
-      cookie: context.cookie,
-      path: "/api/v1/admin/cards/upload",
-      method: "POST",
-      body: data,
-    }),
+  .handler(
+    ({ context, data }): Promise<UploadCandidatesResponse> =>
+      fetchApiJson<UploadCandidatesResponse>({
+        errorTitle: "Couldn't upload candidates",
+        cookie: context.cookie,
+        path: "/api/v1/admin/cards/upload",
+        method: "POST",
+        body: data,
+      }),
   );
 
 // ── Hook exports ─────────────────────────────────────────────────────────────

@@ -1,8 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
-import { fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -123,23 +122,15 @@ export interface BulkErrataUploadResponse {
   skippedMatchesPrinted: EntryRef[];
 }
 
-// TODO(sweep): migrate to hc. The 200 body's `updatedEntries[].fields[].from`/`.to`
-// are `z.unknown()` in the route, so hc infers them as `unknown`, which is not
-// assignable to this fn's `BulkErrataUploadResponse` annotation (`from`/`to` typed
-// `string | null`). Resolve by tightening the route schema (e.g. `z.string().nullable()`)
-// before switching to callApiJson.
 const uploadErrataFn = createServerFn({ method: "POST" })
   .inputValidator((input: BulkErrataUploadBody) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<BulkErrataUploadResponse> =>
-      fetchApiJson<BulkErrataUploadResponse>({
-        errorTitle: "Couldn't upload errata",
-        cookie: context.cookie,
-        path: "/api/v1/admin/cards/errata/upload",
-        method: "POST",
-        body: data,
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin.cards.errata.upload.$post({ json: data }),
+        "Couldn't upload errata",
+      ),
   );
 
 /**

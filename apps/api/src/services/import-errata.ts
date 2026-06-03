@@ -9,7 +9,8 @@ interface EntryRef {
 }
 
 interface EntryDiff extends EntryRef {
-  fields: { field: string; from: unknown; to: unknown }[];
+  // Errata fields are all string | null (see ErrataFields), so diffs are too.
+  fields: { field: string; from: string | null; to: string | null }[];
 }
 
 interface ImportErrataResult {
@@ -43,8 +44,8 @@ const ERRATA_FIELDS = [
 function diffErrata(
   existing: ErrataFields,
   incoming: ErrataFields,
-): { field: string; from: unknown; to: unknown }[] {
-  const diffs: { field: string; from: unknown; to: unknown }[] = [];
+): { field: string; from: string | null; to: string | null }[] {
+  const diffs: { field: string; from: string | null; to: string | null }[] = [];
   for (const field of ERRATA_FIELDS) {
     if (existing[field] !== incoming[field]) {
       diffs.push({ field, from: existing[field], to: incoming[field] });

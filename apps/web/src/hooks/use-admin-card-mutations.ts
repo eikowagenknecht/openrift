@@ -106,42 +106,40 @@ const renameCardFn = createServerFn({ method: "POST" })
 
 const acceptCardFieldFn = createServerFn({ method: "POST" })
   .inputValidator(
-    (input: { cardId: string; field: string; value: unknown; source?: string }) => input,
+    (input: { cardId: string; field: string; value: unknown; source?: "provider" | "manual" }) =>
+      input,
   )
   .middleware([withCookies])
-  // TODO(sweep): keep on fetchApi — the inputValidator types `source` as `string`,
-  // but the route's `acceptFieldSchema` types it as `z.enum(["provider","manual"])`,
-  // so the hc-typed `json` arg rejects `string`. Resolve by narrowing the validator's
-  // `source` to the `"provider" | "manual"` union (or widening the route) before
-  // migrating to hc.
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't accept card field",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/accept-field`,
-      method: "POST",
-      body: { field: data.field, value: data.value, source: data.source },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards[":cardId"]["accept-field"].$post({
+        param: encodeParams({ cardId: data.cardId }),
+        json: { field: data.field, value: data.value, source: data.source },
+      }),
+      "Couldn't accept card field",
+    );
   });
 
 const acceptPrintingFieldFn = createServerFn({ method: "POST" })
   .inputValidator(
-    (input: { printingId: string; field: string; value: unknown; source?: string }) => input,
+    (input: {
+      printingId: string;
+      field: string;
+      value: unknown;
+      source?: "provider" | "manual";
+    }) => input,
   )
   .middleware([withCookies])
-  // TODO(sweep): keep on fetchApi — the inputValidator types `source` as `string`,
-  // but the route's `acceptFieldSchema` types it as `z.enum(["provider","manual"])`,
-  // so the hc-typed `json` arg rejects `string`. Resolve by narrowing the validator's
-  // `source` to the `"provider" | "manual"` union (or widening the route) before
-  // migrating to hc.
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't accept printing field",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/printing/${encodeURIComponent(data.printingId)}/accept-field`,
-      method: "POST",
-      body: { field: data.field, value: data.value, source: data.source },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards.printing[":printingId"][
+        "accept-field"
+      ].$post({
+        param: encodeParams({ printingId: data.printingId }),
+        json: { field: data.field, value: data.value, source: data.source },
+      }),
+      "Couldn't accept printing field",
+    );
   });
 
 const acceptNewCardFn = createServerFn({ method: "POST" })
@@ -648,7 +646,7 @@ export function useDeleteProvider() {
 const unmapMarketplacePrintingFn = createServerFn({ method: "POST" })
   .inputValidator(
     (input: {
-      marketplace: string;
+      marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
       printingId: string;
       externalId: number;
       finish: string;
@@ -656,23 +654,19 @@ const unmapMarketplacePrintingFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
-  // TODO(sweep): keep on fetchApi — the inputValidator types `marketplace` as `string`,
-  // but the route's query schema is `z.enum(["tcgplayer","cardmarket","cardtrader"])`, so
-  // the hc-typed `query` arg rejects `string`. Resolve by narrowing the validator's
-  // `marketplace` to the literal union (the hook's public type already is) before migrating.
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't unmap marketplace printing",
-      cookie: context.cookie,
-      path: `/api/v1/admin/marketplace-mappings?marketplace=${encodeURIComponent(data.marketplace)}`,
-      method: "DELETE",
-      body: {
-        printingId: data.printingId,
-        externalId: data.externalId,
-        finish: data.finish,
-        language: data.language,
-      },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["marketplace-mappings"].$delete({
+        query: { marketplace: data.marketplace },
+        json: {
+          printingId: data.printingId,
+          externalId: data.externalId,
+          finish: data.finish,
+          language: data.language,
+        },
+      }),
+      "Couldn't unmap marketplace printing",
+    );
   });
 
 const defaultMarketplaceScope: Scope = [
