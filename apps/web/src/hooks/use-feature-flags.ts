@@ -4,11 +4,11 @@ import { createServerFn } from "@tanstack/react-start";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { queryKeys } from "@/lib/query-keys";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import type {
   AdminFeatureFlagOverridesResponse,
   AdminFeatureFlagsResponse,
 } from "@/lib/server-fns/api-types";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -25,11 +25,10 @@ const fetchAdminFeatureFlags = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminFeatureFlagsResponse> =>
-      fetchApiJson<AdminFeatureFlagsResponse>({
-        errorTitle: "Couldn't load feature flags",
-        cookie: context.cookie,
-        path: "/api/v1/admin/feature-flags",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin["feature-flags"].$get(),
+        "Couldn't load feature flags",
+      ),
   );
 
 export const adminFeatureFlagsQueryOptions = queryOptions({
@@ -45,13 +44,13 @@ const toggleFeatureFlagFn = createServerFn({ method: "POST" })
   .inputValidator((input: { key: string; enabled: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't toggle feature flag",
-      cookie: context.cookie,
-      path: `/api/v1/admin/feature-flags/${encodeURIComponent(data.key)}`,
-      method: "PATCH",
-      body: { enabled: data.enabled },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["feature-flags"][":key"].$patch({
+        param: encodeParams({ key: data.key }),
+        json: { enabled: data.enabled },
+      }),
+      "Couldn't toggle feature flag",
+    );
   });
 
 export function useToggleFeatureFlag() {
@@ -65,13 +64,12 @@ const createFeatureFlagFn = createServerFn({ method: "POST" })
   .inputValidator((input: { key: string; description?: string | null; enabled?: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't create feature flag",
-      cookie: context.cookie,
-      path: "/api/v1/admin/feature-flags",
-      method: "POST",
-      body: data,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["feature-flags"].$post({
+        json: data,
+      }),
+      "Couldn't create feature flag",
+    );
   });
 
 export function useCreateFeatureFlag() {
@@ -86,12 +84,12 @@ const deleteFeatureFlagFn = createServerFn({ method: "POST" })
   .inputValidator((input: { key: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't delete feature flag",
-      cookie: context.cookie,
-      path: `/api/v1/admin/feature-flags/${encodeURIComponent(data.key)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["feature-flags"][":key"].$delete({
+        param: encodeParams({ key: data.key }),
+      }),
+      "Couldn't delete feature flag",
+    );
   });
 
 export function useDeleteFeatureFlag() {
@@ -109,11 +107,10 @@ const fetchAdminFeatureFlagOverrides = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminFeatureFlagOverridesResponse> =>
-      fetchApiJson<AdminFeatureFlagOverridesResponse>({
-        errorTitle: "Couldn't load feature flag overrides",
-        cookie: context.cookie,
-        path: "/api/v1/admin/feature-flags/overrides",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin["feature-flags"].overrides.$get(),
+        "Couldn't load feature flag overrides",
+      ),
   );
 
 export const adminFeatureFlagOverridesQueryOptions = queryOptions({
@@ -129,13 +126,13 @@ const upsertFeatureFlagOverrideFn = createServerFn({ method: "POST" })
   .inputValidator((input: { userId: string; flagKey: string; enabled: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't upsert feature flag override",
-      cookie: context.cookie,
-      path: `/api/v1/admin/users/${encodeURIComponent(data.userId)}/feature-flags/${encodeURIComponent(data.flagKey)}`,
-      method: "PUT",
-      body: { enabled: data.enabled },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.users[":id"]["feature-flags"][":key"].$put({
+        param: encodeParams({ id: data.userId, key: data.flagKey }),
+        json: { enabled: data.enabled },
+      }),
+      "Couldn't upsert feature flag override",
+    );
   });
 
 export function useUpsertFeatureFlagOverride() {
@@ -150,12 +147,12 @@ const deleteFeatureFlagOverrideFn = createServerFn({ method: "POST" })
   .inputValidator((input: { userId: string; flagKey: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't delete feature flag override",
-      cookie: context.cookie,
-      path: `/api/v1/admin/users/${encodeURIComponent(data.userId)}/feature-flags/${encodeURIComponent(data.flagKey)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.users[":id"]["feature-flags"][":key"].$delete({
+        param: encodeParams({ id: data.userId, key: data.flagKey }),
+      }),
+      "Couldn't delete feature flag override",
+    );
   });
 
 export function useDeleteFeatureFlagOverride() {

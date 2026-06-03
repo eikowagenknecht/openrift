@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
-import { fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 const fetchShares = createServerFn({ method: "GET" })
@@ -16,11 +16,12 @@ const fetchShares = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data: listId }): Promise<ListGroupSharesResponse> =>
-      fetchApiJson<ListGroupSharesResponse>({
-        errorTitle: "Couldn't load group shares",
-        cookie: context.cookie,
-        path: `/api/v1/lists/${encodeURIComponent(listId)}/group-shares`,
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.lists[":id"]["group-shares"].$get({
+          param: encodeParams({ id: listId }),
+        }),
+        "Couldn't load group shares",
+      ),
   );
 
 interface Props {

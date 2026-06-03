@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -19,12 +19,14 @@ interface BanResponse {
 const fetchCardBansFn = createServerFn({ method: "GET" })
   .inputValidator((input: { cardId: string }) => input)
   .middleware([withCookies])
-  .handler(({ context, data }) =>
-    fetchApiJson<{ bans: BanResponse[] }>({
-      errorTitle: "Couldn't load card bans",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/bans`,
-    }),
+  .handler(
+    ({ context, data }): Promise<{ bans: BanResponse[] }> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin.cards[":id"].bans.$get({
+          param: encodeParams({ id: data.cardId }),
+        }),
+        "Couldn't load card bans",
+      ),
   );
 
 export function useCardBans(cardId: string) {
@@ -45,17 +47,17 @@ const createCardBanFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't create card ban",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/bans`,
-      method: "POST",
-      body: {
-        formatId: data.formatId,
-        bannedAt: data.bannedAt,
-        reason: data.reason,
-      },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards[":id"].bans.$post({
+        param: encodeParams({ id: data.cardId }),
+        json: {
+          formatId: data.formatId,
+          bannedAt: data.bannedAt,
+          reason: data.reason,
+        },
+      }),
+      "Couldn't create card ban",
+    );
   });
 
 export function useCreateCardBan() {
@@ -84,17 +86,17 @@ const updateCardBanFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't update card ban",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/bans`,
-      method: "PATCH",
-      body: {
-        formatId: data.formatId,
-        bannedAt: data.bannedAt,
-        reason: data.reason,
-      },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards[":id"].bans.$patch({
+        param: encodeParams({ id: data.cardId }),
+        json: {
+          formatId: data.formatId,
+          bannedAt: data.bannedAt,
+          reason: data.reason,
+        },
+      }),
+      "Couldn't update card ban",
+    );
   });
 
 export function useUpdateCardBan() {
@@ -120,13 +122,13 @@ const removeCardBanFn = createServerFn({ method: "POST" })
   .inputValidator((input: { cardId: string; formatId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't remove card ban",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/bans`,
-      method: "DELETE",
-      body: { formatId: data.formatId },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards[":id"].bans.$delete({
+        param: encodeParams({ id: data.cardId }),
+        json: { formatId: data.formatId },
+      }),
+      "Couldn't remove card ban",
+    );
   });
 
 export function useRemoveCardBan() {

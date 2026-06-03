@@ -9,7 +9,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
-import { fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 interface ValueHistoryInput {
@@ -23,55 +23,54 @@ const fetchCollectionValueHistory = createServerFn({ method: "GET" })
   .inputValidator((input: ValueHistoryInput) => input)
   .middleware([withCookies])
   .handler(({ context, data }): Promise<CollectionValueHistoryResponse> => {
-    const params = new URLSearchParams({
+    const query: Record<string, string> = {
       marketplace: data.marketplace,
       range: data.range,
-    });
+    };
     if (data.collectionIds) {
-      params.set("collectionIds", data.collectionIds);
+      query.collectionIds = data.collectionIds;
     }
 
     // Parse scope JSON and add individual params
     const scope = JSON.parse(data.scope) as CompletionScopePreference;
     if (scope.sets?.length) {
-      params.set("sets", scope.sets.join(","));
+      query.sets = scope.sets.join(",");
     }
     if (scope.languages?.length) {
-      params.set("languages", scope.languages.join(","));
+      query.languages = scope.languages.join(",");
     }
     if (scope.domains?.length) {
-      params.set("domains", scope.domains.join(","));
+      query.domains = scope.domains.join(",");
     }
     if (scope.types?.length) {
-      params.set("types", scope.types.join(","));
+      query.types = scope.types.join(",");
     }
     if (scope.rarities?.length) {
-      params.set("rarities", scope.rarities.join(","));
+      query.rarities = scope.rarities.join(",");
     }
     if (scope.finishes?.length) {
-      params.set("finishes", scope.finishes.join(","));
+      query.finishes = scope.finishes.join(",");
     }
     if (scope.artVariants?.length) {
-      params.set("artVariants", scope.artVariants.join(","));
+      query.artVariants = scope.artVariants.join(",");
     }
     if (scope.promos) {
-      params.set("promos", scope.promos);
+      query.promos = scope.promos;
     }
     if (scope.signed !== undefined) {
-      params.set("signed", String(scope.signed));
+      query.signed = String(scope.signed);
     }
     if (scope.banned !== undefined) {
-      params.set("banned", String(scope.banned));
+      query.banned = String(scope.banned);
     }
     if (scope.errata !== undefined) {
-      params.set("errata", String(scope.errata));
+      query.errata = String(scope.errata);
     }
 
-    return fetchApiJson<CollectionValueHistoryResponse>({
-      errorTitle: "Couldn't load collection value history",
-      cookie: context.cookie,
-      path: `/api/v1/collection-value-history?${params.toString()}`,
-    });
+    return callApiJson(
+      serverApiClient(context.cookie).api.v1["collection-value-history"].$get({ query }),
+      "Couldn't load collection value history",
+    );
   });
 
 /**

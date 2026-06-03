@@ -207,7 +207,9 @@ export function SiteSettingsPage() {
             createMutation.mutateAsync({
               key: draft.key.trim(),
               value: draft.value,
-              scope: draft.scope,
+              // The draft scope is a loose string (Select + string-typed list
+              // response); the Select constrains it to these two at runtime.
+              scope: draft.scope as "web" | "api",
             }),
           validate: (draft) => {
             const key = draft.key.trim();
@@ -234,7 +236,7 @@ export function SiteSettingsPage() {
             updateMutation.mutateAsync({
               key: draft.key,
               value: draft.value,
-              scope: draft.scope,
+              scope: draft.scope as "web" | "api",
             }),
         }}
         delete={{

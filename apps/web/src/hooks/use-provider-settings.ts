@@ -2,8 +2,8 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import type { ProviderSettingsResponse } from "@/lib/server-fns/api-types";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -11,11 +11,10 @@ const fetchProviderSettings = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<ProviderSettingsResponse> =>
-      fetchApiJson<ProviderSettingsResponse>({
-        errorTitle: "Couldn't load provider settings",
-        cookie: context.cookie,
-        path: "/api/v1/admin/provider-settings",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin["provider-settings"].$get(),
+        "Couldn't load provider settings",
+      ),
   );
 
 export const providerSettingsQueryOptions = queryOptions({
@@ -32,13 +31,12 @@ const reorderProviderSettingsFn = createServerFn({ method: "POST" })
   .inputValidator((input: { providers: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't reorder provider settings",
-      cookie: context.cookie,
-      path: "/api/v1/admin/provider-settings/reorder",
-      method: "PUT",
-      body: { providers: data.providers },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["provider-settings"].reorder.$put({
+        json: { providers: data.providers },
+      }),
+      "Couldn't reorder provider settings",
+    );
   });
 
 export function useReorderProviderSettings() {
@@ -57,17 +55,17 @@ const updateProviderSettingFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't update provider setting",
-      cookie: context.cookie,
-      path: `/api/v1/admin/provider-settings/${encodeURIComponent(data.provider)}`,
-      method: "PATCH",
-      body: {
-        sortOrder: data.sortOrder,
-        isHidden: data.isHidden,
-        isFavorite: data.isFavorite,
-      },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["provider-settings"][":provider"].$patch({
+        param: encodeParams({ provider: data.provider }),
+        json: {
+          sortOrder: data.sortOrder,
+          isHidden: data.isHidden,
+          isFavorite: data.isFavorite,
+        },
+      }),
+      "Couldn't update provider setting",
+    );
   });
 
 export function useUpdateProviderSetting() {

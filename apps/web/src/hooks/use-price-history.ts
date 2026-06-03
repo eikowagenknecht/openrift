@@ -3,20 +3,23 @@ import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 const fetchPriceHistoryFn = createServerFn({ method: "GET" })
-  .inputValidator((input: { printingId: string; range: string }) => input)
+  // range is the TimeRange enum on the route (was loose `string` under fetchApi).
+  .inputValidator((input: { printingId: string; range: TimeRange }) => input)
   .middleware([withCookies])
-  .handler(({ context, data }) => {
-    const params = new URLSearchParams({ range: data.range });
-    return fetchApiJson<PriceHistoryResponse>({
-      errorTitle: "Couldn't load price history",
-      cookie: context.cookie,
-      path: `/api/v1/prices/${encodeURIComponent(data.printingId)}/history?${params.toString()}`,
-    });
-  });
+  .handler(
+    ({ context, data }): Promise<PriceHistoryResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.prices[":printingId"].history.$get({
+          param: encodeParams({ printingId: data.printingId }),
+          query: { range: data.range },
+        }),
+        "Couldn't load price history",
+      ),
+  );
 
 export function usePriceHistory(printingId: string | null, range: TimeRange = "30d") {
   return useQuery({

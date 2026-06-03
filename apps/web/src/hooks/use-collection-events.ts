@@ -4,24 +4,23 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
-import { fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 const fetchCollectionEventsFn = createServerFn({ method: "GET" })
   .inputValidator((input: { cursor?: string }) => input)
   .middleware([withCookies])
-  .handler(({ context, data }): Promise<CollectionEventListResponse> => {
-    const params = new URLSearchParams();
-    if (data.cursor) {
-      params.set("cursor", data.cursor);
-    }
-    const qs = params.toString();
-    return fetchApiJson<CollectionEventListResponse>({
-      errorTitle: "Couldn't load collection events",
-      cookie: context.cookie,
-      path: `/api/v1/collection-events${qs ? `?${qs}` : ""}`,
-    });
-  });
+  .handler(
+    ({ context, data }): Promise<CollectionEventListResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["collection-events"].$get({
+          // The route declares a query schema, so hc requires the `query` arg even
+          // when empty; an empty `{}` adds a harmless trailing `?` to the URL.
+          query: data.cursor ? { cursor: data.cursor } : {},
+        }),
+        "Couldn't load collection events",
+      ),
+  );
 
 export function collectionEventsQueryOptions(userId: string) {
   return infiniteQueryOptions({

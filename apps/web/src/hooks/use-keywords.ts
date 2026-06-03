@@ -2,19 +2,18 @@ import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@ta
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import type { KeywordStatsResponse } from "@/lib/server-fns/api-types";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 const fetchKeywordStats = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<KeywordStatsResponse> =>
-      fetchApiJson<KeywordStatsResponse>({
-        errorTitle: "Couldn't load keyword stats",
-        cookie: context.cookie,
-        path: "/api/v1/admin/keyword-stats",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin["keyword-stats"].$get(),
+        "Couldn't load keyword stats",
+      ),
   );
 
 export const keywordStatsQueryOptions = queryOptions({
@@ -29,12 +28,10 @@ export function useKeywordStats() {
 const recomputeKeywordsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(({ context }) =>
-    fetchApiJson<{ updated: number; totalCards: number }>({
-      errorTitle: "Couldn't recompute keywords",
-      cookie: context.cookie,
-      path: "/api/v1/admin/recompute-keywords",
-      method: "POST",
-    }),
+    callApiJson(
+      serverApiClient(context.cookie).api.v1.admin["recompute-keywords"].$post(),
+      "Couldn't recompute keywords",
+    ),
   );
 
 export function useRecomputeKeywords() {
@@ -51,13 +48,13 @@ const updateKeywordStyleFn = createServerFn({ method: "POST" })
   .inputValidator((input: { name: string; color: string; darkText: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't update keyword style",
-      cookie: context.cookie,
-      path: `/api/v1/admin/keywords/${encodeURIComponent(data.name)}`,
-      method: "PUT",
-      body: { color: data.color, darkText: data.darkText },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.keywords[":name"].$put({
+        param: encodeParams({ name: data.name }),
+        json: { color: data.color, darkText: data.darkText },
+      }),
+      "Couldn't update keyword style",
+    );
   });
 
 export function useUpdateKeywordStyle() {
@@ -76,13 +73,12 @@ const createKeywordStyleFn = createServerFn({ method: "POST" })
   .inputValidator((input: { name: string; color: string; darkText: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't create keyword style",
-      cookie: context.cookie,
-      path: "/api/v1/admin/keywords",
-      method: "POST",
-      body: data,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.keywords.$post({
+        json: data,
+      }),
+      "Couldn't create keyword style",
+    );
   });
 
 export function useCreateKeywordStyle() {
@@ -101,12 +97,12 @@ const deleteKeywordStyleFn = createServerFn({ method: "POST" })
   .inputValidator((input: { name: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't delete keyword style",
-      cookie: context.cookie,
-      path: `/api/v1/admin/keywords/${encodeURIComponent(data.name)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.keywords[":name"].$delete({
+        param: encodeParams({ name: data.name }),
+      }),
+      "Couldn't delete keyword style",
+    );
   });
 
 export function useDeleteKeywordStyle() {
@@ -125,17 +121,10 @@ export function useDeleteKeywordStyle() {
 const discoverTranslationsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(({ context }) =>
-    fetchApiJson<{
-      candidatesExamined: number;
-      discovered: { keyword: string; language: string; label: string }[];
-      inserted: number;
-      conflicts: { keyword: string; language: string; labels: string[] }[];
-    }>({
-      errorTitle: "Couldn't discover translations",
-      cookie: context.cookie,
-      path: "/api/v1/admin/discover-keyword-translations",
-      method: "POST",
-    }),
+    callApiJson(
+      serverApiClient(context.cookie).api.v1.admin["discover-keyword-translations"].$post(),
+      "Couldn't discover translations",
+    ),
   );
 
 export function useDiscoverTranslations() {
@@ -153,13 +142,15 @@ const upsertTranslationFn = createServerFn({ method: "POST" })
   .inputValidator((input: { keywordName: string; language: string; label: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't upsert translation",
-      cookie: context.cookie,
-      path: `/api/v1/admin/keyword-translations/${encodeURIComponent(data.keywordName)}/${encodeURIComponent(data.language)}`,
-      method: "PUT",
-      body: { label: data.label },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["keyword-translations"][":keywordName"][
+        ":language"
+      ].$put({
+        param: encodeParams({ keywordName: data.keywordName, language: data.language }),
+        json: { label: data.label },
+      }),
+      "Couldn't upsert translation",
+    );
   });
 
 export function useUpsertTranslation() {
@@ -178,12 +169,14 @@ const deleteTranslationFn = createServerFn({ method: "POST" })
   .inputValidator((input: { keywordName: string; language: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't delete translation",
-      cookie: context.cookie,
-      path: `/api/v1/admin/keyword-translations/${encodeURIComponent(data.keywordName)}/${encodeURIComponent(data.language)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["keyword-translations"][":keywordName"][
+        ":language"
+      ].$delete({
+        param: encodeParams({ keywordName: data.keywordName, language: data.language }),
+      }),
+      "Couldn't delete translation",
+    );
   });
 
 export function useDeleteTranslation() {

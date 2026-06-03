@@ -4,13 +4,18 @@ import { createServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
 import { queryKeys } from "@/lib/query-keys";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { callApi, callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
+import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 const fetchUnifiedMappings = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<UnifiedMappingsResponse> =>
+      // TODO(sweep): route response schema is `z.object({}).passthrough()`, which hc
+      // infers as an empty/index type — it does not match the concrete
+      // `UnifiedMappingsResponse` annotation. Resolve by giving the route a real
+      // response schema before migrating to hc.
       fetchApiJson<UnifiedMappingsResponse>({
         errorTitle: "Couldn't load unified mappings",
         cookie: context.cookie,
@@ -34,6 +39,10 @@ const fetchUnifiedMappingsForCard = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<UnifiedMappingsCardResponse> =>
+      // TODO(sweep): route response schema is `z.object({}).passthrough()`, which hc
+      // infers as an empty/index type — it does not match the concrete
+      // `UnifiedMappingsCardResponse` annotation. Resolve by giving the route a real
+      // response schema before migrating to hc.
       fetchApiJson<UnifiedMappingsCardResponse>({
         errorTitle: "Couldn't load marketplace mappings for card",
         cookie: context.cookie,
@@ -84,7 +93,7 @@ interface SaveMappingsBody {
 const saveMappingsFn = createServerFn({ method: "POST" })
   .inputValidator(
     (input: {
-      marketplace: string;
+      marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
       mappings: {
         printingId: string;
         externalId: number;
@@ -94,14 +103,18 @@ const saveMappingsFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
-  .handler(({ context, data }) =>
-    fetchApiJson<{ saved: number; skipped?: { externalId: number; reason: string }[] }>({
-      errorTitle: "Couldn't save mappings",
-      cookie: context.cookie,
-      path: `/api/v1/admin/marketplace-mappings?marketplace=${encodeURIComponent(data.marketplace)}`,
-      method: "POST",
-      body: { mappings: data.mappings },
-    }),
+  .handler(
+    ({
+      context,
+      data,
+    }): Promise<{ saved: number; skipped?: { externalId: number; reason: string }[] }> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin["marketplace-mappings"].$post({
+          query: { marketplace: data.marketplace },
+          json: { mappings: data.mappings },
+        }),
+        "Couldn't save mappings",
+      ),
   );
 
 export function useUnifiedSaveMappings(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
@@ -122,40 +135,43 @@ export function useUnifiedSaveMappings(marketplace: "tcgplayer" | "cardmarket" |
 const ignoreVariantsFn = createServerFn({ method: "POST" })
   .inputValidator(
     (input: {
-      marketplace: string;
+      marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
       products: { externalId: number; finish: string; language: string | null }[];
     }) => input,
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't ignore variants",
-      cookie: context.cookie,
-      path: "/api/v1/admin/ignored-products",
-      method: "POST",
-      body: {
-        level: "variant",
-        marketplace: data.marketplace,
-        products: data.products,
-      },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["ignored-products"].$post({
+        json: {
+          level: "variant",
+          marketplace: data.marketplace,
+          products: data.products,
+        },
+      }),
+      "Couldn't ignore variants",
+    );
   });
 
 const ignoreProductsFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { marketplace: string; products: { externalId: number }[] }) => input)
+  .inputValidator(
+    (input: {
+      marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
+      products: { externalId: number }[];
+    }) => input,
+  )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't ignore products",
-      cookie: context.cookie,
-      path: "/api/v1/admin/ignored-products",
-      method: "POST",
-      body: {
-        level: "product",
-        marketplace: data.marketplace,
-        products: data.products,
-      },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["ignored-products"].$post({
+        json: {
+          level: "product",
+          marketplace: data.marketplace,
+          products: data.products,
+        },
+      }),
+      "Couldn't ignore products",
+    );
   });
 
 /**
@@ -184,7 +200,7 @@ export function useUnifiedIgnoreProducts(marketplace: "tcgplayer" | "cardmarket"
 const assignToCardFn = createServerFn({ method: "POST" })
   .inputValidator(
     (input: {
-      marketplace: string;
+      marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
       externalId: number;
       finish: string;
       language: string | null;
@@ -193,13 +209,12 @@ const assignToCardFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't assign to card",
-      cookie: context.cookie,
-      path: "/api/v1/admin/staging-card-overrides",
-      method: "POST",
-      body: data,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["staging-card-overrides"].$post({
+        json: data,
+      }),
+      "Couldn't assign to card",
+    );
   });
 
 export function useUnifiedAssignToCard(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
@@ -218,18 +233,21 @@ export function useUnifiedAssignToCard(marketplace: "tcgplayer" | "cardmarket" |
 
 const unassignFromCardFn = createServerFn({ method: "POST" })
   .inputValidator(
-    (input: { marketplace: string; externalId: number; finish: string; language: string | null }) =>
-      input,
+    (input: {
+      marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
+      externalId: number;
+      finish: string;
+      language: string | null;
+    }) => input,
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't unassign from card",
-      cookie: context.cookie,
-      path: "/api/v1/admin/staging-card-overrides",
-      method: "DELETE",
-      body: data,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["staging-card-overrides"].$delete({
+        json: data,
+      }),
+      "Couldn't unassign from card",
+    );
   });
 
 export function useUnifiedUnassignFromCard(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {

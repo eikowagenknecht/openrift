@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { callApi, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
+import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -18,19 +19,19 @@ const upsertCardErrataFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't upsert card errata",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/errata`,
-      method: "POST",
-      body: {
-        correctedRulesText: data.correctedRulesText,
-        correctedEffectText: data.correctedEffectText,
-        source: data.source,
-        sourceUrl: data.sourceUrl ?? null,
-        effectiveDate: data.effectiveDate ?? null,
-      },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards[":cardId"].errata.$post({
+        param: encodeParams({ cardId: data.cardId }),
+        json: {
+          correctedRulesText: data.correctedRulesText,
+          correctedEffectText: data.correctedEffectText,
+          source: data.source,
+          sourceUrl: data.sourceUrl ?? null,
+          effectiveDate: data.effectiveDate ?? null,
+        },
+      }),
+      "Couldn't upsert card errata",
+    );
   });
 
 /**
@@ -66,12 +67,12 @@ const deleteCardErrataFn = createServerFn({ method: "POST" })
   .inputValidator((input: { cardId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't delete card errata",
-      cookie: context.cookie,
-      path: `/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/errata`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.cards[":cardId"].errata.$delete({
+        param: encodeParams({ cardId: data.cardId }),
+      }),
+      "Couldn't delete card errata",
+    );
   });
 
 /**
@@ -122,6 +123,11 @@ export interface BulkErrataUploadResponse {
   skippedMatchesPrinted: EntryRef[];
 }
 
+// TODO(sweep): migrate to hc. The 200 body's `updatedEntries[].fields[].from`/`.to`
+// are `z.unknown()` in the route, so hc infers them as `unknown`, which is not
+// assignable to this fn's `BulkErrataUploadResponse` annotation (`from`/`to` typed
+// `string | null`). Resolve by tightening the route schema (e.g. `z.string().nullable()`)
+// before switching to callApiJson.
 const uploadErrataFn = createServerFn({ method: "POST" })
   .inputValidator((input: BulkErrataUploadBody) => input)
   .middleware([withCookies])

@@ -2,8 +2,8 @@ import { queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
+import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import type { JobRunsListResponse, JobRunView } from "@/lib/server-fns/api-types";
-import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 const DEFAULT_LIMIT = 200;
@@ -12,11 +12,12 @@ const fetchJobRuns = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<JobRunsListResponse> =>
-      fetchApiJson<JobRunsListResponse>({
-        errorTitle: "Couldn't load job runs",
-        cookie: context.cookie,
-        path: `/api/v1/admin/job-runs?limit=${DEFAULT_LIMIT}`,
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin["job-runs"].$get({
+          query: { limit: String(DEFAULT_LIMIT) },
+        }),
+        "Couldn't load job runs",
+      ),
   );
 
 export const adminJobRunsQueryOptions = queryOptions({
@@ -37,11 +38,12 @@ const fetchLatestJobRunByKind = createServerFn({ method: "GET" })
   .inputValidator((input: { kind: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }): Promise<JobRunView | null> => {
-    const res = await fetchApiJson<JobRunsListResponse>({
-      errorTitle: "Couldn't load job run",
-      cookie: context.cookie,
-      path: `/api/v1/admin/job-runs?kind=${encodeURIComponent(data.kind)}&limit=1`,
-    });
+    const res = await callApiJson(
+      serverApiClient(context.cookie).api.v1.admin["job-runs"].$get({
+        query: { kind: data.kind, limit: "1" },
+      }),
+      "Couldn't load job run",
+    );
     return res.runs[0] ?? null;
   });
 

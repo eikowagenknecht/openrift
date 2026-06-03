@@ -4,7 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -14,13 +14,13 @@ const fetchRulesAtVersion = createServerFn({ method: "GET" })
     ({ data }): Promise<RulesListResponse> =>
       serverCache.fetchQuery({
         queryKey: ["server-cache", "rules", data.kind, data.version],
-        queryFn: () => {
-          const params = new URLSearchParams({ kind: data.kind, version: data.version });
-          return fetchApiJson<RulesListResponse>({
-            errorTitle: "Couldn't load rules",
-            path: `/api/v1/rules?${params.toString()}`,
-          });
-        },
+        queryFn: () =>
+          callApiJson(
+            serverApiClient().api.v1.rules.$get({
+              query: { kind: data.kind, version: data.version },
+            }),
+            "Couldn't load rules",
+          ),
       }),
   );
 
@@ -32,15 +32,13 @@ const fetchVersions = createServerFn({ method: "GET" })
       : ["server-cache", "rules-versions"];
     return serverCache.fetchQuery({
       queryKey: cacheKey,
-      queryFn: () => {
-        const path = data.kind
-          ? `/api/v1/rules/versions?kind=${encodeURIComponent(data.kind)}`
-          : "/api/v1/rules/versions";
-        return fetchApiJson<RuleVersionsListResponse>({
-          errorTitle: "Couldn't load rule versions",
-          path,
-        });
-      },
+      queryFn: () =>
+        callApiJson(
+          serverApiClient().api.v1.rules.versions.$get({
+            query: data.kind ? { kind: data.kind } : {},
+          }),
+          "Couldn't load rule versions",
+        ),
     });
   });
 
@@ -77,25 +75,17 @@ const importRulesFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const result = await fetchApiJson<{
-      kind: RuleKind;
-      version: string;
-      rulesCount: number;
-      added: number;
-      modified: number;
-      removed: number;
-    }>({
-      errorTitle: "Couldn't import rules",
-      cookie: context.cookie,
-      path: "/api/v1/admin/rules/import",
-      method: "POST",
-      body: {
-        kind: data.kind,
-        version: data.version,
-        comments: data.comments,
-        content: data.content,
-      },
-    });
+    const result = await callApiJson(
+      serverApiClient(context.cookie).api.v1.admin.rules.import.$post({
+        json: {
+          kind: data.kind,
+          version: data.version,
+          comments: data.comments,
+          content: data.content,
+        },
+      }),
+      "Couldn't import rules",
+    );
     await serverCache.invalidateQueries({ queryKey: ["server-cache", "rules"] });
     await serverCache.invalidateQueries({ queryKey: ["server-cache", "rules-versions"] });
     return result;
@@ -117,14 +107,12 @@ const deleteRuleVersionFn = createServerFn({ method: "POST" })
   .inputValidator((input: { kind: RuleKind; version: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't delete rule version",
-      cookie: context.cookie,
-      path: `/api/v1/admin/rules/${encodeURIComponent(data.kind)}/versions/${encodeURIComponent(
-        data.version,
-      )}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.rules[":kind"].versions[":version"].$delete({
+        param: encodeParams({ kind: data.kind, version: data.version }),
+      }),
+      "Couldn't delete rule version",
+    );
     await serverCache.invalidateQueries({ queryKey: ["server-cache", "rules"] });
     await serverCache.invalidateQueries({ queryKey: ["server-cache", "rules-versions"] });
   });
@@ -140,19 +128,13 @@ const updateRuleVersionCommentsFn = createServerFn({ method: "POST" })
   .inputValidator((input: { kind: RuleKind; version: string; comments: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const result = await fetchApiJson<{
-      kind: RuleKind;
-      version: string;
-      comments: string | null;
-    }>({
-      errorTitle: "Couldn't update version comments",
-      cookie: context.cookie,
-      path: `/api/v1/admin/rules/${encodeURIComponent(data.kind)}/versions/${encodeURIComponent(
-        data.version,
-      )}`,
-      method: "PATCH",
-      body: { comments: data.comments },
-    });
+    const result = await callApiJson(
+      serverApiClient(context.cookie).api.v1.admin.rules[":kind"].versions[":version"].$patch({
+        param: encodeParams({ kind: data.kind, version: data.version }),
+        json: { comments: data.comments },
+      }),
+      "Couldn't update version comments",
+    );
     await serverCache.invalidateQueries({ queryKey: ["server-cache", "rules-versions"] });
     return result;
   });
