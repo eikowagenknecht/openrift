@@ -3,8 +3,8 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import type { MarketplaceGroupsResponse } from "@/lib/server-fns/api-types";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -14,11 +14,10 @@ const fetchMarketplaceGroups = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<MarketplaceGroupsResponse> =>
-      fetchApiJson<MarketplaceGroupsResponse>({
-        errorTitle: "Couldn't load marketplace groups",
-        cookie: context.cookie,
-        path: "/api/v1/admin/marketplace-groups",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin["marketplace-groups"].$get(),
+        "Couldn't load marketplace groups",
+      ),
   );
 
 export const marketplaceGroupsQueryOptions = queryOptions({
@@ -43,13 +42,15 @@ const updateMarketplaceGroupFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     const { marketplace, groupId, ...patch } = data;
-    await fetchApi({
-      errorTitle: "Couldn't update marketplace group",
-      cookie: context.cookie,
-      path: `/api/v1/admin/marketplace-groups/${encodeURIComponent(marketplace)}/${encodeURIComponent(String(groupId))}`,
-      method: "PATCH",
-      body: patch,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["marketplace-groups"][":marketplace"][
+        ":id"
+      ].$patch({
+        param: encodeParams({ marketplace, id: String(groupId) }),
+        json: patch,
+      }),
+      "Couldn't update marketplace group",
+    );
   });
 
 export function useUpdateMarketplaceGroup() {

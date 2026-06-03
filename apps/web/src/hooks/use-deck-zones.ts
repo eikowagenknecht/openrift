@@ -2,8 +2,8 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import type { AdminDeckZonesResponse } from "@/lib/server-fns/api-types";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -11,11 +11,10 @@ const fetchDeckZones = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminDeckZonesResponse> =>
-      fetchApiJson<AdminDeckZonesResponse>({
-        errorTitle: "Couldn't load deck zones",
-        cookie: context.cookie,
-        path: "/api/v1/admin/deck-zones",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin["deck-zones"].$get(),
+        "Couldn't load deck zones",
+      ),
   );
 
 export const adminDeckZonesQueryOptions = queryOptions({
@@ -31,13 +30,12 @@ const reorderDeckZonesFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't reorder deck zones",
-      cookie: context.cookie,
-      path: "/api/v1/admin/deck-zones/reorder",
-      method: "PUT",
-      body: { slugs: data.slugs },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["deck-zones"].reorder.$put({
+        json: { slugs: data.slugs },
+      }),
+      "Couldn't reorder deck zones",
+    );
   });
 
 export function useReorderDeckZones() {
@@ -51,13 +49,13 @@ const updateDeckZoneFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't update deck zone",
-      cookie: context.cookie,
-      path: `/api/v1/admin/deck-zones/${encodeURIComponent(data.slug)}`,
-      method: "PATCH",
-      body: { label: data.label },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["deck-zones"][":slug"].$patch({
+        param: encodeParams({ slug: data.slug }),
+        json: { label: data.label },
+      }),
+      "Couldn't update deck zone",
+    );
   });
 
 export function useUpdateDeckZone() {

@@ -2,8 +2,8 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import type { AdminArtVariantsResponse } from "@/lib/server-fns/api-types";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -11,11 +11,10 @@ const fetchArtVariants = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminArtVariantsResponse> =>
-      fetchApiJson<AdminArtVariantsResponse>({
-        errorTitle: "Couldn't load art variants",
-        cookie: context.cookie,
-        path: "/api/v1/admin/art-variants",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin["art-variants"].$get(),
+        "Couldn't load art variants",
+      ),
   );
 
 export const adminArtVariantsQueryOptions = queryOptions({
@@ -31,13 +30,12 @@ const createArtVariantFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't create art variant",
-      cookie: context.cookie,
-      path: "/api/v1/admin/art-variants",
-      method: "POST",
-      body: data,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["art-variants"].$post({
+        json: data,
+      }),
+      "Couldn't create art variant",
+    );
   });
 
 export function useCreateArtVariant() {
@@ -51,13 +49,13 @@ const updateArtVariantFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't update art variant",
-      cookie: context.cookie,
-      path: `/api/v1/admin/art-variants/${encodeURIComponent(data.slug)}`,
-      method: "PATCH",
-      body: { label: data.label },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["art-variants"][":slug"].$patch({
+        param: encodeParams({ slug: data.slug }),
+        json: { label: data.label },
+      }),
+      "Couldn't update art variant",
+    );
   });
 
 export function useUpdateArtVariant() {
@@ -71,13 +69,12 @@ const reorderArtVariantsFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't reorder art variants",
-      cookie: context.cookie,
-      path: "/api/v1/admin/art-variants/reorder",
-      method: "PUT",
-      body: { slugs: data.slugs },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["art-variants"].reorder.$put({
+        json: { slugs: data.slugs },
+      }),
+      "Couldn't reorder art variants",
+    );
   });
 
 export function useReorderArtVariants() {
@@ -91,12 +88,12 @@ const deleteArtVariantFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't delete art variant",
-      cookie: context.cookie,
-      path: `/api/v1/admin/art-variants/${encodeURIComponent(data.slug)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["art-variants"][":slug"].$delete({
+        param: encodeParams({ slug: data.slug }),
+      }),
+      "Couldn't delete art variant",
+    );
   });
 
 export function useDeleteArtVariant() {

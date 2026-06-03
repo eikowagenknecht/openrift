@@ -2,8 +2,8 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import type { AdminSetsResponse } from "@/lib/server-fns/api-types";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -11,11 +11,7 @@ const fetchSets = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminSetsResponse> =>
-      fetchApiJson<AdminSetsResponse>({
-        errorTitle: "Couldn't load sets",
-        cookie: context.cookie,
-        path: "/api/v1/admin/sets",
-      }),
+      callApiJson(serverApiClient(context.cookie).api.v1.admin.sets.$get(), "Couldn't load sets"),
   );
 
 export const setsQueryOptions = queryOptions({
@@ -40,13 +36,14 @@ const updateSetFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't update set",
-      cookie: context.cookie,
-      path: `/api/v1/admin/sets/${encodeURIComponent(data.id)}`,
-      method: "PATCH",
-      body: data,
-    });
+    const { id, ...patch } = data;
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.sets[":id"].$patch({
+        param: encodeParams({ id }),
+        json: patch,
+      }),
+      "Couldn't update set",
+    );
   });
 
 export function useUpdateSet() {
@@ -72,13 +69,12 @@ const createSetFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't create set",
-      cookie: context.cookie,
-      path: "/api/v1/admin/sets",
-      method: "POST",
-      body: data,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.sets.$post({
+        json: data,
+      }),
+      "Couldn't create set",
+    );
   });
 
 export function useCreateSet() {
@@ -97,12 +93,12 @@ const deleteSetFn = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't delete set",
-      cookie: context.cookie,
-      path: `/api/v1/admin/sets/${encodeURIComponent(data.id)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.sets[":id"].$delete({
+        param: encodeParams({ id: data.id }),
+      }),
+      "Couldn't delete set",
+    );
   });
 
 export function useDeleteSet() {
@@ -118,13 +114,12 @@ const reorderSetsFn = createServerFn({ method: "POST" })
   .inputValidator((input: { ids: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't reorder sets",
-      cookie: context.cookie,
-      path: "/api/v1/admin/sets/reorder",
-      method: "PUT",
-      body: { ids: data.ids },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.sets.reorder.$put({
+        json: { ids: data.ids },
+      }),
+      "Couldn't reorder sets",
+    );
   });
 
 export function useReorderSets() {

@@ -2,8 +2,8 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import type { AdminFinishesResponse } from "@/lib/server-fns/api-types";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -11,11 +11,10 @@ const fetchFinishes = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminFinishesResponse> =>
-      fetchApiJson<AdminFinishesResponse>({
-        errorTitle: "Couldn't load finishes",
-        cookie: context.cookie,
-        path: "/api/v1/admin/finishes",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin.finishes.$get(),
+        "Couldn't load finishes",
+      ),
   );
 
 export const adminFinishesQueryOptions = queryOptions({
@@ -31,13 +30,10 @@ const createFinishFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't create finish",
-      cookie: context.cookie,
-      path: "/api/v1/admin/finishes",
-      method: "POST",
-      body: data,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.finishes.$post({ json: data }),
+      "Couldn't create finish",
+    );
   });
 
 export function useCreateFinish() {
@@ -51,13 +47,13 @@ const updateFinishFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't update finish",
-      cookie: context.cookie,
-      path: `/api/v1/admin/finishes/${encodeURIComponent(data.slug)}`,
-      method: "PATCH",
-      body: { label: data.label },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.finishes[":slug"].$patch({
+        param: encodeParams({ slug: data.slug }),
+        json: { label: data.label },
+      }),
+      "Couldn't update finish",
+    );
   });
 
 export function useUpdateFinish() {
@@ -71,13 +67,12 @@ const reorderFinishesFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't reorder finishes",
-      cookie: context.cookie,
-      path: "/api/v1/admin/finishes/reorder",
-      method: "PUT",
-      body: { slugs: data.slugs },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.finishes.reorder.$put({
+        json: { slugs: data.slugs },
+      }),
+      "Couldn't reorder finishes",
+    );
   });
 
 export function useReorderFinishes() {
@@ -91,12 +86,12 @@ const deleteFinishFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't delete finish",
-      cookie: context.cookie,
-      path: `/api/v1/admin/finishes/${encodeURIComponent(data.slug)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.finishes[":slug"].$delete({
+        param: encodeParams({ slug: data.slug }),
+      }),
+      "Couldn't delete finish",
+    );
   });
 
 export function useDeleteFinish() {

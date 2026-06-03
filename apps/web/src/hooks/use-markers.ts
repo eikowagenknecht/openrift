@@ -3,7 +3,7 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -15,11 +15,10 @@ const fetchMarkers = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminMarkersResponse> =>
-      fetchApiJson<AdminMarkersResponse>({
-        errorTitle: "Couldn't load markers",
-        cookie: context.cookie,
-        path: "/api/v1/admin/markers",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin.markers.$get(),
+        "Couldn't load markers",
+      ),
   );
 
 export const adminMarkersQueryOptions = queryOptions({
@@ -36,13 +35,10 @@ const createMarkerFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label: string; description?: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't create marker",
-      cookie: context.cookie,
-      path: "/api/v1/admin/markers",
-      method: "POST",
-      body: data,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.markers.$post({ json: data }),
+      "Couldn't create marker",
+    );
   });
 
 export function useCreateMarker() {
@@ -59,17 +55,17 @@ const updateMarkerFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't update marker",
-      cookie: context.cookie,
-      path: `/api/v1/admin/markers/${encodeURIComponent(data.id)}`,
-      method: "PATCH",
-      body: {
-        slug: data.slug,
-        label: data.label,
-        description: data.description,
-      },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.markers[":id"].$patch({
+        param: encodeParams({ id: data.id }),
+        json: {
+          slug: data.slug,
+          label: data.label,
+          description: data.description,
+        },
+      }),
+      "Couldn't update marker",
+    );
   });
 
 export function useUpdateMarker() {
@@ -88,12 +84,12 @@ const deleteMarkerFn = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't delete marker",
-      cookie: context.cookie,
-      path: `/api/v1/admin/markers/${encodeURIComponent(data.id)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.markers[":id"].$delete({
+        param: encodeParams({ id: data.id }),
+      }),
+      "Couldn't delete marker",
+    );
   });
 
 export function useDeleteMarker() {
@@ -107,13 +103,12 @@ const reorderMarkersFn = createServerFn({ method: "POST" })
   .inputValidator((input: { ids: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't reorder markers",
-      cookie: context.cookie,
-      path: "/api/v1/admin/markers/reorder",
-      method: "PUT",
-      body: { ids: data.ids },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.markers.reorder.$put({
+        json: { ids: data.ids },
+      }),
+      "Couldn't reorder markers",
+    );
   });
 
 export function useReorderMarkers() {

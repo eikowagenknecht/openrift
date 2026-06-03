@@ -2,8 +2,8 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import type { AdminCardTypesResponse } from "@/lib/server-fns/api-types";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -11,11 +11,10 @@ const fetchCardTypes = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminCardTypesResponse> =>
-      fetchApiJson<AdminCardTypesResponse>({
-        errorTitle: "Couldn't load card types",
-        cookie: context.cookie,
-        path: "/api/v1/admin/card-types",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin["card-types"].$get(),
+        "Couldn't load card types",
+      ),
   );
 
 export const adminCardTypesQueryOptions = queryOptions({
@@ -31,13 +30,12 @@ const createCardTypeFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't create card type",
-      cookie: context.cookie,
-      path: "/api/v1/admin/card-types",
-      method: "POST",
-      body: data,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["card-types"].$post({
+        json: data,
+      }),
+      "Couldn't create card type",
+    );
   });
 
 export function useCreateCardType() {
@@ -51,13 +49,13 @@ const updateCardTypeFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't update card type",
-      cookie: context.cookie,
-      path: `/api/v1/admin/card-types/${encodeURIComponent(data.slug)}`,
-      method: "PATCH",
-      body: { label: data.label },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["card-types"][":slug"].$patch({
+        param: encodeParams({ slug: data.slug }),
+        json: { label: data.label },
+      }),
+      "Couldn't update card type",
+    );
   });
 
 export function useUpdateCardType() {
@@ -71,13 +69,12 @@ const reorderCardTypesFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't reorder card types",
-      cookie: context.cookie,
-      path: "/api/v1/admin/card-types/reorder",
-      method: "PUT",
-      body: { slugs: data.slugs },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["card-types"].reorder.$put({
+        json: { slugs: data.slugs },
+      }),
+      "Couldn't reorder card types",
+    );
   });
 
 export function useReorderCardTypes() {
@@ -91,12 +88,12 @@ const deleteCardTypeFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't delete card type",
-      cookie: context.cookie,
-      path: `/api/v1/admin/card-types/${encodeURIComponent(data.slug)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["card-types"][":slug"].$delete({
+        param: encodeParams({ slug: data.slug }),
+      }),
+      "Couldn't delete card type",
+    );
   });
 
 export function useDeleteCardType() {

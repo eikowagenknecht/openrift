@@ -2,8 +2,8 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import type { AdminDeckFormatsResponse } from "@/lib/server-fns/api-types";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -11,11 +11,10 @@ const fetchDeckFormats = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminDeckFormatsResponse> =>
-      fetchApiJson<AdminDeckFormatsResponse>({
-        errorTitle: "Couldn't load deck formats",
-        cookie: context.cookie,
-        path: "/api/v1/admin/deck-formats",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin["deck-formats"].$get(),
+        "Couldn't load deck formats",
+      ),
   );
 
 export const adminDeckFormatsQueryOptions = queryOptions({
@@ -31,13 +30,12 @@ const createDeckFormatFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't create deck format",
-      cookie: context.cookie,
-      path: "/api/v1/admin/deck-formats",
-      method: "POST",
-      body: data,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["deck-formats"].$post({
+        json: data,
+      }),
+      "Couldn't create deck format",
+    );
   });
 
 export function useCreateDeckFormat() {
@@ -51,13 +49,13 @@ const updateDeckFormatFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't update deck format",
-      cookie: context.cookie,
-      path: `/api/v1/admin/deck-formats/${encodeURIComponent(data.slug)}`,
-      method: "PATCH",
-      body: { label: data.label },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["deck-formats"][":slug"].$patch({
+        param: encodeParams({ slug: data.slug }),
+        json: { label: data.label },
+      }),
+      "Couldn't update deck format",
+    );
   });
 
 export function useUpdateDeckFormat() {
@@ -71,13 +69,12 @@ const reorderDeckFormatsFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't reorder deck formats",
-      cookie: context.cookie,
-      path: "/api/v1/admin/deck-formats/reorder",
-      method: "PUT",
-      body: { slugs: data.slugs },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["deck-formats"].reorder.$put({
+        json: { slugs: data.slugs },
+      }),
+      "Couldn't reorder deck formats",
+    );
   });
 
 export function useReorderDeckFormats() {
@@ -91,12 +88,12 @@ const deleteDeckFormatFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't delete deck format",
-      cookie: context.cookie,
-      path: `/api/v1/admin/deck-formats/${encodeURIComponent(data.slug)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["deck-formats"][":slug"].$delete({
+        param: encodeParams({ slug: data.slug }),
+      }),
+      "Couldn't delete deck format",
+    );
   });
 
 export function useDeleteDeckFormat() {

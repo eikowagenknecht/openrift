@@ -2,8 +2,8 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import type { AdminRaritiesResponse } from "@/lib/server-fns/api-types";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -11,11 +11,10 @@ const fetchRarities = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminRaritiesResponse> =>
-      fetchApiJson<AdminRaritiesResponse>({
-        errorTitle: "Couldn't load rarities",
-        cookie: context.cookie,
-        path: "/api/v1/admin/rarities",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin.rarities.$get(),
+        "Couldn't load rarities",
+      ),
   );
 
 export const adminRaritiesQueryOptions = queryOptions({
@@ -31,13 +30,12 @@ const createRarityFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label: string; color?: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't create rarity",
-      cookie: context.cookie,
-      path: "/api/v1/admin/rarities",
-      method: "POST",
-      body: data,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.rarities.$post({
+        json: data,
+      }),
+      "Couldn't create rarity",
+    );
   });
 
 export function useCreateRarity() {
@@ -52,13 +50,13 @@ const updateRarityFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label?: string; color?: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't update rarity",
-      cookie: context.cookie,
-      path: `/api/v1/admin/rarities/${encodeURIComponent(data.slug)}`,
-      method: "PATCH",
-      body: { label: data.label, color: data.color },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.rarities[":slug"].$patch({
+        param: encodeParams({ slug: data.slug }),
+        json: { label: data.label, color: data.color },
+      }),
+      "Couldn't update rarity",
+    );
   });
 
 export function useUpdateRarity() {
@@ -73,13 +71,12 @@ const reorderRaritiesFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't reorder rarities",
-      cookie: context.cookie,
-      path: "/api/v1/admin/rarities/reorder",
-      method: "PUT",
-      body: { slugs: data.slugs },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.rarities.reorder.$put({
+        json: { slugs: data.slugs },
+      }),
+      "Couldn't reorder rarities",
+    );
   });
 
 export function useReorderRarities() {
@@ -93,12 +90,12 @@ const deleteRarityFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't delete rarity",
-      cookie: context.cookie,
-      path: `/api/v1/admin/rarities/${encodeURIComponent(data.slug)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.rarities[":slug"].$delete({
+        param: encodeParams({ slug: data.slug }),
+      }),
+      "Couldn't delete rarity",
+    );
   });
 
 export function useDeleteRarity() {

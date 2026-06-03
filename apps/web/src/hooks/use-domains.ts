@@ -2,8 +2,8 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import type { AdminDomainsResponse } from "@/lib/server-fns/api-types";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -11,11 +11,10 @@ const fetchDomains = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminDomainsResponse> =>
-      fetchApiJson<AdminDomainsResponse>({
-        errorTitle: "Couldn't load domains",
-        cookie: context.cookie,
-        path: "/api/v1/admin/domains",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin.domains.$get(),
+        "Couldn't load domains",
+      ),
   );
 
 export const adminDomainsQueryOptions = queryOptions({
@@ -31,13 +30,12 @@ const createDomainFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label: string; color?: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't create domain",
-      cookie: context.cookie,
-      path: "/api/v1/admin/domains",
-      method: "POST",
-      body: data,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.domains.$post({
+        json: data,
+      }),
+      "Couldn't create domain",
+    );
   });
 
 export function useCreateDomain() {
@@ -52,13 +50,13 @@ const updateDomainFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label?: string; color?: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't update domain",
-      cookie: context.cookie,
-      path: `/api/v1/admin/domains/${encodeURIComponent(data.slug)}`,
-      method: "PATCH",
-      body: { label: data.label, color: data.color },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.domains[":slug"].$patch({
+        param: encodeParams({ slug: data.slug }),
+        json: { label: data.label, color: data.color },
+      }),
+      "Couldn't update domain",
+    );
   });
 
 export function useUpdateDomain() {
@@ -73,13 +71,12 @@ const reorderDomainsFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't reorder domains",
-      cookie: context.cookie,
-      path: "/api/v1/admin/domains/reorder",
-      method: "PUT",
-      body: { slugs: data.slugs },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.domains.reorder.$put({
+        json: { slugs: data.slugs },
+      }),
+      "Couldn't reorder domains",
+    );
   });
 
 export function useReorderDomains() {
@@ -93,12 +90,12 @@ const deleteDomainFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't delete domain",
-      cookie: context.cookie,
-      path: `/api/v1/admin/domains/${encodeURIComponent(data.slug)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.domains[":slug"].$delete({
+        param: encodeParams({ slug: data.slug }),
+      }),
+      "Couldn't delete domain",
+    );
   });
 
 export function useDeleteDomain() {

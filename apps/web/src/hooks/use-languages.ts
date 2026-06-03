@@ -2,8 +2,8 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import type { AdminLanguagesResponse } from "@/lib/server-fns/api-types";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -11,11 +11,10 @@ const fetchLanguages = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminLanguagesResponse> =>
-      fetchApiJson<AdminLanguagesResponse>({
-        errorTitle: "Couldn't load languages",
-        cookie: context.cookie,
-        path: "/api/v1/admin/languages",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin.languages.$get(),
+        "Couldn't load languages",
+      ),
   );
 
 export const adminLanguagesQueryOptions = queryOptions({
@@ -32,13 +31,12 @@ const createLanguageFn = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string; name: string; sortOrder?: number }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't create language",
-      cookie: context.cookie,
-      path: "/api/v1/admin/languages",
-      method: "POST",
-      body: data,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.languages.$post({
+        json: data,
+      }),
+      "Couldn't create language",
+    );
   });
 
 export function useCreateLanguage() {
@@ -53,13 +51,13 @@ const updateLanguageFn = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string; name?: string; sortOrder?: number }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't update language",
-      cookie: context.cookie,
-      path: `/api/v1/admin/languages/${encodeURIComponent(data.code)}`,
-      method: "PATCH",
-      body: { name: data.name, sortOrder: data.sortOrder },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.languages[":code"].$patch({
+        param: encodeParams({ code: data.code }),
+        json: { name: data.name, sortOrder: data.sortOrder },
+      }),
+      "Couldn't update language",
+    );
   });
 
 export function useUpdateLanguage() {
@@ -74,13 +72,12 @@ const reorderLanguagesFn = createServerFn({ method: "POST" })
   .inputValidator((input: { codes: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't reorder languages",
-      cookie: context.cookie,
-      path: "/api/v1/admin/languages/reorder",
-      method: "PUT",
-      body: { codes: data.codes },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.languages.reorder.$put({
+        json: { codes: data.codes },
+      }),
+      "Couldn't reorder languages",
+    );
   });
 
 export function useReorderLanguages() {
@@ -94,12 +91,12 @@ const deleteLanguageFn = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't delete language",
-      cookie: context.cookie,
-      path: `/api/v1/admin/languages/${encodeURIComponent(data.code)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin.languages[":code"].$delete({
+        param: encodeParams({ code: data.code }),
+      }),
+      "Couldn't delete language",
+    );
   });
 
 export function useDeleteLanguage() {

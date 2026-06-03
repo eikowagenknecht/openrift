@@ -2,8 +2,8 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import type { AdminSuperTypesResponse } from "@/lib/server-fns/api-types";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -11,11 +11,10 @@ const fetchSuperTypes = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminSuperTypesResponse> =>
-      fetchApiJson<AdminSuperTypesResponse>({
-        errorTitle: "Couldn't load super types",
-        cookie: context.cookie,
-        path: "/api/v1/admin/super-types",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin["super-types"].$get(),
+        "Couldn't load super types",
+      ),
   );
 
 export const adminSuperTypesQueryOptions = queryOptions({
@@ -31,13 +30,12 @@ const createSuperTypeFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't create super type",
-      cookie: context.cookie,
-      path: "/api/v1/admin/super-types",
-      method: "POST",
-      body: data,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["super-types"].$post({
+        json: data,
+      }),
+      "Couldn't create super type",
+    );
   });
 
 export function useCreateSuperType() {
@@ -51,13 +49,13 @@ const updateSuperTypeFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't update super type",
-      cookie: context.cookie,
-      path: `/api/v1/admin/super-types/${encodeURIComponent(data.slug)}`,
-      method: "PATCH",
-      body: { label: data.label },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["super-types"][":slug"].$patch({
+        param: encodeParams({ slug: data.slug }),
+        json: { label: data.label },
+      }),
+      "Couldn't update super type",
+    );
   });
 
 export function useUpdateSuperType() {
@@ -71,13 +69,12 @@ const reorderSuperTypesFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't reorder super types",
-      cookie: context.cookie,
-      path: "/api/v1/admin/super-types/reorder",
-      method: "PUT",
-      body: { slugs: data.slugs },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["super-types"].reorder.$put({
+        json: { slugs: data.slugs },
+      }),
+      "Couldn't reorder super types",
+    );
   });
 
 export function useReorderSuperTypes() {
@@ -91,12 +88,12 @@ const deleteSuperTypeFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't delete super type",
-      cookie: context.cookie,
-      path: `/api/v1/admin/super-types/${encodeURIComponent(data.slug)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.admin["super-types"][":slug"].$delete({
+        param: encodeParams({ slug: data.slug }),
+      }),
+      "Couldn't delete super type",
+    );
   });
 
 export function useDeleteSuperType() {
