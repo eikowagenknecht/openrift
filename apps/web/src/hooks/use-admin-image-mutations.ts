@@ -1,45 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
+import type { UploadCandidatesBody, UploadCandidatesResponse } from "@/lib/server-fns/api-types";
 import { API_URL } from "@/lib/server-fns/api-url";
-import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-export interface UploadCandidatesBody {
-  provider: string;
-  candidates: Record<string, unknown>[];
-}
-
-// Defined locally to avoid `unknown` vs `{}` mismatch with server function JSON serialization.
-// Fields use JSON-safe types that match what the API actually returns.
-interface UploadCandidatesResponse {
-  provider: string;
-  newCards: number;
-  removedCards: number;
-  updates: number;
-  unchanged: number;
-  newPrintings: number;
-  removedPrintings: number;
-  printingUpdates: number;
-  printingsUnchanged: number;
-  errors: string[];
-  newCardDetails: { name: string; shortCode: string | null }[];
-  removedCardDetails: { name: string; shortCode: string | null }[];
-  updatedCards: {
-    name: string;
-    shortCode: string | null;
-    fields: { field: string; from: string; to: string }[];
-  }[];
-  newPrintingDetails: { name: string; shortCode: string | null }[];
-  removedPrintingDetails: { name: string; shortCode: string | null }[];
-  updatedPrintings: {
-    name: string;
-    shortCode: string | null;
-    fields: { field: string; from: string; to: string }[];
-  }[];
-}
+// Request body derived from the route (api-types); response is the shared API
+// type. Re-exported for the candidate-upload page.
+export type { UploadCandidatesBody };
 
 // ── Server functions ─────────────────────────────────────────────────────────
 
@@ -160,23 +130,15 @@ const setCandidatePrintingImageFn = createServerFn({ method: "POST" })
     );
   });
 
-// TODO(sweep, group C): kept on fetchApiJson. The request body `candidates` is a
-// loose `Record<string, unknown>[]`, but the route's upload schema declares a
-// concrete `{ card, printings }[]` shape, so the hc-typed `json` arg rejects it.
-// (The response diff `from`/`to` are also arbitrary JSON — `unknown` — which a
-// createServerFn return type can't carry.) Type the upload body concretely to migrate.
 const uploadCandidatesFn = createServerFn({ method: "POST" })
   .inputValidator((input: UploadCandidatesBody) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<UploadCandidatesResponse> =>
-      fetchApiJson<UploadCandidatesResponse>({
-        errorTitle: "Couldn't upload candidates",
-        cookie: context.cookie,
-        path: "/api/v1/admin/cards/upload",
-        method: "POST",
-        body: data,
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.admin.cards.upload.$post({ json: data }),
+        "Couldn't upload candidates",
+      ),
   );
 
 // ── Hook exports ─────────────────────────────────────────────────────────────

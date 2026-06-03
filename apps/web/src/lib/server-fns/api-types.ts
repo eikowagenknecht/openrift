@@ -3,9 +3,19 @@
 // without any runtime dependency on the Hono client.
 
 import type { AppType } from "api/rpc";
-import type { InferResponseType, hc } from "hono/client";
+import type { InferRequestType, InferResponseType, hc } from "hono/client";
 
 type Client = ReturnType<typeof hc<AppType>>;
+
+// ── Request body types (derived from the route schemas) ─────────────────────
+// Candidate uploads come from an arbitrary user-uploaded JSON file, so the
+// parser casts to this; the API validates the real shape server-side.
+export type UploadCandidatesBody = InferRequestType<
+  Client["api"]["v1"]["admin"]["cards"]["upload"]["$post"]
+>["json"];
+export type UploadCandidatesResponse = InferResponseType<
+  Client["api"]["v1"]["admin"]["cards"]["upload"]["$post"]
+>;
 
 // ── Admin card endpoints ────────────────────────────────────────────────────
 export type AdminCardListResponse = InferResponseType<

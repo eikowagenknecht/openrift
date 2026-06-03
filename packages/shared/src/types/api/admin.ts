@@ -1,3 +1,4 @@
+import type { DiffValue } from "../../response-schemas.js";
 import type { CardErrata, DistributionChannelKind } from "../catalog.js";
 import type { CardFace, SetType } from "../enums.js";
 
@@ -93,7 +94,7 @@ interface CandidateCardUploadItem {
 }
 
 interface CandidateCardUploadUpdatedCard extends CandidateCardUploadItem {
-  fields: { field: string; from: unknown; to: unknown }[];
+  fields: { field: string; from: DiffValue; to: DiffValue }[];
 }
 
 export interface CandidateCardUploadResponse {

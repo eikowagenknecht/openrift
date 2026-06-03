@@ -2,6 +2,7 @@ import { createRoute } from "@hono/zod-openapi";
 import type { CandidateCardUploadResponse, CardType, Domain, SuperType } from "@openrift/shared";
 import { appendSetTotal, fixTypography, ERROR_CODES } from "@openrift/shared";
 import { extractKeywords } from "@openrift/shared/keywords";
+import { diffValueSchema } from "@openrift/shared/response-schemas";
 import { normalizeNameForMatching } from "@openrift/shared/utils";
 import { z } from "zod";
 
@@ -406,8 +407,8 @@ const uploadCandidates = createRoute({
                 fields: z.array(
                   z.object({
                     field: z.string().openapi({ example: "might" }),
-                    from: z.unknown().openapi({ example: 4 }),
-                    to: z.unknown().openapi({ example: 5 }),
+                    from: diffValueSchema.openapi({ example: 4 }),
+                    to: diffValueSchema.openapi({ example: 5 }),
                   }),
                 ),
               }),
@@ -431,8 +432,8 @@ const uploadCandidates = createRoute({
                 fields: z.array(
                   z.object({
                     field: z.string().openapi({ example: "artist" }),
-                    from: z.unknown().openapi({ example: "Unknown" }),
-                    to: z.unknown().openapi({ example: "Kudos Productions" }),
+                    from: diffValueSchema.openapi({ example: "Unknown" }),
+                    to: diffValueSchema.openapi({ example: "Kudos Productions" }),
                   }),
                 ),
               }),
@@ -1180,10 +1181,12 @@ export const mutationsRoute = createApiApp()
       errors: result.errors,
       newCardDetails: result.newCardDetails,
       removedCardDetails: result.removedCardDetails,
-      updatedCards: result.updatedCards,
+      // The ingest service diffs opaque field values (`unknown`); narrow to the
+      // serializable DiffValue the API contract exposes (sound — they're JSON).
+      updatedCards: result.updatedCards as CandidateCardUploadResponse["updatedCards"],
       newPrintingDetails: result.newPrintingDetails,
       removedPrintingDetails: result.removedPrintingDetails,
-      updatedPrintings: result.updatedPrintings,
+      updatedPrintings: result.updatedPrintings as CandidateCardUploadResponse["updatedPrintings"],
     } satisfies CandidateCardUploadResponse);
   })
 
