@@ -18,7 +18,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
 import { reorderInPlace } from "@/lib/reorder-in-place";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -27,26 +27,30 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 const fetchLists = createServerFn({ method: "GET" })
   .inputValidator((input: { intent?: ListIntent } | undefined) => input)
   .middleware([withCookies])
-  .handler(({ context, data }): Promise<ListListResponse> => {
-    const query = data?.intent ? `?intent=${encodeURIComponent(data.intent)}` : "";
-    return fetchApiJson<ListListResponse>({
-      errorTitle: "Couldn't load lists",
-      cookie: context.cookie,
-      path: `/api/v1/lists${query}`,
-    });
-  });
+  .handler(
+    ({ context, data }): Promise<ListListResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.lists.$get({
+          // The route declares a query schema (`intent` optional), so hc requires
+          // the `query` arg even when empty; `{}` sends no `intent`.
+          query: data?.intent ? { intent: data.intent } : {},
+        }),
+        "Couldn't load lists",
+      ),
+  );
 
 const fetchListDetail = createServerFn({ method: "GET" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: listId }): Promise<ListDetailResponse> => {
-    const res = await fetchApi({
-      errorTitle: "Couldn't load list",
-      cookie: context.cookie,
-      path: `/api/v1/lists/${encodeURIComponent(listId)}`,
-      acceptStatuses: [404],
-    });
-    if (res.status === 404) {
+    const res = await callApi(
+      serverApiClient(context.cookie).api.v1.lists[":id"].$get({
+        param: encodeParams({ id: listId }),
+      }),
+      "Couldn't load list",
+      [404],
+    );
+    if ((res.status as number) === 404) {
       throw new Error("NOT_FOUND");
     }
     return res.json() as Promise<ListDetailResponse>;
@@ -93,14 +97,14 @@ interface CreateListInput {
 const createListFn = createServerFn({ method: "POST" })
   .inputValidator((input: CreateListInput) => input)
   .middleware([withCookies])
-  .handler(({ context, data }) =>
-    fetchApiJson<ListResponse>({
-      errorTitle: "Couldn't create list",
-      cookie: context.cookie,
-      path: "/api/v1/lists",
-      method: "POST",
-      body: data,
-    }),
+  .handler(
+    ({ context, data }): Promise<ListResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.lists.$post({
+          json: data,
+        }),
+        "Couldn't create list",
+      ),
   );
 
 export function useCreateList() {
@@ -126,15 +130,15 @@ interface UpdateListInput {
 const updateListFn = createServerFn({ method: "POST" })
   .inputValidator((input: UpdateListInput) => input)
   .middleware([withCookies])
-  .handler(({ context, data }) => {
+  .handler(({ context, data }): Promise<ListResponse> => {
     const { listId, ...fields } = data;
-    return fetchApiJson<ListResponse>({
-      errorTitle: "Couldn't update list",
-      cookie: context.cookie,
-      path: `/api/v1/lists/${encodeURIComponent(listId)}`,
-      method: "PATCH",
-      body: fields,
-    });
+    return callApiJson(
+      serverApiClient(context.cookie).api.v1.lists[":id"].$patch({
+        param: encodeParams({ id: listId }),
+        json: fields,
+      }),
+      "Couldn't update list",
+    );
   });
 
 export function useUpdateList() {
@@ -152,12 +156,12 @@ const deleteListFn = createServerFn({ method: "POST" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: listId }) => {
-    await fetchApi({
-      errorTitle: "Couldn't delete list",
-      cookie: context.cookie,
-      path: `/api/v1/lists/${encodeURIComponent(listId)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.lists[":id"].$delete({
+        param: encodeParams({ id: listId }),
+      }),
+      "Couldn't delete list",
+    );
   });
 
 export function useDeleteList() {
@@ -172,13 +176,12 @@ const reorderListsFn = createServerFn({ method: "POST" })
   .inputValidator((input: { intent: ListIntent; orderedIds: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't reorder lists",
-      cookie: context.cookie,
-      path: "/api/v1/lists/reorder",
-      method: "POST",
-      body: data,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.lists.reorder.$post({
+        json: data,
+      }),
+      "Couldn't reorder lists",
+    );
   });
 
 /**
@@ -236,14 +239,15 @@ const bulkAddEntriesFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
-  .handler(({ context, data }) =>
-    fetchApiJson<ListBulkAddResponse>({
-      errorTitle: "Couldn't add to list",
-      cookie: context.cookie,
-      path: `/api/v1/lists/${encodeURIComponent(data.listId)}/entries/bulk`,
-      method: "POST",
-      body: { entries: data.entries },
-    }),
+  .handler(
+    ({ context, data }): Promise<ListBulkAddResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.lists[":id"].entries.bulk.$post({
+          param: encodeParams({ id: data.listId }),
+          json: { entries: data.entries },
+        }),
+        "Couldn't add to list",
+      ),
   );
 
 interface BulkAddVariables {
@@ -325,14 +329,15 @@ export function useBulkAddListEntries() {
 const bulkAddCopiesToListFn = createServerFn({ method: "POST" })
   .inputValidator((input: { listId: string; copyIds: string[] }) => input)
   .middleware([withCookies])
-  .handler(({ context, data }) =>
-    fetchApiJson<ListBulkAddResponse>({
-      errorTitle: "Couldn't add to list",
-      cookie: context.cookie,
-      path: `/api/v1/lists/${encodeURIComponent(data.listId)}/entries/from-copies`,
-      method: "POST",
-      body: { copyIds: data.copyIds },
-    }),
+  .handler(
+    ({ context, data }): Promise<ListBulkAddResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.lists[":id"].entries["from-copies"].$post({
+          param: encodeParams({ id: data.listId }),
+          json: { copyIds: data.copyIds },
+        }),
+        "Couldn't add to list",
+      ),
   );
 
 export function useBulkAddCopiesToList() {
@@ -352,14 +357,15 @@ export function useBulkAddCopiesToList() {
 const moveListEntriesFn = createServerFn({ method: "POST" })
   .inputValidator((input: { fromListId: string; toListId: string; entryIds: string[] }) => input)
   .middleware([withCookies])
-  .handler(({ context, data }) =>
-    fetchApiJson<ListMoveResponse>({
-      errorTitle: "Couldn't move entries",
-      cookie: context.cookie,
-      path: `/api/v1/lists/${encodeURIComponent(data.fromListId)}/entries/move`,
-      method: "POST",
-      body: { toListId: data.toListId, entryIds: data.entryIds },
-    }),
+  .handler(
+    ({ context, data }): Promise<ListMoveResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.lists[":id"].entries.move.$post({
+          param: encodeParams({ id: data.fromListId }),
+          json: { toListId: data.toListId, entryIds: data.entryIds },
+        }),
+        "Couldn't move entries",
+      ),
   );
 
 export function useMoveListEntries() {
@@ -388,15 +394,15 @@ interface UpdateListEntryInput {
 const updateListEntryFn = createServerFn({ method: "POST" })
   .inputValidator((input: UpdateListEntryInput) => input)
   .middleware([withCookies])
-  .handler(({ context, data }) => {
+  .handler(({ context, data }): Promise<ListEntryResponse> => {
     const { listId, entryId, ...fields } = data;
-    return fetchApiJson<ListEntryResponse>({
-      errorTitle: "Couldn't update list entry",
-      cookie: context.cookie,
-      path: `/api/v1/lists/${encodeURIComponent(listId)}/entries/${encodeURIComponent(entryId)}`,
-      method: "PATCH",
-      body: fields,
-    });
+    return callApiJson(
+      serverApiClient(context.cookie).api.v1.lists[":id"].entries[":itemId"].$patch({
+        param: encodeParams({ id: listId, itemId: entryId }),
+        json: fields,
+      }),
+      "Couldn't update list entry",
+    );
   });
 
 export function useUpdateListEntry() {
@@ -451,12 +457,12 @@ const removeListEntryFn = createServerFn({ method: "POST" })
   .inputValidator((input: { listId: string; entryId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't remove from list",
-      cookie: context.cookie,
-      path: `/api/v1/lists/${encodeURIComponent(data.listId)}/entries/${encodeURIComponent(data.entryId)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.lists[":id"].entries[":itemId"].$delete({
+        param: encodeParams({ id: data.listId, itemId: data.entryId }),
+      }),
+      "Couldn't remove from list",
+    );
   });
 
 export function useRemoveListEntry() {
@@ -477,12 +483,12 @@ const shareListFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data: listId }): Promise<ListShareResponse> =>
-      fetchApiJson<ListShareResponse>({
-        errorTitle: "Couldn't share list",
-        cookie: context.cookie,
-        path: `/api/v1/lists/${encodeURIComponent(listId)}/share`,
-        method: "POST",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.lists[":id"].share.$post({
+          param: encodeParams({ id: listId }),
+        }),
+        "Couldn't share list",
+      ),
   );
 
 export function useShareList() {
@@ -507,12 +513,12 @@ const unshareListFn = createServerFn({ method: "POST" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: listId }) => {
-    await fetchApi({
-      errorTitle: "Couldn't unshare list",
-      cookie: context.cookie,
-      path: `/api/v1/lists/${encodeURIComponent(listId)}/share`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.lists[":id"].share.$delete({
+        param: encodeParams({ id: listId }),
+      }),
+      "Couldn't unshare list",
+    );
   });
 
 export function useUnshareList() {
@@ -531,12 +537,14 @@ export function useUnshareList() {
 const fetchPublicListFn = createServerFn({ method: "GET" })
   .inputValidator((input: string) => input)
   .handler(async ({ data: token }): Promise<PublicListDetailResponse> => {
-    const res = await fetchApi({
-      errorTitle: "Couldn't load shared list",
-      path: `/api/v1/lists/share/${encodeURIComponent(token)}`,
-      acceptStatuses: [404],
-    });
-    if (res.status === 404) {
+    const res = await callApi(
+      serverApiClient().api.v1.lists.share[":token"].$get({
+        param: encodeParams({ token }),
+      }),
+      "Couldn't load shared list",
+      [404],
+    );
+    if ((res.status as number) === 404) {
       throw new Error("NOT_FOUND");
     }
     return res.json() as Promise<PublicListDetailResponse>;

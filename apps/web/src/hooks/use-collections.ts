@@ -12,8 +12,8 @@ import { collectionsQueryOptions } from "@/lib/collections-query";
 import { useCopiesCollection } from "@/lib/copies-collection";
 import { queryKeys } from "@/lib/query-keys";
 import { reorderInPlace } from "@/lib/reorder-in-place";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import type { CollectionsResponse } from "@/lib/server-fns/api-types";
-import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -79,14 +79,14 @@ const createCollectionFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
-  .handler(({ context, data }) =>
-    fetchApiJson<CollectionsResponse["items"][number]>({
-      errorTitle: "Couldn't create collection",
-      cookie: context.cookie,
-      path: "/api/v1/collections",
-      method: "POST",
-      body: data,
-    }),
+  .handler(
+    ({ context, data }): Promise<CollectionsResponse["items"][number]> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.collections.$post({
+          json: data,
+        }),
+        "Couldn't create collection",
+      ),
   );
 
 export function useCreateCollection() {
@@ -105,15 +105,15 @@ export function useCreateCollection() {
 const updateCollectionFn = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string; name?: string; description?: string | null }) => input)
   .middleware([withCookies])
-  .handler(({ context, data }) => {
+  .handler(({ context, data }): Promise<CollectionsResponse["items"][number]> => {
     const { id, ...fields } = data;
-    return fetchApiJson<CollectionsResponse["items"][number]>({
-      errorTitle: "Couldn't update collection",
-      cookie: context.cookie,
-      path: `/api/v1/collections/${encodeURIComponent(id)}`,
-      method: "PATCH",
-      body: fields,
-    });
+    return callApiJson(
+      serverApiClient(context.cookie).api.v1.collections[":id"].$patch({
+        param: encodeParams({ id }),
+        json: fields,
+      }),
+      "Couldn't update collection",
+    );
   });
 
 export function useUpdateCollection() {
@@ -129,13 +129,13 @@ const setDeckbuildingFn = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string; available: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't update deck-building availability",
-      cookie: context.cookie,
-      path: `/api/v1/collections/${encodeURIComponent(data.id)}/deckbuilding`,
-      method: "PUT",
-      body: { available: data.available },
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.collections[":id"].deckbuilding.$put({
+        param: encodeParams({ id: data.id }),
+        json: { available: data.available },
+      }),
+      "Couldn't update deck-building availability",
+    );
   });
 
 /**
@@ -160,13 +160,12 @@ const reorderCollectionsFn = createServerFn({ method: "POST" })
   .inputValidator((input: { orderedIds: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't reorder collections",
-      cookie: context.cookie,
-      path: "/api/v1/collections/reorder",
-      method: "POST",
-      body: data,
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.collections.reorder.$post({
+        json: data,
+      }),
+      "Couldn't reorder collections",
+    );
   });
 
 /**
@@ -214,12 +213,12 @@ const deleteCollectionFn = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't delete collection",
-      cookie: context.cookie,
-      path: `/api/v1/collections/${data.id}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.collections[":id"].$delete({
+        param: encodeParams({ id: data.id }),
+      }),
+      "Couldn't delete collection",
+    );
   });
 
 // ── Collection sharing ──────────────────────────────────────────────────────
@@ -229,12 +228,12 @@ const shareCollectionFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data: collectionId }): Promise<CollectionShareResponse> =>
-      fetchApiJson<CollectionShareResponse>({
-        errorTitle: "Couldn't share collection",
-        cookie: context.cookie,
-        path: `/api/v1/collections/${encodeURIComponent(collectionId)}/share`,
-        method: "POST",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.collections[":id"].share.$post({
+          param: encodeParams({ id: collectionId }),
+        }),
+        "Couldn't share collection",
+      ),
   );
 
 export function useShareCollection() {
@@ -263,12 +262,12 @@ const unshareCollectionFn = createServerFn({ method: "POST" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: collectionId }) => {
-    await fetchApi({
-      errorTitle: "Couldn't unshare collection",
-      cookie: context.cookie,
-      path: `/api/v1/collections/${encodeURIComponent(collectionId)}/share`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.collections[":id"].share.$delete({
+        param: encodeParams({ id: collectionId }),
+      }),
+      "Couldn't unshare collection",
+    );
   });
 
 export function useUnshareCollection() {
@@ -294,14 +293,19 @@ export function useUnshareCollection() {
 const fetchPublicCollectionFn = createServerFn({ method: "GET" })
   .inputValidator((input: string) => input)
   .handler(async ({ data: token }): Promise<PublicCollectionDetailResponse> => {
-    const basePath = `/api/v1/collections/share/${encodeURIComponent(token)}`;
+    const shareEndpoint = serverApiClient().api.v1.collections.share[":token"];
     // 404 is legitimate (unknown/expired token) — map to NOT_FOUND without logging.
-    const firstRes = await fetchApi({
-      errorTitle: "Couldn't load shared collection",
-      path: basePath,
-      acceptStatuses: [404],
-    });
-    if (firstRes.status === 404) {
+    const firstRes = await callApi(
+      shareEndpoint.$get({
+        param: encodeParams({ token }),
+        // The route declares a query schema (copies pagination), so hc requires
+        // the `query` arg even on the first page where no cursor is sent.
+        query: {},
+      }),
+      "Couldn't load shared collection",
+      [404],
+    );
+    if ((firstRes.status as number) === 404) {
       throw new Error("NOT_FOUND");
     }
     const firstPage = (await firstRes.json()) as PublicCollectionDetailResponse;
@@ -312,10 +316,13 @@ const fetchPublicCollectionFn = createServerFn({ method: "GET" })
     const allCopies = [...firstPage.copies];
     let cursor = firstPage.nextCursor;
     while (cursor) {
-      const nextRes = await fetchApi({
-        errorTitle: "Couldn't load shared collection",
-        path: `${basePath}?cursor=${encodeURIComponent(cursor)}`,
-      });
+      const nextRes = await callApi(
+        shareEndpoint.$get({
+          param: encodeParams({ token }),
+          query: { cursor },
+        }),
+        "Couldn't load shared collection",
+      );
       const page = (await nextRes.json()) as PublicCollectionDetailResponse;
       allCopies.push(...page.copies);
       cursor = page.nextCursor;

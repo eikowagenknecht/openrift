@@ -16,6 +16,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId, useUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
+import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -24,11 +25,12 @@ const fetchDecks = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<DeckListResponse> =>
-      fetchApiJson<DeckListResponse>({
-        errorTitle: "Couldn't load decks",
-        cookie: context.cookie,
-        path: "/api/v1/decks?includeArchived=true",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.decks.$get({
+          query: { includeArchived: "true" },
+        }),
+        "Couldn't load decks",
+      ),
   );
 
 async function fetchDeckDetailImpl(
@@ -38,6 +40,12 @@ async function fetchDeckDetailImpl(
   // 404 is legitimate (unknown/deleted deck id, or one belonging to another
   // user) — map to NOT_FOUND so the route can render a not-found page
   // without logging the response as an error.
+  // TODO(sweep): hc-inferred response omits `preferredPrintingId` on deck cards
+  // — `deckCardResponseSchema` (response-schemas.ts) only declares
+  // { cardId, zone, quantity }, but `DeckCardResponse` (and thus
+  // `DeckDetailResponse.cards`) requires `preferredPrintingId`. Migrating would
+  // narrow the return type and drop that field. Fix the response schema (add
+  // `preferredPrintingId`), then migrate.
   const res = await fetchApi({
     errorTitle: "Couldn't load deck",
     cookie,
@@ -91,14 +99,14 @@ const createDeckFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
-  .handler(({ context, data }) =>
-    fetchApiJson<DeckResponse>({
-      errorTitle: "Couldn't create deck",
-      cookie: context.cookie,
-      path: "/api/v1/decks",
-      method: "POST",
-      body: data,
-    }),
+  .handler(
+    ({ context, data }): Promise<DeckResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.decks.$post({
+          json: data,
+        }),
+        "Couldn't create deck",
+      ),
   );
 
 export function useCreateDeck() {
@@ -119,12 +127,12 @@ const deleteDeckFn = createServerFn({ method: "POST" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: deckId }) => {
-    await fetchApi({
-      errorTitle: "Couldn't delete deck",
-      cookie: context.cookie,
-      path: `/api/v1/decks/${encodeURIComponent(deckId)}`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.decks[":id"].$delete({
+        param: encodeParams({ id: deckId }),
+      }),
+      "Couldn't delete deck",
+    );
   });
 
 export function useDeleteDeck() {
@@ -148,6 +156,12 @@ export const saveDeckCardsFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
+  // TODO(sweep): hc-inferred response omits `preferredPrintingId` on deck cards
+  // — `deckCardResponseSchema` (response-schemas.ts) only declares
+  // { cardId, zone, quantity }, but the annotated `DeckCardResponse` requires
+  // `preferredPrintingId`, which the optimistic cache in `useSaveDeckCards`
+  // writes into `DeckDetailResponse.cards`. Migrating would narrow the return
+  // type and drop that field. Fix the response schema, then migrate.
   .handler(({ context, data }) =>
     fetchApiJson<{ cards: DeckCardResponse[] }>({
       errorTitle: "Couldn't save deck cards",
@@ -208,15 +222,17 @@ const updateDeckFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
-  .handler(({ context, data }) => {
+  .handler(({ context, data }): Promise<DeckResponse> => {
     const { deckId, ...fields } = data;
-    return fetchApiJson<DeckResponse>({
-      errorTitle: "Couldn't update deck",
-      cookie: context.cookie,
-      path: `/api/v1/decks/${encodeURIComponent(deckId)}`,
-      method: "PATCH",
-      body: fields,
-    });
+    return callApiJson(
+      serverApiClient(context.cookie).api.v1.decks[":id"].$patch({
+        param: encodeParams({ id: deckId }),
+        // The route types formatConfig as a loose record; DeckFormatConfig is the
+        // concrete shape (no index signature), so widen it at the boundary.
+        json: { ...fields, formatConfig: fields.formatConfig as Record<string, unknown> | null },
+      }),
+      "Couldn't update deck",
+    );
   });
 
 export function useUpdateDeck() {
@@ -264,27 +280,29 @@ export function useUpdateDeck() {
 const setDeckPinnedFn = createServerFn({ method: "POST" })
   .inputValidator((input: { deckId: string; isPinned: boolean }) => input)
   .middleware([withCookies])
-  .handler(({ context, data }) =>
-    fetchApiJson<DeckResponse>({
-      errorTitle: "Couldn't update deck",
-      cookie: context.cookie,
-      path: `/api/v1/decks/${encodeURIComponent(data.deckId)}/pin`,
-      method: "PATCH",
-      body: { isPinned: data.isPinned },
-    }),
+  .handler(
+    ({ context, data }): Promise<DeckResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.decks[":id"].pin.$patch({
+          param: encodeParams({ id: data.deckId }),
+          json: { isPinned: data.isPinned },
+        }),
+        "Couldn't update deck",
+      ),
   );
 
 const setDeckArchivedFn = createServerFn({ method: "POST" })
   .inputValidator((input: { deckId: string; archived: boolean }) => input)
   .middleware([withCookies])
-  .handler(({ context, data }) =>
-    fetchApiJson<DeckResponse>({
-      errorTitle: "Couldn't update deck",
-      cookie: context.cookie,
-      path: `/api/v1/decks/${encodeURIComponent(data.deckId)}/archive`,
-      method: "PATCH",
-      body: { archived: data.archived },
-    }),
+  .handler(
+    ({ context, data }): Promise<DeckResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.decks[":id"].archive.$patch({
+          param: encodeParams({ id: data.deckId }),
+          json: { archived: data.archived },
+        }),
+        "Couldn't update deck",
+      ),
   );
 
 function applyDeckUpdateToCaches(
@@ -333,13 +351,14 @@ export function useSetDeckArchived() {
 const cloneDeckFn = createServerFn({ method: "POST" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
-  .handler(({ context, data: deckId }) =>
-    fetchApiJson<DeckResponse>({
-      errorTitle: "Couldn't clone deck",
-      cookie: context.cookie,
-      path: `/api/v1/decks/${encodeURIComponent(deckId)}/clone`,
-      method: "POST",
-    }),
+  .handler(
+    ({ context, data: deckId }): Promise<DeckResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.decks[":id"].clone.$post({
+          param: encodeParams({ id: deckId }),
+        }),
+        "Couldn't clone deck",
+      ),
   );
 
 export function useCloneDeck() {
@@ -355,19 +374,19 @@ type ExportFormat = "piltover" | "text" | "tts";
 const exportDeckFn = createServerFn({ method: "GET" })
   .inputValidator((input: { deckId: string; format?: ExportFormat }) => input)
   .middleware([withCookies])
-  .handler(({ context, data }) => {
-    const params = new URLSearchParams();
-    if (data.format) {
-      params.set("format", data.format);
-    }
-    const query = params.toString();
-    const path = `/api/v1/decks/${encodeURIComponent(data.deckId)}/export${query ? `?${query}` : ""}`;
-    return fetchApiJson<DeckExportResponse>({
-      errorTitle: "Couldn't export deck",
-      cookie: context.cookie,
-      path,
-    });
-  });
+  .handler(
+    ({ context, data }): Promise<DeckExportResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.decks[":id"].export.$get({
+          param: encodeParams({ id: data.deckId }),
+          // The route declares a query schema, so hc requires the `query` arg
+          // even when empty; `{}` lets the API apply its `format` default
+          // (piltover) — matching the old "omit the param" behavior.
+          query: data.format ? { format: data.format } : {},
+        }),
+        "Couldn't export deck",
+      ),
+  );
 
 export function useExportDeck() {
   return useMutationWithInvalidation<DeckExportResponse, { deckId: string; format?: ExportFormat }>(
@@ -385,12 +404,12 @@ const shareDeckFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data: deckId }): Promise<DeckShareResponse> =>
-      fetchApiJson<DeckShareResponse>({
-        errorTitle: "Couldn't share deck",
-        cookie: context.cookie,
-        path: `/api/v1/decks/${encodeURIComponent(deckId)}/share`,
-        method: "POST",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.decks[":id"].share.$post({
+          param: encodeParams({ id: deckId }),
+        }),
+        "Couldn't share deck",
+      ),
   );
 
 export function useShareDeck() {
@@ -412,12 +431,12 @@ const unshareDeckFn = createServerFn({ method: "POST" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: deckId }) => {
-    await fetchApi({
-      errorTitle: "Couldn't unshare deck",
-      cookie: context.cookie,
-      path: `/api/v1/decks/${encodeURIComponent(deckId)}/share`,
-      method: "DELETE",
-    });
+    await callApi(
+      serverApiClient(context.cookie).api.v1.decks[":id"].share.$delete({
+        param: encodeParams({ id: deckId }),
+      }),
+      "Couldn't unshare deck",
+    );
   });
 
 export function useUnshareDeck() {
@@ -437,16 +456,17 @@ const fetchPublicDeckFn = createServerFn({ method: "GET" })
   .inputValidator((input: string) => input)
   .handler(async ({ data: token }): Promise<PublicDeckDetailResponse> => {
     // 404 is legitimate (unknown/expired token) — map to NOT_FOUND without logging.
-    const res = await fetchApi({
-      errorTitle: "Couldn't load shared deck",
-      path: `/api/v1/decks/share/${encodeURIComponent(token)}`,
-      acceptStatuses: [404],
-    });
-    if (res.status === 404) {
+    const res = await callApi(
+      serverApiClient().api.v1.decks.share[":token"].$get({
+        param: encodeParams({ token }),
+      }),
+      "Couldn't load shared deck",
+      [404],
+    );
+    if ((res.status as number) === 404) {
       throw new Error("NOT_FOUND");
     }
-    const json = (await res.json()) as PublicDeckDetailResponse;
-    return json;
+    return res.json() as Promise<PublicDeckDetailResponse>;
   });
 
 export function publicDeckQueryOptions(token: string) {
@@ -465,12 +485,12 @@ const cloneSharedDeckFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data: token }): Promise<DeckCloneResponse> =>
-      fetchApiJson<DeckCloneResponse>({
-        errorTitle: "Couldn't clone shared deck",
-        cookie: context.cookie,
-        path: `/api/v1/decks/share/${encodeURIComponent(token)}/clone`,
-        method: "POST",
-      }),
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.decks.share[":token"].clone.$post({
+          param: encodeParams({ token }),
+        }),
+        "Couldn't clone shared deck",
+      ),
   );
 
 export function useCloneSharedDeck() {

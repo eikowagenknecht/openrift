@@ -2,7 +2,7 @@ import type { ListBulkAddResponse, ListResponse } from "@openrift/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => {
@@ -22,14 +22,6 @@ vi.mock("@tanstack/react-start", () => ({
   },
 }));
 
-const fetchApiJsonMock = vi.fn();
-const fetchApiMock = vi.fn();
-
-vi.mock("@/lib/server-fns/fetch-api", () => ({
-  fetchApi: fetchApiMock,
-  fetchApiJson: fetchApiJsonMock,
-}));
-
 vi.mock("@/lib/server-fns/middleware", () => ({
   withCookies: () => {},
 }));
@@ -47,6 +39,19 @@ const {
   useUpdateList,
   useUpdateListEntry,
 } = await import("./use-lists");
+
+// The hooks now call the API via the typed hc client, which hits global fetch.
+function stubFetchJson(payload: unknown) {
+  const fetchMock = vi.fn().mockResolvedValueOnce(Response.json(payload));
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
+function stubFetchNoContent() {
+  const fetchMock = vi.fn().mockResolvedValueOnce(new Response(null, { status: 204 }));
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
 
 function makeClient() {
   const client = new QueryClient({
@@ -76,9 +81,13 @@ const LIST: ListResponse = {
   currency: null,
 };
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe("useCreateList", () => {
   it("invalidates both the un-filtered and intent-filtered list keys", async () => {
-    fetchApiJsonMock.mockResolvedValueOnce(LIST);
+    stubFetchJson(LIST);
     const { client, invalidateSpy } = makeClient();
     const { result } = renderHook(() => useCreateList(), { wrapper: wrap(client) });
 
@@ -98,7 +107,7 @@ describe("useCreateList", () => {
 
 describe("useUpdateList", () => {
   it("invalidates both list and detail keys", async () => {
-    fetchApiJsonMock.mockResolvedValueOnce({ ...LIST, name: "Renamed" });
+    stubFetchJson({ ...LIST, name: "Renamed" });
     const { client, invalidateSpy } = makeClient();
     const { result } = renderHook(() => useUpdateList(), { wrapper: wrap(client) });
 
@@ -118,7 +127,7 @@ describe("useUpdateList", () => {
 
 describe("useDeleteList", () => {
   it("invalidates the list key on success", async () => {
-    fetchApiMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    stubFetchNoContent();
     const { client, invalidateSpy } = makeClient();
     const { result } = renderHook(() => useDeleteList(), { wrapper: wrap(client) });
 
@@ -136,7 +145,7 @@ describe("useDeleteList", () => {
 describe("useBulkAddListEntries", () => {
   it("forwards entries to the bulk endpoint and reports added/updated/skipped", async () => {
     const response: ListBulkAddResponse = { added: 2, updated: 1, skipped: 1 };
-    fetchApiJsonMock.mockResolvedValueOnce(response);
+    stubFetchJson(response);
     const { client, invalidateSpy } = makeClient();
     const { result } = renderHook(() => useBulkAddListEntries(), { wrapper: wrap(client) });
 
@@ -160,7 +169,7 @@ describe("useBulkAddListEntries", () => {
 
 describe("useUpdateListEntry", () => {
   it("PATCHes the entry with the new quantity and invalidates both keys", async () => {
-    fetchApiJsonMock.mockResolvedValueOnce({
+    const fetchMock = stubFetchJson({
       id: "le-1",
       listId: "lst-1",
       kind: "card",
@@ -176,13 +185,10 @@ describe("useUpdateListEntry", () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(fetchApiJsonMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        method: "PATCH",
-        path: "/api/v1/lists/lst-1/entries/le-1",
-        body: { quantity: 3 },
-      }),
-    );
+    const [url, init] = fetchMock.mock.calls[0] as [string, { method: string; body: string }];
+    expect(url).toBe("http://localhost:3000/api/v1/lists/lst-1/entries/le-1");
+    expect(init.method).toBe("PATCH");
+    expect(init.body).toBe(JSON.stringify({ quantity: 3 }));
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: ["lists", "test-user-id"],
     });
@@ -194,7 +200,7 @@ describe("useUpdateListEntry", () => {
 
 describe("useRemoveListEntry", () => {
   it("invalidates list and detail on success", async () => {
-    fetchApiMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    stubFetchNoContent();
     const { client, invalidateSpy } = makeClient();
     const { result } = renderHook(() => useRemoveListEntry(), { wrapper: wrap(client) });
 
