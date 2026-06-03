@@ -1,7 +1,6 @@
-import type { ErrorCode } from "@openrift/shared";
 import { context, propagation } from "@opentelemetry/api";
 
-import { ApiError } from "./api-error";
+import { apiErrorFromResponse } from "./api-error";
 import { API_URL } from "./api-url";
 
 interface FetchApiOptions {
@@ -58,25 +57,7 @@ export async function fetchApi(options: FetchApiOptions): Promise<Response> {
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!res.ok && !acceptStatuses?.includes(res.status)) {
-    const raw = await res.text().catch(() => "<no body>");
-    // Best-effort parse of the { error, code, details } envelope; the server's
-    // message wins the toast when present, else fall back to errorTitle.
-    let message = errorTitle;
-    let code: ErrorCode | undefined;
-    let details: unknown;
-    try {
-      const parsed = JSON.parse(raw) as { error?: unknown; code?: unknown; details?: unknown };
-      if (typeof parsed.error === "string") {
-        message = parsed.error;
-        code = typeof parsed.code === "string" ? (parsed.code as ErrorCode) : undefined;
-        details = parsed.details;
-      }
-    } catch {
-      // Non-JSON body (HTML error page, better-auth, network failure) — keep errorTitle.
-    }
-    const diagnostic = `${method} ${url} → ${res.status} ${res.statusText}\n${raw}`;
-    console.error(`[${errorTitle}]`, { url, method, status: res.status, body: raw });
-    throw new ApiError(message, { code, details, diagnostic });
+    throw await apiErrorFromResponse(res, errorTitle, { method, url });
   }
   return res;
 }

@@ -51,3 +51,52 @@ export function isApiError(value: unknown): value is ApiErrorShape {
     typeof (value as { message?: unknown }).message === "string"
   );
 }
+
+/**
+ * Builds the {@link ApiError} to throw for a non-ok API response. Best-effort
+ * parses the standard `{ error, code, details }` envelope: the server's `error`
+ * message wins the user-facing toast when present, otherwise `errorTitle` is
+ * the fallback (for non-envelope bodies — HTML error pages, better-auth, a
+ * network failure). Logs the raw failure to the console (never the toast) and
+ * records a `diagnostic` string for the console.
+ *
+ * Shared by {@link import("./fetch-api").fetchApi} (raw fetch) and
+ * {@link import("./api-client").callApi} (Hono RPC) so both honor the exact
+ * same error contract. The caller does the `throw` (`throw await
+ * apiErrorFromResponse(...)`) so control flow stays visible at the call site.
+ *
+ * The `res` param is typed structurally so both a DOM `Response` and Hono's
+ * `ClientResponse` satisfy it. `request.method` is optional because hc's
+ * `ClientResponse` does not carry the request method — the URL alone labels the
+ * call in that path.
+ * @returns The ApiError to throw.
+ */
+export async function apiErrorFromResponse(
+  res: { status: number; statusText: string; text: () => Promise<string> },
+  errorTitle: string,
+  request: { method?: string; url: string },
+): Promise<ApiError> {
+  const raw = await res.text().catch(() => "<no body>");
+  let message = errorTitle;
+  let code: ErrorCode | undefined;
+  let details: unknown;
+  try {
+    const parsed = JSON.parse(raw) as { error?: unknown; code?: unknown; details?: unknown };
+    if (typeof parsed.error === "string") {
+      message = parsed.error;
+      code = typeof parsed.code === "string" ? (parsed.code as ErrorCode) : undefined;
+      details = parsed.details;
+    }
+  } catch {
+    // Non-JSON body (HTML error page, better-auth, network failure) — keep errorTitle.
+  }
+  const label = request.method ? `${request.method} ${request.url}` : request.url;
+  const diagnostic = `${label} → ${res.status} ${res.statusText}\n${raw}`;
+  console.error(`[${errorTitle}]`, {
+    url: request.url,
+    method: request.method,
+    status: res.status,
+    body: raw,
+  });
+  return new ApiError(message, { code, details, diagnostic });
+}
