@@ -14,6 +14,9 @@ export type AdminCardListResponse = InferResponseType<
 export type AllCardsResponse = InferResponseType<
   Client["api"]["v1"]["admin"]["cards"]["all-cards"]["$get"]
 >;
+export type CardsExportResponse = InferResponseType<
+  Client["api"]["v1"]["admin"]["cards"]["export"]["$get"]
+>;
 export type AdminCardDetailResponse = InferResponseType<
   Client["api"]["v1"]["admin"]["cards"][":cardSlug"]["$get"]
 >;

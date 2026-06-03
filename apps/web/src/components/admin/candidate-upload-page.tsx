@@ -40,6 +40,7 @@ import {
   useUpdateProviderSetting,
 } from "@/hooks/use-provider-settings";
 import { isApiError } from "@/lib/server-fns/api-error";
+import type { CardsExportResponse } from "@/lib/server-fns/api-types";
 import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { cn } from "@/lib/utils";
@@ -71,14 +72,17 @@ function parseCandidates(text: string): ParseResult {
 
 const exportCardsFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<unknown> =>
-      fetchApiJson<unknown>({
-        errorTitle: "Couldn't export cards",
-        cookie: context.cookie,
-        path: "/api/v1/admin/cards/export",
-      }),
-  );
+  .handler(async ({ context }): Promise<string> => {
+    // The export is a loose passthrough JSON array; serialize it server-side to
+    // a string (trivially serializable across the server-fn boundary) — the
+    // client just writes it to a download blob.
+    const data = await fetchApiJson<CardsExportResponse>({
+      errorTitle: "Couldn't export cards",
+      cookie: context.cookie,
+      path: "/api/v1/admin/cards/export",
+    });
+    return JSON.stringify(data, null, 2);
+  });
 
 export function CandidateUploadPage() {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -530,8 +534,8 @@ function ExportCardsCard() {
     setExporting(true);
     setError(null);
     try {
-      const data = await exportCardsFn();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const json = await exportCardsFn();
+      const blob = new Blob([json], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

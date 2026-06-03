@@ -25,9 +25,13 @@ export class ApiError extends Error {
   }
 }
 
-/** Structural shape of an ApiError after it has crossed a server-function boundary. */
-export interface ApiErrorShape {
-  message: string;
+/**
+ * Structural shape of an ApiError after it has crossed a server-function
+ * boundary (a plain object — prototype dropped — that still carries the own
+ * properties). Extends Error so the {@link isApiError} guard narrows cleanly
+ * from the `Error` type react-query gives its mutation `onError`.
+ */
+export interface ApiErrorShape extends Error {
   code?: ErrorCode;
   details?: unknown;
   diagnostic?: string;
