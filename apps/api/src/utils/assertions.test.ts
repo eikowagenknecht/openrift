@@ -1,6 +1,7 @@
+import { ERROR_CODES } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import { AppError, ERROR_CODES } from "../errors.js";
+import { AppError } from "../errors.js";
 import { assertDeleted, assertFound, assertUpdated } from "./assertions.js";
 
 // ---------------------------------------------------------------------------

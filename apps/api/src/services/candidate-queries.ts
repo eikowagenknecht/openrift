@@ -6,13 +6,13 @@ import type {
   CandidatePrintingGroupResponse,
   CandidatePrintingResponse,
 } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { WellKnown, ERROR_CODES } from "@openrift/shared";
 import { formatPrintingLabel, mostCommonValue, slugifyName } from "@openrift/shared/utils";
 import type { Selectable } from "kysely";
 
 import type { CandidateCardsTable, CandidatePrintingsTable } from "../db/index.js";
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias
-import { AppError, ERROR_CODES } from "../errors.js";
+import { AppError } from "../errors.js";
 import type { candidateCardsRepo } from "../repositories/candidate-cards.js";
 import type { marketplaceMappingRepo } from "../repositories/marketplace-mapping.js";
 

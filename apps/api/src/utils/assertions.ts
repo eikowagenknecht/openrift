@@ -1,4 +1,6 @@
-import { AppError, ERROR_CODES } from "../errors.js";
+import { ERROR_CODES } from "@openrift/shared";
+
+import { AppError } from "../errors.js";
 
 /**
  * Assert that a value is not null or undefined, throwing a 404 AppError otherwise.

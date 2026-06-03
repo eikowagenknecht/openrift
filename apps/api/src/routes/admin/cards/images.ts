@@ -2,10 +2,11 @@
 import { join } from "node:path";
 
 import { createRoute } from "@hono/zod-openapi";
+import { ERROR_CODES } from "@openrift/shared";
 import { v7 as uuidv7 } from "uuid";
 import { z } from "zod";
 
-import { AppError, ERROR_CODES } from "../../../errors.js";
+import { AppError } from "../../../errors.js";
 import { createApiApp } from "../../../openapi.js";
 import {
   CARD_MEDIA_DIR,

@@ -1,5 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
-import { centsToDollars } from "@openrift/shared";
+import { centsToDollars, ERROR_CODES } from "@openrift/shared";
 import type {
   CatalogCardResponse,
   CatalogPrintingResponse,
@@ -12,7 +12,7 @@ import { setDetailResponseSchema, setListResponseSchema } from "@openrift/shared
 import { etag } from "hono/etag";
 import { z } from "zod";
 
-import { AppError, ERROR_CODES } from "../../errors.js";
+import { AppError } from "../../errors.js";
 import { createApiApp } from "../../openapi.js";
 import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-response.js";
 

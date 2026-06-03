@@ -1,9 +1,10 @@
 import { createRoute } from "@hono/zod-openapi";
+import { ERROR_CODES } from "@openrift/shared";
 import type { ProviderSettingResponse } from "@openrift/shared";
 import { providerParamSchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
-import { AppError, ERROR_CODES } from "../../errors.js";
+import { AppError } from "../../errors.js";
 import { createApiApp } from "../../openapi.js";
 import { reorderProvidersSchema, updateProviderSettingSchema } from "./schemas.js";
 

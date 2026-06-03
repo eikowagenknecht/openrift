@@ -1,7 +1,8 @@
+import { ERROR_CODES } from "@openrift/shared";
+import type { ErrorCode } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import { AppError, ERROR_CODES, codeForStatus } from "./errors.js";
-import type { ErrorCode } from "./errors.js";
+import { AppError, codeForStatus } from "./errors.js";
 
 describe("AppError", () => {
   it("carries status, code, message, and details", () => {

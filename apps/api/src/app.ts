@@ -1,4 +1,5 @@
 import { swaggerUI } from "@hono/swagger-ui";
+import { ERROR_CODES } from "@openrift/shared";
 import type { ApiErrorResponse } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
 import * as Sentry from "@sentry/bun";
@@ -13,7 +14,7 @@ import { matchOrigin } from "./cors.js";
 import type { Database } from "./db/index.js";
 import type { Services } from "./deps.js";
 import { createRepos, createTransact, services as defaultServices } from "./deps.js";
-import { AppError, ERROR_CODES, codeForStatus } from "./errors.js";
+import { AppError, codeForStatus } from "./errors.js";
 import { defaultIo } from "./io.js";
 import type { Io } from "./io.js";
 import { createMetricsMiddleware } from "./middleware/metrics.js";

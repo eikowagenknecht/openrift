@@ -1,4 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
+import { ERROR_CODES } from "@openrift/shared";
 import type { CollectionListResponse, CopyListResponse } from "@openrift/shared";
 import {
   collectionGroupSharesResponseSchema,
@@ -18,7 +19,7 @@ import {
 import type { Updateable } from "kysely";
 
 import type { CollectionsTable } from "../../db/index.js";
-import { AppError, ERROR_CODES } from "../../errors.js";
+import { AppError } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { createApiApp } from "../../openapi.js";

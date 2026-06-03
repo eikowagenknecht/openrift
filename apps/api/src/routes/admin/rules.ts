@@ -1,8 +1,9 @@
 import { createRoute } from "@hono/zod-openapi";
+import { ERROR_CODES } from "@openrift/shared";
 import type { RuleKind } from "@openrift/shared";
 import { z } from "zod";
 
-import { AppError, ERROR_CODES } from "../../errors.js";
+import { AppError } from "../../errors.js";
 import { createApiApp } from "../../openapi.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────

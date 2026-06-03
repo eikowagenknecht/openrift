@@ -1,7 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { ERROR_CODES } from "@openrift/shared";
 import type { ApiErrorResponse } from "@openrift/shared";
 
-import { ERROR_CODES } from "./errors.js";
 import type { Variables } from "./types.js";
 
 /**

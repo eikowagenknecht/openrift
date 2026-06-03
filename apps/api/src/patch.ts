@@ -1,4 +1,6 @@
-import { AppError, ERROR_CODES } from "./errors.js";
+import { ERROR_CODES } from "@openrift/shared";
+
+import { AppError } from "./errors.js";
 
 /**
  * Maps request-body fields to columns of the update target `T`. Each value is

@@ -1,4 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
+import { ERROR_CODES } from "@openrift/shared";
 import type {
   FriendGroupCollectionShareResponse,
   FriendGroupDetailResponse,
@@ -52,7 +53,7 @@ import {
 } from "@openrift/shared/schemas";
 
 import type { Repos } from "../../deps.js";
-import { AppError, ERROR_CODES } from "../../errors.js";
+import { AppError } from "../../errors.js";
 import { gravatarHashForEmail } from "../../lib/gravatar.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";

@@ -1,6 +1,7 @@
+import { ERROR_CODES } from "@openrift/shared";
 import type { Context } from "hono";
 
-import { AppError, ERROR_CODES } from "../errors.js";
+import { AppError } from "../errors.js";
 import type { Variables } from "../types.js";
 
 /**

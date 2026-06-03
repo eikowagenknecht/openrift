@@ -1,28 +1,9 @@
-/**
- * Canonical error codes used with AppError throughout the API. This object is
- * the single source of truth for the `code` field on the wire — always
- * reference these constants instead of raw strings. `AppError.code` is typed
- * to {@link ErrorCode}, so an un-enumerated code fails to compile.
- *
- * `VALIDATION_ERROR` is for request-schema (Zod) validation failures;
- * `BAD_REQUEST` is for other malformed or illegal requests (including
- * malformed JSON). `MISSING_ALIAS` is a domain-specific data-integrity signal
- * (a matched card has no name aliases).
- */
-export const ERROR_CODES = {
-  BAD_REQUEST: "BAD_REQUEST",
-  CONFLICT: "CONFLICT",
-  FORBIDDEN: "FORBIDDEN",
-  INTERNAL_ERROR: "INTERNAL_ERROR",
-  MISSING_ALIAS: "MISSING_ALIAS",
-  NOT_FOUND: "NOT_FOUND",
-  PAYLOAD_TOO_LARGE: "PAYLOAD_TOO_LARGE",
-  SERVICE_UNAVAILABLE: "SERVICE_UNAVAILABLE",
-  UNAUTHORIZED: "UNAUTHORIZED",
-  VALIDATION_ERROR: "VALIDATION_ERROR",
-} as const;
-
-export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
+// ERROR_CODES + ErrorCode are the single source of truth for the `{ error,
+// code }` envelope — shared by the API and the web app — so they live in
+// @openrift/shared. Import them from there directly (not via this module);
+// errors.ts owns only the server-side AppError + codeForStatus.
+import { ERROR_CODES } from "@openrift/shared";
+import type { ErrorCode } from "@openrift/shared";
 
 export class AppError extends Error {
   readonly status: number;

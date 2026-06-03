@@ -1,9 +1,10 @@
 import { createRoute } from "@hono/zod-openapi";
+import { ERROR_CODES } from "@openrift/shared";
 import type { SiteSettingResponse } from "@openrift/shared";
 import { keyParamSchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
-import { AppError, ERROR_CODES } from "../../errors.js";
+import { AppError } from "../../errors.js";
 import { createApiApp } from "../../openapi.js";
 import { assertDeleted, assertFound } from "../../utils/assertions.js";
 import { createSettingSchema, updateSettingSchema } from "./schemas.js";

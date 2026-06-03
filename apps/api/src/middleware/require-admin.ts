@@ -1,7 +1,8 @@
+import { ERROR_CODES } from "@openrift/shared";
 import type { MiddlewareHandler } from "hono";
 
 import type { Repos } from "../deps.js";
-import { AppError, ERROR_CODES } from "../errors.js";
+import { AppError } from "../errors.js";
 import type { Variables } from "../types.js";
 import { resolveSession } from "./load-session.js";
 

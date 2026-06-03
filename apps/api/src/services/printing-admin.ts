@@ -1,8 +1,8 @@
-import { appendSetTotal, fixTypography, WellKnown } from "@openrift/shared";
+import { appendSetTotal, fixTypography, WellKnown, ERROR_CODES } from "@openrift/shared";
 import type { ArtVariant, Finish, Rarity } from "@openrift/shared/types";
 
 import type { Transact } from "../deps.js";
-import { AppError, ERROR_CODES } from "../errors.js";
+import { AppError } from "../errors.js";
 import type { Io } from "../io.js";
 import type { candidateMutationsRepo } from "../repositories/candidate-mutations.js";
 import type { distributionChannelsRepo } from "../repositories/distribution-channels.js";

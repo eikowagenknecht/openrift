@@ -1,8 +1,9 @@
 import { createRoute } from "@hono/zod-openapi";
+import { ERROR_CODES } from "@openrift/shared";
 import { createLogger } from "@openrift/shared/logger";
 import { z } from "zod";
 
-import { AppError, ERROR_CODES } from "../../errors.js";
+import { AppError } from "../../errors.js";
 import { createApiApp } from "../../openapi.js";
 
 const log = createLogger("admin-cache");

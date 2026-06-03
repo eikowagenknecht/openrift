@@ -1,5 +1,7 @@
+import { ERROR_CODES } from "@openrift/shared";
+
 import type { Transact } from "../deps.js";
-import { AppError, ERROR_CODES } from "../errors.js";
+import { AppError } from "../errors.js";
 import type { Io } from "../io.js";
 import type { candidateCardsRepo } from "../repositories/candidate-cards.js";
 import type { candidateMutationsRepo } from "../repositories/candidate-mutations.js";

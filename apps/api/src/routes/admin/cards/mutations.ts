@@ -1,11 +1,11 @@
 import { createRoute } from "@hono/zod-openapi";
 import type { CandidateCardUploadResponse, CardType, Domain, SuperType } from "@openrift/shared";
-import { appendSetTotal, fixTypography } from "@openrift/shared";
+import { appendSetTotal, fixTypography, ERROR_CODES } from "@openrift/shared";
 import { extractKeywords } from "@openrift/shared/keywords";
 import { normalizeNameForMatching } from "@openrift/shared/utils";
 import { z } from "zod";
 
-import { AppError, ERROR_CODES } from "../../../errors.js";
+import { AppError } from "../../../errors.js";
 import { createApiApp } from "../../../openapi.js";
 import { acceptFavoritePrintingsForCard } from "../../../services/accept-favorite-printings.js";
 import { acceptFavoriteNewCard } from "../../../services/accept-gallery.js";

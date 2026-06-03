@@ -221,6 +221,8 @@ export {
 export type { SortCardsOptions } from "./filters.js";
 
 export { snapshotHeadline } from "./types/api/pricing.js";
+export { ERROR_CODES } from "./error-codes.js";
+export type { ErrorCode } from "./error-codes.js";
 
 export { EMPTY_PRICE_LOOKUP, priceLookupFromMap } from "./price-lookup.js";
 

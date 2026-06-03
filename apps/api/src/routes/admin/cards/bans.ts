@@ -1,8 +1,9 @@
 import { createRoute } from "@hono/zod-openapi";
+import { ERROR_CODES } from "@openrift/shared";
 import { idParamSchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
-import { AppError, ERROR_CODES } from "../../../errors.js";
+import { AppError } from "../../../errors.js";
 import { createApiApp } from "../../../openapi.js";
 import { assertFound } from "../../../utils/assertions.js";
 import { banResponseSchema, createBanSchema, removeBanSchema, updateBanSchema } from "./schemas.js";

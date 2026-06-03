@@ -1,7 +1,8 @@
+import { ERROR_CODES } from "@openrift/shared";
 import type { ListMoveResponse } from "@openrift/shared";
 
 import type { Repos, Transact } from "../deps.js";
-import { AppError, ERROR_CODES } from "../errors.js";
+import { AppError } from "../errors.js";
 
 /**
  * Moves a set of entries from one list to another. The destination must be

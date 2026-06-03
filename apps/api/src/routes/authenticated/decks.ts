@@ -12,7 +12,7 @@ import type {
   Domain,
   SuperType,
 } from "@openrift/shared";
-import { WellKnown, validateDeck } from "@openrift/shared";
+import { WellKnown, validateDeck, ERROR_CODES } from "@openrift/shared";
 import {
   deckAvailabilityResponseSchema,
   deckCardsResponseSchema,
@@ -35,7 +35,7 @@ import { PREFERENCE_DEFAULTS } from "@openrift/shared/types";
 import { z } from "zod";
 
 import type { Repos } from "../../deps.js";
-import { AppError, ERROR_CODES } from "../../errors.js";
+import { AppError } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { createApiApp } from "../../openapi.js";
