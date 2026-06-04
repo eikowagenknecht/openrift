@@ -307,7 +307,19 @@ export function createApp(deps: AppDeps) {
   // middleware explicitly. Truly-public routes skip the lookup entirely.
 
   // ── OpenAPI spec & Swagger UI ──────────────────────────────────────────
-  app.doc("/api/doc", {
+  // VER-1: the public and admin surfaces get separate OpenAPI documents so the
+  // ~150 admin operations don't pollute the public spec. Both are generated
+  // from the same app (one AppType) and split by their /api/admin/ path prefix.
+  const ADMIN_DOC_PREFIX = "/api/admin/";
+  const filterPaths = (
+    doc: ReturnType<typeof app.getOpenAPIDocument>,
+    keep: (path: string) => boolean,
+  ): ReturnType<typeof app.getOpenAPIDocument> => ({
+    ...doc,
+    paths: Object.fromEntries(Object.entries(doc.paths ?? {}).filter(([path]) => keep(path))),
+  });
+
+  const publicDocConfig = {
     openapi: "3.1.0",
     info: {
       title: "OpenRift API",
@@ -315,13 +327,42 @@ export function createApp(deps: AppDeps) {
       description: [
         "**Authentication:** This API uses session cookies (Better Auth).",
         "Auth endpoints are not in this spec, they are proxied from `/api/auth/*`.",
+        "Admin endpoints live in a separate spec at `/api/admin/doc`.",
         "",
         "To try authenticated endpoints in Swagger UI: sign in via the web app,",
         "then open this page on the API origin in the same browser.",
       ].join("\n"),
     },
-  });
+  } as const;
+  const adminDocConfig = {
+    openapi: "3.1.0",
+    info: {
+      title: "OpenRift Admin API",
+      version: "1.0.0",
+      description:
+        "Admin-only operations, mounted under `/api/admin/v1` (require an admin session).",
+    },
+  } as const;
+
+  // Public doc: everything except the admin surface.
+  app.get("/api/doc", (c) =>
+    c.json(
+      filterPaths(
+        app.getOpenAPIDocument(publicDocConfig),
+        (path) => !path.startsWith(ADMIN_DOC_PREFIX),
+      ),
+    ),
+  );
+  // Admin doc: only the admin surface.
+  app.get("/api/admin/doc", (c) =>
+    c.json(
+      filterPaths(app.getOpenAPIDocument(adminDocConfig), (path) =>
+        path.startsWith(ADMIN_DOC_PREFIX),
+      ),
+    ),
+  );
   app.get("/api/ui", swaggerUI({ url: "/api/doc" }));
+  app.get("/api/admin/ui", swaggerUI({ url: "/api/admin/doc" }));
 
   // Route registrations are chained so TypeScript preserves the full route
   // type map — the frontend RPC client (`AppType`) depends on this.
