@@ -4,8 +4,6 @@ import type {
   CatalogCardResponse,
   CatalogPrintingResponse,
   CardDetailResponse,
-  Marketplace,
-  PriceMap,
 } from "@openrift/shared";
 import { cardDetailResponseSchema } from "@openrift/shared/response-schemas";
 import { etag } from "hono/etag";
@@ -43,7 +41,7 @@ export const cardsRoute = cardsApp
   .openapi(getCardDetail, async (c) => {
     const { cardSlug } = c.req.valid("param");
     const repos = c.get("repos");
-    const { catalog, marketplace } = repos;
+    const { catalog } = repos;
 
     const card = await catalog.cardBySlug(cardSlug);
     if (!card) {
@@ -60,25 +58,11 @@ export const cardsRoute = cardsApp
     // Collect unique set IDs from printings
     const setIds = [...new Set(printingRows.map((p) => p.setId))];
     const printingIds = printingRows.map((p) => p.id);
-    const [sets, priceRows, markerChannelMaps] = await Promise.all([
+    const [sets, markerChannelMaps] = await Promise.all([
       catalog.setsByIds(setIds),
-      marketplace.latestPricesForPrintings(printingIds),
       loadMarkerAndChannelMaps(repos, printingIds),
     ]);
     const { markerBySlug, channelsByPrinting } = markerChannelMaps;
-
-    // Per-printing price map. Returned as a sibling field on the response so
-    // SSR head() can synchronously read it for Schema.org Product/Offer JSON-LD;
-    // runtime UI reads prices through the global usePrices() hook instead.
-    const prices: PriceMap = {};
-    for (const row of priceRows) {
-      let entry = prices[row.printingId];
-      if (!entry) {
-        entry = {};
-        prices[row.printingId] = entry;
-      }
-      entry[row.marketplace as Marketplace] = row.marketCents; // SCH-2: integer cents
-    }
 
     // Build images lookup
     const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
@@ -119,7 +103,6 @@ export const cardsRoute = cardsApp
       card: cardResponse,
       printings,
       sets,
-      prices,
     };
 
     c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");

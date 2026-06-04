@@ -3,8 +3,6 @@ import type {
   CatalogCardResponse,
   CatalogPrintingResponse,
   DistributionChannelWithCount,
-  Marketplace,
-  PriceMap,
   PromosListResponse,
 } from "@openrift/shared";
 import { promosListResponseSchema } from "@openrift/shared/response-schemas";
@@ -30,7 +28,7 @@ const promosApp = createApiApp();
 promosApp.use("/promos", etag());
 export const promosRoute = promosApp.openapi(getPromos, async (c) => {
   const repos = c.get("repos");
-  const { catalog, marketplace, distributionChannels } = repos;
+  const { catalog, distributionChannels } = repos;
 
   const [allChannels, printingRows] = await Promise.all([
     distributionChannels.listAll(),
@@ -40,15 +38,13 @@ export const promosRoute = promosApp.openapi(getPromos, async (c) => {
   const cardIds = [...new Set(printingRows.map((p) => p.cardId))];
   const printingIds = printingRows.map((p) => p.id);
 
-  const [cardRows, banRows, errataRows, imageRows, priceRows, markerChannelMaps] =
-    await Promise.all([
-      catalog.cardsByIds(cardIds),
-      catalog.cardBansByCardIds(cardIds),
-      catalog.cardErrataByCardIds(cardIds),
-      catalog.printingImagesByPrintingIds(printingIds),
-      marketplace.latestPricesForPrintings(printingIds),
-      loadMarkerAndChannelMaps(repos, printingIds),
-    ]);
+  const [cardRows, banRows, errataRows, imageRows, markerChannelMaps] = await Promise.all([
+    catalog.cardsByIds(cardIds),
+    catalog.cardBansByCardIds(cardIds),
+    catalog.cardErrataByCardIds(cardIds),
+    catalog.printingImagesByPrintingIds(printingIds),
+    loadMarkerAndChannelMaps(repos, printingIds),
+  ]);
   const { markerBySlug, channelsByPrinting } = markerChannelMaps;
 
   const bansByCard = Map.groupBy(banRows, (r) => r.cardId);
@@ -80,16 +76,6 @@ export const promosRoute = promosApp.openapi(getPromos, async (c) => {
       },
     ]),
   );
-
-  const prices: PriceMap = {};
-  for (const row of priceRows) {
-    let entry = prices[row.printingId];
-    if (!entry) {
-      entry = {};
-      prices[row.printingId] = entry;
-    }
-    entry[row.marketplace as Marketplace] = row.marketCents; // SCH-2: integer cents
-  }
 
   const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
 
@@ -151,7 +137,7 @@ export const promosRoute = promosApp.openapi(getPromos, async (c) => {
     printingCount: rollupPrintings.get(ch.id) ?? 0,
   }));
 
-  const content: PromosListResponse = { channels, cards, printings, prices };
+  const content: PromosListResponse = { channels, cards, printings };
   c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
   return c.json(content);
 });

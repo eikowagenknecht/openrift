@@ -394,7 +394,7 @@ export const cardDetailResponseSchema = z
     card: catalogCardResponseSchema,
     printings: z.array(catalogPrintingResponseSchema),
     sets: z.array(catalogSetResponseSchema),
-    prices: z.record(z.string(), marketplacePriceMapSchema),
+    // CACHE-1: prices are NOT inlined — read them from the /prices resource.
   })
   .openapi("CardDetailResponse");
 
@@ -415,7 +415,7 @@ export const setDetailResponseSchema = z
     set: catalogSetResponseSchema,
     cards: z.record(z.string(), catalogCardResponseSchema),
     printings: z.array(catalogPrintingResponseSchema),
-    prices: z.record(z.string(), marketplacePriceMapSchema),
+    // CACHE-1: prices are NOT inlined — read them from the /prices resource.
   })
   .openapi("SetDetailResponse");
 
@@ -431,7 +431,7 @@ export const promosListResponseSchema = z
     channels: z.array(distributionChannelWithCountSchema),
     cards: z.record(z.string(), catalogCardResponseSchema),
     printings: z.array(catalogPrintingResponseSchema),
-    prices: z.record(z.string(), marketplacePriceMapSchema),
+    // CACHE-1: prices are NOT inlined — read them from the /prices resource.
   })
   .openapi("PromosListResponse");
 

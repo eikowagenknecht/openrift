@@ -3,8 +3,6 @@ import { ERROR_CODES } from "@openrift/shared";
 import type {
   CatalogCardResponse,
   CatalogPrintingResponse,
-  Marketplace,
-  PriceMap,
   SetDetailResponse,
   SetListResponse,
 } from "@openrift/shared";
@@ -78,7 +76,7 @@ export const setsRoute = setsApp
   .openapi(getSetDetail, async (c) => {
     const { setSlug } = c.req.valid("param");
     const repos = c.get("repos");
-    const { catalog, marketplace } = repos;
+    const { catalog } = repos;
 
     const set = await catalog.setBySlug(setSlug);
     if (!set) {
@@ -93,11 +91,10 @@ export const setsRoute = setsApp
     // Get unique card IDs and printing IDs for scoped lookups
     const cardIds = [...new Set(printingRows.map((p) => p.cardId))];
     const printingIds = printingRows.map((p) => p.id);
-    const [cardRows, banRows, errataRows, priceRows, markerChannelMaps] = await Promise.all([
+    const [cardRows, banRows, errataRows, markerChannelMaps] = await Promise.all([
       catalog.cardsByIds(cardIds),
       catalog.cardBansByCardIds(cardIds),
       catalog.cardErrataByCardIds(cardIds),
-      marketplace.latestPricesForPrintings(printingIds),
       loadMarkerAndChannelMaps(repos, printingIds),
     ]);
     const { markerBySlug, channelsByPrinting } = markerChannelMaps;
@@ -133,18 +130,6 @@ export const setsRoute = setsApp
       ]),
     );
 
-    // Per-printing price map. Sibling field on the response — used for SSR
-    // JSON-LD; runtime UI reads prices through the global usePrices() hook.
-    const prices: PriceMap = {};
-    for (const row of priceRows) {
-      let entry = prices[row.printingId];
-      if (!entry) {
-        entry = {};
-        prices[row.printingId] = entry;
-      }
-      entry[row.marketplace as Marketplace] = row.marketCents; // SCH-2: integer cents
-    }
-
     const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
 
     const printings: CatalogPrintingResponse[] = printingRows.map(({ markerSlugs, ...rest }) => ({
@@ -157,7 +142,7 @@ export const setsRoute = setsApp
       })),
     }));
 
-    const content: SetDetailResponse = { set, cards, printings, prices };
+    const content: SetDetailResponse = { set, cards, printings };
     c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
     return c.json(content);
   });

@@ -1,5 +1,5 @@
-import type { CardDetailResponse, Marketplace } from "@openrift/shared";
-import { MARKETPLACE_CURRENCY } from "@openrift/shared";
+import type { CardDetailResponse, Marketplace, PricesResponse } from "@openrift/shared";
+import { MARKETPLACE_CURRENCY, priceLookupFromMap } from "@openrift/shared";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { z } from "zod";
 
@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { effectiveLanguageOrder } from "@/hooks/use-effective-language-order";
 import { initQueryOptions } from "@/hooks/use-init";
+import { pricesQueryOptions } from "@/hooks/use-prices";
 import {
   buildCardMetaDescription,
   getCardFrontImageFullUrl,
@@ -21,12 +22,22 @@ const cardDetailSearchSchema = z.object({
   printingId: z.string().optional(),
 });
 
+interface MarketplaceOffer {
+  seller: string;
+  currency: string;
+  priceLow: number;
+  priceHigh: number;
+}
+
 interface CardDetailLoaderData {
   data: CardDetailResponse;
   printingId: string | undefined;
   languageOrder: readonly string[];
   domainLabels: Record<string, string>;
   cardTypeLabels: Record<string, string>;
+  // Precomputed in the loader from the /prices resource (CACHE-1): prices are no
+  // longer inlined on CardDetailResponse, so the SSR head can't derive these.
+  marketplaceOffers: MarketplaceOffer[];
 }
 
 // Currency is sourced from the shared MARKETPLACE_CURRENCY map (SCH-2) so the
@@ -81,28 +92,10 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
       ogType: "product",
     });
 
-    // Schema.org Product/Offer JSON-LD reads from the response's `prices` sibling
-    // (not from each printing) so the data is available synchronously at SSR time
-    // for crawlers that don't execute JS. Each marketplace becomes its own offer
-    // so the markup correctly attributes the listing to the third-party seller.
-    const marketplaceOffers = MARKETPLACE_OFFER_CONFIG.flatMap(({ key, seller, currency }) => {
-      const prices = data.printings
-        .map((p) => data.prices[p.id]?.[key])
-        .filter((price): price is number => price !== undefined && price > 0);
-      if (prices.length === 0) {
-        return [];
-      }
-      // Inlined prices are integer cents (SCH-2); JSON-LD offers want major units.
-      return [
-        {
-          seller,
-          currency,
-          priceLow: Math.min(...prices) / 100,
-          priceHigh: Math.max(...prices) / 100,
-        },
-      ];
-    });
-
+    // Schema.org Product/Offer JSON-LD. Prices are no longer inlined on the card
+    // response (CACHE-1); the loader precomputes the per-marketplace offers from
+    // the /prices resource so they're available synchronously at SSR time for
+    // crawlers that don't execute JS.
     return {
       ...head,
       scripts: [
@@ -112,7 +105,7 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
           description: `${data.card.name} is a ${data.card.type} card from Riftbound.`,
           image: imageUrl,
           url: cardPath,
-          marketplaceOffers,
+          marketplaceOffers: loaded.marketplaceOffers,
         }),
         breadcrumbJsonLd(siteUrl, [
           { name: "Cards", path: "/cards" },
@@ -148,12 +141,35 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
     // Router doesn't propagate the route's `validateSearch` type here — so
     // re-parse with the schema to recover `printingId` in a type-safe way.
     const { printingId } = cardDetailSearchSchema.parse(location.search);
+
+    // Prices come from the /prices resource now (CACHE-1), not inlined on the
+    // card response. They're SEO-only here, so a price-fetch failure must not
+    // break the card page — fall back to no offers.
+    let pricesResponse: PricesResponse;
+    try {
+      pricesResponse = await context.queryClient.ensureQueryData(pricesQueryOptions);
+    } catch {
+      pricesResponse = { prices: {} };
+    }
+    const priceLookup = priceLookupFromMap(pricesResponse.prices);
+    const marketplaceOffers = MARKETPLACE_OFFER_CONFIG.flatMap(({ key, seller, currency }) => {
+      // priceLookup returns major units (SCH-2 cents are converted at this boundary).
+      const prices = data.printings
+        .map((printing) => priceLookup.get(printing.id, key))
+        .filter((price): price is number => price !== undefined && price > 0);
+      if (prices.length === 0) {
+        return [];
+      }
+      return [{ seller, currency, priceLow: Math.min(...prices), priceHigh: Math.max(...prices) }];
+    });
+
     return {
       data,
       printingId,
       languageOrder,
       domainLabels: labelMap(init.enums.domains ?? []),
       cardTypeLabels: labelMap(init.enums.cardTypes ?? []),
+      marketplaceOffers,
     };
   },
   component: () => null,
