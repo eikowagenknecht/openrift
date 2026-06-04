@@ -76,7 +76,7 @@ const exportCardsFn = createServerFn({ method: "GET" })
     // a string (trivially serializable across the server-fn boundary) — the
     // client just writes it to a download blob.
     const data = await callApiJson(
-      serverApiClient(context.cookie).api.v1.admin.cards.export.$get(),
+      serverApiClient(context.cookie).api.admin.v1.cards.export.$get(),
       "Couldn't export cards",
     );
     return JSON.stringify(data, null, 2);

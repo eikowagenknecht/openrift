@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createTestContext, req } from "../../test/integration-context.js";
+import { adminReq, createTestContext, req } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Feature flags routes
@@ -28,7 +28,7 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
 
   describe("admin-only access control (non-admin)", () => {
     it("GET /admin/feature-flags returns 403 for non-admin", async () => {
-      const res = await app.fetch(req("GET", "/admin/feature-flags"));
+      const res = await app.fetch(adminReq("GET", "/feature-flags"));
       expect(res.status).toBe(403);
     });
   });
@@ -58,13 +58,13 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
 
   describe("POST /admin/feature-flags", () => {
     it("creates a flag with defaults", async () => {
-      const res = await app.fetch(req("POST", "/admin/feature-flags", { key: "ffl-deck-builder" }));
+      const res = await app.fetch(adminReq("POST", "/feature-flags", { key: "ffl-deck-builder" }));
       expect(res.status).toBe(201);
     });
 
     it("creates a flag with enabled and description", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/feature-flags", {
+        adminReq("POST", "/feature-flags", {
           key: "ffl-dark-mode",
           enabled: true,
           description: "Toggle dark mode UI",
@@ -74,17 +74,17 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
     });
 
     it("rejects duplicate key with 409", async () => {
-      const res = await app.fetch(req("POST", "/admin/feature-flags", { key: "ffl-deck-builder" }));
+      const res = await app.fetch(adminReq("POST", "/feature-flags", { key: "ffl-deck-builder" }));
       expect(res.status).toBe(409);
     });
 
     it("rejects non-kebab-case key with 400", async () => {
-      const res = await app.fetch(req("POST", "/admin/feature-flags", { key: "NotKebab" }));
+      const res = await app.fetch(adminReq("POST", "/feature-flags", { key: "NotKebab" }));
       expect(res.status).toBe(400);
     });
 
     it("rejects single-char key with 400", async () => {
-      const res = await app.fetch(req("POST", "/admin/feature-flags", { key: "x" }));
+      const res = await app.fetch(adminReq("POST", "/feature-flags", { key: "x" }));
       expect(res.status).toBe(400);
     });
   });
@@ -106,7 +106,7 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
 
   describe("GET /admin/feature-flags", () => {
     it("returns ffl- flags with full shape", async () => {
-      const res = await app.fetch(req("GET", "/admin/feature-flags"));
+      const res = await app.fetch(adminReq("GET", "/feature-flags"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -135,7 +135,7 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
   describe("PATCH /admin/feature-flags/:key", () => {
     it("updates enabled status", async () => {
       const res = await app.fetch(
-        req("PATCH", "/admin/feature-flags/ffl-deck-builder", { enabled: true }),
+        adminReq("PATCH", "/feature-flags/ffl-deck-builder", { enabled: true }),
       );
       expect(res.status).toBe(204);
 
@@ -147,12 +147,12 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
 
     it("updates description", async () => {
       const res = await app.fetch(
-        req("PATCH", "/admin/feature-flags/ffl-deck-builder", { description: "Build your deck" }),
+        adminReq("PATCH", "/feature-flags/ffl-deck-builder", { description: "Build your deck" }),
       );
       expect(res.status).toBe(204);
 
       // Verify via admin endpoint
-      const check = await app.fetch(req("GET", "/admin/feature-flags"));
+      const check = await app.fetch(adminReq("GET", "/feature-flags"));
       const json = await check.json();
       const flag = json.flags.find((f: { key: string }) => f.key === "ffl-deck-builder");
       expect(flag.description).toBe("Build your deck");
@@ -160,7 +160,7 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
 
     it("returns 404 for non-existent key", async () => {
       const res = await app.fetch(
-        req("PATCH", "/admin/feature-flags/does-not-exist", { enabled: true }),
+        adminReq("PATCH", "/feature-flags/does-not-exist", { enabled: true }),
       );
       expect(res.status).toBe(404);
     });
@@ -170,7 +170,7 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
 
   describe("DELETE /admin/feature-flags/:key", () => {
     it("deletes a flag", async () => {
-      const res = await app.fetch(req("DELETE", "/admin/feature-flags/ffl-dark-mode"));
+      const res = await app.fetch(adminReq("DELETE", "/feature-flags/ffl-dark-mode"));
       expect(res.status).toBe(204);
 
       // Verify it's gone from public endpoint
@@ -180,7 +180,7 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
     });
 
     it("returns 404 for non-existent key", async () => {
-      const res = await app.fetch(req("DELETE", "/admin/feature-flags/ffl-dark-mode"));
+      const res = await app.fetch(adminReq("DELETE", "/feature-flags/ffl-dark-mode"));
       expect(res.status).toBe(404);
     });
   });

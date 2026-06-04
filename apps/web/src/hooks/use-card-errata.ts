@@ -19,7 +19,7 @@ const upsertCardErrataFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards[":cardId"].errata.$post({
+      serverApiClient(context.cookie).api.admin.v1.cards[":cardId"].errata.$post({
         param: encodeParams({ cardId: data.cardId }),
         json: {
           correctedRulesText: data.correctedRulesText,
@@ -67,7 +67,7 @@ const deleteCardErrataFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards[":cardId"].errata.$delete({
+      serverApiClient(context.cookie).api.admin.v1.cards[":cardId"].errata.$delete({
         param: encodeParams({ cardId: data.cardId }),
       }),
       "Couldn't delete card errata",
@@ -128,7 +128,7 @@ const uploadErrataFn = createServerFn({ method: "POST" })
   .handler(
     ({ context, data }): Promise<BulkErrataUploadResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin.cards.errata.upload.$post({ json: data }),
+        serverApiClient(context.cookie).api.admin.v1.cards.errata.upload.$post({ json: data }),
         "Couldn't upload errata",
       ),
   );

@@ -18,7 +18,7 @@ const deletePrintingImageFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards["printing-images"][":imageId"].$delete({
+      serverApiClient(context.cookie).api.admin.v1.cards["printing-images"][":imageId"].$delete({
         param: encodeParams({ imageId: data.imageId }),
       }),
       "Couldn't delete printing image",
@@ -30,7 +30,7 @@ const activatePrintingImageFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards["printing-images"][
+      serverApiClient(context.cookie).api.admin.v1.cards["printing-images"][
         ":imageId"
       ].activate.$post({
         param: encodeParams({ imageId: data.imageId }),
@@ -45,7 +45,7 @@ const rehostPrintingImageFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards["printing-images"][
+      serverApiClient(context.cookie).api.admin.v1.cards["printing-images"][
         ":imageId"
       ].rehost.$post({
         param: encodeParams({ imageId: data.imageId }),
@@ -59,7 +59,7 @@ const unrehostPrintingImageFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards["printing-images"][
+      serverApiClient(context.cookie).api.admin.v1.cards["printing-images"][
         ":imageId"
       ].unrehost.$post({
         param: encodeParams({ imageId: data.imageId }),
@@ -75,7 +75,7 @@ const rotatePrintingImageFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards["printing-images"][
+      serverApiClient(context.cookie).api.admin.v1.cards["printing-images"][
         ":imageId"
       ].rotate.$post({
         param: encodeParams({ imageId: data.imageId }),
@@ -90,7 +90,7 @@ const setNeedsTrimFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards["printing-images"][":imageId"][
+      serverApiClient(context.cookie).api.admin.v1.cards["printing-images"][":imageId"][
         "set-needs-trim"
       ].$post({
         param: encodeParams({ imageId: data.imageId }),
@@ -105,7 +105,7 @@ const addImageFromUrlFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards.printing[":printingId"][
+      serverApiClient(context.cookie).api.admin.v1.cards.printing[":printingId"][
         "add-image-url"
       ].$post({
         param: encodeParams({ printingId: data.printingId }),
@@ -120,7 +120,7 @@ const setCandidatePrintingImageFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards["candidate-printings"][":id"][
+      serverApiClient(context.cookie).api.admin.v1.cards["candidate-printings"][":id"][
         "set-image"
       ].$post({
         param: encodeParams({ id: data.candidatePrintingId }),
@@ -136,7 +136,7 @@ const uploadCandidatesFn = createServerFn({ method: "POST" })
   .handler(
     ({ context, data }): Promise<UploadCandidatesResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin.cards.upload.$post({ json: data }),
+        serverApiClient(context.cookie).api.admin.v1.cards.upload.$post({ json: data }),
         "Couldn't upload candidates",
       ),
   );
@@ -239,7 +239,7 @@ const uploadPrintingImageFn = createServerFn({ method: "POST" })
     }
     // FormData body — can't use fetchApi helper (it JSON.stringify's bodies).
     const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/printing/${encodeURIComponent(data.printingId)}/upload-image`,
+      `${API_URL}/api/admin/v1/cards/printing/${encodeURIComponent(data.printingId)}/upload-image`,
       {
         method: "POST",
         headers: { cookie: context.cookie },

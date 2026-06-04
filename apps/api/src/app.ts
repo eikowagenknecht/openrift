@@ -360,6 +360,8 @@ export function createApp(deps: AppDeps) {
       .route("/api/v1", friendGroupsRoute)
 
       // ── Admin routes (require admin role) ────────────────────────────────
-      .route("/api/v1", adminRoute)
+      // VER-1: mounted under /api/admin/v1 (not /api/v1/admin) so admin churn is
+      // decoupled from the public v1 contract.
+      .route("/api/admin/v1", adminRoute)
   );
 }

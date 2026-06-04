@@ -11,7 +11,7 @@ const fetchSets = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminSetsResponse> =>
-      callApiJson(serverApiClient(context.cookie).api.v1.admin.sets.$get(), "Couldn't load sets"),
+      callApiJson(serverApiClient(context.cookie).api.admin.v1.sets.$get(), "Couldn't load sets"),
   );
 
 export const setsQueryOptions = queryOptions({
@@ -38,7 +38,7 @@ const updateSetFn = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { id, ...patch } = data;
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.sets[":id"].$patch({
+      serverApiClient(context.cookie).api.admin.v1.sets[":id"].$patch({
         param: encodeParams({ id }),
         json: patch,
       }),
@@ -70,7 +70,7 @@ const createSetFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.sets.$post({
+      serverApiClient(context.cookie).api.admin.v1.sets.$post({
         json: data,
       }),
       "Couldn't create set",
@@ -94,7 +94,7 @@ const deleteSetFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.sets[":id"].$delete({
+      serverApiClient(context.cookie).api.admin.v1.sets[":id"].$delete({
         param: encodeParams({ id: data.id }),
       }),
       "Couldn't delete set",
@@ -115,7 +115,7 @@ const reorderSetsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.sets.reorder.$put({
+      serverApiClient(context.cookie).api.admin.v1.sets.reorder.$put({
         json: { ids: data.ids },
       }),
       "Couldn't reorder sets",

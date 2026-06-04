@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 
-import { createTestContext, req } from "../../test/integration-context.js";
+import { adminReq, createTestContext } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Admin rules import + delete flows.
@@ -41,7 +41,7 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
   describe("admin-only access control", () => {
     it("POST /admin/rules/import returns 403 for non-admin", async () => {
       const res = await nonAdminApp.fetch(
-        req("POST", "/admin/rules/import", {
+        adminReq("POST", "/rules/import", {
           kind: "core",
           version: "ar-int-forbidden",
           content: SAMPLE_CONTENT,
@@ -54,7 +54,7 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
   describe("POST /admin/rules/import", () => {
     it("imports a core ruleset", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/rules/import", {
+        adminReq("POST", "/rules/import", {
           kind: "core",
           version: CORE_VERSION,
           content: SAMPLE_CONTENT,
@@ -69,7 +69,7 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
 
     it("imports a tournament ruleset under the same version string without collision", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/rules/import", {
+        adminReq("POST", "/rules/import", {
           kind: "tournament",
           version: CORE_VERSION,
           content: SAMPLE_CONTENT,
@@ -83,7 +83,7 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
 
     it("rejects duplicate (kind, version)", async () => {
       const first = await app.fetch(
-        req("POST", "/admin/rules/import", {
+        adminReq("POST", "/rules/import", {
           kind: "core",
           version: COLLISION_VERSION,
           content: SAMPLE_CONTENT,
@@ -92,7 +92,7 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
       expect(first.status).toBe(201);
 
       const second = await app.fetch(
-        req("POST", "/admin/rules/import", {
+        adminReq("POST", "/rules/import", {
           kind: "core",
           version: COLLISION_VERSION,
           content: SAMPLE_CONTENT,
@@ -103,7 +103,7 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
 
     it("rejects an invalid kind", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/rules/import", {
+        adminReq("POST", "/rules/import", {
           kind: "bogus",
           version: "ar-int-bogus",
           content: SAMPLE_CONTENT,
@@ -117,7 +117,7 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
       // import with a lower version string for the same kind must be rejected
       // — the diff model can't safely insert older versions in-place.
       const res = await app.fetch(
-        req("POST", "/admin/rules/import", {
+        adminReq("POST", "/rules/import", {
           kind: "core",
           version: "ar-int-aaa",
           content: SAMPLE_CONTENT,
@@ -133,7 +133,7 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
     it("deletes only the specified kind", async () => {
       // Seed a tournament-only version to delete.
       await app.fetch(
-        req("POST", "/admin/rules/import", {
+        adminReq("POST", "/rules/import", {
           kind: "tournament",
           version: TOURNAMENT_VERSION,
           content: SAMPLE_CONTENT,
@@ -141,7 +141,7 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
       );
 
       const res = await app.fetch(
-        req("DELETE", `/admin/rules/tournament/versions/${TOURNAMENT_VERSION}`),
+        adminReq("DELETE", `/rules/tournament/versions/${TOURNAMENT_VERSION}`),
       );
       expect(res.status).toBe(204);
 
@@ -156,9 +156,7 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
     });
 
     it("returns 404 when (kind, version) doesn't exist", async () => {
-      const res = await app.fetch(
-        req("DELETE", "/admin/rules/core/versions/ar-int-does-not-exist"),
-      );
+      const res = await app.fetch(adminReq("DELETE", "/rules/core/versions/ar-int-does-not-exist"));
       expect(res.status).toBe(404);
     });
   });

@@ -12,7 +12,7 @@ const fetchSuperTypes = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<AdminSuperTypesResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["super-types"].$get(),
+        serverApiClient(context.cookie).api.admin.v1["super-types"].$get(),
         "Couldn't load super types",
       ),
   );
@@ -31,7 +31,7 @@ const createSuperTypeFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["super-types"].$post({
+      serverApiClient(context.cookie).api.admin.v1["super-types"].$post({
         json: data,
       }),
       "Couldn't create super type",
@@ -50,7 +50,7 @@ const updateSuperTypeFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["super-types"][":slug"].$patch({
+      serverApiClient(context.cookie).api.admin.v1["super-types"][":slug"].$patch({
         param: encodeParams({ slug: data.slug }),
         json: { label: data.label },
       }),
@@ -70,7 +70,7 @@ const reorderSuperTypesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["super-types"].reorder.$put({
+      serverApiClient(context.cookie).api.admin.v1["super-types"].reorder.$put({
         json: { slugs: data.slugs },
       }),
       "Couldn't reorder super types",
@@ -89,7 +89,7 @@ const deleteSuperTypeFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["super-types"][":slug"].$delete({
+      serverApiClient(context.cookie).api.admin.v1["super-types"][":slug"].$delete({
         param: encodeParams({ slug: data.slug }),
       }),
       "Couldn't delete super type",

@@ -51,7 +51,7 @@ describe("callApi", () => {
           ok: false,
           status: 404,
           statusText: "Not Found",
-          url: "http://localhost:3000/api/v1/admin/distribution-channels/x",
+          url: "http://localhost:3000/api/admin/v1/distribution-channels/x",
         }),
       ),
       "Couldn't delete distribution channel",
@@ -63,7 +63,7 @@ describe("callApi", () => {
     expect(err.message).toBe("Channel not found"); // server message wins, not errorTitle
     expect(err.code).toBe("NOT_FOUND");
     // The diagnostic (console-only) carries the url, status and raw envelope body.
-    expect(err.diagnostic).toContain("/api/v1/admin/distribution-channels/x → 404 Not Found");
+    expect(err.diagnostic).toContain("/api/admin/v1/distribution-channels/x → 404 Not Found");
     expect(err.diagnostic).toContain('"error":"Channel not found"');
   });
 
@@ -155,7 +155,7 @@ describe("callApiJson", () => {
 // Exported so noUnusedLocals doesn't flag the intentionally-uncalled assertion.
 export async function _callApiJsonRejectsBodylessRoutes() {
   // @ts-expect-error — cache/purge is a 204 route; callers must use callApi, not callApiJson.
-  await callApiJson(serverApiClient("c").api.v1.admin.cache.purge.$post(), "unused");
+  await callApiJson(serverApiClient("c").api.admin.v1.cache.purge.$post(), "unused");
 }
 
 describe("encodeParams", () => {
@@ -181,10 +181,10 @@ describe("serverApiClient", () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(clientResponse("{}"));
     vi.stubGlobal("fetch", fetchMock);
 
-    await serverApiClient("session=abc").api.v1.admin.cache.status.$get();
+    await serverApiClient("session=abc").api.admin.v1.cache.status.$get();
 
     const [url, init] = fetchMock.mock.calls[0] as [string, { headers: Headers }];
-    expect(url).toBe("http://localhost:3000/api/v1/admin/cache/status");
+    expect(url).toBe("http://localhost:3000/api/admin/v1/cache/status");
     expect(init.headers.get("cookie")).toBe("session=abc");
   });
 
@@ -192,7 +192,7 @@ describe("serverApiClient", () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(clientResponse("{}"));
     vi.stubGlobal("fetch", fetchMock);
 
-    await serverApiClient().api.v1.admin.cache.status.$get();
+    await serverApiClient().api.admin.v1.cache.status.$get();
 
     const [, init] = fetchMock.mock.calls[0] as [string, { headers: Headers }];
     expect(init.headers.get("cookie")).toBeNull();
@@ -204,13 +204,13 @@ describe("serverApiClient", () => {
       .mockResolvedValueOnce(clientResponse("", { status: 204, statusText: "No Content" }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await serverApiClient("c").api.v1.admin["distribution-channels"][":id"].$delete({
+    await serverApiClient("c").api.admin.v1["distribution-channels"][":id"].$delete({
       param: { id: "abc" },
       query: { force: "true" },
     });
 
     const [url] = fetchMock.mock.calls[0] as [string];
-    expect(url).toBe("http://localhost:3000/api/v1/admin/distribution-channels/abc?force=true");
+    expect(url).toBe("http://localhost:3000/api/admin/v1/distribution-channels/abc?force=true");
   });
 
   it("percent-encodes free-text path params via encodeParams (hc does not encode them)", async () => {
@@ -222,13 +222,13 @@ describe("serverApiClient", () => {
     // A value with a space + slash would otherwise produce a literal `/a b/c`
     // segment and break the route match; encodeParams restores the old
     // fetchApi behavior of encodeURIComponent on every path param.
-    await serverApiClient("c").api.v1.admin["distribution-channels"][":id"].$delete({
+    await serverApiClient("c").api.admin.v1["distribution-channels"][":id"].$delete({
       param: encodeParams({ id: "a b/c" }),
       query: {},
     });
 
     const [url] = fetchMock.mock.calls[0] as [string];
-    expect(url).toBe("http://localhost:3000/api/v1/admin/distribution-channels/a%20b%2Fc?");
+    expect(url).toBe("http://localhost:3000/api/admin/v1/distribution-channels/a%20b%2Fc?");
   });
 });
 
@@ -265,7 +265,7 @@ describe("serverApiClient traceparent injection", () => {
     const tracer = trace.getTracer("test");
     await tracer.startActiveSpan("parent", async (span) => {
       try {
-        await serverApiClient("c").api.v1.admin.cache.status.$get();
+        await serverApiClient("c").api.admin.v1.cache.status.$get();
       } finally {
         span.end();
       }
@@ -279,7 +279,7 @@ describe("serverApiClient traceparent injection", () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(clientResponse("{}"));
     vi.stubGlobal("fetch", fetchMock);
 
-    await serverApiClient("c").api.v1.admin.cache.status.$get();
+    await serverApiClient("c").api.admin.v1.cache.status.$get();
 
     const [, init] = fetchMock.mock.calls[0] as [string, { headers: Headers }];
     expect(init.headers.get("traceparent")).toBeNull();

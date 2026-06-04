@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Io } from "../../io.js";
-import { createTestContext, req } from "../../test/integration-context.js";
+import { adminReq, createTestContext } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Admin image management routes
@@ -59,7 +59,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
 
   describe("POST /admin/rehost-images", () => {
     it("returns 200 with rehost result shape", async () => {
-      const res = await app.fetch(req("POST", "/admin/rehost-images"));
+      const res = await app.fetch(adminReq("POST", "/rehost-images"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -71,7 +71,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
     });
 
     it("accepts a custom limit query param", async () => {
-      const res = await app.fetch(req("POST", "/admin/rehost-images?limit=5"));
+      const res = await app.fetch(adminReq("POST", "/rehost-images?limit=5"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -83,7 +83,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
 
   describe("POST /admin/regenerate-images", () => {
     it("returns kickoff shape with runId and status", async () => {
-      const res = await app.fetch(req("POST", "/admin/regenerate-images"));
+      const res = await app.fetch(adminReq("POST", "/regenerate-images"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -94,7 +94,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
 
     it("accepts reset and skipExisting query params", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/regenerate-images?reset=false&skipExisting=true"),
+        adminReq("POST", "/regenerate-images?reset=false&skipExisting=true"),
       );
       expect(res.status).toBe(200);
 
@@ -115,7 +115,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
         .where("originalUrl", "is", null)
         .execute();
 
-      const res = await app.fetch(req("POST", "/admin/clear-rehosted"));
+      const res = await app.fetch(adminReq("POST", "/clear-rehosted"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -127,7 +127,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
 
   describe("GET /admin/rehost-status", () => {
     it("returns status shape", async () => {
-      const res = await app.fetch(req("GET", "/admin/rehost-status"));
+      const res = await app.fetch(adminReq("GET", "/rehost-status"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -145,7 +145,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
 
   describe("POST /admin/cleanup-orphaned", () => {
     it("returns cleanup result shape", async () => {
-      const res = await app.fetch(req("POST", "/admin/cleanup-orphaned"));
+      const res = await app.fetch(adminReq("POST", "/cleanup-orphaned"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -159,7 +159,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
 
   describe("GET /admin/broken-images", () => {
     it("returns broken images result shape", async () => {
-      const res = await app.fetch(req("GET", "/admin/broken-images"));
+      const res = await app.fetch(adminReq("GET", "/broken-images"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -172,7 +172,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
 
   describe("GET /admin/low-res-images", () => {
     it("returns low-res images result shape", async () => {
-      const res = await app.fetch(req("GET", "/admin/low-res-images"));
+      const res = await app.fetch(adminReq("GET", "/low-res-images"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -185,7 +185,7 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
 
   describe("GET /admin/missing-images", () => {
     it("returns cards with missing images", async () => {
-      const res = await app.fetch(req("GET", "/admin/missing-images"));
+      const res = await app.fetch(adminReq("GET", "/missing-images"));
       expect(res.status).toBe(200);
 
       const json = await res.json();

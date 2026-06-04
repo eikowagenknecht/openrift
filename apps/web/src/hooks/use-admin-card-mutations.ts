@@ -32,7 +32,7 @@ const checkCandidateCardFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards[":candidateCardId"].check.$post({
+      serverApiClient(context.cookie).api.admin.v1.cards[":candidateCardId"].check.$post({
         param: encodeParams({ candidateCardId: data.candidateCardId }),
       }),
       "Couldn't check candidate card",
@@ -44,7 +44,7 @@ const uncheckCandidateCardFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards[":candidateCardId"].uncheck.$post({
+      serverApiClient(context.cookie).api.admin.v1.cards[":candidateCardId"].uncheck.$post({
         param: encodeParams({ candidateCardId: data.candidateCardId }),
       }),
       "Couldn't uncheck candidate card",
@@ -56,7 +56,7 @@ const checkAllCandidateCardsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards[":cardId"]["check-all"].$post({
+      serverApiClient(context.cookie).api.admin.v1.cards[":cardId"]["check-all"].$post({
         param: encodeParams({ cardId: data.cardId }),
       }),
       "Couldn't check all candidate cards",
@@ -68,7 +68,7 @@ const checkCandidatePrintingFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards["candidate-printings"][":id"].check.$post({
+      serverApiClient(context.cookie).api.admin.v1.cards["candidate-printings"][":id"].check.$post({
         param: encodeParams({ id: data.id }),
       }),
       "Couldn't check candidate printing",
@@ -80,7 +80,7 @@ const uncheckCandidatePrintingFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards["candidate-printings"][
+      serverApiClient(context.cookie).api.admin.v1.cards["candidate-printings"][
         ":id"
       ].uncheck.$post({
         param: encodeParams({ id: data.id }),
@@ -94,7 +94,7 @@ const checkAllCandidatePrintingsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards["candidate-printings"]["check-all"].$post({
+      serverApiClient(context.cookie).api.admin.v1.cards["candidate-printings"]["check-all"].$post({
         json: { printingId: data.printingId, extraIds: data.extraIds },
       }),
       "Couldn't check all candidate printings",
@@ -106,7 +106,7 @@ const renameCardFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards[":cardId"].rename.$post({
+      serverApiClient(context.cookie).api.admin.v1.cards[":cardId"].rename.$post({
         param: encodeParams({ cardId: data.cardId }),
         json: { newId: data.newId },
       }),
@@ -122,7 +122,7 @@ const acceptCardFieldFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards[":cardId"]["accept-field"].$post({
+      serverApiClient(context.cookie).api.admin.v1.cards[":cardId"]["accept-field"].$post({
         param: encodeParams({ cardId: data.cardId }),
         // The field-editor passes a dynamic string key; the enum is validated
         // server-side, so cast at the boundary (matches api-types convention).
@@ -148,7 +148,7 @@ const acceptPrintingFieldFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards.printing[":printingId"][
+      serverApiClient(context.cookie).api.admin.v1.cards.printing[":printingId"][
         "accept-field"
       ].$post({
         param: encodeParams({ printingId: data.printingId }),
@@ -167,7 +167,7 @@ const acceptNewCardFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards.new[":name"].accept.$post({
+      serverApiClient(context.cookie).api.admin.v1.cards.new[":name"].accept.$post({
         param: encodeParams({ name: data.name }),
         json: { cardFields: data.cardFields },
       }),
@@ -180,7 +180,7 @@ export const acceptFavoritesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards.new[":name"]["accept-favorites"].$post({
+      serverApiClient(context.cookie).api.admin.v1.cards.new[":name"]["accept-favorites"].$post({
         param: encodeParams({ name: data.name }),
       }),
       "Couldn't accept favorites",
@@ -192,7 +192,7 @@ const linkCardFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards.new[":name"].link.$post({
+      serverApiClient(context.cookie).api.admin.v1.cards.new[":name"].link.$post({
         param: encodeParams({ name: data.name }),
         json: { cardId: data.cardId },
       }),
@@ -205,7 +205,7 @@ const reassignCandidatePrintingFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards["candidate-printings"][":id"].$patch({
+      serverApiClient(context.cookie).api.admin.v1.cards["candidate-printings"][":id"].$patch({
         param: encodeParams({ id: data.id }),
         json: data.fields,
       }),
@@ -218,7 +218,7 @@ const deleteCandidatePrintingFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards["candidate-printings"][":id"].$delete({
+      serverApiClient(context.cookie).api.admin.v1.cards["candidate-printings"][":id"].$delete({
         param: encodeParams({ id: data.id }),
       }),
       "Couldn't delete candidate printing",
@@ -230,7 +230,7 @@ const copyCandidatePrintingFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards["candidate-printings"][":id"].copy.$post({
+      serverApiClient(context.cookie).api.admin.v1.cards["candidate-printings"][":id"].copy.$post({
         param: encodeParams({ id: data.id }),
         json: { printingId: data.printingId },
       }),
@@ -243,7 +243,7 @@ const linkCandidatePrintingsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards["candidate-printings"].link.$post({
+      serverApiClient(context.cookie).api.admin.v1.cards["candidate-printings"].link.$post({
         json: data,
       }),
       "Couldn't link candidate printings",
@@ -255,7 +255,7 @@ const deletePrintingFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards.printing[":printingId"].$delete({
+      serverApiClient(context.cookie).api.admin.v1.cards.printing[":printingId"].$delete({
         param: encodeParams({ printingId: data.printingId }),
       }),
       "Couldn't delete printing",
@@ -273,7 +273,7 @@ const acceptPrintingGroupFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(({ context, data }) =>
     callApiJson(
-      serverApiClient(context.cookie).api.v1.admin.cards[":cardId"]["accept-printing"].$post({
+      serverApiClient(context.cookie).api.admin.v1.cards[":cardId"]["accept-printing"].$post({
         param: encodeParams({ cardId: data.cardId }),
         json: {
           printingFields: data.printingFields,
@@ -290,7 +290,7 @@ const checkProviderFn = createServerFn({ method: "POST" })
   .handler(
     ({ context, data }): Promise<{ cardsChecked: number; printingsChecked: number }> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin.cards["by-provider"][":provider"].check.$post({
+        serverApiClient(context.cookie).api.admin.v1.cards["by-provider"][":provider"].check.$post({
           param: encodeParams({ provider: data.provider }),
         }),
         "Couldn't check provider",
@@ -303,7 +303,7 @@ const deleteProviderFn = createServerFn({ method: "POST" })
   .handler(
     ({ context, data }): Promise<{ deleted: number; provider: string }> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin.cards["by-provider"][":provider"].$delete({
+        serverApiClient(context.cookie).api.admin.v1.cards["by-provider"][":provider"].$delete({
           param: encodeParams({ provider: data.provider }),
         }),
         "Couldn't delete provider",
@@ -450,7 +450,7 @@ const createCardFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(({ context, data }) =>
     callApiJson(
-      serverApiClient(context.cookie).api.v1.admin.cards.create.$post({
+      serverApiClient(context.cookie).api.admin.v1.cards.create.$post({
         json: data.cardFields,
       }),
       "Couldn't create card",
@@ -473,7 +473,7 @@ const createPrintingFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(({ context, data }) =>
     callApiJson(
-      serverApiClient(context.cookie).api.v1.admin.cards[":cardId"].printings.$post({
+      serverApiClient(context.cookie).api.admin.v1.cards[":cardId"].printings.$post({
         param: encodeParams({ cardId: data.cardId }),
         json: data.printingFields,
       }),
@@ -613,7 +613,7 @@ export const acceptFavoritePrintingsFn = createServerFn({ method: "POST" })
       skipped: { shortCode: string; reason: string }[];
     }> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin.cards[":cardSlug"][
+        serverApiClient(context.cookie).api.admin.v1.cards[":cardSlug"][
           "accept-favorite-printings"
         ].$post({
           param: encodeParams({ cardSlug }),
@@ -651,7 +651,7 @@ const unmapMarketplacePrintingFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["marketplace-mappings"].$delete({
+      serverApiClient(context.cookie).api.admin.v1["marketplace-mappings"].$delete({
         // REST-5: fully query-addressed; omit language when null (CM/TCG).
         query: {
           marketplace: data.marketplace,

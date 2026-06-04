@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import type { Io } from "../../../io.js";
 import {
+  adminReq,
   createTestContext,
   refreshCardAggregates,
-  req,
 } from "../../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
@@ -261,7 +261,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
   describe("POST /admin/cards/candidate-printings/:id/set-image", () => {
     it("sets image as main for a linked printing source", async () => {
       const res = await app.fetch(
-        req("POST", `/admin/cards/candidate-printings/${psId}/set-image`, { mode: "main" }),
+        adminReq("POST", `/cards/candidate-printings/${psId}/set-image`, { mode: "main" }),
       );
       expect(res.status).toBe(204);
 
@@ -332,7 +332,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .execute();
 
       const res = await app.fetch(
-        req("POST", `/admin/cards/candidate-printings/${psAlt.id}/set-image`, {
+        adminReq("POST", `/cards/candidate-printings/${psAlt.id}/set-image`, {
           mode: "additional",
         }),
       );
@@ -354,14 +354,14 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
     it("returns 404 for non-existent printing source", async () => {
       const fakeId = "00000000-0000-4000-a000-000000000000";
       const res = await app.fetch(
-        req("POST", `/admin/cards/candidate-printings/${fakeId}/set-image`, { mode: "main" }),
+        adminReq("POST", `/cards/candidate-printings/${fakeId}/set-image`, { mode: "main" }),
       );
       expect(res.status).toBe(404);
     });
 
     it("returns 400 when printing source is not linked to a printing", async () => {
       const res = await app.fetch(
-        req("POST", `/admin/cards/candidate-printings/${psUnlinkedId}/set-image`, {
+        adminReq("POST", `/cards/candidate-printings/${psUnlinkedId}/set-image`, {
           mode: "main",
         }),
       );
@@ -373,7 +373,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
     it("returns 400 when printing source has no image URL", async () => {
       const res = await app.fetch(
-        req("POST", `/admin/cards/candidate-printings/${psNoImageId}/set-image`, {
+        adminReq("POST", `/cards/candidate-printings/${psNoImageId}/set-image`, {
           mode: "main",
         }),
       );
@@ -389,7 +389,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
   describe("POST /admin/cards/printing-images/:imageId/activate", () => {
     it("activates an inactive image", async () => {
       const res = await app.fetch(
-        req("POST", `/admin/cards/printing-images/${additionalImageId}/activate`, {
+        adminReq("POST", `/cards/printing-images/${additionalImageId}/activate`, {
           active: true,
         }),
       );
@@ -416,7 +416,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
     it("deactivates an active image", async () => {
       const res = await app.fetch(
-        req("POST", `/admin/cards/printing-images/${additionalImageId}/activate`, {
+        adminReq("POST", `/cards/printing-images/${additionalImageId}/activate`, {
           active: false,
         }),
       );
@@ -435,7 +435,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
     it("returns 404 for non-existent image", async () => {
       const fakeId = "00000000-0000-4000-a000-000000000000";
       const res = await app.fetch(
-        req("POST", `/admin/cards/printing-images/${fakeId}/activate`, { active: true }),
+        adminReq("POST", `/cards/printing-images/${fakeId}/activate`, { active: true }),
       );
       expect(res.status).toBe(404);
     });
@@ -482,7 +482,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
       // Activate the additional image → should deactivate main, leave URLs unchanged
       const res = await app.fetch(
-        req("POST", `/admin/cards/printing-images/${additionalImageId}/activate`, {
+        adminReq("POST", `/cards/printing-images/${additionalImageId}/activate`, {
           active: true,
         }),
       );
@@ -517,7 +517,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       const additionalUrl = `/media/cards/CSI/${additionalImageId}`;
       // additionalImageId is currently active from the previous test
       const res = await app.fetch(
-        req("POST", `/admin/cards/printing-images/${additionalImageId}/activate`, {
+        adminReq("POST", `/cards/printing-images/${additionalImageId}/activate`, {
           active: false,
         }),
       );
@@ -558,7 +558,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .execute();
 
       const res = await app.fetch(
-        req("POST", `/admin/cards/printing-images/${mainImageId}/activate`, {
+        adminReq("POST", `/cards/printing-images/${mainImageId}/activate`, {
           active: true,
         }),
       );
@@ -581,9 +581,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
   describe("POST /admin/cards/printing-images/:imageId/rehost", () => {
     it("rehosts an image with originalUrl", async () => {
-      const res = await app.fetch(
-        req("POST", `/admin/cards/printing-images/${mainImageId}/rehost`),
-      );
+      const res = await app.fetch(adminReq("POST", `/cards/printing-images/${mainImageId}/rehost`));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -619,7 +617,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .execute();
 
       const res = await app.fetch(
-        req("POST", `/admin/cards/printing-images/${noUrlImage.id}/rehost`),
+        adminReq("POST", `/cards/printing-images/${noUrlImage.id}/rehost`),
       );
       expect(res.status).toBe(400);
 
@@ -632,7 +630,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
     it("returns 404 for non-existent image", async () => {
       const fakeId = "00000000-0000-4000-a000-000000000000";
-      const res = await app.fetch(req("POST", `/admin/cards/printing-images/${fakeId}/rehost`));
+      const res = await app.fetch(adminReq("POST", `/cards/printing-images/${fakeId}/rehost`));
       expect(res.status).toBe(404);
     });
   });
@@ -652,7 +650,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       expect(before!.rehostedUrl).toBeTypeOf("string");
 
       const res = await app.fetch(
-        req("POST", `/admin/cards/printing-images/${mainImageId}/unrehost`),
+        adminReq("POST", `/cards/printing-images/${mainImageId}/unrehost`),
       );
       expect(res.status).toBe(204);
 
@@ -670,7 +668,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
     it("returns 400 when image is not rehosted", async () => {
       // mainImageId was just unrehosted, so rehostedUrl is null
       const res = await app.fetch(
-        req("POST", `/admin/cards/printing-images/${mainImageId}/unrehost`),
+        adminReq("POST", `/cards/printing-images/${mainImageId}/unrehost`),
       );
       expect(res.status).toBe(400);
 
@@ -680,7 +678,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
     it("returns 404 for non-existent image", async () => {
       const fakeId = "00000000-0000-4000-a000-000000000000";
-      const res = await app.fetch(req("POST", `/admin/cards/printing-images/${fakeId}/unrehost`));
+      const res = await app.fetch(adminReq("POST", `/cards/printing-images/${fakeId}/unrehost`));
       expect(res.status).toBe(404);
     });
   });
@@ -690,7 +688,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
   describe("DELETE /admin/cards/printing-images/:imageId", () => {
     it("deletes a printing image", async () => {
       const res = await app.fetch(
-        req("DELETE", `/admin/cards/printing-images/${additionalImageId}`),
+        adminReq("DELETE", `/cards/printing-images/${additionalImageId}`),
       );
       expect(res.status).toBe(204);
 
@@ -716,7 +714,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .where("id", "=", mainCardImageRow.imageFileId)
         .execute();
 
-      const res = await app.fetch(req("DELETE", `/admin/cards/printing-images/${mainImageId}`));
+      const res = await app.fetch(adminReq("DELETE", `/cards/printing-images/${mainImageId}`));
       expect(res.status).toBe(204);
 
       // Verify it's gone
@@ -730,7 +728,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
     it("returns 404 for non-existent image", async () => {
       const fakeId = "00000000-0000-4000-a000-000000000000";
-      const res = await app.fetch(req("DELETE", `/admin/cards/printing-images/${fakeId}`));
+      const res = await app.fetch(adminReq("DELETE", `/cards/printing-images/${fakeId}`));
       expect(res.status).toBe(404);
     });
   });
@@ -740,7 +738,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
   describe("POST /admin/cards/printing/:printingId/add-image-url", () => {
     it("inserts an image in main mode", async () => {
       const res = await app.fetch(
-        req("POST", `/admin/cards/printing/${printingId}/add-image-url`, {
+        adminReq("POST", `/cards/printing/${printingId}/add-image-url`, {
           url: "https://i.imgur.com/csi-new-image.png",
           mode: "main",
         }),
@@ -762,7 +760,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
     it("uses default mode when not provided", async () => {
       const res = await app.fetch(
-        req("POST", `/admin/cards/printing/${printingId}/add-image-url`, {
+        adminReq("POST", `/cards/printing/${printingId}/add-image-url`, {
           url: "https://images.tcgplayer.com/csi-another-image.png",
         }),
       );
@@ -781,7 +779,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
     it("returns 400 when url is empty", async () => {
       const res = await app.fetch(
-        req("POST", `/admin/cards/printing/${printingId}/add-image-url`, {
+        adminReq("POST", `/cards/printing/${printingId}/add-image-url`, {
           url: "",
         }),
       );
@@ -790,7 +788,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
     it("returns 400 when url is whitespace only", async () => {
       const res = await app.fetch(
-        req("POST", `/admin/cards/printing/${printingId}/add-image-url`, {
+        adminReq("POST", `/cards/printing/${printingId}/add-image-url`, {
           url: "   ",
         }),
       );
@@ -799,7 +797,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
     it("adds an image URL in additional mode", async () => {
       const res = await app.fetch(
-        req("POST", `/admin/cards/printing/${printingId}/add-image-url`, {
+        adminReq("POST", `/cards/printing/${printingId}/add-image-url`, {
           url: "https://www.reddit.com/csi-additional-image.png",
           mode: "additional",
         }),
@@ -821,7 +819,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
     it("returns 404 for non-existent printing", async () => {
       const res = await app.fetch(
-        req("POST", `/admin/cards/printing/00000000-0000-4000-a000-ffffffffffff/add-image-url`, {
+        adminReq("POST", `/cards/printing/00000000-0000-4000-a000-ffffffffffff/add-image-url`, {
           url: "https://example.com/nope.png",
         }),
       );
@@ -838,7 +836,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       formData.append("mode", "main");
 
       const request = new Request(
-        `http://localhost/api/v1/admin/cards/printing/${printingId}/upload-image`,
+        `http://localhost/api/admin/v1/cards/printing/${printingId}/upload-image`,
         { method: "POST", body: formData },
       );
       const res = await app.fetch(request);
@@ -868,7 +866,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       formData.append("mode", "additional");
 
       const request = new Request(
-        `http://localhost/api/v1/admin/cards/printing/${printingId}/upload-image`,
+        `http://localhost/api/admin/v1/cards/printing/${printingId}/upload-image`,
         { method: "POST", body: formData },
       );
       const res = await app.fetch(request);
@@ -896,7 +894,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       formData.append("file", new File([FAKE_BUFFER], "default.png", { type: "image/png" }));
 
       const request = new Request(
-        `http://localhost/api/v1/admin/cards/printing/${printingId}/upload-image`,
+        `http://localhost/api/admin/v1/cards/printing/${printingId}/upload-image`,
         { method: "POST", body: formData },
       );
       const res = await app.fetch(request);
@@ -922,7 +920,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       formData.append("file", new File([FAKE_BUFFER], "nope.png", { type: "image/png" }));
 
       const request = new Request(
-        `http://localhost/api/v1/admin/cards/printing/00000000-0000-4000-a000-ffffffffffff/upload-image`,
+        `http://localhost/api/admin/v1/cards/printing/00000000-0000-4000-a000-ffffffffffff/upload-image`,
         { method: "POST", body: formData },
       );
       const res = await app.fetch(request);

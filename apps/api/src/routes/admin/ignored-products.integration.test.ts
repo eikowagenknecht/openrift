@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { CARD_FURY_UNIT } from "../../test/fixtures/constants.js";
-import { createTestContext, req } from "../../test/integration-context.js";
+import { adminReq, createTestContext } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Ignored products & staging card overrides
@@ -89,7 +89,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
   describe("POST /admin/ignored-products", () => {
     it("ignores a product that exists in staging (L2)", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/ignored-products", {
+        adminReq("POST", "/ignored-products", {
           level: "product",
           marketplace: "tcgplayer",
           products: [{ externalId: 10_401 }],
@@ -103,7 +103,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
 
     it("returns 0 ignored count for non-existent staging ID", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/ignored-products", {
+        adminReq("POST", "/ignored-products", {
           level: "product",
           marketplace: "tcgplayer",
           products: [{ externalId: 99_999 }],
@@ -125,7 +125,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
 
     it("returns 400 for invalid source", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/ignored-products", {
+        adminReq("POST", "/ignored-products", {
           level: "product",
           marketplace: "invalid",
           products: [{ externalId: 10_401 }],
@@ -139,7 +139,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
 
   describe("GET /admin/ignored-products (after ignoring)", () => {
     it("returns the ignored product", async () => {
-      const res = await app.fetch(req("GET", "/admin/ignored-products"));
+      const res = await app.fetch(adminReq("GET", "/ignored-products"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -158,7 +158,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
   describe("DELETE /admin/ignored-products", () => {
     it("un-ignores a product", async () => {
       const res = await app.fetch(
-        req("DELETE", "/admin/ignored-products", {
+        adminReq("DELETE", "/ignored-products", {
           level: "product",
           marketplace: "tcgplayer",
           products: [{ externalId: 10_401 }],
@@ -171,7 +171,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
     });
 
     it("returns empty list for our external_id after un-ignoring", async () => {
-      const res = await app.fetch(req("GET", "/admin/ignored-products"));
+      const res = await app.fetch(adminReq("GET", "/ignored-products"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -185,7 +185,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
   describe("POST /admin/staging-card-overrides", () => {
     it("creates an override", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/staging-card-overrides", {
+        adminReq("POST", "/staging-card-overrides", {
           marketplace: "tcgplayer",
           externalId: 10_401,
           finish: "normal",
@@ -214,9 +214,9 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
   describe("DELETE /admin/staging-card-overrides", () => {
     it("removes an override", async () => {
       const res = await app.fetch(
-        req(
+        adminReq(
           "DELETE",
-          "/admin/staging-card-overrides?marketplace=tcgplayer&externalId=10401&finish=normal&language=EN",
+          "/staging-card-overrides?marketplace=tcgplayer&externalId=10401&finish=normal&language=EN",
         ),
       );
       expect(res.status).toBe(204);

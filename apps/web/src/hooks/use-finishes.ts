@@ -12,7 +12,7 @@ const fetchFinishes = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<AdminFinishesResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin.finishes.$get(),
+        serverApiClient(context.cookie).api.admin.v1.finishes.$get(),
         "Couldn't load finishes",
       ),
   );
@@ -31,7 +31,7 @@ const createFinishFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.finishes.$post({ json: data }),
+      serverApiClient(context.cookie).api.admin.v1.finishes.$post({ json: data }),
       "Couldn't create finish",
     );
   });
@@ -48,7 +48,7 @@ const updateFinishFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.finishes[":slug"].$patch({
+      serverApiClient(context.cookie).api.admin.v1.finishes[":slug"].$patch({
         param: encodeParams({ slug: data.slug }),
         json: { label: data.label },
       }),
@@ -68,7 +68,7 @@ const reorderFinishesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.finishes.reorder.$put({
+      serverApiClient(context.cookie).api.admin.v1.finishes.reorder.$put({
         json: { slugs: data.slugs },
       }),
       "Couldn't reorder finishes",
@@ -87,7 +87,7 @@ const deleteFinishFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.finishes[":slug"].$delete({
+      serverApiClient(context.cookie).api.admin.v1.finishes[":slug"].$delete({
         param: encodeParams({ slug: data.slug }),
       }),
       "Couldn't delete finish",

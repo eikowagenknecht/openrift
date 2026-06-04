@@ -8,7 +8,7 @@ const refreshMatviewsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["refresh-materialized-views"].$post(),
+      serverApiClient(context.cookie).api.admin.v1["refresh-materialized-views"].$post(),
       "Couldn't refresh materialized views",
     );
   });

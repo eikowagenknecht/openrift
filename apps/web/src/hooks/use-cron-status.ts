@@ -11,7 +11,7 @@ const fetchCronStatusFn = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<CronStatus> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["cron-status"].$get(),
+        serverApiClient(context.cookie).api.admin.v1["cron-status"].$get(),
         "Couldn't load cron status",
       ),
   );

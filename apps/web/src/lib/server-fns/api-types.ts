@@ -11,10 +11,10 @@ type Client = ReturnType<typeof hc<AppType>>;
 // Candidate uploads come from an arbitrary user-uploaded JSON file, so the
 // parser casts to this; the API validates the real shape server-side.
 export type UploadCandidatesBody = InferRequestType<
-  Client["api"]["v1"]["admin"]["cards"]["upload"]["$post"]
+  Client["api"]["admin"]["v1"]["cards"]["upload"]["$post"]
 >["json"];
 export type UploadCandidatesResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["cards"]["upload"]["$post"]
+  Client["api"]["admin"]["v1"]["cards"]["upload"]["$post"]
 >;
 
 // ── Admin card field-map mutation bodies ─────────────────────────────────────
@@ -22,135 +22,135 @@ export type UploadCandidatesResponse = InferResponseType<
 // concrete route shapes its dynamic output is cast to at the call boundary
 // (the API validates the real shape server-side).
 export type AcceptNewCardBody = InferRequestType<
-  Client["api"]["v1"]["admin"]["cards"]["new"][":name"]["accept"]["$post"]
+  Client["api"]["admin"]["v1"]["cards"]["new"][":name"]["accept"]["$post"]
 >["json"];
 export type PatchCandidatePrintingBody = InferRequestType<
-  Client["api"]["v1"]["admin"]["cards"]["candidate-printings"][":id"]["$patch"]
+  Client["api"]["admin"]["v1"]["cards"]["candidate-printings"][":id"]["$patch"]
 >["json"];
 export type AcceptPrintingBody = InferRequestType<
-  Client["api"]["v1"]["admin"]["cards"][":cardId"]["accept-printing"]["$post"]
+  Client["api"]["admin"]["v1"]["cards"][":cardId"]["accept-printing"]["$post"]
 >["json"];
 // accept-field `field` is a typed enum on the wire (REST-6). The admin
 // field-editor passes a dynamic string key, cast to this enum at the boundary.
 export type AcceptCardFieldBody = InferRequestType<
-  Client["api"]["v1"]["admin"]["cards"][":cardId"]["accept-field"]["$post"]
+  Client["api"]["admin"]["v1"]["cards"][":cardId"]["accept-field"]["$post"]
 >["json"];
 export type AcceptPrintingFieldBody = InferRequestType<
-  Client["api"]["v1"]["admin"]["cards"]["printing"][":printingId"]["accept-field"]["$post"]
+  Client["api"]["admin"]["v1"]["cards"]["printing"][":printingId"]["accept-field"]["$post"]
 >["json"];
 // acceptNewCard and createCard share the card-fields shape (acceptNewCardSchema
 // nests it under `cardFields`; createCardSchema is the same object at the top
 // level), but they are derived independently to stay aligned with each route.
 export type CreateCardBody = InferRequestType<
-  Client["api"]["v1"]["admin"]["cards"]["create"]["$post"]
+  Client["api"]["admin"]["v1"]["cards"]["create"]["$post"]
 >["json"];
 export type CreatePrintingBody = InferRequestType<
-  Client["api"]["v1"]["admin"]["cards"][":cardId"]["printings"]["$post"]
+  Client["api"]["admin"]["v1"]["cards"][":cardId"]["printings"]["$post"]
 >["json"];
 
 // ── Admin card endpoints ────────────────────────────────────────────────────
 export type AdminCardListResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["cards"]["$get"]
+  Client["api"]["admin"]["v1"]["cards"]["$get"]
 >;
 export type AllCardsResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["cards"]["all-cards"]["$get"]
+  Client["api"]["admin"]["v1"]["cards"]["all-cards"]["$get"]
 >;
 export type CardsExportResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["cards"]["export"]["$get"]
+  Client["api"]["admin"]["v1"]["cards"]["export"]["$get"]
 >;
 export type AdminCardDetailResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["cards"][":cardSlug"]["$get"]
+  Client["api"]["admin"]["v1"]["cards"][":cardSlug"]["$get"]
 >;
 export type UnmatchedCardDetailResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["cards"]["new"][":name"]["$get"]
+  Client["api"]["admin"]["v1"]["cards"]["new"][":name"]["$get"]
 >;
 export type ProviderStatsResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["cards"]["provider-stats"]["$get"]
+  Client["api"]["admin"]["v1"]["cards"]["provider-stats"]["$get"]
 >;
 export type ProviderNamesResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["cards"]["provider-names"]["$get"]
+  Client["api"]["admin"]["v1"]["cards"]["provider-names"]["$get"]
 >;
 export type DistinctArtistsResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["cards"]["distinct-artists"]["$get"]
+  Client["api"]["admin"]["v1"]["cards"]["distinct-artists"]["$get"]
 >;
 
 // ── Admin general endpoints ─────────────────────────────────────────────────
-export type AdminUsersResponse = InferResponseType<Client["api"]["v1"]["admin"]["users"]["$get"]>;
+export type AdminUsersResponse = InferResponseType<Client["api"]["admin"]["v1"]["users"]["$get"]>;
 export type JobRunsListResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["job-runs"]["$get"]
+  Client["api"]["admin"]["v1"]["job-runs"]["$get"]
 >;
 export type JobRunView = JobRunsListResponse["runs"][number];
-export type AdminStatusResponse = InferResponseType<Client["api"]["v1"]["admin"]["status"]["$get"]>;
+export type AdminStatusResponse = InferResponseType<Client["api"]["admin"]["v1"]["status"]["$get"]>;
 export type AdminSiteSettingsResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["site-settings"]["$get"]
+  Client["api"]["admin"]["v1"]["site-settings"]["$get"]
 >;
 export type KeywordStatsResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["keyword-stats"]["$get"]
+  Client["api"]["admin"]["v1"]["keyword-stats"]["$get"]
 >;
 export type IgnoredCandidatesResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["ignored-candidates"]["$get"]
+  Client["api"]["admin"]["v1"]["ignored-candidates"]["$get"]
 >;
 export type ProviderSettingsResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["provider-settings"]["$get"]
+  Client["api"]["admin"]["v1"]["provider-settings"]["$get"]
 >;
 export type AdminDeckZonesResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["deck-zones"]["$get"]
+  Client["api"]["admin"]["v1"]["deck-zones"]["$get"]
 >;
 export type IgnoredProductsResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["ignored-products"]["$get"]
+  Client["api"]["admin"]["v1"]["ignored-products"]["$get"]
 >;
 export type MarketplaceGroupsResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["marketplace-groups"]["$get"]
+  Client["api"]["admin"]["v1"]["marketplace-groups"]["$get"]
 >;
 export type AdminLanguagesResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["languages"]["$get"]
+  Client["api"]["admin"]["v1"]["languages"]["$get"]
 >;
 export type AdminFeatureFlagsResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["feature-flags"]["$get"]
+  Client["api"]["admin"]["v1"]["feature-flags"]["$get"]
 >;
 export type AdminFeatureFlagOverridesResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["feature-flags"]["overrides"]["$get"]
+  Client["api"]["admin"]["v1"]["feature-flags"]["overrides"]["$get"]
 >;
 export type TypographyReviewResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["typography-review"]["$get"]
+  Client["api"]["admin"]["v1"]["typography-review"]["$get"]
 >;
 export type PrintingEventsListResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["printing-events"]["$get"]
+  Client["api"]["admin"]["v1"]["printing-events"]["$get"]
 >;
 // Derived from the API (not hand-written): the field-diff `from`/`to` are
 // arbitrary JSON, which hc types as its own JSON value — deriving keeps the web
 // type exactly aligned with what the endpoint returns.
 export type PrintingEventView = PrintingEventsListResponse["events"][number];
-export type AdminSetsResponse = InferResponseType<Client["api"]["v1"]["admin"]["sets"]["$get"]>;
+export type AdminSetsResponse = InferResponseType<Client["api"]["admin"]["v1"]["sets"]["$get"]>;
 export type AdminDomainsResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["domains"]["$get"]
+  Client["api"]["admin"]["v1"]["domains"]["$get"]
 >;
 export type AdminFinishesResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["finishes"]["$get"]
+  Client["api"]["admin"]["v1"]["finishes"]["$get"]
 >;
 export type AdminArtVariantsResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["art-variants"]["$get"]
+  Client["api"]["admin"]["v1"]["art-variants"]["$get"]
 >;
 export type AdminRaritiesResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["rarities"]["$get"]
+  Client["api"]["admin"]["v1"]["rarities"]["$get"]
 >;
 export type AdminCardTypesResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["card-types"]["$get"]
+  Client["api"]["admin"]["v1"]["card-types"]["$get"]
 >;
 export type AdminSuperTypesResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["super-types"]["$get"]
+  Client["api"]["admin"]["v1"]["super-types"]["$get"]
 >;
 export type AdminDeckFormatsResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["deck-formats"]["$get"]
+  Client["api"]["admin"]["v1"]["deck-formats"]["$get"]
 >;
 // Unified marketplace mappings — both GETs now have concrete response schemas
 // (unifiedMappingsResponseSchema / unifiedMappingsCardResponseSchema), so hc
 // infers the full shape and the web types drop their hand-written annotations.
 export type UnifiedMappingsResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["marketplace-mappings"]["$get"]
+  Client["api"]["admin"]["v1"]["marketplace-mappings"]["$get"]
 >;
 export type UnifiedMappingsCardResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["marketplace-mappings"]["card"][":cardId"]["$get"]
+  Client["api"]["admin"]["v1"]["marketplace-mappings"]["card"][":cardId"]["$get"]
 >;
 
 // ── Public endpoints ────────────────────────────────────────────────────────

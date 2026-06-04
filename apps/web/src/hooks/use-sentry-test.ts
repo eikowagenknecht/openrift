@@ -10,7 +10,7 @@ async function assertAdmin(cookie: string): Promise<void> {
   await fetchApi({
     errorTitle: "Unauthorized",
     cookie,
-    path: "/api/v1/admin/me",
+    path: "/api/admin/v1/me",
     method: "GET",
   });
 }
@@ -40,7 +40,7 @@ const throwInApiFn = createServerFn({ method: "POST" })
     fetchApi({
       errorTitle: "API smoke test returned an error (expected)",
       cookie: context.cookie,
-      path: "/api/v1/admin/sentry-test/throw",
+      path: "/api/admin/v1/sentry-test/throw",
       method: "POST",
     }),
   );

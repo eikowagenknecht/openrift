@@ -135,7 +135,7 @@ export function createDbContext(userId: string): DbContext | null {
   return { db, userId };
 }
 
-export { req } from "./integration-helper.js";
+export { adminReq, req } from "./integration-helper.js";
 
 /**
  * Refresh `mv_card_aggregates`. The integration harness refreshes it once at

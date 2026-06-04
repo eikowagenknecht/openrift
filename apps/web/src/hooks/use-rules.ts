@@ -76,7 +76,7 @@ const importRulesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     const result = await callApiJson(
-      serverApiClient(context.cookie).api.v1.admin.rules.import.$post({
+      serverApiClient(context.cookie).api.admin.v1.rules.import.$post({
         json: {
           kind: data.kind,
           version: data.version,
@@ -108,7 +108,7 @@ const deleteRuleVersionFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.rules[":kind"].versions[":version"].$delete({
+      serverApiClient(context.cookie).api.admin.v1.rules[":kind"].versions[":version"].$delete({
         param: encodeParams({ kind: data.kind, version: data.version }),
       }),
       "Couldn't delete rule version",
@@ -129,7 +129,7 @@ const updateRuleVersionCommentsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     const result = await callApiJson(
-      serverApiClient(context.cookie).api.v1.admin.rules[":kind"].versions[":version"].$patch({
+      serverApiClient(context.cookie).api.admin.v1.rules[":kind"].versions[":version"].$patch({
         param: encodeParams({ kind: data.kind, version: data.version }),
         json: { comments: data.comments },
       }),

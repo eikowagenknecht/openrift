@@ -18,7 +18,7 @@ const fetchAdminCardList = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<AdminCardListResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin.cards.$get(),
+        serverApiClient(context.cookie).api.admin.v1.cards.$get(),
         "Couldn't load admin card list",
       ),
   );
@@ -67,7 +67,7 @@ const fetchAllCards = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<AllCardsResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin.cards["all-cards"].$get(),
+        serverApiClient(context.cookie).api.admin.v1.cards["all-cards"].$get(),
         "Couldn't load all cards",
       ),
   );
@@ -88,7 +88,7 @@ const fetchAdminCardDetail = createServerFn({ method: "GET" })
   .handler(
     ({ context, data: cardSlug }): Promise<AdminCardDetailResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin.cards[":cardSlug"].$get({
+        serverApiClient(context.cookie).api.admin.v1.cards[":cardSlug"].$get({
           param: encodeParams({ cardSlug }),
         }),
         "Couldn't load admin card detail",
@@ -116,7 +116,7 @@ const fetchUnmatchedCardDetail = createServerFn({ method: "GET" })
   .handler(
     ({ context, data: name }): Promise<UnmatchedCardDetailResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin.cards.new[":name"].$get({
+        serverApiClient(context.cookie).api.admin.v1.cards.new[":name"].$get({
           param: encodeParams({ name }),
         }),
         "Couldn't load unmatched card detail",
@@ -142,7 +142,7 @@ const fetchProviderStats = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<ProviderStatsResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin.cards["provider-stats"].$get(),
+        serverApiClient(context.cookie).api.admin.v1.cards["provider-stats"].$get(),
         "Couldn't load provider stats",
       ),
   );
@@ -161,7 +161,7 @@ const fetchProviderNames = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<ProviderNamesResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin.cards["provider-names"].$get(),
+        serverApiClient(context.cookie).api.admin.v1.cards["provider-names"].$get(),
         "Couldn't load provider names",
       ),
   );

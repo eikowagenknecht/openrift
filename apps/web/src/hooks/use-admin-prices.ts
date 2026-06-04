@@ -22,7 +22,7 @@ const clearPricesFn = createServerFn({ method: "POST" })
   .handler(
     ({ context, data }): Promise<ClearPricesResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["clear-prices"].$post({
+        serverApiClient(context.cookie).api.admin.v1["clear-prices"].$post({
           json: { marketplace: data.marketplace },
         }),
         "Couldn't clear prices",

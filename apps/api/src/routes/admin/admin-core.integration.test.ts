@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createTestContext, req } from "../../test/integration-context.js";
+import { adminReq, createTestContext } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Admin core routes (/admin/me, /admin/cron-status)
@@ -27,7 +27,7 @@ describe.skipIf(!ctx)("Admin core routes (integration)", () => {
 
   describe("GET /admin/me (non-admin)", () => {
     it("returns 403 when user is not in admins table", async () => {
-      const res = await app.fetch(req("GET", "/admin/me"));
+      const res = await app.fetch(adminReq("GET", "/me"));
       expect(res.status).toBe(403);
     });
   });
@@ -36,7 +36,7 @@ describe.skipIf(!ctx)("Admin core routes (integration)", () => {
 
   describe("GET /admin/cron-status (non-admin)", () => {
     it("returns 403 when user is not admin", async () => {
-      const res = await app.fetch(req("GET", "/admin/cron-status"));
+      const res = await app.fetch(adminReq("GET", "/cron-status"));
       expect(res.status).toBe(403);
     });
   });
@@ -62,7 +62,7 @@ describe.skipIf(!ctx)("Admin core routes (integration)", () => {
 
   describe("GET /admin/me (admin)", () => {
     it("returns isAdmin: true when user is in admins table", async () => {
-      const res = await app.fetch(req("GET", "/admin/me"));
+      const res = await app.fetch(adminReq("GET", "/me"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -74,7 +74,7 @@ describe.skipIf(!ctx)("Admin core routes (integration)", () => {
 
   describe("GET /admin/cron-status (admin)", () => {
     it("returns 200 with null cron jobs", async () => {
-      const res = await app.fetch(req("GET", "/admin/cron-status"));
+      const res = await app.fetch(adminReq("GET", "/cron-status"));
       expect(res.status).toBe(200);
 
       const json = await res.json();

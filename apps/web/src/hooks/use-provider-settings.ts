@@ -12,7 +12,7 @@ const fetchProviderSettings = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<ProviderSettingsResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["provider-settings"].$get(),
+        serverApiClient(context.cookie).api.admin.v1["provider-settings"].$get(),
         "Couldn't load provider settings",
       ),
   );
@@ -32,7 +32,7 @@ const reorderProviderSettingsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["provider-settings"].reorder.$put({
+      serverApiClient(context.cookie).api.admin.v1["provider-settings"].reorder.$put({
         json: { providers: data.providers },
       }),
       "Couldn't reorder provider settings",
@@ -56,7 +56,7 @@ const updateProviderSettingFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["provider-settings"][":provider"].$patch({
+      serverApiClient(context.cookie).api.admin.v1["provider-settings"][":provider"].$patch({
         param: encodeParams({ provider: data.provider }),
         json: {
           sortOrder: data.sortOrder,

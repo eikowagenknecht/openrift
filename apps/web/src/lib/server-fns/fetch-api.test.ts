@@ -145,7 +145,7 @@ describe("fetchApi", () => {
 
     const res = await fetchApi({
       errorTitle: "Couldn't check admin access",
-      path: "/api/v1/admin/me",
+      path: "/api/admin/v1/me",
       acceptStatuses: [401, 403],
     });
 
@@ -164,7 +164,7 @@ describe("fetchApi", () => {
 
     const err = await fetchApi({
       errorTitle: "Couldn't check admin access",
-      path: "/api/v1/admin/me",
+      path: "/api/admin/v1/me",
       acceptStatuses: [401, 403],
     }).catch((error: unknown) => error);
 

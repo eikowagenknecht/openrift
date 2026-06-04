@@ -12,7 +12,7 @@ const fetchDomains = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<AdminDomainsResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin.domains.$get(),
+        serverApiClient(context.cookie).api.admin.v1.domains.$get(),
         "Couldn't load domains",
       ),
   );
@@ -31,7 +31,7 @@ const createDomainFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.domains.$post({
+      serverApiClient(context.cookie).api.admin.v1.domains.$post({
         json: data,
       }),
       "Couldn't create domain",
@@ -51,7 +51,7 @@ const updateDomainFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.domains[":slug"].$patch({
+      serverApiClient(context.cookie).api.admin.v1.domains[":slug"].$patch({
         param: encodeParams({ slug: data.slug }),
         json: { label: data.label, color: data.color },
       }),
@@ -72,7 +72,7 @@ const reorderDomainsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.domains.reorder.$put({
+      serverApiClient(context.cookie).api.admin.v1.domains.reorder.$put({
         json: { slugs: data.slugs },
       }),
       "Couldn't reorder domains",
@@ -91,7 +91,7 @@ const deleteDomainFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.domains[":slug"].$delete({
+      serverApiClient(context.cookie).api.admin.v1.domains[":slug"].$delete({
         param: encodeParams({ slug: data.slug }),
       }),
       "Couldn't delete domain",

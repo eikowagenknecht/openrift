@@ -12,7 +12,7 @@ const fetchArtVariants = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<AdminArtVariantsResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["art-variants"].$get(),
+        serverApiClient(context.cookie).api.admin.v1["art-variants"].$get(),
         "Couldn't load art variants",
       ),
   );
@@ -31,7 +31,7 @@ const createArtVariantFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["art-variants"].$post({
+      serverApiClient(context.cookie).api.admin.v1["art-variants"].$post({
         json: data,
       }),
       "Couldn't create art variant",
@@ -50,7 +50,7 @@ const updateArtVariantFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["art-variants"][":slug"].$patch({
+      serverApiClient(context.cookie).api.admin.v1["art-variants"][":slug"].$patch({
         param: encodeParams({ slug: data.slug }),
         json: { label: data.label },
       }),
@@ -70,7 +70,7 @@ const reorderArtVariantsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["art-variants"].reorder.$put({
+      serverApiClient(context.cookie).api.admin.v1["art-variants"].reorder.$put({
         json: { slugs: data.slugs },
       }),
       "Couldn't reorder art variants",
@@ -89,7 +89,7 @@ const deleteArtVariantFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["art-variants"][":slug"].$delete({
+      serverApiClient(context.cookie).api.admin.v1["art-variants"][":slug"].$delete({
         param: encodeParams({ slug: data.slug }),
       }),
       "Couldn't delete art variant",

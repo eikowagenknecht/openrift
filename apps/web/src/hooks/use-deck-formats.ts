@@ -12,7 +12,7 @@ const fetchDeckFormats = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<AdminDeckFormatsResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["deck-formats"].$get(),
+        serverApiClient(context.cookie).api.admin.v1["deck-formats"].$get(),
         "Couldn't load deck formats",
       ),
   );
@@ -31,7 +31,7 @@ const createDeckFormatFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["deck-formats"].$post({
+      serverApiClient(context.cookie).api.admin.v1["deck-formats"].$post({
         json: data,
       }),
       "Couldn't create deck format",
@@ -50,7 +50,7 @@ const updateDeckFormatFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["deck-formats"][":slug"].$patch({
+      serverApiClient(context.cookie).api.admin.v1["deck-formats"][":slug"].$patch({
         param: encodeParams({ slug: data.slug }),
         json: { label: data.label },
       }),
@@ -70,7 +70,7 @@ const reorderDeckFormatsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["deck-formats"].reorder.$put({
+      serverApiClient(context.cookie).api.admin.v1["deck-formats"].reorder.$put({
         json: { slugs: data.slugs },
       }),
       "Couldn't reorder deck formats",
@@ -89,7 +89,7 @@ const deleteDeckFormatFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["deck-formats"][":slug"].$delete({
+      serverApiClient(context.cookie).api.admin.v1["deck-formats"][":slug"].$delete({
         param: encodeParams({ slug: data.slug }),
       }),
       "Couldn't delete deck format",

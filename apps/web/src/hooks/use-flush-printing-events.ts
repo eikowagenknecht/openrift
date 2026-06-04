@@ -33,7 +33,7 @@ const flushPrintingEventsFn = createServerFn({ method: "POST" })
   .handler(
     ({ context }): Promise<JobRunStartedResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["printing-events"].flush.$post(),
+        serverApiClient(context.cookie).api.admin.v1["printing-events"].flush.$post(),
         "Couldn't start flush",
       ),
   );
@@ -87,7 +87,7 @@ const fetchPrintingEvents = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<PrintingEventsListResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["printing-events"].$get(),
+        serverApiClient(context.cookie).api.admin.v1["printing-events"].$get(),
         "Couldn't load printing events",
       ),
   );
@@ -108,7 +108,7 @@ const retryPrintingEventsFn = createServerFn({ method: "POST" })
   .handler(
     ({ context, data }): Promise<{ retried: number }> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["printing-events"].retry.$post({
+        serverApiClient(context.cookie).api.admin.v1["printing-events"].retry.$post({
           json: data,
         }),
         "Couldn't retry printing events",

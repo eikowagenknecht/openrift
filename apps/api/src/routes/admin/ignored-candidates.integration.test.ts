@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createTestContext, req } from "../../test/integration-context.js";
+import { adminReq, createTestContext } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Admin ignored-candidates (cards + printings)
@@ -29,13 +29,13 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
 
   describe("admin-only access control (non-admin)", () => {
     it("GET /admin/ignored-candidates returns 403 for non-admin", async () => {
-      const res = await nonAdminApp.fetch(req("GET", "/admin/ignored-candidates"));
+      const res = await nonAdminApp.fetch(adminReq("GET", "/ignored-candidates"));
       expect(res.status).toBe(403);
     });
 
     it("POST /admin/ignored-candidates/cards returns 403 for non-admin", async () => {
       const res = await nonAdminApp.fetch(
-        req("POST", "/admin/ignored-candidates/cards", {
+        adminReq("POST", "/ignored-candidates/cards", {
           provider: "tcgplayer",
           externalId: "iic-blocked",
         }),
@@ -48,7 +48,7 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
 
   describe("GET /admin/ignored-candidates (initial)", () => {
     it("returns 200 with cards and printings arrays (no iic- entries)", async () => {
-      const res = await app.fetch(req("GET", "/admin/ignored-candidates"));
+      const res = await app.fetch(adminReq("GET", "/ignored-candidates"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -71,7 +71,7 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
   describe("POST /admin/ignored-candidates/cards", () => {
     it("ignores a card", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/ignored-candidates/cards", {
+        adminReq("POST", "/ignored-candidates/cards", {
           provider: "tcgplayer",
           externalId: "iic-card-001",
         }),
@@ -81,7 +81,7 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
 
     it("ignores a second card (different provider)", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/ignored-candidates/cards", {
+        adminReq("POST", "/ignored-candidates/cards", {
           provider: "cardmarket",
           externalId: "iic-card-002",
         }),
@@ -91,7 +91,7 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
 
     it("is idempotent (ignoring same card again succeeds)", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/ignored-candidates/cards", {
+        adminReq("POST", "/ignored-candidates/cards", {
           provider: "tcgplayer",
           externalId: "iic-card-001",
         }),
@@ -102,14 +102,14 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
 
     it("returns 400 for missing provider", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/ignored-candidates/cards", { externalId: "iic-bad" }),
+        adminReq("POST", "/ignored-candidates/cards", { externalId: "iic-bad" }),
       );
       expect(res.status).toBe(400);
     });
 
     it("returns 400 for missing externalId", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/ignored-candidates/cards", { provider: "tcgplayer" }),
+        adminReq("POST", "/ignored-candidates/cards", { provider: "tcgplayer" }),
       );
       expect(res.status).toBe(400);
     });
@@ -120,7 +120,7 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
   describe("POST /admin/ignored-candidates/printings", () => {
     it("ignores a printing with finish", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/ignored-candidates/printings", {
+        adminReq("POST", "/ignored-candidates/printings", {
           provider: "tcgplayer",
           externalId: "iic-print-001",
           finish: "foil",
@@ -131,7 +131,7 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
 
     it("ignores a printing with null finish", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/ignored-candidates/printings", {
+        adminReq("POST", "/ignored-candidates/printings", {
           provider: "tcgplayer",
           externalId: "iic-print-002",
           finish: null,
@@ -142,7 +142,7 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
 
     it("ignores a printing with omitted finish (defaults to null)", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/ignored-candidates/printings", {
+        adminReq("POST", "/ignored-candidates/printings", {
           provider: "cardmarket",
           externalId: "iic-print-003",
         }),
@@ -152,7 +152,7 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
 
     it("returns 400 for missing provider", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/ignored-candidates/printings", {
+        adminReq("POST", "/ignored-candidates/printings", {
           externalId: "iic-bad",
           finish: "foil",
         }),
@@ -165,7 +165,7 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
 
   describe("GET /admin/ignored-candidates (after ignoring)", () => {
     it("returns the ignored iic- cards and printings", async () => {
-      const res = await app.fetch(req("GET", "/admin/ignored-candidates"));
+      const res = await app.fetch(adminReq("GET", "/ignored-candidates"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -219,7 +219,7 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
   describe("DELETE /admin/ignored-candidates/cards", () => {
     it("unignores a card", async () => {
       const res = await app.fetch(
-        req("DELETE", "/admin/ignored-candidates/cards", {
+        adminReq("DELETE", "/ignored-candidates/cards", {
           provider: "tcgplayer",
           externalId: "iic-card-001",
         }),
@@ -229,7 +229,7 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
 
     it("is idempotent (unignoring same card again succeeds)", async () => {
       const res = await app.fetch(
-        req("DELETE", "/admin/ignored-candidates/cards", {
+        adminReq("DELETE", "/ignored-candidates/cards", {
           provider: "tcgplayer",
           externalId: "iic-card-001",
         }),
@@ -239,7 +239,7 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
 
     it("unignores second card", async () => {
       const res = await app.fetch(
-        req("DELETE", "/admin/ignored-candidates/cards", {
+        adminReq("DELETE", "/ignored-candidates/cards", {
           provider: "cardmarket",
           externalId: "iic-card-002",
         }),
@@ -253,7 +253,7 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
   describe("DELETE /admin/ignored-candidates/printings", () => {
     it("unignores a printing with finish", async () => {
       const res = await app.fetch(
-        req("DELETE", "/admin/ignored-candidates/printings", {
+        adminReq("DELETE", "/ignored-candidates/printings", {
           provider: "tcgplayer",
           externalId: "iic-print-001",
           finish: "foil",
@@ -264,7 +264,7 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
 
     it("unignores a printing with null finish", async () => {
       const res = await app.fetch(
-        req("DELETE", "/admin/ignored-candidates/printings", {
+        adminReq("DELETE", "/ignored-candidates/printings", {
           provider: "tcgplayer",
           externalId: "iic-print-002",
           finish: null,
@@ -275,7 +275,7 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
 
     it("unignores the cardmarket printing", async () => {
       const res = await app.fetch(
-        req("DELETE", "/admin/ignored-candidates/printings", {
+        adminReq("DELETE", "/ignored-candidates/printings", {
           provider: "cardmarket",
           externalId: "iic-print-003",
           finish: null,
@@ -289,7 +289,7 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
 
   describe("GET /admin/ignored-candidates (after cleanup)", () => {
     it("has no iic- entries remaining", async () => {
-      const res = await app.fetch(req("GET", "/admin/ignored-candidates"));
+      const res = await app.fetch(adminReq("GET", "/ignored-candidates"));
       expect(res.status).toBe(200);
 
       const json = await res.json();

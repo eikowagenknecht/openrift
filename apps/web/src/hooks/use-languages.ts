@@ -12,7 +12,7 @@ const fetchLanguages = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<AdminLanguagesResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin.languages.$get(),
+        serverApiClient(context.cookie).api.admin.v1.languages.$get(),
         "Couldn't load languages",
       ),
   );
@@ -32,7 +32,7 @@ const createLanguageFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.languages.$post({
+      serverApiClient(context.cookie).api.admin.v1.languages.$post({
         json: data,
       }),
       "Couldn't create language",
@@ -52,7 +52,7 @@ const updateLanguageFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.languages[":code"].$patch({
+      serverApiClient(context.cookie).api.admin.v1.languages[":code"].$patch({
         param: encodeParams({ code: data.code }),
         json: { name: data.name, sortOrder: data.sortOrder },
       }),
@@ -73,7 +73,7 @@ const reorderLanguagesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.languages.reorder.$put({
+      serverApiClient(context.cookie).api.admin.v1.languages.reorder.$put({
         json: { codes: data.codes },
       }),
       "Couldn't reorder languages",
@@ -92,7 +92,7 @@ const deleteLanguageFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.languages[":code"].$delete({
+      serverApiClient(context.cookie).api.admin.v1.languages[":code"].$delete({
         param: encodeParams({ code: data.code }),
       }),
       "Couldn't delete language",

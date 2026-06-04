@@ -12,7 +12,7 @@ const fetchDeckZones = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<AdminDeckZonesResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["deck-zones"].$get(),
+        serverApiClient(context.cookie).api.admin.v1["deck-zones"].$get(),
         "Couldn't load deck zones",
       ),
   );
@@ -31,7 +31,7 @@ const reorderDeckZonesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["deck-zones"].reorder.$put({
+      serverApiClient(context.cookie).api.admin.v1["deck-zones"].reorder.$put({
         json: { slugs: data.slugs },
       }),
       "Couldn't reorder deck zones",
@@ -50,7 +50,7 @@ const updateDeckZoneFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["deck-zones"][":slug"].$patch({
+      serverApiClient(context.cookie).api.admin.v1["deck-zones"][":slug"].$patch({
         param: encodeParams({ slug: data.slug }),
         json: { label: data.label },
       }),

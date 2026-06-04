@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { createTestContext, refreshCardAggregates, req } from "../../test/integration-context.js";
+import {
+  adminReq,
+  createTestContext,
+  refreshCardAggregates,
+} from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Marketplace mapping mutation routes
@@ -209,7 +213,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
 
   describe("GET /admin/marketplace-mappings (TCGPlayer data)", () => {
     it("returns overview with groups and staged products", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -235,7 +239,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
   describe("POST /admin/marketplace-mappings?marketplace=tcgplayer", () => {
     it("returns saved: 0 for empty mappings array", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/marketplace-mappings?marketplace=tcgplayer", { mappings: [] }),
+        adminReq("POST", "/marketplace-mappings?marketplace=tcgplayer", { mappings: [] }),
       );
       expect(res.status).toBe(200);
 
@@ -245,7 +249,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
 
     it("maps a staged product to a printing", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/marketplace-mappings?marketplace=tcgplayer", {
+        adminReq("POST", "/marketplace-mappings?marketplace=tcgplayer", {
           mappings: [{ printingId, externalId: 12_345, finish: "normal", language: null }],
         }),
       );
@@ -285,7 +289,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
     });
 
     it("mapped printing shows externalId in overview", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
       const json = await res.json();
 
       const testGroup = json.groups.find(
@@ -306,9 +310,9 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
   describe("DELETE /admin/marketplace-mappings?marketplace=tcgplayer", () => {
     it("unmaps a single printing, deletes the variant, keeps the product and its price history", async () => {
       const res = await app.fetch(
-        req(
+        adminReq(
           "DELETE",
-          `/admin/marketplace-mappings?marketplace=tcgplayer&printingId=${printingId}&externalId=12345&finish=normal`,
+          `/marketplace-mappings?marketplace=tcgplayer&printingId=${printingId}&externalId=12345&finish=normal`,
         ),
       );
       expect(res.status).toBe(204);
@@ -349,7 +353,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
   describe("POST /admin/marketplace-mappings?marketplace=cardmarket", () => {
     it("maps a staged product to a printing", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/marketplace-mappings?marketplace=cardmarket", {
+        adminReq("POST", "/marketplace-mappings?marketplace=cardmarket", {
           mappings: [{ printingId, externalId: 67_890, finish: "normal", language: null }],
         }),
       );
@@ -385,7 +389,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
 
     it("returns saved: 0 for empty mappings array", async () => {
       const res = await app.fetch(
-        req("POST", "/admin/marketplace-mappings?marketplace=cardmarket", { mappings: [] }),
+        adminReq("POST", "/marketplace-mappings?marketplace=cardmarket", { mappings: [] }),
       );
       expect(res.status).toBe(200);
 
@@ -399,9 +403,9 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
   describe("DELETE /admin/marketplace-mappings?marketplace=cardmarket", () => {
     it("unmaps a single printing", async () => {
       const res = await app.fetch(
-        req(
+        adminReq(
           "DELETE",
-          `/admin/marketplace-mappings?marketplace=cardmarket&printingId=${printingId}&externalId=67890&finish=normal`,
+          `/marketplace-mappings?marketplace=cardmarket&printingId=${printingId}&externalId=67890&finish=normal`,
         ),
       );
       expect(res.status).toBe(204);
@@ -437,7 +441,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
 
       // Map both products to the same printing.
       const mapRes = await app.fetch(
-        req("POST", "/admin/marketplace-mappings?marketplace=cardtrader", {
+        adminReq("POST", "/marketplace-mappings?marketplace=cardtrader", {
           mappings: [
             { printingId, externalId: 55_555, finish: "normal", language: "EN" },
             { printingId, externalId: 66_666, finish: "normal", language: "EN" },
@@ -459,9 +463,9 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       // Unmap just product 55_555. Without the externalId filter the lookup
       // is ambiguous and could non-deterministically delete the wrong variant.
       const unmapRes = await app.fetch(
-        req(
+        adminReq(
           "DELETE",
-          `/admin/marketplace-mappings?marketplace=cardtrader&printingId=${printingId}&externalId=55555&finish=normal&language=EN`,
+          `/marketplace-mappings?marketplace=cardtrader&printingId=${printingId}&externalId=55555&finish=normal&language=EN`,
         ),
       );
       expect(unmapRes.status).toBe(204);
@@ -535,7 +539,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
         .onConflict((oc) => oc.columns(["marketplace", "externalId"]).doNothing())
         .execute();
 
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -619,7 +623,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
         .onConflict((oc) => oc.column("marketplaceProductId").doNothing())
         .execute();
 
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -707,7 +711,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
         .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
         .execute();
 
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -741,7 +745,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       // (not staging). An external ID with no matching product row produces
       // a `skipped` entry and `saved: 0`.
       const res = await app.fetch(
-        req("POST", "/admin/marketplace-mappings?marketplace=tcgplayer", {
+        adminReq("POST", "/marketplace-mappings?marketplace=tcgplayer", {
           mappings: [{ printingId, externalId: 999_999, finish: "normal", language: null }],
         }),
       );

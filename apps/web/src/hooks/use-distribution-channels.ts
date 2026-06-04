@@ -16,7 +16,7 @@ const fetchChannels = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<AdminDistributionChannelsResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["distribution-channels"].$get(),
+        serverApiClient(context.cookie).api.admin.v1["distribution-channels"].$get(),
         "Couldn't load distribution channels",
       ),
   );
@@ -48,7 +48,7 @@ const createChannelFn = createServerFn({ method: "POST" })
     // callers expect. (The old fetchApiJson<DistributionChannelResponse> cast
     // lied about this shape — the typed client surfaced it.)
     const body = await callApiJson(
-      serverApiClient(context.cookie).api.v1.admin["distribution-channels"].$post({ json: data }),
+      serverApiClient(context.cookie).api.admin.v1["distribution-channels"].$post({ json: data }),
       "Couldn't create distribution channel",
     );
     return body.distributionChannel;
@@ -77,7 +77,7 @@ const updateChannelFn = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { id, ...patch } = data;
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["distribution-channels"][":id"].$patch({
+      serverApiClient(context.cookie).api.admin.v1["distribution-channels"][":id"].$patch({
         param: encodeParams({ id }),
         json: patch,
       }),
@@ -97,7 +97,7 @@ const deleteChannelFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["distribution-channels"][":id"].$delete({
+      serverApiClient(context.cookie).api.admin.v1["distribution-channels"][":id"].$delete({
         param: encodeParams({ id: data.id }),
         // The route declares a query schema, so hc requires the `query` arg even
         // when empty; `{}` means "no force" → API default (refuse if in use). An
@@ -120,7 +120,7 @@ const reorderChannelsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["distribution-channels"].reorder.$put({
+      serverApiClient(context.cookie).api.admin.v1["distribution-channels"].reorder.$put({
         json: { ids: data.ids },
       }),
       "Couldn't reorder distribution channels",

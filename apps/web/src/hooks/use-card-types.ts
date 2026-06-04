@@ -12,7 +12,7 @@ const fetchCardTypes = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<AdminCardTypesResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["card-types"].$get(),
+        serverApiClient(context.cookie).api.admin.v1["card-types"].$get(),
         "Couldn't load card types",
       ),
   );
@@ -31,7 +31,7 @@ const createCardTypeFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["card-types"].$post({
+      serverApiClient(context.cookie).api.admin.v1["card-types"].$post({
         json: data,
       }),
       "Couldn't create card type",
@@ -50,7 +50,7 @@ const updateCardTypeFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["card-types"][":slug"].$patch({
+      serverApiClient(context.cookie).api.admin.v1["card-types"][":slug"].$patch({
         param: encodeParams({ slug: data.slug }),
         json: { label: data.label },
       }),
@@ -70,7 +70,7 @@ const reorderCardTypesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["card-types"].reorder.$put({
+      serverApiClient(context.cookie).api.admin.v1["card-types"].reorder.$put({
         json: { slugs: data.slugs },
       }),
       "Couldn't reorder card types",
@@ -89,7 +89,7 @@ const deleteCardTypeFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["card-types"][":slug"].$delete({
+      serverApiClient(context.cookie).api.admin.v1["card-types"][":slug"].$delete({
         param: encodeParams({ slug: data.slug }),
       }),
       "Couldn't delete card type",

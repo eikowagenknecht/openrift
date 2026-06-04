@@ -13,7 +13,7 @@ const fetchJobRuns = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<JobRunsListResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["job-runs"].$get({
+        serverApiClient(context.cookie).api.admin.v1["job-runs"].$get({
           query: { limit: String(DEFAULT_LIMIT) },
         }),
         "Couldn't load job runs",
@@ -39,7 +39,7 @@ const fetchLatestJobRunByKind = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(async ({ context, data }): Promise<JobRunView | null> => {
     const res = await callApiJson(
-      serverApiClient(context.cookie).api.v1.admin["job-runs"].$get({
+      serverApiClient(context.cookie).api.admin.v1["job-runs"].$get({
         query: { kind: data.kind, limit: "1" },
       }),
       "Couldn't load job run",

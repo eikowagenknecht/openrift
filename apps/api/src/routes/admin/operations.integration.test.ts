@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import type { Io } from "../../io.js";
 import { defaultIo } from "../../io.js";
 import {
+  adminReq,
   createTestContext,
   createUnauthenticatedTestContext,
-  req,
 } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
@@ -202,40 +202,40 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
     it("returns 401 for unauthenticated request to clear-prices", async () => {
       // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
       const res = await unauthCtx!.app.fetch(
-        req("POST", "/admin/clear-prices", { marketplace: "tcgplayer" }),
+        adminReq("POST", "/clear-prices", { marketplace: "tcgplayer" }),
       );
       expect(res.status).toBe(401);
     });
 
     it("returns 401 for unauthenticated request to refresh-tcgplayer-prices", async () => {
       // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
-      const res = await unauthCtx!.app.fetch(req("POST", "/admin/refresh-tcgplayer-prices"));
+      const res = await unauthCtx!.app.fetch(adminReq("POST", "/refresh-tcgplayer-prices"));
       expect(res.status).toBe(401);
     });
 
     it("returns 401 for unauthenticated request to refresh-cardmarket-prices", async () => {
       // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
-      const res = await unauthCtx!.app.fetch(req("POST", "/admin/refresh-cardmarket-prices"));
+      const res = await unauthCtx!.app.fetch(adminReq("POST", "/refresh-cardmarket-prices"));
       expect(res.status).toBe(401);
     });
 
     it("returns 403 for non-admin user on clear-prices", async () => {
       // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
       const res = await nonAdminCtx!.app.fetch(
-        req("POST", "/admin/clear-prices", { marketplace: "tcgplayer" }),
+        adminReq("POST", "/clear-prices", { marketplace: "tcgplayer" }),
       );
       expect(res.status).toBe(403);
     });
 
     it("returns 403 for non-admin user on refresh-tcgplayer-prices", async () => {
       // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
-      const res = await nonAdminCtx!.app.fetch(req("POST", "/admin/refresh-tcgplayer-prices"));
+      const res = await nonAdminCtx!.app.fetch(adminReq("POST", "/refresh-tcgplayer-prices"));
       expect(res.status).toBe(403);
     });
 
     it("returns 403 for non-admin user on refresh-cardmarket-prices", async () => {
       // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
-      const res = await nonAdminCtx!.app.fetch(req("POST", "/admin/refresh-cardmarket-prices"));
+      const res = await nonAdminCtx!.app.fetch(adminReq("POST", "/refresh-cardmarket-prices"));
       expect(res.status).toBe(403);
     });
   });
@@ -244,17 +244,17 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
 
   describe("POST /admin/clear-prices (validation)", () => {
     it("returns 400 for invalid source value", async () => {
-      const res = await app.fetch(req("POST", "/admin/clear-prices", { marketplace: "invalid" }));
+      const res = await app.fetch(adminReq("POST", "/clear-prices", { marketplace: "invalid" }));
       expect(res.status).toBe(400);
     });
 
     it("returns 400 when source is missing from body", async () => {
-      const res = await app.fetch(req("POST", "/admin/clear-prices", {}));
+      const res = await app.fetch(adminReq("POST", "/clear-prices", {}));
       expect(res.status).toBe(400);
     });
 
     it("returns error when body is missing", async () => {
-      const res = await app.fetch(req("POST", "/admin/clear-prices"));
+      const res = await app.fetch(adminReq("POST", "/clear-prices"));
       expect(res.status).toBe(400);
     });
   });
@@ -265,7 +265,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
     it("clears tcgplayer marketplace data and returns counts", async () => {
       await seedMarketplaceData("tcgplayer");
 
-      const res = await app.fetch(req("POST", "/admin/clear-prices", { marketplace: "tcgplayer" }));
+      const res = await app.fetch(adminReq("POST", "/clear-prices", { marketplace: "tcgplayer" }));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -290,7 +290,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
 
     it("returns zero counts when clearing already-empty tcgplayer data", async () => {
       // Tables are already empty from the previous clear
-      const res = await app.fetch(req("POST", "/admin/clear-prices", { marketplace: "tcgplayer" }));
+      const res = await app.fetch(adminReq("POST", "/clear-prices", { marketplace: "tcgplayer" }));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -307,9 +307,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
     it("clears cardmarket marketplace data and returns counts", async () => {
       await seedMarketplaceData("cardmarket");
 
-      const res = await app.fetch(
-        req("POST", "/admin/clear-prices", { marketplace: "cardmarket" }),
-      );
+      const res = await app.fetch(adminReq("POST", "/clear-prices", { marketplace: "cardmarket" }));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -333,9 +331,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
     });
 
     it("returns zero counts when clearing already-empty cardmarket data", async () => {
-      const res = await app.fetch(
-        req("POST", "/admin/clear-prices", { marketplace: "cardmarket" }),
-      );
+      const res = await app.fetch(adminReq("POST", "/clear-prices", { marketplace: "cardmarket" }));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -355,7 +351,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       await seedMarketplaceData("cardmarket");
 
       // Clear only tcgplayer
-      const res = await app.fetch(req("POST", "/admin/clear-prices", { marketplace: "tcgplayer" }));
+      const res = await app.fetch(adminReq("POST", "/clear-prices", { marketplace: "tcgplayer" }));
       expect(res.status).toBe(200);
 
       // Verify tcgplayer is cleared
@@ -375,7 +371,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       expect(cmSources.length).toBeGreaterThanOrEqual(1);
 
       // Clean up cardmarket for subsequent tests
-      await app.fetch(req("POST", "/admin/clear-prices", { marketplace: "cardmarket" }));
+      await app.fetch(adminReq("POST", "/clear-prices", { marketplace: "cardmarket" }));
     });
   });
 
@@ -383,7 +379,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
 
   describe("POST /admin/refresh-tcgplayer-prices", () => {
     it("returns 202 with runId (fire-and-forget)", async () => {
-      const res = await app.fetch(req("POST", "/admin/refresh-tcgplayer-prices"));
+      const res = await app.fetch(adminReq("POST", "/refresh-tcgplayer-prices"));
       expect(res.status).toBe(202);
 
       const json = await res.json();
@@ -396,7 +392,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
 
   describe("POST /admin/refresh-cardmarket-prices", () => {
     it("returns 202 with runId (fire-and-forget)", async () => {
-      const res = await app.fetch(req("POST", "/admin/refresh-cardmarket-prices"));
+      const res = await app.fetch(adminReq("POST", "/refresh-cardmarket-prices"));
       expect(res.status).toBe(202);
 
       const json = await res.json();
@@ -409,7 +405,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
 
   describe("POST /admin/refresh-cardtrader-prices", () => {
     it("returns 202 with runId (fire-and-forget)", async () => {
-      const res = await app.fetch(req("POST", "/admin/refresh-cardtrader-prices"));
+      const res = await app.fetch(adminReq("POST", "/refresh-cardtrader-prices"));
       expect(res.status).toBe(202);
 
       const json = await res.json();

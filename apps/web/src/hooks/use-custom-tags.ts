@@ -26,7 +26,7 @@ const fetchCustomTags = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<AdminCustomTagsResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["custom-tags"].$get(),
+        serverApiClient(context.cookie).api.admin.v1["custom-tags"].$get(),
         "Couldn't load custom tags",
       ),
   );
@@ -48,7 +48,7 @@ const fetchCustomTagCategories = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<AdminCustomTagCategoriesResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["custom-tag-categories"].$get(),
+        serverApiClient(context.cookie).api.admin.v1["custom-tag-categories"].$get(),
         "Couldn't load custom-tag categories",
       ),
   );
@@ -70,7 +70,7 @@ const createCustomTagCategoryFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["custom-tag-categories"].$post({
+      serverApiClient(context.cookie).api.admin.v1["custom-tag-categories"].$post({
         json: data,
       }),
       "Couldn't create category",
@@ -92,7 +92,7 @@ const updateCustomTagCategoryFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["custom-tag-categories"][":id"].$patch({
+      serverApiClient(context.cookie).api.admin.v1["custom-tag-categories"][":id"].$patch({
         param: encodeParams({ id: data.id }),
         json: { slug: data.slug, label: data.label, description: data.description },
       }),
@@ -117,7 +117,7 @@ const deleteCustomTagCategoryFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["custom-tag-categories"][":id"].$delete({
+      serverApiClient(context.cookie).api.admin.v1["custom-tag-categories"][":id"].$delete({
         param: encodeParams({ id: data.id }),
       }),
       "Couldn't delete category",
@@ -141,7 +141,7 @@ const createCustomTagFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["custom-tags"].$post({
+      serverApiClient(context.cookie).api.admin.v1["custom-tags"].$post({
         json: data,
       }),
       "Couldn't create custom tag",
@@ -173,7 +173,7 @@ const updateCustomTagFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["custom-tags"][":id"].$patch({
+      serverApiClient(context.cookie).api.admin.v1["custom-tags"][":id"].$patch({
         param: encodeParams({ id: data.id }),
         json: {
           slug: data.slug,
@@ -204,7 +204,7 @@ const deleteCustomTagFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["custom-tags"][":id"].$delete({
+      serverApiClient(context.cookie).api.admin.v1["custom-tags"][":id"].$delete({
         param: encodeParams({ id: data.id }),
       }),
       "Couldn't delete custom tag",
@@ -226,7 +226,7 @@ const fetchCardCustomTags = createServerFn({ method: "GET" })
   .handler(
     ({ context, data }): Promise<CardCustomTagsResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin.cards[":id"]["custom-tags"].$get({
+        serverApiClient(context.cookie).api.admin.v1.cards[":id"]["custom-tags"].$get({
           param: encodeParams({ id: data.cardId }),
         }),
         "Couldn't load card's custom tags",
@@ -250,7 +250,7 @@ const setCardCustomTagsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards[":id"]["custom-tags"].$put({
+      serverApiClient(context.cookie).api.admin.v1.cards[":id"]["custom-tags"].$put({
         param: encodeParams({ id: data.cardId }),
         json: { customTagIds: data.customTagIds },
       }),
@@ -278,7 +278,7 @@ const addCardsToCustomTagFn = createServerFn({ method: "POST" })
   .handler(
     ({ context, data }): Promise<AddCardsToCustomTagResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["custom-tags"][":id"].cards.$post({
+        serverApiClient(context.cookie).api.admin.v1["custom-tags"][":id"].cards.$post({
           param: encodeParams({ id: data.tagId }),
           json: { cardIds: data.cardIds },
         }),

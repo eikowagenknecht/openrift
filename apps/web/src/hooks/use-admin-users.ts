@@ -11,7 +11,7 @@ const fetchAdminUsers = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<AdminUsersResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin.users.$get(),
+        serverApiClient(context.cookie).api.admin.v1.users.$get(),
         "Couldn't load admin users",
       ),
   );

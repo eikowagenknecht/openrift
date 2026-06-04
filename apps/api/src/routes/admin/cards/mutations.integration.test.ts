@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createTestContext, req } from "../../../test/integration-context.js";
+import { adminReq, createTestContext } from "../../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Card-sources mutation routes
@@ -259,7 +259,7 @@ if (ctx) {
 // Tests
 // ---------------------------------------------------------------------------
 
-const P = "/admin/cards";
+const P = "/cards";
 
 describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
@@ -276,13 +276,13 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .where("id", "=", cardShortCode)
         .execute();
 
-      const res = await app.fetch(req("POST", `${P}/${cardShortCode}/check`));
+      const res = await app.fetch(adminReq("POST", `${P}/${cardShortCode}/check`));
       expect(res.status).toBe(204);
     });
 
     it("returns 404 for non-existent card source", async () => {
       const fakeId = "00000000-0000-4000-a000-000000000000";
-      const res = await app.fetch(req("POST", `${P}/${fakeId}/check`));
+      const res = await app.fetch(adminReq("POST", `${P}/${fakeId}/check`));
       expect(res.status).toBe(404);
     });
   });
@@ -298,13 +298,13 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .where("id", "=", psId)
         .execute();
 
-      const res = await app.fetch(req("POST", `${P}/candidate-printings/${psId}/check`));
+      const res = await app.fetch(adminReq("POST", `${P}/candidate-printings/${psId}/check`));
       expect(res.status).toBe(204);
     });
 
     it("returns 404 for non-existent printing source", async () => {
       const fakeId = "00000000-0000-4000-a000-000000000000";
-      const res = await app.fetch(req("POST", `${P}/candidate-printings/${fakeId}/check`));
+      const res = await app.fetch(adminReq("POST", `${P}/candidate-printings/${fakeId}/check`));
       expect(res.status).toBe(404);
     });
   });
@@ -321,7 +321,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .execute();
 
       const res = await app.fetch(
-        req("POST", `${P}/candidate-printings/check-all`, { printingId }),
+        adminReq("POST", `${P}/candidate-printings/check-all`, { printingId }),
       );
       expect(res.status).toBe(200);
 
@@ -343,7 +343,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .execute();
 
       const res = await app.fetch(
-        req("POST", `${P}/candidate-printings/check-all`, {
+        adminReq("POST", `${P}/candidate-printings/check-all`, {
           printingId,
           extraIds: [psForAcceptNewId],
         }),
@@ -366,7 +366,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .where("id", "=", cardShortCode)
         .execute();
 
-      const res = await app.fetch(req("POST", `${P}/${cardId}/check-all`));
+      const res = await app.fetch(adminReq("POST", `${P}/${cardId}/check-all`));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -375,7 +375,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 404 for non-existent card slug", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/00000000-0000-4000-a000-000000000000/check-all`),
+        adminReq("POST", `${P}/00000000-0000-4000-a000-000000000000/check-all`),
       );
       expect(res.status).toBe(404);
     });
@@ -386,7 +386,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   describe("PATCH /candidate-printings/:id", () => {
     it("updates rarity on a printing source", async () => {
       const res = await app.fetch(
-        req("PATCH", `${P}/candidate-printings/${psId}`, { rarity: "rare" }),
+        adminReq("PATCH", `${P}/candidate-printings/${psId}`, { rarity: "rare" }),
       );
       expect(res.status).toBe(204);
 
@@ -401,7 +401,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("updates multiple fields at once", async () => {
       const res = await app.fetch(
-        req("PATCH", `${P}/candidate-printings/${psId}`, {
+        adminReq("PATCH", `${P}/candidate-printings/${psId}`, {
           artVariant: "altart",
           finish: "foil",
           isSigned: true,
@@ -436,14 +436,14 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
 
     it("returns 400 for empty update", async () => {
-      const res = await app.fetch(req("PATCH", `${P}/candidate-printings/${psId}`, {}));
+      const res = await app.fetch(adminReq("PATCH", `${P}/candidate-printings/${psId}`, {}));
       expect(res.status).toBe(400);
     });
 
     it("returns 404 for non-existent printing source", async () => {
       const fakeId = "00000000-0000-4000-a000-000000000000";
       const res = await app.fetch(
-        req("PATCH", `${P}/candidate-printings/${fakeId}`, { rarity: "rare" }),
+        adminReq("PATCH", `${P}/candidate-printings/${fakeId}`, { rarity: "rare" }),
       );
       expect(res.status).toBe(404);
     });
@@ -454,7 +454,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   describe("POST /candidate-printings/:id/copy", () => {
     it("copies a printing source to another printing", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/candidate-printings/${psId}/copy`, {
+        adminReq("POST", `${P}/candidate-printings/${psId}/copy`, {
           printingId: printing2Id,
         }),
       );
@@ -472,7 +472,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     it("returns 404 for non-existent source", async () => {
       const fakeId = "00000000-0000-4000-a000-000000000000";
       const res = await app.fetch(
-        req("POST", `${P}/candidate-printings/${fakeId}/copy`, {
+        adminReq("POST", `${P}/candidate-printings/${fakeId}/copy`, {
           printingId: printing2Id,
         }),
       );
@@ -482,7 +482,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     it("returns 404 for non-existent target printing", async () => {
       const fakeId = "00000000-0000-4000-a000-000000000001";
       const res = await app.fetch(
-        req("POST", `${P}/candidate-printings/${psId}/copy`, {
+        adminReq("POST", `${P}/candidate-printings/${psId}/copy`, {
           printingId: fakeId,
         }),
       );
@@ -491,7 +491,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 400 for empty printingId", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/candidate-printings/${psId}/copy`, {
+        adminReq("POST", `${P}/candidate-printings/${psId}/copy`, {
           printingId: "",
         }),
       );
@@ -504,7 +504,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   describe("POST /candidate-printings/link", () => {
     it("links candidate printings to a printing by UUID", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/candidate-printings/link`, {
+        adminReq("POST", `${P}/candidate-printings/link`, {
           candidatePrintingIds: [psUnlinkedId],
           printingId: printing2Id,
         }),
@@ -522,7 +522,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("unlinks printing sources (printingId=null)", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/candidate-printings/link`, {
+        adminReq("POST", `${P}/candidate-printings/link`, {
           candidatePrintingIds: [psUnlinkedId],
           printingId: null,
         }),
@@ -541,7 +541,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     it("returns 500 for non-existent target printing UUID", async () => {
       const fakeId = "00000000-0000-4000-a000-000000000001";
       const res = await app.fetch(
-        req("POST", `${P}/candidate-printings/link`, {
+        adminReq("POST", `${P}/candidate-printings/link`, {
           candidatePrintingIds: [psUnlinkedId],
           printingId: fakeId,
         }),
@@ -552,7 +552,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 400 for empty candidatePrintingIds array", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/candidate-printings/link`, {
+        adminReq("POST", `${P}/candidate-printings/link`, {
           candidatePrintingIds: [],
           printingId: printing2Id,
         }),
@@ -566,7 +566,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   describe("POST /:cardId/rename", () => {
     it("renames a card slug", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardId}/rename`, { newId: "CSM-001-RENAMED" }),
+        adminReq("POST", `${P}/${cardId}/rename`, { newId: "CSM-001-RENAMED" }),
       );
       expect(res.status).toBe(204);
 
@@ -580,17 +580,17 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
 
     it("rename back for subsequent tests", async () => {
-      const res = await app.fetch(req("POST", `${P}/${cardId}/rename`, { newId: "CSM-001" }));
+      const res = await app.fetch(adminReq("POST", `${P}/${cardId}/rename`, { newId: "CSM-001" }));
       expect(res.status).toBe(204);
     });
 
     it("same name is a no-op", async () => {
-      const res = await app.fetch(req("POST", `${P}/${cardId}/rename`, { newId: cardSlug }));
+      const res = await app.fetch(adminReq("POST", `${P}/${cardId}/rename`, { newId: cardSlug }));
       expect(res.status).toBe(204);
     });
 
     it("returns 400 for empty newId", async () => {
-      const res = await app.fetch(req("POST", `${P}/${cardId}/rename`, { newId: "" }));
+      const res = await app.fetch(adminReq("POST", `${P}/${cardId}/rename`, { newId: "" }));
       expect(res.status).toBe(400);
     });
   });
@@ -600,7 +600,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   describe("POST /:cardId/accept-field", () => {
     it("updates card name", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardId}/accept-field`, {
+        adminReq("POST", `${P}/${cardId}/accept-field`, {
           field: "name",
           value: "CSM Test Card Updated",
         }),
@@ -618,7 +618,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("restore original name for subsequent tests", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardId}/accept-field`, {
+        adminReq("POST", `${P}/${cardId}/accept-field`, {
           field: "name",
           value: "CSM Test Card",
         }),
@@ -628,7 +628,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 400 when updating rulesText (no longer an allowed field)", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardId}/accept-field`, {
+        adminReq("POST", `${P}/${cardId}/accept-field`, {
           field: "rulesText",
           value: "[Shield]. [Tank]",
         }),
@@ -638,7 +638,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 400 when updating effectText (no longer an allowed field)", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardId}/accept-field`, {
+        adminReq("POST", `${P}/${cardId}/accept-field`, {
           field: "effectText",
           value: "[Vision]",
         }),
@@ -648,7 +648,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("updates energy field", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardId}/accept-field`, {
+        adminReq("POST", `${P}/${cardId}/accept-field`, {
           field: "energy",
           value: 5,
         }),
@@ -668,7 +668,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("updates type field", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardId}/accept-field`, {
+        adminReq("POST", `${P}/${cardId}/accept-field`, {
           field: "type",
           value: "spell",
         }),
@@ -688,7 +688,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 400 for validation error on type", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardId}/accept-field`, {
+        adminReq("POST", `${P}/${cardId}/accept-field`, {
           field: "type",
           value: "InvalidType",
         }),
@@ -698,7 +698,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 400 for invalid field", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardId}/accept-field`, {
+        adminReq("POST", `${P}/${cardId}/accept-field`, {
           field: "nonexistent",
           value: "foo",
         }),
@@ -712,7 +712,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   describe("POST /printing/:printingId/accept-field", () => {
     it("updates artist on a printing", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/${printingId}/accept-field`, {
+        adminReq("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "artist",
           value: "Artist B",
         }),
@@ -730,7 +730,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("updates rarity on a printing", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/${printingId}/accept-field`, {
+        adminReq("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "rarity",
           value: "rare",
         }),
@@ -754,7 +754,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 400 for validation error on rarity", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/${printingId}/accept-field`, {
+        adminReq("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "rarity",
           value: "InvalidRarity",
         }),
@@ -764,7 +764,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("updates finish on a printing", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/${printingId}/accept-field`, {
+        adminReq("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "finish",
           value: "foil",
         }),
@@ -788,7 +788,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 400 for validation error on finish", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/${printingId}/accept-field`, {
+        adminReq("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "finish",
           value: "invalid-finish",
         }),
@@ -798,7 +798,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("updates comment on a printing", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/${printingId}/accept-field`, {
+        adminReq("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "comment",
           value: "Test comment",
         }),
@@ -822,7 +822,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 400 for invalid field", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/${printingId}/accept-field`, {
+        adminReq("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "nonexistent",
           value: "foo",
         }),
@@ -881,7 +881,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .execute();
 
       const res = await app.fetch(
-        req("POST", `${P}/printing/${zhRow.id}/accept-field`, {
+        adminReq("POST", `${P}/printing/${zhRow.id}/accept-field`, {
           field: "markerSlugs",
           value: [PROMO_MARKER_SLUG],
         }),
@@ -905,7 +905,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   describe("POST /new/:name/accept", () => {
     it("creates a new card from unmatched source data", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/new/csmnewcard/accept`, {
+        adminReq("POST", `${P}/new/csmnewcard/accept`, {
           cardFields: {
             id: "CSM-NEW-001",
             name: "CSM New Card",
@@ -966,7 +966,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .execute();
 
       const res = await app.fetch(
-        req("POST", `${P}/new/csmanotherunmatched/link`, {
+        adminReq("POST", `${P}/new/csmanotherunmatched/link`, {
           cardId,
         }),
       );
@@ -985,7 +985,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 404 for non-existent target card", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/new/csmanotherunmatched/link`, {
+        adminReq("POST", `${P}/new/csmanotherunmatched/link`, {
           cardId: "00000000-0000-4000-a000-000000000000",
         }),
       );
@@ -1023,7 +1023,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .execute();
 
       const res = await app.fetch(
-        req("POST", `${P}/${cardId}/accept-printing`, {
+        adminReq("POST", `${P}/${cardId}/accept-printing`, {
           printingFields: {
             shortCode: "CSM-AP-001",
             setId: "CSM-TEST",
@@ -1092,7 +1092,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .execute();
 
       const res = await app.fetch(
-        req("POST", `${P}/${cardId}/accept-printing`, {
+        adminReq("POST", `${P}/${cardId}/accept-printing`, {
           printingFields: {
             shortCode: "CSM-AP-FOIL",
             setId: "CSM-TEST",
@@ -1137,7 +1137,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .execute();
 
       const res = await app.fetch(
-        req("POST", `${P}/${cardId}/accept-printing`, {
+        adminReq("POST", `${P}/${cardId}/accept-printing`, {
           printingFields: {
             shortCode: "CSM-AP-PROMO",
             setId: "CSM-TEST",
@@ -1168,7 +1168,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 400 for empty candidatePrintingIds", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardId}/accept-printing`, {
+        adminReq("POST", `${P}/${cardId}/accept-printing`, {
           printingFields: {
             shortCode: "CSM-AP-X",
             artist: "X",
@@ -1182,7 +1182,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 404 for non-existent card", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/00000000-0000-4000-a000-000000000000/accept-printing`, {
+        adminReq("POST", `${P}/00000000-0000-4000-a000-000000000000/accept-printing`, {
           printingFields: {
             shortCode: "CSM-AP-X",
             setId: "CSM",
@@ -1221,7 +1221,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .execute();
 
       const res = await app.fetch(
-        req("POST", `${P}/${cardId}/accept-printing`, {
+        adminReq("POST", `${P}/${cardId}/accept-printing`, {
           printingFields: {
             shortCode: "CSM-AP-NEWSET",
             setId: "CSM-NEW-SET",
@@ -1253,7 +1253,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   describe("POST /upload", () => {
     it("uploads card sources and returns counts", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/upload`, {
+        adminReq("POST", `${P}/upload`, {
           provider: "csm-test-upload",
           candidates: [
             {
@@ -1303,7 +1303,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 400 for empty source", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/upload`, {
+        adminReq("POST", `${P}/upload`, {
           provider: "",
           candidates: [{ card: { name: "X", type: "unit" }, printings: [] }],
         }),
@@ -1313,7 +1313,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 400 for empty candidates", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/upload`, {
+        adminReq("POST", `${P}/upload`, {
           provider: "csm-test-upload",
           candidates: [],
         }),
@@ -1328,7 +1328,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   describe("DELETE /candidate-printings/:id", () => {
     it("deletes a printing source", async () => {
       // Use the unlinked one to avoid FK issues
-      const res = await app.fetch(req("DELETE", `${P}/candidate-printings/${psUnlinkedId}`));
+      const res = await app.fetch(adminReq("DELETE", `${P}/candidate-printings/${psUnlinkedId}`));
       expect(res.status).toBe(204);
 
       // Verify gone
@@ -1342,7 +1342,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 404 for non-existent printing source", async () => {
       const fakeId = "00000000-0000-4000-a000-000000000000";
-      const res = await app.fetch(req("DELETE", `${P}/candidate-printings/${fakeId}`));
+      const res = await app.fetch(adminReq("DELETE", `${P}/candidate-printings/${fakeId}`));
       expect(res.status).toBe(404);
     });
   });
@@ -1358,7 +1358,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .where("id", "=", cardShortCode)
         .execute();
 
-      const res = await app.fetch(req("POST", `${P}/${cardShortCode}/uncheck`));
+      const res = await app.fetch(adminReq("POST", `${P}/${cardShortCode}/uncheck`));
       expect(res.status).toBe(204);
 
       // Verify unchecked
@@ -1372,7 +1372,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 404 for non-existent candidate card", async () => {
       const fakeId = "00000000-0000-4000-a000-000000000000";
-      const res = await app.fetch(req("POST", `${P}/${fakeId}/uncheck`));
+      const res = await app.fetch(adminReq("POST", `${P}/${fakeId}/uncheck`));
       expect(res.status).toBe(404);
     });
   });
@@ -1388,7 +1388,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .where("id", "=", psId)
         .execute();
 
-      const res = await app.fetch(req("POST", `${P}/candidate-printings/${psId}/uncheck`));
+      const res = await app.fetch(adminReq("POST", `${P}/candidate-printings/${psId}/uncheck`));
       expect(res.status).toBe(204);
 
       // Verify unchecked
@@ -1402,7 +1402,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 404 for non-existent candidate printing", async () => {
       const fakeId = "00000000-0000-4000-a000-000000000000";
-      const res = await app.fetch(req("POST", `${P}/candidate-printings/${fakeId}/uncheck`));
+      const res = await app.fetch(adminReq("POST", `${P}/candidate-printings/${fakeId}/uncheck`));
       expect(res.status).toBe(404);
     });
   });
@@ -1412,7 +1412,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   describe("POST /:cardId/accept-field (provider source)", () => {
     it("applies typography fixes when source is provider", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardId}/accept-field`, {
+        adminReq("POST", `${P}/${cardId}/accept-field`, {
           field: "name",
           value: 'Some "quoted" name',
           source: "provider",
@@ -1438,7 +1438,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("normalizes null to empty array for array fields like superTypes", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardId}/accept-field`, {
+        adminReq("POST", `${P}/${cardId}/accept-field`, {
           field: "superTypes",
           value: null,
         }),
@@ -1455,7 +1455,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("normalizes null to empty array for tags field", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardId}/accept-field`, {
+        adminReq("POST", `${P}/${cardId}/accept-field`, {
           field: "tags",
           value: null,
         }),
@@ -1472,7 +1472,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 400 for missing field", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardId}/accept-field`, {
+        adminReq("POST", `${P}/${cardId}/accept-field`, {
           field: "",
           value: "foo",
         }),
@@ -1482,7 +1482,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 400 when updating rulesText on non-existent card (field rejected before lookup)", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/NONEXISTENT-SLUG/accept-field`, {
+        adminReq("POST", `${P}/NONEXISTENT-SLUG/accept-field`, {
           field: "rulesText",
           value: "test",
         }),
@@ -1496,7 +1496,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   describe("POST /printing/:printingId/accept-field (extended)", () => {
     it("applies typography to printedRulesText from provider source", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/${printingId}/accept-field`, {
+        adminReq("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "printedRulesText",
           value: 'Deal "damage" to target',
           source: "provider",
@@ -1522,7 +1522,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("applies typography to printedEffectText from provider source", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/${printingId}/accept-field`, {
+        adminReq("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "printedEffectText",
           value: "Effect text here",
           source: "provider",
@@ -1540,7 +1540,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("applies typography to flavorText from provider source", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/${printingId}/accept-field`, {
+        adminReq("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "flavorText",
           value: 'Some "flavor" (with parens)',
           source: "provider",
@@ -1558,7 +1558,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("appends set total to publicCode from provider source", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/${printingId}/accept-field`, {
+        adminReq("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "publicCode",
           value: "CSM-001",
           source: "provider",
@@ -1584,7 +1584,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("resolves setId from slug to UUID when accepting setId field", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/${printingId}/accept-field`, {
+        adminReq("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "setId",
           value: "CSM-TEST",
         }),
@@ -1594,7 +1594,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 404 when setting setId to non-existent slug", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/${printingId}/accept-field`, {
+        adminReq("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "setId",
           value: "NONEXISTENT-SET",
         }),
@@ -1604,7 +1604,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("updates markerSlugs", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/${printingId}/accept-field`, {
+        adminReq("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "markerSlugs",
           value: [PROMO_MARKER_SLUG],
         }),
@@ -1620,7 +1620,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
       // Restore: clear markers via the same route (handles printing_markers cleanup)
       const restoreRes = await app.fetch(
-        req("POST", `${P}/printing/${printingId}/accept-field`, {
+        adminReq("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "markerSlugs",
           value: [],
         }),
@@ -1630,7 +1630,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 400 for missing field", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/printing/${printingId}/accept-field`, {
+        adminReq("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "",
           value: "foo",
         }),
@@ -1704,7 +1704,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         })
         .execute();
 
-      const res = await app.fetch(req("DELETE", `${P}/printing/${disposablePrinting.id}`));
+      const res = await app.fetch(adminReq("DELETE", `${P}/printing/${disposablePrinting.id}`));
       expect(res.status).toBe(204);
 
       // Verify printing is gone
@@ -1745,7 +1745,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           .execute();
       }
 
-      const res = await app.fetch(req("POST", `${P}/by-provider/csm-gallery/check`));
+      const res = await app.fetch(adminReq("POST", `${P}/by-provider/csm-gallery/check`));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -1754,7 +1754,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
 
     it("returns 400 for empty provider", async () => {
-      const res = await app.fetch(req("POST", `${P}/by-provider/%20/check`));
+      const res = await app.fetch(adminReq("POST", `${P}/by-provider/%20/check`));
       expect(res.status).toBe(400);
     });
   });
@@ -1764,7 +1764,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   describe("POST /new/:name/link (extended)", () => {
     it("returns 400 for missing cardId", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/new/somename/link`, {
+        adminReq("POST", `${P}/new/somename/link`, {
           cardId: "",
         }),
       );
@@ -1776,7 +1776,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
   describe("POST /new/:name/accept (extended)", () => {
     it("returns 400 for missing cardFields", async () => {
-      const res = await app.fetch(req("POST", `${P}/new/somename/accept`, {}));
+      const res = await app.fetch(adminReq("POST", `${P}/new/somename/accept`, {}));
       expect(res.status).toBe(400);
     });
   });
@@ -1786,7 +1786,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
   describe("DELETE /by-provider/:source", () => {
     it("deletes all card sources for a source name", async () => {
-      const res = await app.fetch(req("DELETE", `${P}/by-provider/csm-spreadsheet`));
+      const res = await app.fetch(adminReq("DELETE", `${P}/by-provider/csm-spreadsheet`));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -1795,7 +1795,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
 
     it("returns 0 deleted for already-cleaned source", async () => {
-      const res = await app.fetch(req("DELETE", `${P}/by-provider/csm-spreadsheet`));
+      const res = await app.fetch(adminReq("DELETE", `${P}/by-provider/csm-spreadsheet`));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -1803,7 +1803,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
 
     it("returns 400 for empty source", async () => {
-      const res = await app.fetch(req("DELETE", `${P}/by-provider/%20`));
+      const res = await app.fetch(adminReq("DELETE", `${P}/by-provider/%20`));
       expect(res.status).toBe(400);
     });
   });

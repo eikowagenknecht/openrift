@@ -15,7 +15,7 @@ const fetchUnifiedMappings = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<UnifiedMappingsResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["marketplace-mappings"].$get(),
+        serverApiClient(context.cookie).api.admin.v1["marketplace-mappings"].$get(),
         "Couldn't load unified mappings",
       ),
   );
@@ -37,7 +37,7 @@ const fetchUnifiedMappingsForCard = createServerFn({ method: "GET" })
   .handler(
     ({ context, data }): Promise<UnifiedMappingsCardResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["marketplace-mappings"].card[":cardId"].$get({
+        serverApiClient(context.cookie).api.admin.v1["marketplace-mappings"].card[":cardId"].$get({
           param: encodeParams({ cardId: data.cardId }),
         }),
         "Couldn't load marketplace mappings for card",
@@ -103,7 +103,7 @@ const saveMappingsFn = createServerFn({ method: "POST" })
       data,
     }): Promise<{ saved: number; skipped?: { externalId: number; reason: string }[] }> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["marketplace-mappings"].$post({
+        serverApiClient(context.cookie).api.admin.v1["marketplace-mappings"].$post({
           query: { marketplace: data.marketplace },
           json: { mappings: data.mappings },
         }),
@@ -136,7 +136,7 @@ const ignoreVariantsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["ignored-products"].$post({
+      serverApiClient(context.cookie).api.admin.v1["ignored-products"].$post({
         json: {
           level: "variant",
           marketplace: data.marketplace,
@@ -157,7 +157,7 @@ const ignoreProductsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["ignored-products"].$post({
+      serverApiClient(context.cookie).api.admin.v1["ignored-products"].$post({
         json: {
           level: "product",
           marketplace: data.marketplace,
@@ -204,7 +204,7 @@ const assignToCardFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["staging-card-overrides"].$post({
+      serverApiClient(context.cookie).api.admin.v1["staging-card-overrides"].$post({
         json: data,
       }),
       "Couldn't assign to card",
@@ -237,7 +237,7 @@ const unassignFromCardFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["staging-card-overrides"].$delete({
+      serverApiClient(context.cookie).api.admin.v1["staging-card-overrides"].$delete({
         // REST-5: query-addressed; omit language when null (no SKU language axis).
         query: {
           marketplace: data.marketplace,

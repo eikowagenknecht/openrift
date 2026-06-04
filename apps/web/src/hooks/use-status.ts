@@ -12,7 +12,7 @@ const fetchStatus = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<AdminStatusResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin.status.$get(),
+        serverApiClient(context.cookie).api.admin.v1.status.$get(),
         "Couldn't load admin status",
       ),
   );
@@ -22,7 +22,7 @@ const clearSsrCache = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     // Verify admin auth by hitting the status endpoint (reuses existing auth check)
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.status.$get(),
+      serverApiClient(context.cookie).api.admin.v1.status.$get(),
       "Couldn't clear SSR cache",
     );
     serverCache.clear();

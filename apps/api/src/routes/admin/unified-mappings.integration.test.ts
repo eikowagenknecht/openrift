@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { createTestContext, refreshCardAggregates, req } from "../../test/integration-context.js";
+import {
+  adminReq,
+  createTestContext,
+  refreshCardAggregates,
+} from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Unified marketplace mappings route
@@ -301,7 +305,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
   describe("GET /admin/marketplace-mappings (baseline)", () => {
     it("returns groups, unmatchedProducts, and allCards", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -317,7 +321,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
   describe("GET /admin/marketplace-mappings (seeded data)", () => {
     it("returns merged groups with both tcgplayer and cardmarket data per card", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -348,7 +352,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
     });
 
     it("printings have tcgExternalId and cmExternalId fields", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
       const json = await res.json();
 
       const alphaGroup = json.groups.find(
@@ -364,7 +368,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
     });
 
     it("merged groups contain card metadata", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
       const json = await res.json();
 
       const alphaGroup = json.groups.find(
@@ -380,7 +384,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
     });
 
     it("groups contain both cards from seed data", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
       const json = await res.json();
 
       const cardNames = json.groups.map((g: { cardName: string }) => g.cardName);
@@ -389,7 +393,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
     });
 
     it("UNM Beta Card group has TCGPlayer data but no Cardmarket staged products", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
       const json = await res.json();
 
       const betaGroup = json.groups.find(
@@ -450,12 +454,12 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
         .execute();
 
       await app.fetch(
-        req("POST", "/admin/marketplace-mappings?marketplace=tcgplayer", {
+        adminReq("POST", "/marketplace-mappings?marketplace=tcgplayer", {
           mappings: [{ printingId, externalId: 11_111, finish: "normal", language: null }],
         }),
       );
 
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
       const json = await res.json();
 
       const alphaGroup = json.groups.find(
@@ -473,9 +477,9 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
       // Clean up
       await app.fetch(
-        req(
+        adminReq(
           "DELETE",
-          `/admin/marketplace-mappings?marketplace=tcgplayer&printingId=${printingId}&externalId=11111&finish=normal`,
+          `/marketplace-mappings?marketplace=tcgplayer&printingId=${printingId}&externalId=11111&finish=normal`,
         ),
       );
     });
@@ -522,12 +526,12 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
         .execute();
 
       await app.fetch(
-        req("POST", "/admin/marketplace-mappings?marketplace=cardmarket", {
+        adminReq("POST", "/marketplace-mappings?marketplace=cardmarket", {
           mappings: [{ printingId, externalId: 22_222, finish: "normal", language: null }],
         }),
       );
 
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
       const json = await res.json();
 
       const alphaGroup = json.groups.find(
@@ -546,9 +550,9 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
       // Clean up
       await app.fetch(
-        req(
+        adminReq(
           "DELETE",
-          `/admin/marketplace-mappings?marketplace=cardmarket&printingId=${printingId}&externalId=22222&finish=normal`,
+          `/marketplace-mappings?marketplace=cardmarket&printingId=${printingId}&externalId=22222&finish=normal`,
         ),
       );
     });
@@ -635,17 +639,17 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
       // Map both marketplaces
       await app.fetch(
-        req("POST", "/admin/marketplace-mappings?marketplace=tcgplayer", {
+        adminReq("POST", "/marketplace-mappings?marketplace=tcgplayer", {
           mappings: [{ printingId, externalId: 11_111, finish: "normal", language: null }],
         }),
       );
       await app.fetch(
-        req("POST", "/admin/marketplace-mappings?marketplace=cardmarket", {
+        adminReq("POST", "/marketplace-mappings?marketplace=cardmarket", {
           mappings: [{ printingId, externalId: 22_222, finish: "normal", language: null }],
         }),
       );
 
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
       const json = await res.json();
 
       const alphaGroup = json.groups.find(
@@ -663,15 +667,15 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
       // Clean up
       await app.fetch(
-        req(
+        adminReq(
           "DELETE",
-          `/admin/marketplace-mappings?marketplace=tcgplayer&printingId=${printingId}&externalId=11111&finish=normal`,
+          `/marketplace-mappings?marketplace=tcgplayer&printingId=${printingId}&externalId=11111&finish=normal`,
         ),
       );
       await app.fetch(
-        req(
+        adminReq(
           "DELETE",
-          `/admin/marketplace-mappings?marketplace=cardmarket&printingId=${printingId}&externalId=22222&finish=normal`,
+          `/marketplace-mappings?marketplace=cardmarket&printingId=${printingId}&externalId=22222&finish=normal`,
         ),
       );
     });
@@ -681,7 +685,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
   describe("printing detail fields in merged groups", () => {
     it("printings contain all expected metadata fields", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
       const json = await res.json();
 
       const alphaGroup = json.groups.find(
@@ -703,7 +707,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
     });
 
     it("merged group includes superTypes and might fields", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
       const json = await res.json();
 
       const alphaGroup = json.groups.find(
@@ -720,7 +724,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
   describe("allCards response field", () => {
     it("allCards entries have cardId, cardName, setName, and shortCodes", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
       const json = await res.json();
 
       expect(json.allCards).toEqual(expect.any(Array));
@@ -743,7 +747,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
   describe("unmatchedProducts response field", () => {
     it("unmatchedProducts has separate tcgplayer and cardmarket arrays", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
       const json = await res.json();
 
       expect(json.unmatchedProducts).toBeDefined();
@@ -837,17 +841,17 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
       // Map both marketplaces
       await app.fetch(
-        req("POST", "/admin/marketplace-mappings?marketplace=tcgplayer", {
+        adminReq("POST", "/marketplace-mappings?marketplace=tcgplayer", {
           mappings: [{ printingId, externalId: 11_111, finish: "normal", language: null }],
         }),
       );
       await app.fetch(
-        req("POST", "/admin/marketplace-mappings?marketplace=cardmarket", {
+        adminReq("POST", "/marketplace-mappings?marketplace=cardmarket", {
           mappings: [{ printingId, externalId: 22_222, finish: "normal", language: null }],
         }),
       );
 
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
       const json = await res.json();
 
       const alphaGroup = json.groups.find(
@@ -869,21 +873,21 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
       // Clean up
       await app.fetch(
-        req(
+        adminReq(
           "DELETE",
-          `/admin/marketplace-mappings?marketplace=tcgplayer&printingId=${printingId}&externalId=11111&finish=normal`,
+          `/marketplace-mappings?marketplace=tcgplayer&printingId=${printingId}&externalId=11111&finish=normal`,
         ),
       );
       await app.fetch(
-        req(
+        adminReq(
           "DELETE",
-          `/admin/marketplace-mappings?marketplace=cardmarket&printingId=${printingId}&externalId=22222&finish=normal`,
+          `/marketplace-mappings?marketplace=cardmarket&printingId=${printingId}&externalId=22222&finish=normal`,
         ),
       );
     });
 
     it("Beta Card Cardmarket section has empty assignedProducts and stagedProducts", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
       const json = await res.json();
 
       const betaGroup = json.groups.find(
@@ -938,7 +942,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       // Bind both CT variants to the same printing (the user's reported flow:
       // EN+normal and ZH+normal both attached to EN:ENL-T08::normal).
       await app.fetch(
-        req("POST", "/admin/marketplace-mappings?marketplace=cardtrader", {
+        adminReq("POST", "/marketplace-mappings?marketplace=cardtrader", {
           mappings: [
             { printingId, externalId: ctBlueprintId, finish: "normal", language: "EN" },
             { printingId, externalId: ctBlueprintId, finish: "normal", language: "ZH" },
@@ -958,9 +962,9 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
       // Unmap the ZH sibling. The EN one must survive.
       const res = await app.fetch(
-        req(
+        adminReq(
           "DELETE",
-          `/admin/marketplace-mappings?marketplace=cardtrader&printingId=${printingId}&externalId=${ctBlueprintId}&finish=normal&language=ZH`,
+          `/marketplace-mappings?marketplace=cardtrader&printingId=${printingId}&externalId=${ctBlueprintId}&finish=normal&language=ZH`,
         ),
       );
       expect(res.status).toBe(204);
@@ -975,9 +979,9 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
       // Clean up the EN binding so the test is hermetic.
       await app.fetch(
-        req(
+        adminReq(
           "DELETE",
-          `/admin/marketplace-mappings?marketplace=cardtrader&printingId=${printingId}&externalId=${ctBlueprintId}&finish=normal&language=EN`,
+          `/marketplace-mappings?marketplace=cardtrader&printingId=${printingId}&externalId=${ctBlueprintId}&finish=normal&language=EN`,
         ),
       );
     });

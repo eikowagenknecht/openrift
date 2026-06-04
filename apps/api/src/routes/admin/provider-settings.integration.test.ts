@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createTestContext, req } from "../../test/integration-context.js";
+import { adminReq, createTestContext } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Admin provider-settings routes
@@ -29,13 +29,13 @@ describe.skipIf(!adminCtx)("Admin provider-settings routes (integration)", () =>
 
   describe("admin-only access control (non-admin)", () => {
     it("GET /admin/provider-settings returns 403 for non-admin", async () => {
-      const res = await nonAdminApp.fetch(req("GET", "/admin/provider-settings"));
+      const res = await nonAdminApp.fetch(adminReq("GET", "/provider-settings"));
       expect(res.status).toBe(403);
     });
 
     it("PATCH /admin/provider-settings/tcgplayer returns 403 for non-admin", async () => {
       const res = await nonAdminApp.fetch(
-        req("PATCH", "/admin/provider-settings/tcgplayer", { sortOrder: 0 }),
+        adminReq("PATCH", "/provider-settings/tcgplayer", { sortOrder: 0 }),
       );
       expect(res.status).toBe(403);
     });
@@ -45,7 +45,7 @@ describe.skipIf(!adminCtx)("Admin provider-settings routes (integration)", () =>
 
   describe("GET /admin/provider-settings (initial)", () => {
     it("returns 200 with a list", async () => {
-      const res = await app.fetch(req("GET", "/admin/provider-settings"));
+      const res = await app.fetch(adminReq("GET", "/provider-settings"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -63,7 +63,7 @@ describe.skipIf(!adminCtx)("Admin provider-settings routes (integration)", () =>
   describe("PATCH /admin/provider-settings/:provider", () => {
     it("upserts a new provider setting (ips-test-provider)", async () => {
       const res = await app.fetch(
-        req("PATCH", "/admin/provider-settings/ips-test-provider", {
+        adminReq("PATCH", "/provider-settings/ips-test-provider", {
           sortOrder: 50,
           isHidden: true,
         }),
@@ -71,7 +71,7 @@ describe.skipIf(!adminCtx)("Admin provider-settings routes (integration)", () =>
       expect(res.status).toBe(204);
 
       // Verify it appears in the list
-      const listRes = await app.fetch(req("GET", "/admin/provider-settings"));
+      const listRes = await app.fetch(adminReq("GET", "/provider-settings"));
       const json = await listRes.json();
       const ipsEntry = json.providerSettings.find(
         (s: { provider: string }) => s.provider === "ips-test-provider",
@@ -83,11 +83,11 @@ describe.skipIf(!adminCtx)("Admin provider-settings routes (integration)", () =>
 
     it("updates sortOrder only", async () => {
       const res = await app.fetch(
-        req("PATCH", "/admin/provider-settings/ips-test-provider", { sortOrder: 10 }),
+        adminReq("PATCH", "/provider-settings/ips-test-provider", { sortOrder: 10 }),
       );
       expect(res.status).toBe(204);
 
-      const listRes = await app.fetch(req("GET", "/admin/provider-settings"));
+      const listRes = await app.fetch(adminReq("GET", "/provider-settings"));
       const json = await listRes.json();
       const ipsEntry = json.providerSettings.find(
         (s: { provider: string }) => s.provider === "ips-test-provider",
@@ -97,11 +97,11 @@ describe.skipIf(!adminCtx)("Admin provider-settings routes (integration)", () =>
 
     it("updates isHidden only", async () => {
       const res = await app.fetch(
-        req("PATCH", "/admin/provider-settings/ips-test-provider", { isHidden: false }),
+        adminReq("PATCH", "/provider-settings/ips-test-provider", { isHidden: false }),
       );
       expect(res.status).toBe(204);
 
-      const listRes = await app.fetch(req("GET", "/admin/provider-settings"));
+      const listRes = await app.fetch(adminReq("GET", "/provider-settings"));
       const json = await listRes.json();
       const ipsEntry = json.providerSettings.find(
         (s: { provider: string }) => s.provider === "ips-test-provider",
@@ -111,7 +111,7 @@ describe.skipIf(!adminCtx)("Admin provider-settings routes (integration)", () =>
 
     it("upserts a second test provider", async () => {
       const res = await app.fetch(
-        req("PATCH", "/admin/provider-settings/ips-test-provider-2", {
+        adminReq("PATCH", "/provider-settings/ips-test-provider-2", {
           sortOrder: 60,
           isHidden: false,
         }),
@@ -125,7 +125,7 @@ describe.skipIf(!adminCtx)("Admin provider-settings routes (integration)", () =>
   describe("PUT /admin/provider-settings/reorder", () => {
     it("reorders providers", async () => {
       const res = await app.fetch(
-        req("PUT", "/admin/provider-settings/reorder", {
+        adminReq("PUT", "/provider-settings/reorder", {
           providers: ["ips-test-provider-2", "ips-test-provider"],
         }),
       );
@@ -134,7 +134,7 @@ describe.skipIf(!adminCtx)("Admin provider-settings routes (integration)", () =>
 
     it("returns 400 for duplicate providers", async () => {
       const res = await app.fetch(
-        req("PUT", "/admin/provider-settings/reorder", {
+        adminReq("PUT", "/provider-settings/reorder", {
           providers: ["ips-test-provider", "ips-test-provider"],
         }),
       );
@@ -154,7 +154,7 @@ describe.skipIf(!adminCtx)("Admin provider-settings routes (integration)", () =>
       await db.deleteFrom("providerSettings").where("provider", "like", "ips-%").execute();
 
       // Verify no ips- entries remain
-      const res = await app.fetch(req("GET", "/admin/provider-settings"));
+      const res = await app.fetch(adminReq("GET", "/provider-settings"));
       const json = await res.json();
       const ipsEntries = json.providerSettings.filter((s: { provider: string }) =>
         s.provider.startsWith("ips-"),

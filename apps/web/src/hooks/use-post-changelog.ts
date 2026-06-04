@@ -14,7 +14,7 @@ const postChangelogFn = createServerFn({ method: "POST" })
   .handler(
     ({ context }): Promise<PostChangelogResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin.changelog.post.$post(),
+        serverApiClient(context.cookie).api.admin.v1.changelog.post.$post(),
         "Couldn't post changelog",
       ),
   );

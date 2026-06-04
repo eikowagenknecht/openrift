@@ -11,7 +11,7 @@ const fetchIsAdmin = createServerFn({ method: "GET" })
     // 401/403 are expected for non-admins — accept without logging/throwing.
     // Other non-ok statuses (500 etc.) still throw and surface as errors.
     const res = await callApi(
-      serverApiClient(context.cookie).api.v1.admin.me.$get(),
+      serverApiClient(context.cookie).api.admin.v1.me.$get(),
       "Couldn't check admin access",
       [401, 403],
     );

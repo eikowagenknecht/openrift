@@ -11,7 +11,7 @@ const fetchDistinctArtists = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<DistinctArtistsResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin.cards["distinct-artists"].$get(),
+        serverApiClient(context.cookie).api.admin.v1.cards["distinct-artists"].$get(),
         "Couldn't load distinct artists",
       ),
   );

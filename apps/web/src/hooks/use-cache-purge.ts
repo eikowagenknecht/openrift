@@ -15,7 +15,7 @@ const fetchCacheStatus = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<CacheStatusResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin.cache.status.$get(),
+        serverApiClient(context.cookie).api.admin.v1.cache.status.$get(),
         "Couldn't load cache status",
       ),
   );
@@ -35,7 +35,7 @@ const purgeCacheFn = createServerFn({ method: "POST" })
     // callApi surfaces the API's { error } message (e.g. "Cloudflare
     // credentials not configured") in the toast, so no manual parse is needed.
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cache.purge.$post(),
+      serverApiClient(context.cookie).api.admin.v1.cache.purge.$post(),
       "Couldn't purge cache",
     );
   });

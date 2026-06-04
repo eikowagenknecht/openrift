@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createTestContext, req } from "../../test/integration-context.js";
+import { adminReq, createTestContext } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Admin marketplace-groups routes (unified)
@@ -43,7 +43,7 @@ describe.skipIf(!ctx)("Admin marketplace-groups routes (integration)", () => {
         ])
         .execute();
 
-      const res = await app.fetch(req("GET", "/admin/marketplace-groups"));
+      const res = await app.fetch(adminReq("GET", "/marketplace-groups"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -76,7 +76,7 @@ describe.skipIf(!ctx)("Admin marketplace-groups routes (integration)", () => {
     });
 
     it("response shape includes all expected fields", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-groups"));
+      const res = await app.fetch(adminReq("GET", "/marketplace-groups"));
       const json = await res.json();
 
       for (const group of json.groups) {
@@ -95,7 +95,7 @@ describe.skipIf(!ctx)("Admin marketplace-groups routes (integration)", () => {
   describe("PATCH /admin/marketplace-groups/:marketplace/:id", () => {
     it("updates a group name", async () => {
       const res = await app.fetch(
-        req("PATCH", "/admin/marketplace-groups/tcgplayer/10100", {
+        adminReq("PATCH", "/marketplace-groups/tcgplayer/10100", {
           name: "MKG Alpha Set Revised",
         }),
       );
@@ -104,7 +104,7 @@ describe.skipIf(!ctx)("Admin marketplace-groups routes (integration)", () => {
 
     it("clears a group name with null", async () => {
       const res = await app.fetch(
-        req("PATCH", "/admin/marketplace-groups/cardmarket/10101", {
+        adminReq("PATCH", "/marketplace-groups/cardmarket/10101", {
           name: null,
         }),
       );
@@ -112,7 +112,7 @@ describe.skipIf(!ctx)("Admin marketplace-groups routes (integration)", () => {
     });
 
     it("GET reflects the updated names", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-groups"));
+      const res = await app.fetch(adminReq("GET", "/marketplace-groups"));
       const json = await res.json();
 
       const tcgplayerGroup = json.groups.find(

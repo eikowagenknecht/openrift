@@ -12,7 +12,7 @@ const fetchTypographyReview = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<TypographyReviewResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["typography-review"].$get(),
+        serverApiClient(context.cookie).api.admin.v1["typography-review"].$get(),
         "Couldn't load typography review",
       ),
   );
@@ -33,7 +33,7 @@ const acceptTypographyFixFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["typography-review"].accept.$post({
+      serverApiClient(context.cookie).api.admin.v1["typography-review"].accept.$post({
         json: data,
       }),
       "Couldn't accept typography fix",

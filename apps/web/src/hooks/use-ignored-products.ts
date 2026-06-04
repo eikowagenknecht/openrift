@@ -32,7 +32,7 @@ const fetchIgnoredProducts = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<IgnoredProductsResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["ignored-products"].$get(),
+        serverApiClient(context.cookie).api.admin.v1["ignored-products"].$get(),
         "Couldn't load ignored products",
       ),
   );
@@ -66,7 +66,7 @@ const unignoreProductFn = createServerFn({ method: "POST" })
           };
 
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["ignored-products"].$delete({
+      serverApiClient(context.cookie).api.admin.v1["ignored-products"].$delete({
         json: body,
       }),
       "Couldn't unignore product",

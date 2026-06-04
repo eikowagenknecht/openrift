@@ -11,7 +11,7 @@ const fetchIgnoredCandidates = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<IgnoredCandidatesResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["ignored-candidates"].$get(),
+        serverApiClient(context.cookie).api.admin.v1["ignored-candidates"].$get(),
         "Couldn't load ignored candidates",
       ),
   );
@@ -30,7 +30,7 @@ const ignoreCandidateCardFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["ignored-candidates"].cards.$post({
+      serverApiClient(context.cookie).api.admin.v1["ignored-candidates"].cards.$post({
         json: data,
       }),
       "Couldn't ignore candidate card",
@@ -54,7 +54,7 @@ const unignoreCandidateCardFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["ignored-candidates"].cards.$delete({
+      serverApiClient(context.cookie).api.admin.v1["ignored-candidates"].cards.$delete({
         json: data,
       }),
       "Couldn't unignore candidate card",
@@ -80,7 +80,7 @@ const ignoreCandidatePrintingFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["ignored-candidates"].printings.$post({
+      serverApiClient(context.cookie).api.admin.v1["ignored-candidates"].printings.$post({
         json: data,
       }),
       "Couldn't ignore candidate printing",
@@ -104,7 +104,7 @@ const unignoreCandidatePrintingFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["ignored-candidates"].printings.$delete({
+      serverApiClient(context.cookie).api.admin.v1["ignored-candidates"].printings.$delete({
         json: data,
       }),
       "Couldn't unignore candidate printing",

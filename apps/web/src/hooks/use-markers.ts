@@ -16,7 +16,7 @@ const fetchMarkers = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<AdminMarkersResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin.markers.$get(),
+        serverApiClient(context.cookie).api.admin.v1.markers.$get(),
         "Couldn't load markers",
       ),
   );
@@ -36,7 +36,7 @@ const createMarkerFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.markers.$post({ json: data }),
+      serverApiClient(context.cookie).api.admin.v1.markers.$post({ json: data }),
       "Couldn't create marker",
     );
   });
@@ -56,7 +56,7 @@ const updateMarkerFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.markers[":id"].$patch({
+      serverApiClient(context.cookie).api.admin.v1.markers[":id"].$patch({
         param: encodeParams({ id: data.id }),
         json: {
           slug: data.slug,
@@ -85,7 +85,7 @@ const deleteMarkerFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.markers[":id"].$delete({
+      serverApiClient(context.cookie).api.admin.v1.markers[":id"].$delete({
         param: encodeParams({ id: data.id }),
       }),
       "Couldn't delete marker",
@@ -104,7 +104,7 @@ const reorderMarkersFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.markers.reorder.$put({
+      serverApiClient(context.cookie).api.admin.v1.markers.reorder.$put({
         json: { ids: data.ids },
       }),
       "Couldn't reorder markers",

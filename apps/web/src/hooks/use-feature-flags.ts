@@ -26,7 +26,7 @@ const fetchAdminFeatureFlags = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<AdminFeatureFlagsResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["feature-flags"].$get(),
+        serverApiClient(context.cookie).api.admin.v1["feature-flags"].$get(),
         "Couldn't load feature flags",
       ),
   );
@@ -45,7 +45,7 @@ const toggleFeatureFlagFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["feature-flags"][":key"].$patch({
+      serverApiClient(context.cookie).api.admin.v1["feature-flags"][":key"].$patch({
         param: encodeParams({ key: data.key }),
         json: { enabled: data.enabled },
       }),
@@ -65,7 +65,7 @@ const createFeatureFlagFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["feature-flags"].$post({
+      serverApiClient(context.cookie).api.admin.v1["feature-flags"].$post({
         json: data,
       }),
       "Couldn't create feature flag",
@@ -85,7 +85,7 @@ const deleteFeatureFlagFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["feature-flags"][":key"].$delete({
+      serverApiClient(context.cookie).api.admin.v1["feature-flags"][":key"].$delete({
         param: encodeParams({ key: data.key }),
       }),
       "Couldn't delete feature flag",
@@ -108,7 +108,7 @@ const fetchAdminFeatureFlagOverrides = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<AdminFeatureFlagOverridesResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["feature-flags"].overrides.$get(),
+        serverApiClient(context.cookie).api.admin.v1["feature-flags"].overrides.$get(),
         "Couldn't load feature flag overrides",
       ),
   );
@@ -127,7 +127,7 @@ const upsertFeatureFlagOverrideFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.users[":id"]["feature-flags"][":key"].$put({
+      serverApiClient(context.cookie).api.admin.v1.users[":id"]["feature-flags"][":key"].$put({
         param: encodeParams({ id: data.userId, key: data.flagKey }),
         json: { enabled: data.enabled },
       }),
@@ -148,7 +148,7 @@ const deleteFeatureFlagOverrideFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.users[":id"]["feature-flags"][":key"].$delete({
+      serverApiClient(context.cookie).api.admin.v1.users[":id"]["feature-flags"][":key"].$delete({
         param: encodeParams({ id: data.userId, key: data.flagKey }),
       }),
       "Couldn't delete feature flag override",

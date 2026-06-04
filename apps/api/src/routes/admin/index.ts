@@ -45,7 +45,7 @@ import { adminUsersRoute } from "./users.js";
 
 const getMe = createRoute({
   method: "get",
-  path: "/admin/me",
+  path: "/me",
   tags: ["Admin"],
   responses: {
     200: {
@@ -61,7 +61,7 @@ const getMe = createRoute({
 
 const getCronStatus = createRoute({
   method: "get",
-  path: "/admin/cron-status",
+  path: "/cron-status",
   tags: ["Admin"],
   responses: {
     200: {
@@ -84,8 +84,8 @@ const getCronStatus = createRoute({
 
 const app = createApiApp();
 
-// ── Auth: all /admin/* routes require admin ───────────────────────────────
-app.use("/admin/*", requireAdmin);
+// ── Auth: the whole admin app requires admin (mounted at /api/admin/v1) ────
+app.use("/*", requireAdmin);
 
 // Route chain is assigned so TypeScript preserves the full route type map.
 export const adminRoute = app
@@ -111,39 +111,39 @@ export const adminRoute = app
   )
 
   // ── Mount sub-routes ──────────────────────────────────────────────────────
-  .route("/admin", adminFormatsRoute)
-  .route("/admin", adminFeatureFlagsRoute)
-  .route("/admin", ignoredProductsRoute)
-  .route("/admin", ignoredCandidatesRoute)
-  .route("/admin", catalogRoute)
-  .route("/admin", operationsRoute)
-  .route("/admin", imagesRoute)
-  .route("/admin", marketplaceGroupsRoute)
-  .route("/admin", unifiedMappingsRoute)
-  .route("/admin", adminLanguagesRoute)
-  .route("/admin", adminMarkersRoute)
-  .route("/admin", adminCustomTagsRoute)
-  .route("/admin", adminDistributionChannelsRoute)
-  .route("/admin", adminProviderSettingsRoute)
-  .route("/admin", adminSiteSettingsRoute)
-  .route("/admin", adminPrintingEventsRoute)
-  .route("/admin", adminChangelogRoute)
-  .route("/admin", adminSentryTestRoute)
-  .route("/admin", stagingCardOverridesRoute)
-  .route("/admin", typographyReviewRoute)
-  .route("/admin", adminDeckZonesRoute)
-  .route("/admin", adminCardsRoute)
-  .route("/admin", adminUsersRoute)
-  .route("/admin", adminUserFeatureFlagsRoute)
-  .route("/admin", adminRulesRoute)
-  .route("/admin", adminStatusRoute)
-  .route("/admin", adminJobRunsRoute)
-  .route("/admin", adminKeywordsRoute)
-  .route("/admin", adminFinishesRoute)
-  .route("/admin", adminArtVariantsRoute)
-  .route("/admin", adminDomainsRoute)
-  .route("/admin", adminRaritiesRoute)
-  .route("/admin", adminCardTypesRoute)
-  .route("/admin", adminSuperTypesRoute)
-  .route("/admin", adminDeckFormatsRoute)
-  .route("/admin", adminCacheRoute);
+  .route("/", adminFormatsRoute)
+  .route("/", adminFeatureFlagsRoute)
+  .route("/", ignoredProductsRoute)
+  .route("/", ignoredCandidatesRoute)
+  .route("/", catalogRoute)
+  .route("/", operationsRoute)
+  .route("/", imagesRoute)
+  .route("/", marketplaceGroupsRoute)
+  .route("/", unifiedMappingsRoute)
+  .route("/", adminLanguagesRoute)
+  .route("/", adminMarkersRoute)
+  .route("/", adminCustomTagsRoute)
+  .route("/", adminDistributionChannelsRoute)
+  .route("/", adminProviderSettingsRoute)
+  .route("/", adminSiteSettingsRoute)
+  .route("/", adminPrintingEventsRoute)
+  .route("/", adminChangelogRoute)
+  .route("/", adminSentryTestRoute)
+  .route("/", stagingCardOverridesRoute)
+  .route("/", typographyReviewRoute)
+  .route("/", adminDeckZonesRoute)
+  .route("/", adminCardsRoute)
+  .route("/", adminUsersRoute)
+  .route("/", adminUserFeatureFlagsRoute)
+  .route("/", adminRulesRoute)
+  .route("/", adminStatusRoute)
+  .route("/", adminJobRunsRoute)
+  .route("/", adminKeywordsRoute)
+  .route("/", adminFinishesRoute)
+  .route("/", adminArtVariantsRoute)
+  .route("/", adminDomainsRoute)
+  .route("/", adminRaritiesRoute)
+  .route("/", adminCardTypesRoute)
+  .route("/", adminSuperTypesRoute)
+  .route("/", adminDeckFormatsRoute)
+  .route("/", adminCacheRoute);

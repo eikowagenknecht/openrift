@@ -15,7 +15,7 @@ const fetchMarketplaceGroups = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<MarketplaceGroupsResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["marketplace-groups"].$get(),
+        serverApiClient(context.cookie).api.admin.v1["marketplace-groups"].$get(),
         "Couldn't load marketplace groups",
       ),
   );
@@ -43,7 +43,7 @@ const updateMarketplaceGroupFn = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { marketplace, groupId, ...patch } = data;
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["marketplace-groups"][":marketplace"][
+      serverApiClient(context.cookie).api.admin.v1["marketplace-groups"][":marketplace"][
         ":id"
       ].$patch({
         param: encodeParams({ marketplace, id: String(groupId) }),

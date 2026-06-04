@@ -10,7 +10,7 @@ const fetchFormatsFn = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<{ formats: { id: string; name: string }[] }> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin.formats.$get(),
+        serverApiClient(context.cookie).api.admin.v1.formats.$get(),
         "Couldn't load formats",
       ),
   );

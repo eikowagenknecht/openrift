@@ -27,7 +27,7 @@ const fetchAdminSiteSettings = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<AdminSiteSettingsResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["site-settings"].$get(),
+        serverApiClient(context.cookie).api.admin.v1["site-settings"].$get(),
         "Couldn't load site settings",
       ),
   );
@@ -46,7 +46,7 @@ const updateSiteSettingFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["site-settings"][":key"].$patch({
+      serverApiClient(context.cookie).api.admin.v1["site-settings"][":key"].$patch({
         param: encodeParams({ key: data.key }),
         json: { value: data.value, scope: data.scope },
       }),
@@ -68,7 +68,7 @@ const createSiteSettingFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["site-settings"].$post({
+      serverApiClient(context.cookie).api.admin.v1["site-settings"].$post({
         json: { key: data.key, value: data.value, scope: data.scope },
       }),
       "Couldn't create site setting",
@@ -89,7 +89,7 @@ const deleteSiteSettingFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["site-settings"][":key"].$delete({
+      serverApiClient(context.cookie).api.admin.v1["site-settings"][":key"].$delete({
         param: encodeParams({ key: data.key }),
       }),
       "Couldn't delete site setting",

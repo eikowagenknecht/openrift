@@ -20,7 +20,7 @@ const fetchRehostStatusFn = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<RehostStatusResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["rehost-status"].$get(),
+        serverApiClient(context.cookie).api.admin.v1["rehost-status"].$get(),
         "Couldn't load rehost status",
       ),
   );
@@ -30,7 +30,7 @@ const fetchBrokenImagesFn = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<BrokenImagesResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["broken-images"].$get(),
+        serverApiClient(context.cookie).api.admin.v1["broken-images"].$get(),
         "Couldn't load broken images",
       ),
   );
@@ -40,7 +40,7 @@ const fetchLowResImagesFn = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<LowResImagesResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["low-res-images"].$get(),
+        serverApiClient(context.cookie).api.admin.v1["low-res-images"].$get(),
         "Couldn't load low-res images",
       ),
   );
@@ -56,7 +56,7 @@ const fetchMissingImagesFn = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<MissingImageCard[]> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["missing-images"].$get(),
+        serverApiClient(context.cookie).api.admin.v1["missing-images"].$get(),
         "Couldn't load missing images",
       ),
   );
@@ -66,7 +66,7 @@ const rehostImagesBatchFn = createServerFn({ method: "POST" })
   .handler(
     ({ context }): Promise<RehostImageResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["rehost-images"].$post({ query: {} }),
+        serverApiClient(context.cookie).api.admin.v1["rehost-images"].$post({ query: {} }),
         "Couldn't rehost images",
       ),
   );
@@ -83,7 +83,7 @@ const regenerateImagesKickoffFn = createServerFn({ method: "POST" })
       query.reset = "true";
     }
     return callApiJson(
-      serverApiClient(context.cookie).api.v1.admin["regenerate-images"].$post({ query }),
+      serverApiClient(context.cookie).api.admin.v1["regenerate-images"].$post({ query }),
       "Couldn't start regenerate images job",
     );
   });
@@ -93,7 +93,7 @@ const cancelRegenerateImagesFn = createServerFn({ method: "POST" })
   .handler(
     ({ context }): Promise<{ runId: string; cancelRequested: true }> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["regenerate-images"].cancel.$post(),
+        serverApiClient(context.cookie).api.admin.v1["regenerate-images"].cancel.$post(),
         "Couldn't cancel regenerate images job",
       ),
   );
@@ -104,7 +104,7 @@ const unrehostImagesFn = createServerFn({ method: "POST" })
   .handler(
     ({ context, data }): Promise<UnrehostImagesResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["unrehost-images"].$post({
+        serverApiClient(context.cookie).api.admin.v1["unrehost-images"].$post({
           json: { imageIds: data.imageIds },
         }),
         "Couldn't unrehost images",
@@ -115,7 +115,7 @@ const clearRehostedFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["clear-rehosted"].$post(),
+      serverApiClient(context.cookie).api.admin.v1["clear-rehosted"].$post(),
       "Couldn't clear rehosted images",
     );
   });
@@ -125,7 +125,7 @@ const cleanupOrphanedFn = createServerFn({ method: "POST" })
   .handler(
     ({ context }): Promise<{ scanned: number; deleted: number; errors: string[] }> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["cleanup-orphaned"].$post(),
+        serverApiClient(context.cookie).api.admin.v1["cleanup-orphaned"].$post(),
         "Couldn't clean up orphaned images",
       ),
   );
@@ -143,7 +143,7 @@ const migrateDirectoriesFn = createServerFn({ method: "POST" })
       errors: string[];
     }> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["migrate-directories"].$post(),
+        serverApiClient(context.cookie).api.admin.v1["migrate-directories"].$post(),
         "Couldn't migrate directories",
       ),
   );

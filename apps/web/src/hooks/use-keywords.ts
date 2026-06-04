@@ -11,7 +11,7 @@ const fetchKeywordStats = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<KeywordStatsResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["keyword-stats"].$get(),
+        serverApiClient(context.cookie).api.admin.v1["keyword-stats"].$get(),
         "Couldn't load keyword stats",
       ),
   );
@@ -29,7 +29,7 @@ const recomputeKeywordsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(({ context }) =>
     callApiJson(
-      serverApiClient(context.cookie).api.v1.admin["recompute-keywords"].$post(),
+      serverApiClient(context.cookie).api.admin.v1["recompute-keywords"].$post(),
       "Couldn't recompute keywords",
     ),
   );
@@ -49,7 +49,7 @@ const updateKeywordStyleFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.keywords[":name"].$put({
+      serverApiClient(context.cookie).api.admin.v1.keywords[":name"].$put({
         param: encodeParams({ name: data.name }),
         json: { color: data.color, darkText: data.darkText },
       }),
@@ -74,7 +74,7 @@ const createKeywordStyleFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.keywords.$post({
+      serverApiClient(context.cookie).api.admin.v1.keywords.$post({
         json: data,
       }),
       "Couldn't create keyword style",
@@ -98,7 +98,7 @@ const deleteKeywordStyleFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.keywords[":name"].$delete({
+      serverApiClient(context.cookie).api.admin.v1.keywords[":name"].$delete({
         param: encodeParams({ name: data.name }),
       }),
       "Couldn't delete keyword style",
@@ -122,7 +122,7 @@ const discoverTranslationsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(({ context }) =>
     callApiJson(
-      serverApiClient(context.cookie).api.v1.admin["discover-keyword-translations"].$post(),
+      serverApiClient(context.cookie).api.admin.v1["discover-keyword-translations"].$post(),
       "Couldn't discover translations",
     ),
   );
@@ -143,7 +143,7 @@ const upsertTranslationFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["keyword-translations"][":keywordName"][
+      serverApiClient(context.cookie).api.admin.v1["keyword-translations"][":keywordName"][
         ":language"
       ].$put({
         param: encodeParams({ keywordName: data.keywordName, language: data.language }),
@@ -170,7 +170,7 @@ const deleteTranslationFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin["keyword-translations"][":keywordName"][
+      serverApiClient(context.cookie).api.admin.v1["keyword-translations"][":keywordName"][
         ":language"
       ].$delete({
         param: encodeParams({ keywordName: data.keywordName, language: data.language }),

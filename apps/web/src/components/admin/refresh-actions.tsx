@@ -35,7 +35,7 @@ const refreshTcgplayerPricesFn = createServerFn({ method: "POST" })
   .handler(
     ({ context }): Promise<JobRunStartedResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["refresh-tcgplayer-prices"].$post(),
+        serverApiClient(context.cookie).api.admin.v1["refresh-tcgplayer-prices"].$post(),
         "Couldn't start TCGPlayer price refresh",
       ),
   );
@@ -45,7 +45,7 @@ const refreshCardmarketPricesFn = createServerFn({ method: "POST" })
   .handler(
     ({ context }): Promise<JobRunStartedResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["refresh-cardmarket-prices"].$post(),
+        serverApiClient(context.cookie).api.admin.v1["refresh-cardmarket-prices"].$post(),
         "Couldn't start Cardmarket price refresh",
       ),
   );
@@ -55,7 +55,7 @@ const refreshCardtraderPricesFn = createServerFn({ method: "POST" })
   .handler(
     ({ context }): Promise<JobRunStartedResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["refresh-cardtrader-prices"].$post(),
+        serverApiClient(context.cookie).api.admin.v1["refresh-cardtrader-prices"].$post(),
         "Couldn't start CardTrader price refresh",
       ),
   );
@@ -68,7 +68,7 @@ export const getLatestJobRunFn = createServerFn({ method: "GET" })
   .handler(
     ({ context, data }): Promise<JobRunsListResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin["job-runs"].$get({
+        serverApiClient(context.cookie).api.admin.v1["job-runs"].$get({
           query: { kind: data.kind, limit: "1" },
         }),
         "Couldn't fetch job runs",

@@ -22,7 +22,7 @@ const fetchCardBansFn = createServerFn({ method: "GET" })
   .handler(
     ({ context, data }): Promise<{ bans: BanResponse[] }> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin.cards[":id"].bans.$get({
+        serverApiClient(context.cookie).api.admin.v1.cards[":id"].bans.$get({
           param: encodeParams({ id: data.cardId }),
         }),
         "Couldn't load card bans",
@@ -48,7 +48,7 @@ const createCardBanFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards[":id"].bans.$post({
+      serverApiClient(context.cookie).api.admin.v1.cards[":id"].bans.$post({
         param: encodeParams({ id: data.cardId }),
         json: {
           formatId: data.formatId,
@@ -87,7 +87,7 @@ const updateCardBanFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards[":id"].bans.$patch({
+      serverApiClient(context.cookie).api.admin.v1.cards[":id"].bans.$patch({
         param: encodeParams({ id: data.cardId }),
         json: {
           formatId: data.formatId,
@@ -123,7 +123,7 @@ const removeCardBanFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.cards[":id"].bans.$delete({
+      serverApiClient(context.cookie).api.admin.v1.cards[":id"].bans.$delete({
         param: encodeParams({ id: data.cardId }),
         json: { formatId: data.formatId },
       }),

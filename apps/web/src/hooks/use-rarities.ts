@@ -12,7 +12,7 @@ const fetchRarities = createServerFn({ method: "GET" })
   .handler(
     ({ context }): Promise<AdminRaritiesResponse> =>
       callApiJson(
-        serverApiClient(context.cookie).api.v1.admin.rarities.$get(),
+        serverApiClient(context.cookie).api.admin.v1.rarities.$get(),
         "Couldn't load rarities",
       ),
   );
@@ -31,7 +31,7 @@ const createRarityFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.rarities.$post({
+      serverApiClient(context.cookie).api.admin.v1.rarities.$post({
         json: data,
       }),
       "Couldn't create rarity",
@@ -51,7 +51,7 @@ const updateRarityFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.rarities[":slug"].$patch({
+      serverApiClient(context.cookie).api.admin.v1.rarities[":slug"].$patch({
         param: encodeParams({ slug: data.slug }),
         json: { label: data.label, color: data.color },
       }),
@@ -72,7 +72,7 @@ const reorderRaritiesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.rarities.reorder.$put({
+      serverApiClient(context.cookie).api.admin.v1.rarities.reorder.$put({
         json: { slugs: data.slugs },
       }),
       "Couldn't reorder rarities",
@@ -91,7 +91,7 @@ const deleteRarityFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
-      serverApiClient(context.cookie).api.v1.admin.rarities[":slug"].$delete({
+      serverApiClient(context.cookie).api.admin.v1.rarities[":slug"].$delete({
         param: encodeParams({ slug: data.slug }),
       }),
       "Couldn't delete rarity",

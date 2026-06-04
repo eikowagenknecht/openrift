@@ -28,7 +28,7 @@ const app = new Hono()
     c.set("services", {} as never);
     await next();
   })
-  .route("/api/v1", adminRoute)
+  .route("/api/admin/v1", adminRoute)
   .onError((err, c) => {
     if (err instanceof AppError) {
       return c.json({ error: err.message, code: err.code }, err.status as 400);
@@ -40,16 +40,16 @@ const app = new Hono()
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("GET /api/v1/admin/me", () => {
+describe("GET /api/admin/v1/me", () => {
   it("returns 200 with isAdmin true", async () => {
-    const res = await app.request("/api/v1/admin/me");
+    const res = await app.request("/api/admin/v1/me");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual({ isAdmin: true });
   });
 });
 
-describe("GET /api/v1/admin/cron-status", () => {
+describe("GET /api/admin/v1/cron-status", () => {
   const originalCronJobs = { ...cronJobs };
 
   beforeEach(() => {
@@ -67,7 +67,7 @@ describe("GET /api/v1/admin/cron-status", () => {
   });
 
   it("returns all null when no cron jobs are scheduled", async () => {
-    const res = await app.request("/api/v1/admin/cron-status");
+    const res = await app.request("/api/admin/v1/cron-status");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual({
@@ -83,7 +83,7 @@ describe("GET /api/v1/admin/cron-status", () => {
     cronJobs.tcgplayer = { nextRun: () => nextDate } as never;
     cronJobs.cardmarket = { nextRun: () => null } as never;
 
-    const res = await app.request("/api/v1/admin/cron-status");
+    const res = await app.request("/api/admin/v1/cron-status");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual({
@@ -102,7 +102,7 @@ describe("GET /api/v1/admin/cron-status", () => {
     cronJobs.cardmarket = { nextRun: () => date2 } as never;
     cronJobs.cardtrader = { nextRun: () => date3 } as never;
 
-    const res = await app.request("/api/v1/admin/cron-status");
+    const res = await app.request("/api/admin/v1/cron-status");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual({
