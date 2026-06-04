@@ -92,17 +92,17 @@ describe("GET /api/v1/prices", () => {
     expect(json.prices).toBeDefined();
   });
 
-  it("converts market_cents to dollars", async () => {
+  it("emits market_cents as integer cents", async () => {
     const res = await app.request("/api/v1/prices");
     const json = await res.json();
-    expect(json.prices["a0000000-0001-4000-a000-000000000001"]).toEqual({ tcgplayer: 2.75 });
+    expect(json.prices["a0000000-0001-4000-a000-000000000001"]).toEqual({ tcgplayer: 275 });
   });
 
   it("returns one entry per printing", async () => {
     const res = await app.request("/api/v1/prices");
     const json = await res.json();
-    expect(json.prices["a0000000-0001-4000-a000-000000000001"]).toEqual({ tcgplayer: 2.75 });
-    expect(json.prices["a0000000-0001-4000-a000-000000000002"]).toEqual({ tcgplayer: 8 });
+    expect(json.prices["a0000000-0001-4000-a000-000000000001"]).toEqual({ tcgplayer: 275 });
+    expect(json.prices["a0000000-0001-4000-a000-000000000002"]).toEqual({ tcgplayer: 800 });
   });
 
   it("groups multiple marketplaces under the same printing", async () => {
@@ -126,9 +126,9 @@ describe("GET /api/v1/prices", () => {
     const res = await app.request("/api/v1/prices");
     const json = await res.json();
     expect(json.prices["a0000000-0001-4000-a000-000000000001"]).toEqual({
-      tcgplayer: 1,
-      cardmarket: 2,
-      cardtrader: 3,
+      tcgplayer: 100,
+      cardmarket: 200,
+      cardtrader: 300,
     });
   });
 
@@ -202,12 +202,12 @@ describe("GET /api/v1/prices/:printingId/history", () => {
     expect(json.cardmarket.productId).toBe(67_890);
   });
 
-  it("converts snapshot cents to dollars and trims unused fields", async () => {
+  it("emits snapshot prices as integer cents and trims unused fields", async () => {
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
     const json = await res.json();
     expect(json.tcgplayer.snapshots).toHaveLength(1);
-    expect(json.tcgplayer.snapshots[0].market).toBe(2.75);
-    expect(json.tcgplayer.snapshots[0].low).toBe(2);
+    expect(json.tcgplayer.snapshots[0].market).toBe(275);
+    expect(json.tcgplayer.snapshots[0].low).toBe(200);
     // mid/high are no longer returned
     expect(json.tcgplayer.snapshots[0].mid).toBeUndefined();
     expect(json.tcgplayer.snapshots[0].high).toBeUndefined();
@@ -331,7 +331,7 @@ describe("GET /api/v1/prices/:printingId/history", () => {
     expect(json.cardtrader.available).toBe(true);
     expect(json.cardtrader.productId).toBe(99_999);
     expect(json.cardtrader.snapshots).toHaveLength(1);
-    expect(json.cardtrader.snapshots[0].low).toBe(1.5);
+    expect(json.cardtrader.snapshots[0].low).toBe(150);
     expect(json.cardtrader.snapshots[0].market).toBeUndefined();
   });
 
@@ -360,8 +360,8 @@ describe("GET /api/v1/prices/:printingId/history", () => {
     });
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
     const json = await res.json();
-    expect(json.cardmarket.snapshots[0].market).toBe(3);
-    expect(json.cardmarket.snapshots[0].low).toBe(1.5);
+    expect(json.cardmarket.snapshots[0].market).toBe(300);
+    expect(json.cardmarket.snapshots[0].low).toBe(150);
     expect(json.cardmarket.snapshots[0].trend).toBeUndefined();
     expect(json.cardmarket.snapshots[0].avg1).toBeUndefined();
     expect(json.cardmarket.snapshots[0].date).toBe("2026-03-02");
@@ -383,7 +383,7 @@ describe("GET /api/v1/prices/:printingId/history", () => {
     });
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
     const json = await res.json();
-    expect(json.cardmarket.snapshots[0].market).toBe(3);
+    expect(json.cardmarket.snapshots[0].market).toBe(300);
     expect(json.cardmarket.snapshots[0].low).toBeNull();
   });
 

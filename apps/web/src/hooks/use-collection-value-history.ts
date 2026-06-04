@@ -103,6 +103,15 @@ export function useCollectionValueHistory(
           scope: scopeStr,
         },
       }),
+    // The wire carries integer cents (SCH-2); expose major-unit `value` to the
+    // chart at this single boundary so display code stays unit-agnostic.
+    select: (data) => ({
+      series: data.series.map((point) => ({
+        date: point.date,
+        value: point.valueCents / 100,
+        copyCount: point.copyCount,
+      })),
+    }),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }

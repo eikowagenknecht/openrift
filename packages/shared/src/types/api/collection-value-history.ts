@@ -1,6 +1,7 @@
 export interface CollectionValueHistoryPoint {
   date: string;
-  value: number;
+  /** Collection value at this point, in integer cents (SCH-2). */
+  valueCents: number;
   copyCount: number;
 }
 

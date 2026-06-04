@@ -9,12 +9,10 @@ import type {
   Domain,
   Marketplace,
   PriceLookup,
-  PriceMap,
   Printing,
   SuperType,
   TradePreference,
 } from "@openrift/shared";
-import { priceLookupFromMap } from "@openrift/shared";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -116,15 +114,20 @@ export function stubCardViewerItem(
 }
 
 /**
- * Builds a {@link PriceLookup} from a map of `printingId → marketplace → price`.
- * Use in place of attaching prices to test printings — keeps the printing factory
- * decoupled from pricing data.
- * @returns A lookup that resolves prices from the given map.
+ * Builds a {@link PriceLookup} from a map of `printingId → marketplace → price`,
+ * where prices are already in **major units** (the unit app code works in after
+ * the display boundary). Unlike `priceLookupFromMap` — which converts wire cents
+ * (SCH-2) down to major units — this returns values verbatim, so tests can keep
+ * expressing prices as e.g. `{ tcgplayer: 5.5 }`.
+ * @returns A lookup that resolves the given major-unit prices directly.
  */
 export function stubPriceLookup(
   prices: Record<string, Partial<Record<Marketplace, number>>>,
 ): PriceLookup {
-  return priceLookupFromMap(prices as PriceMap);
+  return {
+    get: (printingId, marketplace) => prices[printingId]?.[marketplace],
+    has: (printingId) => prices[printingId] !== undefined,
+  };
 }
 
 /**

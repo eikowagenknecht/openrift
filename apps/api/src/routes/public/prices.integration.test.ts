@@ -274,15 +274,16 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       const res = await app.fetch(req("GET", "/prices"));
       const json = await res.json();
 
-      // mv_latest_printing_prices picks the headline per marketplace:
-      //   tcgplayer  → COALESCE(market_cents, low_cents) = 250 → $2.50
-      //   cardmarket → COALESCE(low_cents, market_cents) = 100 → $1.00
-      //   cardtrader → COALESCE(zero_low_cents, low_cents) = 420 → $4.20
+      // mv_latest_printing_prices picks the headline per marketplace; the wire
+      // carries integer cents (SCH-2):
+      //   tcgplayer  → COALESCE(market_cents, low_cents) = 250
+      //   cardmarket → COALESCE(low_cents, market_cents) = 100
+      //   cardtrader → COALESCE(zero_low_cents, low_cents) = 420
       //     (latest row prefers the one with a zero-eligible low: 2 days ago)
       expect(json.prices[printingId]).toEqual({
-        tcgplayer: 2.5,
-        cardmarket: 1,
-        cardtrader: 4.2,
+        tcgplayer: 250,
+        cardmarket: 100,
+        cardtrader: 420,
       });
     });
 
@@ -384,8 +385,8 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       const snap = json.tcgplayer.snapshots[0];
       expect(snap.date).toBeTypeOf("string");
       expect(typeof snap.market).toBe("number");
-      expect(snap.market).toBe(2.5); // 250 cents
-      expect(snap.low).toBe(1.2); // 120 cents
+      expect(snap.market).toBe(250); // integer cents (SCH-2)
+      expect(snap.low).toBe(120);
       expect(snap.mid).toBeUndefined();
       expect(snap.high).toBeUndefined();
     });
@@ -396,8 +397,8 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
 
       const snap = json.cardmarket.snapshots[0];
       expect(snap.date).toBeTypeOf("string");
-      expect(snap.market).toBe(1.8);
-      expect(snap.low).toBe(1);
+      expect(snap.market).toBe(180);
+      expect(snap.low).toBe(100);
       expect(snap.trend).toBeUndefined();
       expect(snap.avg1).toBeUndefined();
       expect(snap.avg30).toBeUndefined();
@@ -414,9 +415,9 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       // Sort ascending by date, so oldest (5 days ago, no Zero) then newest (2 days ago, with Zero).
       const [older, newer] = json.cardtrader.snapshots;
       expect(older.zeroLow).toBeNull();
-      expect(older.low).toBe(2.8); // 280 cents
-      expect(newer.zeroLow).toBe(4.2); // 420 cents
-      expect(newer.low).toBe(3); // 300 cents — overall low remains cheaper than Zero low
+      expect(older.low).toBe(280); // integer cents (SCH-2)
+      expect(newer.zeroLow).toBe(420);
+      expect(newer.low).toBe(300); // overall low remains cheaper than the Zero low
     });
 
     it("returns Cache-Control header", async () => {

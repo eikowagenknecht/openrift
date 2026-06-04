@@ -4,13 +4,14 @@ import { EMPTY_PRICE_LOOKUP, priceLookupFromMap } from "./price-lookup.js";
 import type { PriceMap } from "./types/api/pricing.js";
 
 describe("priceLookupFromMap", () => {
+  // The map holds integer cents (SCH-2); the lookup returns major units.
   const map: PriceMap = {
-    "p-1": { tcgplayer: 4.5, cardmarket: 3.8 },
-    "p-2": { cardmarket: 1.2 },
+    "p-1": { tcgplayer: 450, cardmarket: 380 },
+    "p-2": { cardmarket: 120 },
   };
   const lookup = priceLookupFromMap(map);
 
-  it("returns the price for a known printing and marketplace", () => {
+  it("returns the price (in major units) for a known printing and marketplace", () => {
     expect(lookup.get("p-1", "tcgplayer")).toBe(4.5);
     expect(lookup.get("p-1", "cardmarket")).toBe(3.8);
     expect(lookup.get("p-2", "cardmarket")).toBe(1.2);

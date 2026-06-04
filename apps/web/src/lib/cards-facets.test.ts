@@ -126,16 +126,17 @@ describe("extractCatalogFacets", () => {
       "p-2": makePrinting({ shortCode: "OGN-002" }),
       "p-3": makePrinting({ shortCode: "OGN-003" }),
     };
+    // Wire prices are integer cents (SCH-2); the facet extractor divides by 100.
     const prices: PricesResponse = {
       prices: {
-        "p-1": { cardtrader: 1.5, tcgplayer: 999, cardmarket: 50 },
-        "p-2": { cardtrader: 12.3 },
-        "p-3": { tcgplayer: 7.5 },
+        "p-1": { cardtrader: 150, tcgplayer: 99_900, cardmarket: 5000 },
+        "p-2": { cardtrader: 1230 },
+        "p-3": { tcgplayer: 750 },
       },
     };
     const facets = extractCatalogFacets(makeCatalog(cards, printings), prices, ORDERS);
 
-    // boundsOf snaps min down and max up to whole numbers.
+    // boundsOf snaps min down and max up to whole numbers (major units: 1.5 … 12.3).
     expect(facets.price).toEqual({ min: 1, max: 13 });
   });
 

@@ -1,5 +1,10 @@
 import type { Marketplace } from "../pricing.js";
 
+/**
+ * Latest headline price per printing per marketplace, in integer **cents**
+ * (SCH-2). Currency is implied by the marketplace — see `MARKETPLACE_CURRENCY`.
+ * Consumers convert to major units at the display boundary (`priceLookupFromMap`).
+ */
 export type PriceMap = Record<string, Partial<Record<Marketplace, number>>>;
 
 export interface PricesResponse {
@@ -16,6 +21,8 @@ export interface PriceLookup {
   has(printingId: string): boolean;
 }
 
+// All snapshot price fields below are integer cents (SCH-2); the web converts
+// to major units at the usePriceHistory boundary.
 export interface TcgplayerSnapshot {
   date: string;
   market: number;

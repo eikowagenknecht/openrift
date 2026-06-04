@@ -1,5 +1,4 @@
 import { createRoute } from "@hono/zod-openapi";
-import { centsToDollars } from "@openrift/shared";
 import type {
   CatalogCardResponse,
   CatalogPrintingResponse,
@@ -89,7 +88,7 @@ export const promosRoute = promosApp.openapi(getPromos, async (c) => {
       entry = {};
       prices[row.printingId] = entry;
     }
-    entry[row.marketplace as Marketplace] = centsToDollars(row.marketCents);
+    entry[row.marketplace as Marketplace] = row.marketCents; // SCH-2: integer cents
   }
 
   const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);

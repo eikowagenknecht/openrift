@@ -1,5 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
-import { centsToDollars, ERROR_CODES } from "@openrift/shared";
+import { ERROR_CODES } from "@openrift/shared";
 import type {
   CatalogCardResponse,
   CatalogPrintingResponse,
@@ -77,7 +77,7 @@ export const cardsRoute = cardsApp
         entry = {};
         prices[row.printingId] = entry;
       }
-      entry[row.marketplace as Marketplace] = centsToDollars(row.marketCents);
+      entry[row.marketplace as Marketplace] = row.marketCents; // SCH-2: integer cents
     }
 
     // Build images lookup

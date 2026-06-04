@@ -1,5 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
-import { TIME_RANGE_DAYS, centsToDollars } from "@openrift/shared";
+import { TIME_RANGE_DAYS } from "@openrift/shared";
 import type { TimeRange } from "@openrift/shared";
 import { collectionValueHistoryResponseSchema } from "@openrift/shared/response-schemas";
 import { collectionValueHistoryQuerySchema } from "@openrift/shared/schemas";
@@ -59,7 +59,7 @@ export const collectionValueHistoryRoute = collectionValueHistoryApp.openapi(
     return c.json({
       series: series.map((point) => ({
         date: point.date,
-        value: centsToDollars(point.valueCents),
+        valueCents: point.valueCents, // SCH-2: integer cents
         copyCount: point.copyCount,
       })),
     });

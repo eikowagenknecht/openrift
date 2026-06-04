@@ -1,5 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
-import { TIME_RANGE_DAYS, centsToDollars, formatDateUTC } from "@openrift/shared";
+import { TIME_RANGE_DAYS, formatDateUTC } from "@openrift/shared";
 import type {
   Marketplace,
   MarketplaceInfo,
@@ -91,7 +91,8 @@ export const pricesRoute = pricesApp
         entry = {};
         prices[row.printingId] = entry;
       }
-      entry[row.marketplace as Marketplace] = centsToDollars(row.marketCents);
+      // SCH-2: emit integer cents; the web converts at the display boundary.
+      entry[row.marketplace as Marketplace] = row.marketCents;
     }
 
     c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
@@ -150,8 +151,8 @@ export const pricesRoute = pricesApp
       }
       tcgSnapshots.push({
         date: formatDateUTC(r.recordedAt),
-        market: centsToDollars(r.marketCents),
-        low: centsToDollars(r.lowCents),
+        market: r.marketCents,
+        low: r.lowCents,
       });
     }
 
@@ -163,8 +164,8 @@ export const pricesRoute = pricesApp
       }
       cmSnapshots.push({
         date: formatDateUTC(r.recordedAt),
-        market: centsToDollars(market),
-        low: centsToDollars(r.lowCents),
+        market,
+        low: r.lowCents,
       });
     }
 
@@ -175,8 +176,8 @@ export const pricesRoute = pricesApp
       }
       ctSnapshots.push({
         date: formatDateUTC(r.recordedAt),
-        zeroLow: centsToDollars(r.zeroLowCents),
-        low: centsToDollars(r.lowCents),
+        zeroLow: r.zeroLowCents,
+        low: r.lowCents,
       });
     }
 

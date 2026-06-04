@@ -29,7 +29,39 @@ export function usePriceHistory(printingId: string | null, range: TimeRange = "3
         // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- guarded by enabled: Boolean(printingId)
         data: { printingId: printingId!, range },
       }),
+    // Snapshot prices are integer cents on the wire (SCH-2); convert to major
+    // units here so the charts keep working in the same unit as before.
+    select: (data): PriceHistoryResponse => ({
+      tcgplayer: {
+        ...data.tcgplayer,
+        snapshots: data.tcgplayer.snapshots.map((s) => ({
+          date: s.date,
+          market: s.market / 100,
+          low: centsToMajor(s.low),
+        })),
+      },
+      cardmarket: {
+        ...data.cardmarket,
+        snapshots: data.cardmarket.snapshots.map((s) => ({
+          date: s.date,
+          market: s.market / 100,
+          low: centsToMajor(s.low),
+        })),
+      },
+      cardtrader: {
+        ...data.cardtrader,
+        snapshots: data.cardtrader.snapshots.map((s) => ({
+          date: s.date,
+          zeroLow: centsToMajor(s.zeroLow),
+          low: centsToMajor(s.low),
+        })),
+      },
+    }),
     enabled: Boolean(printingId),
     staleTime: 60 * 60 * 1000, // 1 hour
   });
+}
+
+function centsToMajor(cents: number | null): number | null {
+  return cents === null ? null : cents / 100;
 }

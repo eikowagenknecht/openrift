@@ -1,4 +1,5 @@
 import type { CardDetailResponse, Marketplace } from "@openrift/shared";
+import { MARKETPLACE_CURRENCY } from "@openrift/shared";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { z } from "zod";
 
@@ -28,10 +29,13 @@ interface CardDetailLoaderData {
   cardTypeLabels: Record<string, string>;
 }
 
+// Currency is sourced from the shared MARKETPLACE_CURRENCY map (SCH-2) so the
+// JSON-LD offer currency stays in lockstep with how the rest of the app labels
+// each marketplace's cents.
 const MARKETPLACE_OFFER_CONFIG: { key: Marketplace; seller: string; currency: string }[] = [
-  { key: "tcgplayer", seller: "TCGplayer", currency: "USD" },
-  { key: "cardmarket", seller: "Cardmarket", currency: "EUR" },
-  { key: "cardtrader", seller: "CardTrader", currency: "EUR" },
+  { key: "tcgplayer", seller: "TCGplayer", currency: MARKETPLACE_CURRENCY.tcgplayer },
+  { key: "cardmarket", seller: "Cardmarket", currency: MARKETPLACE_CURRENCY.cardmarket },
+  { key: "cardtrader", seller: "CardTrader", currency: MARKETPLACE_CURRENCY.cardtrader },
 ];
 
 export const Route = createFileRoute("/_app/cards_/$cardSlug")({
@@ -88,7 +92,15 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
       if (prices.length === 0) {
         return [];
       }
-      return [{ seller, currency, priceLow: Math.min(...prices), priceHigh: Math.max(...prices) }];
+      // Inlined prices are integer cents (SCH-2); JSON-LD offers want major units.
+      return [
+        {
+          seller,
+          currency,
+          priceLow: Math.min(...prices) / 100,
+          priceHigh: Math.max(...prices) / 100,
+        },
+      ];
     });
 
     return {

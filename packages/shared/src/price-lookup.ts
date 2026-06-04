@@ -2,12 +2,19 @@ import type { PriceLookup, PriceMap } from "./types/api/pricing.js";
 
 /**
  * Build a {@link PriceLookup} backed by a {@link PriceMap}.
- * @returns A lookup that reads directly from the given map.
+ *
+ * The wire {@link PriceMap} holds integer **cents** (SCH-2). This lookup is the
+ * single boundary where prices cross into the web's display/arithmetic layer,
+ * so it returns major-currency-unit floats (cents / 100) — every `get()`
+ * consumer (collection stats, price ranges, list value, etc.) keeps working in
+ * the same unit as before the cents migration.
+ * @returns A lookup that converts the map's cents to major-unit floats.
  */
 export function priceLookupFromMap(map: PriceMap): PriceLookup {
   return {
     get(printingId, marketplace) {
-      return map[printingId]?.[marketplace];
+      const cents = map[printingId]?.[marketplace];
+      return cents === undefined ? undefined : cents / 100;
     },
     has(printingId) {
       return map[printingId] !== undefined;
