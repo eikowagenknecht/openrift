@@ -1,4 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
+import type { UserPreferencesResponse } from "@openrift/shared";
 import { userPreferencesResponseSchema } from "@openrift/shared/response-schemas";
 import { updatePreferencesSchema } from "@openrift/shared/schemas";
 
@@ -6,6 +7,26 @@ import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { createApiApp } from "../../openapi.js";
 import type { PartialPreferences } from "../../repositories/user-preferences.js";
+
+/**
+ * Project stored preferences to the declared DTO. The JSONB `data`
+ * column is cast, not validated, on read, so map it through an explicit pick so
+ * only the documented fields reach the wire — no stray persisted keys leak.
+ * @returns The user preferences in the {@link userPreferencesResponseSchema} shape.
+ */
+function toUserPreferences(data: UserPreferencesResponse): UserPreferencesResponse {
+  return {
+    showImages: data.showImages,
+    fancyFan: data.fancyFan,
+    foilEffect: data.foilEffect,
+    cardTilt: data.cardTilt,
+    theme: data.theme,
+    palette: data.palette,
+    marketplaceOrder: data.marketplaceOrder,
+    defaultCardView: data.defaultCardView,
+    defaultCurrency: data.defaultCurrency,
+  };
+}
 
 const getPreferences = createRoute({
   method: "get",
@@ -40,7 +61,7 @@ export const preferencesRoute = preferencesApp
   .openapi(getPreferences, async (c) => {
     const { userPreferences } = c.get("repos");
     const row = await userPreferences.getByUserId(getUserId(c));
-    return c.json(row?.data ?? {});
+    return c.json(toUserPreferences(row?.data ?? {}));
   })
 
   .openapi(updatePreferences, async (c) => {
@@ -49,5 +70,5 @@ export const preferencesRoute = preferencesApp
       getUserId(c),
       c.req.valid("json") as PartialPreferences,
     );
-    return c.json(result);
+    return c.json(toUserPreferences(result));
   });
