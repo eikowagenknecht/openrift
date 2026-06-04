@@ -7,7 +7,7 @@ import { z } from "zod";
 import { createApiApp } from "../../openapi.js";
 import { buildCopiesCursor, clampCopiesLimit } from "../../repositories/copies.js";
 import { assertFound } from "../../utils/assertions.js";
-import { toCopy, toPublicCollection } from "../../utils/mappers.js";
+import { toPublicCollection, toPublicCopy } from "../../utils/mappers.js";
 import { getFavoriteMarketplace } from "../../utils/preferences.js";
 
 const shareTokenParamSchema = z.object({
@@ -53,7 +53,7 @@ export const publicCollectionsRoute = createApiApp().openapi(
 
     const response: PublicCollectionDetailResponse = {
       collection: toPublicCollection(found.collection, value),
-      copies: items.map((row) => toCopy(row)),
+      copies: items.map((row) => toPublicCopy(row)),
       nextCursor: hasMore && lastItem ? buildCopiesCursor(lastItem.createdAt, lastItem.id) : null,
       owner: { displayName: found.ownerName ?? "Anonymous" },
     };

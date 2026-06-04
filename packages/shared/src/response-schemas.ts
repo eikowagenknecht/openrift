@@ -531,10 +531,22 @@ export const copyListResponseSchema = z
  */
 export const copyAddResponseSchema = z.array(copyResponseSchema).openapi("CopyAddResponse");
 
+/**
+ * Copy projection for anonymous share viewers — deliberately narrower than
+ * {@link copyResponseSchema}: `groupId`/`collectionId` are owner-internal and
+ * are withheld from unauthenticated viewers (CPL-1).
+ */
+export const publicCopyResponseSchema = z
+  .object({
+    id: z.string(),
+    printingId: z.string(),
+  })
+  .openapi("PublicCopyResponse");
+
 export const publicCollectionDetailResponseSchema = z
   .object({
     collection: publicCollectionResponseSchema,
-    copies: z.array(copyResponseSchema),
+    copies: z.array(publicCopyResponseSchema),
     nextCursor: z.string().nullable(),
     owner: z.object({ displayName: z.string() }),
   })
@@ -897,7 +909,7 @@ const publicUserBundleListResponseSchema = z
     intent: listIntentSchema,
     kind: listKindSchema,
     entryCount: z.number().int().nonnegative(),
-    isPubliclyShared: z.boolean(),
+    isPublic: z.boolean(),
     viaGroups: z.array(
       z.object({
         id: z.string(),

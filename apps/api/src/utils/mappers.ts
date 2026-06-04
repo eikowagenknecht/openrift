@@ -3,6 +3,7 @@ import type {
   CollectionEventResponse,
   CollectionResponse,
   CopyResponse,
+  PublicCopyResponse,
   DeckAvailabilityItemResponse,
   DeckCardResponse,
   DeckResponse,
@@ -372,6 +373,18 @@ export function toCopy(row: {
     printingId: row.printingId,
     collectionId: row.collectionId,
     groupId: row.groupId,
+  };
+}
+
+/**
+ * Maps a copy row to the narrower public projection for anonymous share
+ * viewers — withholds the owner-internal `groupId`/`collectionId` (CPL-1).
+ * @returns The serialized public copy response.
+ */
+export function toPublicCopy(row: { id: string; printingId: string }): PublicCopyResponse {
+  return {
+    id: row.id,
+    printingId: row.printingId,
   };
 }
 

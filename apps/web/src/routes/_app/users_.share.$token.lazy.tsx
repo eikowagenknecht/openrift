@@ -167,7 +167,7 @@ function BundleListRow({
 function VisibilityBadges({ list }: { list: PublicUserBundleListResponse }) {
   return (
     <>
-      {list.isPubliclyShared ? (
+      {list.isPublic ? (
         <Badge variant="outline" className="text-2xs gap-1" title="Has a public share link">
           <GlobeIcon className="size-3" />
           Public

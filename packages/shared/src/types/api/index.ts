@@ -47,6 +47,7 @@ export type {
   CopyResponse,
   PublicCollectionDetailResponse,
   PublicCollectionResponse,
+  PublicCopyResponse,
 } from "./collection.js";
 
 export type {

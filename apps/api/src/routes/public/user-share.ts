@@ -87,7 +87,7 @@ export const publicUserShareRoute = publicUserShareApp
         intent: list.intent,
         kind: list.kind,
         entryCount,
-        isPubliclyShared: list.shareToken !== null,
+        isPublic: list.shareToken !== null,
         viaGroups,
         createdAt: list.createdAt.toISOString(),
         updatedAt: list.updatedAt.toISOString(),

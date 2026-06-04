@@ -35,9 +35,20 @@ export interface PublicCollectionResponse {
 
 export interface PublicCollectionDetailResponse {
   collection: PublicCollectionResponse;
-  copies: CopyResponse[];
+  copies: PublicCopyResponse[];
   nextCursor: string | null;
   owner: { displayName: string };
+}
+
+/**
+ * A copy as seen by an anonymous share viewer. Deliberately narrower than
+ * {@link CopyResponse}: `groupId` and `collectionId` are owner-internal and are
+ * not exposed to unauthenticated viewers (CPL-1). Public consumers only need
+ * the printing to tally counts.
+ */
+export interface PublicCopyResponse {
+  id: string;
+  printingId: string;
 }
 
 export interface CollectionShareResponse {

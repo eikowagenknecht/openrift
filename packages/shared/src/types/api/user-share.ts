@@ -9,7 +9,7 @@ export interface UserShareStateResponse {
 }
 
 /**
- * One row in the bundle's public index. `isPubliclyShared` is true when the
+ * One row in the bundle's public index. `isPublic` is true when the
  * list has its own per-list public share token. `viaGroups` lists the friend
  * groups the viewer is a member of that the list is shared with — empty for
  * anonymous viewers, populated for authenticated viewers. At least one of
@@ -22,7 +22,7 @@ export interface PublicUserBundleListResponse {
   intent: ListIntent;
   kind: ListKind;
   entryCount: number;
-  isPubliclyShared: boolean;
+  isPublic: boolean;
   viaGroups: { id: string; slug: string; name: string }[];
   createdAt: string;
   updatedAt: string;

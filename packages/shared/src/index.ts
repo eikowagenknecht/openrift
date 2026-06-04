@@ -48,6 +48,7 @@ export type {
   CopyResponse,
   PublicCollectionDetailResponse,
   PublicCollectionResponse,
+  PublicCopyResponse,
   DeckAvailabilityItemResponse,
   DeckAvailabilityResponse,
   DeckCardResponse,
