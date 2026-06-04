@@ -4,7 +4,7 @@ import { EMPTY_PRICE_LOOKUP, priceLookupFromMap } from "./price-lookup.js";
 import type { PriceMap } from "./types/api/pricing.js";
 
 describe("priceLookupFromMap", () => {
-  // The map holds integer cents (SCH-2); the lookup returns major units.
+  // The map holds integer cents; the lookup returns major units.
   const map: PriceMap = {
     "p-1": { tcgplayer: 450, cardmarket: 380 },
     "p-2": { cardmarket: 120 },

@@ -29,7 +29,7 @@ export function usePriceHistory(printingId: string | null, range: TimeRange = "3
         // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- guarded by enabled: Boolean(printingId)
         data: { printingId: printingId!, range },
       }),
-    // Snapshot prices are integer cents on the wire (SCH-2); convert to major
+    // Snapshot prices are integer cents on the wire; convert to major
     // units here so the charts keep working in the same unit as before.
     select: (data): PriceHistoryResponse => ({
       tcgplayer: {

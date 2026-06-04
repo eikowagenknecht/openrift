@@ -378,7 +378,7 @@ export function toCopy(row: {
 
 /**
  * Maps a copy row to the narrower public projection for anonymous share
- * viewers — withholds the owner-internal `groupId`/`collectionId` (CPL-1).
+ * viewers — withholds the owner-internal `groupId`/`collectionId`.
  * @returns The serialized public copy response.
  */
 export function toPublicCopy(row: { id: string; printingId: string }): PublicCopyResponse {

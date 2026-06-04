@@ -126,7 +126,7 @@ describe("extractCatalogFacets", () => {
       "p-2": makePrinting({ shortCode: "OGN-002" }),
       "p-3": makePrinting({ shortCode: "OGN-003" }),
     };
-    // Wire prices are integer cents (SCH-2); the facet extractor divides by 100.
+    // Wire prices are integer cents; the facet extractor divides by 100.
     const prices: PricesResponse = {
       prices: {
         "p-1": { cardtrader: 150, tcgplayer: 99_900, cardmarket: 5000 },

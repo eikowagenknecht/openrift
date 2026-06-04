@@ -8,7 +8,7 @@ export const EUR_MARKETPLACES: ReadonlySet<Marketplace> = new Set(["cardmarket",
 
 /**
  * The currency each marketplace reports prices in. Prices on the wire are
- * integer cents (SCH-2) and carry no currency of their own, so this is the
+ * integer cents and carry no currency of their own, so this is the
  * single source of truth for which currency a marketplace's cents are in.
  */
 export const MARKETPLACE_CURRENCY: Record<Marketplace, Currency> = {

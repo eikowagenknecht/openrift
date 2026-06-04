@@ -275,7 +275,7 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       const json = await res.json();
 
       // mv_latest_printing_prices picks the headline per marketplace; the wire
-      // carries integer cents (SCH-2):
+      // carries integer cents:
       //   tcgplayer  → COALESCE(market_cents, low_cents) = 250
       //   cardmarket → COALESCE(low_cents, market_cents) = 100
       //   cardtrader → COALESCE(zero_low_cents, low_cents) = 420
@@ -385,7 +385,7 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       const snap = json.tcgplayer.snapshots[0];
       expect(snap.date).toBeTypeOf("string");
       expect(typeof snap.market).toBe("number");
-      expect(snap.market).toBe(250); // integer cents (SCH-2)
+      expect(snap.market).toBe(250); // integer cents
       expect(snap.low).toBe(120);
       expect(snap.mid).toBeUndefined();
       expect(snap.high).toBeUndefined();
@@ -415,7 +415,7 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       // Sort ascending by date, so oldest (5 days ago, no Zero) then newest (2 days ago, with Zero).
       const [older, newer] = json.cardtrader.snapshots;
       expect(older.zeroLow).toBeNull();
-      expect(older.low).toBe(280); // integer cents (SCH-2)
+      expect(older.low).toBe(280); // integer cents
       expect(newer.zeroLow).toBe(420);
       expect(newer.low).toBe(300); // overall low remains cheaper than the Zero low
     });

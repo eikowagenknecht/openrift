@@ -91,7 +91,7 @@ export const pricesRoute = pricesApp
         entry = {};
         prices[row.printingId] = entry;
       }
-      // SCH-2: emit integer cents; the web converts at the display boundary.
+      // emit integer cents; the web converts at the display boundary.
       entry[row.marketplace as Marketplace] = row.marketCents;
     }
 

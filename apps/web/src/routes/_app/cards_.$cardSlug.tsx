@@ -35,12 +35,12 @@ interface CardDetailLoaderData {
   languageOrder: readonly string[];
   domainLabels: Record<string, string>;
   cardTypeLabels: Record<string, string>;
-  // Precomputed in the loader from the /prices resource (CACHE-1): prices are no
+  // Precomputed in the loader from the /prices resource: prices are no
   // longer inlined on CardDetailResponse, so the SSR head can't derive these.
   marketplaceOffers: MarketplaceOffer[];
 }
 
-// Currency is sourced from the shared MARKETPLACE_CURRENCY map (SCH-2) so the
+// Currency is sourced from the shared MARKETPLACE_CURRENCY map so the
 // JSON-LD offer currency stays in lockstep with how the rest of the app labels
 // each marketplace's cents.
 const MARKETPLACE_OFFER_CONFIG: { key: Marketplace; seller: string; currency: string }[] = [
@@ -93,7 +93,7 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
     });
 
     // Schema.org Product/Offer JSON-LD. Prices are no longer inlined on the card
-    // response (CACHE-1); the loader precomputes the per-marketplace offers from
+    // response; the loader precomputes the per-marketplace offers from
     // the /prices resource so they're available synchronously at SSR time for
     // crawlers that don't execute JS.
     return {
@@ -142,7 +142,7 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
     // re-parse with the schema to recover `printingId` in a type-safe way.
     const { printingId } = cardDetailSearchSchema.parse(location.search);
 
-    // Prices come from the /prices resource now (CACHE-1), not inlined on the
+    // Prices come from the /prices resource now, not inlined on the
     // card response. They're SEO-only here, so a price-fetch failure must not
     // break the card page — fall back to no offers.
     let pricesResponse: PricesResponse;
@@ -153,7 +153,7 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
     }
     const priceLookup = priceLookupFromMap(pricesResponse.prices);
     const marketplaceOffers = MARKETPLACE_OFFER_CONFIG.flatMap(({ key, seller, currency }) => {
-      // priceLookup returns major units (SCH-2 cents are converted at this boundary).
+      // priceLookup returns major units (cents are converted at this boundary).
       const prices = data.printings
         .map((printing) => priceLookup.get(printing.id, key))
         .filter((price): price is number => price !== undefined && price > 0);

@@ -39,8 +39,8 @@ export const renameSchema = z.object({
 });
 
 // The `field` enums ARE the allowlist of acceptable fields — they replace the
-// hand-maintained `allowedFields` Sets the handlers used to check at runtime
-// (REST-6). Each enum lists exactly the columns the corresponding accept-field
+// hand-maintained `allowedFields` Sets the handlers used to check at runtime.
+// Each enum lists exactly the columns the corresponding accept-field
 // handler knows how to write. `value` stays unknown and is validated per-field
 // against {card,printing}FieldRules (plus the handler's junction-table cases).
 export const acceptCardFieldSchema = z.object({

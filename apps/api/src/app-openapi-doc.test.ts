@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
 
 // ---------------------------------------------------------------------------
-// VER-1 doc split: the public spec (/api/doc) must exclude the admin surface,
+// Doc split: the public spec (/api/doc) must exclude the admin surface,
 // and the admin spec (/api/admin/doc) must contain only it. Doc generation only
 // reads static route metadata, so minimal mock deps are enough to boot the app.
 // ---------------------------------------------------------------------------
@@ -41,7 +41,7 @@ async function fetchDoc(
   return res.json() as Promise<{ paths: Record<string, unknown>; info: { title: string } }>;
 }
 
-describe("OpenAPI doc split (VER-1)", () => {
+describe("OpenAPI doc split", () => {
   it("public /api/doc excludes the admin surface", async () => {
     const doc = await fetchDoc("/api/doc");
     const paths = Object.keys(doc.paths);

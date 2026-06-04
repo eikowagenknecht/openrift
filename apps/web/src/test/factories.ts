@@ -117,7 +117,7 @@ export function stubCardViewerItem(
  * Builds a {@link PriceLookup} from a map of `printingId → marketplace → price`,
  * where prices are already in **major units** (the unit app code works in after
  * the display boundary). Unlike `priceLookupFromMap` — which converts wire cents
- * (SCH-2) down to major units — this returns values verbatim, so tests can keep
+ * down to major units — this returns values verbatim, so tests can keep
  * expressing prices as e.g. `{ tcgplayer: 5.5 }`.
  * @returns A lookup that resolves the given major-unit prices directly.
  */

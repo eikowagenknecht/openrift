@@ -30,7 +30,7 @@ export type PatchCandidatePrintingBody = InferRequestType<
 export type AcceptPrintingBody = InferRequestType<
   Client["api"]["admin"]["v1"]["cards"][":cardId"]["accept-printing"]["$post"]
 >["json"];
-// accept-field `field` is a typed enum on the wire (REST-6). The admin
+// accept-field `field` is a typed enum on the wire. The admin
 // field-editor passes a dynamic string key, cast to this enum at the boundary.
 export type AcceptCardFieldBody = InferRequestType<
   Client["api"]["admin"]["v1"]["cards"][":cardId"]["accept-field"]["$post"]

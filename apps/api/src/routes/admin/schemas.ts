@@ -301,7 +301,7 @@ export const saveMappingsSchema = z.object({
 });
 
 // DELETE /marketplace-mappings addresses the variant binding by its composite
-// SKU key via query params (REST-5) — externalId is coerced from its string
+// SKU key via query params — externalId is coerced from its string
 // form, and an omitted `language` means null (CM/TCG have no language axis).
 export const unmapQuerySchema = z.object({
   marketplace: z.enum(["tcgplayer", "cardmarket", "cardtrader"]),
@@ -324,7 +324,7 @@ export const stagingCardOverrideSchema = z.object({
 });
 
 // DELETE /staging-card-overrides addresses the override by its product SKU via
-// query params (REST-5); externalId is coerced and an omitted `language` is null.
+// query params; externalId is coerced and an omitted `language` is null.
 export const deleteOverrideQuerySchema = z.object({
   marketplace: z.enum(["tcgplayer", "cardmarket", "cardtrader"]),
   externalId: z.coerce.number(),

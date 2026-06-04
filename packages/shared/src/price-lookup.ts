@@ -3,7 +3,7 @@ import type { PriceLookup, PriceMap } from "./types/api/pricing.js";
 /**
  * Build a {@link PriceLookup} backed by a {@link PriceMap}.
  *
- * The wire {@link PriceMap} holds integer **cents** (SCH-2). This lookup is the
+ * The wire {@link PriceMap} holds integer **cents**. This lookup is the
  * single boundary where prices cross into the web's display/arithmetic layer,
  * so it returns major-currency-unit floats (cents / 100) — every `get()`
  * consumer (collection stats, price ranges, list value, etc.) keeps working in

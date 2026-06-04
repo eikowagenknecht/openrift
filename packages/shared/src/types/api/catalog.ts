@@ -73,7 +73,7 @@ export interface CardDetailResponse {
   card: CatalogCardResponse;
   printings: CatalogPrintingResponse[];
   sets: CatalogSetResponse[];
-  // CACHE-1: prices are not inlined; read them from the /prices resource.
+  // prices are not inlined; read them from the /prices resource.
 }
 
 export interface SetListEntry extends CatalogSetResponse {
@@ -90,7 +90,7 @@ export interface SetDetailResponse {
   set: CatalogSetResponse;
   cards: Record<string, CatalogCardResponse>;
   printings: CatalogPrintingResponse[];
-  // CACHE-1: prices are not inlined; read them from the /prices resource.
+  // prices are not inlined; read them from the /prices resource.
 }
 
 /**
@@ -102,7 +102,7 @@ export interface PromosListResponse {
   channels: DistributionChannelWithCount[];
   cards: Record<string, CatalogCardResponse>;
   printings: CatalogPrintingResponse[];
-  // CACHE-1: prices are not inlined; read them from the /prices resource.
+  // prices are not inlined; read them from the /prices resource.
 }
 
 interface SitemapEntry {

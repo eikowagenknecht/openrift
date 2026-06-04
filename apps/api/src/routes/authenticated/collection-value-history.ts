@@ -59,7 +59,7 @@ export const collectionValueHistoryRoute = collectionValueHistoryApp.openapi(
     return c.json({
       series: series.map((point) => ({
         date: point.date,
-        valueCents: point.valueCents, // SCH-2: integer cents
+        valueCents: point.valueCents, // integer cents
         copyCount: point.copyCount,
       })),
     });

@@ -394,7 +394,7 @@ export const cardDetailResponseSchema = z
     card: catalogCardResponseSchema,
     printings: z.array(catalogPrintingResponseSchema),
     sets: z.array(catalogSetResponseSchema),
-    // CACHE-1: prices are NOT inlined — read them from the /prices resource.
+    // prices are NOT inlined — read them from the /prices resource.
   })
   .openapi("CardDetailResponse");
 
@@ -415,7 +415,7 @@ export const setDetailResponseSchema = z
     set: catalogSetResponseSchema,
     cards: z.record(z.string(), catalogCardResponseSchema),
     printings: z.array(catalogPrintingResponseSchema),
-    // CACHE-1: prices are NOT inlined — read them from the /prices resource.
+    // prices are NOT inlined — read them from the /prices resource.
   })
   .openapi("SetDetailResponse");
 
@@ -431,7 +431,7 @@ export const promosListResponseSchema = z
     channels: z.array(distributionChannelWithCountSchema),
     cards: z.record(z.string(), catalogCardResponseSchema),
     printings: z.array(catalogPrintingResponseSchema),
-    // CACHE-1: prices are NOT inlined — read them from the /prices resource.
+    // prices are NOT inlined — read them from the /prices resource.
   })
   .openapi("PromosListResponse");
 
@@ -534,7 +534,7 @@ export const copyAddResponseSchema = z.array(copyResponseSchema).openapi("CopyAd
 /**
  * Copy projection for anonymous share viewers — deliberately narrower than
  * {@link copyResponseSchema}: `groupId`/`collectionId` are owner-internal and
- * are withheld from unauthenticated viewers (CPL-1).
+ * are withheld from unauthenticated viewers.
  */
 export const publicCopyResponseSchema = z
   .object({

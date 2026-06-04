@@ -307,7 +307,7 @@ export function createApp(deps: AppDeps) {
   // middleware explicitly. Truly-public routes skip the lookup entirely.
 
   // ── OpenAPI spec & Swagger UI ──────────────────────────────────────────
-  // VER-1: the public and admin surfaces get separate OpenAPI documents so the
+  // the public and admin surfaces get separate OpenAPI documents so the
   // ~150 admin operations don't pollute the public spec. Both are generated
   // from the same app (one AppType) and split by their /api/admin/ path prefix.
   const ADMIN_DOC_PREFIX = "/api/admin/";
@@ -401,7 +401,7 @@ export function createApp(deps: AppDeps) {
       .route("/api/v1", friendGroupsRoute)
 
       // ── Admin routes (require admin role) ────────────────────────────────
-      // VER-1: mounted under /api/admin/v1 (not /api/v1/admin) so admin churn is
+      // mounted under /api/admin/v1 (not /api/v1/admin) so admin churn is
       // decoupled from the public v1 contract.
       .route("/api/admin/v1", adminRoute)
   );

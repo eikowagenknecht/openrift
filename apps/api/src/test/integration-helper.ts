@@ -19,7 +19,7 @@ export function req(method: string, path: string, body?: unknown): Request {
 
 /**
  * Like {@link req}, but targets the admin surface mounted at /api/admin/v1
- * (VER-1) instead of the public /api/v1. Pass the path WITHOUT the admin base,
+ * instead of the public /api/v1. Pass the path WITHOUT the admin base,
  * e.g. `adminReq("GET", "/me")` → `/api/admin/v1/me`.
  * @returns A Request aimed at the admin API base.
  */
