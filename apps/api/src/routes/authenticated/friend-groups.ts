@@ -1,4 +1,4 @@
-import { createRoute } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
 import type {
   FriendGroupCollectionShareResponse,
@@ -230,6 +230,9 @@ const createGroup = createRoute({
   },
   responses: {
     201: {
+      headers: z.object({
+        Location: z.string().openapi({ description: "URL of the created friend group" }),
+      }),
       content: { "application/json": { schema: friendGroupResponseSchema } },
       description: "Created",
     },
@@ -625,6 +628,7 @@ export const friendGroupsRoute = friendGroupsApp
       },
       userId,
     );
+    c.header("Location", `/api/v1/friend-groups/${group.slug}`);
     return c.json(toGroup(group, true), 201);
   })
 

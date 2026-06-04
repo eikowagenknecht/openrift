@@ -1,4 +1,4 @@
-import { createRoute } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
 import type {
   CollectionListResponse,
@@ -62,6 +62,12 @@ const createCollection = createRoute({
   },
   responses: {
     201: {
+      headers: z.object({
+        Location: z.string().openapi({
+          description: "URL of the created collection",
+          example: "/api/v1/collections/019cfc3b-0000-7000-8000-000000000000",
+        }),
+      }),
       content: { "application/json": { schema: collectionResponseSchema } },
       description: "Created",
     },
@@ -273,6 +279,7 @@ export const collectionsRoute = collectionsApp
       availableForDeckbuilding = false;
     }
 
+    c.header("Location", `/api/v1/collections/${row.id}`);
     return c.json(
       toCollection({
         ...row,

@@ -1,4 +1,4 @@
-import { createRoute } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
 import type {
   ListBulkAddResponse,
@@ -62,6 +62,9 @@ const createList = createRoute({
   },
   responses: {
     201: {
+      headers: z.object({
+        Location: z.string().openapi({ description: "URL of the created list" }),
+      }),
       content: { "application/json": { schema: listResponseSchema } },
       description: "Created",
     },
@@ -117,6 +120,9 @@ const createListEntryRoute = createRoute({
   },
   responses: {
     201: {
+      headers: z.object({
+        Location: z.string().openapi({ description: "URL of the list with the created entry" }),
+      }),
       content: { "application/json": { schema: listEntryResponseSchema } },
       description: "Created",
     },
@@ -304,6 +310,7 @@ export const listsRoute = listsApp
       defaultTradeType: tradeDefaults?.tradeType ?? null,
       currency: supportsPrefs ? (body.currency ?? null) : null,
     });
+    c.header("Location", `/api/v1/lists/${row.id}`);
     return c.json(toList(row), 201);
   })
 
@@ -388,6 +395,8 @@ export const listsRoute = listsApp
       tradeType: body.tradeOverride.tradeType,
     });
 
+    // List entries have no standalone GET; point at the owning list.
+    c.header("Location", `/api/v1/lists/${listId}`);
     return c.json(toListEntry(row), 201);
   })
 

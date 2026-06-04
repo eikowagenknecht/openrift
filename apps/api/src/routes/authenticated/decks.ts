@@ -155,6 +155,9 @@ const createDeck = createRoute({
   },
   responses: {
     201: {
+      headers: z.object({
+        Location: z.string().openapi({ description: "URL of the created deck" }),
+      }),
       content: { "application/json": { schema: deckResponseSchema } },
       description: "Created",
     },
@@ -223,6 +226,9 @@ const cloneDeck = createRoute({
   request: { params: idParamSchema },
   responses: {
     201: {
+      headers: z.object({
+        Location: z.string().openapi({ description: "URL of the cloned deck" }),
+      }),
       content: { "application/json": { schema: deckResponseSchema } },
       description: "Created",
     },
@@ -491,6 +497,7 @@ export const decksRoute = decksApp
       isWanted: body.isWanted ?? false,
       isPublic: body.isPublic ?? false,
     });
+    c.header("Location", `/api/v1/decks/${row.id}`);
     return c.json(toDeck(row), 201);
   })
 
@@ -599,6 +606,7 @@ export const decksRoute = decksApp
     const newDeck = await decks.cloneDeck(id, userId);
     assertFound(newDeck, "Not found");
 
+    c.header("Location", `/api/v1/decks/${newDeck.id}`);
     return c.json(toDeck(newDeck), 201);
   })
 
