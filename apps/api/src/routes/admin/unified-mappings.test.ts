@@ -203,16 +203,10 @@ describe("DELETE /api/v1/marketplace-mappings", () => {
   it("returns 204 when printing is unmapped", async () => {
     mockUnmapPrinting.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/marketplace-mappings?marketplace=tcgplayer", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        printingId: "00000000-0000-4000-a000-000000000001",
-        externalId: 100,
-        finish: "normal",
-        language: null,
-      }),
-    });
+    const res = await app.request(
+      "/api/v1/marketplace-mappings?marketplace=tcgplayer&printingId=00000000-0000-4000-a000-000000000001&externalId=100&finish=normal",
+      { method: "DELETE" },
+    );
 
     expect(res.status).toBe(204);
     expect(mockUnmapPrinting).toHaveBeenCalledTimes(1);
@@ -229,16 +223,10 @@ describe("DELETE /api/v1/marketplace-mappings", () => {
   it("returns 204 for cardmarket", async () => {
     mockUnmapPrinting.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/marketplace-mappings?marketplace=cardmarket", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        printingId: "00000000-0000-4000-a000-000000000002",
-        externalId: 200,
-        finish: "normal",
-        language: null,
-      }),
-    });
+    const res = await app.request(
+      "/api/v1/marketplace-mappings?marketplace=cardmarket&printingId=00000000-0000-4000-a000-000000000002&externalId=200&finish=normal",
+      { method: "DELETE" },
+    );
 
     expect(res.status).toBe(204);
   });
@@ -246,16 +234,10 @@ describe("DELETE /api/v1/marketplace-mappings", () => {
   it("forwards finish + language so CT siblings unmap independently", async () => {
     mockUnmapPrinting.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/marketplace-mappings?marketplace=cardtrader", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        printingId: "00000000-0000-4000-a000-000000000003",
-        externalId: 300,
-        finish: "normal",
-        language: "ZH",
-      }),
-    });
+    const res = await app.request(
+      "/api/v1/marketplace-mappings?marketplace=cardtrader&printingId=00000000-0000-4000-a000-000000000003&externalId=300&finish=normal&language=ZH",
+      { method: "DELETE" },
+    );
 
     expect(res.status).toBe(204);
     expect(mockUnmapPrinting).toHaveBeenCalledWith(

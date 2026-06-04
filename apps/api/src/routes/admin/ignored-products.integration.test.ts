@@ -214,12 +214,10 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
   describe("DELETE /admin/staging-card-overrides", () => {
     it("removes an override", async () => {
       const res = await app.fetch(
-        req("DELETE", "/admin/staging-card-overrides", {
-          marketplace: "tcgplayer",
-          externalId: 10_401,
-          finish: "normal",
-          language: "EN",
-        }),
+        req(
+          "DELETE",
+          "/admin/staging-card-overrides?marketplace=tcgplayer&externalId=10401&finish=normal&language=EN",
+        ),
       );
       expect(res.status).toBe(204);
 

@@ -1,7 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 
 import { createApiApp } from "../../openapi.js";
-import { deleteOverrideSchema, stagingCardOverrideSchema } from "./schemas.js";
+import { deleteOverrideQuerySchema, stagingCardOverrideSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
 
@@ -22,7 +22,7 @@ const deleteOverride = createRoute({
   path: "/staging-card-overrides",
   tags: ["Admin - Staging"],
   request: {
-    body: { content: { "application/json": { schema: deleteOverrideSchema } } },
+    query: deleteOverrideQuerySchema,
   },
   responses: {
     204: { description: "Override deleted" },
@@ -53,9 +53,9 @@ export const stagingCardOverridesRoute = createApiApp()
 
   .openapi(deleteOverride, async (c) => {
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
-    const { marketplace, externalId, finish, language } = c.req.valid("json");
+    const { marketplace, externalId, finish, language } = c.req.valid("query");
 
-    await mktAdmin.deleteStagingCardOverride(marketplace, externalId, finish, language);
+    await mktAdmin.deleteStagingCardOverride(marketplace, externalId, finish, language ?? null);
 
     return c.body(null, 204);
   });

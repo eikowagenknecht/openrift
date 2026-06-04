@@ -652,12 +652,13 @@ const unmapMarketplacePrintingFn = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     await callApi(
       serverApiClient(context.cookie).api.v1.admin["marketplace-mappings"].$delete({
-        query: { marketplace: data.marketplace },
-        json: {
+        // REST-5: fully query-addressed; omit language when null (CM/TCG).
+        query: {
+          marketplace: data.marketplace,
           printingId: data.printingId,
-          externalId: data.externalId,
+          externalId: String(data.externalId),
           finish: data.finish,
-          language: data.language,
+          ...(data.language === null ? {} : { language: data.language }),
         },
       }),
       "Couldn't unmap marketplace printing",

@@ -306,12 +306,10 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
   describe("DELETE /admin/marketplace-mappings?marketplace=tcgplayer", () => {
     it("unmaps a single printing, deletes the variant, keeps the product and its price history", async () => {
       const res = await app.fetch(
-        req("DELETE", "/admin/marketplace-mappings?marketplace=tcgplayer", {
-          printingId,
-          externalId: 12_345,
-          finish: "normal",
-          language: null,
-        }),
+        req(
+          "DELETE",
+          `/admin/marketplace-mappings?marketplace=tcgplayer&printingId=${printingId}&externalId=12345&finish=normal`,
+        ),
       );
       expect(res.status).toBe(204);
 
@@ -401,12 +399,10 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
   describe("DELETE /admin/marketplace-mappings?marketplace=cardmarket", () => {
     it("unmaps a single printing", async () => {
       const res = await app.fetch(
-        req("DELETE", "/admin/marketplace-mappings?marketplace=cardmarket", {
-          printingId,
-          externalId: 67_890,
-          finish: "normal",
-          language: null,
-        }),
+        req(
+          "DELETE",
+          `/admin/marketplace-mappings?marketplace=cardmarket&printingId=${printingId}&externalId=67890&finish=normal`,
+        ),
       );
       expect(res.status).toBe(204);
     });
@@ -463,12 +459,10 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       // Unmap just product 55_555. Without the externalId filter the lookup
       // is ambiguous and could non-deterministically delete the wrong variant.
       const unmapRes = await app.fetch(
-        req("DELETE", "/admin/marketplace-mappings?marketplace=cardtrader", {
-          printingId,
-          externalId: 55_555,
-          finish: "normal",
-          language: "EN",
-        }),
+        req(
+          "DELETE",
+          `/admin/marketplace-mappings?marketplace=cardtrader&printingId=${printingId}&externalId=55555&finish=normal&language=EN`,
+        ),
       );
       expect(unmapRes.status).toBe(204);
 

@@ -473,12 +473,10 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
       // Clean up
       await app.fetch(
-        req("DELETE", "/admin/marketplace-mappings?marketplace=tcgplayer", {
-          printingId,
-          externalId: 11_111,
-          finish: "normal",
-          language: null,
-        }),
+        req(
+          "DELETE",
+          `/admin/marketplace-mappings?marketplace=tcgplayer&printingId=${printingId}&externalId=11111&finish=normal`,
+        ),
       );
     });
 
@@ -548,12 +546,10 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
       // Clean up
       await app.fetch(
-        req("DELETE", "/admin/marketplace-mappings?marketplace=cardmarket", {
-          printingId,
-          externalId: 22_222,
-          finish: "normal",
-          language: null,
-        }),
+        req(
+          "DELETE",
+          `/admin/marketplace-mappings?marketplace=cardmarket&printingId=${printingId}&externalId=22222&finish=normal`,
+        ),
       );
     });
 
@@ -667,20 +663,16 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
       // Clean up
       await app.fetch(
-        req("DELETE", "/admin/marketplace-mappings?marketplace=tcgplayer", {
-          printingId,
-          externalId: 11_111,
-          finish: "normal",
-          language: null,
-        }),
+        req(
+          "DELETE",
+          `/admin/marketplace-mappings?marketplace=tcgplayer&printingId=${printingId}&externalId=11111&finish=normal`,
+        ),
       );
       await app.fetch(
-        req("DELETE", "/admin/marketplace-mappings?marketplace=cardmarket", {
-          printingId,
-          externalId: 22_222,
-          finish: "normal",
-          language: null,
-        }),
+        req(
+          "DELETE",
+          `/admin/marketplace-mappings?marketplace=cardmarket&printingId=${printingId}&externalId=22222&finish=normal`,
+        ),
       );
     });
   });
@@ -877,20 +869,16 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
       // Clean up
       await app.fetch(
-        req("DELETE", "/admin/marketplace-mappings?marketplace=tcgplayer", {
-          printingId,
-          externalId: 11_111,
-          finish: "normal",
-          language: null,
-        }),
+        req(
+          "DELETE",
+          `/admin/marketplace-mappings?marketplace=tcgplayer&printingId=${printingId}&externalId=11111&finish=normal`,
+        ),
       );
       await app.fetch(
-        req("DELETE", "/admin/marketplace-mappings?marketplace=cardmarket", {
-          printingId,
-          externalId: 22_222,
-          finish: "normal",
-          language: null,
-        }),
+        req(
+          "DELETE",
+          `/admin/marketplace-mappings?marketplace=cardmarket&printingId=${printingId}&externalId=22222&finish=normal`,
+        ),
       );
     });
 
@@ -970,12 +958,10 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
       // Unmap the ZH sibling. The EN one must survive.
       const res = await app.fetch(
-        req("DELETE", "/admin/marketplace-mappings?marketplace=cardtrader", {
-          printingId,
-          externalId: ctBlueprintId,
-          finish: "normal",
-          language: "ZH",
-        }),
+        req(
+          "DELETE",
+          `/admin/marketplace-mappings?marketplace=cardtrader&printingId=${printingId}&externalId=${ctBlueprintId}&finish=normal&language=ZH`,
+        ),
       );
       expect(res.status).toBe(204);
 
@@ -989,12 +975,10 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
       // Clean up the EN binding so the test is hermetic.
       await app.fetch(
-        req("DELETE", "/admin/marketplace-mappings?marketplace=cardtrader", {
-          printingId,
-          externalId: ctBlueprintId,
-          finish: "normal",
-          language: "EN",
-        }),
+        req(
+          "DELETE",
+          `/admin/marketplace-mappings?marketplace=cardtrader&printingId=${printingId}&externalId=${ctBlueprintId}&finish=normal&language=EN`,
+        ),
       );
     });
   });

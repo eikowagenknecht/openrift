@@ -12,7 +12,7 @@ import {
   buildUnifiedMappingsResponse,
 } from "../../services/unified-mapping-merge.js";
 import { createMarketplaceConfigs } from "./marketplace-configs.js";
-import { marketplaceSchema, saveMappingsSchema, unmapSchema } from "./schemas.js";
+import { marketplaceSchema, saveMappingsSchema, unmapQuerySchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
 
@@ -80,8 +80,7 @@ const unmapPrintingRoute = createRoute({
   path: "/marketplace-mappings",
   tags: ["Admin - Mappings"],
   request: {
-    query: marketplaceSchema,
-    body: { content: { "application/json": { schema: unmapSchema } } },
+    query: unmapQuerySchema,
   },
   responses: {
     204: { description: "Printing unmapped" },
@@ -137,10 +136,9 @@ export const unifiedMappingsRoute = createApiApp()
   .openapi(unmapPrintingRoute, async (c) => {
     const repos = c.get("repos");
     const transact = c.get("transact");
-    const { marketplace } = c.req.valid("query");
+    const { marketplace, printingId, externalId, finish, language } = c.req.valid("query");
     const configs = createMarketplaceConfigs(repos);
     const config = configs[marketplace];
-    const { printingId, externalId, finish, language } = c.req.valid("json");
-    await unmapPrinting(transact, config, printingId, externalId, finish, language);
+    await unmapPrinting(transact, config, printingId, externalId, finish, language ?? null);
     return c.body(null, 204);
   });

@@ -137,16 +137,10 @@ describe("DELETE /api/v1/staging-card-overrides", () => {
   it("returns 204 when override is deleted", async () => {
     mockMktAdmin.deleteStagingCardOverride.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/staging-card-overrides", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        marketplace: "tcgplayer",
-        externalId: 12_345,
-        finish: "normal",
-        language: "EN",
-      }),
-    });
+    const res = await app.request(
+      "/api/v1/staging-card-overrides?marketplace=tcgplayer&externalId=12345&finish=normal&language=EN",
+      { method: "DELETE" },
+    );
 
     expect(res.status).toBe(204);
     expect(mockMktAdmin.deleteStagingCardOverride).toHaveBeenCalledWith(
@@ -160,16 +154,10 @@ describe("DELETE /api/v1/staging-card-overrides", () => {
   it("returns 204 with cardmarket marketplace", async () => {
     mockMktAdmin.deleteStagingCardOverride.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/staging-card-overrides", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        marketplace: "cardmarket",
-        externalId: 67_890,
-        finish: "foil",
-        language: "EN",
-      }),
-    });
+    const res = await app.request(
+      "/api/v1/staging-card-overrides?marketplace=cardmarket&externalId=67890&finish=foil&language=EN",
+      { method: "DELETE" },
+    );
 
     expect(res.status).toBe(204);
     expect(mockMktAdmin.deleteStagingCardOverride).toHaveBeenCalledWith(

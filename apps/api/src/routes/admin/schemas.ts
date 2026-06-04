@@ -300,13 +300,17 @@ export const saveMappingsSchema = z.object({
   ),
 });
 
-export const unmapSchema = z.object({
+// DELETE /marketplace-mappings addresses the variant binding by its composite
+// SKU key via query params (REST-5) — externalId is coerced from its string
+// form, and an omitted `language` means null (CM/TCG have no language axis).
+export const unmapQuerySchema = z.object({
+  marketplace: z.enum(["tcgplayer", "cardmarket", "cardtrader"]),
   printingId: z.string().uuid(),
-  externalId: z.number().int(),
+  externalId: z.coerce.number().int(),
   /** The marketplace's own view of the SKU finish — always `normal` / `foil`. */
   finish: z.string(),
-  /** `null` for marketplaces that don't expose language as a SKU dimension (CM/TCG). */
-  language: z.string().nullable(),
+  /** Omitted for marketplaces that don't expose language as a SKU dimension (CM/TCG). */
+  language: z.string().optional(),
 });
 
 // ── Staging Card Overrides ─────────────────────────────────────────────────
@@ -319,11 +323,13 @@ export const stagingCardOverrideSchema = z.object({
   cardId: z.string().uuid(),
 });
 
-export const deleteOverrideSchema = z.object({
+// DELETE /staging-card-overrides addresses the override by its product SKU via
+// query params (REST-5); externalId is coerced and an omitted `language` is null.
+export const deleteOverrideQuerySchema = z.object({
   marketplace: z.enum(["tcgplayer", "cardmarket", "cardtrader"]),
-  externalId: z.number(),
+  externalId: z.coerce.number(),
   finish: z.string(),
-  language: z.string().nullable(),
+  language: z.string().optional(),
 });
 
 // ── Typography Review ──────────────────────────────────────────────────────

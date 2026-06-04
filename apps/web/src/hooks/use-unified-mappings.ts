@@ -238,7 +238,13 @@ const unassignFromCardFn = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     await callApi(
       serverApiClient(context.cookie).api.v1.admin["staging-card-overrides"].$delete({
-        json: data,
+        // REST-5: query-addressed; omit language when null (no SKU language axis).
+        query: {
+          marketplace: data.marketplace,
+          externalId: String(data.externalId),
+          finish: data.finish,
+          ...(data.language === null ? {} : { language: data.language }),
+        },
       }),
       "Couldn't unassign from card",
     );
