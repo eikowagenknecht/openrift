@@ -24,8 +24,8 @@ export function buildCopiesCursor(createdAt: Date, id: string): string {
 }
 
 /** Default page size, and hard maximum, for cursor-paginated copy listings. */
-export const COPIES_PAGE_DEFAULT = 500;
-export const COPIES_PAGE_MAX = 1000;
+const COPIES_PAGE_DEFAULT = 500;
+const COPIES_PAGE_MAX = 1000;
 
 /**
  * Clamps a client-supplied page limit to at most {@link COPIES_PAGE_MAX},
