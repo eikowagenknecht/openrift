@@ -19,8 +19,9 @@ import {
 import { recordPrintingChangeEvent } from "../../../services/record-printing-event.js";
 import { assertDeleted, assertFound, assertUpdated } from "../../../utils/assertions.js";
 import {
-  acceptFieldSchema,
+  acceptCardFieldSchema,
   acceptNewCardSchema,
+  acceptPrintingFieldSchema,
   acceptPrintingSchema,
   cardFieldRules,
   checkAllCandidatePrintingsSchema,
@@ -194,7 +195,7 @@ const acceptField = createRoute({
   tags: ["Admin - Cards"],
   request: {
     params: z.object({ cardId: z.string().uuid() }),
-    body: { content: { "application/json": { schema: acceptFieldSchema } } },
+    body: { content: { "application/json": { schema: acceptCardFieldSchema } } },
   },
   responses: {
     204: { description: "Field accepted" },
@@ -207,7 +208,7 @@ const acceptPrintingField = createRoute({
   tags: ["Admin - Cards"],
   request: {
     params: z.object({ printingId: z.string().uuid() }),
-    body: { content: { "application/json": { schema: acceptFieldSchema } } },
+    body: { content: { "application/json": { schema: acceptPrintingFieldSchema } } },
   },
   responses: {
     204: { description: "Printing field accepted" },
@@ -751,28 +752,8 @@ export const mutationsRoute = createApiApp()
   .openapi(acceptField, async (c) => {
     const { candidateMutations: mut } = c.get("repos");
     const cardId = c.req.valid("param").cardId;
+    // `field` is constrained to the writable card columns by acceptCardFieldSchema.
     const { field, value } = c.req.valid("json");
-
-    if (!field) {
-      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "field is required");
-    }
-
-    const allowedFields = new Set([
-      "name",
-      "type",
-      "superTypes",
-      "domains",
-      "might",
-      "energy",
-      "power",
-      "mightBonus",
-      "tags",
-      "comment",
-    ]);
-
-    if (!allowedFields.has(field)) {
-      throw new AppError(400, ERROR_CODES.BAD_REQUEST, `Invalid field: ${field}`);
-    }
 
     // Normalize null to empty array for array-typed fields
     const arrayFields = new Set(["superTypes", "domains", "tags"]);
@@ -826,35 +807,9 @@ export const mutationsRoute = createApiApp()
   .openapi(acceptPrintingField, async (c) => {
     const { candidateMutations: mut, printingEvents, rarities } = c.get("repos");
     const printingId = c.req.valid("param").printingId;
+    // `field` is constrained to the writable printing columns by
+    // acceptPrintingFieldSchema.
     const { field, value, source } = c.req.valid("json");
-
-    if (!field) {
-      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "field is required");
-    }
-
-    const allowedFields = new Set([
-      "shortCode",
-      "setId",
-      "rarity",
-      "artVariant",
-      "isSigned",
-      "markerSlugs",
-      "distributionChannelSlugs",
-      "finish",
-      "artist",
-      "publicCode",
-      "printedRulesText",
-      "printedEffectText",
-      "flavorText",
-      "language",
-      "printedName",
-      "printedYear",
-      "comment",
-    ]);
-
-    if (!allowedFields.has(field)) {
-      throw new AppError(400, ERROR_CODES.BAD_REQUEST, `Invalid field: ${field}`);
-    }
 
     // Normalize enum fields that have DB check constraints (before validation
     // so that case-insensitive input like "common" is accepted)

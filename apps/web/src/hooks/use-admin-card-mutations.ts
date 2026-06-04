@@ -3,8 +3,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { queryKeys } from "@/lib/query-keys";
 import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import type {
+  AcceptCardFieldBody,
   AcceptNewCardBody,
   AcceptPrintingBody,
+  AcceptPrintingFieldBody,
   CreateCardBody,
   CreatePrintingBody,
   PatchCandidatePrintingBody,
@@ -122,7 +124,13 @@ const acceptCardFieldFn = createServerFn({ method: "POST" })
     await callApi(
       serverApiClient(context.cookie).api.v1.admin.cards[":cardId"]["accept-field"].$post({
         param: encodeParams({ cardId: data.cardId }),
-        json: { field: data.field, value: data.value, source: data.source },
+        // The field-editor passes a dynamic string key; the enum is validated
+        // server-side, so cast at the boundary (matches api-types convention).
+        json: {
+          field: data.field as AcceptCardFieldBody["field"],
+          value: data.value,
+          source: data.source,
+        },
       }),
       "Couldn't accept card field",
     );
@@ -144,7 +152,11 @@ const acceptPrintingFieldFn = createServerFn({ method: "POST" })
         "accept-field"
       ].$post({
         param: encodeParams({ printingId: data.printingId }),
-        json: { field: data.field, value: data.value, source: data.source },
+        json: {
+          field: data.field as AcceptPrintingFieldBody["field"],
+          value: data.value,
+          source: data.source,
+        },
       }),
       "Couldn't accept printing field",
     );

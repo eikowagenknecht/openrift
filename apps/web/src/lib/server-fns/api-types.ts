@@ -30,6 +30,14 @@ export type PatchCandidatePrintingBody = InferRequestType<
 export type AcceptPrintingBody = InferRequestType<
   Client["api"]["v1"]["admin"]["cards"][":cardId"]["accept-printing"]["$post"]
 >["json"];
+// accept-field `field` is a typed enum on the wire (REST-6). The admin
+// field-editor passes a dynamic string key, cast to this enum at the boundary.
+export type AcceptCardFieldBody = InferRequestType<
+  Client["api"]["v1"]["admin"]["cards"][":cardId"]["accept-field"]["$post"]
+>["json"];
+export type AcceptPrintingFieldBody = InferRequestType<
+  Client["api"]["v1"]["admin"]["cards"]["printing"][":printingId"]["accept-field"]["$post"]
+>["json"];
 // acceptNewCard and createCard share the card-fields shape (acceptNewCardSchema
 // nests it under `cardFields`; createCardSchema is the same object at the top
 // level), but they are derived independently to stay aligned with each route.

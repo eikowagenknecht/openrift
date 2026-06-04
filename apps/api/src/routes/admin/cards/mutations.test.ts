@@ -720,7 +720,9 @@ describe("POST /api/v1/:cardId/accept-field", () => {
     });
     expect(res.status).toBe(400);
     const json = await res.json();
-    expect(json.error).toContain("Invalid field");
+    // The field allowlist is now the schema enum (REST-6), so an unknown field
+    // is rejected by request validation rather than a handler check.
+    expect(json.code).toBe("VALIDATION_ERROR");
   });
 
   it("normalizes null to empty array for superTypes (junction table)", async () => {
@@ -760,7 +762,9 @@ describe("POST /api/v1/:cardId/accept-field", () => {
     });
     expect(res.status).toBe(400);
     const json = await res.json();
-    expect(json.error).toContain("Invalid field");
+    // The field allowlist is now the schema enum (REST-6), so an unknown field
+    // is rejected by request validation rather than a handler check.
+    expect(json.code).toBe("VALIDATION_ERROR");
   });
 
   it("returns 400 when field is effectText (removed from allowed fields)", async () => {
@@ -771,7 +775,9 @@ describe("POST /api/v1/:cardId/accept-field", () => {
     });
     expect(res.status).toBe(400);
     const json = await res.json();
-    expect(json.error).toContain("Invalid field");
+    // The field allowlist is now the schema enum (REST-6), so an unknown field
+    // is rejected by request validation rather than a handler check.
+    expect(json.code).toBe("VALIDATION_ERROR");
   });
 
   it("accepts might field with numeric value", async () => {
@@ -874,7 +880,9 @@ describe("POST /api/v1/printing/:printingId/accept-field", () => {
     );
     expect(res.status).toBe(400);
     const json = await res.json();
-    expect(json.error).toContain("Invalid field");
+    // The field allowlist is now the schema enum (REST-6), so an unknown field
+    // is rejected by request validation rather than a handler check.
+    expect(json.code).toBe("VALIDATION_ERROR");
   });
 
   it("delegates to updatePrintingMarkers when field is markerSlugs", async () => {

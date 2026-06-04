@@ -38,8 +38,48 @@ export const renameSchema = z.object({
   newId: z.string(),
 });
 
-export const acceptFieldSchema = z.object({
-  field: z.string(),
+// The `field` enums ARE the allowlist of acceptable fields — they replace the
+// hand-maintained `allowedFields` Sets the handlers used to check at runtime
+// (REST-6). Each enum lists exactly the columns the corresponding accept-field
+// handler knows how to write. `value` stays unknown and is validated per-field
+// against {card,printing}FieldRules (plus the handler's junction-table cases).
+export const acceptCardFieldSchema = z.object({
+  field: z.enum([
+    "name",
+    "type",
+    "superTypes",
+    "domains",
+    "might",
+    "energy",
+    "power",
+    "mightBonus",
+    "tags",
+    "comment",
+  ]),
+  value: z.unknown(),
+  source: z.enum(["provider", "manual"]).default("manual"),
+});
+
+export const acceptPrintingFieldSchema = z.object({
+  field: z.enum([
+    "shortCode",
+    "setId",
+    "rarity",
+    "artVariant",
+    "isSigned",
+    "markerSlugs",
+    "distributionChannelSlugs",
+    "finish",
+    "artist",
+    "publicCode",
+    "printedRulesText",
+    "printedEffectText",
+    "flavorText",
+    "language",
+    "printedName",
+    "printedYear",
+    "comment",
+  ]),
   value: z.unknown(),
   source: z.enum(["provider", "manual"]).default("manual"),
 });
