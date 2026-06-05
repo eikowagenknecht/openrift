@@ -193,10 +193,25 @@ export const initResponseSchema = z
 
 // ── Prices ───────────────────────────────────────────────────────────────────
 
+// Latest market price per marketplace, as integer cents in that marketplace's
+// own currency (tcgplayer=USD, cardmarket=EUR, cardtrader=EUR — see
+// MARKETPLACE_CURRENCY). SCH-2: money on the wire is integer cents.
 const marketplacePriceMapSchema = z.object({
-  tcgplayer: z.number().optional().openapi({ example: 4.52 }),
-  cardmarket: z.number().optional().openapi({ example: 3.8 }),
-  cardtrader: z.number().optional().openapi({ example: 3.9 }),
+  tcgplayer: z
+    .number()
+    .int()
+    .optional()
+    .openapi({ example: 452, description: "Integer cents (USD)" }),
+  cardmarket: z
+    .number()
+    .int()
+    .optional()
+    .openapi({ example: 380, description: "Integer cents (EUR)" }),
+  cardtrader: z
+    .number()
+    .int()
+    .optional()
+    .openapi({ example: 390, description: "Integer cents (EUR)" }),
 });
 
 export const pricesResponseSchema = z
@@ -204,31 +219,37 @@ export const pricesResponseSchema = z
     prices: z.record(z.string(), marketplacePriceMapSchema).openapi({
       example: {
         "019cfc3b-03d3-7dac-86c9-27900cd43727": {
-          tcgplayer: 4.52,
-          cardmarket: 3.8,
-          cardtrader: 3.9,
+          tcgplayer: 452,
+          cardmarket: 380,
+          cardtrader: 390,
         },
       },
     }),
   })
   .openapi("PricesResponse");
 
+// Snapshot money fields are integer cents (SCH-2). `date` is a date-only string
+// (YYYY-MM-DD), not an ISO datetime.
 const tcgplayerSnapshotSchema = z.object({
-  date: z.string().openapi({ example: "2026-04-01" }),
-  market: z.number().openapi({ example: 4.52 }),
-  low: z.number().nullable().openapi({ example: 3.25 }),
+  date: z.string().openapi({ example: "2026-04-01", description: "Date-only (YYYY-MM-DD), USD" }),
+  market: z.number().int().openapi({ example: 452, description: "Integer cents (USD)" }),
+  low: z.number().int().nullable().openapi({ example: 325, description: "Integer cents (USD)" }),
 });
 
 const cardmarketSnapshotSchema = z.object({
-  date: z.string().openapi({ example: "2026-04-01" }),
-  market: z.number().openapi({ example: 3.8 }),
-  low: z.number().nullable().openapi({ example: 2.5 }),
+  date: z.string().openapi({ example: "2026-04-01", description: "Date-only (YYYY-MM-DD), EUR" }),
+  market: z.number().int().openapi({ example: 380, description: "Integer cents (EUR)" }),
+  low: z.number().int().nullable().openapi({ example: 250, description: "Integer cents (EUR)" }),
 });
 
 const cardtraderSnapshotSchema = z.object({
-  date: z.string().openapi({ example: "2026-04-01" }),
-  zeroLow: z.number().nullable().openapi({ example: 4.2 }),
-  low: z.number().nullable().openapi({ example: 3.9 }),
+  date: z.string().openapi({ example: "2026-04-01", description: "Date-only (YYYY-MM-DD), EUR" }),
+  zeroLow: z
+    .number()
+    .int()
+    .nullable()
+    .openapi({ example: 420, description: "Integer cents (EUR)" }),
+  low: z.number().int().nullable().openapi({ example: 390, description: "Integer cents (EUR)" }),
 });
 
 const marketplaceInfoSchema = z.object({
@@ -462,7 +483,7 @@ export const collectionResponseSchema = z
     isPublic: z.boolean(),
     shareToken: z.string().nullable(),
     copyCount: z.number(),
-    totalValueCents: z.number().nullable(),
+    totalValueCents: z.number().int().nullable(),
     unpricedCopyCount: z.number().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
@@ -483,7 +504,7 @@ export const publicCollectionResponseSchema = z
     name: z.string(),
     description: z.string().nullable(),
     copyCount: z.number(),
-    totalValueCents: z.number().nullable(),
+    totalValueCents: z.number().int().nullable(),
     unpricedCopyCount: z.number().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
@@ -660,7 +681,7 @@ const deckListItemResponseSchema = z
     typeCounts: z.array(z.object({ cardType: cardTypeSchema, count: z.number() })),
     domainDistribution: z.array(z.object({ domain: domainSchema, count: z.number() })),
     isValid: z.boolean(),
-    totalValueCents: z.number().nullable(),
+    totalValueCents: z.number().int().nullable(),
   })
   .openapi("DeckListItemResponse");
 
@@ -742,6 +763,24 @@ export const deckExportResponseSchema = z
 
 // ── Preferences ──────────────────────────────────────────────────────────────
 
+// Mirrors the CompletionScopePreference type (types/api/preferences.ts). Kept in
+// sync with the write-side schema in schemas.ts (updatePreferencesSchema).
+const completionScopePreferenceSchema = z
+  .object({
+    sets: z.array(z.string()).optional(),
+    languages: z.array(z.string()).optional(),
+    domains: z.array(z.string()).optional(),
+    types: z.array(z.string()).optional(),
+    rarities: z.array(z.string()).optional(),
+    finishes: z.array(z.string()).optional(),
+    artVariants: z.array(z.string()).optional(),
+    promos: z.enum(["only", "exclude"]).optional(),
+    signed: z.boolean().optional(),
+    banned: z.boolean().optional(),
+    errata: z.boolean().optional(),
+  })
+  .openapi("CompletionScopePreference");
+
 export const userPreferencesResponseSchema = z
   .object({
     showImages: z.boolean().optional(),
@@ -751,6 +790,9 @@ export const userPreferencesResponseSchema = z
     theme: z.enum(["light", "dark", "auto"]).optional(),
     palette: z.enum(["default", "minimal"]).optional(),
     marketplaceOrder: z.array(z.enum(["tcgplayer", "cardmarket", "cardtrader"])).optional(),
+    // The web sends + reads these (use-preferences-sync.ts); they must round-trip.
+    languages: z.array(z.string()).optional(),
+    completionScope: completionScopePreferenceSchema.optional(),
     defaultCardView: z.enum(["cards", "printings"]).optional(),
     defaultCurrency: z.enum(["EUR", "USD"]).optional(),
   })
@@ -1014,7 +1056,7 @@ export const collectionValueHistoryResponseSchema = z
     series: z.array(
       z.object({
         date: z.string().openapi({ example: "2026-03-15" }),
-        valueCents: z.number().openapi({ example: 125_000 }),
+        valueCents: z.number().int().openapi({ example: 125_000, description: "Integer cents" }),
         copyCount: z.number().openapi({ example: 42 }),
       }),
     ),

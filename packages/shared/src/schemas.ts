@@ -90,17 +90,46 @@ export const collectionEventsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 
+const CSV_MAX_CHARS = 2000;
+const CSV_MAX_ITEMS = 200;
+
+// A comma-separated UUID list, validated + bounded at the edge. Without this a
+// non-UUID element reaches the repo's `sql`${id}::uuid`` interpolation and
+// Postgres throws → a 500 (and a dev-mode SQL leak) for what is client error.
+const csvUuidList = z
+  .string()
+  .min(1)
+  .max(CSV_MAX_CHARS)
+  .refine(
+    (value) => {
+      const ids = value
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean);
+      return (
+        ids.length > 0 &&
+        ids.length <= CSV_MAX_ITEMS &&
+        ids.every((id) => z.uuid().safeParse(id).success)
+      );
+    },
+    { message: `must be a comma-separated list of at most ${CSV_MAX_ITEMS} UUIDs` },
+  );
+
+// Slug-filter CSV: not interpolated as ::uuid, so it can't 500, but bound it
+// anyway so a single request can't build a pathologically large IN-list.
+const csvBounded = z.string().min(1).max(CSV_MAX_CHARS);
+
 export const collectionValueHistoryQuerySchema = z.object({
   range: z.enum(["7d", "30d", "90d", "all"]).default("30d"),
   marketplace: z.enum(["tcgplayer", "cardmarket", "cardtrader"]).default("tcgplayer"),
-  collectionIds: z.string().min(1).optional(),
-  sets: z.string().min(1).optional(),
-  languages: z.string().min(1).optional(),
-  domains: z.string().min(1).optional(),
-  types: z.string().min(1).optional(),
-  rarities: z.string().min(1).optional(),
-  finishes: z.string().min(1).optional(),
-  artVariants: z.string().min(1).optional(),
+  collectionIds: csvUuidList.optional(),
+  sets: csvBounded.optional(),
+  languages: csvBounded.optional(),
+  domains: csvBounded.optional(),
+  types: csvBounded.optional(),
+  rarities: csvBounded.optional(),
+  finishes: csvBounded.optional(),
+  artVariants: csvBounded.optional(),
   promos: z.enum(["only", "exclude"]).optional(),
   signed: z.enum(["true", "false"]).optional(),
   banned: z.enum(["true", "false"]).optional(),
@@ -109,7 +138,10 @@ export const collectionValueHistoryQuerySchema = z.object({
 
 export const copiesQuerySchema = z.object({
   cursor: z.string().min(1).optional(),
-  limit: z.coerce.number().int().min(1).max(10_000).optional(),
+  // Hard cap matches the server-side clamp (COPIES_PAGE_MAX = 1000 in
+  // repositories/copies.ts). PAG-1 dropped the 10k soft-cap in the route; the
+  // schema/OpenAPI doc must advertise the limit the server actually honors.
+  limit: z.coerce.number().int().min(1).max(1000).optional(),
 });
 
 export const decksQuerySchema = z.object({
@@ -428,6 +460,23 @@ export const friendGroupSlugAndCollectionIdParamSchema = z.object({
   collectionId: z.uuid(),
 });
 
+// Mirrors CompletionScopePreference (types/api/preferences.ts) and the read-side
+// completionScopePreferenceSchema in response-schemas.ts. Previously absent here,
+// so the web's completionScope PATCH was silently stripped and never persisted.
+const completionScopeWriteSchema = z.object({
+  sets: z.array(z.string()).optional(),
+  languages: z.array(z.string()).optional(),
+  domains: z.array(z.string()).optional(),
+  types: z.array(z.string()).optional(),
+  rarities: z.array(z.string()).optional(),
+  finishes: z.array(z.string()).optional(),
+  artVariants: z.array(z.string()).optional(),
+  promos: z.enum(["only", "exclude"]).optional(),
+  signed: z.boolean().optional(),
+  banned: z.boolean().optional(),
+  errata: z.boolean().optional(),
+});
+
 export const updatePreferencesSchema = z.object({
   showImages: z.boolean().nullable().optional(),
   fancyFan: z.boolean().nullable().optional(),
@@ -446,6 +495,7 @@ export const updatePreferencesSchema = z.object({
     .refine((arr) => new Set(arr).size === arr.length, { message: "Duplicate languages" })
     .nullable()
     .optional(),
+  completionScope: completionScopeWriteSchema.nullable().optional(),
   defaultCardView: defaultCardViewEnum.nullable().optional(),
   defaultCurrency: currencySchema.nullable().optional(),
 });

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   bulkCreateListEntriesSchema,
   collectionEventsQuerySchema,
+  collectionValueHistoryQuerySchema,
   addCopiesSchema,
   copiesQuerySchema,
   createCollectionSchema,
@@ -548,8 +549,15 @@ describe("copiesQuerySchema", () => {
     expect(result.limit).toBe(200);
   });
 
-  it("rejects limit over 10000", () => {
-    expect(copiesQuerySchema.safeParse({ limit: 10_001 }).success).toBe(false);
+  it("accepts limit at the 1000 cap", () => {
+    expect(copiesQuerySchema.safeParse({ limit: 1000 }).success).toBe(true);
+  });
+
+  // Regression (E1/PAG-1): the schema cap must match the server-side clamp
+  // (COPIES_PAGE_MAX = 1000); it previously advertised an unreachable 10000.
+  it("rejects limit over the 1000 cap", () => {
+    expect(copiesQuerySchema.safeParse({ limit: 1001 }).success).toBe(false);
+    expect(copiesQuerySchema.safeParse({ limit: 10_000 }).success).toBe(false);
   });
 
   it("rejects limit under 1", () => {
@@ -564,5 +572,40 @@ describe("decksQuerySchema", () => {
 
   it("accepts wanted param", () => {
     expect(decksQuerySchema.safeParse({ wanted: "true" }).success).toBe(true);
+  });
+});
+
+describe("collectionValueHistoryQuerySchema", () => {
+  const uuid1 = "a0000000-0001-4000-a000-000000000001";
+  const uuid2 = "a0000000-0001-4000-a000-000000000002";
+
+  it("accepts a comma-separated list of valid UUIDs", () => {
+    expect(
+      collectionValueHistoryQuerySchema.safeParse({ collectionIds: `${uuid1},${uuid2}` }).success,
+    ).toBe(true);
+  });
+
+  // Regression (F1): a non-UUID element used to reach the repo's `::uuid` cast
+  // and surface as a 500. It must now fail validation at the edge (→ 400).
+  it("rejects a CSV containing a non-UUID element", () => {
+    expect(
+      collectionValueHistoryQuerySchema.safeParse({ collectionIds: `${uuid1},not-a-uuid` }).success,
+    ).toBe(false);
+  });
+
+  it("rejects more than 200 collection ids", () => {
+    const many = Array.from({ length: 201 }, () => uuid1).join(",");
+    expect(collectionValueHistoryQuerySchema.safeParse({ collectionIds: many }).success).toBe(
+      false,
+    );
+  });
+
+  it("bounds slug-filter CSVs by length", () => {
+    const huge = "x".repeat(2001);
+    expect(collectionValueHistoryQuerySchema.safeParse({ sets: huge }).success).toBe(false);
+  });
+
+  it("accepts an empty query (all filters optional)", () => {
+    expect(collectionValueHistoryQuerySchema.safeParse({}).success).toBe(true);
   });
 });
