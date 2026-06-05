@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-06-05
+
+- fix: Your language filters and collection-completion settings now sync across devices instead of silently resetting — they were being saved but never sent back when the app reloaded
+
 ## 2026-06-03
 
 - fix: When an action can't be completed, the error message now explains the specific reason from the server (for example "Cannot delete the inbox collection") instead of a generic message
