@@ -4,6 +4,7 @@ import { publicCollectionDetailResponseSchema } from "@openrift/shared/response-
 import { copiesQuerySchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
+import { errorResponses } from "../../openapi-helpers.js";
 import { createApiApp } from "../../openapi.js";
 import { buildCopiesCursor, clampCopiesLimit } from "../../repositories/copies.js";
 import { assertFound } from "../../utils/assertions.js";
@@ -24,6 +25,7 @@ const getPublicCollectionByShareToken = createRoute({
       content: { "application/json": { schema: publicCollectionDetailResponseSchema } },
       description: "Shared collection",
     },
+    ...errorResponses(400, 404),
   },
 });
 
@@ -59,6 +61,6 @@ export const publicCollectionsRoute = createApiApp().openapi(
     };
 
     c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
-    return c.json(response);
+    return c.json(response, 200);
   },
 );

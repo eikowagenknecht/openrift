@@ -2,10 +2,18 @@
 // Uses Hono's InferResponseType to derive API response shapes at compile time
 // without any runtime dependency on the Hono client.
 
+import type { ApiErrorResponse } from "@openrift/shared";
 import type { AppType } from "api/rpc";
-import type { InferRequestType, InferResponseType, hc } from "hono/client";
+import type { InferRequestType, InferResponseType as RawInferResponseType, hc } from "hono/client";
 
 type Client = ReturnType<typeof hc<AppType>>;
+
+// Routes now declare their 4xx responses with the `{ error, code }` envelope, so
+// hc folds `ApiErrorResponse` into every endpoint's response union. The server
+// functions always go through `callApi`/`callApiJson`, which throw on a non-ok
+// status, so the success body is the only shape a caller ever receives — strip
+// the error envelope from the derived types so consumers see the success shape.
+type InferResponseType<T> = Exclude<RawInferResponseType<T>, ApiErrorResponse>;
 
 // ── Request body types (derived from the route schemas) ─────────────────────
 // Candidate uploads come from an arbitrary user-uploaded JSON file, so the

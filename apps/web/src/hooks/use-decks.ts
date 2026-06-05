@@ -16,7 +16,13 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId, useUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
+import {
+  callApi,
+  callApiJson,
+  encodeParams,
+  okJson,
+  serverApiClient,
+} from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -47,7 +53,7 @@ async function fetchDeckDetailImpl(
   if ((res.status as number) === 404) {
     throw new Error("NOT_FOUND");
   }
-  return res.json();
+  return okJson(res);
 }
 
 const fetchDeckDetail = createServerFn({ method: "GET" })

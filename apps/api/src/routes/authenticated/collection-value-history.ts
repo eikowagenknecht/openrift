@@ -6,18 +6,21 @@ import { collectionValueHistoryQuerySchema } from "@openrift/shared/schemas";
 
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
+import { cookieAuth, errorResponses } from "../../openapi-helpers.js";
 import { createApiApp } from "../../openapi.js";
 
 const getValueHistory = createRoute({
   method: "get",
   path: "/",
   tags: ["Collection Value History"],
+  security: cookieAuth,
   request: { query: collectionValueHistoryQuerySchema },
   responses: {
     200: {
       content: { "application/json": { schema: collectionValueHistoryResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(400, 401),
   },
 });
 
@@ -56,12 +59,15 @@ export const collectionValueHistoryRoute = collectionValueHistoryApp.openapi(
       },
     });
 
-    return c.json({
-      series: series.map((point) => ({
-        date: point.date,
-        valueCents: point.valueCents, // integer cents
-        copyCount: point.copyCount,
-      })),
-    });
+    return c.json(
+      {
+        series: series.map((point) => ({
+          date: point.date,
+          valueCents: point.valueCents, // integer cents
+          copyCount: point.copyCount,
+        })),
+      },
+      200,
+    );
   },
 );

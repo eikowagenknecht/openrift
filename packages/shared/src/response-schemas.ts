@@ -2,6 +2,25 @@
 import "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
 
+import { ERROR_CODES } from "./error-codes.js";
+import type { ErrorCode } from "./error-codes.js";
+
+// ── Error envelope ───────────────────────────────────────────────────────────
+// The single shape every 4xx/5xx returns ({ error, code }). Published here so
+// routes can document their error responses and the typed client can codegen
+// the error type. `details` (validation issues / dev stack) is deliberately NOT
+// in the schema: it is an optional dev/validation extra, not part of the stable
+// contract, and a `z.unknown()` field would break createServerFn's return-type
+// check on the web side.
+const errorCodeValues = Object.values(ERROR_CODES) as [ErrorCode, ...ErrorCode[]];
+
+export const apiErrorResponseSchema = z
+  .object({
+    error: z.string().openapi({ example: "Not found" }),
+    code: z.enum(errorCodeValues).openapi({ example: ERROR_CODES.NOT_FOUND }),
+  })
+  .openapi("ApiErrorResponse");
+
 // ── Field-diff values ────────────────────────────────────────────────────────
 // A diffed field's value: a JSON scalar or an array of scalars. This is the
 // heterogeneous-but-not-nested shape that card/printing field values take in a

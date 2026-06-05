@@ -26,6 +26,7 @@ import type { CollectionsTable } from "../../db/index.js";
 import { AppError } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
+import { cookieAuth, errorResponses } from "../../openapi-helpers.js";
 import { createApiApp } from "../../openapi.js";
 import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
@@ -45,11 +46,13 @@ const listCollections = createRoute({
   method: "get",
   path: "/",
   tags: ["Collections"],
+  security: cookieAuth,
   responses: {
     200: {
       content: { "application/json": { schema: collectionListResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(401),
   },
 });
 
@@ -57,6 +60,7 @@ const createCollection = createRoute({
   method: "post",
   path: "/",
   tags: ["Collections"],
+  security: cookieAuth,
   request: {
     body: { content: { "application/json": { schema: createCollectionSchema } } },
   },
@@ -71,6 +75,7 @@ const createCollection = createRoute({
       content: { "application/json": { schema: collectionResponseSchema } },
       description: "Created",
     },
+    ...errorResponses(400, 401, 403, 404),
   },
 });
 
@@ -78,12 +83,14 @@ const getCollection = createRoute({
   method: "get",
   path: "/{id}",
   tags: ["Collections"],
+  security: cookieAuth,
   request: { params: idParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: collectionResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -91,6 +98,7 @@ const updateCollection = createRoute({
   method: "patch",
   path: "/{id}",
   tags: ["Collections"],
+  security: cookieAuth,
   request: {
     params: idParamSchema,
     body: { content: { "application/json": { schema: updateCollectionSchema } } },
@@ -100,6 +108,7 @@ const updateCollection = createRoute({
       content: { "application/json": { schema: collectionResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(400, 401, 403, 404),
   },
 });
 
@@ -107,9 +116,11 @@ const deleteCollection = createRoute({
   method: "delete",
   path: "/{id}",
   tags: ["Collections"],
+  security: cookieAuth,
   request: { params: idParamSchema },
   responses: {
     204: { description: "No Content" },
+    ...errorResponses(401, 403, 404, 409),
   },
 });
 
@@ -117,6 +128,7 @@ const getCollectionCopies = createRoute({
   method: "get",
   path: "/{id}/copies",
   tags: ["Collections"],
+  security: cookieAuth,
   request: {
     params: idParamSchema,
     query: copiesQuerySchema,
@@ -126,6 +138,7 @@ const getCollectionCopies = createRoute({
       content: { "application/json": { schema: copyListResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(400, 401, 404),
   },
 });
 
@@ -133,12 +146,14 @@ const shareCollection = createRoute({
   method: "post",
   path: "/{id}/share",
   tags: ["Collections"],
+  security: cookieAuth,
   request: { params: idParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: collectionShareResponseSchema } },
       description: "Shared",
     },
+    ...errorResponses(401, 403, 404),
   },
 });
 
@@ -146,12 +161,14 @@ const getShareState = createRoute({
   method: "get",
   path: "/{id}/share",
   tags: ["Collections"],
+  security: cookieAuth,
   request: { params: idParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: collectionShareResponseSchema } },
       description: "Current share state (shareToken null / isPublic false if not shared)",
     },
+    ...errorResponses(401, 403, 404),
   },
 });
 
@@ -159,12 +176,14 @@ const rotateShareCollection = createRoute({
   method: "post",
   path: "/{id}/share/rotate",
   tags: ["Collections"],
+  security: cookieAuth,
   request: { params: idParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: collectionShareResponseSchema } },
       description: "Share token rotated (old token stops resolving)",
     },
+    ...errorResponses(401, 403, 404),
   },
 });
 
@@ -172,9 +191,11 @@ const unshareCollection = createRoute({
   method: "delete",
   path: "/{id}/share",
   tags: ["Collections"],
+  security: cookieAuth,
   request: { params: idParamSchema },
   responses: {
     204: { description: "No Content" },
+    ...errorResponses(401, 403, 404),
   },
 });
 
@@ -182,12 +203,14 @@ const collectionGroupShares = createRoute({
   method: "get",
   path: "/{id}/group-shares",
   tags: ["Collections"],
+  security: cookieAuth,
   request: { params: idParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: collectionGroupSharesResponseSchema } },
       description: "Groups this collection is shared with",
     },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -195,11 +218,13 @@ const reorderCollections = createRoute({
   method: "post",
   path: "/reorder",
   tags: ["Collections"],
+  security: cookieAuth,
   request: {
     body: { content: { "application/json": { schema: reorderCollectionsSchema } } },
   },
   responses: {
     204: { description: "No Content" },
+    ...errorResponses(400, 401),
   },
 });
 
@@ -207,12 +232,14 @@ const setDeckbuilding = createRoute({
   method: "put",
   path: "/{id}/deckbuilding",
   tags: ["Collections"],
+  security: cookieAuth,
   request: {
     params: idParamSchema,
     body: { content: { "application/json": { schema: setCollectionDeckbuildingSchema } } },
   },
   responses: {
     204: { description: "No Content" },
+    ...errorResponses(400, 401, 404),
   },
 });
 
@@ -229,9 +256,12 @@ export const collectionsRoute = collectionsApp
       rows.map((row) => row.id),
       favMarketplace,
     );
-    return c.json({
-      items: rows.map((row) => toCollection(row, values.get(row.id))),
-    } satisfies CollectionListResponse);
+    return c.json(
+      {
+        items: rows.map((row) => toCollection(row, values.get(row.id))),
+      } satisfies CollectionListResponse,
+      200,
+    );
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
@@ -304,6 +334,7 @@ export const collectionsRoute = collectionsApp
     const value = await repos.marketplace.singleCollectionValue(id, favMarketplace);
     return c.json(
       toCollection({ ...access.collection, viewerCanAdmin: access.viewerCanAdmin }, value),
+      200,
     );
   })
 
@@ -331,6 +362,7 @@ export const collectionsRoute = collectionsApp
         groupName: access.collection.groupName,
         viewerCanAdmin: access.viewerCanAdmin,
       }),
+      200,
     );
   })
 
@@ -397,10 +429,13 @@ export const collectionsRoute = collectionsApp
     const items = rows.slice(0, effectiveLimit);
     const lastItem = items.at(-1);
 
-    return c.json({
-      items: items.map((row) => toCopy(row)),
-      nextCursor: hasMore && lastItem ? buildCopiesCursor(lastItem.createdAt, lastItem.id) : null,
-    } satisfies CopyListResponse);
+    return c.json(
+      {
+        items: items.map((row) => toCopy(row)),
+        nextCursor: hasMore && lastItem ? buildCopiesCursor(lastItem.createdAt, lastItem.id) : null,
+      } satisfies CopyListResponse,
+      200,
+    );
   })
 
   // ── GET /collections/:id/share ────────────────────────────────────────────
@@ -422,10 +457,13 @@ export const collectionsRoute = collectionsApp
       );
     }
 
-    return c.json({
-      shareToken: access.collection.shareToken,
-      isPublic: access.collection.isPublic,
-    } satisfies CollectionShareResponse);
+    return c.json(
+      {
+        shareToken: access.collection.shareToken,
+        isPublic: access.collection.isPublic,
+      } satisfies CollectionShareResponse,
+      200,
+    );
   })
 
   // ── POST /collections/:id/share ───────────────────────────────────────────
@@ -446,17 +484,20 @@ export const collectionsRoute = collectionsApp
 
     // Idempotent: if already public with a token, hand back the existing state.
     if (access.collection.isPublic && access.collection.shareToken) {
-      return c.json({
-        shareToken: access.collection.shareToken,
-        isPublic: true,
-      } satisfies CollectionShareResponse);
+      return c.json(
+        {
+          shareToken: access.collection.shareToken,
+          isPublic: true,
+        } satisfies CollectionShareResponse,
+        200,
+      );
     }
 
     const token = generateShareToken();
     const updated = await collections.setShareTokenById(id, token, true);
     assertFound(updated, "Not found");
 
-    return c.json({ shareToken: token, isPublic: true } satisfies CollectionShareResponse);
+    return c.json({ shareToken: token, isPublic: true } satisfies CollectionShareResponse, 200);
   })
 
   // ── POST /collections/:id/share/rotate ────────────────────────────────────
@@ -479,7 +520,7 @@ export const collectionsRoute = collectionsApp
     const updated = await collections.setShareTokenById(id, token, true);
     assertFound(updated, "Not found");
 
-    return c.json({ shareToken: token, isPublic: true } satisfies CollectionShareResponse);
+    return c.json({ shareToken: token, isPublic: true } satisfies CollectionShareResponse, 200);
   })
 
   // ── DELETE /collections/:id/share ─────────────────────────────────────────
@@ -516,7 +557,7 @@ export const collectionsRoute = collectionsApp
     }
 
     const items = await friendGroups.groupsSharingCollection(id);
-    return c.json({ items });
+    return c.json({ items }, 200);
   })
 
   // ── POST /collections/reorder ─────────────────────────────────────────────

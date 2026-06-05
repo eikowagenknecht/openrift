@@ -3,6 +3,7 @@ import type { PublicDeckDetailResponse } from "@openrift/shared";
 import { publicDeckDetailResponseSchema } from "@openrift/shared/response-schemas";
 import { z } from "zod";
 
+import { errorResponses } from "../../openapi-helpers.js";
 import { createApiApp } from "../../openapi.js";
 import { assertFound } from "../../utils/assertions.js";
 import { toPublicDeck, toPublicDeckCard } from "../../utils/mappers.js";
@@ -21,6 +22,7 @@ const getPublicDeckByShareToken = createRoute({
       content: { "application/json": { schema: publicDeckDetailResponseSchema } },
       description: "Shared deck",
     },
+    ...errorResponses(404),
   },
 });
 
@@ -68,5 +70,5 @@ export const publicDecksRoute = createApiApp().openapi(getPublicDeckByShareToken
   };
 
   c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
-  return c.json(response);
+  return c.json(response, 200);
 });

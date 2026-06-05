@@ -34,6 +34,7 @@ import {
 import { AppError } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
+import { cookieAuth, errorResponses } from "../../openapi-helpers.js";
 import { createApiApp } from "../../openapi.js";
 import type { ListEntryUpdate, ListUpdate, NewEntryValues } from "../../repositories/lists.js";
 import { assertDeleted, assertFound } from "../../utils/assertions.js";
@@ -44,12 +45,14 @@ const listLists = createRoute({
   method: "get",
   path: "/",
   tags: ["Lists"],
+  security: cookieAuth,
   request: { query: listIntentQuerySchema },
   responses: {
     200: {
       content: { "application/json": { schema: listListResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(400, 401),
   },
 });
 
@@ -57,6 +60,7 @@ const createList = createRoute({
   method: "post",
   path: "/",
   tags: ["Lists"],
+  security: cookieAuth,
   request: {
     body: { content: { "application/json": { schema: createListSchema } } },
   },
@@ -68,6 +72,7 @@ const createList = createRoute({
       content: { "application/json": { schema: listResponseSchema } },
       description: "Created",
     },
+    ...errorResponses(400, 401),
   },
 });
 
@@ -75,12 +80,14 @@ const getList = createRoute({
   method: "get",
   path: "/{id}",
   tags: ["Lists"],
+  security: cookieAuth,
   request: { params: idParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: listDetailResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -88,6 +95,7 @@ const updateList = createRoute({
   method: "patch",
   path: "/{id}",
   tags: ["Lists"],
+  security: cookieAuth,
   request: {
     params: idParamSchema,
     body: { content: { "application/json": { schema: updateListSchema } } },
@@ -97,6 +105,7 @@ const updateList = createRoute({
       content: { "application/json": { schema: listResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(400, 401, 404),
   },
 });
 
@@ -104,9 +113,11 @@ const deleteList = createRoute({
   method: "delete",
   path: "/{id}",
   tags: ["Lists"],
+  security: cookieAuth,
   request: { params: idParamSchema },
   responses: {
     204: { description: "No Content" },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -114,6 +125,7 @@ const createListEntryRoute = createRoute({
   method: "post",
   path: "/{id}/entries",
   tags: ["Lists"],
+  security: cookieAuth,
   request: {
     params: idParamSchema,
     body: { content: { "application/json": { schema: createListEntrySchema } } },
@@ -126,6 +138,7 @@ const createListEntryRoute = createRoute({
       content: { "application/json": { schema: listEntryResponseSchema } },
       description: "Created",
     },
+    ...errorResponses(400, 401, 404),
   },
 });
 
@@ -133,6 +146,7 @@ const bulkCreateListEntriesRoute = createRoute({
   method: "post",
   path: "/{id}/entries/bulk",
   tags: ["Lists"],
+  security: cookieAuth,
   request: {
     params: idParamSchema,
     body: { content: { "application/json": { schema: bulkCreateListEntriesSchema } } },
@@ -142,6 +156,7 @@ const bulkCreateListEntriesRoute = createRoute({
       content: { "application/json": { schema: listBulkAddResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(400, 401, 404),
   },
 });
 
@@ -149,6 +164,7 @@ const bulkAddCopiesToListRoute = createRoute({
   method: "post",
   path: "/{id}/entries/from-copies",
   tags: ["Lists"],
+  security: cookieAuth,
   request: {
     params: idParamSchema,
     body: { content: { "application/json": { schema: bulkAddCopiesToListSchema } } },
@@ -158,6 +174,7 @@ const bulkAddCopiesToListRoute = createRoute({
       content: { "application/json": { schema: listBulkAddResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(400, 401, 404),
   },
 });
 
@@ -165,6 +182,7 @@ const moveListEntriesRoute = createRoute({
   method: "post",
   path: "/{id}/entries/move",
   tags: ["Lists"],
+  security: cookieAuth,
   request: {
     params: idParamSchema,
     body: { content: { "application/json": { schema: moveListEntriesSchema } } },
@@ -174,6 +192,7 @@ const moveListEntriesRoute = createRoute({
       content: { "application/json": { schema: listMoveResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(400, 401, 404),
   },
 });
 
@@ -181,6 +200,7 @@ const updateListEntryRoute = createRoute({
   method: "patch",
   path: "/{id}/entries/{itemId}",
   tags: ["Lists"],
+  security: cookieAuth,
   request: {
     params: idAndItemIdParamSchema,
     body: { content: { "application/json": { schema: updateListEntrySchema } } },
@@ -190,6 +210,7 @@ const updateListEntryRoute = createRoute({
       content: { "application/json": { schema: listEntryResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(400, 401, 404),
   },
 });
 
@@ -197,9 +218,11 @@ const deleteListEntry = createRoute({
   method: "delete",
   path: "/{id}/entries/{itemId}",
   tags: ["Lists"],
+  security: cookieAuth,
   request: { params: idAndItemIdParamSchema },
   responses: {
     204: { description: "No Content" },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -207,12 +230,14 @@ const getShareState = createRoute({
   method: "get",
   path: "/{id}/share",
   tags: ["Lists"],
+  security: cookieAuth,
   request: { params: idParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: listShareResponseSchema } },
       description: "Current share state (shareToken null + isPublic false if unshared)",
     },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -220,12 +245,14 @@ const shareList = createRoute({
   method: "post",
   path: "/{id}/share",
   tags: ["Lists"],
+  security: cookieAuth,
   request: { params: idParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: listShareResponseSchema } },
       description: "Shared (idempotent — returns the existing token if already shared)",
     },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -233,12 +260,14 @@ const rotateShareList = createRoute({
   method: "post",
   path: "/{id}/share/rotate",
   tags: ["Lists"],
+  security: cookieAuth,
   request: { params: idParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: listShareResponseSchema } },
       description: "Share token rotated (old token stops resolving)",
     },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -246,9 +275,11 @@ const unshareList = createRoute({
   method: "delete",
   path: "/{id}/share",
   tags: ["Lists"],
+  security: cookieAuth,
   request: { params: idParamSchema },
   responses: {
     204: { description: "No Content" },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -256,11 +287,13 @@ const reorderLists = createRoute({
   method: "post",
   path: "/reorder",
   tags: ["Lists"],
+  security: cookieAuth,
   request: {
     body: { content: { "application/json": { schema: reorderListsSchema } } },
   },
   responses: {
     204: { description: "No Content" },
+    ...errorResponses(400, 401),
   },
 });
 
@@ -268,12 +301,14 @@ const listGroupShares = createRoute({
   method: "get",
   path: "/{id}/group-shares",
   tags: ["Lists"],
+  security: cookieAuth,
   request: { params: idParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: listGroupSharesResponseSchema } },
       description: "Groups this list is shared with (ADR-013)",
     },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -285,9 +320,12 @@ export const listsRoute = listsApp
     const { lists } = c.get("repos");
     const { intent } = c.req.valid("query");
     const rows = await lists.listForUser(getUserId(c), intent);
-    return c.json({
-      items: rows.map((row) => toList(row)),
-    } satisfies ListListResponse);
+    return c.json(
+      {
+        items: rows.map((row) => toList(row)),
+      } satisfies ListListResponse,
+      200,
+    );
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
@@ -329,7 +367,7 @@ export const listsRoute = listsApp
       list: toList(list),
       entries: entries.map((row) => toListEntryDetail(row)),
     };
-    return c.json(detail);
+    return c.json(detail, 200);
   })
 
   // ── UPDATE (name + trade prefs; intent/kind immutable post-creation) ───────
@@ -358,7 +396,7 @@ export const listsRoute = listsApp
     }
     const row = await lists.update(id, userId, updates);
     assertFound(row, "Not found");
-    return c.json(toList(row));
+    return c.json(toList(row), 200);
   })
 
   // ── DELETE ──────────────────────────────────────────────────────────────────
@@ -466,7 +504,7 @@ export const listsRoute = listsApp
       updated: result.updated,
       skipped: entries.length - result.inserted - result.updated,
     };
-    return c.json(response);
+    return c.json(response, 200);
   })
 
   // ── POST /lists/:id/entries/from-copies ──────────────────────────────────
@@ -488,7 +526,7 @@ export const listsRoute = listsApp
 
     const result = await lists.bulkCreateEntriesFromCopies(listId, list.kind, userId, copyIds);
 
-    return c.json(result satisfies ListBulkAddResponse);
+    return c.json(result satisfies ListBulkAddResponse, 200);
   })
 
   // ── POST /lists/:id/entries/move ─────────────────────────────────────────
@@ -512,7 +550,7 @@ export const listsRoute = listsApp
       body.toListId,
       body.entryIds,
     );
-    return c.json(result);
+    return c.json(result, 200);
   })
 
   // ── PATCH /lists/:id/entries/:itemId ──────────────────────────────────────
@@ -538,7 +576,7 @@ export const listsRoute = listsApp
     }
     const row = await lists.updateEntry(itemId, listId, userId, updates);
     assertFound(row, "Not found");
-    return c.json(toListEntry(row));
+    return c.json(toListEntry(row), 200);
   })
 
   // ── DELETE /lists/:id/entries/:itemId ─────────────────────────────────────
@@ -565,7 +603,7 @@ export const listsRoute = listsApp
     const state = await lists.getShareState(id, userId);
     assertFound(state, "Not found");
 
-    return c.json(state satisfies ListShareResponse);
+    return c.json(state satisfies ListShareResponse, 200);
   })
 
   // ── POST /lists/:id/share ─────────────────────────────────────────────────
@@ -580,14 +618,14 @@ export const listsRoute = listsApp
     const current = await lists.getShareState(id, userId);
     assertFound(current, "Not found");
     if (current.shareToken !== null) {
-      return c.json(current satisfies ListShareResponse);
+      return c.json(current satisfies ListShareResponse, 200);
     }
 
     const token = generateShareToken();
     const updated = await lists.setShareToken(id, userId, token, true);
     assertFound(updated, "Not found");
 
-    return c.json({ shareToken: token, isPublic: true } satisfies ListShareResponse);
+    return c.json({ shareToken: token, isPublic: true } satisfies ListShareResponse, 200);
   })
 
   // ── POST /lists/:id/share/rotate ──────────────────────────────────────────
@@ -604,7 +642,7 @@ export const listsRoute = listsApp
     const updated = await lists.setShareToken(id, userId, token, true);
     assertFound(updated, "Not found");
 
-    return c.json({ shareToken: token, isPublic: true } satisfies ListShareResponse);
+    return c.json({ shareToken: token, isPublic: true } satisfies ListShareResponse, 200);
   })
 
   // ── DELETE /lists/:id/share ───────────────────────────────────────────────
@@ -632,7 +670,7 @@ export const listsRoute = listsApp
     assertFound(list, "List not found");
 
     const items = await friendGroups.listGroupsSharingList(id);
-    return c.json({ items });
+    return c.json({ items }, 200);
   })
 
   // ── POST /lists/reorder ───────────────────────────────────────────────────

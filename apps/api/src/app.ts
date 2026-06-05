@@ -82,6 +82,16 @@ export function createApp(deps: AppDeps) {
 
   const app = createApiApp();
 
+  // Register the cookie-session security scheme once on the root app so
+  // authenticated routes can declare `security: cookieAuth` and the OpenAPI
+  // doc / Swagger UI show which endpoints need a session (and an Authorize
+  // affordance). Better Auth issues the session in this cookie.
+  app.openAPIRegistry.registerComponent("securitySchemes", "cookieAuth", {
+    type: "apiKey",
+    in: "cookie",
+    name: "better-auth.session_token",
+  });
+
   // Repos and the transaction helper are stateless given a fixed `db`, so build
   // them once at app construction rather than re-instrumenting all ~50 repos on
   // every request. Each instrumented repo method still opens its own OTel span

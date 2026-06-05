@@ -1,3 +1,4 @@
+import type { ApiErrorResponse } from "@openrift/shared";
 import { context, propagation } from "@opentelemetry/api";
 import type { AppType } from "api/rpc";
 import type { ClientResponse } from "hono/client";
@@ -102,7 +103,25 @@ export async function callApi<Res extends ClientResponse<unknown>>(
 export async function callApiJson<Res extends ClientResponse<unknown>>(
   responsePromise: unknown extends Awaited<ReturnType<Res["json"]>> ? never : Promise<Res>,
   errorTitle: string,
-): Promise<Awaited<ReturnType<Res["json"]>>> {
+): Promise<Exclude<Awaited<ReturnType<Res["json"]>>, ApiErrorResponse>> {
   const res = await callApi(responsePromise as Promise<Res>, errorTitle);
-  return res.json() as Promise<Awaited<ReturnType<Res["json"]>>>;
+  // Routes now declare their 4xx error responses, so hc folds the
+  // `{ error, code }` envelope into the `json()` union. `callApi` has already
+  // thrown on any non-ok status, so the decoded body is always a success
+  // shape — exclude the error envelope from the static type to match.
+  return res.json() as Promise<Exclude<Awaited<ReturnType<Res["json"]>>, ApiErrorResponse>>;
+}
+
+/**
+ * Decode the JSON body of an already-resolved {@link callApi} response, stripping
+ * the `{ error, code }` envelope from the static type. Use this (instead of a
+ * bare `res.json()`) when a handler uses `callApi` with `acceptStatuses` and has
+ * already branched on the intentional non-2xx status itself, so the remaining
+ * body is the success shape.
+ * @returns The decoded success body, typed without the error envelope.
+ */
+export function okJson<Res extends ClientResponse<unknown>>(
+  res: Res,
+): Promise<Exclude<Awaited<ReturnType<Res["json"]>>, ApiErrorResponse>> {
+  return res.json() as Promise<Exclude<Awaited<ReturnType<Res["json"]>>, ApiErrorResponse>>;
 }

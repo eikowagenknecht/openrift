@@ -5,6 +5,7 @@ import { collectionEventsQuerySchema } from "@openrift/shared/schemas";
 
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
+import { cookieAuth, errorResponses } from "../../openapi-helpers.js";
 import { createApiApp } from "../../openapi.js";
 import { buildEventsCursor } from "../../repositories/collection-events.js";
 import { toCollectionEvent } from "../../utils/mappers.js";
@@ -13,12 +14,14 @@ const listEvents = createRoute({
   method: "get",
   path: "/",
   tags: ["Collection Events"],
+  security: cookieAuth,
   request: { query: collectionEventsQuerySchema },
   responses: {
     200: {
       content: { "application/json": { schema: collectionEventListResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(400, 401),
   },
 });
 
@@ -40,5 +43,5 @@ export const collectionEventsRoute = collectionEventsApp.openapi(listEvents, asy
     items: items.map((r) => toCollectionEvent(r)),
     nextCursor: hasMore && lastItem ? buildEventsCursor(lastItem.createdAt, lastItem.id) : null,
   };
-  return c.json(result);
+  return c.json(result, 200);
 });

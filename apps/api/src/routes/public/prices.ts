@@ -15,6 +15,7 @@ import {
 } from "@openrift/shared/response-schemas";
 import { etag } from "hono/etag";
 
+import { errorResponses } from "../../openapi-helpers.js";
 import { createApiApp } from "../../openapi.js";
 import { marketplaceInfoQuerySchema, printingIdParamSchema, rangeQuerySchema } from "./schemas.js";
 
@@ -43,6 +44,7 @@ const getPriceHistory = createRoute({
       content: { "application/json": { schema: priceHistoryResponseSchema } },
       description: "Price history for a printing",
     },
+    ...errorResponses(400, 404),
   },
 });
 
@@ -56,6 +58,7 @@ const getMarketplaceInfo = createRoute({
       content: { "application/json": { schema: marketplaceInfoResponseSchema } },
       description: "Marketplace source metadata (productId, availability) for printings",
     },
+    ...errorResponses(400),
   },
 });
 
@@ -97,7 +100,7 @@ export const pricesRoute = pricesApp
     }
 
     c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-    return c.json({ prices } satisfies PricesResponse);
+    return c.json({ prices } satisfies PricesResponse, 200);
   })
   /**
    * `GET /prices/:printingId/history` — Returns price history for a single printing.
@@ -128,11 +131,14 @@ export const pricesRoute = pricesApp
     ]);
 
     if (!printing) {
-      return c.json({
-        tcgplayer: { available: false, productId: null, snapshots: [] },
-        cardmarket: { available: false, productId: null, snapshots: [] },
-        cardtrader: { available: false, productId: null, snapshots: [] },
-      } satisfies PriceHistoryResponse);
+      return c.json(
+        {
+          tcgplayer: { available: false, productId: null, snapshots: [] },
+          cardmarket: { available: false, productId: null, snapshots: [] },
+          cardtrader: { available: false, productId: null, snapshots: [] },
+        } satisfies PriceHistoryResponse,
+        200,
+      );
     }
 
     const tcgSource = sources.find((s) => s.marketplace === ("tcgplayer" satisfies Marketplace));
@@ -201,7 +207,7 @@ export const pricesRoute = pricesApp
     };
 
     c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-    return c.json(response);
+    return c.json(response, 200);
   })
   /**
    * `GET /prices/marketplace-info?printings=uuid1,uuid2,...` — Batch variant of
@@ -238,5 +244,5 @@ export const pricesRoute = pricesApp
     }
 
     c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-    return c.json({ infos } satisfies MarketplaceInfoResponse);
+    return c.json({ infos } satisfies MarketplaceInfoResponse, 200);
   });

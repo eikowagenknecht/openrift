@@ -10,6 +10,7 @@ import { etag } from "hono/etag";
 import { z } from "zod";
 
 import { AppError } from "../../errors.js";
+import { errorResponses } from "../../openapi-helpers.js";
 import { createApiApp } from "../../openapi.js";
 import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-response.js";
 
@@ -25,6 +26,7 @@ const getCardDetail = createRoute({
       content: { "application/json": { schema: cardDetailResponseSchema } },
       description: "Card detail with all printings",
     },
+    ...errorResponses(404),
   },
 });
 
@@ -107,5 +109,5 @@ export const cardsRoute = cardsApp
     };
 
     c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-    return c.json(content);
+    return c.json(content, 200);
   });

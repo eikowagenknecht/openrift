@@ -57,6 +57,7 @@ import { AppError } from "../../errors.js";
 import { gravatarHashForEmail } from "../../lib/gravatar.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
+import { cookieAuth, errorResponses } from "../../openapi-helpers.js";
 import { createApiApp } from "../../openapi.js";
 import type { Group, GroupMember, MemberWithUser } from "../../repositories/friend-groups.js";
 import { toListEntryDetail } from "../../utils/mappers.js";
@@ -198,11 +199,13 @@ const listGroups = createRoute({
   method: "get",
   path: "/friend-groups",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   responses: {
     200: {
       content: { "application/json": { schema: friendGroupListResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(401),
   },
 });
 
@@ -210,11 +213,13 @@ const pendingInvitesCount = createRoute({
   method: "get",
   path: "/friend-groups/pending-invites-count",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   responses: {
     200: {
       content: { "application/json": { schema: friendGroupPendingInvitesCountResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(401),
   },
 });
 
@@ -222,6 +227,7 @@ const createGroup = createRoute({
   method: "post",
   path: "/friend-groups",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: {
     body: {
       content: { "application/json": { schema: createFriendGroupSchema } },
@@ -236,6 +242,7 @@ const createGroup = createRoute({
       content: { "application/json": { schema: friendGroupResponseSchema } },
       description: "Created",
     },
+    ...errorResponses(400, 401, 409),
   },
 });
 
@@ -243,12 +250,14 @@ const previewByCode = createRoute({
   method: "get",
   path: "/friend-groups/preview",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: { query: friendGroupCodeQuerySchema },
   responses: {
     200: {
       content: { "application/json": { schema: friendGroupJoinPreviewResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(400, 401, 404),
   },
 });
 
@@ -256,6 +265,7 @@ const joinByCode = createRoute({
   method: "post",
   path: "/friend-groups/join",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: {
     body: {
       content: { "application/json": { schema: friendGroupJoinByCodeSchema } },
@@ -264,6 +274,7 @@ const joinByCode = createRoute({
   },
   responses: {
     202: { description: "Request submitted, awaiting admin approval" },
+    ...errorResponses(400, 401, 404, 409),
   },
 });
 
@@ -271,12 +282,14 @@ const getGroup = createRoute({
   method: "get",
   path: "/friend-groups/{slug}",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: { params: friendGroupSlugParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: friendGroupDetailResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -284,6 +297,7 @@ const updateGroup = createRoute({
   method: "patch",
   path: "/friend-groups/{slug}",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: {
     params: friendGroupSlugParamSchema,
     body: { content: { "application/json": { schema: updateFriendGroupSchema } }, required: true },
@@ -293,6 +307,7 @@ const updateGroup = createRoute({
       content: { "application/json": { schema: friendGroupResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(400, 401, 403, 404, 409),
   },
 });
 
@@ -300,20 +315,23 @@ const deleteGroup = createRoute({
   method: "delete",
   path: "/friend-groups/{slug}",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: { params: friendGroupSlugParamSchema },
-  responses: { 204: { description: "No Content" } },
+  responses: { 204: { description: "No Content" }, ...errorResponses(401, 403, 404) },
 });
 
 const rotateCode = createRoute({
   method: "post",
   path: "/friend-groups/{slug}/code/rotate",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: { params: friendGroupSlugParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: friendGroupResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(401, 403, 404),
   },
 });
 
@@ -321,12 +339,14 @@ const disableCode = createRoute({
   method: "delete",
   path: "/friend-groups/{slug}/code",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: { params: friendGroupSlugParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: friendGroupResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(401, 403, 404),
   },
 });
 
@@ -334,12 +354,14 @@ const enableCode = createRoute({
   method: "post",
   path: "/friend-groups/{slug}/code",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: { params: friendGroupSlugParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: friendGroupResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(401, 403, 404),
   },
 });
 
@@ -347,6 +369,7 @@ const inviteByEmail = createRoute({
   method: "post",
   path: "/friend-groups/{slug}/invites",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: {
     params: friendGroupSlugParamSchema,
     body: {
@@ -354,37 +377,44 @@ const inviteByEmail = createRoute({
       required: true,
     },
   },
-  responses: { 202: { description: "Invite created" } },
+  responses: { 202: { description: "Invite created" }, ...errorResponses(400, 401, 403, 404, 409) },
 });
 
 const acceptInvite = createRoute({
   method: "post",
   path: "/friend-groups/{slug}/invites/{userId}/accept",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: { params: friendGroupSlugAndUserParamSchema },
-  responses: { 204: { description: "Invite accepted / request approved" } },
+  responses: {
+    204: { description: "Invite accepted / request approved" },
+    ...errorResponses(401, 403, 404),
+  },
 });
 
 const declineInvite = createRoute({
   method: "delete",
   path: "/friend-groups/{slug}/invites/{userId}",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: { params: friendGroupSlugAndUserParamSchema },
-  responses: { 204: { description: "No Content" } },
+  responses: { 204: { description: "No Content" }, ...errorResponses(401, 403, 404) },
 });
 
 const leaveGroup = createRoute({
   method: "post",
   path: "/friend-groups/{slug}/leave",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: { params: friendGroupSlugParamSchema },
-  responses: { 204: { description: "No Content" } },
+  responses: { 204: { description: "No Content" }, ...errorResponses(401, 404, 409) },
 });
 
 const transferOwnership = createRoute({
   method: "post",
   path: "/friend-groups/{slug}/transfer-ownership",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: {
     params: friendGroupSlugParamSchema,
     body: {
@@ -392,13 +422,14 @@ const transferOwnership = createRoute({
       required: true,
     },
   },
-  responses: { 204: { description: "No Content" } },
+  responses: { 204: { description: "No Content" }, ...errorResponses(400, 401, 403, 404) },
 });
 
 const updateRole = createRoute({
   method: "patch",
   path: "/friend-groups/{slug}/members/{userId}/role",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: {
     params: friendGroupSlugAndUserParamSchema,
     body: {
@@ -411,6 +442,7 @@ const updateRole = createRoute({
       content: { "application/json": { schema: friendGroupMemberResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(400, 401, 403, 404, 409),
   },
 });
 
@@ -418,6 +450,7 @@ const updateNickname = createRoute({
   method: "patch",
   path: "/friend-groups/{slug}/members/{userId}/nickname",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: {
     params: friendGroupSlugAndUserParamSchema,
     body: {
@@ -430,6 +463,7 @@ const updateNickname = createRoute({
       content: { "application/json": { schema: friendGroupMemberResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(400, 401, 403, 404),
   },
 });
 
@@ -437,20 +471,23 @@ const kickMember = createRoute({
   method: "delete",
   path: "/friend-groups/{slug}/members/{userId}",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: { params: friendGroupSlugAndUserParamSchema },
-  responses: { 204: { description: "No Content" } },
+  responses: { 204: { description: "No Content" }, ...errorResponses(400, 401, 403, 404, 409) },
 });
 
 const shareableLists = createRoute({
   method: "get",
   path: "/friend-groups/{slug}/shareable-lists",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: { params: friendGroupSlugParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: friendGroupShareableListsResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -458,6 +495,7 @@ const shareList = createRoute({
   method: "post",
   path: "/friend-groups/{slug}/lists",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: {
     params: friendGroupSlugParamSchema,
     body: {
@@ -465,27 +503,30 @@ const shareList = createRoute({
       required: true,
     },
   },
-  responses: { 204: { description: "No Content" } },
+  responses: { 204: { description: "No Content" }, ...errorResponses(400, 401, 404) },
 });
 
 const unshareList = createRoute({
   method: "delete",
   path: "/friend-groups/{slug}/lists/{listId}",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: { params: friendGroupSlugAndListIdParamSchema },
-  responses: { 204: { description: "No Content" } },
+  responses: { 204: { description: "No Content" }, ...errorResponses(401, 404) },
 });
 
 const shareableCollections = createRoute({
   method: "get",
   path: "/friend-groups/{slug}/shareable-collections",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: { params: friendGroupSlugParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: friendGroupShareableCollectionsResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -493,6 +534,7 @@ const shareCollection = createRoute({
   method: "post",
   path: "/friend-groups/{slug}/collections",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: {
     params: friendGroupSlugParamSchema,
     body: {
@@ -500,27 +542,30 @@ const shareCollection = createRoute({
       required: true,
     },
   },
-  responses: { 204: { description: "No Content" } },
+  responses: { 204: { description: "No Content" }, ...errorResponses(400, 401, 404) },
 });
 
 const unshareCollection = createRoute({
   method: "delete",
   path: "/friend-groups/{slug}/collections/{collectionId}",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: { params: friendGroupSlugAndCollectionIdParamSchema },
-  responses: { 204: { description: "No Content" } },
+  responses: { 204: { description: "No Content" }, ...errorResponses(401, 404) },
 });
 
 const getSharedCollection = createRoute({
   method: "get",
   path: "/friend-groups/{slug}/collections/{collectionId}",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: { params: friendGroupSlugAndCollectionIdParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: friendGroupSharedCollectionDetailResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -528,12 +573,14 @@ const getMatches = createRoute({
   method: "get",
   path: "/friend-groups/{slug}/matches",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: { params: friendGroupSlugParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: friendGroupMatchesResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -541,12 +588,14 @@ const getSharedList = createRoute({
   method: "get",
   path: "/friend-groups/{slug}/lists/{listId}",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: { params: friendGroupSlugAndListIdParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: friendGroupSharedListDetailResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -554,12 +603,14 @@ const getMemberDetail = createRoute({
   method: "get",
   path: "/friend-groups/{slug}/members/{userId}",
   tags: ["Friend Groups"],
+  security: cookieAuth,
   request: { params: friendGroupSlugAndUserParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: friendGroupMemberDetailResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -598,7 +649,7 @@ export const friendGroupsRoute = friendGroupsApp
         createdAt: row.createdAt.toISOString(),
       })),
     };
-    return c.json(response);
+    return c.json(response, 200);
   })
 
   // ── BADGE COUNT ─────────────────────────────────────────────────────────
@@ -606,7 +657,7 @@ export const friendGroupsRoute = friendGroupsApp
     const userId = getUserId(c);
     const { friendGroups } = c.get("repos");
     const count = await friendGroups.pendingInvitesCountForUser(userId);
-    return c.json({ count } satisfies FriendGroupPendingInvitesCountResponse);
+    return c.json({ count } satisfies FriendGroupPendingInvitesCountResponse, 200);
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────
@@ -661,7 +712,7 @@ export const friendGroupsRoute = friendGroupsApp
       ownerName: owner?.userName ?? null,
       viewerStatus,
     };
-    return c.json(response);
+    return c.json(response, 200);
   })
 
   // ── JOIN (submits a request) ────────────────────────────────────────────
@@ -710,7 +761,7 @@ export const friendGroupsRoute = friendGroupsApp
         collectionShares: [],
         pendingRequests: [],
       };
-      return c.json(response);
+      return c.json(response, 200);
     }
 
     if (!membership) {
@@ -734,7 +785,7 @@ export const friendGroupsRoute = friendGroupsApp
       collectionShares: collectionShares.map((row) => toCollectionShare(row)),
       pendingRequests: pendingRequests.map((row) => toRequest(row)),
     };
-    return c.json(response);
+    return c.json(response, 200);
   })
 
   // ── UPDATE METADATA (admin+) ────────────────────────────────────────────
@@ -763,7 +814,7 @@ export const friendGroupsRoute = friendGroupsApp
     if (!patched) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Group not found");
     }
-    return c.json(toGroup(patched, true));
+    return c.json(toGroup(patched, true), 200);
   })
 
   // ── DELETE (owner only) ─────────────────────────────────────────────────
@@ -792,7 +843,7 @@ export const friendGroupsRoute = friendGroupsApp
     if (!updated) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Group not found");
     }
-    return c.json(toGroup(updated, true));
+    return c.json(toGroup(updated, true), 200);
   })
 
   // ── DISABLE CODE (admin+) ───────────────────────────────────────────────
@@ -808,7 +859,7 @@ export const friendGroupsRoute = friendGroupsApp
     if (!updated) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Group not found");
     }
-    return c.json(toGroup(updated, true));
+    return c.json(toGroup(updated, true), 200);
   })
 
   // ── RE-ENABLE CODE (admin+) ─────────────────────────────────────────────
@@ -824,7 +875,7 @@ export const friendGroupsRoute = friendGroupsApp
     if (!updated) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Group not found");
     }
-    return c.json(toGroup(updated, true));
+    return c.json(toGroup(updated, true), 200);
   })
 
   // ── INVITE BY EMAIL (admin+) ────────────────────────────────────────────
@@ -984,7 +1035,7 @@ export const friendGroupsRoute = friendGroupsApp
     if (!enriched) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Member not found");
     }
-    return c.json(toMember(enriched));
+    return c.json(toMember(enriched), 200);
   })
 
   // ── UPDATE NICKNAME (self only) ─────────────────────────────────────────
@@ -1008,7 +1059,7 @@ export const friendGroupsRoute = friendGroupsApp
     if (!enriched) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Member not found");
     }
-    return c.json(toMember(enriched));
+    return c.json(toMember(enriched), 200);
   })
 
   // ── KICK MEMBER (admin+) ────────────────────────────────────────────────
@@ -1066,7 +1117,7 @@ export const friendGroupsRoute = friendGroupsApp
         currency: row.currency as FriendGroupShareableListsResponse["items"][number]["currency"],
       })),
     };
-    return c.json(response);
+    return c.json(response, 200);
   })
 
   // ── SHARE A LIST (self only) ────────────────────────────────────────────
@@ -1117,10 +1168,13 @@ export const friendGroupsRoute = friendGroupsApp
       friendGroupMatches.othersWantYourHaves({ groupId: ctx.group.id, viewerUserId: viewerId }),
     ]);
 
-    return c.json({
-      othersHaveYourWants,
-      othersWantYourHaves,
-    } satisfies FriendGroupMatchesResponse);
+    return c.json(
+      {
+        othersHaveYourWants,
+        othersWantYourHaves,
+      } satisfies FriendGroupMatchesResponse,
+      200,
+    );
   })
 
   // ── SHARED LIST DETAIL (browsable by any group member) ──────────────────
@@ -1161,7 +1215,7 @@ export const friendGroupsRoute = friendGroupsApp
       },
       entries: entries.map((row) => toListEntryDetail(row)),
     };
-    return c.json(response);
+    return c.json(response, 200);
   })
 
   // ── MEMBER DETAIL ───────────────────────────────────────────────────────
@@ -1207,7 +1261,7 @@ export const friendGroupsRoute = friendGroupsApp
       matches,
       reverseMatches,
     };
-    return c.json(response);
+    return c.json(response, 200);
   })
 
   // ── SHAREABLE COLLECTIONS (viewer's own) ────────────────────────────────
@@ -1226,7 +1280,7 @@ export const friendGroupsRoute = friendGroupsApp
         sharedAt: row.sharedAt ? row.sharedAt.toISOString() : null,
       })),
     };
-    return c.json(response);
+    return c.json(response, 200);
   })
 
   // ── SHARE A COLLECTION (self only) ──────────────────────────────────────
@@ -1312,5 +1366,5 @@ export const friendGroupsRoute = friendGroupsApp
       })),
       viewerRole: shared.viewerRole,
     };
-    return c.json(response);
+    return c.json(response, 200);
   });

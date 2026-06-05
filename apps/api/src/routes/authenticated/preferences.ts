@@ -5,6 +5,7 @@ import { updatePreferencesSchema } from "@openrift/shared/schemas";
 
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
+import { cookieAuth, errorResponses } from "../../openapi-helpers.js";
 import { createApiApp } from "../../openapi.js";
 import type { PartialPreferences } from "../../repositories/user-preferences.js";
 
@@ -37,11 +38,13 @@ const getPreferences = createRoute({
   method: "get",
   path: "/",
   tags: ["Preferences"],
+  security: cookieAuth,
   responses: {
     200: {
       content: { "application/json": { schema: userPreferencesResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(401),
   },
 });
 
@@ -49,6 +52,7 @@ const updatePreferences = createRoute({
   method: "patch",
   path: "/",
   tags: ["Preferences"],
+  security: cookieAuth,
   request: {
     body: { content: { "application/json": { schema: updatePreferencesSchema } } },
   },
@@ -57,6 +61,7 @@ const updatePreferences = createRoute({
       content: { "application/json": { schema: userPreferencesResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(400, 401),
   },
 });
 
@@ -66,7 +71,7 @@ export const preferencesRoute = preferencesApp
   .openapi(getPreferences, async (c) => {
     const { userPreferences } = c.get("repos");
     const row = await userPreferences.getByUserId(getUserId(c));
-    return c.json(toUserPreferences(row?.data ?? {}));
+    return c.json(toUserPreferences(row?.data ?? {}), 200);
   })
 
   .openapi(updatePreferences, async (c) => {
@@ -75,5 +80,5 @@ export const preferencesRoute = preferencesApp
       getUserId(c),
       c.req.valid("json") as PartialPreferences,
     );
-    return c.json(toUserPreferences(result));
+    return c.json(toUserPreferences(result), 200);
   });

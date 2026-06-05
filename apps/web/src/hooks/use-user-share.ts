@@ -14,7 +14,13 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
+import {
+  callApi,
+  callApiJson,
+  encodeParams,
+  okJson,
+  serverApiClient,
+} from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 // ── Authenticated: read + manage your own bundle token ──────────────────────
@@ -131,7 +137,7 @@ const fetchPublicUserBundleFn = createServerFn({ method: "GET" })
     if ((res.status as number) === 404) {
       throw new Error("NOT_FOUND");
     }
-    return res.json();
+    return okJson(res);
   });
 
 export function publicUserBundleQueryOptions(token: string) {
@@ -159,7 +165,7 @@ const fetchPublicUserBundleListFn = createServerFn({ method: "GET" })
     if ((res.status as number) === 404) {
       throw new Error("NOT_FOUND");
     }
-    return res.json();
+    return okJson(res);
   });
 
 export function publicUserBundleListQueryOptions(token: string, listId: string) {

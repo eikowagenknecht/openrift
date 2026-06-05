@@ -11,6 +11,7 @@ import { etag } from "hono/etag";
 import { z } from "zod";
 
 import { AppError } from "../../errors.js";
+import { errorResponses } from "../../openapi-helpers.js";
 import { createApiApp } from "../../openapi.js";
 import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-response.js";
 
@@ -38,6 +39,7 @@ const getSetDetail = createRoute({
       content: { "application/json": { schema: setDetailResponseSchema } },
       description: "Set detail with all cards and printings",
     },
+    ...errorResponses(400, 404),
   },
 });
 
@@ -68,7 +70,7 @@ export const setsRoute = setsApp
 
     const content: SetListResponse = { sets: entries };
     c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-    return c.json(content);
+    return c.json(content, 200);
   })
   /**
    * `GET /sets/:setSlug` — Returns a set with all its cards and printings.
@@ -144,5 +146,5 @@ export const setsRoute = setsApp
 
     const content: SetDetailResponse = { set, cards, printings };
     c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-    return c.json(content);
+    return c.json(content, 200);
   });

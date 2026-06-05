@@ -10,6 +10,7 @@ import {
 
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
+import { cookieAuth, errorResponses } from "../../openapi-helpers.js";
 import { createApiApp } from "../../openapi.js";
 import { buildCopiesCursor, clampCopiesLimit } from "../../repositories/copies.js";
 import { toCopy } from "../../utils/mappers.js";
@@ -18,12 +19,14 @@ const listCopies = createRoute({
   method: "get",
   path: "/",
   tags: ["Copies"],
+  security: cookieAuth,
   request: { query: copiesQuerySchema },
   responses: {
     200: {
       content: { "application/json": { schema: copyListResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(400, 401),
   },
 });
 
@@ -31,6 +34,7 @@ const addCopies = createRoute({
   method: "post",
   path: "/",
   tags: ["Copies"],
+  security: cookieAuth,
   request: {
     body: { content: { "application/json": { schema: addCopiesSchema } } },
   },
@@ -39,6 +43,7 @@ const addCopies = createRoute({
       content: { "application/json": { schema: copyAddResponseSchema } },
       description: "Created",
     },
+    ...errorResponses(400, 401, 403),
   },
 });
 
@@ -46,11 +51,13 @@ const moveCopies = createRoute({
   method: "post",
   path: "/move",
   tags: ["Copies"],
+  security: cookieAuth,
   request: {
     body: { content: { "application/json": { schema: moveCopiesSchema } } },
   },
   responses: {
     204: { description: "No Content" },
+    ...errorResponses(400, 401, 403, 404),
   },
 });
 
@@ -58,11 +65,13 @@ const disposeCopies = createRoute({
   method: "post",
   path: "/dispose",
   tags: ["Copies"],
+  security: cookieAuth,
   request: {
     body: { content: { "application/json": { schema: disposeCopiesSchema } } },
   },
   responses: {
     204: { description: "No Content" },
+    ...errorResponses(400, 401, 403, 404),
   },
 });
 
@@ -85,10 +94,13 @@ export const copiesRoute = copiesApp
     const items = rows.slice(0, effectiveLimit);
     const lastItem = items.at(-1);
 
-    return c.json({
-      items: items.map((row) => toCopy(row)),
-      nextCursor: hasMore && lastItem ? buildCopiesCursor(lastItem.createdAt, lastItem.id) : null,
-    } satisfies CopyListResponse);
+    return c.json(
+      {
+        items: items.map((row) => toCopy(row)),
+        nextCursor: hasMore && lastItem ? buildCopiesCursor(lastItem.createdAt, lastItem.id) : null,
+      } satisfies CopyListResponse,
+      200,
+    );
   })
 
   // ── POST /copies ────────────────────────────────────────────────────────────

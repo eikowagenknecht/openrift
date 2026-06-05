@@ -12,6 +12,7 @@ import {
 } from "@openrift/shared/response-schemas";
 import { z } from "zod";
 
+import { errorResponses } from "../../openapi-helpers.js";
 import { createApiApp } from "../../openapi.js";
 
 const ruleKindEnum = z.enum(["core", "tournament"]);
@@ -33,6 +34,7 @@ const listRules = createRoute({
       content: { "application/json": { schema: rulesListResponseSchema } },
       description: "List of rules",
     },
+    ...errorResponses(400),
   },
 });
 
@@ -50,6 +52,7 @@ const listVersions = createRoute({
       content: { "application/json": { schema: ruleVersionsListResponseSchema } },
       description: "List of rule versions",
     },
+    ...errorResponses(400),
   },
 });
 
@@ -101,20 +104,23 @@ export const rulesRoute = createApiApp()
     const changes = version ? await repo.listChangesAtVersion(kind, version) : null;
 
     c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
-    return c.json({
-      kind,
-      rules: rows.map((row) => toRuleResponse(row)),
-      version: effectiveVersion,
-      ...(changes
-        ? {
-            changes: {
-              added: changes.added,
-              modifiedPrev: changes.modifiedPrev,
-              removed: changes.removed.map((row) => toRuleResponse(row)),
-            },
-          }
-        : {}),
-    } satisfies RulesListResponse);
+    return c.json(
+      {
+        kind,
+        rules: rows.map((row) => toRuleResponse(row)),
+        version: effectiveVersion,
+        ...(changes
+          ? {
+              changes: {
+                added: changes.added,
+                modifiedPrev: changes.modifiedPrev,
+                removed: changes.removed.map((row) => toRuleResponse(row)),
+              },
+            }
+          : {}),
+      } satisfies RulesListResponse,
+      200,
+    );
   })
 
   // ── GET /rules/versions ─────────────────────────────────────────────────
@@ -124,14 +130,17 @@ export const rulesRoute = createApiApp()
     const rows = await repo.listVersions(kind);
 
     c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
-    return c.json({
-      versions: rows.map(
-        (r): RuleVersionResponse => ({
-          kind: r.kind as RuleKind,
-          version: r.version,
-          comments: r.comments,
-          importedAt: r.importedAt.toISOString(),
-        }),
-      ),
-    } satisfies RuleVersionsListResponse);
+    return c.json(
+      {
+        versions: rows.map(
+          (r): RuleVersionResponse => ({
+            kind: r.kind as RuleKind,
+            version: r.version,
+            comments: r.comments,
+            importedAt: r.importedAt.toISOString(),
+          }),
+        ),
+      } satisfies RuleVersionsListResponse,
+      200,
+    );
   });

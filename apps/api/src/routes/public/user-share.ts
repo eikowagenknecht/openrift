@@ -8,6 +8,7 @@ import { z } from "zod";
 
 import { gravatarHashForEmail } from "../../lib/gravatar.js";
 import { loadSession } from "../../middleware/load-session.js";
+import { errorResponses } from "../../openapi-helpers.js";
 import { createApiApp } from "../../openapi.js";
 import { assertFound } from "../../utils/assertions.js";
 import { toListEntryDetail, toPublicList } from "../../utils/mappers.js";
@@ -33,6 +34,7 @@ const getUserBundle = createRoute({
       content: { "application/json": { schema: publicUserBundleResponseSchema } },
       description: "Bundle index: owner profile + their wish/trade lists (ADR-018)",
     },
+    ...errorResponses(404),
   },
 });
 
@@ -46,6 +48,7 @@ const getUserBundleList = createRoute({
       content: { "application/json": { schema: publicListDetailResponseSchema } },
       description: "Detail of a single list inside the bundle",
     },
+    ...errorResponses(400, 404),
   },
 });
 
@@ -108,7 +111,7 @@ export const publicUserShareRoute = publicUserShareApp
         ? "private, max-age=60, stale-while-revalidate=300"
         : "public, max-age=60, stale-while-revalidate=300",
     );
-    return c.json(response);
+    return c.json(response, 200);
   })
 
   // ── GET /users/share/:token/lists/:listId ───────────────────────────────
@@ -137,5 +140,5 @@ export const publicUserShareRoute = publicUserShareApp
         ? "private, max-age=60, stale-while-revalidate=300"
         : "public, max-age=60, stale-while-revalidate=300",
     );
-    return c.json(response);
+    return c.json(response, 200);
   });

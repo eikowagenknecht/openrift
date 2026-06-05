@@ -39,6 +39,7 @@ import type { Repos } from "../../deps.js";
 import { AppError } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
+import { cookieAuth, errorResponses } from "../../openapi-helpers.js";
 import { createApiApp } from "../../openapi.js";
 import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
@@ -137,12 +138,14 @@ const listDecks = createRoute({
   method: "get",
   path: "/",
   tags: ["Decks"],
+  security: cookieAuth,
   request: { query: decksQuerySchema },
   responses: {
     200: {
       content: { "application/json": { schema: deckListResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(400, 401),
   },
 });
 
@@ -150,6 +153,7 @@ const createDeck = createRoute({
   method: "post",
   path: "/",
   tags: ["Decks"],
+  security: cookieAuth,
   request: {
     body: { content: { "application/json": { schema: createDeckSchema } } },
   },
@@ -161,6 +165,7 @@ const createDeck = createRoute({
       content: { "application/json": { schema: deckResponseSchema } },
       description: "Created",
     },
+    ...errorResponses(400, 401),
   },
 });
 
@@ -168,12 +173,14 @@ const getDeck = createRoute({
   method: "get",
   path: "/{id}",
   tags: ["Decks"],
+  security: cookieAuth,
   request: { params: idParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: deckDetailResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -181,6 +188,7 @@ const updateDeck = createRoute({
   method: "patch",
   path: "/{id}",
   tags: ["Decks"],
+  security: cookieAuth,
   request: {
     params: idParamSchema,
     body: { content: { "application/json": { schema: updateDeckSchema } } },
@@ -190,6 +198,7 @@ const updateDeck = createRoute({
       content: { "application/json": { schema: deckResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(400, 401, 404),
   },
 });
 
@@ -197,9 +206,11 @@ const deleteDeck = createRoute({
   method: "delete",
   path: "/{id}",
   tags: ["Decks"],
+  security: cookieAuth,
   request: { params: idParamSchema },
   responses: {
     204: { description: "No Content" },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -207,6 +218,7 @@ const replaceDeckCards = createRoute({
   method: "put",
   path: "/{id}/cards",
   tags: ["Decks"],
+  security: cookieAuth,
   request: {
     params: idParamSchema,
     body: { content: { "application/json": { schema: updateDeckCardsSchema } } },
@@ -216,6 +228,7 @@ const replaceDeckCards = createRoute({
       content: { "application/json": { schema: deckCardsResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(400, 401, 404),
   },
 });
 
@@ -223,6 +236,7 @@ const cloneDeck = createRoute({
   method: "post",
   path: "/{id}/clone",
   tags: ["Decks"],
+  security: cookieAuth,
   request: { params: idParamSchema },
   responses: {
     201: {
@@ -232,6 +246,7 @@ const cloneDeck = createRoute({
       content: { "application/json": { schema: deckResponseSchema } },
       description: "Created",
     },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -239,12 +254,14 @@ const getDeckAvailability = createRoute({
   method: "get",
   path: "/{id}/availability",
   tags: ["Decks"],
+  security: cookieAuth,
   request: { params: idParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: deckAvailabilityResponseSchema } },
       description: "Success",
     },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -252,12 +269,14 @@ const exportDeck = createRoute({
   method: "get",
   path: "/{id}/export",
   tags: ["Decks"],
+  security: cookieAuth,
   request: { params: idParamSchema, query: deckExportQuerySchema },
   responses: {
     200: {
       content: { "application/json": { schema: deckExportResponseSchema } },
       description: "Deck code",
     },
+    ...errorResponses(400, 401, 404),
   },
 });
 
@@ -272,6 +291,7 @@ const setDeckPinned = createRoute({
   method: "patch",
   path: "/{id}/pin",
   tags: ["Decks"],
+  security: cookieAuth,
   request: {
     params: idParamSchema,
     body: { content: { "application/json": { schema: pinDeckBodySchema } } },
@@ -281,6 +301,7 @@ const setDeckPinned = createRoute({
       content: { "application/json": { schema: deckResponseSchema } },
       description: "Updated",
     },
+    ...errorResponses(400, 401, 404),
   },
 });
 
@@ -288,6 +309,7 @@ const setDeckArchived = createRoute({
   method: "patch",
   path: "/{id}/archive",
   tags: ["Decks"],
+  security: cookieAuth,
   request: {
     params: idParamSchema,
     body: { content: { "application/json": { schema: archiveDeckBodySchema } } },
@@ -297,6 +319,7 @@ const setDeckArchived = createRoute({
       content: { "application/json": { schema: deckResponseSchema } },
       description: "Updated",
     },
+    ...errorResponses(400, 401, 404),
   },
 });
 
@@ -304,12 +327,14 @@ const getDeckShare = createRoute({
   method: "get",
   path: "/{id}/share",
   tags: ["Decks"],
+  security: cookieAuth,
   request: { params: idParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: deckShareResponseSchema } },
       description: "Current share state (shareToken is null when not shared)",
     },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -317,12 +342,14 @@ const shareDeck = createRoute({
   method: "post",
   path: "/{id}/share",
   tags: ["Decks"],
+  security: cookieAuth,
   request: { params: idParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: deckShareResponseSchema } },
       description: "Shared (idempotent — returns the existing token if already shared)",
     },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -330,12 +357,14 @@ const rotateDeckShare = createRoute({
   method: "post",
   path: "/{id}/share/rotate",
   tags: ["Decks"],
+  security: cookieAuth,
   request: { params: idParamSchema },
   responses: {
     200: {
       content: { "application/json": { schema: deckShareResponseSchema } },
       description: "Share token rotated (old token stops resolving)",
     },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -343,9 +372,11 @@ const unshareDeck = createRoute({
   method: "delete",
   path: "/{id}/share",
   tags: ["Decks"],
+  security: cookieAuth,
   request: { params: idParamSchema },
   responses: {
     204: { description: "No Content" },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -353,12 +384,14 @@ const cloneSharedDeck = createRoute({
   method: "post",
   path: "/share/{token}/clone",
   tags: ["Decks"],
+  security: cookieAuth,
   request: { params: shareTokenParamSchema },
   responses: {
     201: {
       content: { "application/json": { schema: deckCloneResponseSchema } },
       description: "Cloned",
     },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -478,7 +511,7 @@ export const decksRoute = decksApp
       };
     });
 
-    return c.json({ items } satisfies DeckListResponse);
+    return c.json({ items } satisfies DeckListResponse, 200);
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
@@ -517,7 +550,7 @@ export const decksRoute = decksApp
       deck: toDeck(deck),
       cards: cardRows.map((r) => toDeckCard(r)),
     };
-    return c.json(detail);
+    return c.json(detail, 200);
   })
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
@@ -558,7 +591,7 @@ export const decksRoute = decksApp
     const updates = buildPatchUpdates<DeckUpdateInput>(normalized, patchFields);
     const row = await decks.update(id, userId, updates);
     assertFound(row, "Not found");
-    return c.json(toDeck(row));
+    return c.json(toDeck(row), 200);
   })
 
   // ── DELETE ──────────────────────────────────────────────────────────────────
@@ -594,7 +627,7 @@ export const decksRoute = decksApp
 
     const cardRows = await decks.cardsForDeck(id, userId);
 
-    return c.json({ cards: cardRows.map((r) => toDeckCard(r)) });
+    return c.json({ cards: cardRows.map((r) => toDeckCard(r)) }, 200);
   })
 
   // ── POST /decks/:id/clone ─────────────────────────────────────────────────
@@ -640,7 +673,7 @@ export const decksRoute = decksApp
       }),
     );
 
-    return c.json({ items: availability } satisfies DeckAvailabilityResponse);
+    return c.json({ items: availability } satisfies DeckAvailabilityResponse, 200);
   })
 
   // ── GET /decks/:id/export ────────────────────────────────────────────────
@@ -694,10 +727,13 @@ export const decksRoute = decksApp
       result = piltoverCodec.encode(codecCards);
     }
 
-    return c.json({
-      code: result.code,
-      warnings: [...warnings, ...result.warnings],
-    } satisfies DeckExportResponse);
+    return c.json(
+      {
+        code: result.code,
+        warnings: [...warnings, ...result.warnings],
+      } satisfies DeckExportResponse,
+      200,
+    );
   })
 
   // ── PATCH /decks/:id/pin ──────────────────────────────────────────────────
@@ -710,7 +746,7 @@ export const decksRoute = decksApp
     const updated = await decks.setPinned(id, userId, isPinned);
     assertFound(updated, "Not found");
 
-    return c.json(toDeck(updated));
+    return c.json(toDeck(updated), 200);
   })
 
   // ── PATCH /decks/:id/archive ──────────────────────────────────────────────
@@ -723,7 +759,7 @@ export const decksRoute = decksApp
     const updated = await decks.setArchived(id, userId, archived);
     assertFound(updated, "Not found");
 
-    return c.json(toDeck(updated));
+    return c.json(toDeck(updated), 200);
   })
 
   // ── GET /decks/:id/share ──────────────────────────────────────────────────
@@ -738,10 +774,13 @@ export const decksRoute = decksApp
     const state = await decks.getShareState(id, userId);
     assertFound(state, "Not found");
 
-    return c.json({
-      shareToken: state.shareToken,
-      isPublic: state.isPublic,
-    } satisfies DeckShareResponse);
+    return c.json(
+      {
+        shareToken: state.shareToken,
+        isPublic: state.isPublic,
+      } satisfies DeckShareResponse,
+      200,
+    );
   })
 
   // ── POST /decks/:id/share ─────────────────────────────────────────────────
@@ -756,17 +795,20 @@ export const decksRoute = decksApp
     const existing = await decks.getShareState(id, userId);
     assertFound(existing, "Not found");
     if (existing.shareToken !== null && existing.isPublic) {
-      return c.json({
-        shareToken: existing.shareToken,
-        isPublic: existing.isPublic,
-      } satisfies DeckShareResponse);
+      return c.json(
+        {
+          shareToken: existing.shareToken,
+          isPublic: existing.isPublic,
+        } satisfies DeckShareResponse,
+        200,
+      );
     }
 
     const token = generateShareToken();
     const updated = await decks.setShareToken(id, userId, token, true);
     assertFound(updated, "Not found");
 
-    return c.json({ shareToken: token, isPublic: true } satisfies DeckShareResponse);
+    return c.json({ shareToken: token, isPublic: true } satisfies DeckShareResponse, 200);
   })
 
   // ── POST /decks/:id/share/rotate ──────────────────────────────────────────
@@ -784,7 +826,7 @@ export const decksRoute = decksApp
     const updated = await decks.setShareToken(id, userId, token, true);
     assertFound(updated, "Not found");
 
-    return c.json({ shareToken: token, isPublic: true } satisfies DeckShareResponse);
+    return c.json({ shareToken: token, isPublic: true } satisfies DeckShareResponse, 200);
   })
 
   // ── DELETE /decks/:id/share ───────────────────────────────────────────────
