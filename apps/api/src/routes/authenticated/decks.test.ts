@@ -553,16 +553,19 @@ describe("PATCH /api/v1/decks/:id — field updates", () => {
     expect(mockRepo.update).toHaveBeenCalledWith(DECK_ID, USER_ID, { isWanted: true });
   });
 
-  it("updates isPublic field", async () => {
-    const updated = { ...dbDeck, isPublic: true };
+  // isPublic is no longer patchable — a deck's public state is owned solely by
+  // the /share sub-resource. A PATCH that includes isPublic must strip it and
+  // apply only the real fields.
+  it("ignores isPublic in PATCH (public state is controlled via /share)", async () => {
+    const updated = { ...dbDeck, name: "Renamed" };
     mockRepo.update.mockResolvedValue(updated);
     const res = await app.request(`/api/v1/decks/${DECK_ID}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isPublic: true }),
+      body: JSON.stringify({ name: "Renamed", isPublic: true }),
     });
     expect(res.status).toBe(200);
-    expect(mockRepo.update).toHaveBeenCalledWith(DECK_ID, USER_ID, { isPublic: true });
+    expect(mockRepo.update).toHaveBeenCalledWith(DECK_ID, USER_ID, { name: "Renamed" });
   });
 
   it("updates description field", async () => {

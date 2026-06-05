@@ -1,6 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 import type { CustomTag, DistributionChannel, InitResponse, KeywordEntry } from "@openrift/shared";
 import { initResponseSchema } from "@openrift/shared/response-schemas";
+import { etag } from "hono/etag";
 
 import { createApiApp } from "../../openapi.js";
 
@@ -16,8 +17,11 @@ const getInit = createRoute({
   },
 });
 
+const initApp = createApiApp();
+initApp.use("/init", etag());
+
 /** Public: GET /init — returns enums + keywords in a single request. */
-export const initRoute = createApiApp().openapi(getInit, async (c) => {
+export const initRoute = initApp.openapi(getInit, async (c) => {
   const { enums, keywords, distributionChannels, customTags, catalog } = c.get("repos");
   const [enumData, keywordRows, translations, channelRows, customTagRows, championIdentifierTags] =
     await Promise.all([
@@ -75,7 +79,9 @@ export const initRoute = createApiApp().openapi(getInit, async (c) => {
     sortOrder: row.sortOrder,
   }));
 
-  c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+  // Reference data (enums/keywords/channels/tags) changes on the same weeks-apart
+  // cadence as the catalog, so it joins the catalog-stable tier (1h + SWR + ETag).
+  c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
   return c.json({
     enums: strippedEnums,
     keywords: keywordsMap,

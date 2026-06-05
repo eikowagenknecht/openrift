@@ -125,13 +125,15 @@ async function validateFormatConfig(
   );
 }
 
+// isPublic is deliberately NOT patchable here: a deck's public state is owned
+// solely by the /decks/{id}/share sub-resource (POST/DELETE/rotate), so the two
+// can never desync. Collections already follow this rule.
 const patchFields: FieldMapping<DeckUpdateInput> = {
   name: "name",
   description: "description",
   format: "format",
   formatConfig: "formatConfig",
   isWanted: "isWanted",
-  isPublic: "isPublic",
 };
 
 const listDecks = createRoute({

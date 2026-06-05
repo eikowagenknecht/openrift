@@ -136,7 +136,7 @@ describe("GET /api/v1/init", () => {
   it("sets Cache-Control with public caching", async () => {
     const res = await app.request("/api/v1/init");
     expect(res.headers.get("Cache-Control")).toBe(
-      "public, max-age=300, stale-while-revalidate=600",
+      "public, max-age=3600, stale-while-revalidate=86400",
     );
   });
 

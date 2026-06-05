@@ -222,13 +222,14 @@ export const createDeckSchema = z.object({
   isPublic: z.boolean().optional(),
 });
 
+// isPublic is intentionally absent: a deck's public state is controlled only by
+// the /decks/{id}/share sub-resource, not by PATCH, so the two can't desync.
 export const updateDeckSchema = z.object({
   name: deckFieldRules.name.optional(),
   description: z.string().max(2000).nullish(),
   format: deckFieldRules.format.optional(),
   formatConfig: formatConfigSchema.optional(),
   isWanted: z.boolean().optional(),
-  isPublic: z.boolean().optional(),
 });
 
 export const updateDeckCardsSchema = z.object({

@@ -10,6 +10,7 @@ import {
   rulesListResponseSchema,
   ruleVersionsListResponseSchema,
 } from "@openrift/shared/response-schemas";
+import { etag } from "hono/etag";
 import { z } from "zod";
 
 import { errorResponses } from "../../openapi-helpers.js";
@@ -89,7 +90,11 @@ function toRuleResponse(row: {
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
-export const rulesRoute = createApiApp()
+const rulesApp = createApiApp();
+rulesApp.use("/rules", etag());
+rulesApp.use("/rules/versions", etag());
+
+export const rulesRoute = rulesApp
   // ── GET /rules ──────────────────────────────────────────────────────────
   .openapi(listRules, async (c) => {
     const { rules: repo } = c.get("repos");
@@ -103,7 +108,7 @@ export const rulesRoute = createApiApp()
 
     const changes = version ? await repo.listChangesAtVersion(kind, version) : null;
 
-    c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+    c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
     return c.json(
       {
         kind,
@@ -129,7 +134,7 @@ export const rulesRoute = createApiApp()
     const { kind } = c.req.valid("query");
     const rows = await repo.listVersions(kind);
 
-    c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+    c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
     return c.json(
       {
         versions: rows.map(
