@@ -24,8 +24,22 @@ export function createApiApp(): OpenAPIHono<{ Variables: Variables }> {
   return new OpenAPIHono<{ Variables: Variables }>({
     defaultHook: (result, c) => {
       if (!result.success) {
+        // `target` (set by the zod-validator at runtime, not in its public types)
+        // tells us which request part failed, so a query/param failure doesn't
+        // misreport as "request body".
+        const target = (result as { target?: string }).target;
+        const where =
+          target === "param"
+            ? "path parameters"
+            : target === "query"
+              ? "query parameters"
+              : target === "header"
+                ? "headers"
+                : target === "cookie"
+                  ? "cookies"
+                  : "request body";
         const body: ApiErrorResponse = {
-          error: "Invalid request body",
+          error: `Invalid ${where}`,
           code: ERROR_CODES.VALIDATION_ERROR,
           details: result.error.issues.map((issue) => ({
             path: issue.path,
