@@ -14,6 +14,7 @@ function createMockContext(session: { user: { id: string }; session: { id: strin
         vars[key] = value;
       },
       req: { raw: { headers: new Headers() } },
+      res: { headers: new Headers() },
     } as any,
     getSession,
     vars,
@@ -63,5 +64,23 @@ describe("loadSession middleware", () => {
 
     expect(ctx.get("user")).toEqual({ id: "u-2" });
     expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it("sets Vary: Cookie so shared caches key on the auth cookie", async () => {
+    const { ctx } = createMockContext({ user: { id: "u-3" }, session: { id: "s-3" } });
+    const next = vi.fn(() => Promise.resolve());
+
+    await loadSession(ctx, next);
+
+    expect(ctx.res.headers.get("Vary")).toContain("Cookie");
+  });
+
+  it("sets Vary: Cookie on the anonymous branch too", async () => {
+    const { ctx } = createMockContext(null);
+    const next = vi.fn(() => Promise.resolve());
+
+    await loadSession(ctx, next);
+
+    expect(ctx.res.headers.get("Vary")).toContain("Cookie");
   });
 });

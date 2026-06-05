@@ -27,4 +27,12 @@ export async function resolveSession(c: Context<{ Variables: Variables }>): Prom
 export const loadSession: MiddlewareHandler<{ Variables: Variables }> = async (c, next) => {
   await resolveSession(c);
   await next();
+  // A loadSession-gated route can return a different body per auth state on the
+  // SAME url (e.g. /feature-flags, /users/share/{token} — anonymous vs. signed
+  // in). Those routes set `public` Cache-Control on the anonymous branch, so a
+  // shared/edge cache (ADR-016: Cloudflare) keyed only on the URL could serve an
+  // anonymous response to an authenticated viewer (wrong flags, a bundle missing
+  // their group-shared lists) or vice-versa. `Vary: Cookie` makes the cache key
+  // include the cookie. Set centrally here so it can't be forgotten per-route.
+  c.res.headers.append("Vary", "Cookie");
 };
