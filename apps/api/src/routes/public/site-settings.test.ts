@@ -32,7 +32,7 @@ describe("GET /api/v1/site-settings", () => {
     const res = await app.request("/api/v1/site-settings");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.items).toBeDefined();
+    expect(json.settings).toBeDefined();
   });
 
   it("maps rows to key-value pairs in items", async () => {
@@ -42,7 +42,7 @@ describe("GET /api/v1/site-settings", () => {
     ]);
     const res = await app.request("/api/v1/site-settings");
     const json = await res.json();
-    expect(json.items).toEqual({
+    expect(json.settings).toEqual({
       theme: "dark",
       banner: "Welcome to OpenRift!",
     });
@@ -52,7 +52,7 @@ describe("GET /api/v1/site-settings", () => {
     mockSiteSettingsRepo.listByScope.mockResolvedValue([]);
     const res = await app.request("/api/v1/site-settings");
     const json = await res.json();
-    expect(json.items).toEqual({});
+    expect(json.settings).toEqual({});
   });
 
   it("calls listByScope with 'web' scope", async () => {
@@ -81,8 +81,8 @@ describe("GET /api/v1/site-settings", () => {
     ]);
     const res = await app.request("/api/v1/site-settings");
     const json = await res.json();
-    expect(Object.keys(json.items)).toHaveLength(3);
-    expect(json.items.maintenance).toBe("false");
+    expect(Object.keys(json.settings)).toHaveLength(3);
+    expect(json.settings.maintenance).toBe("false");
   });
 
   it("overwrites duplicate keys with last value", async () => {
@@ -92,6 +92,6 @@ describe("GET /api/v1/site-settings", () => {
     ]);
     const res = await app.request("/api/v1/site-settings");
     const json = await res.json();
-    expect(json.items.theme).toBe("dark");
+    expect(json.settings.theme).toBe("dark");
   });
 });

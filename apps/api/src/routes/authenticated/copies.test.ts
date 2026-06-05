@@ -145,7 +145,7 @@ describe("POST /api/v1/copies", () => {
     });
     expect(res.status).toBe(201);
     const json = await res.json();
-    expect(json).toHaveLength(1);
+    expect(json.items).toHaveLength(1);
   });
 });
 

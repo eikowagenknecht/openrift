@@ -136,7 +136,7 @@ export const adminStatusResponseSchema = z
 
 export const featureFlagsResponseSchema = z
   .object({
-    items: z.record(z.string(), z.boolean()).openapi({
+    flags: z.record(z.string(), z.boolean()).openapi({
       example: { collection: true, decks: true },
     }),
   })
@@ -569,7 +569,9 @@ export const copyListResponseSchema = z
  * owning collection). Additive — older clients read a subset and ignore the
  * extra fields.
  */
-export const copyAddResponseSchema = z.array(copyResponseSchema).openapi("CopyAddResponse");
+export const copyAddResponseSchema = z
+  .object({ items: z.array(copyResponseSchema) })
+  .openapi("CopyAddResponse");
 
 /**
  * Copy projection for anonymous share viewers — deliberately narrower than
@@ -586,7 +588,7 @@ export const publicCopyResponseSchema = z
 export const publicCollectionDetailResponseSchema = z
   .object({
     collection: publicCollectionResponseSchema,
-    copies: z.array(publicCopyResponseSchema),
+    items: z.array(publicCopyResponseSchema),
     nextCursor: z.string().nullable(),
     owner: z.object({ displayName: z.string() }),
   })
@@ -960,7 +962,7 @@ export const listShareResponseSchema = z
 // ── User share bundle (ADR-018) ─────────────────────────────────────────────
 
 export const userShareStateResponseSchema = z
-  .object({ shareToken: z.string().nullable() })
+  .object({ shareToken: z.string().nullable(), isPublic: z.boolean() })
   .openapi("UserShareStateResponse");
 
 const publicUserBundleListResponseSchema = z

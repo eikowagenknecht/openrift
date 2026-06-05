@@ -103,8 +103,8 @@ describe("GET /api/v1/collections/share/:token", () => {
     expect(json.collection.name).toBe("Main Binder");
     expect(json.collection.totalValueCents).toBe(1234);
     expect(json.collection.unpricedCopyCount).toBe(2);
-    expect(json.copies).toHaveLength(1);
-    expect(json.copies[0].id).toBe(dbCopy.id);
+    expect(json.items).toHaveLength(1);
+    expect(json.items[0].id).toBe(dbCopy.id);
     expect(json.owner.displayName).toBe("Alice");
     expect(json.nextCursor).toBeNull();
   });
@@ -161,7 +161,7 @@ describe("GET /api/v1/collections/share/:token", () => {
     const res = await app.request("/api/v1/collections/share/tok-abc?limit=10");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.copies).toHaveLength(10);
+    expect(json.items).toHaveLength(10);
     expect(json.nextCursor).toBeTruthy();
   });
 

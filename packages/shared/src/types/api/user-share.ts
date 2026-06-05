@@ -2,10 +2,13 @@ import type { ListIntent, ListKind } from "./list.js";
 
 /**
  * State of the signed-in user's public share bundle. `shareToken` is `null`
- * when bundle sharing is disabled. See ADR-018.
+ * when bundle sharing is disabled; `isPublic` mirrors `shareToken !== null` so
+ * this shares the `{ shareToken, isPublic }` shape with the collection/deck/list
+ * share-state responses. See ADR-018.
  */
 export interface UserShareStateResponse {
   shareToken: string | null;
+  isPublic: boolean;
 }
 
 /**

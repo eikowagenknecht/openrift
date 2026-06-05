@@ -30,7 +30,7 @@ function SharedCollectionRoute() {
       createdAt: "",
       updatedAt: "",
     },
-    copies: data.copies,
+    items: data.copies,
     nextCursor: null,
     owner: { displayName: data.collection.ownerName ?? "Unknown" },
   };

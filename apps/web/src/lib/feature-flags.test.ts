@@ -15,14 +15,14 @@ const NO_SESSION_COOKIE = "theme=dark";
 
 // The hc client calls global fetch with (url, { headers: Headers, ... }); mock at
 // that boundary so the test exercises serverApiClient's real cookie forwarding.
-function mockFlagsResponse(items: Record<string, boolean>) {
+function mockFlagsResponse(flags: Record<string, boolean>) {
   return {
     ok: true,
     status: 200,
     statusText: "OK",
     url: "http://localhost:3000/api/v1/feature-flags",
-    json: async () => ({ items }),
-    text: async () => JSON.stringify({ items }),
+    json: async () => ({ flags }),
+    text: async () => JSON.stringify({ flags }),
   } as Response;
 }
 

@@ -140,7 +140,7 @@ function SharedCollectionBody({ data }: { data: PublicCollectionDetailResponse }
 }
 
 function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }) {
-  const { copies } = data;
+  const { items: copies } = data;
   const { printingsById, sets } = useCards();
   const display = useCardThumbnailDisplay();
   const showImages = useDisplayStore((state) => state.showImages);

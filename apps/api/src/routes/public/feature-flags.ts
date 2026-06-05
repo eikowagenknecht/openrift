@@ -29,7 +29,7 @@ export const featureFlagsRoute = featureFlagsApp.openapi(getFeatureFlags, async 
     const { userFeatureFlags } = c.get("repos");
     const flags = await userFeatureFlags.listMerged(user.id);
     c.header("Cache-Control", "private, max-age=60, stale-while-revalidate=300");
-    return c.json({ items: flags } satisfies FeatureFlagsResponse);
+    return c.json({ flags } satisfies FeatureFlagsResponse);
   }
 
   // Anonymous: global defaults only.
@@ -40,5 +40,5 @@ export const featureFlagsRoute = featureFlagsApp.openapi(getFeatureFlags, async 
     flags[row.key] = row.enabled;
   }
   c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
-  return c.json({ items: flags } satisfies FeatureFlagsResponse);
+  return c.json({ flags } satisfies FeatureFlagsResponse);
 });

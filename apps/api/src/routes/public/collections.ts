@@ -55,7 +55,7 @@ export const publicCollectionsRoute = createApiApp().openapi(
 
     const response: PublicCollectionDetailResponse = {
       collection: toPublicCollection(found.collection, value),
-      copies: items.map((row) => toPublicCopy(row)),
+      items: items.map((row) => toPublicCopy(row)),
       nextCursor: hasMore && lastItem ? buildCopiesCursor(lastItem.createdAt, lastItem.id) : null,
       owner: { displayName: found.ownerName ?? "Anonymous" },
     };

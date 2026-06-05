@@ -102,6 +102,7 @@ export function useDisableUserShare() {
     onSuccess: () => {
       queryClient.setQueryData<UserShareStateResponse>(queryKeys.userShare.state(userId), {
         shareToken: null,
+        isPublic: false,
       });
     },
   });

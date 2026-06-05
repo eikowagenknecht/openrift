@@ -75,7 +75,13 @@ export const userShareRoute = userShareApp
   .openapi(getShareState, async (c) => {
     const { userShares } = c.get("repos");
     const row = await userShares.getShareToken(getUserId(c));
-    return c.json({ shareToken: row?.shareToken ?? null } satisfies UserShareStateResponse, 200);
+    return c.json(
+      {
+        shareToken: row?.shareToken ?? null,
+        isPublic: Boolean(row?.shareToken),
+      } satisfies UserShareStateResponse,
+      200,
+    );
   })
 
   // ── POST /users/me/share ────────────────────────────────────────────────
@@ -86,11 +92,17 @@ export const userShareRoute = userShareApp
     const userId = getUserId(c);
     const current = await userShares.getShareToken(userId);
     if (current?.shareToken) {
-      return c.json({ shareToken: current.shareToken } satisfies UserShareStateResponse, 200);
+      return c.json(
+        { shareToken: current.shareToken, isPublic: true } satisfies UserShareStateResponse,
+        200,
+      );
     }
     const updated = await userShares.setShareToken(userId, generateShareToken());
     assertFound(updated, "User not found");
-    return c.json({ shareToken: updated.shareToken } satisfies UserShareStateResponse, 200);
+    return c.json(
+      { shareToken: updated.shareToken, isPublic: true } satisfies UserShareStateResponse,
+      200,
+    );
   })
 
   // ── DELETE /users/me/share ──────────────────────────────────────────────
@@ -108,5 +120,8 @@ export const userShareRoute = userShareApp
     const { userShares } = c.get("repos");
     const updated = await userShares.setShareToken(getUserId(c), generateShareToken());
     assertFound(updated, "User not found");
-    return c.json({ shareToken: updated.shareToken } satisfies UserShareStateResponse, 200);
+    return c.json(
+      { shareToken: updated.shareToken, isPublic: true } satisfies UserShareStateResponse,
+      200,
+    );
   });

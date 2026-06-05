@@ -18,7 +18,7 @@ const fetchSiteSettings = createServerFn({ method: "GET" }).handler(() =>
         serverApiClient().api.v1["site-settings"].$get(),
         "Couldn't load site settings",
       );
-      return data.items;
+      return data.settings;
     },
   }),
 );

@@ -21,7 +21,7 @@ async function fetchFlagsFromApi(cookie?: string): Promise<FeatureFlags> {
     serverApiClient(cookie).api.v1["feature-flags"].$get(),
     "Couldn't load feature flags",
   );
-  return data.items;
+  return data.flags;
 }
 
 export function loadFeatureFlags(cookie: string): Promise<FeatureFlags> {

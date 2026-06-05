@@ -313,7 +313,7 @@ const fetchPublicCollectionFn = createServerFn({ method: "GET" })
     // Walk the cursor server-side so the SSR payload carries every copy for
     // collections larger than the API's per-page cap. Matches the authenticated
     // `fetchCopies` pattern in copies-query.ts.
-    const allCopies = [...firstPage.copies];
+    const allCopies = [...firstPage.items];
     let cursor = firstPage.nextCursor;
     while (cursor) {
       const nextRes = await callApi(
@@ -324,11 +324,11 @@ const fetchPublicCollectionFn = createServerFn({ method: "GET" })
         "Couldn't load shared collection",
       );
       const page = (await nextRes.json()) as PublicCollectionDetailResponse;
-      allCopies.push(...page.copies);
+      allCopies.push(...page.items);
       cursor = page.nextCursor;
     }
 
-    return { ...firstPage, copies: allCopies, nextCursor: null };
+    return { ...firstPage, items: allCopies, nextCursor: null };
   });
 
 export function publicCollectionQueryOptions(token: string) {

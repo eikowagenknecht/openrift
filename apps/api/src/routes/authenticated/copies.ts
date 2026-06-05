@@ -113,7 +113,7 @@ export const copiesRoute = copiesApp
     const userId = getUserId(c);
     const body = c.req.valid("json");
     const created = await addCopiesService(repos, transact, userId, body.copies);
-    return c.json(created satisfies CopyAddResponse, 201);
+    return c.json({ items: created } satisfies CopyAddResponse, 201);
   })
 
   // ── POST /copies/move ───────────────────────────────────────────────────────

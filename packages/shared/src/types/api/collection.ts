@@ -35,7 +35,7 @@ export interface PublicCollectionResponse {
 
 export interface PublicCollectionDetailResponse {
   collection: PublicCollectionResponse;
-  copies: PublicCopyResponse[];
+  items: PublicCopyResponse[];
   nextCursor: string | null;
   owner: { displayName: string };
 }
@@ -80,8 +80,11 @@ export interface CopyResponse {
 }
 
 /**
- * Response body for `POST /copies`: the copies just created, each in the full
- * {@link CopyResponse} shape (including `groupId` derived from the owning
+ * Response body for `POST /copies`: the copies just created under an `items`
+ * key (matching the `{ items }` list envelope used everywhere else), each in the
+ * full {@link CopyResponse} shape (including `groupId` derived from the owning
  * collection, so clients no longer have to synthesize it).
  */
-export type CopyAddResponse = CopyResponse[];
+export interface CopyAddResponse {
+  items: CopyResponse[];
+}

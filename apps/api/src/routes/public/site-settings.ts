@@ -13,7 +13,7 @@ const getSiteSettings = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            items: z.record(z.string(), z.string()).openapi({ example: { theme: "dark" } }),
+            settings: z.record(z.string(), z.string()).openapi({ example: { theme: "dark" } }),
           }),
         },
       },
@@ -22,15 +22,15 @@ const getSiteSettings = createRoute({
   },
 });
 
-/** Public: GET /site-settings — returns web-scoped settings as a `{ items: { key: value } }` map. */
+/** Public: GET /site-settings — returns web-scoped settings as a `{ settings: { key: value } }` map. */
 export const siteSettingsRoute = createApiApp().openapi(getSiteSettings, async (c) => {
   const { siteSettings } = c.get("repos");
   const rows = await siteSettings.listByScope("web");
 
-  const items: Record<string, string> = {};
+  const settings: Record<string, string> = {};
   for (const row of rows) {
-    items[row.key] = row.value;
+    settings[row.key] = row.value;
   }
   c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
-  return c.json({ items } satisfies SiteSettingsResponse);
+  return c.json({ settings } satisfies SiteSettingsResponse);
 });
