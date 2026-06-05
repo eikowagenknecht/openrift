@@ -14,7 +14,7 @@ import { AppError } from "../../errors.js";
 import { createApiApp } from "../../openapi.js";
 import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-response.js";
 
-const setSlugParamSchema = z.object({ setSlug: z.string() });
+const setSlugParamSchema = z.object({ setSlug: z.string().min(1) });
 
 const getSetList = createRoute({
   method: "get",

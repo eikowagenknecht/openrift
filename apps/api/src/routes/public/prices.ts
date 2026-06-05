@@ -77,7 +77,8 @@ export const pricesRoute = pricesApp
    * Uses `DISTINCT ON` to efficiently pick only the most recent price row per
    * marketplace source without scanning the full `marketplace_product_prices` table.
    * Returned as `{ [printingId]: { tcgplayer?, cardmarket?, cardtrader? } }`,
-   * with each value in dollars.
+   * with each value an integer-cents amount in that marketplace's currency
+   * (SCH-2; the web converts at the display boundary).
    */
   .openapi(getPrices, async (c) => {
     const { marketplace } = c.get("repos");

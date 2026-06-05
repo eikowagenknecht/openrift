@@ -13,7 +13,7 @@ import { AppError } from "../../errors.js";
 import { createApiApp } from "../../openapi.js";
 import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-response.js";
 
-const cardSlugParamSchema = z.object({ cardSlug: z.string() });
+const cardSlugParamSchema = z.object({ cardSlug: z.string().min(1) });
 
 const getCardDetail = createRoute({
   method: "get",
@@ -35,8 +35,9 @@ export const cardsRoute = cardsApp
    * `GET /cards/:cardSlug` — Returns a single card with all its printings.
    *
    * Lightweight alternative to the full catalog endpoint, designed for SSR
-   * card detail pages. Includes card data, all printings with images and
-   * prices, and the sets those printings belong to.
+   * card detail pages. Includes card data, all printings with images, and the
+   * sets those printings belong to. Prices are NOT inlined — they are served
+   * separately by `/prices` (CACHE-1).
    */
   .openapi(getCardDetail, async (c) => {
     const { cardSlug } = c.req.valid("param");
