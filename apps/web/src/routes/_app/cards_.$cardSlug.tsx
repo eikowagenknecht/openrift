@@ -149,7 +149,7 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
     try {
       pricesResponse = await context.queryClient.ensureQueryData(pricesQueryOptions);
     } catch {
-      pricesResponse = { prices: {} };
+      pricesResponse = { prices: {}, currencies: MARKETPLACE_CURRENCY };
     }
     const priceLookup = priceLookupFromMap(pricesResponse.prices);
     const marketplaceOffers = MARKETPLACE_OFFER_CONFIG.flatMap(({ key, seller, currency }) => {

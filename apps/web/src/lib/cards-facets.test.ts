@@ -7,7 +7,7 @@ import type {
   PricesResponse,
   Printing,
 } from "@openrift/shared";
-import { getAvailableFilters, priceLookupFromMap } from "@openrift/shared";
+import { MARKETPLACE_CURRENCY, getAvailableFilters, priceLookupFromMap } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -87,7 +87,7 @@ const ORDERS: EnumOrders = {
   artVariants: ["normal", "alternate"],
 };
 
-const NO_PRICES: PricesResponse = { prices: {} };
+const NO_PRICES: PricesResponse = { prices: {}, currencies: MARKETPLACE_CURRENCY };
 
 describe("extractCatalogFacets", () => {
   it("returns facets shape derived from the catalog", () => {
@@ -133,6 +133,7 @@ describe("extractCatalogFacets", () => {
         "p-2": { cardtrader: 1230 },
         "p-3": { tcgplayer: 750 },
       },
+      currencies: MARKETPLACE_CURRENCY,
     };
     const facets = extractCatalogFacets(makeCatalog(cards, printings), prices, ORDERS);
 
@@ -311,6 +312,7 @@ describe("extractCatalogFacets ↔ useCardData parity", () => {
         "p-unit-r-foil": { cardtrader: 12.4, cardmarket: 100 },
         "p-spell": { cardtrader: 2.1 },
       },
+      currencies: MARKETPLACE_CURRENCY,
     };
 
     const ssrFacets = extractCatalogFacets(catalog, prices, ORDERS);

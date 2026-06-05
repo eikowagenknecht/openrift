@@ -504,7 +504,6 @@ describe("toListEntryDetail", () => {
       quantity: 1,
       copyId: "copy-1",
       printingId: "p-1",
-      collectionId: "col-1",
       cardName: "Fire Dragon",
       cardType: "unit",
       setId: "set-1",

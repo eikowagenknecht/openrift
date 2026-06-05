@@ -305,7 +305,9 @@ export function toListEntryDetail(
     quantity: row.quantity,
     copyId: row.copyId,
     printingId: row.printingId,
-    collectionId: row.collectionId,
+    // collectionId is owner-internal: it identified the owner's collection that
+    // holds the copy, but it is never consumed by clients and it leaked to
+    // anonymous viewers of public/group-shared lists (G3). Dropped from the wire.
     cardName: row.cardName,
     cardType: row.cardType as CardType,
     setId: row.setId,

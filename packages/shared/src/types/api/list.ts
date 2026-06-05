@@ -81,7 +81,6 @@ export type ListEntryDetailResponse =
       kind: "copy";
       copyId: string;
       printingId: string;
-      collectionId: string;
       setId: string;
       rarity: Rarity;
       finish: Finish;

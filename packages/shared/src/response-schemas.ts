@@ -233,6 +233,14 @@ const marketplacePriceMapSchema = z.object({
     .openapi({ example: 390, description: "Integer cents (EUR)" }),
 });
 
+const marketplaceCurrenciesSchema = z
+  .object({
+    tcgplayer: z.enum(["EUR", "USD"]),
+    cardmarket: z.enum(["EUR", "USD"]),
+    cardtrader: z.enum(["EUR", "USD"]),
+  })
+  .openapi({ example: { tcgplayer: "USD", cardmarket: "EUR", cardtrader: "EUR" } });
+
 export const pricesResponseSchema = z
   .object({
     prices: z.record(z.string(), marketplacePriceMapSchema).openapi({
@@ -244,6 +252,8 @@ export const pricesResponseSchema = z
         },
       },
     }),
+    // SCH-2: the cents amounts above are explicit about their currency here.
+    currencies: marketplaceCurrenciesSchema,
   })
   .openapi("PricesResponse");
 
@@ -276,11 +286,22 @@ const marketplaceInfoSchema = z.object({
   productId: z.number().nullable().openapi({ example: 582_391 }),
 });
 
+const currencyFieldSchema = z.enum(["EUR", "USD"]);
+
 export const priceHistoryResponseSchema = z
   .object({
-    tcgplayer: marketplaceInfoSchema.extend({ snapshots: z.array(tcgplayerSnapshotSchema) }),
-    cardmarket: marketplaceInfoSchema.extend({ snapshots: z.array(cardmarketSnapshotSchema) }),
-    cardtrader: marketplaceInfoSchema.extend({ snapshots: z.array(cardtraderSnapshotSchema) }),
+    tcgplayer: marketplaceInfoSchema.extend({
+      currency: currencyFieldSchema,
+      snapshots: z.array(tcgplayerSnapshotSchema),
+    }),
+    cardmarket: marketplaceInfoSchema.extend({
+      currency: currencyFieldSchema,
+      snapshots: z.array(cardmarketSnapshotSchema),
+    }),
+    cardtrader: marketplaceInfoSchema.extend({
+      currency: currencyFieldSchema,
+      snapshots: z.array(cardtraderSnapshotSchema),
+    }),
   })
   .openapi("PriceHistoryResponse");
 
@@ -918,7 +939,6 @@ const listEntryDetailResponseSchema = z
       kind: z.literal("copy"),
       copyId: z.string(),
       printingId: z.string(),
-      collectionId: z.string(),
       ...listEntryDetailPrintingFieldsShape,
     }),
   ])

@@ -1,14 +1,18 @@
 import type { Marketplace } from "../pricing.js";
+import type { Currency } from "./trade-preferences.js";
 
 /**
  * Latest headline price per printing per marketplace, in integer **cents**.
- * Currency is implied by the marketplace — see `MARKETPLACE_CURRENCY`.
+ * The currency of each marketplace's cents is carried explicitly in the
+ * `currencies` map on {@link PricesResponse} (SCH-2: cents + explicit currency).
  * Consumers convert to major units at the display boundary (`priceLookupFromMap`).
  */
 export type PriceMap = Record<string, Partial<Record<Marketplace, number>>>;
 
 export interface PricesResponse {
   prices: PriceMap;
+  /** Currency of each marketplace's integer-cents amounts (e.g. tcgplayer=USD). */
+  currencies: Record<Marketplace, Currency>;
 }
 
 /**
@@ -66,6 +70,8 @@ export interface MarketplaceInfo {
  * plus the snapshot series.
  */
 interface PriceHistorySlice<TSnapshot> extends MarketplaceInfo {
+  /** Currency of this marketplace's integer-cents snapshot amounts. */
+  currency: Currency;
   snapshots: TSnapshot[];
 }
 

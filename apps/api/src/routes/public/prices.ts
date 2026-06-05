@@ -1,5 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
-import { TIME_RANGE_DAYS, formatDateUTC } from "@openrift/shared";
+import { MARKETPLACE_CURRENCY, TIME_RANGE_DAYS, formatDateUTC } from "@openrift/shared";
 import type {
   Marketplace,
   MarketplaceInfo,
@@ -100,7 +100,7 @@ export const pricesRoute = pricesApp
     }
 
     c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-    return c.json({ prices } satisfies PricesResponse, 200);
+    return c.json({ prices, currencies: MARKETPLACE_CURRENCY } satisfies PricesResponse, 200);
   })
   /**
    * `GET /prices/:printingId/history` — Returns price history for a single printing.
@@ -133,9 +133,24 @@ export const pricesRoute = pricesApp
     if (!printing) {
       return c.json(
         {
-          tcgplayer: { available: false, productId: null, snapshots: [] },
-          cardmarket: { available: false, productId: null, snapshots: [] },
-          cardtrader: { available: false, productId: null, snapshots: [] },
+          tcgplayer: {
+            available: false,
+            productId: null,
+            currency: MARKETPLACE_CURRENCY.tcgplayer,
+            snapshots: [],
+          },
+          cardmarket: {
+            available: false,
+            productId: null,
+            currency: MARKETPLACE_CURRENCY.cardmarket,
+            snapshots: [],
+          },
+          cardtrader: {
+            available: false,
+            productId: null,
+            currency: MARKETPLACE_CURRENCY.cardtrader,
+            snapshots: [],
+          },
         } satisfies PriceHistoryResponse,
         200,
       );
@@ -192,16 +207,19 @@ export const pricesRoute = pricesApp
       tcgplayer: {
         available: Boolean(tcgSource),
         productId: tcgSource?.externalId ?? null,
+        currency: MARKETPLACE_CURRENCY.tcgplayer,
         snapshots: tcgSnapshots,
       },
       cardmarket: {
         available: Boolean(cmSource),
         productId: cmSource?.externalId ?? null,
+        currency: MARKETPLACE_CURRENCY.cardmarket,
         snapshots: cmSnapshots,
       },
       cardtrader: {
         available: Boolean(ctSource),
         productId: ctSource?.externalId ?? null,
+        currency: MARKETPLACE_CURRENCY.cardtrader,
         snapshots: ctSnapshots,
       },
     };

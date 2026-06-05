@@ -54,7 +54,6 @@ function copyEntry(printing: Printing, quantity: number): ListEntryDetailRespons
     cardName: "Test",
     cardType: "unit",
     quantity,
-    collectionId: "col-1",
     setId: printing.setId,
     rarity: printing.rarity,
     finish: printing.finish,
