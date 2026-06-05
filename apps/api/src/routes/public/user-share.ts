@@ -18,13 +18,15 @@ const tokenParamSchema = z.object({
 
 const tokenAndListParamSchema = z.object({
   token: z.string().min(1),
-  listId: z.string().min(1),
+  // List ids are UUIDs everywhere else (idParamSchema, friend-groups). Validate
+  // here too so a malformed id is a clean 400 at the edge, not a repo-level 404.
+  listId: z.uuid(),
 });
 
 const getUserBundle = createRoute({
   method: "get",
   path: "/users/share/{token}",
-  tags: ["UserShare"],
+  tags: ["User Share"],
   request: { params: tokenParamSchema },
   responses: {
     200: {
@@ -37,7 +39,7 @@ const getUserBundle = createRoute({
 const getUserBundleList = createRoute({
   method: "get",
   path: "/users/share/{token}/lists/{listId}",
-  tags: ["UserShare"],
+  tags: ["User Share"],
   request: { params: tokenAndListParamSchema },
   responses: {
     200: {

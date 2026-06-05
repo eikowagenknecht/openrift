@@ -11,7 +11,7 @@ import { generateShareToken } from "../../utils/share-token.js";
 const getShareState = createRoute({
   method: "get",
   path: "/",
-  tags: ["UserShare"],
+  tags: ["User Share"],
   responses: {
     200: {
       content: { "application/json": { schema: userShareStateResponseSchema } },
@@ -23,7 +23,7 @@ const getShareState = createRoute({
 const enableShare = createRoute({
   method: "post",
   path: "/",
-  tags: ["UserShare"],
+  tags: ["User Share"],
   responses: {
     200: {
       content: { "application/json": { schema: userShareStateResponseSchema } },
@@ -35,7 +35,7 @@ const enableShare = createRoute({
 const disableShare = createRoute({
   method: "delete",
   path: "/",
-  tags: ["UserShare"],
+  tags: ["User Share"],
   responses: {
     204: { description: "No Content" },
   },
@@ -44,7 +44,7 @@ const disableShare = createRoute({
 const rotateShare = createRoute({
   method: "post",
   path: "/rotate",
-  tags: ["UserShare"],
+  tags: ["User Share"],
   responses: {
     200: {
       content: { "application/json": { schema: userShareStateResponseSchema } },

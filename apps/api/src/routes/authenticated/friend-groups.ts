@@ -197,7 +197,7 @@ function toRequest(row: PendingRequestRow): FriendGroupRequestResponse {
 const listGroups = createRoute({
   method: "get",
   path: "/friend-groups",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   responses: {
     200: {
       content: { "application/json": { schema: friendGroupListResponseSchema } },
@@ -209,7 +209,7 @@ const listGroups = createRoute({
 const pendingInvitesCount = createRoute({
   method: "get",
   path: "/friend-groups/pending-invites-count",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   responses: {
     200: {
       content: { "application/json": { schema: friendGroupPendingInvitesCountResponseSchema } },
@@ -221,7 +221,7 @@ const pendingInvitesCount = createRoute({
 const createGroup = createRoute({
   method: "post",
   path: "/friend-groups",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: {
     body: {
       content: { "application/json": { schema: createFriendGroupSchema } },
@@ -242,7 +242,7 @@ const createGroup = createRoute({
 const previewByCode = createRoute({
   method: "get",
   path: "/friend-groups/preview",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: { query: friendGroupCodeQuerySchema },
   responses: {
     200: {
@@ -255,7 +255,7 @@ const previewByCode = createRoute({
 const joinByCode = createRoute({
   method: "post",
   path: "/friend-groups/join",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: {
     body: {
       content: { "application/json": { schema: friendGroupJoinByCodeSchema } },
@@ -270,7 +270,7 @@ const joinByCode = createRoute({
 const getGroup = createRoute({
   method: "get",
   path: "/friend-groups/{slug}",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: { params: friendGroupSlugParamSchema },
   responses: {
     200: {
@@ -283,7 +283,7 @@ const getGroup = createRoute({
 const updateGroup = createRoute({
   method: "patch",
   path: "/friend-groups/{slug}",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: {
     params: friendGroupSlugParamSchema,
     body: { content: { "application/json": { schema: updateFriendGroupSchema } }, required: true },
@@ -299,7 +299,7 @@ const updateGroup = createRoute({
 const deleteGroup = createRoute({
   method: "delete",
   path: "/friend-groups/{slug}",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: { params: friendGroupSlugParamSchema },
   responses: { 204: { description: "No Content" } },
 });
@@ -307,7 +307,7 @@ const deleteGroup = createRoute({
 const rotateCode = createRoute({
   method: "post",
   path: "/friend-groups/{slug}/code/rotate",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: { params: friendGroupSlugParamSchema },
   responses: {
     200: {
@@ -320,7 +320,7 @@ const rotateCode = createRoute({
 const disableCode = createRoute({
   method: "delete",
   path: "/friend-groups/{slug}/code",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: { params: friendGroupSlugParamSchema },
   responses: {
     200: {
@@ -333,7 +333,7 @@ const disableCode = createRoute({
 const enableCode = createRoute({
   method: "post",
   path: "/friend-groups/{slug}/code",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: { params: friendGroupSlugParamSchema },
   responses: {
     200: {
@@ -346,7 +346,7 @@ const enableCode = createRoute({
 const inviteByEmail = createRoute({
   method: "post",
   path: "/friend-groups/{slug}/invites",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: {
     params: friendGroupSlugParamSchema,
     body: {
@@ -360,7 +360,7 @@ const inviteByEmail = createRoute({
 const acceptInvite = createRoute({
   method: "post",
   path: "/friend-groups/{slug}/invites/{userId}/accept",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: { params: friendGroupSlugAndUserParamSchema },
   responses: { 204: { description: "Invite accepted / request approved" } },
 });
@@ -368,7 +368,7 @@ const acceptInvite = createRoute({
 const declineInvite = createRoute({
   method: "delete",
   path: "/friend-groups/{slug}/invites/{userId}",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: { params: friendGroupSlugAndUserParamSchema },
   responses: { 204: { description: "No Content" } },
 });
@@ -376,7 +376,7 @@ const declineInvite = createRoute({
 const leaveGroup = createRoute({
   method: "post",
   path: "/friend-groups/{slug}/leave",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: { params: friendGroupSlugParamSchema },
   responses: { 204: { description: "No Content" } },
 });
@@ -384,7 +384,7 @@ const leaveGroup = createRoute({
 const transferOwnership = createRoute({
   method: "post",
   path: "/friend-groups/{slug}/transfer-ownership",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: {
     params: friendGroupSlugParamSchema,
     body: {
@@ -398,7 +398,7 @@ const transferOwnership = createRoute({
 const updateRole = createRoute({
   method: "patch",
   path: "/friend-groups/{slug}/members/{userId}/role",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: {
     params: friendGroupSlugAndUserParamSchema,
     body: {
@@ -417,7 +417,7 @@ const updateRole = createRoute({
 const updateNickname = createRoute({
   method: "patch",
   path: "/friend-groups/{slug}/members/{userId}/nickname",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: {
     params: friendGroupSlugAndUserParamSchema,
     body: {
@@ -436,7 +436,7 @@ const updateNickname = createRoute({
 const kickMember = createRoute({
   method: "delete",
   path: "/friend-groups/{slug}/members/{userId}",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: { params: friendGroupSlugAndUserParamSchema },
   responses: { 204: { description: "No Content" } },
 });
@@ -444,7 +444,7 @@ const kickMember = createRoute({
 const shareableLists = createRoute({
   method: "get",
   path: "/friend-groups/{slug}/shareable-lists",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: { params: friendGroupSlugParamSchema },
   responses: {
     200: {
@@ -457,7 +457,7 @@ const shareableLists = createRoute({
 const shareList = createRoute({
   method: "post",
   path: "/friend-groups/{slug}/lists",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: {
     params: friendGroupSlugParamSchema,
     body: {
@@ -471,7 +471,7 @@ const shareList = createRoute({
 const unshareList = createRoute({
   method: "delete",
   path: "/friend-groups/{slug}/lists/{listId}",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: { params: friendGroupSlugAndListIdParamSchema },
   responses: { 204: { description: "No Content" } },
 });
@@ -479,7 +479,7 @@ const unshareList = createRoute({
 const shareableCollections = createRoute({
   method: "get",
   path: "/friend-groups/{slug}/shareable-collections",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: { params: friendGroupSlugParamSchema },
   responses: {
     200: {
@@ -492,7 +492,7 @@ const shareableCollections = createRoute({
 const shareCollection = createRoute({
   method: "post",
   path: "/friend-groups/{slug}/collections",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: {
     params: friendGroupSlugParamSchema,
     body: {
@@ -506,7 +506,7 @@ const shareCollection = createRoute({
 const unshareCollection = createRoute({
   method: "delete",
   path: "/friend-groups/{slug}/collections/{collectionId}",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: { params: friendGroupSlugAndCollectionIdParamSchema },
   responses: { 204: { description: "No Content" } },
 });
@@ -514,7 +514,7 @@ const unshareCollection = createRoute({
 const getSharedCollection = createRoute({
   method: "get",
   path: "/friend-groups/{slug}/collections/{collectionId}",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: { params: friendGroupSlugAndCollectionIdParamSchema },
   responses: {
     200: {
@@ -527,7 +527,7 @@ const getSharedCollection = createRoute({
 const getMatches = createRoute({
   method: "get",
   path: "/friend-groups/{slug}/matches",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: { params: friendGroupSlugParamSchema },
   responses: {
     200: {
@@ -540,7 +540,7 @@ const getMatches = createRoute({
 const getSharedList = createRoute({
   method: "get",
   path: "/friend-groups/{slug}/lists/{listId}",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: { params: friendGroupSlugAndListIdParamSchema },
   responses: {
     200: {
@@ -553,7 +553,7 @@ const getSharedList = createRoute({
 const getMemberDetail = createRoute({
   method: "get",
   path: "/friend-groups/{slug}/members/{userId}",
-  tags: ["FriendGroups"],
+  tags: ["Friend Groups"],
   request: { params: friendGroupSlugAndUserParamSchema },
   responses: {
     200: {
@@ -1288,7 +1288,9 @@ export const friendGroupsRoute = friendGroupsApp
     // sees and what the public-share-token page does.
     const favMarketplace = await getFavoriteMarketplace(repos, shared.collection.userId);
     const value = await marketplace.singleCollectionValue(collectionId, favMarketplace);
-    // Full set (no pagination): the match computation below needs every copy.
+    // Full set (no pagination): the shared-collection detail view renders every
+    // copy and reports the exact copyCount. Unbounded by design today — see the
+    // pagination note (E3) in docs/plans/api-review.md.
     const copyRows = await copies.listForCollection(collectionId);
 
     const response: FriendGroupSharedCollectionDetailResponse = {
