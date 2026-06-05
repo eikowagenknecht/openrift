@@ -390,6 +390,9 @@ const cloneSharedDeck = createRoute({
   request: { params: shareTokenParamSchema },
   responses: {
     201: {
+      headers: z.object({
+        Location: z.string().openapi({ description: "URL of the cloned deck" }),
+      }),
       content: { "application/json": { schema: deckCloneResponseSchema } },
       description: "Cloned",
     },
@@ -854,5 +857,6 @@ export const decksRoute = decksApp
     const newDeck = await decks.cloneFromShareToken(token, userId);
     assertFound(newDeck, "Not found");
 
+    c.header("Location", `/api/v1/decks/${newDeck.id}`);
     return c.json({ deckId: newDeck.id }, 201);
   });

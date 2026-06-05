@@ -377,7 +377,12 @@ const inviteByEmail = createRoute({
       required: true,
     },
   },
-  responses: { 202: { description: "Invite created" }, ...errorResponses(400, 401, 403, 404, 409) },
+  responses: {
+    // 201, not 202: an invite row is created synchronously (no deferred work).
+    // 202 is reserved for the genuinely-deferred join request (awaiting approval).
+    201: { description: "Invite created" },
+    ...errorResponses(400, 401, 403, 404, 409),
+  },
 });
 
 const acceptInvite = createRoute({
@@ -899,7 +904,7 @@ export const friendGroupsRoute = friendGroupsApp
     }
 
     await friendGroups.createInvite(ctx.group.id, target.id, "invite");
-    return c.body(null, 202);
+    return c.body(null, 201);
   })
 
   // ── ACCEPT (invite or request) ──────────────────────────────────────────
