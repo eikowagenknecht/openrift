@@ -16,20 +16,22 @@ const app = new Hono()
     c.set("repos", { health: mockHealthRepo } as never);
     await next();
   })
-  .route("/api/v1", healthRoute);
+  // Production mounts health unversioned at /api (app.ts), not /api/v1 — mirror
+  // that here so the test exercises the real path.
+  .route("/api", healthRoute);
 
 // ---------------------------------------------------------------------------
-// GET /api/v1/health
+// GET /api/health
 // ---------------------------------------------------------------------------
 
-describe("GET /api/v1/health", () => {
+describe("GET /api/health", () => {
   beforeEach(() => {
     mockHealthRepo.healthCheck.mockReset();
   });
 
   it("returns 200 with status ok when health check passes", async () => {
     mockHealthRepo.healthCheck.mockResolvedValue("ok");
-    const res = await app.request("/api/v1/health");
+    const res = await app.request("/api/health");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.status).toBe("ok");
@@ -37,7 +39,7 @@ describe("GET /api/v1/health", () => {
 
   it("returns 200 with status db_empty when database is empty", async () => {
     mockHealthRepo.healthCheck.mockResolvedValue("db_empty");
-    const res = await app.request("/api/v1/health");
+    const res = await app.request("/api/health");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.status).toBe("db_empty");
@@ -45,7 +47,7 @@ describe("GET /api/v1/health", () => {
 
   it("returns 503 when health check returns an error status", async () => {
     mockHealthRepo.healthCheck.mockResolvedValue("db_error");
-    const res = await app.request("/api/v1/health");
+    const res = await app.request("/api/health");
     expect(res.status).toBe(503);
     const json = await res.json();
     expect(json.status).toBe("db_error");
@@ -53,7 +55,7 @@ describe("GET /api/v1/health", () => {
 
   it("returns 503 for timeout status", async () => {
     mockHealthRepo.healthCheck.mockResolvedValue("timeout");
-    const res = await app.request("/api/v1/health");
+    const res = await app.request("/api/health");
     expect(res.status).toBe(503);
     const json = await res.json();
     expect(json.status).toBe("timeout");
@@ -61,19 +63,19 @@ describe("GET /api/v1/health", () => {
 
   it("sets Cache-Control to no-store", async () => {
     mockHealthRepo.healthCheck.mockResolvedValue("ok");
-    const res = await app.request("/api/v1/health");
+    const res = await app.request("/api/health");
     expect(res.headers.get("Cache-Control")).toBe("no-store");
   });
 
   it("passes timeout constant to health check", async () => {
     mockHealthRepo.healthCheck.mockResolvedValue("ok");
-    await app.request("/api/v1/health");
+    await app.request("/api/health");
     expect(mockHealthRepo.healthCheck).toHaveBeenCalledWith(5000);
   });
 
   it("calls healthCheck exactly once per request", async () => {
     mockHealthRepo.healthCheck.mockResolvedValue("ok");
-    await app.request("/api/v1/health");
+    await app.request("/api/health");
     expect(mockHealthRepo.healthCheck).toHaveBeenCalledTimes(1);
   });
 });
