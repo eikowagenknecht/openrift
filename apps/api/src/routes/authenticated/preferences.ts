@@ -23,6 +23,11 @@ function toUserPreferences(data: UserPreferencesResponse): UserPreferencesRespon
     theme: data.theme,
     palette: data.palette,
     marketplaceOrder: data.marketplaceOrder,
+    // languages + completionScope are sent by the web (use-preferences-sync) and
+    // read back by it; they must round-trip. Previously dropped here, so
+    // `languages` never returned and `completionScope` was lost entirely.
+    languages: data.languages,
+    completionScope: data.completionScope,
     defaultCardView: data.defaultCardView,
     defaultCurrency: data.defaultCurrency,
   };

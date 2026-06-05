@@ -73,6 +73,21 @@ describe("GET /api/v1/preferences", () => {
     const json = await res.json();
     expect(json).toEqual({});
   });
+
+  // Regression: languages + completionScope used to be dropped by the response
+  // projection, silently breaking the web's cross-device preference sync.
+  it("returns languages and completionScope when stored", async () => {
+    const storedPrefs = {
+      languages: ["en", "de"],
+      completionScope: { sets: ["set-a"], promos: "exclude", signed: true },
+    };
+    mockRepo.getByUserId.mockResolvedValue({ userId: USER_ID, data: storedPrefs });
+    const res = await app.request("/api/v1/preferences");
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.languages).toEqual(["en", "de"]);
+    expect(json.completionScope).toEqual({ sets: ["set-a"], promos: "exclude", signed: true });
+  });
 });
 
 describe("PATCH /api/v1/preferences", () => {
@@ -176,5 +191,36 @@ describe("PATCH /api/v1/preferences", () => {
       body: JSON.stringify({}),
     });
     expect(res.status).toBe(200);
+  });
+
+  // Regression: completionScope was absent from updatePreferencesSchema, so the
+  // web's PATCH of it was silently stripped (z.object drops unknown keys) and
+  // never persisted. languages was accepted but never read back.
+  it("persists languages and completionScope instead of stripping them", async () => {
+    const completionScope = {
+      sets: ["set-a"],
+      languages: ["en"],
+      promos: "only",
+      banned: false,
+    };
+    mockRepo.upsert.mockResolvedValue({ languages: ["en"], completionScope });
+    const res = await app.request("/api/v1/preferences", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ languages: ["en"], completionScope }),
+    });
+    expect(res.status).toBe(200);
+    expect(mockRepo.upsert).toHaveBeenCalledWith(USER_ID, { languages: ["en"], completionScope });
+    const json = await res.json();
+    expect(json.completionScope).toEqual(completionScope);
+  });
+
+  it("rejects an invalid completionScope.promos value", async () => {
+    const res = await app.request("/api/v1/preferences", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ completionScope: { promos: "sometimes" } }),
+    });
+    expect(res.status).toBe(400);
   });
 });
