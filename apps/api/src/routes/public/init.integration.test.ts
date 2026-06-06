@@ -64,7 +64,7 @@ describe.skipIf(!ctx)("Init route (integration)", () => {
   it("sets Cache-Control with public caching", async () => {
     const res = await app.fetch(req("GET", "/init"));
     expect(res.headers.get("Cache-Control")).toBe(
-      "public, max-age=300, stale-while-revalidate=600",
+      "public, max-age=3600, stale-while-revalidate=86400",
     );
   });
 

@@ -1,4 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
+import { ERROR_CODES } from "@openrift/shared";
 import type { CopyAddResponse, CopyListResponse } from "@openrift/shared";
 import { copyAddResponseSchema, copyListResponseSchema } from "@openrift/shared/response-schemas";
 import {
@@ -8,6 +9,7 @@ import {
   moveCopiesSchema,
 } from "@openrift/shared/schemas";
 
+import { AppError } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { cookieAuth, errorResponses } from "../../openapi-helpers.js";
@@ -112,7 +114,17 @@ export const copiesRoute = copiesApp
     const transact = c.get("transact");
     const userId = getUserId(c);
     const body = c.req.valid("json");
-    const created = await addCopiesService(repos, transact, userId, body.copies);
+    let created;
+    try {
+      created = await addCopiesService(repos, transact, userId, body.copies);
+    } catch (error) {
+      // 23503 = foreign_key_violation: a copy references a printingId that does
+      // not exist. Report a clean 400 instead of letting the FK throw a 500.
+      if (error instanceof Error && "code" in error && error.code === "23503") {
+        throw new AppError(400, ERROR_CODES.BAD_REQUEST, "One or more printings do not exist");
+      }
+      throw error;
+    }
     return c.json({ items: created } satisfies CopyAddResponse, 201);
   })
 

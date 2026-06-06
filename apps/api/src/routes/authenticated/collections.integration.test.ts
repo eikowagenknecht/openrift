@@ -243,8 +243,8 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
         }),
       );
       expect(addRes.status).toBe(201);
-      const added = (await addRes.json()) as { id: string }[];
-      const addedIds = new Set(added.map((c) => c.id));
+      const added = (await addRes.json()) as { items: { id: string }[] };
+      const addedIds = new Set(added.items.map((c) => c.id));
 
       const res = await app.fetch(req("DELETE", `/collections/${secondCollectionId}`));
       expect(res.status).toBe(204);
@@ -280,7 +280,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
         }),
       );
       expect(addRes.status).toBe(201);
-      const [copy] = (await addRes.json()) as { id: string }[];
+      const [copy] = ((await addRes.json()) as { items: { id: string }[] }).items;
 
       const disposeRes = await app.fetch(req("POST", "/copies/dispose", { copyIds: [copy.id] }));
       expect(disposeRes.status).toBe(204);
@@ -306,7 +306,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
           copies: [{ printingId: PRINTING_2.id, collectionId: srcId }],
         }),
       );
-      const [copy] = (await addRes.json()) as { id: string }[];
+      const [copy] = ((await addRes.json()) as { items: { id: string }[] }).items;
 
       const moveRes = await app.fetch(
         req("POST", "/copies/move", { copyIds: [copy.id], toCollectionId: dstId }),

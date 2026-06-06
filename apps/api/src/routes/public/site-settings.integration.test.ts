@@ -42,23 +42,23 @@ describe.skipIf(!ctx)("Site Settings route (integration)", () => {
     expect(res.status).toBe(200);
 
     const json = await res.json();
-    expect(json.items).toBeDefined();
-    expect(typeof json.items).toBe("object");
+    expect(json.settings).toBeDefined();
+    expect(typeof json.settings).toBe("object");
   });
 
   it("contains web-scoped settings", async () => {
     const res = await app.fetch(req("GET", "/site-settings"));
     const json = await res.json();
 
-    expect(json.items["STS-banner"]).toBe("Welcome to OpenRift!");
-    expect(json.items["STS-maintenance"]).toBe("false");
+    expect(json.settings["STS-banner"]).toBe("Welcome to OpenRift!");
+    expect(json.settings["STS-maintenance"]).toBe("false");
   });
 
   it("excludes non-web-scoped settings", async () => {
     const res = await app.fetch(req("GET", "/site-settings"));
     const json = await res.json();
 
-    expect(json.items["STS-api-only"]).toBeUndefined();
+    expect(json.settings["STS-api-only"]).toBeUndefined();
   });
 
   it("sets Cache-Control with public caching", async () => {

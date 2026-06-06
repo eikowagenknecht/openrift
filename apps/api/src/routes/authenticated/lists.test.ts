@@ -246,6 +246,10 @@ describe("GET /api/v1/lists/:id", () => {
 describe("PATCH /api/v1/lists/:id", () => {
   beforeEach(() => {
     mockListsRepo.update.mockReset();
+    // updateList now looks up the list's intent to strip trade prefs on
+    // organize lists; default the lookup to the (wish-intent) dbList.
+    mockListsRepo.getByIdForUser.mockReset();
+    mockListsRepo.getByIdForUser.mockResolvedValue(dbList);
   });
 
   it("returns 200 with the updated list", async () => {
@@ -306,6 +310,24 @@ describe("PATCH /api/v1/lists/:id", () => {
     });
     expect(res.status).toBe(400);
     expect(mockListsRepo.update).not.toHaveBeenCalled();
+  });
+
+  // F6: a PATCH carrying trade prefs on an organize list strips them (the DB
+  // CHECK would otherwise 500) and applies only the real fields.
+  it("strips trade prefs on a PATCH to an organize list", async () => {
+    mockListsRepo.getByIdForUser.mockResolvedValue({ ...dbList, intent: "organize" });
+    mockListsRepo.update.mockResolvedValue({ ...dbList, intent: "organize", name: "Org" });
+    const res = await app.request(`/api/v1/lists/${LIST_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        name: "Org",
+        tradeDefaults: { pricePref: "cm_lowest", priceAbsoluteCents: null, tradeType: "cards" },
+        currency: "USD",
+      }),
+    });
+    expect(res.status).toBe(200);
+    expect(mockListsRepo.update).toHaveBeenCalledWith(LIST_ID, USER_ID, { name: "Org" });
   });
 });
 

@@ -578,4 +578,35 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       expect(publicRes.status).toBe(200);
     });
   });
+
+  // ── Reliability hardening (F6/F7) ──────────────────────────────────────────
+
+  describe("reliability hardening", () => {
+    it("strips trade prefs from a PATCH on an organize list instead of 500ing (F6)", async () => {
+      const id = await createList("Organize F6", "organize", "card");
+      const res = await app.fetch(
+        req("PATCH", `/lists/${id}`, {
+          name: "Organize F6 renamed",
+          tradeDefaults: { pricePref: "cm_lowest", priceAbsoluteCents: null, tradeType: "cards" },
+        }),
+      );
+      expect(res.status).toBe(200);
+      const row = await db
+        .selectFrom("lists")
+        .select(["name", "defaultPricePref"])
+        .where("id", "=", id)
+        .executeTakeFirstOrThrow();
+      expect(row.name).toBe("Organize F6 renamed");
+      expect(row.defaultPricePref).toBeNull();
+    });
+
+    it("returns 409 (not 500) on a duplicate single entry add (F7)", async () => {
+      const id = await createList("Dup F7", "wish", "card");
+      const body = { cardId: CARD_FURY_UNIT.id };
+      const first = await app.fetch(req("POST", `/lists/${id}/entries`, body));
+      expect(first.status).toBe(201);
+      const second = await app.fetch(req("POST", `/lists/${id}/entries`, body));
+      expect(second.status).toBe(409);
+    });
+  });
 });

@@ -53,20 +53,22 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       expect(res.status).toBe(201);
 
       const json = (await res.json()) as {
-        id: string;
-        printingId: string;
-        collectionId: string;
-        groupId: string | null;
-      }[];
-      expect(json).toHaveLength(3);
-      expect(json[0].id).toBeTypeOf("string");
-      expect(json[0].printingId).toBe(PRINTING_1.id);
-      expect(json[0].collectionId).toBe(collectionId);
+        items: {
+          id: string;
+          printingId: string;
+          collectionId: string;
+          groupId: string | null;
+        }[];
+      };
+      expect(json.items).toHaveLength(3);
+      expect(json.items[0].id).toBeTypeOf("string");
+      expect(json.items[0].printingId).toBe(PRINTING_1.id);
+      expect(json.items[0].collectionId).toBe(collectionId);
       // The 201 body now carries the full CopyResponse shape including groupId,
       // which is null for a personal collection.
-      expect(json[0]).toHaveProperty("groupId");
-      expect(json.every((copy) => copy.groupId === null)).toBe(true);
-      copyIds = json.map((c) => c.id);
+      expect(json.items[0]).toHaveProperty("groupId");
+      expect(json.items.every((copy) => copy.groupId === null)).toBe(true);
+      copyIds = json.items.map((c) => c.id);
     });
 
     it("defaults to inbox when collectionId is omitted", async () => {
@@ -75,9 +77,9 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       );
       expect(res.status).toBe(201);
 
-      const json = (await res.json()) as { collectionId: string }[];
+      const json = (await res.json()) as { items: { collectionId: string }[] };
       // Should go to inbox, which is different from our test collection
-      expect(json[0].collectionId).not.toBe(collectionId);
+      expect(json.items[0].collectionId).not.toBe(collectionId);
     });
 
     // ── groupId derivation for group-owned collections ─────────────────────
@@ -133,14 +135,16 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
         expect(res.status).toBe(201);
 
         const json = (await res.json()) as {
-          id: string;
-          collectionId: string;
-          groupId: string | null;
-        }[];
-        expect(json).toHaveLength(1);
-        expect(json[0].collectionId).toBe(pooled.id);
-        expect(json[0].groupId).toBe(groupId);
-        groupCopyIds.push(json[0].id);
+          items: {
+            id: string;
+            collectionId: string;
+            groupId: string | null;
+          }[];
+        };
+        expect(json.items).toHaveLength(1);
+        expect(json.items[0].collectionId).toBe(pooled.id);
+        expect(json.items[0].groupId).toBe(groupId);
+        groupCopyIds.push(json.items[0].id);
       });
     });
 
@@ -157,6 +161,15 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
     it("rejects invalid printingId format", async () => {
       const res = await app.fetch(
         req("POST", "/copies", { copies: [{ printingId: "not-a-uuid" }] }),
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 400 (not 500) for a valid-format printingId that does not exist (F8)", async () => {
+      const res = await app.fetch(
+        req("POST", "/copies", {
+          copies: [{ printingId: "00000000-0000-4000-8000-000000000000" }],
+        }),
       );
       expect(res.status).toBe(400);
     });

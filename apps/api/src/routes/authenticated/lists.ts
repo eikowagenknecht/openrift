@@ -138,7 +138,7 @@ const createListEntryRoute = createRoute({
       content: { "application/json": { schema: listEntryResponseSchema } },
       description: "Created",
     },
-    ...errorResponses(400, 401, 404),
+    ...errorResponses(400, 401, 404, 409),
   },
 });
 
@@ -376,6 +376,15 @@ export const listsRoute = listsApp
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
+
+    // ADR-017: trade defaults/currency only apply to wish/trade lists — the DB
+    // CHECK rejects non-null prefs on organize lists. Look up the list's intent
+    // and strip those fields for organize lists (mirroring createList), so a
+    // PATCH that carries them is a no-op for those fields instead of a 500.
+    const existing = await lists.getByIdForUser(id, userId);
+    assertFound(existing, "Not found");
+    const supportsPrefs = existing.intent !== "organize";
+
     // Build updates manually so a tradeDefaults- or currency-only patch
     // doesn't trip the generic patch helper's "no fields" guard. (Same
     // pattern as the entry PATCH handler.)
@@ -383,12 +392,12 @@ export const listsRoute = listsApp
     if (body.name !== undefined) {
       updates.name = body.name;
     }
-    if (body.tradeDefaults !== undefined) {
+    if (supportsPrefs && body.tradeDefaults !== undefined) {
       updates.defaultPricePref = body.tradeDefaults.pricePref;
       updates.defaultPriceAbsoluteCents = body.tradeDefaults.priceAbsoluteCents;
       updates.defaultTradeType = body.tradeDefaults.tradeType;
     }
-    if (body.currency !== undefined) {
+    if (supportsPrefs && body.currency !== undefined) {
       updates.currency = body.currency;
     }
     if (Object.keys(updates).length === 0) {
@@ -420,18 +429,29 @@ export const listsRoute = listsApp
 
     const target = await resolveEntryTarget(list.kind, body, userId, copies);
 
-    const row = await lists.createEntry({
-      listId,
-      userId,
-      kind: list.kind,
-      cardId: target.cardId,
-      printingId: target.printingId,
-      copyId: target.copyId,
-      quantity: body.quantity,
-      pricePref: body.tradeOverride.pricePref,
-      priceAbsoluteCents: body.tradeOverride.priceAbsoluteCents,
-      tradeType: body.tradeOverride.tradeType,
-    });
+    let row;
+    try {
+      row = await lists.createEntry({
+        listId,
+        userId,
+        kind: list.kind,
+        cardId: target.cardId,
+        printingId: target.printingId,
+        copyId: target.copyId,
+        quantity: body.quantity,
+        pricePref: body.tradeOverride.pricePref,
+        priceAbsoluteCents: body.tradeOverride.priceAbsoluteCents,
+        tradeType: body.tradeOverride.tradeType,
+      });
+    } catch (error) {
+      // 23505 = unique_violation: this exact target is already in the list. The
+      // bulk endpoint merges duplicates; the single-add path reports a clean 409
+      // instead of letting the partial unique index throw a 500.
+      if (error instanceof Error && "code" in error && error.code === "23505") {
+        throw new AppError(409, ERROR_CODES.CONFLICT, "That item is already in the list");
+      }
+      throw error;
+    }
 
     // List entries have no standalone GET; point at the owning list.
     c.header("Location", `/api/v1/lists/${listId}`);
