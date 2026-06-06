@@ -398,15 +398,24 @@ export function collectionsRepo(db: Kysely<Database>) {
      * the group name in that slot (the share page treats it as an "owner" label).
      * @returns The collection row plus owner label, or `undefined`.
      */
-    async findByShareToken(
-      shareToken: string,
-    ): Promise<{ collection: Selectable<CollectionsTable>; ownerName: string | null } | undefined> {
+    async findByShareToken(shareToken: string): Promise<
+      | {
+          collection: Selectable<CollectionsTable>;
+          ownerName: string | null;
+          // Null for group-owned collections (a group has no email/gravatar).
+          ownerEmail: string | null;
+        }
+      | undefined
+    > {
       const row = await db
         .selectFrom("collections as c")
         .leftJoin("users as u", "u.id", "c.userId")
         .leftJoin("friendGroups as g", "g.id", "c.groupId")
         .selectAll("c")
-        .select([sql<string | null>`coalesce(u.name, g.name)`.as("ownerName")])
+        .select([
+          sql<string | null>`coalesce(u.name, g.name)`.as("ownerName"),
+          "u.email as ownerEmail",
+        ])
         .where("c.shareToken", "=", shareToken)
         .where("c.isPublic", "=", true)
         .executeTakeFirst();
@@ -415,8 +424,8 @@ export function collectionsRepo(db: Kysely<Database>) {
         return undefined;
       }
 
-      const { ownerName, ...collection } = row;
-      return { collection, ownerName };
+      const { ownerName, ownerEmail, ...collection } = row;
+      return { collection, ownerName, ownerEmail };
     },
 
     /**

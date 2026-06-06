@@ -37,7 +37,8 @@ export interface PublicCollectionDetailResponse {
   collection: PublicCollectionResponse;
   items: PublicCopyResponse[];
   nextCursor: string | null;
-  owner: { displayName: string };
+  // gravatarHash is null for group-owned collections (a group has no email).
+  owner: { displayName: string; gravatarHash: string | null };
 }
 
 /**

@@ -131,7 +131,10 @@ export const publicUserShareRoute = publicUserShareApp
     const response: PublicListDetailResponse = {
       list: toPublicList(list),
       entries: entries.map((row) => toListEntryDetail(row)),
-      owner: { displayName: owner.displayName ?? "Anonymous" },
+      owner: {
+        displayName: owner.displayName ?? "Anonymous",
+        gravatarHash: gravatarHashForEmail(owner.email),
+      },
     };
 
     c.header(

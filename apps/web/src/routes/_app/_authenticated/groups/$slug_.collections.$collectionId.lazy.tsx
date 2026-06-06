@@ -32,7 +32,7 @@ function SharedCollectionRoute() {
     },
     items: data.copies,
     nextCursor: null,
-    owner: { displayName: data.collection.ownerName ?? "Unknown" },
+    owner: { displayName: data.collection.ownerName ?? "Unknown", gravatarHash: null },
   };
 
   return (

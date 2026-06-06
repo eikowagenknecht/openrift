@@ -3,6 +3,7 @@ import type { PublicListDetailResponse } from "@openrift/shared";
 import { publicListDetailResponseSchema } from "@openrift/shared/response-schemas";
 import { z } from "zod";
 
+import { gravatarHashForEmail } from "../../lib/gravatar.js";
 import { errorResponses } from "../../openapi-helpers.js";
 import { createApiApp } from "../../openapi.js";
 import { assertFound } from "../../utils/assertions.js";
@@ -40,7 +41,10 @@ export const publicListsRoute = createApiApp().openapi(getPublicListByShareToken
   const response: PublicListDetailResponse = {
     list: toPublicList(found.list),
     entries: entries.map((row) => toListEntryDetail(row)),
-    owner: { displayName: found.ownerName ?? "Anonymous" },
+    owner: {
+      displayName: found.ownerName ?? "Anonymous",
+      gravatarHash: gravatarHashForEmail(found.ownerEmail),
+    },
   };
 
   c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");

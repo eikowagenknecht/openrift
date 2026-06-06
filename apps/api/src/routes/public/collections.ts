@@ -4,6 +4,7 @@ import { publicCollectionDetailResponseSchema } from "@openrift/shared/response-
 import { copiesQuerySchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
+import { gravatarHashForEmail } from "../../lib/gravatar.js";
 import { errorResponses } from "../../openapi-helpers.js";
 import { createApiApp } from "../../openapi.js";
 import { buildCopiesCursor, clampCopiesLimit } from "../../repositories/copies.js";
@@ -57,7 +58,11 @@ export const publicCollectionsRoute = createApiApp().openapi(
       collection: toPublicCollection(found.collection, value),
       items: items.map((row) => toPublicCopy(row)),
       nextCursor: hasMore && lastItem ? buildCopiesCursor(lastItem.createdAt, lastItem.id) : null,
-      owner: { displayName: found.ownerName ?? "Anonymous" },
+      owner: {
+        displayName: found.ownerName ?? "Anonymous",
+        // null for group-owned collections (a group has no email/gravatar).
+        gravatarHash: found.ownerEmail ? gravatarHashForEmail(found.ownerEmail) : null,
+      },
     };
 
     c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");

@@ -495,12 +495,14 @@ export function decksRepo(db: Kysely<Database>) {
      */
     async findByShareToken(
       shareToken: string,
-    ): Promise<{ deck: Selectable<DecksTable>; ownerName: string | null } | undefined> {
+    ): Promise<
+      { deck: Selectable<DecksTable>; ownerName: string | null; ownerEmail: string } | undefined
+    > {
       const row = await db
         .selectFrom("decks as d")
         .innerJoin("users as u", "u.id", "d.userId")
         .selectAll("d")
-        .select("u.name as ownerName")
+        .select(["u.name as ownerName", "u.email as ownerEmail"])
         .where("d.shareToken", "=", shareToken)
         .where("d.isPublic", "=", true)
         .executeTakeFirst();
@@ -509,8 +511,8 @@ export function decksRepo(db: Kysely<Database>) {
         return undefined;
       }
 
-      const { ownerName, ...deck } = row;
-      return { deck: withParsedFormatConfig(deck), ownerName };
+      const { ownerName, ownerEmail, ...deck } = row;
+      return { deck: withParsedFormatConfig(deck), ownerName, ownerEmail };
     },
 
     /**

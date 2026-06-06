@@ -119,7 +119,7 @@ export interface PublicDeckCardResponse extends DeckCardResponse {
 export interface PublicDeckDetailResponse {
   deck: PublicDeckResponse;
   cards: PublicDeckCardResponse[];
-  owner: { displayName: string };
+  owner: { displayName: string; gravatarHash: string | null };
   /**
    * Card id → custom-tag slugs (sorted), denormalized for the cards in this
    * deck only. The full catalog map isn't available to anonymous viewers, so

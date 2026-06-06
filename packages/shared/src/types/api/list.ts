@@ -106,7 +106,7 @@ export interface PublicListResponse {
 export interface PublicListDetailResponse {
   list: PublicListResponse;
   entries: ListEntryDetailResponse[];
-  owner: { displayName: string };
+  owner: { displayName: string; gravatarHash: string | null };
 }
 
 export interface ListShareResponse {

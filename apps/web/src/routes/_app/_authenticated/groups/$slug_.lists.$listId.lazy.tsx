@@ -32,7 +32,7 @@ function SharedListRoute() {
       updatedAt: "",
     },
     entries: data.entries,
-    owner: { displayName: data.list.ownerName ?? "Unknown" },
+    owner: { displayName: data.list.ownerName ?? "Unknown", gravatarHash: null },
   };
 
   const backLink = fromUser ? (

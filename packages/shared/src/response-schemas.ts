@@ -611,7 +611,7 @@ export const publicCollectionDetailResponseSchema = z
     collection: publicCollectionResponseSchema,
     items: z.array(publicCopyResponseSchema),
     nextCursor: z.string().nullable(),
-    owner: z.object({ displayName: z.string() }),
+    owner: z.object({ displayName: z.string(), gravatarHash: z.string().nullable() }),
   })
   .openapi("PublicCollectionDetailResponse");
 
@@ -775,7 +775,7 @@ export const publicDeckDetailResponseSchema = z
   .object({
     deck: publicDeckResponseSchema,
     cards: z.array(publicDeckCardResponseSchema),
-    owner: z.object({ displayName: z.string() }),
+    owner: z.object({ displayName: z.string(), gravatarHash: z.string().nullable() }),
     customTagAssignments: z.record(z.string(), z.array(z.string())).openapi({ example: {} }),
   })
   .openapi("PublicDeckDetailResponse");
@@ -968,7 +968,7 @@ export const publicListDetailResponseSchema = z
   .object({
     list: publicListResponseSchema,
     entries: z.array(listEntryDetailResponseSchema),
-    owner: z.object({ displayName: z.string() }),
+    owner: z.object({ displayName: z.string(), gravatarHash: z.string().nullable() }),
   })
   .openapi("PublicListDetailResponse");
 

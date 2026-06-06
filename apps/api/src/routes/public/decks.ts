@@ -3,6 +3,7 @@ import type { PublicDeckDetailResponse } from "@openrift/shared";
 import { publicDeckDetailResponseSchema } from "@openrift/shared/response-schemas";
 import { z } from "zod";
 
+import { gravatarHashForEmail } from "../../lib/gravatar.js";
 import { errorResponses } from "../../openapi-helpers.js";
 import { createApiApp } from "../../openapi.js";
 import { assertFound } from "../../utils/assertions.js";
@@ -65,7 +66,10 @@ export const publicDecksRoute = createApiApp().openapi(getPublicDeckByShareToken
       }
       return toPublicDeckCard(row, cardMeta, printingMeta);
     }),
-    owner: { displayName: found.ownerName ?? "Anonymous" },
+    owner: {
+      displayName: found.ownerName ?? "Anonymous",
+      gravatarHash: gravatarHashForEmail(found.ownerEmail),
+    },
     customTagAssignments: Object.fromEntries(customTagAssignmentsMap),
   };
 

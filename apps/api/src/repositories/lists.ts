@@ -293,12 +293,14 @@ export function listsRepo(db: Kysely<Database>) {
      */
     async findByShareToken(
       shareToken: string,
-    ): Promise<{ list: Selectable<ListsTable>; ownerName: string | null } | undefined> {
+    ): Promise<
+      { list: Selectable<ListsTable>; ownerName: string | null; ownerEmail: string } | undefined
+    > {
       const row = await db
         .selectFrom("lists as l")
         .innerJoin("users as u", "u.id", "l.userId")
         .selectAll("l")
-        .select("u.name as ownerName")
+        .select(["u.name as ownerName", "u.email as ownerEmail"])
         .where("l.shareToken", "=", shareToken)
         .where("l.isPublic", "=", true)
         .executeTakeFirst();
@@ -307,8 +309,8 @@ export function listsRepo(db: Kysely<Database>) {
         return undefined;
       }
 
-      const { ownerName, ...list } = row;
-      return { list, ownerName };
+      const { ownerName, ownerEmail, ...list } = row;
+      return { list, ownerName, ownerEmail };
     },
 
     /**

@@ -8,7 +8,7 @@ const mockRepo = {
   findByShareToken: vi.fn(
     () =>
       Promise.resolve(undefined) as Promise<
-        { deck: Record<string, unknown>; ownerName: string | null } | undefined
+        { deck: Record<string, unknown>; ownerName: string | null; ownerEmail: string } | undefined
       >,
   ),
   cardsForDeck: vi.fn(() => Promise.resolve([] as object[])),
@@ -106,7 +106,11 @@ describe("GET /api/v1/decks/share/:token", () => {
   });
 
   it("returns 200 with the enriched public deck detail when the token resolves", async () => {
-    mockRepo.findByShareToken.mockResolvedValue({ deck: dbDeck, ownerName: "Alice" });
+    mockRepo.findByShareToken.mockResolvedValue({
+      deck: dbDeck,
+      ownerName: "Alice",
+      ownerEmail: "alice@example.com",
+    });
     mockRepo.cardsForDeck.mockResolvedValue([dbCard]);
     mockCatalogRepo.cardsByIds.mockResolvedValue([cardMeta]);
     mockCanonicalPrintingsRepo.resolvePrintingMetaForRows.mockResolvedValue([printingMeta]);
@@ -130,7 +134,11 @@ describe("GET /api/v1/decks/share/:token", () => {
   });
 
   it("excludes owner-only fields (shareToken, isPublic) from the response", async () => {
-    mockRepo.findByShareToken.mockResolvedValue({ deck: dbDeck, ownerName: "Alice" });
+    mockRepo.findByShareToken.mockResolvedValue({
+      deck: dbDeck,
+      ownerName: "Alice",
+      ownerEmail: "alice@example.com",
+    });
     mockRepo.cardsForDeck.mockResolvedValue([]);
 
     const res = await app.request("/api/v1/decks/share/tok-abc");
@@ -141,7 +149,11 @@ describe("GET /api/v1/decks/share/:token", () => {
   });
 
   it("falls back to 'Anonymous' when the owner has no display name", async () => {
-    mockRepo.findByShareToken.mockResolvedValue({ deck: dbDeck, ownerName: null });
+    mockRepo.findByShareToken.mockResolvedValue({
+      deck: dbDeck,
+      ownerName: null,
+      ownerEmail: "alice@example.com",
+    });
     mockRepo.cardsForDeck.mockResolvedValue([]);
 
     const res = await app.request("/api/v1/decks/share/tok-abc");
@@ -158,7 +170,11 @@ describe("GET /api/v1/decks/share/:token", () => {
   });
 
   it("passes the owner user id to cardsForDeck for defense-in-depth scoping", async () => {
-    mockRepo.findByShareToken.mockResolvedValue({ deck: dbDeck, ownerName: "Alice" });
+    mockRepo.findByShareToken.mockResolvedValue({
+      deck: dbDeck,
+      ownerName: "Alice",
+      ownerEmail: "alice@example.com",
+    });
     mockRepo.cardsForDeck.mockResolvedValue([]);
 
     await app.request("/api/v1/decks/share/tok-abc");
