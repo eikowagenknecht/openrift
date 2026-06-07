@@ -434,7 +434,7 @@ describe("GET /api/v1/collections/:id/copies", () => {
     mockCollectionsRepo.getAccessForUser.mockResolvedValue(access(dbCollection));
     mockCopiesRepo.listForCollection.mockResolvedValue([]);
     await app.request(`/api/v1/collections/${dbCollection.id}/copies`);
-    expect(mockCopiesRepo.listForCollection).toHaveBeenCalledWith(dbCollection.id, 500, undefined);
+    expect(mockCopiesRepo.listForCollection).toHaveBeenCalledWith(dbCollection.id, 5000, undefined);
   });
 });
 

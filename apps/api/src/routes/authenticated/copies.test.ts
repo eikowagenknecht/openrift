@@ -101,7 +101,7 @@ describe("GET /api/v1/copies", () => {
   });
 
   it("caps results at the default page size when none is provided", async () => {
-    const items = Array.from({ length: 501 }, (_, i) => ({
+    const items = Array.from({ length: 5001 }, (_, i) => ({
       ...dbCopy,
       id: `a0000000-0001-4000-a000-${String(i).padStart(12, "0")}`,
       createdAt: new Date(now.getTime() - i * 1000),
@@ -109,7 +109,7 @@ describe("GET /api/v1/copies", () => {
     mockRepo.listForAccessibleCollections.mockResolvedValue(items);
     const res = await app.request("/api/v1/copies");
     const json = await res.json();
-    expect(json.items).toHaveLength(500);
+    expect(json.items).toHaveLength(5000);
     expect(json.nextCursor).toBeTruthy();
   });
 
@@ -251,6 +251,6 @@ describe("GET /api/v1/copies — default limit", () => {
   it("passes the default page size to the repo when no limit is provided", async () => {
     mockRepo.listForAccessibleCollections.mockResolvedValue([]);
     await app.request("/api/v1/copies");
-    expect(mockRepo.listForAccessibleCollections).toHaveBeenCalledWith(USER_ID, 500, undefined);
+    expect(mockRepo.listForAccessibleCollections).toHaveBeenCalledWith(USER_ID, 5000, undefined);
   });
 });
