@@ -41,20 +41,20 @@
     "@tanstack/react-pacer": "0.22.1"
   },
   "devDependencies": {
-    "@commitlint/cli": "21.0.1",
-    "@commitlint/config-conventional": "21.0.1",
+    "@commitlint/cli": "21.0.2",
+    "@commitlint/config-conventional": "21.0.2",
     "@commitlint/types": "21.0.1",
     "@tanstack/devtools-vite": "0.6.0",
     "@tanstack/react-devtools": "0.10.5",
     "@tanstack/react-pacer-devtools": "0.7.1",
-    "@tanstack/react-query-devtools": "5.100.14",
-    "knip": "6.14.2",
+    "@tanstack/react-query-devtools": "5.101.0",
+    "knip": "6.16.1",
     "lcov-result-merger": "6.0.0",
-    "lefthook": "2.1.8",
-    "oxfmt": "0.52.0",
+    "lefthook": "2.1.9",
+    "oxfmt": "0.53.0",
     "oxlint": "1.67.0",
     "syncpack": "15.3.1",
-    "turbo": "2.9.15"
+    "turbo": "2.9.16"
   },
   "overrides": {
     "//": "Patch vulnerable transitive deps. Run `bun audit` after removing any to check if still needed.",
@@ -62,7 +62,7 @@
     "// hono, @hono/node-server, lodash": "better-auth → prisma → @prisma/dev pins old versions",
     "// html2canvas": "Redirect jspdf's optional html2canvas dep to html2canvas-pro (the version we already use directly).",
     "@hono/node-server": "1.19.14",
-    "@tanstack/query-core": "5.100.1",
+    "@tanstack/query-core": "5.101.0",
     "hono": "4.12.23",
     "html2canvas": "npm:html2canvas-pro@2.0.4"
   },
