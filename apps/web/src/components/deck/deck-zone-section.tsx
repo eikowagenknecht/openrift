@@ -140,6 +140,15 @@ export function DeckZoneSection({
     }
   };
 
+  // Expand (if collapsed) and make this the active zone. Shared by the zone
+  // header and the empty-state hint so both behave identically.
+  const activateZone = () => {
+    if (!open) {
+      setOpen(true);
+    }
+    onActivate();
+  };
+
   const totalQuantity = cards.reduce((sum, card) => sum + card.quantity, 0);
   const maxCardQuantity = cards.reduce((max, card) => Math.max(max, card.quantity), 0);
   // Freeform has no per-zone target — hide the "x/N" denominator entirely.
@@ -250,12 +259,7 @@ export function DeckZoneSection({
         <button
           type="button"
           className="flex flex-1 items-center gap-2 px-1.5 py-1 text-left text-sm"
-          onClick={() => {
-            if (!open) {
-              setOpen(true);
-            }
-            onActivate();
-          }}
+          onClick={activateZone}
         >
           <span className={cn(isActive && "font-bold")}>{ZONE_LABELS[zone]}</span>
           <span
@@ -299,7 +303,13 @@ export function DeckZoneSection({
       {open && (
         <div className="border-t px-1 py-1">
           {cards.length === 0 ? (
-            <p className="text-muted-foreground px-2 py-1 text-xs">{ZONE_EMPTY_HINTS[zone]}</p>
+            <button
+              type="button"
+              className="text-muted-foreground hover:text-foreground w-full rounded px-2 py-1 text-left text-xs"
+              onClick={activateZone}
+            >
+              {ZONE_EMPTY_HINTS[zone]}
+            </button>
           ) : isGrouped ? (
             <div className="flex flex-col gap-1.5">{renderGroupedCards()}</div>
           ) : (

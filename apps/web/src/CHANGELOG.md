@@ -3,6 +3,7 @@
 ## 2026-06-07
 
 - feat: In a deck, each card row now shows its copy count on the left as "2×", with the energy and power costs lined up on the right
+- feat: In a deck's sidebar, the hint shown in an empty zone (like "Add cards from the browser") is now clickable and selects that zone, just like clicking its header, so the card browser switches to the cards that fit there
 - feat: On a list, the minus button removes a card when it's down to its last copy, so you don't need the separate remove button to clear it
 - fix: Cards in a collection you've marked "exclude from deck building" no longer count as owned in the deck builder's card grid. They were still showing as owned there even though they don't feed your deck, and now match the ownership panel that already listed them as locked away
 - fix: After a trade completes, the one-click update that adds the received cards to your collection now works — it was failing with an error on the receiving side
