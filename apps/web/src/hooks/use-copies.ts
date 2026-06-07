@@ -9,6 +9,7 @@ import { trackEvent } from "@/lib/analytics";
 import { useUserId } from "@/lib/auth-session";
 import { useCopiesCollection } from "@/lib/copies-collection";
 import { queryKeys } from "@/lib/query-keys";
+import { browserApiClient, callApi, callApiJson } from "@/lib/server-fns/api-client";
 import type { CollectionsResponse } from "@/lib/server-fns/api-types";
 import { isTempCopyId, TEMP_COPY_ID_PREFIX } from "@/lib/temp-copy-id";
 import { withTimeout } from "@/lib/with-timeout";
@@ -85,51 +86,59 @@ interface AddCopyResult {
   collectionId: string;
 }
 
-async function postJson(url: string, body: unknown, signal: AbortSignal): Promise<Response> {
-  try {
-    return await fetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-      signal,
-    });
-  } catch (error) {
-    // Network failures (offline, DNS, CORS) throw TypeError with a browser-
-    // specific message. Normalize to something the toast can display
-    // usefully.
-    if (error instanceof TypeError) {
-      // oxlint-disable-next-line unicorn/prefer-type-error -- this is a network failure, not a type check
-      throw new Error("Can't reach the server — check your connection");
-    }
-    throw error;
+// Normalize a genuine network failure (offline/DNS/CORS, which fetch throws as a
+// TypeError) into a message the toast can show. An abort throws a
+// DOMException("AbortError"), which is NOT a TypeError and so propagates
+// untouched to withTimeout — exactly as before. A non-2xx becomes an ApiError
+// (from callApi/callApiJson) carrying the server's message, also propagated.
+// Shared by the three copy mutations, all of which run directly in the browser.
+function rethrowAsNetworkError(error: unknown): never {
+  if (error instanceof TypeError) {
+    // oxlint-disable-next-line unicorn/prefer-type-error -- this is a network failure, not a type check
+    throw new Error("Can't reach the server — check your connection");
   }
+  throw error;
 }
 
 async function addCopiesApi(
   body: { copies: { printingId: string; collectionId?: string }[] },
   signal: AbortSignal,
 ): Promise<AddCopyResult[]> {
-  const res = await postJson("/api/v1/copies", body, signal);
-  if (!res.ok) {
-    throw new Error(`Add copies failed: ${res.status}`);
+  try {
+    // POST /copies returns the { items } envelope (CopyAddResponse) — the typed
+    // client infers it, so the caller maps over the real array, not the object.
+    const { items } = await callApiJson(
+      browserApiClient().api.v1.copies.$post({ json: body }, { init: { signal } }),
+      "Couldn't add cards",
+    );
+    return items;
+  } catch (error) {
+    rethrowAsNetworkError(error);
   }
-  return res.json() as Promise<AddCopyResult[]>;
 }
 
 async function moveCopiesApi(
   body: { copyIds: string[]; toCollectionId: string },
   signal: AbortSignal,
 ): Promise<void> {
-  const res = await postJson("/api/v1/copies/move", body, signal);
-  if (!res.ok) {
-    throw new Error(`Move copies failed: ${res.status}`);
+  try {
+    await callApi(
+      browserApiClient().api.v1.copies.move.$post({ json: body }, { init: { signal } }),
+      "Couldn't move cards",
+    );
+  } catch (error) {
+    rethrowAsNetworkError(error);
   }
 }
 
 async function disposeCopiesApi(body: { copyIds: string[] }, signal: AbortSignal): Promise<void> {
-  const res = await postJson("/api/v1/copies/dispose", body, signal);
-  if (!res.ok) {
-    throw new Error(`Dispose copies failed: ${res.status}`);
+  try {
+    await callApi(
+      browserApiClient().api.v1.copies.dispose.$post({ json: body }, { init: { signal } }),
+      "Couldn't remove cards",
+    );
+  } catch (error) {
+    rethrowAsNetworkError(error);
   }
 }
 

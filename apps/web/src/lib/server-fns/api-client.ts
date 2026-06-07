@@ -37,6 +37,33 @@ export function serverApiClient(cookie?: string) {
   });
 }
 
+let browserClient: ReturnType<typeof hc<AppType>> | null = null;
+
+/**
+ * Typed Hono RPC client for calling the API DIRECTLY from the browser — not from
+ * a `createServerFn` handler. Used by the client-side query/mutation functions
+ * that deliberately bypass the server-fn round-trip (public reads that should hit
+ * the Cloudflare edge cache directly; cancelable mutations that need a live
+ * `AbortController`).
+ *
+ * Differs from {@link serverApiClient}: no `headers` function — the browser sends
+ * the same-origin session cookie automatically, and there is no server span to
+ * propagate. The base is `window.location.origin` (absolute, same-origin) so the
+ * request URL is byte-identical to the old hand-written relative
+ * `fetch("/api/v1/...")` and lands on the same edge-cached origin; hc does NOT
+ * support a relative/empty base (its `$url()` throws on one).
+ *
+ * Memoized because the `AppType` graph is expensive to instantiate.
+ * `globalThis.location` is read lazily, so importing this module on the server is
+ * safe — but CALLING it during SSR would throw. Only invoke it from a
+ * browser-only code path (e.g. the `globalThis.window === undefined ? serverFn()
+ * : fromEdge()` switch).
+ * @returns A typed `hc<AppType>` client bound to the current page origin.
+ */
+export function browserApiClient() {
+  return (browserClient ??= hc<AppType>(globalThis.location.origin));
+}
+
 /**
  * Percent-encodes path-param values for a Hono RPC call. hc interpolates `param`
  * values into the URL RAW (its `replaceUrlParam` does NOT `encodeURIComponent`,

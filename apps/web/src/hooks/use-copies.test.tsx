@@ -85,8 +85,14 @@ describe("copy mutations refresh derived collection totals", () => {
   const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
+    // POST /copies returns the { items } envelope (CopyAddResponse) with a 201,
+    // not a bare array — the mock must mirror the real contract so a future
+    // envelope drift is caught here instead of crashing in production.
     globalThis.fetch = vi.fn(async () =>
-      Response.json([{ id: "real-1", printingId: "p1", collectionId: "c1" }], { status: 200 }),
+      Response.json(
+        { items: [{ id: "real-1", printingId: "p1", collectionId: "c1", groupId: null }] },
+        { status: 201 },
+      ),
     ) as typeof fetch;
   });
 
@@ -122,5 +128,23 @@ describe("copy mutations refresh derived collection totals", () => {
       const calls = invalidateSpy.mock.calls.map(([arg]) => arg?.queryKey);
       expect(calls).toContainEqual(["collections", "user-1"]);
     });
+  });
+
+  // Regression: POST /copies returns the { items } envelope, not a bare array.
+  // addCopiesApi must unwrap it before the mutation maps over the rows. Before
+  // the fix it cast the body straight to AddCopyResult[] and ran .map() on the
+  // { items } object, throwing a TypeError that rolled back the optimistic add
+  // even though the server had created the copy. The old mock returned a bare
+  // array, which hid the drift once the API moved to { items }.
+  it("useAddCopies unwraps the { items } envelope and resolves with the created rows", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    seedSession(client, "user-1");
+
+    const { result } = renderHook(() => useAddCopies(), { wrapper: wrap(client) });
+    const added = await result.current.mutateAsync({
+      copies: [{ printingId: "p1", collectionId: "c1" }],
+    });
+
+    expect(added).toEqual([{ id: "real-1", printingId: "p1", collectionId: "c1", groupId: null }]);
   });
 });

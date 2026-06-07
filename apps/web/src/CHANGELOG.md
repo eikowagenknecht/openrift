@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-06-07
+
+- fix: Adding cards to a collection no longer shows a spurious error and drops the card from view — the cards were being saved, but the app misread the server's reply and rolled them back out until you refreshed
+
 ## 2026-06-05
 
 - fix: Your language filters and collection-completion settings now sync across devices instead of silently resetting — they were being saved but never sent back when the app reloaded
