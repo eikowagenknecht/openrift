@@ -231,6 +231,59 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       expect(res.status).toBe(409);
     });
 
+    // Regression (REST-2): a non-empty SHARED (group-owned) collection has no
+    // inbox to drain into, so deletion is a resource-state conflict (409), not a
+    // malformed request (400). The unit suite covers this with a mocked repo;
+    // this exercises the real listCopiesInCollection query + group-admin access
+    // path end-to-end. Set up directly (no API exists to mint a group
+    // collection here): a group, USER_ID as its owner, a group-owned collection,
+    // and one copy.
+    it("returns 409 when deleting a non-empty shared (group) collection", async () => {
+      const groupId = "a0000000-0002-4000-a000-0000000000a0";
+      const groupCollectionId = "a0000000-0002-4000-a000-0000000000a1";
+      await db
+        .insertInto("friendGroups")
+        .values({ id: groupId, slug: "del-409-grp", name: "Delete 409 Group" })
+        .execute();
+      await db
+        .insertInto("friendGroupMembers")
+        .values({ groupId, userId: USER_ID, role: "owner" })
+        .execute();
+      await db
+        .insertInto("collections")
+        .values({
+          id: groupCollectionId,
+          userId: null,
+          groupId,
+          name: "Group Binder",
+          isInbox: false,
+          sortOrder: 0,
+        })
+        .execute();
+      await db
+        .insertInto("copies")
+        .values({ collectionId: groupCollectionId, printingId: PRINTING_1.id })
+        .execute();
+
+      const res = await app.fetch(req("DELETE", `/collections/${groupCollectionId}`));
+      expect(res.status).toBe(409);
+
+      // The 409 must not have deleted the collection.
+      const stillThere = await db
+        .selectFrom("collections")
+        .select("id")
+        .where("id", "=", groupCollectionId)
+        .executeTakeFirst();
+      expect(stillThere).toBeDefined();
+
+      // Clean up so later tests' collection counts are unaffected (the 409 left
+      // everything in place).
+      await db.deleteFrom("copies").where("collectionId", "=", groupCollectionId).execute();
+      await db.deleteFrom("collections").where("id", "=", groupCollectionId).execute();
+      await db.deleteFrom("friendGroupMembers").where("groupId", "=", groupId).execute();
+      await db.deleteFrom("friendGroups").where("id", "=", groupId).execute();
+    });
+
     it("deletes a collection and auto-moves its copies to inbox", async () => {
       // Populate `secondCollectionId` with two copies so the auto-move path
       // is actually exercised (without copies the test passes trivially).

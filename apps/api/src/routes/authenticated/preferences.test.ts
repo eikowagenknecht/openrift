@@ -224,3 +224,31 @@ describe("PATCH /api/v1/preferences", () => {
     expect(res.status).toBe(400);
   });
 });
+
+// Regression guard (#44 / a3360460): a preference accepted on PATCH but missing
+// from the read DTO round-trips on write yet is silently dropped on read — the
+// response schema is not runtime-validated and every read field is optional, so
+// neither zod nor tsc flags the gap. That is exactly how `languages` regressed
+// and broke cross-device sync. The example-based tests above only cover the
+// fields they name; this invariant catches a NEW write field added without
+// wiring the read side, for any field, automatically.
+describe("preferences read/write schema parity", () => {
+  it("declares every PATCH (write) field in the GET response (read) schema", async () => {
+    // Imported dynamically: response-schemas calls `.openapi()` at module load,
+    // which only exists after @hono/zod-openapi (pulled in by the statically
+    // imported route above) has extended Zod. A static top-level import here
+    // would evaluate response-schemas before that extension runs and throw.
+    const { updatePreferencesSchema } = await import("@openrift/shared/schemas");
+    const { userPreferencesResponseSchema } = await import("@openrift/shared/response-schemas");
+
+    const writeKeys = Object.keys(updatePreferencesSchema.shape);
+    const readKeys = new Set(Object.keys(userPreferencesResponseSchema.shape));
+
+    const missingFromRead = writeKeys.filter((key) => !readKeys.has(key));
+
+    // Every settable preference must be readable back, or it silently fails to
+    // sync. (Read-only fields in the response schema are allowed — the check is
+    // one-directional: write ⊆ read.)
+    expect(missingFromRead).toEqual([]);
+  });
+});
