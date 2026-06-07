@@ -6,12 +6,13 @@ import { API_BASE_URL } from "../../helpers/constants.js";
 // collections fetch without affecting session/theme/feature-flags/catalog
 // server fns that fire on the same transition.
 function isCollectionsServerFn(url: string): boolean {
-  const match = url.match(/\/_serverFn\/([^/?#]+)/u);
-  if (!match) {
+  const match = url.match(/\/_serverFn\/(?<encoded>[^/?#]+)/u);
+  const encoded = match?.groups?.encoded;
+  if (encoded === undefined) {
     return false;
   }
   try {
-    const decoded = Buffer.from(match[1], "base64url").toString("utf-8");
+    const decoded = Buffer.from(encoded, "base64url").toString("utf-8");
     return decoded.includes("fetchCollections");
   } catch {
     return false;

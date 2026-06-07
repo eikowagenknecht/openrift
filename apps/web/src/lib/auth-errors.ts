@@ -36,7 +36,7 @@ const CODE_TO_FIELD: Record<
   TOO_MANY_ATTEMPTS: { field: "otp", message: "Too many attempts. Please request a new code." },
 };
 
-const BODY_FIELD_RE = /^\[body\.(\w+)\]\s*(.+)$/u;
+const BODY_FIELD_RE = /^\[body\.(?<field>\w+)\]\s*(?<text>.+)$/u;
 
 export function setServerError(
   // oxlint-disable-next-line no-explicit-any -- generic over any form shape

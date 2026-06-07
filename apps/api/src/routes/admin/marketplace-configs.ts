@@ -58,11 +58,11 @@ export interface MarketplaceConfig {
   marketplace: string;
   currency: string;
   /** Map a staging row → the unified product-info price fields */
-  mapStagingPrices(row: StagingRow): Omit<ProductInfo, "productName" | "recordedAt">;
+  mapStagingPrices: (row: StagingRow) => Omit<ProductInfo, "productName" | "recordedAt">;
   /** Fetch the latest price row per (printing × product) for the given printings. */
-  priceQuery(printingIds: string[]): Promise<MappedPriceRow[]>;
+  priceQuery: (printingIds: string[]) => Promise<MappedPriceRow[]>;
   /** Map a price query result → unified product-info */
-  mapPriceRow(row: MappedPriceRow): ProductInfo;
+  mapPriceRow: (row: MappedPriceRow) => ProductInfo;
 }
 
 // ── Factory helper ──────────────────────────────────────────────────────────
@@ -70,7 +70,7 @@ export interface MarketplaceConfig {
 function createMarketplaceConfig(opts: {
   marketplace: string;
   currency: string;
-  mapPrices(row: PriceColumns): Omit<ProductInfo, "productName" | "recordedAt">;
+  mapPrices: (row: PriceColumns) => Omit<ProductInfo, "productName" | "recordedAt">;
   repo: ReturnType<typeof marketplaceMappingRepo>;
 }): MarketplaceConfig {
   const { marketplace, mapPrices, repo } = opts;

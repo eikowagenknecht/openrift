@@ -40,12 +40,13 @@ async function setDeckCardsViaApi(
 // TanStack Start encodes each server fn id as base64url(JSON); decoding lets us
 // match a specific server fn (exportDeckFn, saveDeckCardsFn) without colliding.
 function isServerFn(url: string, fnName: string): boolean {
-  const match = url.match(/\/_serverFn\/([^/?#]+)/u);
-  if (!match) {
+  const match = url.match(/\/_serverFn\/(?<encoded>[^/?#]+)/u);
+  const encoded = match?.groups?.encoded;
+  if (encoded === undefined) {
     return false;
   }
   try {
-    return Buffer.from(match[1], "base64url").toString("utf-8").includes(fnName);
+    return Buffer.from(encoded, "base64url").toString("utf-8").includes(fnName);
   } catch {
     return false;
   }

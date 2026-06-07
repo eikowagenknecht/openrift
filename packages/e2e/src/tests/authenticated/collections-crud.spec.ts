@@ -117,12 +117,13 @@ async function countCopiesInCollection(collectionId: string): Promise<number> {
 // source file + export name; matching on the decoded payload lets us target a
 // single server fn out of the bundle that fires during a route transition.
 function isServerFn(url: string, fnName: string): boolean {
-  const match = url.match(/\/_serverFn\/([^/?#]+)/u);
-  if (!match) {
+  const match = url.match(/\/_serverFn\/(?<encoded>[^/?#]+)/u);
+  const encoded = match?.groups?.encoded;
+  if (encoded === undefined) {
     return false;
   }
   try {
-    return Buffer.from(match[1], "base64url").toString("utf-8").includes(fnName);
+    return Buffer.from(encoded, "base64url").toString("utf-8").includes(fnName);
   } catch {
     return false;
   }
@@ -267,7 +268,7 @@ test.describe("collections CRUD", () => {
       await dialog.getByRole("button", { name: "Delete" }).click();
       await deleteRequest;
 
-      await expect(page).toHaveURL(/\/collections(\?.*)?$/u, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/collections(?:\?.*)?$/u, { timeout: 15_000 });
       await expect(page.getByRole("link", { name })).toHaveCount(0);
     });
 

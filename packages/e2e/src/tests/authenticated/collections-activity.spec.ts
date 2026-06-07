@@ -201,12 +201,13 @@ async function deleteUser(email: string): Promise<void> {
 // TanStack Start encodes the server fn id as base64url(JSON); decode to target
 // a specific server fn out of the bundle during a route transition.
 function isServerFn(url: string, fnName: string): boolean {
-  const match = url.match(/\/_serverFn\/([^/?#]+)/u);
-  if (!match) {
+  const match = url.match(/\/_serverFn\/(?<encoded>[^/?#]+)/u);
+  const encoded = match?.groups?.encoded;
+  if (encoded === undefined) {
     return false;
   }
   try {
-    return Buffer.from(match[1], "base64url").toString("utf-8").includes(fnName);
+    return Buffer.from(encoded, "base64url").toString("utf-8").includes(fnName);
   } catch {
     return false;
   }

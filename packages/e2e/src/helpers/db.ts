@@ -6,7 +6,7 @@ import postgres from "postgres";
 const noop = () => {};
 
 export function replaceDbName(url: string, dbName: string): string {
-  return url.replace(/\/[^/?]+(\?|$)/u, `/${dbName}$1`);
+  return url.replace(/\/[^/?]+(?<suffix>\?|$)/u, `/${dbName}$<suffix>`);
 }
 
 export async function createTempDb(databaseUrl: string, label: string): Promise<string> {

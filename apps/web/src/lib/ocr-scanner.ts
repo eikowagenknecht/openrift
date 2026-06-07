@@ -85,7 +85,7 @@ function matchOcrText(rawText: string, printings: Printing[]): OcrMatch[] {
     // Try matching short code with set code (e.g. "OGN 027" or "OGN-027")
     for (const line of lines) {
       // Extract numeric part from short code (e.g. "OGN-027" → "027")
-      const codeMatch = printing.shortCode.match(/^[A-Z]{3}-(.+)$/u);
+      const codeMatch = printing.shortCode.match(/^[A-Z]{3}-(?<num>.+)$/u);
       if (codeMatch) {
         const numPart = codeMatch[1];
         const setPattern = `${printing.setSlug}[\\s\\-#]*0*${numPart}`;

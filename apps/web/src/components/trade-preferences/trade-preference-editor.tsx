@@ -244,7 +244,7 @@ export function TradePreferenceEditor({
 
 function parseAmountToCents(text: string): number | null {
   const trimmed = text.trim().replace(",", ".");
-  if (!/^\d+(\.\d{0,2})?$/u.test(trimmed)) {
+  if (!/^\d+(?:\.\d{0,2})?$/u.test(trimmed)) {
     return null;
   }
   const value = Number.parseFloat(trimmed);

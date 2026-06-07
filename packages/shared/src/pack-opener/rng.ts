@@ -4,7 +4,7 @@
  * for deterministic tests.
  */
 export interface Random {
-  next(): number;
+  next: () => number;
 }
 
 export const mathRandom: Random = {

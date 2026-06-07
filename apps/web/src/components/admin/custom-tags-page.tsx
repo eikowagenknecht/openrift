@@ -56,7 +56,7 @@ interface CustomTagCategoryDraft {
 
 // Mirrors `slugRegex` in apps/api/src/routes/admin/schemas.ts — keep in sync
 // so the UI rejects exactly what the server would reject.
-const KEBAB_RE = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/u;
+const KEBAB_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 
 export function CustomTagsPage() {
   const { data: tagsData } = useCustomTags();

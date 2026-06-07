@@ -127,12 +127,13 @@ async function fetchCopies(request: APIRequestContext, collectionId: string): Pr
 // target a specific server fn without matching unrelated ones.
 function isServerFn(constName: string) {
   return (url: string) => {
-    const match = url.match(/\/_serverFn\/([^/?#]+)/u);
-    if (!match) {
+    const match = url.match(/\/_serverFn\/(?<encoded>[^/?#]+)/u);
+    const encoded = match?.groups?.encoded;
+    if (encoded === undefined) {
       return false;
     }
     try {
-      return Buffer.from(match[1], "base64url").toString("utf-8").includes(constName);
+      return Buffer.from(encoded, "base64url").toString("utf-8").includes(constName);
     } catch {
       return false;
     }
@@ -239,7 +240,7 @@ test.describe("collections import/export", () => {
       const inbox = await findInbox(page.request);
 
       await page.goto("/collections/import");
-      const exportButton = page.getByRole("button", { name: /^Export \d+ cop(y|ies)$/u });
+      const exportButton = page.getByRole("button", { name: /^Export \d+ cop(?:y|ies)$/u });
       await expect(exportButton).toBeVisible({ timeout: 15_000 });
       await expect(exportButton).toHaveText(/Export 0 copies/u);
       await expect(exportButton).toBeDisabled();

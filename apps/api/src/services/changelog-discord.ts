@@ -38,9 +38,10 @@ export function parseChangelogSections(markdown: string): ChangelogSection[] {
     const date = lines[0].trim();
     const entries: ChangelogEntry[] = [];
     for (const line of lines.slice(1)) {
-      const match = line.match(/^- (feat|fix): (.+)$/u);
-      if (match) {
-        entries.push({ type: match[1] as "feat" | "fix", message: match[2] });
+      const match = line.match(/^- (?<type>feat|fix): (?<message>.+)$/u);
+      const groups = match?.groups;
+      if (groups) {
+        entries.push({ type: groups.type as "feat" | "fix", message: groups.message });
       }
     }
     if (entries.length > 0) {

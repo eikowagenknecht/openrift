@@ -119,7 +119,7 @@ async function createCollectionViaApi(request: APIRequestContext, name: string):
 async function enterSelectMode(page: Page) {
   // The desktop "Manage …" top-bar button has a visible text label; its mobile
   // icon-only twin has no accessible name, so role+name picks it unambiguously.
-  await page.getByRole("button", { name: /^Manage (cards|printings|copies)$/u }).click();
+  await page.getByRole("button", { name: /^Manage (?:cards|printings|copies)$/u }).click();
 }
 
 async function waitForCollectionReady(page: Page) {
@@ -127,7 +127,7 @@ async function waitForCollectionReady(page: Page) {
   // hydrates on a collection page — a reliable readiness signal that doesn't
   // depend on any specific card being seeded.
   await expect(
-    page.getByRole("button", { name: /^Manage (cards|printings|copies)$/u }),
+    page.getByRole("button", { name: /^Manage (?:cards|printings|copies)$/u }),
   ).toBeVisible({ timeout: 15_000 });
 }
 

@@ -74,7 +74,7 @@ async function copyRuleLink(ruleNumber: string): Promise<void> {
 // matches from bleeding into the next sentence (e.g. "rule 540.4.b. Continue"
 // matches "540.4.b", not "540.4.b.C…").
 const RULE_REFERENCE_REGEX =
-  /(?:\b([Rr]ules?|CR)\s+(\d+(?:\.\d+)*(?:\.[a-z](?:\.\d+)?)?)|\b(\d{3}(?:\.\d+)+(?:\.[a-z](?:\.\d+)?)?))/gu;
+  /(?:\b(?<keyword>[Rr]ules?|CR)\s+(?<dotted>\d+(?:\.\d+)*(?:\.[a-z](?:\.\d+)?)?)|\b(?<bare>\d{3}(?:\.\d+)+(?:\.[a-z](?:\.\d+)?)?))/gu;
 
 interface MdNode {
   type: string;
@@ -294,13 +294,14 @@ const PENALTY_STYLES: Record<string, string> = {
   Disqualification: "bg-[#990000] text-white",
 };
 
-const PENALTY_REGEX = /\[(Warnings?|Game Loss|No Penalty|Match Loss|Disqualification)\]/gu;
+const PENALTY_REGEX =
+  /\[(?<penalty>Warnings?|Game Loss|No Penalty|Match Loss|Disqualification)\]/gu;
 
 // IPG-style sources often italicize the label inside the brackets, e.g.
 // `[*Warnings*]`. Strip the inner emphasis markers so the regex above (and the
 // markdown parser) see clean `[Label]` tokens.
 const PENALTY_NORMALIZE_REGEX =
-  /\[\s*[*_]*\s*(Warnings?|Game Loss|No Penalty|Match Loss|Disqualification)\s*[*_]*\s*\]/gu;
+  /\[\s*[*_]*\s*(?<penalty>Warnings?|Game Loss|No Penalty|Match Loss|Disqualification)\s*[*_]*\s*\]/gu;
 
 interface HastNode {
   type: string;
@@ -472,7 +473,7 @@ const DIFF_ADDED_START = "\uE000";
 const DIFF_ADDED_END = "\uE001";
 const DIFF_REMOVED_START = "\uE002";
 const DIFF_REMOVED_END = "\uE003";
-const DIFF_REGEX = /\uE000([^\uE001]*)\uE001|\uE002([^\uE003]*)\uE003/gu;
+const DIFF_REGEX = /\uE000(?<added>[^\uE001]*)\uE001|\uE002(?<removed>[^\uE003]*)\uE003/gu;
 
 function splitTextOnDiffs(text: string): HastNode[] {
   const result: HastNode[] = [];
@@ -552,7 +553,9 @@ export function RuleContent({
   // markdown two-space hard-break marker before each \n. Normalize penalty
   // labels first so `[*Warning*]` collapses to `[Warning]` and the rehype
   // matcher recognizes it as a single text node.
-  const processed = content.replaceAll(PENALTY_NORMALIZE_REGEX, "[$1]").replaceAll("\n", "  \n");
+  const processed = content
+    .replaceAll(PENALTY_NORMALIZE_REGEX, "[$<penalty>]")
+    .replaceAll("\n", "  \n");
   // Per-rule plugin set: when termAnchors is non-empty, append the term
   // linkifier with this rule's number so it can skip self-links. The compiler
   // memoizes both the array and the closure across re-renders of the same
@@ -819,7 +822,9 @@ function buildDiffMarkdown(segments: DiffSegment[]): string {
 function InlineDiff({ oldText, newText }: { oldText: string; newText: string }) {
   const segments = textDiff(oldText, newText);
   const merged = buildDiffMarkdown(segments);
-  const processed = merged.replaceAll(PENALTY_NORMALIZE_REGEX, "[$1]").replaceAll("\n", "  \n");
+  const processed = merged
+    .replaceAll(PENALTY_NORMALIZE_REGEX, "[$<penalty>]")
+    .replaceAll("\n", "  \n");
   return (
     <ReactMarkdown
       remarkPlugins={REMARK_PLUGINS}

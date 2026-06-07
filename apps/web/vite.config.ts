@@ -201,23 +201,23 @@ export default defineConfig(({ mode, command }) => {
               // import from it, dragging tanstack-db into routes that don't
               // actually use it (like the public homepage).
               {
-                test: /node_modules\/@tanstack\/(react-query|query-core)/u,
+                test: /node_modules\/@tanstack\/(?:react-query|query-core)/u,
                 name: "tanstack-query",
               },
               {
-                test: /node_modules\/@tanstack\/(react-router|router-core)/u,
+                test: /node_modules\/@tanstack\/(?:react-router|router-core)/u,
                 name: "tanstack-router",
               },
               {
-                test: /node_modules\/@tanstack\/(db|react-db|query-db-collection)/u,
+                test: /node_modules\/@tanstack\/(?:db|react-db|query-db-collection)/u,
                 name: "tanstack-db",
               },
               {
-                test: /node_modules\/(better-auth|@better-auth)/u,
+                test: /node_modules\/(?:better-auth|@better-auth)/u,
                 name: "better-auth",
               },
               {
-                test: /node_modules\/(@base-ui|@floating-ui)/u,
+                test: /node_modules\/(?:@base-ui|@floating-ui)/u,
                 name: "base-ui",
               },
               {

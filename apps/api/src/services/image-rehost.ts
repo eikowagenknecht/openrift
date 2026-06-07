@@ -786,7 +786,7 @@ function diskFileToPrefix(dirPrefix: string, file: string): string {
   // Match only the suffix after the LAST dash: `-<variant>.webp` or `-orig.<ext>`.
   // The `[^-.]+` class prevents the suffix from swallowing an internal dash
   // (e.g. `img-1-300w.webp` must become `img-1`, not `img`).
-  return `/media/cards/${dirPrefix}/${file.replace(/-(orig\.[^.]+|[^-.]+\.webp)$/u, "")}`;
+  return `/media/cards/${dirPrefix}/${file.replace(/-(?:orig\.[^.]+|[^-.]+\.webp)$/u, "")}`;
 }
 
 /**
@@ -903,7 +903,7 @@ export async function getRehostStatus(
   return { total, rehosted, external: total - rehosted, orphanedFiles, sets, disk };
 }
 
-const ORIG_FILE_RE = /^(.+)-orig\.[^.]+$/u;
+const ORIG_FILE_RE = /^(?<base>.+)-orig\.[^.]+$/u;
 
 /**
  * Identify stale duplicate `{base}-orig.*` files in a directory — when more
@@ -1110,7 +1110,7 @@ export async function migrateImageDirectories(io: Io): Promise<{
     for (const file of files) {
       progress.scanned++;
       const uuidMatch = file.match(
-        /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-/iu,
+        /^(?<uuid>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-/iu,
       );
       if (!uuidMatch) {
         progress.skipped++;

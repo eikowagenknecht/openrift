@@ -100,12 +100,13 @@ function buildExpectedDescription(detail: CardDetailFixture): string {
 // run during a route transition. TanStack Start encodes the server fn id as
 // base64url(JSON) referencing the source file + export name.
 function isCardDetailServerFn(url: string): boolean {
-  const match = url.match(/\/_serverFn\/([^/?#]+)/u);
-  if (!match) {
+  const match = url.match(/\/_serverFn\/(?<encoded>[^/?#]+)/u);
+  const encoded = match?.groups?.encoded;
+  if (encoded === undefined) {
     return false;
   }
   try {
-    return Buffer.from(match[1], "base64url").toString("utf-8").includes("fetchCardDetail");
+    return Buffer.from(encoded, "base64url").toString("utf-8").includes("fetchCardDetail");
   } catch {
     return false;
   }
@@ -542,7 +543,7 @@ test.describe("card detail route — printings list", () => {
     // Each language group renders an h2 header above the printing buttons.
     const headings = page.getByRole("heading", { level: 2 });
     // The English header may render as the language label "English" (via languageLabels lookup) or fall back to the code "EN".
-    await expect(headings.filter({ hasText: /^(English|EN)$/u }).first()).toBeVisible();
+    await expect(headings.filter({ hasText: /^(?:English|EN)$/u }).first()).toBeVisible();
   });
 
   test("clicking a sibling printing updates the info panel", async ({ page }) => {
@@ -681,7 +682,7 @@ test.describe("card detail route — price history", () => {
 
     // Column headers expose the marketplace + currency suffix.
     const columnHeaders = page.getByRole("columnheader");
-    await expect(columnHeaders.filter({ hasText: /\((USD|EUR)\)/u }).first()).toBeVisible();
+    await expect(columnHeaders.filter({ hasText: /\((?:USD|EUR)\)/u }).first()).toBeVisible();
 
     // Date column is descending: first body row's date >= last body row's date.
     const dateCells = page.getByRole("rowgroup").last().getByRole("row").locator("td:first-child");

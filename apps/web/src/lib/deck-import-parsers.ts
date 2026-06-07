@@ -173,7 +173,7 @@ function parseTextFormat(code: string): DeckParseResult {
     // Parse card line: "{quantity} {card name}". A bare line with no leading
     // count is treated as quantity 1 so users can paste plain name lists
     // without prefixing every row.
-    const match = line.match(/^(\d+)\s+(.+)$/u);
+    const match = line.match(/^(?<quantity>\d+)\s+(?<name>.+)$/u);
     const effectiveZone = currentZone ?? "main";
     const quantity = match ? Number(match[1]) : 1;
     const cardName = match ? match[2].trim() : line;
@@ -202,7 +202,7 @@ function parseTextFormat(code: string): DeckParseResult {
  */
 function stripTTSVariant(token: string): string {
   // Match SET-NNN-V where V is the variant number
-  const match = token.match(/^([A-Z]+-\d+)-\d+$/u);
+  const match = token.match(/^(?<base>[A-Z]+-\d+)-\d+$/u);
   return match ? match[1] : token;
 }
 

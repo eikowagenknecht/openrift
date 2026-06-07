@@ -303,7 +303,7 @@ test.describe("deck editor panels", () => {
 
       // The default favorite marketplace may be CardTrader (EUR) or TCGplayer
       // (USD) depending on seed order — accept either.
-      await expect(page.getByText(/(TCGplayer|CardTrader|Cardmarket) prices/u)).toBeVisible();
+      await expect(page.getByText(/(?:TCGplayer|CardTrader|Cardmarket) prices/u)).toBeVisible();
 
       // Match either "$X.XX" (TCGplayer/USD) or "X,XX €" (CardTrader/EUR).
       const priceRegex = /(?:\$\d+\.\d{2})|(?:\d+[.,]\d{2}\s?€)/u;
@@ -381,7 +381,7 @@ test.describe("deck editor panels", () => {
       // so accept any known marketplace domain.
       await expect(annieLink).toHaveAttribute(
         "href",
-        /(tcgplayer\.com|cardtrader\.com|cardmarket\.com)/u,
+        /(?:tcgplayer\.com|cardtrader\.com|cardmarket\.com)/u,
       );
 
       // Both cards are in zone "main"; they're now grouped under a single

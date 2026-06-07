@@ -41,12 +41,13 @@ async function fetchPromoList(): Promise<PromoFixture> {
 // the source file + export. Decoding lets us pick out the promo list call
 // without touching other server fns on the same route transition.
 function isPromoListServerFn(url: string): boolean {
-  const match = url.match(/\/_serverFn\/([^/?#]+)/u);
-  if (!match) {
+  const match = url.match(/\/_serverFn\/(?<encoded>[^/?#]+)/u);
+  const encoded = match?.groups?.encoded;
+  if (encoded === undefined) {
     return false;
   }
   try {
-    return Buffer.from(match[1], "base64url").toString("utf-8").includes("fetchPromoList");
+    return Buffer.from(encoded, "base64url").toString("utf-8").includes("fetchPromoList");
   } catch {
     return false;
   }

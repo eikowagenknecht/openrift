@@ -389,7 +389,7 @@ test.describe("reset password", () => {
 
       await page.getByRole("link", { name: /back to login/iu }).click();
 
-      await expect(page).toHaveURL(/\/login(\?|$)/u);
+      await expect(page).toHaveURL(/\/login(?:\?|$)/u);
       const url = new URL(page.url());
       expect(url.pathname).toBe("/login");
       expect(url.searchParams.get("email")).toBeNull();

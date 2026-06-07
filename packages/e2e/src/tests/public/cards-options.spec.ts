@@ -32,7 +32,7 @@ test.describe("card browser — search bar", () => {
 
     // Unfiltered: label shows "<N> cards" or "<N> printings" depending on the
     // default view preference (defaults to "printings").
-    const countLabel = page.getByText(/\b\d+ (cards|printings)\b/u).first();
+    const countLabel = page.getByText(/\b\d+ (?:cards|printings)\b/u).first();
     await expect(countLabel).toBeVisible();
     const initialText = await countLabel.textContent();
     const initialTotal = Number(initialText?.match(/\d+/u)?.[0] ?? 0);
@@ -41,7 +41,7 @@ test.describe("card browser — search bar", () => {
     await page.getByPlaceholder(/search/iu).fill("Garen");
 
     // Filtered label switches to "<filtered> / <total> cards|printings".
-    const filteredLabel = page.getByText(/\d+ \/ \d+ (cards|printings)/u);
+    const filteredLabel = page.getByText(/\d+ \/ \d+ (?:cards|printings)/u);
     await expect(filteredLabel).toBeVisible({ timeout: 5000 });
     await expect(page.getByText("Garen, Rugged").first()).toBeVisible();
     await expect(page.getByText("Annie, Fiery").first()).not.toBeVisible();
@@ -152,7 +152,7 @@ test.describe("card browser — options bar", () => {
     // virtualized (see card-grid.tsx), so headers below the fold aren't in
     // the DOM — assert on the first rendered header rather than the full
     // list.
-    const firstHeader = page.getByRole("button", { name: /^(Legend|Unit|Spell)$/u }).first();
+    const firstHeader = page.getByRole("button", { name: /^(?:Legend|Unit|Spell)$/u }).first();
 
     await expect(firstHeader).toHaveText("legend");
 

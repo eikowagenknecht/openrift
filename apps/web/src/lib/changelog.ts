@@ -19,9 +19,10 @@ export function parseChangelog(markdown: string): ChangelogGroup[] {
     const entries: ChangelogEntry[] = [];
 
     for (const line of lines.slice(1)) {
-      const match = line.match(/^- (feat|fix): (.+)$/u);
-      if (match) {
-        entries.push({ date, type: match[1] as "feat" | "fix", message: match[2] });
+      const match = line.match(/^- (?<type>feat|fix): (?<message>.+)$/u);
+      const fields = match?.groups;
+      if (fields) {
+        entries.push({ date, type: fields.type as "feat" | "fix", message: fields.message });
       }
     }
 

@@ -69,7 +69,7 @@ class PrintingIndex {
     }
 
     // Try stripping variant suffix (e.g. "OGN-001a" → "OGN-001")
-    const baseMatch = sourceCode.match(/^([A-Z]{3}-[A-Z0-9]{3})[a-z*]$/iu);
+    const baseMatch = sourceCode.match(/^(?<base>[A-Z]{3}-[A-Z0-9]{3})[a-z*]$/iu);
     if (baseMatch) {
       const base = this.byShortCode.get(baseMatch[1].toLowerCase());
       if (base && base.length > 0) {

@@ -62,7 +62,7 @@ const createArtVariant = createRoute({
             slug: z
               .string()
               .min(1)
-              .regex(/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/u, "Slug must be kebab-case"),
+              .regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u, "Slug must be kebab-case"),
             label: z.string().min(1),
           }),
         },

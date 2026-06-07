@@ -36,17 +36,19 @@ interface ParsedSearchTerm {
  */
 export function parseSearchTerms(raw: string): ParsedSearchTerm[] {
   const terms: ParsedSearchTerm[] = [];
-  const regex = /(?:(id|ty|[ndktaf]):(?:"([^"]*)"|([\S]*)))|(?:"([^"]*)")|(\S+)/gu;
+  const regex =
+    /(?:(?<prefix>id|ty|[ndktaf]):(?:"(?<quoted>[^"]*)"|(?<bare>[\S]*)))|(?:"(?<looseQuoted>[^"]*)")|(?<loose>\S+)/gu;
   let match: RegExpExecArray | null;
   while ((match = regex.exec(raw)) !== null) {
-    const prefix = match[1];
+    const groups = match.groups;
+    const prefix = groups?.prefix;
     if (prefix) {
-      const text = (match[2] ?? match[3] ?? "").trim();
+      const text = (groups?.quoted ?? groups?.bare ?? "").trim();
       if (text) {
         terms.push({ field: SEARCH_PREFIX_MAP[prefix] ?? null, text });
       }
     } else {
-      const text = (match[4] ?? match[5] ?? "").trim();
+      const text = (groups?.looseQuoted ?? groups?.loose ?? "").trim();
       if (text) {
         terms.push({ field: null, text });
       }

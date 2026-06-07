@@ -34,7 +34,7 @@ interface SettingDraft {
   scope: string;
 }
 
-const KEBAB_RE = /^[a-z][a-z0-9]+(-[a-z0-9]+)*$/u;
+const KEBAB_RE = /^[a-z][a-z0-9]+(?:-[a-z0-9]+)*$/u;
 
 // ── Known settings ──────────────────────────────────────────────────────────
 // Settings that application code reads. Other keys are stored but have no effect.

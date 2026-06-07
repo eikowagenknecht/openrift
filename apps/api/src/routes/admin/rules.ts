@@ -107,7 +107,7 @@ function computeDepth(ruleNumber: string): number {
   return Math.min(parts.length - 1, 3);
 }
 
-const RULE_LINE_REGEX = /^(\d+(?:\.[A-Za-z0-9]+)*)\.\s+(.*)$/u;
+const RULE_LINE_REGEX = /^(?<number>\d+(?:\.[A-Za-z0-9]+)*)\.\s+(?<rest>.*)$/u;
 
 /**
  * Parses the markdown rule format into rule rows. Each non-blank line is

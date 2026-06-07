@@ -8,9 +8,10 @@ import { defineConfig } from "vitest/config";
 const envPath = resolve(import.meta.dirname ?? ".", "../../.env");
 try {
   for (const line of readFileSync(envPath, "utf-8").split("\n")) {
-    const match = line.match(/^([A-Z_]+)=(.*)$/u);
-    if (match && !process.env[match[1]]) {
-      process.env[match[1]] = match[2].replaceAll(/^["']|["']$/gu, "");
+    const match = line.match(/^(?<key>[A-Z_]+)=(?<value>.*)$/u);
+    const groups = match?.groups;
+    if (groups && !process.env[groups.key]) {
+      process.env[groups.key] = groups.value.replaceAll(/^["']|["']$/gu, "");
     }
   }
 } catch {

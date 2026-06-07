@@ -8,7 +8,8 @@ import { cn } from "@/lib/utils";
 // Matches glyph tokens (:rb_xxx:), bracketed keywords ([Keyword]),
 // parenthesized text ((reminder text)), italic markdown (_text_), and newlines.
 // Italic allows glyph tokens inside so underscores in :rb_xxx: don't break it.
-const TOKEN_PATTERN = /:rb_(\w+):|\[([^\]]+)\]|\(([^)]+)\)|_((?::rb_\w+:|[^_])+)_|\n/gu;
+const TOKEN_PATTERN =
+  /:rb_(?<glyph>\w+):|\[(?<keyword>[^\]]+)\]|\((?<paren>[^)]+)\)|_(?<italic>(?::rb_\w+:|[^_])+)_|\n/gu;
 
 export type CardTextToken =
   | { type: "text"; value: string }
@@ -147,7 +148,7 @@ function renderTokens(
   return tokens.map((token, i) => {
     switch (token.type) {
       case "glyph": {
-        const energyMatch = /^energy_?(\d+)$/u.exec(token.name);
+        const energyMatch = /^energy_?(?<level>\d+)$/u.exec(token.name);
         if (energyMatch) {
           return (
             <span

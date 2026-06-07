@@ -260,7 +260,7 @@ test.describe("verify email page", () => {
       expect(href).toBe("/login");
 
       await link.click();
-      await expect(page).toHaveURL(/\/login(\?|$)/u);
+      await expect(page).toHaveURL(/\/login(?:\?|$)/u);
     });
   });
 });

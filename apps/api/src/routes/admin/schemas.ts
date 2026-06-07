@@ -28,7 +28,7 @@ export const reorderSetsSchema = z.object({
 export const createFlagSchema = z.object({
   key: z
     .string()
-    .regex(/^[a-z][a-z0-9]+(-[a-z0-9]+)*$/u, "Key must be kebab-case (e.g. deck-builder)"),
+    .regex(/^[a-z][a-z0-9]+(?:-[a-z0-9]+)*$/u, "Key must be kebab-case (e.g. deck-builder)"),
   description: z.string().nullable().optional(),
   enabled: z.boolean().optional(),
 });
@@ -88,7 +88,7 @@ export const updateGroupSchema = z
 
 // ── Markers ────────────────────────────────────────────────────────────────
 
-const slugRegex = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/u;
+const slugRegex = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 
 export const createMarkerSchema = z.object({
   slug: z.string().min(1).regex(slugRegex, "Slug must be kebab-case (e.g. top-8)"),
@@ -181,7 +181,7 @@ const scopeEnum = z.enum(["web", "api"]);
 export const createSettingSchema = z.object({
   key: z
     .string()
-    .regex(/^[a-z][a-z0-9]+(-[a-z0-9]+)*$/u, "Key must be kebab-case (e.g. umami-url)"),
+    .regex(/^[a-z][a-z0-9]+(?:-[a-z0-9]+)*$/u, "Key must be kebab-case (e.g. umami-url)"),
   value: z.string(),
   scope: scopeEnum.optional(),
 });

@@ -46,7 +46,7 @@ function formatNumericLiteral(n: number): string {
   if (n < 10_000) {
     return String(n);
   }
-  return String(n).replaceAll(/\B(?=(\d{3})+(?!\d))/gu, "_");
+  return String(n).replaceAll(/\B(?=(?:\d{3})+(?!\d))/gu, "_");
 }
 
 function escapeValue(v: unknown): string {

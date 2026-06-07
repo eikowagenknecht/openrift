@@ -28,25 +28,27 @@ export function fixTypography(text: string | null, options?: FixTypographyOption
   let result = text
     .replaceAll("'", "\u2019") // straight apostrophe → curly
     .replaceAll("...", "\u2026") // triple dots → ellipsis
-    .replaceAll(/"([^"]*)"/gu, "\u201C$1\u201D") // straight double quotes → curly
-    .replaceAll(/-(\d)/gu, "\u2212$1") // hyphen before digit → minus sign
+    .replaceAll(/"(?<quoted>[^"]*)"/gu, "\u201C$<quoted>\u201D") // straight double quotes → curly
+    .replaceAll(/-(?<digit>\d)/gu, "\u2212$<digit>") // hyphen before digit → minus sign
     .replaceAll(/\n (?! )/gu, "\n"); // strip single leading space after line break
   if (keywordGlyphs) {
     // Move trailing :rb_*: glyphs inside cost-keyword brackets: [Equip] :rb_x: → [Equip :rb_x:]
     // Only Equip and Repeat take glyph costs as parameters; other keywords (Add, Deflect, etc.) don't.
     result = result.replaceAll(
-      /\[(Equip|Repeat)\][ \t]*(:rb_\w+:(?:[ \t]*:rb_\w+:)*)/gu,
+      /\[(?<keyword>Equip|Repeat)\][ \t]*(?<glyphs>:rb_\w+:(?:[ \t]*:rb_\w+:)*)/gu,
       (_, keyword, glyphs) => `[${keyword} ${glyphs}]`,
     );
     // Unfix wrongly-merged non-cost keywords: [Add :rb_x:] → [Add] :rb_x:
     result = result.replaceAll(
-      /\[(?!(Equip|Repeat)\b)([A-Z][a-z]+)\s+(:rb_\w+:(?:\s*:rb_\w+:)*)\]/gu,
-      (_, _skip, keyword, glyphs) => `[${keyword}] ${glyphs}`,
+      /\[(?!(?:Equip|Repeat)\b)(?<keyword>[A-Z][a-z]+)\s+(?<glyphs>:rb_\w+:(?:\s*:rb_\w+:)*)\]/gu,
+      (_, keyword, glyphs) => `[${keyword}] ${glyphs}`,
     );
   }
   if (italicParens) {
     // Italic parens: strip existing wrappers, then re-add for all
-    result = result.replaceAll(/_\(([^)]*)\)_/gu, "($1)").replaceAll(/\(([^)]*)\)/gu, "_($1)_");
+    result = result
+      .replaceAll(/_\((?<inner>[^)]*)\)_/gu, "($<inner>)")
+      .replaceAll(/\((?<inner>[^)]*)\)/gu, "_($<inner>)_");
   }
   return result;
 }

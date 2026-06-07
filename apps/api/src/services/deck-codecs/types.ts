@@ -28,5 +28,5 @@ export interface DeckCodec {
    * Encodes resolved deck cards into a code string.
    * Cards in the overflow zone are expected to already be filtered out.
    */
-  encode(cards: DeckCodecCard[]): EncodeResult;
+  encode: (cards: DeckCodecCard[]) => EncodeResult;
 }

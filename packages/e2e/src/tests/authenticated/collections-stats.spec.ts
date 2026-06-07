@@ -242,7 +242,7 @@ test.describe("collection stats", () => {
         // of the known marketplace domains.
         await expect(valueLink).toHaveAttribute(
           "href",
-          /(tcgplayer\.com|cardtrader\.com|cardmarket\.com)/u,
+          /(?:tcgplayer\.com|cardtrader\.com|cardmarket\.com)/u,
         );
 
         // The value itself is rendered; we don't hard-code an amount since prices

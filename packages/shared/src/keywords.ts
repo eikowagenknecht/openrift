@@ -11,7 +11,7 @@ export function extractBracketedTerms(text: string): string[] {
     return [];
   }
   const terms: string[] = [];
-  const re = /\[([^\]]+)\]/gu;
+  const re = /\[(?<keyword>[^\]]+)\]/gu;
   let match: RegExpExecArray | null;
   while ((match = re.exec(text)) !== null) {
     const stripped = match[1].replaceAll(/:rb_\w+:/gu, "").trim();
@@ -54,7 +54,7 @@ export function extractKeywords(text: string): string[] {
     return [];
   }
   const found = new Set<string>();
-  const re = /\[([^\]]+)\]/gu;
+  const re = /\[(?<keyword>[^\]]+)\]/gu;
   let match: RegExpExecArray | null;
   while ((match = re.exec(text)) !== null) {
     const stripped = match[1].replaceAll(/:rb_\w+:/gu, "").trim();

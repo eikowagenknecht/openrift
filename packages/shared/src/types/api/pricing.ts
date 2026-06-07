@@ -21,8 +21,8 @@ export interface PricesResponse {
  * store (the client-side `usePrices()` hook).
  */
 export interface PriceLookup {
-  get(printingId: string, marketplace: Marketplace): number | undefined;
-  has(printingId: string): boolean;
+  get: (printingId: string, marketplace: Marketplace) => number | undefined;
+  has: (printingId: string) => boolean;
 }
 
 // All snapshot price fields below are integer cents; the web converts

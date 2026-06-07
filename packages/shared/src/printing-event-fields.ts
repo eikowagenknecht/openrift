@@ -37,6 +37,7 @@ export function humanizePrintingField(field: string): string {
   }
   // Generic fallback: split on case boundaries, lowercase, then capitalize first.
   const spaced = field
+    // oxlint-disable-next-line prefer-named-capture-group -- positional $1 $2 reads clearer than names for a single-char space insertion at a camelCase boundary
     .replaceAll(/([a-z0-9])([A-Z])/gu, "$1 $2")
     .replaceAll("_", " ")
     .toLowerCase()

@@ -151,7 +151,7 @@ export function FinishesPage() {
           if (!slug || !label) {
             return "Slug and label are required";
           }
-          if (!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/u.test(slug)) {
+          if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u.test(slug)) {
             return "Slug must be kebab-case (e.g. foil, non-foil)";
           }
           return null;

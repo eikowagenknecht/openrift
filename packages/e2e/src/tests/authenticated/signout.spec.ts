@@ -190,7 +190,7 @@ test.describe("sign out", () => {
     await expect(page).toHaveURL(/\/cards$/u, { timeout: 15_000 });
 
     await page.goto("/admin");
-    await expect(page).not.toHaveURL(/\/admin(\/|$)/u, { timeout: 15_000 });
+    await expect(page).not.toHaveURL(/\/admin(?:\/|$)/u, { timeout: 15_000 });
   });
 
   test("admin menu shows Admin while logged in and hides it after sign-out", async ({

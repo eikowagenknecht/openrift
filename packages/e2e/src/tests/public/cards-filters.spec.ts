@@ -209,7 +209,7 @@ test.describe("card filter panel (mobile)", () => {
 
     // Before opening, the drawer footer button is not visible.
     await expect(
-      page.getByRole("button", { name: /^(Done|Show \d+ (cards?|printings?))$/u }),
+      page.getByRole("button", { name: /^(?:Done|Show \d+ (?:cards?|printings?))$/u }),
     ).toBeHidden();
 
     await page.getByRole("button", { name: "Options" }).click();
@@ -226,7 +226,7 @@ test.describe("card filter panel (mobile)", () => {
     // (filters active; unit depends on the current view preference — defaults
     // to "printings").
     await expect(
-      page.getByRole("button", { name: /^(Done|Show \d+ (cards?|printings?))$/u }),
+      page.getByRole("button", { name: /^(?:Done|Show \d+ (?:cards?|printings?))$/u }),
     ).toBeVisible();
 
     // Apply a filter by clicking a domain badge inside the drawer.
@@ -234,7 +234,7 @@ test.describe("card filter panel (mobile)", () => {
 
     // With a filter active, the footer button shows "Show N cards" or "Show N printings".
     await expect(
-      page.getByRole("button", { name: /^Show \d+ (cards?|printings?)$/u }),
+      page.getByRole("button", { name: /^Show \d+ (?:cards?|printings?)$/u }),
     ).toBeVisible();
     await expect(page).toHaveURL(/domains=[^&]*Fury/u);
   });
