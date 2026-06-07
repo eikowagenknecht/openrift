@@ -412,6 +412,11 @@ const catalogPrintingResponseSchema = z.object({
   printedYear: z.number().int().nullable().openapi({ example: 2025 }),
   language: z.string().openapi({ example: "EN" }),
   comment: z.string().nullable().openapi({ example: null }),
+  // Integer sort key from the `printings_ordered` view. The handler already
+  // emits it (via the `...rest` spread) and the web sorts printings by it, but
+  // the schema previously omitted it — so the typed client inferred a response
+  // missing this required field.
+  canonicalRank: z.number().int().openapi({ example: 1 }),
   cardId: z.string().openapi({ example: "019cfc3b-0389-744b-837c-792fd586300e" }),
 });
 
