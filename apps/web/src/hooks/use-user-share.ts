@@ -126,7 +126,7 @@ export function useRotateUserShare() {
 
 const fetchPublicUserBundleFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .handler(async ({ context, data: token }): Promise<PublicUserBundleResponse> => {
     const res = await callApi(
       serverApiClient(context.cookie).api.v1.users.share[":token"].$get({
@@ -154,7 +154,7 @@ export function usePublicUserBundle(token: string) {
 
 const fetchPublicUserBundleListFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .inputValidator((input: { token: string; listId: string }) => input)
+  .validator((input: { token: string; listId: string }) => input)
   .handler(async ({ context, data }): Promise<PublicListDetailResponse> => {
     const res = await callApi(
       serverApiClient(context.cookie).api.v1.users.share[":token"].lists[":listId"].$get({

@@ -28,7 +28,7 @@ export type {
 // ── Server functions ─────────────────────────────────────────────────────────
 
 const checkCandidateCardFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { candidateCardId: string }) => input)
+  .validator((input: { candidateCardId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -40,7 +40,7 @@ const checkCandidateCardFn = createServerFn({ method: "POST" })
   });
 
 const uncheckCandidateCardFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { candidateCardId: string }) => input)
+  .validator((input: { candidateCardId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -52,7 +52,7 @@ const uncheckCandidateCardFn = createServerFn({ method: "POST" })
   });
 
 const checkAllCandidateCardsFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { cardId: string }) => input)
+  .validator((input: { cardId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -64,7 +64,7 @@ const checkAllCandidateCardsFn = createServerFn({ method: "POST" })
   });
 
 const checkCandidatePrintingFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { id: string }) => input)
+  .validator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -76,7 +76,7 @@ const checkCandidatePrintingFn = createServerFn({ method: "POST" })
   });
 
 const uncheckCandidatePrintingFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { id: string }) => input)
+  .validator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -90,7 +90,7 @@ const uncheckCandidatePrintingFn = createServerFn({ method: "POST" })
   });
 
 const checkAllCandidatePrintingsFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { printingId?: string; extraIds?: string[] }) => input)
+  .validator((input: { printingId?: string; extraIds?: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -102,7 +102,7 @@ const checkAllCandidatePrintingsFn = createServerFn({ method: "POST" })
   });
 
 const renameCardFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { cardId: string; newId: string }) => input)
+  .validator((input: { cardId: string; newId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -115,7 +115,7 @@ const renameCardFn = createServerFn({ method: "POST" })
   });
 
 const acceptCardFieldFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: { cardId: string; field: string; value: unknown; source?: "provider" | "manual" }) =>
       input,
   )
@@ -137,7 +137,7 @@ const acceptCardFieldFn = createServerFn({ method: "POST" })
   });
 
 const acceptPrintingFieldFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: {
       printingId: string;
       field: string;
@@ -163,7 +163,7 @@ const acceptPrintingFieldFn = createServerFn({ method: "POST" })
   });
 
 const acceptNewCardFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { name: string; cardFields: AcceptNewCardBody["cardFields"] }) => input)
+  .validator((input: { name: string; cardFields: AcceptNewCardBody["cardFields"] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -176,7 +176,7 @@ const acceptNewCardFn = createServerFn({ method: "POST" })
   });
 
 export const acceptFavoritesFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { name: string }) => input)
+  .validator((input: { name: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -188,7 +188,7 @@ export const acceptFavoritesFn = createServerFn({ method: "POST" })
   });
 
 const linkCardFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { name: string; cardId: string }) => input)
+  .validator((input: { name: string; cardId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -201,7 +201,7 @@ const linkCardFn = createServerFn({ method: "POST" })
   });
 
 const reassignCandidatePrintingFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { id: string; fields: PatchCandidatePrintingBody }) => input)
+  .validator((input: { id: string; fields: PatchCandidatePrintingBody }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -214,7 +214,7 @@ const reassignCandidatePrintingFn = createServerFn({ method: "POST" })
   });
 
 const deleteCandidatePrintingFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { id: string }) => input)
+  .validator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -226,7 +226,7 @@ const deleteCandidatePrintingFn = createServerFn({ method: "POST" })
   });
 
 const copyCandidatePrintingFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { id: string; printingId: string }) => input)
+  .validator((input: { id: string; printingId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -239,7 +239,7 @@ const copyCandidatePrintingFn = createServerFn({ method: "POST" })
   });
 
 const linkCandidatePrintingsFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { candidatePrintingIds: string[]; printingId: string | null }) => input)
+  .validator((input: { candidatePrintingIds: string[]; printingId: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -251,7 +251,7 @@ const linkCandidatePrintingsFn = createServerFn({ method: "POST" })
   });
 
 const deletePrintingFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { printingId: string }) => input)
+  .validator((input: { printingId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -263,7 +263,7 @@ const deletePrintingFn = createServerFn({ method: "POST" })
   });
 
 const acceptPrintingGroupFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: {
       cardId: string;
       printingFields: AcceptPrintingBody["printingFields"];
@@ -285,7 +285,7 @@ const acceptPrintingGroupFn = createServerFn({ method: "POST" })
   );
 
 const checkProviderFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { provider: string }) => input)
+  .validator((input: { provider: string }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<{ cardsChecked: number; printingsChecked: number }> =>
@@ -298,7 +298,7 @@ const checkProviderFn = createServerFn({ method: "POST" })
   );
 
 const deleteProviderFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { provider: string }) => input)
+  .validator((input: { provider: string }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<{ deleted: number; provider: string }> =>
@@ -446,7 +446,7 @@ export function useAcceptNewCard() {
 }
 
 const createCardFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { cardFields: CreateCardBody }) => input)
+  .validator((input: { cardFields: CreateCardBody }) => input)
   .middleware([withCookies])
   .handler(({ context, data }) =>
     callApiJson(
@@ -469,7 +469,7 @@ export function useCreateCard() {
 }
 
 const createPrintingFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { cardId: string; printingFields: CreatePrintingBody }) => input)
+  .validator((input: { cardId: string; printingFields: CreatePrintingBody }) => input)
   .middleware([withCookies])
   .handler(({ context, data }) =>
     callApiJson(
@@ -602,7 +602,7 @@ export function useCheckProvider() {
 }
 
 export const acceptFavoritePrintingsFn = createServerFn({ method: "POST" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(
     ({
@@ -639,7 +639,7 @@ export function useDeleteProvider() {
 // ── Marketplace mappings (card-detail scoped) ────────────────────────────────
 
 const unmapMarketplacePrintingFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: {
       marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
       printingId: string;

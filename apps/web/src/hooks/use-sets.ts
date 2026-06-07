@@ -24,7 +24,7 @@ export function useSets() {
 }
 
 const updateSetFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: {
       id: string;
       name: string;
@@ -63,7 +63,7 @@ export function useUpdateSet() {
 }
 
 const createSetFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: { id: string; name: string; printedTotal: number; releasedAt?: string | null }) =>
       input,
   )
@@ -90,7 +90,7 @@ export function useCreateSet() {
 }
 
 const deleteSetFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { id: string }) => input)
+  .validator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -111,7 +111,7 @@ export function useDeleteSet() {
 }
 
 const reorderSetsFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { ids: string[] }) => input)
+  .validator((input: { ids: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(

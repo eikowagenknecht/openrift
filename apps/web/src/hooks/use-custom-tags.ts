@@ -66,7 +66,7 @@ export function useCustomTagCategories() {
 // ── Create / update / delete categories ────────────────────────────────────
 
 const createCustomTagCategoryFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string; label: string; description?: string | null }) => input)
+  .validator((input: { slug: string; label: string; description?: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -86,7 +86,7 @@ export function useCreateCustomTagCategory() {
 }
 
 const updateCustomTagCategoryFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: { id: string; slug?: string; label?: string; description?: string | null }) => input,
   )
   .middleware([withCookies])
@@ -113,7 +113,7 @@ export function useUpdateCustomTagCategory() {
 }
 
 const deleteCustomTagCategoryFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { id: string }) => input)
+  .validator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -134,7 +134,7 @@ export function useDeleteCustomTagCategory() {
 // ── Create / update / delete tags ──────────────────────────────────────────
 
 const createCustomTagFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: { slug: string; label: string; categoryId: string; description?: string | null }) =>
       input,
   )
@@ -161,7 +161,7 @@ export function useCreateCustomTag() {
 }
 
 const updateCustomTagFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: {
       id: string;
       slug?: string;
@@ -200,7 +200,7 @@ export function useUpdateCustomTag() {
 }
 
 const deleteCustomTagFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { id: string }) => input)
+  .validator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -221,7 +221,7 @@ export function useDeleteCustomTag() {
 // ── Per-card assignment ────────────────────────────────────────────────────
 
 const fetchCardCustomTags = createServerFn({ method: "GET" })
-  .inputValidator((input: { cardId: string }) => input)
+  .validator((input: { cardId: string }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<CardCustomTagsResponse> =>
@@ -246,7 +246,7 @@ export function useCardCustomTags(cardId: string) {
 }
 
 const setCardCustomTagsFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { cardId: string; customTagIds: string[] }) => input)
+  .validator((input: { cardId: string; customTagIds: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -273,7 +273,7 @@ interface AddCardsToCustomTagResponse {
 }
 
 const addCardsToCustomTagFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { tagId: string; cardIds: string[] }) => input)
+  .validator((input: { tagId: string; cardIds: string[] }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<AddCardsToCustomTagResponse> =>

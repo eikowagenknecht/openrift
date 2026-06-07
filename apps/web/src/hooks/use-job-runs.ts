@@ -35,7 +35,7 @@ export function useAdminJobRuns() {
 const ACTIVE_POLL_MS = 2000;
 
 const fetchLatestJobRunByKind = createServerFn({ method: "GET" })
-  .inputValidator((input: { kind: string }) => input)
+  .validator((input: { kind: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }): Promise<JobRunView | null> => {
     const res = await callApiJson(

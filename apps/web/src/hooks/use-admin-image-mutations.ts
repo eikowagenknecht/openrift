@@ -14,7 +14,7 @@ export type { UploadCandidatesBody };
 // ── Server functions ─────────────────────────────────────────────────────────
 
 const deletePrintingImageFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { imageId: string }) => input)
+  .validator((input: { imageId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -26,7 +26,7 @@ const deletePrintingImageFn = createServerFn({ method: "POST" })
   });
 
 const activatePrintingImageFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { imageId: string; active: boolean }) => input)
+  .validator((input: { imageId: string; active: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -41,7 +41,7 @@ const activatePrintingImageFn = createServerFn({ method: "POST" })
   });
 
 const rehostPrintingImageFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { imageId: string }) => input)
+  .validator((input: { imageId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -55,7 +55,7 @@ const rehostPrintingImageFn = createServerFn({ method: "POST" })
   });
 
 const unrehostPrintingImageFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { imageId: string }) => input)
+  .validator((input: { imageId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -71,7 +71,7 @@ const unrehostPrintingImageFn = createServerFn({ method: "POST" })
 type Rotation = 0 | 90 | 180 | 270;
 
 const rotatePrintingImageFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { imageId: string; rotation: Rotation }) => input)
+  .validator((input: { imageId: string; rotation: Rotation }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -86,7 +86,7 @@ const rotatePrintingImageFn = createServerFn({ method: "POST" })
   });
 
 const setNeedsTrimFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { imageId: string; needsTrim: boolean }) => input)
+  .validator((input: { imageId: string; needsTrim: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -101,7 +101,7 @@ const setNeedsTrimFn = createServerFn({ method: "POST" })
   });
 
 const addImageFromUrlFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { printingId: string; url: string; mode?: string }) => input)
+  .validator((input: { printingId: string; url: string; mode?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -116,7 +116,7 @@ const addImageFromUrlFn = createServerFn({ method: "POST" })
   });
 
 const setCandidatePrintingImageFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { candidatePrintingId: string; mode: "main" | "additional" }) => input)
+  .validator((input: { candidatePrintingId: string; mode: "main" | "additional" }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -131,7 +131,7 @@ const setCandidatePrintingImageFn = createServerFn({ method: "POST" })
   });
 
 const uploadCandidatesFn = createServerFn({ method: "POST" })
-  .inputValidator((input: UploadCandidatesBody) => input)
+  .validator((input: UploadCandidatesBody) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<UploadCandidatesResponse> =>
@@ -219,7 +219,7 @@ export function useAddImageFromUrl(invalidates: Scope = defaultScope) {
 }
 
 const uploadPrintingImageFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: {
       printingId: string;
       fileName: string;

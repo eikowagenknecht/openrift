@@ -11,7 +11,7 @@ vi.mock("@tanstack/react-start", () => ({
     const chain = {
       handler: () => async () => null,
       middleware: () => chain,
-      inputValidator: () => chain,
+      validator: () => chain,
     };
     return chain;
   },

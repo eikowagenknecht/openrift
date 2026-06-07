@@ -129,7 +129,7 @@ export function extractFirstRow(
 }
 
 export const fetchFirstRowCards = createServerFn({ method: "GET" })
-  .inputValidator((input: FilterSearch) => input)
+  .validator((input: FilterSearch) => input)
   .handler(async ({ data }): Promise<FirstRowCard[]> => {
     const catalog = await readCatalogFromServerCache();
     return extractFirstRow(catalog, data, FIRST_ROW_LIMIT);

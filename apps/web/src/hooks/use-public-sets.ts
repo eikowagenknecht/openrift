@@ -15,7 +15,7 @@ const fetchSetList = createServerFn({ method: "GET" }).handler(
 );
 
 const fetchSetDetail = createServerFn({ method: "GET" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .handler(
     ({ data }): Promise<SetDetailResponse> =>
       serverCache.fetchQuery({

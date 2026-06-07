@@ -9,7 +9,7 @@ import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchRulesAtVersion = createServerFn({ method: "GET" })
-  .inputValidator((input: { kind: RuleKind; version: string }) => input)
+  .validator((input: { kind: RuleKind; version: string }) => input)
   .handler(
     ({ data }): Promise<RulesListResponse> =>
       serverCache.fetchQuery({
@@ -25,7 +25,7 @@ const fetchRulesAtVersion = createServerFn({ method: "GET" })
   );
 
 const fetchVersions = createServerFn({ method: "GET" })
-  .inputValidator((input: { kind?: RuleKind } | undefined) => input ?? {})
+  .validator((input: { kind?: RuleKind } | undefined) => input ?? {})
   .handler(({ data }): Promise<RuleVersionsListResponse> => {
     const cacheKey = data.kind
       ? ["server-cache", "rules-versions", data.kind]
@@ -69,7 +69,7 @@ export function useRuleVersions(kind?: RuleKind) {
 }
 
 const importRulesFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: { kind: RuleKind; version: string; comments?: string | null; content: string }) =>
       input,
   )
@@ -104,7 +104,7 @@ export function useImportRules() {
 }
 
 const deleteRuleVersionFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { kind: RuleKind; version: string }) => input)
+  .validator((input: { kind: RuleKind; version: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -125,7 +125,7 @@ export function useDeleteRuleVersion() {
 }
 
 const updateRuleVersionCommentsFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { kind: RuleKind; version: string; comments: string | null }) => input)
+  .validator((input: { kind: RuleKind; version: string; comments: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     const result = await callApiJson(

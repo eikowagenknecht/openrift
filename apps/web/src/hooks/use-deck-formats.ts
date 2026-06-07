@@ -27,7 +27,7 @@ export function useDeckFormats() {
 }
 
 const createDeckFormatFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string; label: string }) => input)
+  .validator((input: { slug: string; label: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -46,7 +46,7 @@ export function useCreateDeckFormat() {
 }
 
 const updateDeckFormatFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string; label?: string }) => input)
+  .validator((input: { slug: string; label?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -66,7 +66,7 @@ export function useUpdateDeckFormat() {
 }
 
 const reorderDeckFormatsFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slugs: string[] }) => input)
+  .validator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -85,7 +85,7 @@ export function useReorderDeckFormats() {
 }
 
 const deleteDeckFormatFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string }) => input)
+  .validator((input: { slug: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(

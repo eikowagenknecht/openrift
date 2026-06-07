@@ -13,7 +13,7 @@ vi.mock("@tanstack/react-query", () => ({
 vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => {
     const builder = {
-      inputValidator: () => builder,
+      validator: () => builder,
       middleware: () => builder,
       handler: () => vi.fn(),
     };

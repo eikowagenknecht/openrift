@@ -47,7 +47,7 @@ export function useIgnoredProducts() {
 }
 
 const unignoreProductFn = createServerFn({ method: "POST" })
-  .inputValidator((input: UnignoreInput) => input)
+  .validator((input: UnignoreInput) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     const body =

@@ -24,7 +24,7 @@ const fetchPreferencesFn = createServerFn({ method: "GET" })
   );
 
 const patchPreferencesFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { prefs: UserPreferencesResponse }) => input)
+  .validator((input: { prefs: UserPreferencesResponse }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(

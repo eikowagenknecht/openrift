@@ -11,9 +11,7 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 // ── Server functions: queries ───────────────────────────────────────────────
 
 const fetchUserTrades = createServerFn({ method: "GET" })
-  .inputValidator(
-    (input: { groupId?: string; status?: CardTradeStatus } | undefined) => input ?? {},
-  )
+  .validator((input: { groupId?: string; status?: CardTradeStatus } | undefined) => input ?? {})
   .middleware([withCookies])
   .handler(({ context, data }) => {
     const query: { groupId?: string; status?: CardTradeStatus } = {};
@@ -41,7 +39,7 @@ const fetchTradeActionCounts = createServerFn({ method: "GET" })
 // ── Server functions: mutations ───────────────────────────────────────────────
 
 const createTradeFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: {
       groupSlug: string;
       counterpartyUserId: string;
@@ -59,7 +57,7 @@ const createTradeFn = createServerFn({ method: "POST" })
   );
 
 const tradeActionFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: { tradeId: string; action: "accept" | "decline" | "cancel" | "complete" }) => input,
   )
   .middleware([withCookies])
@@ -84,7 +82,7 @@ const tradeActionFn = createServerFn({ method: "POST" })
   });
 
 const applyTradeSyncFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { tradeId: string; targetCollectionId?: string }) => input)
+  .validator((input: { tradeId: string; targetCollectionId?: string }) => input)
   .middleware([withCookies])
   .handler(({ context, data }) =>
     callApiJson(
@@ -97,7 +95,7 @@ const applyTradeSyncFn = createServerFn({ method: "POST" })
   );
 
 const skipTradeSyncFn = createServerFn({ method: "POST" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(({ context, data: tradeId }) =>
     callApiJson(

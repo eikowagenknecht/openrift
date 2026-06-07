@@ -41,7 +41,7 @@ interface CreateChannelInput {
 }
 
 const createChannelFn = createServerFn({ method: "POST" })
-  .inputValidator((input: CreateChannelInput) => input)
+  .validator((input: CreateChannelInput) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }): Promise<DistributionChannelResponse> => {
     // The 201 returns `{ distributionChannel }`; unwrap to the bare response the
@@ -72,7 +72,7 @@ interface UpdateChannelInput {
 }
 
 const updateChannelFn = createServerFn({ method: "POST" })
-  .inputValidator((input: UpdateChannelInput) => input)
+  .validator((input: UpdateChannelInput) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     const { id, ...patch } = data;
@@ -93,7 +93,7 @@ export function useUpdateDistributionChannel() {
 }
 
 const deleteChannelFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { id: string; force?: boolean }) => input)
+  .validator((input: { id: string; force?: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -116,7 +116,7 @@ export function useDeleteDistributionChannel() {
 }
 
 const reorderChannelsFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { ids: string[] }) => input)
+  .validator((input: { ids: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(

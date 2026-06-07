@@ -9,7 +9,7 @@ vi.mock("@tanstack/react-start", () => ({
         (fn: (args: { context: { cookie: string | undefined }; data: unknown }) => unknown) =>
         (input: { data: unknown }) =>
           fn({ context: { cookie: undefined }, ...input }),
-      inputValidator: () => chain,
+      validator: () => chain,
       middleware: () => chain,
     };
     return chain;

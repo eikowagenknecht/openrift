@@ -17,7 +17,7 @@ const clearPricesFn = createServerFn({ method: "POST" })
   // The typed client enforces the route's marketplace enum (was `string` under
   // fetchApi, which skipped body typing); callers pass clearActions[*].source,
   // which is already one of these literals.
-  .inputValidator((input: { marketplace: "cardmarket" | "cardtrader" | "tcgplayer" }) => input)
+  .validator((input: { marketplace: "cardmarket" | "cardtrader" | "tcgplayer" }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<ClearPricesResponse> =>

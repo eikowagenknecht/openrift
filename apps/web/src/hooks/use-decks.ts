@@ -57,7 +57,7 @@ async function fetchDeckDetailImpl(
 }
 
 const fetchDeckDetail = createServerFn({ method: "GET" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(({ context, data: deckId }) => fetchDeckDetailImpl(context.cookie, deckId));
 
@@ -87,7 +87,7 @@ export function useDeckDetail(deckId: string) {
 }
 
 const createDeckFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: {
       name: string;
       description?: string | null;
@@ -122,7 +122,7 @@ export function useCreateDeck() {
 }
 
 const deleteDeckFn = createServerFn({ method: "POST" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: deckId }) => {
     await callApi(
@@ -142,7 +142,7 @@ export function useDeleteDeck() {
 }
 
 export const saveDeckCardsFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: {
       deckId: string;
       cards: {
@@ -205,7 +205,7 @@ export function useSaveDeckCards() {
 }
 
 const updateDeckFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: {
       deckId: string;
       name?: string;
@@ -271,7 +271,7 @@ export function useUpdateDeck() {
 }
 
 const setDeckPinnedFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { deckId: string; isPinned: boolean }) => input)
+  .validator((input: { deckId: string; isPinned: boolean }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckResponse> =>
@@ -285,7 +285,7 @@ const setDeckPinnedFn = createServerFn({ method: "POST" })
   );
 
 const setDeckArchivedFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { deckId: string; archived: boolean }) => input)
+  .validator((input: { deckId: string; archived: boolean }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckResponse> =>
@@ -342,7 +342,7 @@ export function useSetDeckArchived() {
 }
 
 const cloneDeckFn = createServerFn({ method: "POST" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data: deckId }): Promise<DeckResponse> =>
@@ -365,7 +365,7 @@ export function useCloneDeck() {
 type ExportFormat = "piltover" | "text" | "tts";
 
 const exportDeckFn = createServerFn({ method: "GET" })
-  .inputValidator((input: { deckId: string; format?: ExportFormat }) => input)
+  .validator((input: { deckId: string; format?: ExportFormat }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckExportResponse> =>
@@ -393,7 +393,7 @@ export function useExportDeck() {
 // ── Deck sharing ────────────────────────────────────────────────────────────
 
 const shareDeckFn = createServerFn({ method: "POST" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data: deckId }): Promise<DeckShareResponse> =>
@@ -421,7 +421,7 @@ export function useShareDeck() {
 }
 
 const unshareDeckFn = createServerFn({ method: "POST" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: deckId }) => {
     await callApi(
@@ -446,7 +446,7 @@ export function useUnshareDeck() {
 }
 
 const fetchPublicDeckFn = createServerFn({ method: "GET" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .handler(async ({ data: token }): Promise<PublicDeckDetailResponse> => {
     // 404 is legitimate (unknown/expired token) — map to NOT_FOUND without logging.
     const res = await callApi(
@@ -474,7 +474,7 @@ export function usePublicDeck(token: string) {
 }
 
 const cloneSharedDeckFn = createServerFn({ method: "POST" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data: token }): Promise<DeckCloneResponse> =>

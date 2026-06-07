@@ -27,7 +27,7 @@ export function useSuperTypes() {
 }
 
 const createSuperTypeFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string; label: string }) => input)
+  .validator((input: { slug: string; label: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -46,7 +46,7 @@ export function useCreateSuperType() {
 }
 
 const updateSuperTypeFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string; label?: string }) => input)
+  .validator((input: { slug: string; label?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -66,7 +66,7 @@ export function useUpdateSuperType() {
 }
 
 const reorderSuperTypesFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slugs: string[] }) => input)
+  .validator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -85,7 +85,7 @@ export function useReorderSuperTypes() {
 }
 
 const deleteSuperTypeFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string }) => input)
+  .validator((input: { slug: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(

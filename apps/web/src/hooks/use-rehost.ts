@@ -72,7 +72,7 @@ const rehostImagesBatchFn = createServerFn({ method: "POST" })
   );
 
 const regenerateImagesKickoffFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { skipExisting?: boolean; reset?: boolean }) => input)
+  .validator((input: { skipExisting?: boolean; reset?: boolean }) => input)
   .middleware([withCookies])
   .handler(({ context, data }): Promise<RegenerateImagesKickoffResponse> => {
     const query: { skipExisting?: "true"; reset?: "true" } = {};
@@ -99,7 +99,7 @@ const cancelRegenerateImagesFn = createServerFn({ method: "POST" })
   );
 
 const unrehostImagesFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { imageIds: string[] }) => input)
+  .validator((input: { imageIds: string[] }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<UnrehostImagesResponse> =>

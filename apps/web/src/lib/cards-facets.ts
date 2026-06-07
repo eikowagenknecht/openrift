@@ -290,7 +290,7 @@ export const fetchCardFacets = createServerFn({ method: "GET" }).handler(
  * "X of Y" with real numbers from byte zero.
  */
 export const fetchCardCounts = createServerFn({ method: "GET" })
-  .inputValidator((input: FilterSearch) => input)
+  .validator((input: FilterSearch) => input)
   .handler(async ({ data }): Promise<CardCounts> => {
     const [catalog, prices] = await Promise.all([
       readCatalogFromServerCache(),
@@ -305,7 +305,7 @@ export const fetchCardCounts = createServerFn({ method: "GET" })
  * zero-match options before hydration.
  */
 export const fetchCardFilterCounts = createServerFn({ method: "GET" })
-  .inputValidator((input: FilterSearch) => input)
+  .validator((input: FilterSearch) => input)
   .handler(async ({ data }): Promise<FilterCountsWire> => {
     const [catalog, prices] = await Promise.all([
       readCatalogFromServerCache(),

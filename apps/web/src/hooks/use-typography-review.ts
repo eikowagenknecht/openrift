@@ -27,7 +27,7 @@ export function useTypographyReview() {
 }
 
 const acceptTypographyFixFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: { entity: "card" | "printing"; id: string; field: string; proposed: string }) => input,
   )
   .middleware([withCookies])

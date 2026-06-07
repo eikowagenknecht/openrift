@@ -63,7 +63,7 @@ const refreshCardtraderPricesFn = createServerFn({ method: "POST" })
 // ── Server function for polling latest job run for a kind ─────────────────
 
 export const getLatestJobRunFn = createServerFn({ method: "GET" })
-  .inputValidator((input: { kind: string }) => input)
+  .validator((input: { kind: string }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<JobRunsListResponse> =>

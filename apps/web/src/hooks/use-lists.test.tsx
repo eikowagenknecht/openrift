@@ -12,7 +12,7 @@ vi.mock("@tanstack/react-start", () => ({
         (args?: { data?: unknown }) =>
           fn({ context: { cookie: "" }, data: args?.data }),
       middleware: () => chain,
-      inputValidator: () => chain,
+      validator: () => chain,
     };
     return chain;
   },

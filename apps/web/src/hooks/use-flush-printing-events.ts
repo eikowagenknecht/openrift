@@ -103,7 +103,7 @@ export function useAdminPrintingEvents() {
 }
 
 const retryPrintingEventsFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { ids: string[] }) => input)
+  .validator((input: { ids: string[] }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<{ retried: number }> =>

@@ -27,7 +27,7 @@ export function useDomains() {
 }
 
 const createDomainFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string; label: string; color?: string | null }) => input)
+  .validator((input: { slug: string; label: string; color?: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -47,7 +47,7 @@ export function useCreateDomain() {
 }
 
 const updateDomainFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string; label?: string; color?: string | null }) => input)
+  .validator((input: { slug: string; label?: string; color?: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -68,7 +68,7 @@ export function useUpdateDomain() {
 }
 
 const reorderDomainsFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slugs: string[] }) => input)
+  .validator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -87,7 +87,7 @@ export function useReorderDomains() {
 }
 
 const deleteDomainFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string }) => input)
+  .validator((input: { slug: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(

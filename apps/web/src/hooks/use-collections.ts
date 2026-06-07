@@ -70,7 +70,7 @@ export function useCollectionsMap(): Map<string, CollectionResponse> {
 }
 
 const createCollectionFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: {
       name: string;
       description?: string | null;
@@ -103,7 +103,7 @@ export function useCreateCollection() {
 }
 
 const updateCollectionFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { id: string; name?: string; description?: string | null }) => input)
+  .validator((input: { id: string; name?: string; description?: string | null }) => input)
   .middleware([withCookies])
   .handler(({ context, data }): Promise<CollectionsResponse["items"][number]> => {
     const { id, ...fields } = data;
@@ -126,7 +126,7 @@ export function useUpdateCollection() {
 }
 
 const setDeckbuildingFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { id: string; available: boolean }) => input)
+  .validator((input: { id: string; available: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -157,7 +157,7 @@ export function useSetCollectionDeckbuilding() {
 }
 
 const reorderCollectionsFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { orderedIds: string[] }) => input)
+  .validator((input: { orderedIds: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -210,7 +210,7 @@ export function useReorderCollections() {
 }
 
 const deleteCollectionFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { id: string }) => input)
+  .validator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -224,7 +224,7 @@ const deleteCollectionFn = createServerFn({ method: "POST" })
 // ── Collection sharing ──────────────────────────────────────────────────────
 
 const shareCollectionFn = createServerFn({ method: "POST" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data: collectionId }): Promise<CollectionShareResponse> =>
@@ -259,7 +259,7 @@ export function useShareCollection() {
 }
 
 const unshareCollectionFn = createServerFn({ method: "POST" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: collectionId }) => {
     await callApi(
@@ -291,7 +291,7 @@ export function useUnshareCollection() {
 }
 
 const fetchPublicCollectionFn = createServerFn({ method: "GET" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .handler(async ({ data: token }): Promise<PublicCollectionDetailResponse> => {
     const shareEndpoint = serverApiClient().api.v1.collections.share[":token"];
     // 404 is legitimate (unknown/expired token) — map to NOT_FOUND without logging.

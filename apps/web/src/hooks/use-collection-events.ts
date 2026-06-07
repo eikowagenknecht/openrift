@@ -8,7 +8,7 @@ import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 const fetchCollectionEventsFn = createServerFn({ method: "GET" })
-  .inputValidator((input: { cursor?: string }) => input)
+  .validator((input: { cursor?: string }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<CollectionEventListResponse> =>

@@ -26,7 +26,7 @@ export function useIgnoredCandidates() {
 }
 
 const ignoreCandidateCardFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { provider: string; externalId: string }) => input)
+  .validator((input: { provider: string; externalId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -50,7 +50,7 @@ export function useIgnoreCandidateCard() {
 }
 
 const unignoreCandidateCardFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { provider: string; externalId: string }) => input)
+  .validator((input: { provider: string; externalId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -74,9 +74,7 @@ export function useUnignoreCandidateCard() {
 }
 
 const ignoreCandidatePrintingFn = createServerFn({ method: "POST" })
-  .inputValidator(
-    (input: { provider: string; externalId: string; finish?: string | null }) => input,
-  )
+  .validator((input: { provider: string; externalId: string; finish?: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -100,7 +98,7 @@ export function useIgnoreCandidatePrinting() {
 }
 
 const unignoreCandidatePrintingFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { provider: string; externalId: string; finish: string | null }) => input)
+  .validator((input: { provider: string; externalId: string; finish: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(

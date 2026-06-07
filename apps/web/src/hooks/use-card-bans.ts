@@ -17,7 +17,7 @@ interface BanResponse {
 }
 
 const fetchCardBansFn = createServerFn({ method: "GET" })
-  .inputValidator((input: { cardId: string }) => input)
+  .validator((input: { cardId: string }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<{ bans: BanResponse[] }> =>
@@ -42,7 +42,7 @@ export function useCardBans(cardId: string) {
 }
 
 const createCardBanFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: { cardId: string; formatId: string; bannedAt: string; reason: string | null }) => input,
   )
   .middleware([withCookies])
@@ -80,7 +80,7 @@ export function useCreateCardBan() {
 }
 
 const updateCardBanFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: { cardId: string; formatId: string; bannedAt?: string; reason?: string | null }) =>
       input,
   )
@@ -119,7 +119,7 @@ export function useUpdateCardBan() {
 }
 
 const removeCardBanFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { cardId: string; formatId: string }) => input)
+  .validator((input: { cardId: string; formatId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(

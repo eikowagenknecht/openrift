@@ -44,7 +44,7 @@ const fetchPendingInvitesCount = createServerFn({ method: "GET" })
   );
 
 const fetchGroupDetail = createServerFn({ method: "GET" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: slug }): Promise<FriendGroupDetailResponse> => {
     const res = await callApi(
@@ -61,7 +61,7 @@ const fetchGroupDetail = createServerFn({ method: "GET" })
   });
 
 const fetchGroupMatches = createServerFn({ method: "GET" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data: slug }): Promise<FriendGroupMatchesResponse> =>
@@ -74,7 +74,7 @@ const fetchGroupMatches = createServerFn({ method: "GET" })
   );
 
 const fetchMemberDetail = createServerFn({ method: "GET" })
-  .inputValidator((input: { slug: string; userId: string }) => input)
+  .validator((input: { slug: string; userId: string }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<FriendGroupMemberDetailResponse> =>
@@ -87,7 +87,7 @@ const fetchMemberDetail = createServerFn({ method: "GET" })
   );
 
 const fetchShareableLists = createServerFn({ method: "GET" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data: slug }): Promise<FriendGroupShareableListsResponse> =>
@@ -100,7 +100,7 @@ const fetchShareableLists = createServerFn({ method: "GET" })
   );
 
 const fetchJoinPreview = createServerFn({ method: "GET" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: code }): Promise<FriendGroupJoinPreviewResponse> => {
     const res = await callApi(
@@ -117,7 +117,7 @@ const fetchJoinPreview = createServerFn({ method: "GET" })
   });
 
 const fetchSharedList = createServerFn({ method: "GET" })
-  .inputValidator((input: { slug: string; listId: string }) => input)
+  .validator((input: { slug: string; listId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }): Promise<FriendGroupSharedListDetailResponse> => {
     const res = await callApi(
@@ -134,7 +134,7 @@ const fetchSharedList = createServerFn({ method: "GET" })
   });
 
 const fetchShareableCollections = createServerFn({ method: "GET" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data: slug }): Promise<FriendGroupShareableCollectionsResponse> =>
@@ -149,7 +149,7 @@ const fetchShareableCollections = createServerFn({ method: "GET" })
   );
 
 const fetchSharedCollection = createServerFn({ method: "GET" })
-  .inputValidator((input: { slug: string; collectionId: string }) => input)
+  .validator((input: { slug: string; collectionId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }): Promise<FriendGroupSharedCollectionDetailResponse> => {
     const res = await callApi(
@@ -290,7 +290,7 @@ export function useFriendGroupPendingInvitesCount(opts?: { enabled?: boolean }) 
 // ── Server functions: mutations ─────────────────────────────────────────────
 
 const createGroupFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: { slug: string; name: string; description?: string | null; generateCode?: boolean }) =>
       input,
   )
@@ -306,7 +306,7 @@ const createGroupFn = createServerFn({ method: "POST" })
   );
 
 const updateGroupFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: { slug: string; name?: string; description?: string | null; newSlug?: string }) =>
       input,
   )
@@ -323,7 +323,7 @@ const updateGroupFn = createServerFn({ method: "POST" })
   });
 
 const deleteGroupFn = createServerFn({ method: "POST" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: slug }) => {
     await callApi(
@@ -335,7 +335,7 @@ const deleteGroupFn = createServerFn({ method: "POST" })
   });
 
 const rotateCodeFn = createServerFn({ method: "POST" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data: slug }): Promise<FriendGroupResponse> =>
@@ -348,7 +348,7 @@ const rotateCodeFn = createServerFn({ method: "POST" })
   );
 
 const disableCodeFn = createServerFn({ method: "POST" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data: slug }): Promise<FriendGroupResponse> =>
@@ -361,7 +361,7 @@ const disableCodeFn = createServerFn({ method: "POST" })
   );
 
 const enableCodeFn = createServerFn({ method: "POST" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data: slug }): Promise<FriendGroupResponse> =>
@@ -374,7 +374,7 @@ const enableCodeFn = createServerFn({ method: "POST" })
   );
 
 const joinByCodeFn = createServerFn({ method: "POST" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: code }) => {
     await callApi(
@@ -386,7 +386,7 @@ const joinByCodeFn = createServerFn({ method: "POST" })
   });
 
 const inviteByEmailFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string; email: string }) => input)
+  .validator((input: { slug: string; email: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -399,7 +399,7 @@ const inviteByEmailFn = createServerFn({ method: "POST" })
   });
 
 const acceptInviteFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string; userId: string }) => input)
+  .validator((input: { slug: string; userId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -413,7 +413,7 @@ const acceptInviteFn = createServerFn({ method: "POST" })
   });
 
 const declineInviteFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string; userId: string }) => input)
+  .validator((input: { slug: string; userId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -425,7 +425,7 @@ const declineInviteFn = createServerFn({ method: "POST" })
   });
 
 const leaveFn = createServerFn({ method: "POST" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: slug }) => {
     await callApi(
@@ -437,7 +437,7 @@ const leaveFn = createServerFn({ method: "POST" })
   });
 
 const transferOwnershipFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string; userId: string }) => input)
+  .validator((input: { slug: string; userId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -450,7 +450,7 @@ const transferOwnershipFn = createServerFn({ method: "POST" })
   });
 
 const updateRoleFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string; userId: string; role: "admin" | "member" }) => input)
+  .validator((input: { slug: string; userId: string; role: "admin" | "member" }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<FriendGroupMemberResponse> =>
@@ -466,7 +466,7 @@ const updateRoleFn = createServerFn({ method: "POST" })
   );
 
 const updateNicknameFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string; userId: string; nickname: string | null }) => input)
+  .validator((input: { slug: string; userId: string; nickname: string | null }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<FriendGroupMemberResponse> =>
@@ -482,7 +482,7 @@ const updateNicknameFn = createServerFn({ method: "POST" })
   );
 
 const kickMemberFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string; userId: string }) => input)
+  .validator((input: { slug: string; userId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -494,7 +494,7 @@ const kickMemberFn = createServerFn({ method: "POST" })
   });
 
 const shareListFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string; listId: string }) => input)
+  .validator((input: { slug: string; listId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -507,7 +507,7 @@ const shareListFn = createServerFn({ method: "POST" })
   });
 
 const unshareListFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string; listId: string }) => input)
+  .validator((input: { slug: string; listId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -519,7 +519,7 @@ const unshareListFn = createServerFn({ method: "POST" })
   });
 
 const shareCollectionFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string; collectionId: string }) => input)
+  .validator((input: { slug: string; collectionId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -532,7 +532,7 @@ const shareCollectionFn = createServerFn({ method: "POST" })
   });
 
 const unshareCollectionFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string; collectionId: string }) => input)
+  .validator((input: { slug: string; collectionId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(

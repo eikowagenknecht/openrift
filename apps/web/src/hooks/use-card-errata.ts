@@ -6,7 +6,7 @@ import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const upsertCardErrataFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: {
       cardId: string;
       correctedRulesText: string | null;
@@ -63,7 +63,7 @@ export function useUpsertCardErrata() {
 }
 
 const deleteCardErrataFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { cardId: string }) => input)
+  .validator((input: { cardId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -123,7 +123,7 @@ export interface BulkErrataUploadResponse {
 }
 
 const uploadErrataFn = createServerFn({ method: "POST" })
-  .inputValidator((input: BulkErrataUploadBody) => input)
+  .validator((input: BulkErrataUploadBody) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<BulkErrataUploadResponse> =>

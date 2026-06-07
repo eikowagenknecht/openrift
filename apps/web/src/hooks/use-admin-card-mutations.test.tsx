@@ -8,7 +8,7 @@ vi.mock("@tanstack/react-start", () => ({
     const chain = {
       handler: () => async () => ({ printingId: "test-printing-id" }),
       middleware: () => chain,
-      inputValidator: () => chain,
+      validator: () => chain,
     };
     return chain;
   },

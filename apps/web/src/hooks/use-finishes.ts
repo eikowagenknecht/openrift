@@ -27,7 +27,7 @@ export function useFinishes() {
 }
 
 const createFinishFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string; label: string }) => input)
+  .validator((input: { slug: string; label: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -44,7 +44,7 @@ export function useCreateFinish() {
 }
 
 const updateFinishFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string; label?: string }) => input)
+  .validator((input: { slug: string; label?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -64,7 +64,7 @@ export function useUpdateFinish() {
 }
 
 const reorderFinishesFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slugs: string[] }) => input)
+  .validator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -83,7 +83,7 @@ export function useReorderFinishes() {
 }
 
 const deleteFinishFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string }) => input)
+  .validator((input: { slug: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(

@@ -32,7 +32,7 @@ export function useUnifiedMappings() {
 }
 
 const fetchUnifiedMappingsForCard = createServerFn({ method: "GET" })
-  .inputValidator((input: { cardId: string }) => input)
+  .validator((input: { cardId: string }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<UnifiedMappingsCardResponse> =>
@@ -85,7 +85,7 @@ interface SaveMappingsBody {
 }
 
 const saveMappingsFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: {
       marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
       mappings: {
@@ -127,7 +127,7 @@ export function useUnifiedSaveMappings(marketplace: "tcgplayer" | "cardmarket" |
 }
 
 const ignoreVariantsFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: {
       marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
       products: { externalId: number; finish: string; language: string | null }[];
@@ -148,7 +148,7 @@ const ignoreVariantsFn = createServerFn({ method: "POST" })
   });
 
 const ignoreProductsFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: {
       marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
       products: { externalId: number }[];
@@ -192,7 +192,7 @@ export function useUnifiedIgnoreProducts(marketplace: "tcgplayer" | "cardmarket"
 }
 
 const assignToCardFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: {
       marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
       externalId: number;
@@ -226,7 +226,7 @@ export function useUnifiedAssignToCard(marketplace: "tcgplayer" | "cardmarket" |
 }
 
 const unassignFromCardFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: {
       marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
       externalId: number;

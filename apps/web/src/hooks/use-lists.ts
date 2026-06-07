@@ -25,7 +25,7 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 // ── LIST ─────────────────────────────────────────────────────────────────────
 
 const fetchLists = createServerFn({ method: "GET" })
-  .inputValidator((input: { intent?: ListIntent } | undefined) => input)
+  .validator((input: { intent?: ListIntent } | undefined) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<ListListResponse> =>
@@ -40,7 +40,7 @@ const fetchLists = createServerFn({ method: "GET" })
   );
 
 const fetchListDetail = createServerFn({ method: "GET" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: listId }): Promise<ListDetailResponse> => {
     const res = await callApi(
@@ -95,7 +95,7 @@ interface CreateListInput {
 }
 
 const createListFn = createServerFn({ method: "POST" })
-  .inputValidator((input: CreateListInput) => input)
+  .validator((input: CreateListInput) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<ListResponse> =>
@@ -128,7 +128,7 @@ interface UpdateListInput {
 }
 
 const updateListFn = createServerFn({ method: "POST" })
-  .inputValidator((input: UpdateListInput) => input)
+  .validator((input: UpdateListInput) => input)
   .middleware([withCookies])
   .handler(({ context, data }): Promise<ListResponse> => {
     const { listId, ...fields } = data;
@@ -153,7 +153,7 @@ export function useUpdateList() {
 }
 
 const deleteListFn = createServerFn({ method: "POST" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: listId }) => {
     await callApi(
@@ -173,7 +173,7 @@ export function useDeleteList() {
 }
 
 const reorderListsFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { intent: ListIntent; orderedIds: string[] }) => input)
+  .validator((input: { intent: ListIntent; orderedIds: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -227,7 +227,7 @@ export function useReorderLists() {
 // ── ENTRIES ──────────────────────────────────────────────────────────────────
 
 const bulkAddEntriesFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: {
       listId: string;
       entries: {
@@ -327,7 +327,7 @@ export function useBulkAddListEntries() {
 // Drag-from-collections sugar. The server derives the right entry shape from
 // the list's kind, so the client just passes raw copy IDs.
 const bulkAddCopiesToListFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { listId: string; copyIds: string[] }) => input)
+  .validator((input: { listId: string; copyIds: string[] }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<ListBulkAddResponse> =>
@@ -355,7 +355,7 @@ export function useBulkAddCopiesToList() {
 // We invalidate both list details + the lists index so the source's grid
 // drops the entries and the destination's gains them.
 const moveListEntriesFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { fromListId: string; toListId: string; entryIds: string[] }) => input)
+  .validator((input: { fromListId: string; toListId: string; entryIds: string[] }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<ListMoveResponse> =>
@@ -392,7 +392,7 @@ interface UpdateListEntryInput {
 }
 
 const updateListEntryFn = createServerFn({ method: "POST" })
-  .inputValidator((input: UpdateListEntryInput) => input)
+  .validator((input: UpdateListEntryInput) => input)
   .middleware([withCookies])
   .handler(({ context, data }): Promise<ListEntryResponse> => {
     const { listId, entryId, ...fields } = data;
@@ -454,7 +454,7 @@ export function useUpdateListEntry() {
 }
 
 const removeListEntryFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { listId: string; entryId: string }) => input)
+  .validator((input: { listId: string; entryId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -477,7 +477,7 @@ export function useRemoveListEntry() {
 }
 
 const bulkRemoveListEntriesFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { listId: string; entryIds: string[] }) => input)
+  .validator((input: { listId: string; entryIds: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -503,7 +503,7 @@ export function useBulkRemoveListEntries() {
 // ── SHARING ──────────────────────────────────────────────────────────────────
 
 const shareListFn = createServerFn({ method: "POST" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data: listId }): Promise<ListShareResponse> =>
@@ -534,7 +534,7 @@ export function useShareList() {
 }
 
 const unshareListFn = createServerFn({ method: "POST" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: listId }) => {
     await callApi(
@@ -559,7 +559,7 @@ export function useUnshareList() {
 }
 
 const fetchPublicListFn = createServerFn({ method: "GET" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .handler(async ({ data: token }): Promise<PublicListDetailResponse> => {
     const res = await callApi(
       serverApiClient().api.v1.lists.share[":token"].$get({

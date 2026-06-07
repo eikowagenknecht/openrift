@@ -7,7 +7,7 @@ import { serverCache } from "@/lib/server-cache";
 import { callApi, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 
 const fetchCardDetail = createServerFn({ method: "GET" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .handler(
     ({ data }): Promise<CardDetailResponse> =>
       serverCache.fetchQuery({

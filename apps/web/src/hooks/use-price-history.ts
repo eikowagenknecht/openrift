@@ -8,7 +8,7 @@ import { withCookies } from "@/lib/server-fns/middleware";
 
 const fetchPriceHistoryFn = createServerFn({ method: "GET" })
   // range is the TimeRange enum on the route (was loose `string` under fetchApi).
-  .inputValidator((input: { printingId: string; range: TimeRange }) => input)
+  .validator((input: { printingId: string; range: TimeRange }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<PriceHistoryResponse> =>

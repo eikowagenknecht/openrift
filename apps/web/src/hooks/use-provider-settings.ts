@@ -28,7 +28,7 @@ export function useProviderSettings() {
 }
 
 const reorderProviderSettingsFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { providers: string[] }) => input)
+  .validator((input: { providers: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -49,7 +49,7 @@ export function useReorderProviderSettings() {
 }
 
 const updateProviderSettingFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: { provider: string; sortOrder?: number; isHidden?: boolean; isFavorite?: boolean }) =>
       input,
   )

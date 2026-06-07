@@ -8,7 +8,7 @@ import { callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api
 import { withCookies } from "@/lib/server-fns/middleware";
 
 const fetchShares = createServerFn({ method: "GET" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data: collectionId }): Promise<CollectionGroupSharesResponse> =>

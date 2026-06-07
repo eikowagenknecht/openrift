@@ -20,7 +20,7 @@ interface ValueHistoryInput {
 }
 
 const fetchCollectionValueHistory = createServerFn({ method: "GET" })
-  .inputValidator((input: ValueHistoryInput) => input)
+  .validator((input: ValueHistoryInput) => input)
   .middleware([withCookies])
   .handler(({ context, data }): Promise<CollectionValueHistoryResponse> => {
     const query: Record<string, string> = {

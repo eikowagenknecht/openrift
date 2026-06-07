@@ -41,7 +41,7 @@ export function useFeatureFlags() {
 }
 
 const toggleFeatureFlagFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { key: string; enabled: boolean }) => input)
+  .validator((input: { key: string; enabled: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -61,7 +61,7 @@ export function useToggleFeatureFlag() {
 }
 
 const createFeatureFlagFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { key: string; description?: string | null; enabled?: boolean }) => input)
+  .validator((input: { key: string; description?: string | null; enabled?: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -81,7 +81,7 @@ export function useCreateFeatureFlag() {
 }
 
 const deleteFeatureFlagFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { key: string }) => input)
+  .validator((input: { key: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -123,7 +123,7 @@ export function useFeatureFlagOverrides() {
 }
 
 const upsertFeatureFlagOverrideFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { userId: string; flagKey: string; enabled: boolean }) => input)
+  .validator((input: { userId: string; flagKey: string; enabled: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -144,7 +144,7 @@ export function useUpsertFeatureFlagOverride() {
 }
 
 const deleteFeatureFlagOverrideFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { userId: string; flagKey: string }) => input)
+  .validator((input: { userId: string; flagKey: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(

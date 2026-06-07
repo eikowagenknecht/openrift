@@ -32,7 +32,7 @@ export function useMarkers() {
 }
 
 const createMarkerFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string; label: string; description?: string | null }) => input)
+  .validator((input: { slug: string; label: string; description?: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -50,7 +50,7 @@ export function useCreateMarker() {
 }
 
 const updateMarkerFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     (input: { id: string; slug?: string; label?: string; description?: string | null }) => input,
   )
   .middleware([withCookies])
@@ -81,7 +81,7 @@ export function useUpdateMarker() {
 }
 
 const deleteMarkerFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { id: string }) => input)
+  .validator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -100,7 +100,7 @@ export function useDeleteMarker() {
 }
 
 const reorderMarkersFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { ids: string[] }) => input)
+  .validator((input: { ids: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(

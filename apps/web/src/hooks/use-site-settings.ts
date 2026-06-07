@@ -42,7 +42,7 @@ export function useSiteSettings() {
 }
 
 const updateSiteSettingFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { key: string; value?: string; scope?: SettingScope }) => input)
+  .validator((input: { key: string; value?: string; scope?: SettingScope }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -64,7 +64,7 @@ export function useUpdateSiteSetting() {
 }
 
 const createSiteSettingFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { key: string; value: string; scope?: SettingScope }) => input)
+  .validator((input: { key: string; value: string; scope?: SettingScope }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -85,7 +85,7 @@ export function useCreateSiteSetting() {
 }
 
 const deleteSiteSettingFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { key: string }) => input)
+  .validator((input: { key: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(

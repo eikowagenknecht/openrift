@@ -83,7 +83,7 @@ export function useAllCards() {
 }
 
 const fetchAdminCardDetail = createServerFn({ method: "GET" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data: cardSlug }): Promise<AdminCardDetailResponse> =>
@@ -111,7 +111,7 @@ export function useAdminCardDetail(cardSlug: string) {
 }
 
 const fetchUnmatchedCardDetail = createServerFn({ method: "GET" })
-  .inputValidator((input: string) => input)
+  .validator((input: string) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data: name }): Promise<UnmatchedCardDetailResponse> =>

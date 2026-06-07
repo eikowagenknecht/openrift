@@ -45,7 +45,7 @@ export function useRecomputeKeywords() {
 }
 
 const updateKeywordStyleFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { name: string; color: string; darkText: boolean }) => input)
+  .validator((input: { name: string; color: string; darkText: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -70,7 +70,7 @@ export function useUpdateKeywordStyle() {
 }
 
 const createKeywordStyleFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { name: string; color: string; darkText: boolean }) => input)
+  .validator((input: { name: string; color: string; darkText: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -94,7 +94,7 @@ export function useCreateKeywordStyle() {
 }
 
 const deleteKeywordStyleFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { name: string }) => input)
+  .validator((input: { name: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -139,7 +139,7 @@ export function useDiscoverTranslations() {
 }
 
 const upsertTranslationFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { keywordName: string; language: string; label: string }) => input)
+  .validator((input: { keywordName: string; language: string; label: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -166,7 +166,7 @@ export function useUpsertTranslation() {
 }
 
 const deleteTranslationFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { keywordName: string; language: string }) => input)
+  .validator((input: { keywordName: string; language: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(

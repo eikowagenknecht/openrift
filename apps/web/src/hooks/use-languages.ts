@@ -28,7 +28,7 @@ export function useLanguages() {
 }
 
 const createLanguageFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { code: string; name: string; sortOrder?: number }) => input)
+  .validator((input: { code: string; name: string; sortOrder?: number }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -48,7 +48,7 @@ export function useCreateLanguage() {
 }
 
 const updateLanguageFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { code: string; name?: string; sortOrder?: number }) => input)
+  .validator((input: { code: string; name?: string; sortOrder?: number }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -69,7 +69,7 @@ export function useUpdateLanguage() {
 }
 
 const reorderLanguagesFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { codes: string[] }) => input)
+  .validator((input: { codes: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(
@@ -88,7 +88,7 @@ export function useReorderLanguages() {
 }
 
 const deleteLanguageFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { code: string }) => input)
+  .validator((input: { code: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await callApi(

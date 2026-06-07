@@ -38,7 +38,7 @@ interface UpdateMarketplaceGroupInput {
 }
 
 const updateMarketplaceGroupFn = createServerFn({ method: "POST" })
-  .inputValidator((input: UpdateMarketplaceGroupInput) => input)
+  .validator((input: UpdateMarketplaceGroupInput) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     const { marketplace, groupId, ...patch } = data;
