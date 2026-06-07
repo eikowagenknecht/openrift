@@ -32,6 +32,7 @@ vi.mock("@/lib/server-fns/middleware", () => ({
 
 const {
   aggregateByVariant,
+  aggregateDeckBuildingCounts,
   aggregateScopedCount,
   aggregateScopedTotals,
   useOwnedCountFor,
@@ -47,6 +48,15 @@ function copy(printingId: string, collectionId: string): CopyResponse {
     printingId,
     collectionId,
     groupId: null,
+  };
+}
+
+function groupCopy(printingId: string, collectionId: string, groupId: string): CopyResponse {
+  return {
+    id: `${printingId}-${collectionId}-${Math.random()}`,
+    printingId,
+    collectionId,
+    groupId,
   };
 }
 
@@ -177,6 +187,68 @@ describe("aggregateScopedTotals", () => {
     expect(result.total).toBe(2);
     expect(result.allTotal).toBe(2);
     expect(result.allTotals["p-other"]).toBe(2);
+  });
+});
+
+describe("aggregateDeckBuildingCounts", () => {
+  it("counts copies in available collections as available, not locked", () => {
+    const copies = [copy("p1", "c-playset"), copy("p1", "c-playset"), copy("p2", "c-playset")];
+    const availability = new Map([["c-playset", true]]);
+    expect(aggregateDeckBuildingCounts(copies, availability)).toEqual({
+      available: { p1: 2, p2: 1 },
+      locked: {},
+    });
+  });
+
+  // Regression: the deck card browser used the raw owned total, so cards sitting
+  // in a collection marked "exclude from deck building" still showed as owned
+  // (and passed the owned-only filter). They must bucket as locked, never
+  // available, so the grid badge agrees with the ownership panel.
+  it("buckets copies in excluded collections as locked, never available", () => {
+    const copies = [copy("p1", "c-unl"), copy("p1", "c-unl"), copy("p2", "c-unl")];
+    const availability = new Map([["c-unl", false]]);
+    expect(aggregateDeckBuildingCounts(copies, availability)).toEqual({
+      available: {},
+      locked: { p1: 2, p2: 1 },
+    });
+  });
+
+  it("splits copies of the same printing across available and excluded collections", () => {
+    const copies = [copy("p1", "c-main"), copy("p1", "c-unl"), copy("p1", "c-unl")];
+    const availability = new Map([
+      ["c-main", true],
+      ["c-unl", false],
+    ]);
+    expect(aggregateDeckBuildingCounts(copies, availability)).toEqual({
+      available: { p1: 1 },
+      locked: { p1: 2 },
+    });
+  });
+
+  it("defaults to available when the collection is unknown (stale cache / create race)", () => {
+    const copies = [copy("p1", "c-missing")];
+    expect(aggregateDeckBuildingCounts(copies, new Map())).toEqual({
+      available: { p1: 1 },
+      locked: {},
+    });
+  });
+
+  it("never locks group copies the viewer hasn't opted into — they're not the viewer's", () => {
+    const copies = [groupCopy("p1", "c-group", "g1")];
+    const availability = new Map([["c-group", false]]);
+    expect(aggregateDeckBuildingCounts(copies, availability)).toEqual({
+      available: {},
+      locked: {},
+    });
+  });
+
+  it("counts opted-in group copies as available", () => {
+    const copies = [groupCopy("p1", "c-group", "g1")];
+    const availability = new Map([["c-group", true]]);
+    expect(aggregateDeckBuildingCounts(copies, availability)).toEqual({
+      available: { p1: 1 },
+      locked: {},
+    });
   });
 });
 

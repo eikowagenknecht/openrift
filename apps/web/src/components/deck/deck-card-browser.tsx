@@ -32,7 +32,7 @@ import { useDeckDetail } from "@/hooks/use-decks";
 import { useChannelRegistry } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
-import { useOwnedCount } from "@/hooks/use-owned-count";
+import { useDeckBuildingCounts } from "@/hooks/use-owned-count";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -248,7 +248,13 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   // We reuse display.prices / display.favoriteMarketplace below for useCardData.
   const display = useCardThumbnailDisplay();
   const { data: session } = useSession();
-  const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
+  // The grid's "owned" badge must reflect deck-available copies only. Copies in
+  // collections excluded from deck building are "locked away" and don't feed the
+  // deck (mirrors the ownership panel's available/locked split). Using the raw
+  // owned total here would count those excluded copies as owned/available,
+  // contradicting the ownership panel that reports them as locked.
+  const { data: deckCounts } = useDeckBuildingCounts(Boolean(session?.user));
+  const ownedCountByPrinting = deckCounts?.available;
 
   const {
     filters: urlFilters,

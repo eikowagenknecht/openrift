@@ -235,20 +235,52 @@ export function useOwnedCopyIdsForPrintings(
   return { data: filtered.map((copy) => copy.id) };
 }
 
+/** Per-printing copy counts split by deck-building availability. */
+export interface DeckBuildingCounts {
+  /** Per-printing counts in collections marked as available for deck building. */
+  available: Record<string, number>;
+  /** Per-printing counts in collections excluded from deck building (locked away). */
+  locked: Record<string, number>;
+}
+
+/**
+ * Splits copies into deck-building-available and locked-away buckets, based on
+ * each copy's collection availability. A copy in an excluded collection is
+ * "locked", not "available" — the deck builder must not count it as owned.
+ * @returns Per-printing `available` and `locked` count maps.
+ */
+export function aggregateDeckBuildingCounts(
+  copies: readonly CopyResponse[],
+  availabilityById: ReadonlyMap<string, boolean>,
+): DeckBuildingCounts {
+  const available: Record<string, number> = {};
+  const locked: Record<string, number> = {};
+  for (const copy of copies) {
+    // Default to available when the collection is unknown (race during create
+    // or stale collections cache) — better to count an in-flight copy than to
+    // mis-flag it as locked. `availableForDeckbuilding` is viewer-effective:
+    // personal collections default on, group collections are opt-in per member.
+    const isAvailable = availabilityById.get(copy.collectionId) ?? true;
+    if (isAvailable) {
+      // Includes opted-in group copies — they feed the viewer's deck inventory.
+      available[copy.printingId] = (available[copy.printingId] ?? 0) + 1;
+    } else if (copy.groupId === null) {
+      // "Locked away" means owned-but-excluded, which only applies to the
+      // viewer's personal copies. Group copies the viewer hasn't opted into
+      // aren't theirs, so they're neither available nor locked.
+      locked[copy.printingId] = (locked[copy.printingId] ?? 0) + 1;
+    }
+  }
+  return { available, locked };
+}
+
 /**
  * Splits owned copies into deck-building-available and locked-away buckets,
  * based on each copy's collection `availableForDeckbuilding` flag.
  * @returns Both maps keyed by printingId, or undefined when disabled or still loading.
  */
 export function useDeckBuildingCounts(enabled: boolean): {
-  data:
-    | {
-        /** Per-printing counts in collections marked as available for deck building. */
-        available: Record<string, number>;
-        /** Per-printing counts in collections excluded from deck building (locked away). */
-        locked: Record<string, number>;
-      }
-    | undefined;
+  data: DeckBuildingCounts | undefined;
 } {
   const userId = useUserId();
   const copiesCollection = useCopiesCollection();
@@ -271,26 +303,7 @@ export function useDeckBuildingCounts(enabled: boolean): {
     availabilityById.set(col.id, col.availableForDeckbuilding);
   }
 
-  const available: Record<string, number> = {};
-  const locked: Record<string, number> = {};
-  for (const copy of copies) {
-    // Default to available when the collection is unknown (race during create
-    // or stale collections cache) — better to count an in-flight copy than to
-    // mis-flag it as locked. `availableForDeckbuilding` is viewer-effective:
-    // personal collections default on, group collections are opt-in per member.
-    const isAvailable = availabilityById.get(copy.collectionId) ?? true;
-    if (isAvailable) {
-      // Includes opted-in group copies — they feed the viewer's deck inventory.
-      available[copy.printingId] = (available[copy.printingId] ?? 0) + 1;
-    } else if (copy.groupId === null) {
-      // "Locked away" means owned-but-excluded, which only applies to the
-      // viewer's personal copies. Group copies the viewer hasn't opted into
-      // aren't theirs, so they're neither available nor locked.
-      locked[copy.printingId] = (locked[copy.printingId] ?? 0) + 1;
-    }
-  }
-
-  return { data: { available, locked } };
+  return { data: aggregateDeckBuildingCounts(copies, availabilityById) };
 }
 
 function aggregateByCollection(
