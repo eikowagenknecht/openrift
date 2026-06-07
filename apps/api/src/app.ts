@@ -208,7 +208,18 @@ export function createApp(deps: AppDeps) {
       const reqSize = Number(c.req.header("content-length") ?? 0);
       await next();
       const ms = (performance.now() - start).toFixed(0);
-      const resSize = Number(c.res.headers.get("content-length") ?? 0);
+      // Response size: Bun sets Content-Length only when it serializes the
+      // response to the socket — downstream of this middleware — so for normal
+      // c.json()/c.text() responses the header is absent here and prod logs no
+      // `res=` size. In dev, buffer a clone to report an accurate size (the
+      // observability is worth the cost while developing); in prod, keep the
+      // cheap header read and omit the size rather than buffer large payloads
+      // like /catalog (~310KB) on every request.
+      let resSize = Number(c.res.headers.get("content-length") ?? 0);
+      if (config.isDev && resSize === 0) {
+        const buffered = await c.res.clone().arrayBuffer();
+        resSize = buffered.byteLength;
+      }
       const fmtSize = (bytes: number) =>
         bytes < 1024 ? `${bytes}B` : `${(bytes / 1024).toFixed(1)}KB`;
       const parts = [`${c.req.method} ${c.req.path} ${c.res.status} ${ms}ms`];
@@ -363,6 +374,13 @@ export function createApp(deps: AppDeps) {
       ),
     ),
   );
+  // Admin doc + UI are intentionally public (no requireAdmin in front). They
+  // describe the admin surface but grant no access: every operation under
+  // /api/admin/v1 is gated by the admin middleware on that sub-app, so the
+  // contract is the only thing exposed here. We do not rely on hiding the API
+  // shape for security, so publishing it is an accepted trade-off (a browsable
+  // admin reference) rather than a leak. Gate these behind requireAdmin if that
+  // stance ever changes.
   // Admin doc: only the admin surface.
   app.get("/api/admin/doc", (c) =>
     c.json(
