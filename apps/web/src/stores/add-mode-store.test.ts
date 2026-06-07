@@ -162,12 +162,21 @@ describe("useAddModeStore", () => {
       useAddModeStore.getState().openVariants("card-1", anchor, "remove");
 
       const state = useAddModeStore.getState();
-      expect(state.variantPopover).toEqual({
+      expect(state.variantPopover).toMatchObject({
         cardId: "card-1",
         anchorEl: anchor,
         intent: "remove",
         setId: undefined,
       });
+    });
+
+    it("openVariants wraps the element in a frozen positioning anchor", () => {
+      const anchor = document.createElement("button");
+      useAddModeStore.getState().openVariants("card-1", anchor, "remove");
+
+      const stored = useAddModeStore.getState().variantPopover?.anchor;
+      expect(stored?.contextElement).toBe(anchor);
+      expect(typeof stored?.getBoundingClientRect).toBe("function");
     });
 
     it("closeVariants clears the popover", () => {
@@ -184,6 +193,7 @@ describe("useAddModeStore", () => {
       const state = useAddModeStore.getState();
       expect(state.disposePicker?.printing.id).toBe("p1");
       expect(state.disposePicker?.anchorEl).toBe(anchor);
+      expect(state.disposePicker?.anchor.contextElement).toBe(anchor);
     });
 
     it("closeDisposePicker clears the picker", () => {

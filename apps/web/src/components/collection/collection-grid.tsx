@@ -1127,7 +1127,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             }}
           >
             <PopoverContent
-              anchor={variantPopover.anchorEl}
+              anchor={variantPopover.anchor}
               side="bottom"
               align="center"
               className="max-h-72 w-max max-w-[min(90vw,24rem)] min-w-56 gap-0 overflow-y-auto p-0"
@@ -1170,7 +1170,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             }}
           >
             <PopoverContent
-              anchor={disposePicker.anchorEl}
+              anchor={disposePicker.anchor}
               side="bottom"
               align="center"
               className="w-max max-w-[min(90vw,24rem)] min-w-56 gap-0 p-0"

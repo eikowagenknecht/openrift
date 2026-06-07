@@ -1,6 +1,9 @@
 import type { Printing } from "@openrift/shared";
 import { create } from "zustand";
 
+import { createFrozenAnchor } from "@/lib/freeze-anchor";
+import type { FrozenAnchor } from "@/lib/freeze-anchor";
+
 interface AddedEntry {
   printing: Printing;
   quantity: number;
@@ -24,8 +27,10 @@ interface AddModeState {
     setId?: string;
     intent: VariantPopoverIntent;
     anchorEl: HTMLElement;
+    /** Positioning anchor that survives anchorEl unmounting (see createFrozenAnchor). */
+    anchor: FrozenAnchor;
   } | null;
-  disposePicker: { printing: Printing; anchorEl: HTMLElement } | null;
+  disposePicker: { printing: Printing; anchorEl: HTMLElement; anchor: FrozenAnchor } | null;
 
   incrementPending: (printing: Printing) => void;
   decrementPending: (printingId: string) => void;
@@ -116,9 +121,12 @@ export const useAddModeStore = create<AddModeState>()((set) => ({
     }),
 
   openVariants: (cardId, anchorEl, intent, setId) =>
-    set({ variantPopover: { cardId, setId, intent, anchorEl } }),
+    set({
+      variantPopover: { cardId, setId, intent, anchorEl, anchor: createFrozenAnchor(anchorEl) },
+    }),
   closeVariants: () => set({ variantPopover: null }),
-  openDisposePicker: (printing, anchorEl) => set({ disposePicker: { printing, anchorEl } }),
+  openDisposePicker: (printing, anchorEl) =>
+    set({ disposePicker: { printing, anchorEl, anchor: createFrozenAnchor(anchorEl) } }),
   closeDisposePicker: () => set({ disposePicker: null }),
   reset: () =>
     set({
