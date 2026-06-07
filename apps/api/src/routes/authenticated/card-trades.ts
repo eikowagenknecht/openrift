@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { CardTradeActionCountsResponse, CardTradeListResponse } from "@openrift/shared";
 import {
   cardTradeActionCountsResponseSchema,
@@ -14,7 +14,7 @@ import {
 
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
-import type { Variables } from "../../types.js";
+import { createApiApp } from "../../openapi.js";
 
 const TAG = "CardTrades";
 
@@ -139,7 +139,7 @@ const skipSyncTradeRoute = createRoute({
   },
 });
 
-const cardTradesApp = new OpenAPIHono<{ Variables: Variables }>().basePath("/trades");
+const cardTradesApp = createApiApp().basePath("/trades");
 cardTradesApp.use(requireAuth);
 
 export const cardTradesRoute = cardTradesApp

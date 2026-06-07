@@ -1,48 +1,41 @@
-import type {
-  CardTradeActionCountsResponse,
-  CardTradeListResponse,
-  CardTradeResponse,
-  CardTradeRole,
-} from "@openrift/shared";
+import type { CardTradeResponse, CardTradeRole, CardTradeStatus } from "@openrift/shared";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId, useUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
-import { fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 // ── Server functions: queries ───────────────────────────────────────────────
 
 const fetchUserTrades = createServerFn({ method: "GET" })
-  .inputValidator((input: { groupId?: string; status?: string } | undefined) => input ?? {})
+  .inputValidator(
+    (input: { groupId?: string; status?: CardTradeStatus } | undefined) => input ?? {},
+  )
   .middleware([withCookies])
-  .handler(({ context, data }): Promise<CardTradeListResponse> => {
-    const params = new URLSearchParams();
+  .handler(({ context, data }) => {
+    const query: { groupId?: string; status?: CardTradeStatus } = {};
     if (data.groupId !== undefined) {
-      params.set("groupId", data.groupId);
+      query.groupId = data.groupId;
     }
     if (data.status !== undefined) {
-      params.set("status", data.status);
+      query.status = data.status;
     }
-    const query = params.toString();
-    return fetchApiJson<CardTradeListResponse>({
-      errorTitle: "Couldn't load trades",
-      cookie: context.cookie,
-      path: query === "" ? "/api/v1/trades" : `/api/v1/trades?${query}`,
-    });
+    return callApiJson(
+      serverApiClient(context.cookie).api.v1.trades.$get({ query }),
+      "Couldn't load trades",
+    );
   });
 
 const fetchTradeActionCounts = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<CardTradeActionCountsResponse> =>
-      fetchApiJson<CardTradeActionCountsResponse>({
-        errorTitle: "Couldn't load trade activity",
-        cookie: context.cookie,
-        path: "/api/v1/trades/action-counts",
-      }),
+  .handler(({ context }) =>
+    callApiJson(
+      serverApiClient(context.cookie).api.v1.trades["action-counts"].$get(),
+      "Couldn't load trade activity",
+    ),
   );
 
 // ── Server functions: mutations ───────────────────────────────────────────────
@@ -59,50 +52,60 @@ const createTradeFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(({ context, data }) =>
-    fetchApiJson<CardTradeResponse>({
-      errorTitle: "Couldn't send the trade",
-      cookie: context.cookie,
-      path: "/api/v1/trades",
-      method: "POST",
-      body: data,
-    }),
+    callApiJson(
+      serverApiClient(context.cookie).api.v1.trades.$post({ json: data }),
+      "Couldn't send the trade",
+    ),
   );
 
 const tradeActionFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { tradeId: string; action: string }) => input)
+  .inputValidator(
+    (input: { tradeId: string; action: "accept" | "decline" | "cancel" | "complete" }) => input,
+  )
   .middleware([withCookies])
-  .handler(({ context, data }) =>
-    fetchApiJson<CardTradeResponse>({
-      errorTitle: "Couldn't update the trade",
-      cookie: context.cookie,
-      path: `/api/v1/trades/${encodeURIComponent(data.tradeId)}/${data.action}`,
-      method: "POST",
-    }),
-  );
+  .handler(({ context, data }): Promise<CardTradeResponse> => {
+    const trade = serverApiClient(context.cookie).api.v1.trades[":id"];
+    const param = encodeParams({ id: data.tradeId });
+    const errorTitle = "Couldn't update the trade";
+    switch (data.action) {
+      case "accept": {
+        return callApiJson(trade.accept.$post({ param }), errorTitle);
+      }
+      case "decline": {
+        return callApiJson(trade.decline.$post({ param }), errorTitle);
+      }
+      case "cancel": {
+        return callApiJson(trade.cancel.$post({ param }), errorTitle);
+      }
+      case "complete": {
+        return callApiJson(trade.complete.$post({ param }), errorTitle);
+      }
+    }
+  });
 
 const applyTradeSyncFn = createServerFn({ method: "POST" })
   .inputValidator((input: { tradeId: string; targetCollectionId?: string }) => input)
   .middleware([withCookies])
   .handler(({ context, data }) =>
-    fetchApiJson<CardTradeResponse>({
-      errorTitle: "Couldn't apply your changes",
-      cookie: context.cookie,
-      path: `/api/v1/trades/${encodeURIComponent(data.tradeId)}/sync`,
-      method: "POST",
-      body: { targetCollectionId: data.targetCollectionId },
-    }),
+    callApiJson(
+      serverApiClient(context.cookie).api.v1.trades[":id"].sync.$post({
+        param: encodeParams({ id: data.tradeId }),
+        json: { targetCollectionId: data.targetCollectionId },
+      }),
+      "Couldn't apply your changes",
+    ),
   );
 
 const skipTradeSyncFn = createServerFn({ method: "POST" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
   .handler(({ context, data: tradeId }) =>
-    fetchApiJson<CardTradeResponse>({
-      errorTitle: "Couldn't skip your changes",
-      cookie: context.cookie,
-      path: `/api/v1/trades/${encodeURIComponent(tradeId)}/sync/skip`,
-      method: "POST",
-    }),
+    callApiJson(
+      serverApiClient(context.cookie).api.v1.trades[":id"].sync.skip.$post({
+        param: encodeParams({ id: tradeId }),
+      }),
+      "Couldn't skip your changes",
+    ),
   );
 
 // ── Query hooks ───────────────────────────────────────────────────────────────
