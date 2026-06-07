@@ -111,7 +111,7 @@ export function LandingPage() {
             </Link>
           </div>
           {data && (
-            <p className="text-muted-foreground/70 text-sm tabular-nums">
+            <p className="text-muted-foreground/70 text-center text-sm tabular-nums">
               <span className="text-foreground font-semibold">
                 {animatedCards.toLocaleString()}
               </span>{" "}
