@@ -35,6 +35,7 @@ The MADR documentation is available at <https://adr.github.io/madr/> while gener
 - **[ADR-017](017-trade-preferences.md)**: Trade Preferences on Shared Lists
 - **[ADR-018](018-user-share-bundle.md)**: User Share Bundle for Wish + Trade Lists
 - **[ADR-019](019-trade-execution.md)**: In-App Trade Execution for Friend Groups (supersedes ADR-013's "no trade execution" and "notifications deferred" stances)
+- **[ADR-021](021-match-tracker.md)**: Local Match Tracker for Points and XP
 
 ### Rejected
 

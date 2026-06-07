@@ -20,6 +20,7 @@ import {
   ShieldIcon,
   SparklesIcon,
   SunIcon,
+  SwordsIcon,
   UserIcon,
   UsersIcon,
 } from "lucide-react";
@@ -220,6 +221,17 @@ function DesktopNav({
                     <div className="font-medium">Pack opener</div>
                     <div className="text-muted-foreground text-xs">
                       Simulate opening boosters with real pull rates
+                    </div>
+                  </div>
+                </NavigationMenuLink>
+              </li>
+              <li>
+                <NavigationMenuLink closeOnClick render={<Link to="/match-tracker" />}>
+                  <SwordsIcon />
+                  <div>
+                    <div className="font-medium">Match tracker</div>
+                    <div className="text-muted-foreground text-xs">
+                      Track points and XP during a game
                     </div>
                   </div>
                 </NavigationMenuLink>
@@ -482,6 +494,12 @@ function MobileNav({
             icon={<PackagePlusIcon className="text-muted-foreground size-5" />}
           >
             Pack opener
+          </MobileNavLink>
+          <MobileNavLink
+            to="/match-tracker"
+            icon={<SwordsIcon className="text-muted-foreground size-5" />}
+          >
+            Match tracker
           </MobileNavLink>
         </nav>
         <SheetFooter className="border-t px-4 pt-4">

@@ -4,6 +4,10 @@
 
 - fix: Adding cards to a collection no longer shows a spurious error and drops the card from view — the cards were being saved, but the app misread the server's reply and rolled them back out until you refreshed
 
+## 2026-06-06
+
+- feat: A new match tracker keeps score and XP for 2–4 players on one device during a game — set a points target and the winner is announced when someone reaches it, with a built-in coin flip, die roll, and random first-player picker. It works offline and nothing is saved to your account
+
 ## 2026-06-05
 
 - fix: Your language filters and collection-completion settings now sync across devices instead of silently resetting — they were being saved but never sent back when the app reloaded
