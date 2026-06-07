@@ -3,6 +3,7 @@
 ## 2026-06-07
 
 - feat: On a list, the minus button removes a card when it's down to its last copy, so you don't need the separate remove button to clear it
+- fix: After a trade completes, the one-click update that adds the received cards to your collection now works — it was failing with an error on the receiving side
 - fix: When you own a card in several variants, the popup for choosing which variant to remove no longer jumps to the top-left corner after you remove the last copy — it stays where you opened it
 - fix: A long card name in the deck sidebar is now shortened on its own, instead of also cutting off the power symbols shown beside it
 - fix: Adding cards to a collection no longer shows a spurious error and drops the card from view — the cards were being saved, but the app misread the server's reply and rolled them back out until you refreshed

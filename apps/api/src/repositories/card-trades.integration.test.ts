@@ -60,7 +60,16 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
       await db.deleteFrom("friendGroups").where("id", "in", createdGroupIds).execute();
     }
     await db.deleteFrom("lists").where("userId", "in", ALL_USER_IDS).execute();
-    await db.deleteFrom("copies").where("userId", "in", ALL_USER_IDS).execute();
+    // Copies must go before their collections — a trigger blocks deleting a
+    // collection that still has copies. Ownership is by collection now (no userId).
+    await db
+      .deleteFrom("copies")
+      .where(
+        "collectionId",
+        "in",
+        db.selectFrom("collections").select("id").where("userId", "in", ALL_USER_IDS),
+      )
+      .execute();
     await db.deleteFrom("collections").where("userId", "in", ALL_USER_IDS).execute();
     // Restore the users for any later test file that reuses these ids.
     for (const id of ALL_USER_IDS) {
@@ -97,7 +106,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
       .values({
         userId,
         name: "Trade Test Binder",
-        availableForDeckbuilding: true,
         isInbox: false,
         sortOrder: 1,
       })
@@ -149,7 +157,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     for (let index = 0; index < copyCount; index += 1) {
       const copy = await db
         .insertInto("copies")
-        .values({ userId: GIVER_ID, printingId: PRINTING_1.id, collectionId })
+        .values({ printingId: PRINTING_1.id, collectionId })
         .returning("id")
         .executeTakeFirstOrThrow();
       await db
@@ -184,6 +192,23 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
       printingId: PRINTING_1.id,
       quantity,
     });
+  }
+
+  /**
+   * Counts PRINTING_1 copies the receiver owns (ownership is by collection now).
+   * The suite shares one DB with afterAll-only cleanup, so copies accumulate
+   * across tests — assert deltas around an apply rather than absolute totals.
+   * @returns The number of receiver-owned PRINTING_1 copies.
+   */
+  async function countReceiverCopiesOfP1(): Promise<number> {
+    const rows = await db
+      .selectFrom("copies")
+      .innerJoin("collections", "collections.id", "copies.collectionId")
+      .select("copies.id")
+      .where("collections.userId", "=", RECEIVER_ID)
+      .where("copies.printingId", "=", PRINTING_1.id)
+      .execute();
+    return rows.length;
   }
 
   it("a pending request reserves nothing — matched copies still appear", async () => {
@@ -267,7 +292,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     const collectionId = await collectionFor(GIVER_ID);
     const copy = await db
       .insertInto("copies")
-      .values({ userId: GIVER_ID, printingId: PRINTING_1.id, collectionId })
+      .values({ printingId: PRINTING_1.id, collectionId })
       .returning("id")
       .executeTakeFirstOrThrow();
     await db
@@ -315,19 +340,14 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     const trade = await request(group, 1);
     await acceptTrade(transact, trade.id, GIVER_ID);
     await completeTrade(transact, trade.id, RECEIVER_ID);
+    const receiverCopiesBefore = await countReceiverCopiesOfP1();
     await applyTradeSync(transact, trade.id, RECEIVER_ID);
     // A second apply (double-click / retry) is rejected by the guarded UPDATE.
     await expect(applyTradeSync(transact, trade.id, RECEIVER_ID)).rejects.toMatchObject({
       status: 409,
     });
-    // Exactly one copy was added, not two.
-    const receiverCopies = await db
-      .selectFrom("copies")
-      .select("id")
-      .where("userId", "=", RECEIVER_ID)
-      .where("printingId", "=", PRINTING_1.id)
-      .execute();
-    expect(receiverCopies).toHaveLength(1);
+    // Exactly one copy was added, not two (the rejected retry adds nothing).
+    expect((await countReceiverCopiesOfP1()) - receiverCopiesBefore).toBe(1);
   });
 
   it("a completed trade can no longer be cancelled (transition guard)", async () => {
@@ -432,15 +452,10 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     const trade = await request(group, 1);
     await acceptTrade(transact, trade.id, GIVER_ID);
     await completeTrade(transact, trade.id, RECEIVER_ID);
+    const receiverCopiesBefore = await countReceiverCopiesOfP1();
     await applyTradeSync(transact, trade.id, RECEIVER_ID);
-
-    const receiverCopies = await db
-      .selectFrom("copies")
-      .select("id")
-      .where("userId", "=", RECEIVER_ID)
-      .where("printingId", "=", PRINTING_1.id)
-      .execute();
-    expect(receiverCopies).toHaveLength(1);
+    const receiverCopiesAfter = await countReceiverCopiesOfP1();
+    expect(receiverCopiesAfter - receiverCopiesBefore).toBe(1);
 
     const addedEvent = await db
       .selectFrom("collectionEvents")
@@ -490,7 +505,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
       .values({
         userId: GIVER_ID,
         name: "Move Target",
-        availableForDeckbuilding: true,
         isInbox: false,
         sortOrder: 2,
       })

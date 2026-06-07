@@ -384,8 +384,9 @@ async function applyReceiverSync(
     collectionId = targetCollectionId;
   }
 
+  // Copies have no owner column — ownership derives from the collection (the
+  // event below still records receiverUserId as the actor). Matches addCopies.
   const copyValues = Array.from({ length: trade.quantity }, () => ({
-    userId: trade.receiverUserId,
     printingId: trade.printingId,
     collectionId,
   }));
