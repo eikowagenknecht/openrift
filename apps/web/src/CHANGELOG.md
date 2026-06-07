@@ -4,6 +4,7 @@
 
 - feat: The match tracker now has a 2v2 mode. Choose Teams in setup, put each player on a side, and teammates share one score toward 11 while everyone keeps their own XP. Teammates are color-coded so you can spot them around the table
 - feat: In the match tracker, "Who goes first?" now opens a menu where you can pick a specific player or choose Random, which plays a spotlight that sweeps across the players before landing on one. The chosen player keeps a clear "Goes first" badge for the rest of the game
+- feat: The table view now keeps the current set name pinned at the top as you scroll, and a draggable scroll handle on the right lets you scrub through the list and jump straight to any set, the same as the grid view already had
 - feat: In the deck builder you can now switch the card browser between Cards and Printings, picking a specific printing's art as you add it. The 3-copy limit still applies across all printings of a card
 - feat: In a deck, each card row now shows its copy count on the left as "2×", with the energy and power costs lined up on the right
 - feat: In a deck's sidebar, the hint shown in an empty zone (like "Add cards from the browser") is now clickable and selects that zone, just like clicking its header, so the card browser switches to the cards that fit there

@@ -24,6 +24,9 @@ import {
   getCardTableColumns,
   getCardTableMinWidth,
 } from "./card-table-row";
+import { computeRowStarts } from "./compute-row-starts";
+import { ScrollIndicator } from "./scroll-indicator";
+import { useStickyHeader } from "./use-sticky-header";
 
 const GAP = 0;
 
@@ -206,6 +209,38 @@ const DataRow = memo(function DataRow({
   );
 });
 
+// Floating "current group" pill for the table's sticky overlay. Memoized with a
+// primitive `groupId` + a stable `onSelect` (scrollToGroup reads from refs) so
+// it doesn't re-render on every scroll-driven CardTable render. Mirrors the
+// grid's GroupHeaderLabel but appends the card count, matching the table's
+// inline group headers.
+// oxlint-disable-next-line eslint/prefer-arrow-callback -- named for React DevTools
+const GroupStickyLabel = memo(function GroupStickyLabel({
+  slug,
+  name,
+  count,
+  groupId,
+  onSelect,
+}: {
+  slug: string;
+  name: string;
+  count: number;
+  groupId: string;
+  onSelect: (groupId: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="bg-background/60 ring-border/70 pointer-events-auto flex cursor-pointer flex-row items-center gap-3 rounded-full px-3 py-1 text-sm shadow-sm ring-1 backdrop-blur"
+      onClick={() => onSelect(groupId)}
+    >
+      {slug && <span className="text-muted-foreground font-medium">{slug}</span>}
+      <span className="font-semibold">{name}</span>
+      <span className="text-muted-foreground tabular-nums">({count})</span>
+    </button>
+  );
+});
+
 /** Per-row props that `actionsCell` and `rowWrapper` elements receive via cloneElement. */
 export interface TableRowSlotProps {
   printing?: Printing;
@@ -282,6 +317,8 @@ export function CardTable({
     return row.kind === "header" ? CARD_TABLE_HEADER_HEIGHT : CARD_TABLE_ROW_HEIGHT;
   };
 
+  const rowStarts = computeRowStarts(virtualRows, estimateRowHeight, GAP);
+
   const [scrollMargin, setScrollMargin] = useState(() => cachedScrollMargin);
 
   useLayoutEffect(() => {
@@ -290,7 +327,13 @@ export function CardTable({
       return;
     }
     const measure = () => {
-      const next = Math.round(el.getBoundingClientRect().top + globalThis.scrollY);
+      // The non-sticky column header sits between this container's top and the
+      // virtualized rows, so the rows' document offset is one header-height
+      // lower. scrollMargin must equal that row offset, or scrollToIndex (pill
+      // click, scrubber release) and the active-group threshold land a row off.
+      // The grid has no column header, so its scrollMargin needs no such adjustment.
+      const next =
+        Math.round(el.getBoundingClientRect().top + globalThis.scrollY) + CARD_TABLE_HEADER_HEIGHT;
       cachedScrollMargin = next;
       setScrollMargin((prev) => (prev === next ? prev : next));
     };
@@ -324,6 +367,17 @@ export function CardTable({
     stickyOffsetRef.current = stickyOffset;
   });
 
+  // Tracks the group whose header has scrolled up out of view, so the floating
+  // pill below the toolbar can show the current set as you scroll.
+  const activeHeaderRow = useStickyHeader({
+    multipleGroups,
+    virtualRows,
+    rowStarts,
+    virtualizer,
+    scrollMargin,
+    stickyOffset,
+  });
+
   useEffect(() => {
     if (!selectedItemId) {
       return;
@@ -349,8 +403,11 @@ export function CardTable({
     virtualizerRef.current.scrollToIndex(rowIndex, { align: "start" });
   }, [selectedItemId]);
 
+  // Reads only from mirror refs so the React Compiler keeps this reference
+  // stable across scroll-driven re-renders — GroupStickyLabel's memoized
+  // onSelect prop then doesn't bust on every tick.
   const scrollToGroup = (groupId: string) => {
-    const rowIndex = virtualRows.findIndex(
+    const rowIndex = virtualRowsRef.current.findIndex(
       (row) => row.kind === "header" && row.group.id === groupId,
     );
     if (rowIndex !== -1) {
@@ -391,81 +448,106 @@ export function CardTable({
   }
 
   return (
-    <div ref={containerRef} className="overflow-x-auto overflow-y-clip">
-      <div style={{ minWidth }}>
-        <CardTableHeader
-          columns={columns}
-          actionsColumn={actionsColumn}
-          sticky
-          stickyOffset={stickyOffset}
-          bordered={!multipleGroups}
-          actionsLabel={actionsLabel}
-        />
-        <div ref={virtualizer.containerRef} style={{ position: "relative" }}>
-          {virtualizer.getVirtualItems().map((vItem) => {
-            const row = virtualRows[vItem.index];
-            if (!row) {
-              return null;
-            }
-            return (
-              <div
-                key={vItem.key}
-                ref={virtualizer.measureElement}
-                data-index={vItem.index}
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  width: "100%",
-                }}
-              >
-                {row.kind === "header" ? (
-                  multipleGroups ? (
-                    <CardTableGroupHeader
-                      columns={columns}
-                      slug={row.group.slug}
-                      name={row.group.name}
-                      count={row.cardCount}
-                      onClick={() => scrollToGroup(row.group.id)}
-                    />
-                  ) : null
-                ) : (
-                  row.items.map((item) => {
-                    const cellForRow = actionsCell
-                      ? cloneElement(actionsCell, { printing: item.printing, itemId: item.id })
-                      : undefined;
-                    const rowNode = (
-                      <DataRow
-                        printing={item.printing}
-                        itemId={item.id}
-                        isSelected={
-                          item.id === selectedItemId || item.printing.id === selectedItemId
-                        }
-                        actionsColumn={actionsColumn}
+    <div ref={containerRef}>
+      <ScrollIndicator
+        virtualRows={virtualRows}
+        rowStarts={rowStarts}
+        virtualizer={virtualizer}
+        scrollMargin={scrollMargin}
+        multipleGroups={multipleGroups}
+        stickyOffset={stickyOffset}
+      />
+      {/* Floating group pill — pins below the toolbar as you scroll. It sits
+          outside the horizontal-scroll wrapper below so CSS sticky references
+          the window rather than that scroll container (which would trap it).
+          The column header inside the wrapper stays non-sticky for now. */}
+      <div className="sticky z-20 h-0" style={{ top: stickyOffset }}>
+        {multipleGroups && activeHeaderRow && (
+          <div className="pointer-events-none flex justify-center pt-2">
+            <GroupStickyLabel
+              slug={activeHeaderRow.group.slug}
+              name={activeHeaderRow.group.name}
+              count={activeHeaderRow.cardCount}
+              groupId={activeHeaderRow.group.id}
+              onSelect={scrollToGroup}
+            />
+          </div>
+        )}
+      </div>
+      <div className="overflow-x-auto overflow-y-clip">
+        <div style={{ minWidth }}>
+          <CardTableHeader
+            columns={columns}
+            actionsColumn={actionsColumn}
+            bordered={!multipleGroups}
+            actionsLabel={actionsLabel}
+          />
+          <div ref={virtualizer.containerRef} style={{ position: "relative" }}>
+            {virtualizer.getVirtualItems().map((vItem) => {
+              const row = virtualRows[vItem.index];
+              if (!row) {
+                return null;
+              }
+              return (
+                <div
+                  key={vItem.key}
+                  ref={virtualizer.measureElement}
+                  data-index={vItem.index}
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    width: "100%",
+                  }}
+                >
+                  {row.kind === "header" ? (
+                    multipleGroups ? (
+                      <CardTableGroupHeader
                         columns={columns}
-                        cardTypeLabels={labels.cardTypes}
-                        superTypeLabels={labels.superTypes}
-                        rarityLabels={labels.rarities}
-                        setNameBySlug={setNameBySlug}
-                        actionsCell={cellForRow}
+                        slug={row.group.slug}
+                        name={row.group.name}
+                        count={row.cardCount}
+                        onClick={() => scrollToGroup(row.group.id)}
                       />
-                    );
-                    if (!rowWrapper) {
-                      return <Fragment key={item.id}>{rowNode}</Fragment>;
-                    }
-                    return (
-                      <Fragment key={item.id}>
-                        {cloneElement(
-                          rowWrapper,
-                          { printing: item.printing, itemId: item.id },
-                          rowNode,
-                        )}
-                      </Fragment>
-                    );
-                  })
-                )}
-              </div>
-            );
-          })}
+                    ) : null
+                  ) : (
+                    row.items.map((item) => {
+                      const cellForRow = actionsCell
+                        ? cloneElement(actionsCell, { printing: item.printing, itemId: item.id })
+                        : undefined;
+                      const rowNode = (
+                        <DataRow
+                          printing={item.printing}
+                          itemId={item.id}
+                          isSelected={
+                            item.id === selectedItemId || item.printing.id === selectedItemId
+                          }
+                          actionsColumn={actionsColumn}
+                          columns={columns}
+                          cardTypeLabels={labels.cardTypes}
+                          superTypeLabels={labels.superTypes}
+                          rarityLabels={labels.rarities}
+                          setNameBySlug={setNameBySlug}
+                          actionsCell={cellForRow}
+                        />
+                      );
+                      if (!rowWrapper) {
+                        return <Fragment key={item.id}>{rowNode}</Fragment>;
+                      }
+                      return (
+                        <Fragment key={item.id}>
+                          {cloneElement(
+                            rowWrapper,
+                            { printing: item.printing, itemId: item.id },
+                            rowNode,
+                          )}
+                        </Fragment>
+                      );
+                    })
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>

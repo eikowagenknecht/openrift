@@ -29,6 +29,7 @@ import {
 } from "./card-grid-constants";
 import { CardGridDebug } from "./card-grid-debug";
 import type { GroupInfo, VRow } from "./card-grid-types";
+import { computeRowStarts } from "./compute-row-starts";
 import { ScrollIndicator } from "./scroll-indicator";
 import { useStickyHeader } from "./use-sticky-header";
 
@@ -178,25 +179,6 @@ function buildVirtualRows(groups: CardGroup[], columns: number): VRow[] {
     }
   }
   return rows;
-}
-
-/**
- * Builds a prefix-sum array of Y-offsets so `rowStarts[i]` is the pixel
- * position where row `i` begins in the virtual scroll container.
- *
- * @returns Cumulative start offsets (one per row).
- */
-function computeRowStarts(
-  virtualRows: VRow[],
-  estimateRowHeight: (index: number) => number,
-): number[] {
-  const starts: number[] = [];
-  let acc = 0;
-  for (let i = 0; i < virtualRows.length; i++) {
-    starts.push(acc);
-    acc += estimateRowHeight(i) + GAP;
-  }
-  return starts;
 }
 
 // Explicit memo + primitive `groupId` prop: lets the two call sites pass a
@@ -420,7 +402,7 @@ export function CardGrid({
     return Math.round(imgHeight + labelHeight + BUTTON_PAD * 2 + addStripHeight);
   };
 
-  const rowStarts = computeRowStarts(virtualRows, estimateRowHeight);
+  const rowStarts = computeRowStarts(virtualRows, estimateRowHeight, GAP);
 
   // ── Scroll margin (container's document offset) ────────────────────
   // Module-level cache: lets re-mounts within the same session skip the
