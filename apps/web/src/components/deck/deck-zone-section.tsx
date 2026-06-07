@@ -141,6 +141,7 @@ export function DeckZoneSection({
   };
 
   const totalQuantity = cards.reduce((sum, card) => sum + card.quantity, 0);
+  const maxCardQuantity = cards.reduce((max, card) => Math.max(max, card.quantity), 0);
   // Freeform has no per-zone target — hide the "x/N" denominator entirely.
   const expected = isFreeform ? undefined : ZONE_EXPECTED[zone];
   const zoneViolations = violations.filter(
@@ -170,6 +171,7 @@ export function DeckZoneSection({
         hasViolation={cardViolations.has(card.cardId)}
         violationMessage={cardViolations.get(card.cardId)}
         controlMode={isSingleCard || isUniqueOnly ? "remove-only" : "quantity"}
+        maxQuantity={maxCardQuantity}
         draggable={DRAG_ZONES.has(zone)}
         shiftHeld={zone === "runes" ? undefined : shiftHeld}
         onIncrement={

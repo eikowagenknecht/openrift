@@ -23,6 +23,8 @@ interface DeckCardRowProps {
   violationMessage?: string;
   dimmed?: boolean;
   controlMode?: ControlMode;
+  /** Largest copy count in this row's zone — used to size the count column so names align. */
+  maxQuantity?: number;
   draggable?: boolean;
   shiftHeld?: boolean;
   onIncrement?: (event: React.MouseEvent) => void;
@@ -69,6 +71,7 @@ function EnergyGlyph({ value }: { value: number }) {
 function CardControls({
   controlMode,
   quantity,
+  countWidthClass,
   shiftHeld,
   onIncrement,
   onDecrement,
@@ -76,6 +79,7 @@ function CardControls({
 }: {
   controlMode: ControlMode;
   quantity: number;
+  countWidthClass: string;
   shiftHeld?: boolean;
   onIncrement?: (event: React.MouseEvent) => void;
   onDecrement?: (event: React.MouseEvent) => void;
@@ -86,18 +90,23 @@ function CardControls({
   }
 
   if (controlMode === "remove-only") {
+    // Collapse the button out of layout until hover (display-based, like the +/-
+    // buttons) so the name sits flush-left instead of being indented by an empty
+    // delete slot. Always shown on touch, where there is no hover.
     return (
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        className="size-5 shrink-0 opacity-100 transition-opacity md:opacity-0 md:group-hover/card:opacity-100"
-        onClick={(event) => {
-          event.stopPropagation();
-          onRemove?.();
-        }}
-      >
-        <XIcon className="size-3" />
-      </Button>
+      <span className="contents md:hidden md:group-hover/card:contents">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="size-5 shrink-0"
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemove?.();
+          }}
+        >
+          <XIcon className="size-3" />
+        </Button>
+      </span>
     );
   }
 
@@ -128,7 +137,9 @@ function CardControls({
           <TooltipContent>Shift+click to remove all</TooltipContent>
         </Tooltip>
       </span>
-      <span className="w-4 text-center text-xs font-medium">{quantity}</span>
+      <span className={cn("text-right text-xs font-medium tabular-nums", countWidthClass)}>
+        {quantity}×
+      </span>
       <span className="contents md:hidden md:group-hover/card:contents">
         <Tooltip>
           <TooltipTrigger
@@ -160,6 +171,7 @@ export function DeckCardRow({
   violationMessage,
   dimmed,
   controlMode = "quantity",
+  maxQuantity,
   draggable,
   shiftHeld,
   onIncrement,
@@ -191,6 +203,11 @@ export function DeckCardRow({
   // When dragging 1 copy from a multi-copy stack, show the remaining count
   const displayQuantity = isDragging && card.quantity > 1 ? card.quantity - 1 : card.quantity;
 
+  // Size the count column to the widest count in the zone so card names line up.
+  // Single-digit zones (the common case) stay tight; only mixed/10×+ zones widen.
+  const countDigits = String(maxQuantity ?? card.quantity).length;
+  const countWidthClass = countDigits >= 3 ? "w-9" : countDigits === 2 ? "w-7" : "w-4";
+
   const domainTint = getDomainGradientStyle(card.domains, "40", domainColors);
 
   const baseClass = cn(
@@ -211,27 +228,27 @@ export function DeckCardRow({
         </Tooltip>
       )}
 
-      {card.energy !== null && <EnergyGlyph value={card.energy} />}
-
-      <span className="flex min-w-0 flex-1 items-center text-left">
-        <span className="min-w-0 truncate">{card.cardName}</span>
-        {card.power !== null && card.power > 0 && (
-          <span className="text-2xs ml-1 inline-flex shrink-0 translate-y-px items-center gap-0.5">
-            {Array.from({ length: card.power }, (_, index) => (
-              <PowerDomainIcon key={index} domains={card.domains} colors={domainColors} />
-            ))}
-          </span>
-        )}
-      </span>
-
       <CardControls
         controlMode={controlMode}
         quantity={displayQuantity}
+        countWidthClass={countWidthClass}
         shiftHeld={shiftHeld}
         onIncrement={onIncrement}
         onDecrement={onDecrement}
         onRemove={onRemove}
       />
+
+      <span className="min-w-0 flex-1 truncate text-left">{card.cardName}</span>
+
+      {card.power !== null && card.power > 0 && (
+        <span className="flex shrink-0 items-center gap-0.5">
+          {Array.from({ length: card.power }, (_, index) => (
+            <PowerDomainIcon key={index} domains={card.domains} colors={domainColors} />
+          ))}
+        </span>
+      )}
+
+      {card.energy !== null && <EnergyGlyph value={card.energy} />}
     </>
   );
 

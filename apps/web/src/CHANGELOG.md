@@ -2,6 +2,7 @@
 
 ## 2026-06-07
 
+- feat: In a deck, each card row now shows its copy count on the left as "2×", with the energy and power costs lined up on the right
 - feat: On a list, the minus button removes a card when it's down to its last copy, so you don't need the separate remove button to clear it
 - fix: After a trade completes, the one-click update that adds the received cards to your collection now works — it was failing with an error on the receiving side
 - fix: When you own a card in several variants, the popup for choosing which variant to remove no longer jumps to the top-left corner after you remove the last copy — it stays where you opened it
