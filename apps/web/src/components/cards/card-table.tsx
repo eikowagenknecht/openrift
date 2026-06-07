@@ -1,5 +1,6 @@
 import type { EnumOrders, GroupByField, Printing } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { SearchXIcon, WifiOffIcon } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import { Fragment, cloneElement, memo, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -10,7 +11,6 @@ import { groupItemsByChannel } from "@/lib/group-by-channel";
 import { groupItemsByMarker } from "@/lib/group-by-marker";
 import { groupItemsByYear } from "@/lib/group-by-year";
 import { getHeaderHeight } from "@/lib/header-height";
-import { useWindowVirtualizerFresh } from "@/lib/virtualizer-fresh";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 
 import type { GroupInfo, VRow } from "./card-grid-types";
@@ -300,13 +300,19 @@ export function CardTable({
     return () => observer.disconnect();
   }, []);
 
-  const { virtualizer, virtualItems, totalSize } = useWindowVirtualizerFresh({
+  // directDomUpdates writes the container height and each row's `top` straight
+  // to the DOM, re-rendering only when the visible range changes — no
+  // `"use no memo"` wrapper needed. "position" mode keeps rows free of per-row
+  // stacking contexts. See https://github.com/TanStack/virtual/issues/736
+  const virtualizer = useWindowVirtualizer({
     count: virtualRows.length,
     estimateSize: estimateRowHeight,
     gap: GAP,
     scrollMargin,
     scrollPaddingStart: stickyOffset,
     overscan: 8,
+    directDomUpdates: true,
+    directDomUpdatesMode: "position",
   });
 
   const virtualizerRef = useRef(virtualizer);
@@ -395,8 +401,8 @@ export function CardTable({
           bordered={!multipleGroups}
           actionsLabel={actionsLabel}
         />
-        <div style={{ height: `${totalSize}px`, position: "relative" }}>
-          {virtualItems.map((vItem) => {
+        <div ref={virtualizer.containerRef} style={{ position: "relative" }}>
+          {virtualizer.getVirtualItems().map((vItem) => {
             const row = virtualRows[vItem.index];
             if (!row) {
               return null;
@@ -404,13 +410,12 @@ export function CardTable({
             return (
               <div
                 key={vItem.key}
+                ref={virtualizer.measureElement}
                 data-index={vItem.index}
                 style={{
                   position: "absolute",
-                  top: 0,
                   left: 0,
                   width: "100%",
-                  transform: `translateY(${vItem.start - scrollMargin}px)`,
                 }}
               >
                 {row.kind === "header" ? (

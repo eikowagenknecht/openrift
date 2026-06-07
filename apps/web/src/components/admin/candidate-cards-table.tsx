@@ -3,14 +3,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { ColumnDef, SortingState, Updater } from "@tanstack/react-table";
 import {
-  flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 import { ImagePlusIcon, LoaderIcon } from "lucide-react";
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import type { CardNameCellMeta } from "@/components/admin/card-name-cell";
@@ -18,16 +17,9 @@ import { CardNameCell } from "@/components/admin/card-name-cell";
 import { DebouncedSearchInput } from "@/components/admin/debounced-search-input";
 import { PrintingsCell } from "@/components/admin/printings-cell";
 import { SortableHeader } from "@/components/admin/sortable-header";
+import { VirtualDataTable } from "@/components/admin/virtual-data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   acceptFavoritesFn,
   useAcceptFavoriteNewCard,
@@ -36,7 +28,6 @@ import {
 import { useAllCards } from "@/hooks/use-admin-card-queries";
 import { parseSortParam, stringifySort } from "@/lib/admin-cards-search";
 import { queryKeys } from "@/lib/query-keys";
-import { useWindowVirtualizerFresh } from "@/lib/virtualizer-fresh";
 import { Route as CardsRoute } from "@/routes/_app/_authenticated/admin/cards";
 
 // ---------------------------------------------------------------------------
@@ -88,7 +79,7 @@ function makeColumns(meta: CardNameCellMeta): ColumnDef<Row>[] {
 }
 
 // ---------------------------------------------------------------------------
-// Column widths (applied with table-layout: fixed so filtering doesn't reflow).
+// Column track sizes (grid-template-columns; unlisted columns share the rest).
 // The Card cell holds the name plus Accept / Assign buttons and the favorite
 // and Unchecked badges, so give it the bulk of the row; the Printings column
 // only shows comma-separated short codes and can live on the remainder.
@@ -218,24 +209,6 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
 
   const rows = table.getRowModel().rows;
 
-  // See accepted-cards-table for the window-virtualization rationale.
-  const tableAnchorRef = useRef<HTMLTableSectionElement>(null);
-  const [scrollMargin, setScrollMargin] = useState(0);
-  useLayoutEffect(() => {
-    const el = tableAnchorRef.current;
-    if (!el) {
-      return;
-    }
-    setScrollMargin(Math.round(el.getBoundingClientRect().top + globalThis.scrollY));
-  }, [rows.length]);
-
-  const { virtualItems, totalSize } = useWindowVirtualizerFresh({
-    count: rows.length,
-    estimateSize: () => ROW_HEIGHT,
-    overscan: OVERSCAN,
-    scrollMargin,
-  });
-
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -286,46 +259,12 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
       {rows.length === 0 ? (
         <p className="text-muted-foreground py-8 text-center text-sm">No candidates found.</p>
       ) : (
-        <Table className="min-w-[720px] table-fixed">
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} style={{ width: COLUMN_WIDTHS[header.id] }}>
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody ref={tableAnchorRef}>
-            {/* See accepted-cards-table for why we adjust by scrollMargin. */}
-            {virtualItems.length > 0 && (
-              // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- TanStack Virtual spacer row, no semantic content
-              <tr style={{ height: virtualItems[0].start - scrollMargin }} />
-            )}
-            {virtualItems.map((virtualRow) => {
-              const row = rows[virtualRow.index];
-              return (
-                <TableRow key={row.id} data-index={virtualRow.index}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="whitespace-normal">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              );
-            })}
-            {virtualItems.length > 0 && (
-              // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- TanStack Virtual spacer row, no semantic content
-              <tr
-                style={{
-                  height: totalSize - (virtualItems.at(-1)?.end ?? 0) + scrollMargin,
-                }}
-              />
-            )}
-          </TableBody>
-        </Table>
+        <VirtualDataTable
+          table={table}
+          columnWidths={COLUMN_WIDTHS}
+          rowHeight={ROW_HEIGHT}
+          overscan={OVERSCAN}
+        />
       )}
     </div>
   );

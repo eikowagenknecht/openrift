@@ -1,5 +1,6 @@
 import type { EnumOrders, GroupByField } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { SearchXIcon, WifiOffIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -13,7 +14,6 @@ import { groupItemsByMarker } from "@/lib/group-by-marker";
 import { groupItemsByYear } from "@/lib/group-by-year";
 import { getHeaderHeight } from "@/lib/header-height";
 import { cn } from "@/lib/utils";
-import { useWindowVirtualizerFresh } from "@/lib/virtualizer-fresh";
 import { useDisplayStore } from "@/stores/display-store";
 import { useGridFocusStore } from "@/stores/grid-focus-store";
 
@@ -449,13 +449,20 @@ export function CardGrid({
   }, [containerRef]);
 
   // ── Virtualizer ────────────────────────────────────────────────────
-  const { virtualizer, virtualItems, totalSize } = useWindowVirtualizerFresh({
+  // directDomUpdates writes the container height and each row's `top` straight
+  // to the DOM, re-rendering only when the visible range changes — no
+  // `"use no memo"` wrapper needed. "position" mode (not "transform") keeps
+  // rows free of per-row stacking contexts so card foil/tilt/hover-z work.
+  // See https://github.com/TanStack/virtual/issues/736
+  const virtualizer = useWindowVirtualizer({
     count: virtualRows.length,
     estimateSize: estimateRowHeight,
     gap: GAP,
     scrollMargin,
     scrollPaddingStart: stickyOffset,
     overscan: 3,
+    directDomUpdates: true,
+    directDomUpdatesMode: "position",
   });
 
   // ── Extracted hooks ────────────────────────────────────────────────
@@ -633,8 +640,8 @@ export function CardGrid({
           </div>
         )}
       </div>
-      <div style={{ height: `${totalSize}px`, position: "relative" }}>
-        {virtualItems.map((vItem) => {
+      <div ref={virtualizer.containerRef} style={{ position: "relative" }}>
+        {virtualizer.getVirtualItems().map((vItem) => {
           const row = virtualRows[vItem.index];
           if (!row) {
             return null;
@@ -643,14 +650,13 @@ export function CardGrid({
           return (
             <div
               key={vItem.key}
+              ref={virtualizer.measureElement}
               data-index={vItem.index}
               className="has-[:hover]:z-10"
               style={{
                 position: "absolute",
-                top: 0,
                 left: 0,
                 width: "100%",
-                transform: `translateY(${vItem.start - scrollMargin}px)`,
               }}
             >
               {row.kind === "header" ? (

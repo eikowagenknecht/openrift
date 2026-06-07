@@ -4,28 +4,20 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { ColumnDef, SortingState, Updater } from "@tanstack/react-table";
 import {
-  flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 import { LoaderIcon, StarIcon } from "lucide-react";
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { DebouncedSearchInput } from "@/components/admin/debounced-search-input";
 import { SortableHeader } from "@/components/admin/sortable-header";
+import { VirtualDataTable } from "@/components/admin/virtual-data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   acceptFavoritePrintingsFn,
   useAcceptFavoritePrintings,
@@ -38,7 +30,6 @@ import type {
 } from "@/lib/marketplace-coverage";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
-import { useWindowVirtualizerFresh } from "@/lib/virtualizer-fresh";
 import { Route as CardsRoute } from "@/routes/_app/_authenticated/admin/cards";
 
 // ---------------------------------------------------------------------------
@@ -248,7 +239,7 @@ function coverageSortValue(coverage: CardCoverage | undefined): number {
 }
 
 // ---------------------------------------------------------------------------
-// Column widths (applied with table-layout: fixed so filtering doesn't reflow)
+// Column track sizes (grid-template-columns; unlisted columns share the rest)
 // ---------------------------------------------------------------------------
 
 const COLUMN_WIDTHS: Record<string, string> = {
@@ -500,28 +491,6 @@ export function AcceptedCardsTable({
     (r) => r.cardSlug && r.favoriteStagingShortCodes.length > 0,
   ).length;
 
-  // Window virtualization: without it, clearing the search filter renders
-  // 2000+ rows from scratch and freezes the browser for seconds. scrollMargin
-  // is the tbody's document offset — useWindowVirtualizer reports item
-  // start/end in document space (offset by scrollMargin), which we correct
-  // for in the spacer rows below.
-  const tableAnchorRef = useRef<HTMLTableSectionElement>(null);
-  const [scrollMargin, setScrollMargin] = useState(0);
-  useLayoutEffect(() => {
-    const el = tableAnchorRef.current;
-    if (!el) {
-      return;
-    }
-    setScrollMargin(Math.round(el.getBoundingClientRect().top + globalThis.scrollY));
-  }, [rows.length]);
-
-  const { virtualItems, totalSize } = useWindowVirtualizerFresh({
-    count: rows.length,
-    estimateSize: () => ROW_HEIGHT,
-    overscan: OVERSCAN,
-    scrollMargin,
-  });
-
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -590,52 +559,12 @@ export function AcceptedCardsTable({
       {rows.length === 0 ? (
         <p className="text-muted-foreground py-8 text-center text-sm">No cards found.</p>
       ) : (
-        <Table className="min-w-[720px] table-fixed">
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} style={{ width: COLUMN_WIDTHS[header.id] }}>
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody ref={tableAnchorRef}>
-            {/*
-              Spacer offsets are tbody-relative. useWindowVirtualizer reports
-              virtualItem.start/.end in document space (offset by scrollMargin),
-              so subtract scrollMargin from the leading spacer and add it back
-              into the trailing spacer so together they reserve exactly
-              `totalSize` (the virtualized region's own height).
-            */}
-            {virtualItems.length > 0 && (
-              // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- TanStack Virtual spacer row, no semantic content
-              <tr style={{ height: virtualItems[0].start - scrollMargin }} />
-            )}
-            {virtualItems.map((virtualRow) => {
-              const row = rows[virtualRow.index];
-              return (
-                <TableRow key={row.id} data-index={virtualRow.index}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="whitespace-normal">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              );
-            })}
-            {virtualItems.length > 0 && (
-              // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- TanStack Virtual spacer row, no semantic content
-              <tr
-                style={{
-                  height: totalSize - (virtualItems.at(-1)?.end ?? 0) + scrollMargin,
-                }}
-              />
-            )}
-          </TableBody>
-        </Table>
+        <VirtualDataTable
+          table={table}
+          columnWidths={COLUMN_WIDTHS}
+          rowHeight={ROW_HEIGHT}
+          overscan={OVERSCAN}
+        />
       )}
     </div>
   );
