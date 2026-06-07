@@ -3,7 +3,7 @@ import type { PackRandom as Random } from "@openrift/shared";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type GameStatus = "setup" | "playing" | "finished";
+type GameStatus = "setup" | "playing" | "finished";
 
 export interface TrackedPlayer {
   id: string;
