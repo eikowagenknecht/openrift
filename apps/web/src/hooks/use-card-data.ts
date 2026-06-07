@@ -246,7 +246,12 @@ export function useCatalogFilterMeta({
   // chips (sets, rarities, colors, etc.) reflect the active owned selection.
   const universeForCounts =
     ownedFilter && ownedFilter.length > 0 && ownedCountByPrinting
-      ? applyOwnedBucketFilter(allPrintings, ownedFilter, ownedCountByPrinting)
+      ? applyOwnedBucketFilter(
+          allPrintings,
+          ownedFilter,
+          ownedCountByPrinting,
+          view === "printings" ? "printing" : "card",
+        )
       : allPrintings;
   const filterCounts = computeFilterCounts(universeForCounts, filters, {
     countBy: view === "cards" ? "card" : "printing",
@@ -328,7 +333,12 @@ export function useCardData({
   });
 
   if (ownedFilter && ownedFilter.length > 0 && ownedCountByPrinting) {
-    filteredCards = applyOwnedBucketFilter(filteredCards, ownedFilter, ownedCountByPrinting);
+    filteredCards = applyOwnedBucketFilter(
+      filteredCards,
+      ownedFilter,
+      ownedCountByPrinting,
+      view === "printings" ? "printing" : "card",
+    );
   }
 
   // Cards view dedupes by cardId so each card gets one tile. When also grouped

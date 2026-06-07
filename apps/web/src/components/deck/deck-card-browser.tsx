@@ -34,6 +34,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useDeckBuildingCounts } from "@/hooks/use-owned-count";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
+import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import {
@@ -172,6 +173,13 @@ export function DeckCardBrowser({
 }: DeckCardBrowserProps) {
   const { data: deckDetail } = useDeckDetail(deckId);
   const activeZone = useDeckBuilderUiStore((state) => state.activeZone);
+  const { filters } = useFilterValues();
+  // Seed the language filter from the user's preferred languages on first visit
+  // (same as /cards), so the printings view isn't flooded with every language.
+  // Mounted here, not in the inner browser, so toggling between the overview and
+  // a zone doesn't re-seed and undo a user who cleared the language filter.
+  // Clearing every language still shows all languages for the rest of the visit.
+  useSeedLanguagesFromPrefs(filters.languages);
 
   // Tag-locked decks without picked tags intercept everything else — there's
   // no useful overview or browser to render until the user picks.
@@ -326,10 +334,6 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   const view = rawView === "copies" ? "printings" : rawView;
   const keywordReverseMap = useKeywordReverseMap();
 
-  // Deck builder can be toggled to show only owned cards — same reasoning as
-  // the collection view: auto-seeding EN would silently hide owned cards in
-  // other languages. Users who want to narrow by language use the Language
-  // section in the filter panel.
   const {
     availableFilters,
     availableLanguages,

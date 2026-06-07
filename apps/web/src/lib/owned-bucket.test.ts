@@ -81,3 +81,65 @@ describe("applyOwnedBucketFilter", () => {
     expect(extraResult).toHaveLength(0);
   });
 });
+
+describe("applyOwnedBucketFilter — per-printing bucketing", () => {
+  it("excludes a 0-owned variant even when another variant of the card is owned", () => {
+    // The printings-view bug: selecting every bucket but "none" should hide
+    // unowned printings, not surface them because a sibling variant is owned.
+    const cardId = "card-foo";
+    const owned = stubPrinting({ cardId });
+    const unowned = stubPrinting({ cardId });
+
+    const result = applyOwnedBucketFilter(
+      [owned, unowned],
+      ["partial", "full", "extra"],
+      { [owned.id]: 1, [unowned.id]: 0 },
+      "printing",
+    );
+
+    expect(result.map((p) => p.id)).toEqual([owned.id]);
+  });
+
+  it("buckets each printing on its own owned count", () => {
+    const cardId = "card-foo";
+    const partial = stubPrinting({ cardId });
+    const full = stubPrinting({ cardId });
+
+    expect(
+      applyOwnedBucketFilter(
+        [partial, full],
+        ["partial"],
+        {
+          [partial.id]: 1,
+          [full.id]: 3,
+        },
+        "printing",
+      ).map((p) => p.id),
+    ).toEqual([partial.id]);
+    expect(
+      applyOwnedBucketFilter(
+        [partial, full],
+        ["full"],
+        {
+          [partial.id]: 1,
+          [full.id]: 3,
+        },
+        "printing",
+      ).map((p) => p.id),
+    ).toEqual([full.id]);
+  });
+
+  it("contrasts with card mode, which keeps both variants of a partly-owned card", () => {
+    const cardId = "card-foo";
+    const owned = stubPrinting({ cardId });
+    const unowned = stubPrinting({ cardId });
+    const counts = { [owned.id]: 1, [unowned.id]: 0 };
+
+    // Default (card) mode: the card is "partial", so both variants survive.
+    expect(applyOwnedBucketFilter([owned, unowned], ["partial"], counts)).toHaveLength(2);
+    // Printing mode: only the owned variant survives.
+    expect(applyOwnedBucketFilter([owned, unowned], ["partial"], counts, "printing")).toHaveLength(
+      1,
+    );
+  });
+});

@@ -204,27 +204,24 @@ describe("useCardData", () => {
     );
   });
 
-  it("buckets a card by its aggregated playset across variants, not per-printing", () => {
-    // option (c) from the design conversation: in printings view, every
-    // variant of a card with a complete playset shows up under "Full".
+  it("buckets each printing on its own owned count in printings view", () => {
+    // Printings view filters owned per-printing: a variant shows only when its
+    // own count matches a selected bucket, not because a sibling variant of the
+    // same card is owned. Selecting everything but "none" hides unowned variants.
     const cardId = "shared-card";
-    const variantA = stubPrinting({ cardId, shortCode: "A-001" });
-    const variantB = stubPrinting({ cardId, shortCode: "B-001" });
+    const ownedVariant = stubPrinting({ cardId, shortCode: "A-001" });
+    const unownedVariant = stubPrinting({ cardId, shortCode: "B-001" });
 
     const params = {
       ...baseParams(),
-      allPrintings: [variantA, variantB],
-      ownedFilter: ["full"] as const,
-      // 2 of one variant + 1 of the other = 3 total, hitting the playset
-      // size of 3 for a regular unit. Both variants should be included.
-      ownedCountByPrinting: { [variantA.id]: 2, [variantB.id]: 1 },
+      allPrintings: [ownedVariant, unownedVariant],
+      ownedFilter: ["partial", "full", "extra"] as const,
+      ownedCountByPrinting: { [ownedVariant.id]: 1, [unownedVariant.id]: 0 },
     };
 
     const { result } = renderHook(() => useCardData(params));
 
-    expect(result.current.sortedCards.map((p) => p.id).toSorted()).toEqual(
-      [variantA.id, variantB.id].toSorted(),
-    );
+    expect(result.current.sortedCards.map((p) => p.id)).toEqual([ownedVariant.id]);
   });
 
   it("dedupes to one printing per cardId in cards view by default", () => {
