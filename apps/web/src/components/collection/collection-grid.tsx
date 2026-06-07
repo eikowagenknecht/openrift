@@ -75,6 +75,7 @@ import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { useSession } from "@/lib/auth-session";
+import { collectionTableActionsColumn } from "@/lib/collection-table";
 import { formatterForMarketplace } from "@/lib/format";
 import { isStackSelected, resolveContextActionTarget } from "@/lib/stack-selection";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
@@ -1020,9 +1021,15 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           rightPane={rightPane}
           addStripHeight={ADD_STRIP_HEIGHT}
           table={{
-            // Browse shows the +/- buttons; select mode drops them and shows
-            // a read-only count.
-            actionsColumn: mode !== "select" && Boolean(handleQuickAdd) ? "wide" : "narrow",
+            // Copies view (`!stacked`) is one row per physical copy, so the
+            // per-printing count + add controls don't apply — drop the column
+            // entirely (mirrors the dropped grid strip). Otherwise browse shows
+            // the +/- buttons; select mode shows a read-only count.
+            actionsColumn: collectionTableActionsColumn({
+              stacked,
+              mode,
+              hasQuickAdd: Boolean(handleQuickAdd),
+            }),
             // The catalog map carries every sibling variant (owned or not).
             // In cards view the table sums across siblings so the count
             // matches the grid's per-card aggregate.
