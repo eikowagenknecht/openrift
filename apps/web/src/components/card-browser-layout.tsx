@@ -128,7 +128,7 @@ export function CardBrowserLayout({
             <div className="relative flex flex-1 items-stretch gap-6">
               <div
                 className={cn(
-                  "@container/grid flex min-w-0 flex-1 flex-col overflow-x-clip transition-opacity duration-150",
+                  "@container/grid flex min-w-0 flex-1 flex-col transition-opacity duration-150",
                   stale ? "opacity-60" : "opacity-100",
                 )}
               >
