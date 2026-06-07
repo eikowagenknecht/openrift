@@ -2,6 +2,7 @@
 
 ## 2026-06-07
 
+- feat: Your collection now starts filtered to your preferred languages, the same as the cards page, so it isn't flooded with every language at once. Clear the language filter whenever you want to see cards you own in other languages
 - feat: The match tracker now has a 2v2 mode. Choose Teams in setup, put each player on a side, and teammates share one score toward 11 while everyone keeps their own XP. Teammates are color-coded so you can spot them around the table
 - feat: In the match tracker, "Who goes first?" now opens a menu where you can pick a specific player or choose Random, which plays a spotlight that sweeps across the players before landing on one. The chosen player keeps a clear "Goes first" badge for the rest of the game
 - feat: The table view now keeps the current set name pinned at the top as you scroll, and a draggable scroll handle on the right lets you scrub through the list and jump straight to any set, the same as the grid view already had

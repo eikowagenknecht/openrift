@@ -73,6 +73,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
+import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { useSession } from "@/lib/auth-session";
 import { collectionTableActionsColumn } from "@/lib/collection-table";
@@ -238,10 +239,13 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const { data: session } = useSession();
   const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
 
-  // Collection shows everything the user owns. Language preference is not
-  // auto-applied as a filter (unlike the /cards catalog) — otherwise owned
-  // non-preferred-language cards would vanish silently. Users who want to
-  // narrow by language use the Language section in the filter panel.
+  // On first mount, seed the URL `languages` filter from the user's preferred
+  // languages if none are set — same behaviour as the /cards catalog. Owned
+  // cards in non-preferred languages are hidden until the user clears the
+  // (visible, clearable) Language filter; users who want to see every language
+  // clear the Language section in the filter panel. After seeding,
+  // `filters.languages` is the single source of truth (empty = show all).
+  useSeedLanguagesFromPrefs(filters.languages);
   const languageFilter = filters.languages;
 
   // Quick Add palette adds *new* cards, so it should only surface languages
