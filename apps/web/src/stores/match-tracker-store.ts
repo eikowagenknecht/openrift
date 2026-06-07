@@ -24,7 +24,7 @@ export interface TrackedPlayer {
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 4;
 /** Player count required to form two teams (a 2v2). */
-export const TEAM_PLAYER_COUNT = 4;
+const TEAM_PLAYER_COUNT = 4;
 
 /**
  * Default points target by format: 11 for a 2v2, 8 for everything else (1v1
