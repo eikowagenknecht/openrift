@@ -18,6 +18,7 @@ import {
   dispatchItemClick,
   dispatchItemToggle,
   dispatchListBulkAction,
+  dispatchRemoveEntry,
   dispatchSetPreference,
   dispatchSiblingClick,
   isQuantityPending,
@@ -247,16 +248,19 @@ function buildStrip({
 }: BuildStripArgs): ReactNode {
   if (showLibrary) {
     // Library mode: + adds to the list (bulk-add upserts by key), - decrements
-    // the existing entry (no-op below 1 — guarded at dispatch). Disabled at
-    // ≤1 to match the floor; dropping to 0 happens via the context-menu Remove.
+    // the existing entry, and at quantity 1 removes it outright (dropping to 0).
+    // Disabled only when there's nothing on the list yet (count 0).
     const displayedCount = entry?.quantity ?? 0;
     return (
       <CardCountStrip
         count={displayedCount}
         icon={ListIcon}
         decrement={{
-          onClick: () => dispatchEntryQuantityChange(entry?.id ?? "", displayedCount - 1),
-          disabled: displayedCount <= 1,
+          onClick: () =>
+            entry && displayedCount <= 1
+              ? dispatchRemoveEntry(entry.id, displayPrinting.card.name)
+              : dispatchEntryQuantityChange(entry?.id ?? "", displayedCount - 1),
+          disabled: displayedCount === 0,
           ariaLabel: `Decrease ${displayPrinting.card.name} quantity on list`,
         }}
         increment={{
@@ -298,8 +302,11 @@ function buildStrip({
     <CardCountStrip
       count={entry.quantity}
       decrement={{
-        onClick: () => dispatchEntryQuantityChange(entry.id, entry.quantity - 1),
-        disabled: isPending || entry.quantity <= 1,
+        onClick: () =>
+          entry.quantity <= 1
+            ? dispatchRemoveEntry(entry.id, entry.cardName)
+            : dispatchEntryQuantityChange(entry.id, entry.quantity - 1),
+        disabled: isPending,
         ariaLabel: `Decrease ${entry.cardName} quantity`,
       }}
       increment={{

@@ -858,6 +858,7 @@ function ListEntryBrowser({
         }
         onQuantityChange(entryId, quantity);
       },
+      onRemoveEntry: (entryId, cardName) => onRemoveEntry(entryId, cardName),
       onSetPreference: (entryId) => setPrefDialogEntryId(entryId),
       isQuantityPendingFor: (entryId) => isQuantityPendingFor(entryId),
     });

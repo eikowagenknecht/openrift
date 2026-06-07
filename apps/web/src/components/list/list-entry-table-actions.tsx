@@ -21,9 +21,9 @@ type ListEntryTableActionsProps = {
 
 /**
  * Per-row Remove + (optional) quantity stepper for the list-page table view.
- * The minus button is disabled at quantity 1 — users decrement-then-remove
- * explicitly via the trash icon rather than having the stepper silently
- * delete the entry. Copy-kind lists pass `showQuantity={false}` to render the
+ * At quantity 1 the minus button removes the entry (firing `onRemove`) instead
+ * of decrementing to 0, so the last copy can be cleared without reaching for
+ * the trash icon. Copy-kind lists pass `showQuantity={false}` to render the
  * trash button alone (a copy is always a single physical card).
  * @returns The actions cell content.
  */
@@ -37,9 +37,14 @@ export function ListEntryTableActions(props: ListEntryTableActionsProps) {
             size="icon-sm"
             onClick={(event) => {
               event.stopPropagation();
-              props.onDecrement();
+              // At quantity 1, the minus clears the entry instead of stepping to 0.
+              if (props.quantity <= 1) {
+                props.onRemove();
+              } else {
+                props.onDecrement();
+              }
             }}
-            disabled={props.isQuantityPending || props.quantity <= 1}
+            disabled={props.isQuantityPending || props.isRemovePending}
             aria-label="Decrease quantity"
           >
             <MinusIcon className="size-3.5" />

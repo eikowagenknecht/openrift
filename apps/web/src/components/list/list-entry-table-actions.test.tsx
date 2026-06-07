@@ -5,7 +5,9 @@ import { describe, expect, it, vi } from "vitest";
 import { ListEntryTableActions } from "./list-entry-table-actions";
 
 describe("ListEntryTableActions — quantity mode (card/printing-kind lists)", () => {
-  function setup(overrides: { quantity?: number; isQuantityPending?: boolean } = {}) {
+  function setup(
+    overrides: { quantity?: number; isQuantityPending?: boolean; isRemovePending?: boolean } = {},
+  ) {
     const onIncrement = vi.fn();
     const onDecrement = vi.fn();
     const onRemove = vi.fn();
@@ -17,7 +19,7 @@ describe("ListEntryTableActions — quantity mode (card/printing-kind lists)", (
         onDecrement={onDecrement}
         onRemove={onRemove}
         isQuantityPending={overrides.isQuantityPending ?? false}
-        isRemovePending={false}
+        isRemovePending={overrides.isRemovePending ?? false}
       />,
     );
     return { onIncrement, onDecrement, onRemove };
@@ -37,12 +39,18 @@ describe("ListEntryTableActions — quantity mode (card/printing-kind lists)", (
     expect(onRemove).not.toHaveBeenCalled();
   });
 
-  it("disables the minus button at quantity 1 — decrement shouldn't silently delete", async () => {
-    const { onDecrement } = setup({ quantity: 1 });
+  it("removes the entry at quantity 1 instead of decrementing", async () => {
+    const { onDecrement, onRemove } = setup({ quantity: 1 });
     const minus = screen.getByLabelText("Decrease quantity") as HTMLButtonElement;
-    expect(minus.disabled).toBe(true);
+    expect(minus.disabled).toBe(false);
     await userEvent.click(minus);
+    expect(onRemove).toHaveBeenCalledTimes(1);
     expect(onDecrement).not.toHaveBeenCalled();
+  });
+
+  it("disables the minus at quantity 1 while a remove is pending", () => {
+    setup({ quantity: 1, isRemovePending: true });
+    expect((screen.getByLabelText("Decrease quantity") as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("disables +/- while a quantity mutation is pending", () => {
