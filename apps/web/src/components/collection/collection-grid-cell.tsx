@@ -150,13 +150,20 @@ export const CollectionGridCell = memo(function CollectionGridCell({
           dispatchOpenVariants(displayPrinting, event.currentTarget, "add")
       : undefined;
 
-  // Strip variants:
+  // The strip is a per-printing aggregate control (count badge + add/remove +
+  // locations popover), so it only belongs on stacked tiles that stand in for N
+  // copies. A copies-view tile (`!stacked`) is a single physical copy — its
+  // count is always 1 and the per-printing controls don't apply — so it gets no
+  // strip. The genuine per-copy actions (drag-to-move, the right-click menu)
+  // stay below.
+  //
+  // Stacked strip variants:
   //  - browse + owned: full +/-, BrowseLocationsPopover (variants + locations)
   //  - browse + unowned (library): + only, no popover
   //  - select + owned: read-only count, OwnedCollectionsPopover
   //  - select + unowned: no strip (nothing to display)
   let strip: ReactNode | undefined;
-  if (mode === "browse") {
+  if (stacked && mode === "browse") {
     const pillOverride =
       ownedCount > 0 ? (
         <BrowseLocationsPopover
@@ -194,7 +201,7 @@ export const CollectionGridCell = memo(function CollectionGridCell({
         }
       />
     );
-  } else if (ownedCount > 0 || cardTotalInCollection > 0) {
+  } else if (stacked && (ownedCount > 0 || cardTotalInCollection > 0)) {
     strip = (
       <CardCountStrip
         count={ownedCount}

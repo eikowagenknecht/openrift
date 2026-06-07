@@ -39,10 +39,15 @@ vi.mock("@/hooks/use-owned-count", () => ({
   },
 }));
 
-// Render only the left overlay (where the SelectionCheckbox lives); skip the
-// whole thumbnail tree.
+// Render the left overlay (where the SelectionCheckbox lives) and a marker for
+// whether the cell decided to produce a strip; skip the whole thumbnail tree.
 vi.mock("@/components/cards/card-cell", () => ({
-  CardCell: ({ leftOverlay }: { leftOverlay?: ReactNode }) => <div>{leftOverlay}</div>,
+  CardCell: ({ leftOverlay, strip }: { leftOverlay?: ReactNode; strip?: ReactNode }) => (
+    <div>
+      {leftOverlay}
+      {strip ? <div data-testid="cell-strip" /> : null}
+    </div>
+  ),
 }));
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
@@ -120,5 +125,46 @@ describe("CollectionGridCell selection checkbox", () => {
       />,
     );
     expect(screen.getByRole("checkbox")).toBeChecked();
+  });
+});
+
+function renderStripCell(props: { stacked: boolean; mode: "browse" | "select" }) {
+  return render(
+    <CollectionGridCell
+      printing={printingX}
+      itemId="p-x"
+      cardWidth={200}
+      priority={false}
+      dataView="printings"
+      mode={props.mode}
+      showLibrary={false}
+      stacked={props.stacked}
+      siblings={undefined}
+      collectionId={collectionId}
+      display={display}
+      showImages
+    />,
+  );
+}
+
+describe("CollectionGridCell strip gating", () => {
+  beforeEach(resetSelection);
+  afterEach(resetSelection);
+
+  // A copies-view tile (`!stacked`) is a single physical copy, so its count is
+  // always 1 and the per-printing strip controls don't apply — no strip.
+  it("renders no strip on a copies-view tile in browse mode", () => {
+    renderStripCell({ stacked: false, mode: "browse" });
+    expect(screen.queryByTestId("cell-strip")).toBeNull();
+  });
+
+  it("renders no strip on a copies-view tile in select mode", () => {
+    renderStripCell({ stacked: false, mode: "select" });
+    expect(screen.queryByTestId("cell-strip")).toBeNull();
+  });
+
+  it("still renders the aggregate strip on a stacked tile in browse mode", () => {
+    renderStripCell({ stacked: true, mode: "browse" });
+    expect(screen.getByTestId("cell-strip")).toBeDefined();
   });
 });
