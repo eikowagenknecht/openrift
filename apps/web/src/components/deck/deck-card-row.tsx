@@ -213,10 +213,10 @@ export function DeckCardRow({
 
       {card.energy !== null && <EnergyGlyph value={card.energy} />}
 
-      <span className="min-w-0 flex-1 truncate text-left">
-        {card.cardName}
+      <span className="flex min-w-0 flex-1 items-center text-left">
+        <span className="min-w-0 truncate">{card.cardName}</span>
         {card.power !== null && card.power > 0 && (
-          <span className="text-2xs ml-1 inline-flex translate-y-px items-center gap-0.5">
+          <span className="text-2xs ml-1 inline-flex shrink-0 translate-y-px items-center gap-0.5">
             {Array.from({ length: card.power }, (_, index) => (
               <PowerDomainIcon key={index} domains={card.domains} colors={domainColors} />
             ))}
