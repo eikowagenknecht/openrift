@@ -1,0 +1,22 @@
+/**
+ * Presentation constants for the match tracker's 2v2 teams. Fixed blue/amber
+ * hues (not theme chart tokens, which collapse to near-identical shades in some
+ * themes) so the two teams stay clearly distinguishable around the table.
+ */
+
+export const TEAM_LABELS: Record<0 | 1, string> = {
+  0: "Team 1",
+  1: "Team 2",
+};
+
+/** Idle border accent on a board panel, per team. */
+export const TEAM_PANEL_BORDER: Record<0 | 1, string> = {
+  0: "border-blue-500/70",
+  1: "border-amber-500/70",
+};
+
+/** Small team chip shown at the top of a board panel. */
+export const TEAM_CHIP: Record<0 | 1, string> = {
+  0: "bg-blue-500/15 text-blue-700 dark:text-blue-300",
+  1: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+};

@@ -1,61 +1,70 @@
-import { CoinsIcon, DicesIcon, RotateCcwIcon, Settings2Icon, ShuffleIcon } from "lucide-react";
-import { toast } from "sonner";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  DicesIcon,
+  FlagIcon,
+  RotateCcwIcon,
+  Settings2Icon,
+  SparklesIcon,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { flipCoin, rollDie } from "@/lib/match-helpers";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useFirstPlayerSpotlight } from "@/hooks/use-first-player-spotlight";
 import { useMatchTrackerStore } from "@/stores/match-tracker-store";
 
 /**
- * Above-board controls: the points target, the pre-game helpers (random first
- * player, coin flip, die roll), and the reset / reconfigure actions.
+ * Above-board controls: the first-player picker (a random spotlight reveal or
+ * a specific player) and the reset / reconfigure actions.
  * @returns The toolbar row.
  */
 export function MatchToolbar() {
-  const pointsTarget = useMatchTrackerStore((state) => state.pointsTarget);
-  const pickFirstPlayer = useMatchTrackerStore((state) => state.pickFirstPlayer);
+  // Subscribe to the raw (referentially stable) players array; mapping to fresh
+  // objects in the selector would defeat useShallow and trigger a render loop.
+  const players = useMatchTrackerStore((state) => state.players);
+  const firstPlayerId = useMatchTrackerStore((state) => state.firstPlayerId);
+  const setFirstPlayer = useMatchTrackerStore((state) => state.setFirstPlayer);
   const startGame = useMatchTrackerStore((state) => state.startGame);
   const backToSetup = useMatchTrackerStore((state) => state.backToSetup);
-
-  function handlePickFirstPlayer() {
-    pickFirstPlayer();
-    const { players, firstPlayerId } = useMatchTrackerStore.getState();
-    const chosen = players.find((player) => player.id === firstPlayerId);
-    if (chosen) {
-      toast(`${chosen.name} goes first`);
-    }
-  }
+  const { isRolling, roll } = useFirstPlayerSpotlight();
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
-      <span className="text-muted-foreground text-sm">
-        First to <span className="text-foreground font-semibold">{pointsTarget}</span> points
-      </span>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <Button variant="ghost" size="sm" onClick={handlePickFirstPlayer}>
-          <ShuffleIcon className="size-4" />
-          First player
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => toast(flipCoin() === "heads" ? "Heads" : "Tails")}
-        >
-          <CoinsIcon className="size-4" />
-          Flip
-        </Button>
-        <Button variant="ghost" size="sm" onClick={() => toast(`You rolled a ${rollDie()}`)}>
-          <DicesIcon className="size-4" />
-          Roll
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => backToSetup()}>
-          <Settings2Icon className="size-4" />
-          Setup
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => startGame()}>
-          <RotateCcwIcon className="size-4" />
-          New game
-        </Button>
-      </div>
+    <div className="flex flex-wrap items-center justify-end gap-1.5 border-b pb-3">
+      <DropdownMenu>
+        <DropdownMenuTrigger render={<Button variant="ghost" size="sm" />} disabled={isRolling}>
+          <SparklesIcon className="size-4" />
+          Who goes first?
+          <ChevronDownIcon className="size-4 opacity-60" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => roll()}>
+            <DicesIcon className="size-4" />
+            Random
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {players.map((player) => (
+            <DropdownMenuItem key={player.id} onClick={() => setFirstPlayer(player.id)}>
+              <FlagIcon className="size-4" />
+              {player.name}
+              {player.id === firstPlayerId && <CheckIcon className="ml-auto size-4" />}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <Button variant="outline" size="sm" onClick={() => backToSetup()}>
+        <Settings2Icon className="size-4" />
+        Setup
+      </Button>
+      <Button variant="outline" size="sm" onClick={() => startGame()}>
+        <RotateCcwIcon className="size-4" />
+        New round
+      </Button>
     </div>
   );
 }

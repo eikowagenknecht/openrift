@@ -34,7 +34,8 @@ function MatchBoard() {
   const playerIds = useMatchTrackerStore(useShallow((state) => state.players.map((p) => p.id)));
   const topCount = Math.floor(playerIds.length / 2);
   const topIds = playerIds.slice(0, topCount);
-  const bottomIds = playerIds.slice(topCount);
+  // Bottom row runs right-to-left so seats go clockwise (e.g. 4 players → 1 2 / 4 3).
+  const bottomIds = playerIds.slice(topCount).toReversed();
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col gap-3 px-3 py-3">
@@ -59,15 +60,26 @@ function BoardRow({ ids, rotated }: { ids: string[]; rotated: boolean }) {
 }
 
 function WinnerBanner() {
-  const winnerName = useMatchTrackerStore((state) => {
-    const winner = state.players.find((player) => player.id === state.winnerId);
-    return winner?.name ?? null;
-  });
+  const winner = useMatchTrackerStore(
+    useShallow((state) => {
+      const player = state.players.find((entry) => entry.id === state.winnerId);
+      if (!player) {
+        return null;
+      }
+      if (state.mode === "teams") {
+        const names = state.players
+          .filter((entry) => entry.team === player.team)
+          .map((entry) => entry.name);
+        return { name: names.join(" & "), isTeam: true };
+      }
+      return { name: player.name, isTeam: false };
+    }),
+  );
   const startGame = useMatchTrackerStore((state) => state.startGame);
   const backToSetup = useMatchTrackerStore((state) => state.backToSetup);
   const dismissWinner = useMatchTrackerStore((state) => state.dismissWinner);
 
-  if (!winnerName) {
+  if (!winner) {
     return null;
   }
 
@@ -75,7 +87,9 @@ function WinnerBanner() {
     <div className="bg-background/80 absolute inset-0 z-10 flex items-center justify-center p-4 backdrop-blur-sm">
       <div className="bg-card w-full max-w-sm space-y-4 rounded-xl border p-6 text-center shadow-lg">
         <TrophyIcon className="text-primary mx-auto size-10" />
-        <Heading level={2}>{winnerName} wins!</Heading>
+        <Heading level={2}>
+          {winner.name} {winner.isTeam ? "win" : "wins"}!
+        </Heading>
         <div className="flex flex-col gap-2">
           <Button onClick={() => startGame()}>Rematch</Button>
           <Button variant="outline" onClick={() => backToSetup()}>
