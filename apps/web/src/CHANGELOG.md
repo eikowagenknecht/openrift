@@ -2,6 +2,7 @@
 
 ## 2026-06-07
 
+- feat: In the deck builder you can now switch the card browser between Cards and Printings, picking a specific printing's art as you add it. The 3-copy limit still applies across all printings of a card
 - feat: In a deck, each card row now shows its copy count on the left as "2×", with the energy and power costs lined up on the right
 - feat: In a deck's sidebar, the hint shown in an empty zone (like "Add cards from the browser") is now clickable and selects that zone, just like clicking its header, so the card browser switches to the cards that fit there
 - feat: On a list, the minus button removes a card when it's down to its last copy, so you don't need the separate remove button to clear it

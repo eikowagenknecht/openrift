@@ -2,6 +2,8 @@ import type { DeckZone, SuperType } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import {
+  buildDeckQuantityByCell,
+  cellPreferredPrintingId,
   getAllowedMoveTargets,
   isCardAllowedInZone,
   isDeckZoneFullForDrag,
@@ -184,6 +186,91 @@ describe("isDeckZoneFullForDrag", () => {
         format: "freeform",
       }),
     ).toBe(false);
+  });
+});
+
+describe("cellPreferredPrintingId", () => {
+  it("always targets the default-art (null) row in cards view", () => {
+    expect(cellPreferredPrintingId("cards", "printing-1", "printing-1")).toBeNull();
+    expect(cellPreferredPrintingId("cards", "printing-2", "printing-1")).toBeNull();
+    expect(cellPreferredPrintingId("cards", "printing-2", null)).toBeNull();
+  });
+
+  it("targets the null row for the card's default printing cell in printings view", () => {
+    expect(cellPreferredPrintingId("printings", "printing-1", "printing-1")).toBeNull();
+  });
+
+  it("pins every non-default printing cell to its own id in printings view", () => {
+    expect(cellPreferredPrintingId("printings", "printing-2", "printing-1")).toBe("printing-2");
+  });
+
+  it("pins the printing when the card has no resolvable default", () => {
+    expect(cellPreferredPrintingId("printings", "printing-2", undefined)).toBe("printing-2");
+    expect(cellPreferredPrintingId("printings", "printing-2", null)).toBe("printing-2");
+  });
+});
+
+describe("buildDeckQuantityByCell", () => {
+  const defaults: Record<string, string> = { "card-a": "a-default", "card-b": "b-default" };
+  const defaultFor = (cardId: string): string | undefined => defaults[cardId];
+
+  it("counts a pinned row on its own printing cell", () => {
+    const byCell = buildDeckQuantityByCell(
+      [{ cardId: "card-a", quantity: 2, preferredPrintingId: "a-alt" }],
+      defaultFor,
+    );
+    expect(byCell.get("a-alt")).toBe(2);
+    expect(byCell.get("a-default")).toBeUndefined();
+  });
+
+  it("attributes a default-art (null) row to the card's canonical printing cell", () => {
+    const byCell = buildDeckQuantityByCell(
+      [{ cardId: "card-a", quantity: 3, preferredPrintingId: null }],
+      defaultFor,
+    );
+    expect(byCell.get("a-default")).toBe(3);
+  });
+
+  it("merges a null row and a row pinned to the same default printing", () => {
+    const byCell = buildDeckQuantityByCell(
+      [
+        { cardId: "card-a", quantity: 2, preferredPrintingId: null },
+        { cardId: "card-a", quantity: 1, preferredPrintingId: "a-default" },
+      ],
+      defaultFor,
+    );
+    expect(byCell.get("a-default")).toBe(3);
+  });
+
+  it("keeps distinct printings of the same card on separate cells", () => {
+    const byCell = buildDeckQuantityByCell(
+      [
+        { cardId: "card-a", quantity: 2, preferredPrintingId: "a-default" },
+        { cardId: "card-a", quantity: 1, preferredPrintingId: "a-alt" },
+      ],
+      defaultFor,
+    );
+    expect(byCell.get("a-default")).toBe(2);
+    expect(byCell.get("a-alt")).toBe(1);
+  });
+
+  it("sums copies of the same printing across zones", () => {
+    const byCell = buildDeckQuantityByCell(
+      [
+        { cardId: "card-a", quantity: 2, preferredPrintingId: "a-alt" },
+        { cardId: "card-a", quantity: 1, preferredPrintingId: "a-alt" },
+      ],
+      defaultFor,
+    );
+    expect(byCell.get("a-alt")).toBe(3);
+  });
+
+  it("skips a null-art row when the card has no resolvable default printing", () => {
+    const byCell = buildDeckQuantityByCell(
+      [{ cardId: "card-unknown", quantity: 2, preferredPrintingId: null }],
+      defaultFor,
+    );
+    expect(byCell.size).toBe(0);
   });
 });
 

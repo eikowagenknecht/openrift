@@ -188,6 +188,50 @@ export function isDeckZoneFullForDrag(args: {
   return false;
 }
 
+/**
+ * In the deck builder's printings view, decides which `preferredPrintingId` a
+ * given printing cell's add/remove should target. Cards view always operates on
+ * the default-art (null) row. In printings view the card's canonical printing
+ * cell also targets the null-art row — matching how the deck list and the
+ * "change printing" menu treat default art — while every other printing pins to
+ * its own id.
+ *
+ * @returns The `preferredPrintingId` to add/remove against (null = default art).
+ */
+export function cellPreferredPrintingId(
+  view: "cards" | "printings",
+  printingId: string,
+  defaultPrintingId?: string | null,
+): string | null {
+  if (view !== "printings") {
+    return null;
+  }
+  return printingId === defaultPrintingId ? null : printingId;
+}
+
+/**
+ * Sums deck quantities onto the printing cell each row belongs to. A pinned row
+ * counts on its printing's cell; a default-art (null) row counts on the card's
+ * canonical printing cell. This keeps per-cell counts summing to the per-card
+ * total and consistent with the printing the deck list renders for null art.
+ *
+ * @returns A map of printing id → total in-deck quantity for that cell.
+ */
+export function buildDeckQuantityByCell(
+  deckCards: readonly { cardId: string; quantity: number; preferredPrintingId: string | null }[],
+  defaultPrintingFor: (cardId: string) => string | null | undefined,
+): Map<string, number> {
+  const byCell = new Map<string, number>();
+  for (const card of deckCards) {
+    const cellId = card.preferredPrintingId ?? defaultPrintingFor(card.cardId);
+    if (!cellId) {
+      continue;
+    }
+    byCell.set(cellId, (byCell.get(cellId) ?? 0) + card.quantity);
+  }
+  return byCell;
+}
+
 export function catalogCardToDeckBuilderCard(cardId: string, card: Card): DeckBuilderCard {
   return {
     cardId,

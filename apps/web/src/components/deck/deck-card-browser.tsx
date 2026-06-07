@@ -36,7 +36,11 @@ import { useDeckBuildingCounts } from "@/hooks/use-owned-count";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
-import { catalogCardToDeckBuilderCard } from "@/lib/deck-builder-card";
+import {
+  buildDeckQuantityByCell,
+  catalogCardToDeckBuilderCard,
+  cellPreferredPrintingId,
+} from "@/lib/deck-builder-card";
 import { getFormatTagConfig } from "@/lib/format-tag-config";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
@@ -45,7 +49,9 @@ import { useSelectionStore } from "@/stores/selection-store";
 
 interface DeckActionsCellProps {
   printing?: Printing;
+  view: "cards" | "printings";
   deckQuantityByCard: Map<string, number>;
+  deckQuantityByCell: Map<string, number>;
   isSingleCardZone: boolean;
   singleCardZoneOccupied: boolean;
   deckCards: { cardId: string; zone: DeckZone }[];
@@ -60,7 +66,9 @@ interface DeckActionsCellProps {
 
 function DeckActionsCell({
   printing,
+  view,
   deckQuantityByCard,
+  deckQuantityByCell,
   isSingleCardZone,
   singleCardZoneOccupied,
   deckCards,
@@ -76,7 +84,11 @@ function DeckActionsCell({
     return null;
   }
   const cardId = printing.cardId;
-  const deckQty = deckQuantityByCard.get(cardId) ?? 0;
+  // Printings view counts the specific printing cell; cards view the whole card.
+  const deckQty =
+    view === "printings"
+      ? (deckQuantityByCell.get(printing.id) ?? 0)
+      : (deckQuantityByCard.get(cardId) ?? 0);
   const isInActiveSingleZone =
     isSingleCardZone &&
     deckCards.some((card) => card.cardId === cardId && card.zone === activeZone);
@@ -260,11 +272,13 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     filters: urlFilters,
     sortBy,
     sortDir,
+    view: rawView,
     groupBy,
     groupDir,
     hasActiveFilters,
   } = useFilterValues();
   const { setSearch } = useFilterActions();
+  const { getPreferredPrinting } = usePreferredPrinting();
   const { addCard, removeCard, setLegend, setQuantity } = useDeckBuilderActions(deckId);
   const { data: deckDetail } = useDeckDetail(deckId);
   const isFreeform = deckDetail.deck.format === WellKnown.deckFormat.FREEFORM;
@@ -308,8 +322,8 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
 
   const filters = urlFilters;
 
-  // Always use "cards" view in deckbuilder — printings/copies modes don't apply
-  const view = "cards" as const;
+  // "copies" is a collection-only view — clamp to "printings" in the deck builder.
+  const view = rawView === "copies" ? "printings" : rawView;
   const keywordReverseMap = useKeywordReverseMap();
 
   // Deck builder can be toggled to show only owned cards — same reasoning as
@@ -353,6 +367,17 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     deckQuantityByCard.set(card.cardId, (deckQuantityByCard.get(card.cardId) ?? 0) + card.quantity);
   }
 
+  // Printings view shows per-printing counts: a pinned row counts on its
+  // printing's cell, a default-art row on the card's canonical printing cell.
+  const deckQuantityByCell = buildDeckQuantityByCell(
+    deckCards,
+    (cardId) => getPreferredPrinting(cardId)?.id,
+  );
+  const deckQtyForCell = (printing: Printing): number =>
+    view === "printings"
+      ? (deckQuantityByCell.get(printing.id) ?? 0)
+      : (deckQuantityByCard.get(printing.cardId) ?? 0);
+
   const items: CardViewerItem[] = deferredSortedCards.map((printing) => ({
     id: printing.id,
     printing,
@@ -371,7 +396,16 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   // path can synthesize the bit it cares about without faking a full
   // React.MouseEvent. The grid path still passes a real event in.
   const handleQuickAdd = (printing: Printing, event?: { shiftKey?: boolean }) => {
-    const builderCard = catalogCardToDeckBuilderCard(printing.cardId, printing.card);
+    // In printings view the clicked printing is pinned as the deck card's art;
+    // cards view keeps default art (null).
+    const builderCard: DeckBuilderCard = {
+      ...catalogCardToDeckBuilderCard(printing.cardId, printing.card),
+      preferredPrintingId: cellPreferredPrintingId(
+        view,
+        printing.id,
+        getPreferredPrinting(printing.cardId)?.id,
+      ),
+    };
 
     if (activeZone === "legend" && !isFreeform) {
       setLegend(builderCard, buildRunesByDomain(allPrintings));
@@ -390,28 +424,35 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
 
   const handleRemove = (printing: Printing, event?: { shiftKey?: boolean }) => {
     const cardId = printing.cardId;
+    // Printings view targets the clicked printing's row (null on the default
+    // cell); cards view leaves the row unspecified so the default-art row goes
+    // first. `undefined` means "any printing of this card".
+    const cellPrintingId =
+      view === "printings"
+        ? cellPreferredPrintingId(view, printing.id, getPreferredPrinting(cardId)?.id)
+        : undefined;
+    const matchesCell = (card: DeckBuilderCard): boolean =>
+      card.cardId === cardId &&
+      (cellPrintingId === undefined || card.preferredPrintingId === cellPrintingId);
 
-    // Shift+click removes all copies across all zones (every printing row)
+    // Shift+click removes all matching copies across all zones.
     if (event?.shiftKey) {
       for (const card of deckCards) {
-        if (card.cardId === cardId) {
-          setQuantity(cardId, card.zone, 0, card.preferredPrintingId);
+        if (matchesCell(card)) {
+          setQuantity(card.cardId, card.zone, 0, card.preferredPrintingId);
         }
       }
       return;
     }
 
-    // Remove from the active zone first, then try other zones
-    const inActiveZone = deckCards.find(
-      (card) => card.cardId === cardId && card.zone === activeZone,
-    );
+    // Remove from the active zone first, then try other zones.
+    const inActiveZone = deckCards.find((card) => matchesCell(card) && card.zone === activeZone);
     if (inActiveZone) {
-      removeCard(cardId, activeZone);
+      removeCard(cardId, activeZone, cellPrintingId);
     } else {
-      // Find any zone this card is in and remove from there
-      const anywhere = deckCards.find((card) => card.cardId === cardId);
+      const anywhere = deckCards.find((card) => matchesCell(card));
       if (anywhere) {
-        removeCard(cardId, anywhere.zone);
+        removeCard(cardId, anywhere.zone, cellPrintingId);
       }
     }
   };
@@ -470,7 +511,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
     const cardId = item.printing.cardId;
     const ownedCount = ownedCounts?.get(item.printing.id) ?? 0;
-    const deckQty = deckQuantityByCard.get(cardId) ?? 0;
+    const deckQty = deckQtyForCell(item.printing);
     // Single-card zone strip controls key off "this card is in the active
     // zone", not "this card is anywhere in the deck": a champion unit can
     // simultaneously sit in main as regular copies without being the chosen
@@ -495,7 +536,14 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
         showBanOverlay
         dragData={{
           type: "browser-card",
-          card: catalogCardToDeckBuilderCard(item.printing.cardId, item.printing.card),
+          card: {
+            ...catalogCardToDeckBuilderCard(item.printing.cardId, item.printing.card),
+            preferredPrintingId: cellPreferredPrintingId(
+              view,
+              item.printing.id,
+              getPreferredPrinting(cardId)?.id,
+            ),
+          },
         }}
         dragId={`browser-card-${item.printing.id}`}
         stripSlot="topSlot"
@@ -535,7 +583,6 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
       totalCards={totalUniqueCards}
       filteredCount={sortedCards.length}
       mobileDoneLabel={hasActiveFilters ? `Show ${sortedCards.length} cards` : undefined}
-      hideViewToggle
     />
   );
 
@@ -578,7 +625,9 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
           actionsLabel: "Deck",
           actionsCell: (
             <DeckActionsCell
+              view={view}
               deckQuantityByCard={deckQuantityByCard}
+              deckQuantityByCell={deckQuantityByCell}
               isSingleCardZone={isSingleCardZone}
               singleCardZoneOccupied={singleCardZoneOccupied}
               deckCards={deckCards}
