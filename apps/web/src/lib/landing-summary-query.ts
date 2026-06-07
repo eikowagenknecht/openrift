@@ -4,7 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
-import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
+import { browserApiClient, callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 
 const fetchLandingSummary = createServerFn({ method: "GET" }).handler(
   (): Promise<LandingSummaryResponse> =>
@@ -21,12 +21,11 @@ const fetchLandingSummary = createServerFn({ method: "GET" }).handler(
 // Client-side fetch goes directly at /api/v1/landing-summary so Cloudflare
 // can serve it from the edge cache. Routing through the Start server function
 // would re-enter origin for every visitor, defeating the whole point.
-async function fetchLandingSummaryFromEdge(): Promise<LandingSummaryResponse> {
-  const res = await fetch("/api/v1/landing-summary");
-  if (!res.ok) {
-    throw new Error(`Landing summary fetch failed: ${res.status}`);
-  }
-  return res.json() as Promise<LandingSummaryResponse>;
+function fetchLandingSummaryFromEdge(): Promise<LandingSummaryResponse> {
+  return callApiJson(
+    browserApiClient().api.v1["landing-summary"].$get(),
+    "Couldn't load landing summary",
+  );
 }
 
 export const landingSummaryQueryOptions = queryOptions({

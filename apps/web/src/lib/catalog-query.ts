@@ -5,7 +5,7 @@ import { createServerFn } from "@tanstack/react-start";
 import type { SetInfo } from "@/components/cards/card-grid";
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
-import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
+import { browserApiClient, callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 
 export interface UseCardsResult {
   allPrintings: Printing[];
@@ -39,12 +39,10 @@ const fetchCatalog = createServerFn({ method: "GET" }).handler(
 // Client-side catalog fetch goes directly to /api/v1/catalog so Cloudflare
 // can serve it from the edge cache. Routing through the Start server function
 // would re-enter origin for every VU, which is exactly what we're avoiding.
-async function fetchCatalogFromEdge(): Promise<CatalogResponse> {
-  const res = await fetch("/api/v1/catalog");
-  if (!res.ok) {
-    throw new Error(`Catalog fetch failed: ${res.status}`);
-  }
-  return res.json() as Promise<CatalogResponse>;
+// Typed via the browser hc client (route + response shape checked against the
+// API contract; a non-2xx surfaces the server's message).
+function fetchCatalogFromEdge(): Promise<CatalogResponse> {
+  return callApiJson(browserApiClient().api.v1.catalog.$get(), "Couldn't load catalog");
 }
 
 // Memoize by input identity. React Query's structural sharing can't preserve

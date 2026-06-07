@@ -5,7 +5,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
-import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
+import { browserApiClient, callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 
 const fetchPrices = createServerFn({ method: "GET" }).handler(
   (): Promise<PricesResponse> =>
@@ -16,13 +16,11 @@ const fetchPrices = createServerFn({ method: "GET" }).handler(
 );
 
 // Client-side fetch goes directly to /api/v1/prices so Cloudflare can serve
-// it from the edge cache — same pattern as use-cards.ts.
-async function fetchPricesFromEdge(): Promise<PricesResponse> {
-  const res = await fetch("/api/v1/prices");
-  if (!res.ok) {
-    throw new Error(`Prices fetch failed: ${res.status}`);
-  }
-  return res.json() as Promise<PricesResponse>;
+// it from the edge cache — same pattern as use-cards.ts. Typed via the browser
+// hc client: the route path + response shape are checked against the API
+// contract, and a non-2xx surfaces the server's error message.
+function fetchPricesFromEdge(): Promise<PricesResponse> {
+  return callApiJson(browserApiClient().api.v1.prices.$get(), "Couldn't load prices");
 }
 
 export const pricesQueryOptions = queryOptions({

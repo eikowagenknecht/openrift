@@ -178,8 +178,11 @@ describe("useCards", () => {
   });
 
   it("throws an Error when catalog fetch fails", async () => {
+    // The catalog reader now goes through the typed hc client; a non-2xx
+    // surfaces an ApiError carrying the server's message, or the "Couldn't load
+    // catalog" fallback when the body has no { error } field.
     (fetch as ReturnType<typeof vi.fn>).mockImplementation(() =>
-      Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) }),
+      Promise.resolve(Response.json({}, { status: 500 })),
     );
 
     const queryClient = new QueryClient({
@@ -191,7 +194,7 @@ describe("useCards", () => {
       expect.fail("should have thrown");
     } catch (error) {
       expect(error).toBeInstanceOf(Error);
-      expect((error as Error).message).toBe("Catalog fetch failed: 500");
+      expect((error as Error).message).toBe("Couldn't load catalog");
     }
   });
 });
