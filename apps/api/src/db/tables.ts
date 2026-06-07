@@ -524,15 +524,9 @@ export interface FriendGroupCollectionSharesTable {
 // ─── Card trades (migration 143, ADR-019) ────────────────────────────────────
 
 /** Who started the trade. The party who must accept is always the non-initiator. */
-export type CardTradeInitiator = "giver" | "receiver";
+type CardTradeInitiator = "giver" | "receiver";
 
-export type CardTradeStatus =
-  | "pending"
-  | "reserved"
-  | "completed"
-  | "declined"
-  | "cancelled"
-  | "expired";
+type CardTradeStatus = "pending" | "reserved" | "completed" | "declined" | "cancelled" | "expired";
 
 export interface CardTradesTable {
   id: Generated<string>;
@@ -564,7 +558,7 @@ export interface CardTradesTable {
   expiresAt: Date | null;
 }
 
-export interface CardTradeCopiesTable {
+interface CardTradeCopiesTable {
   tradeId: string;
   copyId: string;
 }

@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 
-export interface FloatingAction {
+interface FloatingAction {
   label: string;
   icon: ReactNode;
   onClick: () => void;

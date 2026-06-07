@@ -44,8 +44,6 @@ interface CardRowHandlers {
   onContextAction?: (itemId: string, action: CollectionContextAction) => void;
   /** /lists: set an entry's quantity directly (browse-mode +/- buttons on the quantity strip). */
   onEntryQuantityChange?: (entryId: string, quantity: number) => void;
-  /** /lists: remove an entry (right-click context menu). */
-  onRemoveEntry?: (entryId: string, cardName: string) => void;
   /** /lists: open the trade-preference editor for an entry. */
   onSetPreference?: (entryId: string) => void;
   /** /lists: is the given entry currently waiting on a pending quantity mutation? */
@@ -125,10 +123,6 @@ export function dispatchContextAction(itemId: string, action: CollectionContextA
 
 export function dispatchEntryQuantityChange(entryId: string, quantity: number): void {
   useCardRowActionsStore.getState().handlers.onEntryQuantityChange?.(entryId, quantity);
-}
-
-export function dispatchRemoveEntry(entryId: string, cardName: string): void {
-  useCardRowActionsStore.getState().handlers.onRemoveEntry?.(entryId, cardName);
 }
 
 export function dispatchSetPreference(entryId: string): void {

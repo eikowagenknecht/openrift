@@ -34,9 +34,6 @@ export type {
   FriendGroupsTable,
   // Card trades (migration 143, ADR-019)
   CardTradesTable,
-  CardTradeCopiesTable,
-  CardTradeInitiator,
-  CardTradeStatus,
   UserPreferencesTable,
   // Reference tables (migration 062)
   DomainsTable,
