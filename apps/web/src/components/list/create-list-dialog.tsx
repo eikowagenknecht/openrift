@@ -1,12 +1,13 @@
 import type { Currency, ListIntent, ListKind, TradePreference } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { CopyIcon, SquareIcon, SquareStackIcon } from "lucide-react";
+import { ChevronDownIcon, CopyIcon, SquareIcon, SquareStackIcon } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import { useState } from "react";
 
 import { TradePreferenceEditor } from "@/components/trade-preferences/trade-preference-editor";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useFriendGroupsList, useShareListWithFriendGroup } from "@/hooks/use-friend-groups";
 import { useBulkAddListEntries, useCreateList } from "@/hooks/use-lists";
+import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
 const EMPTY_TRADE_PREFERENCE: TradePreference = {
@@ -155,6 +157,8 @@ export function CreateListDialog({
   // Tracks groups the user has *unchecked*. Defaulting to an empty set means
   // every group is selected on open, which nudges sharing without forcing it.
   const [deselectedGroupIds, setDeselectedGroupIds] = useState<Set<string>>(new Set());
+  // Trade preferences are secondary, so the section starts collapsed.
+  const [tradePrefsOpen, setTradePrefsOpen] = useState(false);
   const createList = useCreateList();
   const bulkAdd = useBulkAddListEntries();
   const shareWithGroup = useShareListWithFriendGroup();
@@ -174,6 +178,7 @@ export function CreateListDialog({
       setTradeDefaults(EMPTY_TRADE_PREFERENCE);
       setCurrency(defaultCurrency);
       setDeselectedGroupIds(new Set());
+      setTradePrefsOpen(false);
     }
     onOpenChange(next);
   };
@@ -249,36 +254,6 @@ export function CreateListDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {availableKinds.length > 1 && (
-          <div className="flex flex-col gap-1">
-            {availableKinds.map((option) => {
-              const meta = KIND_OPTIONS[option];
-              const Icon = meta.icon;
-              const isSelected = kind === option;
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  className={
-                    isSelected
-                      ? "border-primary bg-primary/5 flex items-start gap-2 rounded-md border px-3 py-2 text-left text-sm"
-                      : "hover:bg-muted flex items-start gap-2 rounded-md border border-transparent px-3 py-2 text-left text-sm"
-                  }
-                  onClick={() => setKind(option)}
-                >
-                  <Icon className="mt-0.5 size-4 shrink-0" />
-                  <div className="flex-1">
-                    <div className="font-medium">{meta.label}</div>
-                    <div className="text-muted-foreground text-xs">
-                      {kindHints?.[option] ?? KIND_HINTS[intent][option]}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
         <form
           className="flex flex-col gap-4"
           onSubmit={(event) => {
@@ -292,22 +267,33 @@ export function CreateListDialog({
             onChange={(event) => setName(event.target.value)}
             placeholder="List name"
           />
-          {supportsPrefs && (
-            <div className="flex flex-col gap-2">
-              <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                Trade preferences
-              </div>
-              <div className="text-muted-foreground text-xs">
-                Defaults applied to every entry. You can override per card later.
-              </div>
-              <TradePreferenceEditor
-                value={tradeDefaults}
-                onChange={setTradeDefaults}
-                currency={currency}
-                showCurrency
-                onCurrencyChange={setCurrency}
-                idPrefix="create-list"
-              />
+          {availableKinds.length > 1 && (
+            <div className="flex flex-col gap-1">
+              {availableKinds.map((option) => {
+                const meta = KIND_OPTIONS[option];
+                const Icon = meta.icon;
+                const isSelected = kind === option;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    className={
+                      isSelected
+                        ? "border-primary bg-primary/5 flex items-start gap-2 rounded-md border px-3 py-2 text-left text-sm"
+                        : "hover:bg-muted flex items-start gap-2 rounded-md border border-transparent px-3 py-2 text-left text-sm"
+                    }
+                    onClick={() => setKind(option)}
+                  >
+                    <Icon className="mt-0.5 size-4 shrink-0" />
+                    <div className="flex-1">
+                      <div className="font-medium">{meta.label}</div>
+                      <div className="text-muted-foreground text-xs">
+                        {kindHints?.[option] ?? KIND_HINTS[intent][option]}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
           {groups.length > 0 && (
@@ -348,6 +334,37 @@ export function CreateListDialog({
                 })}
               </ul>
             </div>
+          )}
+          {supportsPrefs && (
+            <Collapsible open={tradePrefsOpen} onOpenChange={setTradePrefsOpen}>
+              <CollapsibleTrigger
+                type="button"
+                className="text-muted-foreground hover:text-foreground flex w-full cursor-pointer items-center gap-1.5 text-xs font-medium tracking-wide uppercase"
+              >
+                <ChevronDownIcon
+                  className={cn(
+                    "size-3.5 shrink-0 transition-transform",
+                    tradePrefsOpen && "rotate-180",
+                  )}
+                />
+                Trade preferences
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="flex flex-col gap-2 pt-2">
+                  <div className="text-muted-foreground text-xs">
+                    Defaults applied to every entry. You can override per card later.
+                  </div>
+                  <TradePreferenceEditor
+                    value={tradeDefaults}
+                    onChange={setTradeDefaults}
+                    currency={currency}
+                    showCurrency
+                    onCurrencyChange={setCurrency}
+                    idPrefix="create-list"
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           )}
           <DialogFooter>
             <Button

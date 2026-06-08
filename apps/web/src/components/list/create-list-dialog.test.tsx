@@ -128,3 +128,31 @@ describe("CreateListDialog group sharing", () => {
     expect(shareMutateAsync).not.toHaveBeenCalled();
   });
 });
+
+describe("CreateListDialog trade preferences", () => {
+  beforeEach(() => {
+    currentGroups = GROUPS;
+    createMutate.mockClear();
+  });
+
+  it("starts collapsed and expands when the trigger is clicked", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    const trigger = screen.getByRole("button", { name: /trade preferences/iu });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("does not submit the form when the trade-preferences trigger is clicked", async () => {
+    // The trigger lives inside the <form>, so it must be type="button" — a
+    // default submit button would create the list on a mere expand click.
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    await user.click(screen.getByRole("button", { name: /trade preferences/iu }));
+    expect(createMutate).not.toHaveBeenCalled();
+  });
+});
