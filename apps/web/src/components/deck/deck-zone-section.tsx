@@ -102,8 +102,9 @@ export function DeckZoneSection({
         : undefined;
   const isDragging = active !== null;
 
-  // Cross-zone copy totals — champion zone counts toward the 3-copy limit too
-  const copyLimitZones = new Set(["main", "sideboard", "overflow", "champion"]);
+  // Cross-zone copy totals — champion counts toward the 3-copy limit too;
+  // overflow is excluded since it is a free parking zone with no copy cap.
+  const copyLimitZones = new Set(["main", "sideboard", "champion"]);
   const crossZoneTotal = (cardId: string) =>
     allCards
       .filter((entry) => entry.cardId === cardId && copyLimitZones.has(entry.zone))

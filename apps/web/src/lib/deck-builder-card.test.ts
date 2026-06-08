@@ -106,7 +106,7 @@ describe("isDeckZoneFullForDrag", () => {
     ).toBe(false);
   });
 
-  it("blocks browser-card adds when the cross-zone total is at the cap", () => {
+  it("blocks browser-card adds to capped zones when the cross-zone total is at the cap", () => {
     const allCards = [
       { cardId, zone: "main" as DeckZone, quantity: 2 },
       { cardId, zone: "sideboard" as DeckZone, quantity: 1 },
@@ -120,6 +120,13 @@ describe("isDeckZoneFullForDrag", () => {
         format: "constructed",
       }),
     ).toBe(true);
+  });
+
+  it("never blocks browser-card adds into overflow — it is an unlimited parking zone", () => {
+    const allCards = [
+      { cardId, zone: "main" as DeckZone, quantity: 3 },
+      { cardId, zone: "overflow" as DeckZone, quantity: 5 },
+    ];
     expect(
       isDeckZoneFullForDrag({
         zone: "overflow",
@@ -128,7 +135,21 @@ describe("isDeckZoneFullForDrag", () => {
         allCards,
         format: "constructed",
       }),
-    ).toBe(true);
+    ).toBe(false);
+  });
+
+  it("ignores overflow copies when capping a capped zone", () => {
+    // 3 copies parked in overflow must not block adding to an empty main.
+    const allCards = [{ cardId, zone: "overflow" as DeckZone, quantity: 3 }];
+    expect(
+      isDeckZoneFullForDrag({
+        zone: "main",
+        draggedCardId: cardId,
+        fromZone: null,
+        allCards,
+        format: "constructed",
+      }),
+    ).toBe(false);
   });
 
   it("allows browser-card adds below the cap", () => {

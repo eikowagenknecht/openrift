@@ -18,12 +18,9 @@ import { useDeckDraftCollection } from "@/lib/deck-builder-collection";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 
 const RUNE_TARGET = 12;
-const COPY_LIMIT_ZONES: ReadonlySet<DeckZone> = new Set([
-  "main",
-  "sideboard",
-  "overflow",
-  "champion",
-]);
+// Overflow is intentionally excluded — it is a free parking zone, so its copies
+// don't count toward the 3-copy cap and adds into it are never capped.
+const COPY_LIMIT_ZONES: ReadonlySet<DeckZone> = new Set(["main", "sideboard", "champion"]);
 const EMPTY_CARDS: DeckBuilderCard[] = [];
 
 type DeckCollection = Collection<DeckBuilderCard, string | number>;
@@ -266,7 +263,8 @@ export function addCardAction(
     return;
   }
 
-  // Main / sideboard / overflow.
+  // Main / sideboard / overflow. The 3-copy cap applies to main and sideboard;
+  // overflow is a free parking zone (not in COPY_LIMIT_ZONES) so it skips it.
   let addQty = count ?? 1;
   if (!freeform && COPY_LIMIT_ZONES.has(zone)) {
     const total = crossZoneTotal(allCards(collection), card.cardId);

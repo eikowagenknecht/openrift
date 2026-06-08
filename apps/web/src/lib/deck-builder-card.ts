@@ -12,10 +12,12 @@ import { WellKnown } from "@openrift/shared";
 
 const EMPTY_ARRAY: string[] = [];
 
+// Zones whose copies share the 3-copy cap. Overflow is intentionally excluded:
+// it is a free "park here" holding area, so its copies neither count toward the
+// cap nor are capped themselves.
 const COPY_LIMIT_ZONES: ReadonlySet<DeckZone> = new Set([
   WellKnown.deckZone.MAIN,
   WellKnown.deckZone.SIDEBOARD,
-  WellKnown.deckZone.OVERFLOW,
   WellKnown.deckZone.CHAMPION,
 ]);
 

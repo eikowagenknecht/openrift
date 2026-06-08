@@ -461,10 +461,12 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     }
   };
 
-  // Compute cross-zone totals for copy limit zones (main + sideboard + overflow)
+  // Compute cross-zone totals for copy limit zones (main + sideboard). Overflow
+  // is excluded — it is a free parking zone, so its copies don't count toward
+  // the 3-copy cap that disables the browser's add button.
   const copyLimitTotalByCard = new Map<string, number>();
   for (const card of deckCards) {
-    if (card.zone === "main" || card.zone === "sideboard" || card.zone === "overflow") {
+    if (card.zone === "main" || card.zone === "sideboard") {
       copyLimitTotalByCard.set(
         card.cardId,
         (copyLimitTotalByCard.get(card.cardId) ?? 0) + card.quantity,
@@ -508,6 +510,10 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     }
     if (activeZone === "runes") {
       return !canAddRune(catalogCardToDeckBuilderCard(cardId, item.printing.card), deckCards);
+    }
+    if (activeZone === "overflow") {
+      // Free parking zone — never capped.
+      return false;
     }
     return (copyLimitTotalByCard.get(cardId) ?? 0) >= 3;
   };

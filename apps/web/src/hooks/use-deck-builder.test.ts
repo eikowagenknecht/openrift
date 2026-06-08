@@ -77,7 +77,7 @@ describe("addCardAction", () => {
     expect(cardsOf(collection)[0].quantity).toBe(2);
   });
 
-  it("enforces max 3 copies across main/sideboard/overflow/champion", () => {
+  it("enforces max 3 copies across main/sideboard/champion", () => {
     const card = stubDeckBuilderCard({
       cardId: "card-1",
       cardType: "unit",
@@ -95,6 +95,37 @@ describe("addCardAction", () => {
     );
     const total = cardsOf(collection).reduce((sum, entry) => sum + entry.quantity, 0);
     expect(total).toBe(3);
+  });
+
+  it("does not cap copies added to overflow — it is an unlimited parking zone", () => {
+    const card = stubDeckBuilderCard({
+      cardId: "card-1",
+      cardType: "unit",
+      zone: "overflow",
+      quantity: 3,
+    });
+    collection = createDraftCollection([card]);
+    addCardAction(collection, { ...card }, "overflow", 5, EMPTY_RUNES, "constructed");
+    const overflowTotal = cardsOf(collection)
+      .filter((entry) => entry.zone === "overflow")
+      .reduce((sum, entry) => sum + entry.quantity, 0);
+    expect(overflowTotal).toBe(8);
+  });
+
+  it("ignores overflow copies when capping main/sideboard", () => {
+    // 3 copies parked in overflow must not block adding 3 to an empty main.
+    const parked = stubDeckBuilderCard({
+      cardId: "card-1",
+      cardType: "unit",
+      zone: "overflow",
+      quantity: 3,
+    });
+    collection = createDraftCollection([parked]);
+    addCardAction(collection, { ...parked, zone: "main" }, "main", 3, EMPTY_RUNES, "constructed");
+    const mainTotal = cardsOf(collection)
+      .filter((entry) => entry.zone === "main")
+      .reduce((sum, entry) => sum + entry.quantity, 0);
+    expect(mainTotal).toBe(3);
   });
 
   it("clamps partial additions up to the 3-copy limit", () => {

@@ -292,13 +292,14 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
     }
   };
 
+  // Overflow is excluded — it is a free parking zone, so copies parked there
+  // neither count toward the 3-copy cap nor reduce how many a shift-drag adds.
   const browserRemaining = dragInfo?.fromBrowser
     ? 3 -
       deckCards
         .filter(
           (card) =>
-            card.cardId === dragInfo.cardId &&
-            (card.zone === "main" || card.zone === "sideboard" || card.zone === "overflow"),
+            card.cardId === dragInfo.cardId && (card.zone === "main" || card.zone === "sideboard"),
         )
         .reduce((sum, card) => sum + card.quantity, 0)
     : 0;
