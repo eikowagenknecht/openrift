@@ -313,7 +313,7 @@ function CollectionLayout() {
 
 function CollectionContent() {
   return (
-    <div className="flex min-w-0 flex-1 flex-col overflow-x-clip px-3 pb-3">
+    <div className="flex min-w-0 flex-1 flex-col px-3 pb-3">
       <div className="flex flex-1 flex-col pb-3">
         <Outlet />
       </div>
