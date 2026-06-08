@@ -23,7 +23,7 @@ export interface DesignerCard {
 }
 
 /** The chosen background image, held client-side only as a data URL. */
-export interface BackgroundImage {
+interface BackgroundImage {
   dataUrl: string | null;
   aspect: number | null; // natural width / height, for cover + pan math
   scale: number; // >= 1, cover baseline

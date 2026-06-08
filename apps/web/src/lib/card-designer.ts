@@ -5,21 +5,21 @@
  */
 
 /** Suffix appended to the artist line so every exported card carries its origin. */
-export const ATTRIBUTION = "openrift.app";
+const ATTRIBUTION = "openrift.app";
 
 /** Zoom bounds for the background image. 1 = exactly covers the card. */
 export const CARD_MIN_ZOOM = 1;
 export const CARD_MAX_ZOOM = 4;
 
 /** Standard playing-card aspect (63×88mm), matching the `--aspect-card` CSS var. */
-export const CARD_ASPECT_W = 63;
-export const CARD_ASPECT_H = 88;
+const CARD_ASPECT_W = 63;
+const CARD_ASPECT_H = 88;
 
 /** Card width / height. The card is portrait, so this is < 1. */
 export const CARD_ASPECT = CARD_ASPECT_W / CARD_ASPECT_H;
 
 /** Longest edge (px) an uploaded background is downscaled to before use. */
-export const MAX_IMAGE_EDGE = 2000;
+const MAX_IMAGE_EDGE = 2000;
 
 export interface BackgroundTransform {
   /** Zoom factor; >= 1 (1 = exactly covers the card). */

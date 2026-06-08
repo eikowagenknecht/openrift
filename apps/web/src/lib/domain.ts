@@ -62,7 +62,7 @@ export function formatDomainFilterLabel(value: string, labels?: Record<string, s
 }
 
 /** A card can carry at most this many domains. */
-export const MAX_DOMAINS = 2;
+const MAX_DOMAINS = 2;
 
 /**
  * Given the currently-selected domains, returns the set of options that should

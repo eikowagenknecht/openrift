@@ -36,7 +36,7 @@ export function getCachedTintedIcon(src: string, color: string): string | undefi
  *
  * @returns The tinted data URL, or null on failure.
  */
-export function tintIcon(src: string, color: string): Promise<string | null> {
+function tintIcon(src: string, color: string): Promise<string | null> {
   const key = cacheKey(src, color);
   const cached = cache.get(key);
   if (cached) {
