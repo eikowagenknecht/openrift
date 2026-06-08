@@ -1,5 +1,6 @@
 import type { Domain, Rarity } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
+import type { CSSProperties } from "react";
 import { useId } from "react";
 
 import { CardText } from "@/components/cards/card-text";
@@ -7,6 +8,40 @@ import { useDomainColors } from "@/hooks/use-domain-colors";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { getFilterIconPath, getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
+import { getCachedTintedIcon, TINT_BLACK, TINT_WHITE } from "@/lib/white-icon";
+
+/**
+ * A glyph icon forced to a flat color (white, or black on the might shield).
+ * Normally that's the cheap `brightness-0[ invert]` CSS filter. When `tinted`
+ * (the card designer's export clone) and a pre-tinted raster is cached, use that
+ * instead, because html2canvas-pro ignores CSS filters. See ADR-023 and
+ * `@/lib/white-icon`.
+ *
+ * @returns The icon image, or null when there is no source.
+ */
+function GlyphIcon({
+  src,
+  className,
+  tinted,
+  color = "white",
+}: {
+  src?: string;
+  className?: string;
+  tinted?: boolean;
+  color?: "white" | "black";
+}) {
+  if (!src) {
+    return null;
+  }
+  const tintColor = color === "black" ? TINT_BLACK : TINT_WHITE;
+  const filter = color === "black" ? "brightness-0" : "brightness-0 invert";
+  const cached = tinted ? getCachedTintedIcon(src, tintColor) : undefined;
+  return cached ? (
+    <img src={cached} alt="" aria-hidden="true" className={className} />
+  ) : (
+    <img src={src} alt="" aria-hidden="true" className={cn(className, filter)} />
+  );
+}
 
 interface CardPlaceholderImageProps {
   name: string;
@@ -24,6 +59,23 @@ interface CardPlaceholderImageProps {
   rarity?: Rarity;
   publicCode?: string;
   artist?: string;
+  /**
+   * Optional full-bleed background image (a data URL in the card designer).
+   * When set, the placeholder's logo watermark and noise texture are hidden and
+   * a legibility scrim is drawn behind the lower text region. See ADR-023.
+   */
+  backgroundImageUrl?: string;
+  /**
+   * Absolute size/position for the background image (computed by the designer
+   * for cover + pan + zoom). Defaults to a plain centered cover.
+   */
+  backgroundImageStyle?: CSSProperties;
+  /**
+   * Render the white glyph icons from pre-tinted rasters instead of the CSS
+   * `brightness-0 invert` filter, so they survive html2canvas export. Used by
+   * the card designer's export clone. See ADR-023.
+   */
+  tintIcons?: boolean;
   className?: string;
 }
 
@@ -43,11 +95,19 @@ export function CardPlaceholderImage({
   rarity,
   publicCode,
   artist,
+  backgroundImageUrl,
+  backgroundImageStyle,
+  tintIcons,
   className,
 }: CardPlaceholderImageProps) {
   const domainColors = useDomainColors();
   const primaryDomain = domain[0] ?? WellKnown.domain.COLORLESS;
-  const domainIconPath = getFilterIconPath("domains", primaryDomain);
+  // Power pips show the domain rune; a multi-domain card has no single domain,
+  // so it uses the generic (rainbow) rune instead.
+  const runePipIcon =
+    domain.length > 1
+      ? "/images/glyphs/rune-rainbow.svg"
+      : getFilterIconPath("domains", primaryDomain);
   const typeIconPath = type ? getTypeIconPath(type, superTypes ?? []) : undefined;
   const bgStyle = getDomainGradientStyle(domain, "", domainColors);
   const noiseId = useId();
@@ -61,27 +121,49 @@ export function CardPlaceholderImage({
       role="img"
       aria-label={`${name} placeholder — energy ${energy ?? "none"}, might ${might ?? "none"}, power ${power ?? "none"}`}
     >
-      <svg className="pointer-events-none absolute inset-0 size-full opacity-15" aria-hidden="true">
-        <filter id={noiseId}>
-          <feTurbulence
-            type="fractalNoise"
-            baseFrequency="0.7"
-            numOctaves="4"
-            stitchTiles="stitch"
+      {backgroundImageUrl && (
+        <img
+          src={backgroundImageUrl}
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute object-cover"
+          style={backgroundImageStyle ?? { top: 0, left: 0, width: "100%", height: "100%" }}
+        />
+      )}
+      {backgroundImageUrl ? (
+        // Darken the lower text region so name / rules / footer stay legible
+        // over any photo. The name bar carries its own domain gradient.
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-black/85 via-black/55 to-transparent"
+        />
+      ) : (
+        <>
+          <svg
+            className="pointer-events-none absolute inset-0 size-full opacity-15"
+            aria-hidden="true"
+          >
+            <filter id={noiseId}>
+              <feTurbulence
+                type="fractalNoise"
+                baseFrequency="0.7"
+                numOctaves="4"
+                stitchTiles="stitch"
+              />
+            </filter>
+            <rect width="100%" height="100%" filter={`url(#${noiseId})`} />
+          </svg>
+          <GlyphIcon
+            src="/logo.svg"
+            tinted={tintIcons}
+            className="pointer-events-none absolute top-[14%] left-1/2 size-[40cqw] -translate-x-1/2 opacity-15"
           />
-        </filter>
-        <rect width="100%" height="100%" filter={`url(#${noiseId})`} />
-      </svg>
-      <img
-        src="/logo.svg"
-        alt=""
-        aria-hidden="true"
-        className="pointer-events-none absolute top-[14%] left-1/2 size-[40cqw] -translate-x-1/2 opacity-15 brightness-0 invert"
-      />
-      <div className="absolute top-[4%] left-[6%] flex flex-col items-start gap-[1cqw]">
+        </>
+      )}
+      <div className="absolute top-[4.7%] left-[5.5%] flex flex-col items-start gap-[1cqw]">
         {energy !== null && (
           <div
-            className="flex size-[13cqw] items-center justify-center rounded-full bg-white/70 text-[8cqw] font-extrabold text-black ring-1 ring-black/70"
+            className="flex size-[11.7cqw] items-center justify-center rounded-full bg-white/70 text-[8cqw] font-extrabold text-black ring-1 ring-black/70"
             aria-label={`Energy: ${energy}`}
           >
             {energy}
@@ -97,25 +179,20 @@ export function CardPlaceholderImage({
                 className="flex size-[10cqw] items-center justify-center rounded-full"
                 style={getDomainGradientStyle([d], "", domainColors)}
               >
-                <img
+                <GlyphIcon
                   src={getFilterIconPath("domains", d)}
-                  alt=""
-                  className="size-[6cqw] brightness-0 invert"
+                  tinted={tintIcons}
+                  className="size-[6cqw]"
                 />
               </span>
             ))}
-        {power !== null && power !== undefined && power > 0 && domainIconPath && (
+        {power !== null && power !== undefined && power > 0 && runePipIcon && (
           <div
-            className="ml-[1cqw] flex flex-col items-center gap-[2.5cqw] rounded-[3cqw] px-[1cqw] py-[2.25cqw]"
+            className="mt-[1cqw] ml-[0cqw] flex flex-col items-center gap-[0.5cqw] rounded-[3cqw] px-[1cqw] py-[2.25cqw]"
             style={bgStyle}
           >
             {Array.from({ length: power }, (_, index) => (
-              <img
-                key={index}
-                src={domainIconPath}
-                alt=""
-                className="size-[3.5cqw] brightness-0 invert"
-              />
+              <GlyphIcon key={index} src={runePipIcon} tinted={tintIcons} className="size-[4cqw]" />
             ))}
           </div>
         )}
@@ -123,25 +200,34 @@ export function CardPlaceholderImage({
 
       {might !== null && might !== undefined && (
         <div
-          className="absolute top-[4%] right-[6%] flex h-[11cqw] items-center justify-center gap-[2cqw] bg-black/70 pr-[3cqw] pl-[4cqw] text-[7cqw] font-extrabold text-white"
-          style={{ clipPath: "polygon(0 0, 100% 0, 100% 100%, 12% 100%)" }}
+          className="absolute top-[5.5%] right-[7.5%] flex h-[9cqw] items-stretch overflow-hidden text-[7cqw] font-extrabold"
+          style={{ clipPath: "polygon(0 0, 100% 0, 100% 100%, 13% 100%)" }}
           aria-label={`Might: ${might}`}
         >
-          <img src="/images/might.svg" alt="" className="size-[5cqw]" />
-          {might}
+          <div className="flex items-center justify-center bg-white/70 pr-[0.5cqw] pl-[1.7cqw]">
+            <GlyphIcon
+              src="/images/might.svg"
+              color="black"
+              tinted={tintIcons}
+              className="size-[6cqw]"
+            />
+          </div>
+          <div className="flex items-center justify-center bg-black/70 pr-[2cqw] pl-[2.3cqw] text-white">
+            {might}
+          </div>
         </div>
       )}
 
       {/* Type + Tags */}
       {(type || (tags && tags.length > 0)) && (
-        <div className="absolute top-[55%] flex -translate-y-full items-center gap-[1.5cqw] px-[3cqw] pb-[1cqw]">
+        <div className="absolute top-[55%] ml-[1.7cqw] flex -translate-y-full items-center gap-[1.5cqw] px-[3cqw] pb-[1cqw]">
           {typeIconPath && (
-            <img src={typeIconPath} alt="" className="size-[4cqw] brightness-0 invert" />
+            <GlyphIcon src={typeIconPath} tinted={tintIcons} className="size-[4cqw]" />
           )}
           {type && (
             <span className="relative inline-flex items-center pr-[1.5cqw] pl-[1cqw]">
               <span className="absolute inset-0 -skew-x-[15deg]" style={bgStyle} />
-              <span className="font-condensed relative text-[3cqw] font-semibold text-white uppercase italic">
+              <span className="font-condensed relative text-[3cqw] font-semibold tracking-tighter text-white uppercase italic">
                 {superTypes && superTypes.length > 0 ? `${superTypes.join(" ")} ${type}` : type}
               </span>
             </span>
@@ -149,7 +235,7 @@ export function CardPlaceholderImage({
           {tags?.map((tag) => (
             <span key={tag} className="relative inline-flex items-center pr-[1.5cqw] pl-[1cqw]">
               <span className="absolute inset-0 -skew-x-[15deg] bg-black/90" />
-              <span className="font-condensed relative text-[3cqw] font-semibold text-white uppercase italic">
+              <span className="font-condensed relative text-[3cqw] font-semibold tracking-tighter text-white uppercase italic">
                 {tag}
               </span>
             </span>
@@ -159,7 +245,7 @@ export function CardPlaceholderImage({
 
       {/* Card name bar */}
       <div
-        className="absolute inset-x-0 top-[55%] flex h-[12cqw] w-full items-center px-[10cqw]"
+        className="absolute inset-x-0 top-[55.25%] flex h-[12cqw] w-full items-center px-[10cqw]"
         style={bgStyle}
       >
         {name.includes(",") ? (
@@ -187,14 +273,14 @@ export function CardPlaceholderImage({
         <div className="card-text-scaled absolute inset-x-0 top-[67%] flex flex-col gap-[1.5cqw] px-[8cqw]">
           {/* Rules */}
           {rulesText && (
-            <p className="px-[2cqw] text-[3.5cqw] leading-[1.3] text-white/80">
+            <p className="px-[3cqw] text-[3.5cqw] leading-[1.3] text-white/80">
               <CardText text={rulesText} interactive={false} onDark />
             </p>
           )}
           {/* Effect + Might Bonus or Flavor Text + Might Bonus */}
           {(effectText || (mightBonus !== null && mightBonus !== undefined)) && (
             <div
-              className="mt-[2cqw] flex items-start gap-[2cqw] rounded-[1.5cqw] px-[2cqw] py-[1cqw]"
+              className="mt-[2cqw] flex items-start gap-[2cqw] rounded-[1.5cqw] px-[3cqw] py-[1cqw]"
               style={getDomainGradientStyle(domain, "30", domainColors)}
             >
               <div className="flex-1">
@@ -218,7 +304,7 @@ export function CardPlaceholderImage({
           )}
           {/* Flavor Text */}
           {(effectText || mightBonus === null || mightBonus === undefined) && flavorText && (
-            <p className="px-[2cqw] text-[3.5cqw] leading-[1.3] text-white/50 italic">
+            <p className="px-[3cqw] text-[3.5cqw] leading-[1.3] text-white/50 italic">
               {flavorText}
             </p>
           )}
@@ -226,7 +312,7 @@ export function CardPlaceholderImage({
       )}
 
       {/* Footer: rarity + meta line */}
-      <div className="absolute inset-x-0 bottom-[2%] flex flex-col items-center gap-[0.5cqw] px-[4cqw]">
+      <div className="absolute inset-x-0 bottom-[2%] flex flex-col items-center gap-[0.5cqw] px-[5cqw]">
         {rarity && (
           <img
             src={getFilterIconPath("rarities", rarity, { size: "full" })}
@@ -234,38 +320,38 @@ export function CardPlaceholderImage({
             className="size-[3cqw]"
           />
         )}
-        {(publicCode || artist) && (
-          <div className="flex w-full items-center justify-between text-[2.5cqw] text-white/70">
-            {publicCode && <span>{publicCode}</span>}
-            <span className="flex items-center gap-[1cqw]">
-              {artist && (
-                <>
-                  <img
-                    src="/images/artist.svg"
-                    alt=""
-                    className="size-[2.5cqw] opacity-70 brightness-0 invert"
+        {/* Always rendered with a fixed height so the rarity icon above keeps
+            its position even when code, artist, and domains are all empty. */}
+        <div className="flex h-[4cqw] w-full items-center justify-between text-[2.5cqw] text-white/70">
+          {publicCode && <span>{publicCode}</span>}
+          <span className="ml-auto flex items-center gap-[1cqw]">
+            {artist && (
+              <>
+                <GlyphIcon
+                  src="/images/artist.svg"
+                  tinted={tintIcons}
+                  className="size-[2.5cqw] opacity-70"
+                />
+                <span>{artist}</span>
+              </>
+            )}
+            {domain
+              .filter((d) => d !== WellKnown.domain.COLORLESS)
+              .map((d) => (
+                <span
+                  key={d}
+                  className="flex size-[4cqw] items-center justify-center rounded-full"
+                  style={getDomainGradientStyle([d], "", domainColors)}
+                >
+                  <GlyphIcon
+                    src={getFilterIconPath("domains", d)}
+                    tinted={tintIcons}
+                    className="size-[2.5cqw]"
                   />
-                  <span>{artist}</span>
-                </>
-              )}
-              {domain
-                .filter((d) => d !== WellKnown.domain.COLORLESS)
-                .map((d) => (
-                  <span
-                    key={d}
-                    className="flex size-[4cqw] items-center justify-center rounded-full"
-                    style={getDomainGradientStyle([d], "", domainColors)}
-                  >
-                    <img
-                      src={getFilterIconPath("domains", d)}
-                      alt=""
-                      className="size-[2.5cqw] brightness-0 invert"
-                    />
-                  </span>
-                ))}
-            </span>
-          </div>
-        )}
+                </span>
+              ))}
+          </span>
+        </div>
       </div>
     </div>
   );

@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  computeDomainDisabled,
   formatDomainDisplay,
   formatDomainFilterLabel,
   getDomainGradientStyle,
   getDomainTintStyle,
 } from "./domain";
+
+const DOMAIN_OPTIONS = ["fury", "calm", "mind", "body", "chaos", "order", "colorless"] as const;
 
 // ---------------------------------------------------------------------------
 // getDomainGradientStyle
@@ -112,5 +115,36 @@ describe("formatDomainFilterLabel", () => {
 
   it("returns the domain name as-is for other domains", () => {
     expect(formatDomainFilterLabel("fury")).toBe("fury");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeDomainDisabled
+// ---------------------------------------------------------------------------
+
+describe("computeDomainDisabled", () => {
+  it("disables nothing when no domain is selected, except never colorless either", () => {
+    expect(computeDomainDisabled([], DOMAIN_OPTIONS).size).toBe(0);
+  });
+
+  it("disables colorless once a real domain is picked", () => {
+    const disabled = computeDomainDisabled(["fury"], DOMAIN_OPTIONS);
+    expect(disabled.has("colorless")).toBe(true);
+    expect(disabled.has("mind")).toBe(false);
+  });
+
+  it("disables all unselected domains once two are picked", () => {
+    const disabled = computeDomainDisabled(["fury", "mind"], DOMAIN_OPTIONS);
+    expect(disabled.has("calm")).toBe(true);
+    expect(disabled.has("colorless")).toBe(true);
+    // selected ones remain enabled so they can be removed
+    expect(disabled.has("fury")).toBe(false);
+    expect(disabled.has("mind")).toBe(false);
+  });
+
+  it("disables every other domain when colorless is selected", () => {
+    const disabled = computeDomainDisabled(["colorless"], DOMAIN_OPTIONS);
+    expect(disabled.has("fury")).toBe(true);
+    expect(disabled.has("colorless")).toBe(false);
   });
 });

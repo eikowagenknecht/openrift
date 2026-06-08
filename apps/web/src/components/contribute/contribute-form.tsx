@@ -2,38 +2,24 @@ import type { SetListResponse } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { ChevronDownIcon, ExternalLinkIcon, LinkIcon, PlusIcon, Trash2Icon } from "lucide-react";
-import type { ReactNode } from "react";
 import { useState } from "react";
 
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
 import { CardTextInput } from "@/components/contribute/card-text-input";
+import {
+  ChipInput,
+  FieldRow,
+  MultiSelectDropdown,
+  NumberInput,
+  SingleSelect,
+} from "@/components/contribute/form-fields";
 import { Heading } from "@/components/heading";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import {
-  Combobox,
-  ComboboxChip,
-  ComboboxChips,
-  ComboboxChipsInput,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-  ComboboxTrigger,
-} from "@/components/ui/combobox";
-import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -55,6 +41,7 @@ import {
   nameToSlug,
   validateContribution,
 } from "@/lib/contribute-json";
+import { computeDomainDisabled } from "@/lib/domain";
 import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
@@ -341,34 +328,6 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
       </div>
     </form>
   );
-}
-
-const MAX_DOMAINS = 2;
-
-function computeDomainDisabled(
-  selected: string[],
-  options: readonly string[],
-): ReadonlySet<string> {
-  const disabled = new Set<string>();
-  const hasColorless = selected.includes(WellKnown.domain.COLORLESS);
-  const atMax = selected.length >= MAX_DOMAINS;
-  for (const slug of options) {
-    if (selected.includes(slug)) {
-      continue;
-    }
-    if (hasColorless) {
-      disabled.add(slug);
-      continue;
-    }
-    if (slug === WellKnown.domain.COLORLESS) {
-      if (selected.length > 0) {
-        disabled.add(slug);
-      }
-    } else if (atMax) {
-      disabled.add(slug);
-    }
-  }
-  return disabled;
 }
 
 const LAYOUT_LEGEND: { label: string; region: string }[] = [
@@ -716,183 +675,5 @@ function PrintingCard({
         </FieldRow>
       </CardContent>
     </Card>
-  );
-}
-
-function FieldRow({
-  label,
-  hint,
-  error,
-  required,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  error?: string;
-  required?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <Field data-invalid={error ? true : undefined}>
-      <FieldLabel>
-        {label}
-        {required && <span className="text-destructive"> *</span>}
-      </FieldLabel>
-      {children}
-      {hint && !error && <FieldDescription>{hint}</FieldDescription>}
-      {error && <FieldError>{error}</FieldError>}
-    </Field>
-  );
-}
-
-function NumberInput({
-  value,
-  onChange,
-}: {
-  value: number | null;
-  onChange: (next: number | null) => void;
-}) {
-  return (
-    <Input
-      type="number"
-      min={0}
-      value={value === null ? "" : value.toString()}
-      onChange={(e) => {
-        const next = e.target.value;
-        if (next === "") {
-          onChange(null);
-          return;
-        }
-        const parsed = Number.parseInt(next, 10);
-        onChange(Number.isNaN(parsed) ? null : parsed);
-      }}
-      className="[-moz-appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none"
-    />
-  );
-}
-
-function SingleSelect({
-  value,
-  onChange,
-  options,
-  labels,
-  placeholder,
-}: {
-  value: string | null;
-  onChange: (next: string | null) => void;
-  options: readonly string[];
-  labels: Record<string, string>;
-  placeholder: string;
-}) {
-  return (
-    <Select
-      value={value ?? ""}
-      onValueChange={(next: string | null) => onChange(next || null)}
-      items={options.map((slug) => ({ value: slug, label: labels[slug] ?? slug }))}
-    >
-      <SelectTrigger className="w-full">
-        <SelectValue placeholder={placeholder}>
-          {(current: string) => labels[current] ?? current}
-        </SelectValue>
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((slug) => (
-          <SelectItem key={slug} value={slug}>
-            {labels[slug] ?? slug}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
-function MultiSelectDropdown({
-  value,
-  onChange,
-  options,
-  placeholder,
-}: {
-  value: string[];
-  onChange: (next: string[]) => void;
-  options: { slug: string; label: string }[];
-  placeholder: string;
-}) {
-  const items = options.map((opt) => opt.slug);
-  const labelFor = (slug: string) => options.find((opt) => opt.slug === slug)?.label ?? slug;
-  const summary = value.length === 0 ? placeholder : value.map((slug) => labelFor(slug)).join(", ");
-  return (
-    <Combobox<string, true>
-      multiple
-      items={items}
-      value={value}
-      onValueChange={onChange}
-      itemToStringLabel={labelFor}
-    >
-      <ComboboxTrigger
-        render={<Button variant="outline" />}
-        className={cn(
-          "w-full justify-between font-normal",
-          value.length === 0 && "text-muted-foreground",
-        )}
-      >
-        <span className="truncate">{summary}</span>
-      </ComboboxTrigger>
-      <ComboboxContent className="w-72">
-        <ComboboxInput placeholder="Search markers…" showTrigger={false} />
-        <ComboboxEmpty>No matches.</ComboboxEmpty>
-        <ComboboxList>
-          {(slug: string) => (
-            <ComboboxItem key={slug} value={slug}>
-              {labelFor(slug)}
-            </ComboboxItem>
-          )}
-        </ComboboxList>
-      </ComboboxContent>
-    </Combobox>
-  );
-}
-
-function ChipInput({
-  value,
-  onChange,
-  placeholder,
-}: {
-  value: string[];
-  onChange: (next: string[]) => void;
-  placeholder: string;
-}) {
-  const [draft, setDraft] = useState("");
-  const commit = () => {
-    const trimmed = draft.trim();
-    if (trimmed && !value.includes(trimmed)) {
-      onChange([...value, trimmed]);
-    }
-    setDraft("");
-  };
-  return (
-    <Combobox<string, true>
-      multiple
-      items={value}
-      value={value}
-      onValueChange={onChange}
-      inputValue={draft}
-      onInputValueChange={setDraft}
-    >
-      <ComboboxChips>
-        {value.map((chip) => (
-          <ComboboxChip key={chip}>{chip}</ComboboxChip>
-        ))}
-        <ComboboxChipsInput
-          placeholder={value.length === 0 ? placeholder : ""}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === ",") {
-              event.preventDefault();
-              commit();
-            }
-          }}
-          onBlur={commit}
-        />
-      </ComboboxChips>
-    </Combobox>
   );
 }

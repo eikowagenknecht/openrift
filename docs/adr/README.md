@@ -47,3 +47,4 @@ The MADR documentation is available at <https://adr.github.io/madr/> while gener
 - **[ADR-015](015-preconstructed-product-catalog.md)**: Preconstructed Product Catalog
 - **[ADR-020](020-double-sided-token-data-model.md)**: Double-Sided Token Data Model
 - **[ADR-022](022-ffa-pod-pairing.md)**: FFA Pod Pairing for Multiplayer Tournaments
+- **[ADR-023](023-card-designer.md)**: Card Designer for Custom Riftbound Cards

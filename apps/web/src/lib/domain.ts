@@ -60,3 +60,40 @@ export function formatDomainDisplay(domains: string[], labels?: Record<string, s
 export function formatDomainFilterLabel(value: string, labels?: Record<string, string>): string {
   return value === WellKnown.domain.COLORLESS ? "None" : (labels?.[value] ?? value);
 }
+
+/** A card can carry at most this many domains. */
+export const MAX_DOMAINS = 2;
+
+/**
+ * Given the currently-selected domains, returns the set of options that should
+ * be disabled in a multi-select: colorless is mutually exclusive with every
+ * other domain, and otherwise no more than `MAX_DOMAINS` may be picked.
+ * Already-selected options are never disabled (so they can be removed).
+ *
+ * @returns The set of domain slugs to disable.
+ */
+export function computeDomainDisabled(
+  selected: string[],
+  options: readonly string[],
+): ReadonlySet<string> {
+  const disabled = new Set<string>();
+  const hasColorless = selected.includes(WellKnown.domain.COLORLESS);
+  const atMax = selected.length >= MAX_DOMAINS;
+  for (const slug of options) {
+    if (selected.includes(slug)) {
+      continue;
+    }
+    if (hasColorless) {
+      disabled.add(slug);
+      continue;
+    }
+    if (slug === WellKnown.domain.COLORLESS) {
+      if (selected.length > 0) {
+        disabled.add(slug);
+      }
+    } else if (atMax) {
+      disabled.add(slug);
+    }
+  }
+  return disabled;
+}

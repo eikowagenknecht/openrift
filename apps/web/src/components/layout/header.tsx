@@ -16,6 +16,7 @@ import {
   MessageSquareIcon,
   MoonIcon,
   PackagePlusIcon,
+  PaletteIcon,
   PencilLineIcon,
   ShieldIcon,
   SparklesIcon,
@@ -228,6 +229,17 @@ function DesktopNav({
                     <div className="font-medium">Pack opener</div>
                     <div className="text-muted-foreground text-xs">
                       Simulate opening boosters with real pull rates
+                    </div>
+                  </div>
+                </NavigationMenuLink>
+              </li>
+              <li>
+                <NavigationMenuLink closeOnClick render={<Link to="/card-designer" />}>
+                  <PaletteIcon />
+                  <div>
+                    <div className="font-medium">Card designer</div>
+                    <div className="text-muted-foreground text-xs">
+                      Make a custom card with your own background image
                     </div>
                   </div>
                 </NavigationMenuLink>
@@ -494,6 +506,12 @@ function MobileNav({
             icon={<PackagePlusIcon className="text-muted-foreground size-5" />}
           >
             Pack opener
+          </MobileNavLink>
+          <MobileNavLink
+            to="/card-designer"
+            icon={<PaletteIcon className="text-muted-foreground size-5" />}
+          >
+            Card designer
           </MobileNavLink>
           <MobileNavLink
             to="/match-tracker"
