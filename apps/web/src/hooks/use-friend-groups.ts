@@ -215,6 +215,20 @@ export function useFriendGroups() {
   return useSuspenseQuery(friendGroupsQueryOptions(userId));
 }
 
+/**
+ * Non-suspending variant of {@link useFriendGroups} for surfaces that fetch the
+ * viewer's groups opportunistically and must not suspend their subtree — e.g.
+ * the create-list dialog's optional "share with groups" section, which is only
+ * relevant while the dialog is open.
+ * @param enabled Whether to run the query (gate on the dialog's open state to
+ *   avoid an always-on fetch).
+ * @returns The query result; `data` is undefined until the groups load.
+ */
+export function useFriendGroupsList(enabled: boolean) {
+  const userId = useRequiredUserId();
+  return useQuery({ ...friendGroupsQueryOptions(userId), enabled });
+}
+
 export function useFriendGroupDetail(slug: string) {
   const userId = useRequiredUserId();
   return useSuspenseQuery(friendGroupDetailQueryOptions(userId, slug));

@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { TradePreferenceEditor } from "@/components/trade-preferences/trade-preference-editor";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useFriendGroupsList, useShareListWithFriendGroup } from "@/hooks/use-friend-groups";
 import { useBulkAddListEntries, useCreateList } from "@/hooks/use-lists";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -150,8 +152,15 @@ export function CreateListDialog({
   const defaultCurrency = useDisplayStore((s) => s.defaultCurrency);
   const [tradeDefaults, setTradeDefaults] = useState<TradePreference>(EMPTY_TRADE_PREFERENCE);
   const [currency, setCurrency] = useState<Currency>(defaultCurrency);
+  // Tracks groups the user has *unchecked*. Defaulting to an empty set means
+  // every group is selected on open, which nudges sharing without forcing it.
+  const [deselectedGroupIds, setDeselectedGroupIds] = useState<Set<string>>(new Set());
   const createList = useCreateList();
   const bulkAdd = useBulkAddListEntries();
+  const shareWithGroup = useShareListWithFriendGroup();
+  // Only fetched while the dialog is open; non-suspending so it never blocks
+  // the rest of the dialog from rendering.
+  const groups = useFriendGroupsList(open).data?.items ?? [];
 
   const supportsPrefs = intent !== "organize";
   const absoluteNeedsAmount =
@@ -164,13 +173,20 @@ export function CreateListDialog({
       setKind(availableKinds[0] ?? "card");
       setTradeDefaults(EMPTY_TRADE_PREFERENCE);
       setCurrency(defaultCurrency);
+      setDeselectedGroupIds(new Set());
     }
     onOpenChange(next);
   };
 
   const handleSubmit = () => {
     const trimmed = name.trim();
-    if (!trimmed || createList.isPending || bulkAdd.isPending || absoluteNeedsAmount) {
+    if (
+      !trimmed ||
+      createList.isPending ||
+      bulkAdd.isPending ||
+      shareWithGroup.isPending ||
+      absoluteNeedsAmount
+    ) {
       return;
     }
     createList.mutate(
@@ -189,6 +205,17 @@ export function CreateListDialog({
           const entries = initialEntries?.(kind) ?? [];
           if (entries.length > 0) {
             await bulkAdd.mutateAsync({ listId: list.id, entries });
+          }
+          // Share with every still-checked group (default: all). A failed
+          // share doesn't block creation — the list exists and can be shared
+          // later from its share dialog.
+          const selectedGroups = groups.filter((group) => !deselectedGroupIds.has(group.id));
+          if (selectedGroups.length > 0) {
+            await Promise.allSettled(
+              selectedGroups.map((group) =>
+                shareWithGroup.mutateAsync({ slug: group.slug, listId: list.id }),
+              ),
+            );
           }
           onCreated?.(list.id);
           handleOpenChange(false);
@@ -283,19 +310,62 @@ export function CreateListDialog({
               />
             </div>
           )}
+          {groups.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                Share with friend groups
+              </div>
+              <div className="text-muted-foreground text-xs">
+                Members of the selected groups can view this list. You can change this later.
+              </div>
+              <ul className="flex flex-col gap-2">
+                {groups.map((group) => {
+                  const checkboxId = `create-list-group-${group.id}`;
+                  const isSelected = !deselectedGroupIds.has(group.id);
+                  return (
+                    <li key={group.id} className="flex items-center gap-2">
+                      <Checkbox
+                        id={checkboxId}
+                        checked={isSelected}
+                        disabled={createList.isPending || bulkAdd.isPending}
+                        onCheckedChange={(checked) => {
+                          setDeselectedGroupIds((prev) => {
+                            const next = new Set(prev);
+                            if (checked === false) {
+                              next.add(group.id);
+                            } else {
+                              next.delete(group.id);
+                            }
+                            return next;
+                          });
+                        }}
+                      />
+                      <label htmlFor={checkboxId} className="cursor-pointer text-sm">
+                        {group.name}
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
           <DialogFooter>
             <Button
               type="button"
               variant="ghost"
               onClick={() => handleOpenChange(false)}
-              disabled={createList.isPending || bulkAdd.isPending}
+              disabled={createList.isPending || bulkAdd.isPending || shareWithGroup.isPending}
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={
-                !name.trim() || createList.isPending || bulkAdd.isPending || absoluteNeedsAmount
+                !name.trim() ||
+                createList.isPending ||
+                bulkAdd.isPending ||
+                shareWithGroup.isPending ||
+                absoluteNeedsAmount
               }
             >
               Create

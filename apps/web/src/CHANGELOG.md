@@ -2,6 +2,7 @@
 
 ## 2026-06-08
 
+- feat: When you create a wishlist (or any list), you can now pick which friend groups to share it with right in the create dialog. Every group is selected by default, so a new list is shared as soon as you create it unless you uncheck some
 - feat: The card filters now include a Copies slider that narrows the view by how many copies you own, with a from and to range, alongside the existing Owned filter. It's available on the cards page, in the deck builder, and in your collections
 - feat: Join requests waiting for your approval now show up in two places: a count badge on the Groups item in the main navigation, and a badge under the group's name (like "3 join requests") that takes you to the member list when clicked
 - feat: The filter panel now has a "Customize filters" option at the bottom where you pick which filters you want to see and hide the rest to cut the clutter. Set, Domain, Rarity, and Type always stay visible, and your choice carries across devices when you're signed in
