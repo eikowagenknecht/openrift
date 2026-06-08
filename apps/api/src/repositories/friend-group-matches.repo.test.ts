@@ -161,3 +161,81 @@ describe("friendGroupMatchesRepo", () => {
     expect(resolved?.sellPref.priceAbsoluteCents).toBeNull();
   });
 });
+
+describe("recentIncomingMatchesForFeed", () => {
+  const FEED_ROW = {
+    counterpartyUserId: "u-seller",
+    counterpartyName: "Alice",
+    counterpartyImage: null,
+    counterpartyEmail: "alice@example.com",
+    printingId: "prt-1",
+    cardId: "crd-1",
+    matchedAt: new Date("2026-06-01T00:00:00.000Z"),
+  };
+
+  it("maps a row to the feed shape with a derived gravatar hash", async () => {
+    const repo = friendGroupMatchesRepo(createMockDb([FEED_ROW]));
+    const rows = await repo.recentIncomingMatchesForFeed({
+      groupId: "grp-1",
+      viewerUserId: "u-buyer",
+      limit: 10,
+    });
+    expect(rows).toEqual([
+      {
+        counterpartyUserId: "u-seller",
+        counterpartyName: "Alice",
+        counterpartyImage: null,
+        counterpartyGravatarHash: gravatarHashForEmail("alice@example.com"),
+        printingId: "prt-1",
+        cardId: "crd-1",
+        matchedAt: new Date("2026-06-01T00:00:00.000Z"),
+      },
+    ]);
+  });
+
+  it("dedupes by (counterparty, printing), keeping the latest matchedAt", async () => {
+    const older = { ...FEED_ROW, matchedAt: new Date("2026-05-01T00:00:00.000Z") };
+    const newer = { ...FEED_ROW, matchedAt: new Date("2026-06-02T00:00:00.000Z") };
+    const repo = friendGroupMatchesRepo(createMockDb([older, newer]));
+    const rows = await repo.recentIncomingMatchesForFeed({
+      groupId: "g",
+      viewerUserId: "v",
+      limit: 10,
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.matchedAt).toEqual(new Date("2026-06-02T00:00:00.000Z"));
+  });
+
+  it("keeps distinct (counterparty, printing) pairs separate, newest first", async () => {
+    const a = { ...FEED_ROW, printingId: "prt-a", matchedAt: new Date("2026-06-01T00:00:00.000Z") };
+    const b = {
+      ...FEED_ROW,
+      counterpartyUserId: "u-other",
+      counterpartyEmail: "bob@example.com",
+      printingId: "prt-b",
+      matchedAt: new Date("2026-06-05T00:00:00.000Z"),
+    };
+    const repo = friendGroupMatchesRepo(createMockDb([a, b]));
+    const rows = await repo.recentIncomingMatchesForFeed({
+      groupId: "g",
+      viewerUserId: "v",
+      limit: 10,
+    });
+    expect(rows.map((row) => row.printingId)).toEqual(["prt-b", "prt-a"]);
+  });
+
+  it("respects the limit after sorting newest first", async () => {
+    const rowsIn = [
+      { ...FEED_ROW, printingId: "p1", matchedAt: new Date("2026-06-01T00:00:00.000Z") },
+      { ...FEED_ROW, printingId: "p2", matchedAt: new Date("2026-06-02T00:00:00.000Z") },
+      { ...FEED_ROW, printingId: "p3", matchedAt: new Date("2026-06-03T00:00:00.000Z") },
+    ];
+    const repo = friendGroupMatchesRepo(createMockDb(rowsIn));
+    const rows = await repo.recentIncomingMatchesForFeed({
+      groupId: "g",
+      viewerUserId: "v",
+      limit: 2,
+    });
+    expect(rows.map((row) => row.printingId)).toEqual(["p3", "p2"]);
+  });
+});

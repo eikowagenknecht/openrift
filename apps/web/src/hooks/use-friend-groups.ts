@@ -1,4 +1,5 @@
 import type {
+  FriendGroupActivityResponse,
   FriendGroupDetailResponse,
   FriendGroupJoinPreviewResponse,
   FriendGroupListResponse,
@@ -81,6 +82,19 @@ const fetchGroupMatches = createServerFn({ method: "GET" })
           param: encodeParams({ slug }),
         }),
         "Couldn't load matches",
+      ),
+  );
+
+const fetchGroupActivity = createServerFn({ method: "GET" })
+  .validator((input: string) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data: slug }): Promise<FriendGroupActivityResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].activity.$get({
+          param: encodeParams({ slug }),
+        }),
+        "Couldn't load activity",
       ),
   );
 
@@ -237,6 +251,16 @@ export function useFriendGroupDetail(slug: string) {
 export function useFriendGroupMatches(slug: string) {
   const userId = useRequiredUserId();
   return useSuspenseQuery(friendGroupMatchesQueryOptions(userId, slug));
+}
+
+export function useFriendGroupActivity(slug: string) {
+  const userId = useRequiredUserId();
+  return useSuspenseQuery(
+    queryOptions({
+      queryKey: queryKeys.friendGroups.activity(userId, slug),
+      queryFn: () => fetchGroupActivity({ data: slug }),
+    }),
+  );
 }
 
 export function useFriendGroupMemberDetail(slug: string, memberUserId: string) {

@@ -22,6 +22,33 @@ export function tradeSection(trade: CardTradeResponse): TradeSection {
   return "history";
 }
 
+function liveTradeKey(counterpartyUserId: string, printingId: string): string {
+  return `${counterpartyUserId}:${printingId}`;
+}
+
+/**
+ * Drops match rows that already have a live (pending or reserved) trade with the
+ * same member for the same printing, so a suggestion and its in-progress trade
+ * don't both appear on the Trades page. Matched on (counterparty, printing)
+ * regardless of direction; only `counterpartyUserId` and `printingId` are read
+ * from each match, so callers can pass full match rows or minimal stubs.
+ * @param matches The match rows to filter.
+ * @param trades The viewer's trades in the group.
+ * @returns The matches with live-trade duplicates removed.
+ */
+export function withoutLiveTradeMatches<
+  TMatch extends { counterpartyUserId: string; printingId: string },
+>(matches: readonly TMatch[], trades: readonly CardTradeResponse[]): TMatch[] {
+  const live = new Set(
+    trades
+      .filter((trade) => trade.status === "pending" || trade.status === "reserved")
+      .map((trade) => liveTradeKey(trade.counterparty.userId, trade.printingId)),
+  );
+  return matches.filter(
+    (match) => !live.has(liveTradeKey(match.counterpartyUserId, match.printingId)),
+  );
+}
+
 /** @returns A short human label for a trade status. */
 export function tradeStatusLabel(status: CardTradeResponse["status"]): string {
   switch (status) {

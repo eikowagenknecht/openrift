@@ -189,6 +189,8 @@ export type {
   PublicUserBundleCollectionResponse,
   PublicUserBundleResponse,
   UserShareStateResponse,
+  FriendGroupActivityEvent,
+  FriendGroupActivityResponse,
   FriendGroupDetailResponse,
   FriendGroupInviteDirection,
   FriendGroupJoinPreviewResponse,

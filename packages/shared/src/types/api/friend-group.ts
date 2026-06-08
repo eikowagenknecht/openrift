@@ -68,6 +68,8 @@ export interface FriendGroupCollectionShareResponse {
   userId: string;
   userName: string | null;
   sharedAt: string;
+  /** Total copies in the shared collection. */
+  copyCount: number;
 }
 
 export interface FriendGroupRequestResponse {
@@ -182,6 +184,73 @@ export interface FriendGroupMemberDetailResponse {
   collectionShares: FriendGroupCollectionShareResponse[];
   matches: FriendGroupMatchRow[];
   reverseMatches: FriendGroupMatchRow[];
+}
+
+/**
+ * One entry in a group's activity feed. A discriminated union over `kind`;
+ * `at` is the ISO timestamp the feed sorts by (newest first).
+ *
+ * Card-bearing kinds (`trade-completed`, `match`) carry only `printingId` /
+ * `cardId` — the client resolves the card name and image from its loaded
+ * catalogue, the same way the trades and matches lists do.
+ *
+ * `match` is the one approximate kind: matches aren't stored, so `at` is the
+ * latest of the timestamps that made the match possible (when both lists were
+ * shared and both entries / the copy were created). It surfaces the viewer's
+ * *incoming* matches only ("others now have something you want").
+ */
+export type FriendGroupActivityEvent =
+  | {
+      kind: "trade-completed";
+      at: string;
+      tradeId: string;
+      printingId: string;
+      cardId: string;
+      quantity: number;
+      giverUserId: string;
+      giverName: string | null;
+      receiverUserId: string;
+      receiverName: string | null;
+    }
+  | {
+      kind: "member-joined";
+      at: string;
+      userId: string;
+      userName: string | null;
+      userImage: string | null;
+      gravatarHash: string;
+    }
+  | {
+      kind: "list-shared";
+      at: string;
+      userId: string;
+      userName: string | null;
+      listId: string;
+      listName: string;
+      listIntent: ListIntent;
+      listKind: ListKind;
+    }
+  | {
+      kind: "collection-shared";
+      at: string;
+      userId: string;
+      userName: string | null;
+      collectionId: string;
+      collectionName: string;
+    }
+  | {
+      kind: "match";
+      at: string;
+      counterpartyUserId: string;
+      counterpartyName: string | null;
+      counterpartyImage: string | null;
+      counterpartyGravatarHash: string;
+      printingId: string;
+      cardId: string;
+    };
+
+export interface FriendGroupActivityResponse {
+  events: FriendGroupActivityEvent[];
 }
 
 export interface FriendGroupPendingInvitesCountResponse {

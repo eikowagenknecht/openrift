@@ -188,9 +188,10 @@ interface TradesSectionProps {
 }
 
 /**
- * The per-group Trades tab: the viewer's trades in this group, bucketed into
- * Action needed / Active / History.
- * @returns The trades-tab content.
+ * The viewer's trades in this group, bucketed into Action needed / In progress /
+ * Completed. Rendered below the Possible trades section on the Trades page, so
+ * the empty-state copy can point the viewer back up to the suggestions.
+ * @returns The trades content.
  */
 export function TradesSection({ groupId }: TradesSectionProps) {
   const { data } = useGroupTrades(groupId);
@@ -200,8 +201,8 @@ export function TradesSection({ groupId }: TradesSectionProps) {
   if (trades.length === 0) {
     return (
       <p className="text-muted-foreground">
-        No trades in this group yet. Find a match in the Trading tab and send a request to get
-        started.
+        No trades in this group yet. When you request one of the suggestions above, it&apos;ll show
+        up here.
       </p>
     );
   }
@@ -213,8 +214,8 @@ export function TradesSection({ groupId }: TradesSectionProps) {
   return (
     <div className="flex flex-col gap-8">
       <TradeGroup heading="Action needed" trades={actionNeeded} />
-      <TradeGroup heading="Active" trades={active} />
-      <TradeGroup heading="History" trades={history} />
+      <TradeGroup heading="In progress" trades={active} />
+      <TradeGroup heading="Completed" trades={history} />
     </div>
   );
 }

@@ -1,22 +1,19 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { FriendGroupPage } from "@/components/friend-groups/friend-group-page";
+import { OverviewContent } from "@/components/friend-groups/friend-group-overview";
+import { FriendGroupPageFrame } from "@/components/friend-groups/friend-group-shell";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/groups/$slug")({
-  component: GroupDetailRoute,
+  component: GroupOverviewRoute,
 });
 
-function GroupDetailRoute() {
+function GroupOverviewRoute() {
   const { slug } = Route.useParams();
-  const { tab } = Route.useSearch();
-  const navigate = Route.useNavigate();
   return (
-    <FriendGroupPage
+    <FriendGroupPageFrame
       slug={slug}
-      tab={tab}
-      onTabChange={(next) =>
-        void navigate({ search: (prev) => ({ ...prev, tab: next }), replace: true })
-      }
+      active="overview"
+      render={(data) => <OverviewContent slug={slug} data={data} />}
     />
   );
 }

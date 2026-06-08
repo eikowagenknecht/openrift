@@ -9,6 +9,7 @@ import { useFriendGroupMemberDetail } from "@/hooks/use-friend-groups";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
 import { MatchTradeList } from "./match-row-card";
+import { SharedCollectionRow } from "./shared-collection-row";
 import { SharedListRow } from "./shared-list-row";
 
 interface MemberDetailPageProps {
@@ -33,6 +34,10 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
 
   const sortedShares = data.shares.toSorted((a, b) => a.listName.localeCompare(b.listName));
   const hasShares = sortedShares.length > 0;
+  const sortedCollections = data.collectionShares.toSorted((a, b) =>
+    a.collectionName.localeCompare(b.collectionName),
+  );
+  const hasCollections = sortedCollections.length > 0;
 
   return (
     <div className={cn("mx-auto flex w-full max-w-4xl flex-col gap-6", PAGE_PADDING)}>
@@ -76,36 +81,52 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
         </section>
       ) : null}
 
-      {hasShares ? (
-        LIST_SECTIONS.map(({ intent, heading }) => {
-          const sectionShares = sortedShares.filter((share) => share.listIntent === intent);
-          if (sectionShares.length === 0) {
-            return null;
-          }
-          return (
-            <section key={intent} className="flex flex-col gap-3">
-              <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-                {heading}
-              </h2>
-              <div className="flex flex-col gap-2">
-                {sectionShares.map((share) => (
-                  <SharedListRow
-                    key={share.listId}
-                    slug={slug}
-                    member={member}
-                    share={share}
-                    showMember={false}
-                  />
-                ))}
-              </div>
-            </section>
-          );
-        })
-      ) : (
+      {hasCollections ? (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
+            Collections
+          </h2>
+          <div className="flex flex-col gap-2">
+            {sortedCollections.map((share) => (
+              <SharedCollectionRow key={share.collectionId} slug={slug} share={share} />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {hasShares
+        ? LIST_SECTIONS.map(({ intent, heading }) => {
+            const sectionShares = sortedShares.filter((share) => share.listIntent === intent);
+            if (sectionShares.length === 0) {
+              return null;
+            }
+            return (
+              <section key={intent} className="flex flex-col gap-3">
+                <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
+                  {heading}
+                </h2>
+                <div className="flex flex-col gap-2">
+                  {sectionShares.map((share) => (
+                    <SharedListRow
+                      key={share.listId}
+                      slug={slug}
+                      member={member}
+                      share={share}
+                      showMember={false}
+                    />
+                  ))}
+                </div>
+              </section>
+            );
+          })
+        : null}
+
+      {!hasShares && !hasCollections ? (
         <p className="text-muted-foreground">
-          {member.userName ?? "This member"} hasn&apos;t shared any lists with this group yet.
+          {member.userName ?? "This member"} hasn&apos;t shared any collections or lists with this
+          group yet.
         </p>
-      )}
+      ) : null}
     </div>
   );
 }

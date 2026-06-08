@@ -627,6 +627,7 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         collectionName: string;
         collectionSortOrder: number;
         userName: string | null;
+        copyCount: number;
       })[]
     > {
       return db
@@ -638,6 +639,10 @@ export function friendGroupsRepo(db: Kysely<Database>) {
           "c.name as collectionName",
           "c.sortOrder as collectionSortOrder",
           "u.name as userName",
+          // Total copies in the collection (cast to int — count() is bigint).
+          sql<number>`(select count(*)::int from copies cp where cp.collection_id = s.collection_id)`.as(
+            "copyCount",
+          ),
         ])
         .where("s.groupId", "=", groupId)
         .orderBy("u.name", "asc")

@@ -119,6 +119,8 @@ export type {
 } from "./user-share.js";
 
 export type {
+  FriendGroupActivityEvent,
+  FriendGroupActivityResponse,
   FriendGroupDetailResponse,
   FriendGroupInviteDirection,
   FriendGroupJoinPreviewResponse,

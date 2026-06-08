@@ -84,7 +84,8 @@ export function RequestTradeDialog({
               max={maxQuantity}
               value={quantity}
               aria-label="Quantity"
-              className="w-16 text-center"
+              // Hide the native number spinners — the +/- buttons drive the value.
+              className="w-16 [appearance:textfield] text-center [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               onChange={(event) => setQuantity(clamp(Number(event.target.value)))}
             />
             <Button
@@ -101,7 +102,7 @@ export function RequestTradeDialog({
         </div>
         <p className="text-muted-foreground text-sm">
           {mode === "offer"
-            ? `They want ${demandQuantity} · you have ${availableCount}`
+            ? `They want ${demandQuantity}, you have ${availableCount}`
             : `You want ${demandQuantity} · ${availableCount} available`}
         </p>
 

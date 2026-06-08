@@ -67,6 +67,22 @@ interface MatchScope {
 }
 
 /**
+ * A deduped incoming match for the activity feed: someone in the group has a
+ * card the viewer wants. `matchedAt` is the *latest* of the timestamps that
+ * made the match possible (both lists shared, both entries / the copy created),
+ * standing in for the unstored "when did this match appear" moment.
+ */
+export interface IncomingMatchFeedRow {
+  counterpartyUserId: string;
+  counterpartyName: string | null;
+  counterpartyImage: string | null;
+  counterpartyGravatarHash: string;
+  printingId: string;
+  cardId: string;
+  matchedAt: Date;
+}
+
+/**
  * Match-view queries for ADR-013 friend groups. Computed at read time, never
  * materialised — see the ADR's _Match view_ section.
  *
@@ -102,7 +118,109 @@ export function friendGroupMatchesRepo(db: Kysely<Database>) {
     othersWantYourHaves(scope: MatchScope): Promise<MatchRow[]> {
       return runMatchQuery(db, scope, "others-want-your-haves");
     },
+
+    /**
+     * The viewer's *incoming* matches (others have what the viewer wants),
+     * deduped to one row per (counterparty, printing) and dated by the latest
+     * contributing timestamp. Newest first. Powers the "new match for you"
+     * activity-feed entries.
+     * @returns Deduped incoming match feed rows, newest match first.
+     */
+    recentIncomingMatchesForFeed(scope: {
+      groupId: string;
+      viewerUserId: string;
+      limit: number;
+    }): Promise<IncomingMatchFeedRow[]> {
+      return runIncomingMatchFeedQuery(db, scope);
+    },
   };
+}
+
+async function runIncomingMatchFeedQuery(
+  db: Kysely<Database>,
+  scope: { groupId: string; viewerUserId: string; limit: number },
+): Promise<IncomingMatchFeedRow[]> {
+  // Same join skeleton as `others-have-your-wants` (seller = counterparty,
+  // buyer = viewer), trimmed to feed columns plus a `matchedAt` proxy.
+  const rows = await db
+    .selectFrom("friendGroupListShares as s_sell")
+    .innerJoin("lists as l_sell", "l_sell.id", "s_sell.listId")
+    .innerJoin("listEntries as le_sell", "le_sell.listId", "l_sell.id")
+    .innerJoin("copies as cp", "cp.id", "le_sell.copyId")
+    .innerJoin("printings as p", "p.id", "cp.printingId")
+    .innerJoin("friendGroupListShares as s_buy", (join) =>
+      join.onRef("s_buy.groupId", "=", "s_sell.groupId"),
+    )
+    .innerJoin("lists as l_buy", (join) =>
+      join.onRef("l_buy.id", "=", "s_buy.listId").on("l_buy.intent", "=", "wish"),
+    )
+    .innerJoin("listEntries as le_buy", "le_buy.listId", "l_buy.id")
+    .innerJoin("users as cp_user", "cp_user.id", "s_sell.userId")
+    .where("s_sell.groupId", "=", scope.groupId)
+    .where("l_sell.intent", "=", "trade")
+    .where("le_sell.kind", "=", "copy")
+    .where("s_buy.userId", "=", scope.viewerUserId)
+    .where("s_sell.userId", "<>", scope.viewerUserId)
+    // ADR-019: copies reserved by a live trade are invisible.
+    .where((eb) =>
+      eb.not(
+        eb.exists(
+          eb
+            .selectFrom("cardTradeCopies as ctc")
+            .select(sql`1`.as("one"))
+            .whereRef("ctc.copyId", "=", "cp.id"),
+        ),
+      ),
+    )
+    .where((eb) =>
+      eb.or([
+        eb.and([
+          eb("le_buy.kind", "=", "card"),
+          eb(eb.ref("le_buy.cardId"), "=", eb.ref("p.cardId")),
+        ]),
+        eb.and([
+          eb("le_buy.kind", "=", "printing"),
+          eb(eb.ref("le_buy.printingId"), "=", eb.ref("cp.printingId")),
+        ]),
+      ]),
+    )
+    .select((eb) => [
+      eb.ref("s_sell.userId").as("counterpartyUserId"),
+      eb.ref("cp_user.name").as("counterpartyName"),
+      eb.ref("cp_user.image").as("counterpartyImage"),
+      eb.ref("cp_user.email").as("counterpartyEmail"),
+      eb.ref("cp.printingId").as("printingId"),
+      eb.ref("p.cardId").as("cardId"),
+      sql<Date>`greatest(s_sell.shared_at, s_buy.shared_at, cp.created_at, le_buy.created_at, le_sell.created_at)`.as(
+        "matchedAt",
+      ),
+    ])
+    .execute();
+
+  // Dedupe to one row per (counterparty, printing), keeping the latest
+  // `matchedAt`. Counts in a friend group are small, so a JS pass is simpler
+  // and cheaper than DISTINCT ON here.
+  const byKey = new Map<string, IncomingMatchFeedRow>();
+  for (const row of rows) {
+    const key = `${row.counterpartyUserId as string}:${row.printingId}`;
+    const matchedAt = row.matchedAt;
+    const existing = byKey.get(key);
+    if (existing && existing.matchedAt >= matchedAt) {
+      continue;
+    }
+    byKey.set(key, {
+      counterpartyUserId: row.counterpartyUserId as string,
+      counterpartyName: row.counterpartyName,
+      counterpartyImage: row.counterpartyImage,
+      counterpartyGravatarHash: gravatarHashForEmail(row.counterpartyEmail),
+      printingId: row.printingId,
+      cardId: row.cardId,
+      matchedAt,
+    });
+  }
+  return [...byKey.values()]
+    .sort((a, b) => b.matchedAt.getTime() - a.matchedAt.getTime())
+    .slice(0, scope.limit);
 }
 
 type MatchDirection = "others-have-your-wants" | "others-want-your-haves";

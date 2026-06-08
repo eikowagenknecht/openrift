@@ -3,6 +3,8 @@
 ## 2026-06-08
 
 - feat: A new Card Designer lets you make your own Riftbound-style card with your own background image. Pick a photo, position and zoom it, fill in the details, then download the card as an image or copy it to the clipboard to share. Everything stays in your browser
+- feat: Each group now opens to an overview with quick links to its trades, shared cards, and members, plus a recent-activity feed showing completed trades, new matches for you, shared lists and collections, and members joining
+- feat: A group's suggested trades and your in-progress trades now share one Trades page, replacing the easily-confused "Trading" and "Trades" tabs, and the group's cards and lists live together on a Shared page
 - feat: When you create a wishlist (or any list), you can now pick which friend groups to share it with right in the create dialog. Every group is selected by default, so a new list is shared as soon as you create it unless you uncheck some
 - feat: The card filters now include a Copies slider that narrows the view by how many copies you own, with a from and to range, alongside the existing Owned filter. It's available on the cards page, in the deck builder, and in your collections
 - feat: Join requests waiting for your approval now show up in two places: a count badge on the Groups item in the main navigation, and a badge under the group's name (like "3 join requests") that takes you to the member list when clicked

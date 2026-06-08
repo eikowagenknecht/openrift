@@ -1186,6 +1186,7 @@ const friendGroupCollectionShareResponseSchema = z
     userId: z.string(),
     userName: z.string().nullable(),
     sharedAt: z.string(),
+    copyCount: z.number().int().nonnegative(),
   })
   .openapi("FriendGroupCollectionShareResponse");
 
@@ -1305,6 +1306,63 @@ export const friendGroupMemberDetailResponseSchema = z
     reverseMatches: z.array(friendGroupMatchRowSchema),
   })
   .openapi("FriendGroupMemberDetailResponse");
+
+const friendGroupActivityEventSchema = z
+  .discriminatedUnion("kind", [
+    z.object({
+      kind: z.literal("trade-completed"),
+      at: z.string(),
+      tradeId: z.string(),
+      printingId: z.string(),
+      cardId: z.string(),
+      quantity: z.number().int().positive(),
+      giverUserId: z.string(),
+      giverName: z.string().nullable(),
+      receiverUserId: z.string(),
+      receiverName: z.string().nullable(),
+    }),
+    z.object({
+      kind: z.literal("member-joined"),
+      at: z.string(),
+      userId: z.string(),
+      userName: z.string().nullable(),
+      userImage: z.string().nullable(),
+      gravatarHash: z.string(),
+    }),
+    z.object({
+      kind: z.literal("list-shared"),
+      at: z.string(),
+      userId: z.string(),
+      userName: z.string().nullable(),
+      listId: z.string(),
+      listName: z.string(),
+      listIntent: z.enum(["wish", "trade", "organize"]),
+      listKind: z.enum(["card", "printing", "copy"]),
+    }),
+    z.object({
+      kind: z.literal("collection-shared"),
+      at: z.string(),
+      userId: z.string(),
+      userName: z.string().nullable(),
+      collectionId: z.string(),
+      collectionName: z.string(),
+    }),
+    z.object({
+      kind: z.literal("match"),
+      at: z.string(),
+      counterpartyUserId: z.string(),
+      counterpartyName: z.string().nullable(),
+      counterpartyImage: z.string().nullable(),
+      counterpartyGravatarHash: z.string(),
+      printingId: z.string(),
+      cardId: z.string(),
+    }),
+  ])
+  .openapi("FriendGroupActivityEvent");
+
+export const friendGroupActivityResponseSchema = z
+  .object({ events: z.array(friendGroupActivityEventSchema) })
+  .openapi("FriendGroupActivityResponse");
 
 export const friendGroupPendingInvitesCountResponseSchema = z
   .object({ count: z.number().int().nonnegative() })

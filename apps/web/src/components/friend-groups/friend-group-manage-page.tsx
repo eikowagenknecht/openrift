@@ -56,7 +56,7 @@ import {
 import { getSiteUrl } from "@/lib/site-config";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
-import { isAdmin } from "./friend-group-page";
+import { isAdmin } from "./friend-group-shell";
 
 const INTENT_LABEL: Record<ListIntent, string> = {
   wish: "Wishlist",

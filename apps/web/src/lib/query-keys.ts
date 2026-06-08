@@ -102,6 +102,8 @@ export const queryKeys = {
     all: (userId: string) => ["friend-groups", userId] as const,
     detail: (userId: string, slug: string) => ["friend-groups", userId, slug] as const,
     matches: (userId: string, slug: string) => ["friend-groups", userId, slug, "matches"] as const,
+    activity: (userId: string, slug: string) =>
+      ["friend-groups", userId, slug, "activity"] as const,
     memberDetail: (userId: string, slug: string, memberId: string) =>
       ["friend-groups", userId, slug, "members", memberId] as const,
     shareableLists: (userId: string, slug: string) =>

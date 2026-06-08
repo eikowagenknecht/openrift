@@ -35,6 +35,19 @@ export interface TradeListFilters {
   status?: CardTradeStatus;
 }
 
+/** A completed trade in a group, for the activity feed (viewer-agnostic). */
+export interface CompletedTradeFeedRow {
+  tradeId: string;
+  printingId: string;
+  cardId: string;
+  quantity: number;
+  completedAt: Date;
+  giverUserId: string;
+  giverName: string | null;
+  receiverUserId: string;
+  receiverName: string | null;
+}
+
 function isoOrNull(value: Date | null): string | null {
   return value === null ? null : value.toISOString();
 }
@@ -243,6 +256,48 @@ export function cardTradesRepo(db: Kysely<Database>) {
       }
       const rows = await query.orderBy("t.updatedAt", "desc").execute();
       return rows.map((row) => mapTradeRow(row, userId));
+    },
+
+    /**
+     * Completed trades in a group, newest-completed first, for the activity
+     * feed. Viewer-agnostic (the feed is group-wide) — carries both parties'
+     * plain names and the card identity; the client resolves name/image.
+     * @returns Completed-trade feed rows.
+     */
+    async recentCompletedInGroup(groupId: string, limit: number): Promise<CompletedTradeFeedRow[]> {
+      const rows = await db
+        .selectFrom("cardTrades as t")
+        .innerJoin("users as giver", "giver.id", "t.giverUserId")
+        .innerJoin("users as receiver", "receiver.id", "t.receiverUserId")
+        .select([
+          "t.id as tradeId",
+          "t.printingId",
+          "t.cardId",
+          "t.quantity",
+          "t.completedAt",
+          "t.giverUserId",
+          "t.receiverUserId",
+          "giver.name as giverName",
+          "receiver.name as receiverName",
+        ])
+        .where("t.groupId", "=", groupId)
+        .where("t.status", "=", "completed")
+        .where("t.completedAt", "is not", null)
+        .orderBy("t.completedAt", "desc")
+        .limit(limit)
+        .execute();
+      return rows.map((row) => ({
+        tradeId: row.tradeId,
+        printingId: row.printingId,
+        cardId: row.cardId,
+        quantity: row.quantity,
+        // Non-null by the `completedAt is not null` filter above.
+        completedAt: row.completedAt as Date,
+        giverUserId: row.giverUserId,
+        giverName: row.giverName,
+        receiverUserId: row.receiverUserId,
+        receiverName: row.receiverName,
+      }));
     },
 
     /** @returns The single trade as a viewer-oriented DTO, or `undefined`. */

@@ -1,7 +1,12 @@
 import type { CardTradeResponse } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import { maxTradeQuantity, tradeSection, tradeStatusLabel } from "./trade-derivation";
+import {
+  maxTradeQuantity,
+  tradeSection,
+  tradeStatusLabel,
+  withoutLiveTradeMatches,
+} from "./trade-derivation";
 
 function stubTrade(overrides: Partial<CardTradeResponse> = {}): CardTradeResponse {
   return {
@@ -99,5 +104,115 @@ describe("tradeStatusLabel", () => {
     expect(tradeStatusLabel("declined")).toBe("Declined");
     expect(tradeStatusLabel("cancelled")).toBe("Cancelled");
     expect(tradeStatusLabel("expired")).toBe("Expired");
+  });
+});
+
+describe("withoutLiveTradeMatches", () => {
+  const match = (counterpartyUserId: string, printingId: string) => ({
+    counterpartyUserId,
+    printingId,
+  });
+
+  it("drops a match with a pending trade for the same member + printing", () => {
+    const matches = [match("user-2", "printing-1")];
+    const trades = [
+      stubTrade({
+        status: "pending",
+        printingId: "printing-1",
+        counterparty: {
+          userId: "user-2",
+          name: null,
+          image: null,
+          gravatarHash: "h",
+          nickname: null,
+        },
+      }),
+    ];
+    expect(withoutLiveTradeMatches(matches, trades)).toEqual([]);
+  });
+
+  it("drops a match with a reserved trade for the same member + printing", () => {
+    const matches = [match("user-2", "printing-1")];
+    const trades = [
+      stubTrade({
+        status: "reserved",
+        printingId: "printing-1",
+        counterparty: {
+          userId: "user-2",
+          name: null,
+          image: null,
+          gravatarHash: "h",
+          nickname: null,
+        },
+      }),
+    ];
+    expect(withoutLiveTradeMatches(matches, trades)).toEqual([]);
+  });
+
+  it("keeps a match when the live trade is for a different printing", () => {
+    const matches = [match("user-2", "printing-1")];
+    const trades = [stubTrade({ status: "reserved", printingId: "printing-OTHER" })];
+    expect(withoutLiveTradeMatches(matches, trades)).toEqual(matches);
+  });
+
+  it("keeps a match when the live trade is with a different member", () => {
+    const matches = [match("user-2", "printing-1")];
+    const trades = [
+      stubTrade({
+        status: "reserved",
+        printingId: "printing-1",
+        counterparty: {
+          userId: "user-99",
+          name: null,
+          image: null,
+          gravatarHash: "h",
+          nickname: null,
+        },
+      }),
+    ];
+    expect(withoutLiveTradeMatches(matches, trades)).toEqual(matches);
+  });
+
+  it("keeps a match when the only matching trade is terminal", () => {
+    const matches = [match("user-2", "printing-1")];
+    for (const status of ["completed", "declined", "cancelled", "expired"] as const) {
+      const trades = [
+        stubTrade({
+          status,
+          printingId: "printing-1",
+          counterparty: {
+            userId: "user-2",
+            name: null,
+            image: null,
+            gravatarHash: "h",
+            nickname: null,
+          },
+        }),
+      ];
+      expect(withoutLiveTradeMatches(matches, trades)).toEqual(matches);
+    }
+  });
+
+  it("returns all matches when there are no trades", () => {
+    const matches = [match("user-2", "printing-1"), match("user-3", "printing-2")];
+    expect(withoutLiveTradeMatches(matches, [])).toEqual(matches);
+  });
+
+  it("filters only the matches with a live trade, keeping the rest", () => {
+    const matches = [match("user-2", "printing-1"), match("user-3", "printing-2")];
+    const trades = [
+      stubTrade({
+        status: "pending",
+        printingId: "printing-1",
+        counterparty: {
+          userId: "user-2",
+          name: null,
+          image: null,
+          gravatarHash: "h",
+          nickname: null,
+        },
+      }),
+    ];
+    expect(withoutLiveTradeMatches(matches, trades)).toEqual([match("user-3", "printing-2")]);
   });
 });

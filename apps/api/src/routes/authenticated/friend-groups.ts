@@ -1,6 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
 import type {
+  FriendGroupActivityEvent,
+  FriendGroupActivityResponse,
   FriendGroupCollectionShareResponse,
   FriendGroupDetailResponse,
   FriendGroupJoinPreviewResponse,
@@ -23,6 +25,7 @@ import type {
   ListKind,
 } from "@openrift/shared";
 import {
+  friendGroupActivityResponseSchema,
   friendGroupDetailResponseSchema,
   friendGroupJoinPreviewResponseSchema,
   friendGroupListResponseSchema,
@@ -162,6 +165,7 @@ interface CollectionShareRow {
   sharedAt: Date;
   collectionName: string;
   userName: string | null;
+  copyCount: number;
 }
 
 function toCollectionShare(row: CollectionShareRow): FriendGroupCollectionShareResponse {
@@ -172,6 +176,7 @@ function toCollectionShare(row: CollectionShareRow): FriendGroupCollectionShareR
     userId: row.userId,
     userName: row.userName,
     sharedAt: row.sharedAt.toISOString(),
+    copyCount: row.copyCount,
   };
 }
 
@@ -629,6 +634,21 @@ const getMemberDetail = createRoute({
   responses: {
     200: {
       content: { "application/json": { schema: friendGroupMemberDetailResponseSchema } },
+      description: "Success",
+    },
+    ...errorResponses(401, 404),
+  },
+});
+
+const getActivity = createRoute({
+  method: "get",
+  path: "/friend-groups/{slug}/activity",
+  tags: ["Friend Groups"],
+  security: cookieAuth,
+  request: { params: friendGroupSlugParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: friendGroupActivityResponseSchema } },
       description: "Success",
     },
     ...errorResponses(401, 404),
@@ -1404,5 +1424,97 @@ export const friendGroupsRoute = friendGroupsApp
       })),
       viewerRole: shared.viewerRole,
     };
+    return c.json(response, 200);
+  })
+
+  // ── ACTIVITY FEED ───────────────────────────────────────────────────────
+  .openapi(getActivity, async (c) => {
+    const viewerId = getUserId(c);
+    const { slug } = c.req.valid("param");
+
+    const ctx = await loadGroupForMember(c.get("repos"), slug, viewerId);
+    const { friendGroups, cardTrades, friendGroupMatches } = c.get("repos");
+
+    // One bound per source; the merged list is sliced to the same bound after
+    // sorting, so older events from any single source fall away.
+    const FEED_LIMIT = 30;
+    const [completedTrades, members, shares, collectionShares, matches] = await Promise.all([
+      cardTrades.recentCompletedInGroup(ctx.group.id, FEED_LIMIT),
+      friendGroups.listMembers(ctx.group.id),
+      friendGroups.listSharesForGroup(ctx.group.id),
+      friendGroups.collectionSharesForGroup(ctx.group.id),
+      friendGroupMatches.recentIncomingMatchesForFeed({
+        groupId: ctx.group.id,
+        viewerUserId: viewerId,
+        limit: FEED_LIMIT,
+      }),
+    ]);
+
+    const events: FriendGroupActivityEvent[] = [
+      ...completedTrades.map(
+        (trade): FriendGroupActivityEvent => ({
+          kind: "trade-completed",
+          at: trade.completedAt.toISOString(),
+          tradeId: trade.tradeId,
+          printingId: trade.printingId,
+          cardId: trade.cardId,
+          quantity: trade.quantity,
+          giverUserId: trade.giverUserId,
+          giverName: trade.giverName,
+          receiverUserId: trade.receiverUserId,
+          receiverName: trade.receiverName,
+        }),
+      ),
+      ...members.map(
+        (member): FriendGroupActivityEvent => ({
+          kind: "member-joined",
+          at: member.joinedAt.toISOString(),
+          userId: member.userId,
+          userName: member.userName,
+          userImage: member.userImage,
+          gravatarHash: gravatarHashForEmail(member.userEmail),
+        }),
+      ),
+      ...shares.map(
+        (share): FriendGroupActivityEvent => ({
+          kind: "list-shared",
+          at: share.sharedAt.toISOString(),
+          userId: share.userId,
+          userName: share.userName,
+          listId: share.listId,
+          listName: share.listName,
+          listIntent: share.listIntent as ListIntent,
+          listKind: share.listKind as ListKind,
+        }),
+      ),
+      ...collectionShares.map(
+        (share): FriendGroupActivityEvent => ({
+          kind: "collection-shared",
+          at: share.sharedAt.toISOString(),
+          userId: share.userId,
+          userName: share.userName,
+          collectionId: share.collectionId,
+          collectionName: share.collectionName,
+        }),
+      ),
+      ...matches.map(
+        (match): FriendGroupActivityEvent => ({
+          kind: "match",
+          at: match.matchedAt.toISOString(),
+          counterpartyUserId: match.counterpartyUserId,
+          counterpartyName: match.counterpartyName,
+          counterpartyImage: match.counterpartyImage,
+          counterpartyGravatarHash: match.counterpartyGravatarHash,
+          printingId: match.printingId,
+          cardId: match.cardId,
+        }),
+      ),
+    ];
+
+    // Newest first by ISO timestamp (lexicographic order matches chronological
+    // order for same-offset ISO strings).
+    events.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
+
+    const response: FriendGroupActivityResponse = { events: events.slice(0, FEED_LIMIT) };
     return c.json(response, 200);
   });
