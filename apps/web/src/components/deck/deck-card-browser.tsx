@@ -36,6 +36,7 @@ import { useDeckBuildingCounts } from "@/hooks/use-owned-count";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import { useSession } from "@/lib/auth-session";
+import { splitsCardIntoTiles } from "@/lib/card-tiles";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import {
   buildDeckQuantityByCell,
@@ -399,9 +400,10 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     printing,
   }));
 
-  // Match useCardData: in cards+set the grid renders one cell per printing,
-  // so click selection navigates by printing too.
-  const cellRepresentsCard = view === "cards" && groupBy !== "set";
+  // Match useCardData: when grouping splits a card into tiles (set/rarity) the
+  // grid renders one cell per printing, so click selection navigates by printing
+  // too.
+  const cellRepresentsCard = view === "cards" && !splitsCardIntoTiles(groupBy);
   const findBy: "card" | "printing" = cellRepresentsCard ? "card" : "printing";
 
   const handleCardClick = (printing: Printing) => {

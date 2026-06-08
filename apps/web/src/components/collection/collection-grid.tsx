@@ -1,4 +1,4 @@
-import type { Marketplace, Printing } from "@openrift/shared";
+import type { GroupByField, Marketplace, Printing } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   BookOpenIcon,
@@ -76,12 +76,14 @@ import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { useSession } from "@/lib/auth-session";
+import { cardsViewTileKey, splitsCardIntoTiles, tileSiblings } from "@/lib/card-tiles";
 import { collectionTableActionsColumn } from "@/lib/collection-table";
 import { formatterForMarketplace } from "@/lib/format";
 import { maxOwnedCount } from "@/lib/owned-bucket";
 import { isStackSelected, resolveContextActionTarget } from "@/lib/stack-selection";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useAddModeStore } from "@/stores/add-mode-store";
+import type { VariantPopoverIntent } from "@/stores/add-mode-store";
 import type { CollectionContextAction } from "@/stores/card-row-actions-store";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDisplayStore } from "@/stores/display-store";
@@ -125,6 +127,8 @@ interface CollectionActionsCellProps {
   collectionId?: string;
   dataView: "cards" | "printings" | "copies";
   catalogPrintingsByCardId: Map<string, Printing[]>;
+  /** Tile axis for cards view — scopes the summed siblings to the tile. */
+  tileGroupBy: GroupByField;
 }
 
 function CollectionActionsCell({
@@ -132,6 +136,7 @@ function CollectionActionsCell({
   collectionId,
   dataView,
   catalogPrintingsByCardId,
+  tileGroupBy,
 }: CollectionActionsCellProps) {
   if (!printing) {
     return null;
@@ -142,7 +147,9 @@ function CollectionActionsCell({
       collectionId={collectionId}
       siblingIds={
         dataView === "cards"
-          ? catalogPrintingsByCardId.get(printing.cardId)?.map((sibling) => sibling.id)
+          ? tileSiblings(printing, catalogPrintingsByCardId.get(printing.cardId), tileGroupBy)?.map(
+              (sibling) => sibling.id,
+            )
           : undefined
       }
     />
@@ -155,7 +162,8 @@ interface CollectionRowWrapperProps {
   children?: React.ReactNode;
   collectionId: string | undefined;
   stackByItemId: Map<string, StackedEntry>;
-  allCopyIdsByCardId: Map<string, string[]>;
+  allCopyIdsByTile: Map<string, string[]>;
+  tileGroupBy: GroupByField;
   mode: "browse" | "select";
   stacked: boolean;
   selected: Set<string>;
@@ -167,7 +175,8 @@ function CollectionRowWrapper({
   children,
   collectionId,
   stackByItemId,
-  allCopyIdsByCardId,
+  allCopyIdsByTile,
+  tileGroupBy,
   mode,
   stacked,
   selected,
@@ -182,7 +191,7 @@ function CollectionRowWrapper({
   if (!stack) {
     return children;
   }
-  const cardCopyIds = allCopyIdsByCardId.get(printing.cardId);
+  const cardCopyIds = allCopyIdsByTile.get(cardsViewTileKey(printing, tileGroupBy));
   const effectiveCopyIds = cardCopyIds ?? stack.copyIds;
   const isItemSelected =
     mode === "select" && isStackSelected(stacked, itemId, effectiveCopyIds, selected);
@@ -267,6 +276,13 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     filters.ownedCountMin !== null ||
     filters.ownedCountMax !== null;
 
+  // The tile axis for per-card aggregation (counts, copy selection, siblings).
+  // Only the collection's own cards-view grid splits a card into per-set /
+  // per-rarity tiles; the library overlay keeps the catalog's one-tile-per-card
+  // layout (its useCardData call below deliberately stays ungrouped), so tiles
+  // there collapse by cardId.
+  const tileGroupBy: GroupByField = dataView === "cards" && !showLibrary ? groupBy : "none";
+
   // ── Collection data (browse/select modes) ───────────────────────────
   const {
     availableFilters: collectionAvailableFilters,
@@ -286,6 +302,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     sortBy,
     sortDir,
     view: dataView,
+    groupBy,
     sets,
     favoriteMarketplace,
     prices,
@@ -386,23 +403,26 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     addToSelection,
   } = useCardSelection();
 
-  // In "cards" view, collect all copy IDs and printing IDs per card for selection/popover
-  const allCopyIdsByCardId = new Map<string, string[]>();
-  const allPrintingIdsByCardId = new Map<string, string[]>();
+  // In "cards" view, collect all copy IDs and printing IDs per tile for
+  // selection/popover. Keyed by the tile (cardId, or cardId|set / cardId|rarity
+  // when split) so a card owned across sets keeps each set tile's copies
+  // separate instead of pooling them under one card.
+  const allCopyIdsByTile = new Map<string, string[]>();
+  const allPrintingIdsByTile = new Map<string, string[]>();
   if (dataView === "cards") {
     for (const stack of stacks) {
-      const cardId = stack.printing.cardId;
-      const copyIds = allCopyIdsByCardId.get(cardId);
+      const tileKey = cardsViewTileKey(stack.printing, tileGroupBy);
+      const copyIds = allCopyIdsByTile.get(tileKey);
       if (copyIds) {
         copyIds.push(...stack.copyIds);
       } else {
-        allCopyIdsByCardId.set(cardId, [...stack.copyIds]);
+        allCopyIdsByTile.set(tileKey, [...stack.copyIds]);
       }
-      const printingIds = allPrintingIdsByCardId.get(cardId);
+      const printingIds = allPrintingIdsByTile.get(tileKey);
       if (printingIds) {
         printingIds.push(stack.printingId);
       } else {
-        allPrintingIdsByCardId.set(cardId, [stack.printingId]);
+        allPrintingIdsByTile.set(tileKey, [stack.printingId]);
       }
     }
   }
@@ -614,7 +634,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   }
 
   // ── Grid click handlers ─────────────────────────────────────────────
-  const findBy = dataView === "cards" ? "card" : ("printing" as const);
+  // When a card is split into per-set / per-rarity tiles, multiple cells share
+  // a cardId, so click selection must navigate by printing to land on the tile
+  // the user clicked rather than the card's first tile.
+  const findBy =
+    dataView === "cards" && !splitsCardIntoTiles(tileGroupBy) ? "card" : ("printing" as const);
 
   // Drag-overlay summary: walk items + selection for the first three unique
   // printings whose copies are selected (the fan) plus the selected-tile count
@@ -655,7 +679,8 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
 
   const toggleStackForItem = (itemId: string, stack: StackedEntry) => {
     if (stacked) {
-      const cardCopyIds = allCopyIdsByCardId.get(stack.printing.cardId) ?? stack.copyIds;
+      const cardCopyIds =
+        allCopyIdsByTile.get(cardsViewTileKey(stack.printing, tileGroupBy)) ?? stack.copyIds;
       toggleStack(cardCopyIds);
     } else {
       toggleSelect(itemId);
@@ -688,7 +713,9 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     for (let idx = lo; idx <= hi; idx++) {
       const rangeItem = items[idx];
       if (stacked) {
-        const rangeCardCopyIds = allCopyIdsByCardId.get(rangeItem.printing.cardId);
+        const rangeCardCopyIds = allCopyIdsByTile.get(
+          cardsViewTileKey(rangeItem.printing, tileGroupBy),
+        );
         if (rangeCardCopyIds) {
           rangeIds.push(...rangeCardCopyIds);
         } else {
@@ -714,7 +741,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       return;
     }
     const cardCopyIds = stacked
-      ? (allCopyIdsByCardId.get(stack.printing.cardId) ?? stack.copyIds)
+      ? (allCopyIdsByTile.get(cardsViewTileKey(stack.printing, tileGroupBy)) ?? stack.copyIds)
       : [itemId];
     const { copyIds, narrowSelectionTo } = resolveContextActionTarget({
       mode,
@@ -737,6 +764,13 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // as props. Mirrors card-browser.tsx's wiring; see card-row-actions-store.ts
   // for the why. Re-register every render so rows pick up the freshest
   // implementation.
+  // When the tile is split by set, the +/- variant popover offers only the
+  // tile's own set so it can't add or remove a printing from another set.
+  const openVariantsForTile = handleOpenVariants
+    ? (printing: Printing, anchorEl: HTMLElement, intent: VariantPopoverIntent) =>
+        handleOpenVariants(printing, anchorEl, intent, tileGroupBy === "set")
+    : undefined;
+
   // oxlint-disable-next-line react-hooks/exhaustive-deps -- intentional: re-register every render
   useEffect(() => {
     useCardRowActionsStore.getState().setHandlers({
@@ -745,11 +779,12 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       onIncrement: handleQuickAdd,
       onDecrement: buildOnDecrement({
         dataView,
-        ownedPrintingIdsByCardId: allPrintingIdsByCardId,
-        handleOpenVariants,
+        groupBy: tileGroupBy,
+        ownedPrintingIdsByTile: allPrintingIdsByTile,
+        handleOpenVariants: openVariantsForTile,
         handleUndoAdd,
       }),
-      onOpenVariants: handleOpenVariants,
+      onOpenVariants: openVariantsForTile,
       onItemClick: (itemId, printing, modifiers) => {
         const stack = stackByItemId.get(itemId);
         // Browse mode: ctrl-click on an owned card flips into select mode and
@@ -813,7 +848,13 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       showLibrary={showLibrary}
       stacked={stacked}
       siblings={
-        dataView === "cards" ? catalogPrintingsByCardId.get(item.printing.cardId) : undefined
+        dataView === "cards"
+          ? tileSiblings(
+              item.printing,
+              catalogPrintingsByCardId.get(item.printing.cardId),
+              tileGroupBy,
+            )
+          : undefined
       }
       collectionId={collectionId}
       display={display}
@@ -883,6 +924,13 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     </Button>
   ) : null;
 
+  // In cards+set / cards+rarity a card splits into one tile per section, so
+  // sortedCards over-counts cards. Count distinct cardIds to match totalCards.
+  const filteredCardCount =
+    dataView === "cards"
+      ? new Set(sortedCards.map((card) => card.cardId)).size
+      : sortedCards.length;
+
   const toolbar = (
     <BrowserToolbar
       totalCards={view === "copies" ? totalCopies : totalUniqueCards}
@@ -892,11 +940,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
               (sum, card) => sum + (stackByPrintingId.get(card.id)?.copyIds.length ?? 0),
               0,
             )
-          : sortedCards.length
+          : filteredCardCount
       }
       mobileDoneLabel={
         hasActiveFilters
-          ? `Show ${sortedCards.length} ${dataView === "cards" ? "cards" : "printings"}`
+          ? `Show ${filteredCardCount} ${dataView === "cards" ? "cards" : "printings"}`
           : undefined
       }
       extras={showLibraryButton}
@@ -916,8 +964,12 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     />
   );
 
+  // When the tile was split by set (variantPopover.setId set), offer only that
+  // set's printings so the popover matches the tile the user opened it from.
   const variantPrintings = variantPopover
-    ? catalogPrintingsByCardId.get(variantPopover.cardId)
+    ? catalogPrintingsByCardId
+        .get(variantPopover.cardId)
+        ?.filter((printing) => !variantPopover.setId || printing.setId === variantPopover.setId)
     : undefined;
 
   // Mounted once at a stable position so React preserves these instances
@@ -1067,13 +1119,15 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
                 collectionId={collectionId}
                 dataView={dataView}
                 catalogPrintingsByCardId={catalogPrintingsByCardId}
+                tileGroupBy={tileGroupBy}
               />
             ),
             rowWrapper: (
               <CollectionRowWrapper
                 collectionId={collectionId}
                 stackByItemId={stackByItemId}
-                allCopyIdsByCardId={allCopyIdsByCardId}
+                allCopyIdsByTile={allCopyIdsByTile}
+                tileGroupBy={tileGroupBy}
                 mode={mode}
                 stacked={stacked}
                 selected={selected}

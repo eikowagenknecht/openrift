@@ -97,6 +97,7 @@ function baseParams() {
     sortBy: "name" as const,
     sortDir: "asc" as const,
     view: "printings" as const,
+    groupBy: "none" as const,
     sets: SETS,
     favoriteMarketplace: "tcgplayer" as const,
     prices: EMPTY_PRICE_LOOKUP,
@@ -104,6 +105,46 @@ function baseParams() {
 }
 
 describe("useCollectionCardData", () => {
+  it("splits a card owned in two sets into one tile per set in cards+set view", () => {
+    // Regression: cards view collapsed to one tile per cardId regardless of
+    // grouping, so a card owned in both OGN and UNL showed up under a single
+    // set instead of once under each (matching the catalog).
+    const cardId = "card-reprinted";
+    const ogn = stubPrinting({ cardId, setId: "set-ogn", language: "EN" });
+    const unl = stubPrinting({ cardId, setId: "set-unl", language: "EN" });
+    mockStacks.mockReturnValue({
+      stacks: [makeStack(ogn), makeStack(unl)],
+      totalCopies: 2,
+      isReady: true,
+    });
+
+    const { result } = renderHook(() =>
+      useCollectionCardData({ ...baseParams(), view: "cards", groupBy: "set" }),
+    );
+
+    expect(result.current.sortedCards.map((printing) => printing.setId).toSorted()).toEqual([
+      "set-ogn",
+      "set-unl",
+    ]);
+  });
+
+  it("collapses a card owned in two sets to one tile when not grouped by set", () => {
+    const cardId = "card-reprinted";
+    const ogn = stubPrinting({ cardId, setId: "set-ogn", language: "EN" });
+    const unl = stubPrinting({ cardId, setId: "set-unl", language: "EN" });
+    mockStacks.mockReturnValue({
+      stacks: [makeStack(ogn), makeStack(unl)],
+      totalCopies: 2,
+      isReady: true,
+    });
+
+    const { result } = renderHook(() =>
+      useCollectionCardData({ ...baseParams(), view: "cards", groupBy: "none" }),
+    );
+
+    expect(result.current.sortedCards).toHaveLength(1);
+  });
+
   it("exposes availableLanguages derived from owned printings", () => {
     const en = stubPrinting({ language: "EN" });
     const zh = stubPrinting({ language: "ZH" });

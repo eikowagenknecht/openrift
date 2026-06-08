@@ -1,7 +1,8 @@
-import type { CatalogResponse, GroupByField, Printing, SortOption } from "@openrift/shared";
+import type { CatalogResponse, GroupByField, SortOption } from "@openrift/shared";
 import { filterCards, sortByLanguageAndCanonicalRank, sortCards } from "@openrift/shared";
 import { createServerFn } from "@tanstack/react-start";
 
+import { dedupeToCardsViewTiles } from "@/lib/card-tiles";
 import { searchToFilters } from "@/lib/cards-facets";
 import { enrichCatalog, readCatalogFromServerCache } from "@/lib/catalog-query";
 import type { FilterSearch } from "@/lib/search-schemas";
@@ -27,31 +28,6 @@ const SSR_DEFAULT_VIEW: "cards" | "printings" = "cards";
 const SSR_DEFAULT_GROUP_BY: GroupByField = "set";
 const SSR_DEFAULT_SORT: SortOption = "id";
 
-function dedupByCardSet(printings: Printing[]): Printing[] {
-  const seen = new Set<string>();
-  const result: Printing[] = [];
-  for (const printing of printings) {
-    const key = `${printing.cardId}|${printing.setId}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      result.push(printing);
-    }
-  }
-  return result;
-}
-
-function dedupByCard(printings: Printing[]): Printing[] {
-  const seen = new Set<string>();
-  const result: Printing[] = [];
-  for (const printing of printings) {
-    if (!seen.has(printing.cardId)) {
-      seen.add(printing.cardId);
-      result.push(printing);
-    }
-  }
-  return result;
-}
-
 /**
  * Slim, SSR-only view of the first N catalog printings in the same order the
  * live <CardBrowser> renders. Mirrors useCards → useCardData → card-grid so
@@ -59,8 +35,10 @@ function dedupByCard(printings: Printing[]): Printing[] {
  *
  *  1. Order printings by (langRank, canonicalRank), default langs `["EN"]`.
  *  2. Apply URL filters (search, sets, languages, etc.) via shared filterCards.
- *  3. In cards view, dedup per (cardId, setId) when groupBy="set" (default), or
- *     per cardId otherwise. Earliest in the (lang, canonicalRank) order wins.
+ *  3. In cards view, collapse to one tile per card — split per (cardId, setId)
+ *     for set grouping (the default) or per (cardId, rarity) for rarity grouping
+ *     (see dedupeToCardsViewTiles). Earliest in the (lang, canonicalRank) order
+ *     wins.
  *  4. Sort by `sortBy` (default "id" → shortCode asc).
  *  5. When groupBy="set", reorder by set.sortOrder, preserving the within-set
  *     order from step 4 (stable sort).
@@ -94,7 +72,7 @@ export function extractFirstRow(
 
   let displayCards = filtered;
   if (view === "cards") {
-    displayCards = groupBy === "set" ? dedupByCardSet(filtered) : dedupByCard(filtered);
+    displayCards = dedupeToCardsViewTiles(filtered, groupBy);
   }
 
   let sortedCards = sortCards(displayCards, sortBy, { sortDir });

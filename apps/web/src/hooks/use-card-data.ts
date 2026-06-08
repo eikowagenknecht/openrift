@@ -19,6 +19,7 @@ import {
 
 import type { SetInfo } from "@/components/cards/card-grid";
 import { useEnumOrders } from "@/hooks/use-enums";
+import { cardsViewTileKey, dedupeToCardsViewTiles } from "@/lib/card-tiles";
 import { applyOwnedBucketFilter, applyOwnedCountFilter } from "@/lib/owned-bucket";
 import type { OwnedBucket } from "@/lib/search-schemas";
 
@@ -36,8 +37,9 @@ interface UseCardDataParams {
   sortDir: "asc" | "desc";
   view: "cards" | "printings";
   /**
-   * When grouping by set in cards view, the dedup is skipped so each set
-   * section lists every printing released in that set. Defaults to "none".
+   * Cards-view grouping axis. When it splits a card (set/rarity) the dedup is
+   * per (cardId, set) / (cardId, rarity) so the card shows once per section.
+   * Defaults to "none".
    */
   groupBy?: GroupByField;
   ownedCountByPrinting: Record<string, number> | undefined;
@@ -106,7 +108,12 @@ function computePriceRanges(
 }
 
 /**
- * Build owned-count map keyed by printing ID. In "cards" view, the representative gets the sum.
+ * Build owned-count map keyed by printing ID. In "cards" view a tile collapses
+ * several printings, so its representative printing gets the sum of everything
+ * it stands in for: all printings of the card normally, but only the printings
+ * sharing the tile when grouped by set or rarity (see {@link cardsViewTileKey}).
+ * Those axes split a card into one tile per value, so each tile's count must not
+ * pull in copies of the card's printings from other sets / rarities.
  * @returns A map from printing ID to owned count.
  */
 function buildOwnedCounts(
@@ -114,16 +121,18 @@ function buildOwnedCounts(
   displayCards: Printing[],
   ownedCountByPrinting: Record<string, number>,
   view: "cards" | "printings",
+  groupBy: GroupByField,
 ): Map<string, number> {
   const map = new Map<string, number>();
   if (view === "cards") {
-    const countByCard = new Map<string, number>();
+    const countByTile = new Map<string, number>();
     for (const p of allPrintings) {
       const count = ownedCountByPrinting[p.id] ?? 0;
-      countByCard.set(p.cardId, (countByCard.get(p.cardId) ?? 0) + count);
+      const key = cardsViewTileKey(p, groupBy);
+      countByTile.set(key, (countByTile.get(key) ?? 0) + count);
     }
     for (const p of displayCards) {
-      const count = countByCard.get(p.cardId) ?? 0;
+      const count = countByTile.get(cardsViewTileKey(p, groupBy)) ?? 0;
       if (count > 0) {
         map.set(p.id, count);
       }
@@ -159,46 +168,6 @@ const EMPTY_FILTER_COUNTS: FilterCounts = {
     price: { min: 0, max: 0 },
   },
 };
-
-/**
- * Keep the first printing encountered per `cardId`. Relies on the input
- * being pre-sorted in the order the caller wants to break ties in — here,
- * (userLanguageRank, canonicalRank) from useCards().
- *
- * @returns One printing per cardId, in first-occurrence order.
- */
-function firstPrintingPerCard(printings: Printing[]): Printing[] {
-  const seen = new Set<string>();
-  const result: Printing[] = [];
-  for (const printing of printings) {
-    if (!seen.has(printing.cardId)) {
-      seen.add(printing.cardId);
-      result.push(printing);
-    }
-  }
-  return result;
-}
-
-/**
- * Like {@link firstPrintingPerCard} but keys on `(cardId, setId)` so a card
- * reprinted in N sets gets one row per set. Used for cards-view + set-grouping
- * where each set section is meant to read as a complete index of the cards in
- * that set, with one tile per card.
- *
- * @returns One printing per (cardId, setId) pair, in first-occurrence order.
- */
-function firstPrintingPerCardPerSet(printings: Printing[]): Printing[] {
-  const seen = new Set<string>();
-  const result: Printing[] = [];
-  for (const printing of printings) {
-    const key = `${printing.cardId}|${printing.setId}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      result.push(printing);
-    }
-  }
-  return result;
-}
 
 /**
  * Filter-meta computation extracted so the catalog filter panel can subscribe
@@ -378,16 +347,12 @@ export function useCardData({
     }
   }
 
-  // Cards view dedupes by cardId so each card gets one tile. When also grouped
-  // by set, dedupe is per (cardId, setId) instead so a card reprinted in N
-  // sets shows up once under each — each set section reads as a complete
-  // index of the cards in that set.
+  // Cards view collapses printings into one tile per card. When grouped by set
+  // or rarity the tile is per (cardId, set) / (cardId, rarity) instead, so a
+  // card reprinted across N sets (or printed at N rarities) shows up once under
+  // each — each section reads as a complete index of the cards in it.
   const displayCards =
-    view === "cards"
-      ? groupBy === "set"
-        ? firstPrintingPerCardPerSet(filteredCards)
-        : firstPrintingPerCard(filteredCards)
-      : filteredCards;
+    view === "cards" ? dedupeToCardsViewTiles(filteredCards, groupBy) : filteredCards;
 
   const printingsByCardId = Map.groupBy(filteredCards, (p) => p.cardId);
 
@@ -411,7 +376,7 @@ export function useCardData({
   const sortedCards = sortCards(displayCards, sortBy, sortOptions);
 
   const ownedCounts = ownedCountByPrinting
-    ? buildOwnedCounts(allPrintings, displayCards, ownedCountByPrinting, view)
+    ? buildOwnedCounts(allPrintings, displayCards, ownedCountByPrinting, view, groupBy)
     : undefined;
 
   const totalUniqueCards =

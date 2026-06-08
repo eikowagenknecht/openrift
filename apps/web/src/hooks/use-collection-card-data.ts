@@ -1,6 +1,7 @@
 import type {
   CardFilters,
   DistributionChannel,
+  GroupByField,
   Marketplace,
   PriceLookup,
   Printing,
@@ -19,6 +20,7 @@ import type { SetInfo } from "@/components/cards/card-grid";
 import { useEffectiveLanguageOrder } from "@/hooks/use-effective-language-order";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useStackedCopies } from "@/hooks/use-stacked-copies";
+import { dedupeToCardsViewTiles } from "@/lib/card-tiles";
 import { applyOwnedBucketFilter, applyOwnedCountFilter, maxOwnedCount } from "@/lib/owned-bucket";
 import type { OwnedBucket } from "@/lib/search-schemas";
 
@@ -28,6 +30,8 @@ interface UseCollectionCardDataParams {
   sortBy: SortOption;
   sortDir: "asc" | "desc";
   view: "cards" | "printings";
+  /** Cards-view grouping axis. Splits a card into per-set / per-rarity tiles. */
+  groupBy: GroupByField;
   sets: SetInfo[];
   favoriteMarketplace: Marketplace;
   prices: PriceLookup;
@@ -63,6 +67,7 @@ export function useCollectionCardData({
   sortBy,
   sortDir,
   view,
+  groupBy,
   sets,
   favoriteMarketplace,
   prices,
@@ -142,8 +147,12 @@ export function useCollectionCardData({
     );
   }
 
-  // In "cards" view, keep one printing per cardId (the first = canonical pick).
-  const displayCards = view === "cards" ? firstPrintingPerCard(filteredCards) : filteredCards;
+  // In "cards" view, collapse to one tile per card — or per (cardId, set) /
+  // (cardId, rarity) when grouped by set/rarity, so a card owned in N sets shows
+  // up once under each (matching the catalog). The first printing seen per tile
+  // (canonical pick) represents it.
+  const displayCards =
+    view === "cards" ? dedupeToCardsViewTiles(filteredCards, groupBy) : filteredCards;
 
   // Group all collection printings by cardId for detail pane siblings.
   const printingsByCardId = Map.groupBy(canonicallyOrderedCollection, (p) => p.cardId);
@@ -190,23 +199,6 @@ export function useCollectionCardData({
     setDisplayLabel,
     isReady,
   };
-}
-
-/**
- * Keep the first printing encountered per `cardId`. Relies on the input
- * being pre-sorted by (languageRank, canonicalRank).
- * @returns One printing per cardId, in first-occurrence order.
- */
-function firstPrintingPerCard(printings: Printing[]): Printing[] {
-  const seen = new Set<string>();
-  const result: Printing[] = [];
-  for (const printing of printings) {
-    if (!seen.has(printing.cardId)) {
-      seen.add(printing.cardId);
-      result.push(printing);
-    }
-  }
-  return result;
 }
 
 function computePriceRanges(

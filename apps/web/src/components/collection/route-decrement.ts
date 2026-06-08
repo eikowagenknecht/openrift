@@ -1,10 +1,13 @@
-import type { Printing } from "@openrift/shared";
+import type { GroupByField, Printing } from "@openrift/shared";
 
+import { cardsViewTileKey } from "@/lib/card-tiles";
 import type { VariantPopoverIntent } from "@/stores/add-mode-store";
 
 interface RouteDecrementDeps {
   dataView: "cards" | "printings" | "copies";
-  ownedPrintingIdsByCardId: Map<string, string[]>;
+  /** Tile axis — owned printings are bucketed per tile (see cardsViewTileKey). */
+  groupBy: GroupByField;
+  ownedPrintingIdsByTile: Map<string, string[]>;
   handleOpenVariants?: (
     printing: Printing,
     anchorEl: HTMLElement,
@@ -15,8 +18,8 @@ interface RouteDecrementDeps {
 
 /**
  * Builds the registered onDecrement handler for the collection grid. In cards
- * view with multiple owned variants of a card, `-` opens the variant popover so
- * the user can pick which variant to remove. Otherwise it forwards to
+ * view with multiple owned variants in the tile, `-` opens the variant popover
+ * so the user can pick which variant to remove. Otherwise it forwards to
  * handleUndoAdd, which itself opens the "Remove from" picker when copies span
  * multiple collections — that downstream picker needs `anchorEl`, so callers
  * must forward it through.
@@ -24,12 +27,13 @@ interface RouteDecrementDeps {
  */
 export function buildOnDecrement({
   dataView,
-  ownedPrintingIdsByCardId,
+  groupBy,
+  ownedPrintingIdsByTile,
   handleOpenVariants,
   handleUndoAdd,
 }: RouteDecrementDeps): (printing: Printing, anchorEl?: HTMLElement) => void {
   return (printing, anchorEl) => {
-    const ownedVariantIds = ownedPrintingIdsByCardId.get(printing.cardId);
+    const ownedVariantIds = ownedPrintingIdsByTile.get(cardsViewTileKey(printing, groupBy));
     const hasAmbiguousRemoval = dataView === "cards" && (ownedVariantIds?.length ?? 0) > 1;
     if (hasAmbiguousRemoval && handleOpenVariants && anchorEl) {
       handleOpenVariants(printing, anchorEl, "remove");

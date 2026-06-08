@@ -342,6 +342,95 @@ describe("useCardData", () => {
     expect(result.current.filteredCount).toBe(2);
   });
 
+  it("attributes owned counts per set, not per card, when grouping by set in cards view", () => {
+    // Regression: a card reprinted in two sets shows one tile per set, but
+    // buildOwnedCounts aggregated by cardId only — so both the OGN tile and the
+    // UNL tile of the same card reported the card's combined total. Owning 6 of
+    // the OGN printing and 0 of the UNL printing made BOTH tiles read "6 owned".
+    // Each set tile must reflect only its own set's printings (in-set variants
+    // still summed together).
+    const cardId = "daring-poro";
+    const ognSetId = "set-ogn";
+    const unlSetId = "set-unl";
+    const ognNormal = stubPrinting({ cardId, setId: ognSetId, shortCode: "OGN-001" });
+    const ognAltart = stubPrinting({ cardId, setId: ognSetId, shortCode: "OGN-001-alt" });
+    const unlNormal = stubPrinting({ cardId, setId: unlSetId, shortCode: "UNL-001" });
+
+    const { result } = renderHook(() =>
+      useCardData({
+        ...baseParams(),
+        allPrintings: [ognNormal, ognAltart, unlNormal],
+        view: "cards",
+        groupBy: "set",
+        // 5 + 1 OGN copies across its two variants, none of the UNL printing.
+        ownedCountByPrinting: {
+          [ognNormal.id]: 5,
+          [ognAltart.id]: 1,
+          [unlNormal.id]: 0,
+        },
+      }),
+    );
+
+    const ownedCounts = result.current.ownedCounts;
+    const ognTile = result.current.sortedCards.find((printing) => printing.setId === ognSetId);
+    const unlTile = result.current.sortedCards.find((printing) => printing.setId === unlSetId);
+
+    expect(ognTile).toBeDefined();
+    expect(unlTile).toBeDefined();
+    // OGN tile sums its two in-set variants; UNL tile owns nothing (absent from the map).
+    expect(ognTile && ownedCounts?.get(ognTile.id)).toBe(6);
+    expect(unlTile && ownedCounts?.get(unlTile.id)).toBeUndefined();
+  });
+
+  it("attributes owned counts per rarity when grouping by rarity in cards view", () => {
+    // Rarity is a per-printing property, so a card printed at two rarities
+    // splits into one tile per rarity and each tile counts only its own rarity's
+    // printings — the same per-tile rule as set grouping.
+    const cardId = "card-shared";
+    const common = stubPrinting({ cardId, rarity: "common", shortCode: "A-001" });
+    const rare = stubPrinting({ cardId, rarity: "rare", shortCode: "B-001" });
+
+    const { result } = renderHook(() =>
+      useCardData({
+        ...baseParams(),
+        allPrintings: [common, rare],
+        view: "cards",
+        groupBy: "rarity",
+        ownedCountByPrinting: { [common.id]: 4, [rare.id]: 0 },
+      }),
+    );
+
+    const ownedCounts = result.current.ownedCounts;
+    const commonTile = result.current.sortedCards.find((printing) => printing.rarity === "common");
+    const rareTile = result.current.sortedCards.find((printing) => printing.rarity === "rare");
+
+    expect(commonTile).toBeDefined();
+    expect(rareTile).toBeDefined();
+    expect(commonTile && ownedCounts?.get(commonTile.id)).toBe(4);
+    expect(rareTile && ownedCounts?.get(rareTile.id)).toBeUndefined();
+  });
+
+  it("sums owned counts across all printings on the single tile in cards view (no set grouping)", () => {
+    // The card-level rollup is intentional when a card collapses to one tile:
+    // the tile shows your total of that card across every printing.
+    const cardId = "card-shared";
+    const ognPrinting = stubPrinting({ cardId, setId: "set-ogn", shortCode: "OGN-001" });
+    const unlPrinting = stubPrinting({ cardId, setId: "set-unl", shortCode: "UNL-001" });
+
+    const { result } = renderHook(() =>
+      useCardData({
+        ...baseParams(),
+        allPrintings: [ognPrinting, unlPrinting],
+        view: "cards",
+        ownedCountByPrinting: { [ognPrinting.id]: 2, [unlPrinting.id]: 1 },
+      }),
+    );
+
+    expect(result.current.sortedCards).toHaveLength(1);
+    const tile = result.current.sortedCards[0];
+    expect(tile && result.current.ownedCounts?.get(tile.id)).toBe(3);
+  });
+
   it("filteredCount equals printing count in printings view", () => {
     const a = stubPrinting();
     const b = stubPrinting();

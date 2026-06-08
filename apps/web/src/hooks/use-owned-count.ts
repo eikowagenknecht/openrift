@@ -198,7 +198,7 @@ export function useOwnedCountsForPrintings(
  * Per-card copy IDs (in-collection when `collectionId` is set, otherwise
  * global). Same live-query subscription shape as
  * {@link useOwnedCountsForPrintings} but returns the raw IDs so the cell can
- * power its own drag-and-drop without taking the parent's `allCopyIdsByCardId`
+ * power its own drag-and-drop without taking the parent's `allCopyIdsByTile`
  * map as a prop. Only re-fires when one of the listed siblings' copies
  * actually changes.
  *

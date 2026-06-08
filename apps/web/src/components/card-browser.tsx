@@ -28,6 +28,7 @@ import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import { useSession } from "@/lib/auth-session";
+import { splitsCardIntoTiles, tileSiblings } from "@/lib/card-tiles";
 import { maxOwnedCount } from "@/lib/owned-bucket";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDisplayStore } from "@/stores/display-store";
@@ -184,7 +185,8 @@ export function CardBrowser() {
   // chevron only offers in-set variants and the override-by-cardId fallback
   // works correctly across the duplicated cells.
   const inCardsView = view === "cards";
-  const findBy: "card" | "printing" = inCardsView && groupBy !== "set" ? "card" : "printing";
+  const findBy: "card" | "printing" =
+    inCardsView && !splitsCardIntoTiles(groupBy) ? "card" : "printing";
 
   // Deep-link: open a specific printing when navigating from e.g. activity page
   const { printingId: linkedPrintingId } = useSearch({ from: "/_app/cards" });
@@ -227,12 +229,12 @@ export function CardBrowser() {
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
     const cardId = item.printing.cardId;
     const allCardSiblings = printingsByCardId.get(cardId);
-    // Filter to in-set siblings when grouping by set so the variant chevron
-    // and the override-by-cardId fallback don't cross set boundaries.
-    const siblings =
-      inCardsView && groupBy === "set"
-        ? allCardSiblings?.filter((sibling) => sibling.setId === item.printing.setId)
-        : allCardSiblings;
+    // Scope siblings to the tile when grouping splits a card (set/rarity) so the
+    // variant chevron, per-tile owned count, and the override-by-cardId fallback
+    // don't cross the tile's boundary.
+    const siblings = inCardsView
+      ? tileSiblings(item.printing, allCardSiblings, groupBy)
+      : allCardSiblings;
 
     // The cell resolves its own override against the sibling-override store
     // (see useSiblingOverrideStore). The renderCard closure stays stable
