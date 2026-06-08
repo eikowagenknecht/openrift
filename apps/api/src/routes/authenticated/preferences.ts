@@ -31,6 +31,7 @@ function toUserPreferences(data: UserPreferencesResponse): UserPreferencesRespon
     completionScope: data.completionScope,
     defaultCardView: data.defaultCardView,
     defaultCurrency: data.defaultCurrency,
+    hiddenFilterSections: data.hiddenFilterSections,
   };
 }
 

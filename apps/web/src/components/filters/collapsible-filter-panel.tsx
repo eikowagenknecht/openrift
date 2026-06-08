@@ -1,5 +1,5 @@
 import type { AvailableFilters, FilterCounts } from "@openrift/shared";
-import { SlidersHorizontalIcon } from "lucide-react";
+import { FunnelIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
@@ -7,6 +7,7 @@ import { useFilterValues } from "@/hooks/use-card-filters";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
+import { FilterCustomizeControl } from "./filter-customize-control";
 import { FilterBadgeSections, FilterRangeSections } from "./filter-panel-content";
 
 interface CollapsibleFilterPanelProps {
@@ -47,7 +48,7 @@ export function CollapsibleFilterPanel({
       onOpenChange={setFiltersExpanded}
       className="@wide:hidden mb-3 hidden sm:block"
     >
-      <CollapsibleContent className="h-(--collapsible-panel-height) space-y-3 overflow-hidden transition-[height] duration-200 data-[ending-style]:h-0 data-[starting-style]:h-0">
+      <CollapsibleContent className="relative h-(--collapsible-panel-height) space-y-3 overflow-hidden transition-[height] duration-200 data-[ending-style]:h-0 data-[starting-style]:h-0">
         <div className="grid grid-cols-1 items-start gap-x-6 gap-y-3 lg:grid-cols-2">
           <FilterBadgeSections
             availableFilters={availableFilters}
@@ -67,6 +68,10 @@ export function CollapsibleFilterPanel({
             ownedCountMax={ownedCountMax}
           />
         </div>
+        {/* Overlay the top-right corner (the first row leaves slack there).
+            bg-background covers any chip behind it on unusually dense rows.
+            Rendered last so space-y-3 adds no leading gap before the grid. */}
+        <FilterCustomizeControl className="bg-background absolute top-1 right-1 z-10" />
       </CollapsibleContent>
     </Collapsible>
   );
@@ -91,7 +96,7 @@ export function FilterToggleButton({ className }: { className?: string }) {
       aria-label={filtersExpanded ? "Hide filters" : "Show filters"}
       aria-expanded={filtersExpanded}
     >
-      <SlidersHorizontalIcon className="size-4" />
+      <FunnelIcon className="size-4" />
       {hasActiveFilters && !filtersExpanded && (
         <span className="bg-primary absolute -top-1 -right-1 size-2 rounded-full" />
       )}

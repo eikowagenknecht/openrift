@@ -842,6 +842,7 @@ export const userPreferencesResponseSchema = z
     completionScope: completionScopePreferenceSchema.optional(),
     defaultCardView: z.enum(["cards", "printings"]).optional(),
     defaultCurrency: z.enum(["EUR", "USD"]).optional(),
+    hiddenFilterSections: z.array(z.string()).optional(),
   })
   .openapi("UserPreferencesResponse");
 

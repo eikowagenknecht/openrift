@@ -26,6 +26,7 @@ describe("useDisplayStore", () => {
       expect(state.marketplaceOrder).toEqual(PREFERENCE_DEFAULTS.marketplaceOrder);
       expect(state.languages).toEqual(PREFERENCE_DEFAULTS.languages);
       expect(state.defaultCardView).toBe(PREFERENCE_DEFAULTS.defaultCardView);
+      expect(state.hiddenFilterSections).toEqual([]);
     });
 
     it("starts with all overrides as null", () => {
@@ -55,6 +56,14 @@ describe("useDisplayStore", () => {
       const state = useDisplayStore.getState();
       expect(state.fancyFan).toBe(false);
       expect(state.overrides.fancyFan).toBe(false);
+    });
+
+    it("setHiddenFilterSections updates both resolved value and override", () => {
+      useDisplayStore.getState().setHiddenFilterSections(["price", "owned"]);
+
+      const state = useDisplayStore.getState();
+      expect(state.hiddenFilterSections).toEqual(["price", "owned"]);
+      expect(state.overrides.hiddenFilterSections).toEqual(["price", "owned"]);
     });
 
     it("setFoilEffect updates both resolved value and override", () => {
@@ -130,6 +139,16 @@ describe("useDisplayStore", () => {
       expect(useDisplayStore.getState().defaultCardView).toBe(PREFERENCE_DEFAULTS.defaultCardView);
       expect(useDisplayStore.getState().overrides.defaultCardView).toBeNull();
     });
+
+    it("resets hiddenFilterSections to default (empty)", () => {
+      useDisplayStore.getState().setHiddenFilterSections(["price"]);
+      useDisplayStore.getState().resetPreference("hiddenFilterSections");
+
+      expect(useDisplayStore.getState().hiddenFilterSections).toEqual(
+        PREFERENCE_DEFAULTS.hiddenFilterSections,
+      );
+      expect(useDisplayStore.getState().overrides.hiddenFilterSections).toBeNull();
+    });
   });
 
   describe("reset", () => {
@@ -156,6 +175,7 @@ describe("useDisplayStore", () => {
         completionScope: null,
         defaultCardView: null,
         defaultCurrency: null,
+        hiddenFilterSections: null,
       });
       expect(state.showImages).toBe(PREFERENCE_DEFAULTS.showImages);
       expect(state.fancyFan).toBe(PREFERENCE_DEFAULTS.fancyFan);
@@ -202,6 +222,15 @@ describe("useDisplayStore", () => {
       expect(state.marketplaceOrder).toEqual(["cardmarket"]);
       expect(state.languages).toEqual(PREFERENCE_DEFAULTS.languages);
       expect(state.defaultCardView).toBe("cards");
+    });
+
+    it("hydrates hiddenFilterSections and preserves it when the field is absent", () => {
+      useDisplayStore.getState().hydrateOverrides({ hiddenFilterSections: ["price", "markers"] });
+      expect(useDisplayStore.getState().hiddenFilterSections).toEqual(["price", "markers"]);
+
+      // A later hydrate that omits the field must not clobber the stored value.
+      useDisplayStore.getState().hydrateOverrides({ showImages: false });
+      expect(useDisplayStore.getState().hiddenFilterSections).toEqual(["price", "markers"]);
     });
   });
 

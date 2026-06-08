@@ -4,6 +4,7 @@
 
 - feat: The card filters now include a Copies slider that narrows the view by how many copies you own, with a from and to range, alongside the existing Owned filter. It's available on the cards page, in the deck builder, and in your collections
 - feat: Join requests waiting for your approval now show up in two places: a count badge on the Groups item in the main navigation, and a badge under the group's name (like "3 join requests") that takes you to the member list when clicked
+- feat: The filter panel now has a "Customize filters" option at the bottom where you pick which filters you want to see and hide the rest to cut the clutter. Set, Domain, Rarity, and Type always stay visible, and your choice carries across devices when you're signed in
 - feat: The deck builder's Overflow zone now holds any card type, including Legends, Runes, and Battlefields, so you can park anything there while you decide. Overflow cards never count toward deck legality
 - feat: The Overflow zone now holds unlimited copies of a card, and those copies no longer count against the 3-copy limit, so parking a card there doesn't reduce how many you can run in your main deck
 - feat: Opening a group invite link no longer shows who owns the group. You'll still see the group name, member count, and description before deciding to join

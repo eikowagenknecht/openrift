@@ -232,7 +232,7 @@ export function FilterBadgeSections({
           counts={filterCounts?.artVariants}
         />
       )}
-      {availableFilters.finishes.length > 1 && (
+      {availableFilters.finishes.length > 1 && !hiddenSections?.has("finishes") && (
         <FilterSection
           label="Finish"
           options={availableFilters.finishes}
@@ -242,7 +242,7 @@ export function FilterBadgeSections({
           counts={filterCounts?.finishes}
         />
       )}
-      {availableLanguages && availableLanguages.length > 1 && (
+      {availableLanguages && availableLanguages.length > 1 && !hiddenSections?.has("languages") && (
         <FilterSection
           label="Language"
           options={availableLanguages}
@@ -253,10 +253,10 @@ export function FilterBadgeSections({
         />
       )}
       {(!hiddenSections?.has("owned") ||
-        availableFilters.hasSigned ||
+        (availableFilters.hasSigned && !hiddenSections?.has("signed")) ||
         (availableFilters.hasAnyMarker && !hiddenSections?.has("promo")) ||
-        availableFilters.hasBanned ||
-        availableFilters.hasErrata ||
+        (availableFilters.hasBanned && !hiddenSections?.has("banned")) ||
+        (availableFilters.hasErrata && !hiddenSections?.has("errata")) ||
         (!hiddenSections?.has("markers") && availableFilters.markers.length > 0) ||
         (!hiddenSections?.has("channels") && availableFilters.distributionChannels.length > 0) ||
         (!hiddenSections?.has("customTags") && visibleCategories.length > 0)) && (
@@ -324,7 +324,7 @@ export function FilterBadgeSections({
                 />
               );
             })}
-          {availableFilters.hasSigned && (
+          {availableFilters.hasSigned && !hiddenSections?.has("signed") && (
             <FlagBadge
               label={filterState.signed === false ? "Not Signed" : "Signed"}
               isActive={filterState.signed !== null}
@@ -332,7 +332,7 @@ export function FilterBadgeSections({
               onClick={toggleSigned}
             />
           )}
-          {availableFilters.hasBanned && (
+          {availableFilters.hasBanned && !hiddenSections?.has("banned") && (
             <FlagBadge
               label={filterState.banned === false ? "Not Banned" : "Banned"}
               isActive={filterState.banned !== null}
@@ -340,7 +340,7 @@ export function FilterBadgeSections({
               onClick={toggleBanned}
             />
           )}
-          {availableFilters.hasErrata && (
+          {availableFilters.hasErrata && !hiddenSections?.has("errata") && (
             <FlagBadge
               label={filterState.errata === false ? "No Errata" : "Errata"}
               isActive={filterState.errata !== null}

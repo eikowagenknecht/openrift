@@ -22,6 +22,7 @@ export interface DisplayOverrides {
   completionScope: CompletionScopePreference | null;
   defaultCardView: DefaultCardView | null;
   defaultCurrency: Currency | null;
+  hiddenFilterSections: string[] | null;
 }
 
 const NULL_OVERRIDES: DisplayOverrides = {
@@ -34,6 +35,7 @@ const NULL_OVERRIDES: DisplayOverrides = {
   completionScope: null,
   defaultCardView: null,
   defaultCurrency: null,
+  hiddenFilterSections: null,
 };
 
 // ── Resolve helpers ─────────────────────────────────────────────────────────
@@ -49,6 +51,9 @@ function resolveAll(overrides: DisplayOverrides) {
     completionScope: overrides.completionScope ?? { ...PREFERENCE_DEFAULTS.completionScope },
     defaultCardView: overrides.defaultCardView ?? PREFERENCE_DEFAULTS.defaultCardView,
     defaultCurrency: overrides.defaultCurrency ?? PREFERENCE_DEFAULTS.defaultCurrency,
+    hiddenFilterSections: overrides.hiddenFilterSections ?? [
+      ...PREFERENCE_DEFAULTS.hiddenFilterSections,
+    ],
   };
 }
 
@@ -65,6 +70,7 @@ interface DisplayState {
   completionScope: CompletionScopePreference;
   defaultCardView: DefaultCardView;
   defaultCurrency: Currency;
+  hiddenFilterSections: string[];
 
   // Nullable overrides — persisted to localStorage and synced to DB
   overrides: DisplayOverrides;
@@ -85,6 +91,7 @@ interface DisplayState {
   setCompletionScope: (value: CompletionScopePreference) => void;
   setDefaultCardView: (value: DefaultCardView) => void;
   setDefaultCurrency: (value: Currency) => void;
+  setHiddenFilterSections: (value: string[]) => void;
 
   // Reset a top-level preference to its default
   resetPreference: (
@@ -97,7 +104,8 @@ interface DisplayState {
       | "languages"
       | "completionScope"
       | "defaultCardView"
-      | "defaultCurrency",
+      | "defaultCurrency"
+      | "hiddenFilterSections",
   ) => void;
 
   // Clear all account-scoped overrides (used on sign-out so the next visitor
@@ -181,6 +189,11 @@ export const useDisplayStore = create<DisplayState>()(
           defaultCurrency: value,
           overrides: { ...state.overrides, defaultCurrency: value },
         })),
+      setHiddenFilterSections: (value) =>
+        set((state) => ({
+          hiddenFilterSections: value,
+          overrides: { ...state.overrides, hiddenFilterSections: value },
+        })),
 
       resetPreference: (key) =>
         set((state) => {
@@ -225,6 +238,10 @@ export const useDisplayStore = create<DisplayState>()(
               incoming.defaultCurrency === undefined
                 ? state.overrides.defaultCurrency
                 : incoming.defaultCurrency,
+            hiddenFilterSections:
+              incoming.hiddenFilterSections === undefined
+                ? state.overrides.hiddenFilterSections
+                : incoming.hiddenFilterSections,
           };
           return { overrides: merged, ...resolveAll(merged), prefsHydrated: true };
         }),

@@ -29,6 +29,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
+import { FilterCustomizeControl } from "./filter-customize-control";
 import { FilterPanelContent } from "./filter-panel-content";
 
 const sortOptions: { value: SortOption; label: string }[] = [
@@ -504,7 +505,10 @@ export function MobileFilterContent({
 }) {
   return (
     <div className="border-t pt-4">
-      <p className="mb-2.5 text-sm font-medium">Filters</p>
+      <div className="mb-2.5 flex items-center justify-between">
+        <p className="text-sm font-medium">Filters</p>
+        <FilterCustomizeControl />
+      </div>
       <div className="flex flex-col gap-4">
         <FilterPanelContent
           availableFilters={availableFilters}

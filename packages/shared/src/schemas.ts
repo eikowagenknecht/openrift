@@ -540,4 +540,10 @@ export const updatePreferencesSchema = z.object({
   completionScope: completionScopeWriteSchema.nullable().optional(),
   defaultCardView: defaultCardViewEnum.nullable().optional(),
   defaultCurrency: currencySchema.nullable().optional(),
+  hiddenFilterSections: z
+    .array(z.string().min(1).max(40))
+    .max(40)
+    .refine((arr) => new Set(arr).size === arr.length, { message: "Duplicate filter sections" })
+    .nullable()
+    .optional(),
 });

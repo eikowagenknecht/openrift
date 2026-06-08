@@ -50,6 +50,12 @@ export interface UserPreferencesResponse {
   defaultCardView?: DefaultCardView;
   /** Default currency for new wish/trade lists (ADR-017). Falls back to EUR. */
   defaultCurrency?: Currency;
+  /**
+   * Filter-panel sections the user has chosen to hide across every
+   * card-browser surface. Unioned with each surface's own contextual hides.
+   * Empty/missing = every applicable section is shown (the default).
+   */
+  hiddenFilterSections?: string[];
 }
 
 /** Fully resolved preferences — no optional fields. */
@@ -65,6 +71,7 @@ export interface ResolvedPreferences {
   completionScope: CompletionScopePreference;
   defaultCardView: DefaultCardView;
   defaultCurrency: Currency;
+  hiddenFilterSections: string[];
 }
 
 /** Default values for every preference. Used to resolve missing/null fields. */
@@ -80,4 +87,5 @@ export const PREFERENCE_DEFAULTS: ResolvedPreferences = {
   completionScope: {},
   defaultCardView: "cards",
   defaultCurrency: "EUR",
+  hiddenFilterSections: [],
 };

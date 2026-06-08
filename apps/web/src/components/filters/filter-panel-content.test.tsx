@@ -2,10 +2,20 @@ import type { AvailableFilters, FilterCounts } from "@openrift/shared";
 import { render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { mockUseFilterValues, mockUseFilterActions, mockUseDisplayStore } = vi.hoisted(() => ({
+const {
+  mockUseFilterValues,
+  mockUseFilterActions,
+  mockUseDisplayStore,
+  mockUseEnumOrders,
+  mockUseLanguageLabels,
+  mockUseCustomTagList,
+} = vi.hoisted(() => ({
   mockUseFilterValues: vi.fn(),
   mockUseFilterActions: vi.fn(),
   mockUseDisplayStore: vi.fn(),
+  mockUseEnumOrders: vi.fn(),
+  mockUseLanguageLabels: vi.fn(),
+  mockUseCustomTagList: vi.fn(),
 }));
 
 vi.mock("@/hooks/use-card-filters", () => ({
@@ -17,8 +27,14 @@ vi.mock("@/stores/display-store", () => ({
   useDisplayStore: mockUseDisplayStore,
 }));
 
+vi.mock("@/hooks/use-enums", () => ({
+  useEnumOrders: mockUseEnumOrders,
+  useLanguageLabels: mockUseLanguageLabels,
+  useCustomTagList: mockUseCustomTagList,
+}));
+
 // oxlint-disable-next-line import/first -- must import after vi.mock
-import { FilterRangeSections } from "./filter-panel-content";
+import { FilterBadgeSections, FilterRangeSections } from "./filter-panel-content";
 
 const NULL_RANGES = {
   energy: { min: null, max: null },
@@ -146,5 +162,141 @@ describe("FilterRangeSections", () => {
       />,
     );
     expect(queryByText("Copies")).toBeNull();
+  });
+
+  it("hides a range slider whose key is in hiddenSections", () => {
+    setupHooks();
+    const { queryByText } = render(
+      <FilterRangeSections
+        availableFilters={makeAvailable()}
+        filterCounts={makeFilterCounts()}
+        hiddenSections={new Set(["price"])}
+      />,
+    );
+    // The user opted Price out; the others stay.
+    expect(queryByText("Price")).toBeNull();
+    expect(queryByText("Energy")).not.toBeNull();
+  });
+});
+
+interface BadgeFilterState {
+  sets: string[];
+  domains: string[];
+  rarities: string[];
+  types: string[];
+  superTypes: string[];
+  artVariants: string[];
+  finishes: string[];
+  languages: string[];
+  markers: string[];
+  channels: string[];
+  customTags: string[];
+  owned: string[];
+  promo: boolean | null;
+  signed: boolean | null;
+  banned: boolean | null;
+  errata: boolean | null;
+  search: string;
+}
+
+function setupBadgeHooks(filterStateOverrides: Partial<BadgeFilterState> = {}) {
+  mockUseFilterValues.mockReturnValue({
+    filterState: {
+      sets: [],
+      domains: [],
+      rarities: [],
+      types: [],
+      superTypes: [],
+      artVariants: [],
+      finishes: [],
+      languages: [],
+      markers: [],
+      channels: [],
+      customTags: [],
+      owned: [],
+      promo: null,
+      signed: null,
+      banned: null,
+      errata: null,
+      search: "",
+      ...filterStateOverrides,
+    },
+  });
+  mockUseFilterActions.mockReturnValue({
+    toggleArrayFilter: vi.fn(),
+    setArrayFilter: vi.fn(),
+    toggleSigned: vi.fn(),
+    togglePromo: vi.fn(),
+    toggleBanned: vi.fn(),
+    toggleErrata: vi.fn(),
+  });
+  mockUseEnumOrders.mockReturnValue({
+    labels: {
+      finishes: {},
+      rarities: {},
+      domains: {},
+      cardTypes: {},
+      superTypes: {},
+      artVariants: {},
+    },
+  });
+  mockUseLanguageLabels.mockReturnValue({});
+  mockUseCustomTagList.mockReturnValue({ byCategory: new Map(), all: [] });
+}
+
+describe("FilterBadgeSections — hiddenSections gating", () => {
+  afterEach(() => {
+    mockUseFilterValues.mockReset();
+    mockUseFilterActions.mockReset();
+    mockUseEnumOrders.mockReset();
+    mockUseLanguageLabels.mockReset();
+    mockUseCustomTagList.mockReset();
+  });
+
+  it("renders the Finish section when finishes has options and isn't hidden", () => {
+    setupBadgeHooks();
+    const { queryByText } = render(
+      <FilterBadgeSections
+        availableFilters={makeAvailable({ finishes: ["foil", "nonfoil"] })}
+        hiddenSections={new Set(["owned"])}
+      />,
+    );
+    expect(queryByText("Finish")).not.toBeNull();
+  });
+
+  it("hides the Finish section when finishes is in hiddenSections", () => {
+    setupBadgeHooks();
+    const { queryByText } = render(
+      <FilterBadgeSections
+        availableFilters={makeAvailable({ finishes: ["foil", "nonfoil"] })}
+        hiddenSections={new Set(["owned", "finishes"])}
+      />,
+    );
+    expect(queryByText("Finish")).toBeNull();
+  });
+
+  it("renders the More header while a child (Signed) still has content", () => {
+    setupBadgeHooks();
+    const { queryByText } = render(
+      <FilterBadgeSections
+        availableFilters={makeAvailable({ hasSigned: true })}
+        hiddenSections={new Set(["owned"])}
+      />,
+    );
+    expect(queryByText("More")).not.toBeNull();
+    expect(queryByText("Signed")).not.toBeNull();
+  });
+
+  it("collapses the More header when every one of its children is hidden", () => {
+    setupBadgeHooks();
+    // Owned and Signed are the only More children with content here; hide both.
+    const { queryByText } = render(
+      <FilterBadgeSections
+        availableFilters={makeAvailable({ hasSigned: true })}
+        hiddenSections={new Set(["owned", "signed"])}
+      />,
+    );
+    expect(queryByText("More")).toBeNull();
+    expect(queryByText("Signed")).toBeNull();
   });
 });

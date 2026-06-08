@@ -7,6 +7,7 @@ import {
   CollapsibleFilterPanel,
   FilterToggleButton,
 } from "@/components/filters/collapsible-filter-panel";
+import { FilterCustomizeControl } from "@/components/filters/filter-customize-control";
 import { FilterPanelContent } from "@/components/filters/filter-panel-content";
 import {
   DesktopOptionsBar,
@@ -16,12 +17,15 @@ import {
 } from "@/components/filters/options-bar";
 import { SearchBar } from "@/components/filters/search-bar";
 import { Pane } from "@/components/layout/panes";
+import { mergeHiddenSections } from "@/lib/filter-sections";
+import { useDisplayStore } from "@/stores/display-store";
 
 export interface CardBrowserFilterMeta {
   availableFilters: AvailableFilters;
   availableLanguages?: string[];
   filterCounts?: FilterCounts;
   setDisplayLabel?: (slug: string) => string;
+  /** The surface's own contextual hides — what this surface never shows here. */
   hiddenSections?: ReadonlySet<string>;
   visibleCustomTagCategories?: ReadonlySet<string>;
   /**
@@ -33,14 +37,34 @@ export interface CardBrowserFilterMeta {
   ownedCountMax?: number;
 }
 
-const FilterMetaContext = createContext<CardBrowserFilterMeta | null>(null);
+interface CardBrowserFilterContextValue extends CardBrowserFilterMeta {
+  /**
+   * `hiddenSections` unioned with the user's hidden-filter preference. Used by
+   * the filter-panel renders; the bare `hiddenSections` (surface-only) is used
+   * by the active-filter strip so a user-hidden section's active chip stays
+   * clearable, and by the customize control to know what to offer.
+   */
+  effectiveHiddenSections: ReadonlySet<string>;
+}
 
-function useFilterMeta(): CardBrowserFilterMeta {
+const FilterMetaContext = createContext<CardBrowserFilterContextValue | null>(null);
+
+function useFilterMeta(): CardBrowserFilterContextValue {
   const value = use(FilterMetaContext);
   if (!value) {
     throw new Error("Card browser filter slots must render under <CardBrowserFilterProvider>");
   }
   return value;
+}
+
+/**
+ * Non-throwing variant for components that may render outside a card-browser
+ * surface (e.g. the customize control, which self-disables when there's no
+ * filter context).
+ * @returns The filter meta, or null when not under a provider.
+ */
+export function useFilterMetaOptional(): CardBrowserFilterContextValue | null {
+  return use(FilterMetaContext);
 }
 
 interface CardBrowserFilterProviderProps extends CardBrowserFilterMeta {
@@ -61,7 +85,14 @@ interface CardBrowserFilterProviderProps extends CardBrowserFilterMeta {
  * @returns The provider tree wrapping `children`.
  */
 export function CardBrowserFilterProvider({ children, ...meta }: CardBrowserFilterProviderProps) {
-  return <FilterMetaContext value={meta}>{children}</FilterMetaContext>;
+  const userHiddenFilterSections = useDisplayStore((state) => state.hiddenFilterSections);
+  const effectiveHiddenSections = mergeHiddenSections(
+    meta.hiddenSections,
+    userHiddenFilterSections,
+  );
+  return (
+    <FilterMetaContext value={{ ...meta, effectiveHiddenSections }}>{children}</FilterMetaContext>
+  );
 }
 
 /**
@@ -73,14 +104,19 @@ export function BrowserLeftPane() {
   const meta = useFilterMeta();
   return (
     <Pane className="@wide:block px-3">
-      <h2 className="pb-4 text-lg font-semibold">Filters</h2>
+      {/* The pane has a real heading, so the customize control rides its row —
+          no wasted gutter or extra row (unlike the headingless collapsible). */}
+      <div className="flex items-center justify-between pb-4">
+        <h2 className="text-lg font-semibold">Filters</h2>
+        <FilterCustomizeControl />
+      </div>
       <div className="space-y-4 pb-4">
         <FilterPanelContent
           availableFilters={meta.availableFilters}
           availableLanguages={meta.availableLanguages}
           filterCounts={meta.filterCounts}
           setDisplayLabel={meta.setDisplayLabel}
-          hiddenSections={meta.hiddenSections}
+          hiddenSections={meta.effectiveHiddenSections}
           visibleCustomTagCategories={meta.visibleCustomTagCategories}
           ownedCountMax={meta.ownedCountMax}
         />
@@ -102,7 +138,7 @@ function BrowserCollapsibleFilters() {
       availableLanguages={meta.availableLanguages}
       filterCounts={meta.filterCounts}
       setDisplayLabel={meta.setDisplayLabel}
-      hiddenSections={meta.hiddenSections}
+      hiddenSections={meta.effectiveHiddenSections}
       visibleCustomTagCategories={meta.visibleCustomTagCategories}
       ownedCountMax={meta.ownedCountMax}
     />
@@ -122,7 +158,7 @@ function BrowserMobileFilters() {
       availableLanguages={meta.availableLanguages}
       filterCounts={meta.filterCounts}
       setDisplayLabel={meta.setDisplayLabel}
-      hiddenSections={meta.hiddenSections}
+      hiddenSections={meta.effectiveHiddenSections}
       visibleCustomTagCategories={meta.visibleCustomTagCategories}
       ownedCountMax={meta.ownedCountMax}
     />

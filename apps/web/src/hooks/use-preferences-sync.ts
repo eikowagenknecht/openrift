@@ -60,6 +60,7 @@ function getPrefsSnapshot(): UserPreferencesResponse & {
     completionScope: overrides.completionScope,
     defaultCardView: overrides.defaultCardView,
     defaultCurrency: overrides.defaultCurrency,
+    hiddenFilterSections: overrides.hiddenFilterSections,
     theme: themePreference,
     palette: palettePreference,
   } as UserPreferencesResponse;
