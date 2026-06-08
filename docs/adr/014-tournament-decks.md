@@ -1,9 +1,11 @@
 ---
 status: proposed
-date: 2026-05-19
+date: 2026-06-08
 ---
 
 # ADR-014: Tournament Decks Archive
+
+> **Update (2026-06-08, see ADR-022):** the `/tournaments` route is now a shared **hub** co-located with the FFA pod-pairing tournament runner (ADR-022). The archive described here keeps its routes (`/tournaments`, `/tournaments/decks`, `/tournaments/meta`, `/tournaments/$slug`, `/tournaments/$slug/$shareToken`); the runner lives under the reserved `/tournaments/run/` segment. The two share only the URL home, not data: separate tables (`tournaments` vs `pod_tournaments`), repositories, ownership, and audiences. `run` is added to the reserved-slug list below.
 
 ## Context and Problem Statement
 
@@ -55,7 +57,7 @@ Why a single shared owner rather than per-pilot users: we deliberately chose **f
 `tournaments` is first-class: events have their own page, their own slug, and their own permalink. Fields:
 
 - `id uuid` — primary key, uuidv7.
-- `slug text` — URL-safe, `[a-z0-9][a-z0-9-]{2,49}`, unique, **mutable with no redirect**. Same policy as ADR-013 friend groups: small audience, low collision risk; renamed slugs 404. Reserved-slug list (`new`, `decks`, `meta`, `admin`, etc.) prevents collisions with app routes.
+- `slug text` — URL-safe, `[a-z0-9][a-z0-9-]{2,49}`, unique, **mutable with no redirect**. Same policy as ADR-013 friend groups: small audience, low collision risk; renamed slugs 404. Reserved-slug list (`new`, `decks`, `meta`, `run`, `admin`, etc.) prevents collisions with app routes (`run` is reserved for the ADR-022 runner subtree).
 - `name text` — display name, 1–120 chars.
 - `event_date date` — single date. Multi-day events store the start; the source URL or notes carry the detail.
 - `format text` — same string vocabulary as `decks.format` so filters compose.
@@ -120,7 +122,7 @@ Both stats power surfaces that already exist in the route plan below; we do not 
 
 #### Routes
 
-- **`/tournaments`** — event index, sorted by `event_date desc`. Each row: event name, date, format, player count, organizer, count of decks in archive, link to event page. Filters: format, date range. SSR public.
+- **`/tournaments`** — the shared hub (see ADR-022): it offers "Browse decks & meta" (this archive) and "Run a tournament" (the ADR-022 runner). The archive's event index lives here, sorted by `event_date desc`. Each row: event name, date, format, player count, organizer, count of decks in archive, link to event page. Filters: format, date range. SSR public.
 - **`/tournaments/$slug`** — single event page. Event metadata header (name, date, format, player count, organizer, source URL, notes), then the list of decks for this event ordered by `finish_tier asc`. Each deck row uses the same compact deck card as the deck-builder list, with a "T8 — Player Name" badge prefix. SSR public.
 - **`/tournaments/$slug/$shareToken`** — single tournament deck. Renders the existing deck-detail page with an **Event** sidebar (tournament name + date + format → link back to `/tournaments/$slug`, finish position, player name) and a **Fork to my decks** CTA. For logged-in users, the existing deck-collection overlay computes missing-cards / completion %. SSR public.
 - **`/tournaments/decks`** — cross-event deck browser with filters: format, date range, event(s) multi-select, finish position (winner / top 4 / top 8 / top 16 / any), champion. Filter chips render in the active-filters bar with the existing card-browser scaffold. SSR public.
@@ -215,7 +217,7 @@ The tournament-deck URL slug is `decks.share_token`; no slug column is added her
 
 Schema-level invariants exercised by integration tests:
 
-- `tournaments.slug` matches the URL pattern and rejects reserved names (`new`, `decks`, `meta`, `admin`).
+- `tournaments.slug` matches the URL pattern and rejects reserved names (`new`, `decks`, `meta`, `run`, `admin`).
 - Deleting a `tournaments` row cascades to its `tournaments_decks` rows, which cascade to the underlying `decks` rows (and their `deck_cards`).
 - Deleting a `decks` row cascades to its `tournaments_decks` row.
 - The `tournament-archive` user cannot authenticate (auth lookup returns no candidate).
@@ -238,3 +240,4 @@ Relationship to other ADRs:
 
 - **ADR-005 (collection tracking).** The "Can I build this?" overlay on the tournament deck detail page reuses the same per-deck completion computation that ADR-005 introduces for user decks. No new mechanism is required.
 - **ADR-013 (friend groups).** Tournament decks remain group-agnostic — no friend-group surface integrates with them, no group can "share" a tournament deck. The cross-surface integration ADR-013 calls out (shopping list) does not extend to the tournament archive.
+- **ADR-022 (FFA pod pairing).** Shares the `/tournaments` hub with this archive (this archive under the bare `/tournaments` routes, the runner under `/tournaments/run/`). Data stays separate: `pod_tournaments` and friends are independent of `tournaments` / `tournaments_decks`, with no foreign keys between the two. The only coordination is the shared hub page and the `run` reserved slug.
