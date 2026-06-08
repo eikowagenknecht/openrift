@@ -10,6 +10,23 @@ export interface CardFieldGroup {
   items: CardViewerItem[];
 }
 
+/**
+ * Grouping axes that only make sense in printings view. Marker and distribution
+ * channel live on individual printings, so in cards view a card collapses to its
+ * canonical base printing — which carries neither — and every card falls into a
+ * single "Unmarked" / "(No distribution channel)" bucket. The cards-view
+ * group-by dropdown hides these, and switching to cards resets the grouping.
+ */
+const PRINTINGS_ONLY_GROUP_BY: ReadonlySet<GroupByField> = new Set(["channel", "marker"]);
+
+/**
+ * Whether `groupBy` requires printings view (marker / distribution channel).
+ * @returns `true` for printings-only axes.
+ */
+export function isPrintingsOnlyGrouping(groupBy: GroupByField): boolean {
+  return PRINTINGS_ONLY_GROUP_BY.has(groupBy);
+}
+
 /** Synthetic bucket for cards with no super type — not an enum slug. */
 export const NO_SUPER_TYPE_KEY = "(None)";
 

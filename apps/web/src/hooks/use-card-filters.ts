@@ -14,6 +14,7 @@ import type {
 import { useRouter } from "@tanstack/react-router";
 
 import { trackEvent } from "@/lib/analytics";
+import { isPrintingsOnlyGrouping } from "@/lib/group-by-field";
 import type { FilterSearch, OwnedBucket } from "@/lib/search-schemas";
 import { useFilterSearch } from "@/lib/search-schemas";
 import { useDisplayStore } from "@/stores/display-store";
@@ -130,7 +131,13 @@ export function useFilterValues() {
   const sortBy = filterState.sort as SortOption;
   const sortDir = filterState.sortDir as SortDirection;
   const view = filterState.view as "cards" | "printings" | "copies";
-  const groupBy = filterState.groupBy as GroupByField;
+  const rawGroupBy = filterState.groupBy as GroupByField;
+  // Marker / distribution-channel grouping needs printings view (a card collapses
+  // to its base printing in cards view, which has neither), so fall back to "set"
+  // there — guards a stale URL from rendering a degenerate single bucket. The
+  // dropdown also hides these in cards view, and setView clears the stored value.
+  const groupBy: GroupByField =
+    view === "cards" && isPrintingsOnlyGrouping(rawGroupBy) ? "set" : rawGroupBy;
   const groupDir = filterState.groupDir as SortDirection;
 
   const hasActiveFilters =
@@ -349,7 +356,15 @@ export function useFilterActions() {
   };
 
   const setView = (v: "cards" | "printings" | "copies") => {
-    updateSearch({ view: v === defaultView ? undefined : v });
+    // Marker / distribution-channel grouping is hidden in cards view, so switching
+    // to cards from one of those resets the grouping to the "set" default instead
+    // of leaving a now-unavailable selection in the URL.
+    const resetGrouping =
+      v === "cards" && isPrintingsOnlyGrouping(filterState.groupBy as GroupByField);
+    updateSearch({
+      view: v === defaultView ? undefined : v,
+      ...(resetGrouping ? { groupBy: undefined } : {}),
+    });
   };
 
   const setGroupBy = (groupBy: GroupByField) => {

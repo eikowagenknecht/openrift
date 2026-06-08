@@ -5,7 +5,7 @@ import type { CardViewerItem } from "@/components/card-viewer-types";
 import type { EnumLabels } from "@/hooks/use-enums";
 import { resetIdCounter, stubPrinting } from "@/test/factories";
 
-import { groupItemsByField } from "./group-by-field";
+import { groupItemsByField, isPrintingsOnlyGrouping } from "./group-by-field";
 
 beforeEach(() => {
   resetIdCounter();
@@ -31,6 +31,19 @@ const LABELS: EnumLabels = {
 function item(printing: ReturnType<typeof stubPrinting>): CardViewerItem {
   return { id: printing.id, printing };
 }
+
+describe("isPrintingsOnlyGrouping", () => {
+  it("is true for marker and distribution channel", () => {
+    expect(isPrintingsOnlyGrouping("marker")).toBe(true);
+    expect(isPrintingsOnlyGrouping("channel")).toBe(true);
+  });
+
+  it("is false for axes that work in cards view", () => {
+    for (const axis of ["none", "set", "type", "superType", "domain", "rarity", "year"] as const) {
+      expect(isPrintingsOnlyGrouping(axis)).toBe(false);
+    }
+  });
+});
 
 describe("groupItemsByField", () => {
   it("labels rarity headers with the display name, not the slug", () => {

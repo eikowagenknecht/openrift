@@ -387,6 +387,45 @@ describe("useCardFilters", () => {
     expect(lastNavigateSearch()).toMatchObject({ view: "cards" });
   });
 
+  it("setView('cards') resets a printings-only grouping (marker) to the Set default", () => {
+    mockSearch = { view: "printings", groupBy: "marker" };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.setView("cards"));
+
+    expect(lastNavigateSearch()).not.toHaveProperty("groupBy");
+  });
+
+  it("setView('cards') keeps a grouping that works in cards view (rarity)", () => {
+    mockSearch = { view: "printings", groupBy: "rarity" };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.setView("cards"));
+
+    expect(lastNavigateSearch()).toMatchObject({ groupBy: "rarity" });
+  });
+
+  it("setView('printings') preserves a printings-only grouping", () => {
+    mockSearch = { view: "copies", groupBy: "marker" };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.setView("printings"));
+
+    expect(lastNavigateSearch()).toMatchObject({ view: "printings", groupBy: "marker" });
+  });
+
+  it("normalizes a printings-only grouping to 'set' in cards view (stale-URL guard)", () => {
+    mockSearch = { view: "cards", groupBy: "marker" };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+    expect(result.current.groupBy).toBe("set");
+  });
+
+  it("keeps a printings-only grouping in printings view", () => {
+    mockSearch = { view: "printings", groupBy: "marker" };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+    expect(result.current.groupBy).toBe("marker");
+  });
+
   // Regression: React Compiler bails on the entire hook if it encounters a
   // TemplateLiteral in a computed object-expression key (Todo::lowerExpression).
   // When that happens, `setRange`, `setSearch`, `setArrayFilters`, etc. return

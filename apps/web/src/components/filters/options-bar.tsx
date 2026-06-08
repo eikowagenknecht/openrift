@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/drawer";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { isPrintingsOnlyGrouping } from "@/lib/group-by-field";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -51,6 +52,18 @@ const defaultGroupByOptions: { value: GroupByField; label: string }[] = [
   { value: "year", label: "Year" },
   { value: "marker", label: "Marker" },
 ];
+
+/**
+ * The default group-by options available in the given view. Cards view drops
+ * the printings-only axes (marker / distribution channel), which collapse every
+ * card into one bucket there (see isPrintingsOnlyGrouping).
+ * @returns The group-by options for `view`.
+ */
+function groupByOptionsForView(view: "cards" | "printings" | "copies") {
+  return view === "cards"
+    ? defaultGroupByOptions.filter((option) => !isPrintingsOnlyGrouping(option.value))
+    : defaultGroupByOptions;
+}
 
 function DisplayModeToggle({ compact, className }: { compact?: boolean; className?: string }) {
   const displayMode = useDisplayStore((state) => state.displayMode);
@@ -314,7 +327,7 @@ export function DesktopOptionsBar({
   className,
   showCopies,
   hideViewToggle,
-  groupByOptions = defaultGroupByOptions,
+  groupByOptions,
   groupByValue,
 }: {
   className?: string;
@@ -351,6 +364,10 @@ export function DesktopOptionsBar({
     displayMode,
   } = useOptionsBarState();
 
+  // Surfaces that pass their own options (e.g. /promos) keep them; otherwise the
+  // defaults are narrowed to what makes sense in the current view.
+  const options = groupByOptions ?? groupByOptionsForView(view);
+
   return (
     <div className={cn("items-center gap-3", className)}>
       <SortGroupControls
@@ -360,7 +377,7 @@ export function DesktopOptionsBar({
         onSortByChange={setSortBy}
         onSortDirChange={setSortDir}
         group={{
-          options: groupByOptions,
+          options,
           value: groupByValue ?? groupBy,
           dir: groupDir,
           onValueChange: (value) => setGroupBy(value as GroupByField),
@@ -424,7 +441,7 @@ export function MobileOptionsDrawer({
 export function MobileOptionsContent({
   showCopies,
   hideViewToggle,
-  groupByOptions = defaultGroupByOptions,
+  groupByOptions,
   groupByValue,
 }: {
   showCopies?: boolean;
@@ -448,6 +465,8 @@ export function MobileOptionsContent({
     columnProps,
     displayMode,
   } = useOptionsBarState();
+
+  const options = groupByOptions ?? groupByOptionsForView(view);
 
   return (
     <div className="space-y-2">
@@ -473,7 +492,7 @@ export function MobileOptionsContent({
         onSortByChange={setSortBy}
         onSortDirChange={setSortDir}
         group={{
-          options: groupByOptions,
+          options,
           value: groupByValue ?? groupBy,
           dir: groupDir,
           onValueChange: (value) => setGroupBy(value as GroupByField),
