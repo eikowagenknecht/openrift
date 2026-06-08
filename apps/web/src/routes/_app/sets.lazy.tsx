@@ -6,6 +6,7 @@ import { CalendarIcon, LayersIcon } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
+import { formatAbsoluteDate } from "@/lib/format-date";
 import { PAGE_PADDING } from "@/lib/utils";
 
 export const Route = createLazyFileRoute("/_app/sets")({
@@ -16,8 +17,7 @@ export const Route = createLazyFileRoute("/_app/sets")({
 const CARD_BORDER_RADIUS = "5% / 3.6%";
 
 function formatDate(dateStr: string): string {
-  const date = new Date(`${dateStr}T00:00:00`);
-  return date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  return formatAbsoluteDate(dateStr, { year: "numeric", month: "short", day: "numeric" });
 }
 
 function HeroSetCard({ set }: { set: SetListEntry }) {

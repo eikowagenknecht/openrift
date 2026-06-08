@@ -9,6 +9,7 @@
 - feat: The deck builder's Overflow zone now holds any card type, including Legends, Runes, and Battlefields, so you can park anything there while you decide. Overflow cards never count toward deck legality
 - feat: The Overflow zone now holds unlimited copies of a card, and those copies no longer count against the 3-copy limit, so parking a card there doesn't reduce how many you can run in your main deck
 - feat: Opening a group invite link no longer shows who owns the group. You'll still see the group name, member count, and description before deciding to join
+- fix: Dates on the changelog, sets, and profile pages no longer briefly flicker to a different day right after the page loads when your time zone is behind UTC
 - fix: Setting up a wishlist or tradelist no longer forces you to enter a fixed default price. The list-wide price now offers a marketplace lookup or "negotiate", and you set fixed prices on individual cards instead, where a single number actually makes sense
 - fix: Group headers now read cleanly: rarity, type, domain, and super type show the proper name (like "Rare" or "Unit") instead of the internal code, and marker and distribution-channel headers no longer show a redundant code in front of the name (like "promo Promo")
 - fix: Grouping by marker or distribution channel is now offered only in Printings view, where it splits cards into real sections. In Cards view it grouped everything into one bucket, so it's hidden there and switching to Cards falls back to grouping by Set

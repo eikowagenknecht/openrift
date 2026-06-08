@@ -15,6 +15,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { UserAvatar } from "@/components/user-avatar";
 import { useLanguageList } from "@/hooks/use-enums";
 import { useSession } from "@/lib/auth-session";
+import { formatAbsoluteDate } from "@/lib/format-date";
 import { useGravatarHash } from "@/lib/gravatar";
 import { PAGE_PADDING } from "@/lib/utils";
 
@@ -45,11 +46,7 @@ function ProfilePage() {
   }
 
   const createdAt = user.createdAt
-    ? new Date(user.createdAt).toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
+    ? formatAbsoluteDate(user.createdAt, { year: "numeric", month: "long", day: "numeric" })
     : null;
 
   return (
