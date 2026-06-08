@@ -617,6 +617,7 @@ export interface AdminUserResponse {
   cardCount: number;
   deckCount: number;
   collectionCount: number;
+  listCount: number;
   createdAt: string;
   lastActiveAt: string | null;
 }

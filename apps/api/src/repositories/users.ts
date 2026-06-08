@@ -11,6 +11,7 @@ interface UserWithCounts {
   cardCount: number;
   deckCount: number;
   collectionCount: number;
+  listCount: number;
   createdAt: Date;
   lastActiveAt: Date | null;
 }
@@ -22,7 +23,7 @@ interface UserWithCounts {
  */
 export function usersRepo(db: Kysely<Database>) {
   return {
-    /** @returns All users with aggregate card, deck, and collection counts. */
+    /** @returns All users with aggregate card, deck, collection, and list counts. */
     async listWithCounts(): Promise<UserWithCounts[]> {
       const rows = await db
         .selectFrom("users as u")
@@ -55,6 +56,11 @@ export function usersRepo(db: Kysely<Database>) {
             .whereRef("collections.userId", "=", "u.id")
             .as("collectionCount"),
           eb
+            .selectFrom("lists")
+            .select(eb.cast<number>(eb.fn.countAll(), "integer").as("c"))
+            .whereRef("lists.userId", "=", "u.id")
+            .as("listCount"),
+          eb
             .selectFrom("sessions")
             .select((seb) => seb.fn.max("updatedAt").as("m"))
             .whereRef("sessions.userId", "=", "u.id")
@@ -72,6 +78,7 @@ export function usersRepo(db: Kysely<Database>) {
         cardCount: r.cardCount ?? 0,
         deckCount: r.deckCount ?? 0,
         collectionCount: r.collectionCount ?? 0,
+        listCount: r.listCount ?? 0,
         createdAt: r.createdAt,
         lastActiveAt: r.lastActiveAt,
       }));

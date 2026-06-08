@@ -73,6 +73,13 @@ function CollectionCountCell({ row }: AdminCellSlotProps<AdminUserResponse>) {
   return <span className="tabular-nums">{row.collectionCount.toLocaleString()}</span>;
 }
 
+function ListCountCell({ row }: AdminCellSlotProps<AdminUserResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="tabular-nums">{row.listCount.toLocaleString()}</span>;
+}
+
 function JoinedCell({ row }: AdminCellSlotProps<AdminUserResponse>) {
   if (!row) {
     return null;
@@ -128,6 +135,13 @@ const columns: AdminColumnDef<AdminUserResponse>[] = [
     width: "w-28",
     sortValue: (user) => user.collectionCount,
     cell: <CollectionCountCell />,
+  },
+  {
+    header: "Lists",
+    align: "right",
+    width: "w-20",
+    sortValue: (user) => user.listCount,
+    cell: <ListCountCell />,
   },
   {
     header: "Joined",

@@ -25,6 +25,7 @@ const listUsers = createRoute({
                 cardCount: z.number().openapi({ example: 342 }),
                 deckCount: z.number().openapi({ example: 5 }),
                 collectionCount: z.number().openapi({ example: 3 }),
+                listCount: z.number().openapi({ example: 4 }),
                 createdAt: z.string().openapi({ example: "2026-03-11T18:04:22.059Z" }),
                 lastActiveAt: z
                   .string()
@@ -57,6 +58,7 @@ export const adminUsersRoute = createApiApp().openapi(listUsers, async (c) => {
         cardCount: r.cardCount,
         deckCount: r.deckCount,
         collectionCount: r.collectionCount,
+        listCount: r.listCount,
         createdAt: r.createdAt.toISOString(),
         lastActiveAt: r.lastActiveAt ? r.lastActiveAt.toISOString() : null,
       }),
