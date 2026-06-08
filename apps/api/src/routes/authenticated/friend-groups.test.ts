@@ -69,6 +69,7 @@ function makeApp(overrides: {
     transferOwnership: vi.fn(),
     getInvite: vi.fn(),
     listInvitesForUser: vi.fn(() => Promise.resolve([])),
+    listOwnRequestsForUser: vi.fn(() => Promise.resolve([])),
     listRequestsForGroup: vi.fn(() => Promise.resolve([])),
     pendingInvitesCountForUser: vi.fn(() => Promise.resolve(0)),
     pendingRequestsCountForUser: vi.fn(() => Promise.resolve(0)),
@@ -185,9 +186,48 @@ describe("friend-groups route", () => {
     });
     const res = await app.request("/api/v1/friend-groups");
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { items: unknown[]; pendingInvites: unknown[] };
+    const body = (await res.json()) as {
+      items: unknown[];
+      pendingInvites: unknown[];
+      outgoingRequests: unknown[];
+    };
     expect(body.items).toHaveLength(1);
     expect(body.pendingInvites).toHaveLength(1);
+    expect(body.outgoingRequests).toHaveLength(0);
+  });
+
+  it("GET / surfaces the viewer's own pending join requests in outgoingRequests", async () => {
+    const { app } = makeApp({
+      friendGroups: {
+        listOwnRequestsForUser: vi.fn(() =>
+          Promise.resolve([
+            {
+              id: "req-1",
+              groupId: GROUP_ID,
+              userId: USER_ID,
+              direction: "request",
+              createdAt: now,
+              groupName: "Allerlei Spielerei",
+              groupSlug: "allerlei-spielerei-hannover",
+            },
+          ]),
+        ),
+      },
+    });
+    const res = await app.request("/api/v1/friend-groups");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      outgoingRequests: { id: string; groupSlug: string; groupName: string }[];
+    };
+    expect(body.outgoingRequests).toEqual([
+      {
+        id: "req-1",
+        groupId: GROUP_ID,
+        groupSlug: "allerlei-spielerei-hannover",
+        groupName: "Allerlei Spielerei",
+        createdAt: now.toISOString(),
+      },
+    ]);
   });
 
   it("GET /pending-invites-count returns the count", async () => {

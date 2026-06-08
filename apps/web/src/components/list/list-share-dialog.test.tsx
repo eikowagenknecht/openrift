@@ -15,7 +15,7 @@ vi.mock("@/hooks/use-lists", () => ({
 // hooks so the dialog renders without a QueryClientProvider. An empty groups
 // list short-circuits the "Share with friend groups" section.
 vi.mock("@/hooks/use-friend-groups", () => ({
-  useFriendGroups: () => ({ data: { items: [], pendingInvites: [] } }),
+  useFriendGroups: () => ({ data: { items: [], pendingInvites: [], outgoingRequests: [] } }),
   useShareListWithFriendGroup: () => ({ mutate: vi.fn(), isPending: false }),
   useUnshareListFromFriendGroup: () => ({ mutate: vi.fn(), isPending: false }),
 }));

@@ -318,6 +318,26 @@ export function friendGroupsRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Join requests a user has sent (direction='request') that are still
+     * awaiting approval — for the "Awaiting approval" section on /groups, so the
+     * requester can find and cancel their own pending request.
+     * @returns Request rows joined with the group's name/slug.
+     */
+    listOwnRequestsForUser(
+      userId: string,
+    ): Promise<(GroupInvite & { groupName: string; groupSlug: string })[]> {
+      return db
+        .selectFrom("friendGroupInvites as i")
+        .innerJoin("friendGroups as g", "g.id", "i.groupId")
+        .selectAll("i")
+        .select(["g.name as groupName", "g.slug as groupSlug"])
+        .where("i.userId", "=", userId)
+        .where("i.direction", "=", "request")
+        .orderBy("i.createdAt", "asc")
+        .execute();
+    },
+
+    /**
      * Join requests (direction='request') queued against a group — for the
      * admin-only requests list.
      * @returns Request rows joined with the requester's profile.

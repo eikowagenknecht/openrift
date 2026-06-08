@@ -1135,18 +1135,19 @@ export const friendGroupSummaryResponseSchema = friendGroupResponseSchema
   })
   .openapi("FriendGroupSummaryResponse");
 
+const friendGroupPendingInviteEntrySchema = z.object({
+  id: z.string(),
+  groupId: z.string(),
+  groupSlug: z.string(),
+  groupName: z.string(),
+  createdAt: z.string(),
+});
+
 export const friendGroupListResponseSchema = z
   .object({
     items: z.array(friendGroupSummaryResponseSchema),
-    pendingInvites: z.array(
-      z.object({
-        id: z.string(),
-        groupId: z.string(),
-        groupSlug: z.string(),
-        groupName: z.string(),
-        createdAt: z.string(),
-      }),
-    ),
+    pendingInvites: z.array(friendGroupPendingInviteEntrySchema),
+    outgoingRequests: z.array(friendGroupPendingInviteEntrySchema),
   })
   .openapi("FriendGroupListResponse");
 

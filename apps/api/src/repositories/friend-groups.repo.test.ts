@@ -137,6 +137,17 @@ describe("friendGroupsRepo", () => {
     expect(await repo.listInvitesForUser("u2")).toEqual([enriched]);
   });
 
+  it("listOwnRequestsForUser returns enriched rows", async () => {
+    const enriched = {
+      ...INVITE,
+      direction: "request" as const,
+      groupName: "Tuesday Night Crew",
+      groupSlug: "playgroup",
+    };
+    const repo = friendGroupsRepo(createMockDb([enriched]));
+    expect(await repo.listOwnRequestsForUser("u2")).toEqual([enriched]);
+  });
+
   it("listRequestsForGroup returns enriched rows", async () => {
     const enriched = {
       ...INVITE,

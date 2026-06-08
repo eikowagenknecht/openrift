@@ -175,6 +175,24 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     expect(b.code).toBeNull();
   });
 
+  it("listOwnRequestsForUser returns the user's own join requests, not invites to them", async () => {
+    const group = await createGroup(VIEWER_ID);
+    // SELLER_ID requested to join; ADMIN_ID was invited by an admin.
+    await repo.createInvite(group.id, SELLER_ID, "request");
+    await repo.createInvite(group.id, ADMIN_ID, "invite");
+
+    const requests = await repo.listOwnRequestsForUser(SELLER_ID);
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.groupId).toBe(group.id);
+    expect(requests[0]?.groupSlug).toBe(group.slug);
+    expect(requests[0]?.groupName).toBe(group.name);
+    expect(requests[0]?.direction).toBe("request");
+
+    // The requester has no incoming invites; the invitee has no outgoing requests.
+    expect(await repo.listInvitesForUser(SELLER_ID)).toHaveLength(0);
+    expect(await repo.listOwnRequestsForUser(ADMIN_ID)).toHaveLength(0);
+  });
+
   it("rotates the code and invalidates the prior value", async () => {
     const group = await createGroup(VIEWER_ID, "ORIGCODE0001");
     const updated = await repo.setCode(group.id, "NEWCODE00001");

@@ -34,6 +34,8 @@ export interface FriendGroupPendingInviteResponse {
 export interface FriendGroupListResponse {
   items: FriendGroupSummaryResponse[];
   pendingInvites: FriendGroupPendingInviteResponse[];
+  /** Join requests the viewer has sent that are still awaiting an admin's approval. */
+  outgoingRequests: FriendGroupPendingInviteResponse[];
 }
 
 export interface FriendGroupMemberResponse {

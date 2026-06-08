@@ -649,10 +649,18 @@ export const friendGroupsRoute = friendGroupsApp
   .openapi(listGroups, async (c) => {
     const userId = getUserId(c);
     const { friendGroups } = c.get("repos");
-    const [groups, invites] = await Promise.all([
+    const [groups, invites, requests] = await Promise.all([
       friendGroups.listGroupsForUser(userId),
       friendGroups.listInvitesForUser(userId),
+      friendGroups.listOwnRequestsForUser(userId),
     ]);
+    const toInviteEntry = (row: (typeof invites)[number]) => ({
+      id: row.id,
+      groupId: row.groupId,
+      groupSlug: row.groupSlug,
+      groupName: row.groupName,
+      createdAt: row.createdAt.toISOString(),
+    });
     const response: FriendGroupListResponse = {
       items: groups.map(
         (row): FriendGroupSummaryResponse => ({
@@ -662,13 +670,8 @@ export const friendGroupsRoute = friendGroupsApp
           pendingRequestCount: row.pendingRequestCount,
         }),
       ),
-      pendingInvites: invites.map((row) => ({
-        id: row.id,
-        groupId: row.groupId,
-        groupSlug: row.groupSlug,
-        groupName: row.groupName,
-        createdAt: row.createdAt.toISOString(),
-      })),
+      pendingInvites: invites.map((row) => toInviteEntry(row)),
+      outgoingRequests: requests.map((row) => toInviteEntry(row)),
     };
     return c.json(response, 200);
   })

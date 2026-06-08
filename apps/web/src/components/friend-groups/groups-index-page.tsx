@@ -220,6 +220,42 @@ export function GroupsIndexPage() {
         </section>
       )}
 
+      {data.outgoingRequests.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
+            Awaiting approval
+          </h2>
+          <div className="flex flex-col gap-2">
+            {data.outgoingRequests.map((request) => (
+              <div
+                key={request.id}
+                className="bg-card flex items-center justify-between gap-3 rounded-md border p-3"
+              >
+                <Link
+                  to="/groups/$slug"
+                  params={{ slug: request.groupSlug }}
+                  className="flex flex-col"
+                >
+                  <span className="font-medium hover:underline">{request.groupName}</span>
+                  <span className="text-muted-foreground text-xs">/groups/{request.groupSlug}</span>
+                </Link>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    declineInvite.mutate({ slug: request.groupSlug, userId: viewerId })
+                  }
+                  disabled={declineInvite.isPending}
+                >
+                  <XIcon className="size-4" />
+                  Cancel request
+                </Button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {data.items.length === 0 ? (
         <Empty className="py-12">
           <EmptyHeader>
