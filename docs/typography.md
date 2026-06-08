@@ -15,6 +15,10 @@ The web app uses a small, fixed type scale. Pick a token from this guide wheneve
 | Metadata                     | `text-xs`                        | Badges, timestamps, captions, inline labels next to data.                                                                                                                                                                        |
 | Micro                        | `text-2xs`                       | Footer, chart axes, fine print. Defined as `--text-2xs: 0.6875rem` in `apps/web/src/index.css`.                                                                                                                                  |
 
+## Display numerals
+
+One narrow exception sits above the Hero size: a **display numeral** — a single number meant to be read at a glance from across a room, not body or heading text. The only use today is the match-tracker scorepad, where the score scales with the card from `text-4xl` up to `text-9xl` (`scoreSizeClass` in `apps/web/src/lib/match-layout.ts`). This is deliberately not a general-purpose tier: don't reach for `text-6xl`+ on ordinary headings or copy. If you have a new display-numeral case, add it here.
+
 ## Rules
 
 1. **Body text has no size class.** Don't add `text-base` or `text-sm` to a paragraph that's just body copy — leave it unstyled and let it inherit the root size. `text-sm` is for _compact_ surfaces (tables, buttons, dense forms), not for primary reading content.

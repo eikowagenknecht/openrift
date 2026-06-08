@@ -2,6 +2,8 @@
 
 ## 2026-06-07
 
+- feat: In the match tracker, you now change a player's points by tapping their card (left half subtracts, right half adds), and the score is much larger and easy to read from across the table
+- feat: The match tracker now fits your screen: players stack in a single column in portrait and fill a grid in landscape, so three- and four-player games no longer scroll off-screen
 - feat: Your collection now starts filtered to your preferred languages, the same as the cards page, so it isn't flooded with every language at once. Clear the language filter whenever you want to see cards you own in other languages
 - feat: The match tracker now has a 2v2 mode. Choose Teams in setup, put each player on a side, and teammates share one score toward 11 while everyone keeps their own XP. Teammates are color-coded so you can spot them around the table
 - feat: In the match tracker, "Who goes first?" now opens a menu where you can pick a specific player or choose Random, which plays a spotlight that sweeps across the players before landing on one. The chosen player keeps a clear "Goes first" badge for the rest of the game

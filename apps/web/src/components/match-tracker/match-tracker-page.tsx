@@ -1,4 +1,6 @@
 import { TrophyIcon } from "lucide-react";
+import { useLayoutEffect, useRef, useState } from "react";
+import type { RefObject } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { Heading } from "@/components/heading";
@@ -7,6 +9,9 @@ import { PlayerPanel } from "@/components/match-tracker/player-panel";
 import { SetupScreen } from "@/components/match-tracker/setup-screen";
 import { Button } from "@/components/ui/button";
 import { useHydrated } from "@/hooks/use-hydrated";
+import { useIsLandscape } from "@/hooks/use-is-landscape";
+import { perRowHeight, planSeats, scoreSizeClass, xpSizeTier } from "@/lib/match-layout";
+import type { Seat, XpSize } from "@/lib/match-layout";
 import { useMatchTrackerStore } from "@/stores/match-tracker-store";
 
 /**
@@ -32,28 +37,83 @@ function MatchTracker() {
 
 function MatchBoard() {
   const playerIds = useMatchTrackerStore(useShallow((state) => state.players.map((p) => p.id)));
-  const topCount = Math.floor(playerIds.length / 2);
-  const topIds = playerIds.slice(0, topCount);
-  // Bottom row runs right-to-left so seats go clockwise (e.g. 4 players → 1 2 / 4 3).
-  const bottomIds = playerIds.slice(topCount).toReversed();
+  // Portrait stacks everyone into one column; landscape keeps a two-row grid.
+  const isLandscape = useIsLandscape();
+  const rows = planSeats(playerIds, isLandscape);
+
+  // The score and XP cluster scale to how much height each panel gets, measured
+  // from the actual board height (see scoreSizeClass / xpSizeTier).
+  const boardRef = useRef<HTMLDivElement>(null);
+  const boardHeight = useMeasuredHeight(boardRef);
+  const panelHeight = perRowHeight(boardHeight, rows.length);
+  const scoreClass = scoreSizeClass(panelHeight);
+  const xpSize = xpSizeTier(panelHeight);
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col gap-3 px-3 py-3">
+    <div className="relative flex min-h-0 flex-1 flex-col gap-2 px-2 py-2">
       <MatchToolbar />
-      <div className="flex min-h-0 flex-1 flex-col gap-3">
-        {topIds.length > 0 && <BoardRow ids={topIds} rotated />}
-        <BoardRow ids={bottomIds} rotated={false} />
+      <div ref={boardRef} className="flex min-h-0 flex-1 flex-col gap-2">
+        {rows.map((seats) => (
+          <BoardRow
+            key={seats.map((seat) => seat.id).join("-")}
+            seats={seats}
+            scoreClass={scoreClass}
+            xpSize={xpSize}
+          />
+        ))}
       </div>
       <WinnerBanner />
     </div>
   );
 }
 
-function BoardRow({ ids, rotated }: { ids: string[]; rotated: boolean }) {
+/**
+ * Track an element's pixel height, updating on resize. Measured in a layout
+ * effect so the corrected value lands before the browser paints.
+ * @returns The element's current `clientHeight` (0 until first measured).
+ */
+function useMeasuredHeight(ref: RefObject<HTMLDivElement | null>): number {
+  const [height, setHeight] = useState(0);
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) {
+      return;
+    }
+    let rafId = 0;
+    const measure = () => setHeight(element.clientHeight);
+    measure();
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(measure);
+    });
+    observer.observe(element);
+    return () => {
+      cancelAnimationFrame(rafId);
+      observer.disconnect();
+    };
+  }, [ref]);
+  return height;
+}
+
+function BoardRow({
+  seats,
+  scoreClass,
+  xpSize,
+}: {
+  seats: Seat[];
+  scoreClass: string;
+  xpSize: XpSize;
+}) {
   return (
-    <div className="flex min-h-0 flex-1 gap-3">
-      {ids.map((id) => (
-        <PlayerPanel key={id} playerId={id} rotated={rotated} />
+    <div className="flex min-h-0 flex-1 gap-2">
+      {seats.map((seat) => (
+        <PlayerPanel
+          key={seat.id}
+          playerId={seat.id}
+          rotated={seat.rotated}
+          scoreClass={scoreClass}
+          xpSize={xpSize}
+        />
       ))}
     </div>
   );

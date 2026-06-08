@@ -1,17 +1,81 @@
 import { CrownIcon, FlagIcon, MinusIcon, PlusIcon } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import type { XpSize } from "@/lib/match-layout";
 import { TEAM_CHIP, TEAM_LABELS, TEAM_PANEL_BORDER } from "@/lib/match-teams";
 import { cn } from "@/lib/utils";
 import { useMatchTrackerStore } from "@/stores/match-tracker-store";
+import type { TeamId } from "@/stores/match-tracker-store";
+
+/** How the bottom-corner XP pill scales with the card (see xpSizeTier). */
+const XP_STYLES: Record<
+  XpSize,
+  {
+    pos: string;
+    height: string;
+    px: string;
+    gap: string;
+    hint: string;
+    value: string;
+    label: string;
+  }
+> = {
+  sm: {
+    pos: "bottom-1 left-1",
+    height: "h-9",
+    px: "px-2.5",
+    gap: "gap-1",
+    hint: "size-4",
+    value: "text-lg",
+    label: "text-2xs",
+  },
+  md: {
+    pos: "bottom-1 left-1",
+    height: "h-10",
+    px: "px-2.5",
+    gap: "gap-1.5",
+    hint: "size-4",
+    value: "text-lg",
+    label: "text-2xs",
+  },
+  lg: {
+    pos: "bottom-2 left-2",
+    height: "h-14",
+    px: "px-3.5",
+    gap: "gap-2",
+    hint: "size-5",
+    value: "text-2xl",
+    label: "text-sm",
+  },
+  xl: {
+    pos: "bottom-2 left-2",
+    height: "h-16",
+    px: "px-4",
+    gap: "gap-2.5",
+    hint: "size-6",
+    value: "text-4xl",
+    label: "text-sm",
+  },
+};
 
 /**
- * One player's scorepad. Subscribes to only its own slice of the store so a
- * counter tap on one panel never re-renders the others (per the per-row
- * selector convention in docs/contributing.md).
+ * One player's scorepad. Tapping the left half of the card subtracts a point and
+ * the right half adds one; the score scales to the card via `scoreClass`. XP
+ * lives in a small corner cluster. The name is read-only here — it's edited from
+ * the setup screen. Subscribes to only its own slice of the store so a tap on one
+ * panel never re-renders the others (per the per-row selector convention).
  * @returns The player panel, or null if the id is no longer in the roster.
  */
-export function PlayerPanel({ playerId, rotated }: { playerId: string; rotated: boolean }) {
+export function PlayerPanel({
+  playerId,
+  rotated,
+  scoreClass,
+  xpSize,
+}: {
+  playerId: string;
+  rotated: boolean;
+  scoreClass: string;
+  xpSize: XpSize;
+}) {
   const player = useMatchTrackerStore((state) => state.players.find((p) => p.id === playerId));
   const pointsTarget = useMatchTrackerStore((state) => state.pointsTarget);
   const teamsActive = useMatchTrackerStore((state) => state.mode === "teams");
@@ -34,17 +98,20 @@ export function PlayerPanel({ playerId, rotated }: { playerId: string; rotated: 
   });
   const adjustPoints = useMatchTrackerStore((state) => state.adjustPoints);
   const adjustXp = useMatchTrackerStore((state) => state.adjustXp);
-  const renamePlayer = useMatchTrackerStore((state) => state.renamePlayer);
 
   if (!player) {
     return null;
   }
 
+  const xpStyle = XP_STYLES[xpSize];
+
   return (
     <section
       aria-label={`${player.name} scorepad`}
       className={cn(
-        "bg-card flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-xl border p-4 transition-all duration-150",
+        // min-w-0 lets two panels share a narrow row without forcing overflow;
+        // overflow-hidden keeps the tap-zone highlight inside the rounded corners.
+        "bg-card relative min-h-0 min-w-0 flex-1 touch-manipulation overflow-hidden rounded-xl border transition-all duration-150 select-none",
         // Team color stays on the border so the ring can layer winner / spotlight on top.
         teamsActive && cn("border-2", TEAM_PANEL_BORDER[player.team]),
         isWinner && "ring-primary/40 ring-2",
@@ -52,82 +119,103 @@ export function PlayerPanel({ playerId, rotated }: { playerId: string; rotated: 
         rotated && "rotate-180",
       )}
     >
-      <div className="flex flex-col items-center gap-1.5">
-        {teamsActive && (
-          <span
-            className={cn(
-              "text-2xs rounded-full px-2 py-0.5 font-semibold tracking-wide uppercase",
-              TEAM_CHIP[player.team],
-            )}
-          >
-            {TEAM_LABELS[player.team]}
-          </span>
-        )}
-        {/* Reserve the badge row on every panel so names stay aligned. */}
-        <div className="flex h-5 items-center">
-          {isFirst && (
-            <span className="bg-primary text-primary-foreground text-2xs inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-semibold tracking-wide uppercase">
-              <FlagIcon aria-hidden className="size-3" />
-              Goes first
-            </span>
+      {/* Tap zones: left half subtracts a point, right half adds one. They rotate
+          with the card, so a far-side player's own left is still minus. */}
+      <button
+        type="button"
+        aria-label={`Subtract a point from ${player.name}`}
+        onClick={() => adjustPoints(player.id, -1)}
+        className="text-muted-foreground/25 hover:text-muted-foreground/50 active:bg-foreground/5 absolute inset-y-0 left-0 flex w-1/2 items-center justify-start pl-3 transition-colors"
+      >
+        <MinusIcon className="size-7" />
+      </button>
+      <button
+        type="button"
+        aria-label={`Add a point to ${player.name}`}
+        onClick={() => adjustPoints(player.id, 1)}
+        className="text-muted-foreground/25 hover:text-muted-foreground/50 active:bg-foreground/5 absolute inset-y-0 right-0 flex w-1/2 items-center justify-end pr-3 transition-colors"
+      >
+        <PlusIcon className="size-7" />
+      </button>
+
+      {/* Read-only display; taps pass straight through to the zones beneath. */}
+      <div className="pointer-events-none absolute inset-0 flex flex-col items-center px-2 py-1.5">
+        <div className="flex w-full flex-col items-center gap-0.5">
+          {(teamsActive || isFirst) && (
+            <div className="flex items-center gap-1">
+              {teamsActive && <TeamChip team={player.team} />}
+              {isFirst && <FirstBadge />}
+            </div>
           )}
+          <span className="text-foreground w-full truncate text-center font-medium">
+            {player.name}
+          </span>
         </div>
-        <input
-          aria-label={`Name for ${player.name}`}
-          value={player.name}
-          onChange={(event) => renamePlayer(player.id, event.target.value)}
-          className="text-foreground focus-visible:border-ring w-40 rounded-md border border-transparent bg-transparent px-2 py-0.5 text-center font-medium outline-none focus-visible:ring-0"
-        />
+        <div className="flex flex-1 flex-col items-center justify-center">
+          {isWinner && <CrownIcon aria-label="Winner" className="text-primary mb-1 size-6" />}
+          <span className={cn("leading-none font-bold tabular-nums", scoreClass)}>
+            {player.points}
+          </span>
+          <span className="text-muted-foreground mt-1 text-xs">of {pointsTarget}</span>
+        </div>
       </div>
 
-      <div className="flex items-center gap-3">
-        <Button
-          variant="outline"
-          size="icon-lg"
-          className="size-14 rounded-full"
-          aria-label={`Subtract a point from ${player.name}`}
-          onClick={() => adjustPoints(player.id, -1)}
-        >
-          <MinusIcon className="size-6" />
-        </Button>
-        <div className="flex w-24 flex-col items-center">
-          {isWinner && <CrownIcon aria-label="Winner" className="text-primary mb-0.5 size-5" />}
-          <span className="text-5xl font-bold tabular-nums">{player.points}</span>
-          <span className="text-muted-foreground text-xs">of {pointsTarget}</span>
-        </div>
-        <Button
-          variant="outline"
-          size="icon-lg"
-          className="size-14 rounded-full"
-          aria-label={`Add a point to ${player.name}`}
-          onClick={() => adjustPoints(player.id, 1)}
-        >
-          <PlusIcon className="size-6" />
-        </Button>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon-sm"
+      {/* XP: same gesture as the card — tap the left half to spend, the right
+          half to gain — inside a bordered pill so it reads as its own control,
+          separate from the point tap zones. The press highlight is clipped to
+          the pill's rounded shape. Scales with the card. */}
+      <div
+        className={cn(
+          "bg-card absolute flex items-center overflow-hidden rounded-full border shadow-sm",
+          xpStyle.pos,
+          xpStyle.height,
+        )}
+      >
+        <button
+          type="button"
           aria-label={`Spend XP for ${player.name}`}
           onClick={() => adjustXp(player.id, -1)}
-        >
-          <MinusIcon className="size-4" />
-        </Button>
-        <div className="flex w-16 flex-col items-center">
-          <span className="text-2xl font-semibold tabular-nums">{player.xp}</span>
-          <span className="text-muted-foreground text-2xs uppercase">XP</span>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon-sm"
+          className="active:bg-foreground/10 absolute inset-y-0 left-0 w-1/2 transition-colors"
+        />
+        <button
+          type="button"
           aria-label={`Gain XP for ${player.name}`}
           onClick={() => adjustXp(player.id, 1)}
-        >
-          <PlusIcon className="size-4" />
-        </Button>
+          className="active:bg-foreground/10 absolute inset-y-0 right-0 w-1/2 transition-colors"
+        />
+        <span className={cn("pointer-events-none flex items-center", xpStyle.px, xpStyle.gap)}>
+          <MinusIcon className={cn("text-muted-foreground/50 shrink-0", xpStyle.hint)} />
+          <span className={cn("text-muted-foreground flex items-baseline gap-0.5", xpStyle.label)}>
+            <span className={cn("text-foreground font-semibold tabular-nums", xpStyle.value)}>
+              {player.xp}
+            </span>
+            XP
+          </span>
+          <PlusIcon className={cn("text-muted-foreground/50 shrink-0", xpStyle.hint)} />
+        </span>
       </div>
     </section>
+  );
+}
+
+function TeamChip({ team }: { team: TeamId }) {
+  return (
+    <span
+      className={cn(
+        "text-2xs rounded-full px-2 py-0.5 font-semibold tracking-wide uppercase",
+        TEAM_CHIP[team],
+      )}
+    >
+      {TEAM_LABELS[team]}
+    </span>
+  );
+}
+
+function FirstBadge() {
+  return (
+    <span className="bg-primary text-primary-foreground text-2xs inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold tracking-wide whitespace-nowrap uppercase">
+      <FlagIcon aria-hidden className="size-3" />
+      Goes first
+    </span>
   );
 }

@@ -225,17 +225,7 @@ function DesktopNav({
                   </div>
                 </NavigationMenuLink>
               </li>
-              <li>
-                <NavigationMenuLink closeOnClick render={<Link to="/match-tracker" />}>
-                  <SwordsIcon />
-                  <div>
-                    <div className="font-medium">Match tracker</div>
-                    <div className="text-muted-foreground text-xs">
-                      Track points and XP during a game
-                    </div>
-                  </div>
-                </NavigationMenuLink>
-              </li>
+              {/* Match tracker is a phone feature — it's in the mobile menu only, not here. */}
             </ul>
           </NavigationMenuContent>
         </NavigationMenuItem>
