@@ -20,7 +20,7 @@ import { Pane } from "@/components/layout/panes";
 import { mergeHiddenSections } from "@/lib/filter-sections";
 import { useDisplayStore } from "@/stores/display-store";
 
-export interface CardBrowserFilterMeta {
+interface CardBrowserFilterMeta {
   availableFilters: AvailableFilters;
   availableLanguages?: string[];
   filterCounts?: FilterCounts;

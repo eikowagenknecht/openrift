@@ -28,7 +28,7 @@ export function isPrintingsOnlyGrouping(groupBy: GroupByField): boolean {
 }
 
 /** Synthetic bucket for cards with no super type — not an enum slug. */
-export const NO_SUPER_TYPE_KEY = "(None)";
+const NO_SUPER_TYPE_KEY = "(None)";
 
 interface FieldConfig {
   order: readonly string[];
