@@ -1,5 +1,4 @@
 import type { EnumOrders, GroupByField } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { SearchXIcon, WifiOffIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -7,9 +6,11 @@ import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState } from "re
 
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { useAdminSettings } from "@/hooks/use-admin-settings";
+import type { EnumLabels } from "@/hooks/use-enums";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 import { groupItemsByChannel } from "@/lib/group-by-channel";
+import { groupItemsByField } from "@/lib/group-by-field";
 import { groupItemsByMarker } from "@/lib/group-by-marker";
 import { groupItemsByYear } from "@/lib/group-by-year";
 import { getHeaderHeight } from "@/lib/header-height";
@@ -53,90 +54,13 @@ function groupItemsBySet(items: CardViewerItem[], setOrder: GroupInfo[]): CardGr
   });
 }
 
-interface OrderEntry {
-  id: string;
-  name: string;
-}
-
-function groupItemsByField(
-  items: CardViewerItem[],
-  groupBy: Exclude<GroupByField, "none" | "set" | "channel" | "year" | "marker">,
-  orders: Omit<EnumOrders, "finishes">,
-): CardGroup[] {
-  interface FieldConfig {
-    order: readonly string[];
-    getKeysAndItems: (item: CardViewerItem) => { key: string; mapped: CardViewerItem }[];
-    label?: (key: string) => string;
-  }
-
-  const config: Record<typeof groupBy, FieldConfig> = {
-    type: {
-      order: orders.cardTypes,
-      getKeysAndItems: (item) => [{ key: item.printing.card.type, mapped: item }],
-    },
-    superType: {
-      order: orders.superTypes,
-      getKeysAndItems: (item) => {
-        const supers = item.printing.card.superTypes;
-        const keys = supers.length > 0 ? supers : ["(None)"];
-        return keys.map((key) => ({ key, mapped: item }));
-      },
-    },
-    domain: {
-      order: orders.domains,
-      getKeysAndItems: (item) => {
-        const doms = item.printing.card.domains;
-        const keys = doms.length > 0 ? doms : [WellKnown.domain.COLORLESS];
-        return keys.map((key) => ({ key, mapped: item }));
-      },
-    },
-    rarity: {
-      order: orders.rarities,
-      getKeysAndItems: (item) => [{ key: item.printing.rarity, mapped: item }],
-    },
-  };
-
-  const { order, getKeysAndItems, label } = config[groupBy];
-
-  // Build ordered entries including a catch-all for values not in the order array
-  const allKeys = new Set<string>();
-  const buckets = new Map<string, CardViewerItem[]>();
-  for (const item of items) {
-    for (const { key, mapped } of getKeysAndItems(item)) {
-      allKeys.add(key);
-      const bucket = buckets.get(key);
-      if (bucket) {
-        bucket.push(mapped);
-      } else {
-        buckets.set(key, [mapped]);
-      }
-    }
-  }
-
-  const orderedEntries: OrderEntry[] = [];
-  for (const key of order) {
-    if (allKeys.has(key)) {
-      orderedEntries.push({ id: key, name: label ? label(key) : key });
-      allKeys.delete(key);
-    }
-  }
-  // Append any remaining keys not in the predefined order
-  for (const key of allKeys) {
-    orderedEntries.push({ id: key, name: label ? label(key) : key });
-  }
-
-  return orderedEntries.flatMap((entry) => {
-    const bucket = buckets.get(entry.id);
-    return bucket ? [{ group: { id: entry.id, slug: "", name: entry.name }, items: bucket }] : [];
-  });
-}
-
 function buildGroups(
   items: CardViewerItem[],
   groupBy: GroupByField,
   setOrder: GroupInfo[] | undefined,
   groupDir: "asc" | "desc",
   orders: EnumOrders,
+  labels: EnumLabels,
 ): CardGroup[] {
   if (groupBy === "none") {
     return [{ group: { id: "_all", slug: "", name: "" }, items }];
@@ -156,7 +80,7 @@ function buildGroups(
       ? groupItemsBySet(items, setOrder)
       : [{ group: { id: "_all", slug: "", name: "" }, items }];
   } else {
-    groups = groupItemsByField(items, groupBy, orders);
+    groups = groupItemsByField(items, groupBy, orders, labels);
   }
   if (groupDir === "desc") {
     groups = groups.toReversed();
@@ -358,7 +282,7 @@ export function CardGrid({
   addStripHeight = 0,
   stickyOffset = getHeaderHeight(),
 }: CardGridProps) {
-  const { orders } = useEnumOrders();
+  const { orders, labels } = useEnumOrders();
 
   const maxColumns = useDisplayStore((s) => s.maxColumns);
   const setPhysicalMax = useDisplayStore((s) => s.setPhysicalMax);
@@ -383,7 +307,7 @@ export function CardGrid({
   const thumbWidth = (containerWidth - GAP * (columns - 1)) / columns;
 
   // ── Group items, then flatten into virtual rows ──────────────────
-  const groups = buildGroups(items, groupBy, setOrder, groupDir, orders);
+  const groups = buildGroups(items, groupBy, setOrder, groupDir, orders, labels);
   const multipleGroups = groups.length > 1;
 
   const labelHeight = LABEL_HEIGHT;

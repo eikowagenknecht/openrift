@@ -96,7 +96,10 @@ describe("groupItemsByChannel", () => {
     const [section] = groupItemsByChannel([item], "asc");
 
     expect(section.group.name).toBe("Riftbound → Worlds 2025 → Welcome Set");
-    expect(section.group.slug).toBe("welcome");
+    // slug is blank so the header renders only the breadcrumb, not a redundant
+    // code prefix; the id keeps the channel id for scroll/scrub keys.
+    expect(section.group.slug).toBe("");
+    expect(section.group.id).toBe("welcome");
   });
 
   it("omits the '(No distribution channel)' section when every item has channels", () => {

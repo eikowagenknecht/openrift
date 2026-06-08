@@ -23,7 +23,7 @@ export function groupItemsByChannel(
   items: CardViewerItem[],
   dir: "asc" | "desc",
 ): CardChannelGroup[] {
-  const buckets = new Map<string, { label: string; slug: string; items: CardViewerItem[] }>();
+  const buckets = new Map<string, { label: string; items: CardViewerItem[] }>();
   const noChannel: CardViewerItem[] = [];
   for (const item of items) {
     const channels = item.printing.distributionChannels;
@@ -37,14 +37,16 @@ export function groupItemsByChannel(
         existing.items.push(item);
       } else {
         const label = [...pc.ancestorLabels, pc.channel.label].join(BREADCRUMB_SEPARATOR);
-        buckets.set(pc.channel.id, { label, slug: pc.channel.slug, items: [item] });
+        buckets.set(pc.channel.id, { label, items: [item] });
       }
     }
   }
   const sorted = [...buckets.entries()].toSorted(([, a], [, b]) => a.label.localeCompare(b.label));
   const ordered = dir === "desc" ? sorted.toReversed() : sorted;
   const sections: CardChannelGroup[] = ordered.map(([id, bucket]) => ({
-    group: { id, slug: bucket.slug, name: bucket.label },
+    // slug is blank so the header shows only the breadcrumb label; the channel's
+    // own slug would just duplicate the label it already ends with.
+    group: { id, slug: "", name: bucket.label },
     items: bucket.items,
   }));
   if (noChannel.length > 0) {

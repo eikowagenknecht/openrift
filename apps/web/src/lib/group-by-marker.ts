@@ -41,7 +41,9 @@ export function groupItemsByMarker(
   const sorted = [...buckets.entries()].toSorted(([, a], [, b]) => a.label.localeCompare(b.label));
   const ordered = dir === "desc" ? sorted.toReversed() : sorted;
   const sections: CardMarkerGroup[] = ordered.map(([slug, bucket]) => ({
-    group: { id: slug, slug, name: bucket.label },
+    // id keeps the slug for scroll/scrub keys; slug is blank so the header shows
+    // only the label (a marker's slug is just the lowercased echo of its label).
+    group: { id: slug, slug: "", name: bucket.label },
     items: bucket.items,
   }));
   if (unmarked.length > 0) {
