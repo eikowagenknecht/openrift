@@ -47,6 +47,23 @@ export interface TradePreferenceEditorProps {
 }
 
 /**
+ * The price-preference options the editor offers. "Fixed" (absolute) is a
+ * per-card price, not a list-wide rule, so it's hidden from the list-default
+ * editor (when there's no `listDefault` to inherit from) — unless the list
+ * already defaults to it, in which case it stays so the user can switch away.
+ * @returns The price-pref values to offer, in display order.
+ */
+export function offeredPricePrefs(
+  isListDefaultEditor: boolean,
+  currentPricePref: TradePricePref | null,
+): readonly TradePricePref[] {
+  if (!isListDefaultEditor || currentPricePref === "absolute") {
+    return TRADE_PRICE_PREFS;
+  }
+  return TRADE_PRICE_PREFS.filter((option) => option !== "absolute");
+}
+
+/**
  * Renders the trade-preference triple (price-pref + amount + trade-type), plus
  * an optional currency picker. Used in the list create/edit dialog and the
  * per-entry override popover.
@@ -88,7 +105,10 @@ export function TradePreferenceEditor({
 
   const pricePrefItems: { value: string; label: string }[] = [
     { value: PRICE_PREF_NONE, label: pricePrefNoneLabel },
-    ...TRADE_PRICE_PREFS.map((option) => ({ value: option, label: PRICE_PREF_LABEL[option] })),
+    ...offeredPricePrefs(listDefault === undefined, value.pricePref).map((option) => ({
+      value: option,
+      label: PRICE_PREF_LABEL[option],
+    })),
   ];
   const tradeTypeItems: { value: string; label: string }[] = [
     { value: TRADE_TYPE_NONE, label: tradeTypeNoneLabel },
