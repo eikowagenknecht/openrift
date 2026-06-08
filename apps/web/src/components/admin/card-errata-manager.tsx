@@ -2,6 +2,7 @@ import type { CardErrata } from "@openrift/shared";
 import { CheckIcon, FileWarningIcon, PencilIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
+import { Alert, AlertAction } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
@@ -106,8 +107,8 @@ export function CardErrataManager({
 
       {/* Display existing errata */}
       {errata && !isEditing && (
-        <div className="relative space-y-1.5 rounded-md border border-amber-500/20 bg-amber-500/5 px-3 py-2">
-          <div className="absolute top-1.5 right-1.5 flex gap-1">
+        <Alert variant="warning" className="space-y-1.5">
+          <AlertAction className="flex gap-1">
             <Button
               variant="ghost"
               size="icon-sm"
@@ -126,7 +127,7 @@ export function CardErrataManager({
             >
               <XIcon className="size-3" />
             </Button>
-          </div>
+          </AlertAction>
           {errata.correctedRulesText && (
             <div>
               <span className="text-muted-foreground font-medium">Rules: </span>
@@ -155,7 +156,7 @@ export function CardErrataManager({
             )}
             {errata.effectiveDate && <> &middot; {errata.effectiveDate}</>}
           </div>
-        </div>
+        </Alert>
       )}
 
       {/* Add / Edit form */}

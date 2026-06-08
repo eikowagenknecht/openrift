@@ -18,6 +18,7 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -602,6 +603,7 @@ function BulkImport({ tags }: { tags: CustomTagResponse[] }) {
   // Group tags by category label for the select so the admin can find the
   // right one even when several formats share the dropdown.
   const tagsByCategory = Map.groupBy(tags, (t) => t.categoryLabel);
+  const tagItems = tags.map((tag) => ({ value: tag.id, label: tag.label }));
 
   async function handleImport() {
     if (!selectedTag) {
@@ -633,25 +635,32 @@ function BulkImport({ tags }: { tags: CustomTagResponse[] }) {
       <div className="flex flex-wrap items-end gap-3">
         <div className="space-y-1">
           <Label htmlFor="bulk-import-tag">Tag</Label>
-          <select
-            id="bulk-import-tag"
-            className="border-input bg-background h-8 rounded-md border px-2 text-sm"
+          <Select
+            items={tagItems}
             value={tagId}
-            onChange={(e) => {
-              setTagId(e.target.value);
-              setResult(null);
+            onValueChange={(next) => {
+              if (next !== null) {
+                setTagId(next);
+                setResult(null);
+              }
             }}
           >
-            {[...tagsByCategory.entries()].map(([categoryLabel, group]) => (
-              <optgroup key={categoryLabel} label={categoryLabel}>
-                {group.map((tag) => (
-                  <option key={tag.id} value={tag.id}>
-                    {tag.label}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
+            <SelectTrigger id="bulk-import-tag" className="h-8 w-40" aria-label="Tag">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {[...tagsByCategory.entries()].map(([categoryLabel, group]) => (
+                <SelectGroup key={categoryLabel}>
+                  <SelectLabel>{categoryLabel}</SelectLabel>
+                  {group.map((tag) => (
+                    <SelectItem key={tag.id} value={tag.id}>
+                      {tag.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

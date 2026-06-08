@@ -28,6 +28,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { siDiscord, siGithub } from "simple-icons";
 
+import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -88,9 +89,12 @@ function LogoLink({ className }: { className?: string }) {
     >
       <img src="/logo-color.svg" alt="OpenRift" className="size-8" />
       <span className="text-xl font-bold">OpenRift</span>
-      <span className="bg-primary/10 text-primary text-2xs rounded-sm px-1.5 py-0.5 leading-none font-semibold uppercase">
+      <Badge
+        variant="subtle"
+        className="text-2xs h-auto rounded-sm px-1.5 leading-none font-semibold uppercase"
+      >
         Beta
-      </span>
+      </Badge>
     </Link>
   );
 }
@@ -426,9 +430,12 @@ function MobileNav({
             >
               <img src="/logo-color.svg" alt="OpenRift" className="size-6" />
               OpenRift
-              <span className="bg-primary/10 text-primary text-2xs rounded-sm px-1.5 py-0.5 leading-none font-semibold uppercase">
+              <Badge
+                variant="subtle"
+                className="text-2xs h-auto rounded-sm px-1.5 leading-none font-semibold uppercase"
+              >
                 Beta
-              </span>
+              </Badge>
             </Link>
           </SheetTitle>
         </SheetHeader>

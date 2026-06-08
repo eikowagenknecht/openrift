@@ -159,6 +159,9 @@ export function PageTocMobileTrigger({
           <DrawerTitle>Contents</DrawerTitle>
           <DrawerDescription className="sr-only">Jump to a section on this page</DrawerDescription>
         </DrawerHeader>
+        {/* Native overflow scroll, not ScrollArea: base-ui's ScrollArea does not scroll inside
+            the base-ui Drawer (the drawer's touch handling recognizes native scroll containers
+            but not ScrollArea's custom overflow:scroll viewport). Do not convert this to ScrollArea. */}
         <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-4 pb-6">
           {items.map((item) => (
             <TocLink

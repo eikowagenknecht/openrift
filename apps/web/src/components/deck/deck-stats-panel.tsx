@@ -1,8 +1,8 @@
-import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
-import { useState } from "react";
+import { ChevronRightIcon } from "lucide-react";
 
 import { EnergyPowerChart } from "@/components/deck/stats/energy-power-chart";
 import { TypeBreakdown } from "@/components/deck/stats/type-breakdown";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDeckCards } from "@/hooks/use-deck-builder";
 import type { DomainCount } from "@/hooks/use-deck-stats";
@@ -78,33 +78,23 @@ function DeckStatsBody({ stats }: { stats: ReturnType<typeof useDeckStats> }) {
 export function DeckStatsPanel({ deckId }: { deckId: string }) {
   // Start collapsed on mobile where the sidebar is hidden (display: none),
   // so Recharts doesn't render into a zero-sized container and warn.
-  const [open, setOpen] = useState(() => globalThis.matchMedia("(min-width: 768px)").matches);
+  const defaultOpen = globalThis.matchMedia("(min-width: 768px)").matches;
   const cards = useDeckCards(deckId);
   const stats = useDeckStats(cards);
   const domainColors = useDomainColors();
 
   return (
-    <div className="rounded-lg border">
-      <button
-        type="button"
-        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium"
-        onClick={() => setOpen((prev) => !prev)}
-      >
-        {open ? (
-          <ChevronDownIcon className="size-3.5" />
-        ) : (
-          <ChevronRightIcon className="size-3.5" />
-        )}
+    <Collapsible defaultOpen={defaultOpen} className="rounded-lg border">
+      <CollapsibleTrigger className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium">
+        <ChevronRightIcon className="size-3.5 transition-transform data-[panel-open]:rotate-90" />
         <span>Stats</span>
         <DomainBar data={stats.domainDistribution} total={stats.totalCards} colors={domainColors} />
         <span className="text-muted-foreground text-xs">{stats.totalCards} cards</span>
-      </button>
+      </CollapsibleTrigger>
 
-      {open && (
-        <div className="border-t px-3 py-3">
-          <DeckStatsBody stats={stats} />
-        </div>
-      )}
-    </div>
+      <CollapsibleContent className="border-t px-3 py-3">
+        <DeckStatsBody stats={stats} />
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

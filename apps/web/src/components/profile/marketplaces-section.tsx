@@ -2,6 +2,7 @@ import type { Marketplace } from "@openrift/shared";
 import { ALL_MARKETPLACES } from "@openrift/shared";
 import { ArrowDownIcon, ArrowUpIcon, RotateCcwIcon } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -101,9 +102,9 @@ export function MarketplacesSection() {
                       {MARKETPLACE_CURRENCY[marketplace]}
                     </span>
                     {enabled && index === 0 && (
-                      <span className="bg-primary/10 text-primary text-2xs rounded px-1.5 py-0.5 font-medium">
+                      <Badge variant="subtle" className="text-2xs h-auto rounded px-1.5">
                         Favorite
-                      </span>
+                      </Badge>
                     )}
                   </div>
                   {enabled && (

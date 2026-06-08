@@ -6,6 +6,7 @@ import type { SortGroupOption } from "@/components/filters/sort-group-controls";
 import { SortGroupControls } from "@/components/filters/sort-group-controls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Toggle } from "@/components/ui/toggle";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDeckFormatList } from "@/hooks/use-enums";
@@ -252,16 +253,19 @@ export function DeckListToolbar({
 
           {availability.hasArchived && (
             <div className="flex items-center gap-1">
-              <Button
-                type="button"
-                variant={showArchived ? "default" : "outline"}
+              <Toggle
+                variant="outline"
                 size="sm"
-                className="h-7 px-2.5 text-xs"
-                aria-pressed={showArchived}
-                onClick={() => setShowArchived(!showArchived)}
+                pressed={showArchived}
+                onPressedChange={setShowArchived}
+                // Persistent primary fill for the active state, matching the prior variant="default" look.
+                className={cn(
+                  "h-7 px-2.5 text-xs",
+                  "aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary aria-pressed:hover:text-primary-foreground",
+                )}
               >
                 {showArchived ? "Hide archived" : "Show archived"}
-              </Button>
+              </Toggle>
             </div>
           )}
 

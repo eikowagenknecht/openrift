@@ -1,12 +1,14 @@
 import { CheckIcon, EyeIcon, FileWarningIcon, LoaderIcon, UploadIcon, XIcon } from "lucide-react";
 import { useRef, useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { BulkErrataEntry, BulkErrataUploadResponse } from "@/hooks/use-card-errata";
 import { useUploadErrata } from "@/hooks/use-card-errata";
+import { cn } from "@/lib/utils";
 
 type ParseResult =
   | { ok: true; entries: BulkErrataEntry[] }
@@ -303,16 +305,20 @@ function Pill({
   count: number;
   tone: "green" | "amber" | "red" | "muted";
 }) {
-  const toneClass = {
-    green: "bg-green-500/10 text-green-700 dark:text-green-300",
-    amber: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-    red: "bg-red-500/10 text-red-700 dark:text-red-300",
-    muted: "bg-muted text-muted-foreground",
-  }[tone];
+  // Map each tone to a Badge variant. The variant's dark-mode colors differ
+  // slightly from the original inline spans, so each tone overrides them back
+  // to the exact original shade. The red tone keeps its own red-500 palette
+  // (the destructive variant uses the destructive token, a different shade).
+  const { variant, override } = {
+    green: { variant: "success", override: "dark:bg-green-500/10 dark:text-green-300" },
+    amber: { variant: "warning", override: "dark:bg-amber-500/10 dark:text-amber-300" },
+    red: { variant: "destructive", override: "bg-red-500/10 text-red-700 dark:text-red-300" },
+    muted: { variant: "muted", override: "" },
+  }[tone] as { variant: "success" | "warning" | "destructive" | "muted"; override: string };
   return (
-    <span className={`rounded-md px-2 py-0.5 font-medium ${toneClass}`}>
+    <Badge variant={variant} className={cn("h-auto rounded-md px-2 py-0.5 text-sm", override)}>
       {label}: {count}
-    </span>
+    </Badge>
   );
 }
 

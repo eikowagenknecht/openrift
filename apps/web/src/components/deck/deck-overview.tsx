@@ -1,3 +1,4 @@
+import { Progress as ProgressPrimitive } from "@base-ui/react/progress";
 import { useDndContext, useDraggable, useDroppable } from "@dnd-kit/core";
 import type {
   DeckFormat,
@@ -33,6 +34,7 @@ import { TypeBreakdown } from "@/components/deck/stats/type-breakdown";
 import { MarkdownText } from "@/components/markdown-text";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ProgressIndicator, ProgressTrack } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDeckStats } from "@/hooks/use-deck-stats";
@@ -435,9 +437,11 @@ function KpiTile({ label, value, bar, caption, className }: KpiTileProps) {
 
 function ProgressBar({ pct }: { pct: number }) {
   return (
-    <div className="bg-muted flex h-2 flex-1 overflow-hidden rounded-full">
-      <div className="bg-primary h-full rounded-full transition-all" style={{ width: `${pct}%` }} />
-    </div>
+    <ProgressPrimitive.Root value={Math.min(100, Math.max(0, pct))} className="flex-1">
+      <ProgressTrack className="h-2">
+        <ProgressIndicator className="rounded-full" />
+      </ProgressTrack>
+    </ProgressPrimitive.Root>
   );
 }
 

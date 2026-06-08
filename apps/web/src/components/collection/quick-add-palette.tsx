@@ -7,6 +7,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { Kbd } from "@/components/ui/kbd";
 import { useBatchedAddCopies, useDisposeCopies } from "@/hooks/use-copies";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -341,9 +347,11 @@ function PaletteInner({
       )}
 
       {/* SearchIcon input */}
-      <div className="relative">
-        <SearchIcon className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-        <input
+      <InputGroup className="h-11 border-0 has-[[data-slot=input-group-control]:focus-visible]:ring-0 dark:bg-transparent">
+        <InputGroupAddon align="inline-start">
+          <SearchIcon className="text-muted-foreground size-4" />
+        </InputGroupAddon>
+        <InputGroupInput
           ref={inputRef}
           type="text"
           aria-label={`Add card to ${collectionName}`}
@@ -351,23 +359,17 @@ function PaletteInner({
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={`Add to "${collectionName}"...`}
-          className={cn(
-            "placeholder:text-muted-foreground h-11 w-full bg-transparent pl-10 text-base outline-none sm:text-sm",
-            query ? "pr-9" : "pr-3",
-          )}
+          className="text-base sm:text-sm"
           autoFocus // oxlint-disable-line jsx-a11y/no-autofocus -- command palette, always focused on open
         />
         {query && (
-          <button
-            type="button"
-            className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2"
-            onClick={clearSearch}
-            aria-label="Clear search"
-          >
-            <XIcon className="size-4" />
-          </button>
+          <InputGroupAddon align="inline-end">
+            <InputGroupButton size="icon-xs" onClick={clearSearch} aria-label="Clear search">
+              <XIcon className="size-4" />
+            </InputGroupButton>
+          </InputGroupAddon>
         )}
-      </div>
+      </InputGroup>
 
       <div className="border-border border-t" />
 

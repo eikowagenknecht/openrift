@@ -1,3 +1,4 @@
+import { Progress as ProgressPrimitive } from "@base-ui/react/progress";
 import type { CompletionScopePreference, Domain } from "@openrift/shared";
 import { WellKnown, getAvailableFilters } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
@@ -41,6 +42,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { ProgressIndicator, ProgressTrack } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -234,12 +236,11 @@ function CompletionTotalRow({ entries }: { entries: CompletionEntry[] }) {
   return (
     <div className="bg-muted/50 -mx-2 flex items-center gap-3 rounded-md px-2 py-1.5">
       <span className="flex w-36 shrink-0 items-center text-sm font-semibold sm:w-48">Overall</span>
-      <div className="bg-muted h-1.5 flex-1 overflow-hidden rounded-full">
-        <div
-          className="bg-primary h-full rounded-full transition-all"
-          style={{ width: `${Math.min(percent, 100)}%` }}
-        />
-      </div>
+      <ProgressPrimitive.Root value={Math.min(percent, 100)} className="flex-1">
+        <ProgressTrack className="h-1.5">
+          <ProgressIndicator className="rounded-full" />
+        </ProgressTrack>
+      </ProgressPrimitive.Root>
       <span className="text-muted-foreground w-20 shrink-0 text-right text-xs tabular-nums">
         {totalOwned.toLocaleString()} / {totalAll.toLocaleString()}
       </span>

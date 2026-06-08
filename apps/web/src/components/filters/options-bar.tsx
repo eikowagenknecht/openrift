@@ -24,6 +24,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { isPrintingsOnlyGrouping } from "@/lib/group-by-field";
@@ -53,6 +54,12 @@ const defaultGroupByOptions: { value: GroupByField; label: string }[] = [
   { value: "marker", label: "Marker" },
 ];
 
+// Persistent primary fill for the active toggle option, overriding the base
+// toggle's muted active state (including on hover) to match the prior
+// variant="default" Button look.
+const activeToggleClass =
+  "aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary aria-pressed:hover:text-primary-foreground";
+
 /**
  * The default group-by options available in the given view. Cards view drops
  * the printings-only axes (marker / distribution channel), which collapse every
@@ -73,52 +80,59 @@ function DisplayModeToggle({ compact, className }: { compact?: boolean; classNam
     return null;
   }
   return (
-    <ButtonGroup aria-label="Display mode" className={className}>
+    <ToggleGroup
+      aria-label="Display mode"
+      className={className}
+      variant="outline"
+      size={compact ? "sm" : "default"}
+      value={[displayMode]}
+      onValueChange={([next]) => {
+        if (next === "grid" || next === "table") {
+          setDisplayMode(next);
+        }
+      }}
+    >
       {compact ? (
-        <Button
-          variant={displayMode === "grid" ? "default" : "outline"}
-          size="sm"
-          className="gap-1.5 text-xs"
-          onClick={() => setDisplayMode("grid")}
+        <ToggleGroupItem
+          value="grid"
+          className={cn("gap-1.5 text-xs", activeToggleClass)}
+          aria-label="Grid view"
+          title="Grid view"
         >
           <LayoutGridIcon />
           Grid
-        </Button>
+        </ToggleGroupItem>
       ) : (
-        <Button
-          variant={displayMode === "grid" ? "default" : "outline"}
-          size="icon"
-          onClick={() => setDisplayMode("grid")}
+        <ToggleGroupItem
+          value="grid"
+          className={activeToggleClass}
           title="Grid view"
           aria-label="Grid view"
-          aria-pressed={displayMode === "grid"}
         >
           <LayoutGridIcon className="size-4" />
-        </Button>
+        </ToggleGroupItem>
       )}
       {compact ? (
-        <Button
-          variant={displayMode === "table" ? "default" : "outline"}
-          size="sm"
-          className="gap-1.5 text-xs"
-          onClick={() => setDisplayMode("table")}
+        <ToggleGroupItem
+          value="table"
+          className={cn("gap-1.5 text-xs", activeToggleClass)}
+          aria-label="Table view"
+          title="Table view"
         >
           <Rows3Icon />
           Table
-        </Button>
+        </ToggleGroupItem>
       ) : (
-        <Button
-          variant={displayMode === "table" ? "default" : "outline"}
-          size="icon"
-          onClick={() => setDisplayMode("table")}
+        <ToggleGroupItem
+          value="table"
+          className={activeToggleClass}
           title="Table view"
           aria-label="Table view"
-          aria-pressed={displayMode === "table"}
         >
           <Rows3Icon className="size-4" />
-        </Button>
+        </ToggleGroupItem>
       )}
-    </ButtonGroup>
+    </ToggleGroup>
   );
 }
 
@@ -136,69 +150,54 @@ function ViewModeToggle({
   className?: string;
 }) {
   return (
-    <ButtonGroup aria-label="View mode" className={className}>
+    <ToggleGroup
+      aria-label="View mode"
+      className={className}
+      variant="outline"
+      size={compact ? "sm" : "default"}
+      value={[view]}
+      onValueChange={([next]) => {
+        if (next === "cards" || next === "printings" || (showCopies && next === "copies")) {
+          onViewChange(next);
+        }
+      }}
+    >
       {compact ? (
-        <Button
-          variant={view === "cards" ? "default" : "outline"}
-          size="sm"
-          className="gap-1.5 text-xs"
-          onClick={() => onViewChange("cards")}
-        >
+        <ToggleGroupItem value="cards" className={cn("gap-1.5 text-xs", activeToggleClass)}>
           <SquareIcon />
           Cards
-        </Button>
+        </ToggleGroupItem>
       ) : (
-        <Button
-          variant={view === "cards" ? "default" : "outline"}
-          size="icon"
-          onClick={() => onViewChange("cards")}
-          title="One per card"
-        >
+        <ToggleGroupItem value="cards" className={activeToggleClass} title="One per card">
           <SquareIcon className="size-4" />
-        </Button>
+        </ToggleGroupItem>
       )}
       {compact ? (
-        <Button
-          variant={view === "printings" ? "default" : "outline"}
-          size="sm"
-          className="gap-1.5 text-xs"
-          onClick={() => onViewChange("printings")}
-        >
+        <ToggleGroupItem value="printings" className={cn("gap-1.5 text-xs", activeToggleClass)}>
           <CopyIcon />
           Printings
-        </Button>
+        </ToggleGroupItem>
       ) : (
-        <Button
-          variant={view === "printings" ? "default" : "outline"}
-          size="icon"
-          onClick={() => onViewChange("printings")}
-          title="Every printing"
-        >
+        <ToggleGroupItem value="printings" className={activeToggleClass} title="Every printing">
           <CopyIcon className="size-4" />
-        </Button>
+        </ToggleGroupItem>
       )}
       {showCopies &&
         (compact ? (
-          <Button
-            variant={view === "copies" ? "default" : "outline"}
-            size="sm"
-            className="gap-1.5 text-xs"
-            onClick={() => onViewChange("copies")}
-          >
+          <ToggleGroupItem value="copies" className={cn("gap-1.5 text-xs", activeToggleClass)}>
             <SquareStackIcon />
             Copies
-          </Button>
+          </ToggleGroupItem>
         ) : (
-          <Button
-            variant={view === "copies" ? "default" : "outline"}
-            size="icon"
-            onClick={() => onViewChange("copies")}
+          <ToggleGroupItem
+            value="copies"
+            className={activeToggleClass}
             title="Every individual copy"
           >
             <SquareStackIcon className="size-4" />
-          </Button>
+          </ToggleGroupItem>
         ))}
-    </ButtonGroup>
+    </ToggleGroup>
   );
 }
 

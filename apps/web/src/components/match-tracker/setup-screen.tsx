@@ -4,6 +4,7 @@ import { Heading } from "@/components/heading";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { TEAM_LABELS } from "@/lib/match-teams";
 import { cn } from "@/lib/utils";
 import type { TeamId } from "@/stores/match-tracker-store";
@@ -21,6 +22,12 @@ const PLAYER_COUNT_OPTIONS = Array.from(
 
 const TEAM_OPTIONS: TeamId[] = [0, 1];
 
+// Persistent primary fill for the active toggle option, overriding the base
+// toggle's muted active state (including on hover) to match the prior
+// variant="default" Button look.
+const activeToggleClass =
+  "aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary aria-pressed:hover:text-primary-foreground";
+
 /**
  * A two-button toggle that puts one player on a team. Used only in 2v2 setup.
  * @returns The team selector for a single player row.
@@ -35,21 +42,27 @@ function TeamToggle({
   onChange: (team: TeamId) => void;
 }) {
   return (
-    <div className="flex shrink-0 gap-1">
+    <ToggleGroup
+      className="shrink-0"
+      variant="outline"
+      value={[String(team)]}
+      onValueChange={([next]) => {
+        if (next === "0" || next === "1") {
+          onChange(Number(next) as TeamId);
+        }
+      }}
+    >
       {TEAM_OPTIONS.map((option) => (
-        <Button
+        <ToggleGroupItem
           key={option}
-          type="button"
-          variant={team === option ? "default" : "outline"}
-          aria-pressed={team === option}
+          value={String(option)}
           aria-label={`Put ${playerName} on ${TEAM_LABELS[option]}`}
-          className="w-9"
-          onClick={() => onChange(option)}
+          className={cn("w-9", activeToggleClass)}
         >
           {option + 1}
-        </Button>
+        </ToggleGroupItem>
       ))}
-    </div>
+    </ToggleGroup>
   );
 }
 
@@ -85,45 +98,53 @@ export function SetupScreen() {
 
       <div className="space-y-2">
         <Label>Players</Label>
-        <div className="flex gap-2">
+        <ToggleGroup
+          className="w-full"
+          variant="outline"
+          spacing={2}
+          aria-label="Players"
+          value={[String(players.length)]}
+          onValueChange={([next]) => {
+            const count = Number(next);
+            if (PLAYER_COUNT_OPTIONS.includes(count)) {
+              setPlayerCount(count);
+            }
+          }}
+        >
           {PLAYER_COUNT_OPTIONS.map((count) => (
-            <Button
+            <ToggleGroupItem
               key={count}
-              type="button"
-              variant={players.length === count ? "default" : "outline"}
-              className="flex-1"
-              aria-pressed={players.length === count}
-              onClick={() => setPlayerCount(count)}
+              value={String(count)}
+              className={cn("flex-1", activeToggleClass)}
             >
               {count}
-            </Button>
+            </ToggleGroupItem>
           ))}
-        </div>
+        </ToggleGroup>
       </div>
 
       {players.length === MAX_PLAYERS && (
         <div className="space-y-2">
           <Label>Format</Label>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant={mode === "ffa" ? "default" : "outline"}
-              className="flex-1"
-              aria-pressed={mode === "ffa"}
-              onClick={() => setMode("ffa")}
-            >
+          <ToggleGroup
+            className="w-full"
+            variant="outline"
+            spacing={2}
+            aria-label="Format"
+            value={[mode]}
+            onValueChange={([next]) => {
+              if (next === "ffa" || next === "teams") {
+                setMode(next);
+              }
+            }}
+          >
+            <ToggleGroupItem value="ffa" className={cn("flex-1", activeToggleClass)}>
               Free-for-all
-            </Button>
-            <Button
-              type="button"
-              variant={mode === "teams" ? "default" : "outline"}
-              className="flex-1"
-              aria-pressed={mode === "teams"}
-              onClick={() => setMode("teams")}
-            >
+            </ToggleGroupItem>
+            <ToggleGroupItem value="teams" className={cn("flex-1", activeToggleClass)}>
               Teams (2v2)
-            </Button>
-          </div>
+            </ToggleGroupItem>
+          </ToggleGroup>
         </div>
       )}
 

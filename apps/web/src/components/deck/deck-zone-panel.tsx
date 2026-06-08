@@ -6,6 +6,7 @@ import type { CardViewerItem } from "@/components/card-viewer-types";
 import { DeckOwnershipPanel } from "@/components/deck/deck-ownership-panel";
 import { DeckStatsPanel } from "@/components/deck/deck-stats-panel";
 import { DeckZoneSection } from "@/components/deck/deck-zone-section";
+import { Button } from "@/components/ui/button";
 import { useDeckCards, useDeckViolations } from "@/hooks/use-deck-builder";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDeckDetail } from "@/hooks/use-decks";
@@ -73,17 +74,18 @@ export function DeckZonePanel({
   return (
     <div className="flex flex-col gap-2">
       {onOverviewClick && (
-        <button
-          type="button"
+        <Button
+          variant="outline"
+          size="sm"
           onClick={onOverviewClick}
           className={cn(
-            "flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-sm transition-colors",
-            overviewActive ? "bg-primary/10 font-bold" : "hover:bg-muted/50",
+            "h-auto justify-start gap-2 rounded-lg px-2.5 py-2 text-left",
+            overviewActive && "bg-primary/10 font-bold",
           )}
         >
           <LayoutDashboardIcon className="size-3.5" />
           <span>Overview</span>
-        </button>
+        </Button>
       )}
       {zoneOrder.map((zone) => (
         <DeckZoneSection

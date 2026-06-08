@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RadioGroup } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
@@ -43,8 +44,9 @@ function DirToggle({
   onToggle: (dir: "asc" | "desc") => void;
 }) {
   return (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
+      size="icon-xs"
       className="text-muted-foreground hover:text-foreground -mr-1 rounded p-0.5 transition-colors"
       onClick={() => onToggle(dir === "asc" ? "desc" : "asc")}
       title={dir === "asc" ? "Ascending, click to reverse" : "Descending, click to reverse"}
@@ -54,7 +56,7 @@ function DirToggle({
       ) : (
         <ArrowUpNarrowWideIcon className="size-3.5" />
       )}
-    </button>
+    </Button>
   );
 }
 

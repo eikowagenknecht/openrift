@@ -11,6 +11,13 @@ import type {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useAdminUsers } from "@/hooks/use-admin-users";
 import {
@@ -312,23 +319,34 @@ function OverrideStatusCell({ row }: AdminCellSlotProps<OverrideRow>) {
 function OverrideUserAddSelect({ draft, setDraft }: AdminDraftSlotProps<OverrideDraft>) {
   const { data: usersData } = useAdminUsers();
   const users = usersData.users.toSorted((a, b) => a.email.localeCompare(b.email));
+  const userItems = users.map((u) => ({
+    value: u.id,
+    label: u.name ? `${u.email} (${u.name})` : u.email,
+  }));
   if (!draft || !setDraft) {
     return null;
   }
   return (
-    <select
-      className="border-input bg-background h-8 rounded-md border px-2 text-sm"
+    <Select
+      items={userItems}
       value={draft.userId}
-      onChange={(e) => setDraft((prev) => ({ ...prev, userId: e.target.value }))}
+      onValueChange={(userId) => {
+        if (userId !== null) {
+          setDraft((prev) => ({ ...prev, userId }));
+        }
+      }}
     >
-      <option value="">Select user...</option>
-      {users.map((u) => (
-        <option key={u.id} value={u.id}>
-          {u.email}
-          {u.name ? ` (${u.name})` : ""}
-        </option>
-      ))}
-    </select>
+      <SelectTrigger className="h-8" aria-label="User">
+        <SelectValue placeholder="Select user..." />
+      </SelectTrigger>
+      <SelectContent>
+        {userItems.map((item) => (
+          <SelectItem key={item.value} value={item.value}>
+            {item.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -339,18 +357,25 @@ function OverrideFlagAddSelect({ draft, setDraft }: AdminDraftSlotProps<Override
     return null;
   }
   return (
-    <select
-      className="border-input bg-background h-8 rounded-md border px-2 font-mono text-sm"
+    <Select
       value={draft.flagKey}
-      onChange={(e) => setDraft((prev) => ({ ...prev, flagKey: e.target.value }))}
+      onValueChange={(flagKey) => {
+        if (flagKey !== null) {
+          setDraft((prev) => ({ ...prev, flagKey }));
+        }
+      }}
     >
-      <option value="">Select flag...</option>
-      {flagKeys.map((key) => (
-        <option key={key} value={key}>
-          {key}
-        </option>
-      ))}
-    </select>
+      <SelectTrigger className="h-8 font-mono" aria-label="Flag">
+        <SelectValue placeholder="Select flag..." />
+      </SelectTrigger>
+      <SelectContent>
+        {flagKeys.map((key) => (
+          <SelectItem key={key} value={key} className="font-mono">
+            {key}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 

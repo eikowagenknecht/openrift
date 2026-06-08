@@ -2,6 +2,7 @@ import type { DeckViolation } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 import { CheckIcon, CircleAlertIcon } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useDeckCards, useDeckViolations } from "@/hooks/use-deck-builder";
 import { useDeckDetail } from "@/hooks/use-decks";
@@ -68,10 +69,10 @@ export function DeckFormatBadge({ deckId }: { deckId: string }) {
 
   if (isValid) {
     return (
-      <span className="flex shrink-0 items-center gap-1 rounded-md bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
+      <Badge variant="success" className="rounded-md dark:bg-green-500/10">
         {formatLabel}
         <CheckIcon className="size-3" />
-      </span>
+      </Badge>
     );
   }
 
@@ -79,9 +80,9 @@ export function DeckFormatBadge({ deckId }: { deckId: string }) {
   // Once the user adds anything, switch to the amber violations badge.
   if (totalCards === 0) {
     return (
-      <span className="bg-muted text-muted-foreground flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium">
+      <Badge variant="muted" className="rounded-md">
         {formatLabel} · Draft
-      </span>
+      </Badge>
     );
   }
 

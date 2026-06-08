@@ -2,6 +2,7 @@ import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog
 import { EraserIcon, LoaderIcon, RefreshCwIcon, TrashIcon } from "lucide-react";
 import { toast } from "sonner";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -140,13 +141,15 @@ export function CachePage() {
               </AlertDialogContent>
             </AlertDialog>
           ) : (
-            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
-              Cloudflare cache purging is not configured. Set{" "}
-              <code className="font-mono">CLOUDFLARE_API_TOKEN</code> and{" "}
-              <code className="font-mono">CLOUDFLARE_ZONE_ID</code> in the API environment to enable
-              this button. The token needs the <strong>Zone.Cache Purge</strong> permission scoped
-              to your zone.
-            </div>
+            <Alert variant="warning">
+              <AlertDescription>
+                Cloudflare cache purging is not configured. Set{" "}
+                <code className="font-mono">CLOUDFLARE_API_TOKEN</code> and{" "}
+                <code className="font-mono">CLOUDFLARE_ZONE_ID</code> in the API environment to
+                enable this button. The token needs the <strong>Zone.Cache Purge</strong> permission
+                scoped to your zone.
+              </AlertDescription>
+            </Alert>
           )}
         </CardContent>
       </Card>

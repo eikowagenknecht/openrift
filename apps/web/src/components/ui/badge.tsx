@@ -17,6 +17,14 @@ const badgeVariants = cva(
         outline: "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
         ghost: "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
         link: "text-primary underline-offset-4 hover:underline",
+        // custom: tonal green success badge — replaces inline bg-green-500/10 text-green-700 label spans
+        success: "bg-green-500/10 text-green-700 dark:bg-green-500/20 dark:text-green-400",
+        // custom: tonal amber warning badge — replaces inline bg-amber-500/10 text-amber-700 label spans
+        warning: "bg-amber-500/10 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400",
+        // custom: neutral muted badge — replaces inline bg-muted text-muted-foreground label spans
+        muted: "bg-muted text-muted-foreground",
+        // custom: subtle primary-tinted label badge — replaces inline bg-primary/10 text-primary label spans
+        subtle: "bg-primary/10 text-primary",
       },
     },
     defaultVariants: {

@@ -11,6 +11,7 @@ import {
 
 import { CardText } from "@/components/cards/card-text";
 import { FinishIcon, hasFinishIcon } from "@/components/cards/finish-icon";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useIsAdmin } from "@/hooks/use-admin";
 import { useCardTilt } from "@/hooks/use-card-tilt";
@@ -136,16 +137,16 @@ export function CardDetail({
       <div className="space-y-4 p-4 md:p-0 md:pb-4">
         {/* Ban banner */}
         {card.bans.length > 0 && (
-          <div className="space-y-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2">
+          <Alert variant="destructive" className="space-y-1.5">
             {card.bans.map((ban) => (
               <div key={ban.formatId}>
-                <p className="text-sm font-semibold text-red-600 dark:text-red-400">
+                <AlertTitle>
                   Banned in {ban.formatName} since {ban.bannedAt}
-                </p>
-                {ban.reason && <p className="text-muted-foreground mt-0.5 text-sm">{ban.reason}</p>}
+                </AlertTitle>
+                {ban.reason && <AlertDescription className="mt-0.5">{ban.reason}</AlertDescription>}
               </div>
             ))}
-          </div>
+          </Alert>
         )}
 
         {/* Card image */}

@@ -29,6 +29,7 @@ import { CardText } from "@/components/cards/card-text";
 import { FinishIcon, hasFinishIcon } from "@/components/cards/finish-icon";
 import { TIME_RANGES } from "@/components/cards/price-history-chart-constants";
 import { Heading } from "@/components/heading";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -402,18 +403,18 @@ function CardDetailPage() {
               {card.errata && <ErrataRow errata={card.errata} printing={selectedPrinting} />}
               {card.bans.length > 0 && (
                 <InfoRow label="Bans">
-                  <div className="space-y-1.5 rounded border border-red-500/30 bg-red-500/10 px-2.5 py-1.5">
+                  <Alert variant="destructive" className="space-y-1.5">
                     {card.bans.map((ban) => (
                       <div key={ban.formatId}>
-                        <p className="text-sm font-semibold text-red-600 dark:text-red-400">
+                        <AlertTitle>
                           Banned in {ban.formatName} since {ban.bannedAt}
-                        </p>
+                        </AlertTitle>
                         {ban.reason && (
-                          <p className="text-muted-foreground mt-0.5 text-sm">{ban.reason}</p>
+                          <AlertDescription className="mt-0.5">{ban.reason}</AlertDescription>
                         )}
                       </div>
                     ))}
-                  </div>
+                  </Alert>
                 </InfoRow>
               )}
             </tbody>
@@ -467,9 +468,9 @@ function ErrataRow({ errata, printing }: { errata: CardErrata; printing: Printin
 
   return (
     <InfoRow label="Errata">
-      <div className="space-y-1.5 rounded border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5">
-        <div className="flex items-center gap-1.5 text-sm font-semibold text-amber-700 dark:text-amber-400">
-          <TriangleAlertIcon className="size-3.5 shrink-0" />
+      <Alert variant="warning">
+        <TriangleAlertIcon className="size-3.5 shrink-0" />
+        <AlertTitle className="font-semibold">
           {errata.sourceUrl ? (
             <a
               href={errata.sourceUrl}
@@ -482,24 +483,24 @@ function ErrataRow({ errata, printing }: { errata: CardErrata; printing: Printin
           ) : (
             <span>{sourceLabel}</span>
           )}
-        </div>
+        </AlertTitle>
         {hasRulesDiff && (
-          <p className="text-muted-foreground text-sm">
+          <AlertDescription className="mt-1.5">
             <span className="text-muted-foreground/60 mr-1 text-xs font-medium">
               Original rules:
             </span>
             <CardText text={printing.printedRulesText ?? ""} />
-          </p>
+          </AlertDescription>
         )}
         {hasEffectDiff && (
-          <p className="text-muted-foreground text-sm">
+          <AlertDescription className="mt-1.5">
             <span className="text-muted-foreground/60 mr-1 text-xs font-medium">
               Original effect:
             </span>
             <CardText text={printing.printedEffectText ?? ""} />
-          </p>
+          </AlertDescription>
         )}
-      </div>
+      </Alert>
     </InfoRow>
   );
 }

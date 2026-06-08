@@ -64,6 +64,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { useSidebar } from "@/components/ui/sidebar";
+import { Toggle } from "@/components/ui/toggle";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCardSelection } from "@/hooks/use-card-selection";
@@ -913,33 +914,37 @@ function ListEntryBrowser({
       ? entries.length
       : listPrintings.length;
 
+  // Persistent primary fill for the active state, matching the prior variant="default" look.
+  const activeToggleClass =
+    "aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary aria-pressed:hover:text-primary-foreground";
+
   const showLibraryButton =
     kind === "copy" ? null : (
-      <Button
-        variant={showLibrary ? "default" : "outline"}
-        size="icon"
-        onClick={onToggleShowLibrary}
+      <Toggle
+        variant="outline"
+        pressed={showLibrary}
+        onPressedChange={onToggleShowLibrary}
+        className={activeToggleClass}
         title={showLibrary ? "Hide library" : "Show whole library"}
         aria-label={showLibrary ? "Hide library" : "Show whole library"}
-        aria-pressed={showLibrary}
       >
         <LibraryBigIcon className="size-4" />
-      </Button>
+      </Toggle>
     );
 
   // Select mode is only meaningful over the list's own entries — hide the
   // toggle in library (catalog) mode where most tiles have no entry.
   const selectButton = showLibrary ? null : (
-    <Button
-      variant={selectMode ? "default" : "outline"}
-      size="icon"
-      onClick={toggleSelectMode}
+    <Toggle
+      variant="outline"
+      pressed={selectMode}
+      onPressedChange={toggleSelectMode}
+      className={activeToggleClass}
       title={selectMode ? "Exit select mode" : "Select cards"}
       aria-label={selectMode ? "Exit select mode" : "Select cards"}
-      aria-pressed={selectMode}
     >
       <CheckSquareIcon className="size-4" />
-    </Button>
+    </Toggle>
   );
 
   const toolbar = (

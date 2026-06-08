@@ -15,6 +15,7 @@ import { PackBulkGrid } from "@/components/pack-opener/pack-bulk-grid";
 import { isBoosterEligible, toPackPrinting } from "@/components/pack-opener/pack-opener-utils";
 import { PackReveal } from "@/components/pack-opener/pack-reveal";
 import { PackStats } from "@/components/pack-opener/pack-stats";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -91,9 +92,12 @@ export function PackOpenerPage() {
         <div className="flex items-center gap-2">
           <PackagePlusIcon className="size-6" />
           <Heading level={1}>Pack opener</Heading>
-          <span className="bg-primary/10 text-primary text-2xs rounded-sm px-1.5 py-0.5 leading-none font-semibold uppercase">
+          <Badge
+            variant="subtle"
+            className="text-2xs h-auto rounded-sm px-1.5 leading-none font-semibold uppercase"
+          >
             Simulator
-          </span>
+          </Badge>
         </div>
         <p className="text-muted-foreground mt-2 text-sm">
           Open virtual Riftbound booster packs. Pull rates match the real booster as published by

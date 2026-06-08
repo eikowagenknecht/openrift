@@ -17,7 +17,7 @@ import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CatalogTableActions } from "@/components/cards/catalog-table-actions";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
-import { Button } from "@/components/ui/button";
+import { Toggle } from "@/components/ui/toggle";
 import { useCardData, useCatalogFilterMeta } from "@/hooks/use-card-data";
 import { useCardDeepLink } from "@/hooks/use-card-deep-link";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
@@ -257,16 +257,17 @@ export function CardBrowser() {
   };
 
   const showCountsButton = isLoggedIn ? (
-    <Button
-      variant={cardsShowCounts ? "default" : "outline"}
-      size="icon"
-      onClick={toggleCardsShowCounts}
+    <Toggle
+      variant="outline"
+      pressed={cardsShowCounts}
+      onPressedChange={toggleCardsShowCounts}
+      // Persistent primary fill for the active state, matching the prior variant="default" look.
+      className="aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary aria-pressed:hover:text-primary-foreground"
       title={cardsShowCounts ? "Hide owned count" : "Show owned count"}
       aria-label={cardsShowCounts ? "Hide owned count" : "Show owned count"}
-      aria-pressed={cardsShowCounts}
     >
       <PackageIcon className="size-4" />
-    </Button>
+    </Toggle>
   ) : null;
 
   const toolbar = (

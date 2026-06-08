@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { CardText } from "@/components/cards/card-text";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 
 /** Short codes used in the diagram, in display order. */
@@ -292,9 +293,7 @@ function CardImage({ src, alt, className }: { src?: string; alt: string; classNa
   const showSkeleton = !src || errored || !loaded;
   return (
     <div className={`relative overflow-hidden rounded ${className}`}>
-      {showSkeleton && (
-        <div className="bg-muted absolute inset-0 animate-pulse" aria-hidden="true" />
-      )}
+      {showSkeleton && <Skeleton className="absolute inset-0" aria-hidden="true" />}
       {src && !errored && (
         <img
           src={src}

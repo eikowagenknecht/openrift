@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { useCountUp } from "@/hooks/use-count-up";
 import { landingSummaryQueryOptions } from "@/lib/landing-summary-query";
@@ -80,9 +81,12 @@ export function LandingPage() {
           </button>
           <div className="flex flex-col items-center gap-2">
             <h1 className="text-4xl font-bold md:text-5xl">OpenRift</h1>
-            <span className="bg-primary/10 text-primary rounded px-2 py-1 text-xs leading-none font-semibold uppercase">
+            <Badge
+              variant="subtle"
+              className="h-auto rounded py-1 leading-none font-semibold uppercase"
+            >
               Beta
-            </span>
+            </Badge>
           </div>
           <p className="text-muted-foreground text-center text-lg">
             An open-source Riftbound collection tracker &amp; deck builder

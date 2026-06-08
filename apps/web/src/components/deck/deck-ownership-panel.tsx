@@ -1,8 +1,8 @@
 import type { Marketplace } from "@openrift/shared";
-import { ChevronDownIcon, ChevronRightIcon, PackageSearchIcon } from "lucide-react";
-import { useState } from "react";
+import { ChevronRightIcon, PackageSearchIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { formatterForMarketplace } from "@/lib/format";
@@ -20,32 +20,21 @@ export function ownershipPercent(data: DeckOwnershipData): number {
 }
 
 export function DeckOwnershipPanel({ data, marketplace, onViewMissing }: DeckOwnershipPanelProps) {
-  const [open, setOpen] = useState(false);
   const pct = ownershipPercent(data);
 
   return (
-    <div className="rounded-lg border">
-      <button
-        type="button"
-        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium"
-        onClick={() => setOpen((prev) => !prev)}
-      >
-        {open ? (
-          <ChevronDownIcon className="size-3.5" />
-        ) : (
-          <ChevronRightIcon className="size-3.5" />
-        )}
+    <Collapsible className="rounded-lg border">
+      <CollapsibleTrigger className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium">
+        <ChevronRightIcon className="size-3.5 transition-transform data-[panel-open]:rotate-90" />
         <span>Ownership</span>
         <OwnershipBar pct={pct} />
         <span className="text-muted-foreground text-xs">{pct}%</span>
-      </button>
+      </CollapsibleTrigger>
 
-      {open && (
-        <div className="border-t px-3 py-3">
-          <DeckOwnershipBody data={data} marketplace={marketplace} onViewMissing={onViewMissing} />
-        </div>
-      )}
-    </div>
+      <CollapsibleContent className="border-t px-3 py-3">
+        <DeckOwnershipBody data={data} marketplace={marketplace} onViewMissing={onViewMissing} />
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
