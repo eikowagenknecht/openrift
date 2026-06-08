@@ -11,6 +11,12 @@
 html,
 body {
   overscroll-behavior-y: none;
+  /* Disable browser scroll anchoring on the window scroll root. Every card
+   * surface is window-virtualized (useWindowVirtualizer), and the browser's
+   * automatic scroll adjustment fights the virtualizer's own position
+   * management as rows mount/unmount and resolve from estimated to measured
+   * height, causing scroll jumps. See TanStack/virtual#736 (piecyk). */
+  overflow-anchor: none;
 }
 
 body,
