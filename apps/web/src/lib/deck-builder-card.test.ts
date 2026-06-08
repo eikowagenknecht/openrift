@@ -10,9 +10,10 @@ import {
 } from "./deck-builder-card";
 
 describe("isCardAllowedInZone", () => {
-  it("allows Legend cards only in the legend zone", () => {
+  it("allows Legend cards in the legend zone and overflow, nowhere else", () => {
     const legend = { cardType: "legend" as const, superTypes: [] as SuperType[] };
     expect(isCardAllowedInZone(legend, "legend")).toBe(true);
+    expect(isCardAllowedInZone(legend, "overflow")).toBe(true);
     expect(isCardAllowedInZone(legend, "main")).toBe(false);
     expect(isCardAllowedInZone(legend, "sideboard")).toBe(false);
     expect(isCardAllowedInZone(legend, "champion")).toBe(false);
@@ -32,17 +33,20 @@ describe("isCardAllowedInZone", () => {
     expect(isCardAllowedInZone(legendChampion, "champion")).toBe(false);
   });
 
-  it("allows Rune cards only in runes zone", () => {
+  it("allows Rune cards in the runes zone and overflow, nowhere else", () => {
     const rune = { cardType: "rune" as const, superTypes: [] as SuperType[] };
     expect(isCardAllowedInZone(rune, "runes")).toBe(true);
+    expect(isCardAllowedInZone(rune, "overflow")).toBe(true);
     expect(isCardAllowedInZone(rune, "main")).toBe(false);
     expect(isCardAllowedInZone(rune, "sideboard")).toBe(false);
   });
 
-  it("allows Battlefield cards only in battlefield zone", () => {
+  it("allows Battlefield cards in the battlefield zone and overflow, nowhere else", () => {
     const battlefield = { cardType: "battlefield" as const, superTypes: [] as SuperType[] };
     expect(isCardAllowedInZone(battlefield, "battlefield")).toBe(true);
+    expect(isCardAllowedInZone(battlefield, "overflow")).toBe(true);
     expect(isCardAllowedInZone(battlefield, "main")).toBe(false);
+    expect(isCardAllowedInZone(battlefield, "sideboard")).toBe(false);
   });
 
   it("allows Unit/Spell/Gear in main, sideboard, overflow", () => {
@@ -50,6 +54,13 @@ describe("isCardAllowedInZone", () => {
       const card = { cardType, superTypes: [] as SuperType[] };
       expect(isCardAllowedInZone(card, "main")).toBe(true);
       expect(isCardAllowedInZone(card, "sideboard")).toBe(true);
+      expect(isCardAllowedInZone(card, "overflow")).toBe(true);
+    }
+  });
+
+  it("allows every card type in overflow — it is a free park-here zone", () => {
+    for (const cardType of ["unit", "spell", "gear", "legend", "rune", "battlefield"] as const) {
+      const card = { cardType, superTypes: [] as SuperType[] };
       expect(isCardAllowedInZone(card, "overflow")).toBe(true);
     }
   });
@@ -293,31 +304,31 @@ describe("getAllowedMoveTargets", () => {
     expect(getAllowedMoveTargets(card)).toEqual(["main", "overflow"]);
   });
 
-  it("returns an empty list when no other zone is allowed (Legend in legend)", () => {
+  it("offers only overflow for a Legend in legend (its sole other home)", () => {
     const card = {
       cardType: "legend" as const,
       superTypes: [] as SuperType[],
       zone: "legend" as DeckZone,
     };
-    expect(getAllowedMoveTargets(card)).toEqual([]);
+    expect(getAllowedMoveTargets(card)).toEqual(["overflow"]);
   });
 
-  it("returns an empty list for a Rune in runes", () => {
+  it("offers only overflow for a Rune in runes", () => {
     const card = {
       cardType: "rune" as const,
       superTypes: [] as SuperType[],
       zone: "runes" as DeckZone,
     };
-    expect(getAllowedMoveTargets(card)).toEqual([]);
+    expect(getAllowedMoveTargets(card)).toEqual(["overflow"]);
   });
 
-  it("returns an empty list for a Battlefield card in battlefield", () => {
+  it("offers only overflow for a Battlefield card in battlefield", () => {
     const card = {
       cardType: "battlefield" as const,
       superTypes: [] as SuperType[],
       zone: "battlefield" as DeckZone,
     };
-    expect(getAllowedMoveTargets(card)).toEqual([]);
+    expect(getAllowedMoveTargets(card)).toEqual(["overflow"]);
   });
 
   it("lets a Champion move out of the champion zone into main/sideboard/overflow", () => {

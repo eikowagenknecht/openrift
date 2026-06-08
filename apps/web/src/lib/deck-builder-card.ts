@@ -129,9 +129,15 @@ export function isCardAllowedInZone(
     case WellKnown.deckZone.BATTLEFIELD: {
       return card.cardType === WellKnown.cardType.BATTLEFIELD;
     }
-    case WellKnown.deckZone.MAIN:
-    case WellKnown.deckZone.SIDEBOARD:
     case WellKnown.deckZone.OVERFLOW: {
+      // Overflow is a free "park here" holding area: any card type is welcome,
+      // including Legends, Runes, and Battlefields. The rule engine ignores
+      // overflow contents entirely (see deck-rules.ts), so this never affects
+      // deck legality.
+      return true;
+    }
+    case WellKnown.deckZone.MAIN:
+    case WellKnown.deckZone.SIDEBOARD: {
       return (
         card.cardType !== WellKnown.cardType.LEGEND &&
         card.cardType !== WellKnown.cardType.RUNE &&
