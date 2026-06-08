@@ -154,6 +154,16 @@ describe("friendGroupsRepo", () => {
     expect(await repo.pendingInvitesCountForUser("u2")).toBe(3);
   });
 
+  it("pendingRequestsCountForUser returns the count", async () => {
+    const repo = friendGroupsRepo(createMockDb([{ count: 2 }]));
+    expect(await repo.pendingRequestsCountForUser("u-owner")).toBe(2);
+  });
+
+  it("pendingRequestsCountForUser coerces a missing count to 0", async () => {
+    const repo = friendGroupsRepo(createMockDb([{ count: null }]));
+    expect(await repo.pendingRequestsCountForUser("u-owner")).toBe(0);
+  });
+
   it("createInvite and deleteInvite resolve without throwing", async () => {
     const repo = friendGroupsRepo(createMockDb([]));
     await expect(repo.createInvite("grp-1", "u2", "invite")).resolves.toBeUndefined();

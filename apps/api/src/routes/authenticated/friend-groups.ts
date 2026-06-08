@@ -9,6 +9,7 @@ import type {
   FriendGroupMemberDetailResponse,
   FriendGroupMemberResponse,
   FriendGroupPendingInvitesCountResponse,
+  FriendGroupPendingRequestsCountResponse,
   FriendGroupRequestResponse,
   FriendGroupResponse,
   FriendGroupRole,
@@ -29,6 +30,7 @@ import {
   friendGroupMemberDetailResponseSchema,
   friendGroupMemberResponseSchema,
   friendGroupPendingInvitesCountResponseSchema,
+  friendGroupPendingRequestsCountResponseSchema,
   friendGroupResponseSchema,
   friendGroupShareableCollectionsResponseSchema,
   friendGroupShareableListsResponseSchema,
@@ -217,6 +219,20 @@ const pendingInvitesCount = createRoute({
   responses: {
     200: {
       content: { "application/json": { schema: friendGroupPendingInvitesCountResponseSchema } },
+      description: "Success",
+    },
+    ...errorResponses(401),
+  },
+});
+
+const pendingRequestsCount = createRoute({
+  method: "get",
+  path: "/friend-groups/pending-requests-count",
+  tags: ["Friend Groups"],
+  security: cookieAuth,
+  responses: {
+    200: {
+      content: { "application/json": { schema: friendGroupPendingRequestsCountResponseSchema } },
       description: "Success",
     },
     ...errorResponses(401),
@@ -663,6 +679,13 @@ export const friendGroupsRoute = friendGroupsApp
     const { friendGroups } = c.get("repos");
     const count = await friendGroups.pendingInvitesCountForUser(userId);
     return c.json({ count } satisfies FriendGroupPendingInvitesCountResponse, 200);
+  })
+
+  .openapi(pendingRequestsCount, async (c) => {
+    const userId = getUserId(c);
+    const { friendGroups } = c.get("repos");
+    const count = await friendGroups.pendingRequestsCountForUser(userId);
+    return c.json({ count } satisfies FriendGroupPendingRequestsCountResponse, 200);
   })
 
   // ── CREATE ──────────────────────────────────────────────────────────────

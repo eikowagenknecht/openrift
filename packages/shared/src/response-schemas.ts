@@ -1308,6 +1308,10 @@ export const friendGroupPendingInvitesCountResponseSchema = z
   .object({ count: z.number().int().nonnegative() })
   .openapi("FriendGroupPendingInvitesCountResponse");
 
+export const friendGroupPendingRequestsCountResponseSchema = z
+  .object({ count: z.number().int().nonnegative() })
+  .openapi("FriendGroupPendingRequestsCountResponse");
+
 export const listGroupSharesResponseSchema = z
   .object({
     items: z.array(

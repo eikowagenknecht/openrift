@@ -71,6 +71,7 @@ function makeApp(overrides: {
     listInvitesForUser: vi.fn(() => Promise.resolve([])),
     listRequestsForGroup: vi.fn(() => Promise.resolve([])),
     pendingInvitesCountForUser: vi.fn(() => Promise.resolve(0)),
+    pendingRequestsCountForUser: vi.fn(() => Promise.resolve(0)),
     createInvite: vi.fn(),
     deleteInvite: vi.fn(),
     listSharesForGroup: vi.fn(() => Promise.resolve([])),
@@ -196,6 +197,15 @@ describe("friend-groups route", () => {
     const res = await app.request("/api/v1/friend-groups/pending-invites-count");
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ count: 3 });
+  });
+
+  it("GET /pending-requests-count returns the count", async () => {
+    const { app } = makeApp({
+      friendGroups: { pendingRequestsCountForUser: vi.fn(() => Promise.resolve(2)) },
+    });
+    const res = await app.request("/api/v1/friend-groups/pending-requests-count");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ count: 2 });
   });
 
   // ── Create ──────────────────────────────────────────────────────────────

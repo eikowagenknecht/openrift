@@ -186,6 +186,10 @@ export interface FriendGroupPendingInvitesCountResponse {
   count: number;
 }
 
+export interface FriendGroupPendingRequestsCountResponse {
+  count: number;
+}
+
 export interface ListGroupSharesResponse {
   items: { groupId: string; groupSlug: string; groupName: string }[];
 }

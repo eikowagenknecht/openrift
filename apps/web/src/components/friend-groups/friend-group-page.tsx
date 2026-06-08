@@ -116,6 +116,9 @@ function FriendGroupMemberView({
   const { data: actionCounts } = useTradeActionCounts();
   const tradesActionCount =
     actionCounts?.byGroup.find((entry) => entry.groupId === data.group.id)?.count ?? 0;
+  // `pendingRequests` is only populated for admins/owners (empty otherwise),
+  // so this badge naturally hides for members who can't act on requests.
+  const pendingRequestCount = data.pendingRequests.length;
   return (
     <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING)}>
       <header className="flex flex-col gap-2">
@@ -133,6 +136,22 @@ function FriendGroupMemberView({
             </Button>
           </div>
         </div>
+        {pendingRequestCount > 0 ? (
+          <Badge
+            render={
+              <button
+                type="button"
+                aria-label={`${pendingRequestCount} ${
+                  pendingRequestCount === 1 ? "join request" : "join requests"
+                } awaiting approval. View in Members.`}
+              />
+            }
+            onClick={() => onTabChange("members")}
+            className="hover:bg-primary/90 cursor-pointer"
+          >
+            {pendingRequestCount} {pendingRequestCount === 1 ? "join request" : "join requests"}
+          </Badge>
+        ) : null}
         {data.group.description ? (
           <p className="text-muted-foreground">{data.group.description}</p>
         ) : null}

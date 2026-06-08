@@ -2,6 +2,7 @@
 
 ## 2026-06-08
 
+- feat: Join requests waiting for your approval now show up in two places: a count badge on the Groups item in the main navigation, and a badge under the group's name (like "3 join requests") that takes you to the member list when clicked
 - feat: The deck builder's Overflow zone now holds any card type, including Legends, Runes, and Battlefields, so you can park anything there while you decide. Overflow cards never count toward deck legality
 - feat: Opening a group invite link no longer shows who owns the group. You'll still see the group name, member count, and description before deciding to join
 

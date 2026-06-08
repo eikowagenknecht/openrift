@@ -58,7 +58,10 @@ import { UserAvatar } from "@/components/user-avatar";
 import { useIsAdmin } from "@/hooks/use-admin";
 import { useTradeActionCounts } from "@/hooks/use-card-trades";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
-import { useFriendGroupPendingInvitesCount } from "@/hooks/use-friend-groups";
+import {
+  useFriendGroupPendingInvitesCount,
+  useFriendGroupPendingRequestsCount,
+} from "@/hooks/use-friend-groups";
 import { signOut } from "@/lib/auth-client";
 import { sessionQueryOptions, useSession } from "@/lib/auth-session";
 import { useGravatarHash } from "@/lib/gravatar";
@@ -588,9 +591,14 @@ export function Header() {
   const showDecks = isLoggedIn;
   const showGroups = isLoggedIn;
   const { data: pendingInvitesData } = useFriendGroupPendingInvitesCount({ enabled: isLoggedIn });
+  const { data: pendingRequestsData } = useFriendGroupPendingRequestsCount({ enabled: isLoggedIn });
   const { data: tradeActionCounts } = useTradeActionCounts();
-  // One "Groups need your attention" badge: pending invites + trades awaiting action.
-  const groupsBadge = (pendingInvitesData?.count ?? 0) + (tradeActionCounts?.total ?? 0);
+  // One "Groups need your attention" badge: pending invites to you + join
+  // requests awaiting your approval + trades awaiting action.
+  const groupsBadge =
+    (pendingInvitesData?.count ?? 0) +
+    (pendingRequestsData?.count ?? 0) +
+    (tradeActionCounts?.total ?? 0);
 
   return (
     <header className="bg-background/80 border-border-accent sticky top-0 z-50 border-b backdrop-blur-lg">

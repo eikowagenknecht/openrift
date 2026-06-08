@@ -6,6 +6,7 @@ import type {
   FriendGroupMemberDetailResponse,
   FriendGroupMemberResponse,
   FriendGroupPendingInvitesCountResponse,
+  FriendGroupPendingRequestsCountResponse,
   FriendGroupResponse,
   FriendGroupShareableCollectionsResponse,
   FriendGroupShareableListsResponse,
@@ -40,6 +41,16 @@ const fetchPendingInvitesCount = createServerFn({ method: "GET" })
       callApiJson(
         serverApiClient(context.cookie).api.v1["friend-groups"]["pending-invites-count"].$get(),
         "Couldn't load invite count",
+      ),
+  );
+
+const fetchPendingRequestsCount = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(
+    ({ context }): Promise<FriendGroupPendingRequestsCountResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["friend-groups"]["pending-requests-count"].$get(),
+        "Couldn't load request count",
       ),
   );
 
@@ -282,6 +293,22 @@ export function useFriendGroupPendingInvitesCount(opts?: { enabled?: boolean }) 
   return useQuery({
     queryKey: ["friend-groups", "pending-invites-count"],
     queryFn: () => fetchPendingInvitesCount(),
+    staleTime: 60 * 1000,
+    enabled: opts?.enabled ?? true,
+  });
+}
+
+/**
+ * Polls the count of pending join requests across all groups the viewer
+ * owns or administers (the requests awaiting their approval). Drives the
+ * header "Groups" badge alongside pending invites. Non-suspense so it can
+ * sit in the header without an authenticated route boundary.
+ * @returns The query result; `count` is 0 when the viewer isn't logged in.
+ */
+export function useFriendGroupPendingRequestsCount(opts?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ["friend-groups", "pending-requests-count"],
+    queryFn: () => fetchPendingRequestsCount(),
     staleTime: 60 * 1000,
     enabled: opts?.enabled ?? true,
   });

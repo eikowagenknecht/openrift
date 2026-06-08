@@ -352,6 +352,27 @@ export function friendGroupsRepo(db: Kysely<Database>) {
     },
 
     /**
+     * @returns Total pending join requests across every group the user owns or
+     * administers (the requests awaiting their approval). Mirrors the per-group
+     * `pendingRequestCount` surfaced by {@link listGroupsForUser}.
+     */
+    async pendingRequestsCountForUser(userId: string): Promise<number> {
+      const row = await db
+        .selectFrom("friendGroupInvites as i")
+        .select((eb) => eb.fn.countAll<number>().as("count"))
+        .where("i.direction", "=", "request")
+        .where("i.groupId", "in", (eb) =>
+          eb
+            .selectFrom("friendGroupMembers as m")
+            .select("m.groupId")
+            .where("m.userId", "=", userId)
+            .where("m.role", "in", ["owner", "admin"]),
+        )
+        .executeTakeFirstOrThrow();
+      return Number(row.count);
+    },
+
+    /**
      * Creates an invite/request row. UNIQUE(group_id, user_id) means there's
      * at most one row per (group, user); ON CONFLICT DO NOTHING swallows
      * duplicate clicks without erroring.

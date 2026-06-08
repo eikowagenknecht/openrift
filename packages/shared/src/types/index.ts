@@ -200,6 +200,7 @@ export type {
   FriendGroupMemberResponse,
   FriendGroupPendingInviteResponse,
   FriendGroupPendingInvitesCountResponse,
+  FriendGroupPendingRequestsCountResponse,
   FriendGroupRequestResponse,
   FriendGroupResponse,
   FriendGroupRole,
