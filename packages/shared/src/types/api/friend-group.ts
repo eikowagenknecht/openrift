@@ -102,7 +102,6 @@ export interface FriendGroupJoinPreviewResponse {
   name: string;
   description: string | null;
   memberCount: number;
-  ownerName: string | null;
   viewerStatus: FriendGroupJoinViewerStatus;
 }
 

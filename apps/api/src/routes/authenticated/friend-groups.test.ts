@@ -250,9 +250,10 @@ describe("friend-groups route", () => {
     });
     const res = await app.request("/api/v1/friend-groups/preview?code=ABCDEFGHIJKL");
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { viewerStatus: string; ownerName: string };
+    const body = (await res.json()) as { viewerStatus: string };
     expect(body.viewerStatus).toBe("available");
-    expect(body.ownerName).toBe("Test Owner");
+    // The owner's name must not leak in the join preview (shown to non-members).
+    expect(body).not.toHaveProperty("ownerName");
   });
 
   it("GET /preview returns 404 on unknown code", async () => {

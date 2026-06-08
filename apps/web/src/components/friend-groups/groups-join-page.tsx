@@ -78,7 +78,6 @@ export function GroupsJoinPage({ initialCode }: GroupsJoinPageProps) {
             <CardDescription>
               {preview.data.memberCount}
               {preview.data.memberCount === 1 ? " member" : " members"}
-              {preview.data.ownerName ? ` · owner: ${preview.data.ownerName}` : null}
             </CardDescription>
           </CardHeader>
           {preview.data.description ? (

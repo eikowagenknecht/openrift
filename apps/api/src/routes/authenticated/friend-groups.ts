@@ -705,7 +705,6 @@ export const friendGroupsRoute = friendGroupsApp
       friendGroups.getInvite(group.id, viewerId),
     ]);
 
-    const owner = members.find((member) => member.role === "owner");
     const viewerStatus = existingMembership ? "member" : existingInvite ? "pending" : "available";
 
     const response: FriendGroupJoinPreviewResponse = {
@@ -714,7 +713,6 @@ export const friendGroupsRoute = friendGroupsApp
       name: group.name,
       description: group.description,
       memberCount: members.length,
-      ownerName: owner?.userName ?? null,
       viewerStatus,
     };
     return c.json(response, 200);

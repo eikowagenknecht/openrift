@@ -1221,7 +1221,6 @@ export const friendGroupJoinPreviewResponseSchema = z
     name: z.string(),
     description: z.string().nullable(),
     memberCount: z.number().int().nonnegative(),
-    ownerName: z.string().nullable(),
     /**
      * `"member"` if the viewer is already in. `"pending"` if a request is
      * already queued. `"available"` otherwise.

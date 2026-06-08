@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-06-08
+
+- feat: Opening a group invite link no longer shows who owns the group. You'll still see the group name, member count, and description before deciding to join
+
 ## 2026-06-07
 
 - feat: In the match tracker, you now change a player's points by tapping their card (left half subtracts, right half adds), and the score is much larger and easy to read from across the table
