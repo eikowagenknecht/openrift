@@ -61,6 +61,8 @@ function toFilterState(raw: FilterSearch, defaultView: DefaultCardView) {
     powerMax: raw.powerMax ?? null,
     priceMin: raw.priceMin ?? null,
     priceMax: raw.priceMax ?? null,
+    ownedCountMin: raw.ownedCountMin ?? null,
+    ownedCountMax: raw.ownedCountMax ?? null,
     owned: raw.owned ?? [],
     signed: raw.signed ?? null,
     promo: raw.promo ?? null,
@@ -99,6 +101,10 @@ export function useFilterValues() {
     artVariants: filterState.artVariants as ArtVariant[],
     finishes: filterState.finishes as Finish[],
     ownedFilter: filterState.owned as OwnedBucket[],
+    // Copies-owned range — a web-app-only filter (live per-user data, not part
+    // of the shared card catalog) applied alongside the `ownedFilter` buckets.
+    ownedCountMin: filterState.ownedCountMin,
+    ownedCountMax: filterState.ownedCountMax,
     isSigned: filterState.signed ?? null,
     hasAnyMarker: filterState.promo ?? null,
     markers: filterState.markers,
@@ -148,6 +154,8 @@ export function useFilterValues() {
     filterState.powerMax !== null ||
     filterState.priceMin !== null ||
     filterState.priceMax !== null ||
+    filterState.ownedCountMin !== null ||
+    filterState.ownedCountMax !== null ||
     filterState.owned.length > 0 ||
     filterState.signed !== null ||
     filterState.promo !== null ||
@@ -218,6 +226,8 @@ export function useFilterActions() {
       powerMax: undefined,
       priceMin: undefined,
       priceMax: undefined,
+      ownedCountMin: undefined,
+      ownedCountMax: undefined,
       owned: undefined,
       signed: undefined,
       promo: undefined,
@@ -292,6 +302,14 @@ export function useFilterActions() {
     updateSearch(patch);
   };
 
+  const setOwnedCountRange = (min: number | null, max: number | null) => {
+    trackEvent("filter-apply", { type: "ownedCount" });
+    updateSearch({
+      ownedCountMin: min ?? undefined,
+      ownedCountMax: max ?? undefined,
+    });
+  };
+
   const clearOwned = () => updateSearch({ owned: undefined });
 
   const toggleSigned = () => {
@@ -349,6 +367,7 @@ export function useFilterActions() {
     setArrayFilters,
     setRange,
     setRanges,
+    setOwnedCountRange,
     clearOwned,
     toggleSigned,
     togglePromo,

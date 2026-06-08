@@ -205,4 +205,45 @@ describe("useCollectionCardData", () => {
     );
     expect(result.current.sortedCards).toHaveLength(2);
   });
+
+  it("filters by a copies-owned range using per-collection stack counts", () => {
+    const one = stubPrinting({ card: { slug: "one-card" } });
+    const three = stubPrinting({ card: { slug: "three-card" } });
+    const five = stubPrinting({ card: { slug: "five-card" } });
+    mockStacks.mockReturnValue({
+      stacks: [
+        { printingId: one.id, printing: one, copyIds: ["c-1"] },
+        { printingId: three.id, printing: three, copyIds: ["c-3a", "c-3b", "c-3c"] },
+        { printingId: five.id, printing: five, copyIds: ["c-5a", "c-5b", "c-5c", "c-5d", "c-5e"] },
+      ],
+      totalCopies: 9,
+      isReady: true,
+    });
+
+    const inRange = renderHook(() =>
+      useCollectionCardData({ ...baseParams(), ownedCountMin: 2, ownedCountMax: 4 }),
+    );
+    expect(inRange.result.current.sortedCards.map((p) => p.id)).toEqual([three.id]);
+
+    const openEnded = renderHook(() =>
+      useCollectionCardData({ ...baseParams(), ownedCountMin: 5, ownedCountMax: null }),
+    );
+    expect(openEnded.result.current.sortedCards.map((p) => p.id)).toEqual([five.id]);
+  });
+
+  it("reports ownedCountMax as the largest per-collection owned count", () => {
+    const one = stubPrinting({ card: { slug: "one-card" } });
+    const five = stubPrinting({ card: { slug: "five-card" } });
+    mockStacks.mockReturnValue({
+      stacks: [
+        { printingId: one.id, printing: one, copyIds: ["c-1"] },
+        { printingId: five.id, printing: five, copyIds: ["c-5a", "c-5b", "c-5c", "c-5d", "c-5e"] },
+      ],
+      totalCopies: 6,
+      isReady: true,
+    });
+
+    const { result } = renderHook(() => useCollectionCardData(baseParams()));
+    expect(result.current.ownedCountMax).toBe(5);
+  });
 });

@@ -74,3 +74,80 @@ export function applyOwnedBucketFilter(
   }
   return cards.filter((printing) => matchingCardIds.has(printing.cardId));
 }
+
+/**
+ * Filter printings by the exact number of copies owned, within an inclusive
+ * range. This is the slider counterpart to the coarse-bucket
+ * {@link applyOwnedBucketFilter} and uses the same card-vs-printing split:
+ *
+ * - `bucketBy: "card"` (default) aggregates owned copies across every variant of
+ *   a card and keeps all printings of a card whose total falls in range.
+ * - `bucketBy: "printing"` ranges each printing on its own owned count.
+ *
+ * `min`/`max` are inclusive. `null` means unbounded on that side (`min: null` →
+ * zero and up; `max: null` → no upper limit).
+ *
+ * @returns Printings whose owned total is within [min, max].
+ */
+export function applyOwnedCountFilter(
+  cards: readonly Printing[],
+  min: number | null,
+  max: number | null,
+  ownedCountByPrinting: Record<string, number>,
+  bucketBy: "card" | "printing" = "card",
+): Printing[] {
+  const lowerBound = min ?? 0;
+  const upperBound = max ?? Infinity;
+  if (bucketBy === "printing") {
+    return cards.filter((printing) => {
+      const count = ownedCountByPrinting[printing.id] ?? 0;
+      return count >= lowerBound && count <= upperBound;
+    });
+  }
+  const totalByCard = new Map<string, number>();
+  for (const printing of cards) {
+    const count = ownedCountByPrinting[printing.id] ?? 0;
+    totalByCard.set(printing.cardId, (totalByCard.get(printing.cardId) ?? 0) + count);
+  }
+  return cards.filter((printing) => {
+    const total = totalByCard.get(printing.cardId) ?? 0;
+    return total >= lowerBound && total <= upperBound;
+  });
+}
+
+/**
+ * Largest owned total across a set of printings — the upper bound for the
+ * "copies owned" range slider's track. Uses the same card-vs-printing
+ * aggregation as {@link applyOwnedCountFilter}: in card mode it's the most
+ * copies owned of any single card (summed across its variants); in printing
+ * mode the most owned of any single printing.
+ *
+ * @returns The maximum owned total, or 0 when nothing is owned.
+ */
+export function maxOwnedCount(
+  cards: readonly Printing[],
+  ownedCountByPrinting: Record<string, number>,
+  bucketBy: "card" | "printing" = "card",
+): number {
+  let max = 0;
+  if (bucketBy === "printing") {
+    for (const printing of cards) {
+      const count = ownedCountByPrinting[printing.id] ?? 0;
+      if (count > max) {
+        max = count;
+      }
+    }
+    return max;
+  }
+  const totalByCard = new Map<string, number>();
+  for (const printing of cards) {
+    const count = ownedCountByPrinting[printing.id] ?? 0;
+    totalByCard.set(printing.cardId, (totalByCard.get(printing.cardId) ?? 0) + count);
+  }
+  for (const total of totalByCard.values()) {
+    if (total > max) {
+      max = total;
+    }
+  }
+  return max;
+}

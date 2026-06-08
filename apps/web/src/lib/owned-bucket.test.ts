@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { resetIdCounter, stubPrinting } from "@/test/factories";
 
-import { applyOwnedBucketFilter, bucketFor } from "./owned-bucket";
+import {
+  applyOwnedBucketFilter,
+  applyOwnedCountFilter,
+  bucketFor,
+  maxOwnedCount,
+} from "./owned-bucket";
 
 beforeEach(() => {
   resetIdCounter();
@@ -141,5 +146,93 @@ describe("applyOwnedBucketFilter — per-printing bucketing", () => {
     expect(applyOwnedBucketFilter([owned, unowned], ["partial"], counts, "printing")).toHaveLength(
       1,
     );
+  });
+});
+
+describe("applyOwnedCountFilter", () => {
+  it("keeps cards whose owned total is within an inclusive range", () => {
+    const one = stubPrinting();
+    const three = stubPrinting();
+    const five = stubPrinting();
+    const counts = { [one.id]: 1, [three.id]: 3, [five.id]: 5 };
+
+    const result = applyOwnedCountFilter([one, three, five], 2, 4, counts);
+
+    expect(result.map((p) => p.id)).toEqual([three.id]);
+  });
+
+  it("treats a null min as zero-and-up and a null max as no upper limit", () => {
+    const zero = stubPrinting();
+    const two = stubPrinting();
+    const ten = stubPrinting();
+    const counts = { [zero.id]: 0, [two.id]: 2, [ten.id]: 10 };
+
+    // min only: everything with at least 2 copies.
+    expect(applyOwnedCountFilter([zero, two, ten], 2, null, counts).map((p) => p.id)).toEqual([
+      two.id,
+      ten.id,
+    ]);
+    // max only: everything with at most 2 copies (includes the unowned card).
+    expect(applyOwnedCountFilter([zero, two, ten], null, 2, counts).map((p) => p.id)).toEqual([
+      zero.id,
+      two.id,
+    ]);
+    // both null: no constraint.
+    expect(applyOwnedCountFilter([zero, two, ten], null, null, counts)).toHaveLength(3);
+  });
+
+  it("aggregates copies across variants in card mode but ranges each printing in printing mode", () => {
+    // One card, two variants: 2 + 1 = 3 copies total.
+    const cardId = "card-foo";
+    const variantA = stubPrinting({ cardId });
+    const variantB = stubPrinting({ cardId });
+    const counts = { [variantA.id]: 2, [variantB.id]: 1 };
+
+    // Card mode: the card's total (3) is in range, so both variants survive.
+    expect(applyOwnedCountFilter([variantA, variantB], 3, 3, counts)).toHaveLength(2);
+    // Printing mode: only variantA (2 copies) falls in [2, 2].
+    expect(
+      applyOwnedCountFilter([variantA, variantB], 2, 2, counts, "printing").map((p) => p.id),
+    ).toEqual([variantA.id]);
+  });
+
+  it("treats a missing count as zero copies owned", () => {
+    const tracked = stubPrinting();
+    const untracked = stubPrinting();
+
+    // Only `tracked` is in the map; `untracked` defaults to 0 and is excluded
+    // by a min of 1.
+    expect(
+      applyOwnedCountFilter([tracked, untracked], 1, null, { [tracked.id]: 1 }).map((p) => p.id),
+    ).toEqual([tracked.id]);
+  });
+});
+
+describe("maxOwnedCount", () => {
+  it("returns 0 when nothing is owned", () => {
+    const printing = stubPrinting();
+    expect(maxOwnedCount([printing], {})).toBe(0);
+    expect(maxOwnedCount([], { whatever: 5 })).toBe(0);
+  });
+
+  it("returns the largest per-card total in card mode (summed across variants)", () => {
+    const cardId = "card-foo";
+    const variantA = stubPrinting({ cardId });
+    const variantB = stubPrinting({ cardId });
+    const other = stubPrinting();
+    const counts = { [variantA.id]: 2, [variantB.id]: 3, [other.id]: 4 };
+
+    // card-foo totals 5 across its two variants, beating `other`'s 4.
+    expect(maxOwnedCount([variantA, variantB, other], counts)).toBe(5);
+  });
+
+  it("returns the largest single-printing count in printing mode", () => {
+    const cardId = "card-foo";
+    const variantA = stubPrinting({ cardId });
+    const variantB = stubPrinting({ cardId });
+    const counts = { [variantA.id]: 2, [variantB.id]: 3 };
+
+    // Printing mode never sums variants, so the max is the largest single count.
+    expect(maxOwnedCount([variantA, variantB], counts, "printing")).toBe(3);
   });
 });

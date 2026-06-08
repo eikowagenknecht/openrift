@@ -24,6 +24,13 @@ export interface CardBrowserFilterMeta {
   setDisplayLabel?: (slug: string) => string;
   hiddenSections?: ReadonlySet<string>;
   visibleCustomTagCategories?: ReadonlySet<string>;
+  /**
+   * Upper bound for the "Copies" owned-count slider — the most copies the user
+   * owns of any one card on this surface. Each surface computes this from its
+   * own owned-count source (global copies on the catalog, deck-available copies
+   * in the builder, per-collection copies on a collection). Omit/0 hides it.
+   */
+  ownedCountMax?: number;
 }
 
 const FilterMetaContext = createContext<CardBrowserFilterMeta | null>(null);
@@ -75,6 +82,7 @@ export function BrowserLeftPane() {
           setDisplayLabel={meta.setDisplayLabel}
           hiddenSections={meta.hiddenSections}
           visibleCustomTagCategories={meta.visibleCustomTagCategories}
+          ownedCountMax={meta.ownedCountMax}
         />
       </div>
     </Pane>
@@ -96,6 +104,7 @@ function BrowserCollapsibleFilters() {
       setDisplayLabel={meta.setDisplayLabel}
       hiddenSections={meta.hiddenSections}
       visibleCustomTagCategories={meta.visibleCustomTagCategories}
+      ownedCountMax={meta.ownedCountMax}
     />
   );
 }
@@ -115,6 +124,7 @@ function BrowserMobileFilters() {
       setDisplayLabel={meta.setDisplayLabel}
       hiddenSections={meta.hiddenSections}
       visibleCustomTagCategories={meta.visibleCustomTagCategories}
+      ownedCountMax={meta.ownedCountMax}
     />
   );
 }
@@ -132,6 +142,7 @@ export function BrowserActiveFilters() {
       availableFilters={meta.availableFilters}
       setDisplayLabel={meta.setDisplayLabel}
       hiddenSections={meta.hiddenSections}
+      ownedCountMax={meta.ownedCountMax}
     />
   );
 }

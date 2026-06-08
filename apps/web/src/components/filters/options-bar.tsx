@@ -491,6 +491,7 @@ export function MobileFilterContent({
   visibleCustomTagCategories,
   filterOverrides,
   filterCounts,
+  ownedCountMax,
 }: {
   availableFilters: AvailableFilters;
   availableLanguages?: string[];
@@ -499,6 +500,7 @@ export function MobileFilterContent({
   visibleCustomTagCategories?: ReadonlySet<string>;
   filterOverrides?: Partial<Record<string, string[]>>;
   filterCounts?: FilterCounts;
+  ownedCountMax?: number;
 }) {
   return (
     <div className="border-t pt-4">
@@ -512,6 +514,7 @@ export function MobileFilterContent({
           visibleCustomTagCategories={visibleCustomTagCategories}
           filterOverrides={filterOverrides}
           filterCounts={filterCounts}
+          ownedCountMax={ownedCountMax}
         />
       </div>
     </div>

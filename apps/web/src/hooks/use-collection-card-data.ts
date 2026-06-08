@@ -19,7 +19,7 @@ import type { SetInfo } from "@/components/cards/card-grid";
 import { useEffectiveLanguageOrder } from "@/hooks/use-effective-language-order";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useStackedCopies } from "@/hooks/use-stacked-copies";
-import { applyOwnedBucketFilter } from "@/lib/owned-bucket";
+import { applyOwnedBucketFilter, applyOwnedCountFilter, maxOwnedCount } from "@/lib/owned-bucket";
 import type { OwnedBucket } from "@/lib/search-schemas";
 
 interface UseCollectionCardDataParams {
@@ -43,6 +43,12 @@ interface UseCollectionCardDataParams {
    * array means no owned filter.
    */
   ownedFilter?: readonly OwnedBucket[];
+  /**
+   * Copies-owned range slider, scoped to this collection's copy counts (same
+   * scoping rationale as {@link ownedFilter}). null bounds mean unbounded.
+   */
+  ownedCountMin?: number | null;
+  ownedCountMax?: number | null;
 }
 
 /**
@@ -64,6 +70,8 @@ export function useCollectionCardData({
   languageOrder,
   channels,
   ownedFilter,
+  ownedCountMin,
+  ownedCountMax,
 }: UseCollectionCardDataParams) {
   "use memo";
   const { stacks, totalCopies, isReady } = useStackedCopies(collectionId);
@@ -109,17 +117,29 @@ export function useCollectionCardData({
     getPrice,
   });
 
-  // Bucket filter uses per-collection copy counts (one entry per stack) rather
-  // than the global owned-count map. In a single-collection view "Full Playset"
-  // is most naturally read as "this collection has a full playset"; on the
-  // all-collections view, `stacks` already aggregates every collection so the
-  // same map gives the global count for free.
+  // Both owned filters use per-collection copy counts (one entry per stack)
+  // rather than the global owned-count map. In a single-collection view "Full
+  // Playset" is most naturally read as "this collection has a full playset"; on
+  // the all-collections view, `stacks` already aggregates every collection so
+  // the same map gives the global count for free.
+  const countByPrintingId: Record<string, number> = {};
+  for (const stack of stacks) {
+    countByPrintingId[stack.printingId] = stack.copyIds.length;
+  }
+  // Slider track upper bound — the most copies owned of any one card in this
+  // collection. Card-aggregated to match the Owned bucket dropdown's scoping
+  // on this surface (which also aggregates per card).
+  const ownedCountUpperBound = maxOwnedCount(collectionPrintings, countByPrintingId);
   if (ownedFilter && ownedFilter.length > 0) {
-    const countByPrintingId: Record<string, number> = {};
-    for (const stack of stacks) {
-      countByPrintingId[stack.printingId] = stack.copyIds.length;
-    }
     filteredCards = applyOwnedBucketFilter(filteredCards, ownedFilter, countByPrintingId);
+  }
+  if ((ownedCountMin ?? null) !== null || (ownedCountMax ?? null) !== null) {
+    filteredCards = applyOwnedCountFilter(
+      filteredCards,
+      ownedCountMin ?? null,
+      ownedCountMax ?? null,
+      countByPrintingId,
+    );
   }
 
   // In "cards" view, keep one printing per cardId (the first = canonical pick).
@@ -166,6 +186,7 @@ export function useCollectionCardData({
     totalCopies,
     stackByPrintingId,
     totalUniqueCards,
+    ownedCountMax: ownedCountUpperBound,
     setDisplayLabel,
     isReady,
   };

@@ -87,6 +87,12 @@ interface FilterPanelContentProps {
    * unfaceted badges (deck builder, collection grid).
    */
   filterCounts?: FilterCounts;
+  /**
+   * Upper bound for the "Copies" owned-count range slider — the most copies the
+   * user owns of any one card on this surface. Omit or pass 0 to hide the
+   * slider (logged-out catalog, or surfaces where `"owned"` is hidden).
+   */
+  ownedCountMax?: number;
 }
 
 export function FilterPanelContent({
@@ -97,6 +103,7 @@ export function FilterPanelContent({
   visibleCustomTagCategories,
   filterOverrides,
   filterCounts,
+  ownedCountMax,
 }: FilterPanelContentProps) {
   return (
     <>
@@ -109,7 +116,12 @@ export function FilterPanelContent({
         filterOverrides={filterOverrides}
         filterCounts={filterCounts}
       />
-      <FilterRangeSections availableFilters={availableFilters} filterCounts={filterCounts} />
+      <FilterRangeSections
+        availableFilters={availableFilters}
+        filterCounts={filterCounts}
+        hiddenSections={hiddenSections}
+        ownedCountMax={ownedCountMax}
+      />
     </>
   );
 }
@@ -389,9 +401,10 @@ export function FilterRangeSections({
   availableFilters,
   filterCounts,
   hiddenSections,
+  ownedCountMax,
 }: Omit<FilterPanelContentProps, "setDisplayLabel">) {
-  const { ranges } = useFilterValues();
-  const { setRange } = useFilterActions();
+  const { ranges, filterState } = useFilterValues();
+  const { setRange, setOwnedCountRange } = useFilterActions();
   const favoriteMarketplace = useDisplayStore((s) => s.marketplaceOrder[0] ?? "cardtrader");
 
   // The price section uses a marketplace-aware currency formatter so EUR
@@ -449,6 +462,19 @@ export function FilterRangeSections({
           />
         );
       })}
+      {/* Copies owned — a web-app-only range gated the same as the Owned bucket
+          dropdown. The bound is the user's actual maximum, so it only renders
+          for logged-in users who own something on this surface. */}
+      {!hiddenSections?.has("owned") && ownedCountMax !== undefined && ownedCountMax > 0 && (
+        <RangeFilterSection
+          label="Copies"
+          availableMin={0}
+          availableMax={ownedCountMax}
+          selectedMin={filterState.ownedCountMin}
+          selectedMax={filterState.ownedCountMax}
+          onChange={(min, max) => setOwnedCountRange(min, max)}
+        />
+      )}
     </>
   );
 }

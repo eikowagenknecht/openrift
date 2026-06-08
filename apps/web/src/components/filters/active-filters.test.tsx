@@ -55,6 +55,8 @@ const EMPTY_FILTER_STATE = {
   channels: [],
   customTags: [],
   owned: [],
+  ownedCountMin: null,
+  ownedCountMax: null,
   signed: null,
   promo: null,
   banned: null,
@@ -117,6 +119,7 @@ function setupHooks({
   mockUseFilterActions.mockReturnValue({
     toggleArrayFilter: toggleArrayFilter ?? vi.fn(),
     setRange: vi.fn(),
+    setOwnedCountRange: vi.fn(),
     clearSigned: vi.fn(),
     clearPromo: vi.fn(),
     clearBanned: vi.fn(),
@@ -234,5 +237,94 @@ describe("ActiveFilters custom tags", () => {
 
     expect(getByText("Tag:")).toBeInTheDocument();
     expect(getByText("was-deleted")).toBeInTheDocument();
+  });
+});
+
+describe("ActiveFilters copies range", () => {
+  afterEach(() => {
+    mockUseFilterValues.mockReset();
+    mockUseFilterActions.mockReset();
+    mockUseEnumOrders.mockReset();
+    mockUseCustomTagList.mockReset();
+    mockUseDisplayStore.mockReset();
+  });
+
+  function setupCopiesHooks(
+    ownedCount: { ownedCountMin: number | null; ownedCountMax: number | null },
+    setOwnedCountRange = vi.fn(),
+  ) {
+    mockUseFilterValues.mockReturnValue({
+      filterState: { ...EMPTY_FILTER_STATE, ...ownedCount },
+      ranges: NULL_RANGES,
+    });
+    mockUseFilterActions.mockReturnValue({
+      toggleArrayFilter: vi.fn(),
+      setRange: vi.fn(),
+      setOwnedCountRange,
+      clearSigned: vi.fn(),
+      clearPromo: vi.fn(),
+      clearBanned: vi.fn(),
+      clearErrata: vi.fn(),
+      clearAllFilters: vi.fn(),
+      setSearch: vi.fn(),
+    });
+    mockUseEnumOrders.mockReturnValue({
+      labels: {
+        finishes: {},
+        rarities: {},
+        domains: {},
+        cardTypes: {},
+        superTypes: {},
+        artVariants: {},
+      },
+    });
+    mockUseCustomTagList.mockReturnValue({ all: [], byCategory: new Map() });
+    mockUseDisplayStore.mockImplementation(
+      (selector: (state: { marketplaceOrder: string[] }) => unknown) =>
+        selector({ marketplaceOrder: ["cardtrader"] }),
+    );
+    return setOwnedCountRange;
+  }
+
+  it("renders a Copies chip showing the selected range", () => {
+    setupCopiesHooks({ ownedCountMin: 2, ownedCountMax: 5 });
+
+    const { getByText } = render(
+      <ActiveFilters availableFilters={makeAvailable()} ownedCountMax={9} />,
+    );
+
+    expect(getByText("Copies:")).toBeInTheDocument();
+    expect(getByText("2–5")).toBeInTheDocument();
+  });
+
+  it("clears the copies range when the chip's remove button is clicked", async () => {
+    const setOwnedCountRange = setupCopiesHooks({ ownedCountMin: 3, ownedCountMax: null });
+
+    const user = userEvent.setup();
+    const { getByText } = render(
+      <ActiveFilters availableFilters={makeAvailable()} ownedCountMax={9} />,
+    );
+
+    // min-only renders as "≥3".
+    const badge = getByText("≥3").closest("span") ?? getByText("≥3");
+    const removeButton = badge.parentElement?.querySelector("button");
+    await user.click(removeButton!);
+
+    expect(setOwnedCountRange).toHaveBeenCalledWith(null, null);
+  });
+
+  it("hides the Copies chip when the owned section is hidden", () => {
+    setupCopiesHooks({ ownedCountMin: 2, ownedCountMax: 5 });
+
+    const { container } = render(
+      <ActiveFilters
+        availableFilters={makeAvailable()}
+        ownedCountMax={9}
+        hiddenSections={new Set(["owned"])}
+      />,
+    );
+
+    // No other filters are set, so the bar should not render at all.
+    expect(container).toBeEmptyDOMElement();
   });
 });

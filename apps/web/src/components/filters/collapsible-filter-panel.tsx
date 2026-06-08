@@ -18,6 +18,8 @@ interface CollapsibleFilterPanelProps {
   visibleCustomTagCategories?: ReadonlySet<string>;
   filterOverrides?: Partial<Record<string, string[]>>;
   filterCounts?: FilterCounts;
+  /** See {@link FilterPanelContentProps.ownedCountMax}. */
+  ownedCountMax?: number;
 }
 
 /**
@@ -34,6 +36,7 @@ export function CollapsibleFilterPanel({
   visibleCustomTagCategories,
   filterOverrides,
   filterCounts,
+  ownedCountMax,
 }: CollapsibleFilterPanelProps) {
   const filtersExpanded = useDisplayStore((state) => state.filtersExpanded);
   const setFiltersExpanded = useDisplayStore((state) => state.setFiltersExpanded);
@@ -57,7 +60,12 @@ export function CollapsibleFilterPanel({
           />
         </div>
         <div className="grid grid-cols-2 items-start gap-x-6 gap-y-3 lg:grid-cols-4">
-          <FilterRangeSections availableFilters={availableFilters} filterCounts={filterCounts} />
+          <FilterRangeSections
+            availableFilters={availableFilters}
+            filterCounts={filterCounts}
+            hiddenSections={hiddenSections}
+            ownedCountMax={ownedCountMax}
+          />
         </div>
       </CollapsibleContent>
     </Collapsible>

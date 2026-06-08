@@ -45,6 +45,8 @@ export const filterSearchSchema = z.object({
   powerMax: numberField(),
   priceMin: numberField(),
   priceMax: numberField(),
+  ownedCountMin: numberField(),
+  ownedCountMax: numberField(),
   owned: ownedFilter(),
   signed: boolFlag(),
   promo: boolFlag(),

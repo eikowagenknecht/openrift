@@ -438,6 +438,58 @@ describe("useCardFilters", () => {
     expect(result.current.hasActiveFilters).toBe(true);
   });
 
+  it("setOwnedCountRange writes both ownedCountMin and ownedCountMax", () => {
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.setOwnedCountRange(2, 5));
+
+    expect(lastNavigateSearch()).toMatchObject({ ownedCountMin: 2, ownedCountMax: 5 });
+  });
+
+  it("setOwnedCountRange strips a null bound rather than writing it", () => {
+    mockSearch = { ownedCountMin: 1, ownedCountMax: 4 };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    // min only ("≥3"): max is dropped from the URL.
+    act(() => result.current.setOwnedCountRange(3, null));
+    const search = lastNavigateSearch();
+    expect(search).toMatchObject({ ownedCountMin: 3 });
+    expect(search).not.toHaveProperty("ownedCountMax");
+  });
+
+  it("setOwnedCountRange clears both bounds when given null/null", () => {
+    mockSearch = { ownedCountMin: 1, ownedCountMax: 4 };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.setOwnedCountRange(null, null));
+    const search = lastNavigateSearch();
+    expect(search).not.toHaveProperty("ownedCountMin");
+    expect(search).not.toHaveProperty("ownedCountMax");
+  });
+
+  it("exposes the copies-owned range on filters", () => {
+    mockSearch = { ownedCountMin: 2, ownedCountMax: 6 };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+    expect(result.current.filters.ownedCountMin).toBe(2);
+    expect(result.current.filters.ownedCountMax).toBe(6);
+  });
+
+  it("flags hasActiveFilters when only a copies-owned bound is set", () => {
+    mockSearch = { ownedCountMin: 2 };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+    expect(result.current.hasActiveFilters).toBe(true);
+  });
+
+  it("clearAllFilters strips the copies-owned bounds", () => {
+    mockSearch = { ownedCountMin: 2, ownedCountMax: 6 };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.clearAllFilters());
+    const search = lastNavigateSearch();
+    expect(search).not.toHaveProperty("ownedCountMin");
+    expect(search).not.toHaveProperty("ownedCountMax");
+  });
+
   it("toggleArrayFilter reads latest router state for sequential calls", () => {
     mockSearch = {};
     const { result } = renderHook(() => useCardFilters(), { wrapper });

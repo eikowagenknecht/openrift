@@ -76,8 +76,11 @@ function makeFilterCounts(rangeOverrides: Partial<FilterCounts["ranges"]> = {}):
 }
 
 function setupHooks() {
-  mockUseFilterValues.mockReturnValue({ ranges: NULL_RANGES });
-  mockUseFilterActions.mockReturnValue({ setRange: vi.fn() });
+  mockUseFilterValues.mockReturnValue({
+    ranges: NULL_RANGES,
+    filterState: { ownedCountMin: null, ownedCountMax: null },
+  });
+  mockUseFilterActions.mockReturnValue({ setRange: vi.fn(), setOwnedCountRange: vi.fn() });
   mockUseDisplayStore.mockImplementation(
     (selector: (state: { marketplaceOrder: string[] }) => unknown) =>
       selector({ marketplaceOrder: ["cardtrader"] }),
@@ -115,5 +118,33 @@ describe("FilterRangeSections", () => {
       />,
     );
     expect(queryByText("Price")).toBeNull();
+  });
+
+  it("renders the Copies slider when ownedCountMax is positive and owned is not hidden", () => {
+    setupHooks();
+    const { queryByText } = render(
+      <FilterRangeSections availableFilters={makeAvailable()} ownedCountMax={4} />,
+    );
+    expect(queryByText("Copies")).not.toBeNull();
+  });
+
+  it("hides the Copies slider when nothing is owned (ownedCountMax 0)", () => {
+    setupHooks();
+    const { queryByText } = render(
+      <FilterRangeSections availableFilters={makeAvailable()} ownedCountMax={0} />,
+    );
+    expect(queryByText("Copies")).toBeNull();
+  });
+
+  it("hides the Copies slider when the owned section is hidden", () => {
+    setupHooks();
+    const { queryByText } = render(
+      <FilterRangeSections
+        availableFilters={makeAvailable()}
+        ownedCountMax={4}
+        hiddenSections={new Set(["owned"])}
+      />,
+    );
+    expect(queryByText("Copies")).toBeNull();
   });
 });

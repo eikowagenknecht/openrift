@@ -43,6 +43,7 @@ import {
   cellPreferredPrintingId,
 } from "@/lib/deck-builder-card";
 import { getFormatTagConfig } from "@/lib/format-tag-config";
+import { maxOwnedCount } from "@/lib/owned-bucket";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
@@ -348,6 +349,8 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     sets,
     filters,
     ownedFilter: filters.ownedFilter,
+    ownedCountMin: filters.ownedCountMin,
+    ownedCountMax: filters.ownedCountMax,
     sortBy,
     sortDir,
     view,
@@ -359,6 +362,15 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     channels,
     customTagAssignments,
   });
+
+  // Copies slider bound — the most deck-available copies the user owns of any
+  // one card. Uses the deck-available map (excluded collections don't count),
+  // matching the grid's owned badge.
+  const ownedCountBound = maxOwnedCount(
+    allPrintings,
+    ownedCountByPrinting ?? {},
+    view === "printings" ? "printing" : "card",
+  );
 
   const filteredCards = sortedCards;
 
@@ -613,6 +625,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
       availableLanguages={availableLanguages}
       setDisplayLabel={setDisplayLabel}
       visibleCustomTagCategories={visibleCustomTagCategories}
+      ownedCountMax={ownedCountBound}
     >
       <BrowserCardViewer
         items={items}

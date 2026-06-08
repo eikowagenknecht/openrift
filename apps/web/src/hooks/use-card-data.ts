@@ -19,7 +19,7 @@ import {
 
 import type { SetInfo } from "@/components/cards/card-grid";
 import { useEnumOrders } from "@/hooks/use-enums";
-import { applyOwnedBucketFilter } from "@/lib/owned-bucket";
+import { applyOwnedBucketFilter, applyOwnedCountFilter } from "@/lib/owned-bucket";
 import type { OwnedBucket } from "@/lib/search-schemas";
 
 interface UseCardDataParams {
@@ -28,6 +28,10 @@ interface UseCardDataParams {
   filters: CardFilters;
   /** Selected ownership buckets. Empty array means no owned filter. */
   ownedFilter?: readonly OwnedBucket[];
+  /** Inclusive lower bound on copies owned (slider). null = no lower bound. */
+  ownedCountMin?: number | null;
+  /** Inclusive upper bound on copies owned (slider). null = no upper bound. */
+  ownedCountMax?: number | null;
   sortBy: SortOption;
   sortDir: "asc" | "desc";
   view: "cards" | "printings";
@@ -61,6 +65,8 @@ interface UseCatalogFilterMetaParams {
   sets: SetInfo[];
   filters: CardFilters;
   ownedFilter?: readonly OwnedBucket[];
+  ownedCountMin?: number | null;
+  ownedCountMax?: number | null;
   view: "cards" | "printings";
   ownedCountByPrinting: Record<string, number> | undefined;
   favoriteMarketplace: Marketplace;
@@ -208,6 +214,8 @@ export function useCatalogFilterMeta({
   sets,
   filters,
   ownedFilter,
+  ownedCountMin,
+  ownedCountMax,
   view,
   ownedCountByPrinting,
   favoriteMarketplace,
@@ -243,16 +251,29 @@ export function useCatalogFilterMeta({
     channels,
   });
   // Narrow the universe by owned BEFORE computing facet counts so the other
-  // chips (sets, rarities, colors, etc.) reflect the active owned selection.
-  const universeForCounts =
-    ownedFilter && ownedFilter.length > 0 && ownedCountByPrinting
-      ? applyOwnedBucketFilter(
-          allPrintings,
-          ownedFilter,
-          ownedCountByPrinting,
-          view === "printings" ? "printing" : "card",
-        )
-      : allPrintings;
+  // chips (sets, rarities, colors, etc.) reflect the active owned selection —
+  // both the coarse buckets and the copies-owned range slider.
+  const bucketBy = view === "printings" ? "printing" : "card";
+  let universeForCounts = allPrintings;
+  if (ownedCountByPrinting) {
+    if (ownedFilter && ownedFilter.length > 0) {
+      universeForCounts = applyOwnedBucketFilter(
+        universeForCounts,
+        ownedFilter,
+        ownedCountByPrinting,
+        bucketBy,
+      );
+    }
+    if ((ownedCountMin ?? null) !== null || (ownedCountMax ?? null) !== null) {
+      universeForCounts = applyOwnedCountFilter(
+        universeForCounts,
+        ownedCountMin ?? null,
+        ownedCountMax ?? null,
+        ownedCountByPrinting,
+        bucketBy,
+      );
+    }
+  }
   const filterCounts = computeFilterCounts(universeForCounts, filters, {
     countBy: view === "cards" ? "card" : "printing",
     keywordReverseMap,
@@ -269,6 +290,8 @@ export function useCardData({
   sets,
   filters,
   ownedFilter,
+  ownedCountMin,
+  ownedCountMax,
   sortBy,
   sortDir,
   view,
@@ -295,6 +318,8 @@ export function useCardData({
     sets,
     filters,
     ownedFilter,
+    ownedCountMin,
+    ownedCountMax,
     view,
     ownedCountByPrinting,
     favoriteMarketplace,
@@ -332,13 +357,25 @@ export function useCardData({
     customTagAssignments,
   });
 
-  if (ownedFilter && ownedFilter.length > 0 && ownedCountByPrinting) {
-    filteredCards = applyOwnedBucketFilter(
-      filteredCards,
-      ownedFilter,
-      ownedCountByPrinting,
-      view === "printings" ? "printing" : "card",
-    );
+  if (ownedCountByPrinting) {
+    const bucketBy = view === "printings" ? "printing" : "card";
+    if (ownedFilter && ownedFilter.length > 0) {
+      filteredCards = applyOwnedBucketFilter(
+        filteredCards,
+        ownedFilter,
+        ownedCountByPrinting,
+        bucketBy,
+      );
+    }
+    if ((ownedCountMin ?? null) !== null || (ownedCountMax ?? null) !== null) {
+      filteredCards = applyOwnedCountFilter(
+        filteredCards,
+        ownedCountMin ?? null,
+        ownedCountMax ?? null,
+        ownedCountByPrinting,
+        bucketBy,
+      );
+    }
   }
 
   // Cards view dedupes by cardId so each card gets one tile. When also grouped

@@ -2,6 +2,7 @@
 
 ## 2026-06-08
 
+- feat: The card filters now include a Copies slider that narrows the view by how many copies you own, with a from and to range, alongside the existing Owned filter. It's available on the cards page, in the deck builder, and in your collections
 - feat: Join requests waiting for your approval now show up in two places: a count badge on the Groups item in the main navigation, and a badge under the group's name (like "3 join requests") that takes you to the member list when clicked
 - feat: The deck builder's Overflow zone now holds any card type, including Legends, Runes, and Battlefields, so you can park anything there while you decide. Overflow cards never count toward deck legality
 - feat: The Overflow zone now holds unlimited copies of a card, and those copies no longer count against the 3-copy limit, so parking a card there doesn't reduce how many you can run in your main deck

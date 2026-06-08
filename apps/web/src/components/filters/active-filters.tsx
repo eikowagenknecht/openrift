@@ -29,12 +29,15 @@ interface ActiveFiltersProps {
   availableFilters: AvailableFilters;
   setDisplayLabel?: (code: string) => string;
   hiddenSections?: ReadonlySet<string>;
+  /** Upper bound for the Copies chip — see CardBrowserFilterMeta.ownedCountMax. */
+  ownedCountMax?: number;
 }
 
 export function ActiveFilters({
   availableFilters,
   setDisplayLabel,
   hiddenSections,
+  ownedCountMax,
 }: ActiveFiltersProps) {
   const { labels } = useEnumOrders();
   const { all: allCustomTags } = useCustomTagList();
@@ -42,6 +45,7 @@ export function ActiveFilters({
   const {
     toggleArrayFilter,
     setRange,
+    setOwnedCountRange,
     clearSigned,
     clearPromo,
     clearBanned,
@@ -100,6 +104,9 @@ export function ActiveFilters({
     }
   }
   const customTagsHidden = hiddenSections?.has("customTags") ?? false;
+  const copiesRangeActive =
+    !hiddenSections?.has("owned") &&
+    (filterState.ownedCountMin !== null || filterState.ownedCountMax !== null);
 
   const filterGroups: {
     key: FilterKey;
@@ -178,6 +185,7 @@ export function ActiveFilters({
     filterGroups.length > 0 ||
     (!customTagsHidden && customTagGroups.length > 0) ||
     rangeBadgeSections.some(({ key }) => ranges[key].min !== null || ranges[key].max !== null) ||
+    copiesRangeActive ||
     filterState.signed !== null ||
     filterState.promo !== null ||
     filterState.banned !== null ||
@@ -276,6 +284,16 @@ export function ActiveFilters({
             />
           );
         })}
+        {copiesRangeActive && (
+          <RangeBadge
+            label="Copies"
+            min={filterState.ownedCountMin}
+            max={filterState.ownedCountMax}
+            availableMin={0}
+            availableMax={ownedCountMax ?? 0}
+            onClear={() => setOwnedCountRange(null, null)}
+          />
+        )}
         {filterState.signed !== null && (
           <div className="flex items-center gap-1">
             <span className="text-muted-foreground text-xs">Flag:</span>

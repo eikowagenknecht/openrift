@@ -28,6 +28,7 @@ import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import { useSession } from "@/lib/auth-session";
+import { maxOwnedCount } from "@/lib/owned-bucket";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
@@ -101,11 +102,16 @@ export function CardBrowser() {
   // means "show all" (the user cleared every language within this session).
   useSeedLanguagesFromPrefs(filters.languages);
 
-  // When no owned buckets are selected, useCardData's output doesn't depend
-  // on the live owned-count map. Passing undefined keeps the hook's return
-  // ref stable across +/- clicks so sortedCards → items → groups → virtualRows
-  // don't churn. The filter meta below uses the same gating.
-  const ownedCountForCardData = filters.ownedFilter.length > 0 ? ownedCountByPrinting : undefined;
+  // When no owned filter is active, useCardData's output doesn't depend on the
+  // live owned-count map. Passing undefined keeps the hook's return ref stable
+  // across +/- clicks so sortedCards → items → groups → virtualRows don't
+  // churn. Both the buckets dropdown and the copies-owned range count as
+  // "active". The filter meta below uses the same gating.
+  const ownedFilterActive =
+    filters.ownedFilter.length > 0 ||
+    filters.ownedCountMin !== null ||
+    filters.ownedCountMax !== null;
+  const ownedCountForCardData = ownedFilterActive ? ownedCountByPrinting : undefined;
 
   const { sortedCards, printingsByCardId, priceRangeByCardId, totalUniqueCards, filteredCount } =
     useCardData({
@@ -113,6 +119,8 @@ export function CardBrowser() {
       sets,
       filters,
       ownedFilter: filters.ownedFilter,
+      ownedCountMin: filters.ownedCountMin,
+      ownedCountMax: filters.ownedCountMax,
       sortBy,
       sortDir,
       view,
@@ -128,17 +136,30 @@ export function CardBrowser() {
     ? CARD_BROWSER_HIDDEN_LOGGED_IN
     : CARD_BROWSER_HIDDEN_LOGGED_OUT;
 
+  // The copies slider's upper bound is the most copies the user owns of any one
+  // card (card-aggregated in cards view, per-printing otherwise). Computed from
+  // the always-on owned map — independent of the gating above, which only
+  // governs what flows into useCardData. Feeds only the filter chrome, so it
+  // doesn't reintroduce grid churn on +/- clicks.
+  const ownedCountBound = maxOwnedCount(
+    allPrintings,
+    ownedCountByPrinting ?? {},
+    view === "printings" ? "printing" : "card",
+  );
+
   // Compute filter meta separately from useCardData so the meta hook's
   // outputs aren't entangled with the rest of useCardData's. The owned-count
   // gating below keeps the returned ref stable across +/- clicks when no
-  // owned buckets are selected — without it, every click busts downstream
+  // owned filter is active — without it, every click busts downstream
   // memoization in the filter chrome.
-  const ownedCountForMeta = filters.ownedFilter.length > 0 ? ownedCountByPrinting : undefined;
+  const ownedCountForMeta = ownedFilterActive ? ownedCountByPrinting : undefined;
   const filterMeta = useCatalogFilterMeta({
     allPrintings,
     sets,
     filters,
     ownedFilter: filters.ownedFilter,
+    ownedCountMin: filters.ownedCountMin,
+    ownedCountMax: filters.ownedCountMax,
     view,
     ownedCountByPrinting: ownedCountForMeta,
     favoriteMarketplace: display.favoriteMarketplace,
@@ -277,6 +298,7 @@ export function CardBrowser() {
       filterCounts={filterMeta.filterCounts}
       setDisplayLabel={filterMeta.setDisplayLabel}
       hiddenSections={hiddenFilterSections}
+      ownedCountMax={ownedCountBound}
     >
       <BrowserCardViewer
         items={items}

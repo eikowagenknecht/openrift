@@ -78,6 +78,7 @@ import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { useSession } from "@/lib/auth-session";
 import { collectionTableActionsColumn } from "@/lib/collection-table";
 import { formatterForMarketplace } from "@/lib/format";
+import { maxOwnedCount } from "@/lib/owned-bucket";
 import { isStackSelected, resolveContextActionTarget } from "@/lib/stack-selection";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useAddModeStore } from "@/stores/add-mode-store";
@@ -258,6 +259,14 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const dataView = view === "copies" ? "printings" : view;
   const keywordReverseMap = useKeywordReverseMap();
 
+  // An owned filter is "active" when either the buckets dropdown or the
+  // copies-owned range is set — used to gate the global owned-count map into
+  // the catalog/library hook (see its memo note below).
+  const ownedFilterActive =
+    filters.ownedFilter.length > 0 ||
+    filters.ownedCountMin !== null ||
+    filters.ownedCountMax !== null;
+
   // ── Collection data (browse/select modes) ───────────────────────────
   const {
     availableFilters: collectionAvailableFilters,
@@ -268,6 +277,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     totalCopies,
     stackByPrintingId,
     totalUniqueCards: collectionTotalUniqueCards,
+    ownedCountMax: collectionOwnedCountMax,
     setDisplayLabel: collectionSetDisplayLabel,
     isReady: copiesReady,
   } = useCollectionCardData({
@@ -283,6 +293,8 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     languageOrder: languageFilter,
     channels,
     ownedFilter: filters.ownedFilter,
+    ownedCountMin: filters.ownedCountMin,
+    ownedCountMax: filters.ownedCountMax,
   });
 
   // ── Catalog data (drives "show library" view + the quick-add palette in
@@ -309,14 +321,16 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     // require a parallel pass over those branches; the /cards catalog browser
     // is the only consumer wired up so far.
     //
-    // `ownedCountByPrinting` is only consumed by the owned-bucket filter —
-    // passing the map unconditionally would bust this hook's memo on every
-    // +/- (the map is a fresh projection of the global copies set on every
-    // copy mutation), which in turn rebuilds `printingsByCardId` /
+    // `ownedCountByPrinting` is only consumed by the owned filters (buckets +
+    // copies range) — passing the map unconditionally would bust this hook's
+    // memo on every +/- (the map is a fresh projection of the global copies set
+    // on every copy mutation), which in turn rebuilds `printingsByCardId` /
     // `priceRangeByCardId` and forces every visible cell to re-render. Same
     // guard /cards uses.
-    ownedCountByPrinting: filters.ownedFilter.length > 0 ? ownedCountByPrinting : undefined,
+    ownedCountByPrinting: ownedFilterActive ? ownedCountByPrinting : undefined,
     ownedFilter: filters.ownedFilter,
+    ownedCountMin: filters.ownedCountMin,
+    ownedCountMax: filters.ownedCountMax,
     favoriteMarketplace,
     prices,
     keywordReverseMap,
@@ -330,6 +344,16 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const printingsByCardId = showLibrary ? catalogPrintingsByCardId : collectionPrintingsByCardId;
   const totalUniqueCards = showLibrary ? catalogTotalUniqueCards : collectionTotalUniqueCards;
   const setDisplayLabel = showLibrary ? catalogSetDisplayLabel : collectionSetDisplayLabel;
+  // Copies slider bound. In the library view the bound is global (most copies
+  // owned of any card across all collections); in browse/select it's the
+  // per-collection max the collection hook already computed.
+  const ownedCountBound = showLibrary
+    ? maxOwnedCount(
+        allPrintings,
+        ownedCountByPrinting ?? {},
+        dataView === "printings" ? "printing" : "card",
+      )
+    : collectionOwnedCountMax;
 
   // Defer the card grid re-render so filter UI responds immediately
   const deferredSortedCards = useDeferredValue(sortedCards);
@@ -1006,6 +1030,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         availableLanguages={availableLanguages}
         setDisplayLabel={setDisplayLabel}
         hiddenSections={COLLECTION_GRID_HIDDEN_FILTER_SECTIONS}
+        ownedCountMax={ownedCountBound}
       >
         {topBarPortal}
         <BrowserCardViewer

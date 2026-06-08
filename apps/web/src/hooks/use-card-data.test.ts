@@ -204,6 +204,59 @@ describe("useCardData", () => {
     );
   });
 
+  it("filters by a copies-owned range (min..max inclusive)", () => {
+    const one = stubPrinting({ rarity: "common" });
+    const three = stubPrinting({ rarity: "uncommon" });
+    const five = stubPrinting({ rarity: "rare" });
+
+    const params = {
+      ...baseParams(),
+      allPrintings: [one, three, five],
+      ownedCountMin: 2,
+      ownedCountMax: 4,
+      ownedCountByPrinting: { [one.id]: 1, [three.id]: 3, [five.id]: 5 },
+    };
+
+    const { result } = renderHook(() => useCardData(params));
+
+    expect(result.current.sortedCards.map((p) => p.id)).toEqual([three.id]);
+  });
+
+  it("treats an open-ended copies-owned min as 'that many and up'", () => {
+    const two = stubPrinting({ rarity: "common" });
+    const ten = stubPrinting({ rarity: "rare" });
+
+    const params = {
+      ...baseParams(),
+      allPrintings: [two, ten],
+      ownedCountMin: 3,
+      ownedCountMax: null,
+      ownedCountByPrinting: { [two.id]: 2, [ten.id]: 10 },
+    };
+
+    const { result } = renderHook(() => useCardData(params));
+
+    expect(result.current.sortedCards.map((p) => p.id)).toEqual([ten.id]);
+  });
+
+  it("narrows non-owned facet counts to the copies-owned range", () => {
+    const inRange = stubPrinting({ rarity: "common" });
+    const outOfRange = stubPrinting({ rarity: "rare" });
+
+    const params = {
+      ...baseParams(),
+      allPrintings: [inRange, outOfRange],
+      ownedCountMin: 2,
+      ownedCountMax: null,
+      ownedCountByPrinting: { [inRange.id]: 4, [outOfRange.id]: 1 },
+    };
+
+    const { result } = renderHook(() => useCardData(params));
+
+    expect(result.current.filterCounts.rarities.get("common")).toBe(1);
+    expect(result.current.filterCounts.rarities.get("rare")).toBeUndefined();
+  });
+
   it("buckets each printing on its own owned count in printings view", () => {
     // Printings view filters owned per-printing: a variant shows only when its
     // own count matches a selected bucket, not because a sibling variant of the
