@@ -11,7 +11,9 @@ import { formatPrice, formatPriceEur } from "./format";
 const KIND_NOUN: Record<ListKind, { one: string; many: string }> = {
   card: { one: "card", many: "cards" },
   printing: { one: "printing", many: "printings" },
-  copy: { one: "copy", many: "copies" },
+  // Copy (trade) lists merge identical copies into one line per printing, so the
+  // share count is of printings, not physical copies.
+  copy: { one: "printing", many: "printings" },
 };
 
 /**

@@ -89,13 +89,11 @@ function intentLabel(intent: string): string {
   return "List";
 }
 
-/** @returns The count unit for a list kind (mirrors the in-app KIND_NOUN). */
+/** @returns The count unit for a list kind (mirrors the share text's KIND_NOUN). */
 function unitForKind(kind: string): { one: string; many: string } {
-  if (kind === "printing") {
+  // Copy (trade) lists merge to one tile per printing, so they count printings.
+  if (kind === "printing" || kind === "copy") {
     return { one: "printing", many: "printings" };
-  }
-  if (kind === "copy") {
-    return { one: "copy", many: "copies" };
   }
   return { one: "card", many: "cards" };
 }

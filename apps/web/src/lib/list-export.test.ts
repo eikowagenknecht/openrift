@@ -154,7 +154,7 @@ describe("formatListShareText", () => {
     expect(output.startsWith("Singles (1 printing)\n")).toBe(true);
   });
 
-  it("pluralizes copy-kind as 'copies'", () => {
+  it("counts copy-kind as 'printings' (copies are grouped by printing)", () => {
     const output = formatListShareText(
       "Binder",
       "copy",
@@ -164,7 +164,7 @@ describe("formatListShareText", () => {
       ],
       SHARE_URL,
     );
-    expect(output.startsWith("Binder (2 copies)\n")).toBe(true);
+    expect(output.startsWith("Binder (2 printings)\n")).toBe(true);
   });
 
   it("straightens curly apostrophes in card names", () => {
@@ -219,7 +219,7 @@ describe("formatListShareText", () => {
     );
     expect(output).toContain("3× Cleave · OGN-004");
     expect(output).toContain("1× Disintegrate · OGN-050");
-    expect(output).toContain("Binder (2 copies)");
+    expect(output).toContain("Binder (2 printings)");
   });
 
   it("appends fixed and CardTrader prices, skipping the other marketplaces", () => {
