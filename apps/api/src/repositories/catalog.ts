@@ -1,3 +1,4 @@
+import { WellKnown } from "@openrift/shared";
 import type { Domain, SuperType } from "@openrift/shared/types";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
@@ -289,7 +290,7 @@ export function catalogRepo(db: Kysely<Database>) {
           .where("printingImages.face", "=", "front")
           .where("printingImages.isActive", "=", true)
           .where(sql`${imageId("ci")}`, "is not", null)
-          .where("cards.type", "!=", "Battlefield")
+          .where("cards.type", "!=", WellKnown.cardType.BATTLEFIELD)
           .orderBy(sql`md5(printing_images.printing_id::text || current_date::text)`)
           .limit(sampleSize)
           .execute() as Promise<{ imageId: string }[]>,
