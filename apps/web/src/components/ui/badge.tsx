@@ -25,6 +25,9 @@ const badgeVariants = cva(
         muted: "bg-muted text-muted-foreground",
         // custom: subtle primary-tinted label badge — replaces inline bg-primary/10 text-primary label spans
         subtle: "bg-primary/10 text-primary",
+        // custom: compact count/notification bubble — replaces hand-rolled bg-primary text-primary-foreground rounded-full count pills (header nav, group tabs)
+        count:
+          "bg-primary text-primary-foreground h-auto rounded-full px-1.5 py-0 text-2xs font-medium",
       },
     },
     defaultVariants: {

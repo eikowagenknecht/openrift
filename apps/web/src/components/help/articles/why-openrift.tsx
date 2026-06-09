@@ -14,6 +14,7 @@ import { useState } from "react";
 
 import { DefinitionList, DefinitionRow } from "@/components/help/definition-list";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -843,9 +844,10 @@ function ComparisonMobileCard({
   return (
     <div className="border-border bg-background overflow-hidden rounded-lg border">
       {clickable ? (
-        <button
+        <Button
           type="button"
-          className="hover:bg-muted/30 flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2.5 text-left"
+          variant="ghost"
+          className="hover:bg-muted/30 dark:hover:bg-muted/30 h-auto w-full justify-between gap-2 rounded-none px-3 py-2.5 text-left font-normal"
           onClick={() => setOpen(!open)}
         >
           <span className="font-medium">{feature}</span>
@@ -855,7 +857,7 @@ function ComparisonMobileCard({
               open && "rotate-90",
             )}
           />
-        </button>
+        </Button>
       ) : (
         <div className="flex items-center justify-between gap-2 px-3 py-2.5">
           <span className="font-medium">{feature}</span>

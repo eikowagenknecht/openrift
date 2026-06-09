@@ -1,9 +1,18 @@
-import { CheckIcon, EyeIcon, FileWarningIcon, LoaderIcon, UploadIcon, XIcon } from "lucide-react";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  EyeIcon,
+  FileWarningIcon,
+  LoaderIcon,
+  UploadIcon,
+  XIcon,
+} from "lucide-react";
 import { useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { BulkErrataEntry, BulkErrataUploadResponse } from "@/hooks/use-card-errata";
@@ -207,11 +216,12 @@ const EXAMPLE_ERRATA_JSON = `[
 
 function FormatHelp() {
   return (
-    <details className="rounded-md border">
-      <summary className="text-muted-foreground hover:text-foreground cursor-pointer px-3 py-2 text-sm font-medium select-none">
+    <Collapsible className="rounded-md border">
+      <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm font-medium select-none">
         Format and example
-      </summary>
-      <div className="space-y-3 border-t px-3 py-3 text-sm">
+        <ChevronDownIcon className="size-4 shrink-0 transition-transform data-[panel-open]:rotate-180" />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-3 border-t px-3 py-3 text-sm">
         <p>
           The file must contain a JSON array of entries (or an object with an{" "}
           <code className="bg-muted rounded px-1">entries</code> field holding the array). Each
@@ -250,8 +260,8 @@ function FormatHelp() {
         <pre className="bg-muted overflow-x-auto rounded-md p-3">
           <code>{EXAMPLE_ERRATA_JSON}</code>
         </pre>
-      </div>
-    </details>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 

@@ -19,6 +19,14 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive/10 hover:bg-destructive/20 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/20 text-destructive focus-visible:border-destructive/40 dark:hover:bg-destructive/30",
         link: "text-primary underline-offset-4 hover:underline",
+        // custom: muted inline text-link for secondary actions (text-muted-foreground + persistent underline); distinct from `link` which is text-primary, offset-4, hover-only underline
+        "link-muted":
+          "font-normal text-muted-foreground underline underline-offset-2 hover:text-foreground",
+        // custom: dashed-border CTA for empty-state "add" targets (deck zones); `outline` is solid-border so it doesn't fit
+        dashed:
+          "border-border border-dashed text-muted-foreground hover:border-muted-foreground/50 hover:bg-muted/40 hover:text-foreground",
+        // custom: translucent glass pill for a floating selector over content (card-table group jump); no other variant captures the blur + ring
+        "glass-pill": "bg-background/60 ring-border/70 rounded-full shadow-sm ring-1 backdrop-blur",
       },
       size: {
         default:

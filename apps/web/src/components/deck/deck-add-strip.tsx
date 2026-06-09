@@ -1,5 +1,6 @@
 import type { Printing } from "@openrift/shared";
 
+import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -37,17 +38,18 @@ export function DeckAddStrip({
   if (removeLabel && deckQuantity > 0 && onRemove) {
     return (
       <div className="relative z-10 mb-1 flex h-5 items-center justify-end">
-        <button
+        <Button
           type="button"
+          variant="destructive"
           tabIndex={-1}
           onClick={(event) => {
             event.stopPropagation();
             onRemove(printing, event);
           }}
-          className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center justify-center rounded px-2 py-0.5 text-xs font-semibold transition-colors"
+          className="h-auto rounded px-2 py-0.5 text-xs font-semibold"
         >
           {removeLabel}
-        </button>
+        </Button>
       </div>
     );
   }
@@ -77,8 +79,9 @@ export function DeckAddStrip({
           <Tooltip>
             <TooltipTrigger
               render={
-                <button
+                <Button
                   type="button"
+                  variant={showBulkRemove ? "destructive" : "ghost"}
                   tabIndex={-1}
                   aria-label="Remove from deck"
                   onClick={(event) => {
@@ -86,10 +89,10 @@ export function DeckAddStrip({
                     onRemove(printing, event);
                   }}
                   className={cn(
-                    "flex items-center justify-center rounded transition-colors",
+                    "rounded p-0",
                     showBulkRemove
-                      ? "bg-destructive text-destructive-foreground hover:bg-destructive/90 h-5 min-w-5 px-1 text-xs font-semibold"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted size-5",
+                      ? "h-5 min-w-5 px-1 text-xs font-semibold"
+                      : "text-muted-foreground size-5",
                   )}
                 />
               }
@@ -108,8 +111,9 @@ export function DeckAddStrip({
         <Tooltip>
           <TooltipTrigger
             render={
-              <button
+              <Button
                 type="button"
+                variant={!maxReached && (addLabel || showBulkAdd) ? "default" : "ghost"}
                 tabIndex={-1}
                 disabled={maxReached}
                 aria-label={addLabel ? `${addLabel} card` : "Add to deck"}
@@ -118,14 +122,14 @@ export function DeckAddStrip({
                   onQuickAdd(printing, event);
                 }}
                 className={cn(
-                  "flex items-center justify-center rounded transition-colors",
+                  "rounded p-0",
                   maxReached
-                    ? "text-muted-foreground/30 size-5 cursor-default"
+                    ? "text-muted-foreground/30 size-5"
                     : addLabel
-                      ? "bg-primary text-primary-foreground hover:bg-primary/90 px-2 py-0.5 text-xs font-semibold"
+                      ? "hover:bg-primary/90 h-auto px-2 py-0.5 text-xs font-semibold"
                       : showBulkAdd
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90 h-5 min-w-5 px-1 text-xs font-semibold"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted size-5",
+                        ? "hover:bg-primary/90 h-5 min-w-5 px-1 text-xs font-semibold"
+                        : "text-muted-foreground size-5",
                 )}
               />
             }

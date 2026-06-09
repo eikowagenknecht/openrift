@@ -11,7 +11,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { PickerList, PickerRow } from "@/components/ui/picker-list";
 import { useBulkAddListEntries, useCreateList, useLists } from "@/hooks/use-lists";
+import { cn } from "@/lib/utils";
 
 // Mirrors the API cap in bulkCreateListEntriesSchema. Keep in sync if changed.
 const MAX_BULK_ADD = 500;
@@ -42,6 +44,7 @@ export function AddToListDialog({ open, onOpenChange, copyIds, onAdded }: AddToL
 
   const [createIntent, setCreateIntent] = useState<"trade" | "organize" | null>(null);
   const [newName, setNewName] = useState("");
+  const [highlightedId, setHighlightedId] = useState("");
 
   const count = copyIds.length;
   const exceedsLimit = count > MAX_BULK_ADD;
@@ -108,28 +111,30 @@ export function AddToListDialog({ open, onOpenChange, copyIds, onAdded }: AddToL
           </p>
         )}
         <div className="max-h-60 overflow-y-auto">
-          {eligibleLists.length === 0 && createIntent === null && (
+          {eligibleLists.length > 0 ? (
+            <PickerList highlightedId={highlightedId} onHighlightChange={setHighlightedId}>
+              {eligibleLists.map((list) => {
+                const Icon = list.intent === "trade" ? HandshakeIcon : FolderIcon;
+                const intentLabel = list.intent === "trade" ? "Tradelist" : "Organize";
+                return (
+                  <PickerRow
+                    key={list.id}
+                    value={list.id}
+                    onSelect={disableAdd ? undefined : () => addToList(list.id, list.name)}
+                    className={cn("px-3 py-2", disableAdd && "pointer-events-none opacity-50")}
+                  >
+                    <Icon className="size-4 shrink-0" />
+                    <span className="flex-1 truncate">{list.name}</span>
+                    <span className="text-muted-foreground text-2xs shrink-0">{intentLabel}</span>
+                  </PickerRow>
+                );
+              })}
+            </PickerList>
+          ) : createIntent === null ? (
             <p className="text-muted-foreground py-4 text-center text-sm">
               No copy lists yet. Create one below.
             </p>
-          )}
-          {eligibleLists.map((list) => {
-            const Icon = list.intent === "trade" ? HandshakeIcon : FolderIcon;
-            const intentLabel = list.intent === "trade" ? "Tradelist" : "Organize";
-            return (
-              <button
-                key={list.id}
-                type="button"
-                className="hover:bg-muted flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors"
-                onClick={() => addToList(list.id, list.name)}
-                disabled={disableAdd}
-              >
-                <Icon className="size-4 shrink-0" />
-                <span className="flex-1 truncate">{list.name}</span>
-                <span className="text-muted-foreground text-2xs shrink-0">{intentLabel}</span>
-              </button>
-            );
-          })}
+          ) : null}
         </div>
         {createIntent === null ? (
           <div className="flex flex-wrap gap-2">

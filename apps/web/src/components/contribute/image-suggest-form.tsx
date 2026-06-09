@@ -1,8 +1,9 @@
 import type { Card, Printing } from "@openrift/shared";
-import { ExternalLinkIcon } from "lucide-react";
+import { ChevronDownIcon, ExternalLinkIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ValidationError } from "@/lib/contribute-json";
@@ -75,15 +76,18 @@ export function ImageSuggestForm({ card, printing, setSlug, setName }: ImageSugg
             Any image format works (.png, .jpg, .webp, .avif, ...).
           </p>
         )}
-        <details className="text-muted-foreground text-sm">
-          <summary className="hover:text-foreground cursor-pointer">
+        <Collapsible className="text-muted-foreground text-sm">
+          <CollapsibleTrigger className="hover:text-foreground inline-flex cursor-pointer items-center gap-1 select-none">
             Only have a photo or scan?
-          </summary>
-          <p className="mt-1.5">
-            Leave this field empty and submit. You can attach the file on the GitHub page that
-            opens.
-          </p>
-        </details>
+            <ChevronDownIcon className="size-3.5 shrink-0 transition-transform data-[panel-open]:rotate-180" />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <p className="mt-1.5">
+              Leave this field empty and submit. You can attach the file on the GitHub page that
+              opens.
+            </p>
+          </CollapsibleContent>
+        </Collapsible>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -94,14 +98,19 @@ export function ImageSuggestForm({ card, printing, setSlug, setName }: ImageSugg
         <p className="text-muted-foreground text-sm">
           Opens in a new tab to confirm. I&apos;ll review before it goes live.
         </p>
-        <details className="text-muted-foreground text-sm">
-          <summary className="hover:text-foreground cursor-pointer">First time on GitHub?</summary>
-          <ol className="mt-1.5 ml-5 list-decimal space-y-1">
-            <li>GitHub will offer to fork the data repo in one click. Accept it.</li>
-            <li>Scroll to the bottom of the editor and click &ldquo;Propose changes&rdquo;.</li>
-            <li>On the next page, click &ldquo;Create pull request&rdquo; to confirm.</li>
-          </ol>
-        </details>
+        <Collapsible className="text-muted-foreground text-sm">
+          <CollapsibleTrigger className="hover:text-foreground inline-flex cursor-pointer items-center gap-1 select-none">
+            First time on GitHub?
+            <ChevronDownIcon className="size-3.5 shrink-0 transition-transform data-[panel-open]:rotate-180" />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <ol className="mt-1.5 ml-5 list-decimal space-y-1">
+              <li>GitHub will offer to fork the data repo in one click. Accept it.</li>
+              <li>Scroll to the bottom of the editor and click &ldquo;Propose changes&rdquo;.</li>
+              <li>On the next page, click &ldquo;Create pull request&rdquo; to confirm.</li>
+            </ol>
+          </CollapsibleContent>
+        </Collapsible>
       </div>
     </form>
   );

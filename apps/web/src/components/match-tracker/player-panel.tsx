@@ -1,5 +1,6 @@
 import { CrownIcon, FlagIcon, MinusIcon, PlusIcon } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import type { XpSize } from "@/lib/match-layout";
 import { TEAM_CHIP, TEAM_LABELS, TEAM_PANEL_BORDER } from "@/lib/match-teams";
 import { cn } from "@/lib/utils";
@@ -213,9 +214,9 @@ function TeamChip({ team }: { team: TeamId }) {
 
 function FirstBadge() {
   return (
-    <span className="bg-primary text-primary-foreground text-2xs inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold tracking-wide whitespace-nowrap uppercase">
+    <Badge className="text-2xs font-semibold tracking-wide uppercase">
       <FlagIcon aria-hidden className="size-3" />
       Goes first
-    </span>
+    </Badge>
   );
 }

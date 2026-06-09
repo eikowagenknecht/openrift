@@ -12,6 +12,7 @@ import type {
   DeckCardDragData,
   DeckDropData,
 } from "@/components/deck/deck-dnd-context";
+import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { canAddRune, useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
 import { useDeckDetail } from "@/hooks/use-decks";
@@ -246,9 +247,11 @@ export function DeckZoneSection({
       )}
     >
       <div className="flex items-center px-1 py-1">
-        <button
+        <Button
           type="button"
-          className="hover:bg-muted/50 flex size-5 shrink-0 items-center justify-center rounded"
+          variant="ghost"
+          size="icon-xs"
+          className="size-5 shrink-0 rounded"
           onClick={() => setOpen((prev) => !prev)}
         >
           {open ? (
@@ -256,10 +259,12 @@ export function DeckZoneSection({
           ) : (
             <ChevronRightIcon className="size-3.5" />
           )}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          className="flex flex-1 items-center gap-2 px-1.5 py-1 text-left text-sm"
+          variant="ghost"
+          size="sm"
+          className="h-auto flex-1 justify-start gap-2 rounded px-1.5 py-1 text-sm font-normal"
           onClick={activateZone}
         >
           <span className={cn(isActive && "font-bold")}>{ZONE_LABELS[zone]}</span>
@@ -272,7 +277,7 @@ export function DeckZoneSection({
             {totalQuantity}
             {expected !== null && expected !== undefined && `/${expected}`}
           </span>
-        </button>
+        </Button>
         {dropDisabled ? (
           <BanIcon className="text-muted-foreground mr-1.5 ml-1 size-3.5 shrink-0" />
         ) : hasZoneViolations ? (

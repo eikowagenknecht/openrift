@@ -1,7 +1,11 @@
-import { useId, useRef, useState } from "react";
-
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
 
 export interface CardSearchResult {
   id: string;
@@ -10,6 +14,16 @@ export interface CardSearchResult {
   detail?: string;
 }
 
+/**
+ * Autocomplete that searches cards by name. The parent owns the result set (it
+ * runs the query on every `onSearch` call), so the Combobox does no internal
+ * filtering — `autoComplete="none"` makes it render exactly the `results` it is
+ * handed. Open/close, keyboard nav, and filling the input with the picked
+ * label on selection are all handled by the BaseUI Combobox primitive, which
+ * also supplies the ARIA combobox/listbox semantics this used to hand-roll.
+ *
+ * @returns A BaseUI Combobox wired for external/async filtering.
+ */
 export function CardSearchDropdown({
   results,
   onSearch,
@@ -27,146 +41,47 @@ export function CardSearchDropdown({
   className?: string;
   autoFocus?: boolean;
 }) {
-  const [search, setSearch] = useState("");
-  const [showResults, setShowResults] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(-1);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-  const listboxId = useId();
-
-  const visible = showResults && search.length >= 2;
-  const activeOptionId = activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined;
-
-  function scrollActiveIntoView(index: number) {
-    const list = listRef.current;
-    if (!list) {
-      return;
-    }
-    const item = list.children[index] as HTMLElement | undefined;
-    if (item) {
-      item.scrollIntoView({ block: "nearest" });
-    }
-  }
-
-  function handleKeyDown(event: React.KeyboardEvent) {
-    if (!visible || results.length === 0) {
-      return;
-    }
-
-    switch (event.key) {
-      case "ArrowDown": {
-        event.preventDefault();
-        const next = activeIndex < results.length - 1 ? activeIndex + 1 : 0;
-        setActiveIndex(next);
-        scrollActiveIntoView(next);
-        break;
-      }
-      case "ArrowUp": {
-        event.preventDefault();
-        const prev = activeIndex > 0 ? activeIndex - 1 : results.length - 1;
-        setActiveIndex(prev);
-        scrollActiveIntoView(prev);
-        break;
-      }
-      case "Enter": {
-        event.preventDefault();
-        if (activeIndex >= 0 && activeIndex < results.length) {
-          const item = results[activeIndex];
-          onSelect(item.id);
-          setSearch(item.label);
-          setShowResults(false);
-          setActiveIndex(-1);
-        }
-        break;
-      }
-      case "Escape": {
-        event.preventDefault();
-        setShowResults(false);
-        setActiveIndex(-1);
-        break;
-      }
-    }
-  }
-
   return (
-    <div className={cn("relative", className)} ref={containerRef}>
-      <Input
-        // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- ARIA combobox pattern with autocomplete
-        role="combobox"
-        aria-expanded={visible && results.length > 0}
-        aria-controls={listboxId}
-        aria-activedescendant={activeOptionId}
-        aria-autocomplete="list"
+    <Combobox<CardSearchResult>
+      items={results}
+      // Items are externally filtered: the parent re-queries on each keystroke
+      // and hands back `results`, so the Combobox must not filter them again.
+      autoComplete="none"
+      itemToStringLabel={(item) => item.label}
+      onInputValueChange={onSearch}
+      onValueChange={(item) => {
+        if (item) {
+          onSelect(item.id);
+        }
+      }}
+    >
+      <ComboboxInput
+        className={className}
         placeholder={placeholder}
-        value={search}
-        onChange={(event) => {
-          setSearch(event.target.value);
-          onSearch(event.target.value);
-          setShowResults(true);
-          setActiveIndex(-1);
-        }}
-        onFocus={() => setShowResults(true)}
-        onBlur={(event) => {
-          if (!containerRef.current?.contains(event.relatedTarget)) {
-            setShowResults(false);
-            setActiveIndex(-1);
-          }
-        }}
-        onKeyDown={handleKeyDown}
         disabled={disabled}
-        // oxlint-disable-next-line jsx-a11y/no-autofocus -- admin-only UI, autofocus is intentional
+        showTrigger={false}
+        showClear
+        // oxlint-disable-next-line jsx-a11y/no-autofocus -- admin-only UI, autofocus is intentional (matches the previous implementation)
         autoFocus={autoFocus}
       />
-      {visible && results.length > 0 && (
-        <div
-          ref={listRef}
-          id={listboxId}
-          // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- ARIA combobox pattern with autocomplete
-          role="listbox"
-          className="bg-popover absolute top-full z-50 mt-1 max-h-60 w-max min-w-full overflow-y-auto rounded-md border shadow-md"
-        >
-          {results.map((item, index) => (
-            <button
-              key={item.id}
-              id={`${listboxId}-option-${index}`}
-              role="option"
-              aria-selected={index === activeIndex}
-              type="button"
-              className={cn(
-                "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm disabled:opacity-50",
-                index === activeIndex ? "bg-muted" : "hover:bg-muted",
-              )}
-              onMouseDown={(event) => event.preventDefault()}
-              onMouseEnter={() => setActiveIndex(index)}
-              disabled={disabled}
-              onClick={() => {
-                onSelect(item.id);
-                setSearch(item.label);
-                setShowResults(false);
-                setActiveIndex(-1);
-              }}
-            >
+      {/* Grow to fit the card rows (label + sublabel + detail) instead of the
+          narrow input width; the base max-w-(--available-width) still caps it. */}
+      <ComboboxContent className="w-max">
+        <ComboboxEmpty>No matching cards</ComboboxEmpty>
+        <ComboboxList>
+          {(item: CardSearchResult) => (
+            <ComboboxItem key={item.id} value={item}>
               <span className="truncate font-medium">{item.label}</span>
-              {item.sublabel && (
+              {item.sublabel ? (
                 <span className="text-muted-foreground shrink-0">{item.sublabel}</span>
-              )}
-              {item.detail && (
+              ) : null}
+              {item.detail ? (
                 <span className="text-muted-foreground ml-auto shrink-0">{item.detail}</span>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-      {visible && results.length === 0 && (
-        <div
-          id={listboxId}
-          // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- ARIA combobox pattern with autocomplete
-          role="listbox"
-          className="bg-popover absolute top-full z-50 mt-1 w-full rounded-md border px-3 py-2 shadow-md"
-        >
-          <p className="text-muted-foreground">No matching cards</p>
-        </div>
-      )}
-    </div>
+              ) : null}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
   );
 }

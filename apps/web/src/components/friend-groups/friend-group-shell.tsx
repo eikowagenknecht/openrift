@@ -205,12 +205,9 @@ function GroupNavLink({
     >
       {label}
       {badge > 0 ? (
-        <span
-          aria-label={`${badge} need your action`}
-          className="bg-primary text-primary-foreground text-2xs rounded-full px-1.5 font-medium"
-        >
+        <Badge variant="count" aria-label={`${badge} need your action`}>
           {badge > 9 ? "9+" : badge}
-        </span>
+        </Badge>
       ) : null}
     </Link>
   );

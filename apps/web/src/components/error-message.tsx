@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Heading } from "@/components/heading";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn, FOOTER_PADDING_NO_TOP } from "@/lib/utils";
 
 export const HEADINGS = [
@@ -71,13 +71,14 @@ function DevErrorDetails({ error }: { error: string }) {
 
   return (
     <div className="mt-2 flex max-w-lg flex-col items-center gap-2">
-      <button
+      <Button
         type="button"
-        className="text-muted-foreground text-xs underline"
+        variant="link-muted"
+        className="h-auto px-0 text-xs"
         onClick={() => setOpen((prev) => !prev)}
       >
         {open ? "Hide details" : "Show details"}
-      </button>
+      </Button>
       {open && (
         <pre className="bg-muted text-muted-foreground max-h-60 w-full overflow-auto rounded-md p-3 text-left text-xs break-words whitespace-pre-wrap">
           {error}

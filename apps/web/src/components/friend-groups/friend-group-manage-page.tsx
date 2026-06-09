@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import {
   useDeleteFriendGroup,
@@ -185,7 +186,7 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
           </Button>
         </div>
 
-        <hr />
+        <Separator />
 
         <div className="flex flex-col gap-2">
           <Label className="flex items-center gap-2">
@@ -285,7 +286,7 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
           )}
         </div>
 
-        <hr />
+        <Separator />
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="fg-invite-email" className="flex items-center gap-2">

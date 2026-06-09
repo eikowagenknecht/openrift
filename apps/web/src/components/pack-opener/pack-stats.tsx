@@ -2,6 +2,7 @@ import type { Marketplace, PackPull, PackResult, PriceLookup } from "@openrift/s
 import { WellKnown } from "@openrift/shared";
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { compactFormatterForMarketplace, formatterForMarketplace } from "@/lib/format";
 
@@ -231,14 +232,15 @@ function StatsHeadline({
           <span className="text-muted-foreground">·</span>
           <span className="text-muted-foreground tabular-nums">{fullFmt(averageValue)}/pack</span>
           {unpricedCount > 0 && (
-            <button
+            <Button
               type="button"
+              variant="link-muted"
               onClick={onToggleUnpriced}
               aria-expanded={unpricedVisible}
-              className="text-muted-foreground hover:text-foreground cursor-pointer text-xs underline decoration-dotted underline-offset-4 transition-colors"
+              className="h-auto px-0 text-xs decoration-dotted underline-offset-4"
             >
               ({unpricedCount} without price data)
-            </button>
+            </Button>
           )}
         </>
       ) : (

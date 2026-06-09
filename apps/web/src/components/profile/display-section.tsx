@@ -2,6 +2,7 @@ import { Radio } from "@base-ui/react/radio";
 import type { DefaultCardView, Palette, Theme } from "@openrift/shared";
 import { RotateCcwIcon } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RadioGroup } from "@/components/ui/radio-group";
@@ -147,10 +148,12 @@ function ResetButton({ onClick, label }: { onClick: () => void; label: string })
     <Tooltip>
       <TooltipTrigger
         render={
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-xs"
             onClick={onClick}
-            className="text-muted-foreground hover:text-foreground relative z-10 p-1 transition-colors"
+            className="text-muted-foreground relative z-10"
             aria-label={label}
           />
         }

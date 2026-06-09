@@ -76,14 +76,15 @@ export function PackReveal({
               />
             ) : (
               <>
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
                   onClick={() => flip(i)}
-                  className="block w-full cursor-pointer"
+                  className="block h-auto w-full cursor-pointer rounded-xl p-0 hover:bg-transparent dark:hover:bg-transparent"
                   aria-label={`Reveal card ${i + 1}`}
                 >
                   <CardBack interactive />
-                </button>
+                </Button>
                 {/* Invisible spacer mirroring PullCard's name + short-code row
                     so the grid doesn't jump when a card flips face-up. */}
                 <div className="mt-1 px-0.5 text-xs" aria-hidden="true">

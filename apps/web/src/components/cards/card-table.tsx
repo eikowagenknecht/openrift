@@ -6,6 +6,7 @@ import type { ReactElement, ReactNode } from "react";
 import { Fragment, cloneElement, memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
+import { Button } from "@/components/ui/button";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { groupItemsByChannel } from "@/lib/group-by-channel";
 import { groupItemsByMarker } from "@/lib/group-by-marker";
@@ -229,15 +230,16 @@ const GroupStickyLabel = memo(function GroupStickyLabel({
   onSelect: (groupId: string) => void;
 }) {
   return (
-    <button
+    <Button
       type="button"
-      className="bg-background/60 ring-border/70 pointer-events-auto flex cursor-pointer flex-row items-center gap-3 rounded-full px-3 py-1 text-sm shadow-sm ring-1 backdrop-blur"
+      variant="glass-pill"
+      className="pointer-events-auto h-auto gap-3 px-3 py-1 text-sm font-normal"
       onClick={() => onSelect(groupId)}
     >
       {slug && <span className="text-muted-foreground font-medium">{slug}</span>}
       <span className="font-semibold">{name}</span>
       <span className="text-muted-foreground tabular-nums">({count})</span>
-    </button>
+    </Button>
   );
 });
 
@@ -427,13 +429,14 @@ export function CardTable({
               <WifiOffIcon className="size-10 opacity-50" />
               <p>Couldn&apos;t load cards</p>
               <p className="text-xs">The server may be unreachable.</p>
-              <button
+              <Button
                 type="button"
-                className="mt-1 text-sm underline"
+                variant="link-muted"
+                className="mt-1 h-auto px-0 text-sm"
                 onClick={() => globalThis.location.reload()}
               >
                 Retry
-              </button>
+              </Button>
             </>
           ) : (
             <>

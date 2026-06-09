@@ -280,21 +280,23 @@ function EmailForm({ currentEmail }: { currentEmail: string }) {
             </Button>
           </Field>
           <div className="flex justify-center gap-4">
-            <button
+            <Button
               type="button"
-              className="text-muted-foreground text-sm underline underline-offset-2"
+              variant="link-muted"
+              className="h-auto px-0 text-sm"
               disabled={resending}
               onClick={handleResend}
             >
               {resending ? "Sending..." : "Resend code"}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="text-muted-foreground text-sm underline underline-offset-2"
+              variant="link-muted"
+              className="h-auto px-0 text-sm"
               onClick={resetFlow}
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </>
       )}
@@ -322,13 +324,14 @@ function EmailForm({ currentEmail }: { currentEmail: string }) {
             </Button>
           </Field>
           <div className="flex justify-center">
-            <button
+            <Button
               type="button"
-              className="text-muted-foreground text-sm underline underline-offset-2"
+              variant="link-muted"
+              className="h-auto px-0 text-sm"
               onClick={resetFlow}
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </>
       )}

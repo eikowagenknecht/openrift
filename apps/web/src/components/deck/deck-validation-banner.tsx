@@ -22,10 +22,13 @@ function ViolationBadge({
   return (
     <Popover>
       <PopoverTrigger nativeButton={false} render={<span />}>
-        <span className="flex shrink-0 cursor-pointer items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+        <Badge
+          variant="warning"
+          className="shrink-0 cursor-pointer rounded-md dark:bg-amber-500/10"
+        >
           {formatLabel}
           <CircleAlertIcon className="size-3" />
-        </span>
+        </Badge>
       </PopoverTrigger>
       <PopoverContent side="bottom" align="start" className="w-auto max-w-80 p-2">
         <ul className="space-y-0.5">

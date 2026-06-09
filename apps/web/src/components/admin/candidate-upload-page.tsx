@@ -621,17 +621,17 @@ function ProviderFavoriteCell({ row }: AdminCellSlotProps<ProviderRow>) {
     return null;
   }
   return (
-    <button
+    <Button
       type="button"
-      className={cn(
-        "hover:text-foreground",
-        row.isFavorite ? "text-yellow-500" : "text-muted-foreground",
-      )}
+      variant="ghost"
+      size="icon-sm"
+      className={row.isFavorite ? "text-yellow-500" : "text-muted-foreground"}
       onClick={() => updateSetting.mutate({ provider: row.name, isFavorite: !row.isFavorite })}
       title={row.isFavorite ? "Remove from favorites" : "Add to favorites"}
+      aria-label={row.isFavorite ? "Remove from favorites" : "Add to favorites"}
     >
       <StarIcon className="size-4" fill={row.isFavorite ? "currentColor" : "none"} />
-    </button>
+    </Button>
   );
 }
 

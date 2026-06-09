@@ -175,12 +175,13 @@ function DesktopNav({
             >
               Groups
               {groupsBadge > 0 && (
-                <span
+                <Badge
+                  variant="count"
                   aria-label={`${groupsBadge} items need your attention`}
-                  className="bg-primary text-primary-foreground ml-1.5 rounded-full px-1.5 text-[10px] font-medium"
+                  className="ml-1.5"
                 >
                   {groupsBadge > 9 ? "9+" : groupsBadge}
-                </span>
+                </Badge>
               )}
             </NavigationMenuLink>
           </NavigationMenuItem>
@@ -402,12 +403,13 @@ function MobileNavLink({
       {icon}
       {children}
       {badge !== undefined && badge > 0 && (
-        <span
+        <Badge
+          variant="count"
           aria-label={`${badge} items need your attention`}
-          className="bg-primary text-primary-foreground ml-auto rounded-full px-1.5 text-[10px] font-medium"
+          className="ml-auto"
         >
           {badge > 9 ? "9+" : badge}
-        </span>
+        </Badge>
       )}
     </SheetClose>
   );

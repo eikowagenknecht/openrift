@@ -4,7 +4,7 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useCountUp } from "@/hooks/use-count-up";
 import { landingSummaryQueryOptions } from "@/lib/landing-summary-query";
 import { cn } from "@/lib/utils";
@@ -66,10 +66,11 @@ export function LandingPage() {
           data-card-blocker=""
           className="flex flex-col items-center gap-3 rounded-2xl px-8 py-10"
         >
-          <button
+          <Button
             type="button"
+            variant="ghost"
             aria-label="OpenRift"
-            className="cursor-pointer"
+            className="h-auto cursor-pointer rounded-2xl p-0 hover:bg-transparent dark:hover:bg-transparent"
             onClick={handleLogoTap}
           >
             <img
@@ -78,7 +79,7 @@ export function LandingPage() {
               fetchPriority="high"
               className={cn("size-36", spinning && "animate-logo-spin")}
             />
-          </button>
+          </Button>
           <div className="flex flex-col items-center gap-2">
             <h1 className="text-4xl font-bold md:text-5xl">OpenRift</h1>
             <Badge

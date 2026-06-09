@@ -208,10 +208,12 @@ export function DeckOverview({
                 <Popover>
                   <PopoverTrigger
                     render={
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="xs"
                         aria-label="Show deck issues"
-                        className="text-destructive hover:bg-muted/60 flex items-center gap-1 rounded"
+                        className="text-destructive h-auto gap-1 px-1 py-0.5"
                       />
                     }
                   >
@@ -646,10 +648,12 @@ function ZoneTile({
           <Popover>
             <PopoverTrigger
               render={
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon-xs"
                   aria-label={`Show ${label} issues`}
-                  className="hover:bg-muted/60 flex size-5 shrink-0 items-center justify-center rounded"
+                  className="size-5 shrink-0 rounded"
                 />
               }
             >
@@ -688,15 +692,16 @@ function ZoneTile({
             {readOnly ? "Empty" : emptyHint}
           </div>
         ) : (
-          <button
+          <Button
             type="button"
+            variant="dashed"
             onClick={onClick}
             aria-label={`Edit ${label}`}
-            className="text-muted-foreground hover:border-muted-foreground/50 hover:bg-muted/40 hover:text-foreground flex items-center justify-center gap-2 rounded-md border border-dashed px-3 py-4 transition-colors"
+            className="h-auto w-full gap-2 rounded-md px-3 py-4 font-normal"
           >
             <PlusIcon className="size-4" />
             <span>{emptyHint}</span>
-          </button>
+          </Button>
         )
       ) : GROUPED_ZONES.has(zone) ? (
         <GroupedThumbs
@@ -734,14 +739,16 @@ function ZoneTile({
       )}
 
       {!readOnly && onClick && (!isEmpty || zone === WellKnown.deckZone.RUNES) && (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-sm"
           onClick={onClick}
           aria-label={`Edit ${label}`}
-          className="text-muted-foreground hover:bg-muted hover:text-foreground absolute right-2 bottom-2 flex size-7 items-center justify-center rounded-md"
+          className="text-muted-foreground absolute right-2 bottom-2 rounded-md"
         >
           <PencilIcon className="size-3.5" />
-        </button>
+        </Button>
       )}
     </div>
   );

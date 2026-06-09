@@ -195,7 +195,7 @@ export function SupportPage() {
           Can&apos;t spare the Energy? Cast a sharing spell instead. Every share adds Power to the
           community.
         </p>
-        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2">
           <ShareButton
             label="Star on GitHub"
             icon={<SimpleIcon icon={siGithub} />}
@@ -257,7 +257,7 @@ export function SupportPage() {
           href="https://discord.gg/Qb6RcjXq6z"
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-2 rounded-md bg-[#5865F2] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#4752C4]"
+          className={cn(buttonVariants(), "gap-2 bg-[#5865F2] text-white [a]:hover:bg-[#4752C4]")}
         >
           <SimpleIcon icon={siDiscord} className="size-4" />
           Join the Discord

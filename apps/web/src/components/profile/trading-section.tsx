@@ -2,6 +2,7 @@ import type { Currency } from "@openrift/shared";
 import { CURRENCIES } from "@openrift/shared";
 import { RotateCcwIcon } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
@@ -45,10 +46,12 @@ export function TradingSection() {
             <Tooltip>
               <TooltipTrigger
                 render={
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="icon-xs"
                     onClick={() => resetPreference("defaultCurrency")}
-                    className="text-muted-foreground hover:text-foreground relative z-10 p-1 transition-colors"
+                    className="text-muted-foreground relative z-10"
                     aria-label="Reset default currency"
                   />
                 }

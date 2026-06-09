@@ -5,6 +5,7 @@ import {
   deduplicateSourceImages,
   sortByProviderOrder,
 } from "@/components/admin/card-detail-shared";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // ---------------------------------------------------------------------------
 // ImagePreview — single image with resolution overlay
@@ -95,26 +96,22 @@ export function GroupImagePreview({
   return (
     <div className="w-96 shrink-0 space-y-2">
       {/* Source image tabs */}
-      <div className="flex flex-wrap items-center gap-1">
-        {sourceImages.map((si) => (
-          <button
-            key={si.candidatePrintingId}
-            type="button"
-            className={`rounded border border-dashed px-1.5 py-0.5 ${
-              selected.candidatePrintingId === si.candidatePrintingId
-                ? "border-primary bg-primary/10"
-                : "text-muted-foreground"
-            }`}
-            onClick={() => {
-              setSelectedId(si.candidatePrintingId);
-              setResolution(null);
-              setImgError(false);
-            }}
-          >
-            {si.source}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        value={selected.candidatePrintingId}
+        onValueChange={(value) => {
+          setSelectedId(value as string);
+          setResolution(null);
+          setImgError(false);
+        }}
+      >
+        <TabsList variant="line" className="h-auto flex-wrap">
+          {sourceImages.map((si) => (
+            <TabsTrigger key={si.candidatePrintingId} value={si.candidatePrintingId}>
+              {si.source}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       <ImagePreview
         url={selected.url}
