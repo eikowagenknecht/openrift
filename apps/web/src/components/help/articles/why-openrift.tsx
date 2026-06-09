@@ -307,8 +307,8 @@ interface RowDetail {
 const SITE_KEYS: (keyof Omit<RowDetail, "general">)[] = [
   "openrift",
   "piltoverArchive",
-  "riftmana",
   "riftboundGg",
+  "riftmana",
   "riftcore",
 ];
 
@@ -449,7 +449,8 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
     values: ["yes", "yes", "yes", "yes", "yes"],
     detail: {
       general: "Total value, completion tracking, and other statistics about your collection.",
-      openrift: "Exhaustive, custom-filterable stats: deck value and more on the stats page.",
+      openrift:
+        "Collection value plus completion by set, domain, rarity, and type, each custom-filterable.",
       piltoverArchive: "Deck value, completion by set, rarity, and type (per binder).",
       riftmana: "Deck value, missing value, completion by rarity and type.",
       riftboundGg: "Collection value, completion by set, domain, regular/promo/rune, and rarity.",
@@ -601,6 +602,15 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
     detail: {
       general: "Camera-based card recognition to add cards to your collection without searching.",
       riftcore: "Has card scanning, but recognition accuracy is limited in practice.",
+    },
+  },
+  {
+    kind: "row",
+    feature: "Custom card designer",
+    values: ["yes", "no", "no", "no", "no"],
+    detail: {
+      general:
+        "Design your own Riftbound-style card with your own background image, then download it or copy it to share. Everything stays in your browser.",
     },
   },
   {

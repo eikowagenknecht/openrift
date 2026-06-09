@@ -9,6 +9,7 @@ import {
   HeartIcon,
   LayersIcon,
   LibraryIcon,
+  PaletteIcon,
   PieChartIcon,
   PrinterIcon,
   RocketIcon,
@@ -44,12 +45,6 @@ const roadmapItems: RoadmapItem[] = [
     done: false,
   },
   {
-    title: "Set Completion Tracking",
-    description: "See how close you are to completing each set across your collections.",
-    icon: <PieChartIcon className="size-4" />,
-    done: false,
-  },
-  {
     title: "Discord Card Bot",
     description: "Look up cards, prices, and rulings directly in Discord.",
     icon: <BotIcon className="size-4" />,
@@ -62,6 +57,14 @@ const roadmapItems: RoadmapItem[] = [
     done: false,
   },
   // Done
+  {
+    title: "Card Designer",
+    description:
+      "Design your own Riftbound-style card with your own art, then download or copy it to share.",
+    icon: <PaletteIcon className="size-4" />,
+    done: true,
+    date: "Jun 2026",
+  },
   {
     title: "Groups",
     description:
@@ -99,6 +102,13 @@ const roadmapItems: RoadmapItem[] = [
     icon: <ShuffleIcon className="size-4" />,
     done: true,
     date: "May 2026",
+  },
+  {
+    title: "Set Completion Tracking",
+    description: "See how close you are to completing each set across your collections.",
+    icon: <PieChartIcon className="size-4" />,
+    done: true,
+    date: "Apr 2026",
   },
   {
     title: "Bans",
