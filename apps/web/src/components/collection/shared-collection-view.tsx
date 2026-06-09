@@ -31,7 +31,10 @@ import { useChannelRegistry } from "@/hooks/use-enums";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
+import { useOwnedCount } from "@/hooks/use-owned-count";
+import { useSession } from "@/lib/auth-session";
 import { formatterForMarketplace } from "@/lib/format";
+import { maxOwnedCount } from "@/lib/owned-bucket";
 import type { FilterSearch } from "@/lib/search-schemas";
 import { FilterSearchProvider } from "@/lib/search-schemas";
 import { useDisplayStore } from "@/stores/display-store";
@@ -53,9 +56,20 @@ function SharedCollectionCountCell({
 
 // "copies" is a collection-owner concept (one tile per physical copy keyed by
 // copyId); a viewer with read-only access doesn't own anything, so clamp to
-// "printings". "owned" is meaningless without an authed inventory.
+// "printings".
+//
+// "owned" is meaningless without an authed inventory, so it's hidden for
+// logged-out viewers. Logged-in viewers DO get it: the Owned/Copies filters
+// are scoped to the viewer's own personal collections (not this collection's
+// counts), so they can answer "which cards here do I have less than a playset
+// of?". See the `ownedCountByPrinting` wiring in SharedCollectionGrid.
 const SHARED_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set([
   "owned",
+  "markers",
+  "channels",
+  "customTags",
+]);
+const SHARED_HIDDEN_FILTER_SECTIONS_AUTHED: ReadonlySet<string> = new Set([
   "markers",
   "channels",
   "customTags",
@@ -147,6 +161,13 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
   const channels = useChannelRegistry();
   const keywordReverseMap = useKeywordReverseMap();
   const isMobile = useIsMobile();
+  const { data: session } = useSession();
+  const isLoggedIn = Boolean(session?.user);
+  // The viewer's own owned counts, scoped to their personal collections only
+  // (useOwnedCount excludes group-collection copies). This drives the
+  // Owned/Copies filters below — "owned" here means "in my collections", not
+  // "in this shared collection".
+  const { data: viewerOwnedByPrinting } = useOwnedCount(isLoggedIn);
 
   const { filters, sortBy, sortDir, view: rawView, groupBy, hasActiveFilters } = useFilterValues();
   const { setSearch } = useFilterActions();
@@ -164,6 +185,15 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
     }
   }
 
+  // Mirror the catalog's gating: only feed the owned map into useCardData when
+  // an owned/copies filter is actually active, so the returned ref stays stable
+  // and the grid doesn't churn as the viewer's inventory updates elsewhere.
+  const ownedFilterActive =
+    filters.ownedFilter.length > 0 ||
+    filters.ownedCountMin !== null ||
+    filters.ownedCountMax !== null;
+  const ownedCountForCardData = ownedFilterActive ? viewerOwnedByPrinting : undefined;
+
   const {
     sortedCards,
     printingsByCardId,
@@ -178,16 +208,32 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
     allPrintings: collectionPrintings,
     sets,
     filters,
+    ownedFilter: filters.ownedFilter,
+    ownedCountMin: filters.ownedCountMin,
+    ownedCountMax: filters.ownedCountMax,
     sortBy,
     sortDir,
     view,
     groupBy,
-    ownedCountByPrinting: undefined,
+    ownedCountByPrinting: ownedCountForCardData,
     favoriteMarketplace: display.favoriteMarketplace,
     prices: display.prices,
     keywordReverseMap,
     channels,
   });
+
+  // Upper bound for the "Copies" slider — the most copies the viewer personally
+  // owns of any one card that appears in this collection. Computed from the
+  // always-on owned map (not the gated one above), so the chrome bound is
+  // stable; feeds only the filter panel.
+  const ownedCountBound = maxOwnedCount(
+    collectionPrintings,
+    viewerOwnedByPrinting ?? {},
+    view === "printings" ? "printing" : "card",
+  );
+  const hiddenSections = isLoggedIn
+    ? SHARED_HIDDEN_FILTER_SECTIONS_AUTHED
+    : SHARED_HIDDEN_FILTER_SECTIONS;
 
   const items: CardViewerItem[] = sortedCards.map((printing) => ({ id: printing.id, printing }));
   const findBy: "card" | "printing" = view === "cards" && groupBy !== "set" ? "card" : "printing";
@@ -253,7 +299,8 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
       availableLanguages={availableLanguages}
       filterCounts={filterCounts}
       setDisplayLabel={setDisplayLabel}
-      hiddenSections={SHARED_HIDDEN_FILTER_SECTIONS}
+      hiddenSections={hiddenSections}
+      ownedCountMax={ownedCountBound}
     >
       <CardViewer
         items={items}

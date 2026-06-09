@@ -2,6 +2,7 @@
 
 ## 2026-06-09
 
+- feat: When viewing a shared or group collection, you can now filter it by how many copies you own across your own collections, making it easy to spot which of its cards you don't have a full playset of yet
 - feat: Wishlists and trade lists can be shared to a chat as a card image, a copy-paste card list, or a link that shows a card preview when pasted into WhatsApp or Discord
 - fix: On a group's overview, overlapping member avatars no longer let the avatar behind show through when the front one's image has transparent areas
 
