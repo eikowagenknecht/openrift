@@ -285,7 +285,13 @@ export function ListPage({ listId }: ListPageProps) {
   const shareDialog = (
     <ListShareDialog
       listId={listId}
+      listName={data.list.name}
+      kind={data.list.kind}
+      tradeDefaults={data.list.tradeDefaults}
+      currency={data.list.currency}
       shareToken={data.list.shareToken}
+      updatedAt={data.list.updatedAt}
+      entries={data.entries}
       open={shareOpen}
       onOpenChange={setShareOpen}
     />

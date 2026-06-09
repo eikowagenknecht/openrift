@@ -1,5 +1,6 @@
 import type { PriceLookup, PricesResponse } from "@openrift/shared";
 import { priceLookupFromMap } from "@openrift/shared";
+import type { QueryClient } from "@tanstack/react-query";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -41,4 +42,17 @@ export const pricesQueryOptions = queryOptions({
 export function usePrices(): PriceLookup {
   const { data } = useSuspenseQuery(pricesQueryOptions);
   return data;
+}
+
+/**
+ * Imperatively resolves a {@link PriceLookup} outside of React render (e.g. when
+ * building the share text on a click), fetching once and reusing the cache.
+ * @returns A lookup backed by the cached `/api/v1/prices` payload.
+ */
+export async function ensurePriceLookup(queryClient: QueryClient): Promise<PriceLookup> {
+  const response = await queryClient.ensureQueryData({
+    queryKey: pricesQueryOptions.queryKey,
+    queryFn: pricesQueryOptions.queryFn,
+  });
+  return priceLookupFromMap(response.prices);
 }

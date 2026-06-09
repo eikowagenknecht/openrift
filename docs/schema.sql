@@ -289,6 +289,20 @@ CREATE FUNCTION public.set_updated_at() RETURNS trigger
 
 
 --
+-- Name: touch_list_on_entry_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.touch_list_on_entry_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  UPDATE lists SET updated_at = now() WHERE id = COALESCE(NEW.list_id, OLD.list_id);
+  RETURN NULL;
+END;
+$$;
+
+
+--
 -- Name: trg_distribution_channels_validate(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -3522,6 +3536,13 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.verifications FOR EACH
 --
 
 CREATE TRIGGER trg_super_types_protect_well_known BEFORE DELETE OR UPDATE ON public.super_types FOR EACH ROW EXECUTE FUNCTION public.protect_well_known();
+
+
+--
+-- Name: list_entries trg_touch_list_on_entry_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_touch_list_on_entry_change AFTER INSERT OR DELETE OR UPDATE ON public.list_entries FOR EACH ROW EXECUTE FUNCTION public.touch_list_on_entry_change();
 
 
 --

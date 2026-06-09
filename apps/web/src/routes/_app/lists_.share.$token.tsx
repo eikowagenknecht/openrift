@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { publicListQueryOptions } from "@/hooks/use-lists";
 import { filterSearchSchema } from "@/lib/search-schemas";
 import { seoHead } from "@/lib/seo";
+import { listShareImageUrl, shareImageVersion } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
 import { CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
 
@@ -21,7 +22,8 @@ export const Route = createFileRoute("/_app/lists_/share/$token")({
     const { list, owner } = data;
     const title = `${list.name} (${list.intent} list)`;
     const description = `A Riftbound ${list.intent} list shared by ${owner.displayName}.`;
-    return seoHead({ siteUrl, title, description, path });
+    const ogImage = listShareImageUrl(siteUrl, params.token, shareImageVersion(list.updatedAt));
+    return seoHead({ siteUrl, title, description, path, ogImage });
   },
   loader: async ({ context, params }): Promise<PublicListDetailResponse> => {
     try {

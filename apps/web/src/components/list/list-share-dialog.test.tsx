@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
@@ -30,10 +31,25 @@ vi.mock("@/lib/site-config", () => ({
 
 const { ListShareDialog } = await import("./list-share-dialog");
 
+const queryClient = new QueryClient();
+
 function Harness({ shareToken }: { shareToken: string | null }) {
   const [open, setOpen] = useState(true);
   return (
-    <ListShareDialog listId="abc" shareToken={shareToken} open={open} onOpenChange={setOpen} />
+    <QueryClientProvider client={queryClient}>
+      <ListShareDialog
+        listId="abc"
+        listName="Holiday Targets"
+        kind="card"
+        tradeDefaults={{ pricePref: null, priceAbsoluteCents: null, tradeType: null }}
+        currency={null}
+        shareToken={shareToken}
+        updatedAt="2026-06-09T00:00:00.000Z"
+        entries={[]}
+        open={open}
+        onOpenChange={setOpen}
+      />
+    </QueryClientProvider>
   );
 }
 
@@ -68,10 +84,21 @@ describe("ListShareDialog", () => {
     expect(unshareMutate).toHaveBeenCalledWith("abc");
   });
 
-  it("flips the Copy button label to 'Copied' after clicking", async () => {
+  it("flips the link Copy button label to 'Copied' after clicking", async () => {
     const user = userEvent.setup();
     render(<Harness shareToken="AbCdEfGhIjKl" />);
-    await user.click(screen.getByRole("button", { name: /copy/iu }));
-    expect(screen.getByRole("button", { name: /copied/iu })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^copy$/iu }));
+    expect(screen.getByRole("button", { name: /^copied$/iu })).toBeInTheDocument();
+  });
+
+  it("shows the 'Post to a chat' controls whether or not the list is shared", () => {
+    const { rerender } = render(<Harness shareToken={null} />);
+    expect(screen.getByText(/post to a chat/iu)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /copy text/iu })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /download image/iu })).toBeInTheDocument();
+
+    rerender(<Harness shareToken="AbCdEfGhIjKl" />);
+    expect(screen.getByText(/post to a chat/iu)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /copy text/iu })).toBeInTheDocument();
   });
 });

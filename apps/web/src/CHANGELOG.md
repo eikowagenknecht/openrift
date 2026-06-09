@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-06-09
+
+- feat: Wishlists and trade lists can be shared to a chat as a card image, a copy-paste card list, or a link that shows a card preview when pasted into WhatsApp or Discord
+
 ## 2026-06-08
 
 - feat: A new Card Designer lets you make your own Riftbound-style card with your own background image. Pick a photo, position and zoom it, fill in the details, then download the card as an image or copy it to the clipboard to share. Everything stays in your browser

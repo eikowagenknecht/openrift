@@ -30,6 +30,8 @@ function printingEntry(printingId: string, imageId: string | null): ListEntryDet
     setId: "set-1",
     rarity: "common",
     finish: "normal",
+    shortCode: "OGN-001",
+    language: "EN",
     imageId,
     tradeOverride: EMPTY_TRADE_PREFERENCE,
   };

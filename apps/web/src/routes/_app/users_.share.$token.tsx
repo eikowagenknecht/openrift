@@ -5,6 +5,7 @@ import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message
 import { Skeleton } from "@/components/ui/skeleton";
 import { publicUserBundleQueryOptions } from "@/hooks/use-user-share";
 import { seoHead } from "@/lib/seo";
+import { bundleShareImageUrl, shareImageVersion } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
 import { CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
 
@@ -21,7 +22,16 @@ export const Route = createFileRoute("/_app/users_/share/$token")({
     const totalEntries = data.lists.reduce((sum, list) => sum + list.entryCount, 0);
     const title = `${data.owner.displayName}'s wish & tradelists`;
     const description = `${wishCount} wishlist${wishCount === 1 ? "" : "s"}, ${tradeCount} tradelist${tradeCount === 1 ? "" : "s"}, ${totalEntries} cards in total.`;
-    return seoHead({ siteUrl, title, description, path });
+    const latestUpdate = data.lists.reduce(
+      (latest, list) => (list.updatedAt > latest ? list.updatedAt : latest),
+      "",
+    );
+    // Fold the list count into the version so removing a list from the bundle
+    // advances the cache key; a plain MAX over surviving lists would not (the
+    // same removal argument ADR-024 makes for entries, one level up).
+    const bundleVersion = `${shareImageVersion(latestUpdate)}-${data.lists.length}`;
+    const ogImage = bundleShareImageUrl(siteUrl, params.token, bundleVersion);
+    return seoHead({ siteUrl, title, description, path, ogImage });
   },
   loader: async ({ context, params }): Promise<PublicUserBundleResponse> => {
     try {

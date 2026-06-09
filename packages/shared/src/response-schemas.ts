@@ -924,6 +924,8 @@ const listEntryDetailPrintingFieldsShape = {
   setId: z.string(),
   rarity: raritySchema,
   finish: finishSchema,
+  shortCode: z.string(),
+  language: z.string(),
   imageId: imageIdSchema.nullable(),
 };
 

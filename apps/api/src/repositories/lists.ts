@@ -42,6 +42,8 @@ interface ListEntryRowPrintingFields {
   setId: string;
   rarity: Rarity;
   finish: Finish;
+  shortCode: string;
+  language: string;
   imageId: string | null;
 }
 
@@ -728,6 +730,8 @@ async function printingEntryQuery(
       "p.setId",
       "p.rarity",
       "p.finish",
+      "p.shortCode",
+      "p.language",
       imageId("ci").as("imageId"),
     ])
     .execute();
@@ -742,6 +746,8 @@ async function printingEntryQuery(
     setId: row.setId,
     rarity: row.rarity as Rarity,
     finish: row.finish as Finish,
+    shortCode: row.shortCode,
+    language: row.language,
     imageId: row.imageId,
     tradeOverride: tradeOverrideFromRow(row),
   }));
@@ -786,6 +792,8 @@ async function copyEntryQuery(
       "p.setId",
       "p.rarity",
       "p.finish",
+      "p.shortCode",
+      "p.language",
       imageId("ci").as("imageId"),
       "cp.collectionId",
       "cp.printingId",
@@ -804,6 +812,8 @@ async function copyEntryQuery(
     setId: row.setId,
     rarity: row.rarity as Rarity,
     finish: row.finish as Finish,
+    shortCode: row.shortCode,
+    language: row.language,
     imageId: row.imageId,
     tradeOverride: tradeOverrideFromRow(row),
   }));

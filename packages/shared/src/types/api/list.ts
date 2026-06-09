@@ -75,6 +75,8 @@ export type ListEntryDetailResponse =
       setId: string;
       rarity: Rarity;
       finish: Finish;
+      shortCode: string;
+      language: string;
       imageId: string | null;
     })
   | (ListEntryDetailBase & {
@@ -84,6 +86,8 @@ export type ListEntryDetailResponse =
       setId: string;
       rarity: Rarity;
       finish: Finish;
+      shortCode: string;
+      language: string;
       imageId: string | null;
     });
 

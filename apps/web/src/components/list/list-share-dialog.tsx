@@ -1,5 +1,13 @@
-import { CheckIcon, CopyIcon, LinkIcon, Trash2Icon } from "lucide-react";
+import type {
+  Currency,
+  ListEntryDetailResponse,
+  ListKind,
+  TradePreference,
+} from "@openrift/shared";
+import { useQueryClient } from "@tanstack/react-query";
+import { CheckIcon, CopyIcon, ImageDownIcon, LinkIcon, Trash2Icon } from "lucide-react";
 import { Suspense, useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -19,19 +27,42 @@ import {
 } from "@/hooks/use-friend-groups";
 import { useListGroupShares } from "@/hooks/use-list-group-shares";
 import { useShareList, useUnshareList } from "@/hooks/use-lists";
+import { ensurePriceLookup } from "@/hooks/use-prices";
+import { formatListShareText } from "@/lib/list-export";
+import { downloadImageFromUrl, listOwnerImageUrl, shareImageVersion } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
 
 interface ListShareDialogProps {
   listId: string;
+  listName: string;
+  kind: ListKind;
+  tradeDefaults: TradePreference;
+  currency: Currency | null;
   shareToken: string | null;
+  updatedAt: string;
+  entries: readonly ListEntryDetailResponse[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function ListShareDialog({ listId, shareToken, open, onOpenChange }: ListShareDialogProps) {
+export function ListShareDialog({
+  listId,
+  listName,
+  kind,
+  tradeDefaults,
+  currency,
+  shareToken,
+  updatedAt,
+  entries,
+  open,
+  onOpenChange,
+}: ListShareDialogProps) {
   const shareList = useShareList();
   const unshareList = useUnshareList();
+  const queryClient = useQueryClient();
   const [justCopied, setJustCopied] = useState(false);
+  const [copiedText, setCopiedText] = useState(false);
+  const [downloadingImage, setDownloadingImage] = useState(false);
 
   const shareUrl = shareToken ? `${getSiteUrl()}/lists/share/${shareToken}` : null;
   const sharing = shareToken !== null;
@@ -46,6 +77,51 @@ export function ListShareDialog({ listId, shareToken, open, onOpenChange }: List
       globalThis.setTimeout(() => setJustCopied(false), 1500);
     } catch {
       // Ignore clipboard errors — rare, and the user can still select the text.
+    }
+  };
+
+  const handleCopyText = async () => {
+    try {
+      // Only CardTrader-priced lists need the (lazily fetched) price payload;
+      // fixed prices resolve from the entry/list data, others show no price.
+      const usesCardTrader =
+        tradeDefaults.pricePref === "ct_zero" ||
+        entries.some((entry) => entry.tradeOverride.pricePref === "ct_zero");
+      let ctPriceFor: ((printingId: string) => number | undefined) | undefined;
+      if (usesCardTrader) {
+        try {
+          const lookup = await ensurePriceLookup(queryClient);
+          ctPriceFor = (printingId) => lookup.get(printingId, "cardtrader");
+        } catch {
+          // Prices unavailable — fall back to no CardTrader prices.
+        }
+      }
+      // shareUrl is null when the list isn't shared; the text block omits it.
+      const text = formatListShareText(listName, kind, entries, shareUrl, {
+        tradeDefaults,
+        currency,
+        ctPriceFor,
+      });
+      await navigator.clipboard.writeText(text);
+      setCopiedText(true);
+      globalThis.setTimeout(() => setCopiedText(false), 1500);
+    } catch {
+      // Ignore clipboard errors; the user can still copy the link.
+    }
+  };
+
+  const handleDownloadImage = async () => {
+    setDownloadingImage(true);
+    try {
+      // Owner-authenticated route, so the download works whether or not the list
+      // is shared (the public/og image needs a share token).
+      const url = listOwnerImageUrl(getSiteUrl(), listId, shareImageVersion(updatedAt));
+      const safeName = listName.replaceAll(/[^\w -]+/gu, "_").trim() || "list";
+      await downloadImageFromUrl(url, `${safeName}.png`);
+    } catch {
+      toast.error("Couldn't prepare the image. Please try again.");
+    } finally {
+      setDownloadingImage(false);
     }
   };
 
@@ -70,6 +146,26 @@ export function ListShareDialog({ listId, shareToken, open, onOpenChange }: List
             </Button>
           </div>
         ) : null}
+
+        <div className="flex flex-col gap-2 border-t pt-4">
+          <div>
+            <h3 className="font-medium">Post to a chat</h3>
+            <p className="text-muted-foreground text-sm">
+              Drop a card image or a text list straight into WhatsApp, Discord, or any group chat.
+              {sharing ? "" : " The text uses no link until you create one above."}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleCopyText}>
+              {copiedText ? <CheckIcon /> : <CopyIcon />}
+              {copiedText ? "Copied" : "Copy text"}
+            </Button>
+            <Button variant="outline" onClick={handleDownloadImage} disabled={downloadingImage}>
+              <ImageDownIcon />
+              {downloadingImage ? "Preparing…" : "Download image"}
+            </Button>
+          </div>
+        </div>
 
         <Suspense fallback={null}>
           <ListGroupShareSection listId={listId} />

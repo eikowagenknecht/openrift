@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { publicUserBundleListQueryOptions } from "@/hooks/use-user-share";
 import { filterSearchSchema } from "@/lib/search-schemas";
 import { seoHead } from "@/lib/seo";
+import { bundleShareImageUrl, shareImageVersion } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
 import { CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
 
@@ -21,7 +22,10 @@ export const Route = createFileRoute("/_app/users_/share/$token_/lists/$listId")
     const { list, owner } = data;
     const title = `${list.name} (${list.intent} list)`;
     const description = `A Riftbound ${list.intent} list shared by ${owner.displayName}.`;
-    return seoHead({ siteUrl, title, description, path });
+    // This page is reached via the bundle token, so its preview is the owner's
+    // bundle image; bust it on this list's updates.
+    const ogImage = bundleShareImageUrl(siteUrl, params.token, shareImageVersion(list.updatedAt));
+    return seoHead({ siteUrl, title, description, path, ogImage });
   },
   loader: async ({ context, params }): Promise<PublicListDetailResponse> => {
     try {

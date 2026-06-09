@@ -250,6 +250,8 @@ export function toListEntryDetail(
         setId: string;
         rarity: string;
         finish: string;
+        shortCode: string;
+        language: string;
         imageId: string | null;
         tradeOverride: TradePreference;
       }
@@ -266,6 +268,8 @@ export function toListEntryDetail(
         setId: string;
         rarity: string;
         finish: string;
+        shortCode: string;
+        language: string;
         imageId: string | null;
         tradeOverride: TradePreference;
       },
@@ -294,6 +298,8 @@ export function toListEntryDetail(
       setId: row.setId,
       rarity: row.rarity as Rarity,
       finish: row.finish as Finish,
+      shortCode: row.shortCode,
+      language: row.language,
       imageId: row.imageId,
       tradeOverride: row.tradeOverride,
     };
@@ -313,6 +319,8 @@ export function toListEntryDetail(
     setId: row.setId,
     rarity: row.rarity as Rarity,
     finish: row.finish as Finish,
+    shortCode: row.shortCode,
+    language: row.language,
     imageId: row.imageId,
     tradeOverride: row.tradeOverride,
   };

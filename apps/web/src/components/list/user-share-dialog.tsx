@@ -1,5 +1,13 @@
-import { CheckIcon, CopyIcon, LinkIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
+import {
+  CheckIcon,
+  CopyIcon,
+  ImageDownIcon,
+  LinkIcon,
+  RefreshCwIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +26,7 @@ import {
   useRotateUserShare,
   useUserShareState,
 } from "@/hooks/use-user-share";
+import { bundleShareImageUrl, downloadImageFromUrl } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
 
 interface UserShareDialogProps {
@@ -39,6 +48,7 @@ export function UserShareDialog({ open, onOpenChange }: UserShareDialogProps) {
   const disableShare = useDisableUserShare();
   const rotateShare = useRotateUserShare();
   const [justCopied, setJustCopied] = useState(false);
+  const [downloadingImage, setDownloadingImage] = useState(false);
 
   const shareToken = data?.shareToken ?? null;
   const shareUrl = shareToken ? `${getSiteUrl()}/users/share/${shareToken}` : null;
@@ -54,6 +64,23 @@ export function UserShareDialog({ open, onOpenChange }: UserShareDialogProps) {
       globalThis.setTimeout(() => setJustCopied(false), 1500);
     } catch {
       // Ignore clipboard errors — rare, and the user can still select the text.
+    }
+  };
+
+  const handleDownloadImage = async () => {
+    if (!shareToken) {
+      return;
+    }
+    setDownloadingImage(true);
+    try {
+      // A bundle has no single updatedAt here, so cache-bust per download to
+      // always fetch the current image.
+      const url = bundleShareImageUrl(getSiteUrl(), shareToken, Date.now());
+      await downloadImageFromUrl(url, "openrift-lists.png");
+    } catch {
+      toast.error("Couldn't prepare the image. Please try again.");
+    } finally {
+      setDownloadingImage(false);
     }
   };
 
@@ -77,6 +104,26 @@ export function UserShareDialog({ open, onOpenChange }: UserShareDialogProps) {
             <Button variant="outline" onClick={handleCopy}>
               {justCopied ? <CheckIcon /> : <CopyIcon />}
               {justCopied ? "Copied" : "Copy"}
+            </Button>
+          </div>
+        ) : null}
+
+        {sharing && shareUrl ? (
+          <div className="flex flex-col gap-2 border-t pt-4">
+            <div>
+              <h3 className="font-medium">Post to a chat</h3>
+              <p className="text-muted-foreground text-sm">
+                Share a card image of all your lists in WhatsApp, Discord, or any group chat.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              className="self-start"
+              onClick={handleDownloadImage}
+              disabled={downloadingImage}
+            >
+              <ImageDownIcon />
+              {downloadingImage ? "Preparing…" : "Download image"}
             </Button>
           </div>
         ) : null}

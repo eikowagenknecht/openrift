@@ -39,6 +39,8 @@ function printingEntry(printing: Printing, quantity: number): ListEntryDetailRes
     setId: printing.setId,
     rarity: printing.rarity,
     finish: printing.finish,
+    shortCode: printing.shortCode,
+    language: printing.language,
     imageId: null,
     tradeOverride: EMPTY_TRADE_PREFERENCE,
   };
@@ -57,6 +59,8 @@ function copyEntry(printing: Printing, quantity: number): ListEntryDetailRespons
     setId: printing.setId,
     rarity: printing.rarity,
     finish: printing.finish,
+    shortCode: printing.shortCode,
+    language: printing.language,
     imageId: null,
     tradeOverride: EMPTY_TRADE_PREFERENCE,
   };

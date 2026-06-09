@@ -28,6 +28,7 @@ import { collectionsRoute } from "./routes/authenticated/collections.js";
 import { copiesRoute } from "./routes/authenticated/copies.js";
 import { decksRoute } from "./routes/authenticated/decks.js";
 import { friendGroupsRoute } from "./routes/authenticated/friend-groups.js";
+import { listImageRoute } from "./routes/authenticated/list-image.js";
 import { listsRoute } from "./routes/authenticated/lists.js";
 import { podTournamentsRoute } from "./routes/authenticated/pod-tournaments.js";
 import { preferencesRoute } from "./routes/authenticated/preferences.js";
@@ -47,6 +48,7 @@ import { promosRoute } from "./routes/public/promos.js";
 import { rulesRoute } from "./routes/public/rules.js";
 import { sentryTunnelRoute } from "./routes/public/sentry-tunnel.js";
 import { setsRoute } from "./routes/public/sets.js";
+import { publicShareImagesRoute } from "./routes/public/share-images.js";
 import { siteSettingsRoute } from "./routes/public/site-settings.js";
 import { sitemapDataRoute } from "./routes/public/sitemap.js";
 import { publicUserShareRoute } from "./routes/public/user-share.js";
@@ -419,6 +421,7 @@ export function createApp(deps: AppDeps) {
       .route("/api/v1", publicListsRoute)
       .route("/api/v1", publicUserShareRoute)
       .route("/api/v1", publicPodTournamentsRoute)
+      .route("/api/v1", publicShareImagesRoute)
       .route("/api/v1", sentryTunnelRoute)
 
       // ── Authenticated routes (require a valid session) ──────────────────
@@ -430,6 +433,7 @@ export function createApp(deps: AppDeps) {
       .route("/api/v1", preferencesRoute)
       .route("/api/v1", userShareRoute)
       .route("/api/v1", listsRoute)
+      .route("/api/v1", listImageRoute)
       .route("/api/v1", friendGroupsRoute)
       .route("/api/v1", cardTradesRoute)
       .route("/api/v1", podTournamentsRoute)
