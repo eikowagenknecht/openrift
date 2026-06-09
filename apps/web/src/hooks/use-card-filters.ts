@@ -12,6 +12,7 @@ import type {
   SuperType,
 } from "@openrift/shared";
 import { useRouter } from "@tanstack/react-router";
+import { useEffect, useRef } from "react";
 
 import { trackEvent } from "@/lib/analytics";
 import { isPrintingsOnlyGrouping } from "@/lib/group-by-field";
@@ -131,13 +132,7 @@ export function useFilterValues() {
   const sortBy = filterState.sort as SortOption;
   const sortDir = filterState.sortDir as SortDirection;
   const view = filterState.view as "cards" | "printings" | "copies";
-  const rawGroupBy = filterState.groupBy as GroupByField;
-  // Marker / distribution-channel grouping needs printings view (a card collapses
-  // to its base printing in cards view, which has neither), so fall back to "set"
-  // there — guards a stale URL from rendering a degenerate single bucket. The
-  // dropdown also hides these in cards view, and setView clears the stored value.
-  const groupBy: GroupByField =
-    view === "cards" && isPrintingsOnlyGrouping(rawGroupBy) ? "set" : rawGroupBy;
+  const groupBy = filterState.groupBy as GroupByField;
   const groupDir = filterState.groupDir as SortDirection;
 
   const hasActiveFilters =
@@ -402,6 +397,40 @@ export function useFilterActions() {
     selectAllSearchFields,
     selectOnlySearchField,
   };
+}
+
+/**
+ * Corrects a stale URL that pairs cards view with a printings-only grouping
+ * (e.g. a hand-crafted or bookmarked `?view=cards&groupBy=marker`). Marker /
+ * distribution channel collapse every card into a single bucket in cards view,
+ * so this rewrites the URL once to drop the grouping (back to the "set"
+ * default), rather than rendering a value that disagrees with the URL.
+ *
+ * Mounted once per card-browser surface (in `CardBrowserFilterProvider`). The
+ * effect keys on the stale-state predicate, not on `setGroupBy` (which is
+ * referentially unstable), so it fires exactly once per stale episode: after
+ * the navigate lands, `groupBy` reads back as "set", the predicate flips false,
+ * and the effect does not re-run. That self-termination is what keeps it from
+ * looping the way a per-render value override did.
+ * @returns Nothing.
+ */
+export function useStaleGroupByGuard() {
+  const { view, groupBy } = useFilterValues();
+  const { setGroupBy } = useFilterActions();
+
+  // Latest-ref so the effect can call the current setter without listing the
+  // unstable `setGroupBy` in its dependency array (which would re-run it every
+  // render and re-fire the navigate while the URL change is still in flight).
+  const setGroupByRef = useRef(setGroupBy);
+  setGroupByRef.current = setGroupBy;
+
+  const isStaleGrouping = view === "cards" && isPrintingsOnlyGrouping(groupBy);
+
+  useEffect(() => {
+    if (isStaleGrouping) {
+      setGroupByRef.current("set");
+    }
+  }, [isStaleGrouping]);
 }
 
 /**

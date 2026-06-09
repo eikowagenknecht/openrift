@@ -17,6 +17,7 @@ import {
 } from "@/components/filters/options-bar";
 import { SearchBar } from "@/components/filters/search-bar";
 import { Pane } from "@/components/layout/panes";
+import { useStaleGroupByGuard } from "@/hooks/use-card-filters";
 import { mergeHiddenSections } from "@/lib/filter-sections";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -85,6 +86,9 @@ interface CardBrowserFilterProviderProps extends CardBrowserFilterMeta {
  * @returns The provider tree wrapping `children`.
  */
 export function CardBrowserFilterProvider({ children, ...meta }: CardBrowserFilterProviderProps) {
+  // Mounted once per surface — the natural home for the stale-URL correction
+  // that drops a printings-only grouping left over in a cards-view URL.
+  useStaleGroupByGuard();
   const userHiddenFilterSections = useDisplayStore((state) => state.hiddenFilterSections);
   const effectiveHiddenSections = mergeHiddenSections(
     meta.hiddenSections,

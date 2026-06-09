@@ -30,7 +30,7 @@ import { FilterSearchProvider } from "@/lib/search-schemas";
 import { useDisplayStore } from "@/stores/display-store";
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
-import { useCardFilters } from "./use-card-filters";
+import { useCardFilters, useStaleGroupByGuard } from "./use-card-filters";
 
 let mockSearch: Record<string, unknown> = {};
 
@@ -414,18 +414,6 @@ describe("useCardFilters", () => {
     expect(lastNavigateSearch()).toMatchObject({ view: "printings", groupBy: "marker" });
   });
 
-  it("normalizes a printings-only grouping to 'set' in cards view (stale-URL guard)", () => {
-    mockSearch = { view: "cards", groupBy: "marker" };
-    const { result } = renderHook(() => useCardFilters(), { wrapper });
-    expect(result.current.groupBy).toBe("set");
-  });
-
-  it("keeps a printings-only grouping in printings view", () => {
-    mockSearch = { view: "printings", groupBy: "marker" };
-    const { result } = renderHook(() => useCardFilters(), { wrapper });
-    expect(result.current.groupBy).toBe("marker");
-  });
-
   // Regression: React Compiler bails on the entire hook if it encounters a
   // TemplateLiteral in a computed object-expression key (Todo::lowerExpression).
   // When that happens, `setRange`, `setSearch`, `setArrayFilters`, etc. return
@@ -544,5 +532,63 @@ describe("useCardFilters", () => {
     // Second toggle: should see ["unit"] and add "spell"
     act(() => result.current.toggleArrayFilter("types", "spell"));
     expect(lastNavigateSearch()).toMatchObject({ types: ["unit", "spell"] });
+  });
+});
+
+describe("useStaleGroupByGuard", () => {
+  beforeEach(() => {
+    mockSearch = defaultSearchState();
+    mockNavigate.mockClear();
+    useDisplayStore.setState({ defaultCardView: "cards" });
+  });
+
+  it("rewrites the URL to drop a printings-only grouping (marker) in cards view", () => {
+    mockSearch = { view: "cards", groupBy: "marker" };
+    renderHook(() => useStaleGroupByGuard(), { wrapper });
+
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+    expect(lastNavigateSearch()).not.toHaveProperty("groupBy");
+  });
+
+  it("rewrites the URL to drop a printings-only grouping (channel) in cards view", () => {
+    mockSearch = { view: "cards", groupBy: "channel" };
+    renderHook(() => useStaleGroupByGuard(), { wrapper });
+
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+    expect(lastNavigateSearch()).not.toHaveProperty("groupBy");
+  });
+
+  it("leaves a printings-only grouping alone in printings view", () => {
+    mockSearch = { view: "printings", groupBy: "marker" };
+    renderHook(() => useStaleGroupByGuard(), { wrapper });
+
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it("leaves a grouping that works in cards view (rarity) alone", () => {
+    mockSearch = { view: "cards", groupBy: "rarity" };
+    renderHook(() => useStaleGroupByGuard(), { wrapper });
+
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it("does nothing for the default cards view with no grouping", () => {
+    mockSearch = { view: "cards" };
+    renderHook(() => useStaleGroupByGuard(), { wrapper });
+
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it("fires the correction only once while the stale URL persists (no loop)", () => {
+    // The navigate is mocked, so mockSearch never updates — the predicate stays
+    // true across re-renders. The effect keys on the predicate, not on the
+    // unstable setter, so it must not re-fire on a re-render.
+    mockSearch = { view: "cards", groupBy: "marker" };
+    const { rerender } = renderHook(() => useStaleGroupByGuard(), { wrapper });
+
+    rerender();
+    rerender();
+
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
   });
 });
