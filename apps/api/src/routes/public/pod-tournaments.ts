@@ -27,6 +27,7 @@ async function buildReport(repos: Repos, tournament: PodTournament): Promise<Pod
     tournamentName: tournament.name,
     status: tournament.status,
     currentRound: tournament.currentRound,
+    scoringScheme: tournament.scoringScheme,
     standings,
     rounds: rounds.map((round) => ({
       ...round,

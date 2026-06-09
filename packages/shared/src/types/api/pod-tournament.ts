@@ -45,6 +45,12 @@ export interface PodStandingRow {
   roundsPlayed: number;
   pods3Count: number;
   pods4Count: number;
+  /** Byes taken (each a sat-out round worth win-equivalent points). */
+  byeCount: number;
+  /** Pods won outright (sole 1st place). First standings tie-breaker after score. */
+  podWins: number;
+  /** Mean current score of every player met so far. Second tie-breaker. */
+  avgOpponentScore: number;
 }
 
 export interface PodMemberResponse {
@@ -77,6 +83,12 @@ export interface PodResponse {
   penalty: PodPenaltyView | null;
 }
 
+/** A player sitting a round out for win-equivalent points. */
+export interface PodByeResponse {
+  playerId: string;
+  displayName: string;
+}
+
 export interface PodRoundResponse {
   id: string;
   roundNumber: number;
@@ -87,6 +99,23 @@ export interface PodRoundResponse {
   createdAt: string;
   finalizedAt: string | null;
   pods: PodResponse[];
+  /** Players sitting this round out. */
+  byes: PodByeResponse[];
+}
+
+/**
+ * One player's pre-round aggregates, used by the organizer's open-round warnings
+ * and manual pairing editor. Organizer-only — `opponents` is a plain record so it
+ * serializes over the wire (the engine's `PairingPlayer` uses a Map).
+ */
+export interface PodSnapshotPlayer {
+  playerId: string;
+  score: number;
+  pods3: number;
+  pods4: number;
+  byes: number;
+  /** opponentId -> prior meetings. */
+  opponents: Record<string, number>;
 }
 
 /** The owner dashboard payload for one tournament. */
@@ -95,6 +124,11 @@ export interface PodTournamentDetailResponse {
   players: PodPlayerResponse[];
   standings: PodStandingRow[];
   rounds: PodRoundResponse[];
+  /**
+   * Per-player aggregates entering the open round, for warnings and the manual
+   * editor. `null` when no round is open. Organizer-only.
+   */
+  openRoundSnapshot: PodSnapshotPlayer[] | null;
 }
 
 /** The token-gated participant follow-along payload (no penalty internals). */
@@ -102,6 +136,8 @@ export interface PodReportResponse {
   tournamentName: string;
   status: PodTournamentStatus;
   currentRound: number;
+  /** The active scheme, so the participant result form can preview derived points. */
+  scoringScheme: PodScoringScheme;
   standings: PodStandingRow[];
   rounds: PodRoundResponse[];
 }

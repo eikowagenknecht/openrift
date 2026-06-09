@@ -4,7 +4,7 @@ import { evaluatePairing, evaluatePod } from "./evaluate";
 import type { PairingPlayer, Pod } from "./types";
 
 function player(id: string, overrides: Partial<PairingPlayer> = {}): PairingPlayer {
-  return { id, score: 0, pods3: 0, pods4: 0, opponents: new Map(), ...overrides };
+  return { id, score: 0, pods3: 0, pods4: 0, byes: 0, opponents: new Map(), ...overrides };
 }
 
 function mapOf(players: PairingPlayer[]): Map<string, PairingPlayer> {

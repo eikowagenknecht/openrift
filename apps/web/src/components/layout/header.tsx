@@ -117,14 +117,12 @@ function MenuButton({ onClick, className }: { onClick: () => void; className?: s
 
 function DesktopNav({
   showGlossary,
-  showTournaments,
   showCollection,
   showDecks,
   showGroups,
   groupsBadge,
 }: {
   showGlossary: boolean;
-  showTournaments: boolean;
   showCollection: boolean;
   showDecks: boolean;
   showGroups: boolean;
@@ -248,19 +246,17 @@ function DesktopNav({
                   </div>
                 </NavigationMenuLink>
               </li>
-              {showTournaments && (
-                <li>
-                  <NavigationMenuLink closeOnClick render={<Link to="/tournaments/run" />}>
-                    <TrophyIcon />
-                    <div>
-                      <div className="font-medium">Tournaments</div>
-                      <div className="text-muted-foreground text-xs">
-                        Run a free-for-all pod event
-                      </div>
+              <li>
+                <NavigationMenuLink closeOnClick render={<Link to="/tournaments/run" />}>
+                  <TrophyIcon />
+                  <div>
+                    <div className="font-medium">Tournaments</div>
+                    <div className="text-muted-foreground text-xs">
+                      Run a free-for-all pod event
                     </div>
-                  </NavigationMenuLink>
-                </li>
-              )}
+                  </div>
+                </NavigationMenuLink>
+              </li>
               {/* Match tracker is a phone feature — it's in the mobile menu only, not here. */}
             </ul>
           </NavigationMenuContent>
@@ -435,7 +431,6 @@ function MobileNav({
   open,
   onOpenChange,
   showGlossary,
-  showTournaments,
   showCollection,
   showDecks,
   showGroups,
@@ -444,7 +439,6 @@ function MobileNav({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   showGlossary: boolean;
-  showTournaments: boolean;
   showCollection: boolean;
   showDecks: boolean;
   showGroups: boolean;
@@ -539,14 +533,12 @@ function MobileNav({
           >
             Match tracker
           </MobileNavLink>
-          {showTournaments && (
-            <MobileNavLink
-              to="/tournaments/run"
-              icon={<TrophyIcon className="text-muted-foreground size-5" />}
-            >
-              Tournaments
-            </MobileNavLink>
-          )}
+          <MobileNavLink
+            to="/tournaments/run"
+            icon={<TrophyIcon className="text-muted-foreground size-5" />}
+          >
+            Tournaments
+          </MobileNavLink>
         </nav>
         <SheetFooter className="border-t px-4 pt-4">
           <a
@@ -637,7 +629,6 @@ function FeedbackPopover() {
 export function Header() {
   const { data: session, isPending } = useSession();
   const glossaryEnabled = useFeatureEnabled("glossary");
-  const showTournaments = useFeatureEnabled("pod-tournaments");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const showGlossary = glossaryEnabled;
   const isLoggedIn = Boolean(session?.user);
@@ -669,7 +660,6 @@ export function Header() {
           <LogoLink />
           <DesktopNav
             showGlossary={showGlossary}
-            showTournaments={showTournaments}
             showCollection={showCollection}
             showDecks={showDecks}
             showGroups={showGroups}
@@ -701,7 +691,6 @@ export function Header() {
         open={mobileMenuOpen}
         onOpenChange={setMobileMenuOpen}
         showGlossary={showGlossary}
-        showTournaments={showTournaments}
         showCollection={showCollection}
         showDecks={showDecks}
         showGroups={showGroups}

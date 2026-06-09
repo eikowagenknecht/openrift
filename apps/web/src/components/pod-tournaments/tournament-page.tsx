@@ -1,6 +1,8 @@
 import { suggestedRoundCount } from "@openrift/shared";
 import type { PodTournamentDetailResponse } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
+import { TriangleAlertIcon } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -17,11 +19,18 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Toggle } from "@/components/ui/toggle";
+import {
   useAddPodPlayer,
   useDeletePodTournament,
   useDropPodPlayer,
   useFinalizePodRound,
-  useGeneratePodRound,
   useReactivatePodPlayer,
   useRemovePodPlayer,
   useRenamePodPlayer,
@@ -32,13 +41,21 @@ import {
 } from "@/hooks/use-pod-tournaments";
 import { getSiteUrl } from "@/lib/site-config";
 
+import { GenerateRoundControls } from "./generate-round-controls";
 import { PairingsView } from "./pairings-view";
+import { PodPairingEditor } from "./pod-pairing-editor";
+
+const SCORING_SCHEME_ITEMS = [
+  { value: "standard", label: "Standard — 3-pod 3 / 2 / 1" },
+  { value: "three_pod_reduced", label: "Reduced — 3-pod 3 / 1.5 / 0" },
+];
 
 export function PairingsTab({ id, data }: { id: string; data: PodTournamentDetailResponse }) {
-  const generateRound = useGeneratePodRound();
   const rerollRound = useRerollPodRound();
   const finalizeRound = useFinalizePodRound();
   const submitResult = useSubmitPodResult();
+  const [editingRound, setEditingRound] = useState<number | null>(null);
+  const [warningsExpanded, setWarningsExpanded] = useState(true);
 
   const scoresByPlayer = new Map(data.standings.map((row) => [row.playerId, row.score]));
   const openRound = data.rounds.find((round) => round.status === "reporting");
@@ -56,6 +73,12 @@ export function PairingsTab({ id, data }: { id: string; data: PodTournamentDetai
     }
   }
 
+  // The manual editor takes over the open round; the rest of the history stays visible.
+  const editing = editingRound !== null && openRound?.roundNumber === editingRound;
+  const shownRounds = editing
+    ? data.rounds.filter((round) => round.status === "finalized")
+    : data.rounds;
+
   return (
     <div className="flex flex-col gap-4">
       {completed ? (
@@ -69,19 +92,14 @@ export function PairingsTab({ id, data }: { id: string; data: PodTournamentDetai
         </p>
       ) : null}
       {!openRound && !completed ? (
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            disabled={generateRound.isPending}
-            onClick={() => void run(() => generateRound.mutateAsync({ id }))}
-          >
-            {data.rounds.length === 0 ? "Generate round 1" : "Generate next round"}
-          </Button>
-          {reachedSuggestion ? (
-            <span className="text-muted-foreground text-sm">
-              Suggested {suggested} rounds reached. End the tournament in Settings, or keep going.
-            </span>
-          ) : null}
-        </div>
+        <GenerateRoundControls
+          id={id}
+          players={data.players}
+          standings={data.standings}
+          isFirstRound={data.rounds.length === 0}
+          reachedSuggestion={reachedSuggestion}
+          suggested={suggested}
+        />
       ) : null}
       {finalizedCount > 1 ? (
         <p className="text-muted-foreground text-sm">
@@ -89,10 +107,21 @@ export function PairingsTab({ id, data }: { id: string; data: PodTournamentDetai
           already used.
         </p>
       ) : null}
+      {editing && openRound && data.openRoundSnapshot ? (
+        <PodPairingEditor
+          id={id}
+          round={openRound}
+          snapshot={data.openRoundSnapshot}
+          onClose={() => setEditingRound(null)}
+        />
+      ) : null}
       <PairingsView
-        rounds={data.rounds}
+        rounds={shownRounds}
         scoresByPlayer={scoresByPlayer}
+        scheme={data.tournament.scoringScheme}
         showPenalty
+        snapshot={data.openRoundSnapshot}
+        warningsExpanded={warningsExpanded}
         canEnterResult={() => !completed}
         onSubmitResult={(podId, placements) =>
           run(() => submitResult.mutateAsync({ id, podId, placements }))
@@ -105,6 +134,24 @@ export function PairingsTab({ id, data }: { id: string; data: PodTournamentDetai
           const anyReported = round.pods.some((pod) => pod.resultStatus === "reported");
           return (
             <>
+              <Toggle
+                size="sm"
+                variant="outline"
+                pressed={warningsExpanded}
+                onPressedChange={setWarningsExpanded}
+                aria-label={warningsExpanded ? "Show warnings as icons" : "Show warnings in full"}
+              >
+                <TriangleAlertIcon />
+                {warningsExpanded ? "Warnings: full" : "Warnings: icons"}
+              </Toggle>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={anyReported}
+                onClick={() => setEditingRound(round.roundNumber)}
+              >
+                Edit pairing
+              </Button>
               <Button
                 size="sm"
                 variant="destructive"
@@ -127,7 +174,7 @@ export function PairingsTab({ id, data }: { id: string; data: PodTournamentDetai
             </>
           );
         }}
-        emptyMessage="No rounds yet. Generate the first round to begin."
+        emptyMessage={editing ? "" : "No rounds yet. Generate the first round to begin."}
       />
     </div>
   );
@@ -394,6 +441,34 @@ export function SettingsTab({ id, data }: { id: string; data: PodTournamentDetai
       </section>
 
       <section className="flex flex-col gap-2">
+        <h2 className="font-semibold">Scoring</h2>
+        <p className="text-muted-foreground">
+          How places convert to points. Changing this re-derives every standing.
+        </p>
+        <Select
+          items={SCORING_SCHEME_ITEMS}
+          value={tournament.scoringScheme}
+          onValueChange={(next) => {
+            if (next === "standard" || next === "three_pod_reduced") {
+              void run(() => updateTournament.mutateAsync({ id, scoringScheme: next }));
+            }
+          }}
+          disabled={tournament.status === "completed" || updateTournament.isPending}
+        >
+          <SelectTrigger className="w-full max-w-sm">
+            <SelectValue placeholder="Scoring scheme" />
+          </SelectTrigger>
+          <SelectContent>
+            {SCORING_SCHEME_ITEMS.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </section>
+
+      <section className="flex flex-col gap-2">
         <h2 className="font-semibold">Participant link</h2>
         <p className="text-muted-foreground">
           Share this so players can follow along and report the result for their own pod. Anyone
@@ -429,6 +504,15 @@ export function SettingsTab({ id, data }: { id: string; data: PodTournamentDetai
               >
                 Disable
               </Button>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-muted-foreground text-sm">
+                Scan to open on a phone at the table
+              </span>
+              {/* QR modules need a light background to scan in either theme. */}
+              <div className="w-fit rounded-md bg-white p-3">
+                <QRCodeSVG value={reportUrl} size={160} />
+              </div>
             </div>
           </div>
         ) : (

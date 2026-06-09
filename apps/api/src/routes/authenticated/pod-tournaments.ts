@@ -14,8 +14,10 @@ import {
 import {
   addPodPlayerSchema,
   createPodTournamentSchema,
+  generatePodRoundSchema,
   podResultSchema,
   podTournamentIdParamSchema,
+  replacePodPairingSchema,
   updatePodPlayerSchema,
   updatePodTournamentSchema,
 } from "@openrift/shared/schemas";
@@ -30,6 +32,7 @@ import type { PodPlayer, PodTournament } from "../../repositories/pod-tournament
 import {
   finalizeRound,
   pairNextRound,
+  replaceRoundPairing,
   rerollRound,
   submitPodResult,
 } from "../../services/pod-pairing.js";
@@ -87,16 +90,23 @@ async function buildDetail(
   repos: Repos,
   tournament: PodTournament,
 ): Promise<PodTournamentDetailResponse> {
-  const [players, standings, rounds] = await Promise.all([
+  const [players, standings, rounds, openRound] = await Promise.all([
     repos.podTournaments.listPlayers(tournament.id),
     repos.podTournaments.computeStandings(tournament.id, tournament.scoringScheme),
     repos.podTournaments.loadRounds(tournament.id, tournament.scoringScheme),
+    repos.podTournaments.findOpenRound(tournament.id),
   ]);
+  // The snapshot (for open-round warnings + the manual editor) is only meaningful
+  // while a round is open, and it stays organizer-only.
+  const openRoundSnapshot = openRound
+    ? await repos.podTournaments.loadOpenRoundSnapshot(tournament.id, tournament.scoringScheme)
+    : null;
   return {
     tournament: toTournament(tournament),
     players: players.map((player) => toPlayer(player)),
     standings,
     rounds,
+    openRoundSnapshot,
   };
 }
 
@@ -251,7 +261,22 @@ const generateRound = createRoute({
   path: "/pod-tournaments/{id}/rounds",
   tags: ["Pod Tournaments"],
   security: cookieAuth,
-  request: { params: idParam },
+  request: {
+    params: idParam,
+    body: { content: { "application/json": { schema: generatePodRoundSchema } }, required: true },
+  },
+  responses: { ...detailContent, ...errorResponses(400, 401, 403, 404, 409) },
+});
+
+const replacePairingRoute = createRoute({
+  method: "put",
+  path: "/pod-tournaments/{id}/rounds/{roundNumber}/pairing",
+  tags: ["Pod Tournaments"],
+  security: cookieAuth,
+  request: {
+    params: roundParam,
+    body: { content: { "application/json": { schema: replacePodPairingSchema } }, required: true },
+  },
   responses: { ...detailContent, ...errorResponses(400, 401, 403, 404, 409) },
 });
 
@@ -349,7 +374,11 @@ export const podTournamentsRoute = podTournamentsApp
     const { id } = c.req.valid("param");
     const tournament = await loadOwnedTournament(repos, id, userId);
     const body = c.req.valid("json");
-    await repos.podTournaments.update(tournament.id, { name: body.name, status: body.status });
+    await repos.podTournaments.update(tournament.id, {
+      name: body.name,
+      status: body.status,
+      scoringScheme: body.scoringScheme,
+    });
     return c.json(await detailById(repos, id, userId), 200);
   })
 
@@ -422,7 +451,17 @@ export const podTournamentsRoute = podTournamentsApp
     const repos = c.get("repos");
     const { id } = c.req.valid("param");
     const tournament = await loadOwnedTournament(repos, id, userId);
-    await pairNextRound(repos, tournament);
+    await pairNextRound(repos, tournament, c.req.valid("json").byes);
+    return c.json(await detailById(repos, id, userId), 200);
+  })
+
+  .openapi(replacePairingRoute, async (c) => {
+    const userId = getUserId(c);
+    const repos = c.get("repos");
+    const { id, roundNumber } = c.req.valid("param");
+    const body = c.req.valid("json");
+    const tournament = await loadOwnedTournament(repos, id, userId);
+    await replaceRoundPairing(repos, tournament, roundNumber, body.pods, body.byes);
     return c.json(await detailById(repos, id, userId), 200);
   })
 

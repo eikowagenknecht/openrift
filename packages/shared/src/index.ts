@@ -165,6 +165,7 @@ export type {
   CardTradeRole,
   CardTradeStatus,
   CardTradeActionCountsResponse,
+  PodByeResponse,
   PodMemberResponse,
   PodPenaltyView,
   PodPlayerResponse,
@@ -176,6 +177,7 @@ export type {
   PodRoundResponse,
   PodRoundStatus,
   PodScoringScheme,
+  PodSnapshotPlayer,
   PodStandingRow,
   PodTournamentDetailResponse,
   PodTournamentListResponse,
@@ -312,12 +314,14 @@ export type {
   PairingResult,
   PairingStrategy,
   PairingStrategyName,
+  PairingWarning,
   Pod,
   PodPenaltyBreakdown,
   PodSizes,
   ScoringScheme,
 } from "./pairing/index.js";
 export {
+  computePairingWarnings,
   DEFAULT_LOCAL_SEARCH_BUDGET,
   DEFAULT_PAIRING_CONFIG,
   determinePodSizes,
@@ -327,5 +331,6 @@ export {
   InvalidPlayerCountError,
   makeLocalSearchStrategy,
   pointsForPlacements,
+  SPREAD_WARNING_THRESHOLD,
   suggestedRoundCount,
 } from "./pairing/index.js";

@@ -2,9 +2,9 @@ import type { Random } from "../pack-opener/rng.js";
 
 /**
  * A flat, database-free snapshot of one player going into a pairing. The
- * aggregates (`score`, `pods3`, `pods4`, `opponents`) are derived by the repo
- * from the finalized rounds and handed to the engine; the engine never touches
- * a database.
+ * aggregates (`score`, `pods3`, `pods4`, `byes`, `opponents`) are derived by the
+ * repo from the finalized rounds and handed to the engine; the engine never
+ * touches a database.
  */
 export interface PairingPlayer {
   id: string;
@@ -13,6 +13,8 @@ export interface PairingPlayer {
   pods3: number;
   /** Times this player has already been in a 4-player pod. */
   pods4: number;
+  /** Times this player has already taken a bye (sat out a round for win-equivalent points). */
+  byes: number;
   /** opponentId -> number of prior pods shared with that opponent. */
   opponents: Map<string, number>;
 }
@@ -48,8 +50,11 @@ export interface PodPenaltyBreakdown {
   spread: number;
 }
 
-/** Which engine produced a pairing. Round 1 is `random`; round 2+ is `local-search`. */
-export type PairingStrategyName = "local-search" | "random";
+/**
+ * Which engine produced a pairing. Round 1 is `random`; round 2+ is
+ * `local-search`; `manual` marks a pairing the organizer edited by hand.
+ */
+export type PairingStrategyName = "local-search" | "random" | "manual";
 
 export interface PairingResult {
   pods: Pod[];

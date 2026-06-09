@@ -32,6 +32,7 @@ export function ReportRoundsContent({ token, data }: { token: string; data: PodR
       <PairingsView
         rounds={data.rounds}
         scoresByPlayer={scoresByPlayer}
+        scheme={data.scoringScheme}
         showPenalty={false}
         canEnterResult={(round) => round.status === "reporting"}
         onSubmitResult={submit}

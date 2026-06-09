@@ -1,5 +1,6 @@
 import type {
   PodReportResponse,
+  PodScoringScheme,
   PodTournamentDetailResponse,
   PodTournamentListResponse,
   PodTournamentResponse,
@@ -16,6 +17,11 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 interface Placement {
   playerId: string;
   placement: number;
+}
+
+interface PairingPodInput {
+  size: 3 | 4;
+  playerIds: string[];
 }
 
 // ── Server functions: queries ────────────────────────────────────────────────
@@ -114,7 +120,14 @@ const createTournamentFn = createServerFn({ method: "POST" })
   );
 
 const updateTournamentFn = createServerFn({ method: "POST" })
-  .validator((input: { id: string; name?: string; status?: "running" | "completed" }) => input)
+  .validator(
+    (input: {
+      id: string;
+      name?: string;
+      status?: "running" | "completed";
+      scoringScheme?: PodScoringScheme;
+    }) => input,
+  )
   .middleware([withCookies])
   .handler(({ context, data }): Promise<PodTournamentDetailResponse> => {
     const { id, ...fields } = data;
@@ -215,15 +228,34 @@ const removePlayerFn = createServerFn({ method: "POST" })
   );
 
 const generateRoundFn = createServerFn({ method: "POST" })
-  .validator((input: string) => input)
+  .validator((input: { id: string; byes: string[] }) => input)
   .middleware([withCookies])
   .handler(
-    ({ context, data: id }): Promise<PodTournamentDetailResponse> =>
+    ({ context, data }): Promise<PodTournamentDetailResponse> =>
       callApiJson(
         serverApiClient(context.cookie).api.v1["pod-tournaments"][":id"].rounds.$post({
-          param: encodeParams({ id }),
+          param: encodeParams({ id: data.id }),
+          json: { byes: data.byes },
         }),
         "Couldn't generate round",
+      ),
+  );
+
+const replacePairingFn = createServerFn({ method: "POST" })
+  .validator(
+    (input: { id: string; roundNumber: number; pods: PairingPodInput[]; byes: string[] }) => input,
+  )
+  .middleware([withCookies])
+  .handler(
+    ({ context, data }): Promise<PodTournamentDetailResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["pod-tournaments"][":id"].rounds[
+          ":roundNumber"
+        ].pairing.$put({
+          param: encodeParams({ id: data.id, roundNumber: String(data.roundNumber) }),
+          json: { pods: data.pods, byes: data.byes },
+        }),
+        "Couldn't save pairing",
       ),
   );
 
@@ -314,7 +346,12 @@ export function useUpdatePodTournament() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<
     PodTournamentDetailResponse,
-    { id: string; name?: string; status?: "running" | "completed" }
+    {
+      id: string;
+      name?: string;
+      status?: "running" | "completed";
+      scoringScheme?: PodScoringScheme;
+    }
   >({
     mutationFn: (data) => updateTournamentFn({ data }),
     invalidates: (variables) => [
@@ -372,7 +409,18 @@ export function useRemovePodPlayer() {
 }
 
 export function useGeneratePodRound() {
-  return useIdMutation<{ id: string }>((data) => generateRoundFn({ data: data.id }));
+  return useIdMutation<{ id: string; byes?: string[] }>((data) =>
+    generateRoundFn({ data: { id: data.id, byes: data.byes ?? [] } }),
+  );
+}
+
+export function useReplacePodPairing() {
+  return useIdMutation<{
+    id: string;
+    roundNumber: number;
+    pods: PairingPodInput[];
+    byes: string[];
+  }>((data) => replacePairingFn({ data }));
 }
 
 export function useRerollPodRound() {

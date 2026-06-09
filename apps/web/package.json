@@ -51,6 +51,7 @@
     "jspdf": "4.2.1",
     "lucide-react": "1.17.0",
     "nitro": "3.0.260603-beta",
+    "qrcode.react": "4.2.0",
     "react": "19.2.7",
     "react-day-picker": "10.0.1",
     "react-dom": "19.2.7",

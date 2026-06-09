@@ -594,6 +594,15 @@ interface PodMembersTable {
   placement: number | null;
 }
 
+// Byes (migration 147). A row records that a player sat a round out for
+// win-equivalent points (a flat 3, derived on read — no points column). Manual
+// only. Not exported for the same reason as PodMembersTable: no module derives a
+// Selectable<> from it.
+interface PodByesTable {
+  roundId: string;
+  playerId: string;
+}
+
 // ─── Card trades (migration 143, ADR-019) ────────────────────────────────────
 
 /** Who started the trade. The party who must accept is always the non-initiator. */
@@ -1181,6 +1190,7 @@ export interface Database {
   podRounds: PodRoundsTable;
   pods: PodsTable;
   podMembers: PodMembersTable;
+  podByes: PodByesTable;
 
   // Card trades (migration 143, ADR-019)
   cardTrades: CardTradesTable;

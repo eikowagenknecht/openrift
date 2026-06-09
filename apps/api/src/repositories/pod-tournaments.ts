@@ -6,6 +6,7 @@ import type {
   PodResponse,
   PodRoundResponse,
   PodScoringScheme,
+  PodSnapshotPlayer,
   PodStandingRow,
   PodTournamentStatus,
   ScoringScheme,
@@ -49,6 +50,10 @@ interface PlayerAggregate {
   score: number;
   pods3: number;
   pods4: number;
+  /** Byes taken: a bye sits a round out for win-equivalent points (a flat 3). */
+  byes: number;
+  /** Pods won outright (sole 1st place; a tied 1st does not count). */
+  podWins: number;
   roundsPlayed: number;
   opponents: Map<string, number>;
 }
@@ -60,22 +65,40 @@ interface FinalizedMemberRow {
   placement: number | null;
 }
 
+/** Win-equivalent points awarded for a bye, scheme-independent (a pod win is always 3). */
+const BYE_POINTS = 3;
+
 // jsonb can come back as a parsed object (postgres.js) or a string (Bun); normalize.
 function parseBreakdown(value: unknown): PodPenaltyBreakdown {
   return (typeof value === "string" ? JSON.parse(value) : value) as PodPenaltyBreakdown;
 }
 
 function emptyAggregate(): PlayerAggregate {
-  return { score: 0, pods3: 0, pods4: 0, roundsPlayed: 0, opponents: new Map() };
+  return {
+    score: 0,
+    pods3: 0,
+    pods4: 0,
+    byes: 0,
+    podWins: 0,
+    roundsPlayed: 0,
+    opponents: new Map(),
+  };
 }
 
 /**
- * Fold the finalized pod/member rows into per-player aggregates. Points are
- * derived per pod via the pure scorer; opponent counts come from co-membership.
+ * Fold the finalized pod/member rows (and finalized byes) into per-player
+ * aggregates. Points are derived per pod via the pure scorer; opponent counts
+ * come from co-membership; a sole 1st place is a pod win; a bye adds
+ * win-equivalent points and a round played but no opponents or pod tally.
+ *
+ * @param rows The finalized pod-member rows.
+ * @param byePlayerIds One entry per finalized bye (a player id, repeated per bye).
+ * @param scheme The active scoring scheme.
  * @returns A map from player id to their derived aggregate.
  */
 function foldFinalized(
   rows: FinalizedMemberRow[],
+  byePlayerIds: string[],
   scheme: ScoringScheme,
 ): Map<string, PlayerAggregate> {
   const aggregates = new Map<string, PlayerAggregate>();
@@ -106,6 +129,17 @@ function foldFinalized(
         aggregate.pods4 += 1;
       }
     });
+    // Pod win = sole 1st place: the unique lowest placement value in the pod.
+    const placements = members
+      .map((member) => member.placement)
+      .filter((value): value is number => value !== null);
+    if (placements.length === members.length && members.length > 0) {
+      const best = Math.min(...placements);
+      const leaders = members.filter((member) => member.placement === best);
+      if (leaders.length === 1) {
+        ensure(leaders[0].playerId).podWins += 1;
+      }
+    }
     for (let i = 0; i < members.length; i++) {
       for (let j = i + 1; j < members.length; j++) {
         const firstId = members[i].playerId;
@@ -117,6 +151,14 @@ function foldFinalized(
       }
     }
   }
+
+  for (const playerId of byePlayerIds) {
+    const aggregate = ensure(playerId);
+    aggregate.score += BYE_POINTS;
+    aggregate.roundsPlayed += 1;
+    aggregate.byes += 1;
+  }
+
   return aggregates;
 }
 
@@ -162,10 +204,17 @@ function toPodResponse(pod: Pod, memberRows: PodMemberRow[], scheme: ScoringSche
   };
 }
 
+interface PodByeRow {
+  roundId: string;
+  playerId: string;
+  displayName: string;
+}
+
 function toRoundResponse(
   round: PodRound,
   podRows: Pod[],
   membersByPod: Map<string, PodMemberRow[]>,
+  byeRows: PodByeRow[],
   scheme: ScoringScheme,
 ): PodRoundResponse {
   return {
@@ -177,6 +226,7 @@ function toRoundResponse(
     createdAt: round.createdAt.toISOString(),
     finalizedAt: round.finalizedAt ? round.finalizedAt.toISOString() : null,
     pods: podRows.map((pod) => toPodResponse(pod, membersByPod.get(pod.id) ?? [], scheme)),
+    byes: byeRows.map((bye) => ({ playerId: bye.playerId, displayName: bye.displayName })),
   };
 }
 
@@ -204,6 +254,51 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       .where("r.tournamentId", "=", tournamentId)
       .where("r.status", "=", "finalized")
       .execute();
+  }
+
+  // One row per finalized bye (a player id, repeated if they byed in many rounds).
+  async function loadFinalizedByePlayerIds(tournamentId: string): Promise<string[]> {
+    const rows = await db
+      .selectFrom("podByes as b")
+      .innerJoin("podRounds as r", "r.id", "b.roundId")
+      .select("b.playerId as playerId")
+      .where("r.tournamentId", "=", tournamentId)
+      .where("r.status", "=", "finalized")
+      .execute();
+    return rows.map((row) => row.playerId);
+  }
+
+  // Insert a round's pods (+ their result-less members) and byes inside a trx.
+  async function writePodsAndByes(
+    trx: Kysely<Database>,
+    roundId: string,
+    pairing: PairingResult,
+    byePlayerIds: string[],
+  ): Promise<void> {
+    for (let index = 0; index < pairing.pods.length; index++) {
+      const pod = pairing.pods[index];
+      const breakdown = pairing.perPod[index];
+      const podRow = await trx
+        .insertInto("pods")
+        .values({
+          roundId,
+          podNumber: index + 1,
+          size: pod.size,
+          penaltyBreakdown: JSON.stringify(breakdown),
+        })
+        .returning("id")
+        .executeTakeFirstOrThrow();
+      await trx
+        .insertInto("podMembers")
+        .values(pod.playerIds.map((playerId) => ({ podId: podRow.id, playerId, placement: null })))
+        .execute();
+    }
+    if (byePlayerIds.length > 0) {
+      await trx
+        .insertInto("podByes")
+        .values(byePlayerIds.map((playerId) => ({ roundId, playerId })))
+        .execute();
+    }
   }
 
   return {
@@ -268,7 +363,12 @@ export function podTournamentsRepo(db: Kysely<Database>) {
     /** @returns The updated tournament, or `undefined` if it was not found. */
     update(
       id: string,
-      patch: { name?: string; status?: PodTournamentStatus; currentRound?: number },
+      patch: {
+        name?: string;
+        status?: PodTournamentStatus;
+        currentRound?: number;
+        scoringScheme?: PodScoringScheme;
+      },
     ): Promise<PodTournament | undefined> {
       return db
         .updateTable("podTournaments")
@@ -382,13 +482,15 @@ export function podTournamentsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Atomic insert of a round, its pods, and their (result-less) members.
+     * Atomic insert of a round, its pods and their (result-less) members, and any
+     * byes (players the organizer sat out this round).
      * @returns The created round.
      */
     createRound(
       tournamentId: string,
       roundNumber: number,
       pairing: PairingResult,
+      byePlayerIds: string[] = [],
     ): Promise<PodRound> {
       return db.transaction().execute(async (trx) => {
         const round = await trx
@@ -402,29 +504,53 @@ export function podTournamentsRepo(db: Kysely<Database>) {
           })
           .returningAll()
           .executeTakeFirstOrThrow();
-
-        for (let index = 0; index < pairing.pods.length; index++) {
-          const pod = pairing.pods[index];
-          const breakdown = pairing.perPod[index];
-          const podRow = await trx
-            .insertInto("pods")
-            .values({
-              roundId: round.id,
-              podNumber: index + 1,
-              size: pod.size,
-              penaltyBreakdown: JSON.stringify(breakdown),
-            })
-            .returning("id")
-            .executeTakeFirstOrThrow();
-          await trx
-            .insertInto("podMembers")
-            .values(
-              pod.playerIds.map((playerId) => ({ podId: podRow.id, playerId, placement: null })),
-            )
-            .execute();
-        }
+        await writePodsAndByes(trx, round.id, pairing, byePlayerIds);
         return round;
       });
+    },
+
+    /**
+     * Replace an open round's pairing in place (organizer manual edit): wipe its
+     * pods, members, and byes, then re-insert the new partition. Keeps the same
+     * round row and number; updates the stored penalty and marks it manual.
+     * @returns Nothing.
+     */
+    async replacePairing(
+      roundId: string,
+      pairing: PairingResult,
+      byePlayerIds: string[],
+    ): Promise<void> {
+      await db.transaction().execute(async (trx) => {
+        await trx.deleteFrom("pods").where("roundId", "=", roundId).execute();
+        await trx.deleteFrom("podByes").where("roundId", "=", roundId).execute();
+        await writePodsAndByes(trx, roundId, pairing, byePlayerIds);
+        await trx
+          .updateTable("podRounds")
+          .set({ penaltyTotal: pairing.totalPenalty, pairingStrategy: "manual" })
+          .where("id", "=", roundId)
+          .execute();
+      });
+    },
+
+    /** @returns The player ids byed in this round (used to preserve byes on re-roll). */
+    async listRoundByePlayerIds(roundId: string): Promise<string[]> {
+      const rows = await db
+        .selectFrom("podByes")
+        .select("playerId")
+        .where("roundId", "=", roundId)
+        .execute();
+      return rows.map((row) => row.playerId);
+    },
+
+    /** @returns The player ids seated in any pod of this round (for the manual-edit coverage check). */
+    async listRoundMemberPlayerIds(roundId: string): Promise<string[]> {
+      const rows = await db
+        .selectFrom("podMembers as m")
+        .innerJoin("pods as p", "p.id", "m.podId")
+        .select("m.playerId as playerId")
+        .where("p.roundId", "=", roundId)
+        .execute();
+      return rows.map((row) => row.playerId);
     },
 
     async deleteRound(roundId: string): Promise<void> {
@@ -535,7 +661,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       tournamentId: string,
       scheme: PodScoringScheme,
     ): Promise<PairingPlayer[]> {
-      const [activePlayers, finalizedRows] = await Promise.all([
+      const [activePlayers, finalizedRows, finalizedByes] = await Promise.all([
         db
           .selectFrom("podPlayers")
           .select(["id"])
@@ -544,8 +670,9 @@ export function podTournamentsRepo(db: Kysely<Database>) {
           .orderBy("createdAt", "asc")
           .execute(),
         loadFinalizedRows(tournamentId),
+        loadFinalizedByePlayerIds(tournamentId),
       ]);
-      const aggregates = foldFinalized(finalizedRows, scheme);
+      const aggregates = foldFinalized(finalizedRows, finalizedByes, scheme);
       return activePlayers.map((player) => {
         const aggregate = aggregates.get(player.id);
         return {
@@ -553,17 +680,56 @@ export function podTournamentsRepo(db: Kysely<Database>) {
           score: aggregate?.score ?? 0,
           pods3: aggregate?.pods3 ?? 0,
           pods4: aggregate?.pods4 ?? 0,
+          byes: aggregate?.byes ?? 0,
           opponents: aggregate?.opponents ?? new Map(),
         };
       });
     },
 
-    /** @returns All players as standings rows (score desc, stable by registration order). */
+    /**
+     * Snapshot of EVERY player (active or dropped) for the organizer's open-round
+     * warnings and manual editor, with `opponents` as a plain record so it
+     * serializes over the wire. Dropped players are included because a player
+     * dropped while a round is open still sits in that round's pods.
+     * @returns One serializable snapshot row per player in the tournament.
+     */
+    async loadOpenRoundSnapshot(
+      tournamentId: string,
+      scheme: PodScoringScheme,
+    ): Promise<PodSnapshotPlayer[]> {
+      const [players, finalizedRows, finalizedByes] = await Promise.all([
+        db
+          .selectFrom("podPlayers")
+          .select(["id"])
+          .where("tournamentId", "=", tournamentId)
+          .orderBy("createdAt", "asc")
+          .execute(),
+        loadFinalizedRows(tournamentId),
+        loadFinalizedByePlayerIds(tournamentId),
+      ]);
+      const aggregates = foldFinalized(finalizedRows, finalizedByes, scheme);
+      return players.map((player) => {
+        const aggregate = aggregates.get(player.id);
+        return {
+          playerId: player.id,
+          score: aggregate?.score ?? 0,
+          pods3: aggregate?.pods3 ?? 0,
+          pods4: aggregate?.pods4 ?? 0,
+          byes: aggregate?.byes ?? 0,
+          opponents: aggregate ? Object.fromEntries(aggregate.opponents) : {},
+        };
+      });
+    },
+
+    /**
+     * @returns All players as standings rows, sorted by the document's tie-break
+     *   order: score → pod wins → average opponent score → registration order.
+     */
     async computeStandings(
       tournamentId: string,
       scheme: PodScoringScheme,
     ): Promise<PodStandingRow[]> {
-      const [players, finalizedRows] = await Promise.all([
+      const [players, finalizedRows, finalizedByes] = await Promise.all([
         db
           .selectFrom("podPlayers")
           .selectAll()
@@ -571,10 +737,18 @@ export function podTournamentsRepo(db: Kysely<Database>) {
           .orderBy("createdAt", "asc")
           .execute(),
         loadFinalizedRows(tournamentId),
+        loadFinalizedByePlayerIds(tournamentId),
       ]);
-      const aggregates = foldFinalized(finalizedRows, scheme);
+      const aggregates = foldFinalized(finalizedRows, finalizedByes, scheme);
+      const scoreOf = (id: string): number => aggregates.get(id)?.score ?? 0;
       const rows: PodStandingRow[] = players.map((player) => {
         const aggregate = aggregates.get(player.id);
+        const opponents = aggregate ? [...aggregate.opponents.keys()] : [];
+        const avgOpponentScore =
+          opponents.length === 0
+            ? 0
+            : opponents.reduce((sum, opponentId) => sum + scoreOf(opponentId), 0) /
+              opponents.length;
         return {
           playerId: player.id,
           displayName: player.displayName,
@@ -584,9 +758,17 @@ export function podTournamentsRepo(db: Kysely<Database>) {
           roundsPlayed: aggregate?.roundsPlayed ?? 0,
           pods3Count: aggregate?.pods3 ?? 0,
           pods4Count: aggregate?.pods4 ?? 0,
+          byeCount: aggregate?.byes ?? 0,
+          podWins: aggregate?.podWins ?? 0,
+          avgOpponentScore,
         };
       });
-      return rows.toSorted((a, b) => b.score - a.score);
+      // `players` is already in registration order; toSorted is stable, so a full
+      // tie on the three keys preserves that order (the document's final fallback).
+      return rows.toSorted(
+        (a, b) =>
+          b.score - a.score || b.podWins - a.podWins || b.avgOpponentScore - a.avgOpponentScore,
+      );
     },
 
     /** @returns Every round with its pods and members (placements + derived points + penalty). */
@@ -608,19 +790,33 @@ export function podTournamentsRepo(db: Kysely<Database>) {
         .orderBy("podNumber", "asc")
         .execute();
       const podIds = pods.map((pod) => pod.id);
-      const memberRows =
+      const [memberRows, byeRows] = await Promise.all([
         podIds.length === 0
-          ? []
-          : await db
+          ? Promise.resolve([])
+          : db
               .selectFrom("podMembers as m")
               .innerJoin("podPlayers as pl", "pl.id", "m.playerId")
               .select(["m.podId", "m.playerId", "pl.displayName", "m.placement"])
               .where("m.podId", "in", podIds)
-              .execute();
+              .execute(),
+        db
+          .selectFrom("podByes as b")
+          .innerJoin("podPlayers as pl", "pl.id", "b.playerId")
+          .select(["b.roundId", "b.playerId", "pl.displayName"])
+          .where("b.roundId", "in", roundIds)
+          .execute(),
+      ]);
       const membersByPod = Map.groupBy(memberRows, (row) => row.podId);
+      const byesByRound = Map.groupBy(byeRows, (row) => row.roundId);
       const podsByRound = Map.groupBy(pods, (pod) => pod.roundId);
       return rounds.map((round) =>
-        toRoundResponse(round, podsByRound.get(round.id) ?? [], membersByPod, scheme),
+        toRoundResponse(
+          round,
+          podsByRound.get(round.id) ?? [],
+          membersByPod,
+          byesByRound.get(round.id) ?? [],
+          scheme,
+        ),
       );
     },
   };

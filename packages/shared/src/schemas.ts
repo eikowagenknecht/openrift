@@ -558,9 +558,41 @@ export const createPodTournamentSchema = z.object({
 export const updatePodTournamentSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   status: z.enum(["running", "completed"]).optional(),
+  scoringScheme: z.enum(["standard", "three_pod_reduced"]).optional(),
 });
 
 export const podTournamentIdParamSchema = z.object({ id: z.uuid() });
+
+export const podRoundNumberParamSchema = z.object({
+  id: z.uuid(),
+  roundNumber: z.coerce.number().int().positive(),
+});
+
+/**
+ * Pair the next round. `byes` lists active players the organizer is sitting out
+ * this round (manual byes); the rest are paired. Used to resolve an otherwise
+ * unrepresentable field (1, 2, or 5 active players) or to sit a leaver out.
+ */
+export const generatePodRoundSchema = z.object({
+  byes: z.array(z.uuid()).default([]),
+});
+
+/**
+ * A manual whole-round pairing edit: the new pods plus the players sitting out.
+ * The server validates pod sizes (3 or 4), full coverage of the round's players,
+ * and that byes are active, then recomputes the penalty.
+ */
+export const replacePodPairingSchema = z.object({
+  pods: z
+    .array(
+      z.object({
+        size: z.union([z.literal(3), z.literal(4)]),
+        playerIds: z.array(z.uuid()),
+      }),
+    )
+    .min(0),
+  byes: z.array(z.uuid()),
+});
 
 export const addPodPlayerSchema = z.object({
   displayName: z.string().min(1).max(80),

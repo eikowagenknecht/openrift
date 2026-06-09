@@ -162,6 +162,7 @@ export type {
 } from "./card-trade.js";
 
 export type {
+  PodByeResponse,
   PodMemberResponse,
   PodPenaltyView,
   PodPlayerResponse,
@@ -173,6 +174,7 @@ export type {
   PodRoundResponse,
   PodRoundStatus,
   PodScoringScheme,
+  PodSnapshotPlayer,
   PodStandingRow,
   PodTournamentDetailResponse,
   PodTournamentListResponse,

@@ -43,10 +43,19 @@ export function StandingsTable({ standings }: { standings: PodStandingRow[] }) {
             </div>
             <div className="text-muted-foreground mt-1 flex flex-wrap gap-x-3 text-sm">
               <span>
+                {row.podWins} win{row.podWins === 1 ? "" : "s"}
+              </span>
+              <span>opp {formatScore(row.avgOpponentScore)}</span>
+              <span>
                 {row.roundsPlayed} round{row.roundsPlayed === 1 ? "" : "s"}
               </span>
               <span>{row.pods3Count} in 3-pods</span>
               <span>{row.pods4Count} in 4-pods</span>
+              {row.byeCount > 0 ? (
+                <span>
+                  {row.byeCount} bye{row.byeCount === 1 ? "" : "s"}
+                </span>
+              ) : null}
             </div>
           </li>
         ))}
@@ -60,9 +69,12 @@ export function StandingsTable({ standings }: { standings: PodStandingRow[] }) {
               <TableHead className="w-10">#</TableHead>
               <TableHead>Player</TableHead>
               <TableHead className="text-right">Score</TableHead>
+              <TableHead className="text-right">Wins</TableHead>
+              <TableHead className="text-right">Opp</TableHead>
               <TableHead className="text-right">Rounds</TableHead>
               <TableHead className="text-right">3-pods</TableHead>
               <TableHead className="text-right">4-pods</TableHead>
+              <TableHead className="text-right">Byes</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -78,9 +90,14 @@ export function StandingsTable({ standings }: { standings: PodStandingRow[] }) {
                 <TableCell className="text-right font-semibold tabular-nums">
                   {formatScore(row.score)}
                 </TableCell>
+                <TableCell className="text-right tabular-nums">{row.podWins}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatScore(row.avgOpponentScore)}
+                </TableCell>
                 <TableCell className="text-right tabular-nums">{row.roundsPlayed}</TableCell>
                 <TableCell className="text-right tabular-nums">{row.pods3Count}</TableCell>
                 <TableCell className="text-right tabular-nums">{row.pods4Count}</TableCell>
+                <TableCell className="text-right tabular-nums">{row.byeCount}</TableCell>
               </TableRow>
             ))}
           </TableBody>

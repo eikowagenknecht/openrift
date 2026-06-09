@@ -5,7 +5,7 @@ import { generatePairing, InvalidPlayerCountError } from "./local-search";
 import type { PairingPlayer } from "./types";
 
 function player(id: string, overrides: Partial<PairingPlayer> = {}): PairingPlayer {
-  return { id, score: 0, pods3: 0, pods4: 0, opponents: new Map(), ...overrides };
+  return { id, score: 0, pods3: 0, pods4: 0, byes: 0, opponents: new Map(), ...overrides };
 }
 
 // All player ids across the pairing, for coverage/uniqueness checks.

@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 4FTTTZ21KwKPY9xaesiwJGqmJTFggb6rtBzuAOHOdl2QF8V21INqzEAaPTU4i29
+\restrict 2BTf4U3LH2ZlgsJMC6vsQHMCrqlQsq5aiPKZoO853Y3eW8N7HIip72y9Imydsla
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -295,11 +295,12 @@ CREATE FUNCTION public.set_updated_at() RETURNS trigger
 CREATE FUNCTION public.touch_list_on_entry_change() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
-BEGIN
-  UPDATE lists SET updated_at = now() WHERE id = COALESCE(NEW.list_id, OLD.list_id);
-  RETURN NULL;
-END;
-$$;
+    BEGIN
+      UPDATE lists SET updated_at = now()
+      WHERE id = COALESCE(NEW.list_id, OLD.list_id);
+      RETURN NULL;
+    END;
+    $$;
 
 
 --
@@ -1392,6 +1393,16 @@ CREATE MATERIALIZED VIEW public.mv_latest_printing_prices AS
 
 
 --
+-- Name: pod_byes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pod_byes (
+    round_id uuid NOT NULL,
+    player_id uuid NOT NULL
+);
+
+
+--
 -- Name: pod_members; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2318,6 +2329,14 @@ ALTER TABLE ONLY public.marketplace_products
 
 
 --
+-- Name: pod_byes pod_byes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pod_byes
+    ADD CONSTRAINT pod_byes_pkey PRIMARY KEY (round_id, player_id);
+
+
+--
 -- Name: pod_members pod_members_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2927,6 +2946,13 @@ CREATE UNIQUE INDEX idx_mv_card_aggregates_pk ON public.mv_card_aggregates USING
 --
 
 CREATE UNIQUE INDEX idx_mv_latest_printing_prices_pk ON public.mv_latest_printing_prices USING btree (printing_id, marketplace);
+
+
+--
+-- Name: idx_pod_byes_player; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pod_byes_player ON public.pod_byes USING btree (player_id);
 
 
 --
@@ -4121,6 +4147,22 @@ ALTER TABLE ONLY public.marketplace_product_card_overrides
 
 
 --
+-- Name: pod_byes pod_byes_player_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pod_byes
+    ADD CONSTRAINT pod_byes_player_fkey FOREIGN KEY (player_id) REFERENCES public.pod_players(id) ON DELETE CASCADE;
+
+
+--
+-- Name: pod_byes pod_byes_round_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pod_byes
+    ADD CONSTRAINT pod_byes_round_fkey FOREIGN KEY (round_id) REFERENCES public.pod_rounds(id) ON DELETE CASCADE;
+
+
+--
 -- Name: pod_members pod_members_player_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4284,5 +4326,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 4FTTTZ21KwKPY9xaesiwJGqmJTFggb6rtBzuAOHOdl2QF8V21INqzEAaPTU4i29
+\unrestrict 2BTf4U3LH2ZlgsJMC6vsQHMCrqlQsq5aiPKZoO853Y3eW8N7HIip72y9Imydsla
 

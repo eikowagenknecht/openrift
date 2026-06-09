@@ -19,3 +19,5 @@ export {
   InvalidPlayerCountError,
   makeLocalSearchStrategy,
 } from "./local-search.js";
+export type { PairingWarning } from "./warnings.js";
+export { computePairingWarnings, SPREAD_WARNING_THRESHOLD } from "./warnings.js";

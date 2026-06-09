@@ -92,6 +92,7 @@ import * as m143 from "./143-copy-ownership-from-collection.js";
 import * as m144 from "./144-card-trades.js";
 import * as m145 from "./145-pod-tournaments.js";
 import * as m146 from "./146-touch-list-on-entry-change.js";
+import * as m147 from "./147-pod-byes.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -243,4 +244,5 @@ export const migrations: Record<string, Migration> = {
   "144-card-trades": m144,
   "145-pod-tournaments": m145,
   "146-touch-list-on-entry-change": m146,
+  "147-pod-byes": m147,
 };
