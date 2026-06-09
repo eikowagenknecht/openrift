@@ -98,6 +98,10 @@ function CardShape({
   return (
     <button
       type="button"
+      // Decorative minigame inside an aria-hidden container — clickable via
+      // pointer-events-auto, but kept out of the keyboard tab order so TAB
+      // doesn't stop on the floating background cards.
+      tabIndex={-1}
       className={cn(
         "border-primary/10 hover:border-primary/40 dark:border-primary/15 dark:hover:border-primary/50 pointer-events-auto relative aspect-[5/7] w-14 -translate-x-1/2 -translate-y-1/2 cursor-pointer overflow-hidden rounded-lg border transition-[border-color] duration-300 md:w-16",
         !imageUrl && "bg-background",
