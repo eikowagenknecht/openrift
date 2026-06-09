@@ -3,6 +3,11 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/inter/wght-italic.css";
+@import "@fontsource-variable/roboto-condensed";
+@import "@fontsource-variable/roboto-condensed/wght-italic.css";
+@import "@fontsource/kanit/600.css";
+@import "@fontsource/kanit/400-italic.css";
+@import "@fontsource/roboto/600.css";
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
@@ -227,6 +232,16 @@ html.hide-scrollbar::-webkit-scrollbar {
 
 @theme inline {
   --font-sans: "Inter Variable", sans-serif;
+  /* Used on the placeholder/designer card face so generated cards read like
+   * printed Riftbound cards. The title opts out to --font-display and the
+   * energy/might numbers to --font-numeric. See card-placeholder-image.tsx. */
+  --font-card: "Roboto Condensed Variable", sans-serif;
+  /* The title (card name) on the placeholder/designer card face. Kanit 600 is
+   * a stand-in for Arpona Bold, the licensed Riftbound display face we can't
+   * redistribute. See card-placeholder-image.tsx. */
+  --font-display: "Kanit", sans-serif;
+  /* Energy and might stat numbers on the placeholder/designer card face. */
+  --font-numeric: "Roboto", sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

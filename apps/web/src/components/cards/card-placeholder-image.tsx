@@ -115,7 +115,7 @@ export function CardPlaceholderImage({
   return (
     <div
       className={cn(
-        "aspect-card @container relative overflow-hidden rounded-lg bg-neutral-800",
+        "aspect-card font-card @container relative overflow-hidden rounded-lg bg-neutral-800",
         className,
       )}
       role="img"
@@ -163,7 +163,7 @@ export function CardPlaceholderImage({
       <div className="absolute top-[4.7%] left-[5.5%] flex flex-col items-start gap-[1cqw]">
         {energy !== null && (
           <div
-            className="flex size-[11.7cqw] items-center justify-center rounded-full bg-white/70 text-[8cqw] font-extrabold text-black ring-1 ring-black/70"
+            className="font-numeric flex size-[11.7cqw] items-center justify-center rounded-full bg-white/70 text-[8cqw] font-semibold text-black ring-1 ring-black/70"
             aria-label={`Energy: ${energy}`}
           >
             {energy}
@@ -200,7 +200,7 @@ export function CardPlaceholderImage({
 
       {might !== null && might !== undefined && (
         <div
-          className="absolute top-[5.5%] right-[7.5%] flex h-[9cqw] items-stretch overflow-hidden text-[7cqw] font-extrabold"
+          className="font-numeric absolute top-[5.5%] right-[7.5%] flex h-[9cqw] items-stretch overflow-hidden text-[7cqw] font-semibold"
           style={{ clipPath: "polygon(0 0, 100% 0, 100% 100%, 13% 100%)" }}
           aria-label={`Might: ${might}`}
         >
@@ -245,12 +245,12 @@ export function CardPlaceholderImage({
 
       {/* Card name bar */}
       <div
-        className="absolute inset-x-0 top-[55.25%] flex h-[12cqw] w-full items-center px-[10cqw]"
+        className="font-display absolute inset-x-0 top-[55.25%] flex h-[12cqw] w-full items-center px-[10cqw]"
         style={bgStyle}
       >
         {name.includes(",") ? (
           <span className="flex flex-col tracking-wide text-white">
-            <span className="-mt-[0.5cqw] text-[5cqw] font-extrabold">
+            <span className="-mt-[0.5cqw] text-[5cqw] font-semibold">
               {name.slice(0, name.indexOf(","))}
             </span>
             <span className="-mt-[2cqw] text-[3cqw] uppercase italic">
@@ -258,7 +258,7 @@ export function CardPlaceholderImage({
             </span>
           </span>
         ) : (
-          <span className="text-[5cqw] font-extrabold tracking-wide text-white">{name}</span>
+          <span className="text-[5cqw] font-semibold tracking-wide text-white">{name}</span>
         )}
       </div>
 
