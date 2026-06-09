@@ -547,3 +547,47 @@ export const updatePreferencesSchema = z.object({
     .nullable()
     .optional(),
 });
+
+// ─── Pod tournaments (ADR-022) ───────────────────────────────────────────────
+// Tournaments are identified by their uuidv7 `id`; there are no user-defined slugs.
+
+export const createPodTournamentSchema = z.object({
+  name: z.string().min(1).max(120),
+});
+
+export const updatePodTournamentSchema = z.object({
+  name: z.string().min(1).max(120).optional(),
+  status: z.enum(["running", "completed"]).optional(),
+});
+
+export const podTournamentIdParamSchema = z.object({ id: z.uuid() });
+
+export const addPodPlayerSchema = z.object({
+  displayName: z.string().min(1).max(80),
+});
+
+export const updatePodPlayerSchema = z.object({
+  displayName: z.string().min(1).max(80),
+});
+
+/**
+ * One pod's result: a placement per member. Each `placement` is a 1-based slot
+ * within the pod size (ties share a value); points are derived by the server, so
+ * they are never sent. The server validates the player set and the 1..podSize
+ * range against the pod.
+ */
+export const podResultSchema = z.object({
+  placements: z
+    .array(
+      z.object({
+        playerId: z.uuid(),
+        placement: z.number().int().min(1).max(4),
+      }),
+    )
+    .min(3)
+    .max(4),
+});
+
+export const podReportTokenParamSchema = z.object({
+  token: z.string().min(1).max(64),
+});

@@ -118,6 +118,11 @@ export const queryKeys = {
     sharedCollection: (userId: string, slug: string, collectionId: string) =>
       ["friend-groups", userId, slug, "collections", collectionId] as const,
   },
+  podTournaments: {
+    all: (userId: string) => ["pod-tournaments", userId] as const,
+    detail: (userId: string, id: string) => ["pod-tournaments", userId, id] as const,
+    report: (token: string) => ["pod-tournaments", "report", token] as const,
+  },
   trades: {
     // Broad prefix mutations invalidate to refresh any open tab and the badge
     // counts (invalidation is prefix-based, so this also clears byGroup/actionCounts).

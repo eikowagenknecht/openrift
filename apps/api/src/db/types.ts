@@ -32,6 +32,12 @@ export type {
   FriendGroupMembersTable,
   FriendGroupRole,
   FriendGroupsTable,
+  // Pod tournaments (migration 145, ADR-022)
+  PodTournamentsTable,
+  PodPlayersTable,
+  PodRoundsTable,
+  PodsTable,
+  PodMembersTable,
   // Card trades (migration 143, ADR-019)
   CardTradesTable,
   UserPreferencesTable,

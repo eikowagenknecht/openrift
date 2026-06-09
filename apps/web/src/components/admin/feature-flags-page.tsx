@@ -62,6 +62,10 @@ const KNOWN_FLAGS: KnownFlag[] = [
     key: "help-how-to-play",
     description: "Show the How to Play Riftbound help article",
   },
+  {
+    key: "pod-tournaments",
+    description: "Show the FFA pod-tournament runner (header link + /tournaments/run)",
+  },
 ];
 
 function FlagKeyCell({ row }: AdminCellSlotProps<FeatureFlagResponse>) {

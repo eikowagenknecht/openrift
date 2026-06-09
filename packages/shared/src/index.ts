@@ -165,6 +165,23 @@ export type {
   CardTradeRole,
   CardTradeStatus,
   CardTradeActionCountsResponse,
+  PodMemberResponse,
+  PodPenaltyView,
+  PodPlayerResponse,
+  PodPlayerStatus,
+  PodReportResponse,
+  PodReportTokenResponse,
+  PodResponse,
+  PodResultStatus,
+  PodRoundResponse,
+  PodRoundStatus,
+  PodScoringScheme,
+  PodStandingRow,
+  PodTournamentDetailResponse,
+  PodTournamentListResponse,
+  PodTournamentResponse,
+  PodTournamentStatus,
+  PodTournamentSummaryResponse,
   FriendGroupMemberDetailResponse,
   FriendGroupMemberResponse,
   FriendGroupPendingInviteResponse,
@@ -287,3 +304,28 @@ export { validateDeck } from "./deck-rules.js";
 export { compareRuleNumbers } from "./rules.js";
 
 export { hostSlugFromUrl } from "./host-slug.js";
+
+export type {
+  LocalSearchBudget,
+  PairingConfig,
+  PairingPlayer,
+  PairingResult,
+  PairingStrategy,
+  PairingStrategyName,
+  Pod,
+  PodPenaltyBreakdown,
+  PodSizes,
+  ScoringScheme,
+} from "./pairing/index.js";
+export {
+  DEFAULT_LOCAL_SEARCH_BUDGET,
+  DEFAULT_PAIRING_CONFIG,
+  determinePodSizes,
+  evaluatePairing,
+  evaluatePod,
+  generatePairing,
+  InvalidPlayerCountError,
+  makeLocalSearchStrategy,
+  pointsForPlacements,
+  suggestedRoundCount,
+} from "./pairing/index.js";

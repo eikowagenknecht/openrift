@@ -29,6 +29,7 @@ import { copiesRoute } from "./routes/authenticated/copies.js";
 import { decksRoute } from "./routes/authenticated/decks.js";
 import { friendGroupsRoute } from "./routes/authenticated/friend-groups.js";
 import { listsRoute } from "./routes/authenticated/lists.js";
+import { podTournamentsRoute } from "./routes/authenticated/pod-tournaments.js";
 import { preferencesRoute } from "./routes/authenticated/preferences.js";
 import { userShareRoute } from "./routes/authenticated/user-share.js";
 import { cardsRoute } from "./routes/public/cards.js";
@@ -40,6 +41,7 @@ import { healthRoute } from "./routes/public/health.js";
 import { initRoute } from "./routes/public/init.js";
 import { landingSummaryRoute } from "./routes/public/landing-summary.js";
 import { publicListsRoute } from "./routes/public/lists.js";
+import { publicPodTournamentsRoute } from "./routes/public/pod-tournaments.js";
 import { pricesRoute } from "./routes/public/prices.js";
 import { promosRoute } from "./routes/public/promos.js";
 import { rulesRoute } from "./routes/public/rules.js";
@@ -416,6 +418,7 @@ export function createApp(deps: AppDeps) {
       .route("/api/v1", publicCollectionsRoute)
       .route("/api/v1", publicListsRoute)
       .route("/api/v1", publicUserShareRoute)
+      .route("/api/v1", publicPodTournamentsRoute)
       .route("/api/v1", sentryTunnelRoute)
 
       // ── Authenticated routes (require a valid session) ──────────────────
@@ -429,6 +432,7 @@ export function createApp(deps: AppDeps) {
       .route("/api/v1", listsRoute)
       .route("/api/v1", friendGroupsRoute)
       .route("/api/v1", cardTradesRoute)
+      .route("/api/v1", podTournamentsRoute)
 
       // ── Admin routes (require admin role) ────────────────────────────────
       // mounted under /api/admin/v1 (not /api/v1/admin) so admin churn is

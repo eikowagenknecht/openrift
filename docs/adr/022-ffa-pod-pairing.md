@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-06-08
 ---
 
@@ -52,7 +52,7 @@ The closest precedent in the repo is **ADR-021 (Match Tracker)**, a game-time sc
 
 ## Decision Outcome
 
-Chosen: **a server-backed pod-tournament runner under a shared `/tournaments` hub (the runner at `/tournaments/run`), owned by an OpenRift account, with free-text players, a pure local-search pairing engine in `packages/shared` behind a strategy interface, an `apps/api` service plus repository that loads state, runs the engine, and persists each round in a transaction, and a token-gated participant surface (read-only follow-along plus result entry for any pod in the open round). The organizer finalizes each round, which is the primary transactional point where scores, opponent history, and pod-size tallies update (the only other writer is the recompute that backs result edits).**
+Chosen: **a server-backed pod-tournament runner under a shared `/tournaments` hub (the runner at `/tournaments/run`), owned by an OpenRift account, with free-text players, a pure local-search pairing engine in `packages/shared` behind a strategy interface, an `apps/api` service plus repository that loads state, runs the engine, and persists each round in a transaction, and a token-gated participant surface (read-only follow-along plus result entry for any pod in the open round). The organizer finalizes each round, which is the gate that turns drafts into counted results; standings, opponent history, and pod-size tallies are derived on read from the finalized rounds (the lean model — see "Data model"), so finalize is just a status flip and there is no denormalized state to keep in sync.**
 
 ### v1 scope (lean core plus the report link)
 
@@ -66,7 +66,7 @@ In:
 - Enter results with a 1..N placement selector per player (ties allowed); points derived from placement.
 - Token follow-along link: participants report a pod's result (any pod in the open round, trust-on-link) and view read-only standings and current / historical pairings.
 - Organizer finalizes a round: scores, opponent history, and three/four-pod tallies commit transactionally.
-- Edit any finalized round's results (standings rebuild via `recomputeAggregates`); re-roll an open round before results are entered; add players or drop players mid-tournament (drops apply from the next round).
+- Edit any finalized round's results (standings re-derive on read); re-roll an open round before results are entered; add players or drop players mid-tournament (drops apply from the next round).
 - Standings table sorted by score.
 - Organizer display per pod and per round (scores, three-pod counts, rematches, score spread, penalty).
 - Equal-priority responsive UI (desktop and mobile both first-class). The tournament page is tabbed (Pairings / Standings / Players / Settings), reusing the Friend Groups `?tab=` pattern.
@@ -91,7 +91,7 @@ Deferred (each is additive and the schema leaves room):
 - Good, because the anonymous-report link lets the table enter its own results without anyone else needing an account.
 - Bad, because local search does not _prove_ it found the best pairing; it returns the best of its restarts. Mitigated because the penalty landscape is easy (rematches dominate), so a few dozen restarts reach the optimum or something indistinguishable for these field sizes, and the work is bounded to milliseconds regardless of size.
 - Bad, because anonymous writes are trust-on-link: anyone with the token can overwrite a pending pod result. Mitigated because results are drafts until the organizer finalizes the round, so a wrong number is visible and correctable before it counts, and the token is rotatable / disable-able.
-- Neutral, because denormalizing player aggregates (score, pod tallies) onto `pod_players` duplicates what the result rows already imply. Accepted: it makes the engine's input a flat snapshot and the finalize transaction the single writer; a recompute helper keeps it honest.
+- Good, because the lean model stores no denormalized player aggregates and no opponent table: standings, pod tallies, rounds played, and opponent counts are derived on read from the finalized rounds (the result rows are the single source of truth). At tournament scale that read is sub-millisecond, so the drift surface and the `recomputeAggregates` machinery the first draft needed are gone, finalize is a status flip, and editing a finalized result is a single-row write that re-derives automatically.
 
 ## Design Decisions
 
@@ -108,11 +108,11 @@ This runner and ADR-014 (the Tournament Decks Archive) both belong under one **`
 /tournaments/$slug/$shareToken an archived deck
 ── runner (this ADR) ──
 /tournaments/run               your tournaments + "Create"            (authenticated)
-/tournaments/run/$slug         a tournament you manage (tabbed)       (authenticated, owner only)
+/tournaments/run/$id           a tournament you manage (tabbed)       (authenticated, owner only)
 /tournaments/run/report/$token participant follow-along + result entry (public, noIndex)
 ```
 
-The only collision risk (an archived event's `$slug` versus the runner) is removed by putting the entire runner under the reserved `/tournaments/run/` segment, so the archive's slug space and the runner's slug space never meet. Within the runner, a small reserved set (`new`, `report`) keeps `/tournaments/run/$slug` clear of its own sub-routes. Each tournament carries a nullable `report_token` (12-char base62 from `generateShareToken()`), enabled / rotated / disabled by the owner exactly like a friend group's `code`; the token authorizes the participant surface.
+The only collision risk (an archived event's `$slug` versus the runner) is removed by putting the entire runner under the reserved `/tournaments/run/` segment, so the archive's slug space and the runner never meet. **The runner does not use user-defined slugs at all: a tournament is identified by its `uuidv7` id** (decided during implementation; simpler than a slug, and no collisions or reserved words to police). A uuid id never collides with the `report` sub-route. Each tournament carries a nullable `report_token` (12-char base62 from `generateShareToken()`), enabled / rotated / disabled by the owner exactly like a friend group's `code`; the token authorizes the participant surface.
 
 Table names keep the `pod_` prefix (`pod_tournaments`, etc.) precisely so they never collide with ADR-014's `tournaments` / `tournaments_decks`. The web URL says `tournaments/run`; the tables say `pod_`; that mismatch is intentional and harmless.
 
@@ -245,15 +245,13 @@ Placements are read by **order, not by the literal number entered**: group playe
 
 ### Data model
 
-Six tables, all under one migration `145-pod-tournaments.ts` (registered in `apps/api/src/db/migrations/index.ts`). `uuidv7()` PKs and `timestamptz` defaults follow the house convention.
+**Lean model (decided during implementation, deviating from this ADR's first draft).** Five tables, all under one migration `145-pod-tournaments.ts` (registered in `apps/api/src/db/migrations/index.ts`). `uuidv7()` PKs and `timestamptz` defaults follow the house convention. A tournament is tiny (tens of players, single-digit rounds, a few hundred result rows), so the player aggregates and the opponent history are **not stored** — they are derived on read from the finalized rounds, with `pod_members.placement` as the single source of truth. The only stored derived values are the engine's write-once penalty outputs (`pod_rounds.penalty_total`, `pods.penalty_breakdown`), which a randomized search cannot reproduce. Compared with the original six-table draft this drops the `pod_opponents` table and the `pod_players` aggregate columns (`current_score`, `pods3_count`, `pods4_count`, `rounds_played`), drops `pod_members.points_awarded` and `game_points`, removes the `recomputeAggregates` machinery, and reduces finalize to a status flip. Penalties use `double precision` so postgres.js returns a JS number (a `numeric` comes back as a string under Bun).
 
 ```sql
 -- The event. Owner is an OpenRift account; players are not.
 CREATE TABLE pod_tournaments (
-  id             uuid PRIMARY KEY DEFAULT uuidv7(),
+  id             uuid PRIMARY KEY DEFAULT uuidv7(),   -- the public identifier (no slug)
   owner_user_id  text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  slug           text NOT NULL UNIQUE
-                   CHECK (slug ~ '^[a-z0-9][a-z0-9-]{2,49}$'),
   name           text NOT NULL CHECK (length(name) BETWEEN 1 AND 120),
   status         text NOT NULL DEFAULT 'setup'
                    CHECK (status IN ('setup', 'running', 'completed')),
@@ -268,8 +266,8 @@ CREATE INDEX idx_pod_tournaments_owner ON pod_tournaments (owner_user_id);
 CREATE UNIQUE INDEX uq_pod_tournaments_report_token
   ON pod_tournaments (report_token) WHERE report_token IS NOT NULL;
 
--- Free-text participants. Scalar aggregates are denormalized and written
--- only by the finalize transaction.
+-- Free-text participants. No stored aggregates — score, pod tallies, rounds
+-- played, and opponent counts are derived on read from the finalized rounds.
 CREATE TABLE pod_players (
   id             uuid PRIMARY KEY DEFAULT uuidv7(),
   tournament_id  uuid NOT NULL REFERENCES pod_tournaments(id) ON DELETE CASCADE,
@@ -277,24 +275,10 @@ CREATE TABLE pod_players (
   status         text NOT NULL DEFAULT 'active'
                    CHECK (status IN ('active', 'dropped')),
   dropped_after_round integer,
-  current_score  numeric NOT NULL DEFAULT 0,
-  pods3_count    integer NOT NULL DEFAULT 0,
-  pods4_count    integer NOT NULL DEFAULT 0,
-  rounds_played  integer NOT NULL DEFAULT 0,
   created_at     timestamptz NOT NULL DEFAULT now(),
   updated_at     timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_pod_players_tournament ON pod_players (tournament_id);
-
--- Opponent history with counts, mirrored both directions for single-scan reads.
-CREATE TABLE pod_opponents (
-  tournament_id  uuid NOT NULL REFERENCES pod_tournaments(id) ON DELETE CASCADE,
-  player_id      uuid NOT NULL REFERENCES pod_players(id) ON DELETE CASCADE,
-  opponent_id    uuid NOT NULL REFERENCES pod_players(id) ON DELETE CASCADE,
-  meetings       integer NOT NULL DEFAULT 0,
-  PRIMARY KEY (player_id, opponent_id)
-);
-CREATE INDEX idx_pod_opponents_tournament ON pod_opponents (tournament_id);
 
 CREATE TABLE pod_rounds (
   id             uuid PRIMARY KEY DEFAULT uuidv7(),
@@ -302,32 +286,32 @@ CREATE TABLE pod_rounds (
   round_number   integer NOT NULL CHECK (round_number > 0),
   status         text NOT NULL DEFAULT 'reporting'
                    CHECK (status IN ('reporting', 'finalized')),
-  penalty_total  numeric,
-  pairing_strategy text,          -- which engine produced it, e.g. 'local-search'
+  penalty_total  double precision NOT NULL,   -- engine output (write-once)
+  pairing_strategy text NOT NULL,             -- 'random' (round 1) or 'local-search'
   created_at     timestamptz NOT NULL DEFAULT now(),
   finalized_at   timestamptz,
   UNIQUE (tournament_id, round_number)
 );
+CREATE INDEX idx_pod_rounds_tournament ON pod_rounds (tournament_id);
 
 CREATE TABLE pods (
   id             uuid PRIMARY KEY DEFAULT uuidv7(),
   round_id       uuid NOT NULL REFERENCES pod_rounds(id) ON DELETE CASCADE,
   pod_number     integer NOT NULL CHECK (pod_number > 0),
   size           integer NOT NULL CHECK (size IN (3, 4)),
-  penalty        numeric,
+  penalty_breakdown jsonb NOT NULL,   -- the engine's PodPenaltyBreakdown (write-once)
   result_status  text NOT NULL DEFAULT 'pending'
                    CHECK (result_status IN ('pending', 'reported')),
   UNIQUE (round_id, pod_number)
 );
 CREATE INDEX idx_pods_round ON pods (round_id);
 
--- Membership plus that player's result in that pod.
+-- Membership plus that player's result in that pod. `placement` is the only
+-- stored result fact; points are derived from it on read.
 CREATE TABLE pod_members (
   pod_id         uuid NOT NULL REFERENCES pods(id) ON DELETE CASCADE,
   player_id      uuid NOT NULL REFERENCES pod_players(id) ON DELETE CASCADE,
-  placement      integer,        -- 1-based, ties share a value, null until reported
-  points_awarded numeric,        -- derived from placement at report time
-  game_points    integer,        -- optional in-game points
+  placement      integer CHECK (placement IS NULL OR (placement >= 1 AND placement <= 4)),
   PRIMARY KEY (pod_id, player_id)
 );
 CREATE INDEX idx_pod_members_player ON pod_members (player_id);
@@ -337,23 +321,23 @@ After applying it, regenerate `docs/schema.sql` (`pg_dump --schema-only`) in the
 
 ### Round lifecycle and the finalize transaction
 
-1. **Pair a round (owner).** `POST /api/v1/pod-tournaments/:slug/rounds` loads the active players and their aggregates plus opponent maps via the repo, calls `generatePairing`, and in one transaction inserts the `pod_rounds` row (`status='reporting'`), its `pods`, and `pod_members` (no results yet). It stores the round and per-pod penalties for the organizer display.
-2. **Report results.** The owner (cookie auth) or an anonymous participant (report token) sets `pod_members.placement` and the derived `points_awarded` for a pod; the pod flips to `result_status='reported'`. These are drafts; nothing touches player aggregates yet.
-3. **Finalize the round (owner).** `POST /api/v1/pod-tournaments/:slug/rounds/:n/finalize` validates that every pod has a complete result, then in a single Kysely transaction: adds each player's `points_awarded` to `current_score`, increments `rounds_played` and the matching `pods3_count` / `pods4_count`, mirrors `+1` meetings into `pod_opponents` for every in-pod pair (both directions), sets the round `finalized`, and advances `current_round`. A `recomputeAggregates(tournamentId)` repo helper can rebuild all denormalized fields from the finalized rounds if they ever drift.
+1. **Pair a round (owner).** `POST /api/v1/pod-tournaments/:id/rounds` derives the active players' snapshot (score, pod tallies, opponent maps) from the finalized rounds via the repo, calls `generatePairing`, and in one transaction inserts the `pod_rounds` row (`status='reporting'`), its `pods` (each with its stored `penalty_breakdown`), and `pod_members` (no placements yet). It stores the round and per-pod penalties for the organizer display.
+2. **Report results.** The owner (cookie auth) or an anonymous participant (report token) sets `pod_members.placement` for a pod; the pod flips to `result_status='reported'`. These are drafts; standings ignore non-finalized rounds, so nothing counts yet. Points are never stored — they are derived from the placements on read.
+3. **Finalize the round (owner).** `POST /api/v1/pod-tournaments/:id/rounds/:n/finalize` validates that every pod has a complete result, then in a single transaction flips the round to `finalized` and advances `current_round`. That is the whole transaction: there are no aggregates to write. Standings, pod tallies, and opponent history re-derive from the now-finalized rows on the next read.
 
-Finalize is the normal incremental writer of player aggregates; the only other writer is `recomputeAggregates` (the full rebuild used by edits, below). Both keep the engine's read snapshot consistent with what has been committed.
+Because nothing is denormalized, there is no `recomputeAggregates` helper and no drift surface: the result rows are the source of truth and every read re-folds them through the pure scorer.
 
 ### Lifecycle, edits, drops, and late entry
 
-**Tournament status.** `setup` until the first round is paired, then `running`. An explicit "End tournament" moves it to `completed` (read-only; reopenable to `running` if the organizer ended it early). Status gates which controls show; it does not change pairing logic.
+**Tournament status.** `setup` until the first round is paired, then `running`. There is no automatic end: the organizer decides when to stop. As guidance, the Pairings tab shows the Swiss-convention suggested round count (`suggestedRoundCount = ceil(log2(active players))`, a pure helper in the engine) and nudges toward ending once that many rounds are finalized, but never forces it. An explicit "End tournament" moves it to `completed`, which is enforced read-only (no new rounds, no result edits, no roster changes); Settings stays available to reopen to `running`, rename, manage the report link, or delete. Status gates which controls show; it does not change pairing logic.
 
 **One open round at a time.** Pairing is rejected while a non-finalized round exists. Before any result is entered the organizer can **re-roll** an open round (delete and regenerate); the regenerated round keeps the same `round_number`. This is how an organizer who dislikes a draw gets another one without a manual edit.
 
-**Editing a finalized round (any round).** Finalized results stay editable on every round. Editing a `pod_members.placement` re-derives that pod's `points_awarded`, then runs `recomputeAggregates(tournamentId)`, which resets every player's score, pod tallies, `rounds_played`, and `pod_opponents` and replays all finalized rounds from zero. There is no bespoke reverse transaction: the result rows are the source of truth and recompute re-sums them. Worked case: correcting a 1st/2nd swap in round 1 recomputes both rounds and lands the corrected totals. The one limitation the UI must state plainly: editing an **earlier** round does not redraw the pods later rounds already played (recompute fixes scores, not games that were physically played). For the latest round there is no later round, so no drift. `recomputeAggregates` is therefore not just an integrity backstop, it is the mechanism behind every edit.
+**Editing a finalized round (any round).** Finalized results stay editable on every round. Editing a `pod_members.placement` just writes the new value (the owner result endpoint allows finalized rounds; the participant link does not). There is nothing else to do: the next standings read re-folds the placements through the pure scorer, so the corrected totals appear automatically. Worked case: correcting a 1st/2nd swap in round 1 immediately re-derives both players' scores. The one limitation the UI states plainly: editing an **earlier** round fixes scores but does not redraw the pods later rounds already used (we fix scores, not games that were physically played). For the latest round there is no later round, so no caveat.
 
 **Drops take effect from the next round.** Dropping a player sets `status='dropped'` and `dropped_after_round = current_round`. If they are already in a paired-but-unfinalized pod, they stay in it for that round's result (the organizer records a placement at their discretion, for example last place); the drop only removes them from the next pairing. No short-pod surgery, no re-pair. Dropped players remain in standings, marked.
 
-**Late registration.** The organizer can add a player at any point. A late joiner starts at `current_score = 0` with no opponent history and zero pod tallies, and is paired from the next round; their `rounds_played` trails the field. No catch-up score or bye in v1.
+**Late registration.** The organizer can add a player at any point. A late joiner has no finalized results, so they derive to score 0 with no opponent history and zero pod tallies, and are paired from the next round; their rounds-played trails the field. No catch-up score or bye in v1.
 
 **Report-link scope.** The single `report_token` authorizes submitting **any** pod's result in the open round, not one specific pod. This is deliberate trust-on-link for a link shared at the table; finalize-gated commit and a rotatable token bound the risk. Per-pod codes are a deferred tightening.
 
@@ -365,28 +349,28 @@ Finalize is the normal incremental writer of player aggregates; the only other w
 
 ### Participant link: follow-along reads and one write
 
-The `report_token` grants a read-only follow-along of the whole tournament plus exactly one write: submitting a pod's result while its round is `reporting`. A small `requireReportToken` guard (parallel to `requireAuth`) resolves the token to a tournament and rejects a missing / disabled token. Endpoints (under the API prefix `/api/v1/pod-tournaments`, kept distinct from ADR-014's `/api/v1/tournaments`):
+The `report_token` grants a read-only follow-along of the whole tournament plus exactly one write: submitting a pod's result while its round is `reporting`. The public `report` sub-router resolves the token to a tournament in-handler (`findByReportToken` + `assertFound`, the established public-route pattern; a disabled / rotated token simply fails the lookup with 404) rather than via a dedicated middleware. Endpoints (under the API prefix `/api/v1/pod-tournaments`, kept distinct from ADR-014's `/api/v1/tournaments`):
 
 - `GET /api/v1/pod-tournaments/report/:token` — the follow-along payload: tournament name and status, standings, and every round's pairings, plus which pods in the current `reporting` round are still open. Read-only. Nothing here is private beyond what the table already sees (names, scores, placements).
-- `PUT /api/v1/pod-tournaments/report/:token/pods/:podId/result` — submit one pod's placements (and optional game points); the server derives `points_awarded`. Allowed only while that pod's round is `reporting`; rejected once the round is `finalized`. Overwrites any pending result for that pod.
+- `PUT /api/v1/pod-tournaments/report/:token/pods/:podId/result` — submit one pod's placements; points are derived from them on read, never stored. Allowed only while that pod's round is `reporting`; rejected once the round is `finalized`. Overwrites any pending result for that pod.
 
 The token authorizes submitting _any_ pod's result in the open round, not one specific pod (trust-on-link). The accepted risk (a link holder can scribble a pending result for any pod) is bounded by finalize-gated commit (drafts do not touch standings until the owner finalizes) and a rotatable / disable-able token. Read-only follow-along plus that single write are the whole of what the token allows.
 
 ### Repository, service, and API wiring
 
-- **Repository** `apps/api/src/repositories/pod-tournaments.ts`: a `podTournamentsRepo(db)` factory returning namespaced methods (tournaments, players, rounds, pods, opponents, the finalize transaction, standings, `recomputeAggregates`), registered on the Hono context in `apps/api/src/deps.ts` and reached via `c.get("repos").podTournaments`. All DB access goes through it (no raw Kysely in routes), per docs/contributing.md.
+- **Repository** `apps/api/src/repositories/pod-tournaments.ts`: a `podTournamentsRepo(db)` factory returning namespaced methods (tournaments, players, rounds, pods, the finalize status-flip, and the derive-on-read folds `loadPairingSnapshot` / `computeStandings` / `loadRounds` that build the engine snapshot, standings, and round views from the finalized rows), registered on the Hono context in `apps/api/src/deps.ts` and reached via `c.get("repos").podTournaments`. All DB access goes through it (no raw Kysely in routes), per docs/contributing.md.
 - **Service** `apps/api/src/services/pod-pairing.ts`: loads the snapshot from the repo, calls the pure `generatePairing`, hands the result back to the repo to persist. Keeps the engine pure and the DB I/O in one place.
-- **Routes** mounted at `/api/v1/pod-tournaments` (distinct from ADR-014's `/api/v1/tournaments`): `apps/api/src/routes/authenticated/pod-tournaments.ts` for the owner endpoints (cookie auth, owner checks like Friend Groups' `requireRole`), plus a small unauthenticated `report` sub-router gated by `requireReportToken`. Bodies validated by zod schemas from `@openrift/shared`.
+- **Routes** mounted at `/api/v1/pod-tournaments` (distinct from ADR-014's `/api/v1/tournaments`): `apps/api/src/routes/authenticated/pod-tournaments.ts` for the owner endpoints (cookie auth, owner checks like Friend Groups' `requireRole`), plus a small unauthenticated `report` sub-router (`apps/api/src/routes/public/pod-tournaments.ts`) that resolves the token in-handler. Bodies validated by zod schemas from `@openrift/shared`.
 
 ### Shared types and schemas
 
-Response interfaces in `packages/shared/src/types/api/pod-tournament.ts`, zod request schemas in `packages/shared/src/schemas.ts` (with the reserved-slug refine and the response mirror in `response-schemas.ts`), consumed by both api and web. The pure engine lives alongside under `packages/shared/src/pairing/` and is exported for the api service (and, later, a web-side manual-edit preview).
+Response interfaces in `packages/shared/src/types/api/pod-tournament.ts`, zod request schemas in `packages/shared/src/schemas.ts` (create takes only a `name`; the id-param schema is `{ id: z.uuid() }`; the response mirror is in `response-schemas.ts`), consumed by both api and web. The pure engine lives alongside under `packages/shared/src/pairing/` and is exported for the api service (and, later, a web-side manual-edit preview).
 
 ### User experience surfaces
 
 Both the organizer dashboard and the participant link are **equally first-class on desktop and mobile** (no primary form factor): a desktop organizer sees the round's pods in a grid with standings alongside; the same screen collapses to a single column with big tap targets on a phone, and the participant link is phone-shaped by default. The Friend Groups data layer is reused verbatim: `createServerFn` wrappers in `apps/web/src/hooks/use-pod-tournaments.ts`, suspense queries with centralized query keys, mutations with cache invalidation. React Compiler, BaseUI / shadcn (`base-nova`), the typography scale, `cn()`, and lucide `*Icon` imports apply as everywhere. Any `<Select.Root>` is passed `items` (docs/contributing.md).
 
-**Organizer dashboard.** `/tournaments/run` lists the user's tournaments with a "Create" CTA. `/tournaments/run/$slug` is the tournament, a **tabbed page** synced to `?tab=`, the exact pattern `groups/$slug` already uses:
+**Organizer dashboard.** `/tournaments/run` lists the user's tournaments with a "Create" CTA. `/tournaments/run/$id` is the tournament, a **tabbed page where each tab is its own route** (`/$id`, `/$id/standings`, `/$id/players`, `/$id/settings`), mirroring the route-based tabs `groups/$slug` now uses (a shared `TournamentPageFrame` shell renders the header + tab nav, each tab route supplies the content):
 
 - **Pairings** (default): the current round's pods. Each pod card shows its players with their current score and prior three-pod count, the in-pod rematch count, the pod's score spread, and the pod's penalty; the round header shows total penalty, total rematches, count of players in three-player pods, and the largest pod spread. All of this is read straight from `evaluatePairing`'s stored breakdown, not recomputed. Controls: "Generate round" (when none is open), per-pod result entry, and "Finalize round" (enabled once every pod is reported).
 - **Standings**: players sorted by score (v1 has no further tie-breaker), each row showing score, rounds played, and three/four-pod tallies.
@@ -401,7 +385,7 @@ Both the organizer dashboard and the participant link are **equally first-class 
 - **Standings**: read-only leaderboard between rounds.
 - **Report**: pick a pod in the current reporting round (the token opens any pod, trust-on-link) and enter its placements with the same selector. This is the only write the token allows, and only while the round is `reporting`. The fairness internals (penalties, rematch counts) are not shown here.
 
-**Navigation.** A single **"Tournaments"** entry in the header **"More"** menu (desktop dropdown and mobile sheet) points at the shared `/tournaments` hub; the hub offers "Browse decks & meta" (the ADR-014 archive) and "Run a tournament" (this runner, behind a sign-in for the management pages). There is no "Tools" menu in OpenRift; the earlier draft of this ADR was wrong about that.
+**Navigation.** A single **"Tournaments"** entry in the header **"More"** menu (desktop dropdown and mobile sheet) points at the runner. ADR-014's archive is not built yet, so the shared `/tournaments` hub described above does not exist; the entry links **directly to `/tournaments/run`** and the runner still lives under the reserved `/run` segment so the future hub can slot in without a slug collision. The entry is gated behind the `pod-tournaments` feature flag (`useFeatureEnabled`). There is no "Tools" menu in OpenRift.
 
 ## Confirmation
 
@@ -414,18 +398,18 @@ Pure-engine unit tests (`packages/shared/src/pairing/*.test.ts`), no database:
 
 Repository integration tests (`*.integration.test.ts`, temporary DB via `setupTestDb()`, run from main):
 
-- Create tournament, add players, pair round 1, report all pods, finalize: scores, `rounds_played`, `pods3_count` / `pods4_count`, and `pod_opponents` meetings update exactly once.
+- Create tournament, add players, pair round 1, report all pods, finalize: the derived standings (score, rounds played, 3/4-pod tallies) and the pairing snapshot's opponent counts are correct (each player met its three pod-mates once).
 - A player dropped after a round is paired stays in that round's pod result and is excluded only from the next pairing; dropped players keep their standings position, marked.
 - A player added after round 1 starts at score 0 with no opponent history and is paired only from the next round.
 - Pairing is rejected while a non-finalized round exists; re-rolling an open round (delete + regenerate) keeps the same `round_number` and leaves finalized rounds untouched.
 - Finalize rejects a round with any unreported pod.
-- Editing a finalized round's placement re-derives that pod's points and `recomputeAggregates` reproduces the corrected standings, pod tallies, and opponent counts (the 1st/2nd-swap worked case); editing an earlier round does not alter later rounds' pod memberships.
-- `recomputeAggregates` reproduces the live aggregates from the finalized rounds.
-- Cascades: deleting a tournament removes its players, rounds, pods, members, and opponents; deleting a round removes its pods and members.
+- Editing a finalized round's placement re-derives the corrected standings on the next read (the 1st/2nd-swap worked case); editing an earlier round does not alter later rounds' pod memberships.
+- A late joiner derives to score 0 with no opponent history and is paired only from the next round.
+- Cascades: deleting a tournament removes its players, rounds, pods, and members; deleting a round removes its pods and members.
 
 Route tests (`*.test.ts`):
 
-- Owner-only endpoints reject non-owners (403) and missing tournaments (404); slug collisions return 409; reserved slugs (including `run`, `report`, `new`) are rejected.
+- Owner-only endpoints reject non-owners (403) and missing tournaments (404); tournaments are addressed by their uuid id (no slug collisions or reserved words to police).
 - The follow-along GET returns standings and every round's pairings read-only for a valid token, and 404s a disabled / wrong token.
 - The result-submit endpoint accepts a valid token against a `reporting` round, rejects a placement outside 1..N, and rejects any write once the round is `finalized`.
 

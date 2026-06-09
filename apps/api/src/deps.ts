@@ -38,6 +38,7 @@ import { markersRepo } from "./repositories/markers.js";
 import { marketplaceAdminRepo } from "./repositories/marketplace-admin.js";
 import { marketplaceMappingRepo } from "./repositories/marketplace-mapping.js";
 import { marketplaceRepo } from "./repositories/marketplace.js";
+import { podTournamentsRepo } from "./repositories/pod-tournaments.js";
 import { priceRefreshRepo } from "./repositories/price-refresh.js";
 import { printingEventsRepo } from "./repositories/printing-events.js";
 import { printingImagesRepo } from "./repositories/printing-images.js";
@@ -95,6 +96,7 @@ export interface Repos {
   finishes: ReturnType<typeof finishesRepo>;
   friendGroups: ReturnType<typeof friendGroupsRepo>;
   friendGroupMatches: ReturnType<typeof friendGroupMatchesRepo>;
+  podTournaments: ReturnType<typeof podTournamentsRepo>;
   userFeatureFlags: ReturnType<typeof userFeatureFlagsRepo>;
   health: ReturnType<typeof healthRepo>;
   keywords: ReturnType<typeof keywordsRepo>;
@@ -172,6 +174,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     finishes: finishesRepo(db),
     friendGroups: friendGroupsRepo(db),
     friendGroupMatches: friendGroupMatchesRepo(db),
+    podTournaments: podTournamentsRepo(db),
     userFeatureFlags: userFeatureFlagsRepo(db),
     health: healthRepo(db),
     keywords: keywordsRepo(db),

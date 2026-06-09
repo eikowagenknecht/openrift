@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict rPuWVU3tu7xa2a4LfOHCDrYK1q8oVUgctN8dD4k9I9zfiuBH5dKFfP5voPcxaPI
+\restrict 4FTTTZ21KwKPY9xaesiwJGqmJTFggb6rtBzuAOHOdl2QF8V21INqzEAaPTU4i29
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1378,6 +1378,90 @@ CREATE MATERIALIZED VIEW public.mv_latest_printing_prices AS
 
 
 --
+-- Name: pod_members; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pod_members (
+    pod_id uuid NOT NULL,
+    player_id uuid NOT NULL,
+    placement integer,
+    CONSTRAINT chk_pod_members_placement CHECK (((placement IS NULL) OR ((placement >= 1) AND (placement <= 4))))
+);
+
+
+--
+-- Name: pod_players; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pod_players (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    tournament_id uuid NOT NULL,
+    display_name text NOT NULL,
+    status text DEFAULT 'active'::text NOT NULL,
+    dropped_after_round integer,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_pod_players_name CHECK (((length(display_name) >= 1) AND (length(display_name) <= 80))),
+    CONSTRAINT chk_pod_players_status CHECK ((status = ANY (ARRAY['active'::text, 'dropped'::text])))
+);
+
+
+--
+-- Name: pod_rounds; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pod_rounds (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    tournament_id uuid NOT NULL,
+    round_number integer NOT NULL,
+    status text DEFAULT 'reporting'::text NOT NULL,
+    penalty_total double precision NOT NULL,
+    pairing_strategy text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    finalized_at timestamp with time zone,
+    CONSTRAINT chk_pod_rounds_number CHECK ((round_number > 0)),
+    CONSTRAINT chk_pod_rounds_status CHECK ((status = ANY (ARRAY['reporting'::text, 'finalized'::text])))
+);
+
+
+--
+-- Name: pod_tournaments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pod_tournaments (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    owner_user_id text NOT NULL,
+    name text NOT NULL,
+    status text DEFAULT 'setup'::text NOT NULL,
+    current_round integer DEFAULT 0 NOT NULL,
+    scoring_scheme text DEFAULT 'standard'::text NOT NULL,
+    report_token text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_pod_tournaments_name CHECK (((length(name) >= 1) AND (length(name) <= 120))),
+    CONSTRAINT chk_pod_tournaments_scheme CHECK ((scoring_scheme = ANY (ARRAY['standard'::text, 'three_pod_reduced'::text]))),
+    CONSTRAINT chk_pod_tournaments_status CHECK ((status = ANY (ARRAY['setup'::text, 'running'::text, 'completed'::text])))
+);
+
+
+--
+-- Name: pods; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pods (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    round_id uuid NOT NULL,
+    pod_number integer NOT NULL,
+    size integer NOT NULL,
+    penalty_breakdown jsonb NOT NULL,
+    result_status text DEFAULT 'pending'::text NOT NULL,
+    CONSTRAINT chk_pods_number CHECK ((pod_number > 0)),
+    CONSTRAINT chk_pods_result_status CHECK ((result_status = ANY (ARRAY['pending'::text, 'reported'::text]))),
+    CONSTRAINT chk_pods_size CHECK ((size = ANY (ARRAY[3, 4])))
+);
+
+
+--
 -- Name: printing_distribution_channels; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2220,6 +2304,46 @@ ALTER TABLE ONLY public.marketplace_products
 
 
 --
+-- Name: pod_members pod_members_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pod_members
+    ADD CONSTRAINT pod_members_pkey PRIMARY KEY (pod_id, player_id);
+
+
+--
+-- Name: pod_players pod_players_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pod_players
+    ADD CONSTRAINT pod_players_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: pod_rounds pod_rounds_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pod_rounds
+    ADD CONSTRAINT pod_rounds_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: pod_tournaments pod_tournaments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pod_tournaments
+    ADD CONSTRAINT pod_tournaments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: pods pods_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pods
+    ADD CONSTRAINT pods_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: printing_distribution_channels printing_distribution_channels_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2409,6 +2533,22 @@ ALTER TABLE ONLY public.lists
 
 ALTER TABLE ONLY public.lists
     ADD CONSTRAINT uq_lists_id_user UNIQUE (id, user_id);
+
+
+--
+-- Name: pod_rounds uq_pod_rounds_number; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pod_rounds
+    ADD CONSTRAINT uq_pod_rounds_number UNIQUE (tournament_id, round_number);
+
+
+--
+-- Name: pods uq_pods_number; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pods
+    ADD CONSTRAINT uq_pods_number UNIQUE (round_id, pod_number);
 
 
 --
@@ -2776,6 +2916,41 @@ CREATE UNIQUE INDEX idx_mv_latest_printing_prices_pk ON public.mv_latest_printin
 
 
 --
+-- Name: idx_pod_members_player; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pod_members_player ON public.pod_members USING btree (player_id);
+
+
+--
+-- Name: idx_pod_players_tournament; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pod_players_tournament ON public.pod_players USING btree (tournament_id);
+
+
+--
+-- Name: idx_pod_rounds_tournament; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pod_rounds_tournament ON public.pod_rounds USING btree (tournament_id);
+
+
+--
+-- Name: idx_pod_tournaments_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pod_tournaments_owner ON public.pod_tournaments USING btree (owner_user_id);
+
+
+--
+-- Name: idx_pods_round; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pods_round ON public.pods USING btree (round_id);
+
+
+--
 -- Name: idx_printing_distribution_channels_channel_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2948,6 +3123,13 @@ CREATE UNIQUE INDEX uq_list_entries_copy ON public.list_entries USING btree (lis
 --
 
 CREATE UNIQUE INDEX uq_list_entries_printing ON public.list_entries USING btree (list_id, printing_id) WHERE (printing_id IS NOT NULL);
+
+
+--
+-- Name: uq_pod_tournaments_report_token; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_pod_tournaments_report_token ON public.pod_tournaments USING btree (report_token) WHERE (report_token IS NOT NULL);
 
 
 --
@@ -3270,6 +3452,20 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.marketplace_product_va
 --
 
 CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.marketplace_products FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: pod_players trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.pod_players FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: pod_tournaments trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.pod_tournaments FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -3904,6 +4100,54 @@ ALTER TABLE ONLY public.marketplace_product_card_overrides
 
 
 --
+-- Name: pod_members pod_members_player_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pod_members
+    ADD CONSTRAINT pod_members_player_fkey FOREIGN KEY (player_id) REFERENCES public.pod_players(id) ON DELETE CASCADE;
+
+
+--
+-- Name: pod_members pod_members_pod_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pod_members
+    ADD CONSTRAINT pod_members_pod_fkey FOREIGN KEY (pod_id) REFERENCES public.pods(id) ON DELETE CASCADE;
+
+
+--
+-- Name: pod_players pod_players_tournament_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pod_players
+    ADD CONSTRAINT pod_players_tournament_fkey FOREIGN KEY (tournament_id) REFERENCES public.pod_tournaments(id) ON DELETE CASCADE;
+
+
+--
+-- Name: pod_rounds pod_rounds_tournament_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pod_rounds
+    ADD CONSTRAINT pod_rounds_tournament_fkey FOREIGN KEY (tournament_id) REFERENCES public.pod_tournaments(id) ON DELETE CASCADE;
+
+
+--
+-- Name: pod_tournaments pod_tournaments_owner_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pod_tournaments
+    ADD CONSTRAINT pod_tournaments_owner_fkey FOREIGN KEY (owner_user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: pods pods_round_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pods
+    ADD CONSTRAINT pods_round_fkey FOREIGN KEY (round_id) REFERENCES public.pod_rounds(id) ON DELETE CASCADE;
+
+
+--
 -- Name: printing_distribution_channels printing_distribution_channels_channel_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4019,5 +4263,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict rPuWVU3tu7xa2a4LfOHCDrYK1q8oVUgctN8dD4k9I9zfiuBH5dKFfP5voPcxaPI
+\unrestrict 4FTTTZ21KwKPY9xaesiwJGqmJTFggb6rtBzuAOHOdl2QF8V21INqzEAaPTU4i29
 

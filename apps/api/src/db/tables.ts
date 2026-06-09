@@ -1,3 +1,4 @@
+import type { PodPenaltyBreakdown } from "@openrift/shared";
 import type {
   ActivityAction,
   ArtVariant,
@@ -9,6 +10,11 @@ import type {
   Finish,
   ListIntent,
   ListKind,
+  PodPlayerStatus,
+  PodResultStatus,
+  PodRoundStatus,
+  PodScoringScheme,
+  PodTournamentStatus,
   Rarity,
   UserPreferencesResponse,
 } from "@openrift/shared/types";
@@ -519,6 +525,71 @@ export interface FriendGroupCollectionSharesTable {
   collectionId: string;
   userId: string;
   sharedAt: ColumnType<Date, Date | undefined, Date>;
+}
+
+// ─── Pod tournaments (migration 145, ADR-022) ────────────────────────────────
+// Lean model: pod_players carries no aggregate columns and there is no
+// pod_opponents table. Score, pod tallies, rounds played, and opponent counts
+// are derived on read from finalized rounds (the result rows are the single
+// source of truth). Stored: raw facts (placement) and write-once engine outputs.
+
+export interface PodTournamentsTable {
+  id: Generated<string>;
+  ownerUserId: string;
+  /** CHECK: length 1..120 */
+  name: string;
+  status: Generated<PodTournamentStatus>;
+  currentRound: Generated<number>;
+  scoringScheme: Generated<PodScoringScheme>;
+  /** Nullable disables the participant report link; unique where not null. */
+  reportToken: string | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+export interface PodPlayersTable {
+  id: Generated<string>;
+  tournamentId: string;
+  /** CHECK: length 1..80 */
+  displayName: string;
+  status: Generated<PodPlayerStatus>;
+  /** Round number after which the player was dropped; NULL while active. */
+  droppedAfterRound: number | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+export interface PodRoundsTable {
+  id: Generated<string>;
+  tournamentId: string;
+  /** CHECK: > 0; UNIQUE per (tournamentId, roundNumber) */
+  roundNumber: number;
+  status: Generated<PodRoundStatus>;
+  /** The engine's whole-round penalty (write-once). */
+  penaltyTotal: number;
+  /** Which engine produced it: 'random' (round 1) or 'local-search'. */
+  pairingStrategy: string;
+  createdAt: CreatedAt;
+  finalizedAt: Date | null;
+}
+
+export interface PodsTable {
+  id: Generated<string>;
+  roundId: string;
+  /** CHECK: > 0; UNIQUE per (roundId, podNumber) */
+  podNumber: number;
+  /** CHECK: 3 or 4 */
+  size: number;
+  /** Engine's write-once penalty breakdown; written pre-stringified, read parsed. */
+  penaltyBreakdown: ColumnType<PodPenaltyBreakdown, string, string>;
+  resultStatus: Generated<PodResultStatus>;
+}
+
+export interface PodMembersTable {
+  podId: string;
+  playerId: string;
+  /** 1-based; ties share a value; NULL until the pod is reported. */
+  placement: number | null;
 }
 
 // ─── Card trades (migration 143, ADR-019) ────────────────────────────────────
@@ -1101,6 +1172,13 @@ export interface Database {
   friendGroupInvites: FriendGroupInvitesTable;
   friendGroupListShares: FriendGroupListSharesTable;
   friendGroupCollectionShares: FriendGroupCollectionSharesTable;
+
+  // Pod tournaments (migration 145, ADR-022)
+  podTournaments: PodTournamentsTable;
+  podPlayers: PodPlayersTable;
+  podRounds: PodRoundsTable;
+  pods: PodsTable;
+  podMembers: PodMembersTable;
 
   // Card trades (migration 143, ADR-019)
   cardTrades: CardTradesTable;

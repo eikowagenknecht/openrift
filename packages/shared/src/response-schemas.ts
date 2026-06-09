@@ -1624,3 +1624,119 @@ export const cardTradeActionCountsResponseSchema = z
     ),
   })
   .openapi("CardTradeActionCountsResponse");
+
+// ── Pod tournaments (ADR-022) ────────────────────────────────────────────────
+
+const podTournamentStatusSchema = z
+  .enum(["setup", "running", "completed"])
+  .openapi("PodTournamentStatus");
+const podScoringSchemeSchema = z.enum(["standard", "three_pod_reduced"]);
+const podPlayerStatusSchema = z.enum(["active", "dropped"]);
+
+export const podTournamentResponseSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    status: podTournamentStatusSchema,
+    currentRound: z.number().int().nonnegative(),
+    scoringScheme: podScoringSchemeSchema,
+    reportToken: z.string().nullable(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  })
+  .openapi("PodTournamentResponse");
+
+export const podTournamentSummaryResponseSchema = podTournamentResponseSchema
+  .extend({
+    playerCount: z.number().int().nonnegative(),
+    activePlayerCount: z.number().int().nonnegative(),
+    roundCount: z.number().int().nonnegative(),
+  })
+  .openapi("PodTournamentSummaryResponse");
+
+export const podTournamentListResponseSchema = z
+  .object({ items: z.array(podTournamentSummaryResponseSchema) })
+  .openapi("PodTournamentListResponse");
+
+export const podPlayerResponseSchema = z
+  .object({
+    id: z.string(),
+    displayName: z.string(),
+    status: podPlayerStatusSchema,
+    droppedAfterRound: z.number().int().nullable(),
+    createdAt: z.string(),
+  })
+  .openapi("PodPlayerResponse");
+
+const podStandingRowSchema = z
+  .object({
+    playerId: z.string(),
+    displayName: z.string(),
+    status: podPlayerStatusSchema,
+    droppedAfterRound: z.number().int().nullable(),
+    score: z.number(),
+    roundsPlayed: z.number().int().nonnegative(),
+    pods3Count: z.number().int().nonnegative(),
+    pods4Count: z.number().int().nonnegative(),
+  })
+  .openapi("PodStandingRow");
+
+const podMemberResponseSchema = z.object({
+  playerId: z.string(),
+  displayName: z.string(),
+  placement: z.number().int().nullable(),
+  points: z.number().nullable(),
+});
+
+const podPenaltyViewSchema = z.object({
+  total: z.number(),
+  rematchPairs: z.number().int().nonnegative(),
+  spread: z.number(),
+  scoreSpread: z.number(),
+  imbalance: z.number(),
+  float: z.number(),
+  threePodRepeat: z.number(),
+});
+
+const podResponseSchema = z.object({
+  id: z.string(),
+  podNumber: z.number().int().positive(),
+  size: z.union([z.literal(3), z.literal(4)]),
+  resultStatus: z.enum(["pending", "reported"]),
+  members: z.array(podMemberResponseSchema),
+  penalty: podPenaltyViewSchema.nullable(),
+});
+
+const podRoundResponseSchema = z.object({
+  id: z.string(),
+  roundNumber: z.number().int().positive(),
+  status: z.enum(["reporting", "finalized"]),
+  pairingStrategy: z.string().nullable(),
+  penaltyTotal: z.number().nullable(),
+  createdAt: z.string(),
+  finalizedAt: z.string().nullable(),
+  pods: z.array(podResponseSchema),
+});
+
+export const podTournamentDetailResponseSchema = z
+  .object({
+    tournament: podTournamentResponseSchema,
+    players: z.array(podPlayerResponseSchema),
+    standings: z.array(podStandingRowSchema),
+    rounds: z.array(podRoundResponseSchema),
+  })
+  .openapi("PodTournamentDetailResponse");
+
+export const podReportResponseSchema = z
+  .object({
+    tournamentName: z.string(),
+    status: podTournamentStatusSchema,
+    currentRound: z.number().int().nonnegative(),
+    standings: z.array(podStandingRowSchema),
+    rounds: z.array(podRoundResponseSchema),
+  })
+  .openapi("PodReportResponse");
+
+export const podReportTokenResponseSchema = z
+  .object({ reportToken: z.string().nullable() })
+  .openapi("PodReportTokenResponse");
