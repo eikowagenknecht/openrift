@@ -37,7 +37,6 @@ export type {
   PodPlayersTable,
   PodRoundsTable,
   PodsTable,
-  PodMembersTable,
   // Card trades (migration 143, ADR-019)
   CardTradesTable,
   UserPreferencesTable,

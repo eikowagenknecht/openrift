@@ -36,7 +36,6 @@ export type {
   PodPlayersTable,
   PodRoundsTable,
   PodsTable,
-  PodMembersTable,
   CardTradesTable,
   UserPreferencesTable,
   RaritiesTable,

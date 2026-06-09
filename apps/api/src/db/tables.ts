@@ -585,7 +585,9 @@ export interface PodsTable {
   resultStatus: Generated<PodResultStatus>;
 }
 
-export interface PodMembersTable {
+// Not exported: only the Database interface below references it; no module derives a
+// Selectable<> type from it (unlike the sibling pod tables), so knip flags a public export.
+interface PodMembersTable {
   podId: string;
   playerId: string;
   /** 1-based; ties share a value; NULL until the pod is reported. */
