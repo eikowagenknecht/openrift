@@ -1,6 +1,8 @@
 import type { Domain } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 
+import { contrastGlyphTint } from "./color";
+
 const FALLBACK_COLOR = "#737373";
 
 /** Fallback domain colors matching the initial database seed. */
@@ -48,6 +50,42 @@ export function getDomainColor(
   colors: Record<string, string> = DEFAULT_DOMAIN_COLORS,
 ): string {
   return resolve(colors, domain);
+}
+
+/**
+ * Background for the power-pip stack: a solid domain color, or a hard 50/50
+ * split of the two domain colors for a dual-domain card (not the soft blend the
+ * rest of the card uses), so the dual identity reads clearly at pip size.
+ *
+ * @returns The CSS background for the pip container.
+ */
+export function getPipBackgroundStyle(
+  domains: string[],
+  colors: Record<string, string> = DEFAULT_DOMAIN_COLORS,
+): React.CSSProperties {
+  const c1 = resolve(colors, domains[0]);
+  if (domains.length < 2) {
+    return { backgroundColor: c1 };
+  }
+  const c2 = resolve(colors, domains[1]);
+  return { background: `linear-gradient(90deg, ${c1} 50%, ${c2} 50%)` };
+}
+
+/**
+ * Picks the flat tint ("white" or "black") for the domain rune drawn in the
+ * power-pip stack, so it stays legible against its domain background. A
+ * two-domain pip straddles a split background, so it always reads white.
+ *
+ * @returns "black" on light single-domain backgrounds, "white" otherwise.
+ */
+export function getPipGlyphTint(
+  domains: string[],
+  colors: Record<string, string> = DEFAULT_DOMAIN_COLORS,
+): "white" | "black" {
+  if (domains.length > 1) {
+    return "white";
+  }
+  return contrastGlyphTint(resolve(colors, domains[0] ?? WellKnown.domain.COLORLESS));
 }
 
 export function formatDomainDisplay(domains: string[], labels?: Record<string, string>): string {

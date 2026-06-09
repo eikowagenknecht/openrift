@@ -21,6 +21,8 @@ export const WellKnown = {
     BATTLEFIELD: "battlefield",
     /** Champion icon detection for Unit cards. */
     UNIT: "unit",
+    /** Placeholder art renders Gear's energy cost in a diamond badge. */
+    GEAR: "gear",
   },
   keyword: {
     /** Cards with this keyword cap at 1 copy in a deck (used by playset filter). */

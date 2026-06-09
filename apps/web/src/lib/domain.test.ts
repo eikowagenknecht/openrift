@@ -6,6 +6,8 @@ import {
   formatDomainFilterLabel,
   getDomainGradientStyle,
   getDomainTintStyle,
+  getPipBackgroundStyle,
+  getPipGlyphTint,
 } from "./domain";
 
 const DOMAIN_OPTIONS = ["fury", "calm", "mind", "body", "chaos", "order", "colorless"] as const;
@@ -146,5 +148,56 @@ describe("computeDomainDisabled", () => {
     const disabled = computeDomainDisabled(["colorless"], DOMAIN_OPTIONS);
     expect(disabled.has("fury")).toBe(true);
     expect(disabled.has("colorless")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getPipBackgroundStyle
+// ---------------------------------------------------------------------------
+
+describe("getPipBackgroundStyle", () => {
+  it("returns a solid color for a single domain", () => {
+    expect(getPipBackgroundStyle(["fury"])).toEqual({ backgroundColor: "#CB212D" });
+  });
+
+  it("returns a hard 50/50 split for a dual domain", () => {
+    expect(getPipBackgroundStyle(["mind", "chaos"])).toEqual({
+      background: "linear-gradient(90deg, #227799 50%, #6B4891 50%)",
+    });
+  });
+
+  it("honors overridden domain colors", () => {
+    expect(getPipBackgroundStyle(["fury"], { fury: "#000000" })).toEqual({
+      backgroundColor: "#000000",
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getPipGlyphTint
+// ---------------------------------------------------------------------------
+
+describe("getPipGlyphTint", () => {
+  it("picks black for light single-domain backgrounds", () => {
+    expect(getPipGlyphTint(["order"])).toBe("black");
+    expect(getPipGlyphTint(["body"])).toBe("black");
+    expect(getPipGlyphTint(["calm"])).toBe("black");
+  });
+
+  it("picks white for dark single-domain backgrounds", () => {
+    expect(getPipGlyphTint(["fury"])).toBe("white");
+    expect(getPipGlyphTint(["mind"])).toBe("white");
+    expect(getPipGlyphTint(["chaos"])).toBe("white");
+    expect(getPipGlyphTint(["colorless"])).toBe("white");
+  });
+
+  it("always picks white for a two-domain pip, even with a light domain", () => {
+    expect(getPipGlyphTint(["fury", "order"])).toBe("white");
+    expect(getPipGlyphTint(["order", "body"])).toBe("white");
+    expect(getPipGlyphTint(["mind", "chaos"])).toBe("white");
+  });
+
+  it("follows overridden domain colors", () => {
+    expect(getPipGlyphTint(["fury"], { fury: "#ffffff" })).toBe("black");
   });
 });

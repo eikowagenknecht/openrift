@@ -2,11 +2,15 @@
 
 ## 2026-06-09
 
+- feat: On generated card art, the card's type icon above the title now sits in a gold-on-black pill instead of a plain white symbol
+- feat: On generated card art, Gear cards now show their energy cost in a diamond badge instead of the round one used by the other card types
 - feat: Cards without an image, and cards you make in the Card Designer, now use fonts that make them read more like a real printed card
 - feat: When viewing a shared or group collection, you can now filter it by how many copies you own across your own collections, making it easy to spot which of its cards you don't have a full playset of yet
 - feat: Run a free-for-all pod tournament from the new Tournaments link in the More menu. Add your players and each round the app splits them into fair 3- and 4-player pods, you tap in each pod's finishing order, and the standings update with tie-breakers. Share a follow-along link, including a QR code to scan at the table, so players can report their own pod's result
 - feat: While running a pod tournament you can rearrange a round by dragging players between pods or sitting someone out with a bye, switch between scoring schemes, and see a warning on any pod where players would meet again, land in too many small pods, or have a wide score gap
 - feat: Wishlists and trade lists can be shared to a chat as a card image, a copy-paste card list, or a link that shows a card preview when pasted into WhatsApp or Discord
+- fix: On generated card art (shown when a card has no image, and in the Card Designer), the rune symbols next to a unit's power now turn dark on light domain colors like order and body, instead of staying white and hard to read
+- fix: On generated card art, the rune symbols next to a dual-domain unit's power now sit on a clean half-and-half of its two domain colors and are sized to match the single-domain ones, instead of being smaller over a soft color blend
 - fix: Battlefield cards now appear in their correct landscape orientation the moment the cards page loads, instead of briefly showing squished upright until the page finished loading
 - fix: In Firefox, fanned-out card stacks no longer cut Battlefield cards off partway down. The layers behind the top card now show the full art, like in every other browser
 - fix: Battlefield cards no longer appear among the floating cards on the home page, where their landscape shape looked out of place

@@ -21,3 +21,13 @@ export function contrastText(hex: string): string {
   const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
   return luminance > 0.179 ? "#1a1a1a" : "#ffffff";
 }
+
+/**
+ * Picks "white" or "black" for a flat glyph tinted to contrast with the given
+ * hex background, matching the foreground chosen by {@link contrastText}.
+ *
+ * @returns "black" on light backgrounds, "white" on dark ones.
+ */
+export function contrastGlyphTint(hex: string): "white" | "black" {
+  return contrastText(hex) === "#ffffff" ? "white" : "black";
+}

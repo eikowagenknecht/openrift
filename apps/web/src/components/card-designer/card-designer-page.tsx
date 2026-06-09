@@ -1,12 +1,16 @@
+import { WellKnown } from "@openrift/shared";
 import { useRef, useState } from "react";
 
 import { BackgroundImageControl } from "@/components/card-designer/background-image-control";
 import { CardDesignerForm } from "@/components/card-designer/card-designer-form";
 import { CardDesignerPreview } from "@/components/card-designer/card-designer-preview";
 import { CardExportControls } from "@/components/card-designer/card-export-controls";
+import { TYPE_ICON_COLOR } from "@/components/cards/card-placeholder-image";
+import { useDomainColors } from "@/hooks/use-domain-colors";
 import type { ExportAction } from "@/lib/card-export";
 import { CARD_EXPORT_WIDTH, exportCardImage, waitForRender } from "@/lib/card-export";
 import { nameToSlug } from "@/lib/contribute-json";
+import { getPipGlyphTint } from "@/lib/domain";
 import { getFilterIconPath, getTypeIconPath } from "@/lib/icons";
 import { prewarmTintedIcons, TINT_BLACK, TINT_WHITE } from "@/lib/white-icon";
 import type { DesignerCard } from "@/stores/card-designer-store";
@@ -15,7 +19,10 @@ import { useCardDesignerStore } from "@/stores/card-designer-store";
 // The glyph icons the card renders, with the color they're tinted to, so they
 // can be pre-tinted before the export clone is captured (html2canvas can't apply
 // the CSS color filters). Mirrors CardPlaceholderImage.
-function designerTintedIcons(card: DesignerCard): { src: string; color: string }[] {
+function designerTintedIcons(
+  card: DesignerCard,
+  domainColors: Record<string, string>,
+): { src: string; color: string }[] {
   const white = new Set<string>();
   for (const domain of card.domains) {
     const path = getFilterIconPath("domains", domain);
@@ -23,21 +30,31 @@ function designerTintedIcons(card: DesignerCard): { src: string; color: string }
       white.add(path);
     }
   }
-  // Multi-domain cards render the generic rune for power pips (see CardPlaceholderImage).
-  if (card.domains.length > 1) {
-    white.add("/images/glyphs/rune-rainbow.svg");
-  }
-  const typeIcon = card.type ? getTypeIconPath(card.type, card.superTypes) : undefined;
-  if (typeIcon) {
-    white.add(typeIcon);
-  }
   white.add("/images/artist.svg");
   white.add("/logo.svg");
 
   const icons = [...white].map((src) => ({ src, color: TINT_WHITE }));
+  // The card-type glyph shows in gold in its black pip above the title.
+  const typeIcon = card.type ? getTypeIconPath(card.type, card.superTypes) : undefined;
+  if (typeIcon) {
+    icons.push({ src: typeIcon, color: TYPE_ICON_COLOR });
+  }
   // The might shield's symbol is black on its white left half.
   if (card.might !== null) {
     icons.push({ src: "/images/might.svg", color: TINT_BLACK });
+  }
+  // Power pips render a rune tinted to contrast with the domain background, so
+  // it can be black (e.g. on the order/body domains). See CardPlaceholderImage.
+  if (card.power !== null && card.power > 0) {
+    const runeSrc =
+      card.domains.length > 1
+        ? "/images/glyphs/rune-rainbow.svg"
+        : getFilterIconPath("domains", card.domains[0] ?? WellKnown.domain.COLORLESS);
+    if (runeSrc) {
+      const tint =
+        getPipGlyphTint(card.domains, domainColors) === "black" ? TINT_BLACK : TINT_WHITE;
+      icons.push({ src: runeSrc, color: tint });
+    }
   }
   return icons;
 }
@@ -51,6 +68,7 @@ function designerTintedIcons(card: DesignerCard): { src: string; color: string }
  */
 export function CardDesignerPage() {
   const cardName = useCardDesignerStore((state) => state.card.name);
+  const domainColors = useDomainColors();
   const cloneRef = useRef<HTMLDivElement>(null);
   const [renderClone, setRenderClone] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -64,7 +82,9 @@ export function CardDesignerPage() {
     setBusy(true);
     // Tint the white glyph icons before rendering the clone, so its synchronous
     // render finds them cached (html2canvas ignores the CSS white filter).
-    await prewarmTintedIcons(designerTintedIcons(useCardDesignerStore.getState().card));
+    await prewarmTintedIcons(
+      designerTintedIcons(useCardDesignerStore.getState().card, domainColors),
+    );
     setRenderClone(true);
     await waitForRender();
     const element = cloneRef.current;

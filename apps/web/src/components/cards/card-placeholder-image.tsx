@@ -5,17 +5,24 @@ import { useId } from "react";
 
 import { CardText } from "@/components/cards/card-text";
 import { useDomainColors } from "@/hooks/use-domain-colors";
-import { getDomainGradientStyle } from "@/lib/domain";
+import { getDomainGradientStyle, getPipBackgroundStyle, getPipGlyphTint } from "@/lib/domain";
 import { getFilterIconPath, getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { getCachedTintedIcon, TINT_BLACK, TINT_WHITE } from "@/lib/white-icon";
 
+/** Gold tint for the card-type glyph, rendered in a black pip above the title. */
+export const TYPE_ICON_COLOR = "#985920";
+
+/** Maps the white/black keywords to their flat-tint hex; any other value is a literal color. */
+const GLYPH_TINT: Record<string, string> = { white: TINT_WHITE, black: TINT_BLACK };
+
 /**
- * A glyph icon forced to a flat color (white, or black on the might shield).
- * Normally that's the cheap `brightness-0[ invert]` CSS filter. When `tinted`
- * (the card designer's export clone) and a pre-tinted raster is cached, use that
- * instead, because html2canvas-pro ignores CSS filters. See ADR-023 and
- * `@/lib/white-icon`.
+ * A glyph icon forced to a flat color: white, black (the might shield), or an
+ * arbitrary tint (the gold type icon). When `tinted` (the card designer's export
+ * clone) a pre-tinted raster is used, because html2canvas-pro ignores CSS
+ * filters and masks. Otherwise white/black use the cheap `brightness-0[ invert]`
+ * filter and any other color masks a solid fill with the icon's alpha. See
+ * ADR-023 and `@/lib/white-icon`.
  *
  * @returns The icon image, or null when there is no source.
  */
@@ -28,18 +35,38 @@ function GlyphIcon({
   src?: string;
   className?: string;
   tinted?: boolean;
-  color?: "white" | "black";
+  /** "white", "black", or any CSS color string. */
+  color?: string;
 }) {
   if (!src) {
     return null;
   }
-  const tintColor = color === "black" ? TINT_BLACK : TINT_WHITE;
-  const filter = color === "black" ? "brightness-0" : "brightness-0 invert";
+  const tintColor = GLYPH_TINT[color] ?? color;
   const cached = tinted ? getCachedTintedIcon(src, tintColor) : undefined;
-  return cached ? (
-    <img src={cached} alt="" aria-hidden="true" className={className} />
-  ) : (
-    <img src={src} alt="" aria-hidden="true" className={cn(className, filter)} />
+  if (cached) {
+    return <img src={cached} alt="" aria-hidden="true" className={className} />;
+  }
+  if (color === "white" || color === "black") {
+    const filter = color === "black" ? "brightness-0" : "brightness-0 invert";
+    return <img src={src} alt="" aria-hidden="true" className={cn(className, filter)} />;
+  }
+  // Recolor to an arbitrary tint by masking a solid fill with the icon's alpha.
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(className, "inline-block")}
+      style={{
+        backgroundColor: color,
+        maskImage: `url(${src})`,
+        WebkitMaskImage: `url(${src})`,
+        maskSize: "contain",
+        WebkitMaskSize: "contain",
+        maskRepeat: "no-repeat",
+        WebkitMaskRepeat: "no-repeat",
+        maskPosition: "center",
+        WebkitMaskPosition: "center",
+      }}
+    />
   );
 }
 
@@ -108,7 +135,13 @@ export function CardPlaceholderImage({
     domain.length > 1
       ? "/images/glyphs/rune-rainbow.svg"
       : getFilterIconPath("domains", primaryDomain);
+  // The pip rune sits on the domain background; tint it for legible contrast
+  // (matches the foreground the admin domains/rarities previews use).
+  const runePipColor = getPipGlyphTint(domain, domainColors);
   const typeIconPath = type ? getTypeIconPath(type, superTypes ?? []) : undefined;
+  // Gear shows its energy cost in a diamond (a square rotated 45°) instead of
+  // the circular badge every other type uses.
+  const isGear = type === WellKnown.cardType.GEAR;
   const bgStyle = getDomainGradientStyle(domain, "", domainColors);
   const noiseId = useId();
 
@@ -161,14 +194,28 @@ export function CardPlaceholderImage({
         </>
       )}
       <div className="absolute top-[4.7%] left-[5.5%] flex flex-col items-start gap-[1cqw]">
-        {energy !== null && (
-          <div
-            className="font-numeric flex size-[11.7cqw] items-center justify-center rounded-full bg-white/70 text-[8cqw] font-semibold text-black ring-1 ring-black/70"
-            aria-label={`Energy: ${energy}`}
-          >
-            {energy}
-          </div>
-        )}
+        {energy !== null &&
+          (isGear ? (
+            <div
+              className="relative flex size-[11.7cqw] items-center justify-center"
+              aria-label={`Energy: ${energy}`}
+            >
+              <span
+                aria-hidden="true"
+                className="absolute inset-[1.7cqw] rotate-45 bg-white/70 ring-1 ring-black/70"
+              />
+              <span className="font-numeric relative text-[8cqw] font-semibold text-black">
+                {energy}
+              </span>
+            </div>
+          ) : (
+            <div
+              className="font-numeric flex size-[11.7cqw] items-center justify-center rounded-full bg-white/70 text-[8cqw] font-semibold text-black ring-1 ring-black/70"
+              aria-label={`Energy: ${energy}`}
+            >
+              {energy}
+            </div>
+          ))}
         {type === WellKnown.cardType.LEGEND &&
           domain.some((d) => d !== WellKnown.domain.COLORLESS) &&
           domain
@@ -189,10 +236,16 @@ export function CardPlaceholderImage({
         {power !== null && power !== undefined && power > 0 && runePipIcon && (
           <div
             className="mt-[1cqw] ml-[0cqw] flex flex-col items-center gap-[0.5cqw] rounded-[3cqw] px-[1cqw] py-[2.25cqw]"
-            style={bgStyle}
+            style={getPipBackgroundStyle(domain, domainColors)}
           >
             {Array.from({ length: power }, (_, index) => (
-              <GlyphIcon key={index} src={runePipIcon} tinted={tintIcons} className="size-[4cqw]" />
+              <GlyphIcon
+                key={index}
+                src={runePipIcon}
+                color={runePipColor}
+                tinted={tintIcons}
+                className="size-[4cqw]"
+              />
             ))}
           </div>
         )}
@@ -222,10 +275,17 @@ export function CardPlaceholderImage({
       {(type || (tags && tags.length > 0)) && (
         <div className="absolute top-[55%] ml-[1.7cqw] flex -translate-y-full items-center gap-[1.5cqw] px-[3cqw] pb-[1cqw]">
           {typeIconPath && (
-            <GlyphIcon src={typeIconPath} tinted={tintIcons} className="size-[4cqw]" />
+            <span className="flex h-[8cqw] w-[6cqw] translate-y-[1cqw] items-center justify-center rounded-full bg-black">
+              <GlyphIcon
+                src={typeIconPath}
+                color={TYPE_ICON_COLOR}
+                tinted={tintIcons}
+                className="size-[4cqw]"
+              />
+            </span>
           )}
           {type && (
-            <span className="relative inline-flex items-center pr-[1.5cqw] pl-[1cqw]">
+            <span className="relative inline-flex translate-y-[1cqw] items-center pr-[1.5cqw] pl-[1cqw]">
               <span className="absolute inset-0 -skew-x-[15deg]" style={bgStyle} />
               <span className="font-condensed relative text-[3cqw] font-semibold tracking-tighter text-white uppercase italic">
                 {superTypes && superTypes.length > 0 ? `${superTypes.join(" ")} ${type}` : type}
@@ -233,7 +293,10 @@ export function CardPlaceholderImage({
             </span>
           )}
           {tags?.map((tag) => (
-            <span key={tag} className="relative inline-flex items-center pr-[1.5cqw] pl-[1cqw]">
+            <span
+              key={tag}
+              className="relative inline-flex translate-y-[1cqw] items-center pr-[1.5cqw] pl-[1cqw]"
+            >
               <span className="absolute inset-0 -skew-x-[15deg] bg-black/90" />
               <span className="font-condensed relative text-[3cqw] font-semibold tracking-tighter text-white uppercase italic">
                 {tag}
