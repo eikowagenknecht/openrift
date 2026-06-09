@@ -129,6 +129,96 @@ function PlainImageShell({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * The spacer plus the (optionally landscape-rotated) card art image. Every
+ * place a card image is painted renders this — the front of a stack and each
+ * fanned sibling behind it — so the landscape-rotation geometry never drifts
+ * between them. That drift is what made battlefields clip in Firefox on the
+ * stacked layers. The caller still owns the `relative overflow-hidden` clip box
+ * and the transformed `preserve-3d` shell around it; keep overflow-hidden and
+ * the transform on separate elements, or Firefox mis-sizes this overlay.
+ *
+ * @returns The aspect-card spacer and the rotation-aware <img>.
+ */
+function CardArtImage({
+  thumbnailUrl,
+  srcSet,
+  sizes,
+  alt,
+  rotated,
+  loading,
+  fetchPriority,
+  onLoad,
+  loaded,
+  spacerClassName,
+}: {
+  thumbnailUrl: string;
+  srcSet?: string;
+  sizes?: string;
+  alt: string;
+  rotated: boolean;
+  loading: "eager" | "lazy";
+  fetchPriority?: "high";
+  /** When provided, fades the image in on load and covers cached/instant loads. */
+  onLoad?: () => void;
+  /** Current loaded state driving the fade-in; only meaningful alongside onLoad. */
+  loaded?: boolean;
+  /** Tint for the spacer behind the art (e.g. `bg-muted/40` front, `bg-muted` behind). */
+  spacerClassName?: string;
+}) {
+  // Cover cached/instant-load images where the browser fires load before React
+  // attaches the onLoad listener.
+  const coverCachedLoad = onLoad
+    ? (node: HTMLImageElement | null) => {
+        if (node?.complete && node.naturalWidth > 0) {
+          onLoad();
+        }
+      }
+    : undefined;
+  const fadeClass = onLoad
+    ? cn("transition-opacity duration-300", loaded ? "opacity-100" : "opacity-0")
+    : undefined;
+  return (
+    <>
+      <div className={cn("aspect-card", spacerClassName)} />
+      {rotated ? (
+        <div
+          className={cn("absolute top-1/2 left-1/2 overflow-hidden", fadeClass)}
+          style={LANDSCAPE_ROTATION_STYLE}
+        >
+          <img
+            ref={coverCachedLoad}
+            src={thumbnailUrl}
+            srcSet={srcSet}
+            sizes={sizes}
+            alt={alt}
+            width={CARD_HEIGHT}
+            height={CARD_WIDTH}
+            loading={loading}
+            fetchPriority={fetchPriority}
+            className="size-full object-cover"
+            onLoad={onLoad}
+          />
+        </div>
+      ) : (
+        <img
+          ref={coverCachedLoad}
+          src={thumbnailUrl}
+          srcSet={srcSet}
+          sizes={sizes}
+          alt={alt}
+          width={CARD_WIDTH}
+          height={CARD_HEIGHT}
+          loading={loading}
+          fetchPriority={fetchPriority}
+          className={cn("absolute inset-0 w-full object-cover", fadeClass)}
+          onLoad={onLoad}
+        />
+      )}
+    </>
+  );
+}
+
 function CardImageContent({
   thumbnailUrl,
   srcSet,
@@ -174,61 +264,18 @@ function CardImageContent({
   return (
     <>
       {thumbnailUrl ? (
-        <>
-          <div className="aspect-card bg-muted/40" />
-          {rotated ? (
-            <div
-              className={cn(
-                "absolute top-1/2 left-1/2 overflow-hidden transition-opacity duration-300",
-                imgLoaded ? "opacity-100" : "opacity-0",
-              )}
-              style={LANDSCAPE_ROTATION_STYLE}
-            >
-              <img
-                ref={(node) => {
-                  // Cover cached/instant-load images where the browser fires
-                  // load before React attaches the onLoad listener.
-                  if (node?.complete && node.naturalWidth > 0) {
-                    onImgLoad();
-                  }
-                }}
-                src={thumbnailUrl}
-                srcSet={srcSet}
-                sizes={sizes}
-                alt={alt}
-                width={CARD_HEIGHT}
-                height={CARD_WIDTH}
-                loading={priority ? "eager" : "lazy"}
-                fetchPriority={priority ? "high" : undefined}
-                className="size-full object-cover"
-                onLoad={onImgLoad}
-              />
-            </div>
-          ) : (
-            <img
-              ref={(node) => {
-                // Cover cached/instant-load images where the browser fires
-                // load before React attaches the onLoad listener.
-                if (node?.complete && node.naturalWidth > 0) {
-                  onImgLoad();
-                }
-              }}
-              src={thumbnailUrl}
-              srcSet={srcSet}
-              sizes={sizes}
-              alt={alt}
-              width={CARD_WIDTH}
-              height={CARD_HEIGHT}
-              loading={priority ? "eager" : "lazy"}
-              fetchPriority={priority ? "high" : undefined}
-              className={cn(
-                "absolute inset-0 w-full object-cover transition-opacity duration-300",
-                imgLoaded ? "opacity-100" : "opacity-0",
-              )}
-              onLoad={onImgLoad}
-            />
-          )}
-        </>
+        <CardArtImage
+          thumbnailUrl={thumbnailUrl}
+          srcSet={srcSet}
+          sizes={sizes}
+          alt={alt}
+          rotated={rotated}
+          loading={priority ? "eager" : "lazy"}
+          fetchPriority={priority ? "high" : undefined}
+          onLoad={onImgLoad}
+          loaded={imgLoaded}
+          spacerClassName="bg-muted/40"
+        />
       ) : (
         <CardPlaceholderImage
           name={card.name}
@@ -511,36 +558,19 @@ export const CardThumbnail = memo(function CardThumbnail({
               }}
             >
               <div className="relative overflow-hidden" style={{ borderRadius: "inherit" }}>
-                <div className="aspect-card bg-muted" />
-                {siblingSrc &&
-                  (rotated ? (
-                    <div
-                      className="absolute top-1/2 left-1/2 overflow-hidden"
-                      style={LANDSCAPE_ROTATION_STYLE}
-                    >
-                      <img
-                        src={siblingSrc}
-                        srcSet={siblingSrcSet}
-                        sizes={siblingSizes}
-                        alt=""
-                        loading="lazy"
-                        width={CARD_HEIGHT}
-                        height={CARD_WIDTH}
-                        className="size-full object-cover"
-                      />
-                    </div>
-                  ) : (
-                    <img
-                      src={siblingSrc}
-                      srcSet={siblingSrcSet}
-                      sizes={siblingSizes}
-                      alt=""
-                      loading="lazy"
-                      width={CARD_WIDTH}
-                      height={CARD_HEIGHT}
-                      className="absolute inset-0 w-full object-cover"
-                    />
-                  ))}
+                {siblingSrc ? (
+                  <CardArtImage
+                    thumbnailUrl={siblingSrc}
+                    srcSet={siblingSrcSet}
+                    sizes={siblingSizes}
+                    alt=""
+                    rotated={rotated}
+                    loading="lazy"
+                    spacerClassName="bg-muted"
+                  />
+                ) : (
+                  <div className="aspect-card bg-muted" />
+                )}
                 {sibling.finish === WellKnown.finish.FOIL && gridFoil && <FoilOverlay active dim />}
                 <FinishIcon
                   finish={sibling.finish}
