@@ -3,24 +3,19 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
 import { rulesAtVersionQueryOptions, ruleVersionsQueryOptions } from "@/hooks/use-rules";
+import { ruleKindTitle, VALID_RULE_KINDS } from "@/lib/rules-kinds";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
-const VALID_KINDS: ReadonlySet<RuleKind> = new Set(["core", "tournament"]);
-
-function kindTitle(kind: RuleKind): string {
-  return kind === "tournament" ? "Tournament Rules" : "Core Rules";
-}
-
 export const Route = createFileRoute("/_app/rules_/$kind_/$version")({
   head: ({ params }) => {
-    if (!VALID_KINDS.has(params.kind as RuleKind)) {
+    if (!VALID_RULE_KINDS.has(params.kind as RuleKind)) {
       return {};
     }
     const kind = params.kind as RuleKind;
     return seoHead({
       siteUrl: getSiteUrl(),
-      title: `${kindTitle(kind)} (v${params.version})`,
+      title: `${ruleKindTitle(kind)} (v${params.version})`,
       description:
         kind === "tournament"
           ? `Riftbound tournament rules, version ${params.version}.`
@@ -29,7 +24,7 @@ export const Route = createFileRoute("/_app/rules_/$kind_/$version")({
     });
   },
   loader: async ({ params, context }) => {
-    if (!VALID_KINDS.has(params.kind as RuleKind)) {
+    if (!VALID_RULE_KINDS.has(params.kind as RuleKind)) {
       throw notFound();
     }
     const kind = params.kind as RuleKind;

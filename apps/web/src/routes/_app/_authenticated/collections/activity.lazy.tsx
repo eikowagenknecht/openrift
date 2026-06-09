@@ -147,25 +147,30 @@ function Toolbar({
     { value: "month", label: "30 days" },
   ];
 
+  // Single source for the collection picker: drives both the value-label
+  // resolution (items) and the rendered options, so they can't drift.
+  const collectionItems: Record<string, string> = {
+    all: "All collections",
+    ...Object.fromEntries(
+      (collections ?? []).map((collection) => [collection.id, collection.name]),
+    ),
+  };
+
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2">
       {/* Collection filter */}
       <Select
         value={collectionFilter}
         onValueChange={(v) => onCollectionChange(v ?? "all")}
-        items={{
-          all: "All collections",
-          ...Object.fromEntries(collections?.map((c) => [c.id, c.name]) ?? []),
-        }}
+        items={collectionItems}
       >
         <SelectTrigger className="w-auto" aria-label="Collection">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All collections</SelectItem>
-          {collections?.map((col) => (
-            <SelectItem key={col.id} value={col.id}>
-              {col.name}
+          {Object.entries(collectionItems).map(([value, label]) => (
+            <SelectItem key={value} value={value}>
+              {label}
             </SelectItem>
           ))}
         </SelectContent>

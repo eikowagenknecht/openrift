@@ -1,10 +1,5 @@
-import type {
-  Currency,
-  EffectiveTradePreference,
-  TradePreference,
-  TradePricePref,
-  TradeType,
-} from "@openrift/shared";
+import type { Currency, EffectiveTradePreference, TradePreference } from "@openrift/shared";
+import { resolveEffectiveTradePreference } from "@openrift/shared";
 
 import { COUNT_PILL_BASE, COUNT_PILL_INTERACTIVE } from "@/components/cards/count-pill";
 import { cn } from "@/lib/utils";
@@ -40,12 +35,11 @@ export function TradePreferenceGridPill({
   isOverridden,
   onEdit,
 }: TradePreferenceGridPillProps) {
-  const effective: EffectiveTradePreference = {
-    pricePref: (override.pricePref ?? listDefault.pricePref) as TradePricePref | null,
-    priceAbsoluteCents: override.priceAbsoluteCents ?? listDefault.priceAbsoluteCents,
-    tradeType: (override.tradeType ?? listDefault.tradeType) as TradeType | null,
+  const effective: EffectiveTradePreference = resolveEffectiveTradePreference(
+    override,
+    listDefault,
     currency,
-  };
+  );
   const body = renderBody(effective);
   const tooltip = renderTooltip(effective);
   const Icon = iconForTradeType(effective.tradeType);

@@ -13,6 +13,7 @@ import {
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { JobStatusBadge } from "@/components/admin/job-status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,24 +66,6 @@ function formatDuration(ms: number): string {
   const minutes = Math.floor(seconds / 60);
   const remSeconds = seconds % 60;
   return remSeconds > 0 ? `${minutes}m ${remSeconds}s` : `${minutes}m`;
-}
-
-function LastRunBadge({ status }: { status: "running" | "succeeded" | "failed" }) {
-  if (status === "running") {
-    return <Badge variant="secondary">running</Badge>;
-  }
-  if (status === "failed") {
-    return (
-      <Badge variant="outline" className="border-red-600 text-red-600 dark:text-red-400">
-        failed
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="outline" className="border-green-600 text-green-600 dark:text-green-400">
-      ok
-    </Badge>
-  );
 }
 
 function formatTimeAgo(iso: string): string {
@@ -231,7 +214,7 @@ export function StatusPage() {
                         <> · {formatDuration(job.lastRun.durationMs)}</>
                       )}
                     </span>
-                    <LastRunBadge status={job.lastRun.status} />
+                    <JobStatusBadge status={job.lastRun.status} />
                   </div>
                 )}
                 {job.lastRun?.status === "failed" && job.lastRun.errorMessage && (

@@ -12,6 +12,7 @@ import {
   useReorderFinishes,
   useUpdateFinish,
 } from "@/hooks/use-finishes";
+import { isValidSlug } from "@/lib/admin-slug";
 
 interface FinishRow {
   slug: string;
@@ -151,7 +152,7 @@ export function FinishesPage() {
           if (!slug || !label) {
             return "Slug and label are required";
           }
-          if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u.test(slug)) {
+          if (!isValidSlug(slug)) {
             return "Slug must be kebab-case (e.g. foil, non-foil)";
           }
           return null;

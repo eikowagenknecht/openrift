@@ -1,4 +1,4 @@
-import type { FriendGroupRole, ListIntent } from "@openrift/shared";
+import type { ListIntent } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ChevronLeftIcon } from "lucide-react";
 
@@ -8,6 +8,7 @@ import { UserAvatar } from "@/components/user-avatar";
 import { useFriendGroupMemberDetail } from "@/hooks/use-friend-groups";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
+import { ROLE_LABEL, SECTION_HEADING } from "./friend-group-shell";
 import { MatchTradeList } from "./match-row-card";
 import { SharedCollectionRow } from "./shared-collection-row";
 import { SharedListRow } from "./shared-list-row";
@@ -16,12 +17,6 @@ interface MemberDetailPageProps {
   slug: string;
   userId: string;
 }
-
-const ROLE_LABEL: Record<FriendGroupRole, string> = {
-  owner: "Owner",
-  admin: "Admin",
-  member: "Member",
-};
 
 const LIST_SECTIONS: { intent: Extract<ListIntent, "wish" | "trade">; heading: string }[] = [
   { intent: "wish", heading: "Wishlists" },
@@ -69,9 +64,7 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
 
       {data.matches.length > 0 || data.reverseMatches.length > 0 ? (
         <section className="flex flex-col gap-3">
-          <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-            Possible trades
-          </h2>
+          <h2 className={SECTION_HEADING}>Possible trades</h2>
           <MatchTradeList
             incoming={data.matches}
             outgoing={data.reverseMatches}
@@ -83,9 +76,7 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
 
       {hasCollections ? (
         <section className="flex flex-col gap-3">
-          <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-            Collections
-          </h2>
+          <h2 className={SECTION_HEADING}>Collections</h2>
           <div className="flex flex-col gap-2">
             {sortedCollections.map((share) => (
               <SharedCollectionRow key={share.collectionId} slug={slug} share={share} />
@@ -102,9 +93,7 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
             }
             return (
               <section key={intent} className="flex flex-col gap-3">
-                <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-                  {heading}
-                </h2>
+                <h2 className={SECTION_HEADING}>{heading}</h2>
                 <div className="flex flex-col gap-2">
                   {sectionShares.map((share) => (
                     <SharedListRow

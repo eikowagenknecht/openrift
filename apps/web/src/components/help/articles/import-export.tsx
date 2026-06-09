@@ -9,6 +9,7 @@ import {
 
 import { DefinitionList, DefinitionRow } from "@/components/help/definition-list";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SOCIAL_LINKS } from "@/lib/social-links";
 
 export default function ImportExportArticle() {
   return (
@@ -112,7 +113,7 @@ export default function ImportExportArticle() {
           Using a different tool? Export it as CSV and try importing. If the format isn&apos;t
           recognized, OpenRift will tell you. Let me know on{" "}
           <a
-            href="https://discord.gg/Qb6RcjXq6z"
+            href={SOCIAL_LINKS.discordInvite}
             target="_blank"
             rel="noreferrer"
             className="text-primary hover:underline"
@@ -121,7 +122,7 @@ export default function ImportExportArticle() {
           </a>{" "}
           or{" "}
           <a
-            href="https://github.com/openriftapp/openrift/issues"
+            href={SOCIAL_LINKS.githubIssues}
             target="_blank"
             rel="noreferrer"
             className="text-primary hover:underline"

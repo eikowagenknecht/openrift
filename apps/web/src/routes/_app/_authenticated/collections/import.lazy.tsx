@@ -45,6 +45,7 @@ import { useRequiredUserId } from "@/lib/auth-session";
 import { copiesQueryOptions } from "@/lib/copies-query";
 import { downloadCSV, generateExportCSV } from "@/lib/csv-export";
 import type { MatchedEntry } from "@/lib/import-matcher";
+import { SOCIAL_LINKS } from "@/lib/social-links";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/collections/import")({
@@ -296,7 +297,7 @@ function InputStep({
           </a>
           , or OpenRift itself. Having trouble or need support for another source? Let us know on{" "}
           <a
-            href="https://discord.gg/Qb6RcjXq6z"
+            href={SOCIAL_LINKS.discordInvite}
             target="_blank"
             rel="noreferrer"
             className="text-foreground underline"
@@ -305,7 +306,7 @@ function InputStep({
           </a>{" "}
           or{" "}
           <a
-            href="https://github.com/openriftapp/openrift/issues"
+            href={SOCIAL_LINKS.githubIssues}
             target="_blank"
             rel="noreferrer"
             className="text-foreground underline"
@@ -514,7 +515,7 @@ function PreviewStep({
           <p className="text-muted-foreground text-sm">
             Having trouble importing?{" "}
             <a
-              href="https://github.com/openriftapp/openrift/issues"
+              href={SOCIAL_LINKS.githubIssues}
               target="_blank"
               rel="noreferrer"
               className="text-foreground underline"

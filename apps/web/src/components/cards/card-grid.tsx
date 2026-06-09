@@ -1,6 +1,5 @@
 import type { EnumOrders, GroupByField } from "@openrift/shared";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
-import { SearchXIcon, WifiOffIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 
@@ -30,6 +29,7 @@ import {
 } from "./card-grid-constants";
 import { CardGridDebug } from "./card-grid-debug";
 import type { GroupInfo, VRow } from "./card-grid-types";
+import { CardViewerEmptyState } from "./card-viewer-empty-state";
 import { computeRowStarts } from "./compute-row-starts";
 import { ScrollIndicator } from "./scroll-indicator";
 import { useStickyHeader } from "./use-sticky-header";
@@ -485,28 +485,7 @@ export function CardGrid({
   if (items.length === 0) {
     return (
       <div ref={containerRef} className="flex flex-1 flex-col">
-        <div className="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-3 text-center">
-          {totalItems === 0 ? (
-            <>
-              <WifiOffIcon className="size-10 opacity-50" />
-              <p>Couldn&apos;t load cards</p>
-              <p className="text-xs">The server may be unreachable.</p>
-              <button
-                type="button"
-                className="mt-1 text-sm underline"
-                onClick={() => globalThis.location.reload()}
-              >
-                Retry
-              </button>
-            </>
-          ) : (
-            <>
-              <SearchXIcon className="size-10 opacity-50" />
-              <p>No cards found</p>
-              <p className="text-xs">Try adjusting your filters.</p>
-            </>
-          )}
-        </div>
+        <CardViewerEmptyState totalItems={totalItems} />
       </div>
     );
   }

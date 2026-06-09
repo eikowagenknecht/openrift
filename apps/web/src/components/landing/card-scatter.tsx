@@ -2,7 +2,16 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { seededShuffle } from "@/lib/seeded-shuffle";
 import { cn } from "@/lib/utils";
+
+// Re-check card visibility on this cadence so drifting cards fade in/out at edges.
+const VISIBILITY_RECHECK_MS = 2000;
+// Brief delay before signalling "all collected" so the final collect reads.
+const ALL_COLLECTED_DELAY_MS = 500;
+// Must match the `animate-fly-away` CSS keyframe duration; the card is removed
+// from the DOM only after the fly-away animation finishes.
+const FLY_AWAY_MS = 800;
 
 // [x%, y%, rotation°] — desktop uses an 8000×3000 landscape canvas,
 // mobile uses a 1200×1800 portrait canvas.
@@ -140,32 +149,6 @@ function CardShape({
   );
 }
 
-/**
- * Fisher-Yates shuffle seeded by a numeric value so the result is
- * deterministic for the same seed + input, but varies across mounts.
- *
- * @returns A shuffled copy of `urls`, or an empty array if input is empty.
- */
-function shuffleUrls(urls: string[], seed: number): string[] {
-  if (urls.length === 0) {
-    return [];
-  }
-  const result = [...urls];
-  // Seeded PRNG (mulberry32) — bitwise ops intentionally coerce to int32
-  let state = Math.trunc(seed * 2_654_435_761);
-  for (let i = result.length - 1; i > 0; i--) {
-    // oxlint-disable-next-line unicorn/prefer-math-trunc -- int32 coercion required for PRNG
-    state = (state + 0x6d_2b_79_f5) | 0;
-    let temp = Math.imul(state ^ (state >>> 15), 1 | state);
-    temp ^= temp + Math.imul(temp ^ (temp >>> 7), 61 | temp);
-    // oxlint-disable-next-line unicorn/prefer-math-trunc -- uint32 coercion required for PRNG
-    const random = ((temp ^ (temp >>> 14)) >>> 0) / 4_294_967_296;
-    const j = Math.floor(random * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
-}
-
 export function CardScatter({
   className,
   flyIn,
@@ -184,7 +167,7 @@ export function CardScatter({
   // gates the shuffle so SSR renders plain shapes (no images yet).
   // oxlint-disable-next-line react/hook-use-state -- setter intentionally unused; seed is write-once
   const [seed] = useState(() => Math.random());
-  const shuffled = hydrated ? shuffleUrls(imageUrls ?? [], seed) : [];
+  const shuffled = hydrated ? seededShuffle(imageUrls ?? [], seed) : [];
   const [activated, setActivated] = useState<Set<number>>(() => new Set());
   const [flyingAway, setFlyingAway] = useState<Set<number>>(() => new Set());
   const [gone, setGone] = useState<Set<number>>(() => new Set());
@@ -208,27 +191,27 @@ export function CardScatter({
 
   useLayoutEffect(() => {
     function countVisible() {
-      const el = canvasRef.current;
+      const canvasEl = canvasRef.current;
       const container = containerRef.current;
-      if (!el || !container) {
+      if (!canvasEl || !container) {
         return;
       }
       // Intersect viewport with the overflow-hidden container so cards
       // clipped behind the footer aren't counted as visible.
-      const cb = container.getBoundingClientRect();
-      const visLeft = Math.max(cb.left, 0);
-      const visTop = Math.max(cb.top, 0);
-      const visRight = Math.min(cb.right, window.innerWidth);
-      const visBottom = Math.min(cb.bottom, window.innerHeight);
+      const containerBounds = container.getBoundingClientRect();
+      const visLeft = Math.max(containerBounds.left, 0);
+      const visTop = Math.max(containerBounds.top, 0);
+      const visRight = Math.min(containerBounds.right, window.innerWidth);
+      const visBottom = Math.min(containerBounds.bottom, window.innerHeight);
       // Blockers (e.g. glass panels) occlude scatter cards from the minigame
       // tally — cards mostly hidden behind a blocker are still rendered (so
       // they show through translucent panels) but excluded from reachable.
-      const blockers = [...document.querySelectorAll("[data-card-blocker]")].map((b) =>
-        b.getBoundingClientRect(),
+      const blockers = [...document.querySelectorAll("[data-card-blocker]")].map((blockerEl) =>
+        blockerEl.getBoundingClientRect(),
       );
       const nextVisible = new Set<number>();
       let reachable = 0;
-      for (const child of el.children) {
+      for (const child of canvasEl.children) {
         const idx = Number((child as HTMLElement).dataset.cardIndex);
         if (Number.isNaN(idx) || gone.has(idx)) {
           continue;
@@ -251,15 +234,15 @@ export function CardScatter({
           nextVisible.add(idx);
           let unblockedArea = viewportArea;
           for (const blocker of blockers) {
-            const bx = Math.max(
+            const blockerOverlapX = Math.max(
               0,
               Math.min(rect.right, blocker.right) - Math.max(rect.left, blocker.left),
             );
-            const by = Math.max(
+            const blockerOverlapY = Math.max(
               0,
               Math.min(rect.bottom, blocker.bottom) - Math.max(rect.top, blocker.top),
             );
-            unblockedArea -= bx * by;
+            unblockedArea -= blockerOverlapX * blockerOverlapY;
           }
           if (unblockedArea / totalArea >= 0.5) {
             reachable++;
@@ -267,7 +250,7 @@ export function CardScatter({
         }
       }
       setVisibleCards((prev) => {
-        if (prev.size === nextVisible.size && [...nextVisible].every((x) => prev.has(x))) {
+        if (prev.size === nextVisible.size && [...nextVisible].every((index) => prev.has(index))) {
           return prev;
         }
         return nextVisible;
@@ -276,7 +259,7 @@ export function CardScatter({
     }
     countVisible();
     // Re-check periodically so drifting cards fade in/out at edges.
-    const interval = setInterval(countVisible, 2000);
+    const interval = setInterval(countVisible, VISIBILITY_RECHECK_MS);
     window.addEventListener("resize", countVisible);
     return () => {
       clearInterval(interval);
@@ -292,7 +275,7 @@ export function CardScatter({
   // whether from collecting a card or from reachable count decreasing (drift/resize).
   useEffect(() => {
     if (reachableCount > 0 && gone.size >= reachableCount) {
-      const timeout = setTimeout(() => onAllCollected?.(), 500);
+      const timeout = setTimeout(() => onAllCollected?.(), ALL_COLLECTED_DELAY_MS);
       return () => clearTimeout(timeout);
     }
   }, [reachableCount, gone.size, onAllCollected]);
@@ -305,16 +288,16 @@ export function CardScatter({
         next.delete(index);
         return next;
       });
-      setFlyingAway((p) => new Set(p).add(index));
-      setGone((p) => new Set(p).add(index));
+      setFlyingAway((prev) => new Set(prev).add(index));
+      setGone((prev) => new Set(prev).add(index));
       // Remove from flyingAway after animation ends so card is removed from DOM
       setTimeout(() => {
-        setFlyingAway((p) => {
-          const next = new Set(p);
+        setFlyingAway((prev) => {
+          const next = new Set(prev);
           next.delete(index);
           return next;
         });
-      }, 800);
+      }, FLY_AWAY_MS);
     } else {
       setActivated((prev) => new Set(prev).add(index));
     }

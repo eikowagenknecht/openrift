@@ -29,6 +29,7 @@ import {
   useToggleFeatureFlag,
   useUpsertFeatureFlagOverride,
 } from "@/hooks/use-feature-flags";
+import { isValidKebabKey } from "@/lib/admin-slug";
 
 // ---------------------------------------------------------------------------
 // Global flags section
@@ -38,8 +39,6 @@ interface FlagDraft {
   key: string;
   description: string;
 }
-
-const KEBAB_RE = /^[a-z][a-z0-9]+(?:-[a-z0-9]+)*$/u;
 
 // ── Known flags ──────────────────────────────────────────────────────────────
 // Flags that application code checks. Other keys are stored but have no effect.
@@ -186,7 +185,7 @@ function GlobalFlagsSection() {
             if (!key) {
               return "Key is required";
             }
-            if (!KEBAB_RE.test(key)) {
+            if (!isValidKebabKey(key)) {
               return "Key must be kebab-case (e.g. deck-builder)";
             }
             return null;

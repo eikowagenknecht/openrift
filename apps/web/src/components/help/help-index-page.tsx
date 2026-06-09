@@ -3,6 +3,7 @@ import { siDiscord } from "simple-icons";
 
 import { Heading } from "@/components/heading";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SOCIAL_LINKS } from "@/lib/social-links";
 import { PAGE_PADDING } from "@/lib/utils";
 
 import { helpArticleList } from "./articles";
@@ -36,7 +37,7 @@ export function HelpIndexPage() {
         <p>
           Can&apos;t find what you&apos;re looking for?{" "}
           <a
-            href="https://discord.gg/Qb6RcjXq6z"
+            href={SOCIAL_LINKS.discordInvite}
             target="_blank"
             rel="noreferrer"
             className="text-foreground hover:underline"

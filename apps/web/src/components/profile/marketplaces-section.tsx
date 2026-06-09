@@ -1,14 +1,15 @@
 import type { Marketplace } from "@openrift/shared";
 import { ALL_MARKETPLACES } from "@openrift/shared";
-import { ArrowDownIcon, ArrowUpIcon, RotateCcwIcon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDisplayStore } from "@/stores/display-store";
+
+import { ResetButton } from "./reset-button";
 
 const MARKETPLACE_LABELS: Record<Marketplace, string> = {
   tcgplayer: "TCGplayer",
@@ -136,27 +137,5 @@ export function MarketplacesSection() {
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function ResetButton({ onClick, label }: { onClick: () => void; label: string }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            onClick={onClick}
-            className="relative z-10"
-            aria-label={label}
-          />
-        }
-      >
-        <RotateCcwIcon className="size-3.5" />
-      </TooltipTrigger>
-      <TooltipContent>Reset to default</TooltipContent>
-    </Tooltip>
   );
 }

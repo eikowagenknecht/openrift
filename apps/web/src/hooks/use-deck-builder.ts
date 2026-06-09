@@ -13,14 +13,16 @@ import { useCustomTagAssignments } from "@/hooks/use-custom-tag-assignments";
 import { useDeckDetail } from "@/hooks/use-decks";
 import { useChampionIdentifierTags } from "@/hooks/use-enums";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
-import { deckCardKey, isCardAllowedInZone, toRuleEngineCard } from "@/lib/deck-builder-card";
+import {
+  COPY_LIMIT_ZONES,
+  deckCardKey,
+  isCardAllowedInZone,
+  RUNE_TARGET,
+  toRuleEngineCard,
+} from "@/lib/deck-builder-card";
 import { useDeckDraftCollection } from "@/lib/deck-builder-collection";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 
-const RUNE_TARGET = 12;
-// Overflow is intentionally excluded — it is a free parking zone, so its copies
-// don't count toward the 3-copy cap and adds into it are never capped.
-const COPY_LIMIT_ZONES: ReadonlySet<DeckZone> = new Set(["main", "sideboard", "champion"]);
 const EMPTY_CARDS: DeckBuilderCard[] = [];
 
 type DeckCollection = Collection<DeckBuilderCard, string | number>;

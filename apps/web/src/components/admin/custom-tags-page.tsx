@@ -37,6 +37,7 @@ import {
   useUpdateCustomTag,
   useUpdateCustomTagCategory,
 } from "@/hooks/use-custom-tags";
+import { isValidSlug } from "@/lib/admin-slug";
 import type { BulkImportPlan } from "@/lib/custom-tag-bulk-import";
 import { planCustomTagBulkImport } from "@/lib/custom-tag-bulk-import";
 
@@ -57,7 +58,6 @@ interface CustomTagCategoryDraft {
 
 // Mirrors `slugRegex` in apps/api/src/routes/admin/schemas.ts — keep in sync
 // so the UI rejects exactly what the server would reject.
-const KEBAB_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 
 export function CustomTagsPage() {
   const { data: tagsData } = useCustomTags();
@@ -233,7 +233,7 @@ function CategoriesSection({ categories }: { categories: CustomTagCategoryRespon
           if (!slug || !label) {
             return "Slug and label are required";
           }
-          if (!KEBAB_RE.test(slug)) {
+          if (!isValidSlug(slug)) {
             return "Slug must be kebab-case (e.g. region)";
           }
           return null;
@@ -458,7 +458,7 @@ function TagsSection({
           if (!d.categoryId) {
             return "Pick a category (create one first if none exist)";
           }
-          if (!KEBAB_RE.test(slug)) {
+          if (!isValidSlug(slug)) {
             return "Slug must be kebab-case (e.g. bandle-city)";
           }
           return null;

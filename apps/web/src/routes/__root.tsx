@@ -31,6 +31,7 @@ import { runtimeConfigScript } from "@/lib/runtime-config";
 import { organizationJsonLd } from "@/lib/seo";
 import { getIsPreview, getSiteUrl } from "@/lib/site-config";
 import { siteSettingsQueryOptions } from "@/lib/site-settings";
+import { SOCIAL_LINKS } from "@/lib/social-links";
 
 // CSS ?url import causes a harmless hydration warning in dev (Vite appends
 // ?t=<timestamp> on the client). No effect in production.
@@ -156,7 +157,7 @@ export const Route = createRootRouteWithContext<{
         ? []
         : [
             organizationJsonLd(getSiteUrl(), {
-              sameAs: ["https://github.com/openriftapp/openrift", "https://discord.gg/Qb6RcjXq6z"],
+              sameAs: [SOCIAL_LINKS.githubRepo, SOCIAL_LINKS.discordInvite],
             }),
           ],
     };

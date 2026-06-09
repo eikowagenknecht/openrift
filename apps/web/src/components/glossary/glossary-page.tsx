@@ -16,6 +16,23 @@ import { KEYWORD_INFO, keywordAnchorSlug } from "@/lib/glossary";
 import { getFilterIconPath } from "@/lib/icons";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
+/**
+ * Link to a specific rule in the core rules, used throughout the glossary.
+ * @returns The "Rule N →" link.
+ */
+function RuleRef({ ruleNumber, className }: { ruleNumber: string; className?: string }) {
+  return (
+    <Link
+      to="/rules/$kind"
+      params={{ kind: "core" }}
+      hash={`rule-${ruleNumber}`}
+      className={cn("text-primary text-xs hover:underline", className)}
+    >
+      Rule {ruleNumber} →
+    </Link>
+  );
+}
+
 interface Section {
   id: string;
   title: string;
@@ -197,7 +214,7 @@ function DomainsSection({
   domains: { slug: string; label: string; color?: string | null }[];
   query: string;
 }) {
-  const visible = domains.filter((d) => matches(query, d.label, d.slug));
+  const visible = domains.filter((domain) => matches(query, domain.label, domain.slug));
   if (visible.length === 0) {
     return null;
   }
@@ -236,16 +253,7 @@ function DomainsSection({
                   <div className="font-medium" style={domain.color ? { color: domain.color } : {}}>
                     {domain.label}
                   </div>
-                  {ruleNumber && (
-                    <Link
-                      to="/rules/$kind"
-                      params={{ kind: "core" }}
-                      hash={`rule-${ruleNumber}`}
-                      className="text-primary text-xs hover:underline"
-                    >
-                      Rule {ruleNumber} →
-                    </Link>
-                  )}
+                  {ruleNumber && <RuleRef ruleNumber={ruleNumber} />}
                 </div>
                 {hasIcon && (
                   <img
@@ -273,9 +281,9 @@ function CardTypesSection({
   types: { slug: string; label: string }[];
   query: string;
 }) {
-  const visible = types.filter((t) => matches(query, t.label, t.slug));
-  const visibleSupertypes = SUPERTYPES.filter((s) =>
-    matches(query, s.label, s.slug, s.description),
+  const visible = types.filter((cardType) => matches(query, cardType.label, cardType.slug));
+  const visibleSupertypes = SUPERTYPES.filter((supertype) =>
+    matches(query, supertype.label, supertype.slug, supertype.description),
   );
   if (visible.length === 0 && visibleSupertypes.length === 0) {
     return null;
@@ -315,16 +323,7 @@ function CardTypesSection({
                   )}
                   <div className="flex min-w-0 flex-1 items-baseline justify-between gap-2">
                     <span className="font-medium">{cardType.label}</span>
-                    {ruleNumber && (
-                      <Link
-                        to="/rules/$kind"
-                        params={{ kind: "core" }}
-                        hash={`rule-${ruleNumber}`}
-                        className="text-primary text-xs hover:underline"
-                      >
-                        Rule {ruleNumber} →
-                      </Link>
-                    )}
+                    {ruleNumber && <RuleRef ruleNumber={ruleNumber} />}
                   </div>
                 </li>
               );
@@ -363,14 +362,7 @@ function CardTypesSection({
                     {supertype.label}
                   </span>
                   <p className="text-muted-foreground flex-1">{supertype.description}</p>
-                  <Link
-                    to="/rules/$kind"
-                    params={{ kind: "core" }}
-                    hash={`rule-${supertype.ruleNumber}`}
-                    className="text-primary shrink-0 text-xs hover:underline"
-                  >
-                    Rule {supertype.ruleNumber} →
-                  </Link>
+                  <RuleRef ruleNumber={supertype.ruleNumber} className="shrink-0" />
                 </li>
               );
             })}
@@ -388,7 +380,7 @@ function RaritiesSection({
   rarities: { slug: string; label: string; color?: string | null }[];
   query: string;
 }) {
-  const visible = rarities.filter((r) => matches(query, r.label, r.slug));
+  const visible = rarities.filter((rarity) => matches(query, rarity.label, rarity.slug));
   if (visible.length === 0) {
     return null;
   }
@@ -477,9 +469,9 @@ function ArtVariantsSection({
   artVariants: { slug: string; label: string }[];
   query: string;
 }) {
-  const visible = artVariants.filter((v) => {
-    const description = ART_VARIANT_DESCRIPTIONS[v.slug.toLowerCase()];
-    return matches(query, v.label, v.slug, description);
+  const visible = artVariants.filter((variant) => {
+    const description = ART_VARIANT_DESCRIPTIONS[variant.slug.toLowerCase()];
+    return matches(query, variant.label, variant.slug, description);
   });
   if (visible.length === 0) {
     return null;
@@ -517,9 +509,9 @@ function FinishesSection({
   finishes: { slug: string; label: string }[];
   query: string;
 }) {
-  const visible = finishes.filter((f) => {
-    const description = FINISH_DESCRIPTIONS[f.slug.toLowerCase()];
-    return matches(query, f.label, f.slug, description);
+  const visible = finishes.filter((finish) => {
+    const description = FINISH_DESCRIPTIONS[finish.slug.toLowerCase()];
+    return matches(query, finish.label, finish.slug, description);
   });
   if (visible.length === 0) {
     return null;
@@ -557,8 +549,8 @@ function MarkersSection({
   markers: { slug: string; label: string; description: string | null }[];
   query: string;
 }) {
-  const visible = markers.filter((m) =>
-    matches(query, m.label, m.slug, m.description ?? undefined),
+  const visible = markers.filter((marker) =>
+    matches(query, marker.label, marker.slug, marker.description ?? undefined),
   );
   if (visible.length === 0) {
     return null;
@@ -614,7 +606,7 @@ function PrintingDetailsSection({ query }: { query: string }) {
         "A printing flag indicating the card carries the artist's signature, usually overlaid on a foil alt-art or Ultimate variant.",
     },
   ];
-  const visible = items.filter((i) => matches(query, i.label, i.description));
+  const visible = items.filter((item) => matches(query, item.label, item.description));
   if (visible.length === 0) {
     return null;
   }
@@ -642,7 +634,9 @@ function PrintingDetailsSection({ query }: { query: string }) {
 }
 
 function SetsSection({ sets, query }: { sets: SetEntry[]; query: string }) {
-  const visible = sets.filter((s) => matches(query, s.slug, s.name, s.setType));
+  const visible = sets.filter((setEntry) =>
+    matches(query, setEntry.slug, setEntry.name, setEntry.setType),
+  );
   if (visible.length === 0) {
     return null;
   }
@@ -746,16 +740,7 @@ function KeywordsSection({ keywords, query }: { keywords: KeywordRow[]; query: s
           >
             <div className="flex items-center justify-between gap-3">
               <KeywordPill name={kw.name} color={kw.color} darkText={kw.darkText} />
-              {kw.info?.ruleNumber && (
-                <Link
-                  to="/rules/$kind"
-                  params={{ kind: "core" }}
-                  hash={`rule-${kw.info.ruleNumber}`}
-                  className="text-primary text-xs hover:underline"
-                >
-                  Rule {kw.info.ruleNumber} →
-                </Link>
-              )}
+              {kw.info?.ruleNumber && <RuleRef ruleNumber={kw.info.ruleNumber} />}
             </div>
             {kw.info?.summary ? (
               <p className="text-muted-foreground mt-2">{kw.info.summary}</p>
@@ -823,7 +808,7 @@ function SymbolsSection({ query }: { query: string }) {
       icon: "/images/glyphs/rune-rainbow.svg",
     },
   ];
-  const visible = symbols.filter((s) => matches(query, s.label, s.summary));
+  const visible = symbols.filter((symbol) => matches(query, symbol.label, symbol.summary));
   if (visible.length === 0) {
     return null;
   }
@@ -887,7 +872,7 @@ function NumberingSection({ query }: { query: string }) {
       summary: "R prefix indicates a rune printed for the set (introduced in Spiritforged).",
     },
   ];
-  const visible = items.filter((i) => matches(query, i.pattern, i.summary));
+  const visible = items.filter((item) => matches(query, item.pattern, item.summary));
   if (visible.length === 0) {
     return null;
   }
@@ -947,13 +932,13 @@ export function GlossaryPage() {
   const cardTypes = init.enums.cardTypes ?? [];
   const artVariants = init.enums.artVariants ?? [];
   const finishes = init.enums.finishes ?? [];
-  const sets: SetEntry[] = (setList.sets ?? []).map((s) => ({
-    slug: s.slug,
-    name: s.name,
-    releasedAt: s.releasedAt,
-    released: s.released,
-    setType: s.setType,
-    cardCount: s.cardCount,
+  const sets: SetEntry[] = (setList.sets ?? []).map((setEntry) => ({
+    slug: setEntry.slug,
+    name: setEntry.name,
+    releasedAt: setEntry.releasedAt,
+    released: setEntry.released,
+    setType: setEntry.setType,
+    cardCount: setEntry.cardCount,
   }));
 
   return (

@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { siDiscord, siGithub } from "simple-icons";
 
 import { COMMIT_HASH } from "@/lib/env";
+import { SOCIAL_LINKS } from "@/lib/social-links";
 import { cn } from "@/lib/utils";
 
 export function Footer({ className }: { className?: string }) {
@@ -21,7 +22,7 @@ export function Footer({ className }: { className?: string }) {
         </Link>
         <span aria-hidden="true"> · </span>
         <a
-          href="https://discord.gg/Qb6RcjXq6z"
+          href={SOCIAL_LINKS.discordInvite}
           target="_blank"
           rel="noreferrer"
           className="hover:text-muted-foreground"
@@ -37,7 +38,7 @@ export function Footer({ className }: { className?: string }) {
         </a>
         <span aria-hidden="true"> · </span>
         <a
-          href="https://github.com/openriftapp/openrift/commits/main/"
+          href={SOCIAL_LINKS.githubCommits}
           target="_blank"
           rel="noreferrer"
           className="hover:text-muted-foreground"

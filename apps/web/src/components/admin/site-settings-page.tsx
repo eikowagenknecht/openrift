@@ -27,14 +27,13 @@ import {
   useSiteSettings,
   useUpdateSiteSetting,
 } from "@/hooks/use-site-settings";
+import { isValidKebabKey } from "@/lib/admin-slug";
 
 interface SettingDraft {
   key: string;
   value: string;
   scope: string;
 }
-
-const KEBAB_RE = /^[a-z][a-z0-9]+(?:-[a-z0-9]+)*$/u;
 
 // ── Known settings ──────────────────────────────────────────────────────────
 // Settings that application code reads. Other keys are stored but have no effect.
@@ -216,7 +215,7 @@ export function SiteSettingsPage() {
             if (!key) {
               return "Key is required";
             }
-            if (!KEBAB_RE.test(key)) {
+            if (!isValidKebabKey(key)) {
               return "Key must be kebab-case (e.g. umami-url)";
             }
             if (!draft.value) {

@@ -11,6 +11,9 @@
 - feat: Wishlists and trade lists can be shared to a chat as a card image, a copy-paste card list, or a link that shows a card preview when pasted into WhatsApp or Discord
 - fix: On generated card art (shown when a card has no image, and in the Card Designer), the rune symbols next to a unit's power now turn dark on light domain colors like order and body, instead of staying white and hard to read
 - fix: On generated card art, the rune symbols next to a dual-domain unit's power now sit on a clean half-and-half of its two domain colors and are sized to match the single-domain ones, instead of being smaller over a soft color blend
+- fix: Collection completion and cost-to-complete now count Legends, Battlefields, and unique cards as needing a single copy, matching the deck rules. They were treated as needing three, which overstated how far you were from a full set and how much it would cost to finish
+- fix: Grouping the card table by type, domain, or rarity now shows the proper name (like "Rare" or "Unit") in the section headers instead of the internal code
+- fix: The missing-cards and price breakdown for a deck now labels its zone sections the same way as the rest of the app (for example "Chosen Champion" and "Main Deck"), instead of shorter names that didn't match
 - fix: Battlefield cards now appear in their correct landscape orientation the moment the cards page loads, instead of briefly showing squished upright until the page finished loading
 - fix: In Firefox, fanned-out card stacks no longer cut Battlefield cards off partway down. The layers behind the top card now show the full art, like in every other browser
 - fix: Battlefield cards no longer appear among the floating cards on the home page, where their landscape shape looked out of place

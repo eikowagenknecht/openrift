@@ -12,6 +12,7 @@ import {
   useReorderArtVariants,
   useUpdateArtVariant,
 } from "@/hooks/use-art-variants";
+import { isValidSlug } from "@/lib/admin-slug";
 
 interface ArtVariantRow {
   slug: string;
@@ -152,7 +153,7 @@ export function ArtVariantsPage() {
           if (!slug || !label) {
             return "Slug and label are required";
           }
-          if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u.test(slug)) {
+          if (!isValidSlug(slug)) {
             return "Slug must be kebab-case (e.g. alternate, extended-art)";
           }
           return null;

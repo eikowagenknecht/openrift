@@ -24,28 +24,10 @@ import {
   isDeckZoneFullForDrag,
 } from "@/lib/deck-builder-card";
 import { compareGroupedCards, GROUPED_ZONES, TYPE_GROUP_ORDER } from "@/lib/deck-card-order";
-import { ZONE_LABELS } from "@/lib/deck-zone-labels";
+import { ZONE_EMPTY_HINTS, ZONE_EXPECTED, ZONE_LABELS } from "@/lib/deck-zone-labels";
 import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useSelectionStore } from "@/stores/selection-store";
-
-const ZONE_EXPECTED: Partial<Record<DeckZone, number>> = {
-  legend: 1,
-  champion: 1,
-  runes: 12,
-  battlefield: 3,
-  main: 39,
-};
-
-const ZONE_EMPTY_HINTS: Record<DeckZone, string> = {
-  legend: "Choose a Legend",
-  champion: "Pick a matching Champion",
-  runes: "Auto-fills from your Legend",
-  battlefield: "Choose 3 unique Battlefield cards",
-  main: "Add cards from the browser",
-  sideboard: "Add up to 8 sideboard cards",
-  overflow: "Stash extra cards here while you decide",
-};
 
 // Zones that only allow a single card — show remove button instead of +/-
 const SINGLE_CARD_ZONES = new Set<DeckZone>(["legend", "champion"]);

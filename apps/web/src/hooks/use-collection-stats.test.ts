@@ -315,6 +315,31 @@ describe("computeCompletion", () => {
     expect(unitEntry?.total).toBe(3);
   });
 
+  it("treats [Unique] non-legend cards as a 1-copy playset in copies mode", () => {
+    // Regression: the local copies-target ignored the [Unique] keyword, so a
+    // Unique card counted as a playset of 3 in stats while the deck builder
+    // (getPlaysetSize) treats it as 1. Both now route through getPlaysetSize.
+    const uniqueRelic = stubStack({
+      copyCount: 1,
+      card: { slug: "relic", type: "unit", keywords: ["Unique"] },
+      setId: "set-1",
+    });
+
+    const entries = computeCompletion({
+      stacks: [uniqueRelic],
+      scopedPrintings: [uniqueRelic.printing],
+      scope: {},
+      sets: [stubSet({ id: "set-1" })],
+      groupBy: "type",
+      countMode: "copies",
+      orders: ORDERS,
+    });
+
+    const unitEntry = entries.find((entry) => entry.key === "unit");
+    expect(unitEntry?.total).toBe(1); // [Unique] → playset of 1, not 3
+    expect(unitEntry?.owned).toBe(1);
+  });
+
   it("caps owned copies at target in copies mode", () => {
     const unit = stubStack({
       copyCount: 5,

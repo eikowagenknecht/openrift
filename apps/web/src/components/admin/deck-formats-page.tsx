@@ -12,6 +12,7 @@ import {
   useReorderDeckFormats,
   useUpdateDeckFormat,
 } from "@/hooks/use-deck-formats";
+import { isValidSlug } from "@/lib/admin-slug";
 
 interface DeckFormatRow {
   slug: string;
@@ -151,7 +152,7 @@ export function DeckFormatsPage() {
           if (!slug || !label) {
             return "Slug and label are required";
           }
-          if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u.test(slug)) {
+          if (!isValidSlug(slug)) {
             return "Slug must be kebab-case (e.g. constructed, freeform)";
           }
           return null;

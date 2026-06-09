@@ -1,6 +1,7 @@
 import { ChevronDownIcon, ChevronRightIcon, LoaderIcon, RefreshCwIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { JobStatusBadge } from "@/components/admin/job-status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,24 +29,6 @@ import type { JobRunView } from "@/lib/server-fns/api-types";
 const CANCELLABLE_KINDS = new Set<string>(["images.regenerate"]);
 
 const ANY = "__any";
-
-function StatusBadge({ status }: { status: JobRunView["status"] }) {
-  if (status === "running") {
-    return <Badge variant="secondary">running</Badge>;
-  }
-  if (status === "failed") {
-    return (
-      <Badge variant="outline" className="border-red-600 text-red-600 dark:text-red-400">
-        failed
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="outline" className="border-green-600 text-green-600 dark:text-green-400">
-      ok
-    </Badge>
-  );
-}
 
 function TriggerBadge({ trigger }: { trigger: JobRunView["trigger"] }) {
   return (
@@ -270,7 +253,7 @@ function JobRunRow({
           <TriggerBadge trigger={run.trigger} />
         </TableCell>
         <TableCell>
-          <StatusBadge status={run.status} />
+          <JobStatusBadge status={run.status} />
         </TableCell>
         <TableCell>
           <span className="font-mono" title={formatAbsolute(run.startedAt)}>

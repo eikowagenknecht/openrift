@@ -12,6 +12,7 @@ import {
   useReorderCardTypes,
   useUpdateCardType,
 } from "@/hooks/use-card-types";
+import { isValidSlug } from "@/lib/admin-slug";
 
 interface CardTypeRow {
   slug: string;
@@ -152,7 +153,7 @@ export function CardTypesPage() {
           if (!slug || !label) {
             return "Slug and label are required";
           }
-          if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u.test(slug)) {
+          if (!isValidSlug(slug)) {
             return "Slug must be kebab-case (e.g. unit, battlefield)";
           }
           return null;

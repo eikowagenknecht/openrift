@@ -14,6 +14,7 @@ import {
   useReorderMarkers,
   useUpdateMarker,
 } from "@/hooks/use-markers";
+import { isValidSlug } from "@/lib/admin-slug";
 
 interface MarkerDraft {
   id: string;
@@ -21,8 +22,6 @@ interface MarkerDraft {
   label: string;
   description: string;
 }
-
-const KEBAB_RE = /^[a-z][a-z0-9]+(?:-[a-z0-9]+)*$/u;
 
 function SlugCell({ row }: AdminCellSlotProps<MarkerResponse>) {
   if (!row) {
@@ -174,7 +173,7 @@ export function MarkersPage() {
           if (!slug || !label) {
             return "Slug and label are required";
           }
-          if (!KEBAB_RE.test(slug)) {
+          if (!isValidSlug(slug)) {
             return "Slug must be kebab-case (e.g. top-8)";
           }
           return null;

@@ -1,14 +1,14 @@
 import type { EnumOrders, GroupByField, Printing } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
-import { SearchXIcon, WifiOffIcon } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import { Fragment, cloneElement, memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import { Button } from "@/components/ui/button";
+import type { EnumLabels } from "@/hooks/use-enums";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { groupItemsByChannel } from "@/lib/group-by-channel";
+import { groupItemsByField } from "@/lib/group-by-field";
 import { groupItemsByMarker } from "@/lib/group-by-marker";
 import { groupItemsByYear } from "@/lib/group-by-year";
 import { getHeaderHeight } from "@/lib/header-height";
@@ -25,6 +25,7 @@ import {
   getCardTableColumns,
   getCardTableMinWidth,
 } from "./card-table-row";
+import { CardViewerEmptyState } from "./card-viewer-empty-state";
 import { computeRowStarts } from "./compute-row-starts";
 import { ScrollIndicator } from "./scroll-indicator";
 import { useStickyHeader } from "./use-sticky-header";
@@ -44,81 +45,13 @@ function groupItemsBySet(items: CardViewerItem[], setOrder: GroupInfo[]): CardGr
   });
 }
 
-function groupItemsByField(
-  items: CardViewerItem[],
-  groupBy: Exclude<GroupByField, "none" | "set" | "channel" | "year" | "marker">,
-  orders: Omit<EnumOrders, "finishes">,
-): CardGroup[] {
-  interface FieldConfig {
-    order: readonly string[];
-    getKeysAndItems: (item: CardViewerItem) => { key: string; mapped: CardViewerItem }[];
-  }
-
-  const config: Record<typeof groupBy, FieldConfig> = {
-    type: {
-      order: orders.cardTypes,
-      getKeysAndItems: (item) => [{ key: item.printing.card.type, mapped: item }],
-    },
-    superType: {
-      order: orders.superTypes,
-      getKeysAndItems: (item) => {
-        const supers = item.printing.card.superTypes;
-        const keys = supers.length > 0 ? supers : ["(None)"];
-        return keys.map((key) => ({ key, mapped: item }));
-      },
-    },
-    domain: {
-      order: orders.domains,
-      getKeysAndItems: (item) => {
-        const doms = item.printing.card.domains;
-        const keys = doms.length > 0 ? doms : [WellKnown.domain.COLORLESS];
-        return keys.map((key) => ({ key, mapped: item }));
-      },
-    },
-    rarity: {
-      order: orders.rarities,
-      getKeysAndItems: (item) => [{ key: item.printing.rarity, mapped: item }],
-    },
-  };
-
-  const { order, getKeysAndItems } = config[groupBy];
-  const allKeys = new Set<string>();
-  const buckets = new Map<string, CardViewerItem[]>();
-  for (const item of items) {
-    for (const { key, mapped } of getKeysAndItems(item)) {
-      allKeys.add(key);
-      const bucket = buckets.get(key);
-      if (bucket) {
-        bucket.push(mapped);
-      } else {
-        buckets.set(key, [mapped]);
-      }
-    }
-  }
-
-  const orderedKeys: string[] = [];
-  for (const key of order) {
-    if (allKeys.has(key)) {
-      orderedKeys.push(key);
-      allKeys.delete(key);
-    }
-  }
-  for (const key of allKeys) {
-    orderedKeys.push(key);
-  }
-
-  return orderedKeys.flatMap((key) => {
-    const bucket = buckets.get(key);
-    return bucket ? [{ group: { id: key, slug: "", name: key }, items: bucket }] : [];
-  });
-}
-
 function buildGroups(
   items: CardViewerItem[],
   groupBy: GroupByField,
   setOrder: GroupInfo[] | undefined,
   groupDir: "asc" | "desc",
   orders: EnumOrders,
+  labels: EnumLabels,
 ): CardGroup[] {
   if (groupBy === "none") {
     return [{ group: { id: "_all", slug: "", name: "" }, items }];
@@ -138,7 +71,7 @@ function buildGroups(
       ? groupItemsBySet(items, setOrder)
       : [{ group: { id: "_all", slug: "", name: "" }, items }];
   } else {
-    groups = groupItemsByField(items, groupBy, orders);
+    groups = groupItemsByField(items, groupBy, orders, labels);
   }
   if (groupDir === "desc") {
     groups = groups.toReversed();
@@ -306,7 +239,7 @@ export function CardTable({
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const groups = buildGroups(items, groupBy, setOrder, groupDir, orders);
+  const groups = buildGroups(items, groupBy, setOrder, groupDir, orders, labels);
   const multipleGroups = groups.length > 1;
   const virtualRows = buildVirtualRows(groups);
   const setNameBySlug = new Map((setOrder ?? []).map((info) => [info.slug, info.name]));
@@ -423,29 +356,7 @@ export function CardTable({
   if (items.length === 0) {
     return (
       <div ref={containerRef} className="flex flex-1 flex-col">
-        <div className="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-3 text-center">
-          {totalItems === 0 ? (
-            <>
-              <WifiOffIcon className="size-10 opacity-50" />
-              <p>Couldn&apos;t load cards</p>
-              <p className="text-xs">The server may be unreachable.</p>
-              <Button
-                type="button"
-                variant="link-muted"
-                className="mt-1 h-auto px-0 text-sm"
-                onClick={() => globalThis.location.reload()}
-              >
-                Retry
-              </Button>
-            </>
-          ) : (
-            <>
-              <SearchXIcon className="size-10 opacity-50" />
-              <p>No cards found</p>
-              <p className="text-xs">Try adjusting your filters.</p>
-            </>
-          )}
-        </div>
+        <CardViewerEmptyState totalItems={totalItems} />
       </div>
     );
   }

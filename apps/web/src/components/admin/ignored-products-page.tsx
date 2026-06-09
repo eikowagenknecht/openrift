@@ -6,14 +6,9 @@ import type { AdminCellSlotProps, AdminColumnDef } from "@/components/admin/admi
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useIgnoredProducts, useUnignoreProduct } from "@/hooks/use-ignored-products";
+import { marketplaceLabel } from "@/lib/marketplace-meta";
 
 import { CM_CONFIG, TCG_CONFIG } from "./source-configs";
-
-const marketplaceLabels: Record<string, string> = {
-  tcgplayer: "TCGplayer",
-  cardmarket: "Cardmarket",
-  cardtrader: "CardTrader",
-};
 
 function LevelCell({ row }: AdminCellSlotProps<IgnoredProductResponse>) {
   if (!row) {
@@ -30,7 +25,7 @@ function MarketplaceCell({ row }: AdminCellSlotProps<IgnoredProductResponse>) {
   if (!row) {
     return null;
   }
-  return <Badge variant="outline">{marketplaceLabels[row.marketplace] ?? row.marketplace}</Badge>;
+  return <Badge variant="outline">{marketplaceLabel(row.marketplace)}</Badge>;
 }
 
 function ProductNameCell({ row }: AdminCellSlotProps<IgnoredProductResponse>) {

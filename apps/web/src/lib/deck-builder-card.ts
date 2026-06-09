@@ -12,10 +12,13 @@ import { WellKnown } from "@openrift/shared";
 
 const EMPTY_ARRAY: string[] = [];
 
+/** A complete deck holds this many runes; rune adds stop once the total reaches it. */
+export const RUNE_TARGET = 12;
+
 // Zones whose copies share the 3-copy cap. Overflow is intentionally excluded:
 // it is a free "park here" holding area, so its copies neither count toward the
 // cap nor are capped themselves.
-const COPY_LIMIT_ZONES: ReadonlySet<DeckZone> = new Set([
+export const COPY_LIMIT_ZONES: ReadonlySet<DeckZone> = new Set([
   WellKnown.deckZone.MAIN,
   WellKnown.deckZone.SIDEBOARD,
   WellKnown.deckZone.CHAMPION,
@@ -191,7 +194,7 @@ export function isDeckZoneFullForDrag(args: {
     const runeTotal = allCards
       .filter((card) => card.zone === WellKnown.deckZone.RUNES)
       .reduce((sum, card) => sum + card.quantity, 0);
-    return runeTotal >= 12;
+    return runeTotal >= RUNE_TARGET;
   }
   return false;
 }

@@ -49,30 +49,12 @@ import {
   toRuleEngineCard,
 } from "@/lib/deck-builder-card";
 import { GROUPED_ZONES, sortOverviewCards, TYPE_GROUP_ORDER } from "@/lib/deck-card-sort";
-import { ZONE_LABELS } from "@/lib/deck-zone-labels";
+import { ZONE_EMPTY_HINTS, ZONE_EXPECTED, ZONE_LABELS } from "@/lib/deck-zone-labels";
 import { formatterForMarketplace } from "@/lib/format";
 import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useOnboardingStore } from "@/stores/onboarding-store";
 import { useSelectionStore } from "@/stores/selection-store";
-
-const ZONE_EXPECTED: Partial<Record<DeckZone, number>> = {
-  legend: 1,
-  champion: 1,
-  runes: 12,
-  battlefield: 3,
-  main: 39,
-};
-
-const ZONE_EMPTY_HINTS: Record<DeckZone, string> = {
-  legend: "Choose a Legend",
-  champion: "Pick a matching Champion",
-  runes: "Auto-fills from your Legend",
-  battlefield: "Choose 3 unique Battlefield cards",
-  main: "Add cards from the browser",
-  sideboard: "Add up to 8 sideboard cards",
-  overflow: "Stash extra cards here while you decide",
-};
 
 const LANDSCAPE_ZONES: ReadonlySet<DeckZone> = new Set(["battlefield"]);
 

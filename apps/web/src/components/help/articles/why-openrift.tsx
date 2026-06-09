@@ -16,6 +16,7 @@ import { DefinitionList, DefinitionRow } from "@/components/help/definition-list
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SOCIAL_LINKS } from "@/lib/social-links";
 import { cn } from "@/lib/utils";
 
 export default function WhyOpenRiftArticle() {
@@ -69,7 +70,7 @@ export default function WhyOpenRiftArticle() {
               <>
                 Full source code on{" "}
                 <a
-                  href="https://github.com/openriftapp/openrift"
+                  href={SOCIAL_LINKS.githubRepo}
                   target="_blank"
                   rel="noreferrer"
                   className="text-primary hover:underline"

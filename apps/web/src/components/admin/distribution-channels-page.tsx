@@ -22,6 +22,7 @@ import {
   useReorderDistributionChannels,
   useUpdateDistributionChannel,
 } from "@/hooks/use-distribution-channels";
+import { isValidSlug } from "@/lib/admin-slug";
 import type { ChannelTreeNode } from "@/lib/distribution-channel-tree";
 import { buildChannelTree, canReparent } from "@/lib/distribution-channel-tree";
 
@@ -35,7 +36,6 @@ interface ChannelDraft {
   childrenLabel: string;
 }
 
-const KEBAB_RE = /^[a-z][a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const KIND_LABEL: Record<DistributionChannelKind, string> = {
   event: "Event",
   product: "Product",
@@ -447,7 +447,7 @@ export function DistributionChannelsPage() {
           if (!slug || !label) {
             return "Slug and label are required";
           }
-          if (!KEBAB_RE.test(slug)) {
+          if (!isValidSlug(slug)) {
             return "Slug must be kebab-case (e.g. nexus-night-2025)";
           }
           return null;
@@ -480,7 +480,7 @@ export function DistributionChannelsPage() {
           if (!slug || !label) {
             return "Slug and label are required";
           }
-          if (!KEBAB_RE.test(slug)) {
+          if (!isValidSlug(slug)) {
             return "Slug must be kebab-case (e.g. nexus-night-2025)";
           }
           return null;

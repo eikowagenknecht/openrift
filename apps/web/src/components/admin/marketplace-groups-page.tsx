@@ -17,6 +17,7 @@ import {
 import type { MarketplaceGroup } from "@/hooks/use-marketplace-groups";
 import { useMarketplaceGroups, useUpdateMarketplaceGroup } from "@/hooks/use-marketplace-groups";
 import { useSets } from "@/hooks/use-sets";
+import { marketplaceLabel } from "@/lib/marketplace-meta";
 
 const groupKindItems: { value: MarketplaceGroupKind; label: string }[] = [
   { value: "basic", label: "Basic" },
@@ -131,16 +132,11 @@ const externalUrls: Record<string, (id: number) => string> = {
   cardmarket: (id) => `https://www.cardmarket.com/en/Riftbound/Products/Singles?idExpansion=${id}`,
 };
 
-const marketplaceLabels: Record<string, string> = {
-  tcgplayer: "TCGplayer",
-  cardmarket: "Cardmarket",
-};
-
 function MarketplaceCell({ row }: AdminCellSlotProps<MarketplaceGroup>) {
   if (!row) {
     return null;
   }
-  return <Badge variant="outline">{marketplaceLabels[row.marketplace] ?? row.marketplace}</Badge>;
+  return <Badge variant="outline">{marketplaceLabel(row.marketplace)}</Badge>;
 }
 
 function GroupIdCell({ row }: AdminCellSlotProps<MarketplaceGroup>) {

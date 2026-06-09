@@ -1,10 +1,11 @@
 import type {
+  CardType,
   CompletionScopePreference,
   Marketplace,
   PriceLookup,
   Printing,
 } from "@openrift/shared";
-import { imageUrl } from "@openrift/shared";
+import { getPlaysetSize, imageUrl } from "@openrift/shared";
 import { Area, AreaChart, ReferenceArea, ReferenceDot, XAxis, YAxis } from "recharts";
 
 import { trackMarketplaceClick } from "@/components/marketplace-link";
@@ -47,17 +48,9 @@ interface CostToCompleteData {
   unpricedMissing: number;
 }
 
-// ── Target copies per card type (for "copies" mode) ────────────────────────
-
-const COPIES_TARGET: Record<string, number> = {
-  Legend: 1,
-  Battlefield: 1,
-};
-const DEFAULT_COPIES_TARGET = 3;
-
-function targetForType(cardType: string): number {
-  return COPIES_TARGET[cardType] ?? DEFAULT_COPIES_TARGET;
-}
+// ── Target copies per card (for "copies" mode) ──────────────────────────────
+// The playset rule (Legend/Battlefield = 1, [Unique] = 1, everything else = 3)
+// lives in @openrift/shared/getPlaysetSize. Do not re-derive it here.
 
 // ── Data computation ───────────────────────────────────────────────────────
 
@@ -190,12 +183,13 @@ function computeForCopies(
   marketplace: Marketplace,
 ): CostToCompleteData {
   // Total target copies per card
-  const allCardSlugs = new Map<string, { name: string; type: string }>();
+  const allCardSlugs = new Map<string, { name: string; type: CardType; keywords: string[] }>();
   for (const printing of scopedPrintings) {
     if (!allCardSlugs.has(printing.card.slug)) {
       allCardSlugs.set(printing.card.slug, {
         name: printing.card.name,
         type: printing.card.type,
+        keywords: printing.card.keywords,
       });
     }
   }
@@ -216,7 +210,7 @@ function computeForCopies(
   let ownedItems = 0;
 
   for (const [slug, card] of allCardSlugs) {
-    const target = targetForType(card.type);
+    const target = getPlaysetSize(card.type, card.keywords);
     const owned = Math.min(ownedCopiesBySlug.get(slug) ?? 0, target);
     const missing = target - owned;
     totalItems += target;

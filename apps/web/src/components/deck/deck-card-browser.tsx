@@ -42,6 +42,7 @@ import {
   buildDeckQuantityByCell,
   catalogCardToDeckBuilderCard,
   cellPreferredPrintingId,
+  RUNE_TARGET,
 } from "@/lib/deck-builder-card";
 import { getFormatTagConfig } from "@/lib/format-tag-config";
 import { maxOwnedCount } from "@/lib/owned-bucket";
@@ -111,7 +112,7 @@ function DeckActionsCell({
       shiftHeld={shiftHeld}
       remainingCount={
         activeZone === "runes"
-          ? Math.max(0, 12 - runeTotal)
+          ? Math.max(0, RUNE_TARGET - runeTotal)
           : 3 - (copyLimitTotalByCard.get(cardId) ?? 0)
       }
       onQuickAdd={handleQuickAdd}
@@ -433,7 +434,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
         ? isFreeform
           ? 3
           : activeZone === "runes"
-            ? Math.max(0, 12 - runeTotal)
+            ? Math.max(0, RUNE_TARGET - runeTotal)
             : 3
         : undefined;
       addCard(builderCard, activeZone, count);
@@ -590,7 +591,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
               isFreeform
                 ? undefined
                 : activeZone === "runes"
-                  ? Math.max(0, 12 - runeTotal)
+                  ? Math.max(0, RUNE_TARGET - runeTotal)
                   : 3 - (copyLimitTotalByCard.get(cardId) ?? 0)
             }
             onQuickAdd={handleQuickAdd}

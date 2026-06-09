@@ -43,6 +43,7 @@ import {
 } from "@/lib/contribute-json";
 import { computeDomainDisabled } from "@/lib/domain";
 import { getFilterIconPath } from "@/lib/icons";
+import { SOCIAL_LINKS } from "@/lib/social-links";
 import { cn } from "@/lib/utils";
 
 interface ContributeFormProps {
@@ -474,7 +475,7 @@ function IntroBlock({ lockedSlug }: { lockedSlug?: string }) {
       Fill in what you have and leave the rest blank. Partial entries are still useful. Submitting
       opens a prefilled pull request on the{" "}
       <a
-        href="https://github.com/openriftapp/openrift-data"
+        href={SOCIAL_LINKS.githubDataRepo}
         target="_blank"
         rel="noreferrer"
         className="underline decoration-dotted underline-offset-2"

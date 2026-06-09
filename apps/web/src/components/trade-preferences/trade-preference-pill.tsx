@@ -1,10 +1,5 @@
-import type {
-  Currency,
-  EffectiveTradePreference,
-  TradePreference,
-  TradePricePref,
-  TradeType,
-} from "@openrift/shared";
+import type { Currency, EffectiveTradePreference, TradePreference } from "@openrift/shared";
+import { resolveEffectiveTradePreference } from "@openrift/shared";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -72,12 +67,11 @@ export function TradePreferencePill(props: Props) {
     );
   }
 
-  const effective: EffectiveTradePreference = {
-    pricePref: (props.override.pricePref ?? props.listDefault.pricePref) as TradePricePref | null,
-    priceAbsoluteCents: props.override.priceAbsoluteCents ?? props.listDefault.priceAbsoluteCents,
-    tradeType: (props.override.tradeType ?? props.listDefault.tradeType) as TradeType | null,
-    currency: props.currency,
-  };
+  const effective: EffectiveTradePreference = resolveEffectiveTradePreference(
+    props.override,
+    props.listDefault,
+    props.currency,
+  );
   const labels = preferenceLabels(effective);
   const hasAnyPref = labels.length > 0;
   const ariaLabel = hasAnyPref

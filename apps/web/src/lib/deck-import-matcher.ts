@@ -49,8 +49,6 @@ class CardIndex {
   private byNormalizedName = new Map<string, ResolvedCard>();
   /** "normalizedTag:normalizedName" → ResolvedCard (for "Character, Title" lookups) */
   private byTagAndName = new Map<string, ResolvedCard>();
-  /** All unique resolved cards for iteration during fuzzy search. */
-  private allCards: ResolvedCard[] = [];
 
   constructor(allPrintings: Printing[]) {
     // Deduplicate printings to cards: pick the first printing per card as representative
@@ -70,8 +68,6 @@ class CardIndex {
         tags: printing.card.tags,
       });
     }
-
-    this.allCards = [...cardMap.values()].map((entry) => entry.resolved);
 
     for (const { resolved, tags } of cardMap.values()) {
       const normalized = normalizeNameForMatching(resolved.cardName);
@@ -166,29 +162,6 @@ class CardIndex {
     }
 
     return null;
-  }
-
-  /**
-   * Search cards by query string (for the correction search UI).
-   * @returns Up to `limit` matching cards.
-   */
-  search(query: string, limit: number): ResolvedCard[] {
-    const lower = query.toLowerCase();
-    const results: ResolvedCard[] = [];
-
-    for (const card of this.allCards) {
-      if (
-        card.cardName.toLowerCase().includes(lower) ||
-        card.shortCode.toLowerCase().includes(lower)
-      ) {
-        results.push(card);
-        if (results.length >= limit) {
-          break;
-        }
-      }
-    }
-
-    return results;
   }
 }
 

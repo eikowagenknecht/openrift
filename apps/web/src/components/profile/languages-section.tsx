@@ -1,11 +1,12 @@
-import { ArrowDownIcon, ArrowUpIcon, RotateCcwIcon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDisplayStore } from "@/stores/display-store";
+
+import { ResetButton } from "./reset-button";
 
 export function LanguagesSection({
   availableLanguages,
@@ -127,25 +128,5 @@ export function LanguagesSection({
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function ResetButton({ onClick, label }: { onClick: () => void; label: string }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <button
-            type="button"
-            onClick={onClick}
-            className="text-muted-foreground hover:text-foreground relative z-10 p-1 transition-colors"
-            aria-label={label}
-          />
-        }
-      >
-        <RotateCcwIcon className="size-3.5" />
-      </TooltipTrigger>
-      <TooltipContent>Reset to default</TooltipContent>
-    </Tooltip>
   );
 }

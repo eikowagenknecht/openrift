@@ -1,5 +1,4 @@
 import type { AvailableFilters, RangeKey } from "@openrift/shared";
-import { NONE } from "@openrift/shared";
 import { XIcon } from "lucide-react";
 
 import { CardIcon } from "@/components/card-icon";
@@ -11,6 +10,7 @@ import { buildChannelBreadcrumbsBySlug } from "@/lib/channel-breadcrumbs";
 import { formatDomainFilterLabel } from "@/lib/domain";
 import { formatPriceIntegerForMarketplace } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
+import { rangeBadgeLabel } from "@/lib/range-label";
 import { useDisplayStore } from "@/stores/display-store";
 
 interface RangeBadgeSection {
@@ -369,24 +369,7 @@ function RangeBadge({
   onClear: () => void;
   formatValue?: (value: number) => string;
 }) {
-  const resolvedMin = min ?? availableMin;
-  const resolvedMax = max ?? availableMax;
-  const fmt = formatValue ?? String;
-  const fmtNone = (value: number) => (value === NONE ? "None" : fmt(value));
-  const valueLabel =
-    resolvedMin === NONE && resolvedMax === NONE
-      ? "None"
-      : resolvedMin === NONE
-        ? max === null
-          ? `≥None`
-          : `None–${fmt(resolvedMax)}`
-        : resolvedMin === resolvedMax
-          ? fmt(resolvedMin)
-          : min !== null && max !== null
-            ? `${fmtNone(resolvedMin)}–${fmtNone(resolvedMax)}`
-            : min === null
-              ? `≤${fmtNone(resolvedMax)}`
-              : `≥${fmtNone(resolvedMin)}`;
+  const valueLabel = rangeBadgeLabel(min, max, availableMin, availableMax, formatValue);
 
   return (
     <div className="flex items-center gap-1">

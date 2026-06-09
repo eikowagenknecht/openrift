@@ -9,9 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useEnumOrders } from "@/hooks/use-enums";
 import { getFilterIconPath } from "@/lib/icons";
 import { getSiteUrl } from "@/lib/site-config";
+import { SOCIAL_LINKS } from "@/lib/social-links";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
-const GITHUB_REPO_URL = "https://github.com/openriftapp/openrift";
 const GITHUB_SPONSORS_URL = "https://github.com/sponsors/eikowagenknecht";
 const KOFI_URL = "https://ko-fi.com/eikowagenknecht";
 
@@ -199,7 +199,7 @@ export function SupportPage() {
           <ShareButton
             label="Star on GitHub"
             icon={<SimpleIcon icon={siGithub} />}
-            href={GITHUB_REPO_URL}
+            href={SOCIAL_LINKS.githubRepo}
           />
           <ShareButton
             label="Summon your X followers"
@@ -254,7 +254,7 @@ export function SupportPage() {
           Discord.
         </p>
         <a
-          href="https://discord.gg/Qb6RcjXq6z"
+          href={SOCIAL_LINKS.discordInvite}
           target="_blank"
           rel="noreferrer"
           className={cn(buttonVariants(), "gap-2 bg-[#5865F2] text-white [a]:hover:bg-[#4752C4]")}

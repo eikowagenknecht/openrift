@@ -36,3 +36,13 @@ export const MARKETPLACE_META: Record<Marketplace, MarketplaceMeta> = {
     productUrl: (id) => cardtraderAffiliateUrl(`https://www.cardtrader.com/en/cards/${id}`),
   },
 };
+
+/**
+ * Display label for a marketplace, falling back to the raw value for unknown
+ * marketplaces. Use when the marketplace is typed loosely as `string` (e.g.
+ * admin rows) so call sites don't re-declare their own label map.
+ * @returns The marketplace's display label.
+ */
+export function marketplaceLabel(name: string): string {
+  return MARKETPLACE_META[name as Marketplace]?.label ?? name;
+}

@@ -1,8 +1,6 @@
 import type { Currency } from "@openrift/shared";
 import { CURRENCIES } from "@openrift/shared";
-import { RotateCcwIcon } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
@@ -12,8 +10,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDisplayStore } from "@/stores/display-store";
+
+import { ResetButton } from "./reset-button";
 
 const CURRENCY_LABEL: Record<Currency, string> = {
   EUR: "Euro (EUR)",
@@ -43,23 +42,10 @@ export function TradingSection() {
             </CardDescription>
           </div>
           {overrideSet && (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-xs"
-                    onClick={() => resetPreference("defaultCurrency")}
-                    className="text-muted-foreground relative z-10"
-                    aria-label="Reset default currency"
-                  />
-                }
-              >
-                <RotateCcwIcon className="size-3.5" />
-              </TooltipTrigger>
-              <TooltipContent>Reset to default</TooltipContent>
-            </Tooltip>
+            <ResetButton
+              onClick={() => resetPreference("defaultCurrency")}
+              label="Reset default currency"
+            />
           )}
         </div>
       </CardHeader>

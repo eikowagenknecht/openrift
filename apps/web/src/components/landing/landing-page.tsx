@@ -13,6 +13,11 @@ import { CardScatter } from "./card-scatter";
 import { FeatureHighlights } from "./feature-highlights";
 import { HeroBackground } from "./hero-background";
 
+// How long the logo "tap to play" hint stays visible after a tap.
+const HINT_DURATION_MS = 400;
+// How long the celebratory logo spin runs before the scatter resets.
+const SPIN_DURATION_MS = 1000;
+
 export function LandingPage() {
   const router = useRouter();
   const { data } = useQuery(landingSummaryQueryOptions);
@@ -41,15 +46,15 @@ export function LandingPage() {
 
   function handleLogoTap() {
     setHinting(true);
-    setTimeout(() => setHinting(false), 400);
+    setTimeout(() => setHinting(false), HINT_DURATION_MS);
   }
 
   function handleAllCollected() {
     setSpinning(true);
     setTimeout(() => {
       setSpinning(false);
-      setResetKey((k) => k + 1);
-    }, 1000);
+      setResetKey((key) => key + 1);
+    }, SPIN_DURATION_MS);
   }
 
   return (

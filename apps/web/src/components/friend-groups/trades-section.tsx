@@ -19,7 +19,7 @@ import { tradeSection, tradeStatusLabel } from "@/lib/trade-derivation";
 import { cn } from "@/lib/utils";
 import { useTradeActionStore } from "@/stores/trade-action-store";
 
-const SECTION_HEADING = "text-muted-foreground text-sm font-medium tracking-wide uppercase";
+import { SECTION_HEADING } from "./friend-group-shell";
 
 /**
  * One trade as a wide row with a contextual action set.

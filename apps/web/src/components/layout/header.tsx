@@ -68,6 +68,7 @@ import {
 import { signOut } from "@/lib/auth-client";
 import { sessionQueryOptions, useSession } from "@/lib/auth-session";
 import { useGravatarHash } from "@/lib/gravatar";
+import { SOCIAL_LINKS } from "@/lib/social-links";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
@@ -542,7 +543,7 @@ function MobileNav({
         </nav>
         <SheetFooter className="border-t px-4 pt-4">
           <a
-            href="https://discord.gg/Qb6RcjXq6z"
+            href={SOCIAL_LINKS.discordInvite}
             target="_blank"
             rel="noreferrer"
             className="text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm"
@@ -574,7 +575,7 @@ function FeedbackPopover() {
           nativeButton={false}
           render={
             // oxlint-disable-next-line jsx-a11y/anchor-has-content, jsx-a11y/control-has-associated-label -- content is provided as children of PopoverClose
-            <a href="https://discord.gg/Qb6RcjXq6z" target="_blank" rel="noreferrer" />
+            <a href={SOCIAL_LINKS.discordInvite} target="_blank" rel="noreferrer" />
           }
           className="hover:bg-muted flex items-center gap-3 rounded-md px-2 py-2 text-sm"
         >
@@ -591,11 +592,7 @@ function FeedbackPopover() {
           nativeButton={false}
           render={
             // oxlint-disable-next-line jsx-a11y/anchor-has-content, jsx-a11y/control-has-associated-label -- content is provided as children of PopoverClose
-            <a
-              href="https://github.com/openriftapp/openrift/issues/new/choose"
-              target="_blank"
-              rel="noreferrer"
-            />
+            <a href={SOCIAL_LINKS.githubNewIssue} target="_blank" rel="noreferrer" />
           }
           className="hover:bg-muted flex items-center gap-3 rounded-md px-2 py-2 text-sm"
         >

@@ -1,4 +1,5 @@
 import type {
+  CardType,
   CompletionScopePreference,
   Domain,
   Marketplace,
@@ -6,7 +7,7 @@ import type {
   PriceLookup,
   SetListEntry,
 } from "@openrift/shared";
-import { imageUrl, WellKnown } from "@openrift/shared";
+import { getPlaysetSize, imageUrl } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { useCards } from "@/hooks/use-cards";
@@ -77,17 +78,16 @@ export interface CollectionStats {
   marketplace: Marketplace;
 }
 
-// ── Target copies per card type (for "copies" mode) ────────────────────────
+// ── Target copies per card (for "copies" mode) ──────────────────────────────
 
-/** Max copies of a card allowed in a deck, by card type. */
-const COPIES_TARGET: Record<string, number> = {
-  [WellKnown.cardType.LEGEND]: 1,
-  [WellKnown.cardType.BATTLEFIELD]: 1,
-};
-const DEFAULT_COPIES_TARGET = 3;
-
-function targetForType(cardType: string): number {
-  return COPIES_TARGET[cardType] ?? DEFAULT_COPIES_TARGET;
+/**
+ * Max copies of a card allowed in a deck. Delegates to the canonical playset
+ * rule in @openrift/shared (Legend/Battlefield = 1, [Unique] = 1, else 3) so
+ * collection stats agree with the deck builder. Do not re-derive it here.
+ * @returns The deck-relevant max copies, or 3 when the card is unknown.
+ */
+function copiesTarget(card?: { type: CardType; keywords: readonly string[] }): number {
+  return card ? getPlaysetSize(card.type, card.keywords) : 3;
 }
 
 // ── Completion computation ─────────────────────────────────────────────────
@@ -231,10 +231,10 @@ function buildTotals(
 
   // "cards" and "copies" modes: count unique cards, optionally multiplied by target
   const cardsByKey = new Map<string, Set<string>>();
-  const cardTypes = new Map<string, string>(); // slug -> type
+  const cardInfo = new Map<string, { type: CardType; keywords: string[] }>(); // slug -> info
   for (const printing of scopedPrintings) {
     const slug = printing.card.slug;
-    cardTypes.set(slug, printing.card.type);
+    cardInfo.set(slug, { type: printing.card.type, keywords: printing.card.keywords });
     for (const key of getGroupKey(printing, groupBy)) {
       getOrCreate(cardsByKey, key).add(slug);
     }
@@ -249,7 +249,7 @@ function buildTotals(
   for (const [key, slugs] of cardsByKey) {
     let total = 0;
     for (const slug of slugs) {
-      total += targetForType(cardTypes.get(slug) ?? "");
+      total += copiesTarget(cardInfo.get(slug));
     }
     result.set(key, total);
   }
@@ -297,7 +297,7 @@ function buildOwned(
   for (const [key, slugMap] of copiesByKeyAndSlug) {
     let owned = 0;
     for (const [slug, copies] of slugMap) {
-      const target = targetForType(stackCardType(stacks, slug));
+      const target = copiesTarget(stackCard(stacks, slug));
       owned += Math.min(copies, target);
     }
     result.set(key, owned);
@@ -305,13 +305,16 @@ function buildOwned(
   return result;
 }
 
-function stackCardType(stacks: StackedEntry[], slug: string): string {
+function stackCard(
+  stacks: StackedEntry[],
+  slug: string,
+): { type: CardType; keywords: string[] } | undefined {
   for (const stack of stacks) {
     if (stack.printing.card.slug === slug) {
-      return stack.printing.card.type;
+      return { type: stack.printing.card.type, keywords: stack.printing.card.keywords };
     }
   }
-  return "";
+  return undefined;
 }
 
 // ── Stats computation ──────────────────────────────────────────────────────

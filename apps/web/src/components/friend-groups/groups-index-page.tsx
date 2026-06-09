@@ -39,6 +39,8 @@ import {
 import { useRequiredUserId } from "@/lib/auth-session";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
+import { SECTION_HEADING } from "./friend-group-shell";
+
 const ROLE_BADGE: Record<FriendGroupRole, { label: string; className: string }> = {
   owner: { label: "Owner", className: "bg-primary text-primary-foreground" },
   admin: { label: "Admin", className: "bg-secondary text-secondary-foreground" },
@@ -177,9 +179,7 @@ export function GroupsIndexPage() {
 
       {data.pendingInvites.length > 0 && (
         <section className="flex flex-col gap-3">
-          <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-            Pending invites
-          </h2>
+          <h2 className={SECTION_HEADING}>Pending invites</h2>
           <div className="flex flex-col gap-2">
             {data.pendingInvites.map((invite) => (
               <div
@@ -222,9 +222,7 @@ export function GroupsIndexPage() {
 
       {data.outgoingRequests.length > 0 && (
         <section className="flex flex-col gap-3">
-          <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-            Awaiting approval
-          </h2>
+          <h2 className={SECTION_HEADING}>Awaiting approval</h2>
           <div className="flex flex-col gap-2">
             {data.outgoingRequests.map((request) => (
               <div

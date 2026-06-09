@@ -1,6 +1,6 @@
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 
-import { PAGE_PADDING } from "@/lib/utils";
+import { ProsePage } from "@/components/prose-page";
 
 export const Route = createLazyFileRoute("/_app/legal-notice")({
   component: LegalNoticePage,
@@ -8,9 +8,7 @@ export const Route = createLazyFileRoute("/_app/legal-notice")({
 
 function LegalNoticePage() {
   return (
-    <article
-      className={`prose dark:prose-invert prose-headings:font-semibold prose-h1:text-2xl prose-h2:text-lg prose-h3:text-base mx-auto max-w-2xl ${PAGE_PADDING}`}
-    >
+    <ProsePage>
       <h1>Legal Notice</h1>
 
       <h2>Responsible for this site</h2>
@@ -101,6 +99,6 @@ function LegalNoticePage() {
       <p>
         See our <Link to="/privacy-policy">Privacy Policy</Link>.
       </p>
-    </article>
+    </ProsePage>
   );
 }

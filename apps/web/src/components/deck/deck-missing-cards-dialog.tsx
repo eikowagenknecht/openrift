@@ -19,19 +19,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import type { CardOwnership } from "@/hooks/use-deck-ownership";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useMarketplaceInfo } from "@/hooks/use-marketplace-info";
+import { zoneLabel } from "@/lib/deck-zone-labels";
 import { formatterForMarketplace } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
 import { MARKETPLACE_META } from "@/lib/marketplace-meta";
-
-const ZONE_LABELS: Record<string, string> = {
-  legend: "Legend",
-  champion: "Champion",
-  runes: "Runes",
-  battlefield: "Battlefields",
-  main: "Main",
-  sideboard: "Sideboard",
-  overflow: "Overflow",
-};
 
 interface DeckMissingCardsDialogProps {
   open: boolean;
@@ -70,7 +61,7 @@ export function DeckMissingCardsDialog({
   const { labels: enumLabels } = useEnumOrders();
 
   const sorted = missingCards.toSorted((a, b) => {
-    const zoneCmp = (ZONE_LABELS[a.zone] ?? a.zone).localeCompare(ZONE_LABELS[b.zone] ?? b.zone);
+    const zoneCmp = zoneLabel(a.zone).localeCompare(zoneLabel(b.zone));
     if (zoneCmp !== 0) {
       return zoneCmp;
     }
@@ -161,7 +152,7 @@ export function DeckMissingCardsDialog({
                     colSpan={4}
                     className="text-muted-foreground bg-muted/40 border-t px-2 py-1 text-left font-medium"
                   >
-                    {ZONE_LABELS[zone] ?? zone}
+                    {zoneLabel(zone)}
                   </th>
                 </tr>
                 {cards.map((card) => (

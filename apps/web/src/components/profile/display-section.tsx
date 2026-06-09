@@ -1,17 +1,16 @@
 import { Radio } from "@base-ui/react/radio";
 import type { DefaultCardView, Palette, Theme } from "@openrift/shared";
-import { RotateCcwIcon } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RadioGroup } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { usePaletteStore } from "@/stores/palette-store";
 import { useThemeStore } from "@/stores/theme-store";
+
+import { ResetButton } from "./reset-button";
 
 export function DisplaySection() {
   const showImages = useDisplayStore((s) => s.showImages);
@@ -142,28 +141,6 @@ export function DisplaySection() {
 }
 
 // ── Sub-components ──────────────────────────────────────────────────────────
-
-function ResetButton({ onClick, label }: { onClick: () => void; label: string }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            onClick={onClick}
-            className="text-muted-foreground relative z-10"
-            aria-label={label}
-          />
-        }
-      >
-        <RotateCcwIcon className="size-3.5" />
-      </TooltipTrigger>
-      <TooltipContent>Reset to default</TooltipContent>
-    </Tooltip>
-  );
-}
 
 const THEME_OPTIONS: { value: Theme | "auto"; label: string }[] = [
   { value: "auto", label: "Auto" },
