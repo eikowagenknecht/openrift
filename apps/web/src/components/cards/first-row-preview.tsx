@@ -18,6 +18,7 @@ import {
 import { SearchBar } from "@/components/filters/search-bar";
 import { Pane } from "@/components/layout/panes";
 import { fromWireFacets, fromWireFilterCounts } from "@/lib/cards-facets";
+import { LANDSCAPE_ROTATION_STYLE } from "@/lib/images";
 
 const cardsRoute = getRouteApi("/_app/cards");
 
@@ -156,27 +157,63 @@ export function FirstRowPreview() {
                 useResponsiveColumns. Viewport breakpoints would over-count
                 columns whenever the filter sidebar is open. */}
             <div className="mt-4 grid grid-cols-2 gap-4 @min-[640px]/grid:grid-cols-3 @min-[768px]/grid:grid-cols-4 @min-[1024px]/grid:grid-cols-5 @min-[1280px]/grid:grid-cols-6 @min-[1600px]/grid:grid-cols-7 @min-[1920px]/grid:grid-cols-8">
-              {firstRow.map((card, i) => (
-                // Mirrors the live <CardRowContent> deferred-cell shape:
-                // p-1.5 wrapper (BUTTON_PAD), card image, then a label-height
-                // spacer matching CardThumbnail's two-line CardMetaLabel block.
-                // Without the wrapper the SSR cells render ~12px wider and
-                // ~LABEL_HEIGHT shorter than the live cells, shifting the
-                // grid down and inward when CardBrowser hydrates.
-                <div key={card.printingId} className={`rounded-lg p-1.5 ${visibilityForIndex(i)}`}>
-                  <img
-                    src={imageUrl(card.imageId, "400w")}
-                    srcSet={`${imageUrl(card.imageId, "120w")} 120w, ${imageUrl(card.imageId, "240w")} 240w, ${imageUrl(card.imageId, "400w")} 400w, ${imageUrl(card.imageId, "full")} 800w`}
-                    sizes="(min-width: 1920px) calc((100vw - 112px) / 8 - 12px), (min-width: 1600px) calc((100vw - 96px) / 7 - 12px), (min-width: 1280px) calc((100vw - 80px) / 6 - 12px), (min-width: 1024px) calc((100vw - 64px) / 5 - 12px), (min-width: 768px) calc((100vw - 48px) / 4 - 12px), (min-width: 640px) calc((100vw - 32px) / 3 - 12px), calc((100vw - 16px) / 2 - 12px)"
-                    width={400}
-                    height={558}
-                    alt={card.cardName}
-                    fetchPriority={i === 0 ? "high" : undefined}
-                    className="aspect-card w-full rounded-lg object-cover"
-                  />
-                  <div aria-hidden="true" style={{ height: LABEL_HEIGHT }} />
-                </div>
-              ))}
+              {firstRow.map((card, i) => {
+                const srcSet = `${imageUrl(card.imageId, "120w")} 120w, ${imageUrl(card.imageId, "240w")} 240w, ${imageUrl(card.imageId, "400w")} 400w, ${imageUrl(card.imageId, "full")} 800w`;
+                const sizes =
+                  "(min-width: 1920px) calc((100vw - 112px) / 8 - 12px), (min-width: 1600px) calc((100vw - 96px) / 7 - 12px), (min-width: 1280px) calc((100vw - 80px) / 6 - 12px), (min-width: 1024px) calc((100vw - 64px) / 5 - 12px), (min-width: 768px) calc((100vw - 48px) / 4 - 12px), (min-width: 640px) calc((100vw - 32px) / 3 - 12px), calc((100vw - 16px) / 2 - 12px)";
+                const fetchPriority = i === 0 ? "high" : undefined;
+                return (
+                  // Mirrors the live <CardRowContent> deferred-cell shape:
+                  // p-1.5 wrapper (BUTTON_PAD), card image, then a label-height
+                  // spacer matching CardThumbnail's two-line CardMetaLabel block.
+                  // Without the wrapper the SSR cells render ~12px wider and
+                  // ~LABEL_HEIGHT shorter than the live cells, shifting the
+                  // grid down and inward when CardBrowser hydrates.
+                  <div
+                    key={card.printingId}
+                    className={`rounded-lg p-1.5 ${visibilityForIndex(i)}`}
+                  >
+                    {card.rotated ? (
+                      // Landscape battlefields: mirror CardThumbnail's rotated
+                      // branch so the SSR shell shows them in their final
+                      // portrait-framed, -90deg-rotated orientation. The
+                      // in-flow aspect-card spacer gives the overflow-hidden box
+                      // a definite height so the rotated overlay's top: 50%
+                      // resolves (Firefox needs this — see card-thumbnail.tsx).
+                      <div className="relative w-full overflow-hidden rounded-lg">
+                        <div className="aspect-card" />
+                        <div
+                          className="absolute top-1/2 left-1/2 overflow-hidden"
+                          style={LANDSCAPE_ROTATION_STYLE}
+                        >
+                          <img
+                            src={imageUrl(card.imageId, "400w")}
+                            srcSet={srcSet}
+                            sizes={sizes}
+                            width={880}
+                            height={630}
+                            alt={card.cardName}
+                            fetchPriority={fetchPriority}
+                            className="size-full object-cover"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <img
+                        src={imageUrl(card.imageId, "400w")}
+                        srcSet={srcSet}
+                        sizes={sizes}
+                        width={400}
+                        height={558}
+                        alt={card.cardName}
+                        fetchPriority={fetchPriority}
+                        className="aspect-card w-full rounded-lg object-cover"
+                      />
+                    )}
+                    <div aria-hidden="true" style={{ height: LABEL_HEIGHT }} />
+                  </div>
+                );
+              })}
             </div>
           </>
         )

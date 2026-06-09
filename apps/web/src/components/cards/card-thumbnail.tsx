@@ -486,52 +486,69 @@ export const CardThumbnail = memo(function CardThumbnail({
           <div
             key={sibling.id}
             className={cn(
-              "bg-muted pointer-events-none absolute inset-0 origin-bottom overflow-hidden border border-[var(--border-opaque)]",
-              "hover:ring-primary/60 hover:ring-2",
+              "pointer-events-none absolute inset-0",
               fanReady && "pointer-events-auto cursor-pointer",
             )}
-            style={{
-              borderRadius: CARD_BORDER_RADIUS,
-              translate: `calc((1 - var(--fan, 0)) * ${depth * fanStep}px) calc((1 - var(--fan, 0)) * ${depth * fanStep}px)`,
-              rotate: `calc(var(--fan, 0) * ${depth * fanAngle}deg)`,
-              transition: "rotate 200ms ease-out, translate 200ms ease-out, scale 150ms ease-out",
-            }}
             onClick={(e) => {
               e.stopPropagation();
               (onSiblingClick ?? onClick)(sibling);
             }}
           >
-            {siblingSrc &&
-              (rotated ? (
-                <div
-                  className="absolute top-1/2 left-1/2 overflow-hidden"
-                  style={LANDSCAPE_ROTATION_STYLE}
-                >
-                  <img
-                    src={siblingSrc}
-                    srcSet={siblingSrcSet}
-                    sizes={siblingSizes}
-                    alt=""
-                    loading="lazy"
-                    className="size-full object-cover"
-                  />
-                </div>
-              ) : (
-                <img
-                  src={siblingSrc}
-                  srcSet={siblingSrcSet}
-                  sizes={siblingSizes}
-                  alt=""
-                  loading="lazy"
-                  className="size-full object-cover"
+            {/* Mirror the front card's Firefox-safe shell exactly: the fan
+                transform + preserve-3d sit on this element (its own 3D layer),
+                and overflow-hidden lives on a separate child below. Under a flat
+                2D transform Firefox mis-sized the rotated battlefield overlay and
+                clipped it with grey below; the front card avoided that only
+                because cardTilt's preserve-3d shell gave it a real layer. */}
+            <div
+              className={cn(SHELL_INNER_CLASS, "origin-bottom")}
+              style={{
+                borderRadius: CARD_BORDER_RADIUS,
+                transformStyle: "preserve-3d",
+                translate: `calc((1 - var(--fan, 0)) * ${depth * fanStep}px) calc((1 - var(--fan, 0)) * ${depth * fanStep}px)`,
+                rotate: `calc(var(--fan, 0) * ${depth * fanAngle}deg)`,
+                transition: "rotate 200ms ease-out, translate 200ms ease-out, scale 150ms ease-out",
+              }}
+            >
+              <div className="relative overflow-hidden" style={{ borderRadius: "inherit" }}>
+                <div className="aspect-card bg-muted" />
+                {siblingSrc &&
+                  (rotated ? (
+                    <div
+                      className="absolute top-1/2 left-1/2 overflow-hidden"
+                      style={LANDSCAPE_ROTATION_STYLE}
+                    >
+                      <img
+                        src={siblingSrc}
+                        srcSet={siblingSrcSet}
+                        sizes={siblingSizes}
+                        alt=""
+                        loading="lazy"
+                        width={CARD_HEIGHT}
+                        height={CARD_WIDTH}
+                        className="size-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <img
+                      src={siblingSrc}
+                      srcSet={siblingSrcSet}
+                      sizes={siblingSizes}
+                      alt=""
+                      loading="lazy"
+                      width={CARD_WIDTH}
+                      height={CARD_HEIGHT}
+                      className="absolute inset-0 w-full object-cover"
+                    />
+                  ))}
+                {sibling.finish === WellKnown.finish.FOIL && gridFoil && <FoilOverlay active dim />}
+                <FinishIcon
+                  finish={sibling.finish}
+                  className="absolute top-1.5 right-1.5 z-20 drop-shadow"
+                  iconClassName="size-4"
                 />
-              ))}
-            {sibling.finish === WellKnown.finish.FOIL && gridFoil && <FoilOverlay active dim />}
-            <FinishIcon
-              finish={sibling.finish}
-              className="absolute top-1.5 right-1.5 z-20 drop-shadow"
-              iconClassName="size-4"
-            />
+              </div>
+            </div>
           </div>
         );
       })}

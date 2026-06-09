@@ -194,7 +194,22 @@ describe("extractFirstRow", () => {
       cardName: "Garen, the Might of Demacia",
       setSlug: "OGN",
       imageId: "019d6c25-b081-74b3-a901-64da4ae0aaaa",
+      rotated: false,
     });
+  });
+
+  it("flags battlefields as rotated so the SSR preview can rotate the landscape art", () => {
+    const cards = { "bf-card": makeCard({ type: "battlefield" }) };
+    const printings = { "p-bf": makePrinting({ cardId: "bf-card", shortCode: "OGN-100" }) };
+    const [card] = extractFirstRow(makeCatalog(cards, printings), NO_FILTERS, 1);
+    expect(card?.rotated).toBe(true);
+  });
+
+  it("leaves portrait card types unrotated", () => {
+    const cards = { "unit-card": makeCard({ type: "unit" }) };
+    const printings = { "p-unit": makePrinting({ cardId: "unit-card" }) };
+    const [card] = extractFirstRow(makeCatalog(cards, printings), NO_FILTERS, 1);
+    expect(card?.rotated).toBe(false);
   });
 
   it("populates setSlug per-card from the catalog set lookup", () => {

@@ -1,10 +1,16 @@
 import type { CatalogResponse, GroupByField, SortOption } from "@openrift/shared";
-import { filterCards, sortByLanguageAndCanonicalRank, sortCards } from "@openrift/shared";
+import {
+  filterCards,
+  getOrientation,
+  sortByLanguageAndCanonicalRank,
+  sortCards,
+} from "@openrift/shared";
 import { createServerFn } from "@tanstack/react-start";
 
 import { dedupeToCardsViewTiles } from "@/lib/card-tiles";
 import { searchToFilters } from "@/lib/cards-facets";
 import { enrichCatalog, readCatalogFromServerCache } from "@/lib/catalog-query";
+import { needsCssRotation } from "@/lib/images";
 import type { FilterSearch } from "@/lib/search-schemas";
 
 export interface FirstRowCard {
@@ -12,6 +18,12 @@ export interface FirstRowCard {
   cardName: string;
   setSlug: string;
   imageId: string;
+  /**
+   * True for landscape card types (battlefields). The SSR preview uses the same
+   * `getOrientation` rule as the live grid to rotate these into portrait framing
+   * instead of squishing the landscape art into the portrait `aspect-card` box.
+   */
+  rotated: boolean;
 }
 
 // Two full rows at the widest grid breakpoint (8 cols at >= 1920px). Narrower
@@ -44,10 +56,10 @@ const SSR_DEFAULT_SORT: SortOption = "id";
  *     order from step 4 (stable sort).
  *  6. Slice to `limit` and project to the slim wire shape.
  *
- * Battlefields are kept (the live grid shows them too); they render with the
- * portrait aspect of the surrounding cells in this preview, then get CSS-
- * rotated into landscape after hydration. The image URL is the same in both
- * states, so the preload still primes the eventual LCP element.
+ * Battlefields are kept (the live grid shows them too) and flagged `rotated` so
+ * the preview applies the same -90deg CSS rotation the live grid does, rather
+ * than squishing the landscape art into a portrait cell. The image URL is the
+ * same in both states, so the preload still primes the eventual LCP element.
  *
  * @returns Up to `limit` slim card entries in live-grid render order.
  */
@@ -101,6 +113,7 @@ export function extractFirstRow(
       cardName: printing.card.name,
       setSlug: printing.setSlug,
       imageId: front.imageId,
+      rotated: needsCssRotation(getOrientation(printing.card.type)),
     });
   }
   return result;

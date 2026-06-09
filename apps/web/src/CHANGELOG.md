@@ -6,6 +6,8 @@
 - feat: Run a free-for-all pod tournament from the new Tournaments link in the More menu. Add your players and each round the app splits them into fair 3- and 4-player pods, you tap in each pod's finishing order, and the standings update with tie-breakers. Share a follow-along link, including a QR code to scan at the table, so players can report their own pod's result
 - feat: While running a pod tournament you can rearrange a round by dragging players between pods or sitting someone out with a bye, switch between scoring schemes, and see a warning on any pod where players would meet again, land in too many small pods, or have a wide score gap
 - feat: Wishlists and trade lists can be shared to a chat as a card image, a copy-paste card list, or a link that shows a card preview when pasted into WhatsApp or Discord
+- fix: Battlefield cards now appear in their correct landscape orientation the moment the cards page loads, instead of briefly showing squished upright until the page finished loading
+- fix: In Firefox, fanned-out card stacks no longer cut Battlefield cards off partway down. The layers behind the top card now show the full art, like in every other browser
 - fix: Battlefield cards no longer appear among the floating cards on the home page, where their landscape shape looked out of place
 - fix: Pressing Tab on the home page no longer stops on the decorative floating background cards
 - fix: On a group's overview, overlapping member avatars no longer let the avatar behind show through when the front one's image has transparent areas

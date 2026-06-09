@@ -52,6 +52,7 @@ function makeCard(i: number, setSlug = "OGN"): FirstRowCard {
     cardName: `Card ${i}`,
     setSlug,
     imageId: `019d6c25-b081-74b3-a901-64da4ae0p-${i}`,
+    rotated: false,
   };
 }
 
@@ -192,6 +193,27 @@ describe("FirstRowPreview", () => {
     expect(cells[11]?.className).toContain("@min-[1280px]/grid:block");
     expect(cells[13]?.className).toContain("@min-[1600px]/grid:block");
     expect(cells[15]?.className).toContain("@min-[1920px]/grid:block");
+  });
+
+  it("rotates landscape (battlefield) cards instead of squishing the art into a portrait box", () => {
+    mockUseLoaderData.mockReturnValue(
+      makeLoaderData({ firstRow: [{ ...makeCard(0), rotated: true }] }),
+    );
+    const { container } = render(<FirstRowPreview />);
+    const img = container.querySelector("img");
+    // Rotated branch fills a -90deg-rotated overlay (size-full object-cover),
+    // unlike the portrait branch's aspect-card image.
+    expect(img?.className).toContain("size-full");
+    expect(img?.className).not.toContain("aspect-card");
+    expect(img?.parentElement?.getAttribute("style")).toContain("rotate(-90deg)");
+  });
+
+  it("keeps portrait cards in the aspect-card box (no rotation)", () => {
+    mockUseLoaderData.mockReturnValue(makeLoaderData({ firstRow: [makeCard(0)] }));
+    const { container } = render(<FirstRowPreview />);
+    const img = container.querySelector("img");
+    expect(img?.className).toContain("aspect-card");
+    expect(img?.parentElement?.getAttribute("style") ?? "").not.toContain("rotate(-90deg)");
   });
 
   it("sets srcset, sizes, width, height, and alt on every image", () => {
