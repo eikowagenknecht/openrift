@@ -421,8 +421,14 @@ export function useStaleGroupByGuard() {
   // Latest-ref so the effect can call the current setter without listing the
   // unstable `setGroupBy` in its dependency array (which would re-run it every
   // render and re-fire the navigate while the URL change is still in flight).
+  // The sync happens in an effect, not during render: React Compiler flags
+  // ref mutation during render ("Cannot update ref during render"). React runs
+  // effects in declaration order, so this commits the latest setter before the
+  // stale-grouping effect below reads it.
   const setGroupByRef = useRef(setGroupBy);
-  setGroupByRef.current = setGroupBy;
+  useEffect(() => {
+    setGroupByRef.current = setGroupBy;
+  });
 
   const isStaleGrouping = view === "cards" && isPrintingsOnlyGrouping(groupBy);
 

@@ -72,14 +72,15 @@ export function UserShareDialog({ open, onOpenChange }: UserShareDialogProps) {
       return;
     }
     setDownloadingImage(true);
+    // React Compiler can't yet lower try/finally; reset in both paths instead.
     try {
       // A bundle has no single updatedAt here, so cache-bust per download to
       // always fetch the current image.
       const url = bundleShareImageUrl(getSiteUrl(), shareToken, Date.now());
       await downloadImageFromUrl(url, "openrift-lists.png");
+      setDownloadingImage(false);
     } catch {
       toast.error("Couldn't prepare the image. Please try again.");
-    } finally {
       setDownloadingImage(false);
     }
   };

@@ -81,12 +81,14 @@ export function ListShareDialog({
   };
 
   const handleCopyText = async () => {
+    // Only CardTrader-priced lists need the (lazily fetched) price payload;
+    // fixed prices resolve from the entry/list data, others show no price.
+    // Hoisted out of the try below: React Compiler can't yet lower a logical
+    // expression inside try/catch, and this pure check can't throw anyway.
+    const usesCardTrader =
+      tradeDefaults.pricePref === "ct_zero" ||
+      entries.some((entry) => entry.tradeOverride.pricePref === "ct_zero");
     try {
-      // Only CardTrader-priced lists need the (lazily fetched) price payload;
-      // fixed prices resolve from the entry/list data, others show no price.
-      const usesCardTrader =
-        tradeDefaults.pricePref === "ct_zero" ||
-        entries.some((entry) => entry.tradeOverride.pricePref === "ct_zero");
       let ctPriceFor: ((printingId: string) => number | undefined) | undefined;
       if (usesCardTrader) {
         try {
@@ -112,15 +114,18 @@ export function ListShareDialog({
 
   const handleDownloadImage = async () => {
     setDownloadingImage(true);
+    // Owner-authenticated route, so the download works whether or not the list
+    // is shared (the public/og image needs a share token). Computed before the
+    // try: React Compiler can't yet lower a logical expression inside try/catch,
+    // and these pure values can't throw.
+    const url = listOwnerImageUrl(getSiteUrl(), listId, shareImageVersion(updatedAt));
+    const safeName = listName.replaceAll(/[^\w -]+/gu, "_").trim() || "list";
+    // React Compiler can't yet lower try/finally; reset in both paths instead.
     try {
-      // Owner-authenticated route, so the download works whether or not the list
-      // is shared (the public/og image needs a share token).
-      const url = listOwnerImageUrl(getSiteUrl(), listId, shareImageVersion(updatedAt));
-      const safeName = listName.replaceAll(/[^\w -]+/gu, "_").trim() || "list";
       await downloadImageFromUrl(url, `${safeName}.png`);
+      setDownloadingImage(false);
     } catch {
       toast.error("Couldn't prepare the image. Please try again.");
-    } finally {
       setDownloadingImage(false);
     }
   };

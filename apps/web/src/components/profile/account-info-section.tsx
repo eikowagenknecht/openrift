@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod/v4";
 
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,10 @@ function DisplayNameForm({ defaultName, userId }: { defaultName: string; userId:
     resolver: zodResolver(displayNameSchema),
     defaultValues: { name: defaultName },
   });
+  // `useWatch` rather than `form.watch()`: the latter returns a function the
+  // React Compiler flags as un-memoizable (IncompatibleLibrary), bailing on the
+  // whole component. The hook form subscribes the same way without the bailout.
+  const watchedName = useWatch({ control: form.control, name: "name" });
 
   async function onSubmit(values: DisplayNameValues) {
     setLoading(true);
@@ -101,7 +105,7 @@ function DisplayNameForm({ defaultName, userId }: { defaultName: string; userId:
           )}
         />
         <Field>
-          <Button type="submit" disabled={loading || form.watch("name").trim() === defaultName}>
+          <Button type="submit" disabled={loading || watchedName.trim() === defaultName}>
             {loading ? "Saving..." : "Save"}
           </Button>
         </Field>

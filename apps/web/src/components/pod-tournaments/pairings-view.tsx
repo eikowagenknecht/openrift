@@ -235,12 +235,16 @@ function PodCard({
 
   async function handleSubmit(placements: Placement[]) {
     setSaving(true);
+    // React Compiler can't yet lower try/finally, so reset `saving` in both the
+    // success and error paths and rethrow to preserve the original propagation.
     try {
       await onSubmit(pod.id, placements);
       setEditing(false);
-    } finally {
+    } catch (error) {
       setSaving(false);
+      throw error;
     }
+    setSaving(false);
   }
 
   return (

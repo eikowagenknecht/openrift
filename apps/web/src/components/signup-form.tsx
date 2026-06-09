@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod/v4";
 
 import { AuthFormCard, SocialAuthButtons } from "@/components/auth-form-shell";
@@ -43,7 +43,10 @@ export function SignupForm({
     defaultValues: { name: "", email: initialEmail, password: "" },
   });
 
-  const watchedEmail = form.watch("email");
+  // `useWatch` rather than `form.watch()`: the latter returns a function the
+  // React Compiler flags as un-memoizable (IncompatibleLibrary), bailing on the
+  // whole component. The hook form subscribes the same way without the bailout.
+  const watchedEmail = useWatch({ control: form.control, name: "email" });
 
   async function onSubmit(values: SignUpValues) {
     setLoading(true);
