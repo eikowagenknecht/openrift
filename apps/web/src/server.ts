@@ -7,7 +7,6 @@ import "./instrument.server.mjs";
 // oxlint-disable-next-line import/no-unassigned-import -- side-effect instrumentation bootstrap
 import "./tracing.server";
 import type { SitemapDataResponse } from "@openrift/shared";
-import { wrapFetchWithSentry } from "@sentry/tanstackstart-react";
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry";
 
 import { helpArticleList } from "./components/help/articles";
@@ -115,46 +114,54 @@ async function generateSitemap(): Promise<string> {
   ].join("\n");
 }
 
-export default createServerEntry(
-  wrapFetchWithSentry({
-    async fetch(request: Request) {
-      const url = new URL(request.url);
-      if (url.pathname === "/health") {
-        return new Response("ok", { status: 200 });
-      }
-      if (url.pathname === "/robots.txt") {
-        return new Response(isPreview() ? PREVIEW_ROBOTS_TXT : buildProdRobotsTxt(), {
+// Intentionally NOT wrapped in wrapFetchWithSentry. That wrapper string-injects
+// <meta name="sentry-trace"> / <meta name="baggage"> into <head> on every HTML
+// response, outside React's render tree. With our full-document
+// hydrateRoot(document) (which hydrates <head>), React finds head children it
+// never rendered and throws an unrecoverable hydration error (#418) on every
+// page — prod-only, because the tags appear only when SENTRY_DSN_SSR is set.
+// Sentry error capture and server/function spans come from the global
+// middlewares in start.ts; Grafana/Tempo spans from otelRequestMiddleware +
+// tracing.server.ts. Dropping the wrapper therefore loses only Sentry's
+// server→client trace-meta linkage, not error tracking. See lib/sentry-client.ts.
+export default createServerEntry({
+  async fetch(request: Request) {
+    const url = new URL(request.url);
+    if (url.pathname === "/health") {
+      return new Response("ok", { status: 200 });
+    }
+    if (url.pathname === "/robots.txt") {
+      return new Response(isPreview() ? PREVIEW_ROBOTS_TXT : buildProdRobotsTxt(), {
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "public, max-age=3600",
+        },
+      });
+    }
+    if (url.pathname === "/sitemap.xml") {
+      try {
+        const xml = await generateSitemap();
+        return new Response(xml, {
           headers: {
-            "Content-Type": "text/plain; charset=utf-8",
-            "Cache-Control": "public, max-age=3600",
+            "Content-Type": "application/xml",
+            "Cache-Control": "public, max-age=3600, stale-while-revalidate=7200",
           },
         });
+      } catch {
+        return new Response("Sitemap generation failed", { status: 500 });
       }
-      if (url.pathname === "/sitemap.xml") {
-        try {
-          const xml = await generateSitemap();
-          return new Response(xml, {
-            headers: {
-              "Content-Type": "application/xml",
-              "Cache-Control": "public, max-age=3600, stale-while-revalidate=7200",
-            },
-          });
-        } catch {
-          return new Response("Sitemap generation failed", { status: 500 });
-        }
-      }
-      const t0 = LOG_SSR_TIMINGS ? performance.now() : 0;
-      const response = await handler.fetch(request);
-      const tHandler = LOG_SSR_TIMINGS ? performance.now() : 0;
-      const finalResponse = applyPageCacheControl(request, response);
-      if (LOG_SSR_TIMINGS) {
-        const tEnd = performance.now();
-        // oxlint-disable-next-line no-console -- opt-in SSR timing instrumentation, see LOG_SSR_TIMINGS flag above.
-        console.info(
-          `[SSR] ${request.method} ${url.pathname} total=${(tEnd - t0).toFixed(0)}ms handler=${(tHandler - t0).toFixed(0)}ms postprocess=${(tEnd - tHandler).toFixed(0)}ms`,
-        );
-      }
-      return finalResponse;
-    },
-  }),
-);
+    }
+    const t0 = LOG_SSR_TIMINGS ? performance.now() : 0;
+    const response = await handler.fetch(request);
+    const tHandler = LOG_SSR_TIMINGS ? performance.now() : 0;
+    const finalResponse = applyPageCacheControl(request, response);
+    if (LOG_SSR_TIMINGS) {
+      const tEnd = performance.now();
+      // oxlint-disable-next-line no-console -- opt-in SSR timing instrumentation, see LOG_SSR_TIMINGS flag above.
+      console.info(
+        `[SSR] ${request.method} ${url.pathname} total=${(tEnd - t0).toFixed(0)}ms handler=${(tHandler - t0).toFixed(0)}ms postprocess=${(tEnd - tHandler).toFixed(0)}ms`,
+      );
+    }
+    return finalResponse;
+  },
+});
