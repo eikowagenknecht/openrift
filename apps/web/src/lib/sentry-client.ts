@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/tanstackstart-react";
 import type { ErrorInfo } from "react";
 
 import { COMMIT_HASH, PROD } from "./env";
+import { drainHydrationErrors } from "./hydration-error-buffer";
 import { CHUNK_LOAD_ERROR_PATTERN } from "./stale-bundle";
 
 type TanstackRouter = Parameters<typeof Sentry.tanstackRouterBrowserTracingIntegration>[0];
@@ -90,6 +91,14 @@ export function initClientSentry(router: TanstackRouter): void {
     // distinguishes them in the issue list and for alert rules.
     initialScope: { tags: { service: "web-client" } },
   });
+
+  // Flush hydration errors that fired during the first hydrateRoot commit,
+  // before this init ran (client.tsx buffers them rather than dropping them on
+  // the uninitialized hub). captureException is now armed, so they finally
+  // reach Sentry; later mismatches forward straight through the registered sink.
+  drainHydrationErrors((entry) =>
+    captureHydrationError(entry.error, { componentStack: entry.componentStack }, entry.phase),
+  );
 }
 
 // Forward a React recoverable error (a hydration mismatch — #418/#423/#425 — or

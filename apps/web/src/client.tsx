@@ -2,6 +2,8 @@ import { StartClient } from "@tanstack/react-start/client";
 import { StrictMode } from "react";
 import { hydrateRoot } from "react-dom/client";
 
+import { bufferHydrationError } from "./lib/hydration-error-buffer";
+import type { HydrationErrorPhase } from "./lib/hydration-error-buffer";
 import { preventIOSOverscroll } from "./lib/ios-overscroll-prevention";
 import {
   initChunkErrorReloader,
@@ -25,20 +27,21 @@ if (import.meta.env.DEV && !import.meta.env.VITE_DISABLE_DEVTOOLS) {
 // We console.error first, unconditionally: it works even when Sentry never
 // initializes (the hydration throw can interrupt getRouter()'s Sentry.init),
 // and the component stack names the offending subtree — host tags like <head>
-// and <meta> aren't minified, so it pinpoints the mismatch. Then forward to
-// Sentry, lazily so it stays out of the entry chunk (matching router.ts).
+// and <meta> aren't minified, so it pinpoints the mismatch. Then buffer for
+// Sentry: these fire during the first hydrateRoot commit, before the lazily-
+// imported Sentry client finishes initializing in getRouter(), so a direct
+// captureException would hit an uninitialized hub and be dropped. The buffer
+// keeps Sentry out of the entry chunk and is flushed by initClientSentry() once
+// the hub is armed (see lib/hydration-error-buffer.ts).
 function reportHydrationError(
-  phase: "recoverable" | "uncaught" | "caught",
+  phase: HydrationErrorPhase,
   error: unknown,
   errorInfo: { componentStack?: string | null },
 ): void {
   // oxlint-disable-next-line no-console -- deliberate prod diagnostic for hydration errors
   console.error(`[hydration:${phase}]`, error, errorInfo.componentStack ?? "(no component stack)");
   if (import.meta.env.PROD) {
-    void (async () => {
-      const { captureHydrationError } = await import("./lib/sentry-client");
-      captureHydrationError(error, errorInfo, phase);
-    })();
+    bufferHydrationError({ phase, error, componentStack: errorInfo.componentStack });
   }
 }
 
