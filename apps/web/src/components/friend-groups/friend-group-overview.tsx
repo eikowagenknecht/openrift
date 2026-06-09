@@ -187,7 +187,7 @@ function MembersCard({
             name={member.userName}
             gravatarHash={member.gravatarHash}
             size="sm"
-            className="ring-card ring-2"
+            className="bg-card ring-card ring-2"
           />
         ))}
         {extra > 0 ? <span className="text-muted-foreground pl-3 text-xs">+{extra}</span> : null}
