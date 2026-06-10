@@ -242,22 +242,33 @@ function RootComponent() {
         <Toaster position="bottom-right" />
       </div>
       {!import.meta.env.VITE_DISABLE_DEVTOOLS && (
-        <TanStackDevtools
-          config={{
-            position: "top-right",
-          }}
-          plugins={[
-            {
-              name: "Tanstack Router",
-              render: <TanStackRouterDevtoolsPanel />,
-            },
-            {
-              name: "Tanstack Query",
-              render: <ReactQueryDevtoolsPanel />,
-            },
-            pacerDevtoolsPlugin(),
-          ]}
-        />
+        // Deliberate workaround for https://github.com/TanStack/devtools/issues/444:
+        // devtools-vite 0.7.0 strips only the <TanStackDevtools> element from
+        // production builds, which would leave `&& ( )` — a syntax error. With
+        // the extra fragment + expression container the leftover is a valid
+        // `<>{ }</>`. Do not "simplify" this away while on 0.7.x.
+        /* oxlint-disable react/jsx-no-useless-fragment, react/jsx-curly-brace-presence -- part of the workaround above */
+        <>
+          {
+            <TanStackDevtools
+              config={{
+                position: "top-right",
+              }}
+              plugins={[
+                {
+                  name: "Tanstack Router",
+                  render: <TanStackRouterDevtoolsPanel />,
+                },
+                {
+                  name: "Tanstack Query",
+                  render: <ReactQueryDevtoolsPanel />,
+                },
+                pacerDevtoolsPlugin(),
+              ]}
+            />
+          }
+        </>
+        /* oxlint-enable react/jsx-no-useless-fragment, react/jsx-curly-brace-presence */
       )}
       <Analytics />
     </>
