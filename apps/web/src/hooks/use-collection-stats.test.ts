@@ -10,6 +10,7 @@ import {
   computeCompletion,
   excludeUnreleasedSets,
   filterByScope,
+  matchesScope,
 } from "./use-collection-stats";
 
 const ORDERS = {
@@ -519,5 +520,61 @@ describe("excludeUnreleasedSets", () => {
     const result = excludeUnreleasedSets({ sets, printings, stacks: [ownedStack] });
     expect(result.sets.map((set) => set.id)).toEqual(["set-1", "set-2"]);
     expect(result.printings).toHaveLength(2);
+  });
+});
+
+describe("matchesScope", () => {
+  it("matches every printing when the scope is empty", () => {
+    expect(matchesScope(stubPrinting(), {})).toBe(true);
+  });
+
+  it("filters by set, language, rarity, finish, and art variant", () => {
+    const printing = stubPrinting({
+      setSlug: "RB1",
+      language: "EN",
+      rarity: "common",
+      finish: "normal",
+      artVariant: "normal",
+    });
+    expect(matchesScope(printing, { sets: ["RB1"] })).toBe(true);
+    expect(matchesScope(printing, { sets: ["RB2"] })).toBe(false);
+    expect(matchesScope(printing, { languages: ["DE"] })).toBe(false);
+    expect(matchesScope(printing, { rarities: ["rare"] })).toBe(false);
+    expect(matchesScope(printing, { finishes: ["foil"] })).toBe(false);
+    expect(matchesScope(printing, { artVariants: ["showcase"] })).toBe(false);
+  });
+
+  it("matches a multi-domain card when any of its domains is in scope", () => {
+    const printing = stubPrinting({ card: { domains: ["fury", "calm"] as Domain[] } });
+    expect(matchesScope(printing, { domains: ["calm"] })).toBe(true);
+    expect(matchesScope(printing, { domains: ["mind"] })).toBe(false);
+  });
+
+  it("filters by card type", () => {
+    const printing = stubPrinting({ card: { type: "unit" } });
+    expect(matchesScope(printing, { types: ["unit"] })).toBe(true);
+    expect(matchesScope(printing, { types: ["spell"] })).toBe(false);
+  });
+
+  it("filters promos by marker presence", () => {
+    const noMarkers = stubPrinting({ markers: [] });
+    expect(matchesScope(noMarkers, { promos: "exclude" })).toBe(true);
+    expect(matchesScope(noMarkers, { promos: "only" })).toBe(false);
+  });
+
+  it("filters by signed, banned, and errata flags", () => {
+    const plain = stubPrinting({ isSigned: false, card: { bans: [], errata: null } });
+    expect(matchesScope(plain, { signed: true })).toBe(false);
+    expect(matchesScope(plain, { signed: false })).toBe(true);
+    expect(matchesScope(plain, { banned: true })).toBe(false);
+    expect(matchesScope(plain, { banned: false })).toBe(true);
+    expect(matchesScope(plain, { errata: true })).toBe(false);
+    expect(matchesScope(plain, { errata: false })).toBe(true);
+  });
+
+  it("requires every active filter to pass (AND semantics)", () => {
+    const printing = stubPrinting({ setSlug: "RB1", rarity: "common" });
+    expect(matchesScope(printing, { sets: ["RB1"], rarities: ["common"] })).toBe(true);
+    expect(matchesScope(printing, { sets: ["RB1"], rarities: ["rare"] })).toBe(false);
   });
 });

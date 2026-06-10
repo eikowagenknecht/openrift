@@ -42,6 +42,7 @@ import { usePriceHistory } from "@/hooks/use-price-history";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatPublicCode, formatterForMarketplace } from "@/lib/format";
 import { getFilterIconPath, getTypeIconPath } from "@/lib/icons";
+import { MARKETPLACE_SHORT_LABELS } from "@/lib/marketplace-meta";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -821,7 +822,7 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
         </ButtonGroup>
         <ButtonGroup aria-label="Price source" className="ml-auto">
           {marketplaceOrder.map((mp) => {
-            const label = mp === "tcgplayer" ? "TCG" : mp === "cardmarket" ? "CM" : "CT";
+            const label = MARKETPLACE_SHORT_LABELS[mp];
             const available = data?.[mp]?.available ?? false;
             return (
               <Button

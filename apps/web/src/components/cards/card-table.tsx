@@ -1,16 +1,13 @@
-import type { EnumOrders, GroupByField, Printing } from "@openrift/shared";
+import type { GroupByField, Printing } from "@openrift/shared";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import type { ReactElement, ReactNode } from "react";
 import { Fragment, cloneElement, memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import { Button } from "@/components/ui/button";
-import type { EnumLabels } from "@/hooks/use-enums";
 import { useEnumOrders } from "@/hooks/use-enums";
-import { groupItemsByChannel } from "@/lib/group-by-channel";
-import { groupItemsByField } from "@/lib/group-by-field";
-import { groupItemsByMarker } from "@/lib/group-by-marker";
-import { groupItemsByYear } from "@/lib/group-by-year";
+import { buildGroups } from "@/lib/card-groups";
+import type { CardGroup } from "@/lib/card-groups";
 import { getHeaderHeight } from "@/lib/header-height";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 
@@ -31,53 +28,6 @@ import { ScrollIndicator } from "./scroll-indicator";
 import { useStickyHeader } from "./use-sticky-header";
 
 const GAP = 0;
-
-interface CardGroup {
-  group: GroupInfo;
-  items: CardViewerItem[];
-}
-
-function groupItemsBySet(items: CardViewerItem[], setOrder: GroupInfo[]): CardGroup[] {
-  const bySet = Map.groupBy(items, (item) => item.printing.setId);
-  return setOrder.flatMap((info) => {
-    const setItems = bySet.get(info.id);
-    return setItems ? [{ group: info, items: setItems }] : [];
-  });
-}
-
-function buildGroups(
-  items: CardViewerItem[],
-  groupBy: GroupByField,
-  setOrder: GroupInfo[] | undefined,
-  groupDir: "asc" | "desc",
-  orders: EnumOrders,
-  labels: EnumLabels,
-): CardGroup[] {
-  if (groupBy === "none") {
-    return [{ group: { id: "_all", slug: "", name: "" }, items }];
-  }
-  if (groupBy === "channel") {
-    return groupItemsByChannel(items, groupDir);
-  }
-  if (groupBy === "year") {
-    return groupItemsByYear(items, groupDir);
-  }
-  if (groupBy === "marker") {
-    return groupItemsByMarker(items, groupDir);
-  }
-  let groups: CardGroup[];
-  if (groupBy === "set") {
-    groups = setOrder
-      ? groupItemsBySet(items, setOrder)
-      : [{ group: { id: "_all", slug: "", name: "" }, items }];
-  } else {
-    groups = groupItemsByField(items, groupBy, orders, labels);
-  }
-  if (groupDir === "desc") {
-    groups = groups.toReversed();
-  }
-  return groups;
-}
 
 function buildVirtualRows(groups: CardGroup[]): VRow[] {
   const showHeaders = groups.length > 1;

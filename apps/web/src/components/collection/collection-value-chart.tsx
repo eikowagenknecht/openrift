@@ -9,6 +9,7 @@ import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
 import { useCollectionValueHistory } from "@/hooks/use-collection-value-history";
 import { formatterForMarketplace } from "@/lib/format";
+import { MARKETPLACE_SHORT_LABELS } from "@/lib/marketplace-meta";
 import { useDisplayStore } from "@/stores/display-store";
 
 const TIME_RANGES: { value: TimeRange; label: string }[] = [
@@ -98,7 +99,7 @@ export function CollectionValueChart({ collectionId, scope }: CollectionValueCha
         </ButtonGroup>
         <ButtonGroup aria-label="Price source" className="ml-auto">
           {marketplaceOrder.map((mp) => {
-            const label = mp === "tcgplayer" ? "TCG" : mp === "cardmarket" ? "CM" : "CT";
+            const label = MARKETPLACE_SHORT_LABELS[mp];
             return (
               <Button
                 key={mp}

@@ -602,10 +602,34 @@ export function excludeUnreleasedSets(input: {
 }
 
 /**
- * Filters printings by scope criteria.
- * @returns Only the printings matching all active scope filters.
+ * Whether `scope` has any active filter dimension. When false, every printing
+ * matches, so the filter functions return their input unchanged — preserving
+ * the stable array reference that downstream memoization relies on.
+ * @returns True if at least one scope dimension is set.
  */
-export function filterByScope(printings: Printing[], scope: CompletionScopePreference): Printing[] {
+function scopeHasFilters(scope: CompletionScopePreference): boolean {
+  const { sets, languages, domains, types, rarities, finishes, artVariants } = scope;
+  return Boolean(
+    (sets && sets.length > 0) ||
+    (languages && languages.length > 0) ||
+    (domains && domains.length > 0) ||
+    (types && types.length > 0) ||
+    (rarities && rarities.length > 0) ||
+    (finishes && finishes.length > 0) ||
+    (artVariants && artVariants.length > 0) ||
+    scope.promos !== undefined ||
+    scope.signed !== undefined ||
+    scope.banned !== undefined ||
+    scope.errata !== undefined,
+  );
+}
+
+/**
+ * Whether a printing passes every active scope filter. Unset dimensions are
+ * skipped, so an empty scope matches everything.
+ * @returns True when the printing matches the scope.
+ */
+export function matchesScope(printing: Printing, scope: CompletionScopePreference): boolean {
   const {
     sets,
     languages,
@@ -619,78 +643,67 @@ export function filterByScope(printings: Printing[], scope: CompletionScopePrefe
     banned,
     errata,
   } = scope;
-  const hasSets = sets && sets.length > 0;
-  const hasLanguages = languages && languages.length > 0;
-  const hasDomains = domains && domains.length > 0;
-  const hasTypes = types && types.length > 0;
-  const hasRarities = rarities && rarities.length > 0;
-  const hasFinishes = finishes && finishes.length > 0;
-  const hasArtVariants = artVariants && artVariants.length > 0;
-
+  if (sets && sets.length > 0 && !sets.includes(printing.setSlug)) {
+    return false;
+  }
+  if (languages && languages.length > 0 && !languages.includes(printing.language)) {
+    return false;
+  }
   if (
-    !hasSets &&
-    !hasLanguages &&
-    !hasDomains &&
-    !hasTypes &&
-    !hasRarities &&
-    !hasFinishes &&
-    !hasArtVariants &&
-    promos === undefined &&
-    signed === undefined &&
-    banned === undefined &&
-    errata === undefined
+    domains &&
+    domains.length > 0 &&
+    !printing.card.domains.some((domain) => domains.includes(domain))
   ) {
+    return false;
+  }
+  if (types && types.length > 0 && !types.includes(printing.card.type)) {
+    return false;
+  }
+  if (rarities && rarities.length > 0 && !rarities.includes(printing.rarity)) {
+    return false;
+  }
+  if (finishes && finishes.length > 0 && !finishes.includes(printing.finish)) {
+    return false;
+  }
+  if (artVariants && artVariants.length > 0 && !artVariants.includes(printing.artVariant)) {
+    return false;
+  }
+  if (promos === "exclude" && printing.markers.length > 0) {
+    return false;
+  }
+  if (promos === "only" && printing.markers.length === 0) {
+    return false;
+  }
+  if (signed === true && !printing.isSigned) {
+    return false;
+  }
+  if (signed === false && printing.isSigned) {
+    return false;
+  }
+  if (banned === true && printing.card.bans.length === 0) {
+    return false;
+  }
+  if (banned === false && printing.card.bans.length > 0) {
+    return false;
+  }
+  if (errata === true && printing.card.errata === null) {
+    return false;
+  }
+  if (errata === false && printing.card.errata !== null) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Filters printings by scope criteria.
+ * @returns Only the printings matching all active scope filters.
+ */
+export function filterByScope(printings: Printing[], scope: CompletionScopePreference): Printing[] {
+  if (!scopeHasFilters(scope)) {
     return printings;
   }
-
-  return printings.filter((printing) => {
-    if (hasSets && !sets.includes(printing.setSlug)) {
-      return false;
-    }
-    if (hasLanguages && !languages.includes(printing.language)) {
-      return false;
-    }
-    if (hasDomains && !printing.card.domains.some((domain) => domains.includes(domain))) {
-      return false;
-    }
-    if (hasTypes && !types.includes(printing.card.type)) {
-      return false;
-    }
-    if (hasRarities && !rarities.includes(printing.rarity)) {
-      return false;
-    }
-    if (hasFinishes && !finishes.includes(printing.finish)) {
-      return false;
-    }
-    if (hasArtVariants && !artVariants.includes(printing.artVariant)) {
-      return false;
-    }
-    if (promos === "exclude" && printing.markers.length > 0) {
-      return false;
-    }
-    if (promos === "only" && printing.markers.length === 0) {
-      return false;
-    }
-    if (signed === true && !printing.isSigned) {
-      return false;
-    }
-    if (signed === false && printing.isSigned) {
-      return false;
-    }
-    if (banned === true && printing.card.bans.length === 0) {
-      return false;
-    }
-    if (banned === false && printing.card.bans.length > 0) {
-      return false;
-    }
-    if (errata === true && printing.card.errata === null) {
-      return false;
-    }
-    if (errata === false && printing.card.errata !== null) {
-      return false;
-    }
-    return true;
-  });
+  return printings.filter((printing) => matchesScope(printing, scope));
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -699,93 +712,10 @@ export function filterStacksByScope(
   stacks: StackedEntry[],
   scope: CompletionScopePreference,
 ): StackedEntry[] {
-  // Reuse filterByScope logic: filter stacks whose printing matches the scope
-  const {
-    sets,
-    languages,
-    domains,
-    types,
-    rarities,
-    finishes,
-    artVariants,
-    promos,
-    signed,
-    banned,
-    errata,
-  } = scope;
-  const hasSets = sets && sets.length > 0;
-  const hasLanguages = languages && languages.length > 0;
-  const hasDomains = domains && domains.length > 0;
-  const hasTypes = types && types.length > 0;
-  const hasRarities = rarities && rarities.length > 0;
-  const hasFinishes = finishes && finishes.length > 0;
-  const hasArtVariants = artVariants && artVariants.length > 0;
-
-  if (
-    !hasSets &&
-    !hasLanguages &&
-    !hasDomains &&
-    !hasTypes &&
-    !hasRarities &&
-    !hasFinishes &&
-    !hasArtVariants &&
-    promos === undefined &&
-    signed === undefined &&
-    banned === undefined &&
-    errata === undefined
-  ) {
+  if (!scopeHasFilters(scope)) {
     return stacks;
   }
-
-  return stacks.filter((stack) => {
-    const { printing } = stack;
-    if (hasSets && !sets.includes(printing.setSlug)) {
-      return false;
-    }
-    if (hasLanguages && !languages.includes(printing.language)) {
-      return false;
-    }
-    if (hasDomains && !printing.card.domains.some((domain) => domains.includes(domain))) {
-      return false;
-    }
-    if (hasTypes && !types.includes(printing.card.type)) {
-      return false;
-    }
-    if (hasRarities && !rarities.includes(printing.rarity)) {
-      return false;
-    }
-    if (hasFinishes && !finishes.includes(printing.finish)) {
-      return false;
-    }
-    if (hasArtVariants && !artVariants.includes(printing.artVariant)) {
-      return false;
-    }
-    if (promos === "exclude" && printing.markers.length > 0) {
-      return false;
-    }
-    if (promos === "only" && printing.markers.length === 0) {
-      return false;
-    }
-    if (signed === true && !printing.isSigned) {
-      return false;
-    }
-    if (signed === false && printing.isSigned) {
-      return false;
-    }
-    if (banned === true && printing.card.bans.length === 0) {
-      return false;
-    }
-    if (banned === false && printing.card.bans.length > 0) {
-      return false;
-    }
-    if (errata === true && printing.card.errata === null) {
-      return false;
-    }
-    if (errata === false && printing.card.errata !== null) {
-      return false;
-    }
-    return true;
-  });
+  return stacks.filter((stack) => matchesScope(stack.printing, scope));
 }
 
 function getOrCreate<V>(map: Map<string, Set<V>>, key: string): Set<V> {

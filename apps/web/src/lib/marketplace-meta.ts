@@ -46,3 +46,13 @@ export const MARKETPLACE_META: Record<Marketplace, MarketplaceMeta> = {
 export function marketplaceLabel(name: string): string {
   return MARKETPLACE_META[name as Marketplace]?.label ?? name;
 }
+
+/**
+ * Compact marketplace labels for tight UI like chart legends and price-source
+ * toggles. The Record type keeps this exhaustive as marketplaces are added.
+ */
+export const MARKETPLACE_SHORT_LABELS: Record<Marketplace, string> = {
+  tcgplayer: "TCG",
+  cardmarket: "CM",
+  cardtrader: "CT",
+};

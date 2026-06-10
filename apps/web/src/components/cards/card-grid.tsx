@@ -1,17 +1,14 @@
-import type { EnumOrders, GroupByField } from "@openrift/shared";
+import type { GroupByField } from "@openrift/shared";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import type { ReactNode } from "react";
 import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { useAdminSettings } from "@/hooks/use-admin-settings";
-import type { EnumLabels } from "@/hooks/use-enums";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
-import { groupItemsByChannel } from "@/lib/group-by-channel";
-import { groupItemsByField } from "@/lib/group-by-field";
-import { groupItemsByMarker } from "@/lib/group-by-marker";
-import { groupItemsByYear } from "@/lib/group-by-year";
+import { buildGroups } from "@/lib/card-groups";
+import type { CardGroup } from "@/lib/card-groups";
 import { getHeaderHeight } from "@/lib/header-height";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -40,53 +37,6 @@ export type { SetInfo } from "./card-grid-types";
 // first render can use the real value instead of 0. SSR initializes to 0; the
 // ResizeObserver below corrects it once the DOM is in place.
 let cachedScrollMargin = 0;
-
-interface CardGroup {
-  group: GroupInfo;
-  items: CardViewerItem[];
-}
-
-function groupItemsBySet(items: CardViewerItem[], setOrder: GroupInfo[]): CardGroup[] {
-  const bySet = Map.groupBy(items, (item) => item.printing.setId);
-  return setOrder.flatMap((info) => {
-    const setItems = bySet.get(info.id);
-    return setItems ? [{ group: info, items: setItems }] : [];
-  });
-}
-
-function buildGroups(
-  items: CardViewerItem[],
-  groupBy: GroupByField,
-  setOrder: GroupInfo[] | undefined,
-  groupDir: "asc" | "desc",
-  orders: EnumOrders,
-  labels: EnumLabels,
-): CardGroup[] {
-  if (groupBy === "none") {
-    return [{ group: { id: "_all", slug: "", name: "" }, items }];
-  }
-  if (groupBy === "channel") {
-    return groupItemsByChannel(items, groupDir);
-  }
-  if (groupBy === "year") {
-    return groupItemsByYear(items, groupDir);
-  }
-  if (groupBy === "marker") {
-    return groupItemsByMarker(items, groupDir);
-  }
-  let groups: CardGroup[];
-  if (groupBy === "set") {
-    groups = setOrder
-      ? groupItemsBySet(items, setOrder)
-      : [{ group: { id: "_all", slug: "", name: "" }, items }];
-  } else {
-    groups = groupItemsByField(items, groupBy, orders, labels);
-  }
-  if (groupDir === "desc") {
-    groups = groups.toReversed();
-  }
-  return groups;
-}
 
 function buildVirtualRows(groups: CardGroup[], columns: number): VRow[] {
   const showHeaders = groups.length > 1;

@@ -10,6 +10,7 @@ import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { formatterForMarketplace } from "@/lib/format";
+import { MARKETPLACE_SHORT_LABELS } from "@/lib/marketplace-meta";
 import { useDisplayStore } from "@/stores/display-store";
 
 const chartConfig = {
@@ -168,7 +169,7 @@ export function PriceHistoryChart({
           </ButtonGroup>
           <ButtonGroup aria-label="Price source" className="ml-auto">
             {marketplaceOrder.map((s) => {
-              const label = s === "tcgplayer" ? "TCG" : s === "cardmarket" ? "CM" : "CT";
+              const label = MARKETPLACE_SHORT_LABELS[s];
               const available = data?.[s]?.available ?? false;
               return (
                 <Button
