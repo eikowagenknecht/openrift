@@ -579,6 +579,29 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
 }
 
 /**
+ * Hides preview sets (not yet released) from collection stats, unless the
+ * user already owns cards from them. Keeps the set list and the printing
+ * catalog consistent so owned/total counts always refer to the same pool.
+ * @returns The sets and printings limited to released (or owned) sets.
+ */
+export function excludeUnreleasedSets(input: {
+  sets: SetListEntry[];
+  printings: Printing[];
+  stacks: StackedEntry[];
+}): { sets: SetListEntry[]; printings: Printing[] } {
+  const ownedSetIds = new Set(input.stacks.map((stack) => stack.printing.setId));
+  const visibleSets = input.sets.filter((set) => set.released || ownedSetIds.has(set.id));
+  if (visibleSets.length === input.sets.length) {
+    return { sets: input.sets, printings: input.printings };
+  }
+  const visibleSetIds = new Set(visibleSets.map((set) => set.id));
+  return {
+    sets: visibleSets,
+    printings: input.printings.filter((printing) => visibleSetIds.has(printing.setId)),
+  };
+}
+
+/**
  * Filters printings by scope criteria.
  * @returns Only the printings matching all active scope filters.
  */
@@ -814,10 +837,16 @@ export function useCollectionStats(collectionId?: string): CollectionStatsResult
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
   const marketplace = marketplaceOrder[0] ?? "cardtrader";
 
+  const { sets, printings } = excludeUnreleasedSets({
+    sets: setList.sets,
+    printings: allPrintings,
+    stacks,
+  });
+
   const stats = computeCollectionStats({
     stacks,
     totalCopies,
-    sets: setList.sets,
+    sets,
     prices,
     marketplace,
     orders,
@@ -826,9 +855,9 @@ export function useCollectionStats(collectionId?: string): CollectionStatsResult
   return {
     ...stats,
     formatPrice: formatterForMarketplace(marketplace),
-    allPrintings,
+    allPrintings: printings,
     stacks,
-    sets: setList.sets,
+    sets,
     orders,
     isReady,
   };

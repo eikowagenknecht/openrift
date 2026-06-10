@@ -5,7 +5,12 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { resetIdCounter, stubPriceLookup, stubPrinting } from "@/test/factories";
 
-import { computeCollectionStats, computeCompletion, filterByScope } from "./use-collection-stats";
+import {
+  computeCollectionStats,
+  computeCompletion,
+  excludeUnreleasedSets,
+  filterByScope,
+} from "./use-collection-stats";
 
 const ORDERS = {
   domains: ["fury", "calm", "mind", "body", "chaos", "order", "colorless"] as const,
@@ -480,5 +485,39 @@ describe("filterByScope", () => {
     });
     expect(result).toHaveLength(1);
     expect(result[0]).toBe(enNormal);
+  });
+});
+
+describe("excludeUnreleasedSets", () => {
+  it("returns sets and printings unchanged when everything is released", () => {
+    const sets = [stubSet({ id: "set-1" }), stubSet({ id: "set-2", slug: "second" })];
+    const printings = [stubPrinting({ setId: "set-1" }), stubPrinting({ setId: "set-2" })];
+    const result = excludeUnreleasedSets({ sets, printings, stacks: [] });
+    expect(result.sets).toBe(sets);
+    expect(result.printings).toBe(printings);
+  });
+
+  it("hides unreleased sets and their printings", () => {
+    const sets = [
+      stubSet({ id: "set-1" }),
+      stubSet({ id: "set-2", slug: "preview", released: false, releasedAt: null }),
+    ];
+    const released = stubPrinting({ setId: "set-1" });
+    const preview = stubPrinting({ setId: "set-2" });
+    const result = excludeUnreleasedSets({ sets, printings: [released, preview], stacks: [] });
+    expect(result.sets.map((set) => set.id)).toEqual(["set-1"]);
+    expect(result.printings).toEqual([released]);
+  });
+
+  it("keeps an unreleased set when the user owns cards from it", () => {
+    const sets = [
+      stubSet({ id: "set-1" }),
+      stubSet({ id: "set-2", slug: "preview", released: false, releasedAt: null }),
+    ];
+    const printings = [stubPrinting({ setId: "set-1" }), stubPrinting({ setId: "set-2" })];
+    const ownedStack = stubStack({ setId: "set-2" });
+    const result = excludeUnreleasedSets({ sets, printings, stacks: [ownedStack] });
+    expect(result.sets.map((set) => set.id)).toEqual(["set-1", "set-2"]);
+    expect(result.printings).toHaveLength(2);
   });
 });
