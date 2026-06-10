@@ -1,4 +1,5 @@
 import type { Printing } from "@openrift/shared";
+import { MinusIcon, PlusIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -97,13 +98,7 @@ export function DeckAddStrip({
                 />
               }
             >
-              {showBulkRemove ? (
-                `-${deckQuantity}`
-              ) : (
-                <svg viewBox="0 0 16 16" fill="currentColor" className="size-3.5">
-                  <path d="M3 7a1 1 0 0 0 0 2h10a1 1 0 1 0 0-2H3z" />
-                </svg>
-              )}
+              {showBulkRemove ? `-${deckQuantity}` : <MinusIcon className="size-3.5" />}
             </TooltipTrigger>
             <TooltipContent>Shift+click to remove all</TooltipContent>
           </Tooltip>
@@ -139,9 +134,7 @@ export function DeckAddStrip({
             ) : showBulkAdd && !maxReached ? (
               `+${remainingCount}`
             ) : (
-              <svg viewBox="0 0 16 16" fill="currentColor" className="size-3.5">
-                <path d="M8 2a1 1 0 0 1 1 1v4h4a1 1 0 1 1 0 2H9v4a1 1 0 1 1-2 0V9H3a1 1 0 0 1 0-2h4V3a1 1 0 0 1 1-1z" />
-              </svg>
+              <PlusIcon className="size-3.5" />
             )}
           </TooltipTrigger>
           {!maxReached && (

@@ -1,5 +1,5 @@
 import type { Printing } from "@openrift/shared";
-import { imageUrl } from "@openrift/shared";
+import { getOrientation, imageUrl } from "@openrift/shared";
 import type { RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -26,7 +26,7 @@ export function PrintingHoverPreview({
   const front = printing.images.find((image) => image.face === "front");
   const thumbnail = front ? imageUrl(front.imageId, "400w") : null;
   const fullUrl = front ? imageUrl(front.imageId, "full") : null;
-  const landscape = printing.card.type === "battlefield";
+  const landscape = getOrientation(printing.card.type) === "landscape";
   const [fullLoaded, setFullLoaded] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
 

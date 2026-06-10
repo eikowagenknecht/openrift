@@ -1,10 +1,4 @@
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 
 interface DisposeDialogProps {
   open: boolean;
@@ -21,23 +15,22 @@ export function DisposeDialog({
   onConfirm,
   isPending,
 }: DisposeDialogProps) {
+  const cardNoun = `card${count === 1 ? "" : "s"}`;
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogTitle>Remove cards from collection</AlertDialogTitle>
-        <AlertDialogDescription>
-          This will permanently remove {count} card{count === 1 ? "" : "s"} from your collection.
-          This action cannot be undone, but the removal will be recorded in your activity history.
-        </AlertDialogDescription>
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending}>
-            Cancel
-          </Button>
-          <Button variant="destructive" onClick={onConfirm} disabled={isPending}>
-            {isPending ? "Removing…" : `Remove ${count} card${count === 1 ? "" : "s"}`}
-          </Button>
-        </div>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmActionDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Remove cards from collection"
+      description={
+        <>
+          This will permanently remove {count} {cardNoun} from your collection. This action cannot
+          be undone, but the removal will be recorded in your activity history.
+        </>
+      }
+      confirmLabel={`Remove ${count} ${cardNoun}`}
+      pendingLabel="Removing…"
+      onConfirm={onConfirm}
+      isPending={isPending}
+    />
   );
 }

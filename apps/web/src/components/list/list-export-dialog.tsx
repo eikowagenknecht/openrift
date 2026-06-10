@@ -1,6 +1,6 @@
 import type { ListEntryDetailResponse } from "@openrift/shared";
 import { CheckIcon, CopyIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,7 +22,7 @@ interface ListExportDialogProps {
 export function ListExportDialog({ entries, open, onOpenChange }: ListExportDialogProps) {
   const [copied, setCopied] = useState(false);
 
-  const code = useMemo(() => formatCardListAsDeckText(entries), [entries]);
+  const code = formatCardListAsDeckText(entries);
 
   const handleCopy = async () => {
     // Use \r\n so line breaks survive iOS Safari's clipboard.

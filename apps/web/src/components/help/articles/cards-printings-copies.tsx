@@ -60,17 +60,17 @@ export default function CardsPrintingsCopiesArticle() {
               <PrintingCard
                 image={imageByCode.get("OGN-007")}
                 code="OGN-007"
-                label="Origins &middot; Common &middot; Normal"
+                label="Origins · Common · Normal"
               />
               <PrintingCard
                 image={imageByCode.get("OGN-007a")}
                 code="OGN-007a"
-                label="Origins &middot; Showcase &middot; Foil"
+                label="Origins · Showcase · Foil"
               />
               <PrintingCard
                 image={imageByCode.get("SFD-R01b")}
                 code="SFD-R01b"
-                label="Spiritforged &middot; Showcase &middot; Foil"
+                label="Spiritforged · Showcase · Foil"
               />
             </div>
           </div>
@@ -275,7 +275,7 @@ function PrintingCard({ image, code, label }: { image?: string; code: string; la
       <CardImage src={image} alt={`Fury Rune ${code}`} className="h-14 w-10" />
       <div>
         <span className="font-medium">{code}</span>
-        <span className="text-muted-foreground block" dangerouslySetInnerHTML={{ __html: label }} />
+        <span className="text-muted-foreground block">{label}</span>
       </div>
     </div>
   );

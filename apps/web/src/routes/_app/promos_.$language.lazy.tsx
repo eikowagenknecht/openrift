@@ -932,7 +932,7 @@ function LeafSection({
                 showImages={showImages}
                 display={display}
                 sizes={PROMOS_CARD_SIZES}
-                belowLabel={<BelowLabel printing={printing} />}
+                belowLabel={<MarkerChips printing={printing} />}
                 imageOverlay={<SuggestImageOverlay printing={printing} />}
                 aboveCard={ownedCounts ? <CardCountStrip count={ownedCount} /> : undefined}
                 dimmed={ownedCounts ? ownedCount === 0 : undefined}
@@ -984,7 +984,7 @@ function FlatSection({
                 showImages={showImages}
                 display={display}
                 sizes={PROMOS_CARD_SIZES}
-                belowLabel={<BelowLabel printing={printing} />}
+                belowLabel={<MarkerChips printing={printing} />}
                 imageOverlay={<SuggestImageOverlay printing={printing} />}
                 aboveCard={ownedCounts ? <CardCountStrip count={ownedCount} /> : undefined}
                 dimmed={ownedCounts ? ownedCount === 0 : undefined}
@@ -1123,7 +1123,7 @@ function CompactBranchGrid({
                 showImages={showImages}
                 display={display}
                 sizes={PROMOS_CARD_SIZES}
-                belowLabel={<BelowLabel printing={printing} />}
+                belowLabel={<MarkerChips printing={printing} />}
                 imageOverlay={<SuggestImageOverlay printing={printing} />}
                 aboveCard={ownedCounts ? <CardCountStrip count={ownedCount} /> : undefined}
                 dimmed={ownedCounts ? ownedCount === 0 : undefined}
@@ -1345,10 +1345,6 @@ function PromoMobileCard({
       </div>
     </button>
   );
-}
-
-function BelowLabel({ printing }: { printing: Printing }) {
-  return <MarkerChips printing={printing} />;
 }
 
 function MarkerChips({ printing }: { printing: Printing }) {

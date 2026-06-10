@@ -14,7 +14,6 @@ import {
 import type { MouseEvent } from "react";
 import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
-// oxlint-disable no-unused-vars -- perf experiment; will restore markdown rendering shortly
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";

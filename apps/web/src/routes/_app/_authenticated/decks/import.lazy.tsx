@@ -64,10 +64,12 @@ export const Route = createLazyFileRoute("/_app/_authenticated/decks/import")({
   component: DeckImportPage,
 });
 
+// Problems first, matching the collection import flow: when zone and name tie,
+// surface the entries that still need attention before the resolved ones.
 const STATUS_SORT_ORDER: Record<DeckMatchStatus, number> = {
-  exact: 0,
+  unresolved: 0,
   "needs-review": 1,
-  unresolved: 2,
+  exact: 2,
 };
 
 /** @returns Display name for sorting purposes. */

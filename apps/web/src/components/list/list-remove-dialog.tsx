@@ -1,10 +1,4 @@
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 
 interface ListRemoveDialogProps {
   open: boolean;
@@ -28,23 +22,22 @@ export function ListRemoveDialog({
   onConfirm,
   isPending,
 }: ListRemoveDialogProps) {
+  const cardNoun = `card${count === 1 ? "" : "s"}`;
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogTitle>Remove from list</AlertDialogTitle>
-        <AlertDialogDescription>
-          Remove {count} card{count === 1 ? "" : "s"} from this list? You can always add{" "}
-          {count === 1 ? "it" : "them"} back later.
-        </AlertDialogDescription>
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending}>
-            Cancel
-          </Button>
-          <Button variant="destructive" onClick={onConfirm} disabled={isPending}>
-            {isPending ? "Removing…" : `Remove ${count} card${count === 1 ? "" : "s"}`}
-          </Button>
-        </div>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmActionDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Remove from list"
+      description={
+        <>
+          Remove {count} {cardNoun} from this list? You can always add {count === 1 ? "it" : "them"}{" "}
+          back later.
+        </>
+      }
+      confirmLabel={`Remove ${count} ${cardNoun}`}
+      pendingLabel="Removing…"
+      onConfirm={onConfirm}
+      isPending={isPending}
+    />
   );
 }

@@ -3,12 +3,13 @@ import { useState } from "react";
 
 import { Heading } from "@/components/heading";
 import { AuthPageLayout } from "@/components/layout/auth-page-layout";
+import { SixDigitOtpInput } from "@/components/six-digit-otp-input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { authClient } from "@/lib/auth-client";
+import { otpErrorMessage } from "@/lib/auth-errors";
 
 export const Route = createLazyFileRoute("/_app/reset-password")({
   component: ResetPasswordPage,
@@ -68,15 +69,7 @@ function ResetPasswordPage() {
     });
     setLoading(false);
     if (result.error) {
-      if (result.error.code === "OTP_EXPIRED") {
-        setError("Code expired. Please request a new one.");
-      } else if (result.error.code === "INVALID_OTP") {
-        setError("Incorrect code. Please try again.");
-      } else if (result.error.code === "TOO_MANY_ATTEMPTS") {
-        setError("Too many attempts. Please request a new code.");
-      } else {
-        setError(result.error.message ?? "Something went wrong. Please try again.");
-      }
+      setError(otpErrorMessage(result.error));
       return;
     }
     void navigate({ to: "/login", search: { redirect: undefined, email: email.trim() } });
@@ -142,22 +135,7 @@ function ResetPasswordPage() {
               >
                 <FieldGroup className="w-full items-center">
                   {error && <FieldError>{error}</FieldError>}
-                  <InputOTP
-                    // oxlint-disable-next-line jsx-a11y/no-autofocus -- code step's primary input
-                    autoFocus
-                    maxLength={6}
-                    value={otp}
-                    onChange={setOtp}
-                  >
-                    <InputOTPGroup>
-                      <InputOTPSlot index={0} />
-                      <InputOTPSlot index={1} />
-                      <InputOTPSlot index={2} />
-                      <InputOTPSlot index={3} />
-                      <InputOTPSlot index={4} />
-                      <InputOTPSlot index={5} />
-                    </InputOTPGroup>
-                  </InputOTP>
+                  <SixDigitOtpInput autoFocusOnMount value={otp} onChange={setOtp} />
                   <Field className="w-full">
                     <FieldLabel htmlFor="new-password">New password</FieldLabel>
                     <Input

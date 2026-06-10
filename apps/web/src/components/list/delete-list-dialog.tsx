@@ -1,12 +1,6 @@
 import type { ListKind } from "@openrift/shared";
 
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 
 interface DeleteListDialogProps {
   open: boolean;
@@ -39,22 +33,20 @@ export function DeleteListDialog({
         : ` This list has ${entryCount} ${entryCount === 1 ? itemNoun : itemPluralNoun}, which will no longer be grouped.`;
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogTitle>Delete list</AlertDialogTitle>
-        <AlertDialogDescription>
+    <ConfirmActionDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Delete list"
+      description={
+        <>
           Are you sure you want to delete &ldquo;{listName}&rdquo;?
           {tailMessage}
-        </AlertDialogDescription>
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending}>
-            Cancel
-          </Button>
-          <Button variant="destructive" onClick={onConfirm} disabled={isPending}>
-            {isPending ? "Deleting..." : "Delete"}
-          </Button>
-        </div>
-      </AlertDialogContent>
-    </AlertDialog>
+        </>
+      }
+      confirmLabel="Delete"
+      pendingLabel="Deleting..."
+      onConfirm={onConfirm}
+      isPending={isPending}
+    />
   );
 }

@@ -4,13 +4,13 @@ import { useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod/v4";
 
+import { SixDigitOtpInput } from "@/components/six-digit-otp-input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { authClient } from "@/lib/auth-client";
-import { setServerError } from "@/lib/auth-errors";
+import { otpErrorMessage, setServerError } from "@/lib/auth-errors";
 import { sessionQueryOptions } from "@/lib/auth-session";
 
 const displayNameSchema = z.object({
@@ -163,15 +163,7 @@ function EmailForm({ currentEmail }: { currentEmail: string }) {
     });
     setLoading(false);
     if (result.error) {
-      if (result.error.code === "OTP_EXPIRED") {
-        setError("Code expired. Please request a new one.");
-      } else if (result.error.code === "INVALID_OTP") {
-        setError("Incorrect code. Please try again.");
-      } else if (result.error.code === "TOO_MANY_ATTEMPTS") {
-        setError("Too many attempts. Please request a new code.");
-      } else {
-        setError(result.error.message ?? "Something went wrong. Please try again.");
-      }
+      setError(otpErrorMessage(result.error));
       return;
     }
     setOtp("");
@@ -190,15 +182,7 @@ function EmailForm({ currentEmail }: { currentEmail: string }) {
     });
     setLoading(false);
     if (result.error) {
-      if (result.error.code === "OTP_EXPIRED") {
-        setError("Code expired. Please request a new one.");
-      } else if (result.error.code === "INVALID_OTP") {
-        setError("Incorrect code. Please try again.");
-      } else if (result.error.code === "TOO_MANY_ATTEMPTS") {
-        setError("Too many attempts. Please request a new code.");
-      } else {
-        setError(result.error.message ?? "Something went wrong. Please try again.");
-      }
+      setError(otpErrorMessage(result.error));
       return;
     }
     await queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
@@ -267,16 +251,7 @@ function EmailForm({ currentEmail }: { currentEmail: string }) {
             Enter the 6-digit code sent to <strong>{currentEmail}</strong>.
           </p>
           <div className="flex justify-center">
-            <InputOTP maxLength={6} value={otp} onChange={setOtp}>
-              <InputOTPGroup>
-                <InputOTPSlot index={0} />
-                <InputOTPSlot index={1} />
-                <InputOTPSlot index={2} />
-                <InputOTPSlot index={3} />
-                <InputOTPSlot index={4} />
-                <InputOTPSlot index={5} />
-              </InputOTPGroup>
-            </InputOTP>
+            <SixDigitOtpInput value={otp} onChange={setOtp} />
           </div>
           <Field>
             <Button disabled={otp.length < 6 || loading} onClick={handleVerifyCurrentEmail}>
@@ -311,16 +286,7 @@ function EmailForm({ currentEmail }: { currentEmail: string }) {
             Enter the 6-digit code sent to <strong>{newEmail.trim()}</strong>.
           </p>
           <div className="flex justify-center">
-            <InputOTP maxLength={6} value={otp} onChange={setOtp}>
-              <InputOTPGroup>
-                <InputOTPSlot index={0} />
-                <InputOTPSlot index={1} />
-                <InputOTPSlot index={2} />
-                <InputOTPSlot index={3} />
-                <InputOTPSlot index={4} />
-                <InputOTPSlot index={5} />
-              </InputOTPGroup>
-            </InputOTP>
+            <SixDigitOtpInput value={otp} onChange={setOtp} />
           </div>
           <Field>
             <Button disabled={otp.length < 6 || loading} onClick={handleVerifyNewEmail}>

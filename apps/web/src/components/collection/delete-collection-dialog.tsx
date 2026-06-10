@@ -1,10 +1,4 @@
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 
 interface DeleteCollectionDialogProps {
   open: boolean;
@@ -24,24 +18,22 @@ export function DeleteCollectionDialog({
   isPending,
 }: DeleteCollectionDialogProps) {
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogTitle>Delete collection</AlertDialogTitle>
-        <AlertDialogDescription>
+    <ConfirmActionDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Delete collection"
+      description={
+        <>
           Are you sure you want to delete &ldquo;{collectionName}&rdquo;?
           {copyCount > 0
             ? ` The ${copyCount} card${copyCount === 1 ? "" : "s"} in this collection will be moved to your Inbox.`
             : " This collection is empty."}
-        </AlertDialogDescription>
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending}>
-            Cancel
-          </Button>
-          <Button variant="destructive" onClick={onConfirm} disabled={isPending}>
-            {isPending ? "Deleting..." : "Delete"}
-          </Button>
-        </div>
-      </AlertDialogContent>
-    </AlertDialog>
+        </>
+      }
+      confirmLabel="Delete"
+      pendingLabel="Deleting..."
+      onConfirm={onConfirm}
+      isPending={isPending}
+    />
   );
 }

@@ -6,13 +6,13 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod/v4";
 
 import { AuthFormCard, SocialAuthButtons } from "@/components/auth-form-shell";
+import { SixDigitOtpInput } from "@/components/six-digit-otp-input";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { authClient, signIn } from "@/lib/auth-client";
-import { setServerError } from "@/lib/auth-errors";
+import { otpErrorMessage, setServerError } from "@/lib/auth-errors";
 import { sessionQueryOptions } from "@/lib/auth-session";
 
 const signInSchema = z.object({
@@ -110,15 +110,7 @@ export function LoginForm({
     const result = await authClient.signIn.emailOtp({ email: otpEmail.trim(), otp });
     setOtpLoading(false);
     if (result.error) {
-      if (result.error.code === "OTP_EXPIRED") {
-        setOtpError("Code expired. Please request a new one.");
-      } else if (result.error.code === "INVALID_OTP") {
-        setOtpError("Incorrect code. Please try again.");
-      } else if (result.error.code === "TOO_MANY_ATTEMPTS") {
-        setOtpError("Too many attempts. Please request a new code.");
-      } else {
-        setOtpError(result.error.message ?? "Something went wrong. Please try again.");
-      }
+      setOtpError(otpErrorMessage(result.error));
       return;
     }
     await queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
@@ -271,17 +263,7 @@ export function LoginForm({
                 <>
                   {otpError && <FieldError>{otpError}</FieldError>}
                   <div className="flex justify-center">
-                    {/* oxlint-disable-next-line jsx-a11y/no-autofocus -- input appears after user clicks "Send code"; focusing avoids a redundant click */}
-                    <InputOTP autoFocus maxLength={6} value={otp} onChange={setOtp}>
-                      <InputOTPGroup>
-                        <InputOTPSlot index={0} />
-                        <InputOTPSlot index={1} />
-                        <InputOTPSlot index={2} />
-                        <InputOTPSlot index={3} />
-                        <InputOTPSlot index={4} />
-                        <InputOTPSlot index={5} />
-                      </InputOTPGroup>
-                    </InputOTP>
+                    <SixDigitOtpInput autoFocusOnMount value={otp} onChange={setOtp} />
                   </div>
                   <Field>
                     <Button type="submit" disabled={otp.length < 6 || otpLoading}>

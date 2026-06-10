@@ -71,3 +71,18 @@ export function setServerError(
     message: error.message ?? "Something went wrong. Please try again.",
   });
 }
+
+const OTP_ERROR_CODES = new Set(["OTP_EXPIRED", "INVALID_OTP", "TOO_MANY_ATTEMPTS"]);
+
+/**
+ * Message to show beneath an OTP input after a failed verification. Reuses the
+ * shared CODE_TO_FIELD copy for the known OTP codes and falls back to the
+ * server message (or a generic message) for anything else.
+ * @returns The human-readable error message.
+ */
+export function otpErrorMessage(error: { code?: string; message?: string }): string {
+  if (error.code && OTP_ERROR_CODES.has(error.code)) {
+    return CODE_TO_FIELD[error.code].message;
+  }
+  return error.message ?? "Something went wrong. Please try again.";
+}

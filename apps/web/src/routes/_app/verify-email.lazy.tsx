@@ -4,11 +4,12 @@ import { useState } from "react";
 
 import { Heading } from "@/components/heading";
 import { AuthPageLayout } from "@/components/layout/auth-page-layout";
+import { SixDigitOtpInput } from "@/components/six-digit-otp-input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FieldError, FieldGroup } from "@/components/ui/field";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { authClient } from "@/lib/auth-client";
+import { otpErrorMessage } from "@/lib/auth-errors";
 import { sessionQueryOptions } from "@/lib/auth-session";
 
 export const Route = createLazyFileRoute("/_app/verify-email")({
@@ -33,15 +34,7 @@ function VerifyEmailPage() {
     const result = await authClient.emailOtp.verifyEmail({ email, otp: code });
     setVerifying(false);
     if (result.error) {
-      if (result.error.code === "OTP_EXPIRED") {
-        setError("Code expired. Please request a new one.");
-      } else if (result.error.code === "INVALID_OTP") {
-        setError("Incorrect code. Please try again.");
-      } else if (result.error.code === "TOO_MANY_ATTEMPTS") {
-        setError("Too many attempts. Please request a new code.");
-      } else {
-        setError(result.error.message ?? "Something went wrong. Please try again.");
-      }
+      setError(otpErrorMessage(result.error));
       return;
     }
     // Refetch the session: better-auth set the cookie, but our React Query
@@ -71,23 +64,12 @@ function VerifyEmailPage() {
           </p>
           <FieldGroup className="items-center">
             {error && <FieldError>{error}</FieldError>}
-            <InputOTP
-              maxLength={6}
+            <SixDigitOtpInput
+              autoFocusOnMount
               value={otp}
               onChange={setOtp}
               onComplete={handleVerify}
-              // oxlint-disable-next-line jsx-a11y/no-autofocus -- OTP input is the sole action on this page
-              autoFocus
-            >
-              <InputOTPGroup>
-                <InputOTPSlot index={0} />
-                <InputOTPSlot index={1} />
-                <InputOTPSlot index={2} />
-                <InputOTPSlot index={3} />
-                <InputOTPSlot index={4} />
-                <InputOTPSlot index={5} />
-              </InputOTPGroup>
-            </InputOTP>
+            />
             <Button
               className="w-full"
               disabled={otp.length < 6 || verifying}
