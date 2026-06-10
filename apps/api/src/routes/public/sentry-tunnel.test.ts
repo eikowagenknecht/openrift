@@ -74,8 +74,7 @@ describe("POST /api/v1/sentry-tunnel", () => {
     });
 
     expect(res.status).toBe(200);
-    // Only the allow-listed content-type is forwarded; upstream headers are dropped.
-    expect(res.headers.get("content-type")).toBe("application/json");
+    // The response is independent of upstream; no upstream headers can leak.
     expect(res.headers.get("set-cookie")).toBeNull();
     expect(res.headers.get("x-upstream-secret")).toBeNull();
   });
@@ -179,7 +178,25 @@ describe("POST /api/v1/sentry-tunnel", () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it("propagates upstream status codes (e.g. 429 from Sentry)", async () => {
+  it("responds 200 without waiting for the upstream forward", async () => {
+    // An upstream that never resolves within the test — if the route awaited
+    // it, app.request would hang and the test would time out.
+    const { promise: upstreamPending, resolve: resolveUpstream } =
+      Promise.withResolvers<Response>();
+    mockFetch.mockReturnValue(upstreamPending);
+    const app = buildApp(ALLOWED_DSN);
+
+    const res = await app.request("/api/v1/sentry-tunnel", {
+      method: "POST",
+      body: envelope(ALLOWED_DSN),
+    });
+
+    expect(res.status).toBe(200);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    resolveUpstream(new Response(null, { status: 200 }));
+  });
+
+  it("responds 200 even when Sentry ingest rejects the envelope (e.g. 429)", async () => {
     mockFetch.mockResolvedValue(new Response("rate limited", { status: 429 }));
     const app = buildApp(ALLOWED_DSN);
 
@@ -188,6 +205,18 @@ describe("POST /api/v1/sentry-tunnel", () => {
       body: envelope(ALLOWED_DSN),
     });
 
-    expect(res.status).toBe(429);
+    expect(res.status).toBe(200);
+  });
+
+  it("responds 200 even when the upstream forward throws", async () => {
+    mockFetch.mockRejectedValue(new Error("connect ECONNREFUSED"));
+    const app = buildApp(ALLOWED_DSN);
+
+    const res = await app.request("/api/v1/sentry-tunnel", {
+      method: "POST",
+      body: envelope(ALLOWED_DSN),
+    });
+
+    expect(res.status).toBe(200);
   });
 });

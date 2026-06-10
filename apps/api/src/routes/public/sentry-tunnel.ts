@@ -1,4 +1,8 @@
+import { createLogger } from "@openrift/shared/logger";
+
 import { createApiApp } from "../../openapi.js";
+
+const log = createLogger("sentry-tunnel");
 
 const MAX_ENVELOPE_BYTES = 1_000_000;
 
@@ -7,6 +11,13 @@ const MAX_ENVELOPE_BYTES = 1_000_000;
 // recommended workaround for `*.ingest.sentry.io` being on tracker blocklists).
 // Follows Sentry's documented pattern: parse the envelope header, validate
 // the claimed DSN host + project ID match SENTRY_DSN_SSR, then forward.
+//
+// The forward is fire-and-forget: the browser gets a 200 as soon as the
+// envelope is validated. Sentry ingest can take seconds to ack (or 429 under
+// rate limiting), and the SDK never reads the tunnel response body — awaiting
+// upstream only held a connection open per envelope and cluttered the network
+// tab with multi-second requests. The trade-off is that the SDK no longer sees
+// upstream 429s and won't back off; upstream failures are logged instead.
 export const sentryTunnelRoute = createApiApp().post("/sentry-tunnel", async (c) => {
   const { sentryDsnSsr } = c.get("config");
   const { fetch } = c.get("io");
@@ -53,24 +64,38 @@ export const sentryTunnelRoute = createApiApp().post("/sentry-tunnel", async (c)
     headers["content-encoding"] = encoding;
   }
 
-  const upstream = await fetch(`https://${envelopeDsn.host}/api/${projectId}/envelope/`, {
-    method: "POST",
-    headers,
-    body,
-    redirect: "manual",
-  });
+  void forwardEnvelope(fetch, envelopeDsn.host, projectId, headers, body);
 
-  // Forward only a minimal, safe set of response headers. This is an
-  // unauthenticated public proxy, so reflecting upstream headers wholesale
-  // (Set-Cookie, content-encoding, etc.) would let Sentry's origin set
-  // headers on our origin. The browser only needs the status + content-type.
-  const responseHeaders = new Headers();
-  const upstreamContentType = upstream.headers.get("content-type");
-  if (upstreamContentType) {
-    responseHeaders.set("content-type", upstreamContentType);
-  }
-  return new Response(upstream.body, {
-    status: upstream.status,
-    headers: responseHeaders,
-  });
+  return c.body(null, 200);
 });
+
+/**
+ * Forward a validated envelope to Sentry ingest in the background. Never
+ * throws — failures are logged so they show up in server logs without
+ * surfacing as unhandled rejections.
+ *
+ * @returns A promise that resolves once the forward attempt has settled.
+ */
+async function forwardEnvelope(
+  fetch: typeof globalThis.fetch,
+  ingestHost: string,
+  projectId: string,
+  headers: Record<string, string>,
+  body: ArrayBuffer,
+): Promise<void> {
+  try {
+    const upstream = await fetch(`https://${ingestHost}/api/${projectId}/envelope/`, {
+      method: "POST",
+      headers,
+      body,
+      redirect: "manual",
+    });
+    if (!upstream.ok) {
+      log.warn({ status: upstream.status, projectId }, "Sentry ingest rejected envelope");
+    }
+    // Drain so the connection can be released back to the pool.
+    await upstream.arrayBuffer();
+  } catch (error) {
+    log.warn({ error: String(error) }, "Failed to forward envelope to Sentry ingest");
+  }
+}
