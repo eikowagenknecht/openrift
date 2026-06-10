@@ -89,6 +89,9 @@ describe("fetchApi", () => {
     }
     expect(err.message).toBe("Collection not found"); // server message wins, not errorTitle
     expect(err.code).toBe("NOT_FOUND");
+    // status survives as an own property so callers can branch on it (e.g.
+    // isSessionExpiredError checks for 401) after the server-fn boundary.
+    expect(err.status).toBe(404);
     // diagnostic carries the raw response body (the JSON envelope), for the console.
     expect(err.diagnostic).toMatch(/DELETE .+ → 404 Not Found/u);
     expect(err.diagnostic).toContain('"error":"Collection not found"');

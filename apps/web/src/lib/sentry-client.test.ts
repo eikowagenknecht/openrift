@@ -116,4 +116,18 @@ describe("captureHydrationError", () => {
       extra: { componentStack: "\n    in head" },
     });
   });
+
+  test("tags hydration: false for an error-boundary catch after hydration settled", () => {
+    // onCaughtError fires for the app's whole lifetime — a crash minutes after
+    // load (e.g. useRequiredUserId throwing on session expiry) is not a
+    // hydration error and must not be tagged as one.
+    const error = new Error("useRequiredUserId() called without an authenticated session.");
+
+    captureHydrationError(error, { componentStack: "\n    in DeckEditorContent" }, "caught", false);
+
+    expect(captureExceptionMock).toHaveBeenCalledWith(error, {
+      tags: { hydration: false, hydration_phase: "caught" },
+      extra: { componentStack: "\n    in DeckEditorContent" },
+    });
+  });
 });

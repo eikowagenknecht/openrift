@@ -11,6 +11,11 @@ export type HydrationErrorPhase = "recoverable" | "uncaught" | "caught";
 
 export interface BufferedHydrationError {
   phase: HydrationErrorPhase;
+  // Whether the error fired before the initial hydration commit painted.
+  // onCaughtError/onUncaughtError keep firing for the app's whole lifetime, so
+  // a `caught` entry minutes after load is an ordinary error-boundary catch —
+  // it must not be tagged as a hydration error in Sentry.
+  duringHydration: boolean;
   error: unknown;
   componentStack?: string | null;
 }

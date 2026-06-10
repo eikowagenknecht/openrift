@@ -33,15 +33,33 @@ if (import.meta.env.DEV && !import.meta.env.VITE_DISABLE_DEVTOOLS) {
 // captureException would hit an uninitialized hub and be dropped. The buffer
 // keeps Sentry out of the entry chunk and is flushed by initClientSentry() once
 // the hub is armed (see lib/hydration-error-buffer.ts).
+//
+// These callbacks fire for the LIFETIME of the app, not just during hydration —
+// onCaughtError in particular reports every error-boundary catch, which can be
+// an ordinary runtime crash minutes after load. Stamp each report with whether
+// it fired before the initial hydration commit painted, so the Sentry
+// `hydration` tag stays truthful. Two nested rAFs mark the first paint after
+// hydrateRoot's synchronous commit; a mismatch in late-hydrating streamed
+// Suspense content can land after the flag flips, but those errors still name
+// hydration in their message (#418/#423/#425), so nothing is lost.
+let initialHydrationSettled = false;
+
 function reportHydrationError(
   phase: HydrationErrorPhase,
   error: unknown,
   errorInfo: { componentStack?: string | null },
 ): void {
-  // oxlint-disable-next-line no-console -- deliberate prod diagnostic for hydration errors
-  console.error(`[hydration:${phase}]`, error, errorInfo.componentStack ?? "(no component stack)");
+  const duringHydration = !initialHydrationSettled;
+  const label = duringHydration ? "hydration" : "render";
+  // oxlint-disable-next-line no-console -- deliberate prod diagnostic for render/hydration errors
+  console.error(`[${label}:${phase}]`, error, errorInfo.componentStack ?? "(no component stack)");
   if (import.meta.env.PROD) {
-    bufferHydrationError({ phase, error, componentStack: errorInfo.componentStack });
+    bufferHydrationError({
+      phase,
+      duringHydration,
+      error,
+      componentStack: errorInfo.componentStack,
+    });
   }
 }
 
@@ -67,3 +85,9 @@ hydrateRoot(
     onCaughtError: (error, errorInfo) => reportHydrationError("caught", error, errorInfo),
   },
 );
+
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    initialHydrationSettled = true;
+  });
+});

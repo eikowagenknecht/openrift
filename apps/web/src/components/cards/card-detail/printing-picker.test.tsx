@@ -1,5 +1,5 @@
 import { render } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { stubPrinting } from "@/test/factories";
 
@@ -32,12 +32,17 @@ vi.mock("@/hooks/use-enums", () => ({
   }),
 }));
 
+const { priceGetMock, priceHistoryMock } = vi.hoisted(() => ({
+  priceGetMock: vi.fn((): number | null | undefined => null),
+  priceHistoryMock: vi.fn(() => ({ data: undefined })),
+}));
+
 vi.mock("@/hooks/use-prices", () => ({
-  usePrices: () => ({ get: () => null }),
+  usePrices: () => ({ get: priceGetMock }),
 }));
 
 vi.mock("@/hooks/use-price-history", () => ({
-  usePriceHistory: () => ({ data: undefined }),
+  usePriceHistory: priceHistoryMock,
 }));
 
 // Render a button inside the mocked popover so the test exercises the worst case:
@@ -50,6 +55,12 @@ vi.mock("./owned-collections-popover", () => ({
 import { PrintingPicker } from "./printing-picker";
 
 describe("PrintingPicker", () => {
+  beforeEach(() => {
+    priceGetMock.mockReset();
+    priceGetMock.mockReturnValue(null);
+    priceHistoryMock.mockClear();
+  });
+
   it("does not nest a <button> inside another <button>", () => {
     const printing = stubPrinting();
     const { container } = render(
@@ -67,5 +78,26 @@ describe("PrintingPicker", () => {
     const row = container.querySelector('[role="button"]');
     expect(row).not.toBeNull();
     expect(row?.tagName).not.toBe("BUTTON");
+  });
+
+  // The 30-day history is only a fallback for rows with no current price.
+  // Fetching it unconditionally fans out into one price-history call per
+  // printing every time a card is selected (Sentry: N+1 API call on /cards).
+  it("skips the price-history fetch when an inline price exists", () => {
+    priceGetMock.mockReturnValue(4.2);
+    const printing = stubPrinting();
+
+    render(<PrintingPicker current={printing} printings={[printing]} onSelect={() => {}} />);
+
+    expect(priceHistoryMock).toHaveBeenCalledWith(null, "30d");
+  });
+
+  it("fetches the price history as a fallback when no inline price exists", () => {
+    priceGetMock.mockReturnValue(undefined);
+    const printing = stubPrinting();
+
+    render(<PrintingPicker current={printing} printings={[printing]} onSelect={() => {}} />);
+
+    expect(priceHistoryMock).toHaveBeenCalledWith(printing.id, "30d");
   });
 });

@@ -15,9 +15,14 @@ beforeEach(async () => {
 
 describe("hydration-error-buffer", () => {
   test("flushes errors buffered before the sink is registered, in order", () => {
-    const first: BufferedHydrationError = { phase: "recoverable", error: new Error("first") };
+    const first: BufferedHydrationError = {
+      phase: "recoverable",
+      duringHydration: true,
+      error: new Error("first"),
+    };
     const second: BufferedHydrationError = {
       phase: "uncaught",
+      duringHydration: true,
       error: new Error("second"),
       componentStack: "\n    in head",
     };
@@ -37,7 +42,11 @@ describe("hydration-error-buffer", () => {
     drainHydrationErrors(capture);
     expect(capture).not.toHaveBeenCalled();
 
-    const entry: BufferedHydrationError = { phase: "caught", error: new Error("late") };
+    const entry: BufferedHydrationError = {
+      phase: "caught",
+      duringHydration: false,
+      error: new Error("late"),
+    };
     bufferHydrationError(entry);
 
     expect(capture).toHaveBeenCalledTimes(1);
@@ -51,7 +60,11 @@ describe("hydration-error-buffer", () => {
   });
 
   test("preserves an absent component stack", () => {
-    const entry: BufferedHydrationError = { phase: "recoverable", error: "bare throw" };
+    const entry: BufferedHydrationError = {
+      phase: "recoverable",
+      duringHydration: true,
+      error: "bare throw",
+    };
     bufferHydrationError(entry);
 
     const capture = vi.fn();
@@ -63,7 +76,11 @@ describe("hydration-error-buffer", () => {
 
   test("caps the queue so a re-throw loop can't grow it without bound", () => {
     for (let index = 0; index < 60; index += 1) {
-      bufferHydrationError({ phase: "recoverable", error: new Error(`err-${index}`) });
+      bufferHydrationError({
+        phase: "recoverable",
+        duringHydration: true,
+        error: new Error(`err-${index}`),
+      });
     }
 
     const capture = vi.fn();

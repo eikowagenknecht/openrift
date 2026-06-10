@@ -35,6 +35,24 @@ if (dsn && (appEnv === "production" || appEnv === "preview")) {
     // flaky network). Surfaced by the tanstackstart request middleware with no
     // stacktrace; nothing actionable on the server.
     ignoreErrors: ["NOT_FOUND", /^AbortError: The connection was closed/u],
+    // A 401 ApiError from a user-scoped server function means the caller's
+    // session cookie expired or was revoked — an expected lifecycle state, not
+    // a server bug. The client reacts by refetching the session and redirecting
+    // to /login (see lib/query-client.ts + the _authenticated layout), so the
+    // unhandled throw crossing the server-fn boundary is pure noise here.
+    // Anything else (403, 5xx, parse failures) still reports.
+    beforeSend(event, hint) {
+      const exception = hint?.originalException;
+      if (
+        typeof exception === "object" &&
+        exception !== null &&
+        exception.name === "ApiError" &&
+        exception.status === 401
+      ) {
+        return null;
+      }
+      return event;
+    },
     initialScope: { tags: { service: "web-ssr" } },
   });
 

@@ -1,9 +1,20 @@
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { sessionQueryOptions } from "./auth-session";
 import { createQueryClient } from "./query-client";
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
+
+// What a 401 ApiError looks like after the server-fn (seroval) boundary: a
+// PLAIN object carrying the own properties, prototype gone. instanceof would
+// fail here, which is why the 401 detection must stay structural.
+const unauthorized = {
+  name: "ApiError",
+  message: "Unauthorized",
+  status: 401,
+  diagnostic: "GET /api/v1/decks/1 → 401 Unauthorized\nUnauthorized",
+} as unknown as Error;
 
 describe("createQueryClient mutation onError", () => {
   function getOnError() {
@@ -48,5 +59,68 @@ describe("createQueryClient mutation onError", () => {
     expect(toast.error).toHaveBeenCalledWith("network down");
     expect(errorSpy).toHaveBeenCalledWith(err);
     errorSpy.mockRestore();
+  });
+
+  it("invalidates the session query when a mutation fails with a 401", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const client = createQueryClient();
+    const invalidateSpy = vi.spyOn(client, "invalidateQueries").mockResolvedValue();
+    const onError = client.getDefaultOptions().mutations?.onError as (
+      err: unknown,
+      ...rest: unknown[]
+    ) => void;
+
+    onError(unauthorized, undefined, undefined);
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: sessionQueryOptions().queryKey });
+    errorSpy.mockRestore();
+  });
+});
+
+describe("createQueryClient session-expiry handling", () => {
+  it("invalidates the session query when a query fails with a 401", async () => {
+    const client = createQueryClient();
+    const invalidateSpy = vi.spyOn(client, "invalidateQueries").mockResolvedValue();
+
+    await expect(
+      client.fetchQuery({
+        queryKey: ["deck", "1"],
+        // oxlint-disable-next-line prefer-promise-reject-errors -- deliberately a plain object: the post-seroval ApiError shape
+        queryFn: () => Promise.reject(unauthorized),
+      }),
+    ).rejects.toBe(unauthorized);
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: sessionQueryOptions().queryKey });
+  });
+
+  it("does not invalidate the session for non-401 query errors", async () => {
+    const client = createQueryClient();
+    const invalidateSpy = vi.spyOn(client, "invalidateQueries").mockResolvedValue();
+    const serverError = new Error("boom");
+
+    await expect(
+      client.fetchQuery({
+        queryKey: ["deck", "2"],
+        queryFn: () => Promise.reject(serverError),
+        retry: false,
+      }),
+    ).rejects.toBe(serverError);
+
+    expect(invalidateSpy).not.toHaveBeenCalled();
+  });
+
+  it("never retries a 401 but keeps the browser default of 3 retries otherwise", () => {
+    const retry = createQueryClient().getDefaultOptions().queries?.retry as (
+      failureCount: number,
+      error: unknown,
+    ) => boolean;
+
+    // Retrying can't fix an invalid session cookie — fail fast so the session
+    // refetch → /login redirect isn't delayed by retry backoff.
+    expect(retry(0, unauthorized)).toBe(false);
+    // jsdom has a window, so this exercises the browser branch.
+    expect(retry(0, new Error("boom"))).toBe(true);
+    expect(retry(2, new Error("boom"))).toBe(true);
+    expect(retry(3, new Error("boom"))).toBe(false);
   });
 });

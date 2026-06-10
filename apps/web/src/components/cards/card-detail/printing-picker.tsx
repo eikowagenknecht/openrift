@@ -96,10 +96,15 @@ export function PrintingPicker({
 function PrintingPrices({ printing }: { printing: Printing }) {
   const favorite = useDisplayStore((s) => s.marketplaceOrder[0] ?? "cardtrader");
   const prices = usePrices();
-  const { data: history } = usePriceHistory(printing.id, "30d");
+  const inline = prices.get(printing.id, favorite) ?? null;
+  // The 30-day history is only a fallback for printings with no current
+  // price. With one row per printing, fetching it unconditionally fans out
+  // into N parallel price-history calls every time a card is selected
+  // (Sentry flags it as an N+1 API call) — so skip the query whenever the
+  // inline price already answers the question.
+  const { data: history } = usePriceHistory(inline === null ? printing.id : null, "30d");
 
-  const inline = prices.get(printing.id, favorite);
-  let value: number | null = inline ?? null;
+  let value: number | null = inline;
   if (value === null) {
     const snapshots = history?.[favorite]?.snapshots;
     if (snapshots?.length) {

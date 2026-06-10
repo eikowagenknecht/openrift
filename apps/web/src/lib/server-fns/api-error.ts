@@ -6,19 +6,24 @@ import type { ErrorCode } from "@openrift/shared";
  * `details`, and a `diagnostic` string (method/url/status/raw body) meant for
  * the console — never the toast.
  *
- * `code`/`details`/`diagnostic` are assigned as OWN properties so they survive
- * the seroval serialization TanStack Start applies when a thrown error crosses
- * a server-function boundary. That serialization drops the prototype, so
- * consumers must duck-type via {@link isApiError}, never `instanceof`.
+ * `status`/`code`/`details`/`diagnostic` are assigned as OWN properties so they
+ * survive the seroval serialization TanStack Start applies when a thrown error
+ * crosses a server-function boundary. That serialization drops the prototype,
+ * so consumers must duck-type via {@link isApiError}, never `instanceof`.
  */
 export class ApiError extends Error {
+  readonly status: number;
   readonly code?: ErrorCode;
   readonly details?: unknown;
   readonly diagnostic: string;
 
-  constructor(message: string, opts: { code?: ErrorCode; details?: unknown; diagnostic: string }) {
+  constructor(
+    message: string,
+    opts: { status: number; code?: ErrorCode; details?: unknown; diagnostic: string },
+  ) {
     super(message);
     this.name = "ApiError";
+    this.status = opts.status;
     this.code = opts.code;
     this.details = opts.details;
     this.diagnostic = opts.diagnostic;
@@ -32,9 +37,23 @@ export class ApiError extends Error {
  * from the `Error` type react-query gives its mutation `onError`.
  */
 export interface ApiErrorShape extends Error {
+  status?: number;
   code?: ErrorCode;
   details?: unknown;
   diagnostic?: string;
+}
+
+/**
+ * Whether `error` is the API's 401 — the session cookie is missing, expired,
+ * or revoked. This is an expected lifecycle state (sessions expire while tabs
+ * stay open), not a bug: the query layer reacts by refetching the session,
+ * which routes the user to /login (see `createQueryClient` and the
+ * `_authenticated` layout). Structural for the same reason as
+ * {@link isApiError}.
+ * @returns Whether `error` is an ApiError with HTTP status 401.
+ */
+export function isSessionExpiredError(error: unknown): boolean {
+  return isApiError(error) && error.status === 401;
 }
 
 /**
@@ -98,5 +117,5 @@ export async function apiErrorFromResponse(
     status: res.status,
     body: raw,
   });
-  return new ApiError(message, { code, details, diagnostic });
+  return new ApiError(message, { status: res.status, code, details, diagnostic });
 }

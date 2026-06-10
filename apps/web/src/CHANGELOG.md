@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-06-10
+
+- fix: When your login session expires while you have the app open, you're now taken to the login page (and brought back where you were after signing in) instead of the page crashing with an error
+
 ## 2026-06-09
 
 - feat: On generated card art, the card's type icon above the title now sits in a gold-on-black pill instead of a plain white symbol

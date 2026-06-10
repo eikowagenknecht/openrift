@@ -97,22 +97,30 @@ export function initClientSentry(router: TanstackRouter): void {
   // the uninitialized hub). captureException is now armed, so they finally
   // reach Sentry; later mismatches forward straight through the registered sink.
   drainHydrationErrors((entry) =>
-    captureHydrationError(entry.error, { componentStack: entry.componentStack }, entry.phase),
+    captureHydrationError(
+      entry.error,
+      { componentStack: entry.componentStack },
+      entry.phase,
+      entry.duringHydration,
+    ),
   );
 }
 
-// Forward a React recoverable error (a hydration mismatch — #418/#423/#425 — or
-// a concurrent-render recovery) to Sentry. React reports these through
-// hydrateRoot's onRecoverableError, never via window.onerror or an error
-// boundary, which are the only surfaces Sentry's integration hooks. Without this
-// they stay invisible in the issue tracker even though users hit them: the
-// component stack pinpoints the mismatched subtree, and the tag makes them
-// filterable/alertable. captureException routes to the global hub, which is a
-// no-op client until initClientSentry runs, so calling this before Sentry is
-// initialized simply drops the event rather than throwing.
+// Forward a React render error to Sentry. React reports these through the
+// hydrateRoot callbacks (onRecoverableError / onUncaughtError / onCaughtError),
+// never via window.onerror or an error boundary, which are the only surfaces
+// Sentry's integration hooks. Without this they stay invisible in the issue
+// tracker even though users hit them: the component stack pinpoints the failing
+// subtree, and the tags make them filterable/alertable. captureException routes
+// to the global hub, which is a no-op client until initClientSentry runs, so
+// calling this before Sentry is initialized simply drops the event rather than
+// throwing.
 /**
- * Report a React recoverable error (e.g. a hydration mismatch) to Sentry with
- * its component stack.
+ * Report a React render error (a hydration mismatch or an error-boundary
+ * catch) to Sentry with its component stack. `duringHydration` distinguishes
+ * a genuine hydration-window error from a runtime crash reported through the
+ * same hydrateRoot callbacks long after load — only the former should carry
+ * `hydration: true`.
  *
  * @returns Nothing.
  */
@@ -120,9 +128,10 @@ export function captureHydrationError(
   error: unknown,
   errorInfo: ErrorInfo,
   phase: "recoverable" | "uncaught" | "caught" = "recoverable",
+  duringHydration = true,
 ): void {
   Sentry.captureException(error, {
-    tags: { hydration: true, hydration_phase: phase },
+    tags: { hydration: duringHydration, hydration_phase: phase },
     extra: { componentStack: errorInfo.componentStack },
   });
 }
