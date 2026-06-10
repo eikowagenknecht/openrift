@@ -28,7 +28,7 @@ vi.mock("@/lib/auth-session", () => ({
   useUserId: () => "user-1",
 }));
 
-const { deckDetailQueryOptions } = await import("./use-decks");
+const { deckDetailQueryOptions, deleteDeckFn } = await import("./use-decks");
 
 describe("deckDetailQueryOptions", () => {
   afterEach(() => {
@@ -57,5 +57,33 @@ describe("deckDetailQueryOptions", () => {
     const { queryFn } = deckDetailQueryOptions("user-1", "d1");
     const result = await (queryFn as () => Promise<unknown>)();
     expect(result).toEqual(payload);
+  });
+});
+
+describe("deleteDeckFn", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("treats a 404 as success — the deck is already gone", async () => {
+    // Regression: a second delete of the same deck (double-click on the
+    // confirm, second tab) used to throw ApiError "Not found" and surface an
+    // error toast for an outcome the user asked for.
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(null, { status: 404 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(deleteDeckFn({ data: "already-deleted" })).resolves.toBeUndefined();
+  });
+
+  it("still throws on other API errors", async () => {
+    // apiErrorFromResponse logs the raw failure; keep the test output clean.
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ error: "Couldn't delete deck" }, { status: 500 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(deleteDeckFn({ data: "d1" })).rejects.toThrow("Couldn't delete deck");
   });
 });

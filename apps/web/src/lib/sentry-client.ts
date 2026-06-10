@@ -73,8 +73,9 @@ export function initClientSentry(router: TanstackRouter): void {
     // use-decks) when the API returns 404. Route loaders catch these and call
     // notFound(), but TanStack Start's auto-instrumentation reports them before
     // the catch.
-    // Load failed / Failed to fetch: WebKit and Chromium's respective messages
-    // when fetch() is aborted mid-flight (app backgrounded, network handoff,
+    // Load failed / Failed to fetch / NetworkError when attempting to fetch
+    // resource: WebKit's, Chromium's, and Firefox's respective messages when
+    // fetch() is aborted mid-flight (app backgrounded, network handoff,
     // page navigation). Always a transport condition — fetch() doesn't reject
     // on non-2xx — and already handled by TanStack Router's loader error path.
     // CHUNK_LOAD_ERROR_PATTERN: dynamic-import failures from stale HTML pointing
@@ -82,7 +83,13 @@ export function initClientSentry(router: TanstackRouter): void {
     // initChunkErrorReloader() in client.tsx — the user gets one reload and the
     // next page load is fine. Sentry's global handlers fire before our listener
     // gets to reload, so every recovered session pollutes the issue tracker.
-    ignoreErrors: ["NOT_FOUND", "Load failed", "Failed to fetch", CHUNK_LOAD_ERROR_PATTERN],
+    ignoreErrors: [
+      "NOT_FOUND",
+      "Load failed",
+      "Failed to fetch",
+      "NetworkError when attempting to fetch resource",
+      CHUNK_LOAD_ERROR_PATTERN,
+    ],
     // Route envelopes through our own origin so they aren't dropped by Firefox
     // Enhanced Tracking Protection or ad-blockers (which list *.ingest.sentry.io
     // as a tracker). The API forwards them to Sentry server-side.

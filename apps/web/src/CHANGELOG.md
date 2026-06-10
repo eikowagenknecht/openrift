@@ -2,6 +2,7 @@
 
 ## 2026-06-10
 
+- fix: Confirming a deck deletion more than once (for example by double-clicking, or when the deck was already deleted in another tab) no longer shows a confusing "Not found" error
 - fix: When your login session expires while you have the app open, you're now taken to the login page (and brought back where you were after signing in) instead of the page crashing with an error
 
 ## 2026-06-09

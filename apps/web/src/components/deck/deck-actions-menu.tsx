@@ -115,6 +115,12 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
   };
 
   const handleDelete = () => {
+    // Guard against double-submission: a second confirm (re-opened dialog,
+    // rapid double-click) while the first delete is still in flight would
+    // 404 on the server and surface a "Not found" toast.
+    if (deleteDeck.isPending) {
+      return;
+    }
     deleteDeck.mutate(deck.id);
     setDeleteOpen(false);
   };
@@ -267,7 +273,9 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} disabled={deleteDeck.isPending}>
+              Delete
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

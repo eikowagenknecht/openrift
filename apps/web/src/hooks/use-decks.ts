@@ -121,15 +121,20 @@ export function useCreateDeck() {
   });
 }
 
-const deleteDeckFn = createServerFn({ method: "POST" })
+// Exported for tests only — call through useDeleteDeck in app code.
+export const deleteDeckFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: deckId }) => {
+    // A 404 means the deck is already gone (double-click on the delete confirm,
+    // a second tab, a retried request) — the outcome the user asked for, so
+    // accept it as success instead of surfacing a "Not found" error toast.
     await callApi(
       serverApiClient(context.cookie).api.v1.decks[":id"].$delete({
         param: encodeParams({ id: deckId }),
       }),
       "Couldn't delete deck",
+      [404],
     );
   });
 

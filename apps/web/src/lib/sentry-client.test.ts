@@ -1,14 +1,20 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import { captureHydrationError, enrichBareThrow } from "./sentry-client";
+import { captureHydrationError, enrichBareThrow, initClientSentry } from "./sentry-client";
 
-const { captureExceptionMock } = vi.hoisted(() => ({ captureExceptionMock: vi.fn() }));
+const { captureExceptionMock, initMock } = vi.hoisted(() => ({
+  captureExceptionMock: vi.fn(),
+  initMock: vi.fn(),
+}));
 
 vi.mock("@sentry/tanstackstart-react", () => ({
   captureException: captureExceptionMock,
-  init: vi.fn(),
+  init: initMock,
   tanstackRouterBrowserTracingIntegration: vi.fn(),
 }));
+
+// initClientSentry early-returns unless PROD — run its body under test.
+vi.mock("./env", () => ({ PROD: true, PREVIEW_HOSTS: "", COMMIT_HASH: "test" }));
 
 const originalLocation = globalThis.location;
 
@@ -129,5 +135,41 @@ describe("captureHydrationError", () => {
       tags: { hydration: false, hydration_phase: "caught" },
       extra: { componentStack: "\n    in DeckEditorContent" },
     });
+  });
+});
+
+describe("initClientSentry", () => {
+  beforeEach(() => {
+    initMock.mockClear();
+    globalThis.__OPENRIFT_CONFIG__ = { sentryDsn: "https://key@example.ingest.sentry.io/1" };
+  });
+
+  afterEach(() => {
+    globalThis.__OPENRIFT_CONFIG__ = undefined;
+  });
+
+  test("ignores transport-noise fetch failures from all three engines", () => {
+    // Regression: Firefox's message was missing from ignoreErrors, so every
+    // aborted/cancelled fetch (page reload, connection drop) created a Sentry
+    // issue, while the WebKit and Chromium equivalents were filtered.
+    initClientSentry({} as Parameters<typeof initClientSentry>[0]);
+
+    expect(initMock).toHaveBeenCalledTimes(1);
+    const options = initMock.mock.calls[0]?.[0] as { ignoreErrors: unknown[] };
+    expect(options.ignoreErrors).toEqual(
+      expect.arrayContaining([
+        "Load failed",
+        "Failed to fetch",
+        "NetworkError when attempting to fetch resource",
+      ]),
+    );
+  });
+
+  test("does not init without a DSN", () => {
+    globalThis.__OPENRIFT_CONFIG__ = undefined;
+
+    initClientSentry({} as Parameters<typeof initClientSentry>[0]);
+
+    expect(initMock).not.toHaveBeenCalled();
   });
 });
