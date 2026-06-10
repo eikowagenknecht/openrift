@@ -25,21 +25,21 @@
         "name": "audience",
         "label": "Audience",
         "type": "custom",
-        "query": "End-user : route!~\"/api/v[0-9]+/admin/.*\",Admin : route=~\"/api/v[0-9]+/admin/.*\",All : route=~\".+\"",
+        "query": "End-user : route!~\"/api/v[0-9]+/admin/.*|/api/admin/.*\",Admin : route=~\"/api/v[0-9]+/admin/.*|/api/admin/.*\",All : route=~\".+\"",
         "current": {
           "text": "End-user",
-          "value": "route!~\"/api/v[0-9]+/admin/.*\"",
+          "value": "route!~\"/api/v[0-9]+/admin/.*|/api/admin/.*\"",
           "selected": true
         },
         "options": [
           {
             "text": "End-user",
-            "value": "route!~\"/api/v[0-9]+/admin/.*\"",
+            "value": "route!~\"/api/v[0-9]+/admin/.*|/api/admin/.*\"",
             "selected": true
           },
           {
             "text": "Admin",
-            "value": "route=~\"/api/v[0-9]+/admin/.*\"",
+            "value": "route=~\"/api/v[0-9]+/admin/.*|/api/admin/.*\"",
             "selected": false
           },
           {
