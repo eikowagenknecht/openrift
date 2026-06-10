@@ -3,9 +3,16 @@ import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import type { SetInfo } from "@/components/cards/card-grid";
+import { consumeSeededCatalogVersion, versionFromEtag } from "@/lib/catalog-version";
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
-import { browserApiClient, callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
+import {
+  browserApiClient,
+  callApi,
+  callApiJson,
+  okJson,
+  serverApiClient,
+} from "@/lib/server-fns/api-client";
 
 export interface UseCardsResult {
   allPrintings: Printing[];
@@ -13,6 +20,28 @@ export interface UseCardsResult {
   printingsById: Record<string, Printing>;
   printingsByCardId: Map<string, Printing[]>;
   sets: SetInfo[];
+}
+
+/**
+ * Fetches the catalog from the API origin together with its version token
+ * (the response's ETag, bare). One serverCache entry holds both so the token
+ * can never drift from the body it describes.
+ * @returns The catalog response and its version token from `serverCache`.
+ */
+function fetchCatalogWithVersion(): Promise<{
+  catalog: CatalogResponse;
+  version: string | null;
+}> {
+  return serverCache.fetchQuery({
+    queryKey: ["server-cache", "catalog"],
+    queryFn: async () => {
+      const res = await callApi(
+        serverApiClient().api.v1.catalog.$get({ query: {} }),
+        "Couldn't load catalog",
+      );
+      return { catalog: await okJson(res), version: versionFromEtag(res.headers.get("etag")) };
+    },
+  });
 }
 
 /**
@@ -25,15 +54,34 @@ export interface UseCardsResult {
  * catalog. `serverCache` is never dehydrated.
  * @returns The catalog response held in `serverCache`.
  */
-export function readCatalogFromServerCache(): Promise<CatalogResponse> {
-  return serverCache.fetchQuery({
-    queryKey: ["server-cache", "catalog"],
-    queryFn: () => callApiJson(serverApiClient().api.v1.catalog.$get(), "Couldn't load catalog"),
-  });
+export async function readCatalogFromServerCache(): Promise<CatalogResponse> {
+  const { catalog } = await fetchCatalogWithVersion();
+  return catalog;
+}
+
+/**
+ * Reads the catalog's current version token (its ETag) from the same
+ * serverCache entry as {@link readCatalogFromServerCache}. SSR loaders ship
+ * this to the client so the edge fetch can append `?v=` (see
+ * `lib/catalog-version.ts` for why).
+ * @returns The bare ETag of the cached catalog response, or null.
+ */
+export async function readCatalogVersionFromServerCache(): Promise<string | null> {
+  const { version } = await fetchCatalogWithVersion();
+  return version;
 }
 
 const fetchCatalog = createServerFn({ method: "GET" }).handler(
   (): Promise<CatalogResponse> => readCatalogFromServerCache(),
+);
+
+// Tiny origin round trip the browser uses to resolve the current version
+// token when no SSR loader seeded one (client-side navigations, non-/cards
+// surfaces). Goes through the Start server (not the edge) on purpose: the
+// token must be fresh, and serverCache bounds origin load to one catalog
+// fetch per minute.
+const fetchCatalogVersion = createServerFn({ method: "GET" }).handler(
+  (): Promise<string | null> => readCatalogVersionFromServerCache(),
 );
 
 // Client-side catalog fetch goes directly to /api/v1/catalog so Cloudflare
@@ -41,8 +89,22 @@ const fetchCatalog = createServerFn({ method: "GET" }).handler(
 // would re-enter origin for every VU, which is exactly what we're avoiding.
 // Typed via the browser hc client (route + response shape checked against the
 // API contract; a non-2xx surfaces the server's message).
-function fetchCatalogFromEdge(): Promise<CatalogResponse> {
-  return callApiJson(browserApiClient().api.v1.catalog.$get(), "Couldn't load catalog");
+//
+// The fetch is versioned: `?v=<ETag>` rolls the edge cache key whenever the
+// catalog content changes, so a long max-age + stale-while-revalidate can
+// never downgrade a fresh SSR shell to an older catalog. The token comes from
+// the /cards SSR loader when one was seeded (no extra round trip on the
+// LCP-critical first load), otherwise from the `fetchCatalogVersion` server
+// fn. With no token at all, fall back to the unversioned URL — plain edge
+// caching, no worse than before.
+async function fetchCatalogFromEdge(): Promise<CatalogResponse> {
+  // A failed token lookup must not fail the catalog fetch itself — degrade to
+  // the unversioned URL instead.
+  const version = consumeSeededCatalogVersion() ?? (await fetchCatalogVersion().catch(() => null));
+  return callApiJson(
+    browserApiClient().api.v1.catalog.$get({ query: version === null ? {} : { v: version } }),
+    "Couldn't load catalog",
+  );
 }
 
 // Memoize by input identity. React Query's structural sharing can't preserve

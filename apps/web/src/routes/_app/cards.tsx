@@ -11,7 +11,7 @@ import { fetchCardCounts, fetchCardFacets, fetchCardFilterCounts } from "@/lib/c
 import type { FirstRowCard } from "@/lib/cards-first-row";
 import { fetchFirstRowCards } from "@/lib/cards-first-row";
 import { cardsSearchSchema } from "@/lib/cards-search-schema";
-import { catalogQueryOptions } from "@/lib/catalog-query";
+import { catalogQueryOptions, readCatalogVersionFromServerCache } from "@/lib/catalog-query";
 import { collectionPageJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 import { PAGE_PADDING_NO_TOP } from "@/lib/utils";
@@ -81,6 +81,7 @@ export const Route = createFileRoute("/_app/cards")({
         setLabels: Record<string, string>;
         counts: CardCounts;
         filterCounts: FilterCountsWire | null;
+        catalogVersion: string | null;
       }
     | Promise<{
         firstRow: FirstRowCard[];
@@ -89,6 +90,7 @@ export const Route = createFileRoute("/_app/cards")({
         setLabels: Record<string, string>;
         counts: CardCounts;
         filterCounts: FilterCountsWire | null;
+        catalogVersion: string | null;
       }> => {
     if (globalThis.window !== undefined) {
       const empty = {
@@ -98,6 +100,7 @@ export const Route = createFileRoute("/_app/cards")({
         setLabels: {},
         counts: { totalCards: 0, filteredCount: 0 },
         filterCounts: null,
+        catalogVersion: null,
       };
       const warm =
         context.queryClient.getQueryData(catalogQueryOptions.queryKey) !== undefined &&
@@ -124,11 +127,17 @@ export const Route = createFileRoute("/_app/cards")({
     const ssrSearch = location.search;
     return (async () => {
       await context.queryClient.ensureQueryData(initQueryOptions);
-      const [firstRow, facetsPayload, counts, filterCounts] = await Promise.all([
+      // `catalogVersion` (the catalog's ETag) rides along so the hydrated
+      // client can fetch the catalog as `?v=<token>` — guaranteeing the edge
+      // serves a catalog at least as fresh as this SSR shell. Read directly
+      // (not via a server fn): this branch already runs on the server, and the
+      // serverCache entry is warm from the fetches below.
+      const [firstRow, facetsPayload, counts, filterCounts, catalogVersion] = await Promise.all([
         fetchFirstRowCards({ data: ssrSearch }),
         fetchCardFacets(),
         fetchCardCounts({ data: ssrSearch }),
         fetchCardFilterCounts({ data: ssrSearch }),
+        readCatalogVersionFromServerCache(),
       ]);
       return {
         firstRow,
@@ -137,6 +146,7 @@ export const Route = createFileRoute("/_app/cards")({
         setLabels: facetsPayload.setLabels,
         counts,
         filterCounts,
+        catalogVersion,
       };
     })();
   },

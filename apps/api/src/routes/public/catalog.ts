@@ -6,6 +6,7 @@ import type {
 } from "@openrift/shared";
 import { catalogResponseSchema } from "@openrift/shared/response-schemas";
 import { etag } from "hono/etag";
+import { z } from "zod";
 
 import { createApiApp } from "../../openapi.js";
 import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-response.js";
@@ -14,6 +15,12 @@ const getCatalog = createRoute({
   method: "get",
   path: "/catalog",
   tags: ["Catalog"],
+  request: {
+    // Cache-busting token, ignored by the handler. The web client appends the
+    // catalog's current ETag as `?v=` so a content change rolls the URL and
+    // bypasses the long-lived edge cache (see web's catalog-query.ts).
+    query: z.object({ v: z.string().optional() }),
+  },
   responses: {
     200: {
       content: { "application/json": { schema: catalogResponseSchema } },

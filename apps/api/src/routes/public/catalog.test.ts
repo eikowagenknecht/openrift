@@ -295,6 +295,14 @@ describe("GET /api/v1/catalog", () => {
     );
   });
 
+  it("accepts and ignores the ?v= cache-busting param (same body and ETag)", async () => {
+    const plain = await app.request("/api/v1/catalog");
+    const versioned = await app.request("/api/v1/catalog?v=some-etag-token");
+    expect(versioned.status).toBe(200);
+    expect(versioned.headers.get("ETag")).toBe(plain.headers.get("ETag"));
+    expect(await versioned.json()).toEqual(await plain.json());
+  });
+
   it("returns 304 when If-None-Match matches current ETag", async () => {
     const first = await app.request("/api/v1/catalog");
     const etag = first.headers.get("ETag") ?? "";

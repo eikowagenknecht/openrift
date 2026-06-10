@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { CardBrowser } from "@/components/card-browser";
 import { FirstRowPreview } from "@/components/cards/first-row-preview";
 import { useHydrated } from "@/hooks/use-hydrated";
+import { seedCatalogVersion } from "@/lib/catalog-version";
 import { FilterSearchProvider } from "@/lib/search-schemas";
 import { PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
@@ -31,6 +32,15 @@ function CardBrowserShell() {
 
 function CardsPage() {
   const search = Route.useSearch();
+  const { catalogVersion } = Route.useLoaderData();
+  // Seed during render, not in an effect: the catalog query fires from
+  // <CardBrowser>'s useSuspenseQuery right after useHydrated's own effect
+  // flips, and an effect here isn't ordered before that. A render-time module
+  // write is safe — seeding is idempotent and consume-once. Server renders
+  // skip it (the token is for the browser's edge fetch only).
+  if (globalThis.window !== undefined) {
+    seedCatalogVersion(catalogVersion);
+  }
   return (
     <FilterSearchProvider value={search}>
       <div className={`flex flex-1 flex-col ${PAGE_PADDING_NO_TOP}`}>
