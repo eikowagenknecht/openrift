@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import {
@@ -5,18 +6,40 @@ import {
   CHUNK_LOAD_ERROR_PATTERN,
   initChunkErrorReloader,
   initStaleBundleWatcher,
+  initVersionStaleNavigationReload,
   initVisibilityVersionCheck,
 } from "./stale-bundle";
 
+vi.mock("sonner", () => ({ toast: vi.fn() }));
+
 // COMMIT_HASH is set to "test" by vitest.config's `define`. Build IDs in tests
-// either match "test" (no reload) or use a different literal to force mismatch.
+// either match "test" (no signal) or use a different literal to force a
+// mismatch. A mismatch surfaces a toast (soft staleness); only a chunk-load
+// failure or a stale-version navigation reloads immediately.
 
 const originalFetch = globalThis.fetch;
 const reloadSpy = vi.fn();
 
+/**
+ * Pulls the action callback off the most recent new-version toast.
+ * @returns The toast's `{ label, onClick }` action.
+ */
+function lastToastAction(): { label: string; onClick: () => void } {
+  const lastCall = vi.mocked(toast).mock.calls.at(-1);
+  if (!lastCall) {
+    throw new Error("toast was never called");
+  }
+  const options = lastCall[1] as { action?: { label: string; onClick: () => void } };
+  if (!options?.action) {
+    throw new Error("toast was called without an action");
+  }
+  return options.action;
+}
+
 beforeEach(() => {
   _resetReloadFlagForTesting();
   reloadSpy.mockReset();
+  vi.mocked(toast).mockClear();
   // jsdom's location.reload is a real function; replace with a spy so we can
   // assert without actually navigating (which would tear down the test env).
   Object.defineProperty(globalThis, "location", {
@@ -30,7 +53,7 @@ afterEach(() => {
 });
 
 describe("initStaleBundleWatcher", () => {
-  test("reloads when X-Build-Id differs from bundled hash", async () => {
+  test("prompts with a toast (not an instant reload) when X-Build-Id differs", async () => {
     globalThis.fetch = vi
       .fn()
       .mockResolvedValue(new Response("ok", { headers: { "X-Build-Id": "deadbeef" } }));
@@ -38,10 +61,23 @@ describe("initStaleBundleWatcher", () => {
 
     await globalThis.fetch("/api/v1/cards");
 
+    expect(reloadSpy).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledTimes(1);
+  });
+
+  test("the toast's Reload action triggers the reload", async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(new Response("ok", { headers: { "X-Build-Id": "deadbeef" } }));
+    initStaleBundleWatcher();
+
+    await globalThis.fetch("/api/v1/cards");
+    lastToastAction().onClick();
+
     expect(reloadSpy).toHaveBeenCalledTimes(1);
   });
 
-  test("does not reload when X-Build-Id matches", async () => {
+  test("does not prompt when X-Build-Id matches", async () => {
     globalThis.fetch = vi
       .fn()
       .mockResolvedValue(new Response("ok", { headers: { "X-Build-Id": "test" } }));
@@ -50,6 +86,7 @@ describe("initStaleBundleWatcher", () => {
     await globalThis.fetch("/api/v1/cards");
 
     expect(reloadSpy).not.toHaveBeenCalled();
+    expect(toast).not.toHaveBeenCalled();
   });
 
   test("ignores responses without X-Build-Id", async () => {
@@ -59,9 +96,10 @@ describe("initStaleBundleWatcher", () => {
     await globalThis.fetch("/api/v1/cards");
 
     expect(reloadSpy).not.toHaveBeenCalled();
+    expect(toast).not.toHaveBeenCalled();
   });
 
-  test("only reloads once per session", async () => {
+  test("prompts only once even on repeated mismatches", async () => {
     globalThis.fetch = vi
       .fn()
       .mockResolvedValue(new Response("ok", { headers: { "X-Build-Id": "deadbeef" } }));
@@ -71,7 +109,50 @@ describe("initStaleBundleWatcher", () => {
     await globalThis.fetch("/api/v1/cards");
     await globalThis.fetch("/api/v1/cards");
 
+    expect(toast).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("initVersionStaleNavigationReload", () => {
+  /**
+   * Captures the onResolved callback so tests can drive a navigation.
+   * @returns The fake router plus a `navigate()` helper that fires onResolved.
+   */
+  function fakeRouter(): { subscribe: ReturnType<typeof vi.fn>; navigate: () => void } {
+    let resolved: (() => void) | undefined;
+    const subscribe = vi.fn((_event: string, callback: () => void) => {
+      resolved = callback;
+      return () => {};
+    });
+    return {
+      subscribe,
+      navigate: () => resolved?.(),
+    };
+  }
+
+  test("reloads on navigation once a new version has been detected", async () => {
+    const router = fakeRouter();
+    initVersionStaleNavigationReload(router as never);
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(new Response("ok", { headers: { "X-Build-Id": "deadbeef" } }));
+    initStaleBundleWatcher();
+
+    await globalThis.fetch("/api/v1/cards");
+    expect(reloadSpy).not.toHaveBeenCalled(); // toast only, no reload yet
+
+    router.navigate();
+
     expect(reloadSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test("does not reload on navigation when no new version was detected", () => {
+    const router = fakeRouter();
+    initVersionStaleNavigationReload(router as never);
+
+    router.navigate();
+
+    expect(reloadSpy).not.toHaveBeenCalled();
   });
 });
 

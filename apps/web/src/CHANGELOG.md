@@ -3,6 +3,7 @@
 ## 2026-06-11
 
 - feat: A group's overview now splits collections into separate tiles for the group's own collections and members' shared collections, shows how many of your collections you've shared so far, and puts the new-collection, share, and invite buttons right on the matching tile
+- fix: When a new version is released while you have the app open, it now shows a notice with a Reload button instead of refreshing the page on its own, so an update no longer interrupts what you're doing
 - fix: On collection statistics, the cheapest and most expensive printing cards now keep their proper card shape on narrow screens, and the two stack into a single column so each has room
 - fix: Downloading a wish or trade list as a card image now works again, instead of failing with "Couldn't prepare the image."
 - fix: Sharing a wish or trade list link to a chat like WhatsApp or Discord again shows the card preview, which had been missing from the unfurled link

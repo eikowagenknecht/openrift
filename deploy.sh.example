@@ -37,7 +37,44 @@ for i in $(seq 1 "$pull_retries"); do
 done
 
 echo "==> Restarting services..."
-docker compose up -d
+# --wait blocks until every service reports healthy, so the Cloudflare purge
+# below only fires once the new version is actually serving (otherwise the edge
+# could immediately re-cache the old SSR shell).
+docker compose up -d --wait
+
+# Purge the Cloudflare edge cache. Anonymous visitors are served an edge-cached
+# SSR shell (public pages: max-age=300, stale-while-revalidate=3600), and that
+# shell references /assets/*.js chunks this deploy just replaced. Without a
+# purge, the edge can keep handing out the old shell — pointing at deleted
+# chunks — for up to ~1h after a deploy. Reuses the same CLOUDFLARE_* creds the
+# API uses; read straight from .env so nothing is duplicated.
+purge_cloudflare_cache() {
+  local token zone
+  token="$(grep -E '^CLOUDFLARE_API_TOKEN=' .env | tail -n1 | cut -d= -f2- || true)"
+  zone="$(grep -E '^CLOUDFLARE_ZONE_ID=' .env | tail -n1 | cut -d= -f2- || true)"
+  # Strip optional surrounding double quotes and any trailing CR (CRLF .env).
+  token="${token%\"}"; token="${token#\"}"; token="${token%$'\r'}"
+  zone="${zone%\"}"; zone="${zone#\"}"; zone="${zone%$'\r'}"
+
+  if [ -z "$token" ] || [ -z "$zone" ]; then
+    echo "==> CLOUDFLARE_API_TOKEN / CLOUDFLARE_ZONE_ID not set in .env; skipping cache purge."
+    return 0
+  fi
+
+  echo "==> Purging Cloudflare cache..."
+  if curl -fsS -X POST \
+      "https://api.cloudflare.com/client/v4/zones/${zone}/purge_cache" \
+      -H "Authorization: Bearer ${token}" \
+      -H "Content-Type: application/json" \
+      --data '{"purge_everything":true}' -o /dev/null; then
+    echo "Cloudflare cache purged."
+  else
+    # A failed purge shouldn't fail the deploy — the app still works, the edge
+    # just clears on its own within the stale-while-revalidate window.
+    echo "WARNING: Cloudflare cache purge failed; edge may serve the old shell for up to ~1h."
+  fi
+}
+purge_cloudflare_cache
 
 echo "==> Cleaning up old images..."
 docker image prune -f

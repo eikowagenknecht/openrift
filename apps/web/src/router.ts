@@ -28,6 +28,15 @@ export function getRouter() {
       const { initClientSentry } = await import("./lib/sentry-client");
       initClientSentry(router);
     })();
+    // Soft bundle-staleness (X-Build-Id mismatch) surfaces as a toast rather
+    // than an instant reload; this reloads on the next navigation for users who
+    // don't tap it. Dynamic import keeps stale-bundle (and sonner) out of the
+    // SSR bundle — it resolves to the same module instance the client entry
+    // inits, so the navigation handler reads the flag the fetch watcher sets.
+    void (async () => {
+      const { initVersionStaleNavigationReload } = await import("./lib/stale-bundle");
+      initVersionStaleNavigationReload(router);
+    })();
   }
 
   return router;

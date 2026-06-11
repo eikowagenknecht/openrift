@@ -1,19 +1,28 @@
+import { toast } from "sonner";
+
 import { COMMIT_HASH } from "./env";
 
-// Two failure modes are handled here, both producing the same response —
-// reload the page exactly once per session:
+// Two failure modes are handled here, but they get different treatment because
+// they mean different things to the user:
 //
-//   1. Long-lived tab on a redeployed server. The tab's bundled __COMMIT_HASH__
-//      no longer matches the live API. Detected via X-Build-Id header on every
-//      /api/v1/* response (initStaleBundleWatcher). For idle tabs that don't
-//      organically issue API calls (e.g. someone reading the rules page), an
-//      extra ping fires when the tab is refocused (initVisibilityVersionCheck)
-//      so the header check still runs.
+//   1. Soft staleness — long-lived tab on a redeployed server. The page still
+//      works; its bundled __COMMIT_HASH__ just no longer matches the live API.
+//      Detected via X-Build-Id header on every /api/v1/* response
+//      (initStaleBundleWatcher). For idle tabs that don't organically issue API
+//      calls (e.g. someone reading the rules page), an extra ping fires when the
+//      tab is refocused (initVisibilityVersionCheck) so the header check still
+//      runs. Reloading out from under the user here is jarring, so instead we
+//      show a non-blocking toast with a Reload button and flag the session as
+//      stale; the next client-side navigation then reloads automatically
+//      (initVersionStaleNavigationReload), landing on the destination with the
+//      fresh bundle. Either way the user updates at a moment that doesn't
+//      interrupt them.
 //
-//   2. Stale HTML in a browser/CDN cache pointing at deleted /assets/*.js
-//      chunks (the SWR window after a deploy). Detected via window error /
-//      unhandledrejection events whose .message looks like a chunk-load failure
-//      (initChunkErrorReloader).
+//   2. Hard staleness — stale HTML in a browser/CDN cache pointing at deleted
+//      /assets/*.js chunks (the SWR window after a deploy). The page is already
+//      broken: a chunk 404'd or a bare throw escaped React. Detected via window
+//      error / unhandledrejection events (initChunkErrorReloader). There's
+//      nothing to preserve, so reload immediately.
 //
 // The sessionStorage flag ensures we don't loop: if the reload itself loads a
 // stale bundle (e.g. cached HTML still pointing at old chunks), the second
@@ -21,6 +30,34 @@ import { COMMIT_HASH } from "./env";
 // forever.
 
 const RELOAD_FLAG = "openrift:reload-attempted";
+const NEW_VERSION_TOAST_ID = "openrift:new-version";
+
+// Set once a soft-staleness signal (X-Build-Id mismatch) is seen. Drives both
+// the toast dedupe and the navigation-triggered reload, and is read by the
+// fetch watcher, the visibility ping, and the router subscription — they share
+// one module instance in the client bundle, so the flag is genuinely global.
+let newVersionAvailable = false;
+
+// Soft staleness: the page works but is out of date. Prompt instead of yanking
+// the page away. Idempotent — repeated mismatches (every subsequent API call
+// keeps returning the new build id) reuse the same toast and don't re-flag.
+function announceNewVersion(reason: string): void {
+  if (newVersionAvailable) {
+    return;
+  }
+  newVersionAvailable = true;
+  console.warn(`[stale-bundle] ${reason} — prompting to reload for the new version`);
+  toast("A new version of OpenRift is available.", {
+    id: NEW_VERSION_TOAST_ID,
+    // Persist until the user acts or navigates; a self-dismissing toast would
+    // be easy to miss and leave the tab silently stale.
+    duration: Number.POSITIVE_INFINITY,
+    action: {
+      label: "Reload",
+      onClick: () => reloadOnce(reason),
+    },
+  });
+}
 
 function reloadOnce(reason: string): void {
   if (globalThis.window === undefined) {
@@ -51,10 +88,31 @@ export function initStaleBundleWatcher(): void {
     const response = await originalFetch(input, init);
     const buildId = response.headers.get("X-Build-Id");
     if (buildId && buildId !== COMMIT_HASH) {
-      reloadOnce(`X-Build-Id mismatch (server=${buildId}, client=${COMMIT_HASH})`);
+      announceNewVersion(`X-Build-Id mismatch (server=${buildId}, client=${COMMIT_HASH})`);
     }
     return response;
   };
+}
+
+// Soft staleness recovers on the next navigation rather than immediately, so a
+// user who ignores the toast still ends up on the new bundle the moment they
+// move around. Subscribing to `onResolved` means the client-side navigation has
+// already settled and the URL bar holds the destination, so reloadOnce() loads
+// the page the user actually wanted — with the fresh bundle. Hard staleness
+// does not go through here; it reloads on the spot.
+interface RouterSubscribe {
+  subscribe: (eventType: "onResolved", callback: () => void) => () => void;
+}
+
+export function initVersionStaleNavigationReload(router: RouterSubscribe): void {
+  if (globalThis.window === undefined) {
+    return;
+  }
+  router.subscribe("onResolved", () => {
+    if (newVersionAvailable) {
+      reloadOnce("new version pending — reloading on navigation");
+    }
+  });
 }
 
 // Each browser phrases the dynamic-import failure differently:
@@ -162,4 +220,5 @@ export function _resetReloadFlagForTesting(): void {
     }
   }
   lastVisibilityCheckMs = 0;
+  newVersionAvailable = false;
 }
