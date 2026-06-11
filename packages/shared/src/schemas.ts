@@ -695,6 +695,18 @@ export const addDeckCheckCardSchema = z.object({
   section: z.string().min(1).max(50),
 });
 
+/**
+ * A judge hand-creating an entrant when the organizer push isn't available.
+ * The server stamps a `manual:`-prefixed external id and resolves the cards the
+ * same way a push would.
+ */
+export const createDeckCheckEntrySchema = z.object({
+  playerName: z.string().min(1).max(120),
+  playerEmail: z.string().max(254).nullish(),
+  playerHandle: z.string().max(120).nullish(),
+  cards: z.array(addDeckCheckCardSchema).max(DECK_CHECK_MAX_CARD_LINES_PER_ENTRY).default([]),
+});
+
 export const deckCheckTickSchema = z.object({
   /** 0-based physical copy within the card line. */
   copyIndex: z.number().int().min(0).max(98),

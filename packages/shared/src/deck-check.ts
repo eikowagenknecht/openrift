@@ -42,6 +42,24 @@ export function mapSectionToZone(section: string): DeckZone | null {
   return SECTION_ZONE_MAP[normalizeNameForMatching(section)] ?? null;
 }
 
+/** Where an entry came from: an organizer-system push, or hand-entered by a judge. */
+export type DeckCheckEntrySource = "api" | "manual";
+
+/**
+ * External-id prefix stamped on entries created by hand in the OpenRift UI.
+ * Provider pushes use the organizer system's own ids, which never carry this
+ * prefix, so the prefix is a reliable discriminator without a dedicated column.
+ */
+export const MANUAL_ENTRY_EXTERNAL_ID_PREFIX = "manual:";
+
+/**
+ * Classifies an entry by its external id.
+ * @returns `"manual"` for hand-entered entries, `"api"` for provider pushes.
+ */
+export function deckCheckEntrySource(externalId: string): DeckCheckEntrySource {
+  return externalId.startsWith(MANUAL_ENTRY_EXTERNAL_ID_PREFIX) ? "manual" : "api";
+}
+
 function lineKey(line: DeckCheckCardLine): string {
   return [normalizeNameForMatching(line.name), line.zone].join("|");
 }

@@ -226,6 +226,36 @@ const reResolveEventFn = createServerFn({ method: "POST" })
       ),
   );
 
+const createEntryFn = createServerFn({ method: "POST" })
+  .validator(
+    (input: {
+      slug: string;
+      eventId: string;
+      playerName: string;
+      playerEmail?: string | null;
+      playerHandle?: string | null;
+      cards: { name: string; quantity: number; section: string }[];
+    }) => input,
+  )
+  .middleware([withCookies])
+  .handler(
+    ({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[
+          ":eventId"
+        ].entries.$post({
+          param: encodeParams({ slug: data.slug, eventId: data.eventId }),
+          json: {
+            playerName: data.playerName,
+            playerEmail: data.playerEmail,
+            playerHandle: data.playerHandle,
+            cards: data.cards,
+          },
+        }),
+        "Couldn't add the player",
+      ),
+  );
+
 const setVerdictFn = createServerFn({ method: "POST" })
   .validator(
     (input: {
@@ -461,6 +491,15 @@ export function useReResolveDeckCheckEvent() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
     mutationFn: (vars: { slug: string; eventId: string }) => reResolveEventFn({ data: vars }),
+    invalidates: (vars) => [queryKeys.friendGroups.checkEvent(userId, vars.slug, vars.eventId)],
+  });
+}
+
+export function useCreateDeckCheckEntry() {
+  const userId = useRequiredUserId();
+  return useMutationWithInvalidation({
+    mutationFn: (vars: Parameters<typeof createEntryFn>[0]["data"]) =>
+      createEntryFn({ data: vars }),
     invalidates: (vars) => [queryKeys.friendGroups.checkEvent(userId, vars.slug, vars.eventId)],
   });
 }

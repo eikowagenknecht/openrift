@@ -2,7 +2,13 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import { createRoute } from "@hono/zod-openapi";
-import { ERROR_CODES, mapSectionToZone, validateDeck, WellKnown } from "@openrift/shared";
+import {
+  deckCheckEntrySource,
+  ERROR_CODES,
+  mapSectionToZone,
+  validateDeck,
+  WellKnown,
+} from "@openrift/shared";
 import type {
   CardType,
   DeckCheckEntryCardResponse,
@@ -28,6 +34,7 @@ import {
 } from "@openrift/shared/response-schemas";
 import {
   addDeckCheckCardSchema,
+  createDeckCheckEntrySchema,
   createDeckCheckEventSchema,
   deckCheckCardCopyParamSchema,
   deckCheckEntryCardParamSchema,
@@ -60,7 +67,10 @@ import type {
   DeckCheckEventWithCounts,
   DeckCheckKey,
 } from "../../repositories/deck-check.js";
-import { recomputeEntryHash } from "../../services/deck-check-ingest.js";
+import {
+  createManualDeckCheckEntry,
+  recomputeEntryHash,
+} from "../../services/deck-check-ingest.js";
 
 // ─── Mappers ────────────────────────────────────────────────────────────────
 
@@ -92,6 +102,7 @@ function toEntrySummary(row: DeckCheckEntrySummary): DeckCheckEntrySummaryRespon
   return {
     id: row.id,
     externalId: row.externalId,
+    source: deckCheckEntrySource(row.externalId),
     playerName: row.playerName,
     submittedAt: row.submittedAt?.toISOString() ?? null,
     checkStatus: row.checkStatus,
@@ -109,6 +120,7 @@ function toEntry(row: DeckCheckEntry, checkedByName: string | null): DeckCheckEn
   return {
     id: row.id,
     externalId: row.externalId,
+    source: deckCheckEntrySource(row.externalId),
     playerName: row.playerName,
     playerEmail: row.playerEmail,
     playerHandle: row.playerHandle,
@@ -386,6 +398,30 @@ const reResolveEvent = createRoute({
       description: "Lines whose resolution improved",
     },
     ...errorResponses(401, 403, 404),
+  },
+});
+
+const createManualEntry = createRoute({
+  method: "post",
+  path: "/friend-groups/{slug}/checks/{eventId}/entries",
+  tags: ["Deck Check"],
+  security: cookieAuth,
+  description:
+    "Hand-creates an entrant (judge+) for when the organizer push isn't " +
+    "available. Card names are resolved against the catalog like a push.",
+  request: {
+    params: deckCheckEventParamSchema,
+    body: {
+      content: { "application/json": { schema: createDeckCheckEntrySchema } },
+      required: true,
+    },
+  },
+  responses: {
+    201: {
+      content: { "application/json": { schema: deckCheckEntryDetailResponseSchema } },
+      description: "The created entry's checker payload",
+    },
+    ...errorResponses(400, 401, 403, 404, 409, 422),
   },
 });
 
@@ -691,6 +727,23 @@ export const deckCheckRoute = deckCheckApp
   })
 
   // ── ENTRIES ─────────────────────────────────────────────────────────────
+  .openapi(createManualEntry, async (c) => {
+    const repos = c.get("repos");
+    const { slug, eventId } = c.req.valid("param");
+    const ctx = await loadGroupForMember(repos, slug, getUserId(c));
+    requireRole(ctx.membership, "judge");
+    const event = await loadEvent(repos, ctx.group.id, eventId);
+    if (event.status === "archived") {
+      throw new AppError(
+        409,
+        ERROR_CODES.CONFLICT,
+        "Event is archived; un-archive it before adding entrants",
+      );
+    }
+    const created = await createManualDeckCheckEntry(repos, event.id, c.req.valid("json"));
+    return c.json(await buildEntryDetail(repos, event, created), 201);
+  })
+
   .openapi(getEntryDetail, async (c) => {
     const repos = c.get("repos");
     const { slug, eventId, entryId } = c.req.valid("param");

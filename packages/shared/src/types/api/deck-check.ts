@@ -1,3 +1,4 @@
+import type { DeckCheckEntrySource } from "../../deck-check.js";
 import type { DeckViolation } from "../../deck-rules.js";
 import type { CardType, DeckZone, Domain } from "../enums.js";
 
@@ -42,6 +43,8 @@ export interface DeckCheckEventListResponse {
 export interface DeckCheckEntrySummaryResponse {
   id: string;
   externalId: string;
+  /** Whether the entry came from an organizer push or was hand-entered. */
+  source: DeckCheckEntrySource;
   playerName: string;
   submittedAt: string | null;
   checkStatus: DeckCheckEntryStatus;
@@ -79,6 +82,8 @@ export interface DeckCheckEntryCardResponse {
 export interface DeckCheckEntryResponse {
   id: string;
   externalId: string;
+  /** Whether the entry came from an organizer push or was hand-entered. */
+  source: DeckCheckEntrySource;
   playerName: string;
   playerEmail: string | null;
   playerHandle: string | null;

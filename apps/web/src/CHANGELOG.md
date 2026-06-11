@@ -3,6 +3,7 @@
 ## 2026-06-11
 
 - feat: The deck list's search and filter bar now stays pinned to the top as you scroll, so you can refine the list without scrolling back up
+- feat: Judges can add a deck-check entrant by hand, typing the player's name and pasting their decklist, for when the organizer system can't send it. Entries that did come from the organizer system now carry an "API" badge so it's clear where each one came from
 - feat: A group's overview now splits collections into separate tiles for the group's own collections and members' shared collections, shows how many of your collections you've shared so far, and puts the new-collection, share, and invite buttons right on the matching tile
 - feat: The Share button on a wishlist or trade list now sits in the top action row, so you can share a list in one tap instead of opening the three-dot menu first
 - fix: Clicking filters or moving between pages no longer freezes for seconds (or got stuck entirely) on slower connections. Every click was silently waiting for the server to confirm your theme settings before the page would respond

@@ -1793,6 +1793,7 @@ export const deckCheckEventListResponseSchema = z
 const deckCheckEntrySummaryResponseSchema = z.object({
   id: z.string(),
   externalId: z.string(),
+  source: z.enum(["api", "manual"]),
   playerName: z.string(),
   submittedAt: z.string().nullable(),
   checkStatus: deckCheckEntryStatusSchema,
@@ -1847,6 +1848,7 @@ const deckCheckEntryCardResponseSchema = z.object({
 const deckCheckEntryResponseSchema = z.object({
   id: z.string(),
   externalId: z.string(),
+  source: z.enum(["api", "manual"]),
   playerName: z.string(),
   playerEmail: z.string().nullable(),
   playerHandle: z.string().nullable(),

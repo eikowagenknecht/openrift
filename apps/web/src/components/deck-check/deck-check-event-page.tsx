@@ -7,6 +7,7 @@ import {
   PencilIcon,
   RefreshCwIcon,
   Trash2Icon,
+  UserPlusIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -19,18 +20,23 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
+  useCreateDeckCheckEntry,
   useDeckCheckEvent,
   useDeleteDeckCheckEvent,
   useReResolveDeckCheckEvent,
   useUpdateDeckCheckEvent,
 } from "@/hooks/use-deck-check";
-import { useDeckFormatList } from "@/hooks/use-enums";
+import { useDeckFormatList, useZoneOrder } from "@/hooks/use-enums";
+import { parseManualDecklist } from "@/lib/deck-check-manual-entry";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
 const STATUS_ORDER: Record<DeckCheckEntrySummaryResponse["checkStatus"], number> = {
@@ -60,6 +66,7 @@ export function DeckCheckEventPage({
   const deleteEvent = useDeleteDeckCheckEvent();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const navigate = useNavigate();
   const { labels: formatLabels } = useDeckFormatList();
   const admin = isAdmin(data.viewerRole);
@@ -125,6 +132,19 @@ export function DeckCheckEventPage({
             ) : null}
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              disabled={event.status === "archived"}
+              title={
+                event.status === "archived"
+                  ? "Un-archive the event to add entrants"
+                  : "Add a player and decklist by hand"
+              }
+              onClick={() => setAddOpen(true)}
+            >
+              <UserPlusIcon className="size-4" />
+              Add player
+            </Button>
             {hasUnresolved ? (
               <Button
                 size="sm"
@@ -189,7 +209,7 @@ export function DeckCheckEventPage({
         {visible.length === 0 ? (
           <p className="text-muted-foreground">
             {entries.length === 0
-              ? "No entrants yet. They appear as soon as your organizer system pushes lists."
+              ? "No entrants yet. Add one by hand with “Add player”, or they appear as soon as your organizer system pushes lists."
               : "No players match the search."}
           </p>
         ) : (
@@ -209,6 +229,13 @@ export function DeckCheckEventPage({
             onOpenChange={setRenameOpen}
           />
         ) : null}
+
+        <AddManualEntryDialog
+          slug={slug}
+          eventId={eventId}
+          open={addOpen}
+          onOpenChange={setAddOpen}
+        />
 
         <ConfirmActionDialog
           open={deleteOpen}
@@ -255,6 +282,11 @@ function EntryRow({
             : ""}
         </span>
       </div>
+      {entry.source === "api" ? (
+        <Badge variant="outline" title="Submitted by the organizer system">
+          API
+        </Badge>
+      ) : null}
       {entry.withdrawn ? <Badge variant="secondary">Withdrawn</Badge> : null}
       {entry.changedSinceCheck ? <Badge variant="destructive">Changed since check</Badge> : null}
       {entry.unmatchedLineCount > 0 ? (
@@ -331,6 +363,157 @@ function RenameEventDialog({
           </Button>
           <Button onClick={handleRename} disabled={updateEvent.isPending || !name.trim()}>
             {updateEvent.isPending ? "Saving..." : "Save"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AddManualEntryDialog({
+  slug,
+  eventId,
+  open,
+  onOpenChange,
+}: {
+  slug: string;
+  eventId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { zoneLabels } = useZoneOrder();
+  const navigate = useNavigate();
+  const createEntry = useCreateDeckCheckEntry();
+  const [playerName, setPlayerName] = useState("");
+  const [playerEmail, setPlayerEmail] = useState("");
+  const [playerHandle, setPlayerHandle] = useState("");
+  const [decklist, setDecklist] = useState("");
+
+  const parsed = parseManualDecklist(decklist);
+  const perZone = [...Map.groupBy(parsed.cards, (card) => card.section).entries()].map(
+    ([section, cards]) => ({
+      section,
+      copies: cards.reduce((sum, card) => sum + card.quantity, 0),
+    }),
+  );
+
+  const reset = () => {
+    setPlayerName("");
+    setPlayerEmail("");
+    setPlayerHandle("");
+    setDecklist("");
+  };
+
+  const handleSubmit = async () => {
+    const trimmedName = playerName.trim();
+    if (!trimmedName) {
+      return;
+    }
+    const detail = await createEntry.mutateAsync({
+      slug,
+      eventId,
+      playerName: trimmedName,
+      playerEmail: playerEmail.trim() || null,
+      playerHandle: playerHandle.trim() || null,
+      cards: parsed.cards,
+    });
+    toast.success("Player added");
+    reset();
+    onOpenChange(false);
+    void navigate({
+      to: "/groups/$slug/checks/$eventId/$entryId",
+      params: { slug, eventId, entryId: detail.entry.id },
+    });
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) {
+          reset();
+        }
+        onOpenChange(nextOpen);
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add player</DialogTitle>
+          <DialogDescription>
+            Enter an entrant by hand when the organizer system cannot push their list.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="manual-entry-name">Player name</Label>
+            <Input
+              id="manual-entry-name"
+              value={playerName}
+              onChange={(event) => setPlayerName(event.target.value)}
+              maxLength={120}
+              placeholder="Jane Summoner"
+            />
+          </div>
+          <div className="flex gap-3">
+            <div className="flex flex-1 flex-col gap-1.5">
+              <Label htmlFor="manual-entry-email">Email (optional)</Label>
+              <Input
+                id="manual-entry-email"
+                value={playerEmail}
+                onChange={(event) => setPlayerEmail(event.target.value)}
+                maxLength={254}
+              />
+            </div>
+            <div className="flex flex-1 flex-col gap-1.5">
+              <Label htmlFor="manual-entry-handle">Handle (optional)</Label>
+              <Input
+                id="manual-entry-handle"
+                value={playerHandle}
+                onChange={(event) => setPlayerHandle(event.target.value)}
+                maxLength={120}
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="manual-entry-decklist">Decklist</Label>
+            <Textarea
+              id="manual-entry-decklist"
+              value={decklist}
+              onChange={(event) => setDecklist(event.target.value)}
+              rows={10}
+              className="font-mono"
+              placeholder={
+                "Champion:\n1 Some Champion\nMain:\n3 Some Card\nSideboard:\n2 Tech Card"
+              }
+            />
+            <p className="text-muted-foreground text-sm">
+              One card per line as <code>2 Card Name</code>, with optional zone headers (Champion:,
+              Main:, Sideboard:, …). Lines without a header go to the main deck. Card matches are
+              checked after you save.
+            </p>
+            {parsed.cards.length > 0 ? (
+              <p className="text-muted-foreground text-sm">
+                {parsed.totalCopies} {parsed.totalCopies === 1 ? "copy" : "copies"} ·{" "}
+                {perZone
+                  .map(
+                    ({ section, copies }) => `${zoneLabels[section as never] ?? section} ${copies}`,
+                  )
+                  .join(" · ")}
+              </p>
+            ) : null}
+            {parsed.warnings.map((warning) => (
+              <p key={warning} className="text-destructive text-sm">
+                {warning}
+              </p>
+            ))}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={createEntry.isPending || !playerName.trim()}>
+            {createEntry.isPending ? "Adding..." : "Add player"}
           </Button>
         </DialogFooter>
       </DialogContent>

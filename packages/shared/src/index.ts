@@ -319,8 +319,14 @@ export { appendSetTotal, fixTypography } from "./fix-typography.js";
 export type { DeckCard, DeckState, DeckViolation } from "./deck-rules.js";
 export { validateDeck } from "./deck-rules.js";
 
-export type { DeckCheckCardLine } from "./deck-check.js";
-export { buildContentHashInput, diffCardLines, mapSectionToZone } from "./deck-check.js";
+export type { DeckCheckCardLine, DeckCheckEntrySource } from "./deck-check.js";
+export {
+  buildContentHashInput,
+  deckCheckEntrySource,
+  diffCardLines,
+  MANUAL_ENTRY_EXTERNAL_ID_PREFIX,
+  mapSectionToZone,
+} from "./deck-check.js";
 
 export { compareRuleNumbers } from "./rules.js";
 

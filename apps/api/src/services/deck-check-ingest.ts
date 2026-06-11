@@ -1,19 +1,24 @@
 // oxlint-disable-next-line import/no-nodejs-modules -- server-side hashing, never reaches the browser
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import {
   buildContentHashInput,
   diffCardLines,
   ERROR_CODES,
+  MANUAL_ENTRY_EXTERNAL_ID_PREFIX,
   mapSectionToZone,
 } from "@openrift/shared";
 import type { DeckCheckCardLine, DeckCheckIngestResultResponse } from "@openrift/shared";
-import type { deckCheckIngestSchema } from "@openrift/shared/schemas";
+import type { createDeckCheckEntrySchema, deckCheckIngestSchema } from "@openrift/shared/schemas";
 import type { z } from "zod";
 
 import type { Repos } from "../deps.js";
 import { AppError } from "../errors.js";
-import type { DeckCheckEntryCard, NewDeckCheckEntryCard } from "../repositories/deck-check.js";
+import type {
+  DeckCheckEntry,
+  DeckCheckEntryCard,
+  NewDeckCheckEntryCard,
+} from "../repositories/deck-check.js";
 import { cardResolutionKey } from "../repositories/deck-check.js";
 
 export type DeckCheckIngestPayload = z.infer<typeof deckCheckIngestSchema>;
@@ -208,4 +213,70 @@ export async function ingestDeckCheckPush(
   }
 
   return result;
+}
+
+export type CreateDeckCheckEntryPayload = z.infer<typeof createDeckCheckEntrySchema>;
+
+/**
+ * Creates a single entrant by hand (judge+) for when the organizer push isn't
+ * available. Resolves card names and computes the content hash exactly like a
+ * push so a later provider push diffs correctly. The entry is stamped with a
+ * `manual:`-prefixed external id, which never collides with a provider id —
+ * note a later push for the same player (under the provider's own id) lands as
+ * a separate entry rather than merging into this one.
+ *
+ * @param repos The request repositories.
+ * @param eventId The event to add the entrant to.
+ * @param payload The validated player + card-line input.
+ * @returns The created entry row.
+ */
+export async function createManualDeckCheckEntry(
+  repos: Repos,
+  eventId: string,
+  payload: CreateDeckCheckEntryPayload,
+): Promise<DeckCheckEntry> {
+  const lines: DeckCheckCardLine[] = payload.cards.map((card) => {
+    const zone = mapSectionToZone(card.section);
+    if (!zone) {
+      throw new AppError(
+        422,
+        ERROR_CODES.VALIDATION_ERROR,
+        `Unknown deck section: ${card.section}`,
+      );
+    }
+    return { name: card.name, zone, quantity: card.quantity };
+  });
+
+  const resolutions = await repos.deckCheck.resolveCards(
+    lines.map((line) => ({ name: line.name })),
+  );
+  const cardRows: NewDeckCheckEntryCard[] = payload.cards.map((card, sortOrder) => {
+    const resolution = resolutions.get(cardResolutionKey(card.name)) ?? {
+      resolvedCardId: null,
+      resolvedPrintingId: null,
+      matchStatus: "unmatched" as const,
+    };
+    return {
+      sortOrder,
+      rawName: card.name,
+      section: card.section,
+      zone: lines[sortOrder]?.zone ?? "main",
+      quantity: card.quantity,
+      ...resolution,
+    };
+  });
+
+  const created = await repos.deckCheck.createEntry({
+    eventId,
+    externalId: `${MANUAL_ENTRY_EXTERNAL_ID_PREFIX}${randomUUID()}`,
+    playerName: payload.playerName,
+    playerEmail: payload.playerEmail ?? null,
+    playerHandle: payload.playerHandle ?? null,
+    submittedAt: null,
+    publishOptOut: false,
+    contentHash: sha256(buildContentHashInput(lines)),
+    withdrawnAt: null,
+  });
+  await repos.deckCheck.replaceEntryCards(created.id, cardRows);
+  return created;
 }

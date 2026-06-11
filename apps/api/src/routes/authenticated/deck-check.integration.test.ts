@@ -491,6 +491,82 @@ describe.skipIf(!ownerCtx)("deck-check routes (integration, ADR-025)", () => {
     });
   });
 
+  describe("manual entry", () => {
+    /**
+     * Builds a manual-entry create request body.
+     * @returns A request body for POST /checks/:eventId/entries.
+     */
+    function manualBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+      return {
+        playerName: "M. Anual",
+        playerEmail: "manual@example.com",
+        cards: [
+          { name: CARD_FURY_UNIT.name, quantity: 2, section: "main" },
+          { name: "Totally Unknown Card", quantity: 1, section: "sideboard" },
+        ],
+        ...overrides,
+      };
+    }
+
+    it("returns 403 for a plain member", async () => {
+      const res = await memberApp.fetch(
+        req("POST", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries`, manualBody()),
+      );
+      expect(res.status).toBe(403);
+    });
+
+    it("lets a judge add a player + decklist, stamped as a manual entry", async () => {
+      const res = await judgeApp.fetch(
+        req("POST", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries`, manualBody()),
+      );
+      expect(res.status).toBe(201);
+      const detail = (await res.json()) as {
+        entry: { id: string; source: string; externalId: string; playerName: string };
+        cards: { matchStatus: string; zone: string }[];
+      };
+      expect(detail.entry.source).toBe("manual");
+      expect(detail.entry.externalId.startsWith("manual:")).toBe(true);
+      expect(detail.entry.playerName).toBe("M. Anual");
+      // Cards resolve against the catalog exactly as a push would.
+      expect(detail.cards.map((card) => card.matchStatus)).toEqual(["matched", "unmatched"]);
+
+      // It shows up in the event list as manual, while pushed entries read as api.
+      const list = await judgeApp.fetch(
+        req("GET", `/friend-groups/${GROUP_SLUG}/checks/${eventId}`),
+      );
+      const { entries } = (await list.json()) as {
+        entries: { id: string; source: string }[];
+      };
+      expect(entries.find((entry) => entry.id === detail.entry.id)?.source).toBe("manual");
+      expect(entries.some((entry) => entry.source === "api")).toBe(true);
+    });
+
+    it("rejects an unknown section with 422", async () => {
+      const res = await judgeApp.fetch(
+        req("POST", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries`, {
+          playerName: "Bad Section",
+          cards: [{ name: CARD_FURY_UNIT.name, quantity: 1, section: "commander" }],
+        }),
+      );
+      expect(res.status).toBe(422);
+      expect(((await res.json()) as { error: string }).error).toContain("commander");
+    });
+
+    it("rejects adding to an archived event with 409", async () => {
+      await adminApp.fetch(
+        req("PATCH", `/friend-groups/${GROUP_SLUG}/checks/${eventId}`, { status: "archived" }),
+      );
+      const res = await judgeApp.fetch(
+        req("POST", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries`, manualBody()),
+      );
+      expect(res.status).toBe(409);
+      // Restore so later tests see an active event.
+      await adminApp.fetch(
+        req("PATCH", `/friend-groups/${GROUP_SLUG}/checks/${eventId}`, { status: "active" }),
+      );
+    });
+  });
+
   describe("keys and cascades", () => {
     it("renames a key", async () => {
       const keys = await repos.deckCheck.listKeysForGroup(groupId);
