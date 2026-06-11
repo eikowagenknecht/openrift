@@ -267,9 +267,14 @@ export function DeckListPage() {
           </EmptyContent>
         </Empty>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col">
           <div
-            className="bg-background/80 sticky z-20 -mx-3 px-3 pt-3 backdrop-blur-lg sm:rounded-b-xl"
+            // No pt here: this toolbar always sits under the "Decks" title bar,
+            // whose pb-3 already provides the gap (see CardBrowserLayout). pb-3
+            // gives the sticky band a clean bottom — unlike card-browser
+            // surfaces, the filters live inside this toolbar, not a separate
+            // aboveGrid strip, so the band must pad its own bottom.
+            className="bg-background/80 sticky z-20 -mx-3 px-3 pb-3 backdrop-blur-lg sm:rounded-b-xl"
             style={{ top: toolbarOffset }}
           >
             <DeckListToolbar

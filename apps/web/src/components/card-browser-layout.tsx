@@ -105,7 +105,11 @@ export function CardBrowserLayout({
         <div
           ref={toolbarRef}
           className={cn(
-            "bg-background/80 sticky z-20 -mx-3 px-3 pt-3 backdrop-blur-lg",
+            "bg-background/80 sticky z-20 -mx-3 px-3 backdrop-blur-lg",
+            // Only pad the top when this toolbar is the first tier under the
+            // global header. When a page top bar sits above it, that bar's
+            // pb-3 already provides the gap (avoids a doubled 24px band).
+            pageTopBarHeight === 0 && "pt-3",
             aboveGridHeight === 0 && "sm:rounded-b-xl",
           )}
           style={{ top: headerOffset }}

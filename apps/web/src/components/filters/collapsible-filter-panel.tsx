@@ -48,7 +48,7 @@ export function CollapsibleFilterPanel({
       onOpenChange={setFiltersExpanded}
       className="@wide:hidden mb-3 hidden sm:block"
     >
-      <CollapsibleContent className="relative h-(--collapsible-panel-height) space-y-3 overflow-hidden transition-[height] duration-200 data-[ending-style]:h-0 data-[starting-style]:h-0">
+      <CollapsibleContent className="relative flex h-(--collapsible-panel-height) flex-col gap-3 overflow-hidden transition-[height] duration-200 data-[ending-style]:h-0 data-[starting-style]:h-0">
         <div className="grid grid-cols-1 items-start gap-x-6 gap-y-3 lg:grid-cols-2">
           <FilterBadgeSections
             availableFilters={availableFilters}
@@ -70,7 +70,8 @@ export function CollapsibleFilterPanel({
         </div>
         {/* Overlay the top-right corner (the first row leaves slack there).
             bg-background covers any chip behind it on unusually dense rows.
-            Rendered last so space-y-3 adds no leading gap before the grid. */}
+            Absolute, so flex `gap` skips it — no stray gap is added, and the
+            range grid keeps its margin-free bottom (no doubled bottom padding). */}
         <FilterCustomizeControl className="bg-background absolute top-1 right-1 z-10" />
       </CollapsibleContent>
     </Collapsible>
