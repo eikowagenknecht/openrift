@@ -106,8 +106,11 @@ type StatCardTarget = "/groups/$slug/trades" | "/groups/$slug/shared" | "/groups
 /**
  * A dashboard tile: an icon + label, a big value, an optional hint, optional
  * extra content (e.g. member avatars), and an optional action button. The
- * label / value / hint area links to `to`; the action sits below it as a
- * sibling so we never nest a button inside the link.
+ * label / value / hint area links to `to`; the action is a small ghost button
+ * tucked into the bottom-right corner (it must carry its own positioning
+ * classes), so it sits over the link rather than nested inside it. When an
+ * action is present the link reserves a right gutter so text never runs under
+ * the button.
  * @returns The tile.
  */
 function StatCard({
@@ -132,11 +135,14 @@ function StatCard({
   action?: ReactNode;
 }): ReactNode {
   return (
-    <div className="bg-card flex flex-col gap-2 rounded-lg border p-3">
+    <div className="bg-card relative flex flex-col gap-2 rounded-lg border p-3">
       <Link
         to={to}
         params={{ slug }}
-        className="hover:bg-muted -m-1 flex flex-1 flex-col gap-1 rounded-md p-1 transition-colors"
+        className={cn(
+          "hover:bg-muted -m-1 flex flex-1 flex-col gap-1 rounded-md p-1 transition-colors",
+          action && "pe-9",
+        )}
       >
         <span className="text-muted-foreground flex items-center gap-1.5 text-sm">
           <Icon className="size-4" />
@@ -172,13 +178,13 @@ function GroupCollectionsCard({
       action={
         <>
           <Button
-            size="sm"
-            variant="outline"
-            className="w-full"
+            size="icon-sm"
+            variant="ghost"
+            className="text-muted-foreground absolute right-2 bottom-2 rounded-md"
+            aria-label="New shared collection"
             onClick={() => setCreateOpen(true)}
           >
             <PlusIcon className="size-4" />
-            New shared collection
           </Button>
           <CreateCollectionDialog
             open={createOpen}
@@ -218,13 +224,13 @@ function MemberCollectionsCard({
       hint={`of yours shared · ${fromMembers}${listsSuffix}`}
       action={
         <Button
-          size="sm"
-          variant="outline"
-          className="w-full"
+          size="icon-sm"
+          variant="ghost"
+          className="text-muted-foreground absolute right-2 bottom-2 rounded-md"
+          aria-label="Share a list"
           render={<Link to="/groups/$slug/manage" params={{ slug }} />}
         >
           <Share2Icon className="size-4" />
-          Share a list
         </Button>
       }
     />
@@ -251,13 +257,13 @@ function MembersCard({
       value={memberCount}
       action={
         <Button
-          size="sm"
-          variant="outline"
-          className="w-full"
+          size="icon-sm"
+          variant="ghost"
+          className="text-muted-foreground absolute right-2 bottom-2 rounded-md"
+          aria-label="Invite a member"
           render={<Link to="/groups/$slug/manage" params={{ slug }} />}
         >
           <UserPlusIcon className="size-4" />
-          Invite a member
         </Button>
       }
     >
