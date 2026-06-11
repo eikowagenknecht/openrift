@@ -1,7 +1,7 @@
 import { parseDeckImportData } from "./deck-import-parsers";
 
 /** One card line ready to post to the manual deck-check entry endpoint. */
-export interface ManualEntryCard {
+interface ManualEntryCard {
   name: string;
   quantity: number;
   /** A `deck_zones` slug; the server maps it back through `mapSectionToZone`. */
