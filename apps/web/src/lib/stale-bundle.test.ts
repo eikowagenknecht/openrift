@@ -113,6 +113,68 @@ describe("initStaleBundleWatcher", () => {
   });
 });
 
+// Regression coverage for a wedged tab seen in production: the automatic
+// reload landed on stale edge-cached HTML, which set the sessionStorage loop
+// guard — and the guard then also blocked the toast's Reload button and every
+// later auto-reload, leaving the session permanently stale with no recovery
+// path short of a manual refresh.
+describe("reload loop guard", () => {
+  function dispatchChunkError(): void {
+    globalThis.dispatchEvent(
+      new ErrorEvent("error", {
+        message: "Failed to fetch dynamically imported module: /assets/foo-OLD.js",
+      }),
+    );
+  }
+
+  test("the toast's Reload action reloads even after the automatic reload was spent", async () => {
+    initChunkErrorReloader();
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(new Response("ok", { headers: { "X-Build-Id": "deadbeef" } }));
+    initStaleBundleWatcher();
+
+    dispatchChunkError(); // automatic reload — sets the loop guard
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
+
+    await globalThis.fetch("/api/v1/cards"); // still stale after the reload — toast
+    lastToastAction().onClick();
+
+    expect(reloadSpy).toHaveBeenCalledTimes(2);
+  });
+
+  test("a blocked automatic reload falls back to the toast instead of giving up silently", () => {
+    initChunkErrorReloader();
+
+    dispatchChunkError();
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
+    expect(toast).not.toHaveBeenCalled();
+
+    dispatchChunkError(); // guard set — must not reload again, must prompt
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledTimes(1);
+
+    lastToastAction().onClick();
+    expect(reloadSpy).toHaveBeenCalledTimes(2);
+  });
+
+  test("a matching X-Build-Id clears the guard and re-arms the automatic reload", async () => {
+    initChunkErrorReloader();
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(new Response("ok", { headers: { "X-Build-Id": "test" } }));
+    initStaleBundleWatcher();
+
+    dispatchChunkError(); // automatic reload — sets the loop guard
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
+
+    await globalThis.fetch("/api/v1/cards"); // bundle confirmed current — guard cleared
+
+    dispatchChunkError(); // next deploy's chunk failure auto-reloads again
+    expect(reloadSpy).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("initVersionStaleNavigationReload", () => {
   /**
    * Captures the onResolved callback so tests can drive a navigation.

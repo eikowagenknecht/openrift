@@ -24,10 +24,14 @@ import { COMMIT_HASH } from "./env";
 //      error / unhandledrejection events (initChunkErrorReloader). There's
 //      nothing to preserve, so reload immediately.
 //
-// The sessionStorage flag ensures we don't loop: if the reload itself loads a
-// stale bundle (e.g. cached HTML still pointing at old chunks), the second
-// detection short-circuits and we surface a normal error instead of reloading
-// forever.
+// The sessionStorage flag ensures automatic reloads don't loop: if the reload
+// itself loads a stale bundle (e.g. the Cloudflare edge still serving pre-deploy
+// HTML inside its max-age/swr window), the second automatic detection falls
+// back to the toast instead of reloading forever. The flag only gates
+// *automatic* reloads — the toast's Reload button always goes through (each
+// attempt costs a deliberate click, so it can't loop) — and it is cleared again
+// once an API response confirms the running bundle is current, re-arming the
+// single automatic reload for the next deploy.
 
 const RELOAD_FLAG = "openrift:reload-attempted";
 const NEW_VERSION_TOAST_ID = "openrift:new-version";
@@ -54,9 +58,33 @@ function announceNewVersion(reason: string): void {
     duration: Number.POSITIVE_INFINITY,
     action: {
       label: "Reload",
-      onClick: () => reloadOnce(reason),
+      onClick: () => forceReload(reason),
     },
   });
+}
+
+// User-initiated reload: always goes through. The RELOAD_FLAG loop guard exists
+// to stop runaway automatic reloads; a click costs deliberate user action per
+// attempt, so even a still-stale edge cache can't turn it into a loop.
+function forceReload(reason: string): void {
+  if (globalThis.window === undefined) {
+    return;
+  }
+  console.warn(`[stale-bundle] ${reason} — user-initiated reload`);
+  globalThis.location.reload();
+}
+
+// An API response confirmed the running bundle is the live build, so any
+// earlier reload attempt succeeded — drop the loop guard so the next deploy
+// gets its one automatic reload again. Without this, the flag outlives the
+// stale period (sessionStorage survives reloads) and permanently disables
+// auto-recovery for the rest of the tab session.
+function clearReloadFlag(): void {
+  try {
+    sessionStorage.removeItem(RELOAD_FLAG);
+  } catch {
+    // sessionStorage unavailable — nothing to clear.
+  }
 }
 
 function reloadOnce(reason: string): void {
@@ -65,14 +93,21 @@ function reloadOnce(reason: string): void {
   }
   try {
     if (sessionStorage.getItem(RELOAD_FLAG) === "1") {
-      console.warn(`[stale-bundle] ${reason} — reload already attempted this session, giving up`);
+      // Auto-reload already spent (it evidently landed on a still-stale page,
+      // e.g. the edge cache's swr window). Don't reload again on our own —
+      // surface the toast so the user keeps a working manual recovery path.
+      console.warn(
+        `[stale-bundle] ${reason} — auto-reload already attempted this session, prompting instead`,
+      );
+      announceNewVersion(reason);
       return;
     }
     sessionStorage.setItem(RELOAD_FLAG, "1");
   } catch {
     // sessionStorage may be unavailable (private mode quotas, sandboxed iframe).
-    // Reloading anyway is safer than risking a loop in those edge environments
-    // would be — but without the flag we can't tell. Bail to avoid the loop.
+    // Without the flag an automatic reload could loop, so fall back to the
+    // toast: the user can still recover manually, one click per attempt.
+    announceNewVersion(reason);
     return;
   }
   console.warn(`[stale-bundle] ${reason} — reloading to pick up new bundle`);
@@ -84,11 +119,19 @@ export function initStaleBundleWatcher(): void {
     return;
   }
   const originalFetch = globalThis.fetch;
+  let confirmedCurrent = false;
   globalThis.fetch = async (input, init) => {
     const response = await originalFetch(input, init);
     const buildId = response.headers.get("X-Build-Id");
     if (buildId && buildId !== COMMIT_HASH) {
       announceNewVersion(`X-Build-Id mismatch (server=${buildId}, client=${COMMIT_HASH})`);
+    } else if (buildId && !confirmedCurrent) {
+      // First confirmation that this bundle is the live build — re-arm the
+      // automatic reload for the next deploy. Once per page load is enough:
+      // within one page lifetime the flag is only ever re-set immediately
+      // before a reload tears the page down.
+      confirmedCurrent = true;
+      clearReloadFlag();
     }
     return response;
   };
@@ -147,10 +190,18 @@ function isBareRejection(reason: unknown): boolean {
   return reason === undefined || reason === null || reason === "";
 }
 
+// Install-once guard: repeated calls (only tests do this — client.tsx calls
+// once per page load) must not stack duplicate listeners, which would make a
+// single chunk failure run the reload logic multiple times. Deliberately NOT
+// reset by _resetReloadFlagForTesting: the one installed listener pair stays
+// live for the whole test file and reads the (reset) module state at call time.
+let chunkErrorReloaderInstalled = false;
+
 export function initChunkErrorReloader(): void {
-  if (globalThis.window === undefined) {
+  if (globalThis.window === undefined || chunkErrorReloaderInstalled) {
     return;
   }
+  chunkErrorReloaderInstalled = true;
   const isChunkLoadError = (message: string): boolean => CHUNK_LOAD_ERROR_PATTERN.test(message);
   globalThis.addEventListener("error", (event) => {
     if (isChunkLoadError(event.message)) {
@@ -178,7 +229,8 @@ export function initChunkErrorReloader(): void {
 // so initStaleBundleWatcher never gets a chance to see a fresh X-Build-Id.
 // When the user refocuses the tab, ping /api/health — the wrapped fetch
 // installed by initStaleBundleWatcher reads X-Build-Id on the response and
-// reloads if it differs, so this function does not need its own comparison.
+// prompts via toast if it differs, so this function does not need its own
+// comparison.
 // Throttled so alt-tab spam doesn't generate a request per flick.
 const VISIBILITY_CHECK_MIN_INTERVAL_MS = 30_000;
 let lastVisibilityCheckMs = 0;
