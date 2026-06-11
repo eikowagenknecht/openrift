@@ -2,7 +2,7 @@ import type { CardType, Finish, Rarity } from "../enums.js";
 import type { ListEntryDetailResponse, ListIntent, ListKind } from "./list.js";
 import type { Currency, EffectiveTradePreference, TradePreference } from "./trade-preferences.js";
 
-export type FriendGroupRole = "owner" | "admin" | "member";
+export type FriendGroupRole = "owner" | "admin" | "judge" | "member";
 export type FriendGroupInviteDirection = "invite" | "request";
 
 export interface FriendGroupResponse {

@@ -102,6 +102,13 @@ export const queryKeys = {
     all: (userId: string) => ["friend-groups", userId] as const,
     detail: (userId: string, slug: string) => ["friend-groups", userId, slug] as const,
     matches: (userId: string, slug: string) => ["friend-groups", userId, slug, "matches"] as const,
+    checks: (userId: string, slug: string) => ["friend-groups", userId, slug, "checks"] as const,
+    checkEvent: (userId: string, slug: string, eventId: string) =>
+      ["friend-groups", userId, slug, "checks", eventId] as const,
+    checkEntry: (userId: string, slug: string, eventId: string, entryId: string) =>
+      ["friend-groups", userId, slug, "checks", eventId, entryId] as const,
+    checkKeys: (userId: string, slug: string) =>
+      ["friend-groups", userId, slug, "check-keys"] as const,
     activity: (userId: string, slug: string) =>
       ["friend-groups", userId, slug, "activity"] as const,
     memberDetail: (userId: string, slug: string, memberId: string) =>

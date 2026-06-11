@@ -39,6 +39,14 @@ export type {
   PodsTable,
   // Card trades (migration 143, ADR-019)
   CardTradesTable,
+  // Deck check (migration 149, ADR-025)
+  DeckCheckEventsTable,
+  DeckCheckEntriesTable,
+  DeckCheckEntryCardsTable,
+  DeckCheckEntryStatus,
+  DeckCheckEventStatus,
+  DeckCheckKeysTable,
+  DeckCheckMatchStatus,
   UserPreferencesTable,
   // Reference tables (migration 062)
   DomainsTable,

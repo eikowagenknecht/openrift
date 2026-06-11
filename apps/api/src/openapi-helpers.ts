@@ -10,7 +10,7 @@ import { apiErrorResponseSchema } from "@openrift/shared/response-schemas";
  *
  *   responses: { 200: { ... }, ...errorResponses(401, 404) }
  */
-export type ErrorStatus = 400 | 401 | 403 | 404 | 409;
+export type ErrorStatus = 400 | 401 | 403 | 404 | 409 | 413 | 422;
 
 interface ErrorResponseEntry {
   description: string;
@@ -23,6 +23,8 @@ const ERROR_STATUS_DESCRIPTIONS: Record<ErrorStatus, string> = {
   403: "Forbidden — authenticated but not permitted",
   404: "Not found",
   409: "Conflict with the current resource state",
+  413: "Payload too large",
+  422: "Unprocessable content (semantically invalid input)",
 };
 
 /**

@@ -4,7 +4,14 @@ import type {
   FriendGroupRole,
 } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { CheckIcon, EllipsisVerticalIcon, ShieldIcon, Trash2Icon, XIcon } from "lucide-react";
+import {
+  CheckIcon,
+  EllipsisVerticalIcon,
+  ScaleIcon,
+  ShieldIcon,
+  Trash2Icon,
+  XIcon,
+} from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -129,7 +136,10 @@ function MemberRow({
     !isSelf &&
     member.role !== "owner" &&
     (member.role !== "admin" || viewerRole === "owner");
-  const canPromote = isAdmin(viewerRole) && !isSelf && member.role === "member";
+  // Admins manage member <-> judge; only the owner promotes to / demotes from admin.
+  const canPromote = viewerRole === "owner" && !isSelf && member.role !== "admin";
+  const canMakeJudge = isAdmin(viewerRole) && !isSelf && member.role === "member";
+  const canUnmakeJudge = isAdmin(viewerRole) && !isSelf && member.role === "judge";
   const canDemote = viewerRole === "owner" && !isSelf && member.role === "admin";
   const canTransfer = viewerRole === "owner" && !isSelf && member.role !== "owner";
 
@@ -182,7 +192,7 @@ function MemberRow({
         <span className="text-muted-foreground text-xs">{member.nickname}</span>
       ) : null}
 
-      {(canKick || canPromote || canDemote || canTransfer) && (
+      {(canKick || canPromote || canMakeJudge || canUnmakeJudge || canDemote || canTransfer) && (
         <DropdownMenu>
           <DropdownMenuTrigger
             render={<Button size="sm" variant="ghost" aria-label="Member actions" />}
@@ -196,6 +206,21 @@ function MemberRow({
               >
                 <ShieldIcon className="size-4" />
                 Promote to admin
+              </DropdownMenuItem>
+            )}
+            {canMakeJudge && (
+              <DropdownMenuItem
+                onClick={() => updateRole.mutate({ slug, userId: member.userId, role: "judge" })}
+              >
+                <ScaleIcon className="size-4" />
+                Make judge
+              </DropdownMenuItem>
+            )}
+            {canUnmakeJudge && (
+              <DropdownMenuItem
+                onClick={() => updateRole.mutate({ slug, userId: member.userId, role: "member" })}
+              >
+                Remove judge role
               </DropdownMenuItem>
             )}
             {canDemote && (

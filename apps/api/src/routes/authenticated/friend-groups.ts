@@ -57,53 +57,19 @@ import {
   updateFriendGroupSchema,
 } from "@openrift/shared/schemas";
 
-import type { Repos } from "../../deps.js";
 import { AppError } from "../../errors.js";
 import { gravatarHashForEmail } from "../../lib/gravatar.js";
+import { hasRole, loadGroupForMember, requireRole } from "../../lib/group-access.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { cookieAuth, errorResponses } from "../../openapi-helpers.js";
 import { createApiApp } from "../../openapi.js";
-import type { Group, GroupMember, MemberWithUser } from "../../repositories/friend-groups.js";
+import type { Group, MemberWithUser } from "../../repositories/friend-groups.js";
 import { toListEntryDetail } from "../../utils/mappers.js";
 import { getFavoriteMarketplace } from "../../utils/preferences.js";
 import { generateShareToken } from "../../utils/share-token.js";
 
 // ─── Authz helpers ──────────────────────────────────────────────────────────
-
-interface GroupContext {
-  group: Group;
-  membership: GroupMember;
-}
-
-/**
- * Loads the group by slug + the viewer's membership; 404 if either missing.
- * @returns The matched group and the viewer's membership row.
- */
-async function loadGroupForMember(
-  repos: Repos,
-  slug: string,
-  viewerId: string,
-): Promise<GroupContext> {
-  const group = await repos.friendGroups.getBySlug(slug);
-  if (!group) {
-    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Group not found");
-  }
-  const membership = await repos.friendGroups.getMembership(group.id, viewerId);
-  if (!membership) {
-    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Group not found");
-  }
-  return { group, membership };
-}
-
-function requireRole(membership: GroupMember, minimum: "admin" | "owner"): void {
-  if (minimum === "owner" && membership.role !== "owner") {
-    throw new AppError(403, ERROR_CODES.FORBIDDEN, "Owner only");
-  }
-  if (minimum === "admin" && membership.role !== "admin" && membership.role !== "owner") {
-    throw new AppError(403, ERROR_CODES.FORBIDDEN, "Admin only");
-  }
-}
 
 // ─── Mappers ────────────────────────────────────────────────────────────────
 
@@ -661,7 +627,7 @@ const friendGroupsApp = createApiApp();
 friendGroupsApp.use("/friend-groups/*", requireAuth);
 
 function canSeeCode(role: FriendGroupRole): boolean {
-  return role === "owner" || role === "admin";
+  return hasRole(role, "admin");
 }
 
 export const friendGroupsRoute = friendGroupsApp
@@ -817,7 +783,7 @@ export const friendGroupsRoute = friendGroupsApp
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Group not found");
     }
 
-    const isAdmin = membership.role === "owner" || membership.role === "admin";
+    const isAdmin = hasRole(membership.role, "admin");
     const [members, shares, collectionShares, pendingRequests] = await Promise.all([
       friendGroups.listMembers(group.id),
       friendGroups.listSharesForGroup(group.id),
@@ -973,7 +939,7 @@ export const friendGroupsRoute = friendGroupsApp
       }
     } else {
       const membership = await friendGroups.getMembership(group.id, viewerId);
-      if (!membership || (membership.role !== "owner" && membership.role !== "admin")) {
+      if (!membership || !hasRole(membership.role, "admin")) {
         throw new AppError(403, ERROR_CODES.FORBIDDEN, "Admin only");
       }
     }
@@ -1006,7 +972,7 @@ export const friendGroupsRoute = friendGroupsApp
     // Allow self-decline (invitee declining / requester cancelling) OR admin/owner.
     if (targetUserId !== viewerId) {
       const membership = await friendGroups.getMembership(group.id, viewerId);
-      if (!membership || (membership.role !== "owner" && membership.role !== "admin")) {
+      if (!membership || !hasRole(membership.role, "admin")) {
         throw new AppError(403, ERROR_CODES.FORBIDDEN, "Forbidden");
       }
     }
@@ -1076,6 +1042,10 @@ export const friendGroupsRoute = friendGroupsApp
     }
     if (target.role === "owner") {
       throw new AppError(409, ERROR_CODES.CONFLICT, "Cannot demote the owner");
+    }
+    // Admins manage member <-> judge; only the owner may promote to or demote from admin.
+    if ((target.role === "admin" || role === "admin") && ctx.membership.role !== "owner") {
+      throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only the owner can change admins");
     }
 
     const updated = await friendGroups.updateRole(ctx.group.id, targetUserId, role);

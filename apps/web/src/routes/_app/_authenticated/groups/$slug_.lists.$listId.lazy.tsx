@@ -1,9 +1,9 @@
 import type { PublicListDetailResponse } from "@openrift/shared";
-import { createLazyFileRoute } from "@tanstack/react-router";
+import { createLazyFileRoute, Link } from "@tanstack/react-router";
 
-import { PageTopBarBack } from "@/components/layout/page-top-bar";
+import { GroupBreadcrumbTrail } from "@/components/friend-groups/group-breadcrumb";
 import { SharedListContent } from "@/components/list/shared-list-content";
-import { useFriendGroupSharedList } from "@/hooks/use-friend-groups";
+import { useFriendGroupDetail, useFriendGroupSharedList } from "@/hooks/use-friend-groups";
 import { FilterSearchProvider } from "@/lib/search-schemas";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/groups/$slug_/lists/$listId")({
@@ -13,6 +13,7 @@ export const Route = createLazyFileRoute("/_app/_authenticated/groups/$slug_/lis
 function SharedListRoute() {
   const { slug, listId } = Route.useParams();
   const { data } = useFriendGroupSharedList(slug, listId);
+  const { data: groupDetail } = useFriendGroupDetail(slug);
   const search = Route.useSearch();
   const { fromUser } = search;
 
@@ -35,10 +36,33 @@ function SharedListRoute() {
     owner: { displayName: data.list.ownerName ?? "Unknown", gravatarHash: null },
   };
 
-  const backLink = fromUser ? (
-    <PageTopBarBack to="/groups/$slug/members/$userId" params={{ slug, userId: fromUser }} />
-  ) : (
-    <PageTopBarBack to="/groups/$slug" params={{ slug }} />
+  const groupCrumb = {
+    label: groupDetail.group.name,
+    link: <Link to="/groups/$slug" params={{ slug }} />,
+  };
+  const memberName = fromUser
+    ? (groupDetail.members.find((member) => member.userId === fromUser)?.userName ?? "Member")
+    : null;
+  const backLink = (
+    <GroupBreadcrumbTrail
+      segments={
+        fromUser
+          ? [
+              groupCrumb,
+              { label: "Members", link: <Link to="/groups/$slug/members" params={{ slug }} /> },
+              {
+                label: memberName ?? "Member",
+                link: (
+                  <Link to="/groups/$slug/members/$userId" params={{ slug, userId: fromUser }} />
+                ),
+              },
+            ]
+          : [
+              groupCrumb,
+              { label: "Shared", link: <Link to="/groups/$slug/shared" params={{ slug }} /> },
+            ]
+      }
+    />
   );
 
   return (

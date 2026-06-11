@@ -515,7 +515,7 @@ const transferOwnershipFn = createServerFn({ method: "POST" })
   });
 
 const updateRoleFn = createServerFn({ method: "POST" })
-  .validator((input: { slug: string; userId: string; role: "admin" | "member" }) => input)
+  .validator((input: { slug: string; userId: string; role: "admin" | "judge" | "member" }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<FriendGroupMemberResponse> =>
@@ -735,7 +735,7 @@ export function useUpdateFriendGroupRole() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<
     FriendGroupMemberResponse,
-    { slug: string; userId: string; role: "admin" | "member" }
+    { slug: string; userId: string; role: "admin" | "judge" | "member" }
   >({
     mutationFn: (data) => updateRoleFn({ data }),
     invalidates: (variables) => [queryKeys.friendGroups.detail(userId, variables.slug)],

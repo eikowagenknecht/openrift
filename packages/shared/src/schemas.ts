@@ -432,7 +432,7 @@ export const friendGroupInviteByEmailSchema = z.object({
 });
 
 export const friendGroupUpdateRoleSchema = z.object({
-  role: z.enum(["admin", "member"]),
+  role: z.enum(["admin", "judge", "member"]),
 });
 
 export const friendGroupUpdateNicknameSchema = z.object({
@@ -622,4 +622,120 @@ export const podResultSchema = z.object({
 
 export const podReportTokenParamSchema = z.object({
   token: z.string().min(1).max(64),
+});
+
+// ─── Deck check (ADR-025) ─────────────────────────────────────────────────────
+
+export const DECK_CHECK_MAX_ENTRIES_PER_PUSH = 500;
+export const DECK_CHECK_MAX_CARD_LINES_PER_ENTRY = 200;
+
+const deckCheckIngestCardSchema = z.object({
+  name: z.string().min(1).max(300),
+  quantity: z.number().int().min(1).max(99),
+  section: z.string().min(1).max(50),
+});
+
+const deckCheckIngestEntrySchema = z.object({
+  externalId: z.string().min(1).max(200),
+  playerName: z.string().min(1).max(120),
+  playerEmail: z.string().max(254).nullish(),
+  playerHandle: z.string().max(120).nullish(),
+  submittedAt: z.iso.datetime({ offset: true }).nullish(),
+  publishOptOut: z.boolean().optional(),
+  /** Soft-withdraws the entry; a later push without the flag restores it. */
+  withdrawn: z.boolean().optional(),
+  cards: z.array(deckCheckIngestCardSchema).max(DECK_CHECK_MAX_CARD_LINES_PER_ENTRY).default([]),
+});
+
+/**
+ * The provider push payload. Pushes never create events: `eventId` must be an
+ * existing event (created in OpenRift) inside the key's group. Partial
+ * semantics: entries absent from a push are untouched; withdrawal is the
+ * explicit per-entry flag, never an omission.
+ */
+export const deckCheckIngestSchema = z.object({
+  eventId: z.uuid(),
+  entries: z.array(deckCheckIngestEntrySchema).max(DECK_CHECK_MAX_ENTRIES_PER_PUSH).default([]),
+});
+
+export const createDeckCheckEventSchema = z.object({
+  name: z.string().min(1).max(120),
+  eventDate: z.iso.date().nullish(),
+  format: z.string().min(1).max(60).nullish(),
+  allowedSets: z.array(z.string().min(1).max(20)).max(50).nullish(),
+});
+
+export const updateDeckCheckEventSchema = z.object({
+  name: z.string().min(1).max(120).optional(),
+  eventDate: z.iso.date().nullish(),
+  format: z.string().min(1).max(60).nullish(),
+  allowedSets: z.array(z.string().min(1).max(20)).max(50).nullish(),
+  status: z.enum(["active", "archived"]).optional(),
+});
+
+export const deckCheckVerdictSchema = z.object({
+  /** `unchecked` re-opens a checked entry. */
+  checkStatus: z.enum(["unchecked", "checked", "issue"]),
+  notes: z.string().max(4000).nullish(),
+});
+
+export const updateDeckCheckEntrySchema = z.object({
+  playerName: z.string().min(1).max(120).optional(),
+  playerEmail: z.string().max(254).nullish(),
+  playerHandle: z.string().max(120).nullish(),
+});
+
+export const updateDeckCheckCardSchema = z.object({
+  name: z.string().min(1).max(300),
+});
+
+export const addDeckCheckCardSchema = z.object({
+  name: z.string().min(1).max(300),
+  quantity: z.number().int().min(1).max(99),
+  section: z.string().min(1).max(50),
+});
+
+export const deckCheckTickSchema = z.object({
+  /** 0-based physical copy within the card line. */
+  copyIndex: z.number().int().min(0).max(98),
+  found: z.boolean(),
+});
+
+export const mintDeckCheckKeySchema = z.object({
+  label: z.string().min(1).max(120),
+});
+
+export const updateDeckCheckKeySchema = z.object({
+  label: z.string().min(1).max(120),
+});
+
+export const deckCheckEventParamSchema = z.object({
+  slug: friendGroupSlugSchema,
+  eventId: z.uuid(),
+});
+
+export const deckCheckEntryParamSchema = z.object({
+  slug: friendGroupSlugSchema,
+  eventId: z.uuid(),
+  entryId: z.uuid(),
+});
+
+export const deckCheckEntryCardParamSchema = z.object({
+  slug: friendGroupSlugSchema,
+  eventId: z.uuid(),
+  entryId: z.uuid(),
+  cardId: z.uuid(),
+});
+
+export const deckCheckCardCopyParamSchema = z.object({
+  slug: friendGroupSlugSchema,
+  eventId: z.uuid(),
+  entryId: z.uuid(),
+  cardId: z.uuid(),
+  copyIndex: z.coerce.number().int().min(0).max(98),
+});
+
+export const deckCheckKeyParamSchema = z.object({
+  slug: friendGroupSlugSchema,
+  keyId: z.uuid(),
 });

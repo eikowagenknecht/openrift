@@ -1,9 +1,9 @@
 import type { PublicCollectionDetailResponse } from "@openrift/shared";
-import { createLazyFileRoute } from "@tanstack/react-router";
+import { createLazyFileRoute, Link } from "@tanstack/react-router";
 
 import { SharedCollectionView } from "@/components/collection/shared-collection-view";
-import { PageTopBarBack } from "@/components/layout/page-top-bar";
-import { useFriendGroupSharedCollection } from "@/hooks/use-friend-groups";
+import { GroupBreadcrumbTrail } from "@/components/friend-groups/group-breadcrumb";
+import { useFriendGroupDetail, useFriendGroupSharedCollection } from "@/hooks/use-friend-groups";
 
 export const Route = createLazyFileRoute(
   "/_app/_authenticated/groups/$slug_/collections/$collectionId",
@@ -14,6 +14,7 @@ export const Route = createLazyFileRoute(
 function SharedCollectionRoute() {
   const { slug, collectionId } = Route.useParams();
   const { data } = useFriendGroupSharedCollection(slug, collectionId);
+  const { data: groupDetail } = useFriendGroupDetail(slug);
   const search = Route.useSearch();
 
   // Project the friend-group shape onto PublicCollectionDetailResponse so
@@ -39,7 +40,14 @@ function SharedCollectionRoute() {
     <SharedCollectionView
       data={publicShape}
       search={search}
-      topBarTrailing={<PageTopBarBack to="/groups/$slug" params={{ slug }} />}
+      topBarTrailing={
+        <GroupBreadcrumbTrail
+          segments={[
+            { label: groupDetail.group.name, link: <Link to="/groups/$slug" params={{ slug }} /> },
+            { label: "Shared", link: <Link to="/groups/$slug/shared" params={{ slug }} /> },
+          ]}
+        />
+      }
     />
   );
 }

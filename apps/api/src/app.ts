@@ -26,6 +26,7 @@ import { collectionEventsRoute } from "./routes/authenticated/collection-events.
 import { collectionValueHistoryRoute } from "./routes/authenticated/collection-value-history.js";
 import { collectionsRoute } from "./routes/authenticated/collections.js";
 import { copiesRoute } from "./routes/authenticated/copies.js";
+import { deckCheckRoute } from "./routes/authenticated/deck-check.js";
 import { decksRoute } from "./routes/authenticated/decks.js";
 import { friendGroupsRoute } from "./routes/authenticated/friend-groups.js";
 import { listImageRoute } from "./routes/authenticated/list-image.js";
@@ -36,6 +37,7 @@ import { userShareRoute } from "./routes/authenticated/user-share.js";
 import { cardsRoute } from "./routes/public/cards.js";
 import { catalogRoute } from "./routes/public/catalog.js";
 import { publicCollectionsRoute } from "./routes/public/collections.js";
+import { deckCheckIngestRoute } from "./routes/public/deck-check-ingest.js";
 import { publicDecksRoute } from "./routes/public/decks.js";
 import { featureFlagsRoute } from "./routes/public/feature-flags.js";
 import { healthRoute } from "./routes/public/health.js";
@@ -421,6 +423,7 @@ export function createApp(deps: AppDeps) {
       .route("/api/v1", publicListsRoute)
       .route("/api/v1", publicUserShareRoute)
       .route("/api/v1", publicPodTournamentsRoute)
+      .route("/api/v1", deckCheckIngestRoute)
       .route("/api/v1", publicShareImagesRoute)
       .route("/api/v1", sentryTunnelRoute)
 
@@ -435,6 +438,7 @@ export function createApp(deps: AppDeps) {
       .route("/api/v1", listsRoute)
       .route("/api/v1", listImageRoute)
       .route("/api/v1", friendGroupsRoute)
+      .route("/api/v1", deckCheckRoute)
       .route("/api/v1", cardTradesRoute)
       .route("/api/v1", podTournamentsRoute)
 

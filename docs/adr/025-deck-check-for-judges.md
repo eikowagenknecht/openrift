@@ -38,9 +38,9 @@ Six independent axes, each with the option chosen below.
 
 - **Access and ownership: reuse friend groups.** A deck-check event is a group-owned resource. Judges are group members. This reuses ADR-013's membership, invites, join code, and group-owned-resource pattern (already used by `collections.group_id`) instead of building a parallel roster and invite system. An external organizer creates a group, adds their judges, and runs their events inside it.
 - **Judge permission model: a new `judge` role in the friend-group hierarchy,** ranked `owner > admin > judge > member`. Judging requires rank `>= judge`; managing events and push keys requires rank `>= admin`; plain `member` gets no deck-check access at all. This keeps the codebase's single-role model, lets the organizer grant judging without granting full group-admin powers, and preserves a clean PII boundary (only `judge` and above see entrant decks and emails).
-- **Entry storage: dedicated `deck_check_*` tables,** unlike ADR-014. Entrants are not user-owned, are read-only snapshots of provider data, carry state the `decks` model has no place for (raw provider name plus set, per-card match status, per-card verification tick, a verdict, a content hash), and must not appear in any user's deck list or consume the deck UUID/share-token space. We reuse the _rendering and validation_ (`CardCell`, deck-rules, deck-stat aggregates), not the _storage_.
+- **Entry storage: dedicated `deck_check_*` tables,** unlike ADR-014. Entrants are not user-owned, are read-only snapshots of provider data, carry state the `decks` model has no place for (raw provider name, per-card match status, per-card verification tick, a verdict, a content hash), and must not appear in any user's deck list or consume the deck UUID/share-token space. We reuse the _rendering and validation_ (`CardCell`, deck-rules, deck-stat aggregates), not the _storage_.
 - **Import mechanism: the provider pushes.** OpenRift exposes a generic ingest endpoint authenticated by a per-group key. OpenRift stores no provider credentials and runs no polling job. This matches "we provide a fitting API" and stays provider-agnostic.
-- **Push scope: partial pushes with explicit withdrawal.** A push upserts only the entries it lists; entries it does not mention are untouched, and withdrawal is an explicit per-entry flag. This is webhook-natural for providers that process submissions one at a time (the reference plugin does), and it makes an accidental single-entry push harmless instead of mass-withdrawing the event. The cost is that removals must be signaled actively; there is no self-healing full reconcile.
+- **Push scope: partial pushes with explicit withdrawal, into pre-created events.** Events are created in OpenRift and addressed by their id; a push can never create one, only fill it. A push upserts only the entries it lists; entries it does not mention are untouched, and withdrawal is an explicit per-entry flag. This is webhook-natural for providers that process submissions one at a time (the reference plugin does), and it makes an accidental single-entry push harmless instead of mass-withdrawing the event. The cost is that removals must be signaled actively; there is no self-healing full reconcile.
 - **Re-import: invalidate the check.** When a re-pushed entry's normalized card list differs from the stored hash and the entry was already checked, it reverts to unchecked, per-card ticks clear, and the change is summarized for the judge to re-verify.
 
 ### Consequences
@@ -94,24 +94,20 @@ The single-owner partial unique index and the successor-promotion trigger from A
 
 ### Push ingestion and per-group keys
 
-An `admin` of a group mints a push key in the group's deck-check settings. The plaintext token is shown once; the database stores only its SHA-256 hash (`deck_check_keys.token_hash`). Authentication hashes the presented token and looks it up via the unique index; no timing-sensitive comparison is needed, because the stored value is a preimage-resistant hash rather than the secret itself. `token_prefix` keeps the first few characters of the plaintext purely so the settings UI can display "Key `orpk_a1b2…`". Keys are per group (the chosen scope): one key lets the organizer's system create and update any event in that group, keyed by the event's external id. Keys can be revoked and carry a `last_used_at` for visibility.
+An `admin` of a group mints a push key in the group's deck-check settings. The plaintext token is shown once; the database stores only its SHA-256 hash (`deck_check_keys.token_hash`). Authentication hashes the presented token and looks it up via the unique index; no timing-sensitive comparison is needed, because the stored value is a preimage-resistant hash rather than the secret itself. `token_prefix` keeps the first few characters of the plaintext purely so the settings UI can display "Key `orpk_a1b2…`". Keys are per group (the chosen scope): one key lets the organizer's system push entrants into any of the group's events, addressed by the event's id. Events themselves are created in OpenRift only; a push can never create one. Keys can be revoked and carry a `last_used_at` for visibility.
 
 The ingest endpoint authenticates with `Authorization: Bearer <key>`, resolves the key to its group, and upserts within that group. There is no user session and no cookie; this is the only machine-to-machine surface in the subsystem, so it is explicitly bounded: the payload is validated with a Zod schema, at most 500 entries per push and 200 card lines per entry are accepted, the body is capped at 1 MB, and each key is rate-limited to 60 pushes per minute. A push targeting an `archived` event is rejected with 409: archived means the event is over, and a late push is almost certainly a misconfigured provider.
 
 ### Generic ingest contract
 
-A push upserts one event and the entries it lists; entries it does not mention are untouched. A provider can therefore push a single resubmission the moment it arrives, or the whole field at once; both are the same operation. The payload is deliberately neutral; the reference WordPress plugin maps its `pa_decks` / `pa_deck_cards` rows onto it, and any other organizer can do the same.
+A push fills an existing event with entries; it never creates an event. The admin creates the event in OpenRift (name, date, format, allowed sets are OpenRift-owned metadata), copies its id from the event page, and configures the sending system with it. A push upserts the entries it lists; entries it does not mention are untouched. A provider can therefore push a single resubmission the moment it arrives, or the whole field at once; both are the same operation. The payload is deliberately neutral; the reference WordPress plugin maps its `pa_deck_cards` rows onto it, and any other organizer can do the same.
 
 ```jsonc
 POST /api/v1/ingest/deck-check
-Authorization: Bearer <group push key>
+Authorization: Bearer <group API key>
 
 {
-  "externalId": "spring-cup-2026",   // upsert key for the event within the group
-  "name": "Spring Cup 2026",
-  "date": "2026-06-20",              // optional
-  "format": "constructed",          // optional, maps to deck_formats.slug for legality
-  "allowedSets": ["OGN", "OGS"],    // optional, for set-legality flagging; omit for any
+  "eventId": "<the event's id>",     // an existing event in the key's group; 404 otherwise
   "entries": [
     {
       "externalId": "1234",          // upsert key for the entry within the event
@@ -122,8 +118,8 @@ Authorization: Bearer <group push key>
       "publishOptOut": false,                 // optional consent passthrough
       "withdrawn": false,                     // optional; true soft-withdraws the entry
       "cards": [
-        { "name": "Darius, Trifarian", "set": "OGN", "quantity": 1, "section": "champion" },
-        { "name": "Blazing Scorcher",  "set": "OGN", "quantity": 3, "section": "main" }
+        { "name": "Darius, Trifarian", "quantity": 1, "section": "champion" },
+        { "name": "Blazing Scorcher", "quantity": 3, "section": "main" }
       ]
     }
   ]
@@ -132,7 +128,7 @@ Authorization: Bearer <group push key>
 
 Upsert semantics:
 
-- Events upsert by `(group_id, externalId)`; entries upsert by `(event_id, externalId)`. Entries absent from a push are untouched.
+- The event must exist in the key's group; an unknown `eventId` is a 404 and nothing is imported. Entries upsert by `(event_id, externalId)`. Entries absent from a push are untouched.
 - Withdrawal is explicit: `"withdrawn": true` sets `withdrawn_at` (soft, the check history is kept), and a later re-push of the entry without the flag clears it. There is no way to remove an event over the API; archiving or deleting an event is a UI action for an `admin`.
 - `section` is the provider's own zone string; OpenRift maps it onto a `deck_zones` slug (`legend`, `champion`, `main`, `runes`, `battlefield`, ...) in the ingest layer, where the provider-to-OpenRift vocabulary mapping is the only provider-aware code. A deck-level concept like the reference plugin's "chosen champion" is the provider's mapping job too: it arrives as a card line with a `champion` section, not as a contract field.
 - A `section` with no mapping to a `deck_zones` slug rejects the whole push with 422, naming the unknown sections; nothing is partially imported. The organizer fixes their mapping and re-pushes. This keeps `zone` strictly `NOT NULL`: a judge never sees a card in a guessed zone.
@@ -140,27 +136,29 @@ Upsert semantics:
 
 ### Card resolution and match status
 
-Each card line stores the raw `name` and `set` exactly as received, plus the resolution result. Resolution: try exact name plus set against the catalog; fall back to name-only across sets. If exactly one card matches, `matched`; if several do, `ambiguous`; if none, `unmatched`. Apostrophe and case normalization reuse the same normalization the deck codecs already apply. For a match, a canonical printing is chosen purely to source a thumbnail (`resolved_printing_id`); the art does not matter for a physical check, so no printing precision is attempted.
+Each card line stores the raw `name` exactly as received, plus the resolution result. Resolution is by normalized name against the catalog (cards plus name aliases); there is no per-line set code, since distinct Riftbound cards have distinct names and reprints share one card. If exactly one card matches, `matched`; if several do, `ambiguous`; if none, `unmatched`. Apostrophe and case normalization reuse the same normalization the deck codecs already apply. For a match, a canonical printing is chosen purely to source a thumbnail (`resolved_printing_id`); the art does not matter for a physical check, so no printing precision is attempted.
 
-`unmatched` and `ambiguous` lines render as a flagged placeholder showing the raw name and set, so a judge is never tricked into ticking a card OpenRift could not identify. Card names are assumed to arrive as canonical English (as in the reference `card-library.json`); localized-name matching is out of scope.
+`unmatched` and `ambiguous` lines render as a flagged placeholder showing the raw name, so a judge is never tricked into ticking a card OpenRift could not identify. Card names are assumed to arrive as canonical English (as in the reference `card-library.json`); localized-name matching is out of scope.
 
 Resolution happens at ingest, so an `unmatched` line stays unmatched even after the missing card is later added to the catalog, and with partial pushes a re-push may never come. The event page therefore offers a **re-resolve action** (`judge`+) that re-runs resolution for the event's `unmatched` and `ambiguous` lines. `matched` lines are left alone, and check state is untouched: the raw card list (and thus the `content_hash`) does not change, only its resolution does.
 
 ### Re-import and check invalidation
 
-Every entry stores a `content_hash` over its normalized card lines (name, set, quantity, zone). On re-import:
+Every entry stores a `content_hash` over its normalized card lines (name, quantity, zone). On re-import:
 
 - If the hash is unchanged, the check state is untouched (idempotent re-push).
 - If the hash changed and the entry was `unchecked`, the cards are simply replaced.
-- If the hash changed and the entry was `checked` or `issue`, the entry reverts to `unchecked`, `checked_by` / `checked_at` clear, all `deck_check_entry_cards.verified` reset to false, and a `change_summary` (added / removed / changed lines, computed by diffing the old rows against the new before replacing them) is stored so the checker page can show "this list changed since it was checked." The summary clears on the next check.
+- If the hash changed and the entry was `checked` or `issue`, the entry reverts to `unchecked`, `checked_by` / `checked_at` clear, all `deck_check_entry_cards.found_copies` ticks reset, and a `change_summary` (added / removed / changed lines, computed by diffing the old rows against the new before replacing them) is stored so the checker page can show "this list changed since it was checked." The summary clears on the next check.
 
 This is the "a stale check never passes a changed deck" driver, realized.
 
 ### Per-card checking, verdict, and live multi-judge state
 
-Verification has two levels. Per card, `deck_check_entry_cards.verified` is a tick the judge toggles as they find each card in the physical deck (quantity shown alongside). Per entry, `check_status` is the verdict (`unchecked`, `checked`, `issue`) with `checked_by`, `checked_at`, and free-text `notes`. A "mark all verified" shortcut sets every tick at once for a clean deck. An already-checked entry can be re-opened by any judge.
+Verification has two levels. Per card line, `deck_check_entry_cards.found_copies` (a boolean array, one flag per physical copy) records which copy cells the judge has ticked; the checker renders one tappable cell per copy, because the deck on the table is unsorted and the judge encounters copies one at a time. Copies are physically interchangeable — the per-cell identity exists so the cell the judge taps is the one that lights up, including under polling and concurrent judges. Per entry, `check_status` is the verdict (`unchecked`, `checked`, `issue`) with `checked_by`, `checked_at`, and free-text `notes`. An already-checked entry can be re-opened by any judge.
 
 Multiple judges share state through lightweight polling of the entry list and the open entry (writes apply immediately and optimistically; the poll reconciles). The list sorts unchecked first and shows live progress (X of Y checked) and who checked each entry and when. No pre-assignment: any judge takes any entry. Realtime transport (websockets) is deferred; polling is enough for a room of judges.
+
+Judges can also repair an entry on site (`judge`+): edit the player's name, email, and handle, and add or remove card lines (a typical case: the player shows up with a corrected list agreed with the organizer). A card edit recomputes the entry's `content_hash` from the stored lines, so a later provider re-push of a now-different list still triggers the change-summary invalidation rather than silently passing.
 
 Concurrency is last-write-wins at the entry level: two judges racing a verdict on the same entry is harmless, and the poll reconciles whoever lost. A per-card tick that targets a card row deleted in the meantime (a re-import replaces the rows wholesale) returns 409 and the client refetches the entry rather than failing opaquely.
 
@@ -185,7 +183,7 @@ All under the owning group (the chosen "in-group only" placement, no top-level s
 
 - **`/groups/$slug/checks`** (`judge`+): the group's deck-check events, newest first. Each row shows name, date, format, entrant count, and checked-of-total progress.
 - **`/groups/$slug/checks/$eventId`** (`judge`+): the entrant list. Player name, submitted time, status badge, who checked and when, a "changed since check" badge where relevant, search and an unchecked-first sort, live progress. Polls for shared state. Hosts the re-resolve action for unmatched and ambiguous lines.
-- **`/groups/$slug/checks/$eventId/$entryId`** (`judge`+): the checker. Header with player name / email / handle and the verdict controls (mark checked, mark issue, notes, re-open); banners for legality warnings and unmatched cards; the deck-stat summary; cards grouped by zone via `CardCell`, each line a tappable verification tick with its quantity, and unmatched lines as flagged placeholders; a "mark all verified" shortcut.
+- **`/groups/$slug/checks/$eventId/$entryId`** (`judge`+): the checker. Header with player name / email / handle and the verdict controls (mark checked, mark issue, notes, re-open); banners for legality warnings and unmatched cards; the deck-stat summary; cards grouped by zone via `CardCell`, rendered one cell per physical copy with a found-overlay tick, and unmatched lines as flagged placeholders.
 - **Group deck-check settings** (`admin`+): mint and revoke push keys (plaintext shown once), view the external mapping, and a copy-paste payload snippet for the organizer to wire their system to the ingest endpoint.
 
 The whole feature is gated behind a feature flag (registered in `KNOWN_FLAGS`), per the project's flag convention.
@@ -194,10 +192,10 @@ The whole feature is gated behind a feature flag (registered in `KNOWN_FLAGS`), 
 
 Separate tables are not a one-way door. If entrant decks should ever surface in deck-centric features (a public tournament overview, decks claimable by player accounts, "decks featuring this card"), a migration into ADR-014's proposed shape (`decks` rows plus a satellite table) is a self-contained script, because the schema deliberately preserves everything such a migration needs:
 
-- **Raw provider lines are kept verbatim** (`raw_name`, `raw_set`, `section`). Resolution is a cache, not the record; lines that were `unmatched` at ingest time can be re-resolved against the then-current catalog at migration time.
+- **Raw provider lines are kept verbatim** (`raw_name`, `section`). Resolution is a cache, not the record; lines that were `unmatched` at ingest time can be re-resolved against the then-current catalog at migration time.
 - **Consent is captured from day one** (`publish_opt_out`), the one field that could never be reconstructed retroactively for a future public surface.
 - **Zones and formats FK the same shared vocabularies** (`deck_zones`, `deck_formats`) that `decks` uses, so card lines translate 1:1 (`zone`, `quantity`, `resolved_card_id` → `card_id`, `resolved_printing_id` → `preferred_printing_id`).
-- **Provenance is stable**: event and entry `external_id` plus `submitted_at` keep the link to the organizer's system across any migration.
+- **Provenance is stable**: the entry `external_id` plus `submitted_at` keep the link to the organizer's system across any migration.
 - **Player identity is stored as the claim keys** a future account link would match on (`player_email`, `player_handle`); linking is one additive nullable `claimed_user_id` column, never a rewrite.
 - **Nothing references `deck_check_*` from outside**, so the migration has no fan-out.
 
@@ -215,7 +213,6 @@ The contract is additively extensible for the same futures: a post-event push wi
 CREATE TABLE deck_check_events (
   id           uuid PRIMARY KEY DEFAULT uuidv7(),
   group_id     uuid NOT NULL REFERENCES friend_groups(id) ON DELETE CASCADE,
-  external_id  text NOT NULL,
   name         text NOT NULL CHECK (length(name) BETWEEN 1 AND 120),
   event_date   date,
   format       text REFERENCES deck_formats(slug),
@@ -223,8 +220,7 @@ CREATE TABLE deck_check_events (
   status       text NOT NULL DEFAULT 'active'
                  CHECK (status = ANY (ARRAY['active','archived'])),
   created_at   timestamptz NOT NULL DEFAULT now(),
-  updated_at   timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (group_id, external_id)
+  updated_at   timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_deck_check_events_group ON deck_check_events (group_id);
 
@@ -256,7 +252,6 @@ CREATE TABLE deck_check_entry_cards (
   entry_id            uuid NOT NULL REFERENCES deck_check_entries(id) ON DELETE CASCADE,
   sort_order          integer NOT NULL,
   raw_name            text NOT NULL,
-  raw_set             text,
   section             text NOT NULL,
   zone                text NOT NULL REFERENCES deck_zones(slug),
   quantity            integer NOT NULL CHECK (quantity > 0),
@@ -264,7 +259,7 @@ CREATE TABLE deck_check_entry_cards (
   resolved_printing_id uuid REFERENCES printings(id) ON DELETE SET NULL,
   match_status        text NOT NULL
                         CHECK (match_status = ANY (ARRAY['matched','ambiguous','unmatched'])),
-  verified            boolean NOT NULL DEFAULT false
+  found_copies        boolean[] NOT NULL DEFAULT '{}' CHECK (cardinality(found_copies) <= quantity)
 );
 CREATE INDEX idx_deck_check_entry_cards_entry ON deck_check_entry_cards (entry_id);
 
@@ -285,8 +280,9 @@ CREATE INDEX idx_deck_check_keys_group ON deck_check_keys (group_id);
 ## Will Not Be Built
 
 - **Pull or scraping.** No scheduled fetch, no credentials stored for the provider, no scraper. Ingest is push-only.
+- **Event creation by external systems.** Events (and their metadata: name, date, format, allowed sets) exist only through OpenRift; the ingest API can only fill them with entries.
 - **Player accounts or a claim flow.** Entrants are free-text identity with no `users` link and no "this is me," the same stance as ADR-014.
-- **Editing entrant decks in OpenRift.** Entries are read-only snapshots. The organizer's system is the source of truth; corrections flow through a re-push.
+- **A submission flow in OpenRift.** Players never enter lists here; lists arrive over the API. Judges can correct an entry on site (player details, card lines), but that is repair, not submission.
 - **Public or anonymous visibility of entrant lists.** Decklists are private to the judging team. There is no share token and no SSR public route for an entry, unlike ADR-014's archive.
 - **Running the tournament.** Pairings, rounds, and standings are ADR-022's pod runner. This feature only checks decks.
 - **Trade or collection overlays on entrant decks.** No "do I own this" overlay (ADR-005), no trade integration (ADR-013 / ADR-019). The entrant deck belongs to a player, not the viewing judge.
@@ -296,7 +292,7 @@ CREATE INDEX idx_deck_check_keys_group ON deck_check_keys (group_id);
 ## Deferred / Out of Scope
 
 - **Realtime transport.** Polling for v1; websockets only if a busy room shows it is needed.
-- **Per-card discrepancy detail.** A line is a single verify tick plus the entry-level notes; "found 2 of 3" granularity is deferred to notes.
+- **Per-card discrepancy notes.** A line carries a found-copy count (so "found 2 of 3" is visible directly); anything richer (wrong printing, marked sleeves) goes in the entry-level notes.
 - **Full audit history.** We keep the final verdict with who and when, not a log of every tick and re-open.
 - **A back-channel to the provider.** Ingest is one-way; pushing check results back to the organizer's system is a later ADR.
 - **Results / standings ingest.** The contract has no `placement` or finish field; checks happen before the event concludes, so the data does not exist at push time. A post-event push carrying standings is an additive, backwards-compatible contract extension for whenever an overview surface wants it.
@@ -310,11 +306,11 @@ Schema and authorization invariants exercised by integration tests:
 
 - `friend_group_members.role` accepts `judge`; the generalized `requireRole` enforces `owner > admin > judge > member`, so a `judge` passes a `judge` minimum and fails an `admin` minimum.
 - A `member` receives 403 on every deck-check endpoint (list, entry, check, settings); a `judge` can read entries and submit checks but not create events or keys; only `admin`+ can create or edit events and mint or revoke keys.
-- A push with a valid group key upserts the event by `(group_id, externalId)` and entries by `(event_id, externalId)`; entries absent from a push are untouched; `"withdrawn": true` sets `withdrawn_at` rather than deleting, and a later re-push without the flag clears it.
+- A push with a valid group key upserts entries by `(event_id, externalId)` into an existing event; an unknown `eventId` is rejected with 404 (pushes never create events); entries absent from a push are untouched; `"withdrawn": true` sets `withdrawn_at` rather than deleting, and a later re-push without the flag clears it.
 - A push with an unknown `section` string is rejected with 422 naming the offending sections, and nothing from that push is imported; a push to an `archived` event is rejected with 409; a push over the limits (500 entries, 200 card lines per entry, 1 MB body) is rejected with 413/422.
-- Re-pushing an entry with a changed card list resets a previously `checked` entry to `unchecked`, clears `checked_by` / `checked_at`, resets all `verified` flags, and records a `change_summary`; an identical re-push leaves check state untouched.
+- Re-pushing an entry with a changed card list resets a previously `checked` entry to `unchecked`, clears `checked_by` / `checked_at`, resets all `found_copies` ticks, and records a `change_summary`; an identical re-push leaves check state untouched.
 - Card resolution tags `matched` / `ambiguous` / `unmatched` correctly against a seeded catalog fixture; unmatched and ambiguous lines never count toward a clean check and render as flagged placeholders.
-- The re-resolve action upgrades a previously `unmatched` line to `matched` once the card exists in the catalog, without touching `verified` ticks, check state, or the `content_hash`.
+- The re-resolve action upgrades a previously `unmatched` line to `matched` once the card exists in the catalog, without touching found-copy counts, check state, or the `content_hash`.
 - A verdict write to an entry whose card rows were replaced by a re-import still applies (last-write-wins), but a per-card tick against a deleted card row returns 409.
 - Legality validation flags an over-size or under-size deck, a missing or duplicate legend or champion, and an out-of-`allowedSets` card using the existing deck-rules.
 - A revoked or unknown key returns 401; only the SHA-256 `token_hash` is persisted, never the plaintext token.

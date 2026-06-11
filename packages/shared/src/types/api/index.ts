@@ -151,6 +151,25 @@ export type {
 } from "./friend-group.js";
 
 export type {
+  DeckCheckChangeLine,
+  DeckCheckChangeSummary,
+  DeckCheckEntryCardResponse,
+  DeckCheckEntryDetailResponse,
+  DeckCheckEntryResponse,
+  DeckCheckEntryStatus,
+  DeckCheckEntrySummaryResponse,
+  DeckCheckEventDetailResponse,
+  DeckCheckEventListResponse,
+  DeckCheckEventStatus,
+  DeckCheckEventSummaryResponse,
+  DeckCheckIngestResultResponse,
+  DeckCheckKeyMintedResponse,
+  DeckCheckKeyResponse,
+  DeckCheckKeysResponse,
+  DeckCheckMatchStatus,
+} from "./deck-check.js";
+
+export type {
   CardTradeActionNeeded,
   CardTradeCounterparty,
   CardTradeInitiator,

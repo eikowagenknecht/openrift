@@ -17,7 +17,11 @@ import { useDisplayStore } from "@/stores/display-store";
 import { DeckActionsMenu } from "./deck-actions-menu";
 import { DeckDomainBar } from "./deck-domain-bar";
 
-function DomainIcon({ domain }: { domain: string }) {
+/**
+ * Domain icon with a tooltip, as used on the deck tiles.
+ * @returns The icon, or null when the domain has no icon asset.
+ */
+export function DomainIcon({ domain }: { domain: string }) {
   const domainIcon = getFilterIconPath("domains", domain);
   if (!domainIcon) {
     return null;
@@ -58,7 +62,12 @@ function CardPreviewImage({
   );
 }
 
-function FannedPreview({
+/**
+ * The deck-list tile's fanned art: legend tilted left, champion tilted right,
+ * over a domain gradient. Also reused by the deck-check checker hero.
+ * @returns The fanned preview block.
+ */
+export function FannedPreview({
   legendImage,
   championImage,
   gradientStyle,
@@ -120,6 +129,53 @@ function FannedPreview({
 }
 
 /**
+ * The deck tile's pluralized type summary ("22 units · 12 spells").
+ * @returns The joined summary string.
+ */
+export function typeCountSummary(typeCounts: { cardType: string; count: number }[]): string {
+  return typeCounts
+    .map(({ cardType, count }) => `${count} ${count === 1 ? cardType : `${cardType}s`}`)
+    .join(" · ");
+}
+
+/**
+ * The deck tile's format badge: plain for Freeform, green check when the deck
+ * passes its format's rules, amber alert otherwise.
+ * @returns The badge element.
+ */
+export function FormatStateBadge({ format, isValid }: { format: string; isValid: boolean }) {
+  const { labels: formatLabels } = useDeckFormatList();
+  const formatLabel = formatLabels[format] ?? format;
+  if (format === WellKnown.deckFormat.FREEFORM) {
+    return (
+      <Badge variant="outline" className="text-xs">
+        {formatLabel}
+      </Badge>
+    );
+  }
+  if (isValid) {
+    return (
+      <Badge
+        variant="outline"
+        className="border-green-600/30 bg-green-600/10 text-xs text-green-700 dark:border-green-400/30 dark:bg-green-400/10 dark:text-green-400"
+      >
+        <CheckIcon className="size-3" />
+        {formatLabel}
+      </Badge>
+    );
+  }
+  return (
+    <Badge
+      variant="outline"
+      className="border-amber-600/30 bg-amber-600/10 text-xs text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-400"
+    >
+      <CircleAlertIcon className="size-3" />
+      {formatLabel}
+    </Badge>
+  );
+}
+
+/**
  * Visual tile for a single deck in the deck grid.
  * @returns The deck tile element.
  */
@@ -135,7 +191,6 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
     totalValueCents,
   } = item;
   const { getPreferredPrinting, getPreferredFrontImage } = usePreferredPrinting();
-  const { labels: formatLabels } = useDeckFormatList();
   const { all: customTags } = useCustomTagList();
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
 
@@ -150,11 +205,8 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
   const updatedDate = new Date(deck.updatedAt).toISOString().slice(0, 10);
 
   const tagSummary = resolveFormatTagSummary(deck.format, deck.formatConfig, customTags);
-  const formatLabel = formatLabels[deck.format] ?? deck.format;
 
-  const typeSummary = typeCounts
-    .map(({ cardType, count }) => `${count} ${count === 1 ? cardType : `${cardType}s`}`)
-    .join(" · ");
+  const typeSummary = typeCountSummary(typeCounts);
 
   const gradientStyle =
     legendDomains && legendDomains.length > 0
@@ -213,27 +265,7 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
               <span className="text-muted-foreground text-2xs ml-1">{typeSummary}</span>
             )}
           </span>
-          {deck.format === WellKnown.deckFormat.FREEFORM ? (
-            <Badge variant="outline" className="text-xs">
-              {formatLabel}
-            </Badge>
-          ) : isValid ? (
-            <Badge
-              variant="outline"
-              className="border-green-600/30 bg-green-600/10 text-xs text-green-700 dark:border-green-400/30 dark:bg-green-400/10 dark:text-green-400"
-            >
-              <CheckIcon className="size-3" />
-              {formatLabel}
-            </Badge>
-          ) : (
-            <Badge
-              variant="outline"
-              className="border-amber-600/30 bg-amber-600/10 text-xs text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-400"
-            >
-              <CircleAlertIcon className="size-3" />
-              {formatLabel}
-            </Badge>
-          )}
+          <FormatStateBadge format={deck.format} isValid={isValid} />
         </div>
 
         {/* Domain distribution */}

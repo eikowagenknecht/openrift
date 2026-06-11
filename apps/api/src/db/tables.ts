@@ -1,4 +1,4 @@
-import type { PodPenaltyBreakdown } from "@openrift/shared";
+import type { DeckCheckChangeSummary, PodPenaltyBreakdown } from "@openrift/shared";
 import type {
   ActivityAction,
   ArtVariant,
@@ -478,7 +478,7 @@ export interface ListEntriesTable {
 
 // ─── Friend groups (migration 134, ADR-013) ──────────────────────────────────
 
-export type FriendGroupRole = "owner" | "admin" | "member";
+export type FriendGroupRole = "owner" | "admin" | "judge" | "member";
 export type FriendGroupInviteDirection = "invite" | "request";
 
 export interface FriendGroupsTable {
@@ -601,6 +601,90 @@ interface PodMembersTable {
 interface PodByesTable {
   roundId: string;
   playerId: string;
+}
+
+// ─── Deck check (migration 149, ADR-025) ─────────────────────────────────────
+
+export type DeckCheckEventStatus = "active" | "archived";
+export type DeckCheckEntryStatus = "unchecked" | "checked" | "issue";
+export type DeckCheckMatchStatus = "matched" | "ambiguous" | "unmatched";
+
+export interface DeckCheckEventsTable {
+  id: Generated<string>;
+  groupId: string;
+  /** CHECK: length 1..120 */
+  name: string;
+  eventDate: ColumnType<Date, string, string> | null;
+  format: string | null;
+  /** Set codes for set-legality flagging; written pre-stringified, read defensively. */
+  allowedSets: ColumnType<string[], string, string> | null;
+  status: Generated<DeckCheckEventStatus>;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+export interface DeckCheckEntriesTable {
+  id: Generated<string>;
+  eventId: string;
+  /** Provider's upsert key; UNIQUE per (eventId, externalId). */
+  externalId: string;
+  /** CHECK: length 1..120 */
+  playerName: string;
+  /** CHECK: length <= 254 */
+  playerEmail: string | null;
+  /** CHECK: length <= 120 */
+  playerHandle: string | null;
+  submittedAt: Date | null;
+  publishOptOut: Generated<boolean>;
+  /** Hash over the normalized card lines; unchanged re-push is a no-op. */
+  contentHash: string;
+  checkStatus: Generated<DeckCheckEntryStatus>;
+  checkedBy: string | null;
+  checkedAt: Date | null;
+  /** CHECK: length <= 4000 */
+  notes: string | null;
+  /** Diff vs the previously checked list; written pre-stringified, read defensively. */
+  changeSummary: ColumnType<DeckCheckChangeSummary, string, string> | null;
+  withdrawnAt: Date | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+export interface DeckCheckEntryCardsTable {
+  id: Generated<string>;
+  entryId: string;
+  sortOrder: number;
+  /** Provider text kept verbatim; resolution is a cache, this is the record. */
+  rawName: string;
+  /** Provider's own zone string, before mapping. */
+  section: string;
+  zone: string;
+  /** CHECK: > 0 */
+  quantity: number;
+  resolvedCardId: string | null;
+  /** Canonical printing chosen purely to source a thumbnail. */
+  resolvedPrintingId: string | null;
+  matchStatus: DeckCheckMatchStatus;
+  /**
+   * Per-copy found ticks, 1-based sparse array (CHECK: cardinality <= quantity).
+   * May be shorter than quantity and contain NULL padding; absent = not found.
+   */
+  foundCopies: Generated<(boolean | null)[]>;
+}
+
+export interface DeckCheckKeysTable {
+  id: Generated<string>;
+  groupId: string;
+  /** SHA-256 of the plaintext token; the plaintext is never persisted. */
+  tokenHash: string;
+  /** First chars of the plaintext, display only. */
+  tokenPrefix: string;
+  /** CHECK: length <= 120 */
+  label: string | null;
+  createdBy: string | null;
+  createdAt: CreatedAt;
+  lastUsedAt: Date | null;
+  revokedAt: Date | null;
 }
 
 // ─── Card trades (migration 143, ADR-019) ────────────────────────────────────
@@ -1195,6 +1279,12 @@ export interface Database {
   // Card trades (migration 143, ADR-019)
   cardTrades: CardTradesTable;
   cardTradeCopies: CardTradeCopiesTable;
+
+  // Deck check (migration 149, ADR-025)
+  deckCheckEvents: DeckCheckEventsTable;
+  deckCheckEntries: DeckCheckEntriesTable;
+  deckCheckEntryCards: DeckCheckEntryCardsTable;
+  deckCheckKeys: DeckCheckKeysTable;
 
   // Candidate cards (migration 018, renamed in 038)
   candidateCards: CandidateCardsTable;

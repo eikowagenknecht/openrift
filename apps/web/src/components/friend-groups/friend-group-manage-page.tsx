@@ -7,7 +7,6 @@ import type {
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   BookOpenIcon,
-  ChevronLeftIcon,
   CopyIcon,
   FolderIcon,
   HandshakeIcon,
@@ -19,6 +18,7 @@ import {
 import type { ComponentType, SVGProps } from "react";
 import { useState } from "react";
 
+import { GroupBreadcrumbBar } from "@/components/friend-groups/group-breadcrumb";
 import { Heading } from "@/components/heading";
 import { listKindIcon } from "@/components/list/create-list-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -86,23 +86,22 @@ export function FriendGroupManagePage({ slug }: FriendGroupManagePageProps) {
   const viewerRole = data.viewerRole ?? "member";
 
   return (
-    <div className={cn("mx-auto flex w-full max-w-3xl flex-col gap-6", PAGE_PADDING)}>
-      <Link
-        to="/groups/$slug"
-        params={{ slug }}
-        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm"
-      >
-        <ChevronLeftIcon className="size-4" />
-        Back to group
-      </Link>
+    <>
+      <GroupBreadcrumbBar
+        segments={[
+          { label: data.group.name, link: <Link to="/groups/$slug" params={{ slug }} /> },
+          { label: "Manage" },
+        ]}
+      />
+      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING)}>
+        <Heading level={1}>Manage {data.group.name}</Heading>
 
-      <Heading level={1}>Manage {data.group.name}</Heading>
-
-      {isAdmin(viewerRole) ? <AdminSettings data={data} slug={slug} /> : null}
-      <ShareableListsPanel slug={slug} />
-      <ShareableCollectionsPanel slug={slug} />
-      <LeaveOrDeletePanel data={data} slug={slug} />
-    </div>
+        {isAdmin(viewerRole) ? <AdminSettings data={data} slug={slug} /> : null}
+        <ShareableListsPanel slug={slug} />
+        <ShareableCollectionsPanel slug={slug} />
+        <LeaveOrDeletePanel data={data} slug={slug} />
+      </div>
+    </>
   );
 }
 

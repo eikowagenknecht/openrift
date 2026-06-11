@@ -149,7 +149,17 @@ export function friendGroupsRepo(db: Kysely<Database>) {
           .where("m.groupId", "=", groupId)
           // oxlint-disable promise/prefer-await-to-then -- Kysely's case().when().then() is not a Promise chain
           .orderBy(
-            (eb) => eb.case("m.role").when("owner").then(0).when("admin").then(1).else(2).end(),
+            (eb) =>
+              eb
+                .case("m.role")
+                .when("owner")
+                .then(0)
+                .when("admin")
+                .then(1)
+                .when("judge")
+                .then(2)
+                .else(3)
+                .end(),
             "asc",
           )
           // oxlint-enable promise/prefer-await-to-then

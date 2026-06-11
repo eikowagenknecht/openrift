@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 2BTf4U3LH2ZlgsJMC6vsQHMCrqlQsq5aiPKZoO853Y3eW8N7HIip72y9Imydsla
+\restrict g9OA1oKyLyyXdj7kiJJot0UkU74Y7mfZcg1RvP4J4g3jTgbdtc0OUtWtMH1jfB1
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -831,6 +831,95 @@ CREATE TABLE public.deck_cards (
 
 
 --
+-- Name: deck_check_entries; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.deck_check_entries (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    event_id uuid NOT NULL,
+    external_id text NOT NULL,
+    player_name text NOT NULL,
+    player_email text,
+    player_handle text,
+    submitted_at timestamp with time zone,
+    publish_opt_out boolean DEFAULT false NOT NULL,
+    content_hash text NOT NULL,
+    check_status text DEFAULT 'unchecked'::text NOT NULL,
+    checked_by text,
+    checked_at timestamp with time zone,
+    notes text,
+    change_summary jsonb,
+    withdrawn_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_deck_check_entries_notes CHECK (((notes IS NULL) OR (length(notes) <= 4000))),
+    CONSTRAINT chk_deck_check_entries_player_email CHECK (((player_email IS NULL) OR (length(player_email) <= 254))),
+    CONSTRAINT chk_deck_check_entries_player_handle CHECK (((player_handle IS NULL) OR (length(player_handle) <= 120))),
+    CONSTRAINT chk_deck_check_entries_player_name CHECK (((length(player_name) >= 1) AND (length(player_name) <= 120))),
+    CONSTRAINT chk_deck_check_entries_status CHECK ((check_status = ANY (ARRAY['unchecked'::text, 'checked'::text, 'issue'::text])))
+);
+
+
+--
+-- Name: deck_check_entry_cards; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.deck_check_entry_cards (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    entry_id uuid NOT NULL,
+    sort_order integer NOT NULL,
+    raw_name text NOT NULL,
+    section text NOT NULL,
+    zone text NOT NULL,
+    quantity integer NOT NULL,
+    resolved_card_id uuid,
+    resolved_printing_id uuid,
+    match_status text NOT NULL,
+    found_copies boolean[] DEFAULT '{}'::boolean[] NOT NULL,
+    CONSTRAINT chk_deck_check_entry_cards_found CHECK ((cardinality(found_copies) <= quantity)),
+    CONSTRAINT chk_deck_check_entry_cards_match CHECK ((match_status = ANY (ARRAY['matched'::text, 'ambiguous'::text, 'unmatched'::text]))),
+    CONSTRAINT chk_deck_check_entry_cards_quantity CHECK ((quantity > 0))
+);
+
+
+--
+-- Name: deck_check_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.deck_check_events (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    group_id uuid NOT NULL,
+    name text NOT NULL,
+    event_date date,
+    format text,
+    allowed_sets jsonb,
+    status text DEFAULT 'active'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_deck_check_events_name CHECK (((length(name) >= 1) AND (length(name) <= 120))),
+    CONSTRAINT chk_deck_check_events_status CHECK ((status = ANY (ARRAY['active'::text, 'archived'::text])))
+);
+
+
+--
+-- Name: deck_check_keys; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.deck_check_keys (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    group_id uuid NOT NULL,
+    token_hash text NOT NULL,
+    token_prefix text NOT NULL,
+    label text,
+    created_by text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    last_used_at timestamp with time zone,
+    revoked_at timestamp with time zone,
+    CONSTRAINT chk_deck_check_keys_label CHECK (((label IS NULL) OR (length(label) <= 120)))
+);
+
+
+--
 -- Name: deck_formats; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1001,7 +1090,7 @@ CREATE TABLE public.friend_group_members (
     nickname text,
     joined_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT chk_friend_group_members_nickname CHECK (((nickname IS NULL) OR (length(nickname) <= 80))),
-    CONSTRAINT chk_friend_group_members_role CHECK ((role = ANY (ARRAY['owner'::text, 'admin'::text, 'member'::text])))
+    CONSTRAINT chk_friend_group_members_role CHECK ((role = ANY (ARRAY['owner'::text, 'admin'::text, 'judge'::text, 'member'::text])))
 );
 
 
@@ -2033,6 +2122,46 @@ ALTER TABLE ONLY public.deck_cards
 
 
 --
+-- Name: deck_check_entries deck_check_entries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_check_entries
+    ADD CONSTRAINT deck_check_entries_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: deck_check_entry_cards deck_check_entry_cards_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_check_entry_cards
+    ADD CONSTRAINT deck_check_entry_cards_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: deck_check_events deck_check_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_check_events
+    ADD CONSTRAINT deck_check_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: deck_check_keys deck_check_keys_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_check_keys
+    ADD CONSTRAINT deck_check_keys_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: deck_check_keys deck_check_keys_token_hash_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_check_keys
+    ADD CONSTRAINT deck_check_keys_token_hash_key UNIQUE (token_hash);
+
+
+--
 -- Name: deck_formats deck_formats_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2521,6 +2650,14 @@ ALTER TABLE ONLY public.collections
 
 
 --
+-- Name: deck_check_entries uq_deck_check_entries_event_external; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_check_entries
+    ADD CONSTRAINT uq_deck_check_entries_event_external UNIQUE (event_id, external_id);
+
+
+--
 -- Name: decks uq_decks_id_user; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2806,6 +2943,34 @@ CREATE INDEX idx_custom_tags_category_id ON public.custom_tags USING btree (cate
 --
 
 CREATE INDEX idx_deck_cards_deck ON public.deck_cards USING btree (deck_id);
+
+
+--
+-- Name: idx_deck_check_entries_event; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_deck_check_entries_event ON public.deck_check_entries USING btree (event_id);
+
+
+--
+-- Name: idx_deck_check_entry_cards_entry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_deck_check_entry_cards_entry ON public.deck_check_entry_cards USING btree (entry_id);
+
+
+--
+-- Name: idx_deck_check_events_group; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_deck_check_events_group ON public.deck_check_events USING btree (group_id);
+
+
+--
+-- Name: idx_deck_check_keys_group; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_deck_check_keys_group ON public.deck_check_keys USING btree (group_id);
 
 
 --
@@ -3390,6 +3555,20 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.deck_cards FOR EACH RO
 
 
 --
+-- Name: deck_check_entries trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.deck_check_entries FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: deck_check_events trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.deck_check_events FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
 -- Name: decks trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -3824,6 +4003,86 @@ ALTER TABLE ONLY public.deck_cards
 
 ALTER TABLE ONLY public.deck_cards
     ADD CONSTRAINT deck_cards_preferred_printing_id_fkey FOREIGN KEY (preferred_printing_id) REFERENCES public.printings(id) ON DELETE SET NULL;
+
+
+--
+-- Name: deck_check_entries deck_check_entries_checked_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_check_entries
+    ADD CONSTRAINT deck_check_entries_checked_by_fkey FOREIGN KEY (checked_by) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: deck_check_entries deck_check_entries_event_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_check_entries
+    ADD CONSTRAINT deck_check_entries_event_fkey FOREIGN KEY (event_id) REFERENCES public.deck_check_events(id) ON DELETE CASCADE;
+
+
+--
+-- Name: deck_check_entry_cards deck_check_entry_cards_card_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_check_entry_cards
+    ADD CONSTRAINT deck_check_entry_cards_card_fkey FOREIGN KEY (resolved_card_id) REFERENCES public.cards(id) ON DELETE SET NULL;
+
+
+--
+-- Name: deck_check_entry_cards deck_check_entry_cards_entry_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_check_entry_cards
+    ADD CONSTRAINT deck_check_entry_cards_entry_fkey FOREIGN KEY (entry_id) REFERENCES public.deck_check_entries(id) ON DELETE CASCADE;
+
+
+--
+-- Name: deck_check_entry_cards deck_check_entry_cards_printing_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_check_entry_cards
+    ADD CONSTRAINT deck_check_entry_cards_printing_fkey FOREIGN KEY (resolved_printing_id) REFERENCES public.printings(id) ON DELETE SET NULL;
+
+
+--
+-- Name: deck_check_entry_cards deck_check_entry_cards_zone_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_check_entry_cards
+    ADD CONSTRAINT deck_check_entry_cards_zone_fkey FOREIGN KEY (zone) REFERENCES public.deck_zones(slug);
+
+
+--
+-- Name: deck_check_events deck_check_events_format_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_check_events
+    ADD CONSTRAINT deck_check_events_format_fkey FOREIGN KEY (format) REFERENCES public.deck_formats(slug);
+
+
+--
+-- Name: deck_check_events deck_check_events_group_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_check_events
+    ADD CONSTRAINT deck_check_events_group_fkey FOREIGN KEY (group_id) REFERENCES public.friend_groups(id) ON DELETE CASCADE;
+
+
+--
+-- Name: deck_check_keys deck_check_keys_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_check_keys
+    ADD CONSTRAINT deck_check_keys_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: deck_check_keys deck_check_keys_group_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_check_keys
+    ADD CONSTRAINT deck_check_keys_group_fkey FOREIGN KEY (group_id) REFERENCES public.friend_groups(id) ON DELETE CASCADE;
 
 
 --
@@ -4326,5 +4585,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 2BTf4U3LH2ZlgsJMC6vsQHMCrqlQsq5aiPKZoO853Y3eW8N7HIip72y9Imydsla
+\unrestrict g9OA1oKyLyyXdj7kiJJot0UkU74Y7mfZcg1RvP4J4g3jTgbdtc0OUtWtMH1jfB1
 

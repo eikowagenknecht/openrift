@@ -12,6 +12,14 @@ interface ImportCatalogSearchProps<T> {
   getKey: (item: T) => string;
   renderItem: (item: T) => React.ReactNode;
   onSelect: (item: T) => void;
+  /** Reports the raw typed text — for form-field usage where free text is also valid. */
+  onQueryChange?: (query: string) => void;
+  /** When set, selecting an item writes this string back into the input. */
+  fillOnSelect?: (item: T) => string;
+  /** Override for the input's sizing classes (defaults to the compact import style). */
+  inputClassName?: string;
+  /** Pre-fills the input (e.g. with the text being corrected). */
+  initialQuery?: string;
 }
 
 const MIN_QUERY_LENGTH = 2;
@@ -33,8 +41,12 @@ export function ImportCatalogSearch<T>({
   getKey,
   renderItem,
   onSelect,
+  onQueryChange,
+  fillOnSelect,
+  inputClassName,
+  initialQuery,
 }: ImportCatalogSearchProps<T>) {
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialQuery ?? "");
   const [showResults, setShowResults] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -55,6 +67,11 @@ export function ImportCatalogSearch<T>({
 
   function handleSelect(item: T) {
     onSelect(item);
+    if (fillOnSelect) {
+      const filled = fillOnSelect(item);
+      setSearch(filled);
+      onQueryChange?.(filled);
+    }
     setShowResults(false);
     setActiveIndex(-1);
   }
@@ -79,8 +96,10 @@ export function ImportCatalogSearch<T>({
         break;
       }
       case "Enter": {
-        event.preventDefault();
+        // Only consume Enter when an option is highlighted; otherwise let it
+        // bubble so form-field consumers can submit the typed free text.
         if (activeIndex >= 0 && activeIndex < results.length) {
+          event.preventDefault();
           handleSelect(results[activeIndex]);
         }
         break;
@@ -108,6 +127,7 @@ export function ImportCatalogSearch<T>({
         value={search}
         onChange={(event) => {
           setSearch(event.target.value);
+          onQueryChange?.(event.target.value);
           setShowResults(true);
           setActiveIndex(-1);
         }}
@@ -119,7 +139,7 @@ export function ImportCatalogSearch<T>({
           }
         }}
         onKeyDown={handleKeyDown}
-        className="h-7 w-44"
+        className={inputClassName ?? "h-7 w-44"}
       />
       {visible && results.length > 0 && (
         <div

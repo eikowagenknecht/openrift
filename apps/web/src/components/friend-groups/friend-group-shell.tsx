@@ -7,6 +7,7 @@ import { Heading } from "@/components/heading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useTradeActionCounts } from "@/hooks/use-card-trades";
+import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { useDeclineFriendGroupInvite, useFriendGroupDetail } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { cn, PAGE_PADDING } from "@/lib/utils";
@@ -14,6 +15,7 @@ import { cn, PAGE_PADDING } from "@/lib/utils";
 export const ROLE_LABEL: Record<FriendGroupRole, string> = {
   owner: "Owner",
   admin: "Admin",
+  judge: "Judge",
   member: "Member",
 };
 
@@ -23,8 +25,16 @@ export function isAdmin(role: FriendGroupRole | null): role is "admin" | "owner"
   return role === "admin" || role === "owner";
 }
 
-/** The four navigable group pages, keyed for the sub-nav's active state. */
-export type GroupPage = "overview" | "trades" | "shared" | "members";
+/**
+ * Deck-check access: rank >= judge in the linear hierarchy (ADR-025).
+ * @returns True for owner, admin, and judge.
+ */
+export function isJudge(role: FriendGroupRole | null): role is "admin" | "owner" | "judge" {
+  return role === "admin" || role === "owner" || role === "judge";
+}
+
+/** The navigable group pages, keyed for the sub-nav's active state. */
+export type GroupPage = "overview" | "trades" | "shared" | "members" | "checks";
 
 /**
  * Loads the group, shows the pending-approval stub for would-be members, and
@@ -50,6 +60,27 @@ export function FriendGroupPageFrame({
       {render(data)}
     </FriendGroupShell>
   );
+}
+
+/**
+ * Frame for drill-down pages below a tab (event, entrant, ...): loads the
+ * group, shows the pending-approval stub, and otherwise renders the page
+ * without the group header and tab bar — those pages carry a
+ * GroupBreadcrumbBar instead (the area's drill-down convention).
+ * @returns The framed drill-down page, or the pending stub.
+ */
+export function GroupDrilldownFrame({
+  slug,
+  render,
+}: {
+  slug: string;
+  render: (data: FriendGroupDetailResponse) => ReactNode;
+}) {
+  const { data } = useFriendGroupDetail(slug);
+  if (data.viewerStatus === "pending") {
+    return <PendingApprovalStub data={data} />;
+  }
+  return render(data);
 }
 
 function PendingApprovalStub({ data }: { data: FriendGroupDetailResponse }) {
@@ -128,6 +159,7 @@ function FriendGroupShell({
         active={active}
         tradesBadge={tradesActionCount}
         membersBadge={pendingRequestCount}
+        showChecks={isJudge(data.viewerRole)}
       />
 
       {children}
@@ -140,12 +172,15 @@ function GroupNav({
   active,
   tradesBadge,
   membersBadge,
+  showChecks,
 }: {
   slug: string;
   active: GroupPage;
   tradesBadge: number;
   membersBadge: number;
+  showChecks: boolean;
 }) {
+  const checksEnabled = useFeatureEnabled("deck-check");
   return (
     <nav className="flex gap-1 border-b">
       <GroupNavLink
@@ -174,6 +209,14 @@ function GroupNav({
         badge={membersBadge}
         isActive={active === "members"}
       />
+      {checksEnabled && showChecks ? (
+        <GroupNavLink
+          to="/groups/$slug/checks"
+          slug={slug}
+          label="Events"
+          isActive={active === "checks"}
+        />
+      ) : null}
     </nav>
   );
 }
@@ -185,7 +228,12 @@ function GroupNavLink({
   badge = 0,
   isActive,
 }: {
-  to: "/groups/$slug" | "/groups/$slug/trades" | "/groups/$slug/shared" | "/groups/$slug/members";
+  to:
+    | "/groups/$slug"
+    | "/groups/$slug/trades"
+    | "/groups/$slug/shared"
+    | "/groups/$slug/members"
+    | "/groups/$slug/checks";
   slug: string;
   label: string;
   badge?: number;
