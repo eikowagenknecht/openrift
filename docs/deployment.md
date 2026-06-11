@@ -348,6 +348,13 @@ apt install -y nginx
 scp nginx/openrift.conf openrift@VPS:~/openrift/
 scp nginx/preview.openrift.conf openrift@VPS:~/openrift-preview/
 
+# Files the configs reference via absolute paths (maintenance page,
+# Cloudflare real-IP ranges). The VPS has no git checkout, so re-run these
+# scp commands whenever one of the files changes in the repo.
+ssh openrift@VPS 'mkdir -p ~/openrift/nginx ~/openrift-preview/nginx'
+scp nginx/maintenance.html nginx/cloudflare-realip.conf openrift@VPS:~/openrift/nginx/
+scp nginx/maintenance.html nginx/cloudflare-realip.conf openrift@VPS:~/openrift-preview/nginx/
+
 # On the server, symlink them
 ln -s /home/openrift/openrift/openrift.conf /etc/nginx/sites-enabled/openrift.app
 ln -s /home/openrift/openrift-preview/preview.openrift.conf /etc/nginx/sites-enabled/preview.openrift.app
