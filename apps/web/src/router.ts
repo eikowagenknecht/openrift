@@ -4,6 +4,7 @@ import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query
 import { RouterErrorFallback } from "./components/error-fallback";
 import { NotFoundFallback } from "./components/error-message";
 import { createQueryClient } from "./lib/query-client";
+import { initVersionStaleNavigationReload } from "./lib/stale-bundle-reload";
 import { routeTree } from "./routeTree.gen";
 
 export function getRouter() {
@@ -30,13 +31,10 @@ export function getRouter() {
     })();
     // Soft bundle-staleness (X-Build-Id mismatch) surfaces as a toast rather
     // than an instant reload; this reloads on the next navigation for users who
-    // don't tap it. Dynamic import keeps stale-bundle (and sonner) out of the
-    // SSR bundle — it resolves to the same module instance the client entry
-    // inits, so the navigation handler reads the flag the fetch watcher sets.
-    void (async () => {
-      const { initVersionStaleNavigationReload } = await import("./lib/stale-bundle");
-      initVersionStaleNavigationReload(router);
-    })();
+    // don't tap it. stale-bundle-reload is sonner-free, so importing it
+    // statically keeps the toast library out of the SSR bundle while sharing
+    // the new-version flag the fetch watcher (client.tsx) sets.
+    initVersionStaleNavigationReload(router);
   }
 
   return router;

@@ -1,6 +1,13 @@
 import { toast } from "sonner";
 
 import { COMMIT_HASH } from "./env";
+import {
+  _resetReloadStateForTesting,
+  clearReloadFlag,
+  forceReload,
+  markNewVersionAvailable,
+  setStaleNotifier,
+} from "./stale-bundle-reload";
 
 // Two failure modes are handled here, but they get different treatment because
 // they mean different things to the user:
@@ -24,32 +31,22 @@ import { COMMIT_HASH } from "./env";
 //      error / unhandledrejection events (initChunkErrorReloader). There's
 //      nothing to preserve, so reload immediately.
 //
-// The sessionStorage flag ensures automatic reloads don't loop: if the reload
-// itself loads a stale bundle (e.g. the Cloudflare edge still serving pre-deploy
-// HTML inside its max-age/swr window), the second automatic detection falls
-// back to the toast instead of reloading forever. The flag only gates
-// *automatic* reloads — the toast's Reload button always goes through (each
-// attempt costs a deliberate click, so it can't loop) — and it is cleared again
-// once an API response confirms the running bundle is current, re-arming the
-// single automatic reload for the next deploy.
+// This file holds the detection half, which depends on sonner for the toast.
+// The reload mechanics — the loop guard, the new-version flag, the
+// navigation-triggered reload, and the chunk-error reloader — live in
+// stale-bundle-reload.ts, which router.ts and sentry-client.ts import
+// statically without dragging sonner into the SSR bundle. See that file for
+// how the loop guard works.
 
-const RELOAD_FLAG = "openrift:reload-attempted";
 const NEW_VERSION_TOAST_ID = "openrift:new-version";
-
-// Set once a soft-staleness signal (X-Build-Id mismatch) is seen. Drives both
-// the toast dedupe and the navigation-triggered reload, and is read by the
-// fetch watcher, the visibility ping, and the router subscription — they share
-// one module instance in the client bundle, so the flag is genuinely global.
-let newVersionAvailable = false;
 
 // Soft staleness: the page works but is out of date. Prompt instead of yanking
 // the page away. Idempotent — repeated mismatches (every subsequent API call
 // keeps returning the new build id) reuse the same toast and don't re-flag.
 function announceNewVersion(reason: string): void {
-  if (newVersionAvailable) {
+  if (!markNewVersionAvailable()) {
     return;
   }
-  newVersionAvailable = true;
   console.warn(`[stale-bundle] ${reason} — prompting to reload for the new version`);
   toast("A new version of OpenRift is available.", {
     id: NEW_VERSION_TOAST_ID,
@@ -63,56 +60,12 @@ function announceNewVersion(reason: string): void {
   });
 }
 
-// User-initiated reload: always goes through. The RELOAD_FLAG loop guard exists
-// to stop runaway automatic reloads; a click costs deliberate user action per
-// attempt, so even a still-stale edge cache can't turn it into a loop.
-function forceReload(reason: string): void {
-  if (globalThis.window === undefined) {
-    return;
-  }
-  console.warn(`[stale-bundle] ${reason} — user-initiated reload`);
-  globalThis.location.reload();
-}
-
-// An API response confirmed the running bundle is the live build, so any
-// earlier reload attempt succeeded — drop the loop guard so the next deploy
-// gets its one automatic reload again. Without this, the flag outlives the
-// stale period (sessionStorage survives reloads) and permanently disables
-// auto-recovery for the rest of the tab session.
-function clearReloadFlag(): void {
-  try {
-    sessionStorage.removeItem(RELOAD_FLAG);
-  } catch {
-    // sessionStorage unavailable — nothing to clear.
-  }
-}
-
-function reloadOnce(reason: string): void {
-  if (globalThis.window === undefined) {
-    return;
-  }
-  try {
-    if (sessionStorage.getItem(RELOAD_FLAG) === "1") {
-      // Auto-reload already spent (it evidently landed on a still-stale page,
-      // e.g. the edge cache's swr window). Don't reload again on our own —
-      // surface the toast so the user keeps a working manual recovery path.
-      console.warn(
-        `[stale-bundle] ${reason} — auto-reload already attempted this session, prompting instead`,
-      );
-      announceNewVersion(reason);
-      return;
-    }
-    sessionStorage.setItem(RELOAD_FLAG, "1");
-  } catch {
-    // sessionStorage may be unavailable (private mode quotas, sandboxed iframe).
-    // Without the flag an automatic reload could loop, so fall back to the
-    // toast: the user can still recover manually, one click per attempt.
-    announceNewVersion(reason);
-    return;
-  }
-  console.warn(`[stale-bundle] ${reason} — reloading to pick up new bundle`);
-  globalThis.location.reload();
-}
+// Blocked automatic reloads (spent loop guard, broken sessionStorage) fall
+// back to prompting the user. The reload module can't import the toast — that
+// would put sonner right back into the SSR graph — so hand it the prompt here,
+// at import time: client.tsx imports this module at the top of the entry, so
+// the notifier is installed before any listener or subscription can fire.
+setStaleNotifier(announceNewVersion);
 
 export function initStaleBundleWatcher(): void {
   if (globalThis.window === undefined || !COMMIT_HASH) {
@@ -135,94 +88,6 @@ export function initStaleBundleWatcher(): void {
     }
     return response;
   };
-}
-
-// Soft staleness recovers on the next navigation rather than immediately, so a
-// user who ignores the toast still ends up on the new bundle the moment they
-// move around. Subscribing to `onResolved` means the client-side navigation has
-// already settled and the URL bar holds the destination, so reloadOnce() loads
-// the page the user actually wanted — with the fresh bundle. Hard staleness
-// does not go through here; it reloads on the spot.
-interface RouterSubscribe {
-  subscribe: (eventType: "onResolved", callback: () => void) => () => void;
-}
-
-export function initVersionStaleNavigationReload(router: RouterSubscribe): void {
-  if (globalThis.window === undefined) {
-    return;
-  }
-  router.subscribe("onResolved", () => {
-    if (newVersionAvailable) {
-      reloadOnce("new version pending — reloading on navigation");
-    }
-  });
-}
-
-// Each browser phrases the dynamic-import failure differently:
-//   Chrome:  "Failed to fetch dynamically imported module"
-//   Firefox: "error loading dynamically imported module"
-//   Safari:  "Importing a module script failed"
-// Also matches webpack-style ChunkLoadError / "Loading chunk N failed" for any
-// future bundler that emits them. Shared with sentry-client.ts so the same
-// errors that trigger an auto-reload are filtered out of Sentry as one source
-// of truth — every session sees one event before the reload fires; without this
-// filter, the issue tracker fills up with auto-recovered noise.
-export const CHUNK_LOAD_ERROR_PATTERN =
-  /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|ChunkLoadError|Loading chunk \d+ failed/u;
-
-// `throw undefined` (or null, or empty string) inside an event handler / async
-// callback escapes React error boundaries and produces a white page. We can't
-// reproduce reliably (cache- or state-related; F5 fixes it), so trade UX for
-// resilience: when the global handler sees a same-origin bare throw, reload
-// once. The session-scoped flag in reloadOnce() prevents loops if the bare
-// throw fires again immediately after reload.
-function isSameOriginBareThrow(event: ErrorEvent): boolean {
-  if (event.error !== undefined && event.error !== null && event.error !== "") {
-    return false;
-  }
-  // Filter to our own bundle: cross-origin (browser extensions, Sentry, etc.)
-  // get sanitized to event.error === undefined + empty/foreign filename. Only
-  // reload when we're confident it's our code.
-  return event.filename?.startsWith(globalThis.location.origin) === true;
-}
-
-function isBareRejection(reason: unknown): boolean {
-  return reason === undefined || reason === null || reason === "";
-}
-
-// Install-once guard: repeated calls (only tests do this — client.tsx calls
-// once per page load) must not stack duplicate listeners, which would make a
-// single chunk failure run the reload logic multiple times. Deliberately NOT
-// reset by _resetReloadFlagForTesting: the one installed listener pair stays
-// live for the whole test file and reads the (reset) module state at call time.
-let chunkErrorReloaderInstalled = false;
-
-export function initChunkErrorReloader(): void {
-  if (globalThis.window === undefined || chunkErrorReloaderInstalled) {
-    return;
-  }
-  chunkErrorReloaderInstalled = true;
-  const isChunkLoadError = (message: string): boolean => CHUNK_LOAD_ERROR_PATTERN.test(message);
-  globalThis.addEventListener("error", (event) => {
-    if (isChunkLoadError(event.message)) {
-      reloadOnce(`chunk load error: ${event.message}`);
-      return;
-    }
-    if (isSameOriginBareThrow(event)) {
-      reloadOnce(`bare throw at ${event.filename}:${event.lineno}`);
-    }
-  });
-  globalThis.addEventListener("unhandledrejection", (event) => {
-    const reason = event.reason;
-    const message = reason instanceof Error ? reason.message : String(reason ?? "");
-    if (isChunkLoadError(message)) {
-      reloadOnce(`chunk load error: ${message}`);
-      return;
-    }
-    if (isBareRejection(reason)) {
-      reloadOnce(`bare promise rejection (${String(reason)})`);
-    }
-  });
 }
 
 // Idle tabs (e.g. left open on the rules page overnight) make no API calls,
@@ -261,16 +126,11 @@ export function initVisibilityVersionCheck(): void {
   });
 }
 
-// Test-only escape hatches — Vitest can't easily clear sessionStorage or
-// module state in jsdom between cases without leaking across files.
+// Test-only escape hatch — Vitest can't easily clear sessionStorage or module
+// state in jsdom between cases without leaking across files. Resets this
+// module's throttle and delegates to stale-bundle-reload.ts for the loop guard
+// and the new-version flag.
 export function _resetReloadFlagForTesting(): void {
-  if (globalThis.window !== undefined) {
-    try {
-      sessionStorage.removeItem(RELOAD_FLAG);
-    } catch {
-      // ignore
-    }
-  }
+  _resetReloadStateForTesting();
   lastVisibilityCheckMs = 0;
-  newVersionAvailable = false;
 }

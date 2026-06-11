@@ -3,7 +3,7 @@ import type { ErrorInfo } from "react";
 
 import { COMMIT_HASH, PROD } from "./env";
 import { drainHydrationErrors } from "./hydration-error-buffer";
-import { CHUNK_LOAD_ERROR_PATTERN } from "./stale-bundle";
+import { CHUNK_LOAD_ERROR_PATTERN } from "./stale-bundle-reload";
 
 type TanstackRouter = Parameters<typeof Sentry.tanstackRouterBrowserTracingIntegration>[0];
 

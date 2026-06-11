@@ -5,11 +5,8 @@ import { hydrateRoot } from "react-dom/client";
 import { bufferHydrationError } from "./lib/hydration-error-buffer";
 import type { HydrationErrorPhase } from "./lib/hydration-error-buffer";
 import { preventIOSOverscroll } from "./lib/ios-overscroll-prevention";
-import {
-  initChunkErrorReloader,
-  initStaleBundleWatcher,
-  initVisibilityVersionCheck,
-} from "./lib/stale-bundle";
+import { initStaleBundleWatcher, initVisibilityVersionCheck } from "./lib/stale-bundle";
+import { initChunkErrorReloader } from "./lib/stale-bundle-reload";
 
 if (import.meta.env.DEV && !import.meta.env.VITE_DISABLE_DEVTOOLS) {
   const { scan } = await import("react-scan");

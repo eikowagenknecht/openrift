@@ -1,14 +1,21 @@
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+// Covers both halves of the stale-bundle split: detection + toast in
+// stale-bundle.ts, reload mechanics in stale-bundle-reload.ts. They form one
+// feature (the loop-guard tests deliberately drive both), so they share this
+// file. Importing ./stale-bundle also installs the reload module's stale
+// notifier, exactly like the real entry does.
 import {
   _resetReloadFlagForTesting,
-  CHUNK_LOAD_ERROR_PATTERN,
-  initChunkErrorReloader,
   initStaleBundleWatcher,
-  initVersionStaleNavigationReload,
   initVisibilityVersionCheck,
 } from "./stale-bundle";
+import {
+  CHUNK_LOAD_ERROR_PATTERN,
+  initChunkErrorReloader,
+  initVersionStaleNavigationReload,
+} from "./stale-bundle-reload";
 
 vi.mock("sonner", () => ({ toast: vi.fn() }));
 
