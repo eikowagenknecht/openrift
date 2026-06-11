@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-06-11
+
+- fix: Downloading a wish or trade list as a card image now works again, instead of failing with "Couldn't prepare the image."
+- fix: Sharing a wish or trade list link to a chat like WhatsApp or Discord again shows the card preview, which had been missing from the unfurled link
+
 ## 2026-06-10
 
 - fix: Newly added cards now show up in the card browser right away. Before, the page could briefly show a new card while loading and then drop it again, because the full card list came from a cache that updated only once an hour
