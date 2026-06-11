@@ -1,6 +1,5 @@
 import interLatinWoff2 from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
 import type { Palette } from "@openrift/shared";
-import { PALETTES } from "@openrift/shared";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import { pacerDevtoolsPlugin } from "@tanstack/react-pacer-devtools";
 import type { QueryClient } from "@tanstack/react-query";
@@ -29,6 +28,11 @@ import { sessionQueryOptions } from "@/lib/auth-session";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { runtimeConfigScript } from "@/lib/runtime-config";
 import { organizationJsonLd } from "@/lib/seo";
+import {
+  readClientCookie,
+  resolvePaletteFromCookie,
+  resolveThemeFromCookie,
+} from "@/lib/shell-prefs";
 import { getIsPreview, getSiteUrl } from "@/lib/site-config";
 import { siteSettingsQueryOptions } from "@/lib/site-settings";
 import { SOCIAL_LINKS } from "@/lib/social-links";
@@ -39,46 +43,19 @@ import indexCss from "@/index.css?url";
 
 // Server function that reads the theme cookie and resolves it to "light" or
 // "dark". Returns the resolved theme so `shellComponent` can apply the correct
-// class to <html> on the very first byte (no FOUC).
-const getServerTheme = createServerFn({ method: "GET" }).handler((): "light" | "dark" => {
-  const raw = getCookie("theme");
-  if (!raw) {
-    return "light";
-  }
-  try {
-    const parsed = JSON.parse(raw);
-    const preference: string | undefined = parsed?.state?.preference;
-    if (preference === "dark") {
-      return "dark";
-    }
-    // "auto" or missing preference — server can't check matchMedia, default
-    // to "light". The client-side blocking script below corrects this if the
-    // user's OS prefers dark mode.
-    return "light";
-  } catch {
-    return "light";
-  }
-});
+// class to <html> on the very first byte (no FOUC). Only invoked during SSR —
+// client navigations resolve the same cookie locally in beforeLoad.
+const getServerTheme = createServerFn({ method: "GET" }).handler((): "light" | "dark" =>
+  resolveThemeFromCookie(getCookie("theme")),
+);
 
 // Server function that reads the palette cookie. The cookie may not exist
 // (first-time visitors) — default to PREFERENCE_DEFAULTS.palette. Unknown
 // values are clamped so untrusted cookie content never reaches the DOM.
-const getServerPalette = createServerFn({ method: "GET" }).handler((): Palette => {
-  const raw = getCookie("palette");
-  if (!raw) {
-    return "default";
-  }
-  try {
-    const parsed = JSON.parse(raw);
-    const preference: unknown = parsed?.state?.preference;
-    if (typeof preference === "string" && (PALETTES as readonly string[]).includes(preference)) {
-      return preference as Palette;
-    }
-    return "default";
-  } catch {
-    return "default";
-  }
-});
+// Only invoked during SSR, same as getServerTheme.
+const getServerPalette = createServerFn({ method: "GET" }).handler(
+  (): Palette => resolvePaletteFromCookie(getCookie("palette")),
+);
 
 // Reads the Sentry DSN from the server environment so it can be inlined into
 // the SSR shell on `globalThis.__OPENRIFT_CONFIG__` and picked up by the
@@ -176,26 +153,42 @@ export const Route = createRootRouteWithContext<{
         throw redirect({ to: "/cards" });
       }
     }
+    const flagsReady = (async () => {
+      try {
+        await context.queryClient.ensureQueryData(featureFlagsQueryOptions);
+      } catch {
+        // Feature flags are non-critical — seed cache with empty defaults so
+        // useSuspenseQuery in components doesn't re-throw the cached error.
+        context.queryClient.setQueryData(featureFlagsQueryOptions.queryKey, {});
+      }
+    })();
+    const settingsReady = (async () => {
+      try {
+        await context.queryClient.ensureQueryData(siteSettingsQueryOptions);
+      } catch {
+        context.queryClient.setQueryData(siteSettingsQueryOptions.queryKey, {});
+      }
+    })();
+    // beforeLoad re-runs on EVERY navigation, including search-param-only
+    // ones (filter clicks, search-as-you-type) and intent preloads, and the
+    // navigation blocks until it resolves. The three shell values must
+    // therefore never go over the network on the client — the browser
+    // already has the theme/palette cookies and the SSR-inlined runtime
+    // config, while a round trip here stalls every interaction by the full
+    // client→server latency (multi-second freezes on slow connections).
+    if (globalThis.window !== undefined) {
+      const resolvedTheme = resolveThemeFromCookie(readClientCookie("theme"));
+      const resolvedPalette = resolvePaletteFromCookie(readClientCookie("palette"));
+      const sentryDsn = globalThis.__OPENRIFT_CONFIG__?.sentryDsn ?? "";
+      await Promise.all([flagsReady, settingsReady]);
+      return { resolvedTheme, resolvedPalette, sentryDsn };
+    }
     const [resolvedTheme, resolvedPalette, sentryDsn] = await Promise.all([
       getServerTheme(),
       getServerPalette(),
       getServerSentryDsn(),
-      (async () => {
-        try {
-          await context.queryClient.ensureQueryData(featureFlagsQueryOptions);
-        } catch {
-          // Feature flags are non-critical — seed cache with empty defaults so
-          // useSuspenseQuery in components doesn't re-throw the cached error.
-          context.queryClient.setQueryData(featureFlagsQueryOptions.queryKey, {});
-        }
-      })(),
-      (async () => {
-        try {
-          await context.queryClient.ensureQueryData(siteSettingsQueryOptions);
-        } catch {
-          context.queryClient.setQueryData(siteSettingsQueryOptions.queryKey, {});
-        }
-      })(),
+      flagsReady,
+      settingsReady,
     ]);
     return { resolvedTheme, resolvedPalette, sentryDsn };
   },

@@ -5,6 +5,7 @@
 - feat: The deck list's search and filter bar now stays pinned to the top as you scroll, so you can refine the list without scrolling back up
 - feat: A group's overview now splits collections into separate tiles for the group's own collections and members' shared collections, shows how many of your collections you've shared so far, and puts the new-collection, share, and invite buttons right on the matching tile
 - feat: The Share button on a wishlist or trade list now sits in the top action row, so you can share a list in one tap instead of opening the three-dot menu first
+- fix: Clicking filters or moving between pages no longer freezes for seconds (or got stuck entirely) on slower connections. Every click was silently waiting for the server to confirm your theme settings before the page would respond
 - fix: When a new version is released while you have the app open, it now shows a notice with a Reload button instead of refreshing the page on its own, so an update no longer interrupts what you're doing
 - fix: When adding or removing a card fails (for example if your connection drops), the error now stands out in red and stays on screen until you dismiss it, instead of looking like a normal "added" message and disappearing before you notice
 - fix: On collection statistics, the cheapest and most expensive printing cards now keep their proper card shape on narrow screens, and the two stack into a single column so each has room
