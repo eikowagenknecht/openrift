@@ -13,6 +13,8 @@ import {
 } from "@opentelemetry/semantic-conventions";
 import { createMiddleware } from "@tanstack/react-start";
 
+import { contextWithClientIp } from "@/lib/server-fns/client-ip-context";
+
 const tracer = trace.getTracer("openrift-web/http");
 
 const SERVER_FN_PREFIX = "/_serverFn/";
@@ -100,6 +102,16 @@ export const otelRequestMiddleware = createMiddleware().server(({ next, request 
     }
   }
 
+  // The real visitor IP, restored by the host nginx (CF-Connecting-IP via the
+  // realip module) and forwarded as X-Real-IP. Stashed on the OTel context so
+  // outbound API calls (fetchApi / serverApiClient) forward it to the API,
+  // whose logs and rate limiters key on it. Absent for internal requests
+  // (health checks hit the container directly, cache warmers have no request).
+  const clientIp = request.headers.get("x-real-ip") ?? "";
+  if (clientIp !== "") {
+    attributes["client.address"] = clientIp;
+  }
+
   const span = tracer.startSpan(
     spanName,
     {
@@ -109,7 +121,12 @@ export const otelRequestMiddleware = createMiddleware().server(({ next, request 
     parentCtx,
   );
 
-  return context.with(trace.setSpan(parentCtx, span), async () => {
+  let activeCtx = trace.setSpan(parentCtx, span);
+  if (clientIp !== "") {
+    activeCtx = contextWithClientIp(activeCtx, clientIp);
+  }
+
+  return context.with(activeCtx, async () => {
     try {
       const result = await next();
       span.end();

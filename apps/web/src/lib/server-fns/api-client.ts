@@ -6,6 +6,7 @@ import { hc } from "hono/client";
 
 import { apiErrorFromResponse } from "./api-error";
 import { API_URL } from "./api-url";
+import { activeClientIp } from "./client-ip-context";
 
 /**
  * Typed Hono RPC client for the API, bound to one SSR request's cookie.
@@ -32,6 +33,13 @@ export function serverApiClient(cookie?: string) {
       // Inject W3C traceparent so the API can continue the trace started by the
       // web server-side middleware. No-op when no span is active.
       propagation.inject(context.active(), headers);
+      // Forward the real visitor IP (lifted onto the request context by
+      // middleware/otel-request.ts) so the API's logs and rate limiters see
+      // the user, not the web container. Absent outside a request scope.
+      const clientIp = activeClientIp();
+      if (clientIp !== undefined) {
+        headers["x-real-ip"] = clientIp;
+      }
       return headers;
     },
   });

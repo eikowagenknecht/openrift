@@ -2,6 +2,7 @@ import { context, propagation } from "@opentelemetry/api";
 
 import { apiErrorFromResponse } from "./api-error";
 import { API_URL } from "./api-url";
+import { activeClientIp } from "./client-ip-context";
 
 interface FetchApiOptions {
   // Full, user-facing sentence for the Sonner toast on failure (e.g. "Couldn't delete collection").
@@ -51,6 +52,13 @@ export async function fetchApi(options: FetchApiOptions): Promise<Response> {
   // web server-side middleware. No-op when no span is active (OTel SDK not
   // started, or this call is outside a request context).
   propagation.inject(context.active(), headers);
+  // Forward the real visitor IP (lifted onto the request context by
+  // middleware/otel-request.ts) so the API's logs and rate limiters see the
+  // user, not the web container. Absent outside a request scope.
+  const clientIp = activeClientIp();
+  if (clientIp !== undefined) {
+    headers["x-real-ip"] = clientIp;
+  }
   const res = await fetch(url, {
     method,
     headers,

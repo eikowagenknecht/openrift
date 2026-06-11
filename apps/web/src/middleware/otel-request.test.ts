@@ -8,6 +8,8 @@ import {
 } from "@opentelemetry/sdk-trace-base";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
+import { activeClientIp } from "@/lib/server-fns/client-ip-context";
+
 import { otelRequestMiddleware } from "./otel-request";
 
 const exporter = new InMemorySpanExporter();
@@ -100,6 +102,42 @@ describe("otelRequestMiddleware (web)", () => {
     const span = exporter.getFinishedSpans()[0];
     expect(span?.status.code).toBe(2);
     expect(span?.events.some((event) => event.name === "exception")).toBe(true);
+  });
+
+  it("lifts the X-Real-IP header onto the context for outbound API calls", async () => {
+    let seenDuringRequest: string | undefined;
+
+    await handler({
+      request: new Request("https://example.com/cards", {
+        headers: { "x-real-ip": "203.0.113.7" },
+      }),
+      next: async () => {
+        seenDuringRequest = activeClientIp();
+        return undefined;
+      },
+    } as never);
+
+    expect(seenDuringRequest).toBe("203.0.113.7");
+    const span = exporter.getFinishedSpans()[0];
+    expect(span?.attributes["client.address"]).toBe("203.0.113.7");
+    // Must not leak outside the request scope.
+    expect(activeClientIp()).toBeUndefined();
+  });
+
+  it("leaves the context IP unset when the request has no X-Real-IP", async () => {
+    let seenDuringRequest: string | undefined = "sentinel";
+
+    await handler({
+      request: new Request("https://example.com/cards"),
+      next: async () => {
+        seenDuringRequest = activeClientIp();
+        return undefined;
+      },
+    } as never);
+
+    expect(seenDuringRequest).toBeUndefined();
+    const span = exporter.getFinishedSpans()[0];
+    expect(span?.attributes["client.address"]).toBeUndefined();
   });
 
   it("makes the active span available to propagation.inject (for outbound fetch)", async () => {
