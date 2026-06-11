@@ -57,6 +57,9 @@ purge_cloudflare_cache() {
   zone="${zone%\"}"; zone="${zone#\"}"; zone="${zone%$'\r'}"
 
   if [ -z "$token" ] || [ -z "$zone" ]; then
+    # Deliberate on the preview instance: preview shares the openrift.app zone,
+    # and purge_everything would evict stable's warm edge cache on every push
+    # to main. Only the stable instance's .env carries the Cloudflare creds.
     echo "==> CLOUDFLARE_API_TOKEN / CLOUDFLARE_ZONE_ID not set in .env; skipping cache purge."
     return 0
   fi

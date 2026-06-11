@@ -43,7 +43,10 @@ The `deploy.sh` on the VPS is minimal — no git operations, no building:
 
 1. Pulls pre-built images from GHCR (the `IMAGE_TAG` in `.env` controls which tag)
 2. Restarts services (migrations run automatically on api startup)
-3. Cleans up old images
+3. Purges the Cloudflare edge cache (anonymous HTML shells are edge-cached, see ADR-016), using `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ZONE_ID` from `.env`
+4. Cleans up old images
+
+The **preview instance intentionally has no Cloudflare credentials** in its `.env`, so its deploys skip the purge. Preview shares the `openrift.app` zone, and the API only offers `purge_everything` — a purge on every push to main would evict stable's warm edge cache. The trade-off: preview can serve a stale HTML shell for up to ~1h (`stale-while-revalidate` window) after a deploy.
 
 ### Startup Sequence
 
