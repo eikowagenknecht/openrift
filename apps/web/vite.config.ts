@@ -221,6 +221,11 @@ export default defineConfig(({ mode, command }) => {
     build: {
       target: "es2024",
       sourcemap: true,
+      // Never inline fonts as base64 data: URIs. Small @fontsource subsets fall
+      // below the default 4 KB assetsInlineLimit and get inlined, which the
+      // production CSP (`font-src 'self'`) then blocks because it forbids the
+      // data: scheme. Keeping fonts as same-origin files satisfies the policy.
+      assetsInlineLimit: (filePath: string) => !/\.(?:woff2?|ttf|otf|eot)$/u.test(filePath),
       rolldownOptions: {
         output: {
           codeSplitting: {
