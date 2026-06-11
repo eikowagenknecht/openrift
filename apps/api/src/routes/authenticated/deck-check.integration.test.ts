@@ -470,9 +470,12 @@ describe.skipIf(!ownerCtx)("deck-check routes (integration, ADR-025)", () => {
     });
 
     it("splices the removed copy's tick, keeping the other cells", async () => {
-      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-1");
+      // Dedicated entry so earlier re-push tests can't change the quantity.
+      await push([entryPayload({ externalId: "entry-splice", playerName: "S. Plice" })]);
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-splice");
       const cards = await repos.deckCheck.listCardsForEntry(entry!.id);
       const line = cards[0]!;
+      expect(line.quantity).toBe(3);
 
       // Tick copies 1 and 3 (indexes 0 and 2), then remove copy 1.
       await repos.deckCheck.setCardCopyFound(entry!.id, line.id, 0, true);
