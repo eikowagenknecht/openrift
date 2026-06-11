@@ -217,41 +217,43 @@ export function ListPage({ listId }: ListPageProps) {
       attribution={{ kind: "shares" }}
       onToggleSidebar={toggleSidebar}
       actions={
-        <DropdownMenu>
-          <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
-            <EllipsisVerticalIcon className="size-4" />
-            <span className="sr-only">List actions</span>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setEditOpen(true)}>
-              <PencilIcon className="size-4" />
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setShareOpen(true)}>
-              <Share2Icon className="size-4" />
-              Share
-            </DropdownMenuItem>
-            {data.list.kind === "card" && (
-              <>
-                <DropdownMenuItem onClick={() => setImportOpen(true)}>
-                  <UploadIcon className="size-4" />
-                  Import
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setExportOpen(true)}>
-                  <DownloadIcon className="size-4" />
-                  Export
-                </DropdownMenuItem>
-              </>
-            )}
-            <DropdownMenuItem
-              className="text-destructive focus:text-destructive"
-              onClick={() => setDeleteOpen(true)}
-            >
-              <Trash2Icon className="size-4" />
-              Delete list
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <>
+          <Button variant="outline" size="sm" onClick={() => setShareOpen(true)}>
+            <Share2Icon className="size-4" />
+            Share
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
+              <EllipsisVerticalIcon className="size-4" />
+              <span className="sr-only">List actions</span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                <PencilIcon className="size-4" />
+                Edit
+              </DropdownMenuItem>
+              {data.list.kind === "card" && (
+                <>
+                  <DropdownMenuItem onClick={() => setImportOpen(true)}>
+                    <UploadIcon className="size-4" />
+                    Import
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setExportOpen(true)}>
+                    <DownloadIcon className="size-4" />
+                    Export
+                  </DropdownMenuItem>
+                </>
+              )}
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2Icon className="size-4" />
+                Delete list
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </>
       }
     />
   );
