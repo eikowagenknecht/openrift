@@ -2,6 +2,7 @@ import type { FriendGroupDetailResponse } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import {
   FolderIcon,
+  HandshakeIcon,
   PlusIcon,
   Share2Icon,
   SparklesIcon,
@@ -17,79 +18,78 @@ import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/user-avatar";
 import { useTradeActionCounts } from "@/hooks/use-card-trades";
 import { useCollections } from "@/hooks/use-collections";
-import { useFriendGroupMatches } from "@/hooks/use-friend-groups";
+import {
+  useFriendGroupMatches,
+  useFriendGroupShareableCollections,
+} from "@/hooks/use-friend-groups";
+import { useRequiredUserId } from "@/lib/auth-session";
+import { cn } from "@/lib/utils";
 
 import { FriendGroupActivityFeed } from "./friend-group-activity-feed";
 
 /**
- * The group overview / dashboard: quick actions, a row of cards linking to the
- * trades / shared / members pages with at-a-glance counts, and the recent
- * activity feed.
+ * The group overview / dashboard: a row of cards linking to the trades /
+ * shared / members pages with at-a-glance counts, each carrying its own
+ * primary action, followed by the recent activity feed.
  * @returns The overview-page content.
  */
 export function OverviewContent({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
   return (
     <div className="flex flex-col gap-8">
-      <QuickActions data={data} />
       <ActionCards slug={slug} data={data} />
       <FriendGroupActivityFeed slug={slug} />
     </div>
   );
 }
 
-function QuickActions({ data }: { data: FriendGroupDetailResponse }) {
-  const [createOpen, setCreateOpen] = useState(false);
-  return (
-    <div className="flex flex-wrap gap-2">
-      <Button
-        size="sm"
-        variant="outline"
-        render={<Link to="/groups/$slug/manage" params={{ slug: data.group.slug }} />}
-      >
-        <UserPlusIcon className="size-4" />
-        Invite a member
-      </Button>
-      <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>
-        <PlusIcon className="size-4" />
-        New shared collection
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        render={<Link to="/groups/$slug/manage" params={{ slug: data.group.slug }} />}
-      >
-        <Share2Icon className="size-4" />
-        Share a list
-      </Button>
-      <CreateCollectionDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        groupSlug={data.group.slug}
-        groupName={data.group.name}
-      />
-    </div>
-  );
-}
-
 function ActionCards({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
+  const viewerId = useRequiredUserId();
   const { data: matches } = useFriendGroupMatches(slug);
   const { data: actionCounts } = useTradeActionCounts();
   const { data: collections } = useCollections();
+  const { data: shareable } = useFriendGroupShareableCollections(slug);
 
   const tradesActionCount =
     actionCounts?.byGroup.find((entry) => entry.groupId === data.group.id)?.count ?? 0;
   const matchCount = matches.othersHaveYourWants.length + matches.othersWantYourHaves.length;
+
+  // Collections owned by the group itself, vs. members' personal collections
+  // shared into the group. The viewer's own shares live in `collectionShares`
+  // too, so "from members" excludes them by `userId`.
   const groupCollectionCount = collections.filter((col) => col.groupId === data.group.id).length;
-  const sharedCollectionCount = groupCollectionCount + data.collectionShares.length;
-  const sharedListCount = data.shares.filter(
-    (share) => share.listIntent === "wish" || share.listIntent === "trade",
+  const myShareableTotal = shareable.items.length;
+  const mySharedCount = shareable.items.filter((item) => item.sharedAt !== null).length;
+  const memberCollectionCount = data.collectionShares.filter(
+    (share) => share.userId !== viewerId,
   ).length;
+  const memberListCount = data.shares.filter(
+    (share) =>
+      share.userId !== viewerId && (share.listIntent === "wish" || share.listIntent === "trade"),
+  ).length;
+
   const memberCount = data.members.length;
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      <TradesCard slug={slug} count={tradesActionCount} />
-      <ActionCard
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <GroupCollectionsCard slug={slug} data={data} count={groupCollectionCount} />
+      <MemberCollectionsCard
+        slug={slug}
+        sharedCount={mySharedCount}
+        shareableTotal={myShareableTotal}
+        memberCollectionCount={memberCollectionCount}
+        memberListCount={memberListCount}
+      />
+      <MembersCard slug={slug} data={data} memberCount={memberCount} />
+      <StatCard
+        to="/groups/$slug/trades"
+        slug={slug}
+        icon={ZapIcon}
+        label="Trades"
+        value={tradesActionCount}
+        valueClassName={tradesActionCount > 0 ? "text-primary" : undefined}
+        hint={tradesActionCount > 0 ? "to accept, decline, or finish" : "all caught up"}
+      />
+      <StatCard
         to="/groups/$slug/trades"
         slug={slug}
         icon={SparklesIcon}
@@ -97,67 +97,137 @@ function ActionCards({ slug, data }: { slug: string; data: FriendGroupDetailResp
         value={matchCount}
         hint="suggested trades"
       />
-      <ActionCard
-        to="/groups/$slug/shared"
-        slug={slug}
-        icon={FolderIcon}
-        label="Shared"
-        value={sharedCollectionCount}
-        hint={`${sharedCollectionCount === 1 ? "collection" : "collections"} · ${sharedListCount} ${sharedListCount === 1 ? "list" : "lists"}`}
-      />
-      <MembersCard slug={slug} data={data} memberCount={memberCount} />
     </div>
   );
 }
 
-const CARD_CLASS =
-  "bg-card hover:bg-muted flex flex-col gap-1 rounded-lg border p-4 transition-colors";
+type StatCardTarget = "/groups/$slug/trades" | "/groups/$slug/shared" | "/groups/$slug/members";
 
-function ActionCard({
+/**
+ * A dashboard tile: an icon + label, a big value, an optional hint, optional
+ * extra content (e.g. member avatars), and an optional action button. The
+ * label / value / hint area links to `to`; the action sits below it as a
+ * sibling so we never nest a button inside the link.
+ * @returns The tile.
+ */
+function StatCard({
   to,
   slug,
   icon: Icon,
   label,
   value,
+  valueClassName,
   hint,
+  children,
+  action,
 }: {
-  to: "/groups/$slug/trades" | "/groups/$slug/shared";
+  to: StatCardTarget;
   slug: string;
   icon: ComponentType<SVGProps<SVGSVGElement>>;
   label: string;
-  value: number;
-  hint: string;
-}) {
+  value: ReactNode;
+  valueClassName?: string;
+  hint?: ReactNode;
+  children?: ReactNode;
+  action?: ReactNode;
+}): ReactNode {
   return (
-    <Link to={to} params={{ slug }} className={CARD_CLASS}>
-      <span className="text-muted-foreground flex items-center gap-1.5 text-sm">
-        <Icon className="size-4" />
-        {label}
-      </span>
-      <span className="text-2xl font-semibold">{value}</span>
-      <span className="text-muted-foreground text-xs">{hint}</span>
-    </Link>
+    <div className="bg-card flex flex-col gap-2 rounded-lg border p-3">
+      <Link
+        to={to}
+        params={{ slug }}
+        className="hover:bg-muted -m-1 flex flex-1 flex-col gap-1 rounded-md p-1 transition-colors"
+      >
+        <span className="text-muted-foreground flex items-center gap-1.5 text-sm">
+          <Icon className="size-4" />
+          {label}
+        </span>
+        <span className={cn("text-2xl font-semibold", valueClassName)}>{value}</span>
+        {hint ? <span className="text-muted-foreground text-xs">{hint}</span> : null}
+        {children}
+      </Link>
+      {action}
+    </div>
   );
 }
 
-function TradesCard({ slug, count }: { slug: string; count: number }): ReactNode {
-  // Count of trades waiting on the viewer to accept/decline or add to their
-  // collection. The number turns accent while any are waiting; the hint names
-  // the actions so "what needs doing" is clear without clicking in.
-  const active = count > 0;
+function GroupCollectionsCard({
+  slug,
+  data,
+  count,
+}: {
+  slug: string;
+  data: FriendGroupDetailResponse;
+  count: number;
+}): ReactNode {
+  const [createOpen, setCreateOpen] = useState(false);
   return (
-    <Link to="/groups/$slug/trades" params={{ slug }} className={CARD_CLASS}>
-      <span className="text-muted-foreground flex items-center gap-1.5 text-sm">
-        <ZapIcon className="size-4" />
-        Trades
-      </span>
-      <span className={active ? "text-primary text-2xl font-semibold" : "text-2xl font-semibold"}>
-        {count}
-      </span>
-      <span className="text-muted-foreground text-xs">
-        {active ? "to accept, decline, or finish" : "all caught up"}
-      </span>
-    </Link>
+    <StatCard
+      to="/groups/$slug/shared"
+      slug={slug}
+      icon={FolderIcon}
+      label="Group collections"
+      value={count}
+      hint="owned by the group"
+      action={
+        <>
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full"
+            onClick={() => setCreateOpen(true)}
+          >
+            <PlusIcon className="size-4" />
+            New shared collection
+          </Button>
+          <CreateCollectionDialog
+            open={createOpen}
+            onOpenChange={setCreateOpen}
+            groupSlug={data.group.slug}
+            groupName={data.group.name}
+          />
+        </>
+      }
+    />
+  );
+}
+
+function MemberCollectionsCard({
+  slug,
+  sharedCount,
+  shareableTotal,
+  memberCollectionCount,
+  memberListCount,
+}: {
+  slug: string;
+  sharedCount: number;
+  shareableTotal: number;
+  memberCollectionCount: number;
+  memberListCount: number;
+}): ReactNode {
+  const fromMembers = `${memberCollectionCount} from members`;
+  const listsSuffix =
+    memberListCount > 0 ? ` · ${memberListCount} ${memberListCount === 1 ? "list" : "lists"}` : "";
+  return (
+    <StatCard
+      to="/groups/$slug/shared"
+      slug={slug}
+      icon={HandshakeIcon}
+      label="Member collections"
+      value={`${sharedCount} of ${shareableTotal}`}
+      hint={`of yours shared · ${fromMembers}${listsSuffix}`}
+      action={
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full"
+          render={<Link to="/groups/$slug/manage" params={{ slug }} />}
+        >
+          <Share2Icon className="size-4" />
+          Share a list
+        </Button>
+      }
+    />
   );
 }
 
@@ -173,12 +243,24 @@ function MembersCard({
   const shown = data.members.slice(0, 5);
   const extra = memberCount - shown.length;
   return (
-    <Link to="/groups/$slug/members" params={{ slug }} className={CARD_CLASS}>
-      <span className="text-muted-foreground flex items-center gap-1.5 text-sm">
-        <UsersIcon className="size-4" />
-        Members
-      </span>
-      <span className="text-2xl font-semibold">{memberCount}</span>
+    <StatCard
+      to="/groups/$slug/members"
+      slug={slug}
+      icon={UsersIcon}
+      label="Members"
+      value={memberCount}
+      action={
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full"
+          render={<Link to="/groups/$slug/manage" params={{ slug }} />}
+        >
+          <UserPlusIcon className="size-4" />
+          Invite a member
+        </Button>
+      }
+    >
       <span className="flex items-center -space-x-2">
         {shown.map((member) => (
           <UserAvatar
@@ -192,6 +274,6 @@ function MembersCard({
         ))}
         {extra > 0 ? <span className="text-muted-foreground pl-3 text-xs">+{extra}</span> : null}
       </span>
-    </Link>
+    </StatCard>
   );
 }
