@@ -69,7 +69,7 @@ services:
   # `$$` escapes Compose's own variable interpolation so the inner shell
   # sees a literal `$`.
   disk-usage-exporter:
-    image: alpine:3.23
+    image: alpine:3.24
     command:
       - sh
       - -c
@@ -207,7 +207,7 @@ services:
   # stdout via the Docker socket, parses pino JSON, and ships to Loki with
   # trace_id as structured metadata for Tempo ↔ Loki pivots. UI on :12345.
   alloy:
-    image: grafana/alloy:v1.16.2
+    image: grafana/alloy:v1.16.3
     command:
       - "run"
       - "--server.http.listen-addr=0.0.0.0:12345"
