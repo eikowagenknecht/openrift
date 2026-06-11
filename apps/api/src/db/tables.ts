@@ -1,4 +1,10 @@
-import type { DeckCheckChangeSummary, PodPenaltyBreakdown } from "@openrift/shared";
+import type {
+  DeckCheckChangeSummary,
+  DeckCheckEntryStatus,
+  DeckCheckEventStatus,
+  DeckCheckMatchStatus,
+  PodPenaltyBreakdown,
+} from "@openrift/shared";
 import type {
   ActivityAction,
   ArtVariant,
@@ -604,10 +610,6 @@ interface PodByesTable {
 }
 
 // ─── Deck check (migration 149, ADR-025) ─────────────────────────────────────
-
-export type DeckCheckEventStatus = "active" | "archived";
-export type DeckCheckEntryStatus = "unchecked" | "checked" | "issue";
-export type DeckCheckMatchStatus = "matched" | "ambiguous" | "unmatched";
 
 export interface DeckCheckEventsTable {
   id: Generated<string>;

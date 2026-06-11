@@ -43,10 +43,7 @@ export type {
   DeckCheckEventsTable,
   DeckCheckEntriesTable,
   DeckCheckEntryCardsTable,
-  DeckCheckEntryStatus,
-  DeckCheckEventStatus,
   DeckCheckKeysTable,
-  DeckCheckMatchStatus,
   UserPreferencesTable,
   // Reference tables (migration 062)
   DomainsTable,
