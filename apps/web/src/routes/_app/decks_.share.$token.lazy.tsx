@@ -31,6 +31,8 @@ import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getHeaderHeight } from "@/lib/header-height";
+import type { FilterSearch } from "@/lib/search-schemas";
+import { FilterSearchProvider } from "@/lib/search-schemas";
 import { CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
@@ -39,16 +41,24 @@ export const Route = createLazyFileRoute("/_app/decks_/share/$token")({
   component: SharedDeckPage,
 });
 
+// The card detail pane (OwnedCollectionsPopover via PrintingPicker) reads the
+// filter context to build collection links. This page has no filter UI, so an
+// empty value is the whole contract — every FilterSearch field is optional and
+// `view` falls back to the display-store default.
+const EMPTY_FILTER_SEARCH: FilterSearch = {};
+
 function SharedDeckPage() {
   const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
   const topBarHeight = useMeasuredHeight(topBarSlot);
 
   return (
     <PageTopBarHeightContext value={topBarHeight}>
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div ref={setTopBarSlot} className={PAGE_TOP_BAR_STICKY} />
-        <SharedDeckContent topBarSlot={topBarSlot} topBarHeight={topBarHeight} />
-      </div>
+      <FilterSearchProvider value={EMPTY_FILTER_SEARCH}>
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div ref={setTopBarSlot} className={PAGE_TOP_BAR_STICKY} />
+          <SharedDeckContent topBarSlot={topBarSlot} topBarHeight={topBarHeight} />
+        </div>
+      </FilterSearchProvider>
     </PageTopBarHeightContext>
   );
 }
