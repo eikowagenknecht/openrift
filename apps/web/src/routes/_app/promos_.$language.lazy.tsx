@@ -26,9 +26,16 @@ import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { StaticCountTableActions } from "@/components/cards/static-count-table-actions";
 import { SuggestImageOverlay } from "@/components/cards/suggest-image-overlay";
-import { Heading } from "@/components/heading";
 import type { PageTocItem } from "@/components/layout/page-toc";
 import { PageToc } from "@/components/layout/page-toc";
+import {
+  PAGE_TOP_BAR_STICKY,
+  PageTopBar,
+  PageTopBarActions,
+  PageTopBarHeightContext,
+  PageTopBarTitle,
+  useMeasuredHeight,
+} from "@/components/layout/page-top-bar";
 import { MarkdownText } from "@/components/markdown-text";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
@@ -58,7 +65,7 @@ import { asPromoGrouping, groupByCard, groupByMarker, groupByYear } from "@/lib/
 import type { ChannelNode } from "@/lib/promos-tree";
 import { computeLanguageAggregates } from "@/lib/promos-tree";
 import { FilterSearchProvider } from "@/lib/search-schemas";
-import { cn, PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
@@ -279,6 +286,8 @@ function PromosPage() {
   // renders without owned counts (and ignores any owned filter) and the data
   // pops in once the client takes over.
   const hydrated = useHydrated();
+  const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
+  const topBarHeight = useMeasuredHeight(topBarSlot);
   const [ownedCountByPrinting, setOwnedCountByPrinting] = useState<
     Record<string, number> | undefined
   >();
@@ -435,135 +444,141 @@ function PromosPage() {
   };
 
   return (
-    <div className={PAGE_PADDING}>
+    <PageTopBarHeightContext value={topBarHeight}>
       {hydrated && <OwnedCountBridge enabled={fetchOwned} onChange={setOwnedCountByPrinting} />}
-      <div className="mb-6">
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-          <Heading level={1}>Promos</Heading>
-          {presentLanguages.length > 1 ? (
-            <Select
-              items={languageItems}
-              value={activeLanguage}
-              onValueChange={handleLanguageChange}
-            >
-              <SelectTrigger size="sm" aria-label="Language">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {languageItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <span className="text-muted-foreground text-sm">
-              {languageLabelMap.get(activeLanguage) ?? activeLanguage}
-            </span>
+      <div ref={setTopBarSlot} className={PAGE_TOP_BAR_STICKY}>
+        <PageTopBar>
+          <PageTopBarTitle>Promos</PageTopBarTitle>
+          <PageTopBarActions>
+            {presentLanguages.length > 1 ? (
+              <Select
+                items={languageItems}
+                value={activeLanguage}
+                onValueChange={handleLanguageChange}
+              >
+                <SelectTrigger aria-label="Language">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {languageItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <span className="text-muted-foreground text-sm">
+                {languageLabelMap.get(activeLanguage) ?? activeLanguage}
+              </span>
+            )}
+          </PageTopBarActions>
+        </PageTopBar>
+      </div>
+      <div className={PAGE_PADDING_NO_TOP}>
+        <div className="mb-6">
+          <p className="text-muted-foreground text-sm">
+            Promos are all the cards you can&apos;t get by just opening booster packs. Two things
+            vary across them: <strong className="font-semibold">how they look</strong>, shown as
+            markers below each card (like &ldquo;Promo&rdquo; or &ldquo;Champion&rdquo;), and{" "}
+            <strong className="font-semibold">where you can get them</strong>, which is how the
+            sections below are organized (tournament prizes, event exclusives, bundles, or promo
+            packs).
+          </p>
+          {activeAggregate && (
+            <p className="text-muted-foreground mt-2 text-sm">
+              {formatLanguageAggregate(
+                languageLabelMap.get(activeLanguage) ?? activeLanguage,
+                activeAggregate.printingCount,
+                activeAggregate.cardCount,
+              )}{" "}
+              Spotted a missing promo?{" "}
+              <Link to="/contribute" className="text-primary hover:underline">
+                Suggest one
+              </Link>
+              .
+            </p>
           )}
         </div>
-        <p className="text-muted-foreground text-sm">
-          Promos are all the cards you can&apos;t get by just opening booster packs. Two things vary
-          across them: <strong className="font-semibold">how they look</strong>, shown as markers
-          below each card (like &ldquo;Promo&rdquo; or &ldquo;Champion&rdquo;), and{" "}
-          <strong className="font-semibold">where you can get them</strong>, which is how the
-          sections below are organized (tournament prizes, event exclusives, bundles, or promo
-          packs).
-        </p>
-        {activeAggregate && (
-          <p className="text-muted-foreground mt-2 text-sm">
-            {formatLanguageAggregate(
-              languageLabelMap.get(activeLanguage) ?? activeLanguage,
-              activeAggregate.printingCount,
-              activeAggregate.cardCount,
-            )}{" "}
-            Spotted a missing promo?{" "}
-            <Link to="/contribute" className="text-primary hover:underline">
-              Suggest one
-            </Link>
-            .
-          </p>
-        )}
-      </div>
 
-      <CardBrowserFilterProvider
-        availableFilters={availableFilters}
-        setDisplayLabel={setDisplayLabel}
-        hiddenSections={hiddenWithOwned}
-      >
-        <CardBrowserLayout
-          toolbar={
-            <BrowserToolbar
-              totalCards={activePrintings.length}
-              filteredCount={matchedPrintings.length}
-              mobileDoneLabel={
-                hasActiveFilters ? `Show ${matchedPrintings.length} promos` : undefined
-              }
-              hideViewToggle
-              groupByOptions={GROUP_OPTIONS}
-              groupByValue={grouping}
-              extras={
-                isLoggedIn ? (
-                  <Button
-                    variant={showOwned ? "default" : "outline"}
-                    size="icon"
-                    onClick={togglePromoOwned}
-                    aria-label={showOwned ? "Hide owned counts" : "Show owned counts"}
-                    aria-pressed={showOwned}
-                    title={showOwned ? "Hide owned counts" : "Show owned counts"}
-                  >
-                    <PackageIcon className="size-4" />
-                  </Button>
-                ) : null
-              }
-            />
-          }
-          leftPane={
-            <>
-              <PageToc items={tocItems} className="lg:w-52" />
-              <BrowserLeftPane />
-            </>
-          }
-          aboveGrid={<BrowserActiveFilters />}
-          rightPane={
-            isMobile ? undefined : (
-              <SelectionDetailPane
+        <CardBrowserFilterProvider
+          availableFilters={availableFilters}
+          setDisplayLabel={setDisplayLabel}
+          hiddenSections={hiddenWithOwned}
+        >
+          <CardBrowserLayout
+            toolbar={
+              <BrowserToolbar
+                totalCards={activePrintings.length}
+                filteredCount={matchedPrintings.length}
+                mobileDoneLabel={
+                  hasActiveFilters ? `Show ${matchedPrintings.length} promos` : undefined
+                }
+                hideViewToggle
+                groupByOptions={GROUP_OPTIONS}
+                groupByValue={grouping}
+                extras={
+                  isLoggedIn ? (
+                    <Button
+                      variant={showOwned ? "default" : "outline"}
+                      size="icon"
+                      onClick={togglePromoOwned}
+                      aria-label={showOwned ? "Hide owned counts" : "Show owned counts"}
+                      aria-pressed={showOwned}
+                      title={showOwned ? "Hide owned counts" : "Show owned counts"}
+                    >
+                      <PackageIcon className="size-4" />
+                    </Button>
+                  ) : null
+                }
+              />
+            }
+            leftPane={
+              <>
+                <PageToc items={tocItems} className="lg:w-52" />
+                <BrowserLeftPane />
+              </>
+            }
+            aboveGrid={<BrowserActiveFilters />}
+            rightPane={
+              isMobile ? undefined : (
+                <SelectionDetailPane
+                  items={selectionItems}
+                  printingsByCardId={printingsByCardId}
+                  showImages={showImages}
+                  onSearchAndClose={handleSearchAndClose}
+                />
+              )
+            }
+            gridSlot={
+              <PromoSectionsContent
+                grouping={grouping}
+                channelRenderItems={channelRenderItems}
+                flatRenderItems={flatRenderItems}
+                hasContent={hasContent}
+                hasActiveFilters={hasActiveFilters}
+                viewMode={viewMode}
+                showImages={showImages}
+                display={display}
+                ownedCounts={ownedCounts}
+                onCardClick={handleCardClick}
+                sortPrintings={sortPrintings}
+                setNameBySlug={setSlugToName}
+              />
+            }
+          >
+            {isMobile && (
+              <SelectionMobileOverlay
                 items={selectionItems}
                 printingsByCardId={printingsByCardId}
                 showImages={showImages}
                 onSearchAndClose={handleSearchAndClose}
               />
-            )
-          }
-          gridSlot={
-            <PromoSectionsContent
-              grouping={grouping}
-              channelRenderItems={channelRenderItems}
-              flatRenderItems={flatRenderItems}
-              hasContent={hasContent}
-              hasActiveFilters={hasActiveFilters}
-              viewMode={viewMode}
-              showImages={showImages}
-              display={display}
-              ownedCounts={ownedCounts}
-              onCardClick={handleCardClick}
-              sortPrintings={sortPrintings}
-              setNameBySlug={setSlugToName}
-            />
-          }
-        >
-          {isMobile && (
-            <SelectionMobileOverlay
-              items={selectionItems}
-              printingsByCardId={printingsByCardId}
-              showImages={showImages}
-              onSearchAndClose={handleSearchAndClose}
-            />
-          )}
-        </CardBrowserLayout>
-      </CardBrowserFilterProvider>
-    </div>
+            )}
+          </CardBrowserLayout>
+        </CardBrowserFilterProvider>
+      </div>
+    </PageTopBarHeightContext>
   );
 }
 

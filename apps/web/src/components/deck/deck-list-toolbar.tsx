@@ -1,11 +1,11 @@
 import type { Domain } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
-import { LayoutGridIcon, ListIcon, SearchIcon, XIcon } from "lucide-react";
+import { LayoutGridIcon, ListIcon } from "lucide-react";
 
+import { SearchInput } from "@/components/filters/search-input";
 import type { SortGroupOption } from "@/components/filters/sort-group-controls";
 import { SortGroupControls } from "@/components/filters/sort-group-controls";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Toggle } from "@/components/ui/toggle";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -94,33 +94,15 @@ export function DeckListToolbar({
   return (
     <div className="flex flex-col gap-2">
       {/* Row 1: search + sort/group + density */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[200px] flex-1">
-          <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-          <Input
-            type="search"
-            placeholder="Search decks..."
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            className={search ? "pr-28 pl-9" : "pr-20 pl-9"}
-            aria-label="Search decks"
-          />
-          <span className="absolute top-1/2 right-3 flex -translate-y-1/2 items-center gap-2">
-            <span className="text-muted-foreground pointer-events-none text-xs">
-              {countLabel} {unitLabel}
-            </span>
-            {search && (
-              <button
-                type="button"
-                className="text-muted-foreground hover:text-foreground"
-                onClick={() => setSearch("")}
-                aria-label="Clear search"
-              >
-                <XIcon className="size-3.5" />
-              </button>
-            )}
-          </span>
-        </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <SearchInput
+          value={search}
+          onValueChange={setSearch}
+          placeholder="Search decks..."
+          ariaLabel="Search decks"
+          trailing={`${countLabel} ${unitLabel}`}
+          className="min-w-[200px] flex-1"
+        />
 
         <SortGroupControls
           sortOptions={SORT_OPTIONS}

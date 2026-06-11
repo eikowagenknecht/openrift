@@ -2,6 +2,7 @@ import type { DeckExportResponse } from "@openrift/shared";
 import { CheckIcon, CopyIcon, FileTextIcon, Loader2Icon, Share2Icon } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { PageTopBarButton } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
@@ -228,7 +229,7 @@ export function DeckExportDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {!isControlled && (
-        <DialogTrigger render={<Button variant="ghost" size="sm" />}>
+        <DialogTrigger render={<PageTopBarButton />}>
           <Share2Icon className="size-4" />
           Export
         </DialogTrigger>

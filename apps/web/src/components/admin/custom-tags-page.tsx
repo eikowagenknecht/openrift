@@ -9,7 +9,12 @@ import type {
 } from "@/components/admin/admin-table";
 import { CardSearchDropdown } from "@/components/admin/card-search-dropdown";
 import type { CardSearchResult } from "@/components/admin/card-search-dropdown";
-import { Heading } from "@/components/heading";
+import {
+  SectionHeader,
+  SectionHeaderDescription,
+  SectionHeaderGroup,
+  SectionHeaderTitle,
+} from "@/components/section-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -542,14 +547,14 @@ function CardTagEditor({ tags }: { tags: CustomTagResponse[] }) {
 
   return (
     <section className="space-y-4 rounded-md border p-4">
-      <div>
-        <Heading level={2} as="h3">
-          Assign tags to a card
-        </Heading>
-        <p className="text-muted-foreground text-sm">
-          Search for a card, then toggle which custom tags it carries.
-        </p>
-      </div>
+      <SectionHeader>
+        <SectionHeaderGroup>
+          <SectionHeaderTitle as="h3">Assign tags to a card</SectionHeaderTitle>
+          <SectionHeaderDescription>
+            Search for a card, then toggle which custom tags it carries.
+          </SectionHeaderDescription>
+        </SectionHeaderGroup>
+      </SectionHeader>
 
       <div className="space-y-1">
         <Label>Card</Label>
@@ -621,16 +626,16 @@ function BulkImport({ tags }: { tags: CustomTagResponse[] }) {
 
   return (
     <section className="space-y-4 rounded-md border p-4">
-      <div>
-        <Heading level={2} as="h3">
-          Bulk import
-        </Heading>
-        <p className="text-muted-foreground text-sm">
-          Paste a decklist-style block (one card per line, optionally prefixed by a count) and
-          attach the selected tag to every matched card. Re-importing is safe — cards already
-          carrying the tag are left untouched.
-        </p>
-      </div>
+      <SectionHeader>
+        <SectionHeaderGroup>
+          <SectionHeaderTitle as="h3">Bulk import</SectionHeaderTitle>
+          <SectionHeaderDescription>
+            Paste a decklist-style block (one card per line, optionally prefixed by a count) and
+            attach the selected tag to every matched card. Re-importing is safe — cards already
+            carrying the tag are left untouched.
+          </SectionHeaderDescription>
+        </SectionHeaderGroup>
+      </SectionHeader>
 
       <div className="flex flex-wrap items-end gap-3">
         <div className="space-y-1">

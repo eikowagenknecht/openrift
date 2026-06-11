@@ -7,7 +7,11 @@ import {
   PAGE_TOP_BAR_STICKY,
   PageTopBar,
   PageTopBarActions,
+  PageTopBarButton,
+  PageTopBarIconButton,
+  PageTopBarPrimaryButton,
   PageTopBarTitle,
+  useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -47,6 +51,7 @@ import {
   partitionByArchived,
   sortDecks,
 } from "@/lib/deck-list-utils";
+import { getHeaderHeight } from "@/lib/header-height";
 import { cn, CONTAINER_WIDTH, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 import { useDeckListPrefsStore } from "@/stores/deck-list-prefs-store";
 
@@ -170,6 +175,11 @@ function GroupHeader({ label, count }: { label: string; count: number }) {
 export function DeckListPage() {
   const { data: deckItems } = useDecks();
   const [createOpen, setCreateOpen] = useState(false);
+  // Stick the toolbar directly below the title bar: measure the title bar and
+  // add its height to the header height, mirroring CardBrowserLayout's offset.
+  const [titleSlot, setTitleSlot] = useState<HTMLDivElement | null>(null);
+  const titleHeight = useMeasuredHeight(titleSlot);
+  const toolbarOffset = getHeaderHeight() + titleHeight;
 
   const search = useDeckListPrefsStore((state) => state.search);
   const sortField = useDeckListPrefsStore((state) => state.sortField);
@@ -213,26 +223,24 @@ export function DeckListPage() {
 
   return (
     <div className={`${CONTAINER_WIDTH} ${PAGE_PADDING_NO_TOP}`}>
-      <div className={cn(PAGE_TOP_BAR_STICKY, "-mx-3 mb-3")}>
+      <div ref={setTitleSlot} className={cn(PAGE_TOP_BAR_STICKY, "-mx-3")}>
         <PageTopBar>
           <PageTopBarTitle>Decks</PageTopBarTitle>
           <PageTopBarActions>
-            <Link
-              to="/help/$slug"
-              params={{ slug: "deck-building" }}
+            <PageTopBarIconButton
               aria-label="Deck building help"
-              className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
+              render={<Link to="/help/$slug" params={{ slug: "deck-building" }} />}
             >
               <CircleHelpIcon className="size-4" />
-            </Link>
-            <Link to="/decks/import" className={buttonVariants({ variant: "outline" })}>
+            </PageTopBarIconButton>
+            <PageTopBarButton render={<Link to="/decks/import" />}>
               <DownloadIcon className="size-4" />
               Import
-            </Link>
-            <Button onClick={() => setCreateOpen(true)}>
+            </PageTopBarButton>
+            <PageTopBarPrimaryButton onClick={() => setCreateOpen(true)}>
               <PlusIcon className="size-4" />
               New Deck
-            </Button>
+            </PageTopBarPrimaryButton>
           </PageTopBarActions>
         </PageTopBar>
       </div>
@@ -260,12 +268,17 @@ export function DeckListPage() {
         </Empty>
       ) : (
         <div className="flex flex-col gap-4">
-          <DeckListToolbar
-            availableDomains={availableDomains}
-            availability={availability}
-            totalCount={visible.length}
-            filteredCount={filtered.length}
-          />
+          <div
+            className="bg-background/80 sticky z-20 -mx-3 px-3 pt-3 backdrop-blur-lg sm:rounded-b-xl"
+            style={{ top: toolbarOffset }}
+          >
+            <DeckListToolbar
+              availableDomains={availableDomains}
+              availability={availability}
+              totalCount={visible.length}
+              filteredCount={filtered.length}
+            />
+          </div>
 
           {sorted.length === 0 ? (
             <Empty className="py-12">

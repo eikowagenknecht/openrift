@@ -1,6 +1,6 @@
 import { createLink } from "@tanstack/react-router";
 import { ArrowLeftIcon, ChevronDownIcon } from "lucide-react";
-import type { AnchorHTMLAttributes } from "react";
+import type { AnchorHTMLAttributes, ComponentProps } from "react";
 import { createContext, forwardRef, useLayoutEffect, useState } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -65,7 +65,7 @@ const BackAnchor = forwardRef<HTMLAnchorElement, AnchorHTMLAttributes<HTMLAnchor
     <a
       ref={ref}
       {...rest}
-      className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }), className)}
+      className={cn(buttonVariants({ variant: "ghost", size: "icon" }), className)}
     >
       <ArrowLeftIcon className="size-4" />
     </a>
@@ -100,13 +100,11 @@ export function PageTopBarTitle({ onToggleSidebar, children }: PageTopBarTitlePr
             <ChevronDownIcon className="text-muted-foreground size-4" />
           </Button>
         </h1>
-        <h1 className="mr-2 hidden min-w-0 truncate px-3 text-lg font-semibold md:block">
-          {children}
-        </h1>
+        <h1 className="mr-2 hidden min-w-0 truncate text-lg font-semibold md:block">{children}</h1>
       </>
     );
   }
-  return <h1 className="mr-2 min-w-0 truncate px-3 text-lg font-semibold">{children}</h1>;
+  return <h1 className="mr-2 min-w-0 truncate text-lg font-semibold">{children}</h1>;
 }
 
 /**
@@ -117,4 +115,39 @@ export function PageTopBarActions({ children, className }: PageTopBarProps) {
   return (
     <div className={cn("ml-auto flex shrink-0 items-center gap-2", className)}>{children}</div>
   );
+}
+
+// Top-bar action buttons. Use these (not a raw <Button>) for everything inside
+// PageTopBarActions so every bar stays visually identical: one shared height
+// (h-8) and a fixed emphasis ladder — ghost for secondary + icon buttons, one
+// filled primary per bar. `variant` and `size` are intentionally locked, so
+// they can't drift surface to surface. Render as a link or a dialog/menu
+// trigger target via the `render` prop, exactly like the underlying Button.
+type PageTopBarButtonProps = Omit<ComponentProps<typeof Button>, "variant" | "size">;
+
+/**
+ * Secondary labeled action in a page top bar (Import, Share, Export, …). Ghost
+ * emphasis, full bar height.
+ * @returns The action button.
+ */
+export function PageTopBarButton(props: PageTopBarButtonProps) {
+  return <Button variant="ghost" {...props} />;
+}
+
+/**
+ * The single primary call-to-action in a page top bar (e.g. New Deck). Filled.
+ * Use at most one per bar.
+ * @returns The primary action button.
+ */
+export function PageTopBarPrimaryButton(props: PageTopBarButtonProps) {
+  return <Button variant="default" {...props} />;
+}
+
+/**
+ * Icon-only action or overflow-menu trigger in a page top bar. Ghost, square,
+ * full bar height. Always give it an `aria-label` or sr-only text.
+ * @returns The icon action button.
+ */
+export function PageTopBarIconButton(props: PageTopBarButtonProps) {
+  return <Button variant="ghost" size="icon" {...props} />;
 }

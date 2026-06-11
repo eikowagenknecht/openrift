@@ -5,6 +5,7 @@ import { Loader2Icon, PrinterIcon } from "lucide-react";
 import { Suspense, useRef, useState } from "react";
 
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
+import { PageTopBarButton } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -357,7 +358,7 @@ export function ProxyExportDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {!isControlled && (
-        <DialogTrigger render={<Button variant="ghost" size="sm" />}>
+        <DialogTrigger render={<PageTopBarButton />}>
           <PrinterIcon className="size-4" />
           Proxies
         </DialogTrigger>

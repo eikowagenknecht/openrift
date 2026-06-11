@@ -33,6 +33,7 @@ import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import type { TableRowSlotProps } from "@/components/cards/card-table";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { FloatingActionBar } from "@/components/collection/floating-action-bar";
+import { PageTopBarButton, PageTopBarIconButton } from "@/components/layout/page-top-bar";
 import { listKindIcon } from "@/components/list/create-list-dialog";
 import { DeleteListDialog } from "@/components/list/delete-list-dialog";
 import { ListEditDialog } from "@/components/list/list-edit-dialog";
@@ -218,12 +219,12 @@ export function ListPage({ listId }: ListPageProps) {
       onToggleSidebar={toggleSidebar}
       actions={
         <>
-          <Button variant="outline" size="sm" onClick={() => setShareOpen(true)}>
+          <PageTopBarButton onClick={() => setShareOpen(true)}>
             <Share2Icon className="size-4" />
             Share
-          </Button>
+          </PageTopBarButton>
           <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
+            <DropdownMenuTrigger render={<PageTopBarIconButton />}>
               <EllipsisVerticalIcon className="size-4" />
               <span className="sr-only">List actions</span>
             </DropdownMenuTrigger>

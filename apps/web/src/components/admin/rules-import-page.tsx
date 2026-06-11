@@ -1,7 +1,12 @@
 import type { RuleKind, RuleVersionResponse } from "@openrift/shared";
 import { useState } from "react";
 
-import { Heading } from "@/components/heading";
+import {
+  SectionHeader,
+  SectionHeaderDescription,
+  SectionHeaderGroup,
+  SectionHeaderTitle,
+} from "@/components/section-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -76,14 +81,16 @@ export function RulesImportPage() {
 
   return (
     <div className="space-y-8 p-4">
-      <div>
-        <Heading level={2}>Import Rules</Heading>
-        <p className="text-muted-foreground text-sm">
-          Paste rules as one per line: <code>{"<rule_number>. <markdown>"}</code>. Use{" "}
-          <code># Heading</code> for titles, <code>## Subheading</code> for subtitles, and a literal{" "}
-          <code>\n</code> inside a line for hard newlines.
-        </p>
-      </div>
+      <SectionHeader>
+        <SectionHeaderGroup>
+          <SectionHeaderTitle>Import Rules</SectionHeaderTitle>
+          <SectionHeaderDescription>
+            Paste rules as one per line: <code>{"<rule_number>. <markdown>"}</code>. Use{" "}
+            <code># Heading</code> for titles, <code>## Subheading</code> for subtitles, and a
+            literal <code>\n</code> inside a line for hard newlines.
+          </SectionHeaderDescription>
+        </SectionHeaderGroup>
+      </SectionHeader>
 
       <div className="grid max-w-xl gap-4">
         <div className="grid gap-1.5">

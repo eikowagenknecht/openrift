@@ -35,7 +35,14 @@ import { CollectionGridCell } from "@/components/collection/collection-grid-cell
 import { FloatingActionBar } from "@/components/collection/floating-action-bar";
 import { buildOnDecrement } from "@/components/collection/route-decrement";
 import { VariantAddPopover } from "@/components/collection/variant-add-popover";
-import { PageTopBar, PageTopBarActions, PageTopBarTitle } from "@/components/layout/page-top-bar";
+import {
+  PageTopBar,
+  PageTopBarActions,
+  PageTopBarButton,
+  PageTopBarIconButton,
+  PageTopBarPrimaryButton,
+  PageTopBarTitle,
+} from "@/components/layout/page-top-bar";
 import { AddToListDialog } from "@/components/list/add-to-list-dialog";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
@@ -1348,47 +1355,59 @@ function CollectionTopBar({
         <div className="flex items-center gap-2">
           {addTarget && hasCards && (
             <>
-              <Button variant="ghost" size="icon" onClick={onQuickAdd} className="sm:hidden">
+              <PageTopBarIconButton
+                onClick={onQuickAdd}
+                aria-label="Quick add"
+                className="sm:hidden"
+              >
                 <SquarePlusIcon className="size-4" />
-              </Button>
-              <Button variant="ghost" onClick={onQuickAdd} className="hidden sm:flex">
+              </PageTopBarIconButton>
+              <PageTopBarButton onClick={onQuickAdd} className="hidden sm:flex">
                 <SquarePlusIcon className="size-4" />
                 Quick add
-              </Button>
+              </PageTopBarButton>
             </>
           )}
           {mode === "select" ? (
             <>
-              <Button variant="ghost" size="icon" onClick={onSelectAll} className="sm:hidden">
+              <PageTopBarIconButton
+                onClick={onSelectAll}
+                aria-label={isAllSelected ? "Deselect all" : "Select all"}
+                className="sm:hidden"
+              >
                 <CheckIcon className="size-4" />
-              </Button>
-              <Button variant="ghost" onClick={onSelectAll} className="hidden sm:flex">
+              </PageTopBarIconButton>
+              <PageTopBarButton onClick={onSelectAll} className="hidden sm:flex">
                 <CheckIcon className="size-4" />
                 {isAllSelected ? "Deselect all" : "Select all"}
-              </Button>
-              <Button variant="ghost" size="icon" onClick={onExitSelect} className="sm:hidden">
+              </PageTopBarButton>
+              <PageTopBarIconButton onClick={onExitSelect} aria-label="Done" className="sm:hidden">
                 <XIcon className="size-4" />
-              </Button>
-              <Button variant="default" onClick={onExitSelect} className="hidden sm:flex">
+              </PageTopBarIconButton>
+              <PageTopBarPrimaryButton onClick={onExitSelect} className="hidden sm:flex">
                 Done
-              </Button>
+              </PageTopBarPrimaryButton>
             </>
           ) : (
             hasCards && (
               <>
-                <Button variant="ghost" size="icon" onClick={onEnterSelect} className="sm:hidden">
+                <PageTopBarIconButton
+                  onClick={onEnterSelect}
+                  aria-label={`Manage ${view}`}
+                  className="sm:hidden"
+                >
                   <CheckSquareIcon className="size-4" />
-                </Button>
-                <Button variant="ghost" onClick={onEnterSelect} className="hidden sm:flex">
+                </PageTopBarIconButton>
+                <PageTopBarButton onClick={onEnterSelect} className="hidden sm:flex">
                   <CheckSquareIcon className="size-4" />
                   Manage {view}
-                </Button>
+                </PageTopBarButton>
               </>
             )
           )}
           {(canEdit || canDelete || canShare || canToggleDeckbuilding) && (
             <DropdownMenu>
-              <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
+              <DropdownMenuTrigger render={<PageTopBarIconButton />}>
                 <EllipsisVerticalIcon className="size-4" />
                 <span className="sr-only">Collection actions</span>
               </DropdownMenuTrigger>

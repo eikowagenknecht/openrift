@@ -35,7 +35,7 @@ export function MatchToolbar() {
   const { isRolling, roll } = useFirstPlayerSpotlight();
 
   return (
-    <div className="flex flex-wrap items-center justify-end gap-1.5 border-b pb-3">
+    <div className="flex flex-wrap items-center justify-end gap-1.5">
       <DropdownMenu>
         <DropdownMenuTrigger render={<Button variant="ghost" size="sm" />} disabled={isRolling}>
           <SparklesIcon className="size-4" />

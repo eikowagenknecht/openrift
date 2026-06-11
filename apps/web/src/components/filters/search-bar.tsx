@@ -1,10 +1,9 @@
 import type { SearchField } from "@openrift/shared";
 import { ALL_SEARCH_FIELDS, parseSearchTerms } from "@openrift/shared";
-import { SearchIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { SearchInput } from "@/components/filters/search-input";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useSearchUrlSync } from "@/hooks/use-search-url-sync";
 import { trackEvent } from "@/lib/analytics";
@@ -90,40 +89,23 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
 
   return (
     <div ref={wrapperRef} className="relative min-w-0 flex-1">
-      <div className="relative">
-        <SearchIcon className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-        <Input
-          placeholder={placeholder}
-          value={localSearch}
-          onChange={(e) => setLocalSearch(e.target.value)}
-          onFocus={() => setSearchFocused(true)}
-          onBlur={() => setSearchFocused(false)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.currentTarget.blur();
-            }
-          }}
-          className={cn("pl-9", localSearch ? "pr-28" : "pr-20")}
-        />
-        <span className="absolute top-1/2 right-3 flex -translate-y-1/2 items-center gap-2">
-          <span className="text-muted-foreground pointer-events-none text-xs">
-            {cardCountLabel} {unitLabel}
-          </span>
-          {localSearch && (
-            <button
-              type="button"
-              className="text-muted-foreground hover:text-foreground"
-              onClick={() => {
-                setLocalSearch("");
-                setSearch("");
-              }}
-              aria-label="Clear search"
-            >
-              <XIcon className="size-3.5" />
-            </button>
-          )}
-        </span>
-      </div>
+      <SearchInput
+        value={localSearch}
+        onValueChange={setLocalSearch}
+        onClear={() => {
+          setLocalSearch("");
+          setSearch("");
+        }}
+        placeholder={placeholder}
+        trailing={`${cardCountLabel} ${unitLabel}`}
+        onFocus={() => setSearchFocused(true)}
+        onBlur={() => setSearchFocused(false)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.currentTarget.blur();
+          }
+        }}
+      />
       <div
         style={{ right: -popoverRightOffset }}
         className={cn(

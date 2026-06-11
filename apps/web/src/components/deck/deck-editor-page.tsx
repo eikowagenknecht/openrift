@@ -37,6 +37,7 @@ import {
   PageTopBarActions,
   PageTopBarBack,
   PageTopBarHeightContext,
+  PageTopBarIconButton,
   PageTopBarTitle,
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
@@ -458,7 +459,7 @@ function DeckEditorContent({
                 <ProxyExportDialog deckId={deckId} deckName={data.deck.name} />
               </div>
               <DropdownMenu>
-                <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
+                <DropdownMenuTrigger render={<PageTopBarIconButton />}>
                   <EllipsisVerticalIcon className="size-4" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">

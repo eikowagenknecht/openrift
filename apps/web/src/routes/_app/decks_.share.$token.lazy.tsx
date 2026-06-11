@@ -14,13 +14,13 @@ import {
   PageTopBar,
   PageTopBarActions,
   PageTopBarHeightContext,
+  PageTopBarPrimaryButton,
   PageTopBarTitle,
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
 import { Pane } from "@/components/layout/panes";
 import { CardDetailSkeleton, SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
-import { Button } from "@/components/ui/button";
 import { useDeckItems } from "@/hooks/use-deck-items";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useCloneSharedDeck, usePublicDeck } from "@/hooks/use-decks";
@@ -184,10 +184,10 @@ function SharedDeckContent({
               </span>
             </div>
             <PageTopBarActions>
-              <Button size="sm" onClick={handleClone} disabled={cloneMutation.isPending}>
+              <PageTopBarPrimaryButton onClick={handleClone} disabled={cloneMutation.isPending}>
                 <CopyIcon />
                 {isLoggedIn ? "Copy to my decks" : "Sign in to copy"}
-              </Button>
+              </PageTopBarPrimaryButton>
             </PageTopBarActions>
           </PageTopBar>,
           topBarSlot,
