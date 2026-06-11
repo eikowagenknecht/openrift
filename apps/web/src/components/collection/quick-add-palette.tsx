@@ -226,8 +226,10 @@ function PaletteInner({
         input.focus();
       }
     } catch {
+      // Roll the session store back; the error toast is fired once by the
+      // global mutation handler in query-client.ts (a second toast here would
+      // duplicate it).
       useAddModeStore.getState().recordAdd(printing, copyIdToRemove);
-      toast.error(`Failed to remove ${printing.card.name}`);
     }
   };
 

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sessionQueryOptions } from "./auth-session";
 import { createQueryClient } from "./query-client";
+import { PERSISTENT_ERROR_TOAST } from "./toast";
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 
@@ -42,7 +43,9 @@ describe("createQueryClient mutation onError", () => {
 
     getOnError()(serialized, undefined, undefined);
 
-    expect(toast.error).toHaveBeenCalledWith("Collection not found");
+    // Persistent + dismissible: a failed action the user must acknowledge,
+    // not an auto-dismissing toast that's easy to miss.
+    expect(toast.error).toHaveBeenCalledWith("Collection not found", PERSISTENT_ERROR_TOAST);
     expect(errorSpy).toHaveBeenCalledWith(
       expect.stringContaining("Collection not found"),
       serialized,
@@ -56,7 +59,7 @@ describe("createQueryClient mutation onError", () => {
 
     getOnError()(err, undefined, undefined);
 
-    expect(toast.error).toHaveBeenCalledWith("network down");
+    expect(toast.error).toHaveBeenCalledWith("network down", PERSISTENT_ERROR_TOAST);
     expect(errorSpy).toHaveBeenCalledWith(err);
     errorSpy.mockRestore();
   });

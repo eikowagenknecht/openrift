@@ -3,6 +3,7 @@ import { toast } from "sonner";
 
 import { sessionQueryOptions } from "./auth-session";
 import { isApiError, isSessionExpiredError } from "./server-fns/api-error";
+import { PERSISTENT_ERROR_TOAST } from "./toast";
 
 /**
  * Factory for QueryClient — called once per request on the server (to avoid
@@ -53,7 +54,10 @@ export function createQueryClient() {
           } else {
             console.error(err);
           }
-          toast.error(err.message);
+          // Mutations are user-triggered actions; a failure that auto-dismisses
+          // is easy to miss (an add/remove looks like it worked). Keep it up
+          // until the user acknowledges it.
+          toast.error(err.message, PERSISTENT_ERROR_TOAST);
         },
       },
     },
