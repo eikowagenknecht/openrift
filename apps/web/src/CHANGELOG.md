@@ -2,6 +2,7 @@
 
 ## 2026-06-11
 
+- fix: On collection statistics, the cheapest and most expensive printing cards now keep their proper card shape on narrow screens, and the two stack into a single column so each has room
 - fix: Downloading a wish or trade list as a card image now works again, instead of failing with "Couldn't prepare the image."
 - fix: Sharing a wish or trade list link to a chat like WhatsApp or Discord again shows the card preview, which had been missing from the unfurled link
 

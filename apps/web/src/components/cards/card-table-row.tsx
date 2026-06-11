@@ -1,8 +1,8 @@
 import type { Printing } from "@openrift/shared";
-import { imageUrl } from "@openrift/shared";
 import { LinkIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { FinishIcon } from "@/components/cards/finish-icon";
 import { getFilterIconPath, getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -249,16 +249,7 @@ export function CardTableRow({
       style={{ gridTemplateColumns: columns, height: CARD_TABLE_ROW_HEIGHT }}
     >
       <div className="px-3 py-1">
-        {image ? (
-          <img
-            src={imageUrl(image.imageId, "120w")}
-            alt=""
-            className="aspect-card h-10 rounded object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <div className="bg-muted aspect-card h-10 rounded" />
-        )}
+        <CardArtThumb imageId={image?.imageId} className="h-10" loading="lazy" />
       </div>
       <div className="min-w-0 px-3">
         <div className="truncate font-medium">{printing.card.name}</div>

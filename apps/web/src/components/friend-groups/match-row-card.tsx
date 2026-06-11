@@ -5,11 +5,11 @@ import type {
   Marketplace,
   MarketplaceInfo,
 } from "@openrift/shared";
-import { imageUrl } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ArrowDownLeftIcon, ArrowUpRightIcon, ChevronDownIcon } from "lucide-react";
 import { useState } from "react";
 
+import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { FinishIcon } from "@/components/cards/finish-icon";
 import { MatchPreferenceCell } from "@/components/trade-preferences/match-preference-cell";
 import { Badge } from "@/components/ui/badge";
@@ -218,16 +218,12 @@ interface MatchRowCardProps {
 export function MatchRowCard({ match, marketplaceInfos }: MatchRowCardProps) {
   return (
     <div className="bg-card hover:bg-muted hover:text-foreground group relative flex items-stretch gap-3 rounded-md border p-2 transition-colors">
-      <div className="bg-muted relative aspect-[5/7] w-12 shrink-0 self-start overflow-hidden rounded">
-        {match.imageId ? (
-          <img
-            src={imageUrl(match.imageId, "120w")}
-            alt={match.cardName}
-            className="size-full object-cover"
-            loading="lazy"
-          />
-        ) : null}
-      </div>
+      <CardArtThumb
+        imageId={match.imageId}
+        alt={match.cardName}
+        className="w-12 self-start"
+        loading="lazy"
+      />
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <div className="flex flex-col gap-0.5">
           <span className="truncate font-medium">
@@ -306,16 +302,7 @@ function MatchRow({
         <DirectionIcon className="size-4" />
       </span>
 
-      <div className="bg-muted relative aspect-[5/7] w-10 shrink-0 overflow-hidden rounded">
-        {match.imageId ? (
-          <img
-            src={imageUrl(match.imageId, "120w")}
-            alt={match.cardName}
-            className="size-full object-cover"
-            loading="lazy"
-          />
-        ) : null}
-      </div>
+      <CardArtThumb imageId={match.imageId} alt={match.cardName} className="w-10" loading="lazy" />
 
       <div
         className="flex min-w-0 flex-1 flex-col gap-0.5"
@@ -499,16 +486,12 @@ function MatchTradeRowGroup({
             <DirectionIcon className="size-4" />
           </span>
 
-          <span className="bg-muted relative aspect-[5/7] w-10 shrink-0 overflow-hidden rounded">
-            {group.imageId ? (
-              <img
-                src={imageUrl(group.imageId, "120w")}
-                alt={group.cardName}
-                className="size-full object-cover"
-                loading="lazy"
-              />
-            ) : null}
-          </span>
+          <CardArtThumb
+            imageId={group.imageId}
+            alt={group.cardName}
+            className="w-10"
+            loading="lazy"
+          />
 
           <span className="flex min-w-0 flex-1 flex-col gap-0.5">
             <span className="truncate font-medium">

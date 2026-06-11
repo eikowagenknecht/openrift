@@ -23,6 +23,7 @@ import type { ReactNode } from "react";
 import { Suspense, lazy, useState } from "react";
 import { toast } from "sonner";
 
+import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { PricingSection } from "@/components/cards/card-detail/pricing";
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
 import { CardText } from "@/components/cards/card-text";
@@ -683,18 +684,13 @@ function PrintingCard({
         isSelected ? "ring-primary ring-2" : "hover:bg-accent",
       )}
     >
-      <div className="bg-muted aspect-card w-10 shrink-0 overflow-hidden rounded">
-        {frontImage ? (
-          <img
-            src={imageUrl(frontImage.imageId, "120w")}
-            alt={printing.card.name}
-            className="size-full object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <div className="bg-muted/40 size-full" />
-        )}
-      </div>
+      <CardArtThumb
+        imageId={frontImage?.imageId}
+        alt={printing.card.name}
+        className="w-10"
+        loading="lazy"
+        fallback={<span className="bg-muted/40 block size-full" />}
+      />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <p className="text-sm font-medium">{formatPublicCode(printing)}</p>

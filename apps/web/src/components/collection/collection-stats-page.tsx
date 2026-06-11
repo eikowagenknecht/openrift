@@ -20,6 +20,7 @@ import type { PieSectorDataItem } from "recharts";
 import { Label, Pie, PieChart, Sector } from "recharts";
 
 import { CardIcon } from "@/components/card-icon";
+import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { CollectionValueChart } from "@/components/collection/collection-value-chart";
 import { CostToCompleteChart } from "@/components/collection/cost-to-complete-chart";
 import { EnergyPowerChart } from "@/components/deck/stats/energy-power-chart";
@@ -577,7 +578,7 @@ function PriceExtremes({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {cheapest && (
         <Link
           to="/cards/$cardSlug"
@@ -595,7 +596,7 @@ function PriceExtremes({
               {cheapest.thumbnail && (
                 <HoverCard>
                   <HoverCardTrigger render={<span />}>
-                    <img src={cheapest.thumbnail} alt="" className="h-32 w-auto shrink-0 rounded" />
+                    <CardArtThumb src={cheapest.thumbnail} className="h-32" />
                   </HoverCardTrigger>
                   {cheapest.fullImage && (
                     <HoverCardContent side="right" className="w-auto p-1">
@@ -631,11 +632,7 @@ function PriceExtremes({
               {mostExpensive.thumbnail && (
                 <HoverCard>
                   <HoverCardTrigger render={<span />}>
-                    <img
-                      src={mostExpensive.thumbnail}
-                      alt=""
-                      className="h-32 w-auto shrink-0 rounded"
-                    />
+                    <CardArtThumb src={mostExpensive.thumbnail} className="h-32" />
                   </HoverCardTrigger>
                   {mostExpensive.fullImage && (
                     <HoverCardContent side="left" className="w-auto p-1">

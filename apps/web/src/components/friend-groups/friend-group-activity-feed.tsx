@@ -1,5 +1,4 @@
 import type { FriendGroupActivityEvent, ListIntent } from "@openrift/shared";
-import { imageUrl } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowLeftRightIcon,
@@ -10,6 +9,7 @@ import {
 } from "lucide-react";
 import type { ComponentType, ReactNode, SVGProps } from "react";
 
+import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { UserAvatar } from "@/components/user-avatar";
 import { useCards } from "@/hooks/use-cards";
 import { useFriendGroupActivity } from "@/hooks/use-friend-groups";
@@ -89,18 +89,7 @@ function ActivityRow({ slug, event }: { slug: string; event: FriendGroupActivity
     const imageId = printingsById[printingId]?.images.find(
       (image) => image.face === "front",
     )?.imageId;
-    return (
-      <div className="bg-muted relative aspect-[5/7] w-7 shrink-0 overflow-hidden rounded">
-        {imageId ? (
-          <img
-            src={imageUrl(imageId, "120w")}
-            alt={alt}
-            className="size-full object-cover"
-            loading="lazy"
-          />
-        ) : null}
-      </div>
-    );
+    return <CardArtThumb imageId={imageId} alt={alt} className="w-7" loading="lazy" />;
   };
   const time = (
     <time className="text-muted-foreground text-2xs shrink-0">{formatRelativeTime(event.at)}</time>

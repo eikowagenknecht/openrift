@@ -8,6 +8,7 @@ import type {
 import { getPlaysetSize, imageUrl } from "@openrift/shared";
 import { Area, AreaChart, ReferenceArea, ReferenceDot, XAxis, YAxis } from "recharts";
 
+import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { trackMarketplaceClick } from "@/components/marketplace-link";
 import type { ChartConfig } from "@/components/ui/chart";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
@@ -385,9 +386,7 @@ function CostToCompleteTooltipContent({
 
   return (
     <div className="border-border/50 bg-background flex min-w-36 gap-2.5 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
-      {point.thumbnail && (
-        <img src={point.thumbnail} alt="" className="h-16 w-auto shrink-0 rounded" />
-      )}
+      {point.thumbnail && <CardArtThumb src={point.thumbnail} className="h-16" />}
       <div>
         {point.label ? (
           <p className="mb-1 font-medium">{point.label}</p>

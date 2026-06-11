@@ -1,5 +1,5 @@
 import type { Printing, SortDirection, SortOption } from "@openrift/shared";
-import { filterCards, getAvailableFilters, imageUrl, sortCards } from "@openrift/shared";
+import { filterCards, getAvailableFilters, sortCards } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createLazyFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { LinkIcon, PackageIcon } from "lucide-react";
@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { CardBrowserLayout, useCardBrowserLayoutOffsets } from "@/components/card-browser-layout";
 import type { CardViewerItem } from "@/components/card-viewer-types";
+import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import {
   BrowserActiveFilters,
   BrowserLeftPane,
@@ -1320,15 +1321,12 @@ function PromoMobileCard({
       onClick={() => onClick(printing)}
       className="hover:bg-muted/50 flex w-full items-center gap-3 rounded-lg border p-2 text-left"
     >
-      {image ? (
-        <img
-          src={imageUrl(image.imageId, "400w")}
-          alt={printing.card.name}
-          className="aspect-card h-20 shrink-0 rounded object-cover"
-        />
-      ) : (
-        <div className="bg-muted aspect-card h-20 shrink-0 rounded" />
-      )}
+      <CardArtThumb
+        imageId={image?.imageId}
+        variant="400w"
+        alt={printing.card.name}
+        className="h-20"
+      />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
           <div className="truncate font-medium">{printing.card.name}</div>

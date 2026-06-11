@@ -1,7 +1,7 @@
 import type { CardTradeResponse } from "@openrift/shared";
-import { imageUrl } from "@openrift/shared";
 import { ArrowDownLeftIcon, ArrowUpRightIcon } from "lucide-react";
 
+import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/user-avatar";
@@ -72,16 +72,7 @@ function TradeRow({ trade }: { trade: CardTradeResponse }) {
         <DirectionIcon className="size-4" />
       </span>
 
-      <div className="bg-muted relative aspect-[5/7] w-10 shrink-0 overflow-hidden rounded">
-        {imageId ? (
-          <img
-            src={imageUrl(imageId, "120w")}
-            alt={cardName}
-            className="size-full object-cover"
-            loading="lazy"
-          />
-        ) : null}
-      </div>
+      <CardArtThumb imageId={imageId} alt={cardName} className="w-10" loading="lazy" />
 
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate font-medium">
