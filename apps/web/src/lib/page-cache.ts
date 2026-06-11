@@ -21,6 +21,9 @@ const PRELOAD_LINKS = [
   `<${interLatinWoff2}>; rel=preload; as=font; type="font/woff2"; crossorigin`,
 ];
 
+// Adding a path here makes its HTML edge-cached, which means it must also be
+// purged on deploy: keep the prefix list in deploy.sh.example's
+// purge_cloudflare_cache() in sync with these two lists.
 const EXACT_PATHS = new Set(["/", "/cards", "/sets", "/rules", "/privacy-policy", "/promos"]);
 const PREFIX_PATHS = ["/cards/", "/sets/", "/decks/share/", "/promos/"];
 

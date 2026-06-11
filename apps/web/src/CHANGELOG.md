@@ -6,6 +6,7 @@
 - feat: Judges can add a deck-check entrant by hand, typing the player's name and pasting their decklist, for when the organizer system can't send it. Entries that did come from the organizer system now carry an "API" badge so it's clear where each one came from
 - feat: A group's overview now splits collections into separate tiles for the group's own collections and members' shared collections, shows how many of your collections you've shared so far, and puts the new-collection, share, and invite buttons right on the matching tile
 - feat: The Share button on a wishlist or trade list now sits in the top action row, so you can share a list in one tap instead of opening the three-dot menu first
+- fix: The first visits after a release no longer take many seconds to load. Releases used to throw away all cached files, forcing every script and image to be re-downloaded; now only the files that actually changed are refreshed
 - fix: Opening a card's details on a shared deck page no longer breaks the detail panel, which crashed on every card you tapped
 - fix: A tab could get stuck on an outdated version after a release, with the "new version available" notice's Reload button doing nothing. The button now always reloads, and the automatic recovery works again on the next release instead of staying disabled for the rest of the session
 - fix: Tightened the spacing around the top bars and filter panels so there's no longer a doubled empty band above the toolbar, below the deck list filters, or under the expanded card filters

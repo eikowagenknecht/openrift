@@ -33,7 +33,7 @@ Forcing the client to `no-cache` for HTML means there's no browser-side cache to
 
 - Anonymous HTML is served from the edge, so most traffic doesn't hit the origin SSR.
 - Authenticated requests always hit origin — fine, since they're personalized and a minority of traffic.
-- Deploys include a Cloudflare purge step.
+- Deploys include a targeted Cloudflare purge step (HTML shells + `/api/` by prefix, host-scoped). Hashed `/assets/` and `/media/` are never purged — content-addressed URLs can't go stale, and keeping them warm avoids cold-cache page loads after a release.
 - API endpoints without an explicit `Cache-Control` fall through to Cloudflare's default heuristic. Nothing enforces that a new route sets one.
 
 ## Confirmation

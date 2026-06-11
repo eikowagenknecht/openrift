@@ -43,10 +43,12 @@ The `deploy.sh` on the VPS is minimal — no git operations, no building:
 
 1. Pulls pre-built images from GHCR (the `IMAGE_TAG` in `.env` controls which tag)
 2. Restarts services (migrations run automatically on api startup)
-3. Purges the Cloudflare edge cache (anonymous HTML shells are edge-cached, see ADR-016), using `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ZONE_ID` from `.env`
+3. Purges the Cloudflare edge cache **targeted**: the anonymous HTML shells (the allowlist in `apps/web/src/lib/page-cache.ts`, see ADR-016) and everything under `/api/` are purged by prefix + the root URL; hashed `/assets/` and `/media/` are deliberately left cached — they're content-addressed and can never be stale, and keeping them warm avoids a multi-second cold load for the first visitors after each release (and keeps lazy-loading working for tabs still on the previous bundle). Uses `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ZONE_ID` / `CLOUDFLARE_PURGE_HOST` from `.env`. The API purge matters on releases that change a response schema: without it the edge could serve old-shape payloads for up to the `stale-while-revalidate` window (24h for catalog/init).
 4. Cleans up old images
 
-The **preview instance intentionally has no Cloudflare credentials** in its `.env`, so its deploys skip the purge. Preview shares the `openrift.app` zone, and the API only offers `purge_everything` — a purge on every push to main would evict stable's warm edge cache. The trade-off: preview can serve a stale HTML shell for up to ~1h (`stale-while-revalidate` window) after a deploy.
+Purge prefixes are host-scoped, so prod (`CLOUDFLARE_PURGE_HOST=openrift.app`) and preview (`preview.openrift.app`) can purge independently despite sharing one Cloudflare zone. All purge types (URL, prefix, hostname, tag) are available on the Free plan — prefix/hostname purges are rate-limited to 5 requests/minute, far above deploy frequency. If `CLOUDFLARE_PURGE_HOST` is missing the script falls back to `purge_everything`; if the credentials are missing it skips purging entirely (preview ran without credentials until the host-scoped purge made it safe — without any purge, preview can serve a stale HTML shell for up to ~1h after a deploy).
+
+The full-cache nuke remains available as the admin UI's cache purge button (`purge_everything`).
 
 ### Startup Sequence
 

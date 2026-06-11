@@ -42,38 +42,85 @@ echo "==> Restarting services..."
 # could immediately re-cache the old SSR shell).
 docker compose up -d --wait
 
-# Purge the Cloudflare edge cache. Anonymous visitors are served an edge-cached
-# SSR shell (public pages: max-age=300, stale-while-revalidate=3600), and that
-# shell references /assets/*.js chunks this deploy just replaced. Without a
-# purge, the edge can keep handing out the old shell — pointing at deleted
-# chunks — for up to ~1h after a deploy. Reuses the same CLOUDFLARE_* creds the
-# API uses; read straight from .env so nothing is duplicated.
-purge_cloudflare_cache() {
-  local token zone
-  token="$(grep -E '^CLOUDFLARE_API_TOKEN=' .env | tail -n1 | cut -d= -f2- || true)"
-  zone="$(grep -E '^CLOUDFLARE_ZONE_ID=' .env | tail -n1 | cut -d= -f2- || true)"
+# Purge the Cloudflare edge cache — targeted, not purge_everything. Anonymous
+# visitors are served an edge-cached SSR shell (public pages: max-age=300,
+# stale-while-revalidate=3600) and edge-cached API responses (catalog/init:
+# max-age=3600, stale-while-revalidate=86400). Both must be purged on deploy:
+# the shell so it references the new /assets/*.js chunks, the API so a release
+# that changes a response schema can't serve old-shape payloads to new clients
+# for up to the SWR window. What is deliberately NOT purged: /assets/ and
+# /media/ — content-hashed, immutable, can never be stale. Purging them only
+# forces the next visitor to re-pull every chunk cold from origin (~10s page
+# loads after each release), and keeping the old chunks warm at the edge means
+# tabs still running the previous bundle keep lazy-loading successfully.
+#
+# The prefix list below mirrors the anonymous-HTML allowlist in
+# apps/web/src/lib/page-cache.ts (EXACT_PATHS + PREFIX_PATHS) plus /api/.
+# When that allowlist changes, update this list too.
+#
+# Prefixes are host-scoped, so preview (preview.openrift.app) can run the same
+# purge without evicting stable's cache — set CLOUDFLARE_PURGE_HOST per
+# instance. Reuses the same CLOUDFLARE_* creds the API uses; read straight
+# from .env so nothing is duplicated.
+read_env_var() {
+  local value
+  value="$(grep -E "^$1=" .env | tail -n1 | cut -d= -f2- || true)"
   # Strip optional surrounding double quotes and any trailing CR (CRLF .env).
-  token="${token%\"}"; token="${token#\"}"; token="${token%$'\r'}"
-  zone="${zone%\"}"; zone="${zone#\"}"; zone="${zone%$'\r'}"
+  value="${value%\"}"; value="${value#\"}"; value="${value%$'\r'}"
+  printf '%s' "$value"
+}
+
+purge_cloudflare_cache() {
+  local token zone host
+  token="$(read_env_var CLOUDFLARE_API_TOKEN)"
+  zone="$(read_env_var CLOUDFLARE_ZONE_ID)"
+  host="$(read_env_var CLOUDFLARE_PURGE_HOST)"
 
   if [ -z "$token" ] || [ -z "$zone" ]; then
-    # Deliberate on the preview instance: preview shares the openrift.app zone,
-    # and purge_everything would evict stable's warm edge cache on every push
-    # to main. Only the stable instance's .env carries the Cloudflare creds.
     echo "==> CLOUDFLARE_API_TOKEN / CLOUDFLARE_ZONE_ID not set in .env; skipping cache purge."
     return 0
   fi
 
-  echo "==> Purging Cloudflare cache..."
-  if curl -fsS -X POST \
+  if [ -z "$host" ]; then
+    # Pre-CLOUDFLARE_PURGE_HOST .env. Fall back to the old full purge so the
+    # deploy still rolls the new version out, but say what's being lost.
+    echo "==> CLOUDFLARE_PURGE_HOST not set in .env; falling back to purge_everything."
+    echo "    Set it (e.g. CLOUDFLARE_PURGE_HOST=openrift.app) to keep hashed assets cached across deploys."
+    if curl -fsS -X POST \
+        "https://api.cloudflare.com/client/v4/zones/${zone}/purge_cache" \
+        -H "Authorization: Bearer ${token}" \
+        -H "Content-Type: application/json" \
+        --data '{"purge_everything":true}' -o /dev/null; then
+      echo "Cloudflare cache purged (everything)."
+    else
+      echo "WARNING: Cloudflare cache purge failed; edge may serve the old shell for up to ~1h."
+    fi
+    return 0
+  fi
+
+  echo "==> Purging Cloudflare cache for ${host} (HTML shells + API, keeping hashed assets)..."
+  # One purge type per API request, so two calls: prefixes, then the root URL
+  # (the root can't be a prefix — "host/" would match everything).
+  local ok=1
+  curl -fsS -X POST \
       "https://api.cloudflare.com/client/v4/zones/${zone}/purge_cache" \
       -H "Authorization: Bearer ${token}" \
       -H "Content-Type: application/json" \
-      --data '{"purge_everything":true}' -o /dev/null; then
+      --data "{\"prefixes\":[\"${host}/api/\",\"${host}/cards\",\"${host}/sets\",\"${host}/rules\",\"${host}/privacy-policy\",\"${host}/promos\",\"${host}/decks/share/\"]}" \
+      -o /dev/null || ok=0
+  curl -fsS -X POST \
+      "https://api.cloudflare.com/client/v4/zones/${zone}/purge_cache" \
+      -H "Authorization: Bearer ${token}" \
+      -H "Content-Type: application/json" \
+      --data "{\"files\":[\"https://${host}/\"]}" \
+      -o /dev/null || ok=0
+  if [ "$ok" -eq 1 ]; then
     echo "Cloudflare cache purged."
   else
     # A failed purge shouldn't fail the deploy — the app still works, the edge
-    # just clears on its own within the stale-while-revalidate window.
+    # just clears on its own within the stale-while-revalidate window. Stale
+    # shells are also no longer broken: the old chunks they reference stay
+    # cached at the edge.
     echo "WARNING: Cloudflare cache purge failed; edge may serve the old shell for up to ~1h."
   fi
 }
