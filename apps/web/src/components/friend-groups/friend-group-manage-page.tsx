@@ -13,7 +13,6 @@ import {
   HeartIcon,
   KeyIcon,
   Trash2Icon,
-  UsersIcon,
 } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import { useState } from "react";
@@ -45,7 +44,6 @@ import {
   useFriendGroupDetail,
   useFriendGroupShareableCollections,
   useFriendGroupShareableLists,
-  useInviteFriendByEmail,
   useLeaveFriendGroup,
   useRotateFriendGroupCode,
   useShareCollectionWithFriendGroup,
@@ -58,6 +56,7 @@ import { getSiteUrl } from "@/lib/site-config";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
 import { isAdmin } from "./friend-group-shell";
+import { InviteByEmailForm } from "./invite-by-email-form";
 
 const INTENT_LABEL: Record<ListIntent, string> = {
   wish: "Wishlist",
@@ -111,12 +110,10 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
   const rotateCode = useRotateFriendGroupCode();
   const disableCode = useDisableFriendGroupCode();
   const enableCode = useEnableFriendGroupCode();
-  const invite = useInviteFriendByEmail();
 
   const [name, setName] = useState(data.group.name);
   const [description, setDescription] = useState(data.group.description ?? "");
   const [newSlug, setNewSlug] = useState(data.group.slug);
-  const [inviteEmail, setInviteEmail] = useState("");
   const [rotateConfirmOpen, setRotateConfirmOpen] = useState(false);
   const [disableConfirmOpen, setDisableConfirmOpen] = useState(false);
 
@@ -287,30 +284,7 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
 
         <Separator />
 
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="fg-invite-email" className="flex items-center gap-2">
-            <UsersIcon className="size-4" />
-            Invite by email
-          </Label>
-          <div className="flex gap-2">
-            <Input
-              id="fg-invite-email"
-              type="email"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="friend@example.com"
-            />
-            <Button
-              onClick={async () => {
-                await invite.mutateAsync({ slug, email: inviteEmail.trim() });
-                setInviteEmail("");
-              }}
-              disabled={!inviteEmail || invite.isPending}
-            >
-              Send invite
-            </Button>
-          </div>
-        </div>
+        <InviteByEmailForm slug={slug} />
       </CardContent>
     </Card>
   );
