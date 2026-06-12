@@ -159,6 +159,9 @@ function toEntry(
     claimedUserName,
     claimSource: row.claimSource,
     claimBlocked: row.claimBlockedAt !== null,
+    // Only expose the claim token while a link would still work: not yet linked
+    // and not blocked by a judge unlink.
+    claimToken: row.claimedUserId === null && row.claimBlockedAt === null ? row.claimToken : null,
     playerMessage: row.playerMessage,
     updatedAt: row.updatedAt.toISOString(),
   };

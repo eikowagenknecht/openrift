@@ -414,6 +414,40 @@ describe.skipIf(!ownerCtx)("deck-check routes (integration, ADR-025)", () => {
       );
     });
 
+    it("exposes the claim token only while the entry can still be claimed", async () => {
+      await push([
+        entryPayload({ externalId: "entry-claim-token", playerEmail: "claim-token@example.com" }),
+      ]);
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-claim-token");
+
+      // Unclaimed and unblocked: the judge can copy the link, so the token ships.
+      const open = await judgeApp.fetch(
+        req("GET", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}`),
+      );
+      const openBody = (await open.json()) as { entry: { claimToken: string | null } };
+      expect(openBody.entry.claimToken).toBeTruthy();
+      expect(openBody.entry.claimToken).toBe(entry!.claimToken);
+
+      // Once linked, a claim link would be a no-op, so the token is withheld.
+      await repos.deckCheck.linkEntryIfUnclaimed(entry!.id, MEMBER_ID, "judge_manual");
+      const linked = await judgeApp.fetch(
+        req("GET", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}`),
+      );
+      const linkedBody = (await linked.json()) as { entry: { claimToken: string | null } };
+      expect(linkedBody.entry.claimToken).toBeNull();
+
+      // A judge unlink blocks re-claiming, so the token stays withheld.
+      await repos.deckCheck.unlinkEntry(entry!.id);
+      const blocked = await judgeApp.fetch(
+        req("GET", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}`),
+      );
+      const blockedBody = (await blocked.json()) as {
+        entry: { claimToken: string | null; claimBlocked: boolean };
+      };
+      expect(blockedBody.entry.claimBlocked).toBe(true);
+      expect(blockedBody.entry.claimToken).toBeNull();
+    });
+
     it("re-resolves unmatched lines once the card exists in the catalog", async () => {
       const inserted = await db
         .insertInto("cards")

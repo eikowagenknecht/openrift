@@ -1893,6 +1893,7 @@ const deckCheckEntryResponseSchema = z.object({
   claimedUserName: z.string().nullable(),
   claimSource: deckCheckClaimSourceSchema.nullable(),
   claimBlocked: z.boolean(),
+  claimToken: z.string().nullable(),
   playerMessage: z.string().nullable(),
   updatedAt: z.string(),
 });

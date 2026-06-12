@@ -9,6 +9,7 @@ import { imageUrl } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import {
   CheckIcon,
+  CopyIcon,
   ExpandIcon,
   LayoutGridIcon,
   Link2Icon,
@@ -87,6 +88,7 @@ import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 import { sortDeckCheckCards } from "@/lib/deck-check-sort";
 import { getDomainGradientStyle } from "@/lib/domain";
+import { getSiteUrl } from "@/lib/site-config";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 import { useDeckCheckViewStore } from "@/stores/deck-check-view-store";
 import type { DeckCheckDisplayMode, DeckCheckSort } from "@/stores/deck-check-view-store";
@@ -263,6 +265,7 @@ export function DeckCheckEntryPage({
               columns={columns}
               cellWidth={cellWidth}
               locked={detail.entry.state !== "submitted"}
+              tickLocked={detail.entry.state !== "submitted" && detail.entry.state !== "approved"}
               onStale={() => void refetch()}
             />
           </div>
@@ -387,6 +390,7 @@ function EntryHeader({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <AccountLinkAction slug={slug} eventId={eventId} entryId={entryId} entry={entry} />
+          <ClaimLinkButton entry={entry} />
           {entry.state === "submitted" ? (
             <>
               {entry.claimedUserId ? (
@@ -423,20 +427,20 @@ function EntryHeader({
               </Button>
               <Button
                 size="sm"
-                disabled={setState.isPending}
-                onClick={() => transition("checked", "ok")}
-              >
-                <CheckIcon className="size-4" />
-                Mark checked
-              </Button>
-              <Button
-                size="sm"
-                variant="destructive"
+                variant="outline"
                 disabled={setState.isPending}
                 onClick={() => transition("checked", "issue")}
               >
                 <TriangleAlertIcon className="size-4" />
                 Mark issue
+              </Button>
+              <Button
+                size="sm"
+                disabled={setState.isPending}
+                onClick={() => transition("checked", "ok")}
+              >
+                <CheckIcon className="size-4" />
+                Mark checked
               </Button>
             </>
           ) : null}
@@ -583,6 +587,33 @@ function AccountLinkAction({
         onOpenChange={setLinkOpen}
       />
     </>
+  );
+}
+
+/**
+ * Copies the player's claim link (ADR-026) so a judge can send it directly. The
+ * server only sends `claimToken` while the entry can still be claimed (unlinked
+ * and not blocked), so the button simply hides itself otherwise.
+ * @returns The copy button, or null when there is no claimable token.
+ */
+function ClaimLinkButton({ entry }: { entry: DeckCheckEntryDetailResponse["entry"] }) {
+  if (!entry.claimToken) {
+    return null;
+  }
+  const claimUrl = `${getSiteUrl()}/tournament-claim/${entry.claimToken}`;
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      title="Copy a link the player opens to link this entry to their account"
+      onClick={async () => {
+        await navigator.clipboard.writeText(claimUrl);
+        toast.success("Claim link copied");
+      }}
+    >
+      <CopyIcon className="size-4" />
+      Copy claim link
+    </Button>
   );
 }
 
@@ -1232,6 +1263,7 @@ function CardChecklist({
   columns,
   cellWidth,
   locked,
+  tickLocked,
   onStale,
 }: {
   slug: string;
@@ -1243,8 +1275,10 @@ function CardChecklist({
   sortDir: "asc" | "desc";
   columns: number;
   cellWidth: number;
-  /** Card edits are only allowed while the entry is submitted (ADR-027). */
+  /** Card edits (add / remove / fix) are only allowed while submitted (ADR-027). */
   locked: boolean;
+  /** Found-ticks are frozen outside the submitted and approved (physical check) states. */
+  tickLocked: boolean;
   onStale: () => void;
 }) {
   const { zoneLabels } = useZoneOrder();
@@ -1321,6 +1355,7 @@ function CardChecklist({
             columns={columns}
             cellWidth={cellWidth}
             locked={locked}
+            tickLocked={tickLocked}
             onStale={onStale}
           />
         ))}
@@ -1345,6 +1380,7 @@ function CardChecklist({
               cellWidth={cellWidth}
               intrinsic
               locked={locked}
+              tickLocked={tickLocked}
               onStale={onStale}
             />
           ))}
@@ -1362,6 +1398,7 @@ function CardChecklist({
           columns={columns}
           cellWidth={cellWidth}
           locked={locked}
+          tickLocked={tickLocked}
           onStale={onStale}
         />
       ))}
@@ -1437,6 +1474,7 @@ function ZoneSection({
   cellWidth,
   intrinsic,
   locked,
+  tickLocked,
   onStale,
 }: {
   slug: string;
@@ -1457,6 +1495,8 @@ function ZoneSection({
   intrinsic?: boolean;
   /** Locked outside the submitted state; hides the per-copy remove control. */
   locked: boolean;
+  /** Found-ticks frozen outside the submitted and approved (physical check) states. */
+  tickLocked: boolean;
   onStale: () => void;
 }) {
   const verifiedCopies = cards.reduce(
@@ -1500,6 +1540,7 @@ function ZoneSection({
                 }
                 onHover={onHover}
                 locked={locked}
+                tickLocked={tickLocked}
                 onStale={onStale}
               />
             )),
@@ -1533,6 +1574,7 @@ function ZoneSection({
               copyIndex={copyIndex}
               cellWidth={cellWidth}
               locked={locked}
+              tickLocked={tickLocked}
               onStale={onStale}
             />
           )),
@@ -1558,6 +1600,7 @@ function ChecklistRow({
   printing,
   onHover,
   locked,
+  tickLocked,
   onStale,
 }: {
   slug: string;
@@ -1567,8 +1610,10 @@ function ChecklistRow({
   copyIndex: number;
   printing?: Printing;
   onHover?: (printing: Printing | null) => void;
-  /** Locked outside the submitted state; freezes ticking and hides the controls. */
+  /** Locked outside the submitted state; hides the fix / remove controls. */
   locked: boolean;
+  /** Ticking frozen outside the submitted and approved (physical check) states. */
+  tickLocked: boolean;
   onStale: () => void;
 }) {
   const tickCard = useTickDeckCheckCard();
@@ -1580,8 +1625,8 @@ function ChecklistRow({
   const name = matched ? printing.card.name : card.rawName;
 
   const toggle = async () => {
-    // A non-submitted state freezes the checklist; move it back to submitted to tick again.
-    if (locked) {
+    // Ticking is the physical check; allowed while submitted or approved, frozen otherwise.
+    if (tickLocked) {
       return;
     }
     try {
@@ -1710,6 +1755,7 @@ function ChecklistCell({
   copyIndex,
   cellWidth,
   locked,
+  tickLocked,
   onStale,
 }: {
   slug: string;
@@ -1718,8 +1764,10 @@ function ChecklistCell({
   card: DeckCheckEntryCardResponse;
   copyIndex: number;
   cellWidth: number;
-  /** Locked outside the submitted state; freezes ticking and hides the remove control. */
+  /** Locked outside the submitted state; hides the remove control. */
   locked: boolean;
+  /** Ticking frozen outside the submitted and approved (physical check) states. */
+  tickLocked: boolean;
   onStale: () => void;
 }) {
   const { allPrintings } = useCards();
@@ -1731,8 +1779,8 @@ function ChecklistCell({
   const found = card.foundCopies[copyIndex] === true;
 
   const toggle = async () => {
-    // A non-submitted state freezes the checklist; move it back to submitted to tick again.
-    if (locked) {
+    // Ticking is the physical check; allowed while submitted or approved, frozen otherwise.
+    if (tickLocked) {
       return;
     }
     try {

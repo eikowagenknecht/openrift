@@ -140,6 +140,12 @@ export interface DeckCheckEntryResponse {
   claimSource: DeckCheckClaimSource | null;
   /** True when a judge unlinked the entry, blocking any further auto-match. */
   claimBlocked: boolean;
+  /**
+   * The provider-issued claim token (ADR-026), for the judge to hand a player a
+   * `/tournament-claim/<token>` link. Present only while the entry can still be
+   * claimed — null once it is linked or a judge unlink blocked it.
+   */
+  claimToken: string | null;
   /** Judge-authored message shown to the linked player, separate from `notes`. */
   playerMessage: string | null;
   updatedAt: string;
