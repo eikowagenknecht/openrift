@@ -891,6 +891,7 @@ function CardChecklist({
             onHover={handleHover}
             columns={columns}
             cellWidth={cellWidth}
+            locked={locked}
             onStale={onStale}
           />
         ))}
@@ -1068,6 +1069,7 @@ function ZoneSection({
                   card.resolvedPrintingId ? printingById?.get(card.resolvedPrintingId) : undefined
                 }
                 onHover={onHover}
+                locked={locked}
                 onStale={onStale}
               />
             )),
@@ -1125,6 +1127,7 @@ function ChecklistRow({
   copyIndex,
   printing,
   onHover,
+  locked,
   onStale,
 }: {
   slug: string;
@@ -1134,6 +1137,8 @@ function ChecklistRow({
   copyIndex: number;
   printing?: Printing;
   onHover?: (printing: Printing | null) => void;
+  /** A finished verdict (checked/issue) freezes ticking and hides the controls. */
+  locked: boolean;
   onStale: () => void;
 }) {
   const tickCard = useTickDeckCheckCard();
@@ -1145,6 +1150,10 @@ function ChecklistRow({
   const name = matched ? printing.card.name : card.rawName;
 
   const toggle = async () => {
+    // A finished verdict freezes the checklist; re-open the entry to tick again.
+    if (locked) {
+      return;
+    }
     try {
       await tickCard.mutateAsync({
         slug,
@@ -1203,36 +1212,38 @@ function ChecklistRow({
           <span className="text-muted-foreground text-2xs shrink-0">copy {copyIndex + 1}</span>
         ) : null}
       </button>
-      <div className="flex shrink-0 items-center gap-0.5 pr-1">
-        {matched ? null : (
-          <>
-            <button
-              type="button"
-              aria-label={`Fix the name of ${card.rawName}`}
-              className="text-muted-foreground hover:text-foreground rounded p-1"
-              onClick={() => setFixOpen(true)}
-            >
-              <PencilIcon className="size-3.5" />
-            </button>
-            <FixCardDialog
-              slug={slug}
-              eventId={eventId}
-              entryId={entryId}
-              card={card}
-              open={fixOpen}
-              onOpenChange={setFixOpen}
-            />
-          </>
-        )}
-        <button
-          type="button"
-          aria-label={`Remove this copy of ${card.rawName}`}
-          className="text-muted-foreground hover:text-destructive rounded p-1"
-          onClick={() => setRemoveOpen(true)}
-        >
-          <XIcon className="size-3.5" />
-        </button>
-      </div>
+      {locked ? null : (
+        <div className="flex shrink-0 items-center gap-0.5 pr-1">
+          {matched ? null : (
+            <>
+              <button
+                type="button"
+                aria-label={`Fix the name of ${card.rawName}`}
+                className="text-muted-foreground hover:text-foreground rounded p-1"
+                onClick={() => setFixOpen(true)}
+              >
+                <PencilIcon className="size-3.5" />
+              </button>
+              <FixCardDialog
+                slug={slug}
+                eventId={eventId}
+                entryId={entryId}
+                card={card}
+                open={fixOpen}
+                onOpenChange={setFixOpen}
+              />
+            </>
+          )}
+          <button
+            type="button"
+            aria-label={`Remove this copy of ${card.rawName}`}
+            className="text-muted-foreground hover:text-destructive rounded p-1"
+            onClick={() => setRemoveOpen(true)}
+          >
+            <XIcon className="size-3.5" />
+          </button>
+        </div>
+      )}
       <ConfirmActionDialog
         open={removeOpen}
         onOpenChange={setRemoveOpen}
