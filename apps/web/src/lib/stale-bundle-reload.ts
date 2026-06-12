@@ -188,6 +188,17 @@ export function initChunkErrorReloader(): void {
       reloadOnce(`bare promise rejection (${String(reason)})`);
     }
   });
+  // Vite's preload helper dispatches this when a lazy chunk or one of its
+  // preloaded deps (JS or CSS) fails to load — e.g. a hashed asset from a
+  // previous deploy that the origin no longer has. Without preventDefault()
+  // the helper rethrows into the dynamic import's caller, where the router's
+  // error boundary can swallow it before the window-level handlers above ever
+  // see it. Handling the event directly closes that gap; reloadOnce() keeps
+  // the same once-per-session loop guard as the other recovery paths.
+  globalThis.addEventListener("vite:preloadError", (event) => {
+    event.preventDefault();
+    reloadOnce(`vite preload error: ${event.payload.message}`);
+  });
 }
 
 // Test-only escape hatch — Vitest can't easily clear sessionStorage or module

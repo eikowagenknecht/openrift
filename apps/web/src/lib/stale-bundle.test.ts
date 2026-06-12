@@ -332,6 +332,36 @@ describe("initChunkErrorReloader", () => {
 
     expect(reloadSpy).not.toHaveBeenCalled();
   });
+
+  test("reloads on vite:preloadError and prevents the rethrow", () => {
+    initChunkErrorReloader();
+
+    const event = new Event("vite:preloadError", { cancelable: true }) as Event & {
+      payload: Error;
+    };
+    event.payload = new Error("Unable to preload CSS for /assets/cards.lazy-OLD.css");
+    globalThis.dispatchEvent(event);
+
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  test("vite:preloadError respects the once-per-session loop guard", () => {
+    initChunkErrorReloader();
+
+    const makeEvent = (): Event => {
+      const event = new Event("vite:preloadError", { cancelable: true }) as Event & {
+        payload: Error;
+      };
+      event.payload = new Error("Failed to fetch dynamically imported module");
+      return event;
+    };
+    globalThis.dispatchEvent(makeEvent());
+    globalThis.dispatchEvent(makeEvent());
+
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("initVisibilityVersionCheck", () => {
