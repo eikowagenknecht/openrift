@@ -25,6 +25,8 @@ export interface DeckSourceInput {
   deckId?: string;
   deckCode?: string;
   cards?: { name: string; quantity: number; section: string }[];
+  /** Consent for the organizer to publish the deck list publicly. */
+  allowDeckPublishing: boolean;
   /** Consent to show the player's name on public platforms. */
   allowNameSharing: boolean;
   /** Consent to show the player's Riot ID on public platforms. */
@@ -34,7 +36,10 @@ export interface DeckSourceInput {
 const NO_DECK = "__none__";
 
 /** The list part of the input, before the consent flags are attached. */
-type DeckSource = Omit<DeckSourceInput, "allowNameSharing" | "allowRiotIdSharing">;
+type DeckSource = Omit<
+  DeckSourceInput,
+  "allowDeckPublishing" | "allowNameSharing" | "allowRiotIdSharing"
+>;
 
 /**
  * Classifies a paste and converts it to a submission input. A compact deck
@@ -69,6 +74,7 @@ export function PlayerDeckSourceForm({
   onPreview,
   preview,
   isPreviewing,
+  initialAllowDeckPublishing = true,
   initialAllowNameSharing = true,
   initialAllowRiotIdSharing = true,
 }: {
@@ -80,12 +86,14 @@ export function PlayerDeckSourceForm({
   preview: DeckCheckSubmissionResultResponse | null;
   isPreviewing: boolean;
   /** Stored sharing consent of an existing entry; defaults to allowed. */
+  initialAllowDeckPublishing?: boolean;
   initialAllowNameSharing?: boolean;
   initialAllowRiotIdSharing?: boolean;
 }) {
   const { data: allDecks } = useDecks();
   const [deckId, setDeckId] = useState(NO_DECK);
   const [deckCode, setDeckCode] = useState("");
+  const [allowDeckPublishing, setAllowDeckPublishing] = useState(initialAllowDeckPublishing);
   const [allowNameSharing, setAllowNameSharing] = useState(initialAllowNameSharing);
   const [allowRiotIdSharing, setAllowRiotIdSharing] = useState(initialAllowRiotIdSharing);
 
@@ -98,7 +106,7 @@ export function PlayerDeckSourceForm({
   // The sources are mutually exclusive; touching one clears the other.
   const source: DeckSource | null = deckId === NO_DECK ? pasteToInput(deckCode) : { deckId };
   const input: DeckSourceInput | null = source
-    ? { ...source, allowNameSharing, allowRiotIdSharing }
+    ? { ...source, allowDeckPublishing, allowNameSharing, allowRiotIdSharing }
     : null;
 
   return (
@@ -133,8 +141,10 @@ export function PlayerDeckSourceForm({
         <Textarea
           id="player-deck-code"
           value={deckCode}
-          placeholder={"Deck code, or one card per line:\n3 Blazing Scorcher"}
-          rows={3}
+          placeholder={
+            "Deck code, or a list grouped by zone:\n\nChampion:\n1 Twisted Fate, Gambler\n\nMainDeck:\n3 Mystic Poro"
+          }
+          rows={7}
           onChange={(event) => {
             setDeckCode(event.target.value);
             if (event.target.value.trim().length > 0) {
@@ -143,7 +153,7 @@ export function PlayerDeckSourceForm({
           }}
         />
         <p className="text-muted-foreground text-sm">
-          Accepts the compact code from OpenRift&apos;s deck export or{" "}
+          Paste a deck code from OpenRift or{" "}
           <a
             href="https://piltoverarchive.com"
             target="_blank"
@@ -152,36 +162,58 @@ export function PlayerDeckSourceForm({
           >
             Piltover Archive
           </a>
-          , or a plain card list with one card per line. Legends, runes, and battlefields find their
-          zones automatically; mark your chosen champion and any sideboard with
-          &quot;Champion:&quot; / &quot;Sideboard:&quot; header lines.
+          , or the text list either one exports. In a text list, a zone header like
+          &quot;Champion:&quot;, &quot;MainDeck:&quot;, or &quot;Sideboard:&quot; applies to every
+          card below it, until the next header. Lines with no header above them count as main deck,
+          so exporting from a deck builder is best, since it already groups your cards.
         </p>
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label>Public deck lists</Label>
+        <Label>Public sharing</Label>
         <div className="flex items-center gap-2">
+          <Checkbox
+            id="player-deck-publish"
+            checked={allowDeckPublishing}
+            onCheckedChange={(checked) => setAllowDeckPublishing(checked === true)}
+          />
+          <Label htmlFor="player-deck-publish" className="font-normal">
+            I agree the event organizer may publish this deck list publicly after the event
+          </Label>
+        </div>
+        <div className="ml-6 flex items-center gap-2">
           <Checkbox
             id="player-deck-share-name"
             checked={allowNameSharing}
+            disabled={!allowDeckPublishing}
             onCheckedChange={(checked) => setAllowNameSharing(checked === true)}
           />
-          <Label htmlFor="player-deck-share-name" className="font-normal">
-            My name may be shown with my deck on public platforms
+          <Label
+            htmlFor="player-deck-share-name"
+            className="font-normal data-[disabled]:opacity-50"
+            data-disabled={!allowDeckPublishing || undefined}
+          >
+            ...including my name
           </Label>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="ml-6 flex items-center gap-2">
           <Checkbox
             id="player-deck-share-riot-id"
             checked={allowRiotIdSharing}
+            disabled={!allowDeckPublishing}
             onCheckedChange={(checked) => setAllowRiotIdSharing(checked === true)}
           />
-          <Label htmlFor="player-deck-share-riot-id" className="font-normal">
-            My Riot ID may be shown with my deck on public platforms
+          <Label
+            htmlFor="player-deck-share-riot-id"
+            className="font-normal data-[disabled]:opacity-50"
+            data-disabled={!allowDeckPublishing || undefined}
+          >
+            ...including my Riot ID
           </Label>
         </div>
         <p className="text-muted-foreground text-sm">
-          Judges always see your details; this only affects publicly shared deck lists.
+          These choices only control how much the organizer may publish publicly, for example on
+          riftdecks.com or OpenRift. The event judges always see your full list and details.
         </p>
       </div>
 

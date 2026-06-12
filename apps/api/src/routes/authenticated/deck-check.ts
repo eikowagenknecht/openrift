@@ -140,6 +140,7 @@ function toEntry(
     playerName: row.playerName,
     playerEmail: row.playerEmail,
     riotId: row.riotId,
+    allowDeckPublishing: row.allowDeckPublishing,
     allowNameSharing: row.allowNameSharing,
     allowRiotIdSharing: row.allowRiotIdSharing,
     submittedAt: row.submittedAt?.toISOString() ?? null,
@@ -891,6 +892,9 @@ export const deckCheckRoute = deckCheckApp
       ...(body.playerEmail === undefined ? {} : { playerEmail: body.playerEmail }),
       ...(body.riotId === undefined ? {} : { riotId: body.riotId }),
       ...(body.playerMessage === undefined ? {} : { playerMessage: body.playerMessage }),
+      ...(body.allowDeckPublishing === undefined
+        ? {}
+        : { allowDeckPublishing: body.allowDeckPublishing }),
       ...(body.allowNameSharing === undefined ? {} : { allowNameSharing: body.allowNameSharing }),
       ...(body.allowRiotIdSharing === undefined
         ? {}

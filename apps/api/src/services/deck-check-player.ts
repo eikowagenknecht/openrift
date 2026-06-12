@@ -233,6 +233,7 @@ export async function resolvePlayerCardRows(
 
 /** Sharing consent as submitted by the player; an absent flag is no statement. */
 export interface PlayerSharingConsent {
+  allowDeckPublishing?: boolean;
   allowNameSharing?: boolean;
   allowRiotIdSharing?: boolean;
 }
@@ -243,10 +244,14 @@ export interface PlayerSharingConsent {
  * @returns A patch containing only the flags the player answered.
  */
 function consentPatch(consent: PlayerSharingConsent): Partial<{
+  allowDeckPublishing: boolean;
   allowNameSharing: boolean;
   allowRiotIdSharing: boolean;
 }> {
   return {
+    ...(consent.allowDeckPublishing === undefined
+      ? {}
+      : { allowDeckPublishing: consent.allowDeckPublishing }),
     ...(consent.allowNameSharing === undefined
       ? {}
       : { allowNameSharing: consent.allowNameSharing }),

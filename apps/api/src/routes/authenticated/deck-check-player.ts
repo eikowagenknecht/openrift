@@ -115,6 +115,7 @@ async function buildPlayerDetail(
       reviewOutcome: row.reviewOutcome,
       unlockRequested: row.unlockRequestedAt !== null,
       playerMessage: row.playerMessage,
+      allowDeckPublishing: row.allowDeckPublishing,
       allowNameSharing: row.allowNameSharing,
       allowRiotIdSharing: row.allowRiotIdSharing,
       submittedAt: row.submittedAt?.toISOString() ?? null,
@@ -473,6 +474,7 @@ export const deckCheckPlayerRoute = deckCheckPlayerApp
 
     const entry = await c.get("transact")((txRepos) =>
       applyPlayerList(txRepos, row, lines, cardRows, {
+        allowDeckPublishing: body.allowDeckPublishing,
         allowNameSharing: body.allowNameSharing,
         allowRiotIdSharing: body.allowRiotIdSharing,
       }),
@@ -578,6 +580,7 @@ export const deckCheckPlayerRoute = deckCheckPlayerApp
                 canReplace:
                   state === "editable" ||
                   (state === "submitted" && event.listLockMode === "at_deadline"),
+                allowDeckPublishing: linked.allowDeckPublishing,
                 allowNameSharing: linked.allowNameSharing,
                 allowRiotIdSharing: linked.allowRiotIdSharing,
               };
@@ -614,6 +617,7 @@ export const deckCheckPlayerRoute = deckCheckPlayerApp
     }
     const entry = await c.get("transact")((txRepos) =>
       persistSubmission(txRepos, event, userId, lines, cardRows, {
+        allowDeckPublishing: body.allowDeckPublishing,
         allowNameSharing: body.allowNameSharing,
         allowRiotIdSharing: body.allowRiotIdSharing,
       }),

@@ -364,7 +364,11 @@ function EntryHeader({
           </p>
           <p className="text-muted-foreground text-sm">
             Public sharing allowed:{" "}
-            {sharingAllowedSummary(entry.allowNameSharing, entry.allowRiotIdSharing)}
+            {sharingAllowedSummary(
+              entry.allowDeckPublishing,
+              entry.allowNameSharing,
+              entry.allowRiotIdSharing,
+            )}
           </p>
           {entry.state === "checked" && entry.checkedByName ? (
             <p className="text-muted-foreground text-sm">
@@ -512,13 +516,20 @@ function EntryHeader({
 
 /**
  * What the player allows public platforms to show, for the header status line.
- * @returns A short list like "name, Riot ID", or "nothing".
+ * @returns A short list like "deck list, name, Riot ID", or "nothing".
  */
-function sharingAllowedSummary(allowName: boolean, allowRiotId: boolean): string {
-  const allowed = [allowName ? "name" : null, allowRiotId ? "Riot ID" : null].filter(
+function sharingAllowedSummary(
+  allowPublish: boolean,
+  allowName: boolean,
+  allowRiotId: boolean,
+): string {
+  if (!allowPublish) {
+    return "nothing (deck list not published)";
+  }
+  const allowed = ["deck list", allowName ? "name" : null, allowRiotId ? "Riot ID" : null].filter(
     (part) => part !== null,
   );
-  return allowed.length > 0 ? allowed.join(", ") : "nothing";
+  return allowed.join(", ");
 }
 
 /**
@@ -741,6 +752,7 @@ function EditPlayerDialog({
   const [playerName, setPlayerName] = useState(entry.playerName);
   const [playerEmail, setPlayerEmail] = useState(entry.playerEmail ?? "");
   const [riotId, setRiotId] = useState(entry.riotId ?? "");
+  const [allowDeckPublishing, setAllowDeckPublishing] = useState(entry.allowDeckPublishing);
   const [allowNameSharing, setAllowNameSharing] = useState(entry.allowNameSharing);
   const [allowRiotIdSharing, setAllowRiotIdSharing] = useState(entry.allowRiotIdSharing);
   const updateEntry = useUpdateDeckCheckEntry();
@@ -757,6 +769,7 @@ function EditPlayerDialog({
       playerName: name,
       playerEmail: playerEmail.trim() || null,
       riotId: riotId.trim() || null,
+      allowDeckPublishing,
       allowNameSharing,
       allowRiotIdSharing,
     });
@@ -771,6 +784,7 @@ function EditPlayerDialog({
           setPlayerName(entry.playerName);
           setPlayerEmail(entry.playerEmail ?? "");
           setRiotId(entry.riotId ?? "");
+          setAllowDeckPublishing(entry.allowDeckPublishing);
           setAllowNameSharing(entry.allowNameSharing);
           setAllowRiotIdSharing(entry.allowRiotIdSharing);
         }
@@ -821,22 +835,42 @@ function EditPlayerDialog({
             <Label>Public sharing</Label>
             <div className="flex items-center gap-2">
               <Checkbox
-                id="deck-check-share-name"
-                checked={allowNameSharing}
-                onCheckedChange={(checked) => setAllowNameSharing(checked === true)}
+                id="deck-check-publish"
+                checked={allowDeckPublishing}
+                onCheckedChange={(checked) => setAllowDeckPublishing(checked === true)}
               />
-              <Label htmlFor="deck-check-share-name" className="font-normal">
-                Name may be shown on public platforms
+              <Label htmlFor="deck-check-publish" className="font-normal">
+                Deck list may be published publicly after the event
               </Label>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="ml-6 flex items-center gap-2">
+              <Checkbox
+                id="deck-check-share-name"
+                checked={allowNameSharing}
+                disabled={!allowDeckPublishing}
+                onCheckedChange={(checked) => setAllowNameSharing(checked === true)}
+              />
+              <Label
+                htmlFor="deck-check-share-name"
+                className="font-normal data-[disabled]:opacity-50"
+                data-disabled={!allowDeckPublishing || undefined}
+              >
+                ...including the name
+              </Label>
+            </div>
+            <div className="ml-6 flex items-center gap-2">
               <Checkbox
                 id="deck-check-share-riot-id"
                 checked={allowRiotIdSharing}
+                disabled={!allowDeckPublishing}
                 onCheckedChange={(checked) => setAllowRiotIdSharing(checked === true)}
               />
-              <Label htmlFor="deck-check-share-riot-id" className="font-normal">
-                Riot ID may be shown on public platforms
+              <Label
+                htmlFor="deck-check-share-riot-id"
+                className="font-normal data-[disabled]:opacity-50"
+                data-disabled={!allowDeckPublishing || undefined}
+              >
+                ...including the Riot ID
               </Label>
             </div>
           </div>

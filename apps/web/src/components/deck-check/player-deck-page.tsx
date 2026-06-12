@@ -145,7 +145,11 @@ export function PlayerDeckPage({ entryId }: { entryId: string }) {
             </p>
           ) : null}
           <p className="text-muted-foreground text-sm">
-            {sharingSummary(entry.allowNameSharing, entry.allowRiotIdSharing)}
+            {sharingSummary(
+              entry.allowDeckPublishing,
+              entry.allowNameSharing,
+              entry.allowRiotIdSharing,
+            )}
             {entry.canEdit ? " You can change this when replacing your deck." : ""}
           </p>
           {data.violations.length > 0 ? (
@@ -172,17 +176,20 @@ export function PlayerDeckPage({ entryId }: { entryId: string }) {
  * One sentence describing what the player allows public platforms to show.
  * @returns The summary sentence.
  */
-function sharingSummary(allowName: boolean, allowRiotId: boolean): string {
+function sharingSummary(allowPublish: boolean, allowName: boolean, allowRiotId: boolean): string {
+  if (!allowPublish) {
+    return "The organizer may not publish this deck list publicly.";
+  }
   if (allowName && allowRiotId) {
-    return "Public platforms may show your name and Riot ID with this deck.";
+    return "The organizer may publish this deck list, with your name and Riot ID.";
   }
   if (allowName) {
-    return "Public platforms may show your name with this deck, but not your Riot ID.";
+    return "The organizer may publish this deck list, with your name but not your Riot ID.";
   }
   if (allowRiotId) {
-    return "Public platforms may show your Riot ID with this deck, but not your name.";
+    return "The organizer may publish this deck list, with your Riot ID but not your name.";
   }
-  return "Public platforms may not show your name or Riot ID with this deck.";
+  return "The organizer may publish this deck list, without your name or Riot ID.";
 }
 
 function Banner({ children }: { children: React.ReactNode }) {
@@ -307,6 +314,7 @@ function PlayerDeckActions({ entry }: { entry: PlayerDeckCheckEntryDetailRespons
       <>
         <ReplaceDeckButton
           entryId={entry.id}
+          allowDeckPublishing={entry.allowDeckPublishing}
           allowNameSharing={entry.allowNameSharing}
           allowRiotIdSharing={entry.allowRiotIdSharing}
         />
@@ -348,10 +356,12 @@ function PlayerDeckActions({ entry }: { entry: PlayerDeckCheckEntryDetailRespons
 
 function ReplaceDeckButton({
   entryId,
+  allowDeckPublishing,
   allowNameSharing,
   allowRiotIdSharing,
 }: {
   entryId: string;
+  allowDeckPublishing: boolean;
   allowNameSharing: boolean;
   allowRiotIdSharing: boolean;
 }) {
@@ -384,6 +394,7 @@ function ReplaceDeckButton({
             onPreview={(input) => preview.mutate({ entryId, ...input })}
             preview={preview.data ?? null}
             isPreviewing={preview.isPending}
+            initialAllowDeckPublishing={allowDeckPublishing}
             initialAllowNameSharing={allowNameSharing}
             initialAllowRiotIdSharing={allowRiotIdSharing}
           />

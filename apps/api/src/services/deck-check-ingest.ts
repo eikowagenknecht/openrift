@@ -163,6 +163,9 @@ export async function ingestDeckCheckPush(
     // An omitted consent flag is no statement: the stored value survives a
     // re-push, and a fresh insert falls back to the column default (true).
     const consent = {
+      ...(entry.allowDeckPublishing === undefined
+        ? {}
+        : { allowDeckPublishing: entry.allowDeckPublishing }),
       ...(entry.allowNameSharing === undefined ? {} : { allowNameSharing: entry.allowNameSharing }),
       ...(entry.allowRiotIdSharing === undefined
         ? {}

@@ -34,6 +34,7 @@ const EXAMPLE_PAYLOAD = `{
       "playerEmail": "player@example.com",
       "riotId": "Player#EUW",
       "submittedAt": "2026-06-18T20:00:00Z",
+      "allowDeckPublishing": true,
       "allowNameSharing": true,
       "allowRiotIdSharing": true,
       "withdrawn": false,
@@ -107,12 +108,13 @@ export function DeckCheckKeysSection({ slug }: { slug: string }) {
             judges next to the name.
           </p>
           <p>
-            <code>allowNameSharing</code> and <code>allowRiotIdSharing</code> record whether the
-            player agreed to their name or Riot ID being shown on public platforms. Send{" "}
-            <code>false</code> when the player declined; leaving a flag out keeps what is stored
-            (new entries default to allowed). Leaving an entry out of a push never withdraws it: to
-            withdraw a player, send the entry with <code>withdrawn</code> set to <code>true</code>;
-            sending it again without the flag restores it.
+            <code>allowDeckPublishing</code> records whether the player agreed to the organizer
+            publishing their deck list publicly after the event; <code>allowNameSharing</code> and{" "}
+            <code>allowRiotIdSharing</code> further record whether their name or Riot ID may be
+            shown with it. Send <code>false</code> when the player declined; leaving a flag out
+            keeps what is stored (new entries default to allowed). Leaving an entry out of a push
+            never withdraws it: to withdraw a player, send the entry with <code>withdrawn</code> set
+            to <code>true</code>; sending it again without the flag restores it.
           </p>
           <p>
             Valid card sections are <code>legend</code>, <code>champion</code>, <code>main</code>,{" "}

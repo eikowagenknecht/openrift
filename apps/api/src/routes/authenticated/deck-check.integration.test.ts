@@ -330,6 +330,7 @@ describe.skipIf(!ownerCtx)("deck-check routes (integration, ADR-025)", () => {
       // Omitted flags on a fresh entry fall back to the column default (true).
       await push([entryPayload({ externalId: "entry-consent" })]);
       let entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-consent");
+      expect(entry?.allowDeckPublishing).toBe(true);
       expect(entry?.allowNameSharing).toBe(true);
       expect(entry?.allowRiotIdSharing).toBe(true);
 
@@ -337,17 +338,20 @@ describe.skipIf(!ownerCtx)("deck-check routes (integration, ADR-025)", () => {
       await push([
         entryPayload({
           externalId: "entry-consent",
+          allowDeckPublishing: false,
           allowNameSharing: false,
           allowRiotIdSharing: false,
         }),
       ]);
       entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-consent");
+      expect(entry?.allowDeckPublishing).toBe(false);
       expect(entry?.allowNameSharing).toBe(false);
       expect(entry?.allowRiotIdSharing).toBe(false);
 
       // A flagless re-push is no statement: the stored refusal survives.
       await push([entryPayload({ externalId: "entry-consent" })]);
       entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-consent");
+      expect(entry?.allowDeckPublishing).toBe(false);
       expect(entry?.allowNameSharing).toBe(false);
       expect(entry?.allowRiotIdSharing).toBe(false);
     });
@@ -456,6 +460,7 @@ describe.skipIf(!ownerCtx)("deck-check routes (integration, ADR-025)", () => {
         req("PATCH", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}`, {
           playerName: "Corrected Player",
           riotId: "Player#EUW",
+          allowDeckPublishing: false,
           allowNameSharing: false,
         }),
       );
@@ -464,13 +469,15 @@ describe.skipIf(!ownerCtx)("deck-check routes (integration, ADR-025)", () => {
         entry: {
           playerName: string;
           riotId: string | null;
+          allowDeckPublishing: boolean;
           allowNameSharing: boolean;
           allowRiotIdSharing: boolean;
         };
       };
       expect(patched.entry.playerName).toBe("Corrected Player");
       expect(patched.entry.riotId).toBe("Player#EUW");
-      // The judge recorded a refusal for the name; the untouched flag keeps its default.
+      // The judge recorded a refusal for publishing and the name; the untouched flag keeps its default.
+      expect(patched.entry.allowDeckPublishing).toBe(false);
       expect(patched.entry.allowNameSharing).toBe(false);
       expect(patched.entry.allowRiotIdSharing).toBe(true);
 

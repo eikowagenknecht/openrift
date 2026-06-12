@@ -641,6 +641,8 @@ const deckCheckIngestEntrySchema = z.object({
   playerEmail: z.string().max(254).nullish(),
   riotId: z.string().max(120).nullish(),
   submittedAt: z.iso.datetime({ offset: true }).nullish(),
+  /** Consent for the organizer to publish the deck list publicly; omitted = keep stored (true on first insert). */
+  allowDeckPublishing: z.boolean().optional(),
   /** Consent to show the player's name on public platforms; omitted = keep stored (true on first insert). */
   allowNameSharing: z.boolean().optional(),
   /** Consent to show the player's Riot ID on public platforms; omitted = keep stored (true on first insert). */
@@ -702,6 +704,8 @@ export const updateDeckCheckEntrySchema = z.object({
   riotId: z.string().max(120).nullish(),
   /** Judge-authored message shown to the linked player (ADR-026). */
   playerMessage: z.string().max(2000).nullish(),
+  /** Consent for the organizer to publish the deck list publicly. */
+  allowDeckPublishing: z.boolean().optional(),
   /** Consent to show the player's name on public platforms. */
   allowNameSharing: z.boolean().optional(),
   /** Consent to show the player's Riot ID on public platforms. */
@@ -810,6 +814,8 @@ export const playerDeckCheckSubmissionSchema = z
       .min(1)
       .max(DECK_CHECK_MAX_CARD_LINES_PER_ENTRY)
       .optional(),
+    /** Consent for the organizer to publish the deck list publicly; omitted = keep stored (true on first submit). */
+    allowDeckPublishing: z.boolean().optional(),
     /** Consent to show the player's name on public platforms; omitted = keep stored (true on first submit). */
     allowNameSharing: z.boolean().optional(),
     /** Consent to show the player's Riot ID on public platforms; omitted = keep stored (true on first submit). */

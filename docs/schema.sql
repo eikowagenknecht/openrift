@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict bdMeXJNm5yd6oRXma1krUyweOSZz5Gwxxqg9uS8XJUwg8o6bASxMvtU5RvW1ltq
+\restrict yg0H3CoYaeGj18C6RmDkOwIOtEceByuMu2NcZgxfOqTorf2uycSxyEnEKEyEnpF
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -867,6 +867,7 @@ CREATE TABLE public.deck_check_entries (
     approved_at timestamp with time zone,
     unlock_requested_at timestamp with time zone,
     pre_edit_lines jsonb,
+    allow_deck_publishing boolean DEFAULT true NOT NULL,
     CONSTRAINT chk_deck_check_entries_claim_source CHECK (((claim_source IS NULL) OR (claim_source = ANY (ARRAY['email_auto'::text, 'judge_manual'::text, 'self_submit'::text])))),
     CONSTRAINT chk_deck_check_entries_notes CHECK (((notes IS NULL) OR (length(notes) <= 4000))),
     CONSTRAINT chk_deck_check_entries_player_email CHECK (((player_email IS NULL) OR (length(player_email) <= 254))),
@@ -4669,5 +4670,5 @@ ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.friend_grou
 -- PostgreSQL database dump complete
 --
 
-\unrestrict bdMeXJNm5yd6oRXma1krUyweOSZz5Gwxxqg9uS8XJUwg8o6bASxMvtU5RvW1ltq
+\unrestrict yg0H3CoYaeGj18C6RmDkOwIOtEceByuMu2NcZgxfOqTorf2uycSxyEnEKEyEnpF
 

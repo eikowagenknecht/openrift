@@ -319,6 +319,7 @@ const updateEntryFn = createServerFn({ method: "POST" })
       playerEmail?: string | null;
       riotId?: string | null;
       playerMessage?: string | null;
+      allowDeckPublishing?: boolean;
       allowNameSharing?: boolean;
       allowRiotIdSharing?: boolean;
     }) => input,
@@ -336,6 +337,7 @@ const updateEntryFn = createServerFn({ method: "POST" })
             playerEmail: data.playerEmail,
             riotId: data.riotId,
             playerMessage: data.playerMessage,
+            allowDeckPublishing: data.allowDeckPublishing,
             allowNameSharing: data.allowNameSharing,
             allowRiotIdSharing: data.allowRiotIdSharing,
           },

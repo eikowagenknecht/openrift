@@ -101,6 +101,7 @@ import * as m152 from "./152-deck-check-player.js";
 import * as m153 from "./153-deck-check-sharing-consent.js";
 import * as m154 from "./154-user-riot-id.js";
 import * as m155 from "./155-deck-check-entry-states.js";
+import * as m156 from "./156-deck-check-publish-consent.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -261,4 +262,5 @@ export const migrations: Record<string, Migration> = {
   "153-deck-check-sharing-consent": m153,
   "154-user-riot-id": m154,
   "155-deck-check-entry-states": m155,
+  "156-deck-check-publish-consent": m156,
 };

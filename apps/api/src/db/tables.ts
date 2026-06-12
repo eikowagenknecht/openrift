@@ -649,6 +649,8 @@ export interface DeckCheckEntriesTable {
   /** Player's Riot ID. CHECK: length <= 120 */
   riotId: string | null;
   submittedAt: Date | null;
+  /** Consent for the organizer to publish the deck list publicly (default true, opt-out). */
+  allowDeckPublishing: Generated<boolean>;
   /** Consent to show the player's name on public platforms (default true, opt-out). */
   allowNameSharing: Generated<boolean>;
   /** Consent to show the player's Riot ID on public platforms (default true, opt-out). */

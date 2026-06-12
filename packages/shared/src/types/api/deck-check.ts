@@ -115,6 +115,8 @@ export interface DeckCheckEntryResponse {
   playerName: string;
   playerEmail: string | null;
   riotId: string | null;
+  /** Consent for the organizer to publish the deck list publicly (default true, opt-out). */
+  allowDeckPublishing: boolean;
   /** Consent to show the player's name on public platforms (default true, opt-out). */
   allowNameSharing: boolean;
   /** Consent to show the player's Riot ID on public platforms (default true, opt-out). */
@@ -228,6 +230,8 @@ export interface PlayerDeckCheckEntryDetailResponse {
     /** True when the player asked to unlock an approved entry (ADR-027). */
     unlockRequested: boolean;
     playerMessage: string | null;
+    /** The caller's consent for the organizer to publish the deck list publicly. */
+    allowDeckPublishing: boolean;
     /** The caller's consent to show their name on public platforms. */
     allowNameSharing: boolean;
     /** The caller's consent to show their Riot ID on public platforms. */
@@ -267,6 +271,7 @@ export interface DeckCheckSubmissionPageResponse {
     /** Whether submitting through the link can replace this entry's list (ADR-027). */
     canReplace: boolean;
     /** Current sharing consent, so the form starts from the stored answer. */
+    allowDeckPublishing: boolean;
     allowNameSharing: boolean;
     allowRiotIdSharing: boolean;
   } | null;
