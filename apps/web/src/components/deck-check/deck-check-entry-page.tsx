@@ -389,15 +389,6 @@ function EntryHeader({
           <AccountLinkAction slug={slug} eventId={eventId} entryId={entryId} entry={entry} />
           {entry.state === "submitted" ? (
             <>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={setState.isPending}
-                onClick={() => transition("approved")}
-              >
-                <ThumbsUpIcon className="size-4" />
-                Approve list
-              </Button>
               {entry.claimedUserId ? (
                 <Button
                   size="sm"
@@ -412,19 +403,10 @@ function EntryHeader({
               <Button
                 size="sm"
                 disabled={setState.isPending}
-                onClick={() => transition("checked", "ok")}
+                onClick={() => transition("approved")}
               >
-                <CheckIcon className="size-4" />
-                Mark checked
-              </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                disabled={setState.isPending}
-                onClick={() => transition("checked", "issue")}
-              >
-                <TriangleAlertIcon className="size-4" />
-                Mark issue
+                <ThumbsUpIcon className="size-4" />
+                Approve list
               </Button>
             </>
           ) : null}
@@ -470,12 +452,7 @@ function EntryHeader({
             </Button>
           ) : null}
           {entry.state === "editable" ? (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={setState.isPending}
-              onClick={() => transition("submitted")}
-            >
+            <Button size="sm" disabled={setState.isPending} onClick={() => transition("submitted")}>
               <CheckIcon className="size-4" />
               Lock as submitted
             </Button>

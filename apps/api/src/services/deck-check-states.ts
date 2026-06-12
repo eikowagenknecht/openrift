@@ -125,7 +125,8 @@ export interface JudgeTransitionInput {
 
 /**
  * Applies one judge transition, validating ADR-027's matrix: approve from
- * `submitted`; check from `submitted` or `approved` with an explicit outcome;
+ * `submitted`; check from `approved` with an explicit outcome (the list must
+ * pass legality review before the physical check);
  * revoke / re-open back to `submitted`; hand a linked entry back to the
  * player (`editable`), optionally as a rejection; or record an issue in place
  * on a `submitted` entry that has no linked player. `withdrawn` is never a
@@ -172,8 +173,8 @@ export async function applyJudgeTransition(
     }
 
     case "checked": {
-      if (entry.state !== "submitted" && entry.state !== "approved") {
-        throw conflict("Only a submitted or approved entry can be checked");
+      if (entry.state !== "approved") {
+        throw conflict("Only an approved entry can be checked; approve the list first");
       }
       if (input.reviewOutcome !== "ok" && input.reviewOutcome !== "issue") {
         throw new AppError(

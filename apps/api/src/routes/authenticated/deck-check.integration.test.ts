@@ -259,7 +259,13 @@ describe.skipIf(!ownerCtx)("deck-check routes (integration, ADR-025)", () => {
     it("invalidates a checked entry when the list changes, and not on an identical re-push", async () => {
       const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-1");
 
-      // Judge ticks a card and marks the entry checked.
+      // Judge approves the list, ticks a card, and marks the entry checked.
+      const approveRes = await judgeApp.fetch(
+        req("PUT", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}/state`, {
+          state: "approved",
+        }),
+      );
+      expect(approveRes.status).toBe(200);
       const cards = await repos.deckCheck.listCardsForEntry(entry!.id);
       const tickRes = await judgeApp.fetch(
         req(
@@ -679,8 +685,19 @@ describe.skipIf(!ownerCtx)("deck-check routes (integration, ADR-025)", () => {
       expect(marked?.reviewOutcome).toBe("issue");
     });
 
-    it("requires an outcome to mark an entry checked", async () => {
+    it("rejects checking a submitted entry that has not been approved", async () => {
       const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-resolution");
+      const res = await transition(entry!.id, { state: "checked", reviewOutcome: "ok" });
+      expect(res.status).toBe(409);
+      const reloaded = await repos.deckCheck.getEntryByExternalId(eventId, "entry-resolution");
+      expect(reloaded?.state).toBe("submitted");
+    });
+
+    it("requires an outcome to mark an approved entry checked", async () => {
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-resolution");
+      const approve = await transition(entry!.id, { state: "approved" });
+      expect(approve.status).toBe(200);
+
       const missing = await transition(entry!.id, { state: "checked" });
       expect(missing.status).toBe(422);
 
