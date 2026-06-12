@@ -1,9 +1,14 @@
-import type { DeckCheckEntrySummaryResponse, FriendGroupDetailResponse } from "@openrift/shared";
+import type {
+  DeckCheckEntrySummaryResponse,
+  DeckCheckEventSummaryResponse,
+  FriendGroupDetailResponse,
+} from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ArchiveIcon,
   ArchiveRestoreIcon,
   CopyIcon,
+  Link2Icon,
   PencilIcon,
   RefreshCwIcon,
   Trash2Icon,
@@ -17,6 +22,7 @@ import { isAdmin } from "@/components/friend-groups/friend-group-shell";
 import { TopBarBreadcrumbBar } from "@/components/layout/top-bar-breadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -27,16 +33,19 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   useCreateDeckCheckEntry,
   useDeckCheckEvent,
   useDeleteDeckCheckEvent,
+  useRegenerateDeckCheckSubmissionToken,
   useReResolveDeckCheckEvent,
   useUpdateDeckCheckEvent,
 } from "@/hooks/use-deck-check";
 import { useDeckFormatList, useZoneOrder } from "@/hooks/use-enums";
 import { parseManualDecklist } from "@/lib/deck-check-manual-entry";
+import { getSiteUrl } from "@/lib/site-config";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
 const STATUS_ORDER: Record<DeckCheckEntrySummaryResponse["checkStatus"], number> = {
@@ -199,6 +208,8 @@ export function DeckCheckEventPage({
           </p>
         ) : null}
 
+        {admin ? <SubmissionSettingsSection slug={slug} eventId={eventId} event={event} /> : null}
+
         <Input
           value={search}
           onChange={(event_) => setSearch(event_.target.value)}
@@ -256,6 +267,206 @@ export function DeckCheckEventPage({
   );
 }
 
+/**
+ * Splits an ISO timestamp into the local date and time input values.
+ * @returns The local `YYYY-MM-DD` date and `HH:mm` time, empty when unset.
+ */
+function toLocalDateTimeParts(iso: string | null): { date: string; time: string } {
+  if (!iso) {
+    return { date: "", time: "" };
+  }
+  const value = new Date(iso);
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return {
+    date: `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`,
+    time: `${pad(value.getHours())}:${pad(value.getMinutes())}`,
+  };
+}
+
+/**
+ * Trims an ISO timestamp to minute precision in UTC, for the unambiguous
+ * display next to the close-date inputs.
+ * @returns E.g. `2026-06-20T18:00Z`.
+ */
+function toIsoMinutesUtc(date: Date): string {
+  return `${date.toISOString().slice(0, 16)}Z`;
+}
+
+/**
+ * Validates a typed 24h time. A plain text field instead of
+ * `<input type="time">`, because the native control renders in the OS clock
+ * format (12h with AM/PM on many machines) and the app is 24h everywhere.
+ * @returns True for `H:mm` / `HH:mm` within 00:00-23:59.
+ */
+function isValidTime(value: string): boolean {
+  const match = /^(?<hours>\d{1,2}):(?<minutes>\d{2})$/u.exec(value);
+  if (!match?.groups) {
+    return false;
+  }
+  return Number(match.groups.hours) <= 23 && Number(match.groups.minutes) <= 59;
+}
+
+/**
+ * Zero-pads a valid time for ISO composition (`9:30` → `09:30`).
+ * @returns The padded `HH:mm` string.
+ */
+function padTime(value: string): string {
+  const [hours = "0", minutes = "00"] = value.split(":");
+  return `${hours.padStart(2, "0")}:${minutes}`;
+}
+
+/**
+ * Per-event player-submission settings (admin+, ADR-026): the opt-in toggle,
+ * the shareable submission link, and the optional close date. The link is a
+ * capability; regenerating it cuts off the old one.
+ * @returns The settings block.
+ */
+function SubmissionSettingsSection({
+  slug,
+  eventId,
+  event,
+}: {
+  slug: string;
+  eventId: string;
+  event: DeckCheckEventSummaryResponse;
+}) {
+  const updateEvent = useUpdateDeckCheckEvent();
+  const regenerate = useRegenerateDeckCheckSubmissionToken();
+  const [regenerateOpen, setRegenerateOpen] = useState(false);
+  const stored = toLocalDateTimeParts(event.submissionsCloseAt);
+  const [closeDate, setCloseDate] = useState(stored.date);
+  const [closeTime, setCloseTime] = useState(stored.time);
+  const [closeAtDirty, setCloseAtDirty] = useState(false);
+
+  const submitUrl = event.submissionToken
+    ? `${getSiteUrl()}/tournament-submit/${event.submissionToken}`
+    : null;
+  const dateValue = closeAtDirty ? closeDate : stored.date;
+  const timeValue = closeAtDirty ? closeTime : stored.time;
+
+  return (
+    <section className="bg-card flex flex-col gap-3 rounded-md border p-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-col">
+          <Label htmlFor="allow-self-submission">Player submissions</Label>
+          <p className="text-muted-foreground text-sm">
+            Players with the link can submit and correct their own deck. Corrections always need a
+            judge re-check.
+          </p>
+        </div>
+        <Switch
+          id="allow-self-submission"
+          checked={event.allowSelfSubmission}
+          disabled={updateEvent.isPending}
+          onCheckedChange={(checked) =>
+            updateEvent.mutate({ slug, eventId, allowSelfSubmission: checked })
+          }
+        />
+      </div>
+      {event.allowSelfSubmission && submitUrl ? (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="text-muted-foreground hover:text-foreground flex min-w-0 items-center gap-1 text-sm"
+              title="Copy the submission link players use"
+              onClick={async () => {
+                await navigator.clipboard.writeText(submitUrl);
+                toast.success("Submission link copied");
+              }}
+            >
+              <code className="truncate">{submitUrl}</code>
+              <CopyIcon className="size-3.5 shrink-0" />
+            </button>
+            <Button size="sm" variant="destructive" onClick={() => setRegenerateOpen(true)}>
+              <RefreshCwIcon className="size-4" />
+              New link
+            </Button>
+            <ConfirmActionDialog
+              open={regenerateOpen}
+              onOpenChange={setRegenerateOpen}
+              title="Create a new submission link?"
+              description="The current link stops working immediately. Players holding the old link can no longer open it; share the new one with them."
+              confirmLabel="Create new link"
+              pendingLabel="Creating..."
+              isPending={regenerate.isPending}
+              onConfirm={async () => {
+                await regenerate.mutateAsync({ slug, eventId });
+                setRegenerateOpen(false);
+                toast.success("New link created; the old one no longer works");
+              }}
+            />
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="submissions-close-date">Submissions close (optional)</Label>
+              <div className="flex items-center gap-2">
+                <DatePicker
+                  value={dateValue || null}
+                  onChange={(iso) => {
+                    setCloseDate(iso);
+                    setCloseTime(timeValue || "23:59");
+                    setCloseAtDirty(true);
+                  }}
+                  onClear={() => {
+                    setCloseDate("");
+                    setCloseTime("");
+                    setCloseAtDirty(true);
+                  }}
+                  className="w-40"
+                />
+                <Input
+                  id="submissions-close-date"
+                  value={timeValue}
+                  disabled={!dateValue}
+                  placeholder="23:59"
+                  maxLength={5}
+                  aria-label="Close time (24h)"
+                  aria-invalid={Boolean(dateValue) && !isValidTime(timeValue || "23:59")}
+                  onChange={(inputEvent) => {
+                    setCloseTime(inputEvent.target.value);
+                    setCloseAtDirty(true);
+                  }}
+                  className="w-20"
+                />
+              </div>
+            </div>
+            {closeAtDirty ? (
+              <Button
+                variant="outline"
+                disabled={
+                  updateEvent.isPending ||
+                  (Boolean(closeDate) && !isValidTime(closeTime || "23:59"))
+                }
+                onClick={() => {
+                  updateEvent.mutate(
+                    {
+                      slug,
+                      eventId,
+                      submissionsCloseAt: closeDate
+                        ? new Date(`${closeDate}T${padTime(closeTime || "23:59")}`).toISOString()
+                        : null,
+                    },
+                    { onSuccess: () => setCloseAtDirty(false) },
+                  );
+                }}
+              >
+                Save
+              </Button>
+            ) : null}
+          </div>
+          {event.submissionsCloseAt ? (
+            <p className="text-muted-foreground text-sm">
+              Closes at <code>{toIsoMinutesUtc(new Date(event.submissionsCloseAt))}</code>, the
+              current time is <code>{toIsoMinutesUtc(new Date())}</code>
+            </p>
+          ) : null}
+        </>
+      ) : null}
+    </section>
+  );
+}
+
 function EntryRow({
   slug,
   eventId,
@@ -285,6 +496,28 @@ function EntryRow({
       {entry.source === "api" ? (
         <Badge variant="outline" title="Submitted by the organizer system">
           API
+        </Badge>
+      ) : null}
+      {entry.source === "self" ? (
+        <Badge variant="outline" title="Submitted by the player through OpenRift">
+          Self
+        </Badge>
+      ) : null}
+      {entry.claimedUserName ? (
+        <Badge
+          variant="outline"
+          title={`Linked to the OpenRift account of ${entry.claimedUserName}`}
+        >
+          <Link2Icon className="size-3" />
+          Linked
+        </Badge>
+      ) : null}
+      {entry.listOwner === "player" ? (
+        <Badge
+          variant="outline"
+          title="The player edited this list; organizer pushes no longer overwrite it"
+        >
+          Player-owned
         </Badge>
       ) : null}
       {entry.withdrawn ? <Badge variant="secondary">Withdrawn</Badge> : null}

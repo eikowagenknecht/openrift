@@ -15,7 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useTradeActionCounts } from "@/hooks/use-card-trades";
-import { useFeatureEnabled } from "@/hooks/use-feature-flags";
+import { useMyTournamentDecks } from "@/hooks/use-deck-check-player";
 import { useDeclineFriendGroupInvite, useFriendGroupDetail } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { cn, PAGE_PADDING, PAGE_PADDING_NO_TOP } from "@/lib/utils";
@@ -125,6 +125,12 @@ function FriendGroupShell({
   children: ReactNode;
 }) {
   const { data: actionCounts } = useTradeActionCounts();
+  // A plain member still gets the Events tab when they entered one of this
+  // group's events; the tab then shows only their own entries (ADR-026).
+  const { data: ownTournamentDecks } = useMyTournamentDecks();
+  const hasOwnEntries = (ownTournamentDecks?.items ?? []).some(
+    (entry) => entry.groupSlug === data.group.slug,
+  );
   const tradesActionCount =
     actionCounts?.byGroup.find((entry) => entry.groupId === data.group.id)?.count ?? 0;
   // `pendingRequests` is only populated for admins/owners, so the badge hides
@@ -164,7 +170,7 @@ function FriendGroupShell({
           active={active}
           tradesBadge={tradesActionCount}
           membersBadge={pendingRequestCount}
-          showChecks={isJudge(data.viewerRole)}
+          showChecks={isJudge(data.viewerRole) || hasOwnEntries}
         />
 
         {children}
@@ -186,7 +192,6 @@ function GroupNav({
   membersBadge: number;
   showChecks: boolean;
 }) {
-  const checksEnabled = useFeatureEnabled("deck-check");
   return (
     // The hairline is an inset shadow, not border-b: the links' active 2px
     // border must overlap it, and with overflow-x-auto a child can't hang
@@ -219,7 +224,7 @@ function GroupNav({
         badge={membersBadge}
         isActive={active === "members"}
       />
-      {checksEnabled && showChecks ? (
+      {showChecks ? (
         <GroupNavLink
           to="/groups/$slug/checks"
           slug={slug}

@@ -1,8 +1,8 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
 import { DeckCheckEventsPage } from "@/components/deck-check/deck-check-events-page";
-import { DeckCheckGuard } from "@/components/deck-check/deck-check-guard";
-import { FriendGroupPageFrame } from "@/components/friend-groups/friend-group-shell";
+import { GroupTournamentDecksView } from "@/components/deck-check/group-tournament-decks-view";
+import { FriendGroupPageFrame, isJudge } from "@/components/friend-groups/friend-group-shell";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/groups/$slug_/checks")({
   component: GroupChecksRoute,
@@ -14,11 +14,13 @@ function GroupChecksRoute() {
     <FriendGroupPageFrame
       slug={slug}
       active="checks"
-      render={(data) => (
-        <DeckCheckGuard data={data}>
+      render={(data) =>
+        isJudge(data.viewerRole) ? (
           <DeckCheckEventsPage slug={slug} data={data} />
-        </DeckCheckGuard>
-      )}
+        ) : (
+          <GroupTournamentDecksView slug={slug} />
+        )
+      }
     />
   );
 }

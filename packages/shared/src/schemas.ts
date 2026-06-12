@@ -671,6 +671,9 @@ export const updateDeckCheckEventSchema = z.object({
   format: z.string().min(1).max(60).nullish(),
   allowedSets: z.array(z.string().min(1).max(20)).max(50).nullish(),
   status: z.enum(["active", "archived"]).optional(),
+  /** Player self-submission opt-in (ADR-026); enabling mints a token server-side. */
+  allowSelfSubmission: z.boolean().optional(),
+  submissionsCloseAt: z.iso.datetime({ offset: true }).nullish(),
 });
 
 export const deckCheckVerdictSchema = z.object({
@@ -683,6 +686,8 @@ export const updateDeckCheckEntrySchema = z.object({
   playerName: z.string().min(1).max(120).optional(),
   playerEmail: z.string().max(254).nullish(),
   riotId: z.string().max(120).nullish(),
+  /** Judge-authored message shown to the linked player (ADR-026). */
+  playerMessage: z.string().max(2000).nullish(),
 });
 
 export const updateDeckCheckCardSchema = z.object({
@@ -751,3 +756,47 @@ export const deckCheckKeyParamSchema = z.object({
   slug: friendGroupSlugSchema,
   keyId: z.uuid(),
 });
+
+// ─── Deck check player self-service (ADR-026) ────────────────────────────────
+
+/** Judge linking an entry to an OpenRift account. */
+export const deckCheckLinkSchema = z.object({
+  userId: z.string().min(1).max(64),
+});
+
+/** Judge account search for the manual link; exact email or name prefix. */
+export const deckCheckAccountSearchSchema = z.object({
+  q: z.string().min(2).max(254),
+});
+
+export const deckCheckSubmissionTokenParamSchema = z.object({
+  token: z.string().min(1).max(64),
+});
+
+export const playerDeckCheckEntryParamSchema = z.object({
+  entryId: z.uuid(),
+});
+
+/**
+ * A player submission or list edit: exactly one of an own deck's id, a pasted
+ * deck code, or pre-parsed card lines from a pasted text list (the same shape
+ * the manual judge entry sends). `dryRun` previews the resolved lines and
+ * advisory legality findings without writing anything.
+ */
+export const playerDeckCheckSubmissionSchema = z
+  .object({
+    deckId: z.uuid().optional(),
+    deckCode: z.string().min(1).max(4000).optional(),
+    cards: z
+      .array(addDeckCheckCardSchema)
+      .min(1)
+      .max(DECK_CHECK_MAX_CARD_LINES_PER_ENTRY)
+      .optional(),
+    dryRun: z.boolean().optional(),
+  })
+  .refine(
+    (value) =>
+      [value.deckId, value.deckCode, value.cards].filter((source) => source !== undefined)
+        .length === 1,
+    { message: "Provide exactly one of deckId, deckCode, or cards" },
+  );

@@ -5,14 +5,11 @@ import type { AdminCellSlotProps, AdminColumnDef } from "@/components/admin/admi
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/user-avatar";
 import { useAdminUsers } from "@/hooks/use-admin-users";
+import { formatAbsoluteDate } from "@/lib/format-date";
 import { useGravatarHash } from "@/lib/gravatar";
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  return formatAbsoluteDate(iso, { year: "numeric", month: "short", day: "numeric" });
 }
 
 function UserNameCell({ row }: AdminCellSlotProps<AdminUserResponse>) {

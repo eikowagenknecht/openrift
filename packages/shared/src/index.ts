@@ -165,8 +165,10 @@ export type {
   CardTradeRole,
   CardTradeStatus,
   CardTradeActionCountsResponse,
+  DeckCheckAccountSearchResponse,
   DeckCheckChangeLine,
   DeckCheckChangeSummary,
+  DeckCheckClaimSource,
   DeckCheckEntryCardResponse,
   DeckCheckEntryDetailResponse,
   DeckCheckEntryResponse,
@@ -180,7 +182,13 @@ export type {
   DeckCheckKeyMintedResponse,
   DeckCheckKeyResponse,
   DeckCheckKeysResponse,
+  DeckCheckListOwner,
   DeckCheckMatchStatus,
+  DeckCheckSubmissionPageResponse,
+  DeckCheckSubmissionResultResponse,
+  PlayerDeckCheckEntriesResponse,
+  PlayerDeckCheckEntryDetailResponse,
+  PlayerDeckCheckEntrySummaryResponse,
   PodByeResponse,
   PodMemberResponse,
   PodPenaltyView,
@@ -326,6 +334,7 @@ export {
   diffCardLines,
   MANUAL_ENTRY_EXTERNAL_ID_PREFIX,
   mapSectionToZone,
+  SELF_SUBMIT_EXTERNAL_ID_PREFIX,
 } from "./deck-check.js";
 
 export { compareRuleNumbers } from "./rules.js";

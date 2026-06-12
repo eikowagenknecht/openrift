@@ -8,7 +8,7 @@ import {
   SectionHeaderTitle,
 } from "@/components/section-header";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -118,12 +118,11 @@ export function RulesImportPage() {
         </div>
 
         <div className="grid gap-1.5">
-          <Label htmlFor="version">Version (date)</Label>
-          <Input
-            id="version"
-            value={version}
-            onChange={(e) => setVersion(e.target.value)}
-            placeholder="2026-03-30"
+          <Label>Version (date)</Label>
+          <DatePicker
+            value={version || null}
+            onChange={setVersion}
+            onClear={() => setVersion("")}
           />
         </div>
 

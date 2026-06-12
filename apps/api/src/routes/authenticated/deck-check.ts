@@ -2,27 +2,16 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import { createRoute } from "@hono/zod-openapi";
-import {
-  deckCheckEntrySource,
-  ERROR_CODES,
-  mapSectionToZone,
-  validateDeck,
-  WellKnown,
-} from "@openrift/shared";
+import { deckCheckEntrySource, ERROR_CODES, mapSectionToZone } from "@openrift/shared";
 import type {
-  CardType,
-  DeckCheckEntryCardResponse,
   DeckCheckEntryDetailResponse,
   DeckCheckEntryResponse,
   DeckCheckEntrySummaryResponse,
   DeckCheckEventSummaryResponse,
   DeckCheckKeyResponse,
-  DeckViolation,
-  DeckZone,
-  Domain,
-  SuperType,
 } from "@openrift/shared";
 import {
+  deckCheckAccountSearchResponseSchema,
   deckCheckEntryDetailResponseSchema,
   deckCheckEventDetailResponseSchema,
   deckCheckEventListResponseSchema,
@@ -36,11 +25,13 @@ import {
   addDeckCheckCardSchema,
   createDeckCheckEntrySchema,
   createDeckCheckEventSchema,
+  deckCheckAccountSearchSchema,
   deckCheckCardCopyParamSchema,
   deckCheckEntryCardParamSchema,
   deckCheckEntryParamSchema,
   deckCheckEventParamSchema,
   deckCheckKeyParamSchema,
+  deckCheckLinkSchema,
   deckCheckTickSchema,
   deckCheckVerdictSchema,
   friendGroupSlugParamSchema,
@@ -61,16 +52,20 @@ import { createApiApp } from "../../openapi.js";
 import { cardResolutionKey } from "../../repositories/deck-check.js";
 import type {
   DeckCheckEntry,
-  DeckCheckEntryCard,
   DeckCheckEntrySummary,
   DeckCheckEvent,
   DeckCheckEventWithCounts,
   DeckCheckKey,
 } from "../../repositories/deck-check.js";
 import {
+  buildEntryAdvisories,
+  toDeckCheckEntryCardResponse,
+} from "../../services/deck-check-advisories.js";
+import {
   createManualDeckCheckEntry,
   recomputeEntryHash,
 } from "../../services/deck-check-ingest.js";
+import { generateShareToken } from "../../utils/share-token.js";
 
 // ─── Mappers ────────────────────────────────────────────────────────────────
 
@@ -93,6 +88,9 @@ function toEventSummary(
     status: row.status,
     entryCount: row.entryCount ?? 0,
     checkedCount: row.checkedCount ?? 0,
+    allowSelfSubmission: row.allowSelfSubmission,
+    submissionToken: row.allowSelfSubmission ? row.submissionToken : null,
+    submissionsCloseAt: row.submissionsCloseAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -110,13 +108,19 @@ function toEntrySummary(row: DeckCheckEntrySummary): DeckCheckEntrySummaryRespon
     checkedAt: row.checkedAt?.toISOString() ?? null,
     changedSinceCheck: row.changeSummary !== null,
     withdrawn: row.withdrawnAt !== null,
+    claimedUserName: row.claimedUserName,
+    listOwner: row.listOwner,
     copyCount: row.copyCount,
     verifiedCopyCount: row.verifiedCopyCount,
     unmatchedLineCount: row.unmatchedLineCount,
   };
 }
 
-function toEntry(row: DeckCheckEntry, checkedByName: string | null): DeckCheckEntryResponse {
+function toEntry(
+  row: DeckCheckEntry,
+  checkedByName: string | null,
+  claimedUserName: string | null,
+): DeckCheckEntryResponse {
   return {
     id: row.id,
     externalId: row.externalId,
@@ -132,24 +136,14 @@ function toEntry(row: DeckCheckEntry, checkedByName: string | null): DeckCheckEn
     notes: row.notes,
     changeSummary: row.changeSummary,
     withdrawnAt: row.withdrawnAt?.toISOString() ?? null,
+    claimedUserId: row.claimedUserId,
+    claimedUserName,
+    claimSource: row.claimSource,
+    claimBlocked: row.claimBlockedAt !== null,
+    listOwner: row.listOwner,
+    providerPushIgnoredAt: row.providerPushIgnoredAt?.toISOString() ?? null,
+    playerMessage: row.playerMessage,
     updatedAt: row.updatedAt.toISOString(),
-  };
-}
-
-function toEntryCard(row: DeckCheckEntryCard): DeckCheckEntryCardResponse {
-  return {
-    id: row.id,
-    sortOrder: row.sortOrder,
-    rawName: row.rawName,
-    section: row.section,
-    zone: row.zone as DeckZone,
-    quantity: row.quantity,
-    matchStatus: row.matchStatus,
-    foundCopies: Array.from({ length: row.quantity }, (_copy, index) =>
-      Boolean(row.foundCopies[index]),
-    ),
-    resolvedCardId: row.resolvedCardId,
-    resolvedPrintingId: row.resolvedPrintingId,
   };
 }
 
@@ -179,105 +173,18 @@ async function buildEntryDetail(
   event: DeckCheckEvent,
   entry: DeckCheckEntry,
 ): Promise<DeckCheckEntryDetailResponse> {
-  const [cards, enumRows, checkedByName] = await Promise.all([
+  const [cards, checkedByName, claimedUserName] = await Promise.all([
     repos.deckCheck.listCardsForEntry(entry.id),
-    repos.enums.all(),
     entry.checkedBy ? repos.deckCheck.getUserName(entry.checkedBy) : Promise.resolve(null),
+    entry.claimedUserId ? repos.deckCheck.getUserName(entry.claimedUserId) : Promise.resolve(null),
   ]);
-
-  const matchedIds = [
-    ...new Set(
-      cards.flatMap((card) =>
-        card.matchStatus === "matched" && card.resolvedCardId ? [card.resolvedCardId] : [],
-      ),
-    ),
-  ];
-  const [details, setSlugsByCard] = await Promise.all([
-    repos.deckCheck.getCardDetails(matchedIds),
-    event.allowedSets && event.allowedSets.length > 0
-      ? repos.deckCheck.getCardSetSlugs(matchedIds)
-      : Promise.resolve(new Map<string, string[]>()),
-  ]);
-
-  const violations: DeckViolation[] = [];
-
-  if (event.format) {
-    const deckCards = cards.flatMap((card) => {
-      const detail = card.resolvedCardId ? details.get(card.resolvedCardId) : undefined;
-      if (!detail) {
-        return [];
-      }
-      return [
-        {
-          cardId: detail.id,
-          zone: card.zone as DeckZone,
-          quantity: card.quantity,
-          cardName: detail.name,
-          cardType: detail.type as CardType,
-          superTypes: detail.superTypes as SuperType[],
-          domains: detail.domains as Domain[],
-          tags: detail.tags,
-          customTagSlugs: [],
-          keywords: detail.keywords,
-        },
-      ];
-    });
-    violations.push(...validateDeck({ format: event.format, cards: deckCards }));
-  }
-
-  if (event.allowedSets && event.allowedSets.length > 0) {
-    const allowed = new Set(event.allowedSets.map((setId) => setId.toLowerCase()));
-    for (const card of cards) {
-      if (!card.resolvedCardId || card.matchStatus !== "matched") {
-        continue;
-      }
-      const cardSets = setSlugsByCard.get(card.resolvedCardId) ?? [];
-      if (!cardSets.some((setId) => allowed.has(setId.toLowerCase()))) {
-        violations.push({
-          zone: "deck",
-          code: "out-of-allowed-sets",
-          message: `${card.rawName} is not from an allowed set`,
-          cardId: card.resolvedCardId,
-        });
-      }
-    }
-  }
-
-  const excludedTypes = new Set<string>([
-    WellKnown.cardType.LEGEND,
-    WellKnown.cardType.RUNE,
-    WellKnown.cardType.BATTLEFIELD,
-  ]);
-  const countedZones = new Set<string>([WellKnown.deckZone.MAIN, WellKnown.deckZone.CHAMPION]);
-
-  const typeCountMap = new Map<string, number>();
-  const domainCountMap = new Map<string, number>();
-  for (const card of cards) {
-    const detail = card.resolvedCardId ? details.get(card.resolvedCardId) : undefined;
-    if (!detail || !countedZones.has(card.zone)) {
-      continue;
-    }
-    if (!excludedTypes.has(detail.type)) {
-      typeCountMap.set(detail.type, (typeCountMap.get(detail.type) ?? 0) + card.quantity);
-    }
-    for (const domain of detail.domains) {
-      domainCountMap.set(domain, (domainCountMap.get(domain) ?? 0) + card.quantity);
-    }
-  }
+  const advisories = await buildEntryAdvisories(repos, event, cards);
 
   return {
     event: toEventSummary(event),
-    entry: toEntry(entry, checkedByName),
-    cards: cards.map((card) => toEntryCard(card)),
-    violations,
-    typeCounts: enumRows.cardTypes
-      .map((row) => row.slug)
-      .filter((type) => typeCountMap.has(type))
-      .map((type) => ({ cardType: type as CardType, count: typeCountMap.get(type) ?? 0 })),
-    domainDistribution: enumRows.domains
-      .map((row) => row.slug)
-      .filter((domain) => domainCountMap.has(domain))
-      .map((domain) => ({ domain: domain as Domain, count: domainCountMap.get(domain) ?? 0 })),
+    entry: toEntry(entry, checkedByName, claimedUserName),
+    cards: cards.map((card) => toDeckCheckEntryCardResponse(card)),
+    ...advisories,
   };
 }
 
@@ -564,6 +471,84 @@ const tickCard = createRoute({
   },
 });
 
+const linkEntry = createRoute({
+  method: "put",
+  path: "/friend-groups/{slug}/checks/{eventId}/entries/{entryId}/link",
+  tags: ["Deck Check"],
+  security: cookieAuth,
+  description:
+    "Links an entry to an OpenRift account (judge+, ADR-026). Overrides and " +
+    "clears any unlink block.",
+  request: {
+    params: deckCheckEntryParamSchema,
+    body: {
+      content: { "application/json": { schema: deckCheckLinkSchema } },
+      required: true,
+    },
+  },
+  responses: {
+    200: {
+      content: { "application/json": { schema: deckCheckEntryDetailResponseSchema } },
+      description: "Updated checker payload",
+    },
+    ...errorResponses(400, 401, 403, 404),
+  },
+});
+
+const unlinkEntry = createRoute({
+  method: "delete",
+  path: "/friend-groups/{slug}/checks/{eventId}/entries/{entryId}/link",
+  tags: ["Deck Check"],
+  security: cookieAuth,
+  description:
+    "Unlinks an entry from its account (judge+, ADR-026) and blocks every " +
+    "auto-match path from re-linking it; a later manual link clears the block.",
+  request: { params: deckCheckEntryParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: deckCheckEntryDetailResponseSchema } },
+      description: "Updated checker payload",
+    },
+    ...errorResponses(401, 403, 404),
+  },
+});
+
+const searchAccounts = createRoute({
+  method: "get",
+  path: "/friend-groups/{slug}/deck-check-account-search",
+  tags: ["Deck Check"],
+  security: cookieAuth,
+  description:
+    "Account candidates for the judge manual link (judge+): exact email or " +
+    "name prefix, capped at ten.",
+  request: { params: friendGroupSlugParamSchema, query: deckCheckAccountSearchSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: deckCheckAccountSearchResponseSchema } },
+      description: "Matching accounts",
+    },
+    ...errorResponses(400, 401, 403, 404),
+  },
+});
+
+const regenerateSubmissionToken = createRoute({
+  method: "post",
+  path: "/friend-groups/{slug}/checks/{eventId}/submission-token",
+  tags: ["Deck Check"],
+  security: cookieAuth,
+  description:
+    "Mints a fresh submission token (admin+, ADR-026), invalidating the old " +
+    "link. Self-submission must be enabled.",
+  request: { params: deckCheckEventParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: deckCheckEventSummaryResponseSchema } },
+      description: "The event with its new token",
+    },
+    ...errorResponses(401, 403, 404, 409),
+  },
+});
+
 const listKeys = createRoute({
   method: "get",
   path: "/friend-groups/{slug}/deck-check-keys",
@@ -684,9 +669,42 @@ export const deckCheckRoute = deckCheckApp
     const { slug, eventId } = c.req.valid("param");
     const ctx = await loadGroupForMember(repos, slug, getUserId(c));
     requireRole(ctx.membership, "admin");
-    const event = await repos.deckCheck.updateEvent(ctx.group.id, eventId, c.req.valid("json"));
+    const body = c.req.valid("json");
+    // Only run the base update when a base field is present: a submission-only
+    // patch (e.g. flipping the toggle) would otherwise produce an empty SET.
+    const hasBaseField =
+      body.name !== undefined ||
+      body.eventDate !== undefined ||
+      body.format !== undefined ||
+      body.allowedSets !== undefined ||
+      body.status !== undefined;
+    let event = hasBaseField
+      ? await repos.deckCheck.updateEvent(ctx.group.id, eventId, body)
+      : await repos.deckCheck.getEvent(ctx.group.id, eventId);
     if (!event) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Event not found");
+    }
+    if (body.allowSelfSubmission !== undefined || body.submissionsCloseAt !== undefined) {
+      event =
+        (await repos.deckCheck.updateEventSubmission(event.id, {
+          ...(body.allowSelfSubmission === undefined
+            ? {}
+            : {
+                allowSelfSubmission: body.allowSelfSubmission,
+                // Enabling for the first time mints the shared capability; the
+                // token survives a disable so re-enabling restores old links.
+                ...(body.allowSelfSubmission && !event.submissionToken
+                  ? { submissionToken: generateShareToken() }
+                  : {}),
+              }),
+          ...(body.submissionsCloseAt === undefined
+            ? {}
+            : {
+                submissionsCloseAt: body.submissionsCloseAt
+                  ? new Date(body.submissionsCloseAt)
+                  : null,
+              }),
+        })) ?? event;
     }
     return c.json(toEventSummary(event), 200);
   })
@@ -790,6 +808,7 @@ export const deckCheckRoute = deckCheckApp
       ...(body.playerName === undefined ? {} : { playerName: body.playerName }),
       ...(body.playerEmail === undefined ? {} : { playerEmail: body.playerEmail }),
       ...(body.riotId === undefined ? {} : { riotId: body.riotId }),
+      ...(body.playerMessage === undefined ? {} : { playerMessage: body.playerMessage }),
     });
     if (!updated) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Entry not found");
@@ -890,6 +909,68 @@ export const deckCheckRoute = deckCheckApp
       throw new AppError(409, ERROR_CODES.CONFLICT, "Card list changed; reload the entry");
     }
     return c.body(null, 204);
+  })
+
+  // ── ACCOUNT LINKS AND SELF-SUBMISSION (ADR-026) ─────────────────────────
+  .openapi(linkEntry, async (c) => {
+    const repos = c.get("repos");
+    const { slug, eventId, entryId } = c.req.valid("param");
+    const ctx = await loadGroupForMember(repos, slug, getUserId(c));
+    requireRole(ctx.membership, "judge");
+    const event = await loadEvent(repos, ctx.group.id, eventId);
+    await loadEntry(repos, event.id, entryId);
+
+    const { userId } = c.req.valid("json");
+    const account = await repos.deckCheck.getUserAccount(userId);
+    if (!account) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Account not found");
+    }
+    const updated = await repos.deckCheck.linkEntry(entryId, userId);
+    if (!updated) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Entry not found");
+    }
+    return c.json(await buildEntryDetail(repos, event, updated), 200);
+  })
+
+  .openapi(unlinkEntry, async (c) => {
+    const repos = c.get("repos");
+    const { slug, eventId, entryId } = c.req.valid("param");
+    const ctx = await loadGroupForMember(repos, slug, getUserId(c));
+    requireRole(ctx.membership, "judge");
+    const event = await loadEvent(repos, ctx.group.id, eventId);
+    await loadEntry(repos, event.id, entryId);
+
+    const updated = await repos.deckCheck.unlinkEntry(entryId);
+    if (!updated) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Entry not found");
+    }
+    return c.json(await buildEntryDetail(repos, event, updated), 200);
+  })
+
+  .openapi(searchAccounts, async (c) => {
+    const repos = c.get("repos");
+    const ctx = await loadGroupForMember(repos, c.req.valid("param").slug, getUserId(c));
+    requireRole(ctx.membership, "judge");
+    const items = await repos.deckCheck.listAccountsForLinkSearch(c.req.valid("query").q);
+    return c.json({ items }, 200);
+  })
+
+  .openapi(regenerateSubmissionToken, async (c) => {
+    const repos = c.get("repos");
+    const { slug, eventId } = c.req.valid("param");
+    const ctx = await loadGroupForMember(repos, slug, getUserId(c));
+    requireRole(ctx.membership, "admin");
+    const event = await loadEvent(repos, ctx.group.id, eventId);
+    if (!event.allowSelfSubmission) {
+      throw new AppError(409, ERROR_CODES.CONFLICT, "Self-submission is not enabled");
+    }
+    const updated = await repos.deckCheck.updateEventSubmission(event.id, {
+      submissionToken: generateShareToken(),
+    });
+    if (!updated) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Event not found");
+    }
+    return c.json(toEventSummary(updated), 200);
   })
 
   // ── PUSH KEYS ───────────────────────────────────────────────────────────

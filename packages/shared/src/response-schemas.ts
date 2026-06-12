@@ -1770,6 +1770,9 @@ export const podReportTokenResponseSchema = z
 const deckCheckEventStatusSchema = z.enum(["active", "archived"]);
 const deckCheckEntryStatusSchema = z.enum(["unchecked", "checked", "issue"]);
 const deckCheckMatchStatusSchema = z.enum(["matched", "ambiguous", "unmatched"]);
+const deckCheckEntrySourceSchema = z.enum(["api", "manual", "self"]);
+const deckCheckClaimSourceSchema = z.enum(["email_auto", "judge_manual", "self_submit"]);
+const deckCheckListOwnerSchema = z.enum(["provider", "player"]);
 
 export const deckCheckEventSummaryResponseSchema = z
   .object({
@@ -1781,6 +1784,9 @@ export const deckCheckEventSummaryResponseSchema = z
     status: deckCheckEventStatusSchema,
     entryCount: z.number().int().nonnegative(),
     checkedCount: z.number().int().nonnegative(),
+    allowSelfSubmission: z.boolean(),
+    submissionToken: z.string().nullable(),
+    submissionsCloseAt: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
   })
@@ -1793,7 +1799,7 @@ export const deckCheckEventListResponseSchema = z
 const deckCheckEntrySummaryResponseSchema = z.object({
   id: z.string(),
   externalId: z.string(),
-  source: z.enum(["api", "manual"]),
+  source: deckCheckEntrySourceSchema,
   playerName: z.string(),
   submittedAt: z.string().nullable(),
   checkStatus: deckCheckEntryStatusSchema,
@@ -1801,6 +1807,8 @@ const deckCheckEntrySummaryResponseSchema = z.object({
   checkedAt: z.string().nullable(),
   changedSinceCheck: z.boolean(),
   withdrawn: z.boolean(),
+  claimedUserName: z.string().nullable(),
+  listOwner: deckCheckListOwnerSchema,
   copyCount: z.number().int().nonnegative(),
   verifiedCopyCount: z.number().int().nonnegative(),
   unmatchedLineCount: z.number().int().nonnegative(),
@@ -1848,7 +1856,7 @@ const deckCheckEntryCardResponseSchema = z.object({
 const deckCheckEntryResponseSchema = z.object({
   id: z.string(),
   externalId: z.string(),
-  source: z.enum(["api", "manual"]),
+  source: deckCheckEntrySourceSchema,
   playerName: z.string(),
   playerEmail: z.string().nullable(),
   riotId: z.string().nullable(),
@@ -1860,6 +1868,13 @@ const deckCheckEntryResponseSchema = z.object({
   notes: z.string().nullable(),
   changeSummary: deckCheckChangeSummarySchema.nullable(),
   withdrawnAt: z.string().nullable(),
+  claimedUserId: z.string().nullable(),
+  claimedUserName: z.string().nullable(),
+  claimSource: deckCheckClaimSourceSchema.nullable(),
+  claimBlocked: z.boolean(),
+  listOwner: deckCheckListOwnerSchema,
+  providerPushIgnoredAt: z.string().nullable(),
+  playerMessage: z.string().nullable(),
   updatedAt: z.string(),
 });
 
@@ -1920,8 +1935,89 @@ export const deckCheckIngestResultResponseSchema = z
     entriesUnchanged: z.number().int().nonnegative(),
     entriesWithdrawn: z.number().int().nonnegative(),
     checksInvalidated: z.number().int().nonnegative(),
+    entriesIgnored: z.number().int().nonnegative(),
   })
   .openapi("DeckCheckIngestResultResponse");
+
+// ─── Deck check player self-service (ADR-026) ────────────────────────────────
+
+const playerDeckCheckEntrySummaryResponseSchema = z.object({
+  id: z.string(),
+  eventName: z.string(),
+  eventDate: z.string().nullable(),
+  groupName: z.string(),
+  groupSlug: z.string(),
+  checkStatus: deckCheckEntryStatusSchema,
+  changedSinceCheck: z.boolean(),
+  withdrawn: z.boolean(),
+  playerMessage: z.string().nullable(),
+  submittedAt: z.string().nullable(),
+  updatedAt: z.string(),
+});
+
+export const playerDeckCheckEntriesResponseSchema = z
+  .object({ items: z.array(playerDeckCheckEntrySummaryResponseSchema) })
+  .openapi("PlayerDeckCheckEntriesResponse");
+
+export const playerDeckCheckEntryDetailResponseSchema = z
+  .object({
+    entry: z.object({
+      id: z.string(),
+      eventName: z.string(),
+      eventDate: z.string().nullable(),
+      groupName: z.string(),
+      format: z.string().nullable(),
+      allowedSets: z.array(z.string()).nullable(),
+      checkStatus: deckCheckEntryStatusSchema,
+      changedSinceCheck: z.boolean(),
+      withdrawn: z.boolean(),
+      playerMessage: z.string().nullable(),
+      listOwner: deckCheckListOwnerSchema,
+      submittedAt: z.string().nullable(),
+      updatedAt: z.string(),
+      canEdit: z.boolean(),
+    }),
+    cards: z.array(deckCheckEntryCardResponseSchema),
+    violations: z.array(deckViolationSchema),
+    typeCounts: z.array(z.object({ cardType: z.string(), count: z.number().int().nonnegative() })),
+    domainDistribution: z.array(
+      z.object({ domain: z.string(), count: z.number().int().nonnegative() }),
+    ),
+  })
+  .openapi("PlayerDeckCheckEntryDetailResponse");
+
+export const deckCheckSubmissionPageResponseSchema = z
+  .object({
+    eventName: z.string(),
+    eventDate: z.string().nullable(),
+    groupName: z.string(),
+    format: z.string().nullable(),
+    allowedSets: z.array(z.string()).nullable(),
+    submissionsCloseAt: z.string().nullable(),
+    submissionsOpen: z.boolean(),
+    linkedEntry: z
+      .object({
+        id: z.string(),
+        checkStatus: deckCheckEntryStatusSchema,
+        withdrawn: z.boolean(),
+      })
+      .nullable(),
+  })
+  .openapi("DeckCheckSubmissionPageResponse");
+
+export const deckCheckSubmissionResultResponseSchema = z
+  .object({
+    entryId: z.string().nullable(),
+    cards: z.array(deckCheckEntryCardResponseSchema),
+    violations: z.array(deckViolationSchema),
+  })
+  .openapi("DeckCheckSubmissionResultResponse");
+
+export const deckCheckAccountSearchResponseSchema = z
+  .object({
+    items: z.array(z.object({ id: z.string(), name: z.string().nullable(), email: z.string() })),
+  })
+  .openapi("DeckCheckAccountSearchResponse");
 
 export const deckCheckReResolveResponseSchema = z
   .object({ updatedLines: z.number().int().nonnegative() })

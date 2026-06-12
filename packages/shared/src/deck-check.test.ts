@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { DeckCheckCardLine } from "./deck-check.js";
-import { buildContentHashInput, diffCardLines, mapSectionToZone } from "./deck-check.js";
+import {
+  buildContentHashInput,
+  deckCheckEntrySource,
+  diffCardLines,
+  mapSectionToZone,
+} from "./deck-check.js";
 
 function line(overrides: Partial<DeckCheckCardLine> = {}): DeckCheckCardLine {
   return { name: "Blazing Scorcher", zone: "main", quantity: 3, ...overrides };
@@ -109,5 +114,20 @@ describe("diffCardLines", () => {
   it("handles empty lists on either side", () => {
     expect(diffCardLines([], [line()]).added).toHaveLength(1);
     expect(diffCardLines([line()], []).removed).toHaveLength(1);
+  });
+});
+
+describe("deckCheckEntrySource", () => {
+  it("classifies provider ids as api", () => {
+    expect(deckCheckEntrySource("1234")).toBe("api");
+    expect(deckCheckEntrySource("wp-order-77")).toBe("api");
+  });
+
+  it("classifies manual: ids as manual", () => {
+    expect(deckCheckEntrySource("manual:0198ee2a")).toBe("manual");
+  });
+
+  it("classifies openrift: ids as self", () => {
+    expect(deckCheckEntrySource("openrift:user-1")).toBe("self");
   });
 });

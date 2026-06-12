@@ -26,6 +26,7 @@ import { collectionEventsRoute } from "./routes/authenticated/collection-events.
 import { collectionValueHistoryRoute } from "./routes/authenticated/collection-value-history.js";
 import { collectionsRoute } from "./routes/authenticated/collections.js";
 import { copiesRoute } from "./routes/authenticated/copies.js";
+import { deckCheckPlayerRoute } from "./routes/authenticated/deck-check-player.js";
 import { deckCheckRoute } from "./routes/authenticated/deck-check.js";
 import { decksRoute } from "./routes/authenticated/decks.js";
 import { friendGroupsRoute } from "./routes/authenticated/friend-groups.js";
@@ -439,6 +440,7 @@ export function createApp(deps: AppDeps) {
       .route("/api/v1", listImageRoute)
       .route("/api/v1", friendGroupsRoute)
       .route("/api/v1", deckCheckRoute)
+      .route("/api/v1", deckCheckPlayerRoute)
       .route("/api/v1", cardTradesRoute)
       .route("/api/v1", podTournamentsRoute)
 

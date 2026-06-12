@@ -98,6 +98,12 @@ export const queryKeys = {
     publicListByToken: (token: string, listId: string) =>
       ["user-share", "public", token, "lists", listId] as const,
   },
+  tournamentDecks: {
+    mine: (userId: string) => ["tournament-decks", userId] as const,
+    entry: (userId: string, entryId: string) => ["tournament-decks", userId, entryId] as const,
+    submission: (userId: string, token: string) =>
+      ["tournament-decks", userId, "submission", token] as const,
+  },
   friendGroups: {
     all: (userId: string) => ["friend-groups", userId] as const,
     detail: (userId: string, slug: string) => ["friend-groups", userId, slug] as const,

@@ -70,7 +70,7 @@ function formatTimeAgo(iso: string): string {
 }
 
 function formatAbsolute(iso: string): string {
-  return new Date(iso).toLocaleString();
+  return new Date(iso).toLocaleString(undefined, { hourCycle: "h23" });
 }
 
 function hasResult(result: Record<string, unknown> | null): boolean {
@@ -87,7 +87,7 @@ export function JobRunsPage() {
 
   useEffect(() => {
     if (dataUpdatedAt > 0) {
-      setLastUpdated(new Date(dataUpdatedAt).toLocaleTimeString());
+      setLastUpdated(new Date(dataUpdatedAt).toLocaleTimeString(undefined, { hourCycle: "h23" }));
     }
   }, [dataUpdatedAt]);
 

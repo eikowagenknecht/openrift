@@ -97,7 +97,7 @@ export function StatusPage() {
 
   useEffect(() => {
     if (dataUpdatedAt > 0) {
-      setLastUpdated(new Date(dataUpdatedAt).toLocaleTimeString());
+      setLastUpdated(new Date(dataUpdatedAt).toLocaleTimeString(undefined, { hourCycle: "h23" }));
     }
   }, [dataUpdatedAt]);
 

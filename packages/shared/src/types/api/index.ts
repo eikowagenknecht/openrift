@@ -151,8 +151,10 @@ export type {
 } from "./friend-group.js";
 
 export type {
+  DeckCheckAccountSearchResponse,
   DeckCheckChangeLine,
   DeckCheckChangeSummary,
+  DeckCheckClaimSource,
   DeckCheckEntryCardResponse,
   DeckCheckEntryDetailResponse,
   DeckCheckEntryResponse,
@@ -166,7 +168,13 @@ export type {
   DeckCheckKeyMintedResponse,
   DeckCheckKeyResponse,
   DeckCheckKeysResponse,
+  DeckCheckListOwner,
   DeckCheckMatchStatus,
+  DeckCheckSubmissionPageResponse,
+  DeckCheckSubmissionResultResponse,
+  PlayerDeckCheckEntriesResponse,
+  PlayerDeckCheckEntryDetailResponse,
+  PlayerDeckCheckEntrySummaryResponse,
 } from "./deck-check.js";
 
 export type {

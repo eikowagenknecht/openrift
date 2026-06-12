@@ -322,6 +322,12 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
           Profile
         </DropdownMenuItem>
       )}
+      {isLoggedIn && (
+        <DropdownMenuItem render={<Link to="/tournament-decks" />}>
+          <TrophyIcon className="size-4" />
+          My tournament decks
+        </DropdownMenuItem>
+      )}
       {isLoggedIn && isAdmin && (
         <DropdownMenuItem render={<Link to="/admin" />}>
           <ShieldIcon className="size-4" />

@@ -19,6 +19,8 @@
 export function formatAbsoluteDate(input: string, options?: Intl.DateTimeFormatOptions): string {
   return new Date(input).toLocaleDateString("en-US", {
     timeZone: "UTC",
+    // The app shows times in 24h format everywhere; en-US alone would emit AM/PM.
+    hourCycle: "h23",
     ...options,
   });
 }

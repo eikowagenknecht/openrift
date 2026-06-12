@@ -1,4 +1,5 @@
 import type {
+  DeckCheckAccountSearchResponse,
   DeckCheckEntryDetailResponse,
   DeckCheckEventDetailResponse,
   DeckCheckEventListResponse,
@@ -181,6 +182,8 @@ const updateEventFn = createServerFn({ method: "POST" })
       format?: string | null;
       allowedSets?: string[] | null;
       status?: "active" | "archived";
+      allowSelfSubmission?: boolean;
+      submissionsCloseAt?: string | null;
     }) => input,
   )
   .middleware([withCookies])
@@ -195,6 +198,8 @@ const updateEventFn = createServerFn({ method: "POST" })
             format: data.format,
             allowedSets: data.allowedSets,
             status: data.status,
+            allowSelfSubmission: data.allowSelfSubmission,
+            submissionsCloseAt: data.submissionsCloseAt,
           },
         }),
         "Couldn't update the event",
@@ -289,6 +294,7 @@ const updateEntryFn = createServerFn({ method: "POST" })
       playerName?: string;
       playerEmail?: string | null;
       riotId?: string | null;
+      playerMessage?: string | null;
     }) => input,
   )
   .middleware([withCookies])
@@ -303,9 +309,72 @@ const updateEntryFn = createServerFn({ method: "POST" })
             playerName: data.playerName,
             playerEmail: data.playerEmail,
             riotId: data.riotId,
+            playerMessage: data.playerMessage,
           },
         }),
         "Couldn't update the player",
+      ),
+  );
+
+const linkEntryFn = createServerFn({ method: "POST" })
+  .validator((input: { slug: string; eventId: string; entryId: string; userId: string }) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[":eventId"].entries[
+          ":entryId"
+        ].link.$put({
+          param: encodeParams({ slug: data.slug, eventId: data.eventId, entryId: data.entryId }),
+          json: { userId: data.userId },
+        }),
+        "Couldn't link the account",
+      ),
+  );
+
+const unlinkEntryFn = createServerFn({ method: "POST" })
+  .validator((input: { slug: string; eventId: string; entryId: string }) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[":eventId"].entries[
+          ":entryId"
+        ].link.$delete({
+          param: encodeParams({ slug: data.slug, eventId: data.eventId, entryId: data.entryId }),
+        }),
+        "Couldn't unlink the account",
+      ),
+  );
+
+const searchAccountsFn = createServerFn({ method: "GET" })
+  .validator((input: { slug: string; q: string }) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data }): Promise<DeckCheckAccountSearchResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"][
+          "deck-check-account-search"
+        ].$get({
+          param: encodeParams({ slug: data.slug }),
+          query: { q: data.q },
+        }),
+        "Couldn't search accounts",
+      ),
+  );
+
+const regenerateSubmissionTokenFn = createServerFn({ method: "POST" })
+  .validator((input: { slug: string; eventId: string }) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data }): Promise<DeckCheckEventSummaryResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[":eventId"][
+          "submission-token"
+        ].$post({
+          param: encodeParams({ slug: data.slug, eventId: data.eventId }),
+        }),
+        "Couldn't regenerate the submission link",
       ),
   );
 
@@ -523,6 +592,55 @@ export function useUpdateDeckCheckEntry() {
     invalidates: (vars) => [
       queryKeys.friendGroups.checkEvent(userId, vars.slug, vars.eventId),
       queryKeys.friendGroups.checkEntry(userId, vars.slug, vars.eventId, vars.entryId),
+    ],
+  });
+}
+
+export function useLinkDeckCheckEntry() {
+  const userId = useRequiredUserId();
+  return useMutationWithInvalidation({
+    mutationFn: (vars: Parameters<typeof linkEntryFn>[0]["data"]) => linkEntryFn({ data: vars }),
+    invalidates: (vars) => [
+      queryKeys.friendGroups.checkEvent(userId, vars.slug, vars.eventId),
+      queryKeys.friendGroups.checkEntry(userId, vars.slug, vars.eventId, vars.entryId),
+    ],
+  });
+}
+
+export function useUnlinkDeckCheckEntry() {
+  const userId = useRequiredUserId();
+  return useMutationWithInvalidation({
+    mutationFn: (vars: { slug: string; eventId: string; entryId: string }) =>
+      unlinkEntryFn({ data: vars }),
+    invalidates: (vars) => [
+      queryKeys.friendGroups.checkEvent(userId, vars.slug, vars.eventId),
+      queryKeys.friendGroups.checkEntry(userId, vars.slug, vars.eventId, vars.entryId),
+    ],
+  });
+}
+
+/**
+ * Account candidates for the judge link search; runs once the query is at
+ * least two characters.
+ * @returns The account search query.
+ */
+export function useDeckCheckAccountSearch(slug: string, q: string) {
+  const userId = useRequiredUserId();
+  return useQuery({
+    queryKey: [...queryKeys.friendGroups.checks(userId, slug), "account-search", q] as const,
+    queryFn: () => searchAccountsFn({ data: { slug, q } }),
+    enabled: q.trim().length >= 2,
+  });
+}
+
+export function useRegenerateDeckCheckSubmissionToken() {
+  const userId = useRequiredUserId();
+  return useMutationWithInvalidation({
+    mutationFn: (vars: { slug: string; eventId: string }) =>
+      regenerateSubmissionTokenFn({ data: vars }),
+    invalidates: (vars) => [
+      queryKeys.friendGroups.checks(userId, vars.slug),
+      queryKeys.friendGroups.checkEvent(userId, vars.slug, vars.eventId),
     ],
   });
 }

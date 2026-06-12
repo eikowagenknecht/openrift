@@ -42,8 +42,11 @@ export function mapSectionToZone(section: string): DeckZone | null {
   return SECTION_ZONE_MAP[normalizeNameForMatching(section)] ?? null;
 }
 
-/** Where an entry came from: an organizer-system push, or hand-entered by a judge. */
-export type DeckCheckEntrySource = "api" | "manual";
+/**
+ * Where an entry came from: an organizer-system push, hand-entered by a judge,
+ * or self-submitted by the player (ADR-026).
+ */
+export type DeckCheckEntrySource = "api" | "manual" | "self";
 
 /**
  * External-id prefix stamped on entries created by hand in the OpenRift UI.
@@ -53,11 +56,26 @@ export type DeckCheckEntrySource = "api" | "manual";
 export const MANUAL_ENTRY_EXTERNAL_ID_PREFIX = "manual:";
 
 /**
+ * External-id prefix for player self-submitted entries (ADR-026), derived from
+ * the submitting user's id so a second submission upserts the same entry. The
+ * ingest API rejects pushed external ids carrying this prefix, so a provider
+ * can never upsert onto (or withdraw) a self-submitted entry.
+ */
+export const SELF_SUBMIT_EXTERNAL_ID_PREFIX = "openrift:";
+
+/**
  * Classifies an entry by its external id.
- * @returns `"manual"` for hand-entered entries, `"api"` for provider pushes.
+ * @returns `"manual"` for hand-entered entries, `"self"` for player
+ *   self-submissions, `"api"` for provider pushes.
  */
 export function deckCheckEntrySource(externalId: string): DeckCheckEntrySource {
-  return externalId.startsWith(MANUAL_ENTRY_EXTERNAL_ID_PREFIX) ? "manual" : "api";
+  if (externalId.startsWith(MANUAL_ENTRY_EXTERNAL_ID_PREFIX)) {
+    return "manual";
+  }
+  if (externalId.startsWith(SELF_SUBMIT_EXTERNAL_ID_PREFIX)) {
+    return "self";
+  }
+  return "api";
 }
 
 function lineKey(line: DeckCheckCardLine): string {

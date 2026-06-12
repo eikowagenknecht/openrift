@@ -11,12 +11,15 @@ import {
   CheckIcon,
   ExpandIcon,
   LayoutGridIcon,
+  Link2Icon,
   PencilIcon,
   PlusIcon,
+  RefreshCwIcon,
   RotateCcwIcon,
   Rows3Icon,
   ShrinkIcon,
   TriangleAlertIcon,
+  Unlink2Icon,
   XIcon,
 } from "lucide-react";
 import { useRef, useState } from "react";
@@ -62,11 +65,15 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useCards } from "@/hooks/use-cards";
 import {
   useAddDeckCheckCard,
+  useDeckCheckAccountSearch,
   useDeckCheckEntry,
   useFixDeckCheckCard,
+  useLinkDeckCheckEntry,
   useRemoveDeckCheckCard,
+  useReResolveDeckCheckEvent,
   useSetDeckCheckVerdict,
   useTickDeckCheckCard,
+  useUnlinkDeckCheckEntry,
   useUpdateDeckCheckEntry,
 } from "@/hooks/use-deck-check";
 import { useDomainColors } from "@/hooks/use-domain-colors";
@@ -112,6 +119,7 @@ export function DeckCheckEntryPage({
     useResponsiveColumns(maxColumns);
   const [notes, setNotes] = useState("");
   const [notesDirty, setNotesDirty] = useState(false);
+  const [addCardOpen, setAddCardOpen] = useState(false);
 
   if (!detail) {
     return <p className="text-muted-foreground">Loading…</p>;
@@ -157,15 +165,26 @@ export function DeckCheckEntryPage({
                 setNotes(event.target.value);
                 setNotesDirty(true);
               }}
-              placeholder="Notes for this entry (saved with the verdict)"
+              placeholder="Notes for this entry (saved with the verdict, not shared with the player)"
               maxLength={4000}
               rows={3}
               className="flex-1"
             />
+            <PlayerMessageField
+              slug={slug}
+              eventId={eventId}
+              entryId={entryId}
+              entry={detail.entry}
+            />
           </div>
         </div>
         {detail.entry.changeSummary ? <ChangeBanner summary={detail.entry.changeSummary} /> : null}
-        <FindingsBanner detail={detail} />
+        <FindingsBanner
+          slug={slug}
+          eventId={eventId}
+          detail={detail}
+          onResolved={() => void refetch()}
+        />
       </div>
       <div
         className={cn(
@@ -175,6 +194,12 @@ export function DeckCheckEntryPage({
         )}
       >
         <div className="mb-2 flex flex-wrap items-center justify-end gap-2">
+          {detail.entry.checkStatus === "unchecked" ? (
+            <Button variant="outline" onClick={() => setAddCardOpen(true)}>
+              <PlusIcon className="size-4" />
+              Add card
+            </Button>
+          ) : null}
           <SortGroupControls
             sortOptions={CHECK_SORT_OPTIONS}
             sortBy={sortBy}
@@ -204,6 +229,13 @@ export function DeckCheckEntryPage({
             </Button>
           ) : null}
         </div>
+        <AddCardDialog
+          slug={slug}
+          eventId={eventId}
+          entryId={entryId}
+          open={addCardOpen}
+          onOpenChange={setAddCardOpen}
+        />
         <div ref={containerRef}>
           <CardChecklist
             slug={slug}
@@ -276,7 +308,6 @@ function EntryHeader({
   const { entry } = detail;
   const setVerdict = useSetDeckCheckVerdict();
   const [editOpen, setEditOpen] = useState(false);
-  const [addCardOpen, setAddCardOpen] = useState(false);
 
   const submitVerdict = (checkStatus: "unchecked" | "checked" | "issue") => {
     setVerdict.mutate(
@@ -308,6 +339,14 @@ function EntryHeader({
               <PencilIcon className="size-4" />
             </Button>
             {entry.withdrawnAt ? <Badge variant="secondary">Withdrawn</Badge> : null}
+            {entry.listOwner === "player" ? (
+              <Badge
+                variant="outline"
+                title="The player edited this list; organizer pushes no longer overwrite it"
+              >
+                Player-owned
+              </Badge>
+            ) : null}
             {entry.checkStatus === "checked" ? <Badge>Checked</Badge> : null}
             {entry.checkStatus === "issue" ? <Badge variant="destructive">Issue</Badge> : null}
           </div>
@@ -319,14 +358,15 @@ function EntryHeader({
               {entry.checkStatus === "issue" ? "Flagged" : "Checked"} by {entry.checkedByName}
             </p>
           ) : null}
+          <AccountLinkStatus entry={entry} />
+          {entry.providerPushIgnoredAt ? (
+            <p className="text-muted-foreground text-sm">
+              An organizer update was ignored because the player owns this list.
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {checked ? null : (
-            <Button size="sm" variant="outline" onClick={() => setAddCardOpen(true)}>
-              <PlusIcon className="size-4" />
-              Add card
-            </Button>
-          )}
+          <AccountLinkAction slug={slug} eventId={eventId} entryId={entryId} entry={entry} />
           {checked ? (
             <Button
               size="sm"
@@ -368,14 +408,209 @@ function EntryHeader({
         open={editOpen}
         onOpenChange={setEditOpen}
       />
-      <AddCardDialog
+    </header>
+  );
+}
+
+/**
+ * The entry's account-link status (ADR-026): who it is linked to and whether
+ * a judge unlink blocked further auto-matching. The action lives in the
+ * header's button row ({@link AccountLinkAction}).
+ * @returns The status line.
+ */
+function AccountLinkStatus({ entry }: { entry: DeckCheckEntryDetailResponse["entry"] }) {
+  return (
+    <p className="text-muted-foreground flex items-center gap-1 text-sm">
+      {entry.claimedUserId ? (
+        <>
+          <Link2Icon className="size-3.5" />
+          Linked to {entry.claimedUserName ?? "an account"}
+          {entry.claimSource === "email_auto" ? " (matched by email)" : ""}
+          {entry.claimSource === "self_submit" ? " (self-submitted)" : ""}
+        </>
+      ) : (
+        <>
+          Not linked to an account
+          {entry.claimBlocked ? " (auto-match blocked after unlink)" : ""}
+        </>
+      )}
+    </p>
+  );
+}
+
+/**
+ * The link / unlink action for the header's button row: the unlink remedy for
+ * a bad auto-match (which also blocks re-matching), and the manual link for
+ * entries the email match missed.
+ * @returns The action button with its dialog.
+ */
+function AccountLinkAction({
+  slug,
+  eventId,
+  entryId,
+  entry,
+}: {
+  slug: string;
+  eventId: string;
+  entryId: string;
+  entry: DeckCheckEntryDetailResponse["entry"];
+}) {
+  const unlink = useUnlinkDeckCheckEntry();
+  const [linkOpen, setLinkOpen] = useState(false);
+
+  if (entry.claimedUserId) {
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={unlink.isPending}
+        title="Detach the account; the entry is never auto-matched again"
+        onClick={() => unlink.mutate({ slug, eventId, entryId })}
+      >
+        <Unlink2Icon className="size-4" />
+        Unlink
+      </Button>
+    );
+  }
+  return (
+    <>
+      <Button size="sm" variant="outline" onClick={() => setLinkOpen(true)}>
+        <Link2Icon className="size-4" />
+        Link account
+      </Button>
+      <LinkAccountDialog
         slug={slug}
         eventId={eventId}
         entryId={entryId}
-        open={addCardOpen}
-        onOpenChange={setAddCardOpen}
+        open={linkOpen}
+        onOpenChange={setLinkOpen}
       />
-    </header>
+    </>
+  );
+}
+
+function LinkAccountDialog({
+  slug,
+  eventId,
+  entryId,
+  open,
+  onOpenChange,
+}: {
+  slug: string;
+  eventId: string;
+  entryId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const { data: results, isFetching } = useDeckCheckAccountSearch(slug, open ? query : "");
+  const link = useLinkDeckCheckEntry();
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (nextOpen) {
+          setQuery("");
+        }
+        onOpenChange(nextOpen);
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Link an account</DialogTitle>
+          <DialogDescription>
+            Search by the exact email or the start of a name. The player then sees this entry under
+            &quot;My tournament decks&quot;.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-3">
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="email@example.com or name"
+          />
+          {query.trim().length < 2 ? null : isFetching ? (
+            <p className="text-muted-foreground text-sm">Searching...</p>
+          ) : !results || results.items.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No accounts match.</p>
+          ) : (
+            <div className="flex flex-col gap-1">
+              {results.items.map((account) => (
+                <Button
+                  key={account.id}
+                  variant="ghost"
+                  className="justify-start"
+                  disabled={link.isPending}
+                  onClick={async () => {
+                    await link.mutateAsync({ slug, eventId, entryId, userId: account.id });
+                    onOpenChange(false);
+                  }}
+                >
+                  <span className="truncate">
+                    {account.name ?? "Unnamed"}
+                    <span className="text-muted-foreground"> · {account.email}</span>
+                  </span>
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * The judge's message to the player, kept separate from the judge-private
+ * notes; the linked player sees it on their entry page.
+ * @returns The message field with its save affordance.
+ */
+function PlayerMessageField({
+  slug,
+  eventId,
+  entryId,
+  entry,
+}: {
+  slug: string;
+  eventId: string;
+  entryId: string;
+  entry: DeckCheckEntryDetailResponse["entry"];
+}) {
+  const updateEntry = useUpdateDeckCheckEntry();
+  const [message, setMessage] = useState("");
+  const [dirty, setDirty] = useState(false);
+  const value = dirty ? message : (entry.playerMessage ?? "");
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Textarea
+        value={value}
+        onChange={(event) => {
+          setMessage(event.target.value);
+          setDirty(true);
+        }}
+        placeholder="Message to the player (they see this, unlike the notes)"
+        maxLength={2000}
+        rows={2}
+      />
+      {dirty ? (
+        <Button
+          size="sm"
+          variant="outline"
+          className="self-end"
+          disabled={updateEntry.isPending}
+          onClick={() => {
+            updateEntry.mutate(
+              { slug, eventId, entryId, playerMessage: value.trim() || null },
+              { onSuccess: () => setDirty(false) },
+            );
+          }}
+        >
+          {updateEntry.isPending ? "Saving..." : "Save message"}
+        </Button>
+      ) : null}
+    </div>
   );
 }
 
@@ -431,7 +666,13 @@ function EditPlayerDialog({
         <DialogHeader>
           <DialogTitle>Edit player details</DialogTitle>
         </DialogHeader>
-        <div className="flex flex-col gap-4">
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleSave();
+          }}
+        >
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="deck-check-player-name">Name</Label>
             <Input
@@ -461,15 +702,15 @@ function EditPlayerDialog({
               placeholder="Player#EUW"
             />
           </div>
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={updateEntry.isPending || !playerName.trim()}>
-            {updateEntry.isPending ? "Saving..." : "Save"}
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={updateEntry.isPending || !playerName.trim()}>
+              {updateEntry.isPending ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -733,13 +974,24 @@ function ChangeBanner({ summary }: { summary: DeckCheckChangeSummary }) {
   );
 }
 
-function FindingsBanner({ detail }: { detail: DeckCheckEntryDetailResponse }) {
+function FindingsBanner({
+  slug,
+  eventId,
+  detail,
+  onResolved,
+}: {
+  slug: string;
+  eventId: string;
+  detail: DeckCheckEntryDetailResponse;
+  onResolved: () => void;
+}) {
+  const reResolve = useReResolveDeckCheckEvent();
   const unmatched = detail.cards.filter((card) => card.matchStatus !== "matched");
   if (detail.violations.length === 0 && unmatched.length === 0) {
     return null;
   }
   return (
-    <div className="flex flex-col gap-1 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
+    <div className="flex flex-col gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
       <span className="font-medium">Possible deck problems</span>
       <ul className="list-disc pl-5">
         {unmatched.length > 0 ? (
@@ -754,6 +1006,27 @@ function FindingsBanner({ detail }: { detail: DeckCheckEntryDetailResponse }) {
           </li>
         ))}
       </ul>
+      {unmatched.length > 0 ? (
+        <Button
+          size="sm"
+          variant="outline"
+          className="self-start"
+          disabled={reResolve.isPending}
+          title="Try matching the unidentified cards against the catalog again, e.g. after a catalog fix"
+          onClick={async () => {
+            const result = await reResolve.mutateAsync({ slug, eventId });
+            toast.info(
+              result.updatedLines === 0
+                ? "No new matches found"
+                : `${result.updatedLines} ${result.updatedLines === 1 ? "line" : "lines"} now resolve`,
+            );
+            onResolved();
+          }}
+        >
+          <RefreshCwIcon className="size-4" />
+          Re-resolve cards
+        </Button>
+      ) : null}
     </div>
   );
 }

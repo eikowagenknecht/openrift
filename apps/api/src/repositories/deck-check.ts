@@ -1,7 +1,9 @@
 import { normalizeNameForMatching } from "@openrift/shared";
 import type {
   DeckCheckChangeSummary,
+  DeckCheckClaimSource,
   DeckCheckEntryStatus,
+  DeckCheckListOwner,
   DeckCheckMatchStatus,
 } from "@openrift/shared";
 import type { Kysely, Selectable } from "kysely";
@@ -27,6 +29,7 @@ export interface DeckCheckEventWithCounts extends DeckCheckEvent {
 
 export interface DeckCheckEntrySummary extends DeckCheckEntry {
   checkedByName: string | null;
+  claimedUserName: string | null;
   copyCount: number;
   verifiedCopyCount: number;
   unmatchedLineCount: number;
@@ -58,6 +61,18 @@ export interface NewDeckCheckEntry {
   publishOptOut: boolean;
   contentHash: string;
   withdrawnAt: Date | null;
+  claimedUserId?: string | null;
+  claimSource?: DeckCheckClaimSource | null;
+  claimedAt?: Date | null;
+  listOwner?: DeckCheckListOwner;
+}
+
+/** One row of the player's "My tournament decks" list (ADR-026). */
+export interface PlayerDeckCheckEntryRow extends DeckCheckEntry {
+  eventName: string;
+  eventDate: Date | string | null;
+  groupName: string;
+  groupSlug: string;
 }
 
 export interface NewDeckCheckEntryCard {
@@ -230,9 +245,11 @@ export function deckCheckRepo(db: Kysely<Database>) {
       const rows = await db
         .selectFrom("deckCheckEntries as en")
         .leftJoin("users as u", "u.id", "en.checkedBy")
+        .leftJoin("users as cu", "cu.id", "en.claimedUserId")
         .selectAll("en")
         .select((eb) => [
           eb.ref("u.name").as("checkedByName"),
+          eb.ref("cu.name").as("claimedUserName"),
           eb
             .selectFrom("deckCheckEntryCards as c")
             .select((inner) =>
@@ -263,6 +280,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
         parseEntryRow({
           ...row,
           checkedByName: row.checkedByName ?? null,
+          claimedUserName: row.claimedUserName ?? null,
           copyCount: Number(row.copyCount ?? 0),
           verifiedCopyCount: Number(row.verifiedCopyCount ?? 0),
           unmatchedLineCount: Number(row.unmatchedLineCount ?? 0),
@@ -330,6 +348,13 @@ export function deckCheckRepo(db: Kysely<Database>) {
         notes: string | null;
         changeSummary: string | null;
         withdrawnAt: Date | null;
+        claimedUserId: string | null;
+        claimSource: DeckCheckClaimSource | null;
+        claimedAt: Date | null;
+        claimBlockedAt: Date | null;
+        listOwner: DeckCheckListOwner;
+        playerMessage: string | null;
+        providerPushIgnoredAt: Date | null;
       }>,
     ): Promise<DeckCheckEntry | undefined> {
       const row = await db
@@ -339,6 +364,255 @@ export function deckCheckRepo(db: Kysely<Database>) {
         .returningAll()
         .executeTakeFirst();
       return row ? parseEntryRow(row) : undefined;
+    },
+
+    // ── Account links and player access (ADR-026) ───────────────────────────
+
+    /**
+     * One account's identity fields, for existence checks and for populating
+     * a self-submitted entry's player fields from the account.
+     * @returns The account row, or undefined when the user does not exist.
+     */
+    getUserAccount(
+      userId: string,
+    ): Promise<{ id: string; name: string | null; email: string } | undefined> {
+      return db
+        .selectFrom("users")
+        .select(["id", "name", "email"])
+        .where("id", "=", userId)
+        .executeTakeFirst();
+    },
+
+    /**
+     * Looks up a verified account by email for auto-match; the comparison is
+     * case-insensitive on both sides.
+     * @returns The user id, or undefined when no verified account matches.
+     */
+    async findVerifiedUserByEmail(email: string): Promise<string | undefined> {
+      const row = await db
+        .selectFrom("users")
+        .select("id")
+        .where(sql`lower(email)`, "=", email.trim().toLowerCase())
+        .where("emailVerified", "=", true)
+        .executeTakeFirst();
+      return row?.id;
+    },
+
+    /**
+     * Links one entry to an account unless it is already linked or a judge
+     * blocked it (the unlink tombstone). Used by the ingest-time auto-match.
+     * @returns True when the link was written.
+     */
+    async linkEntryIfUnclaimed(
+      entryId: string,
+      userId: string,
+      source: DeckCheckClaimSource,
+    ): Promise<boolean> {
+      const result = await db
+        .updateTable("deckCheckEntries")
+        .set({ claimedUserId: userId, claimSource: source, claimedAt: new Date() })
+        .where("id", "=", entryId)
+        .where("claimedUserId", "is", null)
+        .where("claimBlockedAt", "is", null)
+        .executeTakeFirst();
+      return result.numUpdatedRows > 0n;
+    },
+
+    /**
+     * The lazy auto-match: links every unclaimed, unblocked entry whose
+     * `player_email` matches the viewer's verified email. Runs when a player
+     * loads "My tournament decks" or opens a submission link, covering
+     * accounts created after the provider pushed.
+     * @returns The number of entries linked.
+     */
+    async autoMatchEntriesByEmail(userId: string, email: string): Promise<number> {
+      const result = await db
+        .updateTable("deckCheckEntries")
+        .set({ claimedUserId: userId, claimSource: "email_auto", claimedAt: new Date() })
+        .where(sql`lower(player_email)`, "=", email.trim().toLowerCase())
+        .where("claimedUserId", "is", null)
+        .where("claimBlockedAt", "is", null)
+        .executeTakeFirst();
+      return Number(result.numUpdatedRows);
+    },
+
+    /**
+     * Judge manual link; overrides and clears any unlink block.
+     * @returns The updated entry, or undefined when it does not exist.
+     */
+    async linkEntry(entryId: string, userId: string): Promise<DeckCheckEntry | undefined> {
+      const row = await db
+        .updateTable("deckCheckEntries")
+        .set({
+          claimedUserId: userId,
+          claimSource: "judge_manual",
+          claimedAt: new Date(),
+          claimBlockedAt: null,
+        })
+        .where("id", "=", entryId)
+        .returningAll()
+        .executeTakeFirst();
+      return row ? parseEntryRow(row) : undefined;
+    },
+
+    /**
+     * Judge unlink: clears the claim columns and sets the block so no
+     * auto-match path (ingest, lazy, backfill) ever restores the bad link.
+     * @returns The updated entry, or undefined when it does not exist.
+     */
+    async unlinkEntry(entryId: string): Promise<DeckCheckEntry | undefined> {
+      const row = await db
+        .updateTable("deckCheckEntries")
+        .set({
+          claimedUserId: null,
+          claimSource: null,
+          claimedAt: null,
+          claimBlockedAt: new Date(),
+        })
+        .where("id", "=", entryId)
+        .returningAll()
+        .executeTakeFirst();
+      return row ? parseEntryRow(row) : undefined;
+    },
+
+    /**
+     * Account candidates for the judge link search: exact email match or
+     * name prefix, capped small. Judges already see entrant emails, so this
+     * exposes nothing beyond their existing view.
+     * @returns Up to ten matching accounts.
+     */
+    listAccountsForLinkSearch(
+      query: string,
+    ): Promise<{ id: string; name: string | null; email: string }[]> {
+      const trimmed = query.trim();
+      return db
+        .selectFrom("users")
+        .select(["id", "name", "email"])
+        .where((eb) =>
+          eb.or([
+            eb(sql`lower(email)`, "=", trimmed.toLowerCase()),
+            eb("name", "ilike", `${trimmed.replaceAll(/[%_]/gu, "")}%`),
+          ]),
+        )
+        .orderBy("name", "asc")
+        .limit(10)
+        .execute();
+    },
+
+    /**
+     * The caller's own entries across all events, withdrawn included.
+     * @returns The entries with their event and group names, newest first.
+     */
+    async listEntriesForPlayer(userId: string): Promise<PlayerDeckCheckEntryRow[]> {
+      const rows = await db
+        .selectFrom("deckCheckEntries as en")
+        .innerJoin("deckCheckEvents as ev", "ev.id", "en.eventId")
+        .innerJoin("friendGroups as g", "g.id", "ev.groupId")
+        .selectAll("en")
+        .select((eb) => [
+          eb.ref("ev.name").as("eventName"),
+          eb.ref("ev.eventDate").as("eventDate"),
+          eb.ref("g.name").as("groupName"),
+          eb.ref("g.slug").as("groupSlug"),
+        ])
+        .where("en.claimedUserId", "=", userId)
+        .orderBy("en.updatedAt", "desc")
+        .execute();
+      return rows.map((row) => parseEntryRow(row));
+    },
+
+    /**
+     * One entry, guarded by ownership: returns nothing unless the entry is
+     * linked to the caller. The 404-vs-403 distinction happens in the route.
+     * @returns The entry with its event and group names, or undefined.
+     */
+    async getEntryForPlayer(
+      entryId: string,
+      userId: string,
+    ): Promise<PlayerDeckCheckEntryRow | undefined> {
+      const row = await db
+        .selectFrom("deckCheckEntries as en")
+        .innerJoin("deckCheckEvents as ev", "ev.id", "en.eventId")
+        .innerJoin("friendGroups as g", "g.id", "ev.groupId")
+        .selectAll("en")
+        .select((eb) => [
+          eb.ref("ev.name").as("eventName"),
+          eb.ref("ev.eventDate").as("eventDate"),
+          eb.ref("g.name").as("groupName"),
+          eb.ref("g.slug").as("groupSlug"),
+        ])
+        .where("en.id", "=", entryId)
+        .where("en.claimedUserId", "=", userId)
+        .executeTakeFirst();
+      return row ? parseEntryRow(row) : undefined;
+    },
+
+    /**
+     * Loads an event without group scoping (player paths know no group).
+     * @returns The event, or undefined when it does not exist.
+     */
+    async getEventById(eventId: string): Promise<DeckCheckEvent | undefined> {
+      const row = await db
+        .selectFrom("deckCheckEvents")
+        .selectAll()
+        .where("id", "=", eventId)
+        .executeTakeFirst();
+      return row ? parseEventRow(row) : undefined;
+    },
+
+    /**
+     * Resolves a submission link's token to its event.
+     * @returns The event with its group name, or undefined.
+     */
+    async getEventBySubmissionToken(
+      token: string,
+    ): Promise<(DeckCheckEvent & { groupName: string }) | undefined> {
+      const row = await db
+        .selectFrom("deckCheckEvents as ev")
+        .innerJoin("friendGroups as g", "g.id", "ev.groupId")
+        .selectAll("ev")
+        .select((eb) => eb.ref("g.name").as("groupName"))
+        .where("ev.submissionToken", "=", token)
+        .executeTakeFirst();
+      return row ? parseEventRow(row) : undefined;
+    },
+
+    /**
+     * The caller's linked entry within one event, for submission-as-edit.
+     * @returns The entry, or undefined when none is linked.
+     */
+    async getLinkedEntryForUser(
+      eventId: string,
+      userId: string,
+    ): Promise<DeckCheckEntry | undefined> {
+      const row = await db
+        .selectFrom("deckCheckEntries")
+        .selectAll()
+        .where("eventId", "=", eventId)
+        .where("claimedUserId", "=", userId)
+        .executeTakeFirst();
+      return row ? parseEntryRow(row) : undefined;
+    },
+
+    /**
+     * Updates the per-event self-submission settings (admin action).
+     * @returns The updated event, or undefined when it does not exist.
+     */
+    async updateEventSubmission(
+      eventId: string,
+      patch: Partial<{
+        allowSelfSubmission: boolean;
+        submissionToken: string | null;
+        submissionsCloseAt: Date | null;
+      }>,
+    ): Promise<DeckCheckEvent | undefined> {
+      const row = await db
+        .updateTable("deckCheckEvents")
+        .set(patch)
+        .where("id", "=", eventId)
+        .returningAll()
+        .executeTakeFirst();
+      return row ? parseEventRow(row) : undefined;
     },
 
     // ── Entry cards ─────────────────────────────────────────────────────────
@@ -585,6 +859,32 @@ export function deckCheckRepo(db: Kysely<Database>) {
       }
 
       return results;
+    },
+
+    /**
+     * Maps printing short codes (as found in a pasted deck code) onto cards,
+     * for the self-submission decode path (ADR-026).
+     * @returns Card name and type keyed by short code.
+     */
+    async getCardsByShortCodes(
+      shortCodes: string[],
+    ): Promise<Map<string, { cardId: string; name: string; type: string }>> {
+      if (shortCodes.length === 0) {
+        return new Map();
+      }
+      const rows = await db
+        .selectFrom("printings as p")
+        .innerJoin("cards as c", "c.id", "p.cardId")
+        .select(["p.shortCode", "c.id", "c.name", "c.type"])
+        .where("p.shortCode", "in", [...new Set(shortCodes)])
+        .execute();
+      const byShortCode = new Map<string, { cardId: string; name: string; type: string }>();
+      for (const row of rows) {
+        if (!byShortCode.has(row.shortCode)) {
+          byShortCode.set(row.shortCode, { cardId: row.id, name: row.name, type: row.type });
+        }
+      }
+      return byShortCode;
     },
 
     /**

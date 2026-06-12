@@ -232,7 +232,10 @@ function PrintingEventRow({
         </TableCell>
         <TableCell className="text-muted-foreground text-sm">{event.setName ?? "—"}</TableCell>
         <TableCell className="text-right font-mono">{event.retryCount}</TableCell>
-        <TableCell className="font-mono text-sm" title={new Date(event.createdAt).toLocaleString()}>
+        <TableCell
+          className="font-mono text-sm"
+          title={new Date(event.createdAt).toLocaleString(undefined, { hourCycle: "h23" })}
+        >
           {formatTimeAgo(event.createdAt)}
         </TableCell>
         <TableCell>

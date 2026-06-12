@@ -1,7 +1,9 @@
 import type {
   DeckCheckChangeSummary,
+  DeckCheckClaimSource,
   DeckCheckEntryStatus,
   DeckCheckEventStatus,
+  DeckCheckListOwner,
   DeckCheckMatchStatus,
   PodPenaltyBreakdown,
 } from "@openrift/shared";
@@ -621,6 +623,11 @@ export interface DeckCheckEventsTable {
   /** Set codes for set-legality flagging; written pre-stringified, read defensively. */
   allowedSets: ColumnType<string[], string, string> | null;
   status: Generated<DeckCheckEventStatus>;
+  /** Player self-submission opt-in (ADR-026). */
+  allowSelfSubmission: Generated<boolean>;
+  /** Shared submission capability (plaintext, like the group join code); UNIQUE. */
+  submissionToken: string | null;
+  submissionsCloseAt: Date | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -648,6 +655,18 @@ export interface DeckCheckEntriesTable {
   /** Diff vs the previously checked list; written pre-stringified, read defensively. */
   changeSummary: ColumnType<DeckCheckChangeSummary, string, string> | null;
   withdrawnAt: Date | null;
+  /** The account link ADR-025 reserved, filled in by ADR-026. */
+  claimedUserId: string | null;
+  claimSource: DeckCheckClaimSource | null;
+  claimedAt: Date | null;
+  /** Set on judge unlink; blocks every auto-match path from re-linking. */
+  claimBlockedAt: Date | null;
+  /** Flips to 'player' on the first player edit (edit-takeover, ADR-026). */
+  listOwner: Generated<DeckCheckListOwner>;
+  /** CHECK: length <= 2000; judge-authored, shown to the linked player. */
+  playerMessage: string | null;
+  /** Set when a provider push was ignored because the player owns the list. */
+  providerPushIgnoredAt: Date | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

@@ -2,6 +2,11 @@
 
 ## 2026-06-12
 
+- feat: Decks you entered into a tournament now show up under "My tournament decks" in the user menu, with their check status and any note the judges left for you. Your entry connects to your account automatically when the organizer has your email; a judge can also connect it by hand
+- feat: Organizers can share a per-event link that lets players submit their deck directly through OpenRift, by picking one of their decks, pasting a deck code, or pasting a plain card list, with legality warnings shown before submitting
+- feat: Players can correct their submitted tournament deck while submissions are open; a corrected deck always goes back to the judges for a fresh check, and organizer updates no longer overwrite a list the player corrected
+- feat: Judges can connect an entry to a player's OpenRift account from the checker and write a message the player sees on their deck page, separate from the judge-only notes
+- feat: Group members who entered one of the group's events see the Events tab with their own decks; the full entrant view stays visible to judges only
 - feat: The deck checker can now sort cards by domain, keeping each domain's cards together and ordering them by name within it
 - feat: Groups, tournaments, rules, the pack opener, the card designer, and the match tracker setup now share the same compact page header as the rest of the app, and it stays pinned at the top while you scroll. On rules pages the version picker stays visible too, and tournament pages gained a clickable trail back to your tournament list
 - feat: The group overview is tidier — one trades tile shows what needs you or, when you're caught up, how many possible trades there are, and the shared tile leads with how much members have shared with the group
@@ -16,6 +21,7 @@
 - fix: Deck-check entries can now carry a player's Riot ID. The optional player field is labelled "Riot ID" instead of the unclear "Handle", and the organizer integration example shows which field to send it in
 - fix: On phones, the tabs on a group page now scroll sideways instead of being cut off at the screen edge
 - fix: The group overview's matches number counted every single copy members had of cards you want, showing numbers like 51 where the Trades tab showed 4 suggestions. It now counts possible trades the same way the Trades tab does
+- fix: Times across the app now consistently use the 24-hour format instead of switching to AM/PM in some places, and deadlines like a submission close time also show the exact moment in UTC so the timezone is never in doubt
 
 ## 2026-06-11
 

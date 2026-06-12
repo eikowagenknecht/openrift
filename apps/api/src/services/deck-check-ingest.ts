@@ -7,6 +7,7 @@ import {
   ERROR_CODES,
   MANUAL_ENTRY_EXTERNAL_ID_PREFIX,
   mapSectionToZone,
+  SELF_SUBMIT_EXTERNAL_ID_PREFIX,
 } from "@openrift/shared";
 import type { DeckCheckCardLine, DeckCheckIngestResultResponse } from "@openrift/shared";
 import type { createDeckCheckEntrySchema, deckCheckIngestSchema } from "@openrift/shared/schemas";
@@ -119,6 +120,20 @@ export async function ingestDeckCheckPush(
     );
   }
 
+  // The self-submission namespace is reserved (ADR-026): a provider must never
+  // upsert onto (or withdraw) an entry the player created.
+  const reservedIds = payload.entries
+    .map((entry) => entry.externalId)
+    .filter((externalId) => externalId.startsWith(SELF_SUBMIT_EXTERNAL_ID_PREFIX));
+  if (reservedIds.length > 0) {
+    throw new AppError(
+      422,
+      ERROR_CODES.VALIDATION_ERROR,
+      `External ids with the reserved "${SELF_SUBMIT_EXTERNAL_ID_PREFIX}" prefix: ${reservedIds.join(", ")}`,
+      { reservedIds },
+    );
+  }
+
   const mappedLines = mapAllSections(payload.entries);
 
   const resolutions = await repos.deckCheck.resolveCards(
@@ -132,6 +147,7 @@ export async function ingestDeckCheckPush(
     entriesUnchanged: 0,
     entriesWithdrawn: 0,
     checksInvalidated: 0,
+    entriesIgnored: 0,
   };
 
   for (const [index, entry] of payload.entries.entries()) {
@@ -171,6 +187,7 @@ export async function ingestDeckCheckPush(
         withdrawnAt: entry.withdrawn ? new Date() : null,
       });
       await repos.deckCheck.replaceEntryCards(created.id, cardRows);
+      await autoMatchEntry(repos, created.id, identity.playerEmail);
       result.entriesCreated += 1;
       continue;
     }
@@ -182,10 +199,23 @@ export async function ingestDeckCheckPush(
       result.entriesWithdrawn += 1;
     }
 
+    if (existing.listOwner === "player") {
+      // Edit-takeover (ADR-026): the player owns the list, so the push applies
+      // nothing except an explicit withdrawal. Updating the player fields is
+      // skipped too, because a pushed email change could re-steer auto-match.
+      await repos.deckCheck.updateEntry(existing.id, {
+        ...withdrawalChanged,
+        providerPushIgnoredAt: new Date(),
+      });
+      result.entriesIgnored += 1;
+      continue;
+    }
+
     if (existing.contentHash === contentHash) {
       // Identical list: refresh identity and withdrawal state, keep the check
       // state and every tick untouched (idempotent re-push).
       await repos.deckCheck.updateEntry(existing.id, { ...identity, ...withdrawalChanged });
+      await autoMatchEntry(repos, existing.id, identity.playerEmail);
       result.entriesUnchanged += 1;
       continue;
     }
@@ -206,6 +236,7 @@ export async function ingestDeckCheckPush(
         : {}),
     });
     await repos.deckCheck.replaceEntryCards(existing.id, cardRows);
+    await autoMatchEntry(repos, existing.id, identity.playerEmail);
     if (wasChecked) {
       result.checksInvalidated += 1;
     }
@@ -213,6 +244,28 @@ export async function ingestDeckCheckPush(
   }
 
   return result;
+}
+
+/**
+ * The ingest-time auto-match (ADR-026): links an entry to a verified account
+ * sharing its email. No-op for absent emails; `linkEntryIfUnclaimed` skips
+ * already-linked and judge-blocked entries.
+ * @param repos Transaction-bound repositories.
+ * @param entryId The just-upserted entry.
+ * @param playerEmail The provider's email for the entry.
+ */
+async function autoMatchEntry(
+  repos: Repos,
+  entryId: string,
+  playerEmail: string | null,
+): Promise<void> {
+  if (!playerEmail) {
+    return;
+  }
+  const userId = await repos.deckCheck.findVerifiedUserByEmail(playerEmail);
+  if (userId) {
+    await repos.deckCheck.linkEntryIfUnclaimed(entryId, userId, "email_auto");
+  }
 }
 
 export type CreateDeckCheckEntryPayload = z.infer<typeof createDeckCheckEntrySchema>;

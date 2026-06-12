@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict EXowkhNzeKTUbz87M7fbUbGMbg6Qu5MRjccqZnSRUGEBzehTtR4SJ2nIV70BoHt
+\restrict 2MsJOKIs2sMZqdpgMgHhLRlWpoLV3zj3WM3RONUyreMhFLpaviCgbrX7xBVc5FR
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -852,8 +852,18 @@ CREATE TABLE public.deck_check_entries (
     withdrawn_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    claimed_user_id text,
+    claim_source text,
+    claimed_at timestamp with time zone,
+    claim_blocked_at timestamp with time zone,
+    list_owner text DEFAULT 'provider'::text NOT NULL,
+    player_message text,
+    provider_push_ignored_at timestamp with time zone,
+    CONSTRAINT chk_deck_check_entries_claim_source CHECK (((claim_source IS NULL) OR (claim_source = ANY (ARRAY['email_auto'::text, 'judge_manual'::text, 'self_submit'::text])))),
+    CONSTRAINT chk_deck_check_entries_list_owner CHECK ((list_owner = ANY (ARRAY['provider'::text, 'player'::text]))),
     CONSTRAINT chk_deck_check_entries_notes CHECK (((notes IS NULL) OR (length(notes) <= 4000))),
     CONSTRAINT chk_deck_check_entries_player_email CHECK (((player_email IS NULL) OR (length(player_email) <= 254))),
+    CONSTRAINT chk_deck_check_entries_player_message CHECK (((player_message IS NULL) OR (length(player_message) <= 2000))),
     CONSTRAINT chk_deck_check_entries_player_name CHECK (((length(player_name) >= 1) AND (length(player_name) <= 120))),
     CONSTRAINT chk_deck_check_entries_riot_id CHECK (((riot_id IS NULL) OR (length(riot_id) <= 120))),
     CONSTRAINT chk_deck_check_entries_status CHECK ((check_status = ANY (ARRAY['unchecked'::text, 'checked'::text, 'issue'::text])))
@@ -896,6 +906,9 @@ CREATE TABLE public.deck_check_events (
     status text DEFAULT 'active'::text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    allow_self_submission boolean DEFAULT false NOT NULL,
+    submission_token text,
+    submissions_close_at timestamp with time zone,
     CONSTRAINT chk_deck_check_events_name CHECK (((length(name) >= 1) AND (length(name) <= 120))),
     CONSTRAINT chk_deck_check_events_status CHECK ((status = ANY (ARRAY['active'::text, 'archived'::text])))
 );
@@ -2146,6 +2159,14 @@ ALTER TABLE ONLY public.deck_check_events
 
 
 --
+-- Name: deck_check_events deck_check_events_submission_token_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_check_events
+    ADD CONSTRAINT deck_check_events_submission_token_key UNIQUE (submission_token);
+
+
+--
 -- Name: deck_check_keys deck_check_keys_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2946,10 +2967,24 @@ CREATE INDEX idx_deck_cards_deck ON public.deck_cards USING btree (deck_id);
 
 
 --
+-- Name: idx_deck_check_entries_claimed_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_deck_check_entries_claimed_user ON public.deck_check_entries USING btree (claimed_user_id);
+
+
+--
 -- Name: idx_deck_check_entries_event; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_deck_check_entries_event ON public.deck_check_entries USING btree (event_id);
+
+
+--
+-- Name: idx_deck_check_entries_player_email; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_deck_check_entries_player_email ON public.deck_check_entries USING btree (lower(player_email));
 
 
 --
@@ -4014,6 +4049,14 @@ ALTER TABLE ONLY public.deck_check_entries
 
 
 --
+-- Name: deck_check_entries deck_check_entries_claimed_user_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_check_entries
+    ADD CONSTRAINT deck_check_entries_claimed_user_fkey FOREIGN KEY (claimed_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
 -- Name: deck_check_entries deck_check_entries_event_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4585,5 +4628,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict EXowkhNzeKTUbz87M7fbUbGMbg6Qu5MRjccqZnSRUGEBzehTtR4SJ2nIV70BoHt
+\unrestrict 2MsJOKIs2sMZqdpgMgHhLRlWpoLV3zj3WM3RONUyreMhFLpaviCgbrX7xBVc5FR
 
