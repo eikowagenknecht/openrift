@@ -1,3 +1,4 @@
+import { validateRiotId } from "@openrift/shared";
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
 import { emailOTP } from "better-auth/plugins/email-otp";
@@ -79,6 +80,16 @@ export function createAuth(deps: {
       deleteUser: {
         enabled: true,
       },
+      additionalFields: {
+        // Free-text Riot ID (ADR-028): self-reported display data, validated
+        // in the update hook below. Verified RSO linking comes later.
+        riotId: {
+          type: "string",
+          required: false,
+          input: true,
+          fieldName: "riot_id",
+        },
+      },
       fields: {
         emailVerified: "email_verified",
         createdAt: "created_at",
@@ -140,10 +151,14 @@ export function createAuth(deps: {
           async before(user) {
             const fallback = typeof user.email === "string" ? user.email.split("@")[0] : "";
             const cleaned = sanitizeDisplayName(user.name, fallback ?? "");
-            if (cleaned === user.name) {
+            // Signup bodies may carry the riotId additional field; like the
+            // name, drop an invalid value instead of failing the signup.
+            const riot = validateRiotId(user.riotId);
+            const riotId = riot.ok ? riot.value : null;
+            if (cleaned === user.name && riotId === (user.riotId ?? null)) {
               return;
             }
-            return { data: { ...user, name: cleaned } };
+            return { data: { ...user, name: cleaned, riotId } };
           },
           async after(user) {
             const collections = collectionsRepo(db);
@@ -165,20 +180,36 @@ export function createAuth(deps: {
         update: {
           // oxlint-disable-next-line require-await -- better-auth hook signature requires Promise return
           async before(user) {
-            if (!Object.hasOwn(user, "name")) {
+            const updates: { name?: string; riotId?: string | null } = {};
+            if (Object.hasOwn(user, "name")) {
+              const result = validateDisplayName(user.name);
+              if (!result.ok) {
+                throw new APIError("BAD_REQUEST", {
+                  code: "INVALID_NAME",
+                  message: result.reason,
+                });
+              }
+              if (result.value !== user.name) {
+                updates.name = result.value;
+              }
+            }
+            if (Object.hasOwn(user, "riotId")) {
+              const result = validateRiotId(user.riotId);
+              if (!result.ok) {
+                throw new APIError("BAD_REQUEST", {
+                  code: "INVALID_RIOT_ID",
+                  message: result.reason,
+                });
+              }
+              // An empty submission normalizes to null, clearing the field.
+              if (result.value !== user.riotId) {
+                updates.riotId = result.value;
+              }
+            }
+            if (Object.keys(updates).length === 0) {
               return;
             }
-            const result = validateDisplayName(user.name);
-            if (!result.ok) {
-              throw new APIError("BAD_REQUEST", {
-                code: "INVALID_NAME",
-                message: result.reason,
-              });
-            }
-            if (result.value === user.name) {
-              return;
-            }
-            return { data: { ...user, name: result.value } };
+            return { data: { ...user, ...updates } };
           },
         },
       },

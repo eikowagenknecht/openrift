@@ -1,4 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { validateRiotId } from "@openrift/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
@@ -29,10 +30,12 @@ type DisplayNameValues = z.infer<typeof displayNameSchema>;
 
 export function AccountInfoSection({
   defaultName,
+  defaultRiotId,
   userId,
   currentEmail,
 }: {
   defaultName: string;
+  defaultRiotId: string;
   userId: string;
   currentEmail: string;
 }) {
@@ -41,11 +44,13 @@ export function AccountInfoSection({
       <CardHeader>
         <CardTitle>Account Info</CardTitle>
         <CardDescription>
-          Your display name and email address. The name is what shows up on shared lists.
+          Your display name, Riot ID, and email address. The name is what shows up on shared lists.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <DisplayNameForm defaultName={defaultName} userId={userId} />
+        <div className="border-t" />
+        <RiotIdForm defaultRiotId={defaultRiotId} userId={userId} />
         <div className="border-t" />
         <EmailForm currentEmail={currentEmail} />
       </CardContent>
@@ -110,6 +115,82 @@ function DisplayNameForm({ defaultName, userId }: { defaultName: string; userId:
           </Button>
         </Field>
         {success && <FieldDescription className="text-emerald-600">Name updated.</FieldDescription>}
+      </FieldGroup>
+    </form>
+  );
+}
+
+// ── Riot ID ─────────────────────────────────────────────────────────────────
+
+const riotIdSchema = z.object({
+  riotId: z.string().superRefine((value, ctx) => {
+    const result = validateRiotId(value);
+    if (!result.ok) {
+      ctx.addIssue({ code: "custom", message: result.reason });
+    }
+  }),
+});
+
+type RiotIdValues = z.infer<typeof riotIdSchema>;
+
+function RiotIdForm({ defaultRiotId, userId }: { defaultRiotId: string; userId: string }) {
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const queryClient = useQueryClient();
+  const form = useForm<RiotIdValues>({
+    resolver: zodResolver(riotIdSchema),
+    defaultValues: { riotId: defaultRiotId },
+  });
+  const watchedRiotId = useWatch({ control: form.control, name: "riotId" });
+
+  async function onSubmit(values: RiotIdValues) {
+    setLoading(true);
+    setSuccess(false);
+    // The server hook normalizes an empty string to null (clears the field).
+    const { error } = await authClient.updateUser({ riotId: values.riotId.trim() });
+    setLoading(false);
+    if (error) {
+      setServerError(form, error);
+      return;
+    }
+    await queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
+    setSuccess(true);
+  }
+
+  return (
+    <form key={userId} onSubmit={form.handleSubmit(onSubmit)} noValidate>
+      <FieldGroup>
+        {form.formState.errors.root && (
+          <FieldError>{form.formState.errors.root.message}</FieldError>
+        )}
+        <Controller
+          name="riotId"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor={field.name}>Riot ID</FieldLabel>
+              <Input
+                {...field}
+                id={field.name}
+                type="text"
+                placeholder="SummonerName#EUW"
+                aria-invalid={fieldState.invalid}
+              />
+              <FieldDescription>
+                Filled in for you when you submit a deck to a tournament. Leave empty to remove it.
+              </FieldDescription>
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
+        <Field>
+          <Button type="submit" disabled={loading || watchedRiotId.trim() === defaultRiotId}>
+            {loading ? "Saving..." : "Save"}
+          </Button>
+        </Field>
+        {success && (
+          <FieldDescription className="text-emerald-600">Riot ID updated.</FieldDescription>
+        )}
       </FieldGroup>
     </form>
   );

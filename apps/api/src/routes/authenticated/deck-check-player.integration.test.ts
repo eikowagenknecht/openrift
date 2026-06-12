@@ -401,6 +401,13 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
     });
 
     it("a user without a linked entry creates one openrift: entry, upserted on re-submit", async () => {
+      // The profile's free-text Riot ID is snapshotted onto the entry (ADR-028).
+      await db
+        .updateTable("users")
+        .set({ riotId: "Stranger#EUW" })
+        .where("id", "=", STRANGER_ID)
+        .execute();
+
       const first = await strangerApp.fetch(
         req("POST", `/deck-check/submissions/${submissionToken}`, { deckId: strangerDeckId }),
       );
@@ -412,6 +419,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       expect(entry?.claimSource).toBe("self_submit");
       expect(entry?.listOwner).toBe("player");
       expect(entry?.playerEmail).toBe(STRANGER_EMAIL);
+      expect(entry?.riotId).toBe("Stranger#EUW");
 
       const second = await strangerApp.fetch(
         req("POST", `/deck-check/submissions/${submissionToken}`, { deckId: strangerDeckId }),

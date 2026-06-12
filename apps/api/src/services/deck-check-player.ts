@@ -333,7 +333,7 @@ export async function applyPlayerList(
 export async function createSelfSubmittedEntry(
   repos: Repos,
   event: DeckCheckEvent,
-  account: { id: string; name: string | null; email: string },
+  account: { id: string; name: string | null; email: string; riotId: string | null },
   lines: DeckCheckCardLine[],
   cardRows: NewDeckCheckEntryCard[],
   consent: PlayerSharingConsent = {},
@@ -343,7 +343,8 @@ export async function createSelfSubmittedEntry(
     externalId: `${SELF_SUBMIT_EXTERNAL_ID_PREFIX}${account.id}`,
     playerName: account.name?.trim() || account.email,
     playerEmail: account.email,
-    riotId: null,
+    // The profile's free-text Riot ID (ADR-028), snapshotted at submission.
+    riotId: account.riotId,
     submittedAt: new Date(),
     ...consentPatch(consent),
     contentHash: sha256(buildContentHashInput(lines)),

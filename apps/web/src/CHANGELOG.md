@@ -2,6 +2,7 @@
 
 ## 2026-06-12
 
+- feat: You can save your Riot ID on your profile, and it's filled in automatically when you submit a deck to a tournament
 - feat: When submitting a tournament deck, you now choose whether your name and your Riot ID may be shown alongside your deck on public platforms. Your deck page shows the current choice, judges see it in the checker and can correct it on request, and tournament software can send it along when pushing decklists
 - feat: Decks you entered into a tournament now show up under "My tournament decks" in the user menu, with their check status and any note the judges left for you. Your entry connects to your account automatically when the organizer has your email; a judge can also connect it by hand
 - feat: Organizers can share a per-event link that lets players submit their deck directly through OpenRift, by picking one of their decks, pasting a deck code, or pasting a plain card list, with legality warnings shown before submitting

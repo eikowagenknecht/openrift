@@ -103,6 +103,7 @@ function ProfilePage() {
             </h2>
             <AccountInfoSection
               defaultName={user.name ?? ""}
+              defaultRiotId={user.riotId ?? ""}
               userId={user.id}
               currentEmail={user.email}
             />

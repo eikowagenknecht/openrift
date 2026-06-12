@@ -307,6 +307,8 @@ export { humanizePrintingField } from "./printing-event-fields.js";
 
 export { getPlaysetSize } from "./playset.js";
 
+export { RIOT_ID_FORMAT_MESSAGE, validateRiotId } from "./riot-id.js";
+
 export type { SourceSlot } from "./zone-inference.js";
 export { inferZone } from "./zone-inference.js";
 

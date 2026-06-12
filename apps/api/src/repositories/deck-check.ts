@@ -378,10 +378,12 @@ export function deckCheckRepo(db: Kysely<Database>) {
      */
     getUserAccount(
       userId: string,
-    ): Promise<{ id: string; name: string | null; email: string } | undefined> {
+    ): Promise<
+      { id: string; name: string | null; email: string; riotId: string | null } | undefined
+    > {
       return db
         .selectFrom("users")
-        .select(["id", "name", "email"])
+        .select(["id", "name", "email", "riotId"])
         .where("id", "=", userId)
         .executeTakeFirst();
     },

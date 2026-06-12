@@ -274,6 +274,7 @@ interface UsersTable {
   emailVerified: boolean;
   image: string | null;
   shareToken: string | null;
+  riotId: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

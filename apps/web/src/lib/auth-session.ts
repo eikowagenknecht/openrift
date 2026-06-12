@@ -16,6 +16,7 @@ interface SessionUser {
   email: string;
   emailVerified: boolean;
   image?: string | null;
+  riotId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
