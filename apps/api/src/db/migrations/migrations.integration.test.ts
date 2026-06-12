@@ -75,10 +75,15 @@ function normalizeDump(raw: string): string {
         !line.startsWith("SET ") &&
         !line.startsWith("SELECT pg_catalog.") &&
         !line.startsWith("COMMENT ON SCHEMA") &&
-        // The dev database sets REPLICA IDENTITY FULL out-of-band for the
-        // experimental Electric sync container; it is environment state, not
-        // migration output, so snapshots taken from dev must not diff on it.
+        // The dev database carries out-of-band state for the experimental
+        // Electric sync container (REPLICA IDENTITY FULL plus its
+        // electric_publication_default publication); it is environment state,
+        // not migration output, so snapshots taken from dev must not diff on
+        // it. Scoped to electric_ publications so a real one in a migration
+        // would still be compared.
         !line.includes("REPLICA IDENTITY") &&
+        !line.startsWith("CREATE PUBLICATION electric_") &&
+        !line.startsWith("ALTER PUBLICATION electric_") &&
         line.trim() !== "",
     )
     .map((line) => line.replaceAll("\t", "    ").trimEnd())
