@@ -5,18 +5,21 @@ import type {
   FriendGroupDetailResponse,
   Printing,
 } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import {
   CheckIcon,
   ExpandIcon,
+  LayoutGridIcon,
   PencilIcon,
   PlusIcon,
   RotateCcwIcon,
+  Rows3Icon,
   ShrinkIcon,
   TriangleAlertIcon,
   XIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { CardCell } from "@/components/cards/card-cell";
@@ -29,6 +32,7 @@ import {
   FormatStateBadge,
   typeCountSummary,
 } from "@/components/deck/deck-tile";
+import { HoveredCardPreview } from "@/components/deck/hovered-card-preview";
 import { ColumnControls } from "@/components/filters/column-controls";
 import { SortGroupControls } from "@/components/filters/sort-group-controls";
 import type { SortGroupOption } from "@/components/filters/sort-group-controls";
@@ -54,6 +58,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useCards } from "@/hooks/use-cards";
 import {
   useAddDeckCheckCard,
@@ -66,13 +71,14 @@ import {
 } from "@/hooks/use-deck-check";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders, useZoneOrder } from "@/hooks/use-enums";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 import { sortDeckCheckCards } from "@/lib/deck-check-sort";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 import { useDeckCheckViewStore } from "@/stores/deck-check-view-store";
-import type { DeckCheckSort } from "@/stores/deck-check-view-store";
+import type { DeckCheckDisplayMode, DeckCheckSort } from "@/stores/deck-check-view-store";
 
 /**
  * The checker: verdict controls, advisory legality findings, deck stats, and
@@ -94,6 +100,8 @@ export function DeckCheckEntryPage({
   const { data: detail, refetch } = useDeckCheckEntry(slug, eventId, entryId);
   const wide = useDeckCheckViewStore((state) => state.wide);
   const setWide = useDeckCheckViewStore((state) => state.setWide);
+  const displayMode = useDeckCheckViewStore((state) => state.displayMode);
+  const setDisplayMode = useDeckCheckViewStore((state) => state.setDisplayMode);
   const sortBy = useDeckCheckViewStore((state) => state.sortBy);
   const setSortBy = useDeckCheckViewStore((state) => state.setSortBy);
   const sortDir = useDeckCheckViewStore((state) => state.sortDir);
@@ -168,13 +176,16 @@ export function DeckCheckEntryPage({
             onSortByChange={setSortBy}
             onSortDirChange={setSortDir}
           />
-          <ColumnControls
-            maxColumns={maxColumns}
-            autoColumns={autoColumns}
-            minColumns={physicalMin}
-            maxColumnsLimit={physicalMax}
-            onMaxColumnsChange={setMaxColumns}
-          />
+          <DisplayModeToggle mode={displayMode} onModeChange={setDisplayMode} />
+          {displayMode === "grid" ? (
+            <ColumnControls
+              maxColumns={maxColumns}
+              autoColumns={autoColumns}
+              minColumns={physicalMin}
+              maxColumnsLimit={physicalMax}
+              onMaxColumnsChange={setMaxColumns}
+            />
+          ) : null}
           <Button
             variant="outline"
             className="hidden md:flex"
@@ -191,6 +202,7 @@ export function DeckCheckEntryPage({
             eventId={eventId}
             entryId={entryId}
             cards={detail.cards}
+            displayMode={displayMode}
             sortBy={sortBy}
             sortDir={sortDir}
             columns={columns}
@@ -772,11 +784,19 @@ function StatsSummary({ detail }: { detail: DeckCheckEntryDetailResponse }) {
   );
 }
 
+/** The floating-preview payload built from a row's resolved printing. */
+interface HoveredPreview {
+  thumbnailUrl: string;
+  fullUrl: string;
+  landscape: boolean;
+}
+
 function CardChecklist({
   slug,
   eventId,
   entryId,
   cards,
+  displayMode,
   sortBy,
   sortDir,
   columns,
@@ -788,6 +808,7 @@ function CardChecklist({
   eventId: string;
   entryId: string;
   cards: DeckCheckEntryCardResponse[];
+  displayMode: DeckCheckDisplayMode;
   sortBy: DeckCheckSort;
   sortDir: "asc" | "desc";
   columns: number;
@@ -798,12 +819,30 @@ function CardChecklist({
 }) {
   const { zoneLabels } = useZoneOrder();
   const { allPrintings } = useCards();
+  const isMobile = useIsMobile();
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+  const [hovered, setHovered] = useState<HoveredPreview | null>(null);
 
-  // Resolve catalogue name + short code for the "name" / "id" sorts.
   const printingById = new Map(allPrintings.map((printing) => [printing.id, printing]));
+  // Resolve catalogue name + short code for the "name" / "id" sorts.
   const identify = (printingId: string | null) => {
     const printing = printingId ? printingById.get(printingId) : undefined;
     return printing ? { name: printing.card.name, shortCode: printing.shortCode } : undefined;
+  };
+
+  // List rows float a large card image while hovered (desktop only); build the
+  // preview payload from the row's resolved front image.
+  const handleHover = (printing: Printing | null) => {
+    const front = printing?.images.find((image) => image.face === "front");
+    setHovered(
+      printing && front
+        ? {
+            thumbnailUrl: imageUrl(front.imageId, "400w"),
+            fullUrl: imageUrl(front.imageId, "full"),
+            landscape: printing.card.type === "battlefield",
+          }
+        : null,
+    );
   };
 
   const cardsByZone = Map.groupBy(cards, (card) => card.zone);
@@ -820,6 +859,37 @@ function CardChecklist({
     cardsByZone.has(zone),
   );
 
+  if (displayMode === "list") {
+    // List view stacks every zone vertically — the flow/stacked split only
+    // matters for the thumbnail grid's wrapping row.
+    const orderedZones = [...flowZones, ...stackedZones];
+    return (
+      <div ref={previewContainerRef} className="relative flex flex-col gap-6">
+        <HoveredCardPreview
+          hoveredCard={isMobile ? null : hovered}
+          origin="main"
+          containerRef={previewContainerRef}
+        />
+        {orderedZones.map((zone) => (
+          <ZoneSection
+            key={zone}
+            slug={slug}
+            eventId={eventId}
+            entryId={entryId}
+            label={zoneLabels[zone]}
+            cards={zoneCards(zone)}
+            displayMode="list"
+            printingById={printingById}
+            onHover={handleHover}
+            columns={columns}
+            cellWidth={cellWidth}
+            onStale={onStale}
+          />
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       {flowZones.length > 0 ? (
@@ -832,6 +902,7 @@ function CardChecklist({
               entryId={entryId}
               label={zoneLabels[zone]}
               cards={zoneCards(zone)}
+              displayMode="grid"
               columns={columns}
               cellWidth={cellWidth}
               intrinsic
@@ -849,6 +920,7 @@ function CardChecklist({
           entryId={entryId}
           label={zoneLabels[zone]}
           cards={zoneCards(zone)}
+          displayMode="grid"
           columns={columns}
           cellWidth={cellWidth}
           locked={locked}
@@ -856,6 +928,48 @@ function CardChecklist({
         />
       ))}
     </div>
+  );
+}
+
+/** Active-state classes for the toolbar toggle groups (filled when pressed). */
+const ACTIVE_TOGGLE_CLASS =
+  "aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary aria-pressed:hover:text-primary-foreground";
+
+function DisplayModeToggle({
+  mode,
+  onModeChange,
+}: {
+  mode: DeckCheckDisplayMode;
+  onModeChange: (mode: DeckCheckDisplayMode) => void;
+}) {
+  return (
+    <ToggleGroup
+      aria-label="Display mode"
+      variant="outline"
+      value={[mode]}
+      onValueChange={([next]) => {
+        if (next === "grid" || next === "list") {
+          onModeChange(next);
+        }
+      }}
+    >
+      <ToggleGroupItem
+        value="grid"
+        className={ACTIVE_TOGGLE_CLASS}
+        title="Grid view"
+        aria-label="Grid view"
+      >
+        <LayoutGridIcon className="size-4" />
+      </ToggleGroupItem>
+      <ToggleGroupItem
+        value="list"
+        className={ACTIVE_TOGGLE_CLASS}
+        title="List view"
+        aria-label="List view"
+      >
+        <Rows3Icon className="size-4" />
+      </ToggleGroupItem>
+    </ToggleGroup>
   );
 }
 
@@ -877,6 +991,9 @@ function ZoneSection({
   entryId,
   label,
   cards,
+  displayMode,
+  printingById,
+  onHover,
   columns,
   cellWidth,
   intrinsic,
@@ -888,6 +1005,11 @@ function ZoneSection({
   entryId: string;
   label: string;
   cards: DeckCheckEntryCardResponse[];
+  displayMode: DeckCheckDisplayMode;
+  /** Printing lookup for resolving list-row names; only passed in list mode. */
+  printingById?: Map<string, Printing>;
+  /** Floating-preview hover callback; only passed in list mode. */
+  onHover?: (printing: Printing | null) => void;
   /** Resolved cards-per-row count for the stacked (full-width) zones. */
   columns: number;
   /** Rendered width of one card, driving image sizing and intrinsic sections. */
@@ -903,6 +1025,40 @@ function ZoneSection({
     0,
   );
   const totalCopies = cards.reduce((sum, card) => sum + card.quantity, 0);
+
+  const heading = (
+    <h3 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
+      {label} · {verifiedCopies}/{totalCopies}
+    </h3>
+  );
+
+  if (displayMode === "list") {
+    return (
+      <section className="flex min-w-0 flex-col gap-1.5">
+        {heading}
+        <div className="flex flex-col">
+          {cards.flatMap((card) =>
+            Array.from({ length: card.quantity }, (_copy, copyIndex) => (
+              <ChecklistRow
+                key={`${card.id}:${copyIndex}`}
+                slug={slug}
+                eventId={eventId}
+                entryId={entryId}
+                card={card}
+                copyIndex={copyIndex}
+                printing={
+                  card.resolvedPrintingId ? printingById?.get(card.resolvedPrintingId) : undefined
+                }
+                onHover={onHover}
+                onStale={onStale}
+              />
+            )),
+          )}
+        </div>
+      </section>
+    );
+  }
+
   // Flow zones size each card to `cellWidth`; stacked zones fill the row with
   // exactly `columns` equal tracks so the count matches the toolbar control.
   const intrinsicWidth = totalCopies * cellWidth + (totalCopies - 1) * CHECK_GRID_GAP;
@@ -914,9 +1070,7 @@ function ZoneSection({
       className="flex min-w-0 flex-col gap-2"
       style={intrinsic ? { width: `min(100%, ${intrinsicWidth}px)` } : undefined}
     >
-      <h3 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-        {label} · {verifiedCopies}/{totalCopies}
-      </h3>
+      {heading}
       <div className="grid gap-3" style={{ gridTemplateColumns }}>
         {cards.flatMap((card) =>
           Array.from({ length: card.quantity }, (_copy, copyIndex) => (
@@ -935,6 +1089,150 @@ function ZoneSection({
         )}
       </div>
     </section>
+  );
+}
+
+/**
+ * One physical copy of a card line as a dense text row: a found checkbox, set
+ * code, name, and (for multi-copy lines) the copy number. Tapping the row
+ * toggles found for that copy; remove and (for unmatched lines) fix sit at the
+ * right. Hovering floats the large card image via the shared preview.
+ * @returns The tappable copy row.
+ */
+function ChecklistRow({
+  slug,
+  eventId,
+  entryId,
+  card,
+  copyIndex,
+  printing,
+  onHover,
+  onStale,
+}: {
+  slug: string;
+  eventId: string;
+  entryId: string;
+  card: DeckCheckEntryCardResponse;
+  copyIndex: number;
+  printing?: Printing;
+  onHover?: (printing: Printing | null) => void;
+  onStale: () => void;
+}) {
+  const tickCard = useTickDeckCheckCard();
+  const removeCard = useRemoveDeckCheckCard();
+  const [removeOpen, setRemoveOpen] = useState(false);
+  const [fixOpen, setFixOpen] = useState(false);
+  const found = card.foundCopies[copyIndex] === true;
+  const matched = printing !== undefined && card.matchStatus === "matched";
+  const name = matched ? printing.card.name : card.rawName;
+
+  const toggle = async () => {
+    try {
+      await tickCard.mutateAsync({
+        slug,
+        eventId,
+        entryId,
+        cardId: card.id,
+        copyIndex,
+        found: !found,
+      });
+    } catch {
+      toast.info("This list changed; reloading");
+      onStale();
+    }
+  };
+
+  return (
+    <div
+      className="hover:bg-muted/40 flex items-center gap-2 rounded-md"
+      onMouseEnter={() => {
+        if (matched) {
+          onHover?.(printing);
+        }
+      }}
+      onMouseLeave={() => onHover?.(null)}
+    >
+      <button
+        type="button"
+        onClick={() => void toggle()}
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-md px-2 py-1.5 text-left"
+      >
+        <span
+          aria-hidden
+          className={cn(
+            "flex size-5 shrink-0 items-center justify-center rounded border",
+            found ? "border-green-600 bg-green-600 text-white" : "border-input",
+          )}
+        >
+          {found ? <CheckIcon className="size-3.5" strokeWidth={3} /> : null}
+        </span>
+        {matched ? (
+          <span className="text-muted-foreground w-16 shrink-0 text-sm tabular-nums">
+            {printing.shortCode}
+          </span>
+        ) : null}
+        <span
+          className={cn("min-w-0 flex-1 truncate", found && "text-muted-foreground line-through")}
+        >
+          {name}
+        </span>
+        {matched ? null : (
+          <span className="text-muted-foreground shrink-0 text-sm">
+            {card.matchStatus === "ambiguous" ? "Several matches" : "Not in catalog"}
+          </span>
+        )}
+        {card.quantity > 1 ? (
+          <span className="text-muted-foreground text-2xs shrink-0">copy {copyIndex + 1}</span>
+        ) : null}
+      </button>
+      <div className="flex shrink-0 items-center gap-0.5 pr-1">
+        {matched ? null : (
+          <>
+            <button
+              type="button"
+              aria-label={`Fix the name of ${card.rawName}`}
+              className="text-muted-foreground hover:text-foreground rounded p-1"
+              onClick={() => setFixOpen(true)}
+            >
+              <PencilIcon className="size-3.5" />
+            </button>
+            <FixCardDialog
+              slug={slug}
+              eventId={eventId}
+              entryId={entryId}
+              card={card}
+              open={fixOpen}
+              onOpenChange={setFixOpen}
+            />
+          </>
+        )}
+        <button
+          type="button"
+          aria-label={`Remove this copy of ${card.rawName}`}
+          className="text-muted-foreground hover:text-destructive rounded p-1"
+          onClick={() => setRemoveOpen(true)}
+        >
+          <XIcon className="size-3.5" />
+        </button>
+      </div>
+      <ConfirmActionDialog
+        open={removeOpen}
+        onOpenChange={setRemoveOpen}
+        title={`Remove ${card.rawName}?`}
+        description={
+          card.quantity > 1
+            ? "Only this copy is removed from the list."
+            : "The card is removed from this list."
+        }
+        confirmLabel="Remove"
+        pendingLabel="Removing..."
+        isPending={removeCard.isPending}
+        onConfirm={async () => {
+          await removeCard.mutateAsync({ slug, eventId, entryId, cardId: card.id, copyIndex });
+          setRemoveOpen(false);
+        }}
+      />
+    </div>
   );
 }
 

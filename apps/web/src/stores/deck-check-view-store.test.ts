@@ -26,6 +26,17 @@ describe("useDeckCheckViewStore", () => {
     expect(useDeckCheckViewStore.getState().wide).toBe(true);
   });
 
+  it("defaults to the grid display mode", () => {
+    expect(useDeckCheckViewStore.getState().displayMode).toBe("grid");
+  });
+
+  it("switches the display mode to list and back", () => {
+    useDeckCheckViewStore.getState().setDisplayMode("list");
+    expect(useDeckCheckViewStore.getState().displayMode).toBe("list");
+    useDeckCheckViewStore.getState().setDisplayMode("grid");
+    expect(useDeckCheckViewStore.getState().displayMode).toBe("grid");
+  });
+
   it("defaults to deck-order sort, ascending", () => {
     expect(useDeckCheckViewStore.getState().sortBy).toBe("deck");
     expect(useDeckCheckViewStore.getState().sortDir).toBe("asc");

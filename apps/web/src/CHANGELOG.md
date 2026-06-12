@@ -2,6 +2,7 @@
 
 ## 2026-06-12
 
+- feat: The deck checker now offers a compact list view alongside the card grid: a scannable row for each copy with a tick-off checkbox, and the full card image on hover. Switch between grid and list from the toolbar
 - feat: Wishlists and trade lists are now visible to your groups automatically, so trade matches show up without anyone having to find the share step first. This also applies to lists and groups that already exist. You can still hide any list from a group, or from all groups, with the new visibility control in the list's Share dialog
 - feat: A wishlist or trade list now shows at the top whether your groups can see it, and a click takes you straight to the visibility control. The group's Trades page explains why no matches show up yet and lets you share a list right there, and the member list shows who isn't sharing any lists yet
 - feat: When checking a deck, you can now sort the cards by deck order, ID, or name, and choose how many cards show per row, to trade bigger, easier-to-read cards for fitting more on the screen
