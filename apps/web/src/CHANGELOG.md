@@ -2,6 +2,7 @@
 
 ## 2026-06-12
 
+- feat: The deck checker can now sort cards by domain, keeping each domain's cards together and ordering them by name within it
 - feat: Groups, tournaments, rules, the pack opener, the card designer, and the match tracker setup now share the same compact page header as the rest of the app, and it stays pinned at the top while you scroll. On rules pages the version picker stays visible too, and tournament pages gained a clickable trail back to your tournament list
 - feat: The group overview is tidier — one trades tile shows what needs you or, when you're caught up, how many possible trades there are, and the shared tile leads with how much members have shared with the group
 - feat: Group actions now live where they act: admins get an Invite button on the Members tab that copies the group's invite link straight to the clipboard, and the Shared tab lists your own shares first with a "Share more" button next to your name

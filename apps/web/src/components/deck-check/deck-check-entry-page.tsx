@@ -826,16 +826,23 @@ function CardChecklist({
   onStale: () => void;
 }) {
   const { zoneLabels } = useZoneOrder();
+  const { orders } = useEnumOrders();
   const { allPrintings } = useCards();
   const isMobile = useIsMobile();
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState<HoveredPreview | null>(null);
 
   const printingById = new Map(allPrintings.map((printing) => [printing.id, printing]));
-  // Resolve catalogue name + short code for the "name" / "id" sorts.
+  // Resolve catalogue identity for the "name" / "id" / "domain" sorts.
   const identify = (printingId: string | null) => {
     const printing = printingId ? printingById.get(printingId) : undefined;
-    return printing ? { name: printing.card.name, shortCode: printing.shortCode } : undefined;
+    return printing
+      ? {
+          name: printing.card.name,
+          shortCode: printing.shortCode,
+          domains: printing.card.domains,
+        }
+      : undefined;
   };
 
   // List rows float a large card image while hovered (desktop only); build the
@@ -855,7 +862,7 @@ function CardChecklist({
 
   const cardsByZone = Map.groupBy(cards, (card) => card.zone);
   const zoneCards = (zone: DeckCheckEntryCardResponse["zone"]) =>
-    sortDeckCheckCards(cardsByZone.get(zone) ?? [], sortBy, sortDir, identify);
+    sortDeckCheckCards(cardsByZone.get(zone) ?? [], sortBy, sortDir, identify, orders.domains);
 
   // The small zones (one to three cards each) flow on a shared wrapping row,
   // so on wide screens legend, champion, and battlefields share one line and
@@ -992,6 +999,7 @@ const CHECK_SORT_OPTIONS: SortGroupOption<DeckCheckSort>[] = [
   { value: "deck", label: "Deck order" },
   { value: "id", label: "ID" },
   { value: "name", label: "Name" },
+  { value: "domain", label: "Domain" },
 ];
 
 function ZoneSection({

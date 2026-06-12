@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 /** Card-line ordering inside each zone of the checker grid. */
-export type DeckCheckSort = "deck" | "id" | "name";
+export type DeckCheckSort = "deck" | "id" | "name" | "domain";
 
 /** How the checker renders cards: a thumbnail grid or a dense text list. */
 export type DeckCheckDisplayMode = "grid" | "list";

@@ -10,10 +10,12 @@ interface TestCard {
 }
 
 const catalogue: Record<string, DeckCheckCardIdentity> = {
-  "p-zed": { name: "Zed", shortCode: "OGN-200" },
-  "p-ahri": { name: "Ahri", shortCode: "OGN-010" },
-  "p-jinx": { name: "Jinx", shortCode: "OGN-100" },
+  "p-zed": { name: "Zed", shortCode: "OGN-200", domains: ["mind"] },
+  "p-ahri": { name: "Ahri", shortCode: "OGN-010", domains: ["fury"] },
+  "p-jinx": { name: "Jinx", shortCode: "OGN-100", domains: ["fury", "mind"] },
 };
+
+const DOMAIN_ORDER = ["fury", "calm", "mind", "body", "chaos", "order", "colorless"];
 
 const identify = (printingId: string | null): DeckCheckCardIdentity | undefined =>
   printingId ? catalogue[printingId] : undefined;
@@ -97,6 +99,78 @@ describe("sortDeckCheckCards", () => {
       "Unknown A",
       "Unknown B",
     ]);
+  });
+
+  it("sorts by domain order first, then name, for the 'domain' sort", () => {
+    // Fury (Ahri) → Fury/Mind dual (Jinx) → Mind (Zed); mono before dual on
+    // the same first domain, name as the within-domain tiebreaker.
+    expect(names(sortDeckCheckCards(cards, "domain", "asc", identify, DOMAIN_ORDER))).toEqual([
+      "Ahri",
+      "Jinx",
+      "Zed",
+    ]);
+    expect(names(sortDeckCheckCards(cards, "domain", "desc", identify, DOMAIN_ORDER))).toEqual([
+      "Zed",
+      "Jinx",
+      "Ahri",
+    ]);
+  });
+
+  it("orders mono-domain cards before duals sharing the first domain", () => {
+    const monoAndDual: TestCard[] = [
+      { sortOrder: 0, rawName: "Jinx", resolvedPrintingId: "p-jinx" },
+      { sortOrder: 1, rawName: "Ahri", resolvedPrintingId: "p-ahri" },
+    ];
+    expect(names(sortDeckCheckCards(monoAndDual, "domain", "asc", identify, DOMAIN_ORDER))).toEqual(
+      ["Ahri", "Jinx"],
+    );
+  });
+
+  it("sorts by name within the same domain for the 'domain' sort", () => {
+    const sameDomain: Record<string, DeckCheckCardIdentity> = {
+      "p-a": { name: "Annie", shortCode: "OGN-001", domains: ["fury"] },
+      "p-b": { name: "Brand", shortCode: "OGN-002", domains: ["fury"] },
+    };
+    const sameDomainIdentify = (printingId: string | null) =>
+      printingId ? sameDomain[printingId] : undefined;
+    const furyCards: TestCard[] = [
+      { sortOrder: 0, rawName: "Brand", resolvedPrintingId: "p-b" },
+      { sortOrder: 1, rawName: "Annie", resolvedPrintingId: "p-a" },
+    ];
+    expect(
+      names(sortDeckCheckCards(furyCards, "domain", "asc", sameDomainIdentify, DOMAIN_ORDER)),
+    ).toEqual(["Annie", "Brand"]);
+  });
+
+  it("pins unmatched lines to the end of the 'domain' sort in both directions", () => {
+    const withUnmatched: TestCard[] = [
+      { sortOrder: 0, rawName: "Unknown A", resolvedPrintingId: null },
+      { sortOrder: 1, rawName: "Zed", resolvedPrintingId: "p-zed" },
+      { sortOrder: 2, rawName: "Unknown B", resolvedPrintingId: null },
+      { sortOrder: 3, rawName: "Ahri", resolvedPrintingId: "p-ahri" },
+    ];
+    expect(
+      names(sortDeckCheckCards(withUnmatched, "domain", "asc", identify, DOMAIN_ORDER)),
+    ).toEqual(["Ahri", "Zed", "Unknown A", "Unknown B"]);
+    expect(
+      names(sortDeckCheckCards(withUnmatched, "domain", "desc", identify, DOMAIN_ORDER)),
+    ).toEqual(["Zed", "Ahri", "Unknown A", "Unknown B"]);
+  });
+
+  it("ranks domains missing from the order list after known domains", () => {
+    const exotic: Record<string, DeckCheckCardIdentity> = {
+      "p-known": { name: "Known", shortCode: "OGN-001", domains: ["fury"] },
+      "p-exotic": { name: "Exotic", shortCode: "OGN-002", domains: ["void"] },
+    };
+    const exoticIdentify = (printingId: string | null) =>
+      printingId ? exotic[printingId] : undefined;
+    const mixed: TestCard[] = [
+      { sortOrder: 0, rawName: "Exotic", resolvedPrintingId: "p-exotic" },
+      { sortOrder: 1, rawName: "Known", resolvedPrintingId: "p-known" },
+    ];
+    expect(names(sortDeckCheckCards(mixed, "domain", "asc", exoticIdentify, DOMAIN_ORDER))).toEqual(
+      ["Known", "Exotic"],
+    );
   });
 
   it("breaks ties by import order", () => {
