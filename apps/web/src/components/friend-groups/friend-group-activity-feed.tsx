@@ -49,7 +49,7 @@ export function FriendGroupActivityFeed({ slug }: { slug: string }) {
           Nothing yet. Trades, shared lists, and new members will show up here.
         </p>
       ) : (
-        <ul className="flex flex-col">
+        <ul className="flex max-w-3xl flex-col">
           {events.map((event) => (
             <li key={activityKey(event)}>
               <ActivityRow slug={slug} event={event} />

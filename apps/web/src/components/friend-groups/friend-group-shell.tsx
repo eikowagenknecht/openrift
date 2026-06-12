@@ -4,13 +4,20 @@ import { SettingsIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Heading } from "@/components/heading";
+import {
+  PAGE_TOP_BAR_STICKY,
+  PageTopBar,
+  PageTopBarActions,
+  PageTopBarButton,
+  PageTopBarTitle,
+} from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useTradeActionCounts } from "@/hooks/use-card-trades";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { useDeclineFriendGroupInvite, useFriendGroupDetail } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { cn, PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
 export const ROLE_LABEL: Record<FriendGroupRole, string> = {
   owner: "Owner",
@@ -125,33 +132,31 @@ function FriendGroupShell({
   const memberCount = data.members.length;
 
   return (
-    <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING)}>
-      <header className="flex flex-col gap-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 flex-col gap-1">
-            <Heading level={1}>{data.group.name}</Heading>
-            <p className="text-muted-foreground text-sm">
-              {memberCount} {memberCount === 1 ? "member" : "members"}
-              {tradesActionCount > 0
-                ? ` · ${tradesActionCount} ${tradesActionCount === 1 ? "trade needs" : "trades need"} you`
-                : null}
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <Badge variant="secondary">{ROLE_LABEL[data.viewerRole ?? "member"]}</Badge>
-            <Button
-              size="sm"
-              variant="ghost"
-              render={<Link to="/groups/$slug/manage" params={{ slug }} />}
-            >
-              <SettingsIcon className="size-4" />
-              Manage
-            </Button>
-          </div>
+    <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING_NO_TOP)}>
+      <header className="flex flex-col">
+        <div className={cn(PAGE_TOP_BAR_STICKY, "-mx-3")}>
+          <PageTopBar>
+            <PageTopBarTitle>{data.group.name}</PageTopBarTitle>
+            <PageTopBarActions>
+              <Badge variant="secondary">{ROLE_LABEL[data.viewerRole ?? "member"]}</Badge>
+              <PageTopBarButton render={<Link to="/groups/$slug/manage" params={{ slug }} />}>
+                <SettingsIcon className="size-4" />
+                Manage
+              </PageTopBarButton>
+            </PageTopBarActions>
+          </PageTopBar>
         </div>
-        {data.group.description ? (
-          <p className="text-muted-foreground">{data.group.description}</p>
-        ) : null}
+        <div className="flex flex-col gap-2">
+          <p className="text-muted-foreground text-sm">
+            {memberCount} {memberCount === 1 ? "member" : "members"}
+            {tradesActionCount > 0
+              ? ` · ${tradesActionCount} ${tradesActionCount === 1 ? "trade needs" : "trades need"} you`
+              : null}
+          </p>
+          {data.group.description ? (
+            <p className="text-muted-foreground">{data.group.description}</p>
+          ) : null}
+        </div>
       </header>
 
       <GroupNav
@@ -182,7 +187,11 @@ function GroupNav({
 }) {
   const checksEnabled = useFeatureEnabled("deck-check");
   return (
-    <nav className="flex gap-1 border-b">
+    // The hairline is an inset shadow, not border-b: the links' active 2px
+    // border must overlap it, and with overflow-x-auto a child can't hang
+    // below the nav box (the classic -mb-px trick would clip or add a
+    // vertical scrollbar).
+    <nav className="-mx-3 flex gap-1 overflow-x-auto px-3 shadow-[inset_0_-1px_0_0_var(--border)]">
       <GroupNavLink
         to="/groups/$slug"
         slug={slug}
@@ -245,7 +254,7 @@ function GroupNavLink({
       params={{ slug }}
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 font-medium transition-colors",
+        "flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 font-medium whitespace-nowrap transition-colors",
         isActive
           ? "border-primary text-foreground"
           : "text-muted-foreground hover:text-foreground border-transparent",

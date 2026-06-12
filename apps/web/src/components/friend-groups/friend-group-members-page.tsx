@@ -3,16 +3,18 @@ import type {
   FriendGroupMemberResponse,
   FriendGroupRole,
 } from "@openrift/shared";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   CheckIcon,
   EllipsisVerticalIcon,
   ScaleIcon,
   ShieldIcon,
   Trash2Icon,
+  UserPlusIcon,
   XIcon,
 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -33,8 +35,9 @@ import {
   useUpdateFriendGroupRole,
 } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
+import { getSiteUrl } from "@/lib/site-config";
 
-import { isAdmin, ROLE_LABEL } from "./friend-group-shell";
+import { isAdmin, ROLE_LABEL, SECTION_HEADING } from "./friend-group-shell";
 
 /**
  * The Members page: pending join requests (admins only) above the roster, each
@@ -62,6 +65,13 @@ export function MembersPageContent({
 
   return (
     <section className="flex flex-col gap-4">
+      {isAdmin(viewerRole) ? (
+        <div className="flex items-center justify-between gap-2">
+          <h2 className={SECTION_HEADING}>Members</h2>
+          <InviteButton slug={slug} code={data.group.code} />
+        </div>
+      ) : null}
+
       {isAdmin(viewerRole) && data.pendingRequests.length > 0 ? (
         <div className="flex flex-col gap-2 rounded-md border border-dashed p-3">
           <h3 className="font-medium">Pending requests</h3>
@@ -117,6 +127,46 @@ export function MembersPageContent({
         ))}
       </div>
     </section>
+  );
+}
+
+/**
+ * Copies the group's join link and confirms with a toast. When code-based
+ * joining is disabled (no code), or the clipboard is unavailable, it falls
+ * back to the Manage page, which has the join-code controls and email invites.
+ * @returns The invite button.
+ */
+function InviteButton({ slug, code }: { slug: string; code: string | null }) {
+  const navigate = useNavigate();
+  if (code === null) {
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        render={<Link to="/groups/$slug/manage" params={{ slug }} />}
+      >
+        <UserPlusIcon />
+        Invite
+      </Button>
+    );
+  }
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={async () => {
+        const joinUrl = `${getSiteUrl()}/groups/join?code=${encodeURIComponent(code)}`;
+        try {
+          await navigator.clipboard.writeText(joinUrl);
+          toast.success("Invite link copied — send it to whoever you want to join");
+        } catch {
+          void navigate({ to: "/groups/$slug/manage", params: { slug } });
+        }
+      }}
+    >
+      <UserPlusIcon />
+      Invite
+    </Button>
   );
 }
 

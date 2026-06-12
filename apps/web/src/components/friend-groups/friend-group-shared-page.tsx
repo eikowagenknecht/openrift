@@ -5,7 +5,7 @@ import type {
   FriendGroupShareResponse,
 } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { BookOpenIcon, ChevronDownIcon, PlusIcon } from "lucide-react";
+import { BookOpenIcon, ChevronDownIcon, PlusIcon, Share2Icon } from "lucide-react";
 import { useState } from "react";
 
 import { CreateCollectionDialog } from "@/components/collection/create-collection-dialog";
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { UserAvatar } from "@/components/user-avatar";
 import { useCollections } from "@/hooks/use-collections";
+import { useRequiredUserId } from "@/lib/auth-session";
 
 import { SECTION_HEADING } from "./friend-group-shell";
 import { SharedCollectionRow } from "./shared-collection-row";
@@ -97,6 +98,7 @@ interface OwnerShares {
 }
 
 function MemberSharesSection({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
+  const viewerId = useRequiredUserId();
   // Group each member's shared collections and wishlists/tradelists under the
   // member, joined to the roster for the avatar/nickname. Anonymous owners and
   // members with nothing shared fall away.
@@ -122,9 +124,19 @@ function MemberSharesSection({ slug, data }: { slug: string; data: FriendGroupDe
       bucketFor(share.userId)?.lists.push(share);
     }
   }
+  // The viewer first (their shares are the ones they can act on), then the
+  // rest alphabetically.
   const owners = [...byOwner.values()]
     .filter((owner) => owner.collections.length > 0 || owner.lists.length > 0)
     .sort((a, b) => {
+      if (a.member.userId !== b.member.userId) {
+        if (a.member.userId === viewerId) {
+          return -1;
+        }
+        if (b.member.userId === viewerId) {
+          return 1;
+        }
+      }
       const aName = a.member.userName ?? "￿";
       const bName = b.member.userName ?? "￿";
       return aName.localeCompare(bName);
@@ -142,22 +154,35 @@ function MemberSharesSection({ slug, data }: { slug: string; data: FriendGroupDe
         <div className="flex flex-col gap-2">
           {owners.map(({ member, collections, lists }) => (
             <Collapsible key={member.userId}>
-              <CollapsibleTrigger className="hover:bg-muted/50 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left font-medium">
-                <UserAvatar
-                  image={member.userImage}
-                  name={member.userName}
-                  gravatarHash={member.gravatarHash}
-                  size="sm"
-                />
-                <span>{member.userName ?? "Member"}</span>
-                {member.nickname ? (
-                  <span className="text-muted-foreground text-xs">{member.nickname}</span>
+              <div className="flex items-center gap-2">
+                <CollapsibleTrigger className="hover:bg-muted/50 flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left font-medium">
+                  <UserAvatar
+                    image={member.userImage}
+                    name={member.userName}
+                    gravatarHash={member.gravatarHash}
+                    size="sm"
+                  />
+                  <span className="truncate">{member.userName ?? "Member"}</span>
+                  {member.nickname ? (
+                    <span className="text-muted-foreground text-xs">{member.nickname}</span>
+                  ) : null}
+                  <span className="text-muted-foreground text-xs">
+                    ({collections.length + lists.length})
+                  </span>
+                  <ChevronDownIcon className="text-muted-foreground ml-auto size-4 shrink-0 transition-transform data-[panel-open]:rotate-180" />
+                </CollapsibleTrigger>
+                {member.userId === viewerId ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0"
+                    render={<Link to="/groups/$slug/manage" params={{ slug }} />}
+                  >
+                    <Share2Icon />
+                    Share more
+                  </Button>
                 ) : null}
-                <span className="text-muted-foreground text-xs">
-                  ({collections.length + lists.length})
-                </span>
-                <ChevronDownIcon className="text-muted-foreground ml-auto size-4 shrink-0 transition-transform data-[panel-open]:rotate-180" />
-              </CollapsibleTrigger>
+              </div>
               <CollapsibleContent>
                 <div className="mt-1 ml-8 flex flex-col gap-2">
                   {collections.map((share) => (

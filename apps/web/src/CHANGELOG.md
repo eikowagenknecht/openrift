@@ -2,6 +2,9 @@
 
 ## 2026-06-12
 
+- feat: A group's name and its Manage button now stay visible at the top while you scroll the page
+- feat: The group overview is tidier — one trades tile shows what needs you or, when you're caught up, how many possible trades there are, and the shared tile leads with how much members have shared with the group
+- feat: Group actions now live where they act: admins get an Invite button on the Members tab that copies the group's invite link straight to the clipboard, and the Shared tab lists your own shares first with a "Share more" button next to your name
 - feat: In the deck checker, a zone whose cards are all found now shows its count in green with a check, so you can see at a glance which zones are fully accounted for
 - feat: The deck checker now offers a compact list view alongside the card grid: a scannable row for each copy with a tick-off checkbox, and the full card image on hover. Switch between grid and list from the toolbar
 - feat: Wishlists and trade lists are now visible to your groups automatically, so trade matches show up without anyone having to find the share step first. This also applies to lists and groups that already exist. You can still hide any list from a group, or from all groups, with the new visibility control in the list's Share dialog
@@ -9,6 +12,8 @@
 - feat: When checking a deck, you can now sort the cards by deck order, ID, or name, and choose how many cards show per row, to trade bigger, easier-to-read cards for fitting more on the screen
 - fix: Once a deck-check entry is marked checked or flagged for an issue, its card list is frozen: the "Add card" button, the per-card remove buttons, and the fix-name pencil are hidden, and tapping a card no longer toggles it as found. This keeps a finished verdict from being changed by accident. Re-open the entry first to edit its cards again
 - fix: Deck-check entries can now carry a player's Riot ID. The optional player field is labelled "Riot ID" instead of the unclear "Handle", and the organizer integration example shows which field to send it in
+- fix: On phones, the tabs on a group page now scroll sideways instead of being cut off at the screen edge
+- fix: The group overview's matches number counted every single copy members had of cards you want, showing numbers like 51 where the Trades tab showed 4 suggestions. It now counts possible trades the same way the Trades tab does
 
 ## 2026-06-11
 

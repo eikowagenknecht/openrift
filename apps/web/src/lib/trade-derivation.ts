@@ -1,4 +1,4 @@
-import type { CardTradeResponse } from "@openrift/shared";
+import type { CardTradeResponse, FriendGroupMatchRow } from "@openrift/shared";
 
 /** The three buckets the per-group Trades tab groups trades into. */
 export type TradeSection = "action-needed" | "active" | "history";
@@ -47,6 +47,51 @@ export function withoutLiveTradeMatches<
   return matches.filter(
     (match) => !live.has(liveTradeKey(match.counterpartyUserId, match.printingId)),
   );
+}
+
+/** Whether the card flows to the viewer (`incoming`) or away (`outgoing`). */
+export type MatchDirection = "incoming" | "outgoing";
+
+/** The match-row fields a suggestion is keyed on. */
+export type MatchSuggestionFields = Pick<
+  FriendGroupMatchRow,
+  "buyEntryKind" | "buyEntryId" | "counterpartyUserId" | "counterpartyListId" | "printingId"
+>;
+
+/**
+ * Key identifying one suggestion tile on the Trades page. A card-level wish
+ * collapses every printing one counterparty can fill it with into a single
+ * suggestion; a printing-level wish stays one suggestion per
+ * (counterparty, list, printing). `groupTradeMatches` in match-row-card.tsx
+ * groups by this same key, so anything counting suggestions (e.g. the
+ * overview's Trades tile) agrees with what the page renders.
+ * @returns The grouping key.
+ */
+export function matchSuggestionKey(direction: MatchDirection, row: MatchSuggestionFields): string {
+  return row.buyEntryKind === "card"
+    ? `card\0${direction}\0${row.counterpartyUserId}\0${row.buyEntryId}`
+    : `printing\0${direction}\0${row.counterpartyUserId}\0${row.buyEntryId}\0${row.counterpartyListId}\0${row.printingId}`;
+}
+
+/**
+ * Counts the suggestion tiles the Trades page will show for these match rows.
+ * The raw match arrays carry one row per physical copy, so their length wildly
+ * overstates what the user sees (50 copies of one wanted card is one
+ * suggestion, not 50).
+ * @returns The number of distinct suggestions across both directions.
+ */
+export function countTradeSuggestions(
+  incoming: readonly MatchSuggestionFields[],
+  outgoing: readonly MatchSuggestionFields[],
+): number {
+  const keys = new Set<string>();
+  for (const row of incoming) {
+    keys.add(matchSuggestionKey("incoming", row));
+  }
+  for (const row of outgoing) {
+    keys.add(matchSuggestionKey("outgoing", row));
+  }
+  return keys.size;
 }
 
 /** @returns A short human label for a trade status. */

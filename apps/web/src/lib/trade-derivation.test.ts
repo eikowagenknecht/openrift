@@ -1,7 +1,10 @@
 import type { CardTradeResponse } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
+import type { MatchSuggestionFields } from "./trade-derivation";
 import {
+  countTradeSuggestions,
+  matchSuggestionKey,
   maxTradeQuantity,
   tradeSection,
   tradeStatusLabel,
@@ -214,5 +217,80 @@ describe("withoutLiveTradeMatches", () => {
       }),
     ];
     expect(withoutLiveTradeMatches(matches, trades)).toEqual([match("user-3", "printing-2")]);
+  });
+});
+
+function stubSuggestion(overrides: Partial<MatchSuggestionFields> = {}): MatchSuggestionFields {
+  return {
+    buyEntryKind: "printing",
+    buyEntryId: "entry-1",
+    counterpartyUserId: "user-2",
+    counterpartyListId: "list-1",
+    printingId: "printing-1",
+    ...overrides,
+  };
+}
+
+describe("matchSuggestionKey", () => {
+  it("collapses every printing of a card-level wish from one counterparty into one key", () => {
+    const keyA = matchSuggestionKey("incoming", stubSuggestion({ buyEntryKind: "card" }));
+    const keyB = matchSuggestionKey(
+      "incoming",
+      stubSuggestion({ buyEntryKind: "card", printingId: "printing-2", counterpartyListId: "l2" }),
+    );
+    expect(keyA).toBe(keyB);
+  });
+
+  it("keeps printing-level wishes apart per printing and source list", () => {
+    const base = stubSuggestion();
+    expect(matchSuggestionKey("incoming", base)).not.toBe(
+      matchSuggestionKey("incoming", stubSuggestion({ printingId: "printing-2" })),
+    );
+    expect(matchSuggestionKey("incoming", base)).not.toBe(
+      matchSuggestionKey("incoming", stubSuggestion({ counterpartyListId: "list-2" })),
+    );
+  });
+
+  it("separates the same row by direction and counterparty", () => {
+    const base = stubSuggestion();
+    expect(matchSuggestionKey("incoming", base)).not.toBe(matchSuggestionKey("outgoing", base));
+    expect(matchSuggestionKey("incoming", base)).not.toBe(
+      matchSuggestionKey("incoming", stubSuggestion({ counterpartyUserId: "user-3" })),
+    );
+  });
+});
+
+describe("countTradeSuggestions", () => {
+  it("returns 0 for no matches", () => {
+    expect(countTradeSuggestions([], [])).toBe(0);
+  });
+
+  it("counts many copies of the same printing wish as one suggestion", () => {
+    const copies = [stubSuggestion(), stubSuggestion(), stubSuggestion()];
+    expect(countTradeSuggestions(copies, [])).toBe(1);
+  });
+
+  it("counts a card-level wish fillable by several printings as one suggestion", () => {
+    const variants = [
+      stubSuggestion({ buyEntryKind: "card" }),
+      stubSuggestion({ buyEntryKind: "card", printingId: "printing-2" }),
+      stubSuggestion({ buyEntryKind: "card", printingId: "printing-3" }),
+    ];
+    expect(countTradeSuggestions(variants, [])).toBe(1);
+  });
+
+  it("counts both directions separately, even for identical rows", () => {
+    const row = stubSuggestion();
+    expect(countTradeSuggestions([row], [row])).toBe(2);
+  });
+
+  it("counts distinct wishes, counterparties, and lists separately", () => {
+    const incoming = [
+      stubSuggestion(),
+      stubSuggestion({ buyEntryId: "entry-2", printingId: "printing-2" }),
+      stubSuggestion({ counterpartyUserId: "user-3" }),
+      stubSuggestion({ counterpartyListId: "list-2" }),
+    ];
+    expect(countTradeSuggestions(incoming, [])).toBe(4);
   });
 });

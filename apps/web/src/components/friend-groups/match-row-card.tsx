@@ -25,6 +25,8 @@ import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useMarketplaceInfo } from "@/hooks/use-marketplace-info";
 import { getFilterIconPath } from "@/lib/icons";
+import type { MatchDirection } from "@/lib/trade-derivation";
+import { matchSuggestionKey } from "@/lib/trade-derivation";
 import { cn } from "@/lib/utils";
 import { useMatchVariantsFoldStore } from "@/stores/match-variants-fold-store";
 
@@ -148,9 +150,6 @@ interface ResolvedMatchRow extends FriendGroupMatchRow {
 export interface AggregatedMatch extends ResolvedMatchRow {
   availableCount: number;
 }
-
-/** Whether the card flows to the viewer (`incoming`) or away (`outgoing`). */
-type MatchDirection = "incoming" | "outgoing";
 
 interface DirectedMatch extends AggregatedMatch {
   direction: MatchDirection;
@@ -398,10 +397,7 @@ interface MatchTradeGroup {
 export function groupTradeMatches(rows: DirectedMatch[]): MatchTradeGroup[] {
   const groups = new Map<string, MatchTradeGroup>();
   for (const row of rows) {
-    const key =
-      row.buyEntryKind === "card"
-        ? `card\0${row.direction}\0${row.counterpartyUserId}\0${row.buyEntryId}`
-        : `printing\0${row.direction}\0${row.counterpartyUserId}\0${row.buyEntryId}\0${row.counterpartyListId}\0${row.printingId}`;
+    const key = matchSuggestionKey(row.direction, row);
     const existing = groups.get(key);
     if (existing) {
       existing.variants.push(row);
