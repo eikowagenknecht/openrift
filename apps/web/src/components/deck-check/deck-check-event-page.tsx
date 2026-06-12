@@ -13,6 +13,7 @@ import {
   RefreshCwIcon,
   Trash2Icon,
   UserPlusIcon,
+  XIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -287,12 +288,15 @@ function toLocalDateTimeParts(iso: string | null): { date: string; time: string 
 }
 
 /**
- * Trims an ISO timestamp to minute precision in UTC, for the unambiguous
- * display next to the close-date inputs.
- * @returns E.g. `2026-06-20T18:00Z`.
+ * Current wall-clock time in the browser's timezone, trimmed to minutes and
+ * tagged with the IANA zone, to sit beside the close-time input (which is also
+ * local) for a direct, unambiguous compare.
+ * @returns E.g. `2026-06-20 18:00 Europe/Berlin`.
  */
-function toIsoMinutesUtc(date: Date): string {
-  return `${date.toISOString().slice(0, 16)}Z`;
+function localNowMinutes(): string {
+  const parts = toLocalDateTimeParts(new Date().toISOString());
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return `${parts.date} ${parts.time} ${zone}`;
 }
 
 /**
@@ -353,7 +357,7 @@ function SubmissionSettingsSection({
         <div className="flex flex-col">
           <Label htmlFor="allow-self-submission">Player submissions</Label>
           <p className="text-muted-foreground text-sm">
-            Players with the link can submit their own deck and see its status on their deck page.
+            Allow players to submit their decks for this event via OpenRift.
           </p>
         </div>
         <Switch
@@ -362,28 +366,6 @@ function SubmissionSettingsSection({
           disabled={updateEvent.isPending}
           onCheckedChange={(checked) =>
             updateEvent.mutate({ slug, eventId, allowSelfSubmission: checked })
-          }
-        />
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex flex-col">
-          <Label htmlFor="list-lock-mode">Self-service corrections until the deadline</Label>
-          <p className="text-muted-foreground text-sm">
-            Off (tournament rules): a submitted deck only changes when a judge grants the
-            player&apos;s unlock request. On: players can unlock and fix their own deck until
-            submissions close.
-          </p>
-        </div>
-        <Switch
-          id="list-lock-mode"
-          checked={event.listLockMode === "at_deadline"}
-          disabled={updateEvent.isPending}
-          onCheckedChange={(checked) =>
-            updateEvent.mutate({
-              slug,
-              eventId,
-              listLockMode: checked ? "at_deadline" : "on_submit",
-            })
           }
         />
       </div>
@@ -453,6 +435,26 @@ function SubmissionSettingsSection({
                   }}
                   className="w-20"
                 />
+                {dateValue ? (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Reset close date"
+                    title="Clear the close date"
+                    disabled={updateEvent.isPending}
+                    onClick={() => {
+                      setCloseDate("");
+                      setCloseTime("");
+                      setCloseAtDirty(false);
+                      updateEvent.mutate({ slug, eventId, submissionsCloseAt: null });
+                    }}
+                  >
+                    <XIcon className="size-4" />
+                  </Button>
+                ) : null}
+                <span className="text-muted-foreground text-sm">
+                  Current time is <code>{localNowMinutes()}</code>
+                </span>
               </div>
             </div>
             {closeAtDirty ? (
@@ -479,12 +481,27 @@ function SubmissionSettingsSection({
               </Button>
             ) : null}
           </div>
-          {event.submissionsCloseAt ? (
-            <p className="text-muted-foreground text-sm">
-              Closes at <code>{toIsoMinutesUtc(new Date(event.submissionsCloseAt))}</code>, the
-              current time is <code>{toIsoMinutesUtc(new Date())}</code>
-            </p>
-          ) : null}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-col">
+              <Label htmlFor="list-lock-mode">Edits after submission</Label>
+              <p className="text-muted-foreground text-sm">
+                Allow players to edit their decks for this event after submitting them (not legal in
+                official Riot tournaments). If disabled, edits can only be made through judges.
+              </p>
+            </div>
+            <Switch
+              id="list-lock-mode"
+              checked={event.listLockMode === "at_deadline"}
+              disabled={updateEvent.isPending}
+              onCheckedChange={(checked) =>
+                updateEvent.mutate({
+                  slug,
+                  eventId,
+                  listLockMode: checked ? "at_deadline" : "on_submit",
+                })
+              }
+            />
+          </div>
         </>
       ) : null}
     </section>
