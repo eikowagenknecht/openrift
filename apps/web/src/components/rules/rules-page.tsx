@@ -9,7 +9,6 @@ import {
   ChevronsUpDownIcon,
   CopyIcon,
   FileClockIcon,
-  SearchIcon,
 } from "lucide-react";
 import type { MouseEvent } from "react";
 import { useEffect, useState } from "react";
@@ -18,13 +17,13 @@ import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 
+import { SearchInput } from "@/components/filters/search-input";
 import { Heading } from "@/components/heading";
 import { PageToc, PageTocMobileTrigger } from "@/components/layout/page-toc";
 import type { PageTocItem } from "@/components/layout/page-toc";
 import { PAGE_TOP_BAR_STICKY } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -32,8 +31,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Toggle } from "@/components/ui/toggle";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useRuleVersions, useRulesAtVersion } from "@/hooks/use-rules";
 import type { DiffSegment } from "@/lib/text-diff";
@@ -1278,25 +1277,22 @@ function ExpandCollapseAllButton({ foldGroupKeys }: { foldGroupKeys: string[] })
   };
 
   return (
-    <>
-      <Button
-        type="button"
-        variant="outline"
-        size="icon"
-        onClick={handleClick}
-        aria-label={label}
-        className="sm:hidden"
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={handleClick}
+            aria-label={label}
+          />
+        }
       >
         {allCollapsed ? <ChevronsUpDownIcon /> : <ChevronsDownUpIcon />}
-      </Button>
-      <button
-        type="button"
-        onClick={handleClick}
-        className="text-muted-foreground hover:text-foreground hidden text-xs font-medium sm:inline-flex"
-      >
-        {label}
-      </button>
-    </>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -1362,42 +1358,22 @@ function ShowChangesToggle({
   const setShow = useRulesShowChangesStore((state) => state.setShow);
 
   const isOn = hasPreviousVersion && checked;
-  const toggle = () => {
-    if (!hasPreviousVersion) {
-      return;
-    }
-    setShow(kind, !isOn);
-  };
-
-  const switchEl = (
-    <Switch
-      size="sm"
-      checked={isOn}
-      disabled={!hasPreviousVersion}
-      onCheckedChange={(next) => setShow(kind, next)}
-      aria-label="Show changes since previous version"
-    />
-  );
 
   const content = (
-    <>
-      <Button
-        type="button"
-        variant="outline"
-        size="icon"
-        onClick={toggle}
-        disabled={!hasPreviousVersion}
-        aria-pressed={isOn}
-        aria-label="Show changes since previous version"
-        className={cn("sm:hidden", isOn && "bg-muted text-foreground")}
-      >
-        <FileClockIcon />
-      </Button>
-      <label className="text-muted-foreground hover:text-foreground data-disabled:hover:text-muted-foreground hidden cursor-pointer items-center gap-1.5 text-xs font-medium select-none data-disabled:cursor-not-allowed sm:flex">
-        {switchEl}
-        <span>Show changes</span>
-      </label>
-    </>
+    <Toggle
+      variant="outline"
+      pressed={isOn}
+      disabled={!hasPreviousVersion}
+      onPressedChange={(next) => setShow(kind, next)}
+      aria-label="Show changes since previous version"
+      // Persistent primary fill for the pressed state (incl. on hover), overriding
+      // the base toggle's muted active look — same treatment as the card-browser
+      // and deck-list toolbar toggles.
+      className="aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary aria-pressed:hover:text-primary-foreground gap-1.5"
+    >
+      <FileClockIcon />
+      <span className="hidden sm:inline">Show changes</span>
+    </Toggle>
   );
 
   if (hasPreviousVersion) {
@@ -1477,7 +1453,7 @@ function RulesEmpty({ kind }: { kind: RuleKind }) {
   );
 }
 
-function RulesSearchBar() {
+function RulesSearchBar({ trailing }: { trailing: string }) {
   // Local draft state keeps each keystroke's re-render scoped to this component
   // instead of bubbling up and re-rendering the entire rules list.
   const [draft, setDraft] = useState("");
@@ -1497,19 +1473,20 @@ function RulesSearchBar() {
   }, [resetSignal]);
 
   return (
-    <div className="relative max-w-md flex-1">
-      <SearchIcon className="text-muted-foreground pointer-events-none absolute top-2.5 left-2.5 size-4" />
-      <Input
-        value={draft}
-        onChange={(e) => {
-          const next = e.target.value;
-          setDraft(next);
-          debouncedSetQuery(next);
-        }}
-        placeholder="Search rules..."
-        className="pl-9"
-      />
-    </div>
+    <SearchInput
+      value={draft}
+      onValueChange={(next) => {
+        setDraft(next);
+        debouncedSetQuery(next);
+      }}
+      onClear={() => {
+        setDraft("");
+        debouncedSetQuery("");
+      }}
+      placeholder="Search rules..."
+      trailing={trailing}
+      className="min-w-[200px] flex-1"
+    />
   );
 }
 
@@ -1570,6 +1547,10 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
   const noSearchResults =
     isSearching && searchResult !== null && searchResult.visibleIndices.length === 0;
   const tocItems = buildRulesTocItems(rules);
+  const ruleCountLabel =
+    searchResult === null
+      ? `${rules.length} rules`
+      : `${searchResult.matchSet.size} / ${rules.length} rules`;
 
   return (
     <div className={`mx-auto w-full max-w-4xl ${PAGE_PADDING}`}>
@@ -1619,7 +1600,7 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
           <div className="min-w-0 flex-1">
             <div className={cn(PAGE_TOP_BAR_STICKY, "mb-4 flex flex-wrap items-center gap-3 px-0")}>
               <PageTocMobileTrigger items={tocItems} />
-              <RulesSearchBar />
+              <RulesSearchBar trailing={ruleCountLabel} />
               {foldGroupKeys.length > 0 && !isSearching && (
                 <ExpandCollapseAllButton foldGroupKeys={foldGroupKeys} />
               )}
