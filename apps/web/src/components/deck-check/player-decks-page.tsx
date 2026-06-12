@@ -52,6 +52,7 @@ export function PlayerDeckRow({ entry }: { entry: PlayerDeckCheckEntrySummaryRes
   const eventDate = entry.eventDate
     ? formatAbsoluteDate(entry.eventDate, { year: "numeric", month: "short", day: "numeric" })
     : null;
+  const withdrawn = entry.state === "withdrawn";
   return (
     <Link
       to="/tournament-decks/$entryId"
@@ -59,7 +60,7 @@ export function PlayerDeckRow({ entry }: { entry: PlayerDeckCheckEntrySummaryRes
       className="bg-card hover:bg-muted hover:text-foreground flex items-center gap-3 rounded-md border p-3 transition-colors"
     >
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className={`truncate font-medium ${entry.withdrawn ? "line-through" : ""}`}>
+        <span className={`truncate font-medium ${withdrawn ? "line-through" : ""}`}>
           {entry.eventName}
         </span>
         <span className="text-muted-foreground truncate text-sm">
@@ -70,23 +71,37 @@ export function PlayerDeckRow({ entry }: { entry: PlayerDeckCheckEntrySummaryRes
       {entry.playerMessage ? (
         <MailIcon className="text-muted-foreground size-4" aria-label="Message from a judge" />
       ) : null}
-      {entry.withdrawn ? <Badge variant="secondary">Withdrawn</Badge> : null}
-      {entry.changedSinceCheck ? <Badge variant="outline">Changed since check</Badge> : null}
-      <PlayerStatusBadge status={entry.checkStatus} />
+      {entry.reviewOutcome === "issue" && entry.state !== "checked" ? (
+        <Badge variant="destructive">Changes requested</Badge>
+      ) : null}
+      {entry.unlockRequested ? <Badge variant="outline">Unlock requested</Badge> : null}
+      <PlayerStateBadge state={entry.state} reviewOutcome={entry.reviewOutcome} />
     </Link>
   );
 }
 
-export function PlayerStatusBadge({
-  status,
+export function PlayerStateBadge({
+  state,
+  reviewOutcome,
 }: {
-  status: PlayerDeckCheckEntrySummaryResponse["checkStatus"];
+  state: PlayerDeckCheckEntrySummaryResponse["state"];
+  reviewOutcome: PlayerDeckCheckEntrySummaryResponse["reviewOutcome"];
 }) {
-  if (status === "checked") {
-    return <Badge>Checked</Badge>;
+  if (state === "editable") {
+    return <Badge variant="outline">Not submitted</Badge>;
   }
-  if (status === "issue") {
-    return <Badge variant="destructive">Issue flagged</Badge>;
+  if (state === "approved") {
+    return <Badge>Approved</Badge>;
   }
-  return <Badge variant="secondary">Not checked yet</Badge>;
+  if (state === "checked") {
+    return reviewOutcome === "issue" ? (
+      <Badge variant="destructive">Checked · issue</Badge>
+    ) : (
+      <Badge>Checked</Badge>
+    );
+  }
+  if (state === "withdrawn") {
+    return <Badge variant="secondary">Withdrawn</Badge>;
+  }
+  return <Badge variant="secondary">Submitted</Badge>;
 }

@@ -9,7 +9,7 @@ import { CardCell } from "@/components/cards/card-cell";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { PlayerDeckSourceForm } from "@/components/deck-check/player-deck-source-form";
 import type { DeckSourceInput } from "@/components/deck-check/player-deck-source-form";
-import { PlayerStatusBadge } from "@/components/deck-check/player-decks-page";
+import { PlayerStateBadge } from "@/components/deck-check/player-decks-page";
 import { DeckDomainBar } from "@/components/deck/deck-domain-bar";
 import { FormatStateBadge, typeCountSummary } from "@/components/deck/deck-tile";
 import {
@@ -18,6 +18,7 @@ import {
   PageTopBarActions,
   PageTopBarBack,
   PageTopBarButton,
+  PageTopBarPrimaryButton,
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
@@ -30,9 +31,12 @@ import {
 } from "@/components/ui/dialog";
 import { useCards } from "@/hooks/use-cards";
 import {
+  useCancelUnlockRequest,
   useEditMyTournamentDeck,
   useMyTournamentDeck,
   usePreviewTournamentDeck,
+  useSubmitMyTournamentDeck,
+  useUnlockMyTournamentDeck,
 } from "@/hooks/use-deck-check-player";
 import { useZoneOrder } from "@/hooks/use-enums";
 import { formatAbsoluteDate } from "@/lib/format-date";
@@ -42,9 +46,11 @@ import { PAGE_PADDING } from "@/lib/utils";
 const PLAYER_CELL_WIDTH = 150;
 
 /**
- * One tournament deck, rendered for its player (ADR-026): the list by zone,
- * the check status, the judge's player-facing message, and the replace-deck
- * action while the event is open. Never any other entrant, never judge notes.
+ * One tournament deck, rendered for its player (ADR-026/027): the list by
+ * zone, the lifecycle state, the judge's player-facing message, and the
+ * state-dependent actions (edit and submit while editable, unlock when
+ * submitted, request an unlock when approved). Never any other entrant,
+ * never judge notes.
  * @returns The page.
  */
 export function PlayerDeckPage({ entryId }: { entryId: string }) {
@@ -61,6 +67,15 @@ export function PlayerDeckPage({ entryId }: { entryId: string }) {
   const eventDate = entry.eventDate
     ? formatAbsoluteDate(entry.eventDate, { year: "numeric", month: "short", day: "numeric" })
     : null;
+  const closesAt = entry.submissionsCloseAt
+    ? formatAbsoluteDate(entry.submissionsCloseAt, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
 
   return (
     <div>
@@ -70,13 +85,7 @@ export function PlayerDeckPage({ entryId }: { entryId: string }) {
             <PageTopBarBack to="/tournament-decks" aria-label="Back to my tournament decks" />
             <PageTopBarTitle>{entry.eventName}</PageTopBarTitle>
             <PageTopBarActions>
-              {entry.canEdit ? (
-                <ReplaceDeckButton
-                  entryId={entry.id}
-                  allowNameSharing={entry.allowNameSharing}
-                  allowRiotIdSharing={entry.allowRiotIdSharing}
-                />
-              ) : null}
+              <PlayerDeckActions entry={entry} />
             </PageTopBarActions>
           </PageTopBar>
         </div>
@@ -89,12 +98,14 @@ export function PlayerDeckPage({ entryId }: { entryId: string }) {
               {eventDate ? ` · ${eventDate}` : ""}
             </span>
             <span className="flex-1" />
-            {entry.withdrawn ? <Badge variant="secondary">Withdrawn</Badge> : null}
-            {entry.changedSinceCheck ? <Badge variant="outline">Changed since check</Badge> : null}
-            <PlayerStatusBadge status={entry.checkStatus} />
+            {entry.reviewOutcome === "issue" && entry.state === "editable" ? (
+              <Badge variant="destructive">Changes requested</Badge>
+            ) : null}
+            {entry.unlockRequested ? <Badge variant="outline">Unlock requested</Badge> : null}
+            <PlayerStateBadge state={entry.state} reviewOutcome={entry.reviewOutcome} />
           </div>
 
-          {entry.withdrawn ? (
+          {entry.state === "withdrawn" ? (
             <Banner>
               Your entry was withdrawn by the organizer. If that is unexpected, contact a judge.
             </Banner>
@@ -105,7 +116,30 @@ export function PlayerDeckPage({ entryId }: { entryId: string }) {
               <p className="whitespace-pre-wrap">{entry.playerMessage}</p>
             </div>
           ) : null}
-          {!entry.canEdit && !entry.withdrawn ? (
+          {entry.state === "editable" && entry.windowOpen ? (
+            <Banner>
+              This deck is not submitted yet. Submit it for review
+              {closesAt ? ` before ${closesAt}` : ""} — an unsubmitted list is sent in as-is when
+              submissions close.
+            </Banner>
+          ) : null}
+          {entry.state === "submitted" && entry.windowOpen ? (
+            <p className="text-muted-foreground text-sm">
+              {entry.canUnlock
+                ? `Your deck is locked for review. You can unlock it to make changes${closesAt ? ` until ${closesAt}` : ""}; a judge then reviews the new list.`
+                : entry.unlockRequested
+                  ? "Your unlock request is waiting for a judge. Once granted, you can edit and resubmit your deck."
+                  : "Your deck is submitted and locked. To change it, request an unlock — a judge has to grant it."}
+            </p>
+          ) : null}
+          {entry.state === "approved" && entry.windowOpen ? (
+            <p className="text-muted-foreground text-sm">
+              {entry.unlockRequested
+                ? "Your unlock request is waiting for a judge. Once granted, you can edit and resubmit your deck."
+                : "A judge approved your deck. To change it, request an unlock — a judge has to grant it."}
+            </p>
+          ) : null}
+          {!entry.windowOpen && entry.state !== "withdrawn" && entry.state !== "checked" ? (
             <p className="text-muted-foreground text-sm">
               Submissions are closed; contact a judge to change your list.
             </p>
@@ -254,6 +288,64 @@ function PlayerCardCell({ card }: { card: DeckCheckEntryCardResponse }) {
   );
 }
 
+/**
+ * The state-dependent top-bar actions (ADR-027): replace + submit while
+ * editable, unlock while submitted, request (or cancel) an unlock while
+ * approved. Nothing once checked, withdrawn, or after the deadline.
+ * @returns The action buttons, or null.
+ */
+function PlayerDeckActions({ entry }: { entry: PlayerDeckCheckEntryDetailResponse["entry"] }) {
+  const submit = useSubmitMyTournamentDeck();
+  const unlock = useUnlockMyTournamentDeck();
+  const cancelRequest = useCancelUnlockRequest();
+
+  if (!entry.windowOpen) {
+    return null;
+  }
+  if (entry.state === "editable") {
+    return (
+      <>
+        <ReplaceDeckButton
+          entryId={entry.id}
+          allowNameSharing={entry.allowNameSharing}
+          allowRiotIdSharing={entry.allowRiotIdSharing}
+        />
+        <PageTopBarPrimaryButton
+          disabled={submit.isPending}
+          onClick={() => submit.mutate(entry.id)}
+        >
+          Submit for review
+        </PageTopBarPrimaryButton>
+      </>
+    );
+  }
+  if (entry.canUnlock) {
+    return (
+      <PageTopBarButton disabled={unlock.isPending} onClick={() => unlock.mutate(entry.id)}>
+        Unlock to edit
+      </PageTopBarButton>
+    );
+  }
+  if (entry.unlockRequested) {
+    return (
+      <PageTopBarButton
+        disabled={cancelRequest.isPending}
+        onClick={() => cancelRequest.mutate(entry.id)}
+      >
+        Cancel unlock request
+      </PageTopBarButton>
+    );
+  }
+  if (entry.canRequestUnlock) {
+    return (
+      <PageTopBarButton disabled={unlock.isPending} onClick={() => unlock.mutate(entry.id)}>
+        Request unlock
+      </PageTopBarButton>
+    );
+  }
+  return null;
+}
+
 function ReplaceDeckButton({
   entryId,
   allowNameSharing,
@@ -281,8 +373,7 @@ function ReplaceDeckButton({
           <DialogHeader>
             <DialogTitle>Replace your deck</DialogTitle>
             <DialogDescription>
-              The new list replaces the current one. If your deck was already checked, a judge
-              re-checks the new list.
+              The new list replaces the current one. It counts only once you submit it for review.
             </DialogDescription>
           </DialogHeader>
           <PlayerDeckSourceForm

@@ -29,11 +29,11 @@ import {
   deckCheckCardCopyParamSchema,
   deckCheckEntryCardParamSchema,
   deckCheckEntryParamSchema,
+  deckCheckEntryStateChangeSchema,
   deckCheckEventParamSchema,
   deckCheckKeyParamSchema,
   deckCheckLinkSchema,
   deckCheckTickSchema,
-  deckCheckVerdictSchema,
   friendGroupSlugParamSchema,
   mintDeckCheckKeySchema,
   updateDeckCheckCardSchema,
@@ -65,6 +65,11 @@ import {
   createManualDeckCheckEntry,
   recomputeEntryHash,
 } from "../../services/deck-check-ingest.js";
+import {
+  applyJudgeTransition,
+  settleExpiredEditable,
+  submissionWindowOpen,
+} from "../../services/deck-check-states.js";
 import { generateShareToken } from "../../utils/share-token.js";
 
 // ─── Mappers ────────────────────────────────────────────────────────────────
@@ -88,6 +93,7 @@ function toEventSummary(
     status: row.status,
     entryCount: row.entryCount ?? 0,
     checkedCount: row.checkedCount ?? 0,
+    listLockMode: row.listLockMode,
     allowSelfSubmission: row.allowSelfSubmission,
     submissionToken: row.allowSelfSubmission ? row.submissionToken : null,
     submissionsCloseAt: row.submissionsCloseAt?.toISOString() ?? null,
@@ -97,28 +103,34 @@ function toEventSummary(
 }
 
 function toEntrySummary(row: DeckCheckEntrySummary): DeckCheckEntrySummaryResponse {
+  // An editable list is not yet delivered to an official (TR 401.3, ADR-027);
+  // even its copy and progress counts stay hidden from the judge view.
+  const listVisible = row.state !== "editable";
   return {
     id: row.id,
     externalId: row.externalId,
     source: deckCheckEntrySource(row.externalId),
     playerName: row.playerName,
     submittedAt: row.submittedAt?.toISOString() ?? null,
-    checkStatus: row.checkStatus,
+    state: row.state,
+    reviewOutcome: row.reviewOutcome,
     checkedByName: row.checkedByName,
     checkedAt: row.checkedAt?.toISOString() ?? null,
-    changedSinceCheck: row.changeSummary !== null,
-    withdrawn: row.withdrawnAt !== null,
+    approvedByName: row.approvedByName,
+    approvedAt: row.approvedAt?.toISOString() ?? null,
+    changedSinceReview: row.changeSummary !== null,
+    unlockRequestedAt: row.unlockRequestedAt?.toISOString() ?? null,
     claimedUserName: row.claimedUserName,
-    listOwner: row.listOwner,
-    copyCount: row.copyCount,
-    verifiedCopyCount: row.verifiedCopyCount,
-    unmatchedLineCount: row.unmatchedLineCount,
+    copyCount: listVisible ? row.copyCount : 0,
+    verifiedCopyCount: listVisible ? row.verifiedCopyCount : 0,
+    unmatchedLineCount: listVisible ? row.unmatchedLineCount : 0,
   };
 }
 
 function toEntry(
   row: DeckCheckEntry,
   checkedByName: string | null,
+  approvedByName: string | null,
   claimedUserName: string | null,
 ): DeckCheckEntryResponse {
   return {
@@ -131,10 +143,14 @@ function toEntry(
     allowNameSharing: row.allowNameSharing,
     allowRiotIdSharing: row.allowRiotIdSharing,
     submittedAt: row.submittedAt?.toISOString() ?? null,
-    checkStatus: row.checkStatus,
+    state: row.state,
+    reviewOutcome: row.reviewOutcome,
     checkedBy: row.checkedBy,
     checkedByName,
     checkedAt: row.checkedAt?.toISOString() ?? null,
+    approvedByName,
+    approvedAt: row.approvedAt?.toISOString() ?? null,
+    unlockRequestedAt: row.unlockRequestedAt?.toISOString() ?? null,
     notes: row.notes,
     changeSummary: row.changeSummary,
     withdrawnAt: row.withdrawnAt?.toISOString() ?? null,
@@ -142,8 +158,6 @@ function toEntry(
     claimedUserName,
     claimSource: row.claimSource,
     claimBlocked: row.claimBlockedAt !== null,
-    listOwner: row.listOwner,
-    providerPushIgnoredAt: row.providerPushIgnoredAt?.toISOString() ?? null,
     playerMessage: row.playerMessage,
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -175,16 +189,23 @@ async function buildEntryDetail(
   event: DeckCheckEvent,
   entry: DeckCheckEntry,
 ): Promise<DeckCheckEntryDetailResponse> {
-  const [cards, checkedByName, claimedUserName] = await Promise.all([
-    repos.deckCheck.listCardsForEntry(entry.id),
+  // An editable list has not been delivered to an official yet (TR 401.3,
+  // ADR-027): the judge payload carries the entry's identity and state, but
+  // no cards, advisories, or stats until the player submits.
+  const listVisible = entry.state !== "editable";
+  const [cards, checkedByName, approvedByName, claimedUserName] = await Promise.all([
+    listVisible ? repos.deckCheck.listCardsForEntry(entry.id) : Promise.resolve([]),
     entry.checkedBy ? repos.deckCheck.getUserName(entry.checkedBy) : Promise.resolve(null),
+    entry.approvedBy ? repos.deckCheck.getUserName(entry.approvedBy) : Promise.resolve(null),
     entry.claimedUserId ? repos.deckCheck.getUserName(entry.claimedUserId) : Promise.resolve(null),
   ]);
-  const advisories = await buildEntryAdvisories(repos, event, cards);
+  const advisories = listVisible
+    ? await buildEntryAdvisories(repos, event, cards)
+    : { violations: [], typeCounts: [], domainDistribution: [] };
 
   return {
     event: toEventSummary(event),
-    entry: toEntry(entry, checkedByName, claimedUserName),
+    entry: toEntry(entry, checkedByName, approvedByName, claimedUserName),
     cards: cards.map((card) => toDeckCheckEntryCardResponse(card)),
     ...advisories,
   };
@@ -198,12 +219,34 @@ async function loadEvent(repos: Repos, groupId: string, eventId: string): Promis
   return event;
 }
 
-async function loadEntry(repos: Repos, eventId: string, entryId: string): Promise<DeckCheckEntry> {
-  const entry = await repos.deckCheck.getEntry(eventId, entryId);
+async function loadEntry(
+  repos: Repos,
+  event: DeckCheckEvent,
+  entryId: string,
+): Promise<DeckCheckEntry> {
+  const entry = await repos.deckCheck.getEntry(event.id, entryId);
   if (!entry) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "Entry not found");
   }
-  return entry;
+  // Settle the deadline auto-submit (ADR-027) so the judge never sees a stale
+  // 'editable' entry once the window closed.
+  return await settleExpiredEditable(repos, event, entry);
+}
+
+/**
+ * Guards every card-level judge action: an editable list has not been
+ * delivered to an official (TR 401.3, ADR-027), so judges can neither read
+ * nor touch its lines until the player submits.
+ * @returns Nothing; throws 409 for an editable entry.
+ */
+function requireListVisible(entry: DeckCheckEntry): void {
+  if (entry.state === "editable") {
+    throw new AppError(
+      409,
+      ERROR_CODES.CONFLICT,
+      "The player is editing this list; it becomes visible once submitted",
+    );
+  }
 }
 
 // ─── Route definitions (OpenAPI) ────────────────────────────────────────────
@@ -349,15 +392,19 @@ const getEntryDetail = createRoute({
   },
 });
 
-const setVerdict = createRoute({
+const setEntryState = createRoute({
   method: "put",
-  path: "/friend-groups/{slug}/checks/{eventId}/entries/{entryId}/verdict",
+  path: "/friend-groups/{slug}/checks/{eventId}/entries/{entryId}/state",
   tags: ["Deck Check"],
   security: cookieAuth,
+  description:
+    "Moves an entry through the lifecycle (judge+, ADR-027): approve, check " +
+    "(with an outcome), revoke / re-open back to submitted, or hand the list " +
+    "back to the linked player (optionally as a rejection).",
   request: {
     params: deckCheckEntryParamSchema,
     body: {
-      content: { "application/json": { schema: deckCheckVerdictSchema } },
+      content: { "application/json": { schema: deckCheckEntryStateChangeSchema } },
       required: true,
     },
   },
@@ -366,7 +413,25 @@ const setVerdict = createRoute({
       content: { "application/json": { schema: deckCheckEntryDetailResponseSchema } },
       description: "Updated checker payload",
     },
-    ...errorResponses(400, 401, 403, 404),
+    ...errorResponses(400, 401, 403, 404, 409, 422),
+  },
+});
+
+const denyUnlockRequest = createRoute({
+  method: "delete",
+  path: "/friend-groups/{slug}/checks/{eventId}/entries/{entryId}/unlock-request",
+  tags: ["Deck Check"],
+  security: cookieAuth,
+  description:
+    "Declines a player's pending unlock request (judge+, ADR-027); the entry " +
+    "stays approved. Granting a request is the state transition to editable.",
+  request: { params: deckCheckEntryParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: deckCheckEntryDetailResponseSchema } },
+      description: "Updated checker payload",
+    },
+    ...errorResponses(401, 403, 404),
   },
 });
 
@@ -656,12 +721,20 @@ export const deckCheckRoute = deckCheckApp
     const ctx = await loadGroupForMember(repos, slug, getUserId(c));
     requireRole(ctx.membership, "judge");
     const event = await loadEvent(repos, ctx.group.id, eventId);
-    const entries = await repos.deckCheck.listEntriesForEvent(event.id);
-    const active = entries.filter((entry) => entry.withdrawnAt === null);
+    let entries = await repos.deckCheck.listEntriesForEvent(event.id);
+    // Settle the deadline auto-submit (ADR-027): entries still editable once
+    // the window closed become submissions as-is, stamped with the close time.
+    if (!submissionWindowOpen(event) && entries.some((entry) => entry.state === "editable")) {
+      for (const entry of entries) {
+        await settleExpiredEditable(repos, event, entry);
+      }
+      entries = await repos.deckCheck.listEntriesForEvent(event.id);
+    }
+    const active = entries.filter((entry) => entry.state !== "withdrawn");
     const summary = toEventSummary({
       ...event,
       entryCount: active.length,
-      checkedCount: active.filter((entry) => entry.checkStatus === "checked").length,
+      checkedCount: active.filter((entry) => entry.state === "checked").length,
     });
     return c.json({ event: summary, entries: entries.map((entry) => toEntrySummary(entry)) }, 200);
   })
@@ -679,7 +752,8 @@ export const deckCheckRoute = deckCheckApp
       body.eventDate !== undefined ||
       body.format !== undefined ||
       body.allowedSets !== undefined ||
-      body.status !== undefined;
+      body.status !== undefined ||
+      body.listLockMode !== undefined;
     let event = hasBaseField
       ? await repos.deckCheck.updateEvent(ctx.group.id, eventId, body)
       : await repos.deckCheck.getEvent(ctx.group.id, eventId);
@@ -770,31 +844,37 @@ export const deckCheckRoute = deckCheckApp
     const ctx = await loadGroupForMember(repos, slug, getUserId(c));
     requireRole(ctx.membership, "judge");
     const event = await loadEvent(repos, ctx.group.id, eventId);
-    const entry = await loadEntry(repos, event.id, entryId);
+    const entry = await loadEntry(repos, event, entryId);
     return c.json(await buildEntryDetail(repos, event, entry), 200);
   })
 
-  .openapi(setVerdict, async (c) => {
+  .openapi(setEntryState, async (c) => {
     const repos = c.get("repos");
     const { slug, eventId, entryId } = c.req.valid("param");
     const ctx = await loadGroupForMember(repos, slug, getUserId(c));
     requireRole(ctx.membership, "judge");
     const event = await loadEvent(repos, ctx.group.id, eventId);
-    const entry = await loadEntry(repos, event.id, entryId);
+    const entry = await loadEntry(repos, event, entryId);
 
-    const { checkStatus, notes } = c.req.valid("json");
-    const updated = await repos.deckCheck.updateEntry(entry.id, {
-      checkStatus,
-      ...(notes === undefined ? {} : { notes }),
-      ...(checkStatus === "unchecked"
-        ? { checkedBy: null, checkedAt: null }
-        : // A fresh verdict supersedes the "changed since check" banner.
-          { checkedBy: getUserId(c), checkedAt: new Date(), changeSummary: null }),
-    });
-    if (!updated) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Entry not found");
-    }
+    const body = c.req.valid("json");
+    const updated = await c.get("transact")((txRepos) =>
+      applyJudgeTransition(txRepos, getUserId(c), entry, body),
+    );
     return c.json(await buildEntryDetail(repos, event, updated), 200);
+  })
+
+  .openapi(denyUnlockRequest, async (c) => {
+    const repos = c.get("repos");
+    const { slug, eventId, entryId } = c.req.valid("param");
+    const ctx = await loadGroupForMember(repos, slug, getUserId(c));
+    requireRole(ctx.membership, "judge");
+    const event = await loadEvent(repos, ctx.group.id, eventId);
+    const entry = await loadEntry(repos, event, entryId);
+
+    const updated = entry.unlockRequestedAt
+      ? await repos.deckCheck.updateEntry(entry.id, { unlockRequestedAt: null })
+      : entry;
+    return c.json(await buildEntryDetail(repos, event, updated ?? entry), 200);
   })
 
   .openapi(updateEntry, async (c) => {
@@ -803,7 +883,7 @@ export const deckCheckRoute = deckCheckApp
     const ctx = await loadGroupForMember(repos, slug, getUserId(c));
     requireRole(ctx.membership, "judge");
     const event = await loadEvent(repos, ctx.group.id, eventId);
-    await loadEntry(repos, event.id, entryId);
+    await loadEntry(repos, event, entryId);
 
     const body = c.req.valid("json");
     const updated = await repos.deckCheck.updateEntry(entryId, {
@@ -828,7 +908,8 @@ export const deckCheckRoute = deckCheckApp
     const ctx = await loadGroupForMember(repos, slug, getUserId(c));
     requireRole(ctx.membership, "judge");
     const event = await loadEvent(repos, ctx.group.id, eventId);
-    const entry = await loadEntry(repos, event.id, entryId);
+    const entry = await loadEntry(repos, event, entryId);
+    requireListVisible(entry);
 
     const body = c.req.valid("json");
     const zone = mapSectionToZone(body.section);
@@ -855,7 +936,7 @@ export const deckCheckRoute = deckCheckApp
       ...resolution,
     });
     await recomputeEntryHash(repos, entry.id);
-    const reloaded = await loadEntry(repos, event.id, entryId);
+    const reloaded = await loadEntry(repos, event, entryId);
     return c.json(await buildEntryDetail(repos, event, reloaded), 200);
   })
 
@@ -865,7 +946,8 @@ export const deckCheckRoute = deckCheckApp
     const ctx = await loadGroupForMember(repos, slug, getUserId(c));
     requireRole(ctx.membership, "judge");
     const event = await loadEvent(repos, ctx.group.id, eventId);
-    const entry = await loadEntry(repos, event.id, entryId);
+    const entry = await loadEntry(repos, event, entryId);
+    requireListVisible(entry);
 
     const { name } = c.req.valid("json");
     const resolutions = await repos.deckCheck.resolveCards([{ name }]);
@@ -879,7 +961,7 @@ export const deckCheckRoute = deckCheckApp
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Card not found");
     }
     await recomputeEntryHash(repos, entry.id);
-    const reloaded = await loadEntry(repos, event.id, entryId);
+    const reloaded = await loadEntry(repos, event, entryId);
     return c.json(await buildEntryDetail(repos, event, reloaded), 200);
   })
 
@@ -889,7 +971,7 @@ export const deckCheckRoute = deckCheckApp
     const ctx = await loadGroupForMember(repos, slug, getUserId(c));
     requireRole(ctx.membership, "judge");
     const event = await loadEvent(repos, ctx.group.id, eventId);
-    await loadEntry(repos, event.id, entryId);
+    requireListVisible(await loadEntry(repos, event, entryId));
 
     const removed = await repos.deckCheck.deleteEntryCardCopy(entryId, cardId, copyIndex);
     if (!removed) {
@@ -905,7 +987,7 @@ export const deckCheckRoute = deckCheckApp
     const ctx = await loadGroupForMember(repos, slug, getUserId(c));
     requireRole(ctx.membership, "judge");
     const event = await loadEvent(repos, ctx.group.id, eventId);
-    await loadEntry(repos, event.id, entryId);
+    requireListVisible(await loadEntry(repos, event, entryId));
 
     const { copyIndex, found } = c.req.valid("json");
     const stored = await repos.deckCheck.setCardCopyFound(entryId, cardId, copyIndex, found);
@@ -924,7 +1006,7 @@ export const deckCheckRoute = deckCheckApp
     const ctx = await loadGroupForMember(repos, slug, getUserId(c));
     requireRole(ctx.membership, "judge");
     const event = await loadEvent(repos, ctx.group.id, eventId);
-    await loadEntry(repos, event.id, entryId);
+    await loadEntry(repos, event, entryId);
 
     const { userId } = c.req.valid("json");
     const account = await repos.deckCheck.getUserAccount(userId);
@@ -944,7 +1026,7 @@ export const deckCheckRoute = deckCheckApp
     const ctx = await loadGroupForMember(repos, slug, getUserId(c));
     requireRole(ctx.membership, "judge");
     const event = await loadEvent(repos, ctx.group.id, eventId);
-    await loadEntry(repos, event.id, entryId);
+    await loadEntry(repos, event, entryId);
 
     const updated = await repos.deckCheck.unlinkEntry(entryId);
     if (!updated) {

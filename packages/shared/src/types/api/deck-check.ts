@@ -3,12 +3,23 @@ import type { DeckViolation } from "../../deck-rules.js";
 import type { CardType, DeckZone, Domain } from "../enums.js";
 
 export type DeckCheckEventStatus = "active" | "archived";
-export type DeckCheckEntryStatus = "unchecked" | "checked" | "issue";
+/**
+ * The entry lifecycle (ADR-027): a player edits only in `editable`; `submitted`
+ * awaits a judge; `approved` is the pre-event list approval; `checked` is the
+ * event-day physical verification; `withdrawn` means the organizer pulled it.
+ */
+export type DeckCheckEntryState = "editable" | "submitted" | "approved" | "checked" | "withdrawn";
+/** How the most recent judge review went; null until a judge reviewed. */
+export type DeckCheckReviewOutcome = "ok" | "issue";
+/**
+ * When a submitted list locks against player changes (TR 401.3, ADR-027):
+ * at the moment of submission (strict default), or only once the submission
+ * window closes (casual leagues, self-service corrections until then).
+ */
+export type DeckCheckListLockMode = "on_submit" | "at_deadline";
 export type DeckCheckMatchStatus = "matched" | "ambiguous" | "unmatched";
 /** How an entry got linked to an OpenRift account (ADR-026). */
 export type DeckCheckClaimSource = "email_auto" | "judge_manual" | "self_submit";
-/** Who owns an entry's card list: the provider feed, or the player after edit-takeover. */
-export type DeckCheckListOwner = "provider" | "player";
 
 /** One normalized card line as it appears in a change summary. */
 export interface DeckCheckChangeLine {
@@ -36,6 +47,8 @@ export interface DeckCheckEventSummaryResponse {
   status: DeckCheckEventStatus;
   entryCount: number;
   checkedCount: number;
+  /** When a submitted list locks against player changes (ADR-027). */
+  listLockMode: DeckCheckListLockMode;
   /** Per-event opt-in for player self-submission (ADR-026). */
   allowSelfSubmission: boolean;
   /** Shared submission capability; only present while self-submission is on. */
@@ -56,15 +69,18 @@ export interface DeckCheckEntrySummaryResponse {
   source: DeckCheckEntrySource;
   playerName: string;
   submittedAt: string | null;
-  checkStatus: DeckCheckEntryStatus;
+  state: DeckCheckEntryState;
+  reviewOutcome: DeckCheckReviewOutcome | null;
   checkedByName: string | null;
   checkedAt: string | null;
-  /** True when the list changed after it was last checked. */
-  changedSinceCheck: boolean;
-  withdrawn: boolean;
+  approvedByName: string | null;
+  approvedAt: string | null;
+  /** True when the list changed after a judge last reviewed it. */
+  changedSinceReview: boolean;
+  /** Set when the player asked to unlock an approved entry (ADR-027). */
+  unlockRequestedAt: string | null;
   /** Display name of the linked OpenRift account, when one is linked (ADR-026). */
   claimedUserName: string | null;
-  listOwner: DeckCheckListOwner;
   /** Physical copies (summed quantities). */
   copyCount: number;
   verifiedCopyCount: number;
@@ -104,10 +120,15 @@ export interface DeckCheckEntryResponse {
   /** Consent to show the player's Riot ID on public platforms (default true, opt-out). */
   allowRiotIdSharing: boolean;
   submittedAt: string | null;
-  checkStatus: DeckCheckEntryStatus;
+  state: DeckCheckEntryState;
+  reviewOutcome: DeckCheckReviewOutcome | null;
   checkedBy: string | null;
   checkedByName: string | null;
   checkedAt: string | null;
+  approvedByName: string | null;
+  approvedAt: string | null;
+  /** Set when the player asked to unlock an approved entry (ADR-027). */
+  unlockRequestedAt: string | null;
   notes: string | null;
   changeSummary: DeckCheckChangeSummary | null;
   withdrawnAt: string | null;
@@ -117,9 +138,6 @@ export interface DeckCheckEntryResponse {
   claimSource: DeckCheckClaimSource | null;
   /** True when a judge unlinked the entry, blocking any further auto-match. */
   claimBlocked: boolean;
-  listOwner: DeckCheckListOwner;
-  /** Set when a provider push was ignored because the player owns the list. */
-  providerPushIgnoredAt: string | null;
   /** Judge-authored message shown to the linked player, separate from `notes`. */
   playerMessage: string | null;
   updatedAt: string;
@@ -161,9 +179,12 @@ export interface DeckCheckIngestResultResponse {
   entriesUpdated: number;
   entriesUnchanged: number;
   entriesWithdrawn: number;
-  /** Entries whose check was invalidated because the list changed. */
+  /** Entries whose approval or check was invalidated because the list changed. */
   checksInvalidated: number;
-  /** Pushes ignored because the player took over the entry's list (ADR-026). */
+  /**
+   * @deprecated Always 0 since ADR-027 removed edit-takeover (provider pushes
+   * always apply now); kept so existing provider integrations keep parsing.
+   */
   entriesIgnored: number;
 }
 
@@ -177,10 +198,10 @@ export interface PlayerDeckCheckEntrySummaryResponse {
   groupName: string;
   /** The owning group's slug, so group pages can show the viewer's own entries. */
   groupSlug: string;
-  checkStatus: DeckCheckEntryStatus;
-  /** True when the list changed after it was last checked. */
-  changedSinceCheck: boolean;
-  withdrawn: boolean;
+  state: DeckCheckEntryState;
+  reviewOutcome: DeckCheckReviewOutcome | null;
+  /** True when the player asked to unlock an approved entry (ADR-027). */
+  unlockRequested: boolean;
   playerMessage: string | null;
   submittedAt: string | null;
   updatedAt: string;
@@ -202,19 +223,26 @@ export interface PlayerDeckCheckEntryDetailResponse {
     groupName: string;
     format: string | null;
     allowedSets: string[] | null;
-    checkStatus: DeckCheckEntryStatus;
-    changedSinceCheck: boolean;
-    withdrawn: boolean;
+    state: DeckCheckEntryState;
+    reviewOutcome: DeckCheckReviewOutcome | null;
+    /** True when the player asked to unlock an approved entry (ADR-027). */
+    unlockRequested: boolean;
     playerMessage: string | null;
-    listOwner: DeckCheckListOwner;
     /** The caller's consent to show their name on public platforms. */
     allowNameSharing: boolean;
     /** The caller's consent to show their Riot ID on public platforms. */
     allowRiotIdSharing: boolean;
     submittedAt: string | null;
+    submissionsCloseAt: string | null;
     updatedAt: string;
-    /** Whether the entry can currently be edited (event open, not withdrawn). */
+    /** Whether the submission window is open (event active, deadline not passed). */
+    windowOpen: boolean;
+    /** Whether the list can be edited right now (state `editable` + open window). */
     canEdit: boolean;
+    /** Whether the unlock action unlocks immediately (`at_deadline` mode only). */
+    canUnlock: boolean;
+    /** Whether the unlock action files a judge request (ADR-027). */
+    canRequestUnlock: boolean;
   };
   cards: DeckCheckEntryCardResponse[];
   violations: DeckViolation[];
@@ -235,8 +263,9 @@ export interface DeckCheckSubmissionPageResponse {
   /** The caller's already-linked entry in this event, if any. */
   linkedEntry: {
     id: string;
-    checkStatus: DeckCheckEntryStatus;
-    withdrawn: boolean;
+    state: DeckCheckEntryState;
+    /** Whether submitting through the link can replace this entry's list (ADR-027). */
+    canReplace: boolean;
     /** Current sharing consent, so the form starts from the stored answer. */
     allowNameSharing: boolean;
     allowRiotIdSharing: boolean;

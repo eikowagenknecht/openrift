@@ -1,10 +1,12 @@
 import { normalizeNameForMatching } from "@openrift/shared";
 import type {
+  DeckCheckCardLine,
   DeckCheckChangeSummary,
   DeckCheckClaimSource,
-  DeckCheckEntryStatus,
-  DeckCheckListOwner,
+  DeckCheckEntryState,
+  DeckCheckListLockMode,
   DeckCheckMatchStatus,
+  DeckCheckReviewOutcome,
 } from "@openrift/shared";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
@@ -29,6 +31,7 @@ export interface DeckCheckEventWithCounts extends DeckCheckEvent {
 
 export interface DeckCheckEntrySummary extends DeckCheckEntry {
   checkedByName: string | null;
+  approvedByName: string | null;
   claimedUserName: string | null;
   copyCount: number;
   verifiedCopyCount: number;
@@ -49,6 +52,7 @@ export interface DeckCheckEventPatch {
   format?: string | null;
   allowedSets?: string[] | null;
   status?: "active" | "archived";
+  listLockMode?: DeckCheckListLockMode;
 }
 
 export interface NewDeckCheckEntry {
@@ -63,16 +67,18 @@ export interface NewDeckCheckEntry {
   allowRiotIdSharing?: boolean;
   contentHash: string;
   withdrawnAt: Date | null;
+  state?: DeckCheckEntryState;
   claimedUserId?: string | null;
   claimSource?: DeckCheckClaimSource | null;
   claimedAt?: Date | null;
-  listOwner?: DeckCheckListOwner;
 }
 
 /** One row of the player's "My tournament decks" list (ADR-026). */
 export interface PlayerDeckCheckEntryRow extends DeckCheckEntry {
   eventName: string;
   eventDate: Date | string | null;
+  eventStatus: string;
+  submissionsCloseAt: Date | null;
   groupName: string;
   groupSlug: string;
 }
@@ -129,15 +135,18 @@ function parseEventRow<T extends { allowedSets: unknown }>(
 
 /**
  * Normalizes the jsonb columns of an entry row.
- * @returns The row with `changeSummary` guaranteed parsed.
+ * @returns The row with `changeSummary` and `preEditLines` guaranteed parsed.
  */
-function parseEntryRow<T extends { changeSummary: unknown }>(
+function parseEntryRow<T extends { changeSummary: unknown; preEditLines: unknown }>(
   row: T,
-): T & { changeSummary: DeckCheckChangeSummary | null } {
+): T & { changeSummary: DeckCheckChangeSummary | null; preEditLines: DeckCheckCardLine[] | null } {
   return {
     ...row,
     changeSummary: parseJsonb<DeckCheckChangeSummary>(
       row.changeSummary as DeckCheckChangeSummary | string | null,
+    ),
+    preEditLines: parseJsonb<DeckCheckCardLine[]>(
+      row.preEditLines as DeckCheckCardLine[] | string | null,
     ),
   };
 }
@@ -172,14 +181,13 @@ export function deckCheckRepo(db: Kysely<Database>) {
             .selectFrom("deckCheckEntries as en")
             .select(eb.fn.countAll<number>().as("count"))
             .whereRef("en.eventId", "=", "e.id")
-            .where("en.withdrawnAt", "is", null)
+            .where("en.state", "!=", "withdrawn")
             .as("entryCount"),
           eb
             .selectFrom("deckCheckEntries as en")
             .select(eb.fn.countAll<number>().as("count"))
             .whereRef("en.eventId", "=", "e.id")
-            .where("en.withdrawnAt", "is", null)
-            .where("en.checkStatus", "=", "checked")
+            .where("en.state", "=", "checked")
             .as("checkedCount"),
         ])
         .where("e.groupId", "=", groupId)
@@ -224,6 +232,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
             ? {}
             : { allowedSets: patch.allowedSets ? JSON.stringify(patch.allowedSets) : null }),
           ...(patch.status === undefined ? {} : { status: patch.status }),
+          ...(patch.listLockMode === undefined ? {} : { listLockMode: patch.listLockMode }),
         })
         .where("id", "=", eventId)
         .where("groupId", "=", groupId)
@@ -247,10 +256,12 @@ export function deckCheckRepo(db: Kysely<Database>) {
       const rows = await db
         .selectFrom("deckCheckEntries as en")
         .leftJoin("users as u", "u.id", "en.checkedBy")
+        .leftJoin("users as au", "au.id", "en.approvedBy")
         .leftJoin("users as cu", "cu.id", "en.claimedUserId")
         .selectAll("en")
         .select((eb) => [
           eb.ref("u.name").as("checkedByName"),
+          eb.ref("au.name").as("approvedByName"),
           eb.ref("cu.name").as("claimedUserName"),
           eb
             .selectFrom("deckCheckEntryCards as c")
@@ -282,6 +293,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
         parseEntryRow({
           ...row,
           checkedByName: row.checkedByName ?? null,
+          approvedByName: row.approvedByName ?? null,
           claimedUserName: row.claimedUserName ?? null,
           copyCount: Number(row.copyCount ?? 0),
           verifiedCopyCount: Number(row.verifiedCopyCount ?? 0),
@@ -345,9 +357,15 @@ export function deckCheckRepo(db: Kysely<Database>) {
         allowNameSharing: boolean;
         allowRiotIdSharing: boolean;
         contentHash: string;
-        checkStatus: DeckCheckEntryStatus;
+        state: DeckCheckEntryState;
+        reviewOutcome: DeckCheckReviewOutcome | null;
         checkedBy: string | null;
         checkedAt: Date | null;
+        approvedBy: string | null;
+        approvedAt: Date | null;
+        unlockRequestedAt: Date | null;
+        /** Written pre-stringified, like every jsonb column. */
+        preEditLines: string | null;
         notes: string | null;
         changeSummary: string | null;
         withdrawnAt: Date | null;
@@ -355,9 +373,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
         claimSource: DeckCheckClaimSource | null;
         claimedAt: Date | null;
         claimBlockedAt: Date | null;
-        listOwner: DeckCheckListOwner;
         playerMessage: string | null;
-        providerPushIgnoredAt: Date | null;
       }>,
     ): Promise<DeckCheckEntry | undefined> {
       const row = await db
@@ -517,6 +533,8 @@ export function deckCheckRepo(db: Kysely<Database>) {
         .select((eb) => [
           eb.ref("ev.name").as("eventName"),
           eb.ref("ev.eventDate").as("eventDate"),
+          eb.ref("ev.status").as("eventStatus"),
+          eb.ref("ev.submissionsCloseAt").as("submissionsCloseAt"),
           eb.ref("g.name").as("groupName"),
           eb.ref("g.slug").as("groupSlug"),
         ])
@@ -543,6 +561,8 @@ export function deckCheckRepo(db: Kysely<Database>) {
         .select((eb) => [
           eb.ref("ev.name").as("eventName"),
           eb.ref("ev.eventDate").as("eventDate"),
+          eb.ref("ev.status").as("eventStatus"),
+          eb.ref("ev.submissionsCloseAt").as("submissionsCloseAt"),
           eb.ref("g.name").as("groupName"),
           eb.ref("g.slug").as("groupSlug"),
         ])
@@ -762,13 +782,18 @@ export function deckCheckRepo(db: Kysely<Database>) {
      * @returns The unresolved card rows across all of the event's entries.
      */
     listUnresolvedCardsForEvent(eventId: string): Promise<DeckCheckEntryCard[]> {
-      return db
-        .selectFrom("deckCheckEntryCards as c")
-        .innerJoin("deckCheckEntries as en", "en.id", "c.entryId")
-        .selectAll("c")
-        .where("en.eventId", "=", eventId)
-        .where("c.matchStatus", "!=", "matched")
-        .execute();
+      return (
+        db
+          .selectFrom("deckCheckEntryCards as c")
+          .innerJoin("deckCheckEntries as en", "en.id", "c.entryId")
+          .selectAll("c")
+          .where("en.eventId", "=", eventId)
+          // An editable entry's list is invisible to officials (ADR-027), so the
+          // event-wide re-resolve leaves its lines alone too.
+          .where("en.state", "!=", "editable")
+          .where("c.matchStatus", "!=", "matched")
+          .execute()
+      );
     },
 
     async updateCardResolution(cardId: string, resolution: CardResolution): Promise<void> {

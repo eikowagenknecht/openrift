@@ -74,6 +74,45 @@ const editMyTournamentDeckFn = createServerFn({ method: "POST" })
       ),
   );
 
+const submitMyTournamentDeckFn = createServerFn({ method: "POST" })
+  .validator((input: string) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data: entryId }): Promise<PlayerDeckCheckEntryDetailResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["deck-check"].mine[":entryId"].submit.$post({
+          param: encodeParams({ entryId }),
+        }),
+        "Couldn't submit the deck",
+      ),
+  );
+
+const unlockMyTournamentDeckFn = createServerFn({ method: "POST" })
+  .validator((input: string) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data: entryId }): Promise<PlayerDeckCheckEntryDetailResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["deck-check"].mine[":entryId"].unlock.$post({
+          param: encodeParams({ entryId }),
+        }),
+        "Couldn't unlock the deck",
+      ),
+  );
+
+const cancelUnlockRequestFn = createServerFn({ method: "POST" })
+  .validator((input: string) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data: entryId }): Promise<PlayerDeckCheckEntryDetailResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["deck-check"].mine[":entryId"].unlock.$delete({
+          param: encodeParams({ entryId }),
+        }),
+        "Couldn't cancel the request",
+      ),
+  );
+
 const fetchSubmissionPage = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
@@ -145,6 +184,39 @@ export function useEditMyTournamentDeck() {
     invalidates: (vars) => [
       queryKeys.tournamentDecks.mine(userId),
       queryKeys.tournamentDecks.entry(userId, vars.entryId),
+    ],
+  });
+}
+
+export function useSubmitMyTournamentDeck() {
+  const userId = useRequiredUserId();
+  return useMutationWithInvalidation({
+    mutationFn: (entryId: string) => submitMyTournamentDeckFn({ data: entryId }),
+    invalidates: (entryId) => [
+      queryKeys.tournamentDecks.mine(userId),
+      queryKeys.tournamentDecks.entry(userId, entryId),
+    ],
+  });
+}
+
+export function useUnlockMyTournamentDeck() {
+  const userId = useRequiredUserId();
+  return useMutationWithInvalidation({
+    mutationFn: (entryId: string) => unlockMyTournamentDeckFn({ data: entryId }),
+    invalidates: (entryId) => [
+      queryKeys.tournamentDecks.mine(userId),
+      queryKeys.tournamentDecks.entry(userId, entryId),
+    ],
+  });
+}
+
+export function useCancelUnlockRequest() {
+  const userId = useRequiredUserId();
+  return useMutationWithInvalidation({
+    mutationFn: (entryId: string) => cancelUnlockRequestFn({ data: entryId }),
+    invalidates: (entryId) => [
+      queryKeys.tournamentDecks.mine(userId),
+      queryKeys.tournamentDecks.entry(userId, entryId),
     ],
   });
 }

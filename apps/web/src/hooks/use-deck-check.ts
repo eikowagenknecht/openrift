@@ -122,7 +122,7 @@ function deckCheckEntryQueryOptions(
 }
 
 /**
- * Polls so concurrent judges' ticks and verdicts reconcile.
+ * Polls so concurrent judges' ticks and state changes reconcile.
  * @returns The entry detail query, refreshed every few seconds.
  */
 export function useDeckCheckEntry(slug: string, eventId: string, entryId: string) {
@@ -182,6 +182,7 @@ const updateEventFn = createServerFn({ method: "POST" })
       format?: string | null;
       allowedSets?: string[] | null;
       status?: "active" | "archived";
+      listLockMode?: "on_submit" | "at_deadline";
       allowSelfSubmission?: boolean;
       submissionsCloseAt?: string | null;
     }) => input,
@@ -198,6 +199,7 @@ const updateEventFn = createServerFn({ method: "POST" })
             format: data.format,
             allowedSets: data.allowedSets,
             status: data.status,
+            listLockMode: data.listLockMode,
             allowSelfSubmission: data.allowSelfSubmission,
             submissionsCloseAt: data.submissionsCloseAt,
           },
@@ -261,14 +263,16 @@ const createEntryFn = createServerFn({ method: "POST" })
       ),
   );
 
-const setVerdictFn = createServerFn({ method: "POST" })
+const setEntryStateFn = createServerFn({ method: "POST" })
   .validator(
     (input: {
       slug: string;
       eventId: string;
       entryId: string;
-      checkStatus: "unchecked" | "checked" | "issue";
+      state: "editable" | "submitted" | "approved" | "checked";
+      reviewOutcome?: "ok" | "issue" | null;
       notes?: string | null;
+      playerMessage?: string | null;
     }) => input,
   )
   .middleware([withCookies])
@@ -277,11 +281,31 @@ const setVerdictFn = createServerFn({ method: "POST" })
       callApiJson(
         serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[":eventId"].entries[
           ":entryId"
-        ].verdict.$put({
+        ].state.$put({
           param: encodeParams({ slug: data.slug, eventId: data.eventId, entryId: data.entryId }),
-          json: { checkStatus: data.checkStatus, notes: data.notes },
+          json: {
+            state: data.state,
+            reviewOutcome: data.reviewOutcome,
+            notes: data.notes,
+            playerMessage: data.playerMessage,
+          },
         }),
-        "Couldn't store the verdict",
+        "Couldn't update the entry",
+      ),
+  );
+
+const denyUnlockRequestFn = createServerFn({ method: "POST" })
+  .validator((input: { slug: string; eventId: string; entryId: string }) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[":eventId"].entries[
+          ":entryId"
+        ]["unlock-request"].$delete({
+          param: encodeParams({ slug: data.slug, eventId: data.eventId, entryId: data.entryId }),
+        }),
+        "Couldn't decline the request",
       ),
   );
 
@@ -577,10 +601,23 @@ export function useCreateDeckCheckEntry() {
   });
 }
 
-export function useSetDeckCheckVerdict() {
+export function useSetDeckCheckEntryState() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
-    mutationFn: (vars: Parameters<typeof setVerdictFn>[0]["data"]) => setVerdictFn({ data: vars }),
+    mutationFn: (vars: Parameters<typeof setEntryStateFn>[0]["data"]) =>
+      setEntryStateFn({ data: vars }),
+    invalidates: (vars) => [
+      queryKeys.friendGroups.checkEvent(userId, vars.slug, vars.eventId),
+      queryKeys.friendGroups.checkEntry(userId, vars.slug, vars.eventId, vars.entryId),
+    ],
+  });
+}
+
+export function useDenyDeckCheckUnlockRequest() {
+  const userId = useRequiredUserId();
+  return useMutationWithInvalidation({
+    mutationFn: (vars: Parameters<typeof denyUnlockRequestFn>[0]["data"]) =>
+      denyUnlockRequestFn({ data: vars }),
     invalidates: (vars) => [
       queryKeys.friendGroups.checkEvent(userId, vars.slug, vars.eventId),
       queryKeys.friendGroups.checkEntry(userId, vars.slug, vars.eventId, vars.entryId),

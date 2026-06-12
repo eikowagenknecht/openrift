@@ -48,7 +48,17 @@ export function PlayerSubmitPage({ token }: { token: string }) {
         minute: "2-digit",
       })
     : null;
-  const blocked = data.linkedEntry?.withdrawn === true;
+  const linkedState = data.linkedEntry?.state;
+  const blockedMessage =
+    linkedState === "withdrawn"
+      ? "Your entry in this event was withdrawn by the organizer; contact a judge before submitting again."
+      : linkedState === "approved"
+        ? "Your deck for this event was already approved by a judge. To change it, request an unlock from your deck page."
+        : linkedState === "checked"
+          ? "Your deck for this event was already checked by a judge; contact a judge to change it."
+          : data.linkedEntry && !data.linkedEntry.canReplace
+            ? "Your deck for this event is already submitted and locked. To change it, request an unlock from your deck page."
+            : null;
 
   const submit = async (input: DeckSourceInput) => {
     const result = await submitDeck.mutateAsync({ token, ...input });
@@ -89,17 +99,14 @@ export function PlayerSubmitPage({ token }: { token: string }) {
             ) : null}
           </div>
 
-          {blocked ? (
-            <p className="text-muted-foreground">
-              Your entry in this event was withdrawn by the organizer; contact a judge before
-              submitting again.
-            </p>
+          {blockedMessage ? (
+            <p className="text-muted-foreground">{blockedMessage}</p>
           ) : data.submissionsOpen ? (
             <>
               {data.linkedEntry ? (
                 <p className="text-muted-foreground text-sm">
-                  You already have a deck entered for this event; submitting replaces it, and a
-                  judge re-checks the new list.
+                  You already have a deck entered for this event; submitting replaces it and sends
+                  the new list for review.
                 </p>
               ) : null}
               <PlayerDeckSourceForm

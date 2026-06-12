@@ -18,7 +18,9 @@ import {
   RotateCcwIcon,
   Rows3Icon,
   ShrinkIcon,
+  ThumbsUpIcon,
   TriangleAlertIcon,
+  UndoIcon,
   Unlink2Icon,
   XIcon,
 } from "lucide-react";
@@ -28,6 +30,7 @@ import { toast } from "sonner";
 import { CardCell } from "@/components/cards/card-cell";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
+import { EntryStateBadge } from "@/components/deck-check/deck-check-event-page";
 import { DeckDomainBar } from "@/components/deck/deck-domain-bar";
 import {
   DomainIcon,
@@ -41,7 +44,6 @@ import { SortGroupControls } from "@/components/filters/sort-group-controls";
 import type { SortGroupOption } from "@/components/filters/sort-group-controls";
 import { ImportCatalogSearch } from "@/components/import/import-catalog-search";
 import { TopBarBreadcrumbBar } from "@/components/layout/top-bar-breadcrumb";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -68,11 +70,12 @@ import {
   useAddDeckCheckCard,
   useDeckCheckAccountSearch,
   useDeckCheckEntry,
+  useDenyDeckCheckUnlockRequest,
   useFixDeckCheckCard,
   useLinkDeckCheckEntry,
   useRemoveDeckCheckCard,
   useReResolveDeckCheckEvent,
-  useSetDeckCheckVerdict,
+  useSetDeckCheckEntryState,
   useTickDeckCheckCard,
   useUnlinkDeckCheckEntry,
   useUpdateDeckCheckEntry,
@@ -89,7 +92,7 @@ import { useDeckCheckViewStore } from "@/stores/deck-check-view-store";
 import type { DeckCheckDisplayMode, DeckCheckSort } from "@/stores/deck-check-view-store";
 
 /**
- * The checker: verdict controls, advisory legality findings, deck stats, and
+ * The checker: lifecycle controls, advisory legality findings, deck stats, and
  * the zone-grouped card list where each card is a tappable verification tick.
  * Polls so concurrent judges reconcile.
  * @returns The checker page content.
@@ -143,6 +146,10 @@ export function DeckCheckEntryPage({
     { label: detail.entry.playerName },
   ];
 
+  // An editable list has not been delivered to an official (TR 401.3): the
+  // server sends no cards, and the page shows a notice instead of the deck.
+  const listHidden = detail.entry.state === "editable";
+
   return (
     <>
       <TopBarBreadcrumbBar segments={crumbs} />
@@ -157,16 +164,16 @@ export function DeckCheckEntryPage({
           onNotesSaved={() => setNotesDirty(false)}
         />
         <div className="flex flex-col gap-4 md:flex-row">
-          <EntryPreview cards={detail.cards} />
+          {listHidden ? null : <EntryPreview cards={detail.cards} />}
           <div className="flex min-w-0 flex-1 flex-col gap-3">
-            <StatsSummary detail={detail} />
+            {listHidden ? null : <StatsSummary detail={detail} />}
             <Textarea
               value={notesDirty ? notes : (detail.entry.notes ?? "")}
               onChange={(event) => {
                 setNotes(event.target.value);
                 setNotesDirty(true);
               }}
-              placeholder="Notes for this entry (saved with the verdict, not shared with the player)"
+              placeholder="Notes for this entry (saved with a state change, not shared with the player)"
               maxLength={4000}
               rows={3}
               className="flex-1"
@@ -186,73 +193,81 @@ export function DeckCheckEntryPage({
           detail={detail}
           onResolved={() => void refetch()}
         />
+        {listHidden ? (
+          <p className="text-muted-foreground bg-muted/50 rounded-md border p-3 text-sm">
+            The player is editing this list. To respect the tournament rules, it stays hidden from
+            judges until they submit it — or until submissions close, when it is sent in as-is.
+          </p>
+        ) : null}
       </div>
-      <div
-        className={cn(
-          "w-full pb-4",
-          PAGE_PADDING,
-          (!wide || displayMode === "list") && "mx-auto max-w-5xl",
-        )}
-      >
-        <div className="mb-2 flex flex-wrap items-center justify-end gap-2">
-          {detail.entry.checkStatus === "unchecked" ? (
-            <Button variant="outline" onClick={() => setAddCardOpen(true)}>
-              <PlusIcon className="size-4" />
-              Add card
-            </Button>
-          ) : null}
-          <SortGroupControls
-            sortOptions={CHECK_SORT_OPTIONS}
-            sortBy={sortBy}
-            sortDir={sortDir}
-            onSortByChange={setSortBy}
-            onSortDirChange={setSortDir}
-          />
-          <DisplayModeToggle mode={displayMode} onModeChange={setDisplayMode} />
-          {displayMode === "grid" ? (
-            <ColumnControls
-              maxColumns={maxColumns}
-              autoColumns={autoColumns}
-              minColumns={physicalMin}
-              maxColumnsLimit={physicalMax}
-              onMaxColumnsChange={setMaxColumns}
+      {listHidden ? null : (
+        <div
+          className={cn(
+            "w-full pb-4",
+            PAGE_PADDING,
+            (!wide || displayMode === "list") && "mx-auto max-w-5xl",
+          )}
+        >
+          <div className="mb-2 flex flex-wrap items-center justify-end gap-2">
+            {detail.entry.state === "submitted" ? (
+              <Button variant="outline" onClick={() => setAddCardOpen(true)}>
+                <PlusIcon className="size-4" />
+                Add card
+              </Button>
+            ) : null}
+            <SortGroupControls
+              sortOptions={CHECK_SORT_OPTIONS}
+              sortBy={sortBy}
+              sortDir={sortDir}
+              onSortByChange={setSortBy}
+              onSortDirChange={setSortDir}
             />
-          ) : null}
-          {displayMode === "grid" ? (
-            <Button
-              variant="outline"
-              className="hidden md:flex"
-              aria-pressed={wide}
-              onClick={() => setWide(!wide)}
-            >
-              {wide ? <ShrinkIcon className="size-4" /> : <ExpandIcon className="size-4" />}
-              {wide ? "Narrow view" : "Wide view"}
-            </Button>
-          ) : null}
-        </div>
-        <AddCardDialog
-          slug={slug}
-          eventId={eventId}
-          entryId={entryId}
-          open={addCardOpen}
-          onOpenChange={setAddCardOpen}
-        />
-        <div ref={containerRef}>
-          <CardChecklist
+            <DisplayModeToggle mode={displayMode} onModeChange={setDisplayMode} />
+            {displayMode === "grid" ? (
+              <ColumnControls
+                maxColumns={maxColumns}
+                autoColumns={autoColumns}
+                minColumns={physicalMin}
+                maxColumnsLimit={physicalMax}
+                onMaxColumnsChange={setMaxColumns}
+              />
+            ) : null}
+            {displayMode === "grid" ? (
+              <Button
+                variant="outline"
+                className="hidden md:flex"
+                aria-pressed={wide}
+                onClick={() => setWide(!wide)}
+              >
+                {wide ? <ShrinkIcon className="size-4" /> : <ExpandIcon className="size-4" />}
+                {wide ? "Narrow view" : "Wide view"}
+              </Button>
+            ) : null}
+          </div>
+          <AddCardDialog
             slug={slug}
             eventId={eventId}
             entryId={entryId}
-            cards={detail.cards}
-            displayMode={displayMode}
-            sortBy={sortBy}
-            sortDir={sortDir}
-            columns={columns}
-            cellWidth={cellWidth}
-            locked={detail.entry.checkStatus !== "unchecked"}
-            onStale={() => void refetch()}
+            open={addCardOpen}
+            onOpenChange={setAddCardOpen}
           />
+          <div ref={containerRef}>
+            <CardChecklist
+              slug={slug}
+              eventId={eventId}
+              entryId={entryId}
+              cards={detail.cards}
+              displayMode={displayMode}
+              sortBy={sortBy}
+              sortDir={sortDir}
+              columns={columns}
+              cellWidth={cellWidth}
+              locked={detail.entry.state !== "submitted"}
+              onStale={() => void refetch()}
+            />
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }
@@ -307,23 +322,26 @@ function EntryHeader({
   onNotesSaved: () => void;
 }) {
   const { entry } = detail;
-  const setVerdict = useSetDeckCheckVerdict();
+  const setState = useSetDeckCheckEntryState();
+  const denyUnlock = useDenyDeckCheckUnlockRequest();
   const [editOpen, setEditOpen] = useState(false);
 
-  const submitVerdict = (checkStatus: "unchecked" | "checked" | "issue") => {
-    setVerdict.mutate(
+  const transition = (
+    state: "editable" | "submitted" | "approved" | "checked",
+    reviewOutcome?: "ok" | "issue",
+  ) => {
+    setState.mutate(
       {
         slug,
         eventId,
         entryId,
-        checkStatus,
-        ...(notesDirty || checkStatus !== "unchecked" ? { notes: notes.trim() || null } : {}),
+        state,
+        reviewOutcome,
+        ...(notesDirty ? { notes: notes.trim() || null } : {}),
       },
       { onSuccess: () => onNotesSaved() },
     );
   };
-
-  const checked = entry.checkStatus !== "unchecked";
 
   return (
     <header className="flex flex-col gap-3">
@@ -339,17 +357,7 @@ function EntryHeader({
             >
               <PencilIcon className="size-4" />
             </Button>
-            {entry.withdrawnAt ? <Badge variant="secondary">Withdrawn</Badge> : null}
-            {entry.listOwner === "player" ? (
-              <Badge
-                variant="outline"
-                title="The player edited this list; organizer pushes no longer overwrite it"
-              >
-                Player-owned
-              </Badge>
-            ) : null}
-            {entry.checkStatus === "checked" ? <Badge>Checked</Badge> : null}
-            {entry.checkStatus === "issue" ? <Badge variant="destructive">Issue</Badge> : null}
+            <EntryStateBadge state={entry.state} reviewOutcome={entry.reviewOutcome} />
           </div>
           <p className="text-muted-foreground text-sm">
             {[entry.riotId, entry.playerEmail].filter(Boolean).join(" · ") || "No contact details"}
@@ -358,36 +366,49 @@ function EntryHeader({
             Public sharing allowed:{" "}
             {sharingAllowedSummary(entry.allowNameSharing, entry.allowRiotIdSharing)}
           </p>
-          {checked && entry.checkedByName ? (
+          {entry.state === "checked" && entry.checkedByName ? (
             <p className="text-muted-foreground text-sm">
-              {entry.checkStatus === "issue" ? "Flagged" : "Checked"} by {entry.checkedByName}
+              {entry.reviewOutcome === "issue" ? "Flagged" : "Checked"} by {entry.checkedByName}
+            </p>
+          ) : null}
+          {entry.state === "approved" && entry.approvedByName ? (
+            <p className="text-muted-foreground text-sm">Approved by {entry.approvedByName}</p>
+          ) : null}
+          {entry.state === "editable" ? (
+            <p className="text-muted-foreground text-sm">
+              The player is editing this list; it locks again when they submit it.
             </p>
           ) : null}
           <AccountLinkStatus entry={entry} />
-          {entry.providerPushIgnoredAt ? (
-            <p className="text-muted-foreground text-sm">
-              An organizer update was ignored because the player owns this list.
-            </p>
-          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <AccountLinkAction slug={slug} eventId={eventId} entryId={entryId} entry={entry} />
-          {checked ? (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={setVerdict.isPending}
-              onClick={() => submitVerdict("unchecked")}
-            >
-              <RotateCcwIcon className="size-4" />
-              Re-open
-            </Button>
-          ) : (
+          {entry.state === "submitted" ? (
             <>
               <Button
                 size="sm"
-                disabled={setVerdict.isPending}
-                onClick={() => submitVerdict("checked")}
+                variant="outline"
+                disabled={setState.isPending}
+                onClick={() => transition("approved")}
+              >
+                <ThumbsUpIcon className="size-4" />
+                Approve list
+              </Button>
+              {entry.claimedUserId ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={setState.isPending}
+                  onClick={() => transition("editable", "issue")}
+                >
+                  <UndoIcon className="size-4" />
+                  Send back
+                </Button>
+              ) : null}
+              <Button
+                size="sm"
+                disabled={setState.isPending}
+                onClick={() => transition("checked", "ok")}
               >
                 <CheckIcon className="size-4" />
                 Mark checked
@@ -395,16 +416,88 @@ function EntryHeader({
               <Button
                 size="sm"
                 variant="destructive"
-                disabled={setVerdict.isPending}
-                onClick={() => submitVerdict("issue")}
+                disabled={setState.isPending}
+                onClick={() => transition("checked", "issue")}
               >
                 <TriangleAlertIcon className="size-4" />
                 Mark issue
               </Button>
             </>
-          )}
+          ) : null}
+          {entry.state === "approved" ? (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={setState.isPending}
+                onClick={() => transition("submitted")}
+              >
+                <RotateCcwIcon className="size-4" />
+                Revoke approval
+              </Button>
+              <Button
+                size="sm"
+                disabled={setState.isPending}
+                onClick={() => transition("checked", "ok")}
+              >
+                <CheckIcon className="size-4" />
+                Mark checked
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                disabled={setState.isPending}
+                onClick={() => transition("checked", "issue")}
+              >
+                <TriangleAlertIcon className="size-4" />
+                Mark issue
+              </Button>
+            </>
+          ) : null}
+          {entry.state === "checked" ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={setState.isPending}
+              onClick={() => transition("submitted")}
+            >
+              <RotateCcwIcon className="size-4" />
+              Re-open
+            </Button>
+          ) : null}
+          {entry.state === "editable" ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={setState.isPending}
+              onClick={() => transition("submitted")}
+            >
+              <CheckIcon className="size-4" />
+              Lock as submitted
+            </Button>
+          ) : null}
         </div>
       </div>
+      {entry.unlockRequestedAt && (entry.state === "approved" || entry.state === "submitted") ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-500/60 bg-amber-500/10 p-3 text-sm">
+          <TriangleAlertIcon className="size-4 shrink-0 text-amber-600 dark:text-amber-500" />
+          <span className="min-w-0 flex-1">
+            The player asked to unlock this {entry.state === "approved" ? "approved" : "submitted"}{" "}
+            deck for changes.
+          </span>
+          <Button size="sm" disabled={setState.isPending} onClick={() => transition("editable")}>
+            Allow editing
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={denyUnlock.isPending}
+            onClick={() => denyUnlock.mutate({ slug, eventId, entryId })}
+          >
+            Decline
+          </Button>
+        </div>
+      ) : null}
       <EditPlayerDialog
         slug={slug}
         eventId={eventId}
@@ -1000,7 +1093,7 @@ function ChangeBanner({ summary }: { summary: DeckCheckChangeSummary }) {
   const describe = (line: { name: string; quantity: number }) => `${line.quantity}× ${line.name}`;
   return (
     <div className="border-destructive/50 bg-destructive/10 flex flex-col gap-1 rounded-md border p-3 text-sm">
-      <span className="font-medium">This list changed after it was checked.</span>
+      <span className="font-medium">This list changed since a judge last reviewed it.</span>
       {summary.added.length > 0 ? (
         <span>Added: {summary.added.map((line) => describe(line)).join(", ")}</span>
       ) : null}
@@ -1139,7 +1232,7 @@ function CardChecklist({
   sortDir: "asc" | "desc";
   columns: number;
   cellWidth: number;
-  /** A finished verdict (checked/issue) locks card edits until the entry is re-opened. */
+  /** Card edits are only allowed while the entry is submitted (ADR-027). */
   locked: boolean;
   onStale: () => void;
 }) {
@@ -1351,7 +1444,7 @@ function ZoneSection({
   cellWidth: number;
   /** Content-sized section for the wrapping zone row. */
   intrinsic?: boolean;
-  /** A finished verdict (checked/issue) hides the per-copy remove control. */
+  /** Locked outside the submitted state; hides the per-copy remove control. */
   locked: boolean;
   onStale: () => void;
 }) {
@@ -1463,7 +1556,7 @@ function ChecklistRow({
   copyIndex: number;
   printing?: Printing;
   onHover?: (printing: Printing | null) => void;
-  /** A finished verdict (checked/issue) freezes ticking and hides the controls. */
+  /** Locked outside the submitted state; freezes ticking and hides the controls. */
   locked: boolean;
   onStale: () => void;
 }) {
@@ -1476,7 +1569,7 @@ function ChecklistRow({
   const name = matched ? printing.card.name : card.rawName;
 
   const toggle = async () => {
-    // A finished verdict freezes the checklist; re-open the entry to tick again.
+    // A non-submitted state freezes the checklist; move it back to submitted to tick again.
     if (locked) {
       return;
     }
@@ -1614,7 +1707,7 @@ function ChecklistCell({
   card: DeckCheckEntryCardResponse;
   copyIndex: number;
   cellWidth: number;
-  /** A finished verdict (checked/issue) freezes ticking and hides the remove control. */
+  /** Locked outside the submitted state; freezes ticking and hides the remove control. */
   locked: boolean;
   onStale: () => void;
 }) {
@@ -1627,7 +1720,7 @@ function ChecklistCell({
   const found = card.foundCopies[copyIndex] === true;
 
   const toggle = async () => {
-    // A finished verdict freezes the checklist; re-open the entry to tick again.
+    // A non-submitted state freezes the checklist; move it back to submitted to tick again.
     if (locked) {
       return;
     }

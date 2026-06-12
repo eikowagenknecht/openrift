@@ -15,12 +15,9 @@ import type { z } from "zod";
 
 import type { Repos } from "../deps.js";
 import { AppError } from "../errors.js";
-import type {
-  DeckCheckEntry,
-  DeckCheckEntryCard,
-  NewDeckCheckEntryCard,
-} from "../repositories/deck-check.js";
+import type { DeckCheckEntry, NewDeckCheckEntryCard } from "../repositories/deck-check.js";
 import { cardResolutionKey } from "../repositories/deck-check.js";
+import { storedCardLines } from "./deck-check-states.js";
 
 export type DeckCheckIngestPayload = z.infer<typeof deckCheckIngestSchema>;
 
@@ -28,18 +25,6 @@ type IngestEntry = DeckCheckIngestPayload["entries"][number];
 
 function sha256(input: string): string {
   return createHash("sha256").update(input).digest("hex");
-}
-
-/**
- * Re-derives the normalized card lines from stored card rows, for diffing.
- * @returns The stored rows as plain card lines.
- */
-function storedCardLines(cards: DeckCheckEntryCard[]): DeckCheckCardLine[] {
-  return cards.map((card) => ({
-    name: card.rawName,
-    zone: card.zone as DeckCheckCardLine["zone"],
-    quantity: card.quantity,
-  }));
 }
 
 /**
@@ -192,6 +177,7 @@ export async function ingestDeckCheckPush(
         ...identity,
         ...consent,
         contentHash,
+        state: entry.withdrawn ? "withdrawn" : "submitted",
         withdrawnAt: entry.withdrawn ? new Date() : null,
       });
       await repos.deckCheck.replaceEntryCards(created.id, cardRows);
@@ -200,57 +186,65 @@ export async function ingestDeckCheckPush(
       continue;
     }
 
-    const withdrawnAt = entry.withdrawn ? (existing.withdrawnAt ?? new Date()) : null;
-    const withdrawalChanged =
-      Boolean(existing.withdrawnAt) === Boolean(withdrawnAt) ? {} : { withdrawnAt };
-    if (entry.withdrawn && !existing.withdrawnAt) {
+    // Withdrawal is a state transition (ADR-027): the flag moves the entry to
+    // 'withdrawn'; a push without it returns a withdrawn entry to 'submitted'
+    // (the pre-withdrawal state is not preserved — the push is a fresh
+    // submission), and leaves any other state alone.
+    const wasWithdrawn = existing.state === "withdrawn";
+    const withdrawalChange = entry.withdrawn
+      ? wasWithdrawn
+        ? {}
+        : {
+            state: "withdrawn" as const,
+            withdrawnAt: new Date(),
+            unlockRequestedAt: null,
+          }
+      : wasWithdrawn
+        ? { state: "submitted" as const, withdrawnAt: null }
+        : {};
+    if (entry.withdrawn && !wasWithdrawn) {
       result.entriesWithdrawn += 1;
     }
 
-    if (existing.listOwner === "player") {
-      // Edit-takeover (ADR-026): the player owns the list, so the push applies
-      // nothing except an explicit withdrawal. Updating the player fields is
-      // skipped too, because a pushed email change could re-steer auto-match.
-      await repos.deckCheck.updateEntry(existing.id, {
-        ...withdrawalChanged,
-        providerPushIgnoredAt: new Date(),
-      });
-      result.entriesIgnored += 1;
-      continue;
-    }
-
     if (existing.contentHash === contentHash) {
-      // Identical list: refresh identity and withdrawal state, keep the check
-      // state and every tick untouched (idempotent re-push).
+      // Identical list: refresh identity, consent, and withdrawal state, keep
+      // the lifecycle state and every tick untouched (idempotent re-push).
       await repos.deckCheck.updateEntry(existing.id, {
         ...identity,
         ...consent,
-        ...withdrawalChanged,
+        ...withdrawalChange,
       });
       await autoMatchEntry(repos, existing.id, identity.playerEmail);
       result.entriesUnchanged += 1;
       continue;
     }
 
+    // Changed list: the provider always wins (ADR-027). The push lands the
+    // entry in 'submitted' from any state — discarding a player's in-progress
+    // edit and pending unlock request, and invalidating a review with a
+    // stored diff for the judge.
     const previousCards = await repos.deckCheck.listCardsForEntry(existing.id);
-    const wasChecked = existing.checkStatus !== "unchecked";
+    const wasReviewed = existing.state === "approved" || existing.state === "checked";
     await repos.deckCheck.updateEntry(existing.id, {
       ...identity,
       ...consent,
-      ...withdrawalChanged,
       contentHash,
-      ...(wasChecked
-        ? {
-            checkStatus: "unchecked" as const,
-            checkedBy: null,
-            checkedAt: null,
-            changeSummary: JSON.stringify(diffCardLines(storedCardLines(previousCards), lines)),
-          }
-        : {}),
+      state: entry.withdrawn ? "withdrawn" : "submitted",
+      withdrawnAt: entry.withdrawn ? (existing.withdrawnAt ?? new Date()) : null,
+      reviewOutcome: null,
+      checkedBy: null,
+      checkedAt: null,
+      approvedBy: null,
+      approvedAt: null,
+      unlockRequestedAt: null,
+      preEditLines: null,
+      changeSummary: wasReviewed
+        ? JSON.stringify(diffCardLines(storedCardLines(previousCards), lines))
+        : null,
     });
     await repos.deckCheck.replaceEntryCards(existing.id, cardRows);
     await autoMatchEntry(repos, existing.id, identity.playerEmail);
-    if (wasChecked) {
+    if (wasReviewed) {
       result.checksInvalidated += 1;
     }
     result.entriesUpdated += 1;

@@ -105,6 +105,9 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       allowedSets: null,
     });
     eventId = event.id;
+    // Most of this suite exercises the lenient lock mode (self-service
+    // corrections until the deadline); the strict default gets its own block.
+    await repos.deckCheck.updateEvent(groupId, eventId, { listLockMode: "at_deadline" });
 
     const keyRes = await adminApp.fetch(
       req("POST", `/friend-groups/${GROUP_SLUG}/deck-check-keys`, { label: "player-itest" }),
@@ -253,9 +256,13 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       const raw = await res.text();
       expect(raw).not.toContain("judge-private note");
       expect(raw).not.toContain("checkedBy");
-      const body = JSON.parse(raw) as { entry: { eventName: string; canEdit: boolean } };
+      const body = JSON.parse(raw) as {
+        entry: { eventName: string; state: string; canEdit: boolean };
+      };
       expect(body.entry.eventName).toBe("Self-Service Cup");
-      expect(body.entry.canEdit).toBe(true);
+      // A provider-fed entry arrives submitted, which is locked (ADR-027).
+      expect(body.entry.state).toBe("submitted");
+      expect(body.entry.canEdit).toBe(false);
     });
   });
 
@@ -332,53 +339,65 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       expect(pageBody.linkedEntry).not.toBeNull();
     });
 
-    it("a linked player's submission edits their entry (takeover plus invalidation)", async () => {
+    it("a token submission replaces a submitted entry, but a reviewed one is locked", async () => {
       const entry = await repos.deckCheck.getEntryByExternalId(eventId, "p-entry-1");
-      await judgeApp.fetch(
-        req("PUT", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry?.id}/verdict`, {
-          checkStatus: "checked",
-        }),
-      );
 
+      // Submitted entry: the token link replaces and resubmits in one step.
       const res = await playerApp.fetch(
         req("POST", `/deck-check/submissions/${submissionToken}`, { deckId: playerDeckId }),
       );
       expect(res.status).toBe(200);
       const body = (await res.json()) as { entryId: string | null };
       expect(body.entryId).toBe(entry?.id);
-
       const after = await repos.deckCheck.getEntryByExternalId(eventId, "p-entry-1");
-      expect(after?.listOwner).toBe("player");
-      // The pushed list had quantity 3 of the same card, the deck has 3 too,
-      // but the push also carried only main-zone lines; an identical hash is
-      // possible, so assert the takeover rather than a forced invalidation.
+      expect(after?.state).toBe("submitted");
       expect(after?.claimedUserId).toBe(PLAYER_ID);
+
+      // Once a judge approved it, the token link is locked out.
+      await judgeApp.fetch(
+        req("PUT", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry?.id}/state`, {
+          state: "approved",
+        }),
+      );
+      const locked = await playerApp.fetch(
+        req("POST", `/deck-check/submissions/${submissionToken}`, { deckId: playerDeckId }),
+      );
+      expect(locked.status).toBe(409);
+
+      // Revoke so later tests see a submitted entry again.
+      await judgeApp.fetch(
+        req("PUT", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry?.id}/state`, {
+          state: "submitted",
+        }),
+      );
     });
 
-    it("a provider push to a player-owned entry is ignored except withdrawal", async () => {
+    it("a provider push always wins, replacing a player-submitted list", async () => {
       const before = await repos.deckCheck.getEntryByExternalId(eventId, "p-entry-1");
       const res = await push([
         {
           externalId: "p-entry-1",
           playerName: "Renamed By Provider",
-          playerEmail: "other@test.com",
+          playerEmail: PLAYER_EMAIL,
           cards: [{ name: CARD_FURY_UNIT.name, quantity: 1, section: "main" }],
         },
       ]);
-      const result = (await res.json()) as { entriesIgnored: number };
-      expect(result.entriesIgnored).toBe(1);
+      const result = (await res.json()) as { entriesUpdated: number; entriesIgnored: number };
+      expect(result.entriesUpdated).toBe(1);
+      // Deprecated field, always 0 since ADR-027 removed edit-takeover.
+      expect(result.entriesIgnored).toBe(0);
 
       const after = await repos.deckCheck.getEntryByExternalId(eventId, "p-entry-1");
-      expect(after?.playerName).toBe(before?.playerName);
-      expect(after?.playerEmail).toBe(before?.playerEmail);
-      expect(after?.contentHash).toBe(before?.contentHash);
-      expect(after?.providerPushIgnoredAt).not.toBeNull();
+      expect(after?.playerName).toBe("Renamed By Provider");
+      expect(after?.contentHash).not.toBe(before?.contentHash);
+      expect(after?.state).toBe("submitted");
 
       const withdraw = await push([
         { externalId: "p-entry-1", playerName: "X", withdrawn: true, cards: [] },
       ]);
       expect(withdraw.status).toBe(200);
       const withdrawn = await repos.deckCheck.getEntryByExternalId(eventId, "p-entry-1");
+      expect(withdrawn?.state).toBe("withdrawn");
       expect(withdrawn?.withdrawnAt).not.toBeNull();
     });
 
@@ -396,8 +415,8 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
 
       // Viewing still works; the list badges the entry as withdrawn.
       const list = await playerApp.fetch(req("GET", "/deck-check/mine"));
-      const body = (await list.json()) as { items: { withdrawn: boolean }[] };
-      expect(body.items.some((item) => item.withdrawn)).toBe(true);
+      const body = (await list.json()) as { items: { state: string }[] };
+      expect(body.items.some((item) => item.state === "withdrawn")).toBe(true);
     });
 
     it("a user without a linked entry creates one openrift: entry, upserted on re-submit", async () => {
@@ -417,7 +436,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       const entry = await repos.deckCheck.getEntryByExternalId(eventId, `openrift:${STRANGER_ID}`);
       expect(entry?.id).toBe(firstBody.entryId);
       expect(entry?.claimSource).toBe("self_submit");
-      expect(entry?.listOwner).toBe("player");
+      expect(entry?.state).toBe("submitted");
       expect(entry?.playerEmail).toBe(STRANGER_EMAIL);
       expect(entry?.riotId).toBe("Stranger#EUW");
 
@@ -550,6 +569,270 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       expect(view.status).toBe(200);
       const body = (await view.json()) as { entry: { canEdit: boolean } };
       expect(body.entry.canEdit).toBe(false);
+    });
+  });
+
+  describe("player lifecycle (ADR-027)", () => {
+    let entryId2: string;
+
+    beforeAll(async () => {
+      // Re-open the window the previous block closed.
+      await adminApp.fetch(
+        req("PATCH", `/friend-groups/${GROUP_SLUG}/checks/${eventId}`, {
+          submissionsCloseAt: null,
+        }),
+      );
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, `openrift:${STRANGER_ID}`);
+      // oxlint-disable-next-line typescript/no-non-null-assertion -- created by the earlier suite
+      entryId2 = entry!.id;
+    });
+
+    it("rejects a list edit while the entry is submitted", async () => {
+      const res = await strangerApp.fetch(
+        req("PUT", `/deck-check/mine/${entryId2}/list`, { deckId: strangerDeckId }),
+      );
+      expect(res.status).toBe(409);
+    });
+
+    it("unlocks a submitted entry self-service, then resubmits with a diff", async () => {
+      const unlock = await strangerApp.fetch(req("POST", `/deck-check/mine/${entryId2}/unlock`));
+      expect(unlock.status).toBe(200);
+      const unlocked = (await unlock.json()) as { entry: { state: string; canEdit: boolean } };
+      expect(unlocked.entry.state).toBe("editable");
+      expect(unlocked.entry.canEdit).toBe(true);
+
+      const edit = await strangerApp.fetch(
+        req("PUT", `/deck-check/mine/${entryId2}/list`, {
+          cards: [{ name: CARD_FURY_UNIT.name, quantity: 3, section: "main" }],
+        }),
+      );
+      expect(edit.status).toBe(200);
+      // The edit alone never changes the state.
+      const midway = await repos.deckCheck.getEntry(eventId, entryId2);
+      expect(midway?.state).toBe("editable");
+
+      const submit = await strangerApp.fetch(req("POST", `/deck-check/mine/${entryId2}/submit`));
+      expect(submit.status).toBe(200);
+      const submitted = await repos.deckCheck.getEntry(eventId, entryId2);
+      expect(submitted?.state).toBe("submitted");
+      // The judge sees what changed against the pre-unlock list.
+      expect(submitted?.changeSummary).not.toBeNull();
+    });
+
+    it("an approved entry only files an unlock request, which a judge grants or declines", async () => {
+      await judgeApp.fetch(
+        req("PUT", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entryId2}/state`, {
+          state: "approved",
+        }),
+      );
+
+      // Direct unlock files a request instead.
+      const request = await strangerApp.fetch(req("POST", `/deck-check/mine/${entryId2}/unlock`));
+      expect(request.status).toBe(200);
+      const requested = (await request.json()) as {
+        entry: { state: string; unlockRequested: boolean };
+      };
+      expect(requested.entry.state).toBe("approved");
+      expect(requested.entry.unlockRequested).toBe(true);
+
+      // The player can cancel their own request.
+      const cancel = await strangerApp.fetch(req("DELETE", `/deck-check/mine/${entryId2}/unlock`));
+      expect(
+        ((await cancel.json()) as { entry: { unlockRequested: boolean } }).entry.unlockRequested,
+      ).toBe(false);
+
+      // A judge can decline a request, keeping the approval.
+      await strangerApp.fetch(req("POST", `/deck-check/mine/${entryId2}/unlock`));
+      const deny = await judgeApp.fetch(
+        req(
+          "DELETE",
+          `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entryId2}/unlock-request`,
+        ),
+      );
+      expect(deny.status).toBe(200);
+      let reloaded = await repos.deckCheck.getEntry(eventId, entryId2);
+      expect(reloaded?.state).toBe("approved");
+      expect(reloaded?.unlockRequestedAt).toBeNull();
+
+      // Granting is the transition to editable; the approval fields clear.
+      await strangerApp.fetch(req("POST", `/deck-check/mine/${entryId2}/unlock`));
+      const grant = await judgeApp.fetch(
+        req("PUT", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entryId2}/state`, {
+          state: "editable",
+        }),
+      );
+      expect(grant.status).toBe(200);
+      reloaded = await repos.deckCheck.getEntry(eventId, entryId2);
+      expect(reloaded?.state).toBe("editable");
+      expect(reloaded?.unlockRequestedAt).toBeNull();
+      expect(reloaded?.approvedBy).toBeNull();
+    });
+
+    it("a rejection hands the list back with an issue recorded", async () => {
+      // Lock it again on the player's behalf, then reject it.
+      await judgeApp.fetch(
+        req("PUT", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entryId2}/state`, {
+          state: "submitted",
+        }),
+      );
+      const reject = await judgeApp.fetch(
+        req("PUT", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entryId2}/state`, {
+          state: "editable",
+          reviewOutcome: "issue",
+          playerMessage: "Fix the rune count",
+        }),
+      );
+      expect(reject.status).toBe(200);
+
+      const reloaded = await repos.deckCheck.getEntry(eventId, entryId2);
+      expect(reloaded?.state).toBe("editable");
+      expect(reloaded?.reviewOutcome).toBe("issue");
+      expect(reloaded?.playerMessage).toBe("Fix the rune count");
+
+      const view = await strangerApp.fetch(req("GET", `/deck-check/mine/${entryId2}`));
+      const body = (await view.json()) as {
+        entry: { state: string; reviewOutcome: string | null; playerMessage: string | null };
+      };
+      expect(body.entry.state).toBe("editable");
+      expect(body.entry.reviewOutcome).toBe("issue");
+      expect(body.entry.playerMessage).toBe("Fix the rune count");
+    });
+
+    it("auto-submits an entry left editable when the deadline passes", async () => {
+      const closeAt = "2020-06-01T12:00:00.000Z";
+      await adminApp.fetch(
+        req("PATCH", `/friend-groups/${GROUP_SLUG}/checks/${eventId}`, {
+          submissionsCloseAt: closeAt,
+        }),
+      );
+
+      // Any judge or player load settles the entry; use the judge event list.
+      const list = await judgeApp.fetch(
+        req("GET", `/friend-groups/${GROUP_SLUG}/checks/${eventId}`),
+      );
+      expect(list.status).toBe(200);
+      const settled = await repos.deckCheck.getEntry(eventId, entryId2);
+      expect(settled?.state).toBe("submitted");
+      expect(settled?.submittedAt?.toISOString()).toBe(closeAt);
+
+      // After the deadline the player is fully locked out...
+      const unlock = await strangerApp.fetch(req("POST", `/deck-check/mine/${entryId2}/unlock`));
+      expect(unlock.status).toBe(409);
+      const submit = await strangerApp.fetch(req("POST", `/deck-check/mine/${entryId2}/submit`));
+      expect(submit.status).toBe(409);
+
+      // ...while judges keep working, deadline or not.
+      const approve = await judgeApp.fetch(
+        req("PUT", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entryId2}/state`, {
+          state: "approved",
+        }),
+      );
+      expect(approve.status).toBe(200);
+
+      await adminApp.fetch(
+        req("PATCH", `/friend-groups/${GROUP_SLUG}/checks/${eventId}`, {
+          submissionsCloseAt: null,
+        }),
+      );
+    });
+  });
+
+  describe("on_submit lock mode (TR 401.3)", () => {
+    let entryId2: string;
+
+    beforeAll(async () => {
+      const patch = await adminApp.fetch(
+        req("PATCH", `/friend-groups/${GROUP_SLUG}/checks/${eventId}`, {
+          listLockMode: "on_submit",
+        }),
+      );
+      expect(patch.status).toBe(200);
+      expect(((await patch.json()) as { listLockMode: string }).listLockMode).toBe("on_submit");
+
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, `openrift:${STRANGER_ID}`);
+      // oxlint-disable-next-line typescript/no-non-null-assertion -- created by the earlier suite
+      entryId2 = entry!.id;
+      // The previous block left it approved; bring it back to submitted.
+      await judgeApp.fetch(
+        req("PUT", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entryId2}/state`, {
+          state: "submitted",
+        }),
+      );
+    });
+
+    it("a submitted deck only files an unlock request, never unlocks itself", async () => {
+      const unlock = await strangerApp.fetch(req("POST", `/deck-check/mine/${entryId2}/unlock`));
+      expect(unlock.status).toBe(200);
+      const body = (await unlock.json()) as {
+        entry: { state: string; unlockRequested: boolean; canUnlock: boolean };
+      };
+      expect(body.entry.state).toBe("submitted");
+      expect(body.entry.unlockRequested).toBe(true);
+      expect(body.entry.canUnlock).toBe(false);
+
+      // The token link cannot replace a submitted list either.
+      const replace = await strangerApp.fetch(
+        req("POST", `/deck-check/submissions/${submissionToken}`, { deckId: strangerDeckId }),
+      );
+      expect(replace.status).toBe(409);
+    });
+
+    it("judges see no list content while the player edits", async () => {
+      // Grant the pending request: the entry becomes editable.
+      const grant = await judgeApp.fetch(
+        req("PUT", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entryId2}/state`, {
+          state: "editable",
+        }),
+      );
+      expect(grant.status).toBe(200);
+
+      const detailRes = await judgeApp.fetch(
+        req("GET", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entryId2}`),
+      );
+      expect(detailRes.status).toBe(200);
+      const detail = (await detailRes.json()) as {
+        entry: { state: string };
+        cards: unknown[];
+        violations: unknown[];
+        typeCounts: unknown[];
+      };
+      expect(detail.entry.state).toBe("editable");
+      expect(detail.cards).toHaveLength(0);
+      expect(detail.violations).toHaveLength(0);
+      expect(detail.typeCounts).toHaveLength(0);
+
+      const listRes = await judgeApp.fetch(
+        req("GET", `/friend-groups/${GROUP_SLUG}/checks/${eventId}`),
+      );
+      const list = (await listRes.json()) as {
+        entries: { id: string; copyCount: number; verifiedCopyCount: number }[];
+      };
+      const summary = list.entries.find((candidate) => candidate.id === entryId2);
+      expect(summary?.copyCount).toBe(0);
+      expect(summary?.verifiedCopyCount).toBe(0);
+
+      // Card-level judge actions are rejected while the list is hidden.
+      const cards = await repos.deckCheck.listCardsForEntry(entryId2);
+      const tick = await judgeApp.fetch(
+        req(
+          "PUT",
+          `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entryId2}/cards/${cards[0]!.id}`,
+          { copyIndex: 0, found: true },
+        ),
+      );
+      expect(tick.status).toBe(409);
+    });
+
+    it("submitting delivers the list to the judges again", async () => {
+      const submit = await strangerApp.fetch(req("POST", `/deck-check/mine/${entryId2}/submit`));
+      expect(submit.status).toBe(200);
+
+      const detailRes = await judgeApp.fetch(
+        req("GET", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entryId2}`),
+      );
+      const detail = (await detailRes.json()) as { entry: { state: string }; cards: unknown[] };
+      expect(detail.entry.state).toBe("submitted");
+      expect(detail.cards.length).toBeGreaterThan(0);
     });
   });
 });

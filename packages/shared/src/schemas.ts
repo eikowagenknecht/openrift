@@ -674,15 +674,26 @@ export const updateDeckCheckEventSchema = z.object({
   format: z.string().min(1).max(60).nullish(),
   allowedSets: z.array(z.string().min(1).max(20)).max(50).nullish(),
   status: z.enum(["active", "archived"]).optional(),
+  /** When a submitted list locks against player changes (TR 401.3, ADR-027). */
+  listLockMode: z.enum(["on_submit", "at_deadline"]).optional(),
   /** Player self-submission opt-in (ADR-026); enabling mints a token server-side. */
   allowSelfSubmission: z.boolean().optional(),
   submissionsCloseAt: z.iso.datetime({ offset: true }).nullish(),
 });
 
-export const deckCheckVerdictSchema = z.object({
-  /** `unchecked` re-opens a checked entry. */
-  checkStatus: z.enum(["unchecked", "checked", "issue"]),
+/**
+ * A judge moving an entry through the lifecycle (ADR-027). `withdrawn` is not
+ * a judge target (it is the provider's signal). The service validates the
+ * transition matrix; `reviewOutcome` is required when targeting `checked`,
+ * marks a rejection when targeting `editable`, and records an in-place issue
+ * when "targeting" `submitted` from `submitted` (for unclaimed entries).
+ */
+export const deckCheckEntryStateChangeSchema = z.object({
+  state: z.enum(["editable", "submitted", "approved", "checked"]),
+  reviewOutcome: z.enum(["ok", "issue"]).nullish(),
   notes: z.string().max(4000).nullish(),
+  /** Optional player-facing message stored alongside the transition. */
+  playerMessage: z.string().max(2000).nullish(),
 });
 
 export const updateDeckCheckEntrySchema = z.object({

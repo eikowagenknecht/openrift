@@ -270,8 +270,9 @@ describe.skipIf(!ownerCtx)("deck-check routes (integration, ADR-025)", () => {
       );
       expect(tickRes.status).toBe(204);
       const verdictRes = await judgeApp.fetch(
-        req("PUT", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}/verdict`, {
-          checkStatus: "checked",
+        req("PUT", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}/state`, {
+          state: "checked",
+          reviewOutcome: "ok",
           notes: "clean",
         }),
       );
@@ -280,17 +281,19 @@ describe.skipIf(!ownerCtx)("deck-check routes (integration, ADR-025)", () => {
       // Identical re-push: check state untouched.
       await push([entryPayload()]);
       let reloaded = await repos.deckCheck.getEntryByExternalId(eventId, "entry-1");
-      expect(reloaded?.checkStatus).toBe("checked");
+      expect(reloaded?.state).toBe("checked");
+      expect(reloaded?.reviewOutcome).toBe("ok");
       expect(reloaded?.checkedBy).toBe(JUDGE_ID);
 
-      // Changed list: reverts to unchecked, ticks reset, change summary stored.
+      // Changed list: back to submitted, ticks reset, change summary stored.
       await push([
         entryPayload({
           cards: [{ name: CARD_FURY_UNIT.name, quantity: 2, section: "main" }],
         }),
       ]);
       reloaded = await repos.deckCheck.getEntryByExternalId(eventId, "entry-1");
-      expect(reloaded?.checkStatus).toBe("unchecked");
+      expect(reloaded?.state).toBe("submitted");
+      expect(reloaded?.reviewOutcome).toBeNull();
       expect(reloaded?.checkedBy).toBeNull();
       expect(reloaded?.checkedAt).toBeNull();
       expect(reloaded?.changeSummary?.changed).toHaveLength(1);
@@ -308,9 +311,10 @@ describe.skipIf(!ownerCtx)("deck-check routes (integration, ADR-025)", () => {
       expect(staleTick.status).toBe(409);
     });
 
-    it("withdraws via the explicit flag and restores on a flagless re-push", async () => {
+    it("withdraws via the explicit flag and restores to submitted on a flagless re-push", async () => {
       await push([entryPayload({ externalId: "entry-2", withdrawn: true })]);
       let entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-2");
+      expect(entry?.state).toBe("withdrawn");
       expect(entry?.withdrawnAt).not.toBeNull();
 
       // The other entry was absent from that push and is untouched.
@@ -318,6 +322,7 @@ describe.skipIf(!ownerCtx)("deck-check routes (integration, ADR-025)", () => {
 
       await push([entryPayload({ externalId: "entry-2" })]);
       entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-2");
+      expect(entry?.state).toBe("submitted");
       expect(entry?.withdrawnAt).toBeNull();
     });
 
@@ -429,8 +434,8 @@ describe.skipIf(!ownerCtx)("deck-check routes (integration, ADR-025)", () => {
         const lateCard = cards.find((card) => card.rawName === "Totally Unknown Card");
         expect(lateCard?.matchStatus).toBe("matched");
         expect(lateCard?.resolvedCardId).toBe(inserted.id);
-        // Check state and the content hash were untouched by re-resolution.
-        expect(entry?.checkStatus).toBe("unchecked");
+        // Lifecycle state and the content hash were untouched by re-resolution.
+        expect(entry?.state).toBe("submitted");
       } finally {
         await db
           .updateTable("deckCheckEntryCards")
@@ -602,6 +607,124 @@ describe.skipIf(!ownerCtx)("deck-check routes (integration, ADR-025)", () => {
       await adminApp.fetch(
         req("PATCH", `/friend-groups/${GROUP_SLUG}/checks/${eventId}`, { status: "active" }),
       );
+    });
+  });
+
+  describe("lifecycle transitions (ADR-027)", () => {
+    /**
+     * Issues a judge state transition for one entry.
+     * @returns The route response.
+     */
+    function transition(entryId: string, body: Record<string, unknown>): Promise<Response> {
+      return judgeApp.fetch(
+        req("PUT", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entryId}/state`, body),
+      );
+    }
+
+    it("returns 403 for a plain member", async () => {
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-resolution");
+      const res = await memberApp.fetch(
+        req("PUT", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}/state`, {
+          state: "approved",
+        }),
+      );
+      expect(res.status).toBe(403);
+    });
+
+    it("approves a submitted entry, recording the judge and outcome", async () => {
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-resolution");
+      const res = await transition(entry!.id, { state: "approved" });
+      expect(res.status).toBe(200);
+
+      const approved = await repos.deckCheck.getEntryByExternalId(eventId, "entry-resolution");
+      expect(approved?.state).toBe("approved");
+      expect(approved?.reviewOutcome).toBe("ok");
+      expect(approved?.approvedBy).toBe(JUDGE_ID);
+      expect(approved?.approvedAt).not.toBeNull();
+    });
+
+    it("rejects approving an entry that is not submitted", async () => {
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-resolution");
+      const res = await transition(entry!.id, { state: "approved" });
+      expect(res.status).toBe(409);
+    });
+
+    it("revokes an approval back to submitted", async () => {
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-resolution");
+      const res = await transition(entry!.id, { state: "submitted" });
+      expect(res.status).toBe(200);
+
+      const revoked = await repos.deckCheck.getEntryByExternalId(eventId, "entry-resolution");
+      expect(revoked?.state).toBe("submitted");
+      expect(revoked?.reviewOutcome).toBeNull();
+      expect(revoked?.approvedBy).toBeNull();
+    });
+
+    it("rejects handing an unclaimed entry to a player, but records an issue in place", async () => {
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-resolution");
+      const unlock = await transition(entry!.id, { state: "editable" });
+      expect(unlock.status).toBe(409);
+
+      const mark = await transition(entry!.id, { state: "submitted", reviewOutcome: "issue" });
+      expect(mark.status).toBe(200);
+      const marked = await repos.deckCheck.getEntryByExternalId(eventId, "entry-resolution");
+      expect(marked?.state).toBe("submitted");
+      expect(marked?.reviewOutcome).toBe("issue");
+    });
+
+    it("requires an outcome to mark an entry checked", async () => {
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-resolution");
+      const missing = await transition(entry!.id, { state: "checked" });
+      expect(missing.status).toBe(422);
+
+      const issue = await transition(entry!.id, { state: "checked", reviewOutcome: "issue" });
+      expect(issue.status).toBe(200);
+      const checked = await repos.deckCheck.getEntryByExternalId(eventId, "entry-resolution");
+      expect(checked?.state).toBe("checked");
+      expect(checked?.reviewOutcome).toBe("issue");
+      expect(checked?.checkedBy).toBe(JUDGE_ID);
+    });
+
+    it("re-opens a checked entry to submitted", async () => {
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-resolution");
+      const res = await transition(entry!.id, { state: "submitted" });
+      expect(res.status).toBe(200);
+      const reopened = await repos.deckCheck.getEntryByExternalId(eventId, "entry-resolution");
+      expect(reopened?.state).toBe("submitted");
+      expect(reopened?.checkedBy).toBeNull();
+      expect(reopened?.reviewOutcome).toBeNull();
+    });
+
+    it("never transitions a withdrawn entry", async () => {
+      await push([entryPayload({ externalId: "entry-resolution", withdrawn: true })]);
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-resolution");
+      expect(entry?.state).toBe("withdrawn");
+
+      const res = await transition(entry!.id, { state: "approved" });
+      expect(res.status).toBe(409);
+
+      await push([entryPayload({ externalId: "entry-resolution" })]);
+    });
+
+    it("invalidates an approval when a changed list is pushed", async () => {
+      await transition(
+        (await repos.deckCheck.getEntryByExternalId(eventId, "entry-resolution"))!.id,
+        { state: "approved" },
+      );
+
+      const res = await push([
+        entryPayload({
+          externalId: "entry-resolution",
+          cards: [{ name: CARD_FURY_UNIT.name, quantity: 9, section: "main" }],
+        }),
+      ]);
+      const result = (await res.json()) as { checksInvalidated: number };
+      expect(result.checksInvalidated).toBe(1);
+
+      const reloaded = await repos.deckCheck.getEntryByExternalId(eventId, "entry-resolution");
+      expect(reloaded?.state).toBe("submitted");
+      expect(reloaded?.approvedBy).toBeNull();
+      expect(reloaded?.changeSummary).not.toBeNull();
     });
   });
 

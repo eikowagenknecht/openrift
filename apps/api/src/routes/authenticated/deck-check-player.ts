@@ -41,8 +41,13 @@ import {
   createSelfSubmittedEntry,
   lazyMatchEntriesForUser,
   resolvePlayerCardRows,
-  submissionWindowOpen,
 } from "../../services/deck-check-player.js";
+import {
+  settleExpiredEditable,
+  submissionWindowOpen,
+  submitEntryList,
+  unlockEntryToEditable,
+} from "../../services/deck-check-states.js";
 
 // ─── Mappers ────────────────────────────────────────────────────────────────
 
@@ -54,15 +59,22 @@ function isoDate(value: Date | string | null): string | null {
 }
 
 function toPlayerSummary(row: PlayerDeckCheckEntryRow): PlayerDeckCheckEntrySummaryResponse {
+  // The list view shows the effective state without persisting the deadline
+  // settle: an editable entry past the close date reads as submitted; the
+  // actual transition happens when the entry (or its event) is next loaded.
+  const windowOpen = submissionWindowOpen({
+    status: row.eventStatus,
+    submissionsCloseAt: row.submissionsCloseAt,
+  });
   return {
     id: row.id,
     eventName: row.eventName,
     eventDate: isoDate(row.eventDate),
     groupName: row.groupName,
     groupSlug: row.groupSlug,
-    checkStatus: row.checkStatus,
-    changedSinceCheck: row.changeSummary !== null,
-    withdrawn: row.withdrawnAt !== null,
+    state: row.state === "editable" && !windowOpen ? "submitted" : row.state,
+    reviewOutcome: row.reviewOutcome,
+    unlockRequested: row.unlockRequestedAt !== null,
     playerMessage: row.playerMessage,
     submittedAt: row.submittedAt?.toISOString() ?? null,
     updatedAt: row.updatedAt.toISOString(),
@@ -82,6 +94,15 @@ async function buildPlayerDetail(
 ): Promise<PlayerDeckCheckEntryDetailResponse> {
   const cards = await repos.deckCheck.listCardsForEntry(row.id);
   const advisories = await buildEntryAdvisories(repos, event, cards);
+  const windowOpen = submissionWindowOpen(event);
+  // In 'on_submit' mode submitting is the delivery (TR 401.3): the player can
+  // only ever request an unlock. In 'at_deadline' mode a not-yet-reviewed
+  // submission unlocks self-service until the window closes.
+  const canUnlock = windowOpen && row.state === "submitted" && event.listLockMode === "at_deadline";
+  const canRequestUnlock =
+    windowOpen &&
+    row.unlockRequestedAt === null &&
+    (row.state === "approved" || (row.state === "submitted" && !canUnlock));
   return {
     entry: {
       id: row.id,
@@ -90,16 +111,19 @@ async function buildPlayerDetail(
       groupName: row.groupName,
       format: event.format,
       allowedSets: event.allowedSets,
-      checkStatus: row.checkStatus,
-      changedSinceCheck: row.changeSummary !== null,
-      withdrawn: row.withdrawnAt !== null,
+      state: row.state,
+      reviewOutcome: row.reviewOutcome,
+      unlockRequested: row.unlockRequestedAt !== null,
       playerMessage: row.playerMessage,
-      listOwner: row.listOwner,
       allowNameSharing: row.allowNameSharing,
       allowRiotIdSharing: row.allowRiotIdSharing,
       submittedAt: row.submittedAt?.toISOString() ?? null,
+      submissionsCloseAt: event.submissionsCloseAt?.toISOString() ?? null,
       updatedAt: row.updatedAt.toISOString(),
-      canEdit: submissionWindowOpen(event) && row.withdrawnAt === null,
+      windowOpen,
+      canEdit: windowOpen && row.state === "editable",
+      canUnlock,
+      canRequestUnlock,
     },
     cards: cards.map((card) => toDeckCheckEntryCardResponse(card)),
     ...advisories,
@@ -126,6 +150,29 @@ function toPreviewCards(cardRows: NewDeckCheckEntryCard[]): DeckCheckEntryCardRe
   }));
 }
 
+/**
+ * Loads one of the caller's entries with its event, settling the deadline
+ * auto-submit on the way (ADR-027). Not-owned and missing entries are 404
+ * (never 403), so existence is not leaked.
+ * @returns The (possibly settled) row and its event.
+ */
+async function loadOwnEntry(
+  repos: Repos,
+  userId: string,
+  entryId: string,
+): Promise<{ row: PlayerDeckCheckEntryRow; event: DeckCheckEvent }> {
+  const row = await repos.deckCheck.getEntryForPlayer(entryId, userId);
+  if (!row) {
+    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Entry not found");
+  }
+  const event = await repos.deckCheck.getEventById(row.eventId);
+  if (!event) {
+    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Entry not found");
+  }
+  const settled = await settleExpiredEditable(repos, event, row);
+  return { row: { ...row, ...settled }, event };
+}
+
 async function loadOpenSubmissionEvent(
   repos: Repos,
   token: string,
@@ -140,10 +187,13 @@ async function loadOpenSubmissionEvent(
 }
 
 /**
- * Persists a submission: an edit of the caller's linked entry when one exists
- * (including edit-takeover of a provider entry), a fresh self-submitted entry
- * otherwise. A withdrawn linked entry blocks both paths so a pulled player
- * cannot sidestep the withdrawal through the token link.
+ * Persists a submission: replaces and resubmits the caller's linked entry
+ * while it is still in the player's hands (`editable` or `submitted` — the
+ * latter being the self-service unlock, replace, and resubmit composed into
+ * one step, ADR-027); creates a fresh self-submitted entry otherwise. An
+ * `approved` or `checked` entry is locked (the deck page handles unlock
+ * requests), and a withdrawn one blocks both paths so a pulled player cannot
+ * sidestep the withdrawal through the token link.
  * @returns The written entry.
  */
 async function persistSubmission(
@@ -156,14 +206,30 @@ async function persistSubmission(
 ): Promise<DeckCheckEntry> {
   const linked = await repos.deckCheck.getLinkedEntryForUser(event.id, userId);
   if (linked) {
-    if (linked.withdrawnAt) {
+    if (linked.state === "withdrawn") {
       throw new AppError(
         409,
         ERROR_CODES.CONFLICT,
         "Your entry was withdrawn by the organizer; contact a judge",
       );
     }
-    return applyPlayerList(repos, linked, lines, cardRows, consent);
+    if (linked.state === "approved" || linked.state === "checked") {
+      throw new AppError(
+        409,
+        ERROR_CODES.CONFLICT,
+        "Your deck was already reviewed by a judge; ask for it to be unlocked from your deck page",
+      );
+    }
+    if (linked.state === "submitted" && event.listLockMode === "on_submit") {
+      // Submitting was the delivery (TR 401.3): the link cannot replace it.
+      throw new AppError(
+        409,
+        ERROR_CODES.CONFLICT,
+        "Your deck is already submitted; ask for it to be unlocked from your deck page",
+      );
+    }
+    const replaced = await applyPlayerList(repos, linked, lines, cardRows, consent);
+    return submitEntryList(repos, replaced);
   }
 
   // A judge-unlinked self-submitted entry still occupies the caller's
@@ -232,10 +298,9 @@ const editMyEntry = createRoute({
   tags: ["Deck Check"],
   security: cookieAuth,
   description:
-    "Replaces the caller's entry list from an own deck or a deck code " +
-    "(ADR-026). Rides ADR-025's invalidation: a changed list on a checked " +
-    "entry reverts it for the judge to re-verify. Allowed while the event is " +
-    "open, independent of the self-submission flag.",
+    "Replaces the caller's entry list from an own deck or a deck code. Only " +
+    "allowed while the entry is editable (ADR-027); submitting it for review " +
+    "is the separate submit action. Independent of the self-submission flag.",
   request: {
     params: playerDeckCheckEntryParamSchema,
     body: {
@@ -249,6 +314,60 @@ const editMyEntry = createRoute({
       description: "The replaced (or previewed) list with advisory findings",
     },
     ...errorResponses(400, 401, 404, 409, 422),
+  },
+});
+
+const submitMyEntry = createRoute({
+  method: "post",
+  path: "/deck-check/mine/{entryId}/submit",
+  tags: ["Deck Check"],
+  security: cookieAuth,
+  description:
+    "Sends the caller's editable entry for review (ADR-027): the list locks " +
+    "and the judge sees a diff against the version they last reviewed.",
+  request: { params: playerDeckCheckEntryParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: playerDeckCheckEntryDetailResponseSchema } },
+      description: "The updated player entry payload",
+    },
+    ...errorResponses(401, 404, 409),
+  },
+});
+
+const unlockMyEntry = createRoute({
+  method: "post",
+  path: "/deck-check/mine/{entryId}/unlock",
+  tags: ["Deck Check"],
+  security: cookieAuth,
+  description:
+    "Unlocks the caller's entry for editing (ADR-027). A submitted entry " +
+    "unlocks immediately only in the event's at_deadline lock mode; otherwise " +
+    "(and always for an approved entry) this files an unlock request a judge " +
+    "grants or declines.",
+  request: { params: playerDeckCheckEntryParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: playerDeckCheckEntryDetailResponseSchema } },
+      description: "The updated player entry payload",
+    },
+    ...errorResponses(401, 404, 409),
+  },
+});
+
+const cancelMyUnlockRequest = createRoute({
+  method: "delete",
+  path: "/deck-check/mine/{entryId}/unlock",
+  tags: ["Deck Check"],
+  security: cookieAuth,
+  description: "Cancels the caller's pending unlock request (ADR-027).",
+  request: { params: playerDeckCheckEntryParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: playerDeckCheckEntryDetailResponseSchema } },
+      description: "The updated player entry payload",
+    },
+    ...errorResponses(401, 404),
   },
 });
 
@@ -314,14 +433,7 @@ export const deckCheckPlayerRoute = deckCheckPlayerApp
     const repos = c.get("repos");
     const userId = getUserId(c);
     const { entryId } = c.req.valid("param");
-    const row = await repos.deckCheck.getEntryForPlayer(entryId, userId);
-    if (!row) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Entry not found");
-    }
-    const event = await repos.deckCheck.getEventById(row.eventId);
-    if (!event) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Entry not found");
-    }
+    const { row, event } = await loadOwnEntry(repos, userId, entryId);
     return c.json(await buildPlayerDetail(repos, row, event), 200);
   })
 
@@ -331,23 +443,18 @@ export const deckCheckPlayerRoute = deckCheckPlayerApp
     const { entryId } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    const row = await repos.deckCheck.getEntryForPlayer(entryId, userId);
-    if (!row) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Entry not found");
+    const { row, event } = await loadOwnEntry(repos, userId, entryId);
+    if (!submissionWindowOpen(event)) {
+      throw new AppError(409, ERROR_CODES.CONFLICT, "Submissions closed; contact a judge");
     }
-    if (row.withdrawnAt) {
+    if (row.state !== "editable" && !body.dryRun) {
       throw new AppError(
         409,
         ERROR_CODES.CONFLICT,
-        "Your entry was withdrawn by the organizer; contact a judge",
+        row.state === "withdrawn"
+          ? "Your entry was withdrawn by the organizer; contact a judge"
+          : "Your deck is locked; unlock it before editing",
       );
-    }
-    const event = await repos.deckCheck.getEventById(row.eventId);
-    if (!event) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Entry not found");
-    }
-    if (!submissionWindowOpen(event)) {
-      throw new AppError(409, ERROR_CODES.CONFLICT, "Submissions closed; contact a judge");
     }
 
     const lines = await buildPlayerLines(repos, userId, body);
@@ -381,6 +488,65 @@ export const deckCheckPlayerRoute = deckCheckPlayerApp
     );
   })
 
+  .openapi(submitMyEntry, async (c) => {
+    const repos = c.get("repos");
+    const userId = getUserId(c);
+    const { entryId } = c.req.valid("param");
+    const { row, event } = await loadOwnEntry(repos, userId, entryId);
+    if (!submissionWindowOpen(event)) {
+      throw new AppError(409, ERROR_CODES.CONFLICT, "Submissions closed; contact a judge");
+    }
+    if (row.state !== "editable") {
+      throw new AppError(409, ERROR_CODES.CONFLICT, "Only an editable deck can be submitted");
+    }
+    const submitted = await c.get("transact")((txRepos) => submitEntryList(txRepos, row));
+    return c.json(await buildPlayerDetail(repos, { ...row, ...submitted }, event), 200);
+  })
+
+  .openapi(unlockMyEntry, async (c) => {
+    const repos = c.get("repos");
+    const userId = getUserId(c);
+    const { entryId } = c.req.valid("param");
+    const { row, event } = await loadOwnEntry(repos, userId, entryId);
+    if (!submissionWindowOpen(event)) {
+      throw new AppError(409, ERROR_CODES.CONFLICT, "Submissions closed; contact a judge");
+    }
+    if (row.state === "submitted" && event.listLockMode === "at_deadline") {
+      // Self-service in the lenient mode: delivery only happens when the
+      // window closes. An existing baseline is kept so repeated unlock/submit
+      // cycles diff against the same reviewed list.
+      const unlocked = await c.get("transact")((txRepos) =>
+        unlockEntryToEditable(txRepos, row, { keepExistingBaseline: true }),
+      );
+      return c.json(await buildPlayerDetail(repos, { ...row, ...unlocked }, event), 200);
+    }
+    if (row.state === "submitted" || row.state === "approved") {
+      // Judge-gated (TR 401.3): file (or refresh) the unlock request.
+      const requested = await repos.deckCheck.updateEntry(row.id, {
+        unlockRequestedAt: row.unlockRequestedAt ?? new Date(),
+      });
+      return c.json(await buildPlayerDetail(repos, { ...row, ...requested }, event), 200);
+    }
+    throw new AppError(
+      409,
+      ERROR_CODES.CONFLICT,
+      row.state === "editable"
+        ? "Your deck is already editable"
+        : "Contact a judge to unlock this deck",
+    );
+  })
+
+  .openapi(cancelMyUnlockRequest, async (c) => {
+    const repos = c.get("repos");
+    const userId = getUserId(c);
+    const { entryId } = c.req.valid("param");
+    const { row, event } = await loadOwnEntry(repos, userId, entryId);
+    const cleared = row.unlockRequestedAt
+      ? await repos.deckCheck.updateEntry(row.id, { unlockRequestedAt: null })
+      : undefined;
+    return c.json(await buildPlayerDetail(repos, { ...row, ...cleared }, event), 200);
+  })
+
   .openapi(getSubmissionPage, async (c) => {
     const repos = c.get("repos");
     const userId = getUserId(c);
@@ -401,13 +567,21 @@ export const deckCheckPlayerRoute = deckCheckPlayerApp
         submissionsCloseAt: event.submissionsCloseAt?.toISOString() ?? null,
         submissionsOpen: submissionWindowOpen(event),
         linkedEntry: linked
-          ? {
-              id: linked.id,
-              checkStatus: linked.checkStatus,
-              withdrawn: linked.withdrawnAt !== null,
-              allowNameSharing: linked.allowNameSharing,
-              allowRiotIdSharing: linked.allowRiotIdSharing,
-            }
+          ? (() => {
+              const state =
+                linked.state === "editable" && !submissionWindowOpen(event)
+                  ? ("submitted" as const)
+                  : linked.state;
+              return {
+                id: linked.id,
+                state,
+                canReplace:
+                  state === "editable" ||
+                  (state === "submitted" && event.listLockMode === "at_deadline"),
+                allowNameSharing: linked.allowNameSharing,
+                allowRiotIdSharing: linked.allowRiotIdSharing,
+              };
+            })()
           : null,
       },
       200,

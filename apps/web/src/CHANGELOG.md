@@ -2,11 +2,14 @@
 
 ## 2026-06-12
 
+- feat: Tournament decks now move through clear states: once you submit your deck it is locked, a judge can approve the list before the event, and the physical check at the venue is recorded separately, so everyone sees exactly where a deck stands
+- feat: Submitted tournament decks follow the official tournament rules: once submitted, your deck only changes when a judge grants your unlock request, and judges can't see a list you're still editing. Judges always see exactly what changed since they last looked
+- feat: Organizers can relax the deck lock per event so players fix their own submission without a judge until submissions close, which suits casual leagues
+- feat: A tournament deck you are still editing when submissions close is sent in as-is, so a forgotten submit button never costs you the event
 - feat: You can save your Riot ID on your profile, and it's filled in automatically when you submit a deck to a tournament
 - feat: When submitting a tournament deck, you now choose whether your name and your Riot ID may be shown alongside your deck on public platforms. Your deck page shows the current choice, judges see it in the checker and can correct it on request, and tournament software can send it along when pushing decklists
-- feat: Decks you entered into a tournament now show up under "My tournament decks" in the user menu, with their check status and any note the judges left for you. Your entry connects to your account automatically when the organizer has your email; a judge can also connect it by hand
+- feat: Decks you entered into a tournament now show up under "My tournament decks" in the user menu, with their status and any note the judges left for you. Your entry connects to your account automatically when the organizer has your email; a judge can also connect it by hand
 - feat: Organizers can share a per-event link that lets players submit their deck directly through OpenRift, by picking one of their decks, pasting a deck code, or pasting a plain card list, with legality warnings shown before submitting
-- feat: Players can correct their submitted tournament deck while submissions are open; a corrected deck always goes back to the judges for a fresh check, and organizer updates no longer overwrite a list the player corrected
 - feat: Judges can connect an entry to a player's OpenRift account from the checker and write a message the player sees on their deck page, separate from the judge-only notes
 - feat: Group members who entered one of the group's events see the Events tab with their own decks; the full entrant view stays visible to judges only
 - feat: The deck checker can now sort cards by domain, keeping each domain's cards together and ordering them by name within it

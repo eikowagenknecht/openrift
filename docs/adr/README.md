@@ -51,3 +51,4 @@ The MADR documentation is available at <https://adr.github.io/madr/> while gener
 - **[ADR-024](024-share-images-for-lists.md)**: Server-Rendered Share Images for Lists
 - **[ADR-025](025-deck-check-for-judges.md)**: Deck Check for Tournament Judges
 - **[ADR-026](026-player-self-service-for-deck-checks.md)**: Player Self-Service for Deck Checks (supersedes ADR-025's "no player accounts", "no in-app submission", and "no non-judge visibility" stances)
+- **[ADR-027](027-deck-check-entry-states.md)**: Deck-Check Entry Lifecycle States (supersedes ADR-026's edit gate and edit-takeover stances)

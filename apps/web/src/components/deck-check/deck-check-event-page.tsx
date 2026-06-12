@@ -48,10 +48,13 @@ import { parseManualDecklist } from "@/lib/deck-check-manual-entry";
 import { getSiteUrl } from "@/lib/site-config";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
-const STATUS_ORDER: Record<DeckCheckEntrySummaryResponse["checkStatus"], number> = {
-  unchecked: 0,
-  issue: 1,
-  checked: 2,
+/** Actionable entries first: submissions to review, then drafts, then done. */
+const STATE_ORDER: Record<DeckCheckEntrySummaryResponse["state"], number> = {
+  submitted: 0,
+  editable: 1,
+  approved: 2,
+  checked: 3,
+  withdrawn: 4,
 };
 
 /**
@@ -95,8 +98,8 @@ export function DeckCheckEventPage({
     .filter((entry) => !needle || entry.playerName.toLowerCase().includes(needle))
     .toSorted(
       (a, b) =>
-        Number(a.withdrawn) - Number(b.withdrawn) ||
-        STATUS_ORDER[a.checkStatus] - STATUS_ORDER[b.checkStatus] ||
+        Number(b.unlockRequestedAt !== null) - Number(a.unlockRequestedAt !== null) ||
+        STATE_ORDER[a.state] - STATE_ORDER[b.state] ||
         a.playerName.localeCompare(b.playerName),
     );
   const hasUnresolved = entries.some((entry) => entry.unmatchedLineCount > 0);
@@ -350,8 +353,7 @@ function SubmissionSettingsSection({
         <div className="flex flex-col">
           <Label htmlFor="allow-self-submission">Player submissions</Label>
           <p className="text-muted-foreground text-sm">
-            Players with the link can submit and correct their own deck. Corrections always need a
-            judge re-check.
+            Players with the link can submit their own deck and see its status on their deck page.
           </p>
         </div>
         <Switch
@@ -360,6 +362,28 @@ function SubmissionSettingsSection({
           disabled={updateEvent.isPending}
           onCheckedChange={(checked) =>
             updateEvent.mutate({ slug, eventId, allowSelfSubmission: checked })
+          }
+        />
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-col">
+          <Label htmlFor="list-lock-mode">Self-service corrections until the deadline</Label>
+          <p className="text-muted-foreground text-sm">
+            Off (tournament rules): a submitted deck only changes when a judge grants the
+            player&apos;s unlock request. On: players can unlock and fix their own deck until
+            submissions close.
+          </p>
+        </div>
+        <Switch
+          id="list-lock-mode"
+          checked={event.listLockMode === "at_deadline"}
+          disabled={updateEvent.isPending}
+          onCheckedChange={(checked) =>
+            updateEvent.mutate({
+              slug,
+              eventId,
+              listLockMode: checked ? "at_deadline" : "on_submit",
+            })
           }
         />
       </div>
@@ -483,14 +507,20 @@ function EntryRow({
       className="bg-card hover:bg-muted hover:text-foreground flex items-center gap-3 rounded-md border p-3 transition-colors"
     >
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className={`truncate font-medium ${entry.withdrawn ? "line-through" : ""}`}>
+        <span
+          className={`truncate font-medium ${entry.state === "withdrawn" ? "line-through" : ""}`}
+        >
           {entry.playerName}
         </span>
         <span className="text-muted-foreground text-sm">
-          {entry.verifiedCopyCount} / {entry.copyCount} cards found
-          {entry.checkedByName && entry.checkStatus !== "unchecked"
-            ? ` · ${entry.checkStatus === "issue" ? "flagged" : "checked"} by ${entry.checkedByName}`
-            : ""}
+          {entry.state === "editable"
+            ? "List hidden while the player edits"
+            : `${entry.verifiedCopyCount} / ${entry.copyCount} cards found`}
+          {entry.state === "checked" && entry.checkedByName
+            ? ` · checked by ${entry.checkedByName}`
+            : entry.state === "approved" && entry.approvedByName
+              ? ` · approved by ${entry.approvedByName}`
+              : ""}
         </span>
       </div>
       {entry.source === "api" ? (
@@ -512,32 +542,48 @@ function EntryRow({
           Linked
         </Badge>
       ) : null}
-      {entry.listOwner === "player" ? (
-        <Badge
-          variant="outline"
-          title="The player edited this list; organizer pushes no longer overwrite it"
-        >
-          Player-owned
+      {entry.unlockRequestedAt ? (
+        <Badge variant="destructive" title="The player asked to unlock this approved deck">
+          Unlock requested
         </Badge>
       ) : null}
-      {entry.withdrawn ? <Badge variant="secondary">Withdrawn</Badge> : null}
-      {entry.changedSinceCheck ? <Badge variant="destructive">Changed since check</Badge> : null}
+      {entry.changedSinceReview ? <Badge variant="destructive">Changed since review</Badge> : null}
       {entry.unmatchedLineCount > 0 ? (
         <Badge variant="secondary">{entry.unmatchedLineCount} unmatched</Badge>
       ) : null}
-      <StatusBadge status={entry.checkStatus} />
+      <EntryStateBadge state={entry.state} reviewOutcome={entry.reviewOutcome} />
     </Link>
   );
 }
 
-function StatusBadge({ status }: { status: DeckCheckEntrySummaryResponse["checkStatus"] }) {
-  if (status === "checked") {
-    return <Badge>Checked</Badge>;
+export function EntryStateBadge({
+  state,
+  reviewOutcome,
+}: {
+  state: DeckCheckEntrySummaryResponse["state"];
+  reviewOutcome: DeckCheckEntrySummaryResponse["reviewOutcome"];
+}) {
+  if (state === "editable") {
+    return <Badge variant="outline">Editing</Badge>;
   }
-  if (status === "issue") {
-    return <Badge variant="destructive">Issue</Badge>;
+  if (state === "approved") {
+    return <Badge>Approved</Badge>;
   }
-  return <Badge variant="secondary">Unchecked</Badge>;
+  if (state === "checked") {
+    return reviewOutcome === "issue" ? (
+      <Badge variant="destructive">Checked · issue</Badge>
+    ) : (
+      <Badge>Checked</Badge>
+    );
+  }
+  if (state === "withdrawn") {
+    return <Badge variant="secondary">Withdrawn</Badge>;
+  }
+  return reviewOutcome === "issue" ? (
+    <Badge variant="destructive">Submitted · issue</Badge>
+  ) : (
+    <Badge variant="secondary">Submitted</Badge>
+  );
 }
 
 function RenameEventDialog({

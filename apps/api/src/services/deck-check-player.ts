@@ -3,7 +3,6 @@ import { createHash } from "node:crypto";
 
 import {
   buildContentHashInput,
-  diffCardLines,
   ERROR_CODES,
   inferZone,
   mapSectionToZone,
@@ -24,22 +23,6 @@ import { cardResolutionKey } from "../repositories/deck-check.js";
 
 function sha256(input: string): string {
   return createHash("sha256").update(input).digest("hex");
-}
-
-/**
- * Whether the event currently accepts player writes: it is not archived and
- * the close date (when set) has not passed. `allow_self_submission` is checked
- * separately, because it gates only new submissions, never edits (ADR-026).
- * @returns True while the window is open.
- */
-export function submissionWindowOpen(event: {
-  status: string;
-  submissionsCloseAt: Date | null;
-}): boolean {
-  return (
-    event.status === "active" &&
-    (event.submissionsCloseAt === null || event.submissionsCloseAt.getTime() > Date.now())
-  );
 }
 
 /**
@@ -274,10 +257,11 @@ function consentPatch(consent: PlayerSharingConsent): Partial<{
 }
 
 /**
- * Applies a player's list to an existing entry: ADR-025's re-import
- * invalidation verbatim, plus the ADR-026 edit-takeover flip for an entry the
- * provider fed. An unchanged list is idempotent (but still records a changed
- * sharing consent).
+ * Replaces an entry's card lines with the player's list and recomputes the
+ * content hash. The caller guards that the entry is `editable` (ADR-027) —
+ * this never touches the state; the diff against the judge's baseline is
+ * computed when the player submits. An unchanged list is idempotent (but
+ * still records a changed sharing consent).
  * @returns The updated entry.
  */
 export async function applyPlayerList(
@@ -288,46 +272,27 @@ export async function applyPlayerList(
   consent: PlayerSharingConsent = {},
 ): Promise<DeckCheckEntry> {
   const contentHash = sha256(buildContentHashInput(lines));
-  const takeover = entry.listOwner === "provider" ? { listOwner: "player" as const } : {};
-
   if (entry.contentHash === contentHash) {
-    const patch = { ...takeover, ...consentPatch(consent) };
+    const patch = consentPatch(consent);
     if (Object.keys(patch).length > 0) {
       const updated = await repos.deckCheck.updateEntry(entry.id, patch);
       return updated ?? entry;
     }
     return entry;
   }
-
-  const previousCards = await repos.deckCheck.listCardsForEntry(entry.id);
-  const wasChecked = entry.checkStatus !== "unchecked";
-  const previousLines = previousCards.map((card) => ({
-    name: card.rawName,
-    zone: card.zone as DeckCheckCardLine["zone"],
-    quantity: card.quantity,
-  }));
   const updated = await repos.deckCheck.updateEntry(entry.id, {
-    ...takeover,
-    ...consentPatch(consent),
     contentHash,
-    submittedAt: new Date(),
-    ...(wasChecked
-      ? {
-          checkStatus: "unchecked" as const,
-          checkedBy: null,
-          checkedAt: null,
-          changeSummary: JSON.stringify(diffCardLines(previousLines, lines)),
-        }
-      : {}),
+    ...consentPatch(consent),
   });
   await repos.deckCheck.replaceEntryCards(entry.id, cardRows);
   return updated ?? entry;
 }
 
 /**
- * Creates a fresh self-submitted entry (ADR-026): born linked, player-owned,
- * keyed `openrift:<userId>` so a re-submission upserts the same entry, with
- * the player fields populated from the account.
+ * Creates a fresh self-submitted entry (ADR-026): born linked and `submitted`
+ * (the token link is an explicit send-for-review, ADR-027), keyed
+ * `openrift:<userId>` so a re-submission upserts the same entry, with the
+ * player fields populated from the account.
  * @returns The created entry.
  */
 export async function createSelfSubmittedEntry(
@@ -349,10 +314,10 @@ export async function createSelfSubmittedEntry(
     ...consentPatch(consent),
     contentHash: sha256(buildContentHashInput(lines)),
     withdrawnAt: null,
+    state: "submitted",
     claimedUserId: account.id,
     claimSource: "self_submit",
     claimedAt: new Date(),
-    listOwner: "player",
   });
   await repos.deckCheck.replaceEntryCards(entry.id, cardRows);
   return entry;

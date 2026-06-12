@@ -1768,11 +1768,17 @@ export const podReportTokenResponseSchema = z
 // ─── Deck check (ADR-025) ─────────────────────────────────────────────────────
 
 const deckCheckEventStatusSchema = z.enum(["active", "archived"]);
-const deckCheckEntryStatusSchema = z.enum(["unchecked", "checked", "issue"]);
+const deckCheckEntryStateSchema = z.enum([
+  "editable",
+  "submitted",
+  "approved",
+  "checked",
+  "withdrawn",
+]);
+const deckCheckReviewOutcomeSchema = z.enum(["ok", "issue"]);
 const deckCheckMatchStatusSchema = z.enum(["matched", "ambiguous", "unmatched"]);
 const deckCheckEntrySourceSchema = z.enum(["api", "manual", "self"]);
 const deckCheckClaimSourceSchema = z.enum(["email_auto", "judge_manual", "self_submit"]);
-const deckCheckListOwnerSchema = z.enum(["provider", "player"]);
 
 export const deckCheckEventSummaryResponseSchema = z
   .object({
@@ -1784,6 +1790,7 @@ export const deckCheckEventSummaryResponseSchema = z
     status: deckCheckEventStatusSchema,
     entryCount: z.number().int().nonnegative(),
     checkedCount: z.number().int().nonnegative(),
+    listLockMode: z.enum(["on_submit", "at_deadline"]),
     allowSelfSubmission: z.boolean(),
     submissionToken: z.string().nullable(),
     submissionsCloseAt: z.string().nullable(),
@@ -1802,13 +1809,15 @@ const deckCheckEntrySummaryResponseSchema = z.object({
   source: deckCheckEntrySourceSchema,
   playerName: z.string(),
   submittedAt: z.string().nullable(),
-  checkStatus: deckCheckEntryStatusSchema,
+  state: deckCheckEntryStateSchema,
+  reviewOutcome: deckCheckReviewOutcomeSchema.nullable(),
   checkedByName: z.string().nullable(),
   checkedAt: z.string().nullable(),
-  changedSinceCheck: z.boolean(),
-  withdrawn: z.boolean(),
+  approvedByName: z.string().nullable(),
+  approvedAt: z.string().nullable(),
+  changedSinceReview: z.boolean(),
+  unlockRequestedAt: z.string().nullable(),
   claimedUserName: z.string().nullable(),
-  listOwner: deckCheckListOwnerSchema,
   copyCount: z.number().int().nonnegative(),
   verifiedCopyCount: z.number().int().nonnegative(),
   unmatchedLineCount: z.number().int().nonnegative(),
@@ -1863,10 +1872,14 @@ const deckCheckEntryResponseSchema = z.object({
   allowNameSharing: z.boolean(),
   allowRiotIdSharing: z.boolean(),
   submittedAt: z.string().nullable(),
-  checkStatus: deckCheckEntryStatusSchema,
+  state: deckCheckEntryStateSchema,
+  reviewOutcome: deckCheckReviewOutcomeSchema.nullable(),
   checkedBy: z.string().nullable(),
   checkedByName: z.string().nullable(),
   checkedAt: z.string().nullable(),
+  approvedByName: z.string().nullable(),
+  approvedAt: z.string().nullable(),
+  unlockRequestedAt: z.string().nullable(),
   notes: z.string().nullable(),
   changeSummary: deckCheckChangeSummarySchema.nullable(),
   withdrawnAt: z.string().nullable(),
@@ -1874,8 +1887,6 @@ const deckCheckEntryResponseSchema = z.object({
   claimedUserName: z.string().nullable(),
   claimSource: deckCheckClaimSourceSchema.nullable(),
   claimBlocked: z.boolean(),
-  listOwner: deckCheckListOwnerSchema,
-  providerPushIgnoredAt: z.string().nullable(),
   playerMessage: z.string().nullable(),
   updatedAt: z.string(),
 });
@@ -1937,6 +1948,8 @@ export const deckCheckIngestResultResponseSchema = z
     entriesUnchanged: z.number().int().nonnegative(),
     entriesWithdrawn: z.number().int().nonnegative(),
     checksInvalidated: z.number().int().nonnegative(),
+    // Deprecated: always 0 since ADR-027 removed edit-takeover; kept so
+    // existing provider integrations keep parsing.
     entriesIgnored: z.number().int().nonnegative(),
   })
   .openapi("DeckCheckIngestResultResponse");
@@ -1949,9 +1962,9 @@ const playerDeckCheckEntrySummaryResponseSchema = z.object({
   eventDate: z.string().nullable(),
   groupName: z.string(),
   groupSlug: z.string(),
-  checkStatus: deckCheckEntryStatusSchema,
-  changedSinceCheck: z.boolean(),
-  withdrawn: z.boolean(),
+  state: deckCheckEntryStateSchema,
+  reviewOutcome: deckCheckReviewOutcomeSchema.nullable(),
+  unlockRequested: z.boolean(),
   playerMessage: z.string().nullable(),
   submittedAt: z.string().nullable(),
   updatedAt: z.string(),
@@ -1970,16 +1983,19 @@ export const playerDeckCheckEntryDetailResponseSchema = z
       groupName: z.string(),
       format: z.string().nullable(),
       allowedSets: z.array(z.string()).nullable(),
-      checkStatus: deckCheckEntryStatusSchema,
-      changedSinceCheck: z.boolean(),
-      withdrawn: z.boolean(),
+      state: deckCheckEntryStateSchema,
+      reviewOutcome: deckCheckReviewOutcomeSchema.nullable(),
+      unlockRequested: z.boolean(),
       playerMessage: z.string().nullable(),
-      listOwner: deckCheckListOwnerSchema,
       allowNameSharing: z.boolean(),
       allowRiotIdSharing: z.boolean(),
       submittedAt: z.string().nullable(),
+      submissionsCloseAt: z.string().nullable(),
       updatedAt: z.string(),
+      windowOpen: z.boolean(),
       canEdit: z.boolean(),
+      canUnlock: z.boolean(),
+      canRequestUnlock: z.boolean(),
     }),
     cards: z.array(deckCheckEntryCardResponseSchema),
     violations: z.array(deckViolationSchema),
@@ -2002,8 +2018,8 @@ export const deckCheckSubmissionPageResponseSchema = z
     linkedEntry: z
       .object({
         id: z.string(),
-        checkStatus: deckCheckEntryStatusSchema,
-        withdrawn: z.boolean(),
+        state: deckCheckEntryStateSchema,
+        canReplace: z.boolean(),
         allowNameSharing: z.boolean(),
         allowRiotIdSharing: z.boolean(),
       })

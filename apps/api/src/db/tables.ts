@@ -1,10 +1,12 @@
 import type {
+  DeckCheckCardLine,
   DeckCheckChangeSummary,
   DeckCheckClaimSource,
-  DeckCheckEntryStatus,
+  DeckCheckEntryState,
   DeckCheckEventStatus,
-  DeckCheckListOwner,
+  DeckCheckListLockMode,
   DeckCheckMatchStatus,
+  DeckCheckReviewOutcome,
   PodPenaltyBreakdown,
 } from "@openrift/shared";
 import type {
@@ -624,6 +626,8 @@ export interface DeckCheckEventsTable {
   /** Set codes for set-legality flagging; written pre-stringified, read defensively. */
   allowedSets: ColumnType<string[], string, string> | null;
   status: Generated<DeckCheckEventStatus>;
+  /** When a submitted list locks against player changes (TR 401.3, ADR-027). */
+  listLockMode: Generated<DeckCheckListLockMode>;
   /** Player self-submission opt-in (ADR-026). */
   allowSelfSubmission: Generated<boolean>;
   /** Shared submission capability (plaintext, like the group join code); UNIQUE. */
@@ -651,12 +655,22 @@ export interface DeckCheckEntriesTable {
   allowRiotIdSharing: Generated<boolean>;
   /** Hash over the normalized card lines; unchanged re-push is a no-op. */
   contentHash: string;
-  checkStatus: Generated<DeckCheckEntryStatus>;
+  /** Lifecycle state (ADR-027); the player edits only in 'editable'. */
+  state: Generated<DeckCheckEntryState>;
+  /** How the most recent judge review went; null until a judge reviewed. */
+  reviewOutcome: DeckCheckReviewOutcome | null;
   checkedBy: string | null;
   checkedAt: Date | null;
+  /** Pre-event list approval (ADR-027), separate from the event-day check. */
+  approvedBy: string | null;
+  approvedAt: Date | null;
+  /** Player request to unlock an approved entry; a judge grants or declines. */
+  unlockRequestedAt: Date | null;
+  /** The list as the judge last saw it; written pre-stringified, read defensively. */
+  preEditLines: ColumnType<DeckCheckCardLine[], string, string> | null;
   /** CHECK: length <= 4000 */
   notes: string | null;
-  /** Diff vs the previously checked list; written pre-stringified, read defensively. */
+  /** Diff vs the last judge-reviewed list; written pre-stringified, read defensively. */
   changeSummary: ColumnType<DeckCheckChangeSummary, string, string> | null;
   withdrawnAt: Date | null;
   /** The account link ADR-025 reserved, filled in by ADR-026. */
@@ -665,12 +679,8 @@ export interface DeckCheckEntriesTable {
   claimedAt: Date | null;
   /** Set on judge unlink; blocks every auto-match path from re-linking. */
   claimBlockedAt: Date | null;
-  /** Flips to 'player' on the first player edit (edit-takeover, ADR-026). */
-  listOwner: Generated<DeckCheckListOwner>;
   /** CHECK: length <= 2000; judge-authored, shown to the linked player. */
   playerMessage: string | null;
-  /** Set when a provider push was ignored because the player owns the list. */
-  providerPushIgnoredAt: Date | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
