@@ -1,11 +1,10 @@
-import type { ListGroupSharesResponse } from "@openrift/shared";
+import type { ListGroupSharesResponse, ListIntent } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { UsersIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useFriendGroupsList } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
 import { callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
@@ -26,55 +25,66 @@ const fetchShares = createServerFn({ method: "GET" })
 
 interface Props {
   listId: string;
+  intent: ListIntent;
+  /** Opens the list's visibility control (the share dialog's group section). */
+  onManageVisibility?: () => void;
 }
 
 /**
- * Passive "shared with N friend groups" badge for the list page. Click opens
- * a popover listing each group; toggling lives in the list share dialog and
- * on each group's settings panel.
- * @returns The badge node, or `null` when the list isn't shared anywhere.
+ * Group-visibility badge for the list header. Shows "Visible to N groups"
+ * when the list is shared, or a quiet "Not visible to your groups" nudge for
+ * wish/trade lists that aren't shared anywhere even though the owner has
+ * groups. Clicking either opens the visibility control.
+ * @returns The badge node, or `null` when there is nothing to signal.
  */
-export function ListGroupSharesBadge({ listId }: Props) {
+export function ListGroupSharesBadge({ listId, intent, onManageVisibility }: Props) {
   const userId = useRequiredUserId();
   const { data } = useQuery({
     queryKey: queryKeys.lists.groupShares(userId, listId),
     queryFn: () => fetchShares({ data: listId }),
     staleTime: 60 * 1000,
   });
+  const groupCount = useFriendGroupsList(true).data?.items.length ?? 0;
 
-  if (!data || data.items.length === 0) {
+  if (!data || groupCount === 0) {
     return null;
   }
 
-  return (
-    <Popover>
-      <PopoverTrigger
-        nativeButton={false}
+  if (data.items.length === 0) {
+    // An unshared organize list is the default; only wish/trade lists are
+    // expected to be visible, so only they get the nudge.
+    if (intent === "organize") {
+      return null;
+    }
+    return (
+      <Badge
+        variant="ghost"
+        className="text-2xs text-muted-foreground hidden shrink-0 cursor-pointer sm:inline-flex"
         render={
-          <Badge
-            variant="ghost"
-            className="text-2xs hidden shrink-0 cursor-pointer sm:inline-flex"
-          />
+          // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- Badge injects the visible text as the button's children at render time
+          <button type="button" onClick={onManageVisibility} />
         }
       >
         <UsersIcon className="size-3" />
-        Shared with {data.items.length} {data.items.length === 1 ? "group" : "groups"}
-      </PopoverTrigger>
-      <PopoverContent className="flex w-56 flex-col gap-1 p-2" align="start">
-        <span className="text-muted-foreground px-2 py-1 text-xs">
-          These groups can view this list.
-        </span>
-        {data.items.map((item) => (
-          <Link
-            key={item.groupId}
-            to="/groups/$slug"
-            params={{ slug: item.groupSlug }}
-            className="hover:bg-muted rounded px-2 py-1.5 text-sm"
-          >
-            {item.groupName}
-          </Link>
-        ))}
-      </PopoverContent>
-    </Popover>
+        Not visible to your groups
+      </Badge>
+    );
+  }
+
+  const visibleToAll = data.items.length >= groupCount;
+  return (
+    <Badge
+      variant="ghost"
+      className="text-2xs hidden shrink-0 cursor-pointer sm:inline-flex"
+      render={
+        // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- Badge injects the visible text as the button's children at render time
+        <button type="button" onClick={onManageVisibility} />
+      }
+    >
+      <UsersIcon className="size-3" />
+      {visibleToAll
+        ? "Visible to your groups"
+        : `Visible to ${data.items.length} of ${groupCount} groups`}
+    </Badge>
   );
 }

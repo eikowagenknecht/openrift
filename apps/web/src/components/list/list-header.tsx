@@ -46,6 +46,8 @@ interface ListHeaderProps {
   attribution: ListHeaderAttribution;
   backLink?: ReactNode;
   onToggleSidebar?: () => void;
+  /** Opens the list's group-visibility control; wired to the shares badge. */
+  onManageVisibility?: () => void;
   actions?: ReactNode;
 }
 
@@ -64,6 +66,7 @@ export function ListHeader({
   attribution,
   backLink,
   onToggleSidebar,
+  onManageVisibility,
   actions,
 }: ListHeaderProps) {
   const hydrated = useHydrated();
@@ -92,7 +95,11 @@ export function ListHeader({
           </span>
         ) : null}
         {attribution.kind === "shares" && hydrated ? (
-          <ListGroupSharesBadge listId={list.id} />
+          <ListGroupSharesBadge
+            listId={list.id}
+            intent={list.intent}
+            onManageVisibility={onManageVisibility}
+          />
         ) : null}
       </div>
       {actions ? <PageTopBarActions>{actions}</PageTopBarActions> : null}

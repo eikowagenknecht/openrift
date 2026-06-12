@@ -86,15 +86,17 @@ Direct invites bypass the code entirely; they are sent by admins to specific use
 
 We deliberately do **not** add per-user invite rate limits, a global "don't invite me" opt-out, or a block list on kick. The friend-group scope is small and the social cost of misuse is high; if abuse appears in practice we revisit. Kicked users can be re-invited or re-request immediately.
 
-### Opt-in list sharing
+### Opt-out list sharing
+
+> **Amended 2026-06-12.** Sharing was originally opt-in ("nothing is shared by default"). In practice members did not discover the share step — groups sat empty and the match view never lit up. Wish/trade visibility is now **opt-out**: share rows are created automatically when a wish/trade list is created (into all of the owner's groups) and when a membership is created (group creation and invite/request acceptance share the new member's existing wish/trade lists); a one-time backfill (migration 150) covered existing memberships. Unsharing (deleting the row) remains the per-list, per-group opt-out and is never overridden — only the two creation events insert rows. `organize` lists remain opt-in.
 
 `friend_group_list_shares(group_id, list_id, user_id, shared_at)` with PK `(group_id, list_id)`. The `user_id` column is denormalised so that the FK back to `friend_group_members(group_id, user_id)` can cascade-delete this user's shares when they leave the group.
 
 - Sharing is **per group, all members, live.** Any subsequent edit to the list propagates immediately — there is no snapshotting.
 - The same list can be shared with **multiple groups** simultaneously. Unsharing affects only the selected group.
-- Nothing is shared by default. The user toggles each list per group from the group page.
+- Wish/trade lists are shared by default (see amendment above); each list can be opted out per group from the list's visibility control or the group page. `organize` lists are shared only when toggled on.
 - **All three `intent` values can be shared.** `wish` and `trade` lists drive the match view. `organize` lists are shareable too but **do not participate in matches** — they surface on the member detail page as informational context ("Alice is organizing _Spiritforged Vault_"), useful for "what's this person collecting / curating" without implying a wish/trade signal.
-- Leaving or being kicked deletes the membership row, which cascades to delete all of that user's `friend_group_list_shares` rows for that group. Re-joining starts fresh — share records are not retained.
+- Leaving or being kicked deletes the membership row, which cascades to delete all of that user's `friend_group_list_shares` rows for that group. Re-joining starts fresh — share records are not retained, and the opt-out default re-applies (the new membership shares the member's wish/trade lists again, including any they had opted out before leaving).
 - The `lists.id` FK uses `ON DELETE CASCADE` so deleting a list cleans up its shares.
 
 ### Match view

@@ -216,6 +216,7 @@ export function ListPage({ listId }: ListPageProps) {
       list={data.list}
       entries={data.entries}
       attribution={{ kind: "shares" }}
+      onManageVisibility={() => setShareOpen(true)}
       onToggleSidebar={toggleSidebar}
       actions={
         <>
@@ -289,6 +290,7 @@ export function ListPage({ listId }: ListPageProps) {
     <ListShareDialog
       listId={listId}
       listName={data.list.name}
+      intent={data.list.intent}
       kind={data.list.kind}
       tradeDefaults={data.list.tradeDefaults}
       currency={data.list.currency}

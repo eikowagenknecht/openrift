@@ -696,6 +696,9 @@ export const friendGroupsRoute = friendGroupsApp
       },
       userId,
     );
+    // Opt-out visibility default (amended ADR-013): the creator's wish/trade
+    // lists are visible to the new group right away.
+    await friendGroups.shareMemberDefaultLists(group.id, userId);
     c.header("Location", `/api/v1/friend-groups/${group.slug}`);
     return c.json(toGroup(group, true), 201);
   })
@@ -946,9 +949,12 @@ export const friendGroupsRoute = friendGroupsApp
 
     // Add the member and consume the invite atomically so a failure can't
     // leave a member without clearing the pending invite (or vice versa).
+    // Joining also shares the new member's wish/trade lists with the group —
+    // visibility is opt-out (amended ADR-013), so matches work immediately.
     await c.get("transact")(async (repos) => {
       await repos.friendGroups.addMember(group.id, targetUserId, "member");
       await repos.friendGroups.deleteInvite(group.id, targetUserId);
+      await repos.friendGroups.shareMemberDefaultLists(group.id, targetUserId);
     });
     return c.body(null, 204);
   })

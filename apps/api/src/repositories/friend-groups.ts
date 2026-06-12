@@ -73,6 +73,8 @@ export function friendGroupsRepo(db: Kysely<Database>) {
     /**
      * Atomic create — inserts the group and the owner's membership in one
      * transaction so the partial-unique-owner invariant always holds.
+     * Callers that create real memberships (the route layer) follow up with
+     * `shareMemberDefaultLists` to apply the opt-out visibility default.
      * @returns The created group row.
      */
     createWithOwner(values: NewGroupValues, ownerUserId: string): Promise<Group> {
@@ -534,6 +536,55 @@ export function friendGroupsRepo(db: Kysely<Database>) {
       await db
         .insertInto("friendGroupListShares")
         .values({ groupId, listId, userId })
+        .onConflict((oc) => oc.columns(["groupId", "listId"]).doNothing())
+        .execute();
+    },
+
+    /**
+     * Shares all of a member's wish/trade lists with one group — the
+     * opt-out visibility default (amended ADR-013), applied by the route
+     * layer whenever a membership is created (group creation, invite or
+     * request accepted). Idempotent; existing rows keep their `shared_at`
+     * and `organize` lists are skipped.
+     */
+    async shareMemberDefaultLists(groupId: string, userId: string): Promise<void> {
+      await db
+        .insertInto("friendGroupListShares")
+        .columns(["groupId", "listId", "userId"])
+        .expression((eb) =>
+          eb
+            .selectFrom("lists")
+            .select([
+              eb.val(groupId).as("groupId"),
+              "lists.id as listId",
+              eb.val(userId).as("userId"),
+            ])
+            .where("lists.userId", "=", userId)
+            .where("lists.intent", "in", ["wish", "trade"]),
+        )
+        .onConflict((oc) => oc.columns(["groupId", "listId"]).doNothing())
+        .execute();
+    },
+
+    /**
+     * Shares one list with every group the owner is a member of — the
+     * opt-out default applied when a wish/trade list is created. Idempotent.
+     * The caller decides whether the list's intent qualifies.
+     */
+    async shareListWithMemberGroups(listId: string, userId: string): Promise<void> {
+      await db
+        .insertInto("friendGroupListShares")
+        .columns(["groupId", "listId", "userId"])
+        .expression((eb) =>
+          eb
+            .selectFrom("friendGroupMembers")
+            .select([
+              "friendGroupMembers.groupId",
+              eb.val(listId).as("listId"),
+              eb.val(userId).as("userId"),
+            ])
+            .where("friendGroupMembers.userId", "=", userId),
+        )
         .onConflict((oc) => oc.columns(["groupId", "listId"]).doNothing())
         .execute();
     },

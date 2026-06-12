@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 
+import { friendGroupsRepo } from "../../repositories/friend-groups.js";
 import { CARD_FURY_UNIT, PRINTING_1 } from "../../test/fixtures/constants.js";
 import { createTestContext, req } from "../../test/integration-context.js";
 
@@ -117,6 +118,32 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
         req("POST", "/lists", { name: "Bad", intent: "barter", kind: "card" }),
       );
       expect(res.status).toBe(400);
+    });
+
+    it("auto-shares a new wish list with the owner's groups, but not an organize list", async () => {
+      // Opt-out group visibility (amended ADR-013).
+      const repo = friendGroupsRepo(db);
+      const group = await repo.createWithOwner(
+        {
+          slug: `lst-int-${Date.now().toString(36)}`,
+          name: "Lists Integration Group",
+          description: null,
+          code: null,
+        },
+        USER_ID,
+      );
+      try {
+        const wishId = await createList("Auto-shared wants", "wish", "card");
+        const organizeId = await createList("Not auto-shared binder", "organize", "card");
+
+        const shares = await repo.listSharesForGroup(group.id);
+        const sharedListIds = new Set(shares.map((row) => row.listId));
+        expect(sharedListIds.has(wishId)).toBe(true);
+        expect(sharedListIds.has(organizeId)).toBe(false);
+      } finally {
+        // Cascade removes the share rows; lists are cleaned in afterAll.
+        await db.deleteFrom("friendGroups").where("id", "=", group.id).execute();
+      }
     });
   });
 

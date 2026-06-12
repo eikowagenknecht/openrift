@@ -35,6 +35,10 @@ const mockCopiesRepo = {
   filterAccessibleByViewer: vi.fn(() => Promise.resolve([] as string[])),
 };
 
+const mockFriendGroupsRepo = {
+  shareListWithMemberGroups: vi.fn(() => Promise.resolve()),
+};
+
 // ---------------------------------------------------------------------------
 // Test app
 // ---------------------------------------------------------------------------
@@ -52,6 +56,7 @@ const app = new Hono()
     c.set("repos", {
       lists: mockListsRepo,
       copies: mockCopiesRepo,
+      friendGroups: mockFriendGroupsRepo,
     } as never);
     await next();
   })
@@ -141,6 +146,7 @@ describe("GET /api/v1/lists", () => {
 describe("POST /api/v1/lists", () => {
   beforeEach(() => {
     mockListsRepo.create.mockReset();
+    mockFriendGroupsRepo.shareListWithMemberGroups.mockClear();
   });
 
   it("returns 201 with the created list", async () => {
@@ -161,6 +167,20 @@ describe("POST /api/v1/lists", () => {
       defaultTradeType: null,
       currency: null,
     });
+    // Opt-out group visibility (amended ADR-013): a new wish list is shared
+    // with all of the owner's groups.
+    expect(mockFriendGroupsRepo.shareListWithMemberGroups).toHaveBeenCalledWith(dbList.id, USER_ID);
+  });
+
+  it("does not auto-share a new organize list with groups", async () => {
+    mockListsRepo.create.mockResolvedValue({ ...dbList, intent: "organize" });
+    const res = await app.request("/api/v1/lists", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Binder", intent: "organize", kind: "card" }),
+    });
+    expect(res.status).toBe(201);
+    expect(mockFriendGroupsRepo.shareListWithMemberGroups).not.toHaveBeenCalled();
   });
 
   it("rejects a missing intent", async () => {

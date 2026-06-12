@@ -1,11 +1,12 @@
-import { render } from "@testing-library/react";
-import type { ReactNode } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+
+let shareItems: { groupId: string; groupSlug: string; groupName: string }[] = [];
+let groupItems: { id: string }[] = [];
 
 vi.mock("@tanstack/react-query", () => ({
-  useQuery: () => ({
-    data: { items: [{ groupId: "g1", groupSlug: "alpha", groupName: "Alpha" }] },
-  }),
+  useQuery: () => ({ data: { items: shareItems } }),
 }));
 
 // createServerFn runs a builder chain at module load; stub it so importing the
@@ -22,12 +23,8 @@ vi.mock("@tanstack/react-start", () => ({
   createMiddleware: () => ({ server: () => ({}) }),
 }));
 
-vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children, className }: { children: ReactNode; className?: string }) => (
-    <a href="/" className={className}>
-      {children}
-    </a>
-  ),
+vi.mock("@/hooks/use-friend-groups", () => ({
+  useFriendGroupsList: () => ({ data: { items: groupItems } }),
 }));
 
 vi.mock("@/lib/auth-session", () => ({
@@ -36,26 +33,62 @@ vi.mock("@/lib/auth-session", () => ({
 
 const { ListGroupSharesBadge } = await import("./list-group-shares-badge");
 
+const GROUP_ALPHA = { groupId: "g1", groupSlug: "alpha", groupName: "Alpha" };
+const GROUP_BETA = { groupId: "g2", groupSlug: "beta", groupName: "Beta" };
+
 describe("ListGroupSharesBadge", () => {
-  let errorSpy: ReturnType<typeof vi.spyOn>;
-  let warnSpy: ReturnType<typeof vi.spyOn>;
-
-  beforeEach(() => {
-    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+  it("renders nothing when the user has no groups", () => {
+    groupItems = [];
+    shareItems = [];
+    const { container } = render(<ListGroupSharesBadge listId="list-1" intent="wish" />);
+    expect(container).toBeEmptyDOMElement();
   });
 
-  afterEach(() => {
-    errorSpy.mockRestore();
-    warnSpy.mockRestore();
+  it("shows 'Visible to your groups' when shared with every group and opens the control on click", async () => {
+    groupItems = [{ id: "g1" }, { id: "g2" }];
+    shareItems = [GROUP_ALPHA, GROUP_BETA];
+    const onManageVisibility = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <ListGroupSharesBadge
+        listId="list-1"
+        intent="wish"
+        onManageVisibility={onManageVisibility}
+      />,
+    );
+    const badge = screen.getByRole("button", { name: /visible to your groups/iu });
+    await user.click(badge);
+    expect(onManageVisibility).toHaveBeenCalledOnce();
   });
 
-  // Regression: PopoverTrigger defaults to nativeButton:true, but it renders a
-  // <Badge> (a <span>). Without nativeButton={false}, Base UI logs an
-  // accessibility warning about a non-native button being used as a trigger.
-  it("renders the trigger without a Base UI nativeButton warning", () => {
-    render(<ListGroupSharesBadge listId="list-1" />);
-    const logged = [...errorSpy.mock.calls, ...warnSpy.mock.calls].flat().join(" ");
-    expect(logged).not.toContain("nativeButton");
+  it("shows a partial count when shared with only some groups", () => {
+    groupItems = [{ id: "g1" }, { id: "g2" }];
+    shareItems = [GROUP_ALPHA];
+    render(<ListGroupSharesBadge listId="list-1" intent="trade" />);
+    expect(screen.getByRole("button", { name: /visible to 1 of 2 groups/iu })).toBeInTheDocument();
+  });
+
+  it("nudges an unshared wish list when the user has groups", async () => {
+    groupItems = [{ id: "g1" }];
+    shareItems = [];
+    const onManageVisibility = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <ListGroupSharesBadge
+        listId="list-1"
+        intent="wish"
+        onManageVisibility={onManageVisibility}
+      />,
+    );
+    const badge = screen.getByRole("button", { name: /not visible to your groups/iu });
+    await user.click(badge);
+    expect(onManageVisibility).toHaveBeenCalledOnce();
+  });
+
+  it("does not nudge an unshared organize list", () => {
+    groupItems = [{ id: "g1" }];
+    shareItems = [];
+    const { container } = render(<ListGroupSharesBadge listId="list-1" intent="organize" />);
+    expect(container).toBeEmptyDOMElement();
   });
 });

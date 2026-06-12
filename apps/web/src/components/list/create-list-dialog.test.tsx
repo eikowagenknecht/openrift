@@ -20,6 +20,7 @@ const createMutate = vi.fn(
   },
 );
 const shareMutateAsync = vi.fn().mockResolvedValue(undefined);
+const unshareMutateAsync = vi.fn().mockResolvedValue(undefined);
 const bulkAddMutateAsync = vi.fn().mockResolvedValue(undefined);
 
 vi.mock("@/hooks/use-lists", () => ({
@@ -30,6 +31,7 @@ vi.mock("@/hooks/use-lists", () => ({
 vi.mock("@/hooks/use-friend-groups", () => ({
   useFriendGroupsList: () => ({ data: { items: currentGroups } }),
   useShareListWithFriendGroup: () => ({ mutateAsync: shareMutateAsync, isPending: false }),
+  useUnshareListFromFriendGroup: () => ({ mutateAsync: unshareMutateAsync, isPending: false }),
 }));
 
 vi.mock("@/stores/display-store", () => ({
@@ -53,9 +55,9 @@ vi.mock("@/components/trade-preferences/trade-preference-editor", () => ({
 
 const { CreateListDialog } = await import("./create-list-dialog");
 
-function Harness() {
+function Harness({ intent = "wish" }: { intent?: "wish" | "trade" | "organize" }) {
   const [open, setOpen] = useState(true);
-  return <CreateListDialog intent="wish" open={open} onOpenChange={setOpen} />;
+  return <CreateListDialog intent={intent} open={open} onOpenChange={setOpen} />;
 }
 
 const GROUPS: MockGroup[] = [
@@ -68,6 +70,7 @@ describe("CreateListDialog group sharing", () => {
     currentGroups = GROUPS;
     createMutate.mockClear();
     shareMutateAsync.mockClear();
+    unshareMutateAsync.mockClear();
     bulkAddMutateAsync.mockClear();
   });
 
@@ -77,19 +80,19 @@ describe("CreateListDialog group sharing", () => {
     expect(screen.getByRole("checkbox", { name: "Beta" })).toBeChecked();
   });
 
-  it("shares the new list with all groups by default", async () => {
+  it("makes no share calls for a wish list when every group stays checked (API default covers it)", async () => {
     const user = userEvent.setup();
     render(<Harness />);
 
     await user.type(screen.getByPlaceholderText("List name"), "Wants");
     await user.click(screen.getByRole("button", { name: "Create" }));
 
-    await waitFor(() => expect(shareMutateAsync).toHaveBeenCalledTimes(2));
-    expect(shareMutateAsync).toHaveBeenCalledWith({ slug: "alpha", listId: "new-list" });
-    expect(shareMutateAsync).toHaveBeenCalledWith({ slug: "beta", listId: "new-list" });
+    await waitFor(() => expect(createMutate).toHaveBeenCalledTimes(1));
+    expect(shareMutateAsync).not.toHaveBeenCalled();
+    expect(unshareMutateAsync).not.toHaveBeenCalled();
   });
 
-  it("excludes a group that the user unchecks", async () => {
+  it("unshares a group that the user unchecks on a wish list", async () => {
     const user = userEvent.setup();
     render(<Harness />);
 
@@ -97,11 +100,12 @@ describe("CreateListDialog group sharing", () => {
     await user.type(screen.getByPlaceholderText("List name"), "Wants");
     await user.click(screen.getByRole("button", { name: "Create" }));
 
-    await waitFor(() => expect(shareMutateAsync).toHaveBeenCalledTimes(1));
-    expect(shareMutateAsync).toHaveBeenCalledWith({ slug: "alpha", listId: "new-list" });
+    await waitFor(() => expect(unshareMutateAsync).toHaveBeenCalledTimes(1));
+    expect(unshareMutateAsync).toHaveBeenCalledWith({ slug: "beta", listId: "new-list" });
+    expect(shareMutateAsync).not.toHaveBeenCalled();
   });
 
-  it("re-checking a group puts it back in the share set", async () => {
+  it("re-checking a group removes it from the unshare set", async () => {
     const user = userEvent.setup();
     render(<Harness />);
 
@@ -111,7 +115,21 @@ describe("CreateListDialog group sharing", () => {
     await user.type(screen.getByPlaceholderText("List name"), "Wants");
     await user.click(screen.getByRole("button", { name: "Create" }));
 
-    await waitFor(() => expect(shareMutateAsync).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(createMutate).toHaveBeenCalledTimes(1));
+    expect(unshareMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("shares only the checked groups for an organize list (opt-in)", async () => {
+    const user = userEvent.setup();
+    render(<Harness intent="organize" />);
+
+    await user.click(screen.getByRole("checkbox", { name: "Beta" }));
+    await user.type(screen.getByPlaceholderText("List name"), "Binder");
+    await user.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() => expect(shareMutateAsync).toHaveBeenCalledTimes(1));
+    expect(shareMutateAsync).toHaveBeenCalledWith({ slug: "alpha", listId: "new-list" });
+    expect(unshareMutateAsync).not.toHaveBeenCalled();
   });
 
   it("hides the section and shares nothing when the user has no groups", async () => {
@@ -119,13 +137,14 @@ describe("CreateListDialog group sharing", () => {
     const user = userEvent.setup();
     render(<Harness />);
 
-    expect(screen.queryByText(/share with friend groups/iu)).not.toBeInTheDocument();
+    expect(screen.queryByText(/group visibility/iu)).not.toBeInTheDocument();
 
     await user.type(screen.getByPlaceholderText("List name"), "Wants");
     await user.click(screen.getByRole("button", { name: "Create" }));
 
     await waitFor(() => expect(createMutate).toHaveBeenCalledTimes(1));
     expect(shareMutateAsync).not.toHaveBeenCalled();
+    expect(unshareMutateAsync).not.toHaveBeenCalled();
   });
 });
 

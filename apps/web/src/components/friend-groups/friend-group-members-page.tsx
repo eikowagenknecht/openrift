@@ -52,6 +52,13 @@ export function MembersPageContent({
   const viewerRole = data.viewerRole ?? "member";
   const acceptInvite = useAcceptFriendGroupInvite();
   const declineInvite = useDeclineFriendGroupInvite();
+  // Members whose wish/trade lists are visible here — the ones who can show
+  // up in matches. Organize lists don't count toward trading.
+  const sharingUserIds = new Set(
+    data.shares
+      .filter((share) => share.listIntent === "wish" || share.listIntent === "trade")
+      .map((share) => share.userId),
+  );
 
   return (
     <section className="flex flex-col gap-4">
@@ -105,6 +112,7 @@ export function MembersPageContent({
             member={member}
             viewerId={viewerId}
             viewerRole={viewerRole}
+            sharesLists={sharingUserIds.has(member.userId)}
           />
         ))}
       </div>
@@ -117,11 +125,13 @@ function MemberRow({
   member,
   viewerId,
   viewerRole,
+  sharesLists,
 }: {
   slug: string;
   member: FriendGroupMemberResponse;
   viewerId: string;
   viewerRole: FriendGroupRole;
+  sharesLists: boolean;
 }) {
   const isSelf = member.userId === viewerId;
   const [nickname, setNickname] = useState(member.nickname ?? "");
@@ -157,7 +167,15 @@ function MemberRow({
         className="flex min-w-0 flex-1 flex-col"
       >
         <span className="truncate font-medium">{member.userName ?? "Unknown user"}</span>
-        <span className="text-muted-foreground text-xs">{ROLE_LABEL[member.role]}</span>
+        <span className="text-muted-foreground text-xs">
+          {ROLE_LABEL[member.role]}
+          {sharesLists ? null : (
+            <span className={isSelf ? "text-amber-700 dark:text-amber-400" : undefined}>
+              {" "}
+              · {isSelf ? "you're not sharing any lists" : "not sharing lists"}
+            </span>
+          )}
+        </span>
       </Link>
       {isSelf ? (
         <div className="flex items-center gap-2">
