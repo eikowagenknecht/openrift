@@ -127,6 +127,7 @@ const PARALLEL_FILES = [
   "src/routes/authenticated/collection-events.integration.test.ts",
   "src/routes/authenticated/lists.integration.test.ts",
   "src/routes/authenticated/deck-check.integration.test.ts",
+  "src/routes/authenticated/deck-check-player.integration.test.ts",
   "src/routes/authenticated/decks.integration.test.ts",
   "src/routes/authenticated/preferences.integration.test.ts",
   // Public routes
