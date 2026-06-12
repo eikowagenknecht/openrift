@@ -17,7 +17,7 @@ export const Route = createLazyFileRoute("/_app/verify-email")({
 });
 
 function VerifyEmailPage() {
-  const { email } = Route.useSearch();
+  const { email, redirect: redirectTo } = Route.useSearch();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [otp, setOtp] = useState("");
@@ -42,7 +42,7 @@ function VerifyEmailPage() {
     // User-scoped queries are keyed by the new userId, so once the session
     // lands every consumer attaches automatically.
     await queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
-    void navigate({ to: "/collections" });
+    void navigate({ to: (redirectTo as "/collections") ?? "/collections" });
   }
 
   async function handleResend() {
@@ -89,7 +89,7 @@ function VerifyEmailPage() {
           <p className="text-muted-foreground text-sm">
             <Link
               to="/login"
-              search={{ redirect: undefined, email: undefined }}
+              search={{ redirect: redirectTo, email: undefined }}
               className="underline underline-offset-2"
             >
               Back to login

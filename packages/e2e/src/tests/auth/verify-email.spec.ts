@@ -205,6 +205,48 @@ test.describe("verify email page", () => {
         await sql.end();
       }
     });
+
+    test("verifies and honors an explicit redirect param instead of /collections", async ({
+      page,
+      request,
+    }) => {
+      const sql = loadDb();
+      const email = `verify-redirect-${Date.now()}@test.com`;
+      let otp: string;
+      try {
+        await signUp(request, email, "VerifyTestPassword1!");
+        otp = await fetchLatestOtp(sql, email);
+
+        await page.goto(`/verify-email?email=${encodeURIComponent(email)}&redirect=%2Fcards`);
+        await page.locator(OTP_INPUT).fill(otp);
+
+        await expect(page).toHaveURL(/\/cards/u, { timeout: 15_000 });
+      } finally {
+        await sql.end();
+      }
+    });
+
+    test("strips an unsafe redirect param and falls back to /collections", async ({
+      page,
+      request,
+    }) => {
+      const sql = loadDb();
+      const email = `verify-redirect-unsafe-${Date.now()}@test.com`;
+      let otp: string;
+      try {
+        await signUp(request, email, "VerifyTestPassword1!");
+        otp = await fetchLatestOtp(sql, email);
+
+        await page.goto(
+          `/verify-email?email=${encodeURIComponent(email)}&redirect=https%3A%2F%2Fevil.com`,
+        );
+        await page.locator(OTP_INPUT).fill(otp);
+
+        await expect(page).toHaveURL(/\/collections/u, { timeout: 15_000 });
+      } finally {
+        await sql.end();
+      }
+    });
   });
 
   test.describe("resend", () => {
@@ -261,6 +303,18 @@ test.describe("verify email page", () => {
 
       await link.click();
       await expect(page).toHaveURL(/\/login(?:\?|$)/u);
+    });
+
+    test("'Back to login' link carries the redirect param through when present", async ({
+      page,
+    }) => {
+      await page.goto("/verify-email?email=foo@test.com&redirect=%2Fcards");
+
+      const link = page.getByRole("link", { name: /back to login/iu });
+      const href = await link.getAttribute("href");
+      const linkUrl = new URL(href ?? "", WEB_BASE_URL);
+      expect(linkUrl.pathname).toBe("/login");
+      expect(linkUrl.searchParams.get("redirect")).toBe("/cards");
     });
   });
 });

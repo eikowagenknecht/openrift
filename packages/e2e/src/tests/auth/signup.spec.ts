@@ -134,6 +134,34 @@ test.describe("signup page", () => {
       expect(linkUrl.searchParams.get("email")).toBe(typed);
       expect(href).toContain(`email=${encodeURIComponent(typed)}`);
     });
+
+    test("sign-in link carries the redirect param through when present", async ({ page }) => {
+      await page.goto("/signup?redirect=%2Fcards");
+      await waitForHydration(page);
+
+      // Scope to the body form link; the header "Sign in" doesn't carry params.
+      const signInLink = page
+        .getByText(/Already have an account/iu)
+        .getByRole("link", { name: /sign in/iu });
+      const href = await signInLink.getAttribute("href");
+      const linkUrl = new URL(href ?? "", WEB_BASE_URL);
+      expect(linkUrl.pathname).toBe("/login");
+      expect(linkUrl.searchParams.get("redirect")).toBe("/cards");
+    });
+
+    test("strips an unsafe redirect param from the sign-in link", async ({ page }) => {
+      await page.goto("/signup?redirect=https%3A%2F%2Fevil.com");
+      await waitForHydration(page);
+
+      const signInLink = page
+        .getByText(/Already have an account/iu)
+        .getByRole("link", { name: /sign in/iu });
+      const href = await signInLink.getAttribute("href");
+      expect(href).not.toBeNull();
+      expect(href).not.toContain("evil.com");
+      const linkUrl = new URL(href ?? "", WEB_BASE_URL);
+      expect(linkUrl.searchParams.get("redirect")).toBeNull();
+    });
   });
 
   test.describe("happy path", () => {

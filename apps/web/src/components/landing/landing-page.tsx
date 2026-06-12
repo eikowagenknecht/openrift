@@ -107,7 +107,7 @@ export function LandingPage() {
             </Link>
             <Link
               to="/signup"
-              search={{ email: undefined }}
+              search={{ redirect: undefined, email: undefined }}
               className={buttonVariants({ size: "lg", variant: "outline" })}
             >
               Sign up
