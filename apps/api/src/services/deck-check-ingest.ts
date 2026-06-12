@@ -174,7 +174,14 @@ export async function ingestDeckCheckPush(
       playerEmail: entry.playerEmail ?? null,
       riotId: entry.riotId ?? null,
       submittedAt: entry.submittedAt ? new Date(entry.submittedAt) : null,
-      publishOptOut: entry.publishOptOut ?? false,
+    };
+    // An omitted consent flag is no statement: the stored value survives a
+    // re-push, and a fresh insert falls back to the column default (true).
+    const consent = {
+      ...(entry.allowNameSharing === undefined ? {} : { allowNameSharing: entry.allowNameSharing }),
+      ...(entry.allowRiotIdSharing === undefined
+        ? {}
+        : { allowRiotIdSharing: entry.allowRiotIdSharing }),
     };
 
     const existing = await repos.deckCheck.getEntryByExternalId(event.id, entry.externalId);
@@ -183,6 +190,7 @@ export async function ingestDeckCheckPush(
         eventId: event.id,
         externalId: entry.externalId,
         ...identity,
+        ...consent,
         contentHash,
         withdrawnAt: entry.withdrawn ? new Date() : null,
       });
@@ -214,7 +222,11 @@ export async function ingestDeckCheckPush(
     if (existing.contentHash === contentHash) {
       // Identical list: refresh identity and withdrawal state, keep the check
       // state and every tick untouched (idempotent re-push).
-      await repos.deckCheck.updateEntry(existing.id, { ...identity, ...withdrawalChanged });
+      await repos.deckCheck.updateEntry(existing.id, {
+        ...identity,
+        ...consent,
+        ...withdrawalChanged,
+      });
       await autoMatchEntry(repos, existing.id, identity.playerEmail);
       result.entriesUnchanged += 1;
       continue;
@@ -224,6 +236,7 @@ export async function ingestDeckCheckPush(
     const wasChecked = existing.checkStatus !== "unchecked";
     await repos.deckCheck.updateEntry(existing.id, {
       ...identity,
+      ...consent,
       ...withdrawalChanged,
       contentHash,
       ...(wasChecked
@@ -326,7 +339,6 @@ export async function createManualDeckCheckEntry(
     playerEmail: payload.playerEmail ?? null,
     riotId: payload.riotId ?? null,
     submittedAt: null,
-    publishOptOut: false,
     contentHash: sha256(buildContentHashInput(lines)),
     withdrawnAt: null,
   });

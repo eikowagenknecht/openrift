@@ -295,6 +295,8 @@ const updateEntryFn = createServerFn({ method: "POST" })
       playerEmail?: string | null;
       riotId?: string | null;
       playerMessage?: string | null;
+      allowNameSharing?: boolean;
+      allowRiotIdSharing?: boolean;
     }) => input,
   )
   .middleware([withCookies])
@@ -310,6 +312,8 @@ const updateEntryFn = createServerFn({ method: "POST" })
             playerEmail: data.playerEmail,
             riotId: data.riotId,
             playerMessage: data.playerMessage,
+            allowNameSharing: data.allowNameSharing,
+            allowRiotIdSharing: data.allowRiotIdSharing,
           },
         }),
         "Couldn't update the player",

@@ -321,6 +321,32 @@ describe.skipIf(!ownerCtx)("deck-check routes (integration, ADR-025)", () => {
       expect(entry?.withdrawnAt).toBeNull();
     });
 
+    it("stores sharing consent, defaults to allowed, and keeps it on a flagless re-push", async () => {
+      // Omitted flags on a fresh entry fall back to the column default (true).
+      await push([entryPayload({ externalId: "entry-consent" })]);
+      let entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-consent");
+      expect(entry?.allowNameSharing).toBe(true);
+      expect(entry?.allowRiotIdSharing).toBe(true);
+
+      // An explicit refusal lands.
+      await push([
+        entryPayload({
+          externalId: "entry-consent",
+          allowNameSharing: false,
+          allowRiotIdSharing: false,
+        }),
+      ]);
+      entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-consent");
+      expect(entry?.allowNameSharing).toBe(false);
+      expect(entry?.allowRiotIdSharing).toBe(false);
+
+      // A flagless re-push is no statement: the stored refusal survives.
+      await push([entryPayload({ externalId: "entry-consent" })]);
+      entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-consent");
+      expect(entry?.allowNameSharing).toBe(false);
+      expect(entry?.allowRiotIdSharing).toBe(false);
+    });
+
     it("rejects pushes to an archived event with 409", async () => {
       const archive = await adminApp.fetch(
         req("PATCH", `/friend-groups/${GROUP_SLUG}/checks/${eventId}`, { status: "archived" }),
@@ -425,14 +451,23 @@ describe.skipIf(!ownerCtx)("deck-check routes (integration, ADR-025)", () => {
         req("PATCH", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}`, {
           playerName: "Corrected Player",
           riotId: "Player#EUW",
+          allowNameSharing: false,
         }),
       );
       expect(patch.status).toBe(200);
       const patched = (await patch.json()) as {
-        entry: { playerName: string; riotId: string | null };
+        entry: {
+          playerName: string;
+          riotId: string | null;
+          allowNameSharing: boolean;
+          allowRiotIdSharing: boolean;
+        };
       };
       expect(patched.entry.playerName).toBe("Corrected Player");
       expect(patched.entry.riotId).toBe("Player#EUW");
+      // The judge recorded a refusal for the name; the untouched flag keeps its default.
+      expect(patched.entry.allowNameSharing).toBe(false);
+      expect(patched.entry.allowRiotIdSharing).toBe(true);
 
       const add = await judgeApp.fetch(
         req("POST", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}/cards`, {

@@ -110,6 +110,8 @@ export function PlayerSubmitPage({ token }: { token: string }) {
                 onPreview={(input) => preview.mutate({ token, ...input })}
                 preview={preview.data ?? null}
                 isPreviewing={preview.isPending}
+                initialAllowNameSharing={data.linkedEntry?.allowNameSharing ?? true}
+                initialAllowRiotIdSharing={data.linkedEntry?.allowRiotIdSharing ?? true}
               />
             </>
           ) : (

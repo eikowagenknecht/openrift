@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 2MsJOKIs2sMZqdpgMgHhLRlWpoLV3zj3WM3RONUyreMhFLpaviCgbrX7xBVc5FR
+\restrict xJoghsaYYUQL9GI5gLxsSwu1jP5F5Sw6eKmgwUngWd7FxBOcNbjXbEgxvrnKpmd
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -842,7 +842,6 @@ CREATE TABLE public.deck_check_entries (
     player_email text,
     riot_id text,
     submitted_at timestamp with time zone,
-    publish_opt_out boolean DEFAULT false NOT NULL,
     content_hash text NOT NULL,
     check_status text DEFAULT 'unchecked'::text NOT NULL,
     checked_by text,
@@ -859,6 +858,8 @@ CREATE TABLE public.deck_check_entries (
     list_owner text DEFAULT 'provider'::text NOT NULL,
     player_message text,
     provider_push_ignored_at timestamp with time zone,
+    allow_name_sharing boolean DEFAULT true NOT NULL,
+    allow_riot_id_sharing boolean DEFAULT true NOT NULL,
     CONSTRAINT chk_deck_check_entries_claim_source CHECK (((claim_source IS NULL) OR (claim_source = ANY (ARRAY['email_auto'::text, 'judge_manual'::text, 'self_submit'::text])))),
     CONSTRAINT chk_deck_check_entries_list_owner CHECK ((list_owner = ANY (ARRAY['provider'::text, 'player'::text]))),
     CONSTRAINT chk_deck_check_entries_notes CHECK (((notes IS NULL) OR (length(notes) <= 4000))),
@@ -4628,5 +4629,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 2MsJOKIs2sMZqdpgMgHhLRlWpoLV3zj3WM3RONUyreMhFLpaviCgbrX7xBVc5FR
+\unrestrict xJoghsaYYUQL9GI5gLxsSwu1jP5F5Sw6eKmgwUngWd7FxBOcNbjXbEgxvrnKpmd
 

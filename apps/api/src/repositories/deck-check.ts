@@ -58,7 +58,9 @@ export interface NewDeckCheckEntry {
   playerEmail: string | null;
   riotId: string | null;
   submittedAt: Date | null;
-  publishOptOut: boolean;
+  /** Omitted on insert = the column default (true, opt-out model). */
+  allowNameSharing?: boolean;
+  allowRiotIdSharing?: boolean;
   contentHash: string;
   withdrawnAt: Date | null;
   claimedUserId?: string | null;
@@ -340,7 +342,8 @@ export function deckCheckRepo(db: Kysely<Database>) {
         playerEmail: string | null;
         riotId: string | null;
         submittedAt: Date | null;
-        publishOptOut: boolean;
+        allowNameSharing: boolean;
+        allowRiotIdSharing: boolean;
         contentHash: string;
         checkStatus: DeckCheckEntryStatus;
         checkedBy: string | null;

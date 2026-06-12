@@ -34,6 +34,7 @@ import {
   buildEntryAdvisories,
   toDeckCheckEntryCardResponse,
 } from "../../services/deck-check-advisories.js";
+import type { PlayerSharingConsent } from "../../services/deck-check-player.js";
 import {
   applyPlayerList,
   buildPlayerLines,
@@ -94,6 +95,8 @@ async function buildPlayerDetail(
       withdrawn: row.withdrawnAt !== null,
       playerMessage: row.playerMessage,
       listOwner: row.listOwner,
+      allowNameSharing: row.allowNameSharing,
+      allowRiotIdSharing: row.allowRiotIdSharing,
       submittedAt: row.submittedAt?.toISOString() ?? null,
       updatedAt: row.updatedAt.toISOString(),
       canEdit: submissionWindowOpen(event) && row.withdrawnAt === null,
@@ -149,6 +152,7 @@ async function persistSubmission(
   userId: string,
   lines: Awaited<ReturnType<typeof buildPlayerLines>>,
   cardRows: NewDeckCheckEntryCard[],
+  consent: PlayerSharingConsent,
 ): Promise<DeckCheckEntry> {
   const linked = await repos.deckCheck.getLinkedEntryForUser(event.id, userId);
   if (linked) {
@@ -159,7 +163,7 @@ async function persistSubmission(
         "Your entry was withdrawn by the organizer; contact a judge",
       );
     }
-    return applyPlayerList(repos, linked, lines, cardRows);
+    return applyPlayerList(repos, linked, lines, cardRows, consent);
   }
 
   // A judge-unlinked self-submitted entry still occupies the caller's
@@ -181,7 +185,7 @@ async function persistSubmission(
   if (!account) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "Account not found");
   }
-  return createSelfSubmittedEntry(repos, event, account, lines, cardRows);
+  return createSelfSubmittedEntry(repos, event, account, lines, cardRows, consent);
 }
 
 // ─── Route definitions (OpenAPI) ────────────────────────────────────────────
@@ -361,7 +365,10 @@ export const deckCheckPlayerRoute = deckCheckPlayerApp
     }
 
     const entry = await c.get("transact")((txRepos) =>
-      applyPlayerList(txRepos, row, lines, cardRows),
+      applyPlayerList(txRepos, row, lines, cardRows, {
+        allowNameSharing: body.allowNameSharing,
+        allowRiotIdSharing: body.allowRiotIdSharing,
+      }),
     );
     const cards = await repos.deckCheck.listCardsForEntry(entry.id);
     return c.json(
@@ -398,6 +405,8 @@ export const deckCheckPlayerRoute = deckCheckPlayerApp
               id: linked.id,
               checkStatus: linked.checkStatus,
               withdrawn: linked.withdrawnAt !== null,
+              allowNameSharing: linked.allowNameSharing,
+              allowRiotIdSharing: linked.allowRiotIdSharing,
             }
           : null,
       },
@@ -430,7 +439,10 @@ export const deckCheckPlayerRoute = deckCheckPlayerApp
       throw new AppError(409, ERROR_CODES.CONFLICT, "Submissions are closed");
     }
     const entry = await c.get("transact")((txRepos) =>
-      persistSubmission(txRepos, event, userId, lines, cardRows),
+      persistSubmission(txRepos, event, userId, lines, cardRows, {
+        allowNameSharing: body.allowNameSharing,
+        allowRiotIdSharing: body.allowRiotIdSharing,
+      }),
     );
     const cards = await repos.deckCheck.listCardsForEntry(entry.id);
     return c.json(

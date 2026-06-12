@@ -447,6 +447,33 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       expect(badSection.status).toBe(422);
     });
 
+    it("records sharing consent on submit and keeps it on a flagless re-submit", async () => {
+      // The previous submissions sent no flags, so the defaults (true) stand.
+      let entry = await repos.deckCheck.getEntryByExternalId(eventId, `openrift:${STRANGER_ID}`);
+      expect(entry?.allowNameSharing).toBe(true);
+      expect(entry?.allowRiotIdSharing).toBe(true);
+
+      // The player declines the Riot ID; the same-list submit still records it.
+      const declined = await strangerApp.fetch(
+        req("POST", `/deck-check/submissions/${submissionToken}`, {
+          deckId: strangerDeckId,
+          allowRiotIdSharing: false,
+        }),
+      );
+      expect(declined.status).toBe(200);
+      entry = await repos.deckCheck.getEntryByExternalId(eventId, `openrift:${STRANGER_ID}`);
+      expect(entry?.allowNameSharing).toBe(true);
+      expect(entry?.allowRiotIdSharing).toBe(false);
+
+      // A flagless re-submit is no statement: the refusal survives.
+      const flagless = await strangerApp.fetch(
+        req("POST", `/deck-check/submissions/${submissionToken}`, { deckId: strangerDeckId }),
+      );
+      expect(flagless.status).toBe(200);
+      entry = await repos.deckCheck.getEntryByExternalId(eventId, `openrift:${STRANGER_ID}`);
+      expect(entry?.allowRiotIdSharing).toBe(false);
+    });
+
     it("a dry run previews the resolved lines without writing", async () => {
       const entriesBefore = await repos.deckCheck.listEntriesForEvent(eventId);
       const res = await strangerApp.fetch(

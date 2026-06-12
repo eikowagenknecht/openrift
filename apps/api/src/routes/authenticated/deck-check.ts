@@ -128,6 +128,8 @@ function toEntry(
     playerName: row.playerName,
     playerEmail: row.playerEmail,
     riotId: row.riotId,
+    allowNameSharing: row.allowNameSharing,
+    allowRiotIdSharing: row.allowRiotIdSharing,
     submittedAt: row.submittedAt?.toISOString() ?? null,
     checkStatus: row.checkStatus,
     checkedBy: row.checkedBy,
@@ -809,6 +811,10 @@ export const deckCheckRoute = deckCheckApp
       ...(body.playerEmail === undefined ? {} : { playerEmail: body.playerEmail }),
       ...(body.riotId === undefined ? {} : { riotId: body.riotId }),
       ...(body.playerMessage === undefined ? {} : { playerMessage: body.playerMessage }),
+      ...(body.allowNameSharing === undefined ? {} : { allowNameSharing: body.allowNameSharing }),
+      ...(body.allowRiotIdSharing === undefined
+        ? {}
+        : { allowRiotIdSharing: body.allowRiotIdSharing }),
     });
     if (!updated) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Entry not found");

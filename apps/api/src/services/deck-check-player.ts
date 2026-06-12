@@ -248,10 +248,36 @@ export async function resolvePlayerCardRows(
   });
 }
 
+/** Sharing consent as submitted by the player; an absent flag is no statement. */
+export interface PlayerSharingConsent {
+  allowNameSharing?: boolean;
+  allowRiotIdSharing?: boolean;
+}
+
+/**
+ * The consent columns a submission actually states, for spreading into an
+ * entry update.
+ * @returns A patch containing only the flags the player answered.
+ */
+function consentPatch(consent: PlayerSharingConsent): Partial<{
+  allowNameSharing: boolean;
+  allowRiotIdSharing: boolean;
+}> {
+  return {
+    ...(consent.allowNameSharing === undefined
+      ? {}
+      : { allowNameSharing: consent.allowNameSharing }),
+    ...(consent.allowRiotIdSharing === undefined
+      ? {}
+      : { allowRiotIdSharing: consent.allowRiotIdSharing }),
+  };
+}
+
 /**
  * Applies a player's list to an existing entry: ADR-025's re-import
  * invalidation verbatim, plus the ADR-026 edit-takeover flip for an entry the
- * provider fed. An unchanged list is idempotent.
+ * provider fed. An unchanged list is idempotent (but still records a changed
+ * sharing consent).
  * @returns The updated entry.
  */
 export async function applyPlayerList(
@@ -259,13 +285,15 @@ export async function applyPlayerList(
   entry: DeckCheckEntry,
   lines: DeckCheckCardLine[],
   cardRows: NewDeckCheckEntryCard[],
+  consent: PlayerSharingConsent = {},
 ): Promise<DeckCheckEntry> {
   const contentHash = sha256(buildContentHashInput(lines));
   const takeover = entry.listOwner === "provider" ? { listOwner: "player" as const } : {};
 
   if (entry.contentHash === contentHash) {
-    if (entry.listOwner === "provider") {
-      const updated = await repos.deckCheck.updateEntry(entry.id, takeover);
+    const patch = { ...takeover, ...consentPatch(consent) };
+    if (Object.keys(patch).length > 0) {
+      const updated = await repos.deckCheck.updateEntry(entry.id, patch);
       return updated ?? entry;
     }
     return entry;
@@ -280,6 +308,7 @@ export async function applyPlayerList(
   }));
   const updated = await repos.deckCheck.updateEntry(entry.id, {
     ...takeover,
+    ...consentPatch(consent),
     contentHash,
     submittedAt: new Date(),
     ...(wasChecked
@@ -307,6 +336,7 @@ export async function createSelfSubmittedEntry(
   account: { id: string; name: string | null; email: string },
   lines: DeckCheckCardLine[],
   cardRows: NewDeckCheckEntryCard[],
+  consent: PlayerSharingConsent = {},
 ): Promise<DeckCheckEntry> {
   const entry = await repos.deckCheck.createEntry({
     eventId: event.id,
@@ -315,7 +345,7 @@ export async function createSelfSubmittedEntry(
     playerEmail: account.email,
     riotId: null,
     submittedAt: new Date(),
-    publishOptOut: false,
+    ...consentPatch(consent),
     contentHash: sha256(buildContentHashInput(lines)),
     withdrawnAt: null,
     claimedUserId: account.id,

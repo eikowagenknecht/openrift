@@ -1860,6 +1860,8 @@ const deckCheckEntryResponseSchema = z.object({
   playerName: z.string(),
   playerEmail: z.string().nullable(),
   riotId: z.string().nullable(),
+  allowNameSharing: z.boolean(),
+  allowRiotIdSharing: z.boolean(),
   submittedAt: z.string().nullable(),
   checkStatus: deckCheckEntryStatusSchema,
   checkedBy: z.string().nullable(),
@@ -1973,6 +1975,8 @@ export const playerDeckCheckEntryDetailResponseSchema = z
       withdrawn: z.boolean(),
       playerMessage: z.string().nullable(),
       listOwner: deckCheckListOwnerSchema,
+      allowNameSharing: z.boolean(),
+      allowRiotIdSharing: z.boolean(),
       submittedAt: z.string().nullable(),
       updatedAt: z.string(),
       canEdit: z.boolean(),
@@ -2000,6 +2004,8 @@ export const deckCheckSubmissionPageResponseSchema = z
         id: z.string(),
         checkStatus: deckCheckEntryStatusSchema,
         withdrawn: z.boolean(),
+        allowNameSharing: z.boolean(),
+        allowRiotIdSharing: z.boolean(),
       })
       .nullable(),
   })

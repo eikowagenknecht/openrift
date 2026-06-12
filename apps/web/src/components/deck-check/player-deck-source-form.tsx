@@ -3,6 +3,7 @@ import { TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -16,16 +17,24 @@ import { useDecks } from "@/hooks/use-decks";
 import { parseManualDecklist } from "@/lib/deck-check-manual-entry";
 
 /**
- * The ways a player can provide a list: an own deck, a pasted compact deck
- * code, or the parsed lines of a pasted text list.
+ * The ways a player can provide a list (an own deck, a pasted compact deck
+ * code, or the parsed lines of a pasted text list), plus the sharing consent
+ * stated alongside the submission.
  */
 export interface DeckSourceInput {
   deckId?: string;
   deckCode?: string;
   cards?: { name: string; quantity: number; section: string }[];
+  /** Consent to show the player's name on public platforms. */
+  allowNameSharing: boolean;
+  /** Consent to show the player's Riot ID on public platforms. */
+  allowRiotIdSharing: boolean;
 }
 
 const NO_DECK = "__none__";
+
+/** The list part of the input, before the consent flags are attached. */
+type DeckSource = Omit<DeckSourceInput, "allowNameSharing" | "allowRiotIdSharing">;
 
 /**
  * Classifies a paste and converts it to a submission input. A compact deck
@@ -33,7 +42,7 @@ const NO_DECK = "__none__";
  * treated as a text decklist and parsed like the judge's manual entry.
  * @returns The input, or null when the paste yields no cards.
  */
-function pasteToInput(paste: string): DeckSourceInput | null {
+function pasteToInput(paste: string): DeckSource | null {
   const trimmed = paste.trim();
   if (trimmed.length === 0) {
     return null;
@@ -60,6 +69,8 @@ export function PlayerDeckSourceForm({
   onPreview,
   preview,
   isPreviewing,
+  initialAllowNameSharing = true,
+  initialAllowRiotIdSharing = true,
 }: {
   submitLabel: string;
   pendingLabel: string;
@@ -68,10 +79,15 @@ export function PlayerDeckSourceForm({
   onPreview: (input: DeckSourceInput) => void;
   preview: DeckCheckSubmissionResultResponse | null;
   isPreviewing: boolean;
+  /** Stored sharing consent of an existing entry; defaults to allowed. */
+  initialAllowNameSharing?: boolean;
+  initialAllowRiotIdSharing?: boolean;
 }) {
   const { data: allDecks } = useDecks();
   const [deckId, setDeckId] = useState(NO_DECK);
   const [deckCode, setDeckCode] = useState("");
+  const [allowNameSharing, setAllowNameSharing] = useState(initialAllowNameSharing);
+  const [allowRiotIdSharing, setAllowRiotIdSharing] = useState(initialAllowRiotIdSharing);
 
   const decks = allDecks.filter((item) => item.deck.archivedAt === null);
   const deckItems = [
@@ -80,7 +96,10 @@ export function PlayerDeckSourceForm({
   ];
 
   // The sources are mutually exclusive; touching one clears the other.
-  const input: DeckSourceInput | null = deckId === NO_DECK ? pasteToInput(deckCode) : { deckId };
+  const source: DeckSource | null = deckId === NO_DECK ? pasteToInput(deckCode) : { deckId };
+  const input: DeckSourceInput | null = source
+    ? { ...source, allowNameSharing, allowRiotIdSharing }
+    : null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -136,6 +155,33 @@ export function PlayerDeckSourceForm({
           , or a plain card list with one card per line. Legends, runes, and battlefields find their
           zones automatically; mark your chosen champion and any sideboard with
           &quot;Champion:&quot; / &quot;Sideboard:&quot; header lines.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label>Public deck lists</Label>
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="player-deck-share-name"
+            checked={allowNameSharing}
+            onCheckedChange={(checked) => setAllowNameSharing(checked === true)}
+          />
+          <Label htmlFor="player-deck-share-name" className="font-normal">
+            My name may be shown with my deck on public platforms
+          </Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="player-deck-share-riot-id"
+            checked={allowRiotIdSharing}
+            onCheckedChange={(checked) => setAllowRiotIdSharing(checked === true)}
+          />
+          <Label htmlFor="player-deck-share-riot-id" className="font-normal">
+            My Riot ID may be shown with my deck on public platforms
+          </Label>
+        </div>
+        <p className="text-muted-foreground text-sm">
+          Judges always see your details; this only affects publicly shared deck lists.
         </p>
       </div>
 

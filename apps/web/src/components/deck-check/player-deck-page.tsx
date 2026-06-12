@@ -70,7 +70,13 @@ export function PlayerDeckPage({ entryId }: { entryId: string }) {
             <PageTopBarBack to="/tournament-decks" aria-label="Back to my tournament decks" />
             <PageTopBarTitle>{entry.eventName}</PageTopBarTitle>
             <PageTopBarActions>
-              {entry.canEdit ? <ReplaceDeckButton entryId={entry.id} /> : null}
+              {entry.canEdit ? (
+                <ReplaceDeckButton
+                  entryId={entry.id}
+                  allowNameSharing={entry.allowNameSharing}
+                  allowRiotIdSharing={entry.allowRiotIdSharing}
+                />
+              ) : null}
             </PageTopBarActions>
           </PageTopBar>
         </div>
@@ -104,6 +110,10 @@ export function PlayerDeckPage({ entryId }: { entryId: string }) {
               Submissions are closed; contact a judge to change your list.
             </p>
           ) : null}
+          <p className="text-muted-foreground text-sm">
+            {sharingSummary(entry.allowNameSharing, entry.allowRiotIdSharing)}
+            {entry.canEdit ? " You can change this when replacing your deck." : ""}
+          </p>
           {data.violations.length > 0 ? (
             <Banner>
               <ul className="flex list-disc flex-col gap-1 pl-5">
@@ -122,6 +132,23 @@ export function PlayerDeckPage({ entryId }: { entryId: string }) {
       </div>
     </div>
   );
+}
+
+/**
+ * One sentence describing what the player allows public platforms to show.
+ * @returns The summary sentence.
+ */
+function sharingSummary(allowName: boolean, allowRiotId: boolean): string {
+  if (allowName && allowRiotId) {
+    return "Public platforms may show your name and Riot ID with this deck.";
+  }
+  if (allowName) {
+    return "Public platforms may show your name with this deck, but not your Riot ID.";
+  }
+  if (allowRiotId) {
+    return "Public platforms may show your Riot ID with this deck, but not your name.";
+  }
+  return "Public platforms may not show your name or Riot ID with this deck.";
 }
 
 function Banner({ children }: { children: React.ReactNode }) {
@@ -227,7 +254,15 @@ function PlayerCardCell({ card }: { card: DeckCheckEntryCardResponse }) {
   );
 }
 
-function ReplaceDeckButton({ entryId }: { entryId: string }) {
+function ReplaceDeckButton({
+  entryId,
+  allowNameSharing,
+  allowRiotIdSharing,
+}: {
+  entryId: string;
+  allowNameSharing: boolean;
+  allowRiotIdSharing: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const edit = useEditMyTournamentDeck();
   const preview = usePreviewTournamentDeck();
@@ -258,6 +293,8 @@ function ReplaceDeckButton({ entryId }: { entryId: string }) {
             onPreview={(input) => preview.mutate({ entryId, ...input })}
             preview={preview.data ?? null}
             isPreviewing={preview.isPending}
+            initialAllowNameSharing={allowNameSharing}
+            initialAllowRiotIdSharing={allowRiotIdSharing}
           />
         </DialogContent>
       </Dialog>

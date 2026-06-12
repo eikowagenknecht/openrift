@@ -644,7 +644,10 @@ export interface DeckCheckEntriesTable {
   /** Player's Riot ID. CHECK: length <= 120 */
   riotId: string | null;
   submittedAt: Date | null;
-  publishOptOut: Generated<boolean>;
+  /** Consent to show the player's name on public platforms (default true, opt-out). */
+  allowNameSharing: Generated<boolean>;
+  /** Consent to show the player's Riot ID on public platforms (default true, opt-out). */
+  allowRiotIdSharing: Generated<boolean>;
   /** Hash over the normalized card lines; unchanged re-push is a no-op. */
   contentHash: string;
   checkStatus: Generated<DeckCheckEntryStatus>;

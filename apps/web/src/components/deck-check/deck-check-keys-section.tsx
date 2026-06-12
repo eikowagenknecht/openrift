@@ -33,6 +33,10 @@ const EXAMPLE_PAYLOAD = `{
       "playerName": "A. Player",
       "playerEmail": "player@example.com",
       "riotId": "Player#EUW",
+      "submittedAt": "2026-06-18T20:00:00Z",
+      "allowNameSharing": true,
+      "allowRiotIdSharing": true,
+      "withdrawn": false,
       "cards": [
         { "name": "Darius, Trifarian", "quantity": 1, "section": "champion" },
         { "name": "Blazing Scorcher", "quantity": 3, "section": "main" }
@@ -98,8 +102,23 @@ export function DeckCheckKeysSection({ slug }: { slug: string }) {
             Pushes can only fill events that already exist: create the event here first, then copy
             its id from the event page (next to the name) into <code>eventId</code>. The{" "}
             <code>externalId</code> of an entry is your own id for that player, so sending it again
-            updates the same entry. <code>playerEmail</code> and <code>riotId</code> are optional
-            and shown to judges next to the name.
+            updates the same entry. <code>playerEmail</code>, <code>riotId</code>, and{" "}
+            <code>submittedAt</code> (when the player turned in the list) are optional and shown to
+            judges next to the name.
+          </p>
+          <p>
+            <code>allowNameSharing</code> and <code>allowRiotIdSharing</code> record whether the
+            player agreed to their name or Riot ID being shown on public platforms. Send{" "}
+            <code>false</code> when the player declined; leaving a flag out keeps what is stored
+            (new entries default to allowed). Leaving an entry out of a push never withdraws it: to
+            withdraw a player, send the entry with <code>withdrawn</code> set to <code>true</code>;
+            sending it again without the flag restores it.
+          </p>
+          <p>
+            Valid card sections are <code>legend</code>, <code>champion</code>, <code>main</code>,{" "}
+            <code>runes</code>, <code>battlefield</code>, <code>sideboard</code>, and{" "}
+            <code>overflow</code>. Common variants like <code>deck</code>, <code>maindeck</code>,{" "}
+            <code>side</code>, and plural forms work too; anything else rejects the push.
           </p>
           <pre className="bg-muted overflow-x-auto rounded-md p-3">{EXAMPLE_PAYLOAD}</pre>
         </div>

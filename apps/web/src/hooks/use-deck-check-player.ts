@@ -21,6 +21,10 @@ export interface TournamentDeckSubmissionInput {
   deckId?: string;
   deckCode?: string;
   cards?: { name: string; quantity: number; section: string }[];
+  /** Consent to show the player's name on public platforms; omitted = keep stored. */
+  allowNameSharing?: boolean;
+  /** Consent to show the player's Riot ID on public platforms; omitted = keep stored. */
+  allowRiotIdSharing?: boolean;
   dryRun?: boolean;
 }
 
@@ -61,6 +65,8 @@ const editMyTournamentDeckFn = createServerFn({ method: "POST" })
             deckId: data.deckId,
             deckCode: data.deckCode,
             cards: data.cards,
+            allowNameSharing: data.allowNameSharing,
+            allowRiotIdSharing: data.allowRiotIdSharing,
             dryRun: data.dryRun,
           },
         }),
@@ -93,6 +99,8 @@ const submitTournamentDeckFn = createServerFn({ method: "POST" })
             deckId: data.deckId,
             deckCode: data.deckCode,
             cards: data.cards,
+            allowNameSharing: data.allowNameSharing,
+            allowRiotIdSharing: data.allowRiotIdSharing,
             dryRun: data.dryRun,
           },
         }),

@@ -98,6 +98,7 @@ import * as m149 from "./149-deck-check.js";
 import * as m150 from "./150-default-group-list-shares.js";
 import * as m151 from "./151-rename-deck-check-handle-to-riot-id.js";
 import * as m152 from "./152-deck-check-player.js";
+import * as m153 from "./153-deck-check-sharing-consent.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -255,4 +256,5 @@ export const migrations: Record<string, Migration> = {
   "150-default-group-list-shares": m150,
   "151-rename-deck-check-handle-to-riot-id": m151,
   "152-deck-check-player": m152,
+  "153-deck-check-sharing-consent": m153,
 };

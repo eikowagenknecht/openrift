@@ -99,6 +99,10 @@ export interface DeckCheckEntryResponse {
   playerName: string;
   playerEmail: string | null;
   riotId: string | null;
+  /** Consent to show the player's name on public platforms (default true, opt-out). */
+  allowNameSharing: boolean;
+  /** Consent to show the player's Riot ID on public platforms (default true, opt-out). */
+  allowRiotIdSharing: boolean;
   submittedAt: string | null;
   checkStatus: DeckCheckEntryStatus;
   checkedBy: string | null;
@@ -203,6 +207,10 @@ export interface PlayerDeckCheckEntryDetailResponse {
     withdrawn: boolean;
     playerMessage: string | null;
     listOwner: DeckCheckListOwner;
+    /** The caller's consent to show their name on public platforms. */
+    allowNameSharing: boolean;
+    /** The caller's consent to show their Riot ID on public platforms. */
+    allowRiotIdSharing: boolean;
     submittedAt: string | null;
     updatedAt: string;
     /** Whether the entry can currently be edited (event open, not withdrawn). */
@@ -225,7 +233,14 @@ export interface DeckCheckSubmissionPageResponse {
   /** False once the window closed or the event was archived. */
   submissionsOpen: boolean;
   /** The caller's already-linked entry in this event, if any. */
-  linkedEntry: { id: string; checkStatus: DeckCheckEntryStatus; withdrawn: boolean } | null;
+  linkedEntry: {
+    id: string;
+    checkStatus: DeckCheckEntryStatus;
+    withdrawn: boolean;
+    /** Current sharing consent, so the form starts from the stored answer. */
+    allowNameSharing: boolean;
+    allowRiotIdSharing: boolean;
+  } | null;
 }
 
 /** Dry-run preview / submit result: the resolved lines plus advisory findings. */

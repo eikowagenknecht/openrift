@@ -43,6 +43,7 @@ import { ImportCatalogSearch } from "@/components/import/import-catalog-search";
 import { TopBarBreadcrumbBar } from "@/components/layout/top-bar-breadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -353,6 +354,10 @@ function EntryHeader({
           <p className="text-muted-foreground text-sm">
             {[entry.riotId, entry.playerEmail].filter(Boolean).join(" · ") || "No contact details"}
           </p>
+          <p className="text-muted-foreground text-sm">
+            Public sharing allowed:{" "}
+            {sharingAllowedSummary(entry.allowNameSharing, entry.allowRiotIdSharing)}
+          </p>
           {checked && entry.checkedByName ? (
             <p className="text-muted-foreground text-sm">
               {entry.checkStatus === "issue" ? "Flagged" : "Checked"} by {entry.checkedByName}
@@ -410,6 +415,17 @@ function EntryHeader({
       />
     </header>
   );
+}
+
+/**
+ * What the player allows public platforms to show, for the header status line.
+ * @returns A short list like "name, Riot ID", or "nothing".
+ */
+function sharingAllowedSummary(allowName: boolean, allowRiotId: boolean): string {
+  const allowed = [allowName ? "name" : null, allowRiotId ? "Riot ID" : null].filter(
+    (part) => part !== null,
+  );
+  return allowed.length > 0 ? allowed.join(", ") : "nothing";
 }
 
 /**
@@ -632,6 +648,8 @@ function EditPlayerDialog({
   const [playerName, setPlayerName] = useState(entry.playerName);
   const [playerEmail, setPlayerEmail] = useState(entry.playerEmail ?? "");
   const [riotId, setRiotId] = useState(entry.riotId ?? "");
+  const [allowNameSharing, setAllowNameSharing] = useState(entry.allowNameSharing);
+  const [allowRiotIdSharing, setAllowRiotIdSharing] = useState(entry.allowRiotIdSharing);
   const updateEntry = useUpdateDeckCheckEntry();
 
   const handleSave = async () => {
@@ -646,6 +664,8 @@ function EditPlayerDialog({
       playerName: name,
       playerEmail: playerEmail.trim() || null,
       riotId: riotId.trim() || null,
+      allowNameSharing,
+      allowRiotIdSharing,
     });
     onOpenChange(false);
   };
@@ -658,6 +678,8 @@ function EditPlayerDialog({
           setPlayerName(entry.playerName);
           setPlayerEmail(entry.playerEmail ?? "");
           setRiotId(entry.riotId ?? "");
+          setAllowNameSharing(entry.allowNameSharing);
+          setAllowRiotIdSharing(entry.allowRiotIdSharing);
         }
         onOpenChange(nextOpen);
       }}
@@ -701,6 +723,29 @@ function EditPlayerDialog({
               maxLength={120}
               placeholder="Player#EUW"
             />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label>Public sharing</Label>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="deck-check-share-name"
+                checked={allowNameSharing}
+                onCheckedChange={(checked) => setAllowNameSharing(checked === true)}
+              />
+              <Label htmlFor="deck-check-share-name" className="font-normal">
+                Name may be shown on public platforms
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="deck-check-share-riot-id"
+                checked={allowRiotIdSharing}
+                onCheckedChange={(checked) => setAllowRiotIdSharing(checked === true)}
+              />
+              <Label htmlFor="deck-check-share-riot-id" className="font-normal">
+                Riot ID may be shown on public platforms
+              </Label>
+            </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>

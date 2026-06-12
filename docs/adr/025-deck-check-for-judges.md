@@ -193,7 +193,7 @@ The whole feature is gated behind a feature flag (registered in `KNOWN_FLAGS`), 
 Separate tables are not a one-way door. If entrant decks should ever surface in deck-centric features (a public tournament overview, decks claimable by player accounts, "decks featuring this card"), a migration into ADR-014's proposed shape (`decks` rows plus a satellite table) is a self-contained script, because the schema deliberately preserves everything such a migration needs:
 
 - **Raw provider lines are kept verbatim** (`raw_name`, `section`). Resolution is a cache, not the record; lines that were `unmatched` at ingest time can be re-resolved against the then-current catalog at migration time.
-- **Consent is captured from day one** (`publish_opt_out`), the one field that could never be reconstructed retroactively for a future public surface.
+- **Consent is captured from day one** (`publish_opt_out`), the one field that could never be reconstructed retroactively for a future public surface. _Update (migration 153): replaced by the granular opt-out flags `allow_name_sharing` and `allow_riot_id_sharing` (default true); entries that had opted out kept their refusal._
 - **Zones and formats FK the same shared vocabularies** (`deck_zones`, `deck_formats`) that `decks` uses, so card lines translate 1:1 (`zone`, `quantity`, `resolved_card_id` → `card_id`, `resolved_printing_id` → `preferred_printing_id`).
 - **Provenance is stable**: the entry `external_id` plus `submitted_at` keep the link to the organizer's system across any migration.
 - **Player identity is stored as the claim keys** a future account link would match on (`player_email`, `riot_id`); linking is one additive nullable `claimed_user_id` column, never a rewrite.
