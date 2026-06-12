@@ -167,7 +167,13 @@ export function DeckCheckEntryPage({
         {detail.entry.changeSummary ? <ChangeBanner summary={detail.entry.changeSummary} /> : null}
         <FindingsBanner detail={detail} />
       </div>
-      <div className={cn("w-full pb-4", PAGE_PADDING, !wide && "mx-auto max-w-5xl")}>
+      <div
+        className={cn(
+          "w-full pb-4",
+          PAGE_PADDING,
+          (!wide || displayMode === "list") && "mx-auto max-w-5xl",
+        )}
+      >
         <div className="mb-2 flex flex-wrap items-center justify-end gap-2">
           <SortGroupControls
             sortOptions={CHECK_SORT_OPTIONS}
