@@ -64,6 +64,23 @@ export function DeckCheckKeysSection({ slug }: { slug: string }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [mintedToken, setMintedToken] = useState<string | null>(null);
 
+  // The claim link is absolute, so it carries the live site origin.
+  const exampleResponse = `{
+  "eventId": "<the event id>",
+  "entriesCreated": 1,
+  "entriesUpdated": 0,
+  "entriesUnchanged": 0,
+  "entriesWithdrawn": 0,
+  "checksInvalidated": 0,
+  "entries": [
+    {
+      "externalId": "1234",
+      "entryId": "019eb565-3d55-7d21-8d86-e9b6939a2c2f",
+      "claimUrl": "${getSiteUrl()}/tournament-claim/8f3c2a…"
+    }
+  ]
+}`;
+
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
@@ -123,6 +140,25 @@ export function DeckCheckKeysSection({ slug }: { slug: string }) {
             <code>side</code>, and plural forms work too; anything else rejects the push.
           </p>
           <pre className="bg-muted overflow-x-auto rounded-md p-3">{EXAMPLE_PAYLOAD}</pre>
+          <p>
+            A successful push returns <code>200</code> with a summary of the result and a per-entry
+            list keyed by your <code>externalId</code>:
+          </p>
+          <p>
+            The counts tell you how the push landed: <code>entriesCreated</code>,{" "}
+            <code>entriesUpdated</code>, <code>entriesUnchanged</code>, and{" "}
+            <code>entriesWithdrawn</code>. <code>checksInvalidated</code> counts entries whose
+            approval or check was reset because their list changed in this push. Each item in{" "}
+            <code>entries</code> echoes your <code>externalId</code> alongside OpenRift&apos;s
+            stable <code>entryId</code> and a <code>claimUrl</code>.
+          </p>
+          <p>
+            Put the <code>claimUrl</code> in your confirmation email to the player: opening it and
+            signing in (or creating an account) connects the entry to their OpenRift account, so
+            they can see its status any time. It works even if you never share the player&apos;s
+            email with OpenRift.
+          </p>
+          <pre className="bg-muted overflow-x-auto rounded-md p-3">{exampleResponse}</pre>
         </div>
       </details>
 
