@@ -186,15 +186,17 @@ export function DeckCheckEntryPage({
               onMaxColumnsChange={setMaxColumns}
             />
           ) : null}
-          <Button
-            variant="outline"
-            className="hidden md:flex"
-            aria-pressed={wide}
-            onClick={() => setWide(!wide)}
-          >
-            {wide ? <ShrinkIcon className="size-4" /> : <ExpandIcon className="size-4" />}
-            {wide ? "Narrow view" : "Wide view"}
-          </Button>
+          {displayMode === "grid" ? (
+            <Button
+              variant="outline"
+              className="hidden md:flex"
+              aria-pressed={wide}
+              onClick={() => setWide(!wide)}
+            >
+              {wide ? <ShrinkIcon className="size-4" /> : <ExpandIcon className="size-4" />}
+              {wide ? "Narrow view" : "Wide view"}
+            </Button>
+          ) : null}
         </div>
         <div ref={containerRef}>
           <CardChecklist
@@ -1167,7 +1169,7 @@ function ChecklistRow({
           {found ? <CheckIcon className="size-3.5" strokeWidth={3} /> : null}
         </span>
         {matched ? (
-          <span className="text-muted-foreground w-16 shrink-0 text-sm tabular-nums">
+          <span className="text-muted-foreground w-24 shrink-0 text-sm tabular-nums">
             {printing.shortCode}
           </span>
         ) : null}
