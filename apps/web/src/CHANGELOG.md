@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-06-12
+
+- feat: When checking a deck, you can now sort the cards by deck order, ID, or name, and choose how many cards show per row, to trade bigger, easier-to-read cards for fitting more on the screen
+
 ## 2026-06-11
 
 - feat: The deck list's search and filter bar now stays pinned to the top as you scroll, so you can refine the list without scrolling back up

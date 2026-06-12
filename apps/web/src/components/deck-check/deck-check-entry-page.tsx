@@ -29,6 +29,9 @@ import {
   FormatStateBadge,
   typeCountSummary,
 } from "@/components/deck/deck-tile";
+import { ColumnControls } from "@/components/filters/column-controls";
+import { SortGroupControls } from "@/components/filters/sort-group-controls";
+import type { SortGroupOption } from "@/components/filters/sort-group-controls";
 import { GroupBreadcrumbBar } from "@/components/friend-groups/group-breadcrumb";
 import { ImportCatalogSearch } from "@/components/import/import-catalog-search";
 import { Badge } from "@/components/ui/badge";
@@ -64,9 +67,12 @@ import {
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders, useZoneOrder } from "@/hooks/use-enums";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
+import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
+import { sortDeckCheckCards } from "@/lib/deck-check-sort";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 import { useDeckCheckViewStore } from "@/stores/deck-check-view-store";
+import type { DeckCheckSort } from "@/stores/deck-check-view-store";
 
 /**
  * The checker: verdict controls, advisory legality findings, deck stats, and
@@ -88,12 +94,27 @@ export function DeckCheckEntryPage({
   const { data: detail, refetch } = useDeckCheckEntry(slug, eventId, entryId);
   const wide = useDeckCheckViewStore((state) => state.wide);
   const setWide = useDeckCheckViewStore((state) => state.setWide);
+  const sortBy = useDeckCheckViewStore((state) => state.sortBy);
+  const setSortBy = useDeckCheckViewStore((state) => state.setSortBy);
+  const sortDir = useDeckCheckViewStore((state) => state.sortDir);
+  const setSortDir = useDeckCheckViewStore((state) => state.setSortDir);
+  const maxColumns = useDeckCheckViewStore((state) => state.maxColumns);
+  const setMaxColumns = useDeckCheckViewStore((state) => state.setMaxColumns);
+  const { containerRef, columns, physicalMax, physicalMin, autoColumns, containerWidth } =
+    useResponsiveColumns(maxColumns);
   const [notes, setNotes] = useState("");
   const [notesDirty, setNotesDirty] = useState(false);
 
   if (!detail) {
     return <p className="text-muted-foreground">Loading…</p>;
   }
+
+  // The rendered width of one card, derived from the resolved column count, for
+  // image resolution and for sizing the small content-width flow zones.
+  const cellWidth =
+    columns > 0 && containerWidth > 0
+      ? Math.floor((containerWidth - (columns - 1) * CHECK_GRID_GAP) / columns)
+      : CHECK_CELL_WIDTH;
 
   const crumbs = [
     { label: data.group.name, link: <Link to="/groups/$slug" params={{ slug }} /> },
@@ -139,19 +160,45 @@ export function DeckCheckEntryPage({
         <FindingsBanner detail={detail} />
       </div>
       <div className={cn("w-full pb-4", PAGE_PADDING, !wide && "mx-auto max-w-5xl")}>
-        <div className="mb-2 hidden justify-end md:flex">
-          <Button size="sm" variant="outline" aria-pressed={wide} onClick={() => setWide(!wide)}>
+        <div className="mb-2 flex flex-wrap items-center justify-end gap-2">
+          <SortGroupControls
+            sortOptions={CHECK_SORT_OPTIONS}
+            sortBy={sortBy}
+            sortDir={sortDir}
+            onSortByChange={setSortBy}
+            onSortDirChange={setSortDir}
+          />
+          <ColumnControls
+            maxColumns={maxColumns}
+            autoColumns={autoColumns}
+            minColumns={physicalMin}
+            maxColumnsLimit={physicalMax}
+            onMaxColumnsChange={setMaxColumns}
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            className="hidden md:flex"
+            aria-pressed={wide}
+            onClick={() => setWide(!wide)}
+          >
             {wide ? <ShrinkIcon className="size-4" /> : <ExpandIcon className="size-4" />}
             {wide ? "Narrow view" : "Wide view"}
           </Button>
         </div>
-        <CardChecklist
-          slug={slug}
-          eventId={eventId}
-          entryId={entryId}
-          cards={detail.cards}
-          onStale={() => void refetch()}
-        />
+        <div ref={containerRef}>
+          <CardChecklist
+            slug={slug}
+            eventId={eventId}
+            entryId={entryId}
+            cards={detail.cards}
+            sortBy={sortBy}
+            sortDir={sortDir}
+            columns={columns}
+            cellWidth={cellWidth}
+            onStale={() => void refetch()}
+          />
+        </div>
       </div>
     </>
   );
@@ -729,16 +776,35 @@ function CardChecklist({
   eventId,
   entryId,
   cards,
+  sortBy,
+  sortDir,
+  columns,
+  cellWidth,
   onStale,
 }: {
   slug: string;
   eventId: string;
   entryId: string;
   cards: DeckCheckEntryCardResponse[];
+  sortBy: DeckCheckSort;
+  sortDir: "asc" | "desc";
+  columns: number;
+  cellWidth: number;
   onStale: () => void;
 }) {
   const { zoneLabels } = useZoneOrder();
+  const { allPrintings } = useCards();
+
+  // Resolve catalogue name + short code for the "name" / "id" sorts.
+  const printingById = new Map(allPrintings.map((printing) => [printing.id, printing]));
+  const identify = (printingId: string | null) => {
+    const printing = printingId ? printingById.get(printingId) : undefined;
+    return printing ? { name: printing.card.name, shortCode: printing.shortCode } : undefined;
+  };
+
   const cardsByZone = Map.groupBy(cards, (card) => card.zone);
+  const zoneCards = (zone: DeckCheckEntryCardResponse["zone"]) =>
+    sortDeckCheckCards(cardsByZone.get(zone) ?? [], sortBy, sortDir, identify);
 
   // The small zones (one to three cards each) flow on a shared wrapping row,
   // so on wide screens legend, champion, and battlefields share one line and
@@ -761,7 +827,9 @@ function CardChecklist({
               eventId={eventId}
               entryId={entryId}
               label={zoneLabels[zone]}
-              cards={cardsByZone.get(zone) ?? []}
+              cards={zoneCards(zone)}
+              columns={columns}
+              cellWidth={cellWidth}
               intrinsic
               onStale={onStale}
             />
@@ -775,7 +843,9 @@ function CardChecklist({
           eventId={eventId}
           entryId={entryId}
           label={zoneLabels[zone]}
-          cards={cardsByZone.get(zone) ?? []}
+          cards={zoneCards(zone)}
+          columns={columns}
+          cellWidth={cellWidth}
           onStale={onStale}
         />
       ))}
@@ -783,14 +853,17 @@ function CardChecklist({
   );
 }
 
-/**
- * Cell sizing shared by every checker grid: fixed-floor auto-fill columns so
- * the card size is the same in wide and narrow view — a wider container just
- * fits more cards per row instead of inflating them.
- */
-const CHECK_CELL = "repeat(auto-fill, minmax(min(160px, 100%), 1fr))";
-/** Approximate rendered cell width, for image sizing and intrinsic sections. */
+/** Gap between checker cells, matching the grid's `gap-3` (used in width math). */
+const CHECK_GRID_GAP = 12;
+/** Fallback rendered cell width before the grid has been measured. */
 const CHECK_CELL_WIDTH = 172;
+
+/** Card-line sort options exposed in the checker toolbar. */
+const CHECK_SORT_OPTIONS: SortGroupOption<DeckCheckSort>[] = [
+  { value: "deck", label: "Deck order" },
+  { value: "id", label: "ID" },
+  { value: "name", label: "Name" },
+];
 
 function ZoneSection({
   slug,
@@ -798,6 +871,8 @@ function ZoneSection({
   entryId,
   label,
   cards,
+  columns,
+  cellWidth,
   intrinsic,
   onStale,
 }: {
@@ -806,6 +881,10 @@ function ZoneSection({
   entryId: string;
   label: string;
   cards: DeckCheckEntryCardResponse[];
+  /** Resolved cards-per-row count for the stacked (full-width) zones. */
+  columns: number;
+  /** Rendered width of one card, driving image sizing and intrinsic sections. */
+  cellWidth: number;
   /** Content-sized section for the wrapping zone row. */
   intrinsic?: boolean;
   onStale: () => void;
@@ -815,7 +894,12 @@ function ZoneSection({
     0,
   );
   const totalCopies = cards.reduce((sum, card) => sum + card.quantity, 0);
-  const intrinsicWidth = totalCopies * CHECK_CELL_WIDTH + (totalCopies - 1) * 12;
+  // Flow zones size each card to `cellWidth`; stacked zones fill the row with
+  // exactly `columns` equal tracks so the count matches the toolbar control.
+  const intrinsicWidth = totalCopies * cellWidth + (totalCopies - 1) * CHECK_GRID_GAP;
+  const gridTemplateColumns = intrinsic
+    ? `repeat(auto-fill, minmax(min(${cellWidth}px, 100%), 1fr))`
+    : `repeat(${columns}, minmax(0, 1fr))`;
   return (
     <section
       className="flex min-w-0 flex-col gap-2"
@@ -824,7 +908,7 @@ function ZoneSection({
       <h3 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
         {label} · {verifiedCopies}/{totalCopies}
       </h3>
-      <div className="grid gap-3" style={{ gridTemplateColumns: CHECK_CELL }}>
+      <div className="grid gap-3" style={{ gridTemplateColumns }}>
         {cards.flatMap((card) =>
           Array.from({ length: card.quantity }, (_copy, copyIndex) => (
             <ChecklistCell
@@ -834,6 +918,7 @@ function ZoneSection({
               entryId={entryId}
               card={card}
               copyIndex={copyIndex}
+              cellWidth={cellWidth}
               onStale={onStale}
             />
           )),
@@ -856,6 +941,7 @@ function ChecklistCell({
   entryId,
   card,
   copyIndex,
+  cellWidth,
   onStale,
 }: {
   slug: string;
@@ -863,6 +949,7 @@ function ChecklistCell({
   entryId: string;
   card: DeckCheckEntryCardResponse;
   copyIndex: number;
+  cellWidth: number;
   onStale: () => void;
 }) {
   const { allPrintings } = useCards();
@@ -976,7 +1063,7 @@ function ChecklistCell({
   return (
     <CardCell
       printing={printing}
-      ctx={{ isSelected: false, isFlashing: false, cardWidth: CHECK_CELL_WIDTH, priority: false }}
+      ctx={{ isSelected: false, isFlashing: false, cardWidth: cellWidth, priority: false }}
       display={display}
       showImages
       onClick={() => void toggle()}

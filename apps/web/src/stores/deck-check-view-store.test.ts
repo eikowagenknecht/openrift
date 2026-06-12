@@ -25,4 +25,27 @@ describe("useDeckCheckViewStore", () => {
     useDeckCheckViewStore.getState().setWide(true);
     expect(useDeckCheckViewStore.getState().wide).toBe(true);
   });
+
+  it("defaults to deck-order sort, ascending", () => {
+    expect(useDeckCheckViewStore.getState().sortBy).toBe("deck");
+    expect(useDeckCheckViewStore.getState().sortDir).toBe("asc");
+  });
+
+  it("updates the sort field and direction", () => {
+    useDeckCheckViewStore.getState().setSortBy("name");
+    useDeckCheckViewStore.getState().setSortDir("desc");
+    expect(useDeckCheckViewStore.getState().sortBy).toBe("name");
+    expect(useDeckCheckViewStore.getState().sortDir).toBe("desc");
+  });
+
+  it("defaults to auto columns (null)", () => {
+    expect(useDeckCheckViewStore.getState().maxColumns).toBeNull();
+  });
+
+  it("sets and clears the column override", () => {
+    useDeckCheckViewStore.getState().setMaxColumns(4);
+    expect(useDeckCheckViewStore.getState().maxColumns).toBe(4);
+    useDeckCheckViewStore.getState().setMaxColumns(null);
+    expect(useDeckCheckViewStore.getState().maxColumns).toBeNull();
+  });
 });
