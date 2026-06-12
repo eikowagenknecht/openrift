@@ -176,7 +176,6 @@ export function DeckCheckEntryPage({
             onMaxColumnsChange={setMaxColumns}
           />
           <Button
-            size="sm"
             variant="outline"
             className="hidden md:flex"
             aria-pressed={wide}
