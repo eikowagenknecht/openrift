@@ -47,6 +47,7 @@ const mockConfig = {
   port: 3000,
   databaseUrl: "",
   corsOrigin: undefined,
+  appBaseUrl: "http://localhost:5173",
   auth: { secret: "test", adminEmail: undefined, google: undefined, discord: undefined },
   smtp: { configured: false },
   cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },

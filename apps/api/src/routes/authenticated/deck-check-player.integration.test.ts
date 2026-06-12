@@ -27,6 +27,7 @@ const memberCtx = createTestContext(MEMBER_ID);
 const playerCtx = createTestContext(PLAYER_ID, PLAYER_EMAIL);
 const strangerCtx = createTestContext(STRANGER_ID, STRANGER_EMAIL);
 const lateCtx = createTestContext(LATE_ID, LATE_EMAIL);
+const unverifiedCtx = createTestContext(UNVERIFIED_ID, UNVERIFIED_EMAIL);
 
 /**
  * Builds an ingest push request authenticated with a Bearer push key.
@@ -49,6 +50,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
   const playerApp = playerCtx!.app;
   const strangerApp = strangerCtx!.app;
   const lateApp = lateCtx!.app;
+  const unverifiedApp = unverifiedCtx!.app;
   // oxlint-enable typescript/no-non-null-assertion
   const repos = createRepos(db);
 
@@ -839,6 +841,132 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       const detail = (await detailRes.json()) as { entry: { state: string }; cards: unknown[] };
       expect(detail.entry.state).toBe("submitted");
       expect(detail.cards.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("claim tokens (amendment)", () => {
+    interface ClaimResult {
+      status: string;
+      entryId: string | null;
+    }
+    const fury = { name: CARD_FURY_UNIT.name, quantity: 1, section: "main" };
+
+    it("returns a per-entry claim link and a stable token across re-push", async () => {
+      const first = await push([
+        { externalId: "claim-stable", playerName: "C. Stable", cards: [fury] },
+      ]);
+      expect(first.status).toBe(200);
+      const firstBody = (await first.json()) as {
+        entries: { externalId: string; entryId: string; claimUrl: string }[];
+      };
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "claim-stable");
+      const row = firstBody.entries.find((entryRow) => entryRow.externalId === "claim-stable");
+      expect(row?.entryId).toBe(entry?.id);
+      expect(row?.claimUrl).toBe(`http://localhost:5173/tournament-claim/${entry?.claimToken}`);
+
+      const second = await push([
+        { externalId: "claim-stable", playerName: "C. Stable", cards: [fury] },
+      ]);
+      const secondBody = (await second.json()) as {
+        entries: { externalId: string; claimUrl: string }[];
+      };
+      expect(
+        secondBody.entries.find((entryRow) => entryRow.externalId === "claim-stable")?.claimUrl,
+      ).toBe(row?.claimUrl);
+    });
+
+    it("mints a token on push for an entry missing one", async () => {
+      await push([{ externalId: "claim-mint", playerName: "M. Int", cards: [fury] }]);
+      const before = await repos.deckCheck.getEntryByExternalId(eventId, "claim-mint");
+      await db
+        .updateTable("deckCheckEntries")
+        .set({ claimToken: null })
+        // oxlint-disable-next-line typescript/no-non-null-assertion -- just pushed
+        .where("id", "=", before!.id)
+        .execute();
+
+      const res = await push([{ externalId: "claim-mint", playerName: "M. Int", cards: [fury] }]);
+      const body = (await res.json()) as { entries: { externalId: string; claimUrl: string }[] };
+      const after = await repos.deckCheck.getEntryByExternalId(eventId, "claim-mint");
+      expect(after?.claimToken).not.toBeNull();
+      const row = body.entries.find((entryRow) => entryRow.externalId === "claim-mint");
+      // oxlint-disable-next-line typescript/no-non-null-assertion -- asserted above
+      expect(row?.claimUrl).toContain(after!.claimToken!);
+    });
+
+    it("the public landing reveals only event and group; unknown token is 404", async () => {
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "claim-stable");
+      const res = await unverifiedApp.fetch(req("GET", `/deck-check/claim/${entry?.claimToken}`));
+      expect(res.status).toBe(200);
+      const raw = await res.text();
+      expect(raw).not.toContain("C. Stable");
+      const body = JSON.parse(raw) as { eventName: string; groupName: string };
+      expect(body.eventName).toBe("Self-Service Cup");
+      expect(body.groupName).toBe("Player Self-Service Group");
+
+      const missing = await unverifiedApp.fetch(req("GET", "/deck-check/claim/no-such-token"));
+      expect(missing.status).toBe(404);
+    });
+
+    it("claims an unclaimed entry, then is idempotent for the same caller", async () => {
+      await push([{ externalId: "claim-unclaimed", playerName: "U. Nclaimed", cards: [fury] }]);
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "claim-unclaimed");
+
+      const first = await strangerApp.fetch(req("POST", `/deck-check/claim/${entry?.claimToken}`));
+      expect(first.status).toBe(200);
+      expect((await first.json()) as ClaimResult).toEqual({
+        status: "claimed",
+        entryId: entry?.id,
+      });
+      const linked = await repos.deckCheck.getEntryByExternalId(eventId, "claim-unclaimed");
+      expect(linked?.claimedUserId).toBe(STRANGER_ID);
+      expect(linked?.claimSource).toBe("claim_link");
+
+      const again = await strangerApp.fetch(req("POST", `/deck-check/claim/${entry?.claimToken}`));
+      expect((await again.json()) as ClaimResult).toEqual({
+        status: "already",
+        entryId: entry?.id,
+      });
+    });
+
+    it("refuses a claim for an entry linked to a different account", async () => {
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "claim-unclaimed");
+      const res = await playerApp.fetch(req("POST", `/deck-check/claim/${entry?.claimToken}`));
+      expect((await res.json()) as ClaimResult).toEqual({ status: "conflict", entryId: null });
+      const still = await repos.deckCheck.getEntryByExternalId(eventId, "claim-unclaimed");
+      expect(still?.claimedUserId).toBe(STRANGER_ID);
+    });
+
+    it("refuses a claim for a judge-blocked entry", async () => {
+      await push([{ externalId: "claim-blocked", playerName: "B. Locked", cards: [fury] }]);
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "claim-blocked");
+      await db
+        .updateTable("deckCheckEntries")
+        .set({ claimBlockedAt: new Date() })
+        // oxlint-disable-next-line typescript/no-non-null-assertion -- just pushed
+        .where("id", "=", entry!.id)
+        .execute();
+
+      const res = await strangerApp.fetch(req("POST", `/deck-check/claim/${entry?.claimToken}`));
+      expect((await res.json()) as ClaimResult).toEqual({ status: "blocked", entryId: null });
+      const still = await repos.deckCheck.getEntryByExternalId(eventId, "claim-blocked");
+      expect(still?.claimedUserId).toBeNull();
+    });
+
+    it("lets an unverified-email account claim (no verification gate)", async () => {
+      await push([{ externalId: "claim-unverified", playerName: "V. Erify", cards: [fury] }]);
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "claim-unverified");
+      const res = await unverifiedApp.fetch(req("POST", `/deck-check/claim/${entry?.claimToken}`));
+      expect(res.status).toBe(200);
+      expect((await res.json()) as ClaimResult).toEqual({ status: "claimed", entryId: entry?.id });
+      const linked = await repos.deckCheck.getEntryByExternalId(eventId, "claim-unverified");
+      expect(linked?.claimedUserId).toBe(UNVERIFIED_ID);
+      expect(linked?.claimSource).toBe("claim_link");
+    });
+
+    it("returns 404 for an unknown claim token on POST", async () => {
+      const res = await strangerApp.fetch(req("POST", "/deck-check/claim/no-such-token"));
+      expect(res.status).toBe(404);
     });
   });
 });

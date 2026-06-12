@@ -17,6 +17,7 @@ import type { Repos } from "../deps.js";
 import { AppError } from "../errors.js";
 import type { DeckCheckEntry, NewDeckCheckEntryCard } from "../repositories/deck-check.js";
 import { cardResolutionKey } from "../repositories/deck-check.js";
+import { generateShareToken } from "../utils/share-token.js";
 import { storedCardLines } from "./deck-check-states.js";
 
 export type DeckCheckIngestPayload = z.infer<typeof deckCheckIngestSchema>;
@@ -82,12 +83,14 @@ export async function recomputeEntryHash(repos: Repos, entryId: string): Promise
  * @param repos Transaction-bound repositories.
  * @param groupId The group the push key resolved to.
  * @param payload The validated push payload.
- * @returns Per-entry outcome counts for the provider's logs.
+ * @param appBaseUrl The web origin used to build each entry's claim link.
+ * @returns Per-entry outcome counts plus a claim link per entry for the provider.
  */
 export async function ingestDeckCheckPush(
   repos: Repos,
   groupId: string,
   payload: DeckCheckIngestPayload,
+  appBaseUrl: string,
 ): Promise<DeckCheckIngestResultResponse> {
   const event = await repos.deckCheck.getEvent(groupId, payload.eventId);
   if (!event) {
@@ -133,6 +136,25 @@ export async function ingestDeckCheckPush(
     entriesWithdrawn: 0,
     checksInvalidated: 0,
     entriesIgnored: 0,
+    entries: [],
+  };
+
+  // Records one pushed entry's claim link in the response, minting a token for
+  // the rare entry that lacks one (created before the amendment's backfill).
+  const recordEntry = async (
+    externalId: string,
+    entry: { id: string; claimToken: string | null },
+  ): Promise<void> => {
+    let token = entry.claimToken;
+    if (!token) {
+      token = generateShareToken();
+      await repos.deckCheck.setClaimTokenIfMissing(entry.id, token);
+    }
+    result.entries.push({
+      externalId,
+      entryId: entry.id,
+      claimUrl: `${appBaseUrl}/tournament-claim/${token}`,
+    });
   };
 
   for (const [index, entry] of payload.entries.entries()) {
@@ -185,6 +207,7 @@ export async function ingestDeckCheckPush(
       });
       await repos.deckCheck.replaceEntryCards(created.id, cardRows);
       await autoMatchEntry(repos, created.id, identity.playerEmail);
+      await recordEntry(entry.externalId, created);
       result.entriesCreated += 1;
       continue;
     }
@@ -218,6 +241,7 @@ export async function ingestDeckCheckPush(
         ...withdrawalChange,
       });
       await autoMatchEntry(repos, existing.id, identity.playerEmail);
+      await recordEntry(entry.externalId, existing);
       result.entriesUnchanged += 1;
       continue;
     }
@@ -247,6 +271,7 @@ export async function ingestDeckCheckPush(
     });
     await repos.deckCheck.replaceEntryCards(existing.id, cardRows);
     await autoMatchEntry(repos, existing.id, identity.playerEmail);
+    await recordEntry(entry.externalId, existing);
     if (wasReviewed) {
       result.checksInvalidated += 1;
     }

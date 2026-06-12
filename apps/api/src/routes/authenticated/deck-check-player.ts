@@ -7,12 +7,14 @@ import type {
   PlayerDeckCheckEntrySummaryResponse,
 } from "@openrift/shared";
 import {
+  deckCheckClaimResultResponseSchema,
   deckCheckSubmissionPageResponseSchema,
   deckCheckSubmissionResultResponseSchema,
   playerDeckCheckEntriesResponseSchema,
   playerDeckCheckEntryDetailResponseSchema,
 } from "@openrift/shared/response-schemas";
 import {
+  deckCheckClaimTokenParamSchema,
   deckCheckSubmissionTokenParamSchema,
   playerDeckCheckEntryParamSchema,
   playerDeckCheckSubmissionSchema,
@@ -38,6 +40,7 @@ import type { PlayerSharingConsent } from "../../services/deck-check-player.js";
 import {
   applyPlayerList,
   buildPlayerLines,
+  claimDeckCheckEntryByToken,
   createSelfSubmittedEntry,
   lazyMatchEntriesForUser,
   resolvePlayerCardRows,
@@ -416,6 +419,26 @@ const submitDeck = createRoute({
   },
 });
 
+const claimEntry = createRoute({
+  method: "post",
+  path: "/deck-check/claim/{token}",
+  tags: ["Deck Check"],
+  security: cookieAuth,
+  description:
+    "Claims an entry via a provider-issued claim link (ADR-026 amendment). " +
+    "Claiming needs only the token, never email verification. Already linked " +
+    "to the caller is an idempotent no-op; linked to someone else or detached " +
+    "by a judge is refused (not stolen). The pre-claim landing is the public GET.",
+  request: { params: deckCheckClaimTokenParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: deckCheckClaimResultResponseSchema } },
+      description: "The claim outcome",
+    },
+    ...errorResponses(401, 404),
+  },
+});
+
 // ─── App ────────────────────────────────────────────────────────────────────
 
 const deckCheckPlayerApp = createApiApp();
@@ -631,4 +654,16 @@ export const deckCheckPlayerRoute = deckCheckPlayerApp
       } satisfies DeckCheckSubmissionResultResponse,
       200,
     );
+  })
+
+  .openapi(claimEntry, async (c) => {
+    const userId = getUserId(c);
+    const { token } = c.req.valid("param");
+    const result = await c.get("transact")((txRepos) =>
+      claimDeckCheckEntryByToken(txRepos, token, userId),
+    );
+    if (!result) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Claim link not found");
+    }
+    return c.json(result, 200);
   });

@@ -9,7 +9,13 @@ import {
   SELF_SUBMIT_EXTERNAL_ID_PREFIX,
   WellKnown,
 } from "@openrift/shared";
-import type { CardType, DeckCheckCardLine, SourceSlot, SuperType } from "@openrift/shared";
+import type {
+  CardType,
+  DeckCheckCardLine,
+  DeckCheckClaimResultResponse,
+  SourceSlot,
+  SuperType,
+} from "@openrift/shared";
 import { getDeckFromCode } from "@piltoverarchive/riftbound-deck-codes";
 
 import type { Repos } from "../deps.js";
@@ -43,6 +49,53 @@ export async function lazyMatchEntriesForUser(repos: Repos, userId: string): Pro
     return;
   }
   await repos.deckCheck.autoMatchEntriesByEmail(userId, account.email);
+}
+
+/**
+ * Claims one entry via a provider-issued claim token (ADR-026 amendment),
+ * resolving against the entry's current state:
+ *
+ * - unclaimed and not blocked: link it (`claim_link`);
+ * - already the caller's: idempotent no-op, the caller still lands on it
+ *   (a `judge_manual` link before the click stays `judge_manual`);
+ * - linked to a different account: refuse, do not steal;
+ * - `claim_blocked_at` set (a judge detached it): refuse.
+ *
+ * The token is the capability, so claiming never waits on email verification.
+ * @returns The outcome, or null when the token matches no entry (a 404).
+ */
+export async function claimDeckCheckEntryByToken(
+  repos: Repos,
+  token: string,
+  userId: string,
+): Promise<DeckCheckClaimResultResponse | null> {
+  const entry = await repos.deckCheck.getEntryByClaimToken(token);
+  if (!entry) {
+    return null;
+  }
+  if (entry.claimedUserId === userId) {
+    return { status: "already", entryId: entry.id };
+  }
+  if (entry.claimedUserId !== null) {
+    return { status: "conflict", entryId: null };
+  }
+  if (entry.claimBlockedAt !== null) {
+    return { status: "blocked", entryId: null };
+  }
+  // `linkEntryIfUnclaimed` re-checks unclaimed + unblocked atomically, so a
+  // race between the read above and this write resolves to a refusal, not a steal.
+  const linked = await repos.deckCheck.linkEntryIfUnclaimed(entry.id, userId, "claim_link");
+  if (linked) {
+    return { status: "claimed", entryId: entry.id };
+  }
+  const fresh = await repos.deckCheck.getEntryByClaimToken(token);
+  if (fresh?.claimedUserId === userId) {
+    return { status: "already", entryId: fresh.id };
+  }
+  if (fresh && fresh.claimedUserId === null && fresh.claimBlockedAt !== null) {
+    return { status: "blocked", entryId: null };
+  }
+  return { status: "conflict", entryId: null };
 }
 
 /**

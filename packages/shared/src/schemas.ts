@@ -795,6 +795,10 @@ export const deckCheckSubmissionTokenParamSchema = z.object({
   token: z.string().min(1).max(64),
 });
 
+export const deckCheckClaimTokenParamSchema = z.object({
+  token: z.string().min(1).max(64),
+});
+
 export const playerDeckCheckEntryParamSchema = z.object({
   entryId: z.uuid(),
 });

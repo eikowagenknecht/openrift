@@ -38,6 +38,7 @@ import { userShareRoute } from "./routes/authenticated/user-share.js";
 import { cardsRoute } from "./routes/public/cards.js";
 import { catalogRoute } from "./routes/public/catalog.js";
 import { publicCollectionsRoute } from "./routes/public/collections.js";
+import { deckCheckClaimRoute } from "./routes/public/deck-check-claim.js";
 import { deckCheckIngestRoute } from "./routes/public/deck-check-ingest.js";
 import { publicDecksRoute } from "./routes/public/decks.js";
 import { featureFlagsRoute } from "./routes/public/feature-flags.js";
@@ -425,6 +426,7 @@ export function createApp(deps: AppDeps) {
       .route("/api/v1", publicUserShareRoute)
       .route("/api/v1", publicPodTournamentsRoute)
       .route("/api/v1", deckCheckIngestRoute)
+      .route("/api/v1", deckCheckClaimRoute)
       .route("/api/v1", publicShareImagesRoute)
       .route("/api/v1", sentryTunnelRoute)
 

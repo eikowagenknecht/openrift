@@ -1,4 +1,6 @@
 import type {
+  DeckCheckClaimLandingResponse,
+  DeckCheckClaimResultResponse,
   DeckCheckSubmissionPageResponse,
   DeckCheckSubmissionResultResponse,
   PlayerDeckCheckEntriesResponse,
@@ -151,6 +153,32 @@ const submitTournamentDeckFn = createServerFn({ method: "POST" })
       ),
   );
 
+const fetchClaimLanding = createServerFn({ method: "GET" })
+  .validator((input: string) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data: token }): Promise<DeckCheckClaimLandingResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["deck-check"].claim[":token"].$get({
+          param: encodeParams({ token }),
+        }),
+        "Couldn't load the claim page",
+      ),
+  );
+
+const claimTournamentDeckFn = createServerFn({ method: "POST" })
+  .validator((input: string) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data: token }): Promise<DeckCheckClaimResultResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["deck-check"].claim[":token"].$post({
+          param: encodeParams({ token }),
+        }),
+        "Couldn't claim the deck",
+      ),
+  );
+
 // ── Query hooks ─────────────────────────────────────────────────────────────
 
 export function useMyTournamentDecks() {
@@ -174,6 +202,15 @@ export function useTournamentSubmissionPage(token: string) {
   return useQuery({
     queryKey: queryKeys.tournamentDecks.submission(userId, token),
     queryFn: () => fetchSubmissionPage({ data: token }),
+    retry: false,
+  });
+}
+
+// The pre-claim landing (public): event + group for a claim token, or 404.
+export function useClaimLanding(token: string) {
+  return useQuery({
+    queryKey: queryKeys.tournamentDecks.claim(token),
+    queryFn: () => fetchClaimLanding({ data: token }),
     retry: false,
   });
 }
@@ -234,6 +271,18 @@ export function useSubmitTournamentDeck() {
       queryKeys.tournamentDecks.mine(userId),
       queryKeys.tournamentDecks.submission(userId, vars.token),
     ],
+  });
+}
+
+/**
+ * Claims an entry via a provider-issued claim link. Public (no userId): the
+ * page is reachable logged-out, and the caller is established by the session
+ * cookie when the POST runs.
+ * @returns A mutation resolving to the claim outcome.
+ */
+export function useClaimTournamentDeck() {
+  return useMutation({
+    mutationFn: (token: string) => claimTournamentDeckFn({ data: token }),
   });
 }
 

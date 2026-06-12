@@ -103,6 +103,7 @@ export const queryKeys = {
     entry: (userId: string, entryId: string) => ["tournament-decks", userId, entryId] as const,
     submission: (userId: string, token: string) =>
       ["tournament-decks", userId, "submission", token] as const,
+    claim: (token: string) => ["tournament-decks", "claim", token] as const,
   },
   friendGroups: {
     all: (userId: string) => ["friend-groups", userId] as const,

@@ -19,7 +19,7 @@ export type DeckCheckReviewOutcome = "ok" | "issue";
 export type DeckCheckListLockMode = "on_submit" | "at_deadline";
 export type DeckCheckMatchStatus = "matched" | "ambiguous" | "unmatched";
 /** How an entry got linked to an OpenRift account (ADR-026). */
-export type DeckCheckClaimSource = "email_auto" | "judge_manual" | "self_submit";
+export type DeckCheckClaimSource = "email_auto" | "judge_manual" | "self_submit" | "claim_link";
 
 /** One normalized card line as it appears in a change summary. */
 export interface DeckCheckChangeLine {
@@ -175,6 +175,20 @@ export interface DeckCheckKeyMintedResponse {
   token: string;
 }
 
+/**
+ * Per-entry outcome the provider can correlate by its own `externalId` and use
+ * to build a "view your deck" link in its confirmation email (ADR-026
+ * amendment). No OpenRift account id is exposed; `entryId` is the stable key.
+ */
+export interface DeckCheckIngestEntryResult {
+  /** The provider's own upsert key, echoed back for correlation. */
+  externalId: string;
+  /** The stable OpenRift entry id. */
+  entryId: string;
+  /** Absolute claim link the provider embeds in its email. */
+  claimUrl: string;
+}
+
 export interface DeckCheckIngestResultResponse {
   eventId: string;
   entriesCreated: number;
@@ -188,6 +202,8 @@ export interface DeckCheckIngestResultResponse {
    * always apply now); kept so existing provider integrations keep parsing.
    */
   entriesIgnored: number;
+  /** One row per pushed entry, aligned to the request's entries. */
+  entries: DeckCheckIngestEntryResult[];
 }
 
 // ─── Player self-service (ADR-026) ───────────────────────────────────────────
@@ -288,4 +304,32 @@ export interface DeckCheckSubmissionResultResponse {
 /** One account candidate for the judge link search. */
 export interface DeckCheckAccountSearchResponse {
   items: { id: string; name: string | null; email: string }[];
+}
+
+// ─── Claim tokens (ADR-026 amendment) ────────────────────────────────────────
+
+/**
+ * The pre-claim landing payload: only the event and owning group, never the
+ * entrant or the deck, since any holder of the link reaches it before
+ * authenticating.
+ */
+export interface DeckCheckClaimLandingResponse {
+  eventName: string;
+  groupName: string;
+}
+
+/**
+ * The outcome of opening a claim link's POST:
+ * - `claimed`: the entry was just linked to the caller.
+ * - `already`: it was already linked to the caller (idempotent, e.g. a judge
+ *   linked it first); the caller still lands on it.
+ * - `conflict`: it is linked to a different account; refused, not stolen.
+ * - `blocked`: a judge detached it (`claim_blocked_at`); refused.
+ */
+export type DeckCheckClaimStatus = "claimed" | "already" | "conflict" | "blocked";
+
+export interface DeckCheckClaimResultResponse {
+  status: DeckCheckClaimStatus;
+  /** The entry to view; present for `claimed` and `already`, null otherwise. */
+  entryId: string | null;
 }

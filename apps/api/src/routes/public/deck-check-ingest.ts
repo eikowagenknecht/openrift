@@ -81,8 +81,9 @@ deckCheckIngestRoute.openapi(pushDeckCheck, async (c) => {
   }
 
   const payload = c.req.valid("json");
+  const { appBaseUrl } = c.get("config");
   const result = await c.get("transact")((repos) =>
-    ingestDeckCheckPush(repos, key.groupId, payload),
+    ingestDeckCheckPush(repos, key.groupId, payload, appBaseUrl),
   );
   await c.get("repos").deckCheck.touchKeyUsage(key.id);
 

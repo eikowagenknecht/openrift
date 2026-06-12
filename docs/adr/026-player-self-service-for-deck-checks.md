@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-06-12
 ---
 
@@ -38,7 +38,7 @@ Six axes, each with the option chosen below.
 
 ## Decision Outcome
 
-- **Linking: auto-match on verified email, plus a judge manual link.** An entry whose `player_email` matches a user's account email (case-insensitively) is linked to that account only when `users.email_verified` is true. The match runs at ingest, via a one-off backfill, and lazily when a player loads their entry list or opens a submission link, so an account created after the provider push still links with zero player action. Where the email misses entirely (the player registered with a different or unverified email), a judge links the entry to an account from the checker page. We do not ask providers to forward account ids, and we do not build a player self-claim flow; auto-match covers the common case, and the judge link covers the rest with a human in the loop.
+- **Linking: auto-match on verified email, plus a judge manual link.** An entry whose `player_email` matches a user's account email (case-insensitively) is linked to that account only when `users.email_verified` is true. The match runs at ingest, via a one-off backfill, and lazily when a player loads their entry list or opens a submission link, so an account created after the provider push still links with zero player action. Where the email misses entirely (the player registered with a different or unverified email), a judge links the entry to an account from the checker page. We do not ask providers to forward account ids, and we do not build a player self-claim flow; auto-match covers the common case, and the judge link covers the rest with a human in the loop. (A later amendment adds a third source, provider-issued claim tokens, for providers that withhold the email auto-match depends on; see "Amendment: Claim Tokens" below.)
 - **Access: orthogonal, keyed on `claimed_user_id`.** A player reaches an entry because it is linked to them, full stop. This is a new access path that does not touch the friend-group role hierarchy: the player needs no group role and does not appear on the roster. The judge-facing `deck_check` surfaces stay exactly as ADR-025 left them.
 - **Surface and name: "My tournament decks," in the header user menu, off the `/tournaments` hub.** The schema and the judge surface keep the `deck_check_*` name; only the player label changes. We do not reuse the bare word "tournaments" (owned by ADR-022's pod runner and ADR-014's archive) and we do not build a unified cross-subsystem hub now.
 - **Submission: per-event opt-in with a shared submission link.** An admin turns on `allow_self_submission` for an event and shares a per-event `submission_token`. A logged-in user holding the link can submit while submissions are open. The player submits by picking one of their existing OpenRift decks or pasting a deck code; the entry is a frozen snapshot, the same shape a provider push produces. If an entry in the event is already linked to the submitter, the submission edits that entry rather than creating a duplicate.
@@ -84,7 +84,7 @@ The player label is "My tournament decks," reached from the header user menu (a 
 
 This is a label and information-architecture decision only. The schema stays `deck_check_*`, the judge surface stays `/groups/$slug/checks`, and the player route stays off `/tournaments` so it does not collide with ADR-022's pod runner or ADR-014's proposed archive. A player never sees the words "deck check."
 
-The player surfaces ride their own feature flag (registered in `KNOWN_FLAGS`), separate from ADR-025's judge-tool flag, so self-service can roll out independently of the already-live judge tool.
+The player surfaces ship unconditionally, with no feature flag of their own. An earlier draft of this ADR proposed a dedicated flag registered in `KNOWN_FLAGS`; it was never implemented (the surfaces shipped ungated), and the "Amendment: Claim Tokens" decision ratifies that. The surface is additive and access-scoped (a player only ever reaches their own linked entry), so it goes live with the deploy rather than being dark-launched. ADR-025's judge-tool flag is unaffected.
 
 ### Direct submission
 
@@ -144,7 +144,7 @@ The `deck_check_entry_cards` table is unchanged; a self-submitted or player-edit
 ## Will Not Be Built
 
 - **Provider-forwarded account ids.** We do not extend the ingest contract with an OpenRift account id; linking is auto-match plus judge action. (Revisitable if a provider ever wants to assert the link itself.)
-- **Player self-claim.** A player cannot browse for an entry that "looks like them" and claim it; matching is by verified email or a judge. This avoids a claim-dispute surface.
+- **Player self-claim.** A player cannot browse for an entry that "looks like them" and claim it; matching is by verified email or a judge. This avoids a claim-dispute surface. (The provider-issued claim token added in "Amendment: Claim Tokens" is not this: the player never browses or asserts a match, the provider delivers an unguessable per-entry capability through its own email.)
 - **A separate pending-revision approval workflow.** Player edits ride re-import invalidation; there is no holding state, no approve/reject queue, no second verdict axis.
 - **Player visibility of the judging team's work.** No entrant list, no other players, no `checked_by`, no judge `notes`. A player sees their own deck, its status, and an optional `player_message`.
 - **Auto-merge of duplicate entries.** Two entries for one person are reconciled by a judge, not merged automatically.
@@ -160,6 +160,7 @@ The `deck_check_entry_cards` table is unchanged; a self-submitted or player-edit
 - **Localized card-name matching for self-submission.** Inherited from ADR-025: English canonical names only. A deck built in OpenRift sidesteps this, but a pasted code does not.
 - **Submission without a link.** Discovery of open events without the organizer sharing a token (for example a public "events accepting submissions" list) is out of scope; the token is the capability.
 - **Orthogonal access reused elsewhere.** The "scoped by ownership, independent of group role" pattern introduced here is not generalized to other group resources in this ADR.
+- **Claim-token rotation.** A `claim_token` cannot be regenerated to invalidate a leaked unclaimed link in v1 (unlike `submission_token`). The remedy for a bad bind is the existing judge unlink plus `claim_blocked_at`. Per-entry rotation, surfaced in the judge UI, is a later add if leaked links prove to be a problem in practice. (Amendment: Claim Tokens.)
 
 ## Confirmation
 
@@ -178,11 +179,111 @@ Schema and authorization invariants to exercise with integration tests:
 - A player whose linked entry is withdrawn can neither edit it nor submit again to that event (no revival, no fresh `openrift:` entry beside it); a provider re-push without the withdrawn flag still clears `withdrawn_at`.
 - Deleting an event still cascades to its entries and cards (ADR-025 invariant), now including self-submitted ones; unlinking or deleting the linked user sets `claimed_user_id` to null without deleting the entry.
 
+## Amendment: Claim Tokens (Providers That Withhold Email)
+
+### Context
+
+The base decision makes verified-email auto-match the load-bearing linking path and the judge manual link the fallback. A provider integration we expected to forward `player_email` will not: it keeps the entrant's address private and never sends it over the ingest API. That removes auto-match entirely for that provider's events. The judge manual link still works but does not scale to "every entrant can see their own deck," because it needs a judge to know and attach each player's OpenRift account by hand.
+
+The same provider sends each entrant its own confirmation email, and asked to include a "register at OpenRift and view your deck" link in it. That email is the channel OpenRift lacks: the provider already knows which address belongs to which entry, even though it will not share the address. A linking path that rides that channel, without OpenRift ever seeing the email, is what this amendment adds.
+
+### Decision: a third linking source, `claim_link`
+
+Add a provider-issued capability token per entry. The ingest API mints a `claim_token` for each entry and returns it in the push response (see the ingest-contract change below). The provider embeds `${SITE_URL}/deck-check/claim/<token>` in its own confirmation email. A user who opens the link, registering or logging in if needed, claims that one entry: `claimed_user_id` becomes the viewer, `claim_source = 'claim_link'`, `claimed_at = now()`. From then on the entry behaves exactly like an auto-matched or judge-linked one: scoped read access through "My tournament decks," no group role.
+
+This is provider-mediated, not the browse-and-claim "Player self-claim" the base ADR declines to build. The player never searches for an entry that "looks like them"; the provider vouches for the binding by delivering an unguessable token to the address it already holds. The token is the provider asserting the link through the channel it controls, the same assertion a provider-forwarded account id would have made, minus the friction of collecting the id.
+
+It works with no dependence on OpenRift seeing the email. Where a provider does forward `player_email`, auto-match and the claim token coexist: the entry may already be linked by the time the token is opened, which the precedence rules below resolve.
+
+### Claim flow and visibility
+
+Opening the link is a GET that renders a confirmation landing page, and the claim itself is a POST behind a button on that page. The two-step shape is load-bearing: a mail client or browser that prefetches the GET must not be able to auto-claim the entry (or auto-trip the different-user refuse below) without the human acting. The landing page shows only the event name and the owning group, nothing about the entrant or the deck, because any holder of the link reaches it before proving anything; the player's name, Riot ID, and deck appear only after a successful claim, as the scoped projection the base ADR already defines.
+
+If the viewer is not logged in, the landing routes through login or registration and returns to the same confirm step. A brand-new account may claim straight away: the token is the capability, so claiming does not wait on email verification. This deliberately diverges from auto-match, which requires `email_verified` precisely because the email is the only thing it has to go on; the claim token carries its own proof, and a verification gate would only block the just-registered player the flow exists to serve without raising the bar for an attacker (who could verify a throwaway address anyway).
+
+### Claim precedence
+
+Both a judge link and a token claim write `claimed_user_id`, so the claim endpoint resolves against the entry's current state:
+
+- **Unclaimed and not blocked:** claim it, `claim_source = 'claim_link'`. The normal path.
+- **Already claimed by the same user:** idempotent no-op; redirect to the entry. This is the common, friendly case where a judge linked the right account before the player clicked. `claim_source` is left as it was (a `judge_manual` link stays `judge_manual`), so the checker still shows the judge that they made the link.
+- **Already claimed by a different user:** refuse, do not steal. Surface the conflict ("this entry is already linked to another account, contact the organizer"). A judge deliberately attaching an entry to account A must not be silently reversed by a token that reached account B through a forwarded or shared inbox.
+- **`claim_blocked_at` is set:** refuse. A judge unlinking sets that flag precisely to stop re-linking; the base decision already has auto-match honor it, and the claim token honors it the same way. A later judge manual link clears the block, as before.
+
+The token is not single-use. Gating is by the rules above, not by consumption, so an idempotent re-click, or a judge unlink-then-relink, never dead-ends on a spent token; the `claim_blocked_at` check is what actually shuts a token down when a judge wants it shut down.
+
+The one genuinely ambiguous case, a judge having linked the wrong account while the real player holds the token, cannot be resolved safely in either direction, so the different-user refuse path is correct: it routes the conflict to a human (the judge unlinks, which blocks and detaches, then the player claims; or the judge relinks correctly) instead of guessing.
+
+Withdrawal does not block claiming. Claiming grants only the scoped read the base ADR already extends to withdrawn entries (they appear in the list, badged), so a player can still open the link and see "withdrawn, contact a judge." Editing and resubmission stay blocked by the existing withdrawn rules.
+
+### Ingest contract change
+
+ADR-025's push response returned counts only. It now also returns a per-entry array so the provider can build its email links:
+
+```jsonc
+{
+  "eventId": "…",
+  "entriesCreated": 3,
+  "entriesUpdated": 1 /* …existing counts unchanged… */,
+  "entries": [
+    {
+      "externalId": "provider-123", // the provider's own key, for correlation
+      "entryId": "…uuid…", // stable OpenRift entry id
+      "claimUrl": "https://openrift.app/deck-check/claim/<token>",
+    },
+  ],
+}
+```
+
+This is additive and backward-compatible: a provider that ignores the new field keeps working. It is the second change to ADR-025's ingest contract, after the `openrift:` rejection. Building an absolute `claimUrl` requires `SITE_URL` in the API config (the web app already reads it, the API does not yet), kept an env var rather than hardcoded.
+
+The `claim_token` is minted when the entry is created, backfilled for every entry that predates this amendment, and minted on any later push that finds an entry without one; once set it is stable, so the same entry always yields the same link and the provider can re-send it. The backfill plus mint-if-missing is what lets already-pushed events produce working links without recreating their entries. A self-submitted (`openrift:`) entry is born already linked, so its token never gets used, but it is still minted for shape uniformity.
+
+The per-entry response carries `externalId`, `entryId`, and `claimUrl` only; it does not return the linked `claimed_user_id`. The provider's "Spieler-ID" need is met by the stable `entryId` (correlated to their own `externalId`), and OpenRift account ids are never exposed over the ingest channel.
+
+### Schema delta
+
+```sql
+-- Extends this ADR's deck_check_entries with the provider-issued claim capability.
+-- ALTER TABLE deck_check_entries
+--   ADD COLUMN claim_token text UNIQUE;  -- minted at create, stable across pushes
+-- The claim_source check gains the third automated source:
+-- ALTER TABLE deck_check_entries
+--   DROP CONSTRAINT deck_check_entries_claim_source_check,
+--   ADD CONSTRAINT  deck_check_entries_claim_source_check
+--     CHECK (claim_source IS NULL OR claim_source = ANY
+--            (ARRAY['email_auto','judge_manual','self_submit','claim_link']));
+```
+
+### Consequences
+
+- Good, because linking no longer depends on OpenRift seeing the email; it serves a provider that withholds the address, which auto-match cannot do at all.
+- Good, because the capability is provider-issued and provider-delivered, so the trust boundary is the provider's own confirmation email, exactly where the entrant's identity is already established. No new claim-dispute surface inside OpenRift.
+- Good, because it reuses the reserved claim columns and the existing scoped-access path; the only additions are one token column and one `claim_source` value, and the precedence rules keep judge action authoritative.
+- Bad, because a leaked or forwarded token lets its holder claim that one entry and see its name, Riot ID, and deck. The blast radius is a single entry, the same bound the base decision accepts for a mistyped email under auto-match; the entrant list and every other entry stay sealed, and a judge unlink-and-block is the remedy. The different-user refuse rule stops a token from overriding a correct judge link, so an attacker cannot steer it onto someone else's entry.
+- Bad, because the ingest response grows from counts to per-entry data. Mitigated by additivity (existing fields unchanged, new fields ignorable) and by it being the only response-shape change.
+
+This amendment also settles the player self-service feature flag question (revising the base decision above): the surface ships with the deploy rather than behind a flag. The flag the original draft proposed was never built, so there is nothing to remove; the cost is only that the surface cannot be dark-launched or staged to a subset of users. Accepted because it is additive and access-scoped (a player only ever reaches their own linked entry, the judge tool and the PII boundary are untouched), so there is little a flag would protect against, and the judge tool it depends on is already live.
+
+### Confirmation
+
+Additional invariants to exercise:
+
+- A push returns, per entry, its `externalId`, `entryId`, and a `claimUrl` carrying a per-entry `claim_token`, and never a `claimed_user_id`; re-pushing the same entry returns the same token; an entry that predates the amendment is backfilled with a token, and a push to an entry missing one mints it.
+- The claim landing page (GET) performs no write and reveals only the event name and owning group; the claim happens only on the POST behind its button, so a prefetch of the GET claims nothing.
+- Opening a valid token while logged in, confirming the POST, links the entry with `claim_source = 'claim_link'` and lands on it; opening it anonymously routes through login or registration and returns to the confirm step.
+- A freshly registered account whose email is not yet verified can still claim via a valid token (the verification gate applies to auto-match, not to `claim_link`).
+- A token for an entry already claimed by the caller is an idempotent no-op that still lands on the entry and leaves a prior `judge_manual` source unchanged.
+- A token for an entry claimed by a different user is refused, with the existing link untouched.
+- A token for an entry with `claim_blocked_at` set is refused; a later judge manual link clears the block and the token then works.
+- The token is not consumed: a second open by the same caller still resolves to the entry.
+- A token for a withdrawn entry still links and grants read access, while edit and resubmission stay blocked.
+
 ## More Information
 
 Relationship to other ADRs:
 
-- **ADR-025 (Deck Check for Tournament Judges).** This ADR extends ADR-025 and supersedes three of its "Will Not Be Built" stances: player accounts / a claim flow (now: account link by verified-email auto-match or judge action), a submission flow in OpenRift (now: per-event opt-in self-submission), and non-judge visibility of entrant lists (now: a player sees their own entry only). Every other ADR-025 decision (dedicated tables, the `judge` role, push-only provider ingest, content-hash invalidation, off the `/tournaments` hub) is unchanged; the one ingest-contract change is that `openrift:`-prefixed external ids are now rejected as reserved. This ADR fills in the `claimed_user_id` column ADR-025 reserved.
+- **ADR-025 (Deck Check for Tournament Judges).** This ADR extends ADR-025 and supersedes three of its "Will Not Be Built" stances: player accounts / a claim flow (now: account link by verified-email auto-match or judge action), a submission flow in OpenRift (now: per-event opt-in self-submission), and non-judge visibility of entrant lists (now: a player sees their own entry only). Every other ADR-025 decision (dedicated tables, the `judge` role, push-only provider ingest, content-hash invalidation, off the `/tournaments` hub) is unchanged; the two ingest-contract changes are that `openrift:`-prefixed external ids are now rejected as reserved, and that the push response now also returns a per-entry array carrying each entry's id and claim link (see "Amendment: Claim Tokens"). This ADR fills in the `claimed_user_id` column ADR-025 reserved.
 - **ADR-013 (Friend Groups).** Unchanged. The player access path is deliberately orthogonal to the role hierarchy; entrants are not added to the roster and gain no group role.
 - **ADR-014 (Tournament Decks Archive).** Still a separate, public, admin-curated concept. This ADR keeps the convergence ADR-025 described open: `claimed_user_id` is exactly the account-link column a future merge into `decks` would carry, now populated rather than reserved.
 - **ADR-022 (FFA Pod Pairing).** Unchanged. The "My tournament decks" label and route stay off `/tournaments` precisely to avoid colliding with the pod runner; a unified player tournament hub spanning both is explicitly not built here.

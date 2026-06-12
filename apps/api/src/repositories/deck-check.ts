@@ -18,6 +18,7 @@ import type {
   DeckCheckEventsTable,
   DeckCheckKeysTable,
 } from "../db/index.js";
+import { generateShareToken } from "../utils/share-token.js";
 
 export type DeckCheckEvent = Selectable<DeckCheckEventsTable>;
 export type DeckCheckEntry = Selectable<DeckCheckEntriesTable>;
@@ -72,6 +73,8 @@ export interface NewDeckCheckEntry {
   claimedUserId?: string | null;
   claimSource?: DeckCheckClaimSource | null;
   claimedAt?: Date | null;
+  /** Omitted = minted here (ADR-026 amendment); every entry is born with one. */
+  claimToken?: string;
 }
 
 /** One row of the player's "My tournament decks" list (ADR-026). */
@@ -327,6 +330,53 @@ export function deckCheckRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Resolves a claim token to its entry (ADR-026 amendment). The claim
+     * precedence runs in the player service against this row.
+     * @returns The entry, or undefined when the token matches nothing.
+     */
+    async getEntryByClaimToken(token: string): Promise<DeckCheckEntry | undefined> {
+      const row = await db
+        .selectFrom("deckCheckEntries")
+        .selectAll()
+        .where("claimToken", "=", token)
+        .executeTakeFirst();
+      return row ? parseEntryRow(row) : undefined;
+    },
+
+    /**
+     * The pre-claim landing data: only the event and owning group, never the
+     * entrant or the deck, since any holder of the link reaches it unauthenticated.
+     * @returns The event and group names, or undefined when the token is unknown.
+     */
+    async getClaimLandingByToken(
+      token: string,
+    ): Promise<{ eventName: string; groupName: string } | undefined> {
+      const row = await db
+        .selectFrom("deckCheckEntries as en")
+        .innerJoin("deckCheckEvents as ev", "ev.id", "en.eventId")
+        .innerJoin("friendGroups as g", "g.id", "ev.groupId")
+        .select((eb) => [eb.ref("ev.name").as("eventName"), eb.ref("g.name").as("groupName")])
+        .where("en.claimToken", "=", token)
+        .executeTakeFirst();
+      return row ?? undefined;
+    },
+
+    /**
+     * Mints a claim token for an entry that lacks one (an entry created before
+     * the amendment and not yet backfilled, defensively). No-op when set.
+     * @param entryId The entry to stamp.
+     * @param token The token to write.
+     */
+    async setClaimTokenIfMissing(entryId: string, token: string): Promise<void> {
+      await db
+        .updateTable("deckCheckEntries")
+        .set({ claimToken: token })
+        .where("id", "=", entryId)
+        .where("claimToken", "is", null)
+        .execute();
+    },
+
+    /**
      * Looks up the display name of whoever checked an entry.
      * @returns The user's display name, or null when unknown.
      */
@@ -342,7 +392,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
     async createEntry(input: NewDeckCheckEntry): Promise<DeckCheckEntry> {
       const row = await db
         .insertInto("deckCheckEntries")
-        .values(input)
+        .values({ ...input, claimToken: input.claimToken ?? generateShareToken() })
         .returningAll()
         .executeTakeFirstOrThrow();
       return parseEntryRow(row);

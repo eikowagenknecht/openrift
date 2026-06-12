@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict yg0H3CoYaeGj18C6RmDkOwIOtEceByuMu2NcZgxfOqTorf2uycSxyEnEKEyEnpF
+\restrict IERbLbF7H04PlConoLKAqdR8XvsCoyCchc7GXOT2Bldy2gAknWEDSexOZ4rgIjc
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -868,7 +868,8 @@ CREATE TABLE public.deck_check_entries (
     unlock_requested_at timestamp with time zone,
     pre_edit_lines jsonb,
     allow_deck_publishing boolean DEFAULT true NOT NULL,
-    CONSTRAINT chk_deck_check_entries_claim_source CHECK (((claim_source IS NULL) OR (claim_source = ANY (ARRAY['email_auto'::text, 'judge_manual'::text, 'self_submit'::text])))),
+    claim_token text,
+    CONSTRAINT chk_deck_check_entries_claim_source CHECK (((claim_source IS NULL) OR (claim_source = ANY (ARRAY['email_auto'::text, 'judge_manual'::text, 'self_submit'::text, 'claim_link'::text])))),
     CONSTRAINT chk_deck_check_entries_notes CHECK (((notes IS NULL) OR (length(notes) <= 4000))),
     CONSTRAINT chk_deck_check_entries_player_email CHECK (((player_email IS NULL) OR (length(player_email) <= 254))),
     CONSTRAINT chk_deck_check_entries_player_message CHECK (((player_message IS NULL) OR (length(player_message) <= 2000))),
@@ -2146,6 +2147,14 @@ ALTER TABLE ONLY public.custom_tags
 
 ALTER TABLE ONLY public.deck_cards
     ADD CONSTRAINT deck_cards_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: deck_check_entries deck_check_entries_claim_token_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_check_entries
+    ADD CONSTRAINT deck_check_entries_claim_token_key UNIQUE (claim_token);
 
 
 --
@@ -4670,5 +4679,5 @@ ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.friend_grou
 -- PostgreSQL database dump complete
 --
 
-\unrestrict yg0H3CoYaeGj18C6RmDkOwIOtEceByuMu2NcZgxfOqTorf2uycSxyEnEKEyEnpF
+\unrestrict IERbLbF7H04PlConoLKAqdR8XvsCoyCchc7GXOT2Bldy2gAknWEDSexOZ4rgIjc
 

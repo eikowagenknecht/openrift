@@ -2,6 +2,7 @@
 
 ## 2026-06-12
 
+- feat: Tournament organizers can include a link in their confirmation email that connects your entered deck to your OpenRift account, so you can view it any time. It works even when the organizer never shares your email, and signing in or creating an account is all it takes to claim
 - feat: Tournament decks now move through clear states: once you submit your deck it is locked, a judge can approve the list before the event, and the physical check at the venue is recorded separately, so everyone sees exactly where a deck stands
 - feat: Submitted tournament decks follow the official tournament rules: once submitted, your deck only changes when a judge grants your unlock request, and judges can't see a list you're still editing. Judges always see exactly what changed since they last looked
 - feat: Organizers can relax the deck lock per event so players fix their own submission without a judge until submissions close, which suits casual leagues

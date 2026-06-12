@@ -683,6 +683,12 @@ export interface DeckCheckEntriesTable {
   claimBlockedAt: Date | null;
   /** CHECK: length <= 2000; judge-authored, shown to the linked player. */
   playerMessage: string | null;
+  /**
+   * Provider-issued claim capability (ADR-026 amendment), returned in the
+   * ingest response and embedded in the provider's email. Minted at create,
+   * backfilled for older rows, minted on any later push that finds it missing.
+   */
+  claimToken: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

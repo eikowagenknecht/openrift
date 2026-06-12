@@ -1778,7 +1778,12 @@ const deckCheckEntryStateSchema = z.enum([
 const deckCheckReviewOutcomeSchema = z.enum(["ok", "issue"]);
 const deckCheckMatchStatusSchema = z.enum(["matched", "ambiguous", "unmatched"]);
 const deckCheckEntrySourceSchema = z.enum(["api", "manual", "self"]);
-const deckCheckClaimSourceSchema = z.enum(["email_auto", "judge_manual", "self_submit"]);
+const deckCheckClaimSourceSchema = z.enum([
+  "email_auto",
+  "judge_manual",
+  "self_submit",
+  "claim_link",
+]);
 
 export const deckCheckEventSummaryResponseSchema = z
   .object({
@@ -1941,6 +1946,14 @@ export const deckCheckKeyMintedResponseSchema = z
   .object({ key: deckCheckKeyResponseSchema, token: z.string() })
   .openapi("DeckCheckKeyMintedResponse");
 
+const deckCheckIngestEntryResultSchema = z
+  .object({
+    externalId: z.string(),
+    entryId: z.string(),
+    claimUrl: z.string(),
+  })
+  .openapi("DeckCheckIngestEntryResult");
+
 export const deckCheckIngestResultResponseSchema = z
   .object({
     eventId: z.string(),
@@ -1952,6 +1965,7 @@ export const deckCheckIngestResultResponseSchema = z
     // Deprecated: always 0 since ADR-027 removed edit-takeover; kept so
     // existing provider integrations keep parsing.
     entriesIgnored: z.number().int().nonnegative(),
+    entries: z.array(deckCheckIngestEntryResultSchema),
   })
   .openapi("DeckCheckIngestResultResponse");
 
@@ -2043,6 +2057,20 @@ export const deckCheckAccountSearchResponseSchema = z
     items: z.array(z.object({ id: z.string(), name: z.string().nullable(), email: z.string() })),
   })
   .openapi("DeckCheckAccountSearchResponse");
+
+export const deckCheckClaimLandingResponseSchema = z
+  .object({
+    eventName: z.string(),
+    groupName: z.string(),
+  })
+  .openapi("DeckCheckClaimLandingResponse");
+
+export const deckCheckClaimResultResponseSchema = z
+  .object({
+    status: z.enum(["claimed", "already", "conflict", "blocked"]),
+    entryId: z.string().nullable(),
+  })
+  .openapi("DeckCheckClaimResultResponse");
 
 export const deckCheckReResolveResponseSchema = z
   .object({ updatedLines: z.number().int().nonnegative() })
