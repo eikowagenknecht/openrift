@@ -96,6 +96,7 @@ import * as m147 from "./147-pod-byes.js";
 import * as m148 from "./148-gear-well-known.js";
 import * as m149 from "./149-deck-check.js";
 import * as m150 from "./150-default-group-list-shares.js";
+import * as m151 from "./151-rename-deck-check-handle-to-riot-id.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -251,4 +252,5 @@ export const migrations: Record<string, Migration> = {
   "148-gear-well-known": m148,
   "149-deck-check": m149,
   "150-default-group-list-shares": m150,
+  "151-rename-deck-check-handle-to-riot-id": m151,
 };

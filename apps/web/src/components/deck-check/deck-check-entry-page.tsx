@@ -291,8 +291,7 @@ function EntryHeader({
             {entry.checkStatus === "issue" ? <Badge variant="destructive">Issue</Badge> : null}
           </div>
           <p className="text-muted-foreground text-sm">
-            {[entry.playerHandle, entry.playerEmail].filter(Boolean).join(" · ") ||
-              "No contact details"}
+            {[entry.riotId, entry.playerEmail].filter(Boolean).join(" · ") || "No contact details"}
           </p>
           {checked && entry.checkedByName ? (
             <p className="text-muted-foreground text-sm">
@@ -374,7 +373,7 @@ function EditPlayerDialog({
 }) {
   const [playerName, setPlayerName] = useState(entry.playerName);
   const [playerEmail, setPlayerEmail] = useState(entry.playerEmail ?? "");
-  const [playerHandle, setPlayerHandle] = useState(entry.playerHandle ?? "");
+  const [riotId, setRiotId] = useState(entry.riotId ?? "");
   const updateEntry = useUpdateDeckCheckEntry();
 
   const handleSave = async () => {
@@ -388,7 +387,7 @@ function EditPlayerDialog({
       entryId,
       playerName: name,
       playerEmail: playerEmail.trim() || null,
-      playerHandle: playerHandle.trim() || null,
+      riotId: riotId.trim() || null,
     });
     onOpenChange(false);
   };
@@ -400,7 +399,7 @@ function EditPlayerDialog({
         if (nextOpen) {
           setPlayerName(entry.playerName);
           setPlayerEmail(entry.playerEmail ?? "");
-          setPlayerHandle(entry.playerHandle ?? "");
+          setRiotId(entry.riotId ?? "");
         }
         onOpenChange(nextOpen);
       }}
@@ -430,11 +429,11 @@ function EditPlayerDialog({
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="deck-check-player-handle">Handle (optional)</Label>
+            <Label htmlFor="deck-check-riot-id">Riot ID (optional)</Label>
             <Input
-              id="deck-check-player-handle"
-              value={playerHandle}
-              onChange={(event) => setPlayerHandle(event.target.value)}
+              id="deck-check-riot-id"
+              value={riotId}
+              onChange={(event) => setRiotId(event.target.value)}
               maxLength={120}
               placeholder="Player#EUW"
             />

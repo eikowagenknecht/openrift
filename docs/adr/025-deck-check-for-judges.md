@@ -113,7 +113,7 @@ Authorization: Bearer <group API key>
       "externalId": "1234",          // upsert key for the entry within the event
       "playerName": "A. Player",
       "playerEmail": "player@example.com",  // optional
-      "playerHandle": "Player#EUW",          // optional (e.g. Riot ID)
+      "riotId": "Player#EUW",                // optional; the player's Riot ID
       "submittedAt": "2026-06-18T20:00:00Z", // optional
       "publishOptOut": false,                 // optional consent passthrough
       "withdrawn": false,                     // optional; true soft-withdraws the entry
@@ -196,7 +196,7 @@ Separate tables are not a one-way door. If entrant decks should ever surface in 
 - **Consent is captured from day one** (`publish_opt_out`), the one field that could never be reconstructed retroactively for a future public surface.
 - **Zones and formats FK the same shared vocabularies** (`deck_zones`, `deck_formats`) that `decks` uses, so card lines translate 1:1 (`zone`, `quantity`, `resolved_card_id` → `card_id`, `resolved_printing_id` → `preferred_printing_id`).
 - **Provenance is stable**: the entry `external_id` plus `submitted_at` keep the link to the organizer's system across any migration.
-- **Player identity is stored as the claim keys** a future account link would match on (`player_email`, `player_handle`); linking is one additive nullable `claimed_user_id` column, never a rewrite.
+- **Player identity is stored as the claim keys** a future account link would match on (`player_email`, `riot_id`); linking is one additive nullable `claimed_user_id` column, never a rewrite.
 - **Nothing references `deck_check_*` from outside**, so the migration has no fan-out.
 
 The contract is additively extensible for the same futures: a post-event push with per-entry `placement` (standings do not exist anywhere today, because checks happen before the event concludes) is a backwards-compatible extension, listed under Deferred. Check-workflow state (ticks, verdicts, change summaries) would not migrate; it is operational tournament-day data, not deck data.
@@ -230,7 +230,7 @@ CREATE TABLE deck_check_entries (
   external_id    text NOT NULL,
   player_name    text NOT NULL CHECK (length(player_name) BETWEEN 1 AND 120),
   player_email   text CHECK (player_email IS NULL OR length(player_email) <= 254),
-  player_handle  text CHECK (player_handle IS NULL OR length(player_handle) <= 120),
+  riot_id        text CHECK (riot_id IS NULL OR length(riot_id) <= 120),
   submitted_at   timestamptz,
   publish_opt_out boolean NOT NULL DEFAULT false,
   content_hash   text NOT NULL,
@@ -315,7 +315,7 @@ Schema and authorization invariants exercised by integration tests:
 - Legality validation flags an over-size or under-size deck, a missing or duplicate legend or champion, and an out-of-`allowedSets` card using the existing deck-rules.
 - A revoked or unknown key returns 401; only the SHA-256 `token_hash` is persisted, never the plaintext token.
 - Deleting a `deck_check_events` row cascades to its entries and entry cards; deleting the friend group cascades to its events and keys.
-- `player_email` and `player_handle` appear only in `judge`+ responses; the response mapper drops them where `publish_opt_out` is set, even though no non-judge surface consumes them in v1.
+- `player_email` and `riot_id` appear only in `judge`+ responses; the response mapper drops them where `publish_opt_out` is set, even though no non-judge surface consumes them in v1.
 
 ## More Information
 

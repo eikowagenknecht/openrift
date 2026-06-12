@@ -156,7 +156,7 @@ export async function ingestDeckCheckPush(
     const identity = {
       playerName: entry.playerName,
       playerEmail: entry.playerEmail ?? null,
-      playerHandle: entry.playerHandle ?? null,
+      riotId: entry.riotId ?? null,
       submittedAt: entry.submittedAt ? new Date(entry.submittedAt) : null,
       publishOptOut: entry.publishOptOut ?? false,
     };
@@ -271,7 +271,7 @@ export async function createManualDeckCheckEntry(
     externalId: `${MANUAL_ENTRY_EXTERNAL_ID_PREFIX}${randomUUID()}`,
     playerName: payload.playerName,
     playerEmail: payload.playerEmail ?? null,
-    playerHandle: payload.playerHandle ?? null,
+    riotId: payload.riotId ?? null,
     submittedAt: null,
     publishOptOut: false,
     contentHash: sha256(buildContentHashInput(lines)),

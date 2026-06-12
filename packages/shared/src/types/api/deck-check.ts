@@ -86,7 +86,7 @@ export interface DeckCheckEntryResponse {
   source: DeckCheckEntrySource;
   playerName: string;
   playerEmail: string | null;
-  playerHandle: string | null;
+  riotId: string | null;
   submittedAt: string | null;
   checkStatus: DeckCheckEntryStatus;
   checkedBy: string | null;

@@ -123,7 +123,7 @@ function toEntry(row: DeckCheckEntry, checkedByName: string | null): DeckCheckEn
     source: deckCheckEntrySource(row.externalId),
     playerName: row.playerName,
     playerEmail: row.playerEmail,
-    playerHandle: row.playerHandle,
+    riotId: row.riotId,
     submittedAt: row.submittedAt?.toISOString() ?? null,
     checkStatus: row.checkStatus,
     checkedBy: row.checkedBy,
@@ -789,7 +789,7 @@ export const deckCheckRoute = deckCheckApp
     const updated = await repos.deckCheck.updateEntry(entryId, {
       ...(body.playerName === undefined ? {} : { playerName: body.playerName }),
       ...(body.playerEmail === undefined ? {} : { playerEmail: body.playerEmail }),
-      ...(body.playerHandle === undefined ? {} : { playerHandle: body.playerHandle }),
+      ...(body.riotId === undefined ? {} : { riotId: body.riotId }),
     });
     if (!updated) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Entry not found");

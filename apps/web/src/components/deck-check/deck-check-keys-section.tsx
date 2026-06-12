@@ -32,6 +32,7 @@ const EXAMPLE_PAYLOAD = `{
       "externalId": "1234",
       "playerName": "A. Player",
       "playerEmail": "player@example.com",
+      "riotId": "Player#EUW",
       "cards": [
         { "name": "Darius, Trifarian", "quantity": 1, "section": "champion" },
         { "name": "Blazing Scorcher", "quantity": 3, "section": "main" }
@@ -97,7 +98,8 @@ export function DeckCheckKeysSection({ slug }: { slug: string }) {
             Pushes can only fill events that already exist: create the event here first, then copy
             its id from the event page (next to the name) into <code>eventId</code>. The{" "}
             <code>externalId</code> of an entry is your own id for that player, so sending it again
-            updates the same entry.
+            updates the same entry. <code>playerEmail</code> and <code>riotId</code> are optional
+            and shown to judges next to the name.
           </p>
           <pre className="bg-muted overflow-x-auto rounded-md p-3">{EXAMPLE_PAYLOAD}</pre>
         </div>

@@ -424,12 +424,15 @@ describe.skipIf(!ownerCtx)("deck-check routes (integration, ADR-025)", () => {
       const patch = await judgeApp.fetch(
         req("PATCH", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}`, {
           playerName: "Corrected Player",
-          playerHandle: "Player#EUW",
+          riotId: "Player#EUW",
         }),
       );
       expect(patch.status).toBe(200);
-      const patched = (await patch.json()) as { entry: { playerName: string } };
+      const patched = (await patch.json()) as {
+        entry: { playerName: string; riotId: string | null };
+      };
       expect(patched.entry.playerName).toBe("Corrected Player");
+      expect(patched.entry.riotId).toBe("Player#EUW");
 
       const add = await judgeApp.fetch(
         req("POST", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}/cards`, {

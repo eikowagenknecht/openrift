@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict g9OA1oKyLyyXdj7kiJJot0UkU74Y7mfZcg1RvP4J4g3jTgbdtc0OUtWtMH1jfB1
+\restrict EXowkhNzeKTUbz87M7fbUbGMbg6Qu5MRjccqZnSRUGEBzehTtR4SJ2nIV70BoHt
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -840,7 +840,7 @@ CREATE TABLE public.deck_check_entries (
     external_id text NOT NULL,
     player_name text NOT NULL,
     player_email text,
-    player_handle text,
+    riot_id text,
     submitted_at timestamp with time zone,
     publish_opt_out boolean DEFAULT false NOT NULL,
     content_hash text NOT NULL,
@@ -854,8 +854,8 @@ CREATE TABLE public.deck_check_entries (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT chk_deck_check_entries_notes CHECK (((notes IS NULL) OR (length(notes) <= 4000))),
     CONSTRAINT chk_deck_check_entries_player_email CHECK (((player_email IS NULL) OR (length(player_email) <= 254))),
-    CONSTRAINT chk_deck_check_entries_player_handle CHECK (((player_handle IS NULL) OR (length(player_handle) <= 120))),
     CONSTRAINT chk_deck_check_entries_player_name CHECK (((length(player_name) >= 1) AND (length(player_name) <= 120))),
+    CONSTRAINT chk_deck_check_entries_riot_id CHECK (((riot_id IS NULL) OR (length(riot_id) <= 120))),
     CONSTRAINT chk_deck_check_entries_status CHECK ((check_status = ANY (ARRAY['unchecked'::text, 'checked'::text, 'issue'::text])))
 );
 
@@ -4585,5 +4585,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict g9OA1oKyLyyXdj7kiJJot0UkU74Y7mfZcg1RvP4J4g3jTgbdtc0OUtWtMH1jfB1
+\unrestrict EXowkhNzeKTUbz87M7fbUbGMbg6Qu5MRjccqZnSRUGEBzehTtR4SJ2nIV70BoHt
 

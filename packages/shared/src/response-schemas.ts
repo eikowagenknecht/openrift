@@ -1851,7 +1851,7 @@ const deckCheckEntryResponseSchema = z.object({
   source: z.enum(["api", "manual"]),
   playerName: z.string(),
   playerEmail: z.string().nullable(),
-  playerHandle: z.string().nullable(),
+  riotId: z.string().nullable(),
   submittedAt: z.string().nullable(),
   checkStatus: deckCheckEntryStatusSchema,
   checkedBy: z.string().nullable(),

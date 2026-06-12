@@ -233,7 +233,7 @@ const createEntryFn = createServerFn({ method: "POST" })
       eventId: string;
       playerName: string;
       playerEmail?: string | null;
-      playerHandle?: string | null;
+      riotId?: string | null;
       cards: { name: string; quantity: number; section: string }[];
     }) => input,
   )
@@ -248,7 +248,7 @@ const createEntryFn = createServerFn({ method: "POST" })
           json: {
             playerName: data.playerName,
             playerEmail: data.playerEmail,
-            playerHandle: data.playerHandle,
+            riotId: data.riotId,
             cards: data.cards,
           },
         }),
@@ -288,7 +288,7 @@ const updateEntryFn = createServerFn({ method: "POST" })
       entryId: string;
       playerName?: string;
       playerEmail?: string | null;
-      playerHandle?: string | null;
+      riotId?: string | null;
     }) => input,
   )
   .middleware([withCookies])
@@ -302,7 +302,7 @@ const updateEntryFn = createServerFn({ method: "POST" })
           json: {
             playerName: data.playerName,
             playerEmail: data.playerEmail,
-            playerHandle: data.playerHandle,
+            riotId: data.riotId,
           },
         }),
         "Couldn't update the player",

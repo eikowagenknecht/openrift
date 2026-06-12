@@ -639,7 +639,7 @@ const deckCheckIngestEntrySchema = z.object({
   externalId: z.string().min(1).max(200),
   playerName: z.string().min(1).max(120),
   playerEmail: z.string().max(254).nullish(),
-  playerHandle: z.string().max(120).nullish(),
+  riotId: z.string().max(120).nullish(),
   submittedAt: z.iso.datetime({ offset: true }).nullish(),
   publishOptOut: z.boolean().optional(),
   /** Soft-withdraws the entry; a later push without the flag restores it. */
@@ -682,7 +682,7 @@ export const deckCheckVerdictSchema = z.object({
 export const updateDeckCheckEntrySchema = z.object({
   playerName: z.string().min(1).max(120).optional(),
   playerEmail: z.string().max(254).nullish(),
-  playerHandle: z.string().max(120).nullish(),
+  riotId: z.string().max(120).nullish(),
 });
 
 export const updateDeckCheckCardSchema = z.object({
@@ -703,7 +703,7 @@ export const addDeckCheckCardSchema = z.object({
 export const createDeckCheckEntrySchema = z.object({
   playerName: z.string().min(1).max(120),
   playerEmail: z.string().max(254).nullish(),
-  playerHandle: z.string().max(120).nullish(),
+  riotId: z.string().max(120).nullish(),
   cards: z.array(addDeckCheckCardSchema).max(DECK_CHECK_MAX_CARD_LINES_PER_ENTRY).default([]),
 });
 

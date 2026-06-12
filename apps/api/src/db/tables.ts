@@ -634,8 +634,8 @@ export interface DeckCheckEntriesTable {
   playerName: string;
   /** CHECK: length <= 254 */
   playerEmail: string | null;
-  /** CHECK: length <= 120 */
-  playerHandle: string | null;
+  /** Player's Riot ID. CHECK: length <= 120 */
+  riotId: string | null;
   submittedAt: Date | null;
   publishOptOut: Generated<boolean>;
   /** Hash over the normalized card lines; unchanged re-push is a no-op. */

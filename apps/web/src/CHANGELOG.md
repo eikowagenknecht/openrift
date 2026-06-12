@@ -5,6 +5,7 @@
 - feat: Wishlists and trade lists are now visible to your groups automatically, so trade matches show up without anyone having to find the share step first. This also applies to lists and groups that already exist. You can still hide any list from a group, or from all groups, with the new visibility control in the list's Share dialog
 - feat: A wishlist or trade list now shows at the top whether your groups can see it, and a click takes you straight to the visibility control. The group's Trades page explains why no matches show up yet and lets you share a list right there, and the member list shows who isn't sharing any lists yet
 - feat: When checking a deck, you can now sort the cards by deck order, ID, or name, and choose how many cards show per row, to trade bigger, easier-to-read cards for fitting more on the screen
+- fix: Deck-check entries can now carry a player's Riot ID. The optional player field is labelled "Riot ID" instead of the unclear "Handle", and the organizer integration example shows which field to send it in
 
 ## 2026-06-11
 

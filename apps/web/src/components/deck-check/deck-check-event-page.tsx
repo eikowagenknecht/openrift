@@ -386,7 +386,7 @@ function AddManualEntryDialog({
   const createEntry = useCreateDeckCheckEntry();
   const [playerName, setPlayerName] = useState("");
   const [playerEmail, setPlayerEmail] = useState("");
-  const [playerHandle, setPlayerHandle] = useState("");
+  const [riotId, setRiotId] = useState("");
   const [decklist, setDecklist] = useState("");
 
   const parsed = parseManualDecklist(decklist);
@@ -400,7 +400,7 @@ function AddManualEntryDialog({
   const reset = () => {
     setPlayerName("");
     setPlayerEmail("");
-    setPlayerHandle("");
+    setRiotId("");
     setDecklist("");
   };
 
@@ -414,7 +414,7 @@ function AddManualEntryDialog({
       eventId,
       playerName: trimmedName,
       playerEmail: playerEmail.trim() || null,
-      playerHandle: playerHandle.trim() || null,
+      riotId: riotId.trim() || null,
       cards: parsed.cards,
     });
     toast.success("Player added");
@@ -465,12 +465,13 @@ function AddManualEntryDialog({
               />
             </div>
             <div className="flex flex-1 flex-col gap-1.5">
-              <Label htmlFor="manual-entry-handle">Handle (optional)</Label>
+              <Label htmlFor="manual-entry-riot-id">Riot ID (optional)</Label>
               <Input
-                id="manual-entry-handle"
-                value={playerHandle}
-                onChange={(event) => setPlayerHandle(event.target.value)}
+                id="manual-entry-riot-id"
+                value={riotId}
+                onChange={(event) => setRiotId(event.target.value)}
                 maxLength={120}
+                placeholder="Player#EUW"
               />
             </div>
           </div>

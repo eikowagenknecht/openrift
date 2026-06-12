@@ -53,7 +53,7 @@ export interface NewDeckCheckEntry {
   externalId: string;
   playerName: string;
   playerEmail: string | null;
-  playerHandle: string | null;
+  riotId: string | null;
   submittedAt: Date | null;
   publishOptOut: boolean;
   contentHash: string;
@@ -320,7 +320,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
       patch: Partial<{
         playerName: string;
         playerEmail: string | null;
-        playerHandle: string | null;
+        riotId: string | null;
         submittedAt: Date | null;
         publishOptOut: boolean;
         contentHash: string;
