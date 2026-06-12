@@ -195,6 +195,7 @@ export function DeckCheckEntryPage({
             sortDir={sortDir}
             columns={columns}
             cellWidth={cellWidth}
+            locked={detail.entry.checkStatus !== "unchecked"}
             onStale={() => void refetch()}
           />
         </div>
@@ -300,10 +301,12 @@ function EntryHeader({
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => setAddCardOpen(true)}>
-            <PlusIcon className="size-4" />
-            Add card
-          </Button>
+          {checked ? null : (
+            <Button size="sm" variant="outline" onClick={() => setAddCardOpen(true)}>
+              <PlusIcon className="size-4" />
+              Add card
+            </Button>
+          )}
           {checked ? (
             <Button
               size="sm"
@@ -778,6 +781,7 @@ function CardChecklist({
   sortDir,
   columns,
   cellWidth,
+  locked,
   onStale,
 }: {
   slug: string;
@@ -788,6 +792,8 @@ function CardChecklist({
   sortDir: "asc" | "desc";
   columns: number;
   cellWidth: number;
+  /** A finished verdict (checked/issue) locks card edits until the entry is re-opened. */
+  locked: boolean;
   onStale: () => void;
 }) {
   const { zoneLabels } = useZoneOrder();
@@ -829,6 +835,7 @@ function CardChecklist({
               columns={columns}
               cellWidth={cellWidth}
               intrinsic
+              locked={locked}
               onStale={onStale}
             />
           ))}
@@ -844,6 +851,7 @@ function CardChecklist({
           cards={zoneCards(zone)}
           columns={columns}
           cellWidth={cellWidth}
+          locked={locked}
           onStale={onStale}
         />
       ))}
@@ -872,6 +880,7 @@ function ZoneSection({
   columns,
   cellWidth,
   intrinsic,
+  locked,
   onStale,
 }: {
   slug: string;
@@ -885,6 +894,8 @@ function ZoneSection({
   cellWidth: number;
   /** Content-sized section for the wrapping zone row. */
   intrinsic?: boolean;
+  /** A finished verdict (checked/issue) hides the per-copy remove control. */
+  locked: boolean;
   onStale: () => void;
 }) {
   const verifiedCopies = cards.reduce(
@@ -917,6 +928,7 @@ function ZoneSection({
               card={card}
               copyIndex={copyIndex}
               cellWidth={cellWidth}
+              locked={locked}
               onStale={onStale}
             />
           )),
@@ -940,6 +952,7 @@ function ChecklistCell({
   card,
   copyIndex,
   cellWidth,
+  locked,
   onStale,
 }: {
   slug: string;
@@ -948,6 +961,8 @@ function ChecklistCell({
   card: DeckCheckEntryCardResponse;
   copyIndex: number;
   cellWidth: number;
+  /** A finished verdict (checked/issue) freezes ticking and hides the remove control. */
+  locked: boolean;
   onStale: () => void;
 }) {
   const { allPrintings } = useCards();
@@ -959,6 +974,10 @@ function ChecklistCell({
   const found = card.foundCopies[copyIndex] === true;
 
   const toggle = async () => {
+    // A finished verdict freezes the checklist; re-open the entry to tick again.
+    if (locked) {
+      return;
+    }
     try {
       await tickCard.mutateAsync({
         slug,
@@ -983,7 +1002,7 @@ function ChecklistCell({
     </div>
   ) : null;
 
-  const removeAffordance = (
+  const removeAffordance = locked ? null : (
     <>
       <button
         type="button"
@@ -1033,25 +1052,29 @@ function ChecklistCell({
             {card.matchStatus === "ambiguous" ? "Several matches" : "Not in catalog"}
           </span>
         </button>
-        <button
-          type="button"
-          aria-label={`Fix the name of ${card.rawName}`}
-          className="bg-background/80 hover:text-foreground pointer-events-auto absolute top-1 right-8 z-20 rounded-full p-1 shadow-sm"
-          onClick={(event) => {
-            event.stopPropagation();
-            setFixOpen(true);
-          }}
-        >
-          <PencilIcon className="size-3.5" />
-        </button>
-        <FixCardDialog
-          slug={slug}
-          eventId={eventId}
-          entryId={entryId}
-          card={card}
-          open={fixOpen}
-          onOpenChange={setFixOpen}
-        />
+        {locked ? null : (
+          <>
+            <button
+              type="button"
+              aria-label={`Fix the name of ${card.rawName}`}
+              className="bg-background/80 hover:text-foreground pointer-events-auto absolute top-1 right-8 z-20 rounded-full p-1 shadow-sm"
+              onClick={(event) => {
+                event.stopPropagation();
+                setFixOpen(true);
+              }}
+            >
+              <PencilIcon className="size-3.5" />
+            </button>
+            <FixCardDialog
+              slug={slug}
+              eventId={eventId}
+              entryId={entryId}
+              card={card}
+              open={fixOpen}
+              onOpenChange={setFixOpen}
+            />
+          </>
+        )}
         {foundOverlay}
         {removeAffordance}
       </div>
