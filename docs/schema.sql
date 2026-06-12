@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict G5f6j3rprLrVOTTdQb7YHrP1D7IDTT94m8a97IYVYK1I7g4LuvPttavRAy22Ggv
+\restrict bdMeXJNm5yd6oRXma1krUyweOSZz5Gwxxqg9uS8XJUwg8o6bASxMvtU5RvW1ltq
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -847,7 +847,6 @@ CREATE TABLE public.deck_check_entries (
     riot_id text,
     submitted_at timestamp with time zone,
     content_hash text NOT NULL,
-    check_status text DEFAULT 'unchecked'::text NOT NULL,
     checked_by text,
     checked_at timestamp with time zone,
     notes text,
@@ -859,19 +858,23 @@ CREATE TABLE public.deck_check_entries (
     claim_source text,
     claimed_at timestamp with time zone,
     claim_blocked_at timestamp with time zone,
-    list_owner text DEFAULT 'provider'::text NOT NULL,
     player_message text,
-    provider_push_ignored_at timestamp with time zone,
     allow_name_sharing boolean DEFAULT true NOT NULL,
     allow_riot_id_sharing boolean DEFAULT true NOT NULL,
+    state text DEFAULT 'submitted'::text NOT NULL,
+    review_outcome text,
+    approved_by text,
+    approved_at timestamp with time zone,
+    unlock_requested_at timestamp with time zone,
+    pre_edit_lines jsonb,
     CONSTRAINT chk_deck_check_entries_claim_source CHECK (((claim_source IS NULL) OR (claim_source = ANY (ARRAY['email_auto'::text, 'judge_manual'::text, 'self_submit'::text])))),
-    CONSTRAINT chk_deck_check_entries_list_owner CHECK ((list_owner = ANY (ARRAY['provider'::text, 'player'::text]))),
     CONSTRAINT chk_deck_check_entries_notes CHECK (((notes IS NULL) OR (length(notes) <= 4000))),
     CONSTRAINT chk_deck_check_entries_player_email CHECK (((player_email IS NULL) OR (length(player_email) <= 254))),
     CONSTRAINT chk_deck_check_entries_player_message CHECK (((player_message IS NULL) OR (length(player_message) <= 2000))),
     CONSTRAINT chk_deck_check_entries_player_name CHECK (((length(player_name) >= 1) AND (length(player_name) <= 120))),
+    CONSTRAINT chk_deck_check_entries_review_outcome CHECK (((review_outcome IS NULL) OR (review_outcome = ANY (ARRAY['ok'::text, 'issue'::text])))),
     CONSTRAINT chk_deck_check_entries_riot_id CHECK (((riot_id IS NULL) OR (length(riot_id) <= 120))),
-    CONSTRAINT chk_deck_check_entries_status CHECK ((check_status = ANY (ARRAY['unchecked'::text, 'checked'::text, 'issue'::text])))
+    CONSTRAINT chk_deck_check_entries_state CHECK ((state = ANY (ARRAY['editable'::text, 'submitted'::text, 'approved'::text, 'checked'::text, 'withdrawn'::text])))
 );
 
 
@@ -914,6 +917,8 @@ CREATE TABLE public.deck_check_events (
     allow_self_submission boolean DEFAULT false NOT NULL,
     submission_token text,
     submissions_close_at timestamp with time zone,
+    list_lock_mode text DEFAULT 'on_submit'::text NOT NULL,
+    CONSTRAINT chk_deck_check_events_list_lock_mode CHECK ((list_lock_mode = ANY (ARRAY['on_submit'::text, 'at_deadline'::text]))),
     CONSTRAINT chk_deck_check_events_name CHECK (((length(name) >= 1) AND (length(name) <= 120))),
     CONSTRAINT chk_deck_check_events_status CHECK ((status = ANY (ARRAY['active'::text, 'archived'::text])))
 );
@@ -4664,5 +4669,5 @@ ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.friend_grou
 -- PostgreSQL database dump complete
 --
 
-\unrestrict G5f6j3rprLrVOTTdQb7YHrP1D7IDTT94m8a97IYVYK1I7g4LuvPttavRAy22Ggv
+\unrestrict bdMeXJNm5yd6oRXma1krUyweOSZz5Gwxxqg9uS8XJUwg8o6bASxMvtU5RvW1ltq
 
