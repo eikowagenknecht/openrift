@@ -1036,12 +1036,17 @@ function ZoneSection({
   const done = totalCopies > 0 && verifiedCopies === totalCopies;
 
   const heading = (
-    <h3 className="text-muted-foreground flex items-center gap-1.5 text-sm font-medium tracking-wide uppercase">
+    <h3
+      className={cn(
+        "flex items-center gap-1.5 text-sm font-medium tracking-wide uppercase",
+        done ? "text-green-600" : "text-muted-foreground",
+      )}
+    >
       <span>{label}</span>
-      <span className={cn(done && "text-green-600")}>
+      <span>
         · {verifiedCopies}/{totalCopies}
       </span>
-      {done ? <CheckIcon className="size-3.5 text-green-600" strokeWidth={3} /> : null}
+      {done ? <CheckIcon className="size-3.5" strokeWidth={3} /> : null}
     </h3>
   );
 
