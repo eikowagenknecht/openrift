@@ -1033,10 +1033,15 @@ function ZoneSection({
     0,
   );
   const totalCopies = cards.reduce((sum, card) => sum + card.quantity, 0);
+  const done = totalCopies > 0 && verifiedCopies === totalCopies;
 
   const heading = (
-    <h3 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-      {label} · {verifiedCopies}/{totalCopies}
+    <h3 className="text-muted-foreground flex items-center gap-1.5 text-sm font-medium tracking-wide uppercase">
+      <span>{label}</span>
+      <span className={cn(done && "text-green-600")}>
+        · {verifiedCopies}/{totalCopies}
+      </span>
+      {done ? <CheckIcon className="size-3.5 text-green-600" strokeWidth={3} /> : null}
     </h3>
   );
 
