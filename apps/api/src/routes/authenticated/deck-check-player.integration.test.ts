@@ -601,9 +601,11 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       expect(unlocked.entry.state).toBe("editable");
       expect(unlocked.entry.canEdit).toBe(true);
 
+      // Quantity 2 differs from the 3-copy deck the consent test resubmitted,
+      // so the resubmission below has an actual diff against the baseline.
       const edit = await strangerApp.fetch(
         req("PUT", `/deck-check/mine/${entryId2}/list`, {
-          cards: [{ name: CARD_FURY_UNIT.name, quantity: 3, section: "main" }],
+          cards: [{ name: CARD_FURY_UNIT.name, quantity: 2, section: "main" }],
         }),
       );
       expect(edit.status).toBe(200);
