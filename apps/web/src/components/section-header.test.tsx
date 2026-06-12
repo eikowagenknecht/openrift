@@ -27,7 +27,7 @@ describe("SectionHeader", () => {
     render(
       <SectionHeader>
         <SectionHeaderGroup>
-          <SectionHeaderTitle level={1}>Page title</SectionHeaderTitle>
+          <SectionHeaderTitle>Section title</SectionHeaderTitle>
           <SectionHeaderDescription>Some description text</SectionHeaderDescription>
         </SectionHeaderGroup>
         <SectionHeaderActions>
@@ -35,9 +35,8 @@ describe("SectionHeader", () => {
         </SectionHeaderActions>
       </SectionHeader>,
     );
-    const heading = screen.getByRole("heading", { level: 1, name: "Page title" });
-    expect(heading.className).toContain("text-2xl");
-    expect(heading.className).toContain("font-bold");
+    const heading = screen.getByRole("heading", { level: 2, name: "Section title" });
+    expect(heading.className).toContain("text-lg");
     expect(screen.getByText("Some description text")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
   });

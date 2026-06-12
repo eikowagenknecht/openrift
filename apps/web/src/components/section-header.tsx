@@ -4,6 +4,13 @@ import { Heading } from "@/components/heading";
 import type { HeadingLevel } from "@/components/heading";
 import { cn } from "@/lib/utils";
 
+/**
+ * Header row for an in-page section: title on the left, actions on the right.
+ * Not for page titles — those use PageTopBar inside a PageTopBarSticky
+ * wrapper (see `@/components/layout/page-top-bar`), which is why `level={1}`
+ * is excluded from {@link SectionHeaderTitle}.
+ * @returns The section header row element.
+ */
 export function SectionHeader({ className, children, ...props }: ComponentProps<"div">) {
   return (
     <div
@@ -29,10 +36,15 @@ export function SectionHeaderGroup({ className, children, ...props }: ComponentP
 }
 
 type SectionHeaderTitleProps = Omit<ComponentProps<"h1">, "ref"> & {
-  level?: HeadingLevel;
-  as?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
+  /** Section levels only — page titles (level 1) belong in a PageTopBar. */
+  level?: Exclude<HeadingLevel, 1>;
+  as?: "h2" | "h3" | "h4" | "h5" | "h6";
 };
 
+/**
+ * Title of an in-page section. Page titles use PageTopBarTitle instead.
+ * @returns The section title heading.
+ */
 export function SectionHeaderTitle({ level = 2, as, ...props }: SectionHeaderTitleProps) {
   return <Heading level={level} as={as} {...props} />;
 }

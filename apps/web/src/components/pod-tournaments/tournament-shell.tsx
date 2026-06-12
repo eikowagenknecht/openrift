@@ -4,13 +4,16 @@ import type {
   PodTournamentStatus,
 } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeftIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { Heading } from "@/components/heading";
+import { PageTopBar, PageTopBarSticky, PageTopBarTitle } from "@/components/layout/page-top-bar";
+import {
+  TopBarBreadcrumbSeparator,
+  TopBarBreadcrumbTrail,
+} from "@/components/layout/top-bar-breadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { usePodTournamentDetail, usePodTournamentReport } from "@/hooks/use-pod-tournaments";
-import { cn, PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
 const STATUS_LABEL: Record<PodTournamentStatus, string> = {
   setup: "Not started",
@@ -96,47 +99,49 @@ export function TournamentPageFrame({
 }) {
   const { data } = usePodTournamentDetail(id);
   return (
-    <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING)}>
-      <div className="flex flex-col gap-2">
-        <Link
-          to="/tournaments/run"
-          className="text-muted-foreground hover:text-foreground flex w-fit items-center gap-1 text-sm"
-        >
-          <ArrowLeftIcon className="size-4" /> All tournaments
-        </Link>
-        <header className="flex flex-wrap items-center gap-3">
-          <Heading level={1}>{data.tournament.name}</Heading>
-          <Badge variant="secondary">{STATUS_LABEL[data.tournament.status]}</Badge>
-        </header>
+    <>
+      <PageTopBarSticky maxWidth="5xl">
+        <PageTopBar className="gap-2">
+          <TopBarBreadcrumbTrail
+            segments={[{ label: "Tournaments", link: <Link to="/tournaments/run" /> }]}
+          />
+          <TopBarBreadcrumbSeparator className="hidden sm:inline" />
+          <PageTopBarTitle>{data.tournament.name}</PageTopBarTitle>
+          <Badge variant="secondary" className="shrink-0">
+            {STATUS_LABEL[data.tournament.status]}
+          </Badge>
+        </PageTopBar>
+      </PageTopBarSticky>
+      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING_NO_TOP)}>
+        <nav className="flex gap-1 border-b">
+          <OwnerTabLink
+            to="/tournaments/run/$id"
+            id={id}
+            label="Pairings"
+            isActive={active === "pairings"}
+          />
+          <OwnerTabLink
+            to="/tournaments/run/$id/standings"
+            id={id}
+            label="Standings"
+            isActive={active === "standings"}
+          />
+          <OwnerTabLink
+            to="/tournaments/run/$id/players"
+            id={id}
+            label="Players"
+            isActive={active === "players"}
+          />
+          <OwnerTabLink
+            to="/tournaments/run/$id/settings"
+            id={id}
+            label="Settings"
+            isActive={active === "settings"}
+          />
+        </nav>
+        {render(data)}
       </div>
-      <nav className="flex gap-1 border-b">
-        <OwnerTabLink
-          to="/tournaments/run/$id"
-          id={id}
-          label="Pairings"
-          isActive={active === "pairings"}
-        />
-        <OwnerTabLink
-          to="/tournaments/run/$id/standings"
-          id={id}
-          label="Standings"
-          isActive={active === "standings"}
-        />
-        <OwnerTabLink
-          to="/tournaments/run/$id/players"
-          id={id}
-          label="Players"
-          isActive={active === "players"}
-        />
-        <OwnerTabLink
-          to="/tournaments/run/$id/settings"
-          id={id}
-          label="Settings"
-          isActive={active === "settings"}
-        />
-      </nav>
-      {render(data)}
-    </div>
+    </>
   );
 }
 
@@ -156,26 +161,32 @@ export function TournamentReportFrame({
 }) {
   const { data } = usePodTournamentReport(token);
   return (
-    <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING)}>
-      <header className="flex flex-wrap items-center gap-3">
-        <Heading level={1}>{data.tournamentName}</Heading>
-        <Badge variant="secondary">{STATUS_LABEL[data.status]}</Badge>
-      </header>
-      <nav className="flex gap-1 border-b">
-        <ReportTabLink
-          to="/tournaments/run/report/$token"
-          token={token}
-          label="Rounds"
-          isActive={active === "rounds"}
-        />
-        <ReportTabLink
-          to="/tournaments/run/report/$token/standings"
-          token={token}
-          label="Standings"
-          isActive={active === "standings"}
-        />
-      </nav>
-      {render(data)}
-    </div>
+    <>
+      <PageTopBarSticky maxWidth="5xl">
+        <PageTopBar>
+          <PageTopBarTitle>{data.tournamentName}</PageTopBarTitle>
+          <Badge variant="secondary" className="shrink-0">
+            {STATUS_LABEL[data.status]}
+          </Badge>
+        </PageTopBar>
+      </PageTopBarSticky>
+      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING_NO_TOP)}>
+        <nav className="flex gap-1 border-b">
+          <ReportTabLink
+            to="/tournaments/run/report/$token"
+            token={token}
+            label="Rounds"
+            isActive={active === "rounds"}
+          />
+          <ReportTabLink
+            to="/tournaments/run/report/$token/standings"
+            token={token}
+            label="Standings"
+            isActive={active === "standings"}
+          />
+        </nav>
+        {render(data)}
+      </div>
+    </>
   );
 }

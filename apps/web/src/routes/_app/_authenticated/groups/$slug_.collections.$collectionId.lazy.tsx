@@ -2,7 +2,7 @@ import type { PublicCollectionDetailResponse } from "@openrift/shared";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 
 import { SharedCollectionView } from "@/components/collection/shared-collection-view";
-import { GroupBreadcrumbTrail } from "@/components/friend-groups/group-breadcrumb";
+import { TopBarBreadcrumbTrail } from "@/components/layout/top-bar-breadcrumb";
 import { useFriendGroupDetail, useFriendGroupSharedCollection } from "@/hooks/use-friend-groups";
 
 export const Route = createLazyFileRoute(
@@ -41,7 +41,7 @@ function SharedCollectionRoute() {
       data={publicShape}
       search={search}
       topBarTrailing={
-        <GroupBreadcrumbTrail
+        <TopBarBreadcrumbTrail
           segments={[
             { label: groupDetail.group.name, link: <Link to="/groups/$slug" params={{ slug }} /> },
             { label: "Shared", link: <Link to="/groups/$slug/shared" params={{ slug }} /> },

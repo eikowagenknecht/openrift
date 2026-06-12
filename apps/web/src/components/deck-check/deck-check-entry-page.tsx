@@ -36,8 +36,8 @@ import { HoveredCardPreview } from "@/components/deck/hovered-card-preview";
 import { ColumnControls } from "@/components/filters/column-controls";
 import { SortGroupControls } from "@/components/filters/sort-group-controls";
 import type { SortGroupOption } from "@/components/filters/sort-group-controls";
-import { GroupBreadcrumbBar } from "@/components/friend-groups/group-breadcrumb";
 import { ImportCatalogSearch } from "@/components/import/import-catalog-search";
+import { TopBarBreadcrumbBar } from "@/components/layout/top-bar-breadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -136,7 +136,7 @@ export function DeckCheckEntryPage({
 
   return (
     <>
-      <GroupBreadcrumbBar segments={crumbs} />
+      <TopBarBreadcrumbBar segments={crumbs} />
       <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-4", PAGE_PADDING)}>
         <EntryHeader
           slug={slug}

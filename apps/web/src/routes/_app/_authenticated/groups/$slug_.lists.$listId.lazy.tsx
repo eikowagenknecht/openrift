@@ -1,7 +1,7 @@
 import type { PublicListDetailResponse } from "@openrift/shared";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 
-import { GroupBreadcrumbTrail } from "@/components/friend-groups/group-breadcrumb";
+import { TopBarBreadcrumbTrail } from "@/components/layout/top-bar-breadcrumb";
 import { SharedListContent } from "@/components/list/shared-list-content";
 import { useFriendGroupDetail, useFriendGroupSharedList } from "@/hooks/use-friend-groups";
 import { FilterSearchProvider } from "@/lib/search-schemas";
@@ -44,7 +44,7 @@ function SharedListRoute() {
     ? (groupDetail.members.find((member) => member.userId === fromUser)?.userName ?? "Member")
     : null;
   const backLink = (
-    <GroupBreadcrumbTrail
+    <TopBarBreadcrumbTrail
       segments={
         fromUser
           ? [

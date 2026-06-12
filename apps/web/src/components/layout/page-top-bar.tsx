@@ -50,6 +50,63 @@ export function useMeasuredHeight(el: HTMLElement | null) {
 export const PAGE_TOP_BAR_STICKY =
   "bg-background/80 sticky top-(--header-height) z-30 px-3 py-3 backdrop-blur-lg";
 
+const STICKY_MAX_WIDTH = {
+  md: "max-w-md",
+  "4xl": "max-w-4xl",
+  "5xl": "max-w-5xl",
+  "6xl": "max-w-6xl",
+} as const;
+
+interface PageTopBarStickyProps extends ComponentProps<"div"> {
+  /**
+   * Width of the page's centered content column. The sticky layer (blur,
+   * background) still spans the full viewport; only the bar's content is
+   * constrained so it aligns with the column below. Omit on full-width pages.
+   */
+  maxWidth?: keyof typeof STICKY_MAX_WIDTH;
+}
+
+/**
+ * Sticky wrapper hosting a {@link PageTopBar}. Pages with a centered
+ * `max-w-*` content column pass `maxWidth` so the bar's content aligns with
+ * that column instead of pinning to the viewport edge.
+ * @returns The sticky wrapper element.
+ */
+export function PageTopBarSticky({
+  maxWidth,
+  className,
+  children,
+  ...props
+}: PageTopBarStickyProps) {
+  return (
+    // With maxWidth, the horizontal padding moves inside the centered
+    // container so the bar's content edges match a content column that is
+    // `mx-auto max-w-* px-3` (padding inside the measured box). Padding on
+    // the sticky layer instead would shift the bar 12px left of the column.
+    <div className={cn(PAGE_TOP_BAR_STICKY, maxWidth && "px-0", className)} {...props}>
+      {maxWidth ? (
+        <div className={cn("mx-auto w-full px-3", STICKY_MAX_WIDTH[maxWidth])}>{children}</div>
+      ) : (
+        children
+      )}
+    </div>
+  );
+}
+
+/**
+ * One-paragraph page description rendered as the first content block below a
+ * {@link PageTopBarSticky} bar — never inside it, so the sticky bar stays a
+ * single compact row.
+ * @returns The description paragraph.
+ */
+export function PageDescription({ className, children, ...props }: ComponentProps<"p">) {
+  return (
+    <p className={cn("text-muted-foreground", className)} {...props}>
+      {children}
+    </p>
+  );
+}
+
 /**
  * Unified top bar row, used by both deck and collection pages. Must be
  * wrapped in an element styled with {@link PAGE_TOP_BAR_STICKY} (or one of

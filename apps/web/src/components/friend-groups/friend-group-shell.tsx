@@ -5,10 +5,11 @@ import type { ReactNode } from "react";
 
 import { Heading } from "@/components/heading";
 import {
-  PAGE_TOP_BAR_STICKY,
+  PageDescription,
   PageTopBar,
   PageTopBarActions,
   PageTopBarButton,
+  PageTopBarSticky,
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
@@ -73,7 +74,7 @@ export function FriendGroupPageFrame({
  * Frame for drill-down pages below a tab (event, entrant, ...): loads the
  * group, shows the pending-approval stub, and otherwise renders the page
  * without the group header and tab bar — those pages carry a
- * GroupBreadcrumbBar instead (the area's drill-down convention).
+ * TopBarBreadcrumbBar instead (the app's drill-down convention).
  * @returns The framed drill-down page, or the pending stub.
  */
 export function GroupDrilldownFrame({
@@ -132,21 +133,21 @@ function FriendGroupShell({
   const memberCount = data.members.length;
 
   return (
-    <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING_NO_TOP)}>
-      <header className="flex flex-col">
-        <div className={cn(PAGE_TOP_BAR_STICKY, "-mx-3")}>
-          <PageTopBar>
-            <PageTopBarTitle>{data.group.name}</PageTopBarTitle>
-            <PageTopBarActions>
-              <Badge variant="secondary">{ROLE_LABEL[data.viewerRole ?? "member"]}</Badge>
-              <PageTopBarButton render={<Link to="/groups/$slug/manage" params={{ slug }} />}>
-                <SettingsIcon className="size-4" />
-                Manage
-              </PageTopBarButton>
-            </PageTopBarActions>
-          </PageTopBar>
-        </div>
-        <div className="flex flex-col gap-2">
+    <>
+      <PageTopBarSticky maxWidth="5xl">
+        <PageTopBar>
+          <PageTopBarTitle>{data.group.name}</PageTopBarTitle>
+          <PageTopBarActions>
+            <Badge variant="secondary">{ROLE_LABEL[data.viewerRole ?? "member"]}</Badge>
+            <PageTopBarButton render={<Link to="/groups/$slug/manage" params={{ slug }} />}>
+              <SettingsIcon className="size-4" />
+              Manage
+            </PageTopBarButton>
+          </PageTopBarActions>
+        </PageTopBar>
+      </PageTopBarSticky>
+      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING_NO_TOP)}>
+        <header className="flex flex-col gap-2">
           <p className="text-muted-foreground text-sm">
             {memberCount} {memberCount === 1 ? "member" : "members"}
             {tradesActionCount > 0
@@ -154,21 +155,21 @@ function FriendGroupShell({
               : null}
           </p>
           {data.group.description ? (
-            <p className="text-muted-foreground">{data.group.description}</p>
+            <PageDescription>{data.group.description}</PageDescription>
           ) : null}
-        </div>
-      </header>
+        </header>
 
-      <GroupNav
-        slug={slug}
-        active={active}
-        tradesBadge={tradesActionCount}
-        membersBadge={pendingRequestCount}
-        showChecks={isJudge(data.viewerRole)}
-      />
+        <GroupNav
+          slug={slug}
+          active={active}
+          tradesBadge={tradesActionCount}
+          membersBadge={pendingRequestCount}
+          showChecks={isJudge(data.viewerRole)}
+        />
 
-      {children}
-    </div>
+        {children}
+      </div>
+    </>
   );
 }
 

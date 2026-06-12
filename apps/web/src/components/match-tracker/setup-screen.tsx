@@ -1,6 +1,11 @@
 import { PlayIcon } from "lucide-react";
 
-import { Heading } from "@/components/heading";
+import {
+  PageDescription,
+  PageTopBar,
+  PageTopBarSticky,
+  PageTopBarTitle,
+} from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -88,114 +93,118 @@ export function SetupScreen() {
   const canStart = !teamsActive || teamsBalanced;
 
   return (
-    <div className="mx-auto w-full max-w-md space-y-6 px-3 py-6">
-      <header>
-        <Heading level={1}>Match tracker</Heading>
-        <p className="text-muted-foreground mt-1 text-sm">
+    <>
+      <PageTopBarSticky maxWidth="md">
+        <PageTopBar>
+          <PageTopBarTitle>Match tracker</PageTopBarTitle>
+        </PageTopBar>
+      </PageTopBarSticky>
+      <div className="mx-auto w-full max-w-md space-y-6 px-3 pb-6">
+        <PageDescription>
           Keep score and XP for everyone at the table on one device.
-        </p>
-      </header>
+        </PageDescription>
 
-      <div className="space-y-2">
-        <Label>Players</Label>
-        <ToggleGroup
-          className="w-full"
-          variant="outline"
-          spacing={2}
-          aria-label="Players"
-          value={[String(players.length)]}
-          onValueChange={([next]) => {
-            const count = Number(next);
-            if (PLAYER_COUNT_OPTIONS.includes(count)) {
-              setPlayerCount(count);
-            }
-          }}
-        >
-          {PLAYER_COUNT_OPTIONS.map((count) => (
-            <ToggleGroupItem
-              key={count}
-              value={String(count)}
-              className={cn("flex-1", activeToggleClass)}
-            >
-              {count}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-      </div>
-
-      {players.length === MAX_PLAYERS && (
         <div className="space-y-2">
-          <Label>Format</Label>
+          <Label>Players</Label>
           <ToggleGroup
             className="w-full"
             variant="outline"
             spacing={2}
-            aria-label="Format"
-            value={[mode]}
+            aria-label="Players"
+            value={[String(players.length)]}
             onValueChange={([next]) => {
-              if (next === "ffa" || next === "teams") {
-                setMode(next);
+              const count = Number(next);
+              if (PLAYER_COUNT_OPTIONS.includes(count)) {
+                setPlayerCount(count);
               }
             }}
           >
-            <ToggleGroupItem value="ffa" className={cn("flex-1", activeToggleClass)}>
-              Free-for-all
-            </ToggleGroupItem>
-            <ToggleGroupItem value="teams" className={cn("flex-1", activeToggleClass)}>
-              Teams (2v2)
-            </ToggleGroupItem>
+            {PLAYER_COUNT_OPTIONS.map((count) => (
+              <ToggleGroupItem
+                key={count}
+                value={String(count)}
+                className={cn("flex-1", activeToggleClass)}
+              >
+                {count}
+              </ToggleGroupItem>
+            ))}
           </ToggleGroup>
         </div>
-      )}
 
-      <div className="space-y-2">
-        <Label>Names</Label>
-        <div className="space-y-2">
-          {players.map((player, index) => (
-            <div key={player.id} className="flex items-center gap-2">
-              <Input
-                value={player.name}
-                aria-label={`Name for player ${index + 1}`}
-                onChange={(event) => renamePlayer(player.id, event.target.value)}
-              />
-              {teamsActive && (
-                <TeamToggle
-                  playerName={player.name}
-                  team={player.team}
-                  onChange={(team) => setPlayerTeam(player.id, team)}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-        {teamsActive && !teamsBalanced && (
-          <p className="text-muted-foreground text-xs">Put two players on each team for a 2v2.</p>
+        {players.length === MAX_PLAYERS && (
+          <div className="space-y-2">
+            <Label>Format</Label>
+            <ToggleGroup
+              className="w-full"
+              variant="outline"
+              spacing={2}
+              aria-label="Format"
+              value={[mode]}
+              onValueChange={([next]) => {
+                if (next === "ffa" || next === "teams") {
+                  setMode(next);
+                }
+              }}
+            >
+              <ToggleGroupItem value="ffa" className={cn("flex-1", activeToggleClass)}>
+                Free-for-all
+              </ToggleGroupItem>
+              <ToggleGroupItem value="teams" className={cn("flex-1", activeToggleClass)}>
+                Teams (2v2)
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
         )}
-      </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="points-target">Points to win</Label>
-        <Input
-          id="points-target"
-          type="number"
-          min={1}
-          value={pointsTarget}
-          onChange={(event) => setPointsTarget(Number(event.target.value))}
-          className={cn(
-            "w-24 [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:m-0",
-            "[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0",
-            "[&::-webkit-outer-spin-button]:appearance-none",
+        <div className="space-y-2">
+          <Label>Names</Label>
+          <div className="space-y-2">
+            {players.map((player, index) => (
+              <div key={player.id} className="flex items-center gap-2">
+                <Input
+                  value={player.name}
+                  aria-label={`Name for player ${index + 1}`}
+                  onChange={(event) => renamePlayer(player.id, event.target.value)}
+                />
+                {teamsActive && (
+                  <TeamToggle
+                    playerName={player.name}
+                    team={player.team}
+                    onChange={(team) => setPlayerTeam(player.id, team)}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+          {teamsActive && !teamsBalanced && (
+            <p className="text-muted-foreground text-xs">Put two players on each team for a 2v2.</p>
           )}
-        />
-        <p className="text-muted-foreground text-xs">
-          Riftbound is first to 8 points (1vs1, 3/4 player FFA) and 11 points (2vs2).
-        </p>
-      </div>
+        </div>
 
-      <Button size="lg" className="w-full" disabled={!canStart} onClick={() => startGame()}>
-        <PlayIcon className="size-4" />
-        Start game
-      </Button>
-    </div>
+        <div className="space-y-2">
+          <Label htmlFor="points-target">Points to win</Label>
+          <Input
+            id="points-target"
+            type="number"
+            min={1}
+            value={pointsTarget}
+            onChange={(event) => setPointsTarget(Number(event.target.value))}
+            className={cn(
+              "w-24 [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:m-0",
+              "[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0",
+              "[&::-webkit-outer-spin-button]:appearance-none",
+            )}
+          />
+          <p className="text-muted-foreground text-xs">
+            Riftbound is first to 8 points (1vs1, 3/4 player FFA) and 11 points (2vs2).
+          </p>
+        </div>
+
+        <Button size="lg" className="w-full" disabled={!canStart} onClick={() => startGame()}>
+          <PlayIcon className="size-4" />
+          Start game
+        </Button>
+      </div>
+    </>
   );
 }

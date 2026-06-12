@@ -18,8 +18,8 @@ import {
 import type { ComponentType, SVGProps } from "react";
 import { useState } from "react";
 
-import { GroupBreadcrumbBar } from "@/components/friend-groups/group-breadcrumb";
 import { Heading } from "@/components/heading";
+import { TopBarBreadcrumbBar } from "@/components/layout/top-bar-breadcrumb";
 import { listKindIcon } from "@/components/list/create-list-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -87,7 +87,7 @@ export function FriendGroupManagePage({ slug }: FriendGroupManagePageProps) {
 
   return (
     <>
-      <GroupBreadcrumbBar
+      <TopBarBreadcrumbBar
         segments={[
           { label: data.group.name, link: <Link to="/groups/$slug" params={{ slug }} /> },
           { label: "Manage" },

@@ -18,10 +18,16 @@ import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 
 import { SearchInput } from "@/components/filters/search-input";
-import { Heading } from "@/components/heading";
 import { PageToc, PageTocMobileTrigger } from "@/components/layout/page-toc";
 import type { PageTocItem } from "@/components/layout/page-toc";
-import { PAGE_TOP_BAR_STICKY } from "@/components/layout/page-top-bar";
+import {
+  PAGE_TOP_BAR_STICKY,
+  PageTopBar,
+  PageTopBarActions,
+  PageTopBarSticky,
+  PageTopBarTitle,
+  useMeasuredHeight,
+} from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,7 +43,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useRuleVersions, useRulesAtVersion } from "@/hooks/use-rules";
 import type { DiffSegment } from "@/lib/text-diff";
 import { textDiff } from "@/lib/text-diff";
-import { cn, PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 import { useRulesDiffExpandStore } from "@/stores/rules-diff-expand-store";
 import { useRulesFoldStore } from "@/stores/rules-fold-store";
 import { useRulesSearchStore } from "@/stores/rules-search-store";
@@ -1438,18 +1444,22 @@ export function RulesPage({ kind, version }: { kind: RuleKind; version: string |
 
 function RulesEmpty({ kind }: { kind: RuleKind }) {
   return (
-    <div className={`mx-auto w-full max-w-4xl ${PAGE_PADDING}`}>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <Heading level={1}>{KIND_TITLES[kind]}</Heading>
+    <>
+      <PageTopBarSticky maxWidth="4xl">
+        <PageTopBar>
+          <PageTopBarTitle>{KIND_TITLES[kind]}</PageTopBarTitle>
+        </PageTopBar>
+      </PageTopBarSticky>
+      <div className={`mx-auto w-full max-w-4xl ${PAGE_PADDING_NO_TOP}`}>
+        <div className="mb-4">
+          <KindTabs kind={kind} />
+        </div>
+        <div className="text-muted-foreground py-16 text-center">
+          <p className="text-lg font-medium">No rules available yet</p>
+          <p>Rules will appear here once imported by an administrator.</p>
+        </div>
       </div>
-      <div className="mb-4">
-        <KindTabs kind={kind} />
-      </div>
-      <div className="text-muted-foreground py-16 text-center">
-        <p className="text-lg font-medium">No rules available yet</p>
-        <p>Rules will appear here once imported by an administrator.</p>
-      </div>
-    </div>
+    </>
   );
 }
 
@@ -1492,6 +1502,10 @@ function RulesSearchBar({ trailing }: { trailing: string }) {
 
 function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
   const navigate = useNavigate();
+  // The search toolbar sticks below the title bar, so its offset must include
+  // the bar's measured height on top of the global header height.
+  const [topBarEl, setTopBarEl] = useState<HTMLDivElement | null>(null);
+  const topBarHeight = useMeasuredHeight(topBarEl);
   const { data: rulesData } = useRulesAtVersion(kind, version);
   const { data: versionsData } = useRuleVersions(kind);
   const debouncedSearchQuery = useRulesSearchStore((state) => state.query);
@@ -1553,109 +1567,120 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
       : `${searchResult.matchSet.size} / ${rules.length} rules`;
 
   return (
-    <div className={`mx-auto w-full max-w-4xl ${PAGE_PADDING}`}>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <Heading level={1}>{KIND_TITLES[kind]}</Heading>
-        {versions.length > 1 ? (
-          <Select
-            value={version}
-            onValueChange={(nextVersion) => {
-              if (typeof nextVersion !== "string" || nextVersion === version) {
-                return;
-              }
-              navigate({
-                to: "/rules/$kind/$version",
-                params: { kind, version: nextVersion },
-              });
-            }}
-          >
-            <SelectTrigger size="sm" className="text-muted-foreground font-mono">
-              v<SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {versions.toReversed().map((entry) => (
-                <SelectItem key={entry.version} value={entry.version}>
-                  v{entry.version}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          <span className="text-muted-foreground font-mono text-sm">v{version}</span>
-        )}
-      </div>
-
-      <div className="mb-4">
-        <KindTabs kind={kind} />
-      </div>
-
-      {isEmpty ? (
-        <div className="text-muted-foreground py-16 text-center">
-          <p className="text-lg font-medium">No rules available yet</p>
-          <p>Rules will appear here once imported by an administrator.</p>
-        </div>
-      ) : (
-        <div className="flex gap-6">
-          <PageToc items={tocItems} />
-          <div className="min-w-0 flex-1">
-            <div className={cn(PAGE_TOP_BAR_STICKY, "mb-4 flex flex-wrap items-center gap-3 px-0")}>
-              <PageTocMobileTrigger items={tocItems} />
-              <RulesSearchBar trailing={ruleCountLabel} />
-              {foldGroupKeys.length > 0 && !isSearching && (
-                <ExpandCollapseAllButton foldGroupKeys={foldGroupKeys} />
-              )}
-              {!isSearching && (
-                <ShowChangesToggle kind={kind} hasPreviousVersion={previousVersion !== null} />
-              )}
-            </div>
-            {comments && !isSearching && <VersionComments markdown={comments} />}
-            {showChanges && previousVersion && changes && moves && (
-              <ChangesSummary previousVersion={previousVersion} changes={changes} moves={moves} />
-            )}
-            {noSearchResults ? (
-              <div className="text-muted-foreground py-16 text-center">
-                <p className="text-lg font-medium">No rules match your search</p>
-                <p>Try fewer or different terms.</p>
-              </div>
-            ) : searchResult === null ? (
-              rules.map((rule) => (
-                <RuleRow
-                  key={rule.id}
-                  rule={rule}
-                  ancestors={ancestorsByRule.get(rule.ruleNumber) ?? EMPTY_ANCESTORS}
-                  hasChildren={foldGroups.has(rule.ruleNumber)}
-                  termAnchors={termAnchors}
-                  changeKind={changeKindByRule?.get(rule.ruleNumber)}
-                  previousContent={
-                    showChanges && changes && !moves?.displacedSet.has(rule.ruleNumber)
-                      ? changes.modifiedPrev[rule.ruleNumber]
-                      : undefined
+    <>
+      <PageTopBarSticky maxWidth="4xl" ref={setTopBarEl}>
+        <PageTopBar>
+          <PageTopBarTitle>{KIND_TITLES[kind]}</PageTopBarTitle>
+          <PageTopBarActions>
+            {versions.length > 1 ? (
+              <Select
+                value={version}
+                onValueChange={(nextVersion) => {
+                  if (typeof nextVersion !== "string" || nextVersion === version) {
+                    return;
                   }
-                  relatedRuleNumber={
-                    moves?.newToOld.get(rule.ruleNumber) ?? moves?.oldToNew.get(rule.ruleNumber)
-                  }
-                />
-              ))
+                  navigate({
+                    to: "/rules/$kind/$version",
+                    params: { kind, version: nextVersion },
+                  });
+                }}
+              >
+                <SelectTrigger className="text-muted-foreground font-mono">
+                  v<SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {versions.toReversed().map((entry) => (
+                    <SelectItem key={entry.version} value={entry.version}>
+                      v{entry.version}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             ) : (
-              searchResult.visibleIndices.map((index) => {
-                const rule = rules[index];
-                const isContext =
-                  searchResult.ancestorSet.has(index) && !searchResult.matchSet.has(index);
-                return (
+              <span className="text-muted-foreground font-mono text-sm">v{version}</span>
+            )}
+          </PageTopBarActions>
+        </PageTopBar>
+      </PageTopBarSticky>
+      <div className={`mx-auto w-full max-w-4xl ${PAGE_PADDING_NO_TOP}`}>
+        <div className="mb-4">
+          <KindTabs kind={kind} />
+        </div>
+
+        {isEmpty ? (
+          <div className="text-muted-foreground py-16 text-center">
+            <p className="text-lg font-medium">No rules available yet</p>
+            <p>Rules will appear here once imported by an administrator.</p>
+          </div>
+        ) : (
+          <div className="flex gap-6">
+            <PageToc items={tocItems} />
+            <div className="min-w-0 flex-1">
+              <div
+                className={cn(
+                  PAGE_TOP_BAR_STICKY,
+                  "z-20 mb-4 flex flex-wrap items-center gap-3 px-0",
+                )}
+                style={{ top: `calc(var(--header-height) + ${topBarHeight}px)` }}
+              >
+                <PageTocMobileTrigger items={tocItems} />
+                <RulesSearchBar trailing={ruleCountLabel} />
+                {foldGroupKeys.length > 0 && !isSearching && (
+                  <ExpandCollapseAllButton foldGroupKeys={foldGroupKeys} />
+                )}
+                {!isSearching && (
+                  <ShowChangesToggle kind={kind} hasPreviousVersion={previousVersion !== null} />
+                )}
+              </div>
+              {comments && !isSearching && <VersionComments markdown={comments} />}
+              {showChanges && previousVersion && changes && moves && (
+                <ChangesSummary previousVersion={previousVersion} changes={changes} moves={moves} />
+              )}
+              {noSearchResults ? (
+                <div className="text-muted-foreground py-16 text-center">
+                  <p className="text-lg font-medium">No rules match your search</p>
+                  <p>Try fewer or different terms.</p>
+                </div>
+              ) : searchResult === null ? (
+                rules.map((rule) => (
                   <RuleRow
                     key={rule.id}
                     rule={rule}
-                    ancestors={EMPTY_ANCESTORS}
-                    hasChildren={false}
-                    isContext={isContext}
+                    ancestors={ancestorsByRule.get(rule.ruleNumber) ?? EMPTY_ANCESTORS}
+                    hasChildren={foldGroups.has(rule.ruleNumber)}
                     termAnchors={termAnchors}
+                    changeKind={changeKindByRule?.get(rule.ruleNumber)}
+                    previousContent={
+                      showChanges && changes && !moves?.displacedSet.has(rule.ruleNumber)
+                        ? changes.modifiedPrev[rule.ruleNumber]
+                        : undefined
+                    }
+                    relatedRuleNumber={
+                      moves?.newToOld.get(rule.ruleNumber) ?? moves?.oldToNew.get(rule.ruleNumber)
+                    }
                   />
-                );
-              })
-            )}
+                ))
+              ) : (
+                searchResult.visibleIndices.map((index) => {
+                  const rule = rules[index];
+                  const isContext =
+                    searchResult.ancestorSet.has(index) && !searchResult.matchSet.has(index);
+                  return (
+                    <RuleRow
+                      key={rule.id}
+                      rule={rule}
+                      ancestors={EMPTY_ANCESTORS}
+                      hasChildren={false}
+                      isContext={isContext}
+                      termAnchors={termAnchors}
+                    />
+                  );
+                })
+              )}
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 }

@@ -2,13 +2,13 @@ import type { ListIntent } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
 import { Heading } from "@/components/heading";
+import { TopBarBreadcrumbBar } from "@/components/layout/top-bar-breadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/user-avatar";
 import { useFriendGroupDetail, useFriendGroupMemberDetail } from "@/hooks/use-friend-groups";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
 import { ROLE_LABEL, SECTION_HEADING } from "./friend-group-shell";
-import { GroupBreadcrumbBar } from "./group-breadcrumb";
 import { MatchTradeList } from "./match-row-card";
 import { SharedCollectionRow } from "./shared-collection-row";
 import { SharedListRow } from "./shared-list-row";
@@ -37,7 +37,7 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
 
   return (
     <>
-      <GroupBreadcrumbBar
+      <TopBarBreadcrumbBar
         segments={[
           { label: groupDetail.group.name, link: <Link to="/groups/$slug" params={{ slug }} /> },
           { label: "Members", link: <Link to="/groups/$slug/members" params={{ slug }} /> },

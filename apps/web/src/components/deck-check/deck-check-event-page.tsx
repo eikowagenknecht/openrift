@@ -14,7 +14,7 @@ import { toast } from "sonner";
 
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { isAdmin } from "@/components/friend-groups/friend-group-shell";
-import { GroupBreadcrumbBar } from "@/components/friend-groups/group-breadcrumb";
+import { TopBarBreadcrumbBar } from "@/components/layout/top-bar-breadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -94,7 +94,7 @@ export function DeckCheckEventPage({
 
   return (
     <>
-      <GroupBreadcrumbBar segments={crumbs} />
+      <TopBarBreadcrumbBar segments={crumbs} />
       <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-4", PAGE_PADDING)}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex min-w-0 flex-col">

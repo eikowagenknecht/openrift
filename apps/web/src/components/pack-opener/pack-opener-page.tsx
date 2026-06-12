@@ -8,14 +8,20 @@ import {
 } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { PackagePlusIcon, SparklesIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
-import { Heading } from "@/components/heading";
+import {
+  PageDescription,
+  PageTopBar,
+  PageTopBarActions,
+  PageTopBarSticky,
+  PageTopBarTitle,
+} from "@/components/layout/page-top-bar";
 import { PackBulkGrid } from "@/components/pack-opener/pack-bulk-grid";
 import { isBoosterEligible, toPackPrinting } from "@/components/pack-opener/pack-opener-utils";
 import { PackReveal } from "@/components/pack-opener/pack-reveal";
 import { PackStats } from "@/components/pack-opener/pack-stats";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,11 +32,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
+import { Toggle } from "@/components/ui/toggle";
 import { usePrices } from "@/hooks/use-prices";
 import { publicSetDetailQueryOptions, publicSetListQueryOptions } from "@/hooks/use-public-sets";
 import { useSession } from "@/lib/auth-session";
-import { PAGE_PADDING } from "@/lib/utils";
+import { PAGE_PADDING_NO_TOP } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
 function poolFromPrintings(printings: readonly Printing[], language: string): PackPool {
@@ -80,75 +86,84 @@ export function PackOpenerPage() {
 
   if (mainSets.length === 0) {
     return (
-      <div className={PAGE_PADDING}>
-        <p className="text-muted-foreground">No sets are available to open yet.</p>
-      </div>
+      <>
+        <PackOpenerTopBar />
+        <div className={PAGE_PADDING_NO_TOP}>
+          <p className="text-muted-foreground">No sets are available to open yet.</p>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className={PAGE_PADDING}>
-      <header className="mb-6">
-        <div className="flex items-center gap-2">
-          <PackagePlusIcon className="size-6" />
-          <Heading level={1}>Pack opener</Heading>
-          <Badge
-            variant="subtle"
-            className="text-2xs h-auto rounded-sm px-1.5 leading-none font-semibold uppercase"
-          >
-            Simulator
-          </Badge>
-        </div>
-        <p className="text-muted-foreground mt-2 text-sm">
+    <>
+      <PackOpenerTopBar>
+        <ToggleField label="Foil shimmer" checked={shimmer} onChange={setShimmer} />
+        <ToggleField label="Auto-reveal" checked={autoReveal} onChange={setAutoReveal} />
+      </PackOpenerTopBar>
+      <div className={PAGE_PADDING_NO_TOP}>
+        <PageDescription className="mb-6">
           Open virtual Riftbound booster packs. Pull rates match the real booster as published by
           Riot (7 Common, 3 Uncommon, 2 Rare-or-better, 1 Foil, 1 Rune). No cards are added to your
           collection, this is just for fun.
-        </p>
-      </header>
+        </PageDescription>
 
-      <div className="bg-card mb-6 grid gap-4 rounded-xl border p-4 md:grid-cols-[1fr_1fr_1fr_auto]">
-        <SetPickerField
-          sets={mainSets}
-          value={setSlug}
-          onChange={(slug) => {
-            setSetSlug(slug);
-            setPacks([]);
-          }}
-        />
-        <LanguageField
-          setSlug={setSlug}
-          value={language}
-          onChange={(value) => {
-            setLanguage(value);
-            setPacks([]);
-          }}
-        />
-        <CountField
-          choice={countChoice}
-          custom={customCount}
-          onChoiceChange={setCountChoice}
-          onCustomChange={setCustomCount}
-        />
-        <OpenAction setSlug={setSlug} language={language} count={count} onOpened={setPacks} />
+        <div className="bg-card mb-6 grid gap-4 rounded-xl border p-4 md:grid-cols-[1fr_1fr_1fr_auto]">
+          <SetPickerField
+            sets={mainSets}
+            value={setSlug}
+            onChange={(slug) => {
+              setSetSlug(slug);
+              setPacks([]);
+            }}
+          />
+          <LanguageField
+            setSlug={setSlug}
+            value={language}
+            onChange={(value) => {
+              setLanguage(value);
+              setPacks([]);
+            }}
+          />
+          <CountField
+            choice={countChoice}
+            custom={customCount}
+            onChoiceChange={setCountChoice}
+            onCustomChange={setCustomCount}
+          />
+          <OpenAction setSlug={setSlug} language={language} count={count} onOpened={setPacks} />
+        </div>
+
+        {packs.length === 1 && packs[0] && (
+          <SinglePackResult
+            pack={packs[0]}
+            setSlug={setSlug}
+            shimmer={shimmer}
+            autoReveal={autoReveal}
+          />
+        )}
+        {packs.length > 1 && (
+          <BulkPackResult
+            packs={packs}
+            setSlug={setSlug}
+            shimmer={shimmer}
+            autoReveal={autoReveal}
+          />
+        )}
       </div>
+    </>
+  );
+}
 
-      <div className="text-muted-foreground mb-6 flex flex-wrap gap-x-6 gap-y-2 text-sm">
-        <ToggleField label="Foil shimmer" checked={shimmer} onChange={setShimmer} />
-        <ToggleField label="Auto-reveal" checked={autoReveal} onChange={setAutoReveal} />
-      </div>
-
-      {packs.length === 1 && packs[0] && (
-        <SinglePackResult
-          pack={packs[0]}
-          setSlug={setSlug}
-          shimmer={shimmer}
-          autoReveal={autoReveal}
-        />
-      )}
-      {packs.length > 1 && (
-        <BulkPackResult packs={packs} setSlug={setSlug} shimmer={shimmer} autoReveal={autoReveal} />
-      )}
-    </div>
+function PackOpenerTopBar({ children }: { children?: ReactNode }) {
+  return (
+    <PageTopBarSticky>
+      <PageTopBar>
+        <PackagePlusIcon className="mr-2 size-5 shrink-0" />
+        <PageTopBarTitle>Pack opener simulator</PageTopBarTitle>
+        {children ? <PageTopBarActions>{children}</PageTopBarActions> : null}
+      </PageTopBar>
+    </PageTopBarSticky>
   );
 }
 
@@ -162,10 +177,16 @@ function ToggleField({
   onChange: (value: boolean) => void;
 }) {
   return (
-    <label className="inline-flex cursor-pointer items-center gap-2">
-      <Switch checked={checked} onCheckedChange={onChange} size="sm" />
-      <span>{label}</span>
-    </label>
+    <Toggle
+      variant="outline"
+      pressed={checked}
+      onPressedChange={onChange}
+      // Persistent primary fill for the active state, matching the catalog's
+      // owned-counts toolbar toggle.
+      className="aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary aria-pressed:hover:text-primary-foreground"
+    >
+      {label}
+    </Toggle>
   );
 }
 
