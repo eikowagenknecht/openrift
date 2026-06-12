@@ -333,7 +333,7 @@ describe("initChunkErrorReloader", () => {
     expect(reloadSpy).not.toHaveBeenCalled();
   });
 
-  test("reloads on vite:preloadError and prevents the rethrow", () => {
+  test("reloads on vite:preloadError without preventing the rethrow", () => {
     initChunkErrorReloader();
 
     const event = new Event("vite:preloadError", { cancelable: true }) as Event & {
@@ -343,7 +343,10 @@ describe("initChunkErrorReloader", () => {
     globalThis.dispatchEvent(event);
 
     expect(reloadSpy).toHaveBeenCalledTimes(1);
-    expect(event.defaultPrevented).toBe(true);
+    // Regression: preventDefault() makes Vite's preload helper swallow the
+    // failure, so the dynamic import resolves with `undefined` and the router
+    // crashes on `lazyRoute.options` instead of handling a failed route load.
+    expect(event.defaultPrevented).toBe(false);
   });
 
   test("vite:preloadError respects the once-per-session loop guard", () => {

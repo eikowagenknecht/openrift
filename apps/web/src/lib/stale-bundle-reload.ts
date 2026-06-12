@@ -190,13 +190,21 @@ export function initChunkErrorReloader(): void {
   });
   // Vite's preload helper dispatches this when a lazy chunk or one of its
   // preloaded deps (JS or CSS) fails to load — e.g. a hashed asset from a
-  // previous deploy that the origin no longer has. Without preventDefault()
-  // the helper rethrows into the dynamic import's caller, where the router's
-  // error boundary can swallow it before the window-level handlers above ever
-  // see it. Handling the event directly closes that gap; reloadOnce() keeps
-  // the same once-per-session loop guard as the other recovery paths.
+  // previous deploy that the origin no longer has. Handling the event directly
+  // guarantees the reload fires even when the router's error boundary swallows
+  // the rethrown error before the window-level handlers above see it.
+  //
+  // Deliberately NO preventDefault(): a default-prevented event tells the
+  // preload helper to swallow the failure, which makes the dynamic import
+  // RESOLVE with `undefined` — the router then dereferences it
+  // (`lazyRoute.options`) into a route-crashing TypeError that doesn't match
+  // CHUNK_LOAD_ERROR_PATTERN, so it isn't filtered from Sentry and, when the
+  // loop guard below is already spent, leaves the page dead instead of on the
+  // route error boundary. Letting the helper rethrow keeps the import a
+  // rejection the router handles as a failed load. If the rethrown error also
+  // reaches the unhandledrejection handler above, the duplicate reloadOnce()
+  // is absorbed by the loop guard and the notifier's own toast dedupe.
   globalThis.addEventListener("vite:preloadError", (event) => {
-    event.preventDefault();
     reloadOnce(`vite preload error: ${event.payload.message}`);
   });
 }
