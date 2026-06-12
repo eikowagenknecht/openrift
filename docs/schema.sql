@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict xJoghsaYYUQL9GI5gLxsSwu1jP5F5Sw6eKmgwUngWd7FxBOcNbjXbEgxvrnKpmd
+\restrict G5f6j3rprLrVOTTdQb7YHrP1D7IDTT94m8a97IYVYK1I7g4LuvPttavRAy22Ggv
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -764,6 +764,8 @@ CREATE TABLE public.collections (
     CONSTRAINT chk_collections_ownership CHECK (((((user_id IS NOT NULL))::integer + ((group_id IS NOT NULL))::integer) = 1))
 );
 
+ALTER TABLE ONLY public.collections REPLICA IDENTITY FULL;
+
 
 --
 -- Name: copies; Type: TABLE; Schema: public; Owner: -
@@ -776,6 +778,8 @@ CREATE TABLE public.copies (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     printing_id uuid CONSTRAINT copies_new_printing_id_not_null NOT NULL
 );
+
+ALTER TABLE ONLY public.copies REPLICA IDENTITY FULL;
 
 
 --
@@ -1106,6 +1110,8 @@ CREATE TABLE public.friend_group_members (
     CONSTRAINT chk_friend_group_members_nickname CHECK (((nickname IS NULL) OR (length(nickname) <= 80))),
     CONSTRAINT chk_friend_group_members_role CHECK ((role = ANY (ARRAY['owner'::text, 'admin'::text, 'judge'::text, 'member'::text])))
 );
+
+ALTER TABLE ONLY public.friend_group_members REPLICA IDENTITY FULL;
 
 
 --
@@ -1893,7 +1899,8 @@ CREATE TABLE public.users (
     image text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    share_token text
+    share_token text,
+    riot_id text
 );
 
 
@@ -4626,8 +4633,36 @@ ALTER TABLE ONLY public.user_preferences
 
 
 --
+-- Name: electric_publication_default; Type: PUBLICATION; Schema: -; Owner: -
+--
+
+CREATE PUBLICATION electric_publication_default WITH (publish = 'insert, update, delete, truncate', publish_generated_columns = stored);
+
+
+--
+-- Name: electric_publication_default collections; Type: PUBLICATION TABLE; Schema: public; Owner: -
+--
+
+ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.collections;
+
+
+--
+-- Name: electric_publication_default copies; Type: PUBLICATION TABLE; Schema: public; Owner: -
+--
+
+ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.copies;
+
+
+--
+-- Name: electric_publication_default friend_group_members; Type: PUBLICATION TABLE; Schema: public; Owner: -
+--
+
+ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.friend_group_members;
+
+
+--
 -- PostgreSQL database dump complete
 --
 
-\unrestrict xJoghsaYYUQL9GI5gLxsSwu1jP5F5Sw6eKmgwUngWd7FxBOcNbjXbEgxvrnKpmd
+\unrestrict G5f6j3rprLrVOTTdQb7YHrP1D7IDTT94m8a97IYVYK1I7g4LuvPttavRAy22Ggv
 
