@@ -437,6 +437,15 @@ export function deckCheckRepo(db: Kysely<Database>) {
       return row ? parseEntryRow(row) : undefined;
     },
 
+    async deleteEntry(eventId: string, entryId: string): Promise<boolean> {
+      const result = await db
+        .deleteFrom("deckCheckEntries")
+        .where("id", "=", entryId)
+        .where("eventId", "=", eventId)
+        .executeTakeFirst();
+      return result.numDeletedRows > 0n;
+    },
+
     // ── Account links and player access (ADR-026) ───────────────────────────
 
     /**

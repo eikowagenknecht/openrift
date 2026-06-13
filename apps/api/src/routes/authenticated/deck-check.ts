@@ -403,8 +403,9 @@ const setEntryState = createRoute({
   security: cookieAuth,
   description:
     "Moves an entry through the lifecycle (judge+, ADR-027): approve, check " +
-    "(with an outcome), revoke / re-open back to submitted, or hand the list " +
-    "back to the linked player (optionally as a rejection).",
+    "(with an outcome), revoke / re-open back to submitted, hand the list " +
+    "back to the linked player (optionally as a rejection), withdraw the " +
+    "entry, or restore a withdrawn entry to submitted.",
   request: {
     params: deckCheckEntryParamSchema,
     body: {
@@ -458,6 +459,22 @@ const updateEntry = createRoute({
       description: "Updated checker payload",
     },
     ...errorResponses(400, 401, 403, 404),
+  },
+});
+
+const deleteEntry = createRoute({
+  method: "delete",
+  path: "/friend-groups/{slug}/checks/{eventId}/entries/{entryId}",
+  tags: ["Deck Check"],
+  security: cookieAuth,
+  description:
+    "Permanently removes an entry and its card lines (admin+). Prefer a " +
+    "withdrawal when the player merely dropped out; deletion erases the " +
+    "check history.",
+  request: { params: deckCheckEntryParamSchema },
+  responses: {
+    204: { description: "Deleted" },
+    ...errorResponses(401, 403, 404),
   },
 });
 
@@ -907,6 +924,20 @@ export const deckCheckRoute = deckCheckApp
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Entry not found");
     }
     return c.json(await buildEntryDetail(repos, event, updated), 200);
+  })
+
+  .openapi(deleteEntry, async (c) => {
+    const repos = c.get("repos");
+    const { slug, eventId, entryId } = c.req.valid("param");
+    const ctx = await loadGroupForMember(repos, slug, getUserId(c));
+    requireRole(ctx.membership, "admin");
+    const event = await loadEvent(repos, ctx.group.id, eventId);
+
+    const deleted = await repos.deckCheck.deleteEntry(event.id, entryId);
+    if (!deleted) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Entry not found");
+    }
+    return c.body(null, 204);
   })
 
   .openapi(addCard, async (c) => {

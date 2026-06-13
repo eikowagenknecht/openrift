@@ -2,6 +2,7 @@
 
 ## 2026-06-12
 
+- feat: Judges can withdraw a deck-check entry when a player drops out and restore it if they return, and group admins can delete an entry for good, both right from the checker page
 - feat: Judges can copy a claim link for a deck-check entry that isn't linked to an account yet and send it to the player, who opens it to connect the entry to their OpenRift account
 - feat: In the deck checker, ticking off the physical cards now works while an entry is approved, so a judge can approve the list first and then do the card check before recording the result
 - feat: Tournament organizers can include a link in their confirmation email that connects your entered deck to your OpenRift account, so you can view it any time. It works even when the organizer never shares your email, and signing in or creating an account is all it takes to claim

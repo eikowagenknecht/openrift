@@ -753,15 +753,33 @@ describe.skipIf(!ownerCtx)("deck-check routes (integration, ADR-025)", () => {
       expect(reopened?.reviewOutcome).toBeNull();
     });
 
-    it("never transitions a withdrawn entry", async () => {
-      await push([entryPayload({ externalId: "entry-resolution", withdrawn: true })]);
+    it("withdraws an entry as a judge, clearing a pending unlock request", async () => {
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-resolution");
+      await repos.deckCheck.updateEntry(entry!.id, { unlockRequestedAt: new Date() });
+
+      const res = await transition(entry!.id, { state: "withdrawn" });
+      expect(res.status).toBe(200);
+
+      const withdrawn = await repos.deckCheck.getEntryByExternalId(eventId, "entry-resolution");
+      expect(withdrawn?.state).toBe("withdrawn");
+      expect(withdrawn?.withdrawnAt).not.toBeNull();
+      expect(withdrawn?.unlockRequestedAt).toBeNull();
+    });
+
+    it("rejects transitions on a withdrawn entry except the restore to submitted", async () => {
       const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-resolution");
       expect(entry?.state).toBe("withdrawn");
 
-      const res = await transition(entry!.id, { state: "approved" });
-      expect(res.status).toBe(409);
+      const approve = await transition(entry!.id, { state: "approved" });
+      expect(approve.status).toBe(409);
+      const rewithdraw = await transition(entry!.id, { state: "withdrawn" });
+      expect(rewithdraw.status).toBe(409);
 
-      await push([entryPayload({ externalId: "entry-resolution" })]);
+      const restore = await transition(entry!.id, { state: "submitted" });
+      expect(restore.status).toBe(200);
+      const restored = await repos.deckCheck.getEntryByExternalId(eventId, "entry-resolution");
+      expect(restored?.state).toBe("submitted");
+      expect(restored?.withdrawnAt).toBeNull();
     });
 
     it("invalidates an approval when a changed list is pushed", async () => {
@@ -783,6 +801,42 @@ describe.skipIf(!ownerCtx)("deck-check routes (integration, ADR-025)", () => {
       expect(reloaded?.state).toBe("submitted");
       expect(reloaded?.approvedBy).toBeNull();
       expect(reloaded?.changeSummary).not.toBeNull();
+    });
+  });
+
+  describe("entry deletion", () => {
+    it("returns 403 for a judge", async () => {
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-1");
+      const res = await judgeApp.fetch(
+        req("DELETE", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}`),
+      );
+      expect(res.status).toBe(403);
+      expect(await repos.deckCheck.getEntryByExternalId(eventId, "entry-1")).toBeDefined();
+    });
+
+    it("lets an admin delete an entry, cascading to its cards", async () => {
+      await push([entryPayload({ externalId: "entry-delete-me", playerName: "D. Ropout" })]);
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-delete-me");
+
+      const res = await adminApp.fetch(
+        req("DELETE", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}`),
+      );
+      expect(res.status).toBe(204);
+
+      expect(
+        await repos.deckCheck.getEntryByExternalId(eventId, "entry-delete-me"),
+      ).toBeUndefined();
+      const orphanedCards = await db
+        .selectFrom("deckCheckEntryCards")
+        .selectAll()
+        .where("entryId", "=", entry!.id)
+        .execute();
+      expect(orphanedCards).toHaveLength(0);
+
+      const repeat = await adminApp.fetch(
+        req("DELETE", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}`),
+      );
+      expect(repeat.status).toBe(404);
     });
   });
 

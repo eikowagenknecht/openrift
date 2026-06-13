@@ -131,7 +131,7 @@ The flip side of TR 401.3: a list the player is still working on must not be rea
 
 - **A pending-revision proposal store.** The unlock-edit-resubmit cycle plus the baseline diff covers "change proposals a judge approves" without a second list per entry.
 - **A per-event opt-out of the lifecycle.** Every event gets the same states; an organizer who wants ADR-026's looseness simply leaves entries unreviewed until event day.
-- **Judge-initiated withdrawal.** Withdrawal remains the provider's signal (plus, implicitly, deleting a manual entry); a judge withdraw/un-withdraw action is a separate decision.
+- **Judge-initiated withdrawal.** _Superseded 2026-06:_ judges can now withdraw an entry and restore it to `submitted` through the same state endpoint, mirroring the provider's flag exactly (same fields, so a later push interacts with a judge withdrawal identically), and admins can hard-delete an entry. The original decision kept withdrawal as the provider's signal only.
 - **Notifications on transitions.** "Your deck was approved / sent back" notifications wait for a notification channel, same as ADR-026's link notifications.
 - **Preserving the pre-withdrawal state.** Un-withdrawing lands in `submitted`, always.
 

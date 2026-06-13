@@ -684,14 +684,16 @@ export const updateDeckCheckEventSchema = z.object({
 });
 
 /**
- * A judge moving an entry through the lifecycle (ADR-027). `withdrawn` is not
- * a judge target (it is the provider's signal). The service validates the
- * transition matrix; `reviewOutcome` is required when targeting `checked`,
- * marks a rejection when targeting `editable`, and records an in-place issue
- * when "targeting" `submitted` from `submitted` (for unclaimed entries).
+ * A judge moving an entry through the lifecycle (ADR-027). The service
+ * validates the transition matrix; `reviewOutcome` is required when targeting
+ * `checked`, marks a rejection when targeting `editable`, and records an
+ * in-place issue when "targeting" `submitted` from `submitted` (for unclaimed
+ * entries). `withdrawn` pulls the entry from the event (mirroring the
+ * provider's withdrawal flag); targeting `submitted` from `withdrawn`
+ * restores it.
  */
 export const deckCheckEntryStateChangeSchema = z.object({
-  state: z.enum(["editable", "submitted", "approved", "checked"]),
+  state: z.enum(["editable", "submitted", "approved", "checked", "withdrawn"]),
   reviewOutcome: z.enum(["ok", "issue"]).nullish(),
   notes: z.string().max(4000).nullish(),
   /** Optional player-facing message stored alongside the transition. */

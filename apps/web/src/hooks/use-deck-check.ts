@@ -269,7 +269,7 @@ const setEntryStateFn = createServerFn({ method: "POST" })
       slug: string;
       eventId: string;
       entryId: string;
-      state: "editable" | "submitted" | "approved" | "checked";
+      state: "editable" | "submitted" | "approved" | "checked" | "withdrawn";
       reviewOutcome?: "ok" | "issue" | null;
       notes?: string | null;
       playerMessage?: string | null;
@@ -308,6 +308,20 @@ const denyUnlockRequestFn = createServerFn({ method: "POST" })
         "Couldn't decline the request",
       ),
   );
+
+const deleteEntryFn = createServerFn({ method: "POST" })
+  .validator((input: { slug: string; eventId: string; entryId: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    await callApi(
+      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[":eventId"].entries[
+        ":entryId"
+      ].$delete({
+        param: encodeParams({ slug: data.slug, eventId: data.eventId, entryId: data.entryId }),
+      }),
+      "Couldn't delete the entry",
+    );
+  });
 
 const updateEntryFn = createServerFn({ method: "POST" })
   .validator(
@@ -636,6 +650,15 @@ export function useUpdateDeckCheckEntry() {
       queryKeys.friendGroups.checkEvent(userId, vars.slug, vars.eventId),
       queryKeys.friendGroups.checkEntry(userId, vars.slug, vars.eventId, vars.entryId),
     ],
+  });
+}
+
+export function useDeleteDeckCheckEntry() {
+  const userId = useRequiredUserId();
+  return useMutationWithInvalidation({
+    mutationFn: (vars: { slug: string; eventId: string; entryId: string }) =>
+      deleteEntryFn({ data: vars }),
+    invalidates: (vars) => [queryKeys.friendGroups.checkEvent(userId, vars.slug, vars.eventId)],
   });
 }
 

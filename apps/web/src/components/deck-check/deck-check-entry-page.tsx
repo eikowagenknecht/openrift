@@ -6,8 +6,9 @@ import type {
   Printing,
 } from "@openrift/shared";
 import { imageUrl } from "@openrift/shared";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
+  BanIcon,
   CheckIcon,
   CopyIcon,
   ExpandIcon,
@@ -20,6 +21,7 @@ import {
   Rows3Icon,
   ShrinkIcon,
   ThumbsUpIcon,
+  Trash2Icon,
   TriangleAlertIcon,
   UndoIcon,
   Unlink2Icon,
@@ -43,6 +45,7 @@ import { HoveredCardPreview } from "@/components/deck/hovered-card-preview";
 import { ColumnControls } from "@/components/filters/column-controls";
 import { SortGroupControls } from "@/components/filters/sort-group-controls";
 import type { SortGroupOption } from "@/components/filters/sort-group-controls";
+import { isAdmin } from "@/components/friend-groups/friend-group-shell";
 import { ImportCatalogSearch } from "@/components/import/import-catalog-search";
 import { TopBarBreadcrumbBar } from "@/components/layout/top-bar-breadcrumb";
 import { Button } from "@/components/ui/button";
@@ -71,6 +74,7 @@ import {
   useAddDeckCheckCard,
   useDeckCheckAccountSearch,
   useDeckCheckEntry,
+  useDeleteDeckCheckEntry,
   useDenyDeckCheckUnlockRequest,
   useFixDeckCheckCard,
   useLinkDeckCheckEntry,
@@ -161,6 +165,7 @@ export function DeckCheckEntryPage({
           eventId={eventId}
           entryId={entryId}
           detail={detail}
+          admin={isAdmin(data.viewerRole)}
           notes={notesDirty ? notes : (detail.entry.notes ?? "")}
           notesDirty={notesDirty}
           onNotesSaved={() => setNotesDirty(false)}
@@ -312,6 +317,7 @@ function EntryHeader({
   eventId,
   entryId,
   detail,
+  admin,
   notes,
   notesDirty,
   onNotesSaved,
@@ -320,6 +326,7 @@ function EntryHeader({
   eventId: string;
   entryId: string;
   detail: DeckCheckEntryDetailResponse;
+  admin: boolean;
   notes: string;
   notesDirty: boolean;
   onNotesSaved: () => void;
@@ -327,10 +334,13 @@ function EntryHeader({
   const { entry } = detail;
   const setState = useSetDeckCheckEntryState();
   const denyUnlock = useDenyDeckCheckUnlockRequest();
+  const deleteEntry = useDeleteDeckCheckEntry();
+  const navigate = useNavigate();
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const transition = (
-    state: "editable" | "submitted" | "approved" | "checked",
+    state: "editable" | "submitted" | "approved" | "checked" | "withdrawn",
     reviewOutcome?: "ok" | "issue",
   ) => {
     setState.mutate(
@@ -386,6 +396,11 @@ function EntryHeader({
               The player is editing this list; it locks again when they submit it.
             </p>
           ) : null}
+          {entry.state === "withdrawn" ? (
+            <p className="text-muted-foreground text-sm">
+              This entry is withdrawn from the event; restore it to review it again.
+            </p>
+          ) : null}
           <AccountLinkStatus entry={entry} />
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -401,7 +416,7 @@ function EntryHeader({
                   onClick={() => transition("editable", "issue")}
                 >
                   <UndoIcon className="size-4" />
-                  Send back
+                  Request changes
                 </Button>
               ) : null}
               <Button
@@ -461,6 +476,38 @@ function EntryHeader({
               Lock as submitted
             </Button>
           ) : null}
+          {entry.state === "withdrawn" ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={setState.isPending}
+              onClick={() => transition("submitted")}
+            >
+              <RotateCcwIcon className="size-4" />
+              Restore entry
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              title="Pull this entry from the event; it can be restored later"
+              disabled={setState.isPending}
+              onClick={() => transition("withdrawn")}
+            >
+              <BanIcon className="size-4" />
+              Withdraw
+            </Button>
+          )}
+          {admin ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              aria-label="Delete entry"
+              onClick={() => setDeleteOpen(true)}
+            >
+              <Trash2Icon className="text-destructive size-4" />
+            </Button>
+          ) : null}
         </div>
       </div>
       {entry.unlockRequestedAt && (entry.state === "approved" || entry.state === "submitted") ? (
@@ -491,6 +538,22 @@ function EntryHeader({
         open={editOpen}
         onOpenChange={setEditOpen}
       />
+      {admin ? (
+        <ConfirmActionDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          title="Delete this entry?"
+          description="The player's list and check history are removed. This cannot be undone — withdraw the entry instead if they only dropped out."
+          confirmLabel="Delete"
+          pendingLabel="Deleting..."
+          isPending={deleteEntry.isPending}
+          onConfirm={async () => {
+            await deleteEntry.mutateAsync({ slug, eventId, entryId });
+            setDeleteOpen(false);
+            void navigate({ to: "/groups/$slug/checks/$eventId", params: { slug, eventId } });
+          }}
+        />
+      ) : null}
     </header>
   );
 }

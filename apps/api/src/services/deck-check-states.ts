@@ -117,7 +117,7 @@ export function settleExpiredEditable(
 }
 
 export interface JudgeTransitionInput {
-  state: "editable" | "submitted" | "approved" | "checked";
+  state: "editable" | "submitted" | "approved" | "checked" | "withdrawn";
   reviewOutcome?: "ok" | "issue" | null;
   notes?: string | null;
   playerMessage?: string | null;
@@ -129,8 +129,10 @@ export interface JudgeTransitionInput {
  * pass legality review before the physical check);
  * revoke / re-open back to `submitted`; hand a linked entry back to the
  * player (`editable`), optionally as a rejection; or record an issue in place
- * on a `submitted` entry that has no linked player. `withdrawn` is never a
- * judge target, and a withdrawn entry only changes through the provider.
+ * on a `submitted` entry that has no linked player. A judge can also withdraw
+ * an entry from any state and restore a withdrawn one to `submitted` — like
+ * the provider's withdrawal flag and flagless re-push, so the pre-withdrawal
+ * state is not preserved (ADR-027).
  * @returns The updated entry.
  */
 // oxlint-disable-next-line max-lines-per-function -- one branch per transition, splitting hurts readability
@@ -140,11 +142,11 @@ export async function applyJudgeTransition(
   entry: DeckCheckEntry,
   input: JudgeTransitionInput,
 ): Promise<DeckCheckEntry> {
-  if (entry.state === "withdrawn") {
+  if (entry.state === "withdrawn" && input.state !== "submitted") {
     throw new AppError(
       409,
       ERROR_CODES.CONFLICT,
-      "Entry is withdrawn; only the organizer's system can restore it",
+      "Entry is withdrawn; restore it to submitted before other changes",
     );
   }
 
@@ -212,7 +214,30 @@ export async function applyJudgeTransition(
       return annotated ?? unlocked;
     }
 
+    case "withdrawn": {
+      // Pull the entry from the event; mirrors the provider's withdrawal flag
+      // (the same fields the ingest sets), so a later provider re-push
+      // interacts with it identically.
+      const updated = await repos.deckCheck.updateEntry(entry.id, {
+        ...annotations,
+        state: "withdrawn",
+        withdrawnAt: new Date(),
+        unlockRequestedAt: null,
+      });
+      return updated ?? entry;
+    }
+
     case "submitted": {
+      if (entry.state === "withdrawn") {
+        // Restore; like the provider's flagless re-push, the pre-withdrawal
+        // state is not preserved (ADR-027) — the entry needs re-review.
+        const updated = await repos.deckCheck.updateEntry(entry.id, {
+          ...annotations,
+          state: "submitted",
+          withdrawnAt: null,
+        });
+        return updated ?? entry;
+      }
       if (entry.state === "editable") {
         // Lock a list on the player's behalf (venue: "I'm done").
         const submitted = await submitEntryList(repos, entry);
