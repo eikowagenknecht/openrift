@@ -689,6 +689,56 @@ describe("validateDeck", () => {
     expect(codes).toContain("MAIN_TOO_FEW");
   });
 
+  it("emits one DOMAIN_MISMATCH when an off-domain card is split across printing rows", () => {
+    // Two rows for the same card in the same zone (e.g. two pinned printings)
+    // must collapse into one violation, not one per row — duplicate
+    // (zone, code, cardId) violations produce duplicate React keys downstream.
+    const offDomain = { cardId: "off-domain-1", cardName: "Chaos Trick", domains: ["chaos"] };
+    const mainCards = [
+      ...Array.from({ length: 12 }, (_, index) =>
+        makeCard({ cardId: `main-${index}`, quantity: 3 }),
+      ),
+      makeCard({ ...offDomain, quantity: 2 }),
+      makeCard({ ...offDomain, quantity: 1 }),
+    ];
+    const violations = validateDeck(makeState([...makeConstructedShell(), ...mainCards]));
+    const domainMismatches = violations.filter((violation) => violation.code === "DOMAIN_MISMATCH");
+    expect(domainMismatches).toHaveLength(1);
+    expect(domainMismatches[0].cardId).toBe("off-domain-1");
+  });
+
+  it("applies the main-deck copy limit to copies split across printing rows", () => {
+    const mainCards = [
+      ...Array.from({ length: 12 }, (_, index) =>
+        makeCard({ cardId: `main-${index}`, quantity: 3 }),
+      ),
+      makeCard({ cardId: "split-1", quantity: 2 }),
+      makeCard({ cardId: "split-1", quantity: 2 }),
+    ];
+    const violations = validateDeck(makeState([...makeConstructedShell(), ...mainCards]));
+    const copyLimit = violations.filter((violation) => violation.code === "MAIN_COPY_LIMIT");
+    expect(copyLimit).toHaveLength(1);
+    expect(copyLimit[0].cardId).toBe("split-1");
+  });
+
+  it("applies the unique copy limit to copies split across printing rows", () => {
+    const unique = { cardId: "unique-1", cardName: "One Of A Kind", keywords: ["Unique"] };
+    const mainCards = [
+      ...Array.from({ length: 12 }, (_, index) =>
+        makeCard({ cardId: `main-${index}`, quantity: 3 }),
+      ),
+      makeCard({ ...unique, quantity: 1 }),
+      makeCard({ ...unique, quantity: 1 }),
+      makeCard({ cardId: "filler-1", quantity: 2 }),
+    ];
+    const violations = validateDeck(makeState([...makeConstructedShell(), ...mainCards]));
+    const uniqueViolations = violations.filter(
+      (violation) => violation.code === "UNIQUE_COPY_LIMIT",
+    );
+    expect(uniqueViolations).toHaveLength(1);
+    expect(uniqueViolations[0].cardId).toBe("unique-1");
+  });
+
   it("overflow zone cards are ignored by all rules", () => {
     const overflowCard = makeCard({ zone: "overflow", quantity: 999, cardId: "overflow-1" });
     const mainCards = Array.from({ length: 13 }, (_, index) =>

@@ -60,6 +60,26 @@ function totalQuantity(cards: DeckCard[]): number {
   return cards.reduce((sum, card) => sum + card.quantity, 0);
 }
 
+// Callers feed one row per printing (deck builder) or per deck-list line
+// (deck check), so the same card can arrive as several rows in one zone.
+// Rules assume one row per card per zone: per-row quantity caps would
+// undercount split copies, and per-card rules would emit the same violation
+// twice. Merge rows by summing quantities; card metadata is identical across
+// rows of the same cardId, so the first row's fields are kept.
+function aggregateByCardAndZone(cards: DeckCard[]): DeckCard[] {
+  const byCardAndZone = new Map<string, DeckCard>();
+  for (const card of cards) {
+    const key = `${card.cardId}|${card.zone}`;
+    const existing = byCardAndZone.get(key);
+    if (existing) {
+      existing.quantity += card.quantity;
+    } else {
+      byCardAndZone.set(key, { ...card });
+    }
+  }
+  return [...byCardAndZone.values()];
+}
+
 // ── Rules ───────────────────────────────────────────────────────────────────
 
 // Legend zone must have exactly 1 card of type Legend.
@@ -724,9 +744,10 @@ export function validateDeck(state: DeckState): DeckViolation[] {
     }
   }
 
+  const aggregatedState: DeckState = { ...state, cards: aggregateByCardAndZone(state.cards) };
   const violations: DeckViolation[] = [];
   for (const rule of rules) {
-    violations.push(...rule(state));
+    violations.push(...rule(aggregatedState));
   }
   return violations;
 }
