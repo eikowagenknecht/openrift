@@ -11,8 +11,20 @@
 #      request freezes together (head-of-line blocking), so the MAX time blows
 #      up while the path's average latency still looks fine.
 #
+# When IPv6 looks bad it then localizes the fault:
+#   3. Path localization: a TTL/hop-limit sweep maps the route, then pings each
+#      hop. Real loss appears at a hop AND persists to the destination — that
+#      tells you whether it is your router, your ISP, or the ISP<->Cloudflare
+#      boundary, which decides whether you can fix it or must work around it.
+#   4. Scope: pings another Cloudflare site plus a non-Cloudflare control over
+#      IPv6, so you can tell "ISP<->Cloudflare peering" from "all my IPv6".
+#   5. Large-packet check: a separate v6 failure mode where packets above the
+#      path MTU are blackholed (ICMPv6 "Packet Too Big" filtered) while IPv4 is
+#      fine — large browser payloads stall even if ping loss looks moderate.
+#
 # Usage:  bash scripts/net-check.sh [host]
 #         host defaults to openrift.app
+#         (localization pings each hop, so a degraded run takes a minute or two)
 #
 # Run it on the venue's actual connection before a tournament: if it flags the
 # IPv6 path as degraded, disable IPv6 on that network so every device falls back
@@ -25,8 +37,11 @@ export LC_ALL=C LANG=C
 HOST="${1:-openrift.app}"
 URL="https://${HOST}/"
 PINGS=100
-REQS=50      # concurrent requests per round (browser-like burst)
-ROUNDS=3     # repeat the burst; loss is bursty, more rounds = surer to catch it
+REQS=50       # concurrent requests per round (browser-like burst)
+ROUNDS=3      # repeat the burst; loss is bursty, more rounds = surer to catch it
+MAXHOPS=20    # TTL ceiling for the localization sweep
+HOPPINGS=40   # pings per hop when measuring per-hop loss (0.2s apart)
+BIGSIZE=1400  # payload bytes for the large-packet (MTU blackhole) probe
 
 bold=$(printf '\033[1m'); red=$(printf '\033[31m'); grn=$(printf '\033[32m')
 ylw=$(printf '\033[33m'); rst=$(printf '\033[0m')
@@ -93,6 +108,71 @@ printf "  IPv4: avg %.3fs  worst %.3fs  (%d/%d ok)\n" "$a4" "$m4" "$n4" "$total"
 printf "  IPv6: avg %.3fs  worst %.3fs  (%d/%d ok)\n" "$a6" "$m6" "$n6" "$total"
 echo
 
+# --- shared loss helper -------------------------------------------------------
+loss_pct() {  # $1 = -4|-6 ; $2 = host/IP ; $3 = count ; prints a number (loss %)
+  ping "$1" -c "$3" -i 0.2 -W 1 -q "$2" 2>/dev/null \
+    | grep -oE '[0-9.]+% packet loss' | grep -oE '[0-9.]+' | head -1
+}
+
+# --- IPv6 path localization: WHERE does the loss start? -----------------------
+# Map the route with a TTL/hop-limit sweep (no traceroute dependency), then ping
+# each responding hop. The rule: real loss appears at a hop AND persists through
+# every later hop to the destination. Loss that shows at a middle hop but clears
+# again lower down is just that router rate-limiting ICMP to itself — ignore it.
+# Read the column top-down and find the FIRST hop whose loss holds to the DEST:
+#   - holds from hop 1 (your router)      -> your LAN / router / Wi-Fi
+#   - clean through your ISP, starts deep -> ISP transit or ISP<->CDN peering
+echo "${bold}IPv6 path localization (where does the loss start?)${rst}"
+v6tgt=$(getent ahostsv6 "$HOST" 2>/dev/null | awk '{print $1; exit}')
+if [ -z "$v6tgt" ]; then
+  echo "  (no IPv6 address for ${HOST} — skipping)"
+else
+  echo "  hop  address                                  loss   (DEST loss is the truth;"
+  echo "                                                        middle hops can read high"
+  echo "                                                        from ICMP rate-limiting)"
+  for ttl in $(seq 1 "$MAXHOPS"); do
+    out=$(ping -6 -t "$ttl" -c 1 -W 2 "$v6tgt" 2>&1)
+    if printf '%s' "$out" | grep -q 'bytes from'; then
+      dl=$(loss_pct -6 "$v6tgt" "$HOPPINGS")
+      printf "  %3d  %-42s %4s%%  (DEST)\n" "$ttl" "$v6tgt" "${dl:-?}"
+      break
+    fi
+    hop=$(printf '%s' "$out" | grep -oiE 'from [0-9a-f:]+' | head -1 | awk '{print $2}')
+    if [ -z "$hop" ]; then
+      printf "  %3d  %-42s     *\n" "$ttl" "*"
+      continue
+    fi
+    hl=$(loss_pct -6 "$hop" "$HOPPINGS")
+    printf "  %3d  %-42s %4s%%\n" "$ttl" "$hop" "${hl:-?}"
+  done
+fi
+echo
+
+# --- scope: Cloudflare-specific, or all of IPv6? ------------------------------
+# If another Cloudflare site is just as lossy but a non-Cloudflare site is clean,
+# the fault is the ISP<->Cloudflare IPv6 peering, not your IPv6 in general and
+# not this one host. (Vodafone cable <-> Cloudflare is a long-running example.)
+echo "${bold}Scope: is it Cloudflare-wide or all IPv6?${rst}"
+cf6=$(loss_pct -6 cloudflare.com "$PINGS")
+ctl6=$(loss_pct -6 google.com "$PINGS")
+printf "  other Cloudflare host (cloudflare.com): %s%% IPv6 loss\n" "${cf6:-n/a}"
+printf "  non-Cloudflare control (google.com):    %s%% IPv6 loss\n" "${ctl6:-n/a}"
+echo
+
+# --- large-packet (PMTUD blackhole) check -------------------------------------
+# A second, independent v6 failure mode: if big packets vanish while small ones
+# pass AND IPv4 is fine at the same size, the path blackholes packets above its
+# MTU because ICMPv6 "Packet Too Big" is filtered. Browser payloads are large,
+# so this stalls page loads even when ordinary ping loss looks only moderate.
+echo "${bold}Large-packet check (${BIGSIZE}B payload — MTU blackhole)${rst}"
+big6=$(ping -6 -c 40 -i 0.2 -W 1 -s "$BIGSIZE" -q "$HOST" 2>/dev/null \
+  | grep -oE '[0-9.]+% packet loss' | grep -oE '[0-9.]+' | head -1)
+big4=$(ping -4 -c 40 -i 0.2 -W 1 -s "$BIGSIZE" -q "$HOST" 2>/dev/null \
+  | grep -oE '[0-9.]+% packet loss' | grep -oE '[0-9.]+' | head -1)
+printf "  IPv6 @ %sB: %s%% loss   IPv4 @ %sB: %s%% loss\n" \
+  "$BIGSIZE" "${big6:-n/a}" "$BIGSIZE" "${big4:-n/a}"
+echo
+
 # --- verdict ------------------------------------------------------------------
 echo "${bold}=== verdict ===${rst}"
 bad6=0; reasons=""
@@ -109,10 +189,22 @@ fi
 if [ "$n6" -lt "$n4" ] && [ "$n6" -lt "$total" ]; then
   bad6=1; reasons="${reasons}  - IPv6 dropped requests: ${n6}/${total} ok vs IPv4 ${n4}/${total}\n"
 fi
+# Signal 4: large IPv6 packets blackholed while IPv4 at the same size is fine.
+if [ -n "${big6:-}" ] && [ -n "${big4:-}" ] && awk_gt "$big6" 50 && ! awk_gt "$big4" 10; then
+  bad6=1; reasons="${reasons}  - IPv6 blackholes ${BIGSIZE}B packets (${big6}% loss vs IPv4 ${big4}%) — PMTUD blackhole\n"
+fi
 
 if [ "$bad6" -eq 1 ]; then
   printf '%b' "${red}IPv6 path to ${HOST} is degraded.${rst} Triggered by:\n"
   printf '%b' "$reasons"
+  # Scope conclusion: peering-level fault vs your IPv6 in general.
+  if [ -n "${cf6:-}" ] && [ -n "${ctl6:-}" ] && awk_gt "$cf6" 10 && ! awk_gt "$ctl6" 5; then
+    printf '%b' "${ylw}Scope:${rst} every Cloudflare site loses (~${cf6}%) but non-Cloudflare IPv6 is\n"
+    echo "clean (~${ctl6}%) — the fault is your ISP's IPv6 peering with Cloudflare (AS13335),"
+    echo "not your router or LAN. You can't fix the peering; the IPv4 workaround below is"
+    echo "the practical fix. Worth an ISP ticket citing IPv6-only loss to Cloudflare."
+    echo "(Vodafone cable has a long-running, recurring version of exactly this.)"
+  fi
   echo "Your browser prefers IPv6, so it gets the slow path. Force IPv4:"
   echo "  ${ylw}Firefox:${rst} about:config -> network.dns.disableIPv6 = true -> restart"
   echo "  ${ylw}Chrome/system:${rst} disable IPv6 on this network's adapter, or on the router"
