@@ -144,6 +144,9 @@ function FriendGroupShell({
         <PageTopBar>
           <PageTopBarTitle>{data.group.name}</PageTopBarTitle>
           <PageTopBarActions>
+            <Badge variant="secondary">
+              {memberCount} {memberCount === 1 ? "member" : "members"}
+            </Badge>
             <Badge variant="secondary">{ROLE_LABEL[data.viewerRole ?? "member"]}</Badge>
             <PageTopBarButton render={<Link to="/groups/$slug/manage" params={{ slug }} />}>
               <SettingsIcon className="size-4" />
@@ -153,17 +156,11 @@ function FriendGroupShell({
         </PageTopBar>
       </PageTopBarSticky>
       <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING_NO_TOP)}>
-        <header className="flex flex-col gap-2">
-          <p className="text-muted-foreground text-sm">
-            {memberCount} {memberCount === 1 ? "member" : "members"}
-            {tradesActionCount > 0
-              ? ` · ${tradesActionCount} ${tradesActionCount === 1 ? "trade needs" : "trades need"} you`
-              : null}
-          </p>
-          {data.group.description ? (
+        {data.group.description ? (
+          <header>
             <PageDescription>{data.group.description}</PageDescription>
-          ) : null}
-        </header>
+          </header>
+        ) : null}
 
         <GroupNav
           slug={slug}
