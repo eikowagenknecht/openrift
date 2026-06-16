@@ -1,7 +1,9 @@
 import { useLocation, useNavigate } from "@tanstack/react-router";
 
+import { DeckCheckInfoCardSkeleton } from "@/components/deck-check/deck-check-skeletons";
 import { PAGE_TOP_BAR_STICKY, PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useClaimLanding, useClaimTournamentDeck } from "@/hooks/use-deck-check-player";
 import { useUserId } from "@/lib/auth-session";
 import { PAGE_PADDING } from "@/lib/utils";
@@ -22,7 +24,24 @@ export function PlayerClaimPage({ token }: { token: string }) {
   const location = useLocation();
 
   if (isPending) {
-    return <p className="text-muted-foreground p-6 text-center">Loading...</p>;
+    return (
+      <div>
+        <div className={PAGE_TOP_BAR_STICKY}>
+          <div className="mx-auto w-full max-w-3xl">
+            <PageTopBar>
+              <PageTopBarTitle>Claim your deck</PageTopBarTitle>
+            </PageTopBar>
+          </div>
+        </div>
+        <div className={`flex justify-center ${PAGE_PADDING}`}>
+          <div className="flex w-full max-w-3xl flex-col gap-4">
+            <DeckCheckInfoCardSkeleton />
+            <Skeleton className="h-4 w-full max-w-md" />
+            <Skeleton className="h-9 w-32" />
+          </div>
+        </div>
+      </div>
+    );
   }
   if (isError || !data) {
     return (

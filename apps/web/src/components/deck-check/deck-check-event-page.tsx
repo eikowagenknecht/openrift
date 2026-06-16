@@ -19,6 +19,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
+import { DeckCheckListSkeleton } from "@/components/deck-check/deck-check-skeletons";
 import { isAdmin } from "@/components/friend-groups/friend-group-shell";
 import { TopBarBreadcrumbBar } from "@/components/layout/top-bar-breadcrumb";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -85,7 +87,16 @@ export function DeckCheckEventPage({
   const admin = isAdmin(data.viewerRole);
 
   if (!detail) {
-    return <p className="text-muted-foreground">Loading…</p>;
+    return (
+      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-4", PAGE_PADDING)}>
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-6 w-56" />
+          <Skeleton className="h-4 w-72" />
+        </div>
+        <Skeleton className="h-9 w-full max-w-xs" />
+        <DeckCheckListSkeleton count={5} />
+      </div>
+    );
   }
 
   const { event, entries } = detail;

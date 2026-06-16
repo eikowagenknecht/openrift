@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { CardCell } from "@/components/cards/card-cell";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
+import { DeckCheckCardZonesSkeleton } from "@/components/deck-check/deck-check-skeletons";
 import { PlayerDeckSourceForm } from "@/components/deck-check/player-deck-source-form";
 import type { DeckSourceInput } from "@/components/deck-check/player-deck-source-form";
 import { PlayerStateBadge } from "@/components/deck-check/player-decks-page";
@@ -29,6 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useCards } from "@/hooks/use-cards";
 import {
   useCancelUnlockRequest,
@@ -57,7 +59,25 @@ export function PlayerDeckPage({ entryId }: { entryId: string }) {
   const { data, isPending, isError } = useMyTournamentDeck(entryId);
 
   if (isPending) {
-    return <p className="text-muted-foreground p-6 text-center">Loading...</p>;
+    return (
+      <div>
+        <div className={PAGE_TOP_BAR_STICKY}>
+          <div className="mx-auto w-full max-w-5xl">
+            <PageTopBar>
+              <PageTopBarBack to="/tournament-decks" aria-label="Back to my tournament decks" />
+              <Skeleton className="h-5 w-44" />
+            </PageTopBar>
+          </div>
+        </div>
+        <div className={`flex justify-center ${PAGE_PADDING}`}>
+          <div className="flex w-full max-w-5xl flex-col gap-4">
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-2 w-full" />
+            <DeckCheckCardZonesSkeleton cellWidth={PLAYER_CELL_WIDTH} />
+          </div>
+        </div>
+      </div>
+    );
   }
   if (isError || !data) {
     return <p className="text-muted-foreground p-6 text-center">This deck is not available.</p>;

@@ -34,6 +34,7 @@ import { CardCell } from "@/components/cards/card-cell";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { EntryStateBadge } from "@/components/deck-check/deck-check-event-page";
+import { DeckCheckCardZonesSkeleton } from "@/components/deck-check/deck-check-skeletons";
 import { DeckDomainBar } from "@/components/deck/deck-domain-bar";
 import {
   DomainIcon,
@@ -67,6 +68,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useCards } from "@/hooks/use-cards";
@@ -132,7 +134,23 @@ export function DeckCheckEntryPage({
   const [addCardOpen, setAddCardOpen] = useState(false);
 
   if (!detail) {
-    return <p className="text-muted-foreground">Loading…</p>;
+    return (
+      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-4", PAGE_PADDING)}>
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <div className="flex flex-col gap-4 md:flex-row">
+          <Skeleton className="aspect-[4/3] w-full shrink-0 rounded-xl md:w-72" />
+          <div className="flex min-w-0 flex-1 flex-col gap-3">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-16 w-full" />
+          </div>
+        </div>
+        <DeckCheckCardZonesSkeleton cellWidth={CHECK_CELL_WIDTH} />
+      </div>
+    );
   }
 
   // The rendered width of one card, derived from the resolved column count, for

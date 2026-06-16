@@ -1,3 +1,4 @@
+import { DeckCheckListSkeleton } from "@/components/deck-check/deck-check-skeletons";
 import { PlayerDeckRow } from "@/components/deck-check/player-decks-page";
 import { useMyTournamentDecks } from "@/hooks/use-deck-check-player";
 
@@ -12,7 +13,7 @@ export function GroupTournamentDecksView({ slug }: { slug: string }) {
   const entries = (data?.items ?? []).filter((entry) => entry.groupSlug === slug);
 
   if (isPending) {
-    return <p className="text-muted-foreground">Loading...</p>;
+    return <DeckCheckListSkeleton count={3} />;
   }
   if (entries.length === 0) {
     return (

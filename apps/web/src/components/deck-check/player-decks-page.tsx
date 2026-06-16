@@ -2,6 +2,7 @@ import type { PlayerDeckCheckEntrySummaryResponse } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { MailIcon } from "lucide-react";
 
+import { DeckCheckListSkeleton } from "@/components/deck-check/deck-check-skeletons";
 import { PAGE_TOP_BAR_STICKY, PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { useMyTournamentDecks } from "@/hooks/use-deck-check-player";
@@ -30,7 +31,7 @@ export function PlayerDecksPage() {
       <div className={`flex justify-center ${PAGE_PADDING}`}>
         <div className="flex w-full max-w-3xl flex-col gap-3">
           {isPending ? (
-            <p className="text-muted-foreground">Loading...</p>
+            <DeckCheckListSkeleton />
           ) : !data || data.items.length === 0 ? (
             <div className="text-muted-foreground flex flex-col gap-1 py-12 text-center">
               <p>No tournament decks yet.</p>

@@ -1,8 +1,10 @@
 import { useNavigate } from "@tanstack/react-router";
 
+import { DeckCheckInfoCardSkeleton } from "@/components/deck-check/deck-check-skeletons";
 import { PlayerDeckSourceForm } from "@/components/deck-check/player-deck-source-form";
 import type { DeckSourceInput } from "@/components/deck-check/player-deck-source-form";
 import { PAGE_TOP_BAR_STICKY, PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   usePreviewTournamentDeck,
   useSubmitTournamentDeck,
@@ -26,7 +28,24 @@ export function PlayerSubmitPage({ token }: { token: string }) {
   const { labels: formatLabels } = useDeckFormatList();
 
   if (isPending) {
-    return <p className="text-muted-foreground p-6 text-center">Loading...</p>;
+    return (
+      <div>
+        <div className={PAGE_TOP_BAR_STICKY}>
+          <div className="mx-auto w-full max-w-3xl">
+            <PageTopBar>
+              <PageTopBarTitle>Submit your deck</PageTopBarTitle>
+            </PageTopBar>
+          </div>
+        </div>
+        <div className={`flex justify-center ${PAGE_PADDING}`}>
+          <div className="flex w-full max-w-3xl flex-col gap-4">
+            <DeckCheckInfoCardSkeleton />
+            <Skeleton className="h-40 w-full" />
+            <Skeleton className="h-9 w-32" />
+          </div>
+        </div>
+      </div>
+    );
   }
   if (isError || !data) {
     return (
