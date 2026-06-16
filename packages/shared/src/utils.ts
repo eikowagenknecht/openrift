@@ -1,4 +1,4 @@
-import type { CardType, Printing } from "./types/index.js";
+import type { Card, CardType, Printing } from "./types/index.js";
 import { WellKnown } from "./well-known.js";
 
 /**
@@ -12,6 +12,25 @@ export function slugifyName(name: string): string {
     .replaceAll(/[^a-z0-9]+/gu, "-")
     .replaceAll(/-{2,}/gu, "-")
     .replaceAll(/^-|-$/gu, "");
+}
+
+/**
+ * Build the display name for a card, prepending a Legend's champion tag.
+ *
+ * Riftbound Legends carry a proper name (e.g. "Emperor of the Sands") and a
+ * single champion-identifier tag (e.g. "Azir"). Players colloquially call the
+ * Legend by its champion, and other sites render the combined "Azir, Emperor
+ * of the Sands". This composes that label at render time without touching the
+ * stored `name`. Non-Legends, and Legends without a tag, return `name`
+ * unchanged; a Legend with multiple tags uses the first.
+ *
+ * @returns `"{tag}, {name}"` for tagged Legends, otherwise the card's `name`.
+ */
+export function legendDisplayName(card: Pick<Card, "name" | "type" | "tags">): string {
+  if (card.type === WellKnown.cardType.LEGEND && card.tags.length > 0) {
+    return `${card.tags[0]}, ${card.name}`;
+  }
+  return card.name;
 }
 
 /**

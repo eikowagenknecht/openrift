@@ -229,3 +229,46 @@ describe("matchEntries — isPromo flag", () => {
     expect(results[0].resolvedPrinting?.id).toBe("base");
   });
 });
+
+describe("matchEntries — Legend colloquial names", () => {
+  const legend = makePrinting({
+    id: "ogn-100",
+    shortCode: "OGN-100",
+    card: {
+      slug: "emperor-of-the-sands",
+      name: "Emperor of the Sands",
+      type: "legend",
+      superTypes: [],
+      domains: [],
+      might: null,
+      energy: null,
+      power: null,
+      keywords: [],
+      tags: ["Azir"],
+      mightBonus: null,
+      errata: null,
+      bans: [],
+    },
+  });
+
+  it("resolves the 'Azir, Emperor of the Sands' colloquial form", () => {
+    const entries = [makeEntry({ cardName: "Azir, Emperor of the Sands", sourceCode: "" })];
+    const results = matchEntries(entries, [legend]);
+    expect(results[0].status).toBe("needs-review");
+    expect(results[0].resolvedPrinting?.id).toBe("ogn-100");
+    expect(results[0].suggestedName).toBe("Emperor of the Sands");
+  });
+
+  it("still resolves the bare name without the 'Azir, ' prefix", () => {
+    const entries = [makeEntry({ cardName: "Emperor of the Sands", sourceCode: "" })];
+    const results = matchEntries(entries, [legend]);
+    expect(results[0].status).toBe("needs-review");
+    expect(results[0].resolvedPrinting?.id).toBe("ogn-100");
+  });
+
+  it("does not resolve when the tag prefix names a different champion", () => {
+    const entries = [makeEntry({ cardName: "Xerath, Emperor of the Sands", sourceCode: "" })];
+    const results = matchEntries(entries, [legend]);
+    expect(results[0].status).toBe("unresolved");
+  });
+});

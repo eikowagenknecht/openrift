@@ -1,4 +1,5 @@
 import type { Printing } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 import { LinkIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -252,7 +253,7 @@ export function CardTableRow({
         <CardArtThumb imageId={image?.imageId} className="h-10" loading="lazy" />
       </div>
       <div className="min-w-0 px-3">
-        <div className="truncate font-medium">{printing.card.name}</div>
+        <div className="truncate font-medium">{legendDisplayName(printing.card)}</div>
         <div className="text-muted-foreground flex items-center gap-1 text-xs">
           <span className="truncate tabular-nums">{printing.publicCode}</span>
           <FinishIcon finish={printing.finish} className="shrink-0" />

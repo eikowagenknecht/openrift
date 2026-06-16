@@ -31,6 +31,8 @@ class PrintingIndex {
   private byShortCode = new Map<string, Printing[]>();
   /** normalized card name → { cardId, cardName, printings } */
   private byNormalizedName = new Map<string, { cardName: string; printings: Printing[] }>();
+  /** "normalizedTag:normalizedName" → group (for "Champion, Title" lookups) */
+  private byTagAndName = new Map<string, { cardName: string; printings: Printing[] }>();
 
   constructor(allPrintings: Printing[]) {
     // Index by short code
@@ -53,7 +55,36 @@ class PrintingIndex {
         this.byNormalizedName.set(normalizedName, group);
       }
       group.printings.push(printing);
+
+      // Also index each tag + name combo so "Azir, Emperor of the Sands"
+      // (the Legend's colloquial display name) resolves to the same card.
+      for (const tag of printing.card.tags) {
+        const normalizedTag = normalizeNameForMatching(tag);
+        if (normalizedTag.length > 0 && normalizedName.length > 0) {
+          this.byTagAndName.set(`${normalizedTag}:${normalizedName}`, group);
+        }
+      }
     }
+  }
+
+  /**
+   * Looks up a card by splitting "Tag, Name" and matching tag + card name.
+   * Handles colloquial Legend names like "Azir, Emperor of the Sands" where the
+   * DB stores name "Emperor of the Sands" with tag "Azir". The bare name still
+   * resolves via {@link fuzzyMatchByName}.
+   * @returns The matching card group, or null if not found.
+   */
+  lookupByTagAndName(cardName: string): { cardName: string; printings: Printing[] } | null {
+    const commaIndex = cardName.indexOf(",");
+    if (commaIndex === -1) {
+      return null;
+    }
+    const tag = normalizeNameForMatching(cardName.slice(0, commaIndex));
+    const name = normalizeNameForMatching(cardName.slice(commaIndex + 1));
+    if (tag.length === 0 || name.length === 0) {
+      return null;
+    }
+    return this.byTagAndName.get(`${tag}:${name}`) ?? null;
   }
 
   /**
@@ -274,8 +305,9 @@ function matchSingleEntry(
     };
   }
 
-  // Step 2: Try fuzzy name match
-  const fuzzy = index.fuzzyMatchByName(entry.cardName);
+  // Step 2: Try name match — "Champion, Title" first (e.g. "Azir, Emperor of
+  // the Sands"), then exact/fuzzy on the bare name.
+  const fuzzy = index.lookupByTagAndName(entry.cardName) ?? index.fuzzyMatchByName(entry.cardName);
   if (fuzzy) {
     const langMatches = narrowByLanguage(fuzzy.printings, language);
 

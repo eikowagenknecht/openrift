@@ -1,4 +1,4 @@
-import { normalizeNameForMatching } from "@openrift/shared";
+import { WellKnown, normalizeNameForMatching } from "@openrift/shared";
 import type {
   DeckCheckCardLine,
   DeckCheckChangeSummary,
@@ -114,6 +114,31 @@ export interface CardResolution {
  */
 export function cardResolutionKey(name: string): string {
   return normalizeNameForMatching(name);
+}
+
+/**
+ * Maps each Legend's colloquial "Champion, Title" display name (e.g. "Azir,
+ * Emperor of the Sands") back to its card id, keyed by the normalized form.
+ * That combined name normalizes to `normalize(tag) + normName`, so the mapping
+ * is derived at resolve time rather than stored as a name alias. Only norms in
+ * `wanted` are emitted, keeping the result proportional to the input batch.
+ *
+ * @returns `[normalizedComboName, cardId]` pairs for the wanted norms.
+ */
+export function legendComboResolutions(
+  legends: readonly { id: string; normName: string; tags: readonly string[] }[],
+  wanted: ReadonlySet<string>,
+): { norm: string; cardId: string }[] {
+  const out: { norm: string; cardId: string }[] = [];
+  for (const legend of legends) {
+    for (const tag of legend.tags) {
+      const norm = normalizeNameForMatching(tag) + legend.normName;
+      if (wanted.has(norm)) {
+        out.push({ norm, cardId: legend.id });
+      }
+    }
+  }
+  return out;
 }
 
 /**
@@ -1058,7 +1083,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
         return results;
       }
 
-      const [cardRows, aliasRows] = await Promise.all([
+      const [cardRows, aliasRows, legendRows] = await Promise.all([
         db
           .selectFrom("cards")
           .select(["id", "normName"])
@@ -1068,6 +1093,14 @@ export function deckCheckRepo(db: Kysely<Database>) {
           .selectFrom("cardNameAliases")
           .select(["cardId", "normName"])
           .where("normName", "in", normNames)
+          .execute(),
+        // Legends also resolve by their colloquial "Azir, Emperor of the Sands"
+        // form. The combined name isn't stored, so match it from the tag + name
+        // at resolve time (see legendComboResolutions) without seeding aliases.
+        db
+          .selectFrom("cards")
+          .select(["id", "normName", "tags"])
+          .where("type", "=", WellKnown.cardType.LEGEND)
           .execute(),
       ]);
 
@@ -1081,6 +1114,11 @@ export function deckCheckRepo(db: Kysely<Database>) {
         const set = candidatesByNorm.get(row.normName) ?? new Set();
         set.add(row.cardId);
         candidatesByNorm.set(row.normName, set);
+      }
+      for (const combo of legendComboResolutions(legendRows, new Set(normNames))) {
+        const set = candidatesByNorm.get(combo.norm) ?? new Set();
+        set.add(combo.cardId);
+        candidatesByNorm.set(combo.norm, set);
       }
 
       const allCandidateIds = [

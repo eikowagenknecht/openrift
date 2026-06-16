@@ -296,6 +296,7 @@ export {
   deduplicateByCard,
   formatDateUTC,
   getOrientation,
+  legendDisplayName,
   preferredPrinting,
   mostCommonValue,
   normalizeNameForMatching,

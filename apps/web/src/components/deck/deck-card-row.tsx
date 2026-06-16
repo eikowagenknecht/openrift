@@ -1,5 +1,6 @@
 import { useDraggable } from "@dnd-kit/core";
 import type { DeckZone } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 import { AlertTriangleIcon, MinusIcon, PlusIcon, XIcon } from "lucide-react";
 
 import type { DeckCardDragData } from "@/components/deck/deck-dnd-context";
@@ -238,7 +239,9 @@ export function DeckCardRow({
         onRemove={onRemove}
       />
 
-      <span className="min-w-0 flex-1 truncate text-left">{card.cardName}</span>
+      <span className="min-w-0 flex-1 truncate text-left">
+        {legendDisplayName({ name: card.cardName, type: card.cardType, tags: card.tags })}
+      </span>
 
       {card.power !== null && card.power > 0 && (
         <span className="flex shrink-0 items-center gap-0.5">

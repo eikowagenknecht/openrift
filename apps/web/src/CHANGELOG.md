@@ -2,6 +2,7 @@
 
 ## 2026-06-16
 
+- feat: Legends now show their champion name first, like "Azir, Emperor of the Sands", in the card list, tables, and deck zones, and importing a decklist recognizes that form as well as the plain card name
 - feat: Lists now stay private until you choose to share them — a new list starts with every group unchecked, and joining a group no longer makes your existing lists visible to it automatically. You pick which groups can see each list
 - feat: When you create a group or accept an invite to one, you're asked which of your wishlists and tradelists to share with it, so trades can start right away
 - feat: The button for choosing which filters to show now stays out of the way and appears when you hover over the filter panel

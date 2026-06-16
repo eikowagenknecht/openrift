@@ -11,6 +11,7 @@ import {
   formatDateUTC,
   formatShortCodes,
   getOrientation,
+  legendDisplayName,
   mostCommonValue,
   normalizeNameForMatching,
   preferredPrinting,
@@ -62,6 +63,30 @@ function makePrinting(overrides: Partial<Printing> & { language: string }): Prin
     ...overrides,
   };
 }
+
+describe("legendDisplayName", () => {
+  it("prepends the champion tag for a Legend", () => {
+    expect(
+      legendDisplayName({ name: "Emperor of the Sands", type: "legend", tags: ["Azir"] }),
+    ).toBe("Azir, Emperor of the Sands");
+  });
+
+  it("returns the bare name for a Legend with no tags", () => {
+    expect(legendDisplayName({ name: "Nameless Legend", type: "legend", tags: [] })).toBe(
+      "Nameless Legend",
+    );
+  });
+
+  it("uses the first tag when a Legend has several", () => {
+    expect(
+      legendDisplayName({ name: "Twin Souls", type: "legend", tags: ["Kindred", "Lamb"] }),
+    ).toBe("Kindred, Twin Souls");
+  });
+
+  it("returns the bare name for non-Legend cards even when tagged", () => {
+    expect(legendDisplayName({ name: "Recall", type: "spell", tags: ["Azir"] })).toBe("Recall");
+  });
+});
 
 describe("unique", () => {
   it("returns empty array for empty input", () => {

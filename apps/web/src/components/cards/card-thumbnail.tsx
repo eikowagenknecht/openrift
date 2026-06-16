@@ -1,6 +1,6 @@
 import { useDraggable } from "@dnd-kit/core";
 import type { Domain, Marketplace, PriceLookup, Printing, Rarity } from "@openrift/shared";
-import { WellKnown, getOrientation, imageUrl } from "@openrift/shared";
+import { WellKnown, getOrientation, imageUrl, legendDisplayName } from "@openrift/shared";
 import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { memo, useRef, useState } from "react";
 
@@ -427,6 +427,14 @@ export const CardThumbnail = memo(function CardThumbnail({
     effectText: printing.printedEffectText,
     flavorText: printing.flavorText,
   };
+  // Legends read as "Azir, Emperor of the Sands" — the champion tag is prepended
+  // for display only (read printing.card.type/tags directly so `card` stays
+  // memoizable, mirroring the orientation note below).
+  const displayName = legendDisplayName({
+    name: card.name,
+    type: printing.card.type,
+    tags: printing.card.tags,
+  });
   const frontImage = printing.images[0] ?? null;
   // Read `printing.card.type` directly (not `card.type`): reading the derived
   // `card` object here would couple its construction to this call and prevent
@@ -588,7 +596,7 @@ export const CardThumbnail = memo(function CardThumbnail({
             thumbnailUrl={thumbnailUrl}
             srcSet={srcSet}
             sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : sizesOverride}
-            alt={card.name}
+            alt={displayName}
             priority={Boolean(priority)}
             imgLoaded={imgLoaded}
             onImgLoad={() => setImgLoaded(true)}
@@ -631,7 +639,7 @@ export const CardThumbnail = memo(function CardThumbnail({
     <div className="relative z-10 mt-2.5">
       <CardMetaLabel
         shortCode={printing.shortCode}
-        name={card.name}
+        name={displayName}
         type={card.type}
         superTypes={card.superTypes}
         rarity={printing.rarity}
