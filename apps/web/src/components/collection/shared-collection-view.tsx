@@ -22,6 +22,7 @@ import {
   PageTopBarTitle,
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
+import { TopBarBreadcrumbSeparator } from "@/components/layout/top-bar-breadcrumb";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { useCardData } from "@/hooks/use-card-data";
@@ -107,8 +108,9 @@ export function SharedCollectionView({ data, search, topBarTrailing }: SharedCol
         <div className="flex min-h-0 flex-1 flex-col">
           <div ref={setTopBarSlot} className={PAGE_TOP_BAR_STICKY}>
             <PageTopBar>
-              {topBarTrailing}
-              <div className="flex min-w-0 flex-1 items-baseline gap-2">
+              <div className="flex min-w-0 flex-1 items-center gap-2 sm:items-baseline">
+                {topBarTrailing}
+                {topBarTrailing ? <TopBarBreadcrumbSeparator className="hidden sm:inline" /> : null}
                 <PageTopBarTitle>{collection.name}</PageTopBarTitle>
                 <span className="text-muted-foreground hidden shrink-0 items-baseline gap-x-1.5 text-xs sm:flex">
                   <span>Shared by {owner.displayName}</span>

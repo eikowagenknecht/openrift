@@ -7,6 +7,7 @@
 - feat: When a tournament tool imports a deck with cards in the wrong zone, the checker now flags the mis-zoned cards and lets a judge move them all to the right zone in one step, while reviewing each move so a deliberately unusual deck is left alone
 - feat: When a tournament tool sends a deck with cards in the wrong zone, a judge can now move a card (or just some of its copies) to the right zone straight from the "Fix card" dialog, instead of deleting and re-adding it
 - feat: The deck checker can now sort cards by energy, ordering each zone by energy cost, then power, then name
+- fix: The title bar on a shared group list or collection now puts a separator between the breadcrumb and the title and lines them up, instead of running the last breadcrumb straight into the title
 - fix: The deck-check card grid no longer sometimes opens stuck at two columns; sections now reliably show the column count you set
 - fix: A group page now shows its member count as a chip in the page header next to the role, instead of as a stray line floating above the tabs
 - fix: The deck-check overview now labels each entry's progress as "X / Y cards checked" instead of "cards found", matching the rest of the checker wording

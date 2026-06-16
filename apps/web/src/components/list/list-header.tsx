@@ -3,6 +3,7 @@ import { FolderIcon, HandshakeIcon, HeartIcon } from "lucide-react";
 import type { ComponentType, ReactNode, SVGProps } from "react";
 
 import { PageTopBar, PageTopBarActions, PageTopBarTitle } from "@/components/layout/page-top-bar";
+import { TopBarBreadcrumbSeparator } from "@/components/layout/top-bar-breadcrumb";
 import { listKindIcon } from "@/components/list/create-list-dialog";
 import { ListGroupSharesBadge } from "@/components/list/list-group-shares-badge";
 import { ListValueLabel } from "@/components/list/list-value-label";
@@ -77,8 +78,9 @@ export function ListHeader({
 
   return (
     <PageTopBar>
-      {backLink}
-      <div className="flex min-w-0 flex-1 items-baseline gap-2">
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:items-baseline">
+        {backLink}
+        {backLink ? <TopBarBreadcrumbSeparator className="hidden sm:inline" /> : null}
         <PageTopBarTitle onToggleSidebar={onToggleSidebar}>{list.name}</PageTopBarTitle>
         <span className="text-muted-foreground hidden shrink-0 text-xs sm:inline">
           <IntentIcon className="mr-1 inline-block size-3 align-text-bottom" />
