@@ -160,7 +160,7 @@ export default function DeckBuildingArticle() {
           <FeatureCard
             icon={<PlusIcon className="size-4" />}
             title="Quick add"
-            description='Click the + button above any card in the browser to add it to the active zone. Single-card zones like Legend and Champion show a "Choose" button instead. Cards you own show an owned count, so you can build with cards you actually have.'
+            description='Click the + button above any card in the browser to add it to the active zone. Single-card zones like Legend and Chosen Champion show a "Choose" button instead. Cards you own show an owned count, so you can build with cards you actually have.'
           />
           <FeatureCard
             icon={<GripVerticalIcon className="size-4" />}
@@ -201,7 +201,7 @@ export default function DeckBuildingArticle() {
           </DefinitionRow>
           <DefinitionRow
             icon={<TypeIcon src="/images/supertypes/champion.svg" alt="Champion" />}
-            label="Champion"
+            label="Chosen Champion"
           >
             Exactly 1 champion that shares a tag with your legend
           </DefinitionRow>

@@ -40,7 +40,7 @@ export default function HowToPlayArticle() {
             color="text-amber-600 dark:text-amber-400"
           />
           <ZoneCard
-            name="Champion"
+            name="Chosen Champion"
             count="1"
             description="A champion unit that shares a tag with your legend."
             color="text-purple-600 dark:text-purple-400"

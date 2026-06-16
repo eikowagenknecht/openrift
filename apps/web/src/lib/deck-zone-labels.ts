@@ -40,7 +40,7 @@ export const ZONE_EXPECTED: Partial<Record<DeckZone, number>> = {
 /** Placeholder hint shown in an empty zone, prompting the next action. */
 export const ZONE_EMPTY_HINTS: Record<DeckZone, string> = {
   legend: "Choose a Legend",
-  champion: "Pick a matching Champion",
+  champion: "Pick a matching Chosen Champion",
   runes: "Auto-fills from your Legend",
   battlefield: "Choose 3 unique Battlefield cards",
   main: "Add cards from the browser",

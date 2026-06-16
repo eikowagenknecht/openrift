@@ -2,6 +2,7 @@
 
 ## 2026-06-16
 
+- fix: The deck-building help and zone hints now consistently call the single-champion zone "Chosen Champion" instead of just "Champion"
 - fix: Deleting a deck from the deck list no longer opens the deck editor for the deck you just removed; it now stays on the deck list
 
 ## 2026-06-12
