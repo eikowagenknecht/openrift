@@ -151,6 +151,19 @@ export interface DeckCheckEntryResponse {
   updatedAt: string;
 }
 
+/**
+ * One card whose type forces a specific zone (Legend / Rune / Battlefield) but
+ * that the provider placed elsewhere. Surfaced so a judge can bulk-correct a
+ * deck a tool imported with broken zones, while still reviewing each move.
+ */
+export interface ZoneSuggestion {
+  /** The `deck_check_entry_cards` row id, not the catalog card id. */
+  cardId: string;
+  cardName: string;
+  currentZone: DeckZone;
+  suggestedZone: DeckZone;
+}
+
 export interface DeckCheckEntryDetailResponse {
   event: DeckCheckEventSummaryResponse;
   entry: DeckCheckEntryResponse;
@@ -159,6 +172,8 @@ export interface DeckCheckEntryDetailResponse {
   violations: DeckViolation[];
   typeCounts: { cardType: CardType; count: number }[];
   domainDistribution: { domain: Domain; count: number }[];
+  /** Type-locked cards sitting in the wrong zone; empty when nothing to fix. */
+  zoneSuggestions: ZoneSuggestion[];
 }
 
 export interface DeckCheckKeyResponse {

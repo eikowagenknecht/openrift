@@ -180,6 +180,7 @@ export type {
   PlayerDeckCheckEntriesResponse,
   PlayerDeckCheckEntryDetailResponse,
   PlayerDeckCheckEntrySummaryResponse,
+  ZoneSuggestion,
 } from "./deck-check.js";
 
 export type {

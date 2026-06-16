@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createRepos } from "../../deps.js";
-import { CARD_FURY_UNIT } from "../../test/fixtures/constants.js";
+import { CARD_FURY_RUNE, CARD_FURY_UNIT } from "../../test/fixtures/constants.js";
 import { createTestContext, req } from "../../test/integration-context.js";
 
 const OWNER_ID = "a0000000-0150-4000-a000-000000000001";
@@ -578,6 +578,188 @@ describe.skipIf(!ownerCtx)("deck-check routes (integration, ADR-025)", () => {
       expect(after?.quantity).toBe(line.quantity - 1);
       // The remaining ticks shift down with their copies: [t,f,t] minus copy 1 = [f,t].
       expect(after?.foundCopies).toEqual([false, true]);
+    });
+
+    it("reassigns a mis-zoned card via the fix endpoint, mapping section to zone", async () => {
+      // A provider that mislabels its sections lands the card in the wrong zone.
+      await push([
+        entryPayload({
+          externalId: "entry-zone",
+          playerName: "Z. One",
+          cards: [{ name: CARD_FURY_UNIT.name, quantity: 1, section: "main" }],
+        }),
+      ]);
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-zone");
+      const hashBefore = entry!.contentHash;
+      const cardsBefore = await repos.deckCheck.listCardsForEntry(entry!.id);
+      const card = cardsBefore[0]!;
+      expect(card.zone).toBe("main");
+
+      // Moving the card to the right zone updates both the zone and the stored
+      // section, and recomputes the hash so a re-push diffs correctly.
+      const move = await judgeApp.fetch(
+        req(
+          "PATCH",
+          `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}/cards/${card.id}`,
+          { name: card.rawName, section: "sideboard" },
+        ),
+      );
+      expect(move.status).toBe(200);
+      let reloadedCards = await repos.deckCheck.listCardsForEntry(entry!.id);
+      expect(reloadedCards[0]!.zone).toBe("sideboard");
+      expect(reloadedCards[0]!.section).toBe("sideboard");
+      const movedEntry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-zone");
+      expect(movedEntry!.contentHash).not.toBe(hashBefore);
+
+      // A name-only fix (section omitted) leaves the zone and section untouched.
+      const nameOnly = await judgeApp.fetch(
+        req(
+          "PATCH",
+          `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}/cards/${card.id}`,
+          { name: CARD_FURY_UNIT.name },
+        ),
+      );
+      expect(nameOnly.status).toBe(200);
+      reloadedCards = await repos.deckCheck.listCardsForEntry(entry!.id);
+      expect(reloadedCards[0]!.zone).toBe("sideboard");
+      expect(reloadedCards[0]!.section).toBe("sideboard");
+
+      // An unknown section is rejected, exactly like the add path.
+      const bad = await judgeApp.fetch(
+        req(
+          "PATCH",
+          `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}/cards/${card.id}`,
+          { name: card.rawName, section: "commander" },
+        ),
+      );
+      expect(bad.status).toBe(422);
+    });
+
+    it("splits a multi-copy line when moving some copies, merging into the target zone", async () => {
+      await push([
+        entryPayload({
+          externalId: "entry-split",
+          playerName: "S. Plit",
+          cards: [{ name: CARD_FURY_UNIT.name, quantity: 3, section: "main" }],
+        }),
+      ]);
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-split");
+      const before = await repos.deckCheck.listCardsForEntry(entry!.id);
+      const cardId = before[0]!.id;
+      expect(before[0]!.quantity).toBe(3);
+
+      // Move 1 of 3 copies to the sideboard: the line splits, the rest stay.
+      const split = await judgeApp.fetch(
+        req(
+          "PATCH",
+          `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}/cards/${cardId}`,
+          { name: CARD_FURY_UNIT.name, section: "sideboard", copies: 1 },
+        ),
+      );
+      expect(split.status).toBe(200);
+      const afterSplit = await repos.deckCheck.listCardsForEntry(entry!.id);
+      expect(afterSplit.find((card) => card.zone === "main")?.quantity).toBe(2);
+      const side = afterSplit.find((card) => card.zone === "sideboard");
+      expect(side?.quantity).toBe(1);
+      expect(side?.resolvedCardId).toBe(CARD_FURY_UNIT.id);
+
+      // Moving another copy merges into the existing sideboard line, not a 2nd row.
+      const mainCardId = afterSplit.find((card) => card.zone === "main")!.id;
+      const merge = await judgeApp.fetch(
+        req(
+          "PATCH",
+          `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}/cards/${mainCardId}`,
+          { name: CARD_FURY_UNIT.name, section: "sideboard", copies: 1 },
+        ),
+      );
+      expect(merge.status).toBe(200);
+      const afterMerge = await repos.deckCheck.listCardsForEntry(entry!.id);
+      expect(afterMerge.filter((card) => card.zone === "sideboard")).toHaveLength(1);
+      expect(afterMerge.find((card) => card.zone === "sideboard")?.quantity).toBe(2);
+      expect(afterMerge.find((card) => card.zone === "main")?.quantity).toBe(1);
+
+      // Moving the rest (copies omitted) merges and deletes the now-empty main line.
+      const lastMainId = afterMerge.find((card) => card.zone === "main")!.id;
+      const moveRest = await judgeApp.fetch(
+        req(
+          "PATCH",
+          `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}/cards/${lastMainId}`,
+          { name: CARD_FURY_UNIT.name, section: "sideboard" },
+        ),
+      );
+      expect(moveRest.status).toBe(200);
+      const afterRest = await repos.deckCheck.listCardsForEntry(entry!.id);
+      expect(afterRest).toHaveLength(1);
+      expect(afterRest[0]!.zone).toBe("sideboard");
+      expect(afterRest[0]!.quantity).toBe(3);
+    });
+
+    it("suggests and bulk-applies zone fixes only for the cards the judge confirms", async () => {
+      // A provider that lumps everything into "main" lands a Rune and a Legend
+      // in the wrong zone, while an ordinary Unit is correctly in main.
+      await push([
+        entryPayload({
+          externalId: "entry-zonefix",
+          playerName: "Z. Fix",
+          cards: [
+            { name: CARD_FURY_RUNE.name, quantity: 1, section: "main" },
+            { name: CARD_FURY_UNIT.name, quantity: 1, section: "main" },
+          ],
+        }),
+      ]);
+      const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-zonefix");
+      const hashBefore = entry!.contentHash;
+
+      // The checker payload flags only the type-locked Rune, never the Unit.
+      const detailRes = await judgeApp.fetch(
+        req("GET", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}`),
+      );
+      expect(detailRes.status).toBe(200);
+      const detail = (await detailRes.json()) as {
+        zoneSuggestions: { cardId: string; suggestedZone: string; currentZone: string }[];
+      };
+      expect(detail.zoneSuggestions).toHaveLength(1);
+      const suggestion = detail.zoneSuggestions[0]!;
+      expect(suggestion).toMatchObject({ currentZone: "main", suggestedZone: "runes" });
+
+      // Applying the confirmed id moves the Rune and recomputes the hash.
+      const apply = await judgeApp.fetch(
+        req(
+          "POST",
+          `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}/zone-fixes`,
+          {
+            cardIds: [suggestion.cardId],
+          },
+        ),
+      );
+      expect(apply.status).toBe(200);
+      const cards = await repos.deckCheck.listCardsForEntry(entry!.id);
+      const rune = cards.find((card) => card.id === suggestion.cardId);
+      expect(rune?.zone).toBe("runes");
+      expect(rune?.section).toBe("runes");
+      const applied = await repos.deckCheck.getEntryByExternalId(eventId, "entry-zonefix");
+      expect(applied!.contentHash).not.toBe(hashBefore);
+
+      // Nothing left to suggest, and a forged id can't move anything.
+      const afterRes = await judgeApp.fetch(
+        req("GET", `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}`),
+      );
+      const after = (await afterRes.json()) as { zoneSuggestions: unknown[] };
+      expect(after.zoneSuggestions).toHaveLength(0);
+
+      const unitCard = cards.find((card) => card.id !== suggestion.cardId)!;
+      const forged = await judgeApp.fetch(
+        req(
+          "POST",
+          `/friend-groups/${GROUP_SLUG}/checks/${eventId}/entries/${entry!.id}/zone-fixes`,
+          {
+            cardIds: [unitCard.id],
+          },
+        ),
+      );
+      expect(forged.status).toBe(200);
+      const afterForge = await repos.deckCheck.listCardsForEntry(entry!.id);
+      expect(afterForge.find((card) => card.id === unitCard.id)?.zone).toBe("main");
     });
   });
 

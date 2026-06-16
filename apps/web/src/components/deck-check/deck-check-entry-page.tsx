@@ -25,6 +25,7 @@ import {
   TriangleAlertIcon,
   UndoIcon,
   Unlink2Icon,
+  WandSparklesIcon,
   XIcon,
 } from "lucide-react";
 import { useRef, useState } from "react";
@@ -74,6 +75,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useCards } from "@/hooks/use-cards";
 import {
   useAddDeckCheckCard,
+  useApplyDeckCheckZoneFixes,
   useDeckCheckAccountSearch,
   useDeckCheckEntry,
   useDeleteDeckCheckEntry,
@@ -1046,15 +1048,36 @@ function FixCardDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const { zoneOrder, zoneLabels } = useZoneOrder();
   const [name, setName] = useState(card.rawName);
+  const [section, setSection] = useState<string>(card.zone);
+  const [copies, setCopies] = useState(String(card.quantity));
   const fixCard = useFixDeckCheckCard();
+
+  const zoneChanged = section !== card.zone;
+  // Only a multi-copy line moving to a different zone can be split.
+  const splittable = zoneChanged && card.quantity > 1;
+  const parsedCopies = Number(copies);
+  const copiesValid =
+    !splittable ||
+    (Number.isInteger(parsedCopies) && parsedCopies >= 1 && parsedCopies <= card.quantity);
 
   const handleSave = async () => {
     const trimmed = name.trim();
-    if (!trimmed) {
+    if (!trimmed || !copiesValid) {
       return;
     }
-    await fixCard.mutateAsync({ slug, eventId, entryId, cardId: card.id, name: trimmed });
+    await fixCard.mutateAsync({
+      slug,
+      eventId,
+      entryId,
+      cardId: card.id,
+      name: trimmed,
+      // Only sent when the judge actually moved the card, so a name-only fix
+      // leaves the original provider section string untouched.
+      section: zoneChanged ? section : undefined,
+      copies: splittable ? parsedCopies : undefined,
+    });
     onOpenChange(false);
   };
 
@@ -1064,37 +1087,85 @@ function FixCardDialog({
       onOpenChange={(nextOpen) => {
         if (nextOpen) {
           setName(card.rawName);
+          setSection(card.zone);
+          setCopies(String(card.quantity));
         }
         onOpenChange(nextOpen);
       }}
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Fix card name</DialogTitle>
+          <DialogTitle>Fix card</DialogTitle>
           <DialogDescription>
-            Correct the submitted name; the card is matched against the catalog again. Zone, copies,
-            and ticks stay.
+            Correct the submitted name or move the card to the right zone. The name is matched
+            against the catalog again; ticks stay.
           </DialogDescription>
         </DialogHeader>
-        {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- keydown only relays Enter from the combobox input to the dialog's submit */}
-        <div
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.defaultPrevented) {
-              void handleSave();
-            }
-          }}
-        >
-          <CardNameSearchField
-            key={String(open)}
-            initialName={card.rawName}
-            onNameChange={setName}
-          />
+        <div className="flex flex-col gap-4">
+          {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- keydown only relays Enter from the combobox input to the dialog's submit */}
+          <div
+            className="flex flex-col gap-1.5"
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.defaultPrevented) {
+                void handleSave();
+              }
+            }}
+          >
+            <Label>Card name</Label>
+            <CardNameSearchField
+              key={String(open)}
+              initialName={card.rawName}
+              onNameChange={setName}
+            />
+          </div>
+          <div className="flex gap-3">
+            <div className="flex flex-1 flex-col gap-1.5">
+              <Label>Zone</Label>
+              <Select value={section} onValueChange={(value) => setSection(value ?? card.zone)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {(value: string) => zoneLabels[value as never] ?? value}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {zoneOrder.map((zone) => (
+                    <SelectItem key={zone} value={zone}>
+                      {zoneLabels[zone]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {splittable ? (
+              <div className="flex w-28 flex-col gap-1.5">
+                <Label htmlFor="deck-check-fix-copies">Copies to move</Label>
+                <Input
+                  id="deck-check-fix-copies"
+                  inputMode="numeric"
+                  value={copies}
+                  onChange={(event) => setCopies(event.target.value.replaceAll(/[^0-9]/gu, ""))}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      void handleSave();
+                    }
+                  }}
+                />
+              </div>
+            ) : null}
+          </div>
+          {splittable ? (
+            <p className="text-muted-foreground text-sm">
+              {parsedCopies >= card.quantity
+                ? `Moves all ${card.quantity} copies to ${zoneLabels[section as never] ?? section}.`
+                : `Moves ${copiesValid ? parsedCopies : "?"} of ${card.quantity} copies; the rest stay in ${zoneLabels[card.zone]}.`}
+            </p>
+          ) : null}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={fixCard.isPending || !name.trim()}>
+          <Button onClick={handleSave} disabled={fixCard.isPending || !name.trim() || !copiesValid}>
             {fixCard.isPending ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>
@@ -1247,8 +1318,13 @@ function FindingsBanner({
   onResolved: () => void;
 }) {
   const reResolve = useReResolveDeckCheckEvent();
+  const [fixZonesOpen, setFixZonesOpen] = useState(false);
   const unmatched = detail.cards.filter((card) => card.matchStatus !== "matched");
-  if (detail.violations.length === 0 && unmatched.length === 0) {
+  const suggestions = detail.zoneSuggestions;
+  // Moving cards is only allowed while the list is editable (submitted), the same
+  // gate the per-card pencil and the Add card button use.
+  const canFixZones = suggestions.length > 0 && detail.entry.state === "submitted";
+  if (detail.violations.length === 0 && unmatched.length === 0 && suggestions.length === 0) {
     return null;
   }
   return (
@@ -1261,34 +1337,148 @@ function FindingsBanner({
             the catalog and cannot be validated.
           </li>
         ) : null}
+        {suggestions.length > 0 ? (
+          <li>
+            {suggestions.length} {suggestions.length === 1 ? "card looks" : "cards look"} mis-zoned
+            — their type belongs in a different zone than the import put them in.
+          </li>
+        ) : null}
         {detail.violations.map((violation) => (
           <li key={`${violation.zone}:${violation.code}:${violation.cardId ?? ""}`}>
             {violation.message}
           </li>
         ))}
       </ul>
-      {unmatched.length > 0 ? (
-        <Button
-          size="sm"
-          variant="outline"
-          className="self-start"
-          disabled={reResolve.isPending}
-          title="Try matching the unidentified cards against the catalog again, e.g. after a catalog fix"
-          onClick={async () => {
-            const result = await reResolve.mutateAsync({ slug, eventId });
-            toast.info(
-              result.updatedLines === 0
-                ? "No new matches found"
-                : `${result.updatedLines} ${result.updatedLines === 1 ? "line" : "lines"} now resolve`,
-            );
-            onResolved();
-          }}
-        >
-          <RefreshCwIcon className="size-4" />
-          Re-resolve cards
-        </Button>
+      <div className="flex flex-wrap gap-2">
+        {unmatched.length > 0 ? (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={reResolve.isPending}
+            title="Try matching the unidentified cards against the catalog again, e.g. after a catalog fix"
+            onClick={async () => {
+              const result = await reResolve.mutateAsync({ slug, eventId });
+              toast.info(
+                result.updatedLines === 0
+                  ? "No new matches found"
+                  : `${result.updatedLines} ${result.updatedLines === 1 ? "line" : "lines"} now resolve`,
+              );
+              onResolved();
+            }}
+          >
+            <RefreshCwIcon className="size-4" />
+            Re-resolve cards
+          </Button>
+        ) : null}
+        {canFixZones ? (
+          <Button size="sm" variant="outline" onClick={() => setFixZonesOpen(true)}>
+            <WandSparklesIcon className="size-4" />
+            Fix zones
+          </Button>
+        ) : null}
+      </div>
+      {canFixZones ? (
+        <FixZonesDialog
+          slug={slug}
+          eventId={eventId}
+          entryId={detail.entry.id}
+          suggestions={suggestions}
+          open={fixZonesOpen}
+          onOpenChange={setFixZonesOpen}
+        />
       ) : null}
     </div>
+  );
+}
+
+function FixZonesDialog({
+  slug,
+  eventId,
+  entryId,
+  suggestions,
+  open,
+  onOpenChange,
+}: {
+  slug: string;
+  eventId: string;
+  entryId: string;
+  suggestions: DeckCheckEntryDetailResponse["zoneSuggestions"];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { zoneLabels } = useZoneOrder();
+  const applyZoneFixes = useApplyDeckCheckZoneFixes();
+  // Every suggestion starts selected; a judge unticks any move that is
+  // deliberate (e.g. a custom format that parks a card in a non-standard zone).
+  const [selected, setSelected] = useState<Set<string>>(
+    () => new Set(suggestions.map((suggestion) => suggestion.cardId)),
+  );
+
+  const handleApply = async () => {
+    const cardIds = suggestions
+      .map((suggestion) => suggestion.cardId)
+      .filter((cardId) => selected.has(cardId));
+    if (cardIds.length === 0) {
+      return;
+    }
+    await applyZoneFixes.mutateAsync({ slug, eventId, entryId, cardIds });
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (nextOpen) {
+          setSelected(new Set(suggestions.map((suggestion) => suggestion.cardId)));
+        }
+        onOpenChange(nextOpen);
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Fix card zones</DialogTitle>
+          <DialogDescription>
+            Based on their type, these cards belong in a different zone than the import put them in.
+            Untick any that are intentional, then apply the rest.
+          </DialogDescription>
+        </DialogHeader>
+        <ul className="flex flex-col gap-2">
+          {suggestions.map((suggestion) => (
+            <li key={suggestion.cardId}>
+              <Label className="hover:bg-muted/40 flex items-center gap-3 rounded-md p-2">
+                <Checkbox
+                  checked={selected.has(suggestion.cardId)}
+                  onCheckedChange={(checked: boolean) =>
+                    setSelected((prev) => {
+                      const next = new Set(prev);
+                      if (checked) {
+                        next.add(suggestion.cardId);
+                      } else {
+                        next.delete(suggestion.cardId);
+                      }
+                      return next;
+                    })
+                  }
+                />
+                <span className="min-w-0 flex-1 truncate font-normal">{suggestion.cardName}</span>
+                <span className="text-muted-foreground shrink-0 text-sm">
+                  {zoneLabels[suggestion.currentZone]} → {zoneLabels[suggestion.suggestedZone]}
+                </span>
+              </Label>
+            </li>
+          ))}
+        </ul>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleApply} disabled={applyZoneFixes.isPending || selected.size === 0}>
+            {applyZoneFixes.isPending ? "Applying..." : `Move ${selected.size}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1773,26 +1963,22 @@ function ChecklistRow({
       </button>
       {locked ? null : (
         <div className="flex shrink-0 items-center gap-0.5 pr-1">
-          {matched ? null : (
-            <>
-              <button
-                type="button"
-                aria-label={`Fix the name of ${card.rawName}`}
-                className="text-muted-foreground hover:text-foreground rounded p-1"
-                onClick={() => setFixOpen(true)}
-              >
-                <PencilIcon className="size-3.5" />
-              </button>
-              <FixCardDialog
-                slug={slug}
-                eventId={eventId}
-                entryId={entryId}
-                card={card}
-                open={fixOpen}
-                onOpenChange={setFixOpen}
-              />
-            </>
-          )}
+          <button
+            type="button"
+            aria-label={`Fix ${name}`}
+            className="text-muted-foreground hover:text-foreground rounded p-1"
+            onClick={() => setFixOpen(true)}
+          >
+            <PencilIcon className="size-3.5" />
+          </button>
+          <FixCardDialog
+            slug={slug}
+            eventId={eventId}
+            entryId={entryId}
+            card={card}
+            open={fixOpen}
+            onOpenChange={setFixOpen}
+          />
           <button
             type="button"
             aria-label={`Remove this copy of ${card.rawName}`}
@@ -1924,6 +2110,30 @@ function ChecklistCell({
     </>
   );
 
+  const fixAffordance = locked ? null : (
+    <>
+      <button
+        type="button"
+        aria-label={`Fix ${card.rawName}`}
+        className="bg-background/80 hover:text-foreground pointer-events-auto absolute top-1 right-8 z-20 rounded-full p-1 shadow-sm"
+        onClick={(event) => {
+          event.stopPropagation();
+          setFixOpen(true);
+        }}
+      >
+        <PencilIcon className="size-3.5" />
+      </button>
+      <FixCardDialog
+        slug={slug}
+        eventId={eventId}
+        entryId={entryId}
+        card={card}
+        open={fixOpen}
+        onOpenChange={setFixOpen}
+      />
+    </>
+  );
+
   const printing = card.resolvedPrintingId
     ? allPrintings.find((candidate) => candidate.id === card.resolvedPrintingId)
     : undefined;
@@ -1941,29 +2151,7 @@ function ChecklistCell({
             {card.matchStatus === "ambiguous" ? "Several matches" : "Not in catalog"}
           </span>
         </button>
-        {locked ? null : (
-          <>
-            <button
-              type="button"
-              aria-label={`Fix the name of ${card.rawName}`}
-              className="bg-background/80 hover:text-foreground pointer-events-auto absolute top-1 right-8 z-20 rounded-full p-1 shadow-sm"
-              onClick={(event) => {
-                event.stopPropagation();
-                setFixOpen(true);
-              }}
-            >
-              <PencilIcon className="size-3.5" />
-            </button>
-            <FixCardDialog
-              slug={slug}
-              eventId={eventId}
-              entryId={entryId}
-              card={card}
-              open={fixOpen}
-              onOpenChange={setFixOpen}
-            />
-          </>
-        )}
+        {fixAffordance}
         {foundOverlay}
         {removeAffordance}
       </div>
@@ -1980,6 +2168,7 @@ function ChecklistCell({
       leftOverlay={
         <>
           {foundOverlay}
+          {fixAffordance}
           {removeAffordance}
         </>
       }

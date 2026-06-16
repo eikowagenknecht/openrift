@@ -23,6 +23,7 @@ import {
 } from "@openrift/shared/response-schemas";
 import {
   addDeckCheckCardSchema,
+  applyDeckCheckZoneFixesSchema,
   createDeckCheckEntrySchema,
   createDeckCheckEventSchema,
   deckCheckAccountSearchSchema,
@@ -59,6 +60,7 @@ import type {
 } from "../../repositories/deck-check.js";
 import {
   buildEntryAdvisories,
+  computeZoneSuggestions,
   toDeckCheckEntryCardResponse,
 } from "../../services/deck-check-advisories.js";
 import {
@@ -205,7 +207,7 @@ async function buildEntryDetail(
   ]);
   const advisories = listVisible
     ? await buildEntryAdvisories(repos, event, cards)
-    : { violations: [], typeCounts: [], domainDistribution: [] };
+    : { violations: [], typeCounts: [], domainDistribution: [], zoneSuggestions: [] };
 
   return {
     event: toEventSummary(event),
@@ -508,12 +510,39 @@ const renameCard = createRoute({
   tags: ["Deck Check"],
   security: cookieAuth,
   description:
-    "On-site repair: corrects a card line's name (typo fix) and re-resolves it " +
-    "against the catalog (judge+). Zone, quantity, and found ticks stay.",
+    "On-site repair: corrects a card line's name (typo fix, re-resolved against " +
+    "the catalog) and optionally moves it to a different zone (judge+). Quantity " +
+    "and found ticks stay.",
   request: {
     params: deckCheckEntryCardParamSchema,
     body: {
       content: { "application/json": { schema: updateDeckCheckCardSchema } },
+      required: true,
+    },
+  },
+  responses: {
+    200: {
+      content: { "application/json": { schema: deckCheckEntryDetailResponseSchema } },
+      description: "Updated checker payload",
+    },
+    ...errorResponses(400, 401, 403, 404, 422),
+  },
+});
+
+const applyZoneFixes = createRoute({
+  method: "post",
+  path: "/friend-groups/{slug}/checks/{eventId}/entries/{entryId}/zone-fixes",
+  tags: ["Deck Check"],
+  security: cookieAuth,
+  description:
+    "On-site repair: moves the named type-locked cards (Legend / Rune / " +
+    "Battlefield) into their correct zone (judge+). The server re-derives each " +
+    "target zone, so only the suggested moves are ever applied. Recomputes the " +
+    "entry's content hash.",
+  request: {
+    params: deckCheckEntryParamSchema,
+    body: {
+      content: { "application/json": { schema: applyDeckCheckZoneFixesSchema } },
       required: true,
     },
   },
@@ -987,18 +1016,83 @@ export const deckCheckRoute = deckCheckApp
     const entry = await loadEntry(repos, event, entryId);
     requireListVisible(entry);
 
-    const { name } = c.req.valid("json");
+    const { name, section, copies } = c.req.valid("json");
     const resolutions = await repos.deckCheck.resolveCards([{ name }]);
     const resolution = resolutions.get(cardResolutionKey(name)) ?? {
       resolvedCardId: null,
       resolvedPrintingId: null,
       matchStatus: "unmatched" as const,
     };
-    const updated = await repos.deckCheck.updateCardName(entry.id, cardId, name, resolution);
+
+    let updated: boolean;
+    if (section === undefined) {
+      // No zone change: a plain name (typo) fix on the whole line.
+      updated = await repos.deckCheck.updateCardName(entry.id, cardId, name, resolution);
+    } else {
+      const zone = mapSectionToZone(section);
+      if (!zone) {
+        throw new AppError(422, ERROR_CODES.VALIDATION_ERROR, `Unknown deck section: ${section}`);
+      }
+      // Zone change: move all or some copies, splitting the line when fewer.
+      updated = await repos.deckCheck.moveCardCopies(entry.id, cardId, {
+        name,
+        resolution,
+        section,
+        zone,
+        copies,
+      });
+    }
     if (!updated) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Card not found");
     }
     await recomputeEntryHash(repos, entry.id);
+    const reloaded = await loadEntry(repos, event, entryId);
+    return c.json(await buildEntryDetail(repos, event, reloaded), 200);
+  })
+
+  .openapi(applyZoneFixes, async (c) => {
+    const repos = c.get("repos");
+    const { slug, eventId, entryId } = c.req.valid("param");
+    const ctx = await loadGroupForMember(repos, slug, getUserId(c));
+    requireRole(ctx.membership, "judge");
+    const event = await loadEvent(repos, ctx.group.id, eventId);
+    const entry = await loadEntry(repos, event, entryId);
+    requireListVisible(entry);
+
+    const { cardIds } = c.req.valid("json");
+    // Re-derive the suggestions server-side: the client only names which cards
+    // to move, never the destination, so a stale or forged id can't push a card
+    // into an arbitrary zone — only a currently-suggested move is applied.
+    const cards = await repos.deckCheck.listCardsForEntry(entry.id);
+    const matchedIds = [
+      ...new Set(
+        cards.flatMap((card) =>
+          card.matchStatus === "matched" && card.resolvedCardId ? [card.resolvedCardId] : [],
+        ),
+      ),
+    ];
+    const details = await repos.deckCheck.getCardDetails(matchedIds);
+    const suggestionById = new Map(
+      computeZoneSuggestions(cards, details).map((suggestion) => [suggestion.cardId, suggestion]),
+    );
+
+    let applied = 0;
+    for (const cardId of new Set(cardIds)) {
+      const suggestion = suggestionById.get(cardId);
+      if (!suggestion) {
+        continue;
+      }
+      await repos.deckCheck.updateCardZone(
+        entry.id,
+        cardId,
+        suggestion.suggestedZone,
+        suggestion.suggestedZone,
+      );
+      applied += 1;
+    }
+    if (applied > 0) {
+      await recomputeEntryHash(repos, entry.id);
+    }
     const reloaded = await loadEntry(repos, event, entryId);
     return c.json(await buildEntryDetail(repos, event, reloaded), 200);
   })

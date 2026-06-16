@@ -274,6 +274,7 @@ export type {
   PodTournamentSummaryResponse,
   ListGroupSharesResponse,
   CollectionGroupSharesResponse,
+  ZoneSuggestion,
 } from "./api/index.js";
 
 export type {

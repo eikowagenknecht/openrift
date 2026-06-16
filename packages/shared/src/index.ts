@@ -253,6 +253,7 @@ export type {
   TradePreference,
   TradePricePref,
   TradeType,
+  ZoneSuggestion,
 } from "./types/index.js";
 export type { EnumOrders } from "./types/index.js";
 export {

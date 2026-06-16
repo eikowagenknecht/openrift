@@ -449,8 +449,15 @@ const addCardFn = createServerFn({ method: "POST" })
 
 const renameCardFn = createServerFn({ method: "POST" })
   .validator(
-    (input: { slug: string; eventId: string; entryId: string; cardId: string; name: string }) =>
-      input,
+    (input: {
+      slug: string;
+      eventId: string;
+      entryId: string;
+      cardId: string;
+      name: string;
+      section?: string;
+      copies?: number;
+    }) => input,
   )
   .middleware([withCookies])
   .handler(
@@ -465,9 +472,27 @@ const renameCardFn = createServerFn({ method: "POST" })
             entryId: data.entryId,
             cardId: data.cardId,
           }),
-          json: { name: data.name },
+          json: { name: data.name, section: data.section, copies: data.copies },
         }),
         "Couldn't fix the card",
+      ),
+  );
+
+const applyZoneFixesFn = createServerFn({ method: "POST" })
+  .validator(
+    (input: { slug: string; eventId: string; entryId: string; cardIds: string[] }) => input,
+  )
+  .middleware([withCookies])
+  .handler(
+    ({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[":eventId"].entries[
+          ":entryId"
+        ]["zone-fixes"].$post({
+          param: encodeParams({ slug: data.slug, eventId: data.eventId, entryId: data.entryId }),
+          json: { cardIds: data.cardIds },
+        }),
+        "Couldn't fix the card zones",
       ),
   );
 
@@ -726,6 +751,18 @@ export function useFixDeckCheckCard() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
     mutationFn: (vars: Parameters<typeof renameCardFn>[0]["data"]) => renameCardFn({ data: vars }),
+    invalidates: (vars) => [
+      queryKeys.friendGroups.checkEvent(userId, vars.slug, vars.eventId),
+      queryKeys.friendGroups.checkEntry(userId, vars.slug, vars.eventId, vars.entryId),
+    ],
+  });
+}
+
+export function useApplyDeckCheckZoneFixes() {
+  const userId = useRequiredUserId();
+  return useMutationWithInvalidation({
+    mutationFn: (vars: Parameters<typeof applyZoneFixesFn>[0]["data"]) =>
+      applyZoneFixesFn({ data: vars }),
     invalidates: (vars) => [
       queryKeys.friendGroups.checkEvent(userId, vars.slug, vars.eventId),
       queryKeys.friendGroups.checkEntry(userId, vars.slug, vars.eventId, vars.entryId),

@@ -1,4 +1,4 @@
-import { validateDeck, WellKnown } from "@openrift/shared";
+import { inferZone, validateDeck, WellKnown } from "@openrift/shared";
 import type {
   CardType,
   DeckCheckEntryCardResponse,
@@ -7,6 +7,7 @@ import type {
   DeckZone,
   Domain,
   SuperType,
+  ZoneSuggestion,
 } from "@openrift/shared";
 
 import type { Repos } from "../deps.js";
@@ -17,6 +18,8 @@ import type { DeckCheckEntryCard } from "../repositories/deck-check.js";
  * `deck_check_entry_cards` rows and by not-yet-persisted submission previews.
  */
 export interface AdvisoryCardLine {
+  /** The entry-card row id; only persisted lines carry one, preview lines don't. */
+  id?: string;
   rawName: string;
   zone: string;
   quantity: number;
@@ -28,6 +31,75 @@ export interface EntryAdvisories {
   violations: DeckViolation[];
   typeCounts: { cardType: CardType; count: number }[];
   domainDistribution: { domain: Domain; count: number }[];
+  zoneSuggestions: ZoneSuggestion[];
+}
+
+/** The card-detail shape {@link computeZoneSuggestions} reads, keyed by card id. */
+interface CardDetail {
+  name: string;
+  type: string;
+  superTypes: string[];
+}
+
+/**
+ * The zones that accept exactly one card type (Legend → legend, Rune → runes,
+ * Battlefield → battlefield). These are the only zones a card's type can be
+ * checked against, so they bound what {@link computeZoneSuggestions} will touch.
+ */
+const TYPE_LOCKED_ZONES = new Set<string>([
+  WellKnown.deckZone.LEGEND,
+  WellKnown.deckZone.RUNES,
+  WellKnown.deckZone.BATTLEFIELD,
+]);
+
+/**
+ * Finds resolved lines that are mis-zoned relative to a type-locked zone, in
+ * either direction:
+ *  - a Legend / Rune / Battlefield sitting outside its zone (e.g. a Rune dumped
+ *    in main) → move it into that zone, and
+ *  - any card sitting inside a type-locked zone it doesn't belong to (e.g. a
+ *    Spell parked in battlefield) → move it back to main.
+ *
+ * A move is only suggested when it involves a type-locked zone (as origin or
+ * destination). Moves among the non-locked zones — a Unit in main vs sideboard
+ * vs champion vs overflow — are a deckbuilding choice, never derivable from the
+ * card type, so they're left alone: a custom-format deck is never auto-corrected,
+ * only flagged for the judge to confirm.
+ *
+ * @returns One suggestion per mis-zoned line; empty when all are placed right.
+ */
+export function computeZoneSuggestions(
+  cards: AdvisoryCardLine[],
+  details: Map<string, CardDetail>,
+): ZoneSuggestion[] {
+  const suggestions: ZoneSuggestion[] = [];
+  for (const card of cards) {
+    if (!card.id || card.matchStatus !== "matched" || !card.resolvedCardId) {
+      continue;
+    }
+    const detail = details.get(card.resolvedCardId);
+    if (!detail) {
+      continue;
+    }
+    const suggestedZone = inferZone(
+      detail.type as CardType,
+      detail.superTypes as SuperType[],
+      "mainDeck",
+    );
+    if (suggestedZone === card.zone) {
+      continue;
+    }
+    if (!TYPE_LOCKED_ZONES.has(suggestedZone) && !TYPE_LOCKED_ZONES.has(card.zone)) {
+      continue;
+    }
+    suggestions.push({
+      cardId: card.id,
+      cardName: detail.name,
+      currentZone: card.zone as DeckZone,
+      suggestedZone,
+    });
+  }
+  return suggestions;
 }
 
 /**
@@ -155,5 +227,6 @@ export async function buildEntryAdvisories(
       .map((row) => row.slug)
       .filter((domain) => domainCountMap.has(domain))
       .map((domain) => ({ domain: domain as Domain, count: domainCountMap.get(domain) ?? 0 })),
+    zoneSuggestions: computeZoneSuggestions(cards, details),
   };
 }

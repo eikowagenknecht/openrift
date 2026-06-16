@@ -1924,6 +1924,14 @@ export const deckCheckEntryDetailResponseSchema = z
     domainDistribution: z.array(
       z.object({ domain: z.string(), count: z.number().int().nonnegative() }),
     ),
+    zoneSuggestions: z.array(
+      z.object({
+        cardId: z.string(),
+        cardName: z.string(),
+        currentZone: deckZoneSchema,
+        suggestedZone: deckZoneSchema,
+      }),
+    ),
   })
   .openapi("DeckCheckEntryDetailResponse");
 

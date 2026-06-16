@@ -716,12 +716,33 @@ export const updateDeckCheckEntrySchema = z.object({
 
 export const updateDeckCheckCardSchema = z.object({
   name: z.string().min(1).max(300),
+  /**
+   * Optional zone correction. A provider's free-text section string, mapped to a
+   * deck zone server-side exactly like an added card; omitted leaves the zone as-is.
+   */
+  section: z.string().min(1).max(50).optional(),
+  /**
+   * How many copies to move when `section` changes the zone. Omitted (or >= the
+   * line's quantity) moves the whole line; fewer splits it, leaving the rest in
+   * place. Ignored without a zone change.
+   */
+  copies: z.number().int().min(1).max(99).optional(),
 });
 
 export const addDeckCheckCardSchema = z.object({
   name: z.string().min(1).max(300),
   quantity: z.number().int().min(1).max(99),
   section: z.string().min(1).max(50),
+});
+
+/**
+ * A judge confirming which of the suggested zone corrections to apply. The
+ * server re-derives the target zone for each id, so the body only names the
+ * cards to move, never the destination — a deliberately mis-zoned card simply
+ * gets left out of the list.
+ */
+export const applyDeckCheckZoneFixesSchema = z.object({
+  cardIds: z.array(z.string()).min(1).max(DECK_CHECK_MAX_CARD_LINES_PER_ENTRY),
 });
 
 /**
