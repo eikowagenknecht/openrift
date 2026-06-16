@@ -108,7 +108,7 @@ function ShareYourListsPrompt({ slug }: { slug: string }) {
         <Link to="/collections" className="text-foreground underline underline-offset-4">
           Create one
         </Link>{" "}
-        and it will be visible to this group automatically.
+        and then share it with this group to start finding trades.
       </p>
     );
   }

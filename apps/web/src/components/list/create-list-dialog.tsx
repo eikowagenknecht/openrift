@@ -17,11 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  useFriendGroupsList,
-  useShareListWithFriendGroup,
-  useUnshareListFromFriendGroup,
-} from "@/hooks/use-friend-groups";
+import { useFriendGroupsList, useShareListWithFriendGroup } from "@/hooks/use-friend-groups";
 import { useBulkAddListEntries, useCreateList } from "@/hooks/use-lists";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -158,15 +154,14 @@ export function CreateListDialog({
   const defaultCurrency = useDisplayStore((s) => s.defaultCurrency);
   const [tradeDefaults, setTradeDefaults] = useState<TradePreference>(EMPTY_TRADE_PREFERENCE);
   const [currency, setCurrency] = useState<Currency>(defaultCurrency);
-  // Tracks groups the user has *unchecked*. Defaulting to an empty set means
-  // every group is selected on open, which nudges sharing without forcing it.
-  const [deselectedGroupIds, setDeselectedGroupIds] = useState<Set<string>>(new Set());
+  // Tracks groups the user has explicitly opted into. Defaulting to an empty
+  // set means a new list starts private — the user checks a group to share it.
+  const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
   // Trade preferences are secondary, so the section starts collapsed.
   const [tradePrefsOpen, setTradePrefsOpen] = useState(false);
   const createList = useCreateList();
   const bulkAdd = useBulkAddListEntries();
   const shareWithGroup = useShareListWithFriendGroup();
-  const unshareFromGroup = useUnshareListFromFriendGroup();
   // Only fetched while the dialog is open; non-suspending so it never blocks
   // the rest of the dialog from rendering.
   const groups = useFriendGroupsList(open).data?.items ?? [];
@@ -182,7 +177,7 @@ export function CreateListDialog({
       setKind(availableKinds[0] ?? "card");
       setTradeDefaults(EMPTY_TRADE_PREFERENCE);
       setCurrency(defaultCurrency);
-      setDeselectedGroupIds(new Set());
+      setSelectedGroupIds(new Set());
       setTradePrefsOpen(false);
     }
     onOpenChange(next);
@@ -195,7 +190,6 @@ export function CreateListDialog({
       createList.isPending ||
       bulkAdd.isPending ||
       shareWithGroup.isPending ||
-      unshareFromGroup.isPending ||
       absoluteNeedsAmount
     ) {
       return;
@@ -217,27 +211,16 @@ export function CreateListDialog({
           if (entries.length > 0) {
             await bulkAdd.mutateAsync({ listId: list.id, entries });
           }
-          // Group visibility is opt-out for wish/trade lists (ADR-013
-          // amendment): the API already shared the new list with every
-          // group, so unchecked groups need an explicit unshare. Organize
-          // lists stay opt-in and share only the checked groups. A failure
-          // doesn't block creation — visibility can be fixed later from the
-          // list's share dialog.
-          if (intent === "organize") {
-            const selectedGroups = groups.filter((group) => !deselectedGroupIds.has(group.id));
-            await Promise.allSettled(
-              selectedGroups.map((group) =>
-                shareWithGroup.mutateAsync({ slug: group.slug, listId: list.id }),
-              ),
-            );
-          } else {
-            const deselectedGroups = groups.filter((group) => deselectedGroupIds.has(group.id));
-            await Promise.allSettled(
-              deselectedGroups.map((group) =>
-                unshareFromGroup.mutateAsync({ slug: group.slug, listId: list.id }),
-              ),
-            );
-          }
+          // Group visibility is opt-in (ADR-013): the API creates every list
+          // private, so we only share it with the groups the user checked. A
+          // failure doesn't block creation — visibility can be fixed later from
+          // the list's share dialog.
+          const selectedGroups = groups.filter((group) => selectedGroupIds.has(group.id));
+          await Promise.allSettled(
+            selectedGroups.map((group) =>
+              shareWithGroup.mutateAsync({ slug: group.slug, listId: list.id }),
+            ),
+          );
           onCreated?.(list.id);
           handleOpenChange(false);
         },
@@ -325,7 +308,7 @@ export function CreateListDialog({
               <ul className="flex flex-col gap-2">
                 {groups.map((group) => {
                   const checkboxId = `create-list-group-${group.id}`;
-                  const isSelected = !deselectedGroupIds.has(group.id);
+                  const isSelected = selectedGroupIds.has(group.id);
                   return (
                     <li key={group.id} className="flex items-center gap-2">
                       <Checkbox
@@ -333,12 +316,12 @@ export function CreateListDialog({
                         checked={isSelected}
                         disabled={createList.isPending || bulkAdd.isPending}
                         onCheckedChange={(checked) => {
-                          setDeselectedGroupIds((prev) => {
+                          setSelectedGroupIds((prev) => {
                             const next = new Set(prev);
                             if (checked === false) {
-                              next.add(group.id);
-                            } else {
                               next.delete(group.id);
+                            } else {
+                              next.add(group.id);
                             }
                             return next;
                           });
@@ -389,12 +372,7 @@ export function CreateListDialog({
               type="button"
               variant="ghost"
               onClick={() => handleOpenChange(false)}
-              disabled={
-                createList.isPending ||
-                bulkAdd.isPending ||
-                shareWithGroup.isPending ||
-                unshareFromGroup.isPending
-              }
+              disabled={createList.isPending || bulkAdd.isPending || shareWithGroup.isPending}
             >
               Cancel
             </Button>
@@ -405,7 +383,6 @@ export function CreateListDialog({
                 createList.isPending ||
                 bulkAdd.isPending ||
                 shareWithGroup.isPending ||
-                unshareFromGroup.isPending ||
                 absoluteNeedsAmount
               }
             >

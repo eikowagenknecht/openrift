@@ -2,6 +2,8 @@
 
 ## 2026-06-16
 
+- feat: Lists now stay private until you choose to share them — a new list starts with every group unchecked, and joining a group no longer makes your existing lists visible to it automatically. You pick which groups can see each list
+- feat: When you create a group or accept an invite to one, you're asked which of your wishlists and tradelists to share with it, so trades can start right away
 - feat: The button for choosing which filters to show now stays out of the way and appears when you hover over the filter panel
 - feat: The collection sidebar now runs the full height of the window, so your lists and folders stay in view as you scroll the cards
 - feat: When a tournament tool imports a deck with cards in the wrong zone, the checker now flags the mis-zoned cards and lets a judge move them all to the right zone in one step, while reviewing each move so a deliberately unusual deck is left alone
@@ -40,7 +42,7 @@
 - feat: Group actions now live where they act: admins get an Invite button on the Members tab that copies the group's invite link straight to the clipboard, and the Shared tab lists your own shares first with a "Share more" button next to your name
 - feat: In the deck checker, a zone whose cards are all found now shows its count in green with a check, so you can see at a glance which zones are fully accounted for
 - feat: The deck checker now offers a compact list view alongside the card grid: a scannable row for each copy with a tick-off checkbox, and the full card image on hover. Switch between grid and list from the toolbar
-- feat: Wishlists and trade lists are now visible to your groups automatically, so trade matches show up without anyone having to find the share step first. This also applies to lists and groups that already exist. You can still hide any list from a group, or from all groups, with the new visibility control in the list's Share dialog
+- feat: A new visibility control in each list's Share dialog lets you choose which groups can see a wishlist or trade list — all of them, a few, or none — so members can find trade matches with you
 - feat: A wishlist or trade list now shows at the top whether your groups can see it, and a click takes you straight to the visibility control. The group's Trades page explains why no matches show up yet and lets you share a list right there, and the member list shows who isn't sharing any lists yet
 - feat: When checking a deck, you can now sort the cards by deck order, ID, or name, and choose how many cards show per row, to trade bigger, easier-to-read cards for fitting more on the screen
 - fix: When a deck holds the same card under several printings or list lines, rule warnings no longer show up twice for it, and copy limits now count all those copies together instead of missing the overage

@@ -232,66 +232,6 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     expect(target?.role).toBe("owner");
   });
 
-  it("shareMemberDefaultLists shares wish/trade lists, skips organize, and is idempotent", async () => {
-    const group = await createGroup(SELLER_ID);
-    await repo.addMember(group.id, OUTSIDER_ID, "member");
-
-    const wish = await createList(OUTSIDER_ID, "wish", "card");
-    const trade = await createList(OUTSIDER_ID, "trade", "copy");
-    const organize = await createList(OUTSIDER_ID, "organize", "card");
-
-    await repo.shareMemberDefaultLists(group.id, OUTSIDER_ID);
-
-    // Assert on specific list ids, not exact counts — earlier tests may have
-    // accumulated other wish/trade lists for this user that the default
-    // legitimately picks up too.
-    const shares = await repo.listSharesForGroup(group.id);
-    const sharedListIds = new Set(shares.map((row) => row.listId));
-    expect(sharedListIds.has(wish.id)).toBe(true);
-    expect(sharedListIds.has(trade.id)).toBe(true);
-    expect(sharedListIds.has(organize.id)).toBe(false);
-
-    // Idempotent: re-applying neither throws nor duplicates (PK would).
-    await repo.shareMemberDefaultLists(group.id, OUTSIDER_ID);
-    const after = await repo.listSharesForGroup(group.id);
-    expect(after.length).toBe(new Set(after.map((row) => row.listId)).size);
-  });
-
-  it("shareMemberDefaultLists does not resurrect a share into other groups after unshare", async () => {
-    const groupA = await createGroup(SELLER_ID);
-    const groupB = await createGroup(SELLER_ID);
-    const trade = await createList(SELLER_ID, "trade", "copy");
-
-    await repo.shareMemberDefaultLists(groupA.id, SELLER_ID);
-    await repo.shareMemberDefaultLists(groupB.id, SELLER_ID);
-    await repo.unshare(groupA.id, trade.id);
-
-    // Re-applying the default for B must not touch A's opt-out.
-    await repo.shareMemberDefaultLists(groupB.id, SELLER_ID);
-    const sharingRows = await repo.listGroupsSharingList(trade.id);
-    const groupsSharing = new Set(sharingRows.map((row) => row.groupId));
-    expect(groupsSharing.has(groupA.id)).toBe(false);
-    expect(groupsSharing.has(groupB.id)).toBe(true);
-  });
-
-  it("shareListWithMemberGroups shares one list into every group the owner is in", async () => {
-    const groupA = await createGroup(SELLER_ID);
-    const groupB = await createGroup(SELLER_ID);
-
-    const trade = await createList(SELLER_ID, "trade", "copy");
-    await repo.shareListWithMemberGroups(trade.id, SELLER_ID);
-
-    const sharingRows = await repo.listGroupsSharingList(trade.id);
-    const groupsSharing = new Set(sharingRows.map((row) => row.groupId));
-    expect(groupsSharing.has(groupA.id)).toBe(true);
-    expect(groupsSharing.has(groupB.id)).toBe(true);
-
-    // Idempotent second run.
-    await repo.shareListWithMemberGroups(trade.id, SELLER_ID);
-    const rows = await repo.listGroupsSharingList(trade.id);
-    expect(rows.length).toBe(new Set(rows.map((row) => row.groupId)).size);
-  });
-
   it("leave-cascade drops the user's shares for that group", async () => {
     const group = await createGroup(VIEWER_ID);
     await repo.addMember(group.id, SELLER_ID, "member");

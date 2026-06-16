@@ -80,8 +80,6 @@ function makeApp(overrides: {
     listGroupsSharingList: vi.fn(() => Promise.resolve([])),
     share: vi.fn(),
     unshare: vi.fn(),
-    shareMemberDefaultLists: vi.fn(),
-    shareListWithMemberGroups: vi.fn(),
     collectionSharesForGroup: vi.fn(() => Promise.resolve([])),
     collectionShareableForUserInGroup: vi.fn(() => Promise.resolve([])),
     groupsSharingCollection: vi.fn(() => Promise.resolve([])),
@@ -253,12 +251,10 @@ describe("friend-groups route", () => {
   // ── Create ──────────────────────────────────────────────────────────────
   it("POST / creates a group", async () => {
     const created = vi.fn(() => Promise.resolve(group));
-    const shareMemberDefaultLists = vi.fn();
     const { app } = makeApp({
       friendGroups: {
         getBySlug: vi.fn(() => Promise.resolve(undefined)),
         createWithOwner: created,
-        shareMemberDefaultLists,
       },
     });
     const res = await app.request("/api/v1/friend-groups", {
@@ -268,9 +264,6 @@ describe("friend-groups route", () => {
     });
     expect(res.status).toBe(201);
     expect(created).toHaveBeenCalledOnce();
-    // Opt-out default (amended ADR-013): the creator's wish/trade lists are
-    // shared with the new group.
-    expect(shareMemberDefaultLists).toHaveBeenCalledWith(group.id, USER_ID);
   });
 
   it("POST / rejects a duplicate slug with 409", async () => {
@@ -566,7 +559,6 @@ describe("friend-groups route", () => {
   it("POST /{slug}/invites/{userId}/accept adds the member and consumes the invite (204)", async () => {
     const addMember = vi.fn();
     const deleteInvite = vi.fn();
-    const shareMemberDefaultLists = vi.fn();
     const { app } = makeApp({
       friendGroups: {
         getBySlug: vi.fn(() => Promise.resolve(group)),
@@ -582,7 +574,6 @@ describe("friend-groups route", () => {
         ),
         addMember,
         deleteInvite,
-        shareMemberDefaultLists,
       },
     });
     const res = await app.request(`/api/v1/friend-groups/playgroup/invites/${USER_ID}/accept`, {
@@ -591,8 +582,6 @@ describe("friend-groups route", () => {
     expect(res.status).toBe(204);
     expect(addMember).toHaveBeenCalledWith(group.id, USER_ID, "member");
     expect(deleteInvite).toHaveBeenCalledWith(group.id, USER_ID);
-    // Opt-out default (amended ADR-013): joining shares wish/trade lists.
-    expect(shareMemberDefaultLists).toHaveBeenCalledWith(group.id, USER_ID);
   });
 
   it("POST /{slug}/invites/{userId}/accept on request requires admin/owner", async () => {

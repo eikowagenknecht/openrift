@@ -43,6 +43,7 @@ import { useRequiredUserId } from "@/lib/auth-session";
 import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
 import { SECTION_HEADING } from "./friend-group-shell";
+import { ShareListsWithGroupDialog } from "./share-lists-with-group-dialog";
 
 const ROLE_BADGE: Record<FriendGroupRole, { label: string; className: string }> = {
   owner: { label: "Owner", className: "bg-primary text-primary-foreground" },
@@ -54,11 +55,12 @@ const ROLE_BADGE: Record<FriendGroupRole, { label: string; className: string }> 
 function CreateGroupDialog({
   open,
   onOpenChange,
+  onCreated,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  onCreated: (group: { slug: string; name: string }) => void;
 }) {
-  const navigate = useNavigate();
   const createGroup = useCreateFriendGroup();
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
@@ -80,7 +82,9 @@ function CreateGroupDialog({
       generateCode,
     });
     onOpenChange(false);
-    void navigate({ to: "/groups/$slug", params: { slug: group.slug } });
+    // Hand off to the parent, which prompts the creator to share lists with
+    // their new group and then navigates into it.
+    onCreated({ slug: group.slug, name: name.trim() });
   }
 
   return (
@@ -160,7 +164,16 @@ export function GroupsIndexPage() {
   const actionCountByGroup = new Map(
     (actionCounts?.byGroup ?? []).map((entry) => [entry.groupId, entry.count]),
   );
+  const navigate = useNavigate();
   const [createOpen, setCreateOpen] = useState(false);
+  // Set right after a member joins a group (accepts an invite) or creates one,
+  // so we can prompt them to share their lists with it. `navigateOnClose` lands
+  // the creator inside their new group once the prompt is dismissed.
+  const [shareWithGroup, setShareWithGroup] = useState<{
+    slug: string;
+    name: string;
+    navigateOnClose: boolean;
+  } | null>(null);
   const acceptInvite = useAcceptFriendGroupInvite();
   const declineInvite = useDeclineFriendGroupInvite();
   const viewerId = useRequiredUserId();
@@ -176,7 +189,13 @@ export function GroupsIndexPage() {
               <PlusIcon className="size-4" />
               New group
             </PageTopBarPrimaryButton>
-            <CreateGroupDialog open={createOpen} onOpenChange={setCreateOpen} />
+            <CreateGroupDialog
+              open={createOpen}
+              onOpenChange={setCreateOpen}
+              onCreated={(group) =>
+                setShareWithGroup({ slug: group.slug, name: group.name, navigateOnClose: true })
+              }
+            />
           </PageTopBarActions>
         </PageTopBar>
       </PageTopBarSticky>
@@ -201,7 +220,17 @@ export function GroupsIndexPage() {
                       size="sm"
                       variant="outline"
                       onClick={() =>
-                        acceptInvite.mutate({ slug: invite.groupSlug, userId: viewerId })
+                        acceptInvite.mutate(
+                          { slug: invite.groupSlug, userId: viewerId },
+                          {
+                            onSuccess: () =>
+                              setShareWithGroup({
+                                slug: invite.groupSlug,
+                                name: invite.groupName,
+                                navigateOnClose: false,
+                              }),
+                          },
+                        )
                       }
                       disabled={acceptInvite.isPending}
                     >
@@ -329,6 +358,21 @@ export function GroupsIndexPage() {
           </div>
         )}
       </div>
+      {shareWithGroup && (
+        <ShareListsWithGroupDialog
+          slug={shareWithGroup.slug}
+          groupName={shareWithGroup.name}
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              if (shareWithGroup.navigateOnClose) {
+                void navigate({ to: "/groups/$slug", params: { slug: shareWithGroup.slug } });
+              }
+              setShareWithGroup(null);
+            }
+          }}
+        />
+      )}
     </>
   );
 }

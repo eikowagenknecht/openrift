@@ -211,10 +211,10 @@ const VISIBILITY_OPTIONS: { value: GroupVisibilityMode; label: string }[] = [
 ];
 
 /**
- * Group-visibility control for the share dialog. Wish/trade lists are visible
- * to all of the owner's groups by default (opt-out, ADR-013 amendment); this
- * derives the current mode from the share rows and lets the user switch to
- * "all", a per-group selection, or fully private in one click.
+ * Group-visibility control for the share dialog. Sharing is opt-in (ADR-013):
+ * a list is private until the owner shares it. This derives the current mode
+ * from the share rows and lets the user switch to "all", a per-group selection,
+ * or fully private in one click.
  * @returns The section, or `null` when the user has no groups.
  */
 function ListGroupShareSection({ listId, intent }: { listId: string; intent: ListIntent }) {
@@ -260,7 +260,7 @@ function ListGroupShareSection({ listId, intent }: { listId: string; intent: Lis
         <p className="text-muted-foreground text-sm">
           {intent === "organize"
             ? "Members of the selected groups can view this list while signed in."
-            : "Wishlists and tradelists are visible to your groups so members can find trades. Groups you join later will see this list too."}
+            : "Members of the groups you choose can view this list and find trades with you."}
         </p>
       </div>
       <RadioGroup

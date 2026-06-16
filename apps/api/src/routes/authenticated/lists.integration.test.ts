@@ -120,8 +120,7 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       expect(res.status).toBe(400);
     });
 
-    it("auto-shares a new wish list with the owner's groups, but not an organize list", async () => {
-      // Opt-out group visibility (amended ADR-013).
+    it("creates every new list private — no group is auto-shared (opt-in, ADR-013)", async () => {
       const repo = friendGroupsRepo(db);
       const group = await repo.createWithOwner(
         {
@@ -133,15 +132,15 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
         USER_ID,
       );
       try {
-        const wishId = await createList("Auto-shared wants", "wish", "card");
-        const organizeId = await createList("Not auto-shared binder", "organize", "card");
+        const wishId = await createList("Private wants", "wish", "card");
+        const organizeId = await createList("Private binder", "organize", "card");
 
         const shares = await repo.listSharesForGroup(group.id);
         const sharedListIds = new Set(shares.map((row) => row.listId));
-        expect(sharedListIds.has(wishId)).toBe(true);
+        expect(sharedListIds.has(wishId)).toBe(false);
         expect(sharedListIds.has(organizeId)).toBe(false);
       } finally {
-        // Cascade removes the share rows; lists are cleaned in afterAll.
+        // Lists are cleaned in afterAll.
         await db.deleteFrom("friendGroups").where("id", "=", group.id).execute();
       }
     });

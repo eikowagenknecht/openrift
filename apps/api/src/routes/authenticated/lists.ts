@@ -344,7 +344,7 @@ export const listsRoute = listsApp
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
   .openapi(createList, async (c) => {
-    const { lists, friendGroups } = c.get("repos");
+    const { lists } = c.get("repos");
     const userId = getUserId(c);
     const body = c.req.valid("json");
     // ADR-017: trade defaults only apply to wish/trade lists. The DB CHECK
@@ -362,11 +362,8 @@ export const listsRoute = listsApp
       defaultTradeType: tradeDefaults?.tradeType ?? null,
       currency: supportsPrefs ? (body.currency ?? null) : null,
     });
-    // Group visibility is opt-out (amended ADR-013): new wish/trade lists are
-    // shared with all of the owner's groups. Organize lists stay opt-in.
-    if (body.intent !== "organize") {
-      await friendGroups.shareListWithMemberGroups(row.id, userId);
-    }
+    // Group visibility is opt-in (ADR-013): a new list is private and the owner
+    // shares it with specific groups from the create dialog or the manage page.
     c.header("Location", `/api/v1/lists/${row.id}`);
     return c.json(toList(row), 201);
   })

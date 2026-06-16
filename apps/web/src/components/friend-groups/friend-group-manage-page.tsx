@@ -320,10 +320,8 @@ function ShareableListsPanel({ slug }: { slug: string }) {
       <CardHeader>
         <CardTitle className="text-base">Share your lists</CardTitle>
         <CardDescription>
-          Shared lists are visible to everyone in this group. Wishlists and tradelists are shared by
-          default so the group can find trades with you; switch one off here to hide it. Each list
-          is shared with each group separately, so changes here don&apos;t affect any other groups
-          you&apos;ve shared it with.
+          Shared lists are visible to everyone in this group. Changes here don&apos;t affect other
+          groups you are in.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
@@ -417,9 +415,8 @@ function ShareableCollectionsPanel({ slug }: { slug: string }) {
       <CardHeader>
         <CardTitle className="text-base">Share your collections</CardTitle>
         <CardDescription>
-          Shared collections are visible (read-only) to everyone in this group. Each collection is
-          shared with each group separately, so changes here don&apos;t affect any other groups
-          you&apos;ve shared it with.
+          Shared collections are visible (read-only) to everyone in this group. Changes here
+          don&apos;t affect other groups you are in.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">

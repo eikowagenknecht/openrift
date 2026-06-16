@@ -74,13 +74,13 @@ describe("CreateListDialog group sharing", () => {
     bulkAddMutateAsync.mockClear();
   });
 
-  it("checks every group by default", () => {
+  it("leaves every group unchecked by default", () => {
     render(<Harness />);
-    expect(screen.getByRole("checkbox", { name: "Alpha" })).toBeChecked();
-    expect(screen.getByRole("checkbox", { name: "Beta" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Alpha" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Beta" })).not.toBeChecked();
   });
 
-  it("makes no share calls for a wish list when every group stays checked (API default covers it)", async () => {
+  it("shares nothing for a wish list when the user opts into no group", async () => {
     const user = userEvent.setup();
     render(<Harness />);
 
@@ -92,30 +92,32 @@ describe("CreateListDialog group sharing", () => {
     expect(unshareMutateAsync).not.toHaveBeenCalled();
   });
 
-  it("unshares a group that the user unchecks on a wish list", async () => {
+  it("shares only the checked group on a wish list", async () => {
     const user = userEvent.setup();
     render(<Harness />);
 
-    await user.click(screen.getByRole("checkbox", { name: "Beta" }));
+    await user.click(screen.getByRole("checkbox", { name: "Alpha" }));
     await user.type(screen.getByPlaceholderText("List name"), "Wants");
     await user.click(screen.getByRole("button", { name: "Create" }));
 
-    await waitFor(() => expect(unshareMutateAsync).toHaveBeenCalledTimes(1));
-    expect(unshareMutateAsync).toHaveBeenCalledWith({ slug: "beta", listId: "new-list" });
-    expect(shareMutateAsync).not.toHaveBeenCalled();
+    await waitFor(() => expect(shareMutateAsync).toHaveBeenCalledTimes(1));
+    expect(shareMutateAsync).toHaveBeenCalledWith({ slug: "alpha", listId: "new-list" });
+    expect(unshareMutateAsync).not.toHaveBeenCalled();
   });
 
-  it("re-checking a group removes it from the unshare set", async () => {
+  it("unchecking a checked group leaves it unshared", async () => {
     const user = userEvent.setup();
     render(<Harness />);
 
+    await user.click(screen.getByRole("checkbox", { name: "Alpha" }));
     const beta = screen.getByRole("checkbox", { name: "Beta" });
     await user.click(beta);
     await user.click(beta);
     await user.type(screen.getByPlaceholderText("List name"), "Wants");
     await user.click(screen.getByRole("button", { name: "Create" }));
 
-    await waitFor(() => expect(createMutate).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(shareMutateAsync).toHaveBeenCalledTimes(1));
+    expect(shareMutateAsync).toHaveBeenCalledWith({ slug: "alpha", listId: "new-list" });
     expect(unshareMutateAsync).not.toHaveBeenCalled();
   });
 
@@ -123,7 +125,7 @@ describe("CreateListDialog group sharing", () => {
     const user = userEvent.setup();
     render(<Harness intent="organize" />);
 
-    await user.click(screen.getByRole("checkbox", { name: "Beta" }));
+    await user.click(screen.getByRole("checkbox", { name: "Alpha" }));
     await user.type(screen.getByPlaceholderText("List name"), "Binder");
     await user.click(screen.getByRole("button", { name: "Create" }));
 
