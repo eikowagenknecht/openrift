@@ -3,6 +3,7 @@
 ## 2026-06-16
 
 - feat: The deck checker can now sort cards by energy, ordering each zone by energy cost, then power, then name
+- fix: The deck-check overview now labels each entry's progress as "X / Y cards checked" instead of "cards found", matching the rest of the checker wording
 - fix: The deck-building help and zone hints now consistently call the single-champion zone "Chosen Champion" instead of just "Champion"
 - fix: When your session expires while you're using the app, you're now sent to the login page cleanly instead of the page freezing on an error
 - fix: When you request a password-reset code, the page now tells you if it couldn't be sent (too many tries, or an invalid email) instead of silently moving to the code step, and reminds you to check your spam folder if the email doesn't arrive

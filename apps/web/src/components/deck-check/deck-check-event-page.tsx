@@ -532,7 +532,7 @@ function EntryRow({
         <span className="text-muted-foreground text-sm">
           {entry.state === "editable"
             ? "List hidden while the player edits"
-            : `${entry.verifiedCopyCount} / ${entry.copyCount} cards found`}
+            : `${entry.verifiedCopyCount} / ${entry.copyCount} cards checked`}
           {entry.state === "checked" && entry.checkedByName
             ? ` · checked by ${entry.checkedByName}`
             : entry.state === "approved" && entry.approvedByName
