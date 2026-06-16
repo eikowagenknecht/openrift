@@ -66,6 +66,39 @@ describe("useSessionExpiredRedirect", () => {
     expect(navigateMock).toHaveBeenCalledTimes(1);
   });
 
+  it("redirects only once when the href changes as a result of navigating (SSR-1C loop)", () => {
+    sessionState.data = null;
+    const { rerender } = renderHook(() => useSessionExpiredRedirect());
+    expect(navigateMock).toHaveBeenCalledTimes(1);
+    expect(navigateMock).toHaveBeenCalledWith({
+      to: "/login",
+      search: { redirect: "/decks/abc", email: undefined },
+    });
+
+    // navigate() changes location.href; the effect must not re-fire on the
+    // href it just caused while the session is still gone, or it loops until
+    // React's nested-update cap ("Maximum update depth exceeded").
+    locationState.href = "/login?redirect=/decks/abc";
+    rerender();
+    locationState.href = "/login?redirect=/login";
+    rerender();
+
+    expect(navigateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("redirects again on a fresh expiry after the session comes back", () => {
+    sessionState.data = null;
+    const { rerender } = renderHook(() => useSessionExpiredRedirect());
+    expect(navigateMock).toHaveBeenCalledTimes(1);
+
+    sessionState.data = { user: { id: "user-1" } };
+    rerender();
+    sessionState.data = null;
+    rerender();
+
+    expect(navigateMock).toHaveBeenCalledTimes(2);
+  });
+
   it("omits the redirect param when the current href is empty", () => {
     sessionState.data = null;
     locationState.href = "";

@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import { useSession } from "@/lib/auth-session";
 
@@ -21,6 +21,15 @@ import { useSession } from "@/lib/auth-session";
  * ensured it by the time the layout mounts, so this is a non-state in
  * practice) and triggers nothing.
  *
+ * The redirect must fire exactly once per expiry. `navigate` itself changes
+ * `location.href`, so keeping `currentHref` in the effect deps re-runs the
+ * effect on the URL change it just caused, and — while this layout is still
+ * mounted during the router transition — re-navigates on the new href, which
+ * triggers another transition, and so on until React's nested-update limit
+ * trips ("Maximum update depth exceeded"). A ref guards against re-firing for
+ * the same expiry and is reset only when the session comes back, so `currentHref`
+ * is read fresh at the moment of expiry without driving the loop.
+ *
  * @returns Whether the session is gone and the redirect has been scheduled.
  */
 export function useSessionExpiredRedirect(): boolean {
@@ -29,13 +38,20 @@ export function useSessionExpiredRedirect(): boolean {
   const location = useLocation();
   const expired = session === null;
   const currentHref = location.href;
+  const redirectedRef = useRef(false);
   useEffect(() => {
-    if (expired) {
-      void navigate({
-        to: "/login",
-        search: { redirect: currentHref || undefined, email: undefined },
-      });
+    if (!expired) {
+      redirectedRef.current = false;
+      return;
     }
+    if (redirectedRef.current) {
+      return;
+    }
+    redirectedRef.current = true;
+    void navigate({
+      to: "/login",
+      search: { redirect: currentHref || undefined, email: undefined },
+    });
   }, [expired, navigate, currentHref]);
   return expired;
 }
