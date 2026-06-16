@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 
 const breakpoints = [
   { minWidth: 1920, cols: 8 },
@@ -27,7 +27,15 @@ const GAP = 16;
 const SSR_SAFE_COLUMNS = 2;
 
 export function useResponsiveColumns(maxColumns?: number | null) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  // Hold the measured node in state rather than a plain ref so the effect below
+  // re-runs when the element actually mounts. The container is often gated
+  // behind an async query — deck-check renders a "Loading…" placeholder first,
+  // so on a cold cache the node appears on a render *after* this hook first ran.
+  // A `useRef` would never notify us of that late mount, leaving columns frozen
+  // at the SSR fallback (the intermittent 2-column bug). The `useState` setter
+  // is referentially stable, so binding it directly as the ref callback doesn't
+  // re-attach on every render.
+  const [containerEl, setContainerEl] = useState<HTMLDivElement | null>(null);
   const [columns, setColumns] = useState(() =>
     maxColumns !== undefined && maxColumns !== null ? maxColumns : SSR_SAFE_COLUMNS,
   );
@@ -38,7 +46,7 @@ export function useResponsiveColumns(maxColumns?: number | null) {
   const [measured, setMeasured] = useState(false);
 
   useLayoutEffect(() => {
-    const el = containerRef.current;
+    const el = containerEl;
     if (!el) {
       return;
     }
@@ -100,10 +108,14 @@ export function useResponsiveColumns(maxColumns?: number | null) {
       cancelAnimationFrame(rafId);
       observer.disconnect();
     };
-  }, [maxColumns]);
+  }, [maxColumns, containerEl]);
 
   return {
-    containerRef,
+    containerRef: setContainerEl,
+    // The measured node itself, for consumers that need to read/observe the
+    // element (not just bind the ref). Depend on this rather than a ref's
+    // `.current` so their own effects also re-run when the node mounts late.
+    containerEl,
     columns,
     physicalMax,
     physicalMin,

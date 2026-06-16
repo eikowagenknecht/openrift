@@ -3,6 +3,7 @@
 ## 2026-06-16
 
 - feat: The deck checker can now sort cards by energy, ordering each zone by energy cost, then power, then name
+- fix: The deck-check card grid no longer sometimes opens stuck at two columns; sections now reliably show the column count you set
 - fix: The deck-check overview now labels each entry's progress as "X / Y cards checked" instead of "cards found", matching the rest of the checker wording
 - fix: Tournament deck and deck-check pages now show a loading placeholder shaped like the page while they open, instead of a stray "Loading…" sitting in the top-left corner
 - fix: The deck-building help and zone hints now consistently call the single-champion zone "Chosen Champion" instead of just "Champion"

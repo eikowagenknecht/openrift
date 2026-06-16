@@ -245,8 +245,15 @@ export function CardGrid({
   // ── Responsive column layout ─────────────────────────────────────
   // Measures the container and computes how many columns fit.
   // Writes physical min/max/auto back to the store for the column slider UI.
-  const { containerRef, columns, physicalMax, physicalMin, autoColumns, containerWidth } =
-    useResponsiveColumns(maxColumns);
+  const {
+    containerRef,
+    containerEl,
+    columns,
+    physicalMax,
+    physicalMin,
+    autoColumns,
+    containerWidth,
+  } = useResponsiveColumns(maxColumns);
 
   useLayoutEffect(() => {
     setPhysicalMax(physicalMax);
@@ -286,7 +293,7 @@ export function CardGrid({
   const [scrollMargin, setScrollMargin] = useState(() => cachedScrollMargin);
 
   useLayoutEffect(() => {
-    const el = containerRef.current;
+    const el = containerEl;
     if (!el) {
       return;
     }
@@ -302,7 +309,7 @@ export function CardGrid({
     const observer = new ResizeObserver(measure);
     observer.observe(document.body);
     return () => observer.disconnect();
-  }, [containerRef]);
+  }, [containerEl]);
 
   // ── Virtualizer ────────────────────────────────────────────────────
   const { virtualizer, virtualItems, totalSize } = useWindowVirtualizerFresh({
@@ -439,7 +446,7 @@ export function CardGrid({
         enabled={debugOverlayEnabled}
         virtualizer={virtualizer}
         virtualRows={virtualRows}
-        containerRef={containerRef}
+        containerWidth={containerWidth}
         columns={columns}
         labelHeight={labelHeight}
         estimateRowHeight={estimateRowHeight}

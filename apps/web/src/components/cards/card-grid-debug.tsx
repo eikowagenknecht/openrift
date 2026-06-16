@@ -17,7 +17,7 @@ interface CardGridDebugProps {
   enabled: boolean;
   virtualizer: Virtualizer<Window, Element>;
   virtualRows: VRow[];
-  containerRef: React.RefObject<HTMLDivElement | null>;
+  containerWidth: number;
   columns: number;
   labelHeight: number;
   estimateRowHeight: (index: number) => number;
@@ -83,7 +83,7 @@ export function CardGridDebug({
   enabled,
   virtualizer,
   virtualRows,
-  containerRef,
+  containerWidth,
   columns,
   labelHeight,
   estimateRowHeight,
@@ -106,7 +106,6 @@ export function CardGridDebug({
       const prevTotal = prevTotalRef.current;
 
       // Derived layout values — mirrors estimateRowHeight logic
-      const containerWidth = containerRef.current?.offsetWidth ?? 0;
       const cardWidth = (containerWidth - GAP * (columns - 1)) / columns;
       const expImgH = (cardWidth - BUTTON_PAD * 2) * CARD_ASPECT;
       const expRow = estimateRowHeight(items[0]?.index ?? 0);

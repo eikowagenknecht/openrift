@@ -1,4 +1,4 @@
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { useResponsiveColumns } from "./use-responsive-columns";
@@ -60,5 +60,31 @@ describe("useResponsiveColumns", () => {
     const { result } = renderHook(() => useResponsiveColumns(null));
     expect(result.current.columns).toBe(2);
     expect(result.current.autoColumns).toBe(2);
+  });
+
+  it("measures the container when the ref attaches on a render after the hook first ran", () => {
+    // Regression: the measured container is often gated behind an async query
+    // (deck-check shows a "Loading…" placeholder first), so the node mounts a
+    // render *after* this hook initialised. The effect must re-run on that late
+    // attach, otherwise columns stay frozen at the SSR fallback — the
+    // intermittent 2-column deck-check bug. Binding the node into state via the
+    // returned ref callback is what makes the re-measure fire. With maxColumns=6
+    // the measurement is observable: a 300px container clamps to 2 columns.
+    const { result } = renderHook(() => useResponsiveColumns(6));
+    // Initializer trusts the requested value; nothing measured yet.
+    expect(result.current.columns).toBe(6);
+    expect(result.current.measured).toBe(false);
+
+    const element = document.createElement("div");
+    Object.defineProperty(element, "offsetWidth", { configurable: true, value: 300 });
+
+    act(() => {
+      result.current.containerRef(element);
+    });
+
+    expect(result.current.measured).toBe(true);
+    // width 300 → physical max = floor((300+16)/(100+16)) = 2, so 6 clamps to 2.
+    expect(result.current.columns).toBe(2);
+    expect(result.current.containerWidth).toBe(300);
   });
 });
