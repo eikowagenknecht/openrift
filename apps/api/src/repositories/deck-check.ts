@@ -832,6 +832,12 @@ export function deckCheckRepo(db: Kysely<Database>) {
       // non-1-based arrays raw subscript assignment would produce.
       const denseFound = (found: (boolean | null)[], length: number): boolean[] =>
         Array.from({ length }, (_copy, index) => Boolean(found[index]));
+      // Bind the boolean[] as a typed array literal. Passing the raw JS array as
+      // a Kysely value makes postgres.js bind it as a scalar boolean, so the
+      // assignment fails with "column is of type boolean[] but expression is of
+      // type boolean" (42804).
+      const foundArray = (values: boolean[]) =>
+        sql<boolean[]>`${`{${values.map((value) => (value ? "t" : "f")).join(",")}}`}::bool[]`;
 
       // A line already holding the same resolved card in the target zone absorbs
       // the move (matches the name+zone identity the content hash uses).
@@ -852,10 +858,10 @@ export function deckCheckRepo(db: Kysely<Database>) {
           .updateTable("deckCheckEntryCards")
           .set({
             quantity: mergeTarget.quantity + moveCount,
-            foundCopies: [
+            foundCopies: foundArray([
               ...denseFound(mergeTarget.foundCopies, mergeTarget.quantity),
               ...denseFound([], moveCount),
-            ],
+            ]),
           })
           .where("id", "=", mergeTarget.id)
           .execute();
@@ -873,7 +879,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
           .set({
             ...resolutionColumns,
             quantity: source.quantity - moveCount,
-            foundCopies: denseFound(source.foundCopies, source.quantity - moveCount),
+            foundCopies: foundArray(denseFound(source.foundCopies, source.quantity - moveCount)),
           })
           .where("id", "=", cardId)
           .where("entryId", "=", entryId)
@@ -897,7 +903,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
         .set({
           ...resolutionColumns,
           quantity: source.quantity - moveCount,
-          foundCopies: denseFound(source.foundCopies, source.quantity - moveCount),
+          foundCopies: foundArray(denseFound(source.foundCopies, source.quantity - moveCount)),
         })
         .where("id", "=", cardId)
         .where("entryId", "=", entryId)
