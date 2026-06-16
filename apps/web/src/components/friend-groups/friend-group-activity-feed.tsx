@@ -143,7 +143,6 @@ function ActivityRow({ slug, event }: { slug: string; event: FriendGroupActivity
             image={event.userImage}
             name={event.userName}
             gravatarHash={event.gravatarHash}
-            size="sm"
           />
           {text(
             <>
@@ -206,8 +205,8 @@ function FeedIcon({
     <span
       className={
         tone === "primary"
-          ? "bg-primary/10 text-primary flex size-7 shrink-0 items-center justify-center rounded-full"
-          : "bg-muted text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-full"
+          ? "bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-full"
+          : "bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-full"
       }
     >
       <Icon className="size-4" />

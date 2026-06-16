@@ -10,6 +10,7 @@
 - fix: The deck-building help and zone hints now consistently call the single-champion zone "Chosen Champion" instead of just "Champion"
 - fix: When your session expires while you're using the app, you're now sent to the login page cleanly instead of the page freezing on an error
 - fix: When you request a password-reset code, the page now tells you if it couldn't be sent (too many tries, or an invalid email) instead of silently moving to the code step, and reminds you to check your spam folder if the email doesn't arrive
+- fix: The icons in a group's Recent activity feed now all share the same size, so member avatars line up with the other event icons instead of looking slightly smaller
 - fix: Deleting a deck from the deck list no longer opens the deck editor for the deck you just removed; it now stays on the deck list
 
 ## 2026-06-12
