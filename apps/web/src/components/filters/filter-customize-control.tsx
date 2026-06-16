@@ -26,7 +26,19 @@ import { useDisplayStore } from "@/stores/display-store";
  * when the surface has no toggleable sections to offer.
  * @returns The customize button + popover, or null when not applicable.
  */
-export function FilterCustomizeControl({ className }: { className?: string }) {
+export function FilterCustomizeControl({
+  className,
+  revealOnHover,
+}: {
+  className?: string;
+  /**
+   * Fade the trigger in only while the surrounding filter zone is hovered or the
+   * trigger is focused, so the control doesn't clutter the panel at rest. The
+   * parent must carry the `group` class. The "X hidden" indicator dot fades with
+   * it — a small loss of its visibility in exchange for a cleaner panel.
+   */
+  revealOnHover?: boolean;
+}) {
   const meta = useFilterMetaOptional();
   const hiddenFilterSections = useDisplayStore((state) => state.hiddenFilterSections);
   const setHiddenFilterSections = useDisplayStore((state) => state.setHiddenFilterSections);
@@ -81,7 +93,14 @@ export function FilterCustomizeControl({ className }: { className?: string }) {
     <Popover>
       <PopoverTrigger
         render={<Button variant="ghost" size="icon-sm" />}
-        className={cn("text-muted-foreground relative", className)}
+        className={cn(
+          "text-muted-foreground relative",
+          // Reveal on hover/focus only. The indicator dot reveals with it — fine
+          // to trade a bit of its visibility for a less cluttered panel at rest.
+          revealOnHover &&
+            "opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100",
+          className,
+        )}
         aria-label={
           hiddenHere.length > 0
             ? `Customize filters — ${hiddenHere.length} hidden`

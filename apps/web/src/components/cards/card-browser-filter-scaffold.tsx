@@ -107,12 +107,13 @@ export function CardBrowserFilterProvider({ children, ...meta }: CardBrowserFilt
 export function BrowserLeftPane() {
   const meta = useFilterMeta();
   return (
-    <Pane className="@wide:block px-3">
+    <Pane className="group @wide:block px-3">
       {/* The pane has a real heading, so the customize control rides its row —
-          no wasted gutter or extra row (unlike the headingless collapsible). */}
+          no wasted gutter or extra row (unlike the headingless collapsible).
+          `group` on the pane lets the control fade in on hover of the whole zone. */}
       <div className="flex items-center justify-between pb-4">
         <h2 className="text-lg font-semibold">Filters</h2>
-        <FilterCustomizeControl />
+        <FilterCustomizeControl revealOnHover />
       </div>
       <div className="space-y-4 pb-4">
         <FilterPanelContent

@@ -2,6 +2,7 @@
 
 ## 2026-06-16
 
+- feat: The button for choosing which filters to show now stays out of the way and appears when you hover over the filter panel
 - feat: The collection sidebar now runs the full height of the window, so your lists and folders stay in view as you scroll the cards
 - feat: The deck checker can now sort cards by energy, ordering each zone by energy cost, then power, then name
 - fix: The deck-check card grid no longer sometimes opens stuck at two columns; sections now reliably show the column count you set
