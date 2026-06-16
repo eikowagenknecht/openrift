@@ -33,6 +33,7 @@ import { useMoveCopies } from "@/hooks/use-copies";
 import { useBulkAddCopiesToList, useMoveListEntries } from "@/hooks/use-lists";
 import { describeListAdd } from "@/lib/list-toast";
 import { FilterSearchProvider } from "@/lib/search-schemas";
+import { cn } from "@/lib/utils";
 import { useDragPreviewStore } from "@/stores/drag-preview-store";
 import { useGridSelectionStore } from "@/stores/grid-selection-store";
 
@@ -281,7 +282,6 @@ function CollectionLayout() {
     <FilterSearchProvider value={search}>
       <PageTopBarHeightContext value={topBarHeight}>
         <div className="flex min-h-0 flex-1 flex-col">
-          <div ref={setTopBarSlot} className={PAGE_TOP_BAR_STICKY} />
           <SidebarProvider className="flex-1">
             <DndContext
               sensors={sensors}
@@ -295,7 +295,7 @@ function CollectionLayout() {
               <DndScrollWatcher />
               <TopBarSlotContext value={topBarSlot}>
                 <CollectionSidebar />
-                <CollectionContent />
+                <CollectionContent setTopBarSlot={setTopBarSlot} />
               </TopBarSlotContext>
               <DragOverlay dropAnimation={null} modifiers={MODIFIERS}>
                 {activeDrag?.type === "collection-card" && (
@@ -311,9 +311,17 @@ function CollectionLayout() {
   );
 }
 
-function CollectionContent() {
+function CollectionContent({
+  setTopBarSlot,
+}: {
+  setTopBarSlot: (el: HTMLDivElement | null) => void;
+}) {
   return (
     <div className="flex min-w-0 flex-1 flex-col px-3 pb-3">
+      {/* Page top bar lives in the content column (not full-width above the sidebar)
+          so the sidebar can rise to the header. -mx-3 full-bleeds the blur across the
+          column while PAGE_TOP_BAR_STICKY's own px-3 keeps its content aligned. */}
+      <div ref={setTopBarSlot} className={cn(PAGE_TOP_BAR_STICKY, "-mx-3")} />
       <div className="flex flex-1 flex-col pb-3">
         <Outlet />
       </div>

@@ -2,6 +2,7 @@
 
 ## 2026-06-16
 
+- feat: The collection sidebar now runs the full height of the window, so your lists and folders stay in view as you scroll the cards
 - feat: The deck checker can now sort cards by energy, ordering each zone by energy cost, then power, then name
 - fix: The deck-check card grid no longer sometimes opens stuck at two columns; sections now reliably show the column count you set
 - fix: A group page now shows its member count as a chip in the page header next to the role, instead of as a stray line floating above the tabs

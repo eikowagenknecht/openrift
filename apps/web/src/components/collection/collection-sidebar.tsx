@@ -405,7 +405,7 @@ export function CollectionSidebar() {
   }
 
   return (
-    <NestedSidebar className="ml-3" extraOffset="calc(0.75rem + 2rem + 0.75rem)">
+    <NestedSidebar className="ml-3">
       <MobileSidebarHeader />
       <SidebarHeader>
         <SidebarMenu>
