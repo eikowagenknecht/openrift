@@ -11,7 +11,7 @@ import { imageUrl } from "@openrift/shared";
 
 export type CardMetaLookup = (cardId: string) => DeckPlanCardMetaResponse | undefined;
 
-export function CardLine({
+function CardLine({
   cardId,
   lookup,
   quantity,
@@ -43,7 +43,7 @@ export function CardLine({
   );
 }
 
-export function SwapColumn({
+function SwapColumn({
   label,
   tone,
   sign,

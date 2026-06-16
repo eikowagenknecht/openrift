@@ -9,7 +9,7 @@ import type { DeckPlanSaveInput } from "@/hooks/use-deck-plan";
 
 export type SwapDirection = "in" | "out";
 
-export interface PlanSwapDraft {
+interface PlanSwapDraft {
   cardId: string;
   direction: SwapDirection;
   quantity: number;

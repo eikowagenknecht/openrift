@@ -9,7 +9,7 @@ import type {
 } from "../db/index.js";
 
 /** A matchup row plus its in/out swaps, in display order. */
-export type MatchupWithSwaps = Selectable<DeckMatchupPlansTable> & {
+type MatchupWithSwaps = Selectable<DeckMatchupPlansTable> & {
   swaps: Selectable<DeckMatchupSwapsTable>[];
 };
 
