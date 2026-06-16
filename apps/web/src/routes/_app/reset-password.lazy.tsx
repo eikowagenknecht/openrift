@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
-import { otpErrorMessage } from "@/lib/auth-errors";
+import { otpErrorMessage, requestOtpErrorMessage } from "@/lib/auth-errors";
 
 export const Route = createLazyFileRoute("/_app/reset-password")({
   component: ResetPasswordPage,
@@ -39,16 +39,35 @@ function ResetPasswordPage() {
     }
     setEmailError("");
     setLoading(true);
-    await authClient.emailOtp.sendVerificationOtp({ email: trimmed, type: "forget-password" });
-    setLoading(false);
-    setStep("code");
+    try {
+      const result = await authClient.emailOtp.sendVerificationOtp({
+        email: trimmed,
+        type: "forget-password",
+      });
+      if (result.error) {
+        setEmailError(requestOtpErrorMessage(result.error));
+        return;
+      }
+      setStep("code");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleResend() {
     setResending(true);
     setError("");
-    await authClient.emailOtp.sendVerificationOtp({ email: email.trim(), type: "forget-password" });
-    setResending(false);
+    try {
+      const result = await authClient.emailOtp.sendVerificationOtp({
+        email: email.trim(),
+        type: "forget-password",
+      });
+      if (result.error) {
+        setError(requestOtpErrorMessage(result.error));
+      }
+    } finally {
+      setResending(false);
+    }
   }
 
   async function handleReset() {
@@ -171,6 +190,9 @@ function ResetPasswordPage() {
                   >
                     {resending ? "Sending..." : "Resend code"}
                   </button>
+                  <p className="text-muted-foreground text-sm text-balance">
+                    Didn&apos;t get a code within a minute? Check your spam folder, then resend.
+                  </p>
                 </FieldGroup>
               </form>
             </>

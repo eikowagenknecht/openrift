@@ -5,7 +5,18 @@ import type { Config } from "./types.js";
 
 const log = createLogger("email");
 
-export function createEmailSender(smtp: Config["smtp"]) {
+export function createEmailSender(smtp: Config["smtp"], isDev: boolean) {
+  // In dev, an unset SMTP_HOST is fine — emails are logged to the console. In a
+  // non-dev environment it is an outage: every verification and password-reset
+  // email would be silently dropped (better-auth swallows the send), and nothing
+  // surfaces the failure. Refuse to start so the bad config never reaches users.
+  if (!smtp.configured && !isDev) {
+    throw new Error(
+      "SMTP is not configured (SMTP_HOST is unset) outside development. " +
+        "Refusing to start: verification and password-reset emails would be silently dropped.",
+    );
+  }
+
   const transporter = smtp.configured
     ? createTransport({
         host: smtp.host,

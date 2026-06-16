@@ -82,7 +82,7 @@ if (config.sentryDsn) {
 }
 
 const { db, dialect } = createDb(config.databaseUrl);
-const sendEmail = createEmailSender(config.smtp);
+const sendEmail = createEmailSender(config.smtp, config.isDev);
 const auth = createAuth({ config, db, dialect, sendEmail });
 
 const log = createLogger("api");

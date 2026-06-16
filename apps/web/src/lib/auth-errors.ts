@@ -72,6 +72,23 @@ export function setServerError(
   });
 }
 
+/**
+ * Message to show on the "request a code" step when sending the verification
+ * OTP fails. Only the cases better-auth actually reports back surface here —
+ * a malformed email and rate limiting. A delivery (SMTP) failure is swallowed
+ * server-side and returns success, so it never reaches this mapper.
+ * @returns The human-readable error message.
+ */
+export function requestOtpErrorMessage(error: { code?: string; status?: number }): string {
+  if (error.status === 429) {
+    return "Too many requests. Please wait a moment and try again.";
+  }
+  if (error.code === "INVALID_EMAIL") {
+    return "Please enter a valid email address.";
+  }
+  return "We couldn't send a code right now. Please try again.";
+}
+
 const OTP_ERROR_CODES = new Set(["OTP_EXPIRED", "INVALID_OTP", "TOO_MANY_ATTEMPTS"]);
 
 /**
