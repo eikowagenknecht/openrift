@@ -74,7 +74,7 @@ import {
   useDeleteCollection,
   useSetCollectionDeckbuilding,
 } from "@/hooks/use-collections";
-import { useDisposeCopies, useMoveCopies } from "@/hooks/use-copies";
+import { useCopyListMemberships, useDisposeCopies, useMoveCopies } from "@/hooks/use-copies";
 import { useChannelRegistry } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
@@ -453,6 +453,9 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const [shareOpen, setShareOpen] = useState(false);
   const moveCopies = useMoveCopies();
   const disposeCopies = useDisposeCopies();
+  // Which of the viewer's lists reference the copies about to be disposed — only
+  // checked while the dispose dialog is open so the warning can name them.
+  const disposeListMemberships = useCopyListMemberships(actionCopyIds, disposeOpen);
   const deleteCollection = useDeleteCollection();
   const setDeckbuilding = useSetCollectionDeckbuilding();
   const navigate = useNavigate();
@@ -1193,6 +1196,8 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             count={actionCopyIds.length}
             onConfirm={handleDispose}
             isPending={disposeCopies.isPending}
+            memberships={disposeListMemberships.data}
+            membershipsLoading={disposeListMemberships.isLoading}
           />
 
           <AddToListDialog

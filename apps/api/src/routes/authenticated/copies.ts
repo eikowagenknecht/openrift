@@ -1,10 +1,19 @@
 import { createRoute } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
-import type { CopyAddResponse, CopyListResponse } from "@openrift/shared";
-import { copyAddResponseSchema, copyListResponseSchema } from "@openrift/shared/response-schemas";
+import type {
+  CopyAddResponse,
+  CopyListMembershipsResponse,
+  CopyListResponse,
+} from "@openrift/shared";
+import {
+  copyAddResponseSchema,
+  copyListMembershipsResponseSchema,
+  copyListResponseSchema,
+} from "@openrift/shared/response-schemas";
 import {
   addCopiesSchema,
   copiesQuerySchema,
+  copyListMembershipsSchema,
   disposeCopiesSchema,
   moveCopiesSchema,
 } from "@openrift/shared/schemas";
@@ -74,6 +83,23 @@ const disposeCopies = createRoute({
   responses: {
     204: { description: "No Content" },
     ...errorResponses(400, 401, 403, 404),
+  },
+});
+
+const listMemberships = createRoute({
+  method: "post",
+  path: "/list-memberships",
+  tags: ["Copies"],
+  security: cookieAuth,
+  request: {
+    body: { content: { "application/json": { schema: copyListMembershipsSchema } } },
+  },
+  responses: {
+    200: {
+      content: { "application/json": { schema: copyListMembershipsResponseSchema } },
+      description: "Success",
+    },
+    ...errorResponses(400, 401),
   },
 });
 
@@ -151,4 +177,17 @@ export const copiesRoute = copiesApp
     const body = c.req.valid("json");
     await disposeCopiesService(transact, userId, body.copyIds);
     return c.body(null, 204);
+  })
+
+  // ── POST /copies/list-memberships ─────────────────────────────────────────────
+  // Read-only: which of the viewer's own lists reference these copies. The
+  // dispose confirmation uses it to warn that removing copies also strips them
+  // from those lists (dispose hard-deletes the copy, cascading its entries).
+
+  .openapi(listMemberships, async (c) => {
+    const { lists } = c.get("repos");
+    const userId = getUserId(c);
+    const body = c.req.valid("json");
+    const result = await lists.listMembershipsForCopies(body.copyIds, userId);
+    return c.json(result satisfies CopyListMembershipsResponse, 200);
   });

@@ -89,3 +89,20 @@ export interface CopyResponse {
 export interface CopyAddResponse {
   items: CopyResponse[];
 }
+
+export interface CopyListMembershipEntry {
+  id: string;
+  name: string;
+  copyCount: number;
+}
+
+/**
+ * Which of the viewer's own lists reference a set of copies. Drives the dispose
+ * confirmation's cross-list warning: disposing hard-deletes the copies, so they
+ * also vanish from every list here. `copiesOnAnyList` is the distinct count of
+ * queried copies on at least one list (a copy can sit on several lists).
+ */
+export interface CopyListMembershipsResponse {
+  lists: CopyListMembershipEntry[];
+  copiesOnAnyList: number;
+}

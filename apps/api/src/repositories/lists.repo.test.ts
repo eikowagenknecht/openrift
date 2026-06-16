@@ -73,6 +73,42 @@ describe("listsRepo", () => {
     expect(result).toEqual({ numDeletedRows: 1n });
   });
 
+  it("listMembershipsForCopies short-circuits on empty input without hitting the db", async () => {
+    const db = createMockDb([{ listId: "should-not-appear", listName: "x", copyId: "c" }]);
+    const repo = listsRepo(db);
+    expect(await repo.listMembershipsForCopies([], "u1")).toEqual({
+      lists: [],
+      copiesOnAnyList: 0,
+    });
+  });
+
+  it("listMembershipsForCopies counts distinct copies per list and overall, busiest first", async () => {
+    // copy-1 sits on both lists; copy-2 only on Trades. Distinct counting must
+    // not double-count copy-1 across lists, and copiesOnAnyList is the union.
+    const db = createMockDb([
+      { listId: "lst-trades", listName: "Trades", copyId: "copy-1" },
+      { listId: "lst-trades", listName: "Trades", copyId: "copy-2" },
+      { listId: "lst-binder", listName: "Binder", copyId: "copy-1" },
+    ]);
+    const repo = listsRepo(db);
+    expect(await repo.listMembershipsForCopies(["copy-1", "copy-2"], "u1")).toEqual({
+      lists: [
+        { id: "lst-trades", name: "Trades", copyCount: 2 },
+        { id: "lst-binder", name: "Binder", copyCount: 1 },
+      ],
+      copiesOnAnyList: 2,
+    });
+  });
+
+  it("listMembershipsForCopies returns empty when no list references the copies", async () => {
+    const db = createMockDb([]);
+    const repo = listsRepo(db);
+    expect(await repo.listMembershipsForCopies(["copy-1"], "u1")).toEqual({
+      lists: [],
+      copiesOnAnyList: 0,
+    });
+  });
+
   it("setShareToken sets a token + isPublic=true", async () => {
     const shared = { ...LIST, isPublic: true, shareToken: "tok-abc" };
     const db = createMockDb([shared]);

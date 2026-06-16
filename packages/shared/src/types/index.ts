@@ -153,6 +153,8 @@ export type {
   CollectionShareResponse,
   CopyAddResponse,
   CopyCollectionBreakdownEntry,
+  CopyListMembershipEntry,
+  CopyListMembershipsResponse,
   CopyListResponse,
   CopyResponse,
   PublicCollectionDetailResponse,

@@ -206,6 +206,10 @@ export const disposeCopiesSchema = z.object({
   copyIds: z.array(z.uuid()).min(1).max(500),
 });
 
+export const copyListMembershipsSchema = z.object({
+  copyIds: z.array(z.uuid()).min(1).max(500),
+});
+
 /**
  * Free-form per-deck format config. Each format owns its shape; the schema
  * stays loose because the column is jsonb and validation lives in the route

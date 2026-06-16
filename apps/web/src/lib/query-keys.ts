@@ -51,6 +51,8 @@ export const queryKeys = {
   copies: {
     all: (userId: string) => ["copies", userId] as const,
     byCollection: (userId: string, id: string) => ["copies", userId, id] as const,
+    listMemberships: (userId: string, copyIds: readonly string[]) =>
+      ["copies", userId, "list-memberships", copyIds] as const,
   },
   collectionEvents: {
     all: (userId: string) => ["collection-events", userId] as const,

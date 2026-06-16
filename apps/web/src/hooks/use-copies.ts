@@ -1,8 +1,8 @@
-import type { CopyResponse } from "@openrift/shared";
+import type { CopyListMembershipsResponse, CopyResponse } from "@openrift/shared";
 import { createTransaction, eq, useLiveQuery } from "@tanstack/react-db";
 import { useBatcher } from "@tanstack/react-pacer";
 import type { QueryClient } from "@tanstack/react-query";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
 
 import { trackEvent } from "@/lib/analytics";
@@ -62,6 +62,31 @@ export function useCopies(collectionId?: string): {
   );
 
   return { data: data ?? [], isReady };
+}
+
+/**
+ * Which of the viewer's own lists reference `copyIds`. Backs the dispose
+ * confirmation's cross-list warning, so it stays disabled until `enabled` (the
+ * dialog is open) and there is at least one id. Ids are deduped + sorted for a
+ * stable query key across selection order.
+ * @returns react-query result carrying a `CopyListMembershipsResponse`.
+ */
+export function useCopyListMemberships(copyIds: string[], enabled: boolean) {
+  const userId = useUserId();
+  const stableIds = [...new Set(copyIds)].toSorted();
+  return useQuery({
+    queryKey: queryKeys.copies.listMemberships(userId ?? "", stableIds),
+    queryFn: (): Promise<CopyListMembershipsResponse> =>
+      callApiJson(
+        browserApiClient().api.v1.copies["list-memberships"].$post({
+          json: { copyIds: stableIds },
+        }),
+        "Couldn't check list membership",
+      ),
+    enabled: enabled && Boolean(userId) && stableIds.length > 0,
+    staleTime: 30 * 1000,
+    refetchOnWindowFocus: false,
+  });
 }
 
 // ── Mutations ────────────────────────────────────────────────────────────────

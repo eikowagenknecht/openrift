@@ -249,6 +249,62 @@ export function listsRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Lists owned by `userId` that reference any of `copyIds`, with a per-list
+     * copy count and the distinct number of those copies on at least one list.
+     * Only copy-kind entries carry a non-null `copy_id`, so the `copyId in`
+     * filter implicitly restricts to them. Drives the dispose confirmation's
+     * cross-list warning: disposing hard-deletes the copy and cascades its
+     * `list_entries` away, so the copy also disappears from every list here.
+     * @returns Per-list breakdown (busiest first) and the distinct cross-list copy count.
+     */
+    async listMembershipsForCopies(
+      copyIds: readonly string[],
+      userId: string,
+    ): Promise<{
+      lists: { id: string; name: string; copyCount: number }[];
+      copiesOnAnyList: number;
+    }> {
+      if (copyIds.length === 0) {
+        return { lists: [], copiesOnAnyList: 0 };
+      }
+      const rows = await db
+        .selectFrom("listEntries as le")
+        .innerJoin("lists as l", "l.id", "le.listId")
+        .where("le.copyId", "in", [...copyIds])
+        .where("l.userId", "=", userId)
+        .select(["l.id as listId", "l.name as listName", "le.copyId as copyId"])
+        .execute();
+
+      // A copy can appear on several lists, so count distinct copies per list
+      // (and overall) rather than summing rows.
+      const perList = new Map<string, { id: string; name: string; copies: Set<string> }>();
+      const copiesOnAnyList = new Set<string>();
+      for (const row of rows) {
+        if (row.copyId === null) {
+          continue;
+        }
+        copiesOnAnyList.add(row.copyId);
+        const existing = perList.get(row.listId);
+        if (existing) {
+          existing.copies.add(row.copyId);
+        } else {
+          perList.set(row.listId, {
+            id: row.listId,
+            name: row.listName,
+            copies: new Set([row.copyId]),
+          });
+        }
+      }
+      const lists = [...perList.values()]
+        .map((entry) => ({ id: entry.id, name: entry.name, copyCount: entry.copies.size }))
+        .sort(
+          (first, second) =>
+            second.copyCount - first.copyCount || first.name.localeCompare(second.name),
+        );
+      return { lists, copiesOnAnyList: copiesOnAnyList.size };
+    },
+
+    /**
      * Reads the current share state (token + public flag) for a list the user
      * owns. Used by GET /lists/{id}/share and the idempotent POST /share, which
      * must distinguish "not owned" (→ 404) from "owned but unshared" (→ token

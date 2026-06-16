@@ -600,6 +600,26 @@ export const copyAddResponseSchema = z
   .openapi("CopyAddResponse");
 
 /**
+ * Response body for `POST /copies/list-memberships`: which of the viewer's own
+ * lists reference the queried copies, with a per-list copy count, plus the
+ * distinct number of queried copies that are on at least one list. Lets the
+ * dispose confirmation warn that removing copies also strips them from these
+ * lists (copies are hard-deleted and `list_entries` cascade away).
+ */
+export const copyListMembershipsResponseSchema = z
+  .object({
+    lists: z.array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        copyCount: z.number().int().nonnegative(),
+      }),
+    ),
+    copiesOnAnyList: z.number().int().nonnegative(),
+  })
+  .openapi("CopyListMembershipsResponse");
+
+/**
  * Copy projection for anonymous share viewers — deliberately narrower than
  * {@link copyResponseSchema}: `groupId`/`collectionId` are owner-internal and
  * are withheld from unauthenticated viewers.
