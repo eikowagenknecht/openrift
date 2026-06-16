@@ -776,11 +776,55 @@ const publicDeckCardResponseSchema = z
   })
   .openapi("PublicDeckCardResponse");
 
+const deckMatchupSwapResponseSchema = z.object({
+  cardId: z.string(),
+  direction: z.enum(["in", "out"]),
+  quantity: z.number(),
+});
+
+const deckMatchupPlanResponseSchema = z.object({
+  id: z.string(),
+  opponentLegendCardId: z.string(),
+  subtitle: z.string(),
+  notes: z.string(),
+  swaps: z.array(deckMatchupSwapResponseSchema),
+});
+
+export const deckPlanResponseSchema = z
+  .object({
+    generalStrategy: z.string(),
+    mulliganSplit: z.boolean(),
+    mulliganGeneral: z.string(),
+    mulliganFirst: z.string(),
+    mulliganSecond: z.string(),
+    battlefieldGame1CardId: z.string().nullable(),
+    battlefieldFirstCardId: z.string().nullable(),
+    battlefieldSecondCardId: z.string().nullable(),
+    battlefieldCustom: z.boolean(),
+    battlefieldNote: z.string(),
+    matchups: z.array(deckMatchupPlanResponseSchema),
+  })
+  .openapi("DeckPlanResponse");
+
+export const deckPlanDetailResponseSchema = z
+  .object({ plan: deckPlanResponseSchema })
+  .openapi("DeckPlanDetailResponse");
+
+const deckPlanCardMetaResponseSchema = z.object({
+  cardId: z.string(),
+  cardName: z.string(),
+  cardSlug: z.string(),
+  cardType: cardTypeSchema,
+  imageId: z.string().nullable(),
+});
+
 export const publicDeckDetailResponseSchema = z
   .object({
     deck: publicDeckResponseSchema,
     cards: z.array(publicDeckCardResponseSchema),
     owner: z.object({ displayName: z.string(), gravatarHash: z.string().nullable() }),
+    plan: deckPlanResponseSchema.nullable(),
+    planCardMeta: z.array(deckPlanCardMetaResponseSchema),
     customTagAssignments: z.record(z.string(), z.array(z.string())).openapi({ example: {} }),
   })
   .openapi("PublicDeckDetailResponse");

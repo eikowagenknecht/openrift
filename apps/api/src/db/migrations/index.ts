@@ -103,6 +103,8 @@ import * as m154 from "./154-user-riot-id.js";
 import * as m155 from "./155-deck-check-entry-states.js";
 import * as m156 from "./156-deck-check-publish-consent.js";
 import * as m157 from "./157-deck-check-claim-token.js";
+import * as m158 from "./158-deck-plans.js";
+import * as m159 from "./159-deck-plan-battlefield-note.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -265,4 +267,6 @@ export const migrations: Record<string, Migration> = {
   "155-deck-check-entry-states": m155,
   "156-deck-check-publish-consent": m156,
   "157-deck-check-claim-token": m157,
+  "158-deck-plans": m158,
+  "159-deck-plan-battlefield-note": m159,
 };

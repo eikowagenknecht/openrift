@@ -1,12 +1,14 @@
 import { useDndContext } from "@dnd-kit/core";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import { CARD_ASPECT_INVERSE } from "@/components/cards/card-grid-constants";
 import { cn } from "@/lib/utils";
 
 export type HoverOrigin = "sidebar" | "main";
 
 const SIDEBAR_PREVIEW_LEFT_PX = 312; // 19.5rem
 const CURSOR_OFFSET_PX = 24;
+const VIEWPORT_MARGIN_PX = 8;
 
 interface HoveredCardPreviewProps {
   hoveredCard: { thumbnailUrl: string; fullUrl: string; landscape: boolean } | null;
@@ -58,15 +60,39 @@ export function HoveredCardPreview({ hoveredCard, origin, containerRef }: Hovere
         return;
       }
       const rect = container.getBoundingClientRect();
-      preview.style.top = `${Math.max(0, clientY - rect.top - 96)}px`;
+      // Measured height once the image has a size; estimate from the width on
+      // the first frame (CARD_ASPECT_INVERSE is height ÷ width for a portrait
+      // card) so the bottom clamp is right even before layout.
+      const previewHeight =
+        preview.offsetHeight ||
+        (hoveredCard.landscape
+          ? previewWidth / CARD_ASPECT_INVERSE
+          : previewWidth * CARD_ASPECT_INVERSE);
+
+      // `top`/`left` are container-relative (the preview is absolutely
+      // positioned in the container), so a viewport coordinate `v` maps to
+      // `v - rect.top` / `v - rect.left`. Clamp both axes to the viewport
+      // (minus a small margin) so the whole card stays on screen — when the
+      // preview is larger than the viewport, pin it to the top/left margin.
+      const clampAxis = (desired: number, offset: number, viewport: number, size: number) => {
+        const min = VIEWPORT_MARGIN_PX - offset;
+        const max = viewport - size - VIEWPORT_MARGIN_PX - offset;
+        return Math.max(min, Math.min(desired, max));
+      };
+
+      const desiredTop = clientY - rect.top - 96;
+      preview.style.top = `${clampAxis(desiredTop, rect.top, globalThis.innerHeight, previewHeight)}px`;
+
+      let desiredLeft: number;
       if (origin === "main") {
         const cursorX = clientX - rect.left;
         const rightEdge = cursorX + CURSOR_OFFSET_PX + previewWidth;
         const leftFlip = cursorX - CURSOR_OFFSET_PX - previewWidth;
-        preview.style.left = `${rightEdge <= rect.width ? cursorX + CURSOR_OFFSET_PX : Math.max(0, leftFlip)}px`;
+        desiredLeft = rightEdge <= rect.width ? cursorX + CURSOR_OFFSET_PX : leftFlip;
       } else {
-        preview.style.left = `${SIDEBAR_PREVIEW_LEFT_PX}px`;
+        desiredLeft = SIDEBAR_PREVIEW_LEFT_PX;
       }
+      preview.style.left = `${clampAxis(desiredLeft, rect.left, globalThis.innerWidth, previewWidth)}px`;
     };
 
     // Paint once immediately using the last-known cursor so the preview

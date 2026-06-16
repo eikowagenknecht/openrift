@@ -39,4 +39,17 @@ describe("useDeckBuilderUiStore", () => {
     expect(useDeckBuilderUiStore.getState().activeZone).toBeNull();
     expect(useDeckBuilderUiStore.getState().runesByDomain.size).toBe(0);
   });
+
+  it("toggles the plan panel", () => {
+    useDeckBuilderUiStore.getState().setPlanActive(true);
+    expect(useDeckBuilderUiStore.getState().planActive).toBe(true);
+    useDeckBuilderUiStore.getState().setPlanActive(false);
+    expect(useDeckBuilderUiStore.getState().planActive).toBe(false);
+  });
+
+  it("reset also clears the plan panel", () => {
+    useDeckBuilderUiStore.getState().setPlanActive(true);
+    useDeckBuilderUiStore.getState().reset();
+    expect(useDeckBuilderUiStore.getState().planActive).toBe(false);
+  });
 });

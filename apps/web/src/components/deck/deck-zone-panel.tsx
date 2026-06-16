@@ -1,5 +1,6 @@
 import type { DeckZone, Marketplace } from "@openrift/shared";
 import { LayoutDashboardIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
@@ -23,6 +24,8 @@ interface DeckZonePanelProps {
   marketplace?: Marketplace;
   onViewMissing?: () => void;
   hideStatsAndOwnership?: boolean;
+  /** Rendered directly below the Overview button (e.g. the Plan nav entry). */
+  afterOverview?: ReactNode;
   /** Deck items in display order — passed to each zone section so a row click
    * seeds the detail pane's prev/next nav with the same list the overview uses. */
   deckItems: CardViewerItem[];
@@ -37,6 +40,7 @@ export function DeckZonePanel({
   marketplace,
   onViewMissing,
   hideStatsAndOwnership,
+  afterOverview,
   deckItems,
 }: DeckZonePanelProps) {
   const { zoneOrder } = useZoneOrder();
@@ -87,6 +91,7 @@ export function DeckZonePanel({
           <span>Overview</span>
         </Button>
       )}
+      {afterOverview}
       {zoneOrder.map((zone) => (
         <DeckZoneSection
           key={zone}

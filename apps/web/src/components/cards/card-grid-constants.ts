@@ -3,7 +3,11 @@
 // can predict row heights without measuring. When a class changes, update
 // the matching constant here.
 
-export const CARD_ASPECT = 88 / 63; // standard playing card (63×88mm)
+// Height ÷ width for a standard 63×88mm card — the inverse of the canonical
+// `--aspect-card` (63/88) CSS var and of card-designer's `CARD_ASPECT`. Named
+// distinctly so the two reciprocal ratios can't be confused at an import site.
+// Used as a width→height multiplier (height = width × CARD_ASPECT_INVERSE).
+export const CARD_ASPECT_INVERSE = 88 / 63;
 export const GAP = 16; // gap-4
 export const BUTTON_PAD = 6; // p-1.5 on CardThumbnail <button>
 

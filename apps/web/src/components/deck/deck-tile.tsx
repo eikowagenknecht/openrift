@@ -57,7 +57,7 @@ function CardPreviewImage({
       alt={alt}
       loading="lazy"
       className={className}
-      style={{ aspectRatio: "63 / 88", ...style }}
+      style={{ aspectRatio: "var(--aspect-card)", ...style }}
     />
   );
 }

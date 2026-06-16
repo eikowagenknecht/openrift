@@ -21,7 +21,7 @@ export default function ProxyPrintingArticle() {
           {Array.from({ length: 9 }, (_, index) => (
             <div
               key={index}
-              className="bg-muted/60 border-border flex aspect-[63/88] items-center justify-center rounded border"
+              className="bg-muted/60 border-border aspect-card flex items-center justify-center rounded border"
             >
               <span className="text-muted-foreground/40 text-2xs tabular-nums">{index + 1}</span>
             </div>

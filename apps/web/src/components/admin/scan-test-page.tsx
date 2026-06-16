@@ -595,7 +595,7 @@ function CardGuideOverlay() {
         className="rounded-lg border-2 border-dashed border-white"
         style={{
           height: "80%",
-          aspectRatio: "63 / 88",
+          aspectRatio: "var(--aspect-card)",
           boxShadow: "0 0 0 9999px rgba(0,0,0,0.5)",
         }}
       />

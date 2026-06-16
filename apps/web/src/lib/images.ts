@@ -15,7 +15,10 @@ export function needsCssRotation(orientation: string): boolean {
  * `size-full object-cover`.
  */
 export const LANDSCAPE_ROTATION_STYLE: React.CSSProperties = {
-  width: "139.65%",
+  // Landscape orientation of the card ratio (inverse of --aspect-card 63/88).
+  // The width is the container's height as a % of its width — exactly 88/63 —
+  // so after the -90deg rotation the wrapper fills the portrait box.
+  width: "calc(100% * 88 / 63)",
   aspectRatio: "88 / 63",
   transform: "translate(-50%, -50%) rotate(-90deg)",
 };

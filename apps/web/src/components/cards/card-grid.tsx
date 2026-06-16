@@ -16,7 +16,7 @@ import { useGridFocusStore } from "@/stores/grid-focus-store";
 
 import {
   BUTTON_PAD,
-  CARD_ASPECT,
+  CARD_ASPECT_INVERSE,
   FALLBACK_ROW_HEIGHT,
   GAP,
   HEADER_CONTENT_HEIGHT,
@@ -176,7 +176,7 @@ const CardRowContent = memo(function CardRowContent({
           // ⚠ p-1.5 mirrors BUTTON_PAD in card-grid-constants — update both together
           <div key={item.id} className="rounded-lg p-1.5">
             {addStripHeight > 0 && <div style={{ height: addStripHeight }} />}
-            <div className="bg-muted/40 rounded-lg" style={{ aspectRatio: `1 / ${CARD_ASPECT}` }} />
+            <div className="bg-muted/40 aspect-card rounded-lg" />
             {labelHeight > 0 && <div style={{ height: labelHeight }} />}
           </div>
         ))}
@@ -279,7 +279,7 @@ export function CardGrid({
     if (row.kind === "header") {
       return HEADER_PT + HEADER_CONTENT_HEIGHT + HEADER_PB;
     }
-    const imgHeight = (thumbWidth - BUTTON_PAD * 2) * CARD_ASPECT;
+    const imgHeight = (thumbWidth - BUTTON_PAD * 2) * CARD_ASPECT_INVERSE;
     return Math.round(imgHeight + labelHeight + BUTTON_PAD * 2 + addStripHeight);
   };
 

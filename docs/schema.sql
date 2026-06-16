@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict IERbLbF7H04PlConoLKAqdR8XvsCoyCchc7GXOT2Bldy2gAknWEDSexOZ4rgIjc
+\restrict GBbbKrSNldHKpKpWqQPKrZIA9qAw0ZAmQCN8BwtrgD6A8d76oMwQtR2pSNzv19n
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -953,6 +953,66 @@ CREATE TABLE public.deck_formats (
     label text NOT NULL,
     sort_order smallint NOT NULL,
     is_well_known boolean DEFAULT false NOT NULL
+);
+
+
+--
+-- Name: deck_matchup_plans; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.deck_matchup_plans (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    deck_id uuid NOT NULL,
+    opponent_legend_card_id uuid NOT NULL,
+    subtitle text DEFAULT ''::text NOT NULL,
+    notes text DEFAULT ''::text NOT NULL,
+    sort_order smallint DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_deck_matchup_plans_notes CHECK ((length(notes) <= 4000)),
+    CONSTRAINT chk_deck_matchup_plans_subtitle CHECK ((length(subtitle) <= 120))
+);
+
+
+--
+-- Name: deck_matchup_swaps; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.deck_matchup_swaps (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    plan_id uuid NOT NULL,
+    card_id uuid NOT NULL,
+    direction text NOT NULL,
+    quantity integer NOT NULL,
+    CONSTRAINT chk_deck_matchup_swaps_direction CHECK ((direction = ANY (ARRAY['in'::text, 'out'::text]))),
+    CONSTRAINT chk_deck_matchup_swaps_quantity CHECK ((quantity > 0))
+);
+
+
+--
+-- Name: deck_plans; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.deck_plans (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    deck_id uuid NOT NULL,
+    general_strategy text DEFAULT ''::text NOT NULL,
+    mulligan_split boolean DEFAULT false NOT NULL,
+    mulligan_general text DEFAULT ''::text NOT NULL,
+    mulligan_first text DEFAULT ''::text NOT NULL,
+    mulligan_second text DEFAULT ''::text NOT NULL,
+    battlefield_g1_card_id uuid,
+    battlefield_first_card_id uuid,
+    battlefield_second_card_id uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    battlefield_custom boolean DEFAULT false NOT NULL,
+    battlefield_note text DEFAULT ''::text NOT NULL,
+    CONSTRAINT chk_deck_plans_battlefield_note CHECK ((length(battlefield_note) <= 4000)),
+    CONSTRAINT chk_deck_plans_general_strategy CHECK ((length(general_strategy) <= 8000)),
+    CONSTRAINT chk_deck_plans_mulligan_first CHECK ((length(mulligan_first) <= 4000)),
+    CONSTRAINT chk_deck_plans_mulligan_general CHECK ((length(mulligan_general) <= 4000)),
+    CONSTRAINT chk_deck_plans_mulligan_second CHECK ((length(mulligan_second) <= 4000))
 );
 
 
@@ -2214,6 +2274,38 @@ ALTER TABLE ONLY public.deck_formats
 
 
 --
+-- Name: deck_matchup_plans deck_matchup_plans_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_matchup_plans
+    ADD CONSTRAINT deck_matchup_plans_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: deck_matchup_swaps deck_matchup_swaps_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_matchup_swaps
+    ADD CONSTRAINT deck_matchup_swaps_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: deck_plans deck_plans_deck_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_plans
+    ADD CONSTRAINT deck_plans_deck_id_key UNIQUE (deck_id);
+
+
+--
+-- Name: deck_plans deck_plans_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_plans
+    ADD CONSTRAINT deck_plans_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: deck_zones deck_zones_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2702,6 +2794,22 @@ ALTER TABLE ONLY public.deck_check_entries
 
 
 --
+-- Name: deck_matchup_plans uq_deck_matchup_plans_deck_legend_subtitle; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_matchup_plans
+    ADD CONSTRAINT uq_deck_matchup_plans_deck_legend_subtitle UNIQUE (deck_id, opponent_legend_card_id, subtitle);
+
+
+--
+-- Name: deck_matchup_swaps uq_deck_matchup_swaps_plan_card_direction; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_matchup_swaps
+    ADD CONSTRAINT uq_deck_matchup_swaps_plan_card_direction UNIQUE (plan_id, card_id, direction);
+
+
+--
 -- Name: decks uq_decks_id_user; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3029,6 +3137,20 @@ CREATE INDEX idx_deck_check_events_group ON public.deck_check_events USING btree
 --
 
 CREATE INDEX idx_deck_check_keys_group ON public.deck_check_keys USING btree (group_id);
+
+
+--
+-- Name: idx_deck_matchup_plans_deck; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_deck_matchup_plans_deck ON public.deck_matchup_plans USING btree (deck_id);
+
+
+--
+-- Name: idx_deck_matchup_swaps_plan; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_deck_matchup_swaps_plan ON public.deck_matchup_swaps USING btree (plan_id);
 
 
 --
@@ -3627,6 +3749,20 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.deck_check_events FOR 
 
 
 --
+-- Name: deck_matchup_plans trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.deck_matchup_plans FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: deck_plans trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.deck_plans FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
 -- Name: decks trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -4149,6 +4285,70 @@ ALTER TABLE ONLY public.deck_check_keys
 
 ALTER TABLE ONLY public.deck_check_keys
     ADD CONSTRAINT deck_check_keys_group_fkey FOREIGN KEY (group_id) REFERENCES public.friend_groups(id) ON DELETE CASCADE;
+
+
+--
+-- Name: deck_matchup_plans deck_matchup_plans_deck_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_matchup_plans
+    ADD CONSTRAINT deck_matchup_plans_deck_fkey FOREIGN KEY (deck_id) REFERENCES public.decks(id) ON DELETE CASCADE;
+
+
+--
+-- Name: deck_matchup_plans deck_matchup_plans_legend_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_matchup_plans
+    ADD CONSTRAINT deck_matchup_plans_legend_fkey FOREIGN KEY (opponent_legend_card_id) REFERENCES public.cards(id) ON DELETE CASCADE;
+
+
+--
+-- Name: deck_matchup_swaps deck_matchup_swaps_card_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_matchup_swaps
+    ADD CONSTRAINT deck_matchup_swaps_card_fkey FOREIGN KEY (card_id) REFERENCES public.cards(id) ON DELETE CASCADE;
+
+
+--
+-- Name: deck_matchup_swaps deck_matchup_swaps_plan_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_matchup_swaps
+    ADD CONSTRAINT deck_matchup_swaps_plan_fkey FOREIGN KEY (plan_id) REFERENCES public.deck_matchup_plans(id) ON DELETE CASCADE;
+
+
+--
+-- Name: deck_plans deck_plans_battlefield_first_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_plans
+    ADD CONSTRAINT deck_plans_battlefield_first_card_id_fkey FOREIGN KEY (battlefield_first_card_id) REFERENCES public.cards(id) ON DELETE SET NULL;
+
+
+--
+-- Name: deck_plans deck_plans_battlefield_g1_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_plans
+    ADD CONSTRAINT deck_plans_battlefield_g1_card_id_fkey FOREIGN KEY (battlefield_g1_card_id) REFERENCES public.cards(id) ON DELETE SET NULL;
+
+
+--
+-- Name: deck_plans deck_plans_battlefield_second_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_plans
+    ADD CONSTRAINT deck_plans_battlefield_second_card_id_fkey FOREIGN KEY (battlefield_second_card_id) REFERENCES public.cards(id) ON DELETE SET NULL;
+
+
+--
+-- Name: deck_plans deck_plans_deck_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_plans
+    ADD CONSTRAINT deck_plans_deck_fkey FOREIGN KEY (deck_id) REFERENCES public.decks(id) ON DELETE CASCADE;
 
 
 --
@@ -4679,5 +4879,5 @@ ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.friend_grou
 -- PostgreSQL database dump complete
 --
 
-\unrestrict IERbLbF7H04PlConoLKAqdR8XvsCoyCchc7GXOT2Bldy2gAknWEDSexOZ4rgIjc
+\unrestrict GBbbKrSNldHKpKpWqQPKrZIA9qAw0ZAmQCN8BwtrgD6A8d76oMwQtR2pSNzv19n
 

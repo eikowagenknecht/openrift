@@ -6,6 +6,7 @@ import type {
   PublicCopyResponse,
   DeckAvailabilityItemResponse,
   DeckCardResponse,
+  DeckPlanResponse,
   DeckResponse,
   DeckSummaryResponse,
   Domain,
@@ -24,6 +25,7 @@ import type {
 import type { Selectable } from "kysely";
 
 import type { CollectionsTable, DecksTable, ListEntriesTable, ListsTable } from "../db/index.js";
+import type { DeckPlanData } from "../repositories/deck-plans.js";
 import type { CollectionValue } from "../repositories/marketplace.js";
 
 const EMPTY_TRADE_PREFERENCE: TradePreference = {
@@ -167,6 +169,59 @@ export function toPublicDeck(row: Selectable<DecksTable>): PublicDeckResponse {
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
+}
+
+/**
+ * Maps a deck's stored plan data to the wire shape; deck-level fields default
+ * to empty when no row exists.
+ *
+ * @returns The plan response.
+ */
+export function toDeckPlan(data: DeckPlanData): DeckPlanResponse {
+  const { plan, matchups } = data;
+  return {
+    generalStrategy: plan?.generalStrategy ?? "",
+    mulliganSplit: plan?.mulliganSplit ?? false,
+    mulliganGeneral: plan?.mulliganGeneral ?? "",
+    mulliganFirst: plan?.mulliganFirst ?? "",
+    mulliganSecond: plan?.mulliganSecond ?? "",
+    battlefieldGame1CardId: plan?.battlefieldG1CardId ?? null,
+    battlefieldFirstCardId: plan?.battlefieldFirstCardId ?? null,
+    battlefieldSecondCardId: plan?.battlefieldSecondCardId ?? null,
+    battlefieldCustom: plan?.battlefieldCustom ?? false,
+    battlefieldNote: plan?.battlefieldNote ?? "",
+    matchups: matchups.map((matchup) => ({
+      id: matchup.id,
+      opponentLegendCardId: matchup.opponentLegendCardId,
+      subtitle: matchup.subtitle,
+      notes: matchup.notes,
+      swaps: matchup.swaps.map((swap) => ({
+        cardId: swap.cardId,
+        direction: swap.direction,
+        quantity: swap.quantity,
+      })),
+    })),
+  };
+}
+
+/**
+ * True when a plan has no deck-level content and no matchups — the public page
+ * renders nothing for it.
+ *
+ * @returns Whether the plan is empty.
+ */
+export function isEmptyDeckPlan(plan: DeckPlanResponse): boolean {
+  return (
+    plan.generalStrategy === "" &&
+    plan.mulliganGeneral === "" &&
+    plan.mulliganFirst === "" &&
+    plan.mulliganSecond === "" &&
+    plan.battlefieldGame1CardId === null &&
+    plan.battlefieldFirstCardId === null &&
+    plan.battlefieldSecondCardId === null &&
+    plan.battlefieldNote === "" &&
+    plan.matchups.length === 0
+  );
 }
 
 export function toList(row: Selectable<ListsTable> & { entryCount?: number }): ListResponse {

@@ -46,12 +46,12 @@ export function ImagePreview({
           href={url}
           target="_blank"
           rel="noreferrer"
-          className="bg-muted/30 text-muted-foreground hover:bg-muted/50 flex aspect-[5/7] w-full items-center justify-center rounded border"
+          className="bg-muted/30 text-muted-foreground hover:bg-muted/50 aspect-card flex w-full items-center justify-center rounded border"
         >
           Failed to load — click to open
         </a>
       ) : (
-        <div className="text-muted-foreground flex aspect-[5/7] w-full items-center justify-center rounded border">
+        <div className="text-muted-foreground aspect-card flex w-full items-center justify-center rounded border">
           No image
         </div>
       )}

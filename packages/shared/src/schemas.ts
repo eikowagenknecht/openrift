@@ -246,6 +246,38 @@ export const updateDeckCardsSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Deck plan schema (ADR-029)
+// ---------------------------------------------------------------------------
+
+const deckMatchupSwapSchema = z.object({
+  cardId: z.uuid(),
+  direction: z.enum(["in", "out"]),
+  quantity: z.number().int().positive().max(99),
+});
+
+const deckMatchupPlanSchema = z.object({
+  opponentLegendCardId: z.uuid(),
+  subtitle: z.string().max(120).default(""),
+  notes: z.string().max(4000).default(""),
+  swaps: z.array(deckMatchupSwapSchema).max(40),
+});
+
+/** PUT /decks/{id}/plan body — the whole plan, saved as a unit. */
+export const updateDeckPlanSchema = z.object({
+  generalStrategy: z.string().max(8000).default(""),
+  mulliganSplit: z.boolean().default(false),
+  mulliganGeneral: z.string().max(4000).default(""),
+  mulliganFirst: z.string().max(4000).default(""),
+  mulliganSecond: z.string().max(4000).default(""),
+  battlefieldGame1CardId: z.uuid().nullable().default(null),
+  battlefieldFirstCardId: z.uuid().nullable().default(null),
+  battlefieldSecondCardId: z.uuid().nullable().default(null),
+  battlefieldCustom: z.boolean().default(false),
+  battlefieldNote: z.string().max(4000).default(""),
+  matchups: z.array(deckMatchupPlanSchema).max(40),
+});
+
+// ---------------------------------------------------------------------------
 // Deck import/export schemas
 // ---------------------------------------------------------------------------
 

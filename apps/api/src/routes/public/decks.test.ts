@@ -14,6 +14,10 @@ const mockRepo = {
   cardsForDeck: vi.fn(() => Promise.resolve([] as object[])),
 };
 
+const mockDeckPlansRepo = {
+  getForDeck: vi.fn(() => Promise.resolve({ plan: undefined, matchups: [] as object[] })),
+};
+
 const mockCatalogRepo = {
   cardsByIds: vi.fn(() => Promise.resolve([] as object[])),
 };
@@ -30,6 +34,7 @@ const app = new Hono()
   .use("*", async (c, next) => {
     c.set("repos", {
       decks: mockRepo,
+      deckPlans: mockDeckPlansRepo,
       catalog: mockCatalogRepo,
       canonicalPrintings: mockCanonicalPrintingsRepo,
       customTags: mockCustomTagsRepo,

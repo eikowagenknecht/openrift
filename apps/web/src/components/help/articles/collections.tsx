@@ -72,7 +72,7 @@ export default function CollectionsArticle() {
             </div>
             <div className="grid grid-cols-4 gap-1.5">
               {Array.from({ length: 8 }, (_, index) => (
-                <div key={index} className="bg-muted/60 aspect-[5/7] rounded" />
+                <div key={index} className="bg-muted/60 aspect-card rounded" />
               ))}
             </div>
           </div>

@@ -17,6 +17,7 @@ import { useGridKeyboardNav } from "@/components/cards/use-grid-keyboard-nav";
 import { DeckAddStrip } from "@/components/deck/deck-add-strip";
 import { DeckCardDetailMenu } from "@/components/deck/deck-card-detail-menu";
 import { DeckOverview } from "@/components/deck/deck-overview";
+import { DeckOverviewPlanSection } from "@/components/deck/deck-overview-plan-section";
 import { DeckTableActions } from "@/components/deck/deck-table-actions";
 import { FormatTagPickBanner, needsFormatTagPick } from "@/components/deck/format-tag-pick-banner";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
@@ -223,7 +224,7 @@ function DeckOverviewForEditor({
 }) {
   const cards = useDeckCards(deck.id);
   const customTagAssignments = useCustomTagAssignments();
-  const { getPreferredFrontImage } = usePreferredPrinting();
+  const { getPreferredPrinting, getPreferredFrontImage } = usePreferredPrinting();
 
   // Mirror the parent editor's deckItems so arrow-key navigation walks the
   // same list the detail pane's prev/next uses. selectedIndex from the
@@ -236,28 +237,48 @@ function DeckOverviewForEditor({
     : EMPTY_SIBLINGS;
   useGridKeyboardNav({ items, siblingPrintings });
 
+  // Opens the detail pane for a card named in the plan (e.g. a battlefield
+  // pick). Mirrors handleOverviewCardClick, but resolves from a bare cardId —
+  // anchoring to the card's deck-zone instance when it actually runs in the
+  // deck, so the highlight and prev/next nav line up with the overview thumbs.
+  const handlePlanCardClick = (cardId: string) => {
+    const printing = getPreferredPrinting(cardId, null);
+    if (!printing) {
+      return;
+    }
+    const inDeck = cards.find((card) => card.cardId === cardId);
+    useSelectionStore.getState().selectCard(printing, items, "card", inDeck?.zone);
+  };
+
   return (
-    <DeckOverview
-      deck={{
-        id: deck.id,
-        name: deck.name,
-        format: deck.format,
-        formatConfig: deck.formatConfig,
-      }}
-      cards={cards}
-      customTagAssignments={customTagAssignments}
-      ownershipData={ownershipData}
-      marketplace={marketplace}
-      getThumbnail={(cardId, preferredPrintingId) => {
-        const id = getPreferredFrontImage(cardId, preferredPrintingId)?.imageId;
-        return id ? imageUrl(id, "400w") : undefined;
-      }}
-      onZoneClick={onZoneClick}
-      onViewMissing={onViewMissing}
-      onHoverCard={onHoverCard}
-      onCardClick={onCardClick}
-      description={deck.description ?? undefined}
-    />
+    <div className="flex flex-col">
+      <DeckOverview
+        deck={{
+          id: deck.id,
+          name: deck.name,
+          format: deck.format,
+          formatConfig: deck.formatConfig,
+        }}
+        cards={cards}
+        customTagAssignments={customTagAssignments}
+        ownershipData={ownershipData}
+        marketplace={marketplace}
+        getThumbnail={(cardId, preferredPrintingId) => {
+          const id = getPreferredFrontImage(cardId, preferredPrintingId)?.imageId;
+          return id ? imageUrl(id, "400w") : undefined;
+        }}
+        onZoneClick={onZoneClick}
+        onViewMissing={onViewMissing}
+        onHoverCard={onHoverCard}
+        onCardClick={onCardClick}
+        description={deck.description ?? undefined}
+      />
+      <DeckOverviewPlanSection
+        deckId={deck.id}
+        onHoverCard={onHoverCard}
+        onCardClick={handlePlanCardClick}
+      />
+    </div>
   );
 }
 

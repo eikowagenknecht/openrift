@@ -116,10 +116,82 @@ export interface PublicDeckCardResponse extends DeckCardResponse {
   imageId: string | null;
 }
 
+/** A single sideboard swap within a matchup plan: a card moving in or out for that opponent. */
+export interface DeckMatchupSwapResponse {
+  cardId: string;
+  /** "out" leaves the maindeck; "in" comes from the sideboard. */
+  direction: "in" | "out";
+  quantity: number;
+}
+
+/** One opponent matchup within a deck plan: who they are plus the swaps and notes for that game. */
+export interface DeckMatchupPlanResponse {
+  id: string;
+  /** Catalog card id of the opponent's Legend (identity), used for the icon and a catalog link. */
+  opponentLegendCardId: string;
+  /** Free-text build name, e.g. "Scorn of the Moon". Empty when not set. */
+  subtitle: string;
+  /** Free-text matchup note. Empty when not set. */
+  notes: string;
+  swaps: DeckMatchupSwapResponse[];
+}
+
+/**
+ * The deck-level plan (ADR-029): how to pilot the deck plus its per-matchup
+ * sideboard adjustments. All text fields default to empty and `matchups` to
+ * `[]`, so an untouched plan round-trips as an "empty" object.
+ */
+export interface DeckPlanResponse {
+  generalStrategy: string;
+  /** When true, the going-first / going-second mulligan notes apply; when false, `mulliganGeneral` does. */
+  mulliganSplit: boolean;
+  mulliganGeneral: string;
+  mulliganFirst: string;
+  mulliganSecond: string;
+  /** One battlefield per scenario (a game uses one). Null when not chosen. */
+  battlefieldGame1CardId: string | null;
+  battlefieldFirstCardId: string | null;
+  battlefieldSecondCardId: string | null;
+  /** When true, `battlefieldNote` free text is used instead of the per-scenario picks. */
+  battlefieldCustom: boolean;
+  battlefieldNote: string;
+  matchups: DeckMatchupPlanResponse[];
+}
+
+/** GET /decks/{id}/plan — owner read of a deck's plan (always present, empty when untouched). */
+export interface DeckPlanDetailResponse {
+  plan: DeckPlanResponse;
+}
+
+/**
+ * Display metadata for a card referenced by a plan (opponent Legend, chosen
+ * battlefields, swapped cards). Denormalized on the public share page so
+ * anonymous viewers can render names and thumbnails without the catalog.
+ */
+export interface DeckPlanCardMetaResponse {
+  cardId: string;
+  cardName: string;
+  cardSlug: string;
+  cardType: CardType;
+  imageId: string | null;
+}
+
 export interface PublicDeckDetailResponse {
   deck: PublicDeckResponse;
   cards: PublicDeckCardResponse[];
   owner: { displayName: string; gravatarHash: string | null };
+  /**
+   * The deck's plan, or `null` when the deck has no plan content at all (no
+   * deck-level fields set and no matchups). The share page renders nothing
+   * for a null plan.
+   */
+  plan: DeckPlanResponse | null;
+  /**
+   * Display metadata for every card the plan references (opponent Legends,
+   * battlefields, swapped cards). Empty when `plan` is null. Lets the share
+   * page render the plan without catalog access.
+   */
+  planCardMeta: DeckPlanCardMetaResponse[];
   /**
    * Card id → custom-tag slugs (sorted), denormalized for the cards in this
    * deck only. The full catalog map isn't available to anonymous viewers, so

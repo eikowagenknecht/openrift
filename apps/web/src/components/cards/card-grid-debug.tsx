@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 
 import {
   BUTTON_PAD,
-  CARD_ASPECT,
+  CARD_ASPECT_INVERSE,
   GAP,
   LABEL_WRAPPER_MT,
   META_LABEL_PY,
@@ -107,7 +107,7 @@ export function CardGridDebug({
 
       // Derived layout values — mirrors estimateRowHeight logic
       const cardWidth = (containerWidth - GAP * (columns - 1)) / columns;
-      const expImgH = (cardWidth - BUTTON_PAD * 2) * CARD_ASPECT;
+      const expImgH = (cardWidth - BUTTON_PAD * 2) * CARD_ASPECT_INVERSE;
       const expRow = estimateRowHeight(items[0]?.index ?? 0);
 
       const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);

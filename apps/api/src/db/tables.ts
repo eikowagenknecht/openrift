@@ -423,6 +423,52 @@ export interface DeckCardsTable {
 }
 
 /**
+ * Deck-level plan (ADR-029), 1:1 with a deck. All text fields default to ''
+ * and are length-checked at the DB; battlefield FKs are nullable single cards
+ * (one battlefield per scenario). @see updateDeckPlanSchema in `schemas.ts`.
+ */
+export interface DeckPlansTable {
+  id: Generated<string>;
+  deckId: string;
+  generalStrategy: Generated<string>;
+  mulliganSplit: Generated<boolean>;
+  mulliganGeneral: Generated<string>;
+  mulliganFirst: Generated<string>;
+  mulliganSecond: Generated<string>;
+  /** FK → cards(id), nullable; the battlefield chosen for game 1. */
+  battlefieldG1CardId: string | null;
+  battlefieldFirstCardId: string | null;
+  battlefieldSecondCardId: string | null;
+  /** When true, `battlefieldNote` free text replaces the per-scenario picks. */
+  battlefieldCustom: Generated<boolean>;
+  battlefieldNote: Generated<string>;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/** One opponent matchup within a deck's plan. Unique per (deckId, opponentLegendCardId, subtitle). */
+export interface DeckMatchupPlansTable {
+  id: Generated<string>;
+  deckId: string;
+  /** FK → cards(id): the opponent's Legend. */
+  opponentLegendCardId: string;
+  subtitle: Generated<string>;
+  notes: Generated<string>;
+  sortOrder: Generated<number>;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/** A sideboard swap for a matchup. CHECK: direction IN ('in','out'); quantity > 0. */
+export interface DeckMatchupSwapsTable {
+  id: Generated<string>;
+  planId: string;
+  cardId: string;
+  direction: "in" | "out";
+  quantity: number;
+}
+
+/**
  * Unified list table — replaces the old trade_lists and wish_lists.
  *
  * `intent` is the surface (wish / trade / organize). `kind` is the granularity
@@ -1301,6 +1347,9 @@ export interface Database {
   collectionEvents: CollectionEventsTable;
   decks: DecksTable;
   deckCards: DeckCardsTable;
+  deckPlans: DeckPlansTable;
+  deckMatchupPlans: DeckMatchupPlansTable;
+  deckMatchupSwaps: DeckMatchupSwapsTable;
   lists: ListsTable;
   listEntries: ListEntriesTable;
 

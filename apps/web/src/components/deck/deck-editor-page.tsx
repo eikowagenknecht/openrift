@@ -1,8 +1,9 @@
 import type { DeckZone } from "@openrift/shared";
 import { imageUrl, WellKnown } from "@openrift/shared";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
+  ClipboardListIcon,
   CornerLeftUpIcon,
   EllipsisVerticalIcon,
   FileTextIcon,
@@ -15,7 +16,7 @@ import {
   UploadIcon,
   XIcon,
 } from "lucide-react";
-import { use, useEffect, useRef, useState } from "react";
+import { Suspense, use, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { buildRunesByDomain, DeckCardBrowser } from "@/components/deck/deck-card-browser";
@@ -23,6 +24,7 @@ import { DeckDescriptionDialog } from "@/components/deck/deck-description-dialog
 import { DeckDndContext } from "@/components/deck/deck-dnd-context";
 import { DeckExportDialog } from "@/components/deck/deck-export-dialog";
 import { DeckMissingCardsDialog } from "@/components/deck/deck-missing-cards-dialog";
+import { DeckPlanEditor } from "@/components/deck/deck-plan-editor";
 import { DeckRenameDialog } from "@/components/deck/deck-rename-dialog";
 import { DeckShareDialog } from "@/components/deck/deck-share-dialog";
 import { DeckFormatBadge } from "@/components/deck/deck-validation-banner";
@@ -70,14 +72,17 @@ import { useCards } from "@/hooks/use-cards";
 import { useDeckCards } from "@/hooks/use-deck-builder";
 import { useDeckItems } from "@/hooks/use-deck-items";
 import { useDeckOwnership } from "@/hooks/use-deck-ownership";
+import { deckPlanQueryOptions } from "@/hooks/use-deck-plan";
 import { useDeckDetail, useExportDeck, useUpdateDeck } from "@/hooks/use-decks";
 import { useDeckFormatList } from "@/hooks/use-enums";
+import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { useDeckBuildingCounts } from "@/hooks/use-owned-count";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useRequiredUserId, useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { toDeckBuilderCard } from "@/lib/deck-builder-card";
 import { hydrateDeckDraft, useDeckSaveStatus } from "@/lib/deck-builder-collection";
+import { isPlanDraftEmpty, planResponseToDraft } from "@/lib/deck-plan";
 import { ZONE_LABELS } from "@/lib/deck-zone-labels";
 import { getHeaderHeight } from "@/lib/header-height";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
@@ -142,6 +147,16 @@ function DeckEditorContent({
   const { isMobile, setOpenMobile, toggleSidebar } = useSidebar();
   const activeZone = useDeckBuilderUiStore((state) => state.activeZone);
   const setActiveZone = useDeckBuilderUiStore((state) => state.setActiveZone);
+  const planActive = useDeckBuilderUiStore((state) => state.planActive);
+  const setPlanActive = useDeckBuilderUiStore((state) => state.setPlanActive);
+  const planEnabled = useFeatureEnabled("deck-plans");
+  const showPlan = planEnabled && planActive;
+  // Non-blocking read so the sidebar entry can show whether a plan exists yet
+  // (dashed when empty). The editor itself loads the plan via its own suspense.
+  const planQuery = useQuery({ ...deckPlanQueryOptions(userId, deckId), enabled: planEnabled });
+  const hasPlan = planQuery.data
+    ? !isPlanDraftEmpty(planResponseToDraft(planQuery.data.plan))
+    : false;
   const resetUi = useDeckBuilderUiStore((state) => state.reset);
   const setRunesByDomain = useDeckBuilderUiStore((state) => state.setRunesByDomain);
   const [renameOpen, setRenameOpen] = useState(false);
@@ -270,6 +285,8 @@ function DeckEditorContent({
   };
 
   const handleZoneClick = (zone: DeckZone) => {
+    // Leaving the Plan view whenever a zone is opened.
+    setPlanActive(false);
     // Clicking the active zone again returns to the overview dashboard.
     if (zone === activeZone) {
       setActiveZone(null);
@@ -580,12 +597,44 @@ function DeckEditorContent({
                 <DeckZonePanel
                   deckId={deckId}
                   onZoneClick={handleZoneClick}
-                  onOverviewClick={() => setActiveZone(null)}
+                  onOverviewClick={() => {
+                    setPlanActive(false);
+                    setActiveZone(null);
+                  }}
                   onHoverCard={setHoveredSidebar}
                   ownershipData={ownershipData}
                   marketplace={marketplace}
                   onViewMissing={() => setMissingOpen(true)}
                   hideStatsAndOwnership={activeZone === null}
+                  afterOverview={
+                    planEnabled && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setPlanActive(true);
+                          // Close any open card detail so the hover preview isn't suppressed.
+                          useSelectionStore.getState().closeDetail();
+                          if (isMobile) {
+                            setOpenMobile(false);
+                          }
+                        }}
+                        className={cn(
+                          "h-auto justify-start gap-2 rounded-lg px-2.5 py-2 text-left",
+                          !hasPlan && "border-dashed",
+                          showPlan && "bg-primary/10 font-bold",
+                        )}
+                      >
+                        <ClipboardListIcon className="size-3.5" />
+                        <span>Plan</span>
+                        {hasPlan ? null : (
+                          <span className="text-muted-foreground ml-auto text-xs font-normal">
+                            empty
+                          </span>
+                        )}
+                      </Button>
+                    )
+                  }
                   deckItems={deckItems}
                 />
               </div>
@@ -617,17 +666,29 @@ function DeckEditorContent({
               }
             >
               <div className="flex min-w-0 flex-1 flex-col">
-                <DeckCardBrowser
-                  deckId={deckId}
-                  ownershipData={ownershipData}
-                  marketplace={marketplace}
-                  onZoneClick={handleZoneClick}
-                  onViewMissing={() => setMissingOpen(true)}
-                  onHoverCard={setHoveredMain}
-                  onOverviewCardClick={handleOverviewCardClick}
-                />
+                {showPlan ? (
+                  <Suspense
+                    fallback={<div className="text-muted-foreground p-4">Loading plan…</div>}
+                  >
+                    <DeckPlanEditor
+                      deckId={deckId}
+                      deckCards={deckCards}
+                      onHoverCard={setHoveredMain}
+                    />
+                  </Suspense>
+                ) : (
+                  <DeckCardBrowser
+                    deckId={deckId}
+                    ownershipData={ownershipData}
+                    marketplace={marketplace}
+                    onZoneClick={handleZoneClick}
+                    onViewMissing={() => setMissingOpen(true)}
+                    onHoverCard={setHoveredMain}
+                    onOverviewCardClick={handleOverviewCardClick}
+                  />
+                )}
               </div>
-              {!isMobile && activeZone === null && (
+              {!isMobile && activeZone === null && !showPlan && (
                 <SelectionDetailPane
                   items={deckItems}
                   printingsByCardId={printingsByCardId}

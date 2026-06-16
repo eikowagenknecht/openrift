@@ -1,0 +1,385 @@
+import type { Card, DeckPlanResponse } from "@openrift/shared";
+import { describe, expect, it } from "vitest";
+
+import {
+  buildPlanCardMeta,
+  computePlanWarnings,
+  createEmptyMatchup,
+  createEmptyPlanDraft,
+  isPlanDraftEmpty,
+  planDraftToSaveInput,
+  planReferencedCardIds,
+  planResponseToDraft,
+  planSummary,
+} from "./deck-plan";
+import type { DeckPlanContext, PlanDraft } from "./deck-plan";
+
+const LEGEND = "11111111-1111-1111-1111-111111111111";
+const MAIN_CARD = "22222222-2222-2222-2222-222222222222";
+const BENCH_CARD = "33333333-3333-3333-3333-333333333333";
+const BATTLEFIELD = "44444444-4444-4444-4444-444444444444";
+
+function context(overrides?: Partial<DeckPlanContext>): DeckPlanContext {
+  return {
+    maindeck: new Map([[MAIN_CARD, 3]]),
+    sideboard: new Map([[BENCH_CARD, 2]]),
+    battlefieldCardIds: new Set([BATTLEFIELD]),
+    ...overrides,
+  };
+}
+
+function draftWithMatchup(overrides?: Partial<PlanDraft["matchups"][number]>): PlanDraft {
+  return {
+    ...createEmptyPlanDraft(),
+    matchups: [{ ...createEmptyMatchup(), opponentLegendCardId: LEGEND, ...overrides }],
+  };
+}
+
+describe("planResponseToDraft", () => {
+  it("copies every field and matchup from the response", () => {
+    const plan: DeckPlanResponse = {
+      generalStrategy: "Race them",
+      mulliganSplit: true,
+      mulliganGeneral: "",
+      mulliganFirst: "Keep removal",
+      mulliganSecond: "Keep threats",
+      battlefieldGame1CardId: BATTLEFIELD,
+      battlefieldFirstCardId: null,
+      battlefieldSecondCardId: null,
+      battlefieldCustom: false,
+      battlefieldNote: "",
+      matchups: [
+        {
+          id: "abc",
+          opponentLegendCardId: LEGEND,
+          subtitle: "Scorn of the Moon",
+          notes: "Watch the bench",
+          swaps: [{ cardId: BENCH_CARD, direction: "in", quantity: 1 }],
+        },
+      ],
+    };
+    const draft = planResponseToDraft(plan);
+    expect(draft.generalStrategy).toBe("Race them");
+    expect(draft.mulliganSplit).toBe(true);
+    expect(draft.matchups).toHaveLength(1);
+    expect(draft.matchups[0]?.opponentLegendCardId).toBe(LEGEND);
+    expect(draft.matchups[0]?.swaps[0]).toEqual({
+      cardId: BENCH_CARD,
+      direction: "in",
+      quantity: 1,
+    });
+  });
+});
+
+describe("planDraftToSaveInput", () => {
+  it("drops matchups without a Legend and trims text", () => {
+    const draft: PlanDraft = {
+      ...createEmptyPlanDraft(),
+      generalStrategy: "  win  ",
+      matchups: [
+        createEmptyMatchup(), // no legend → dropped
+        {
+          ...createEmptyMatchup(),
+          opponentLegendCardId: LEGEND,
+          subtitle: "  build  ",
+          notes: " note ",
+        },
+      ],
+    };
+    const input = planDraftToSaveInput(draft);
+    expect(input.generalStrategy).toBe("win");
+    expect(input.matchups).toHaveLength(1);
+    expect(input.matchups[0]?.subtitle).toBe("build");
+    expect(input.matchups[0]?.notes).toBe("note");
+  });
+
+  it("drops swaps with no card or non-positive quantity", () => {
+    const draft = draftWithMatchup({
+      swaps: [
+        { cardId: BENCH_CARD, direction: "in", quantity: 2 },
+        { cardId: "", direction: "in", quantity: 1 },
+        { cardId: MAIN_CARD, direction: "out", quantity: 0 },
+      ],
+    });
+    const input = planDraftToSaveInput(draft);
+    expect(input.matchups[0]?.swaps).toEqual([
+      { cardId: BENCH_CARD, direction: "in", quantity: 2 },
+    ]);
+  });
+});
+
+describe("computePlanWarnings", () => {
+  it("returns no warnings for a balanced, in-deck matchup", () => {
+    const draft = draftWithMatchup({
+      swaps: [
+        { cardId: BENCH_CARD, direction: "in", quantity: 1 },
+        { cardId: MAIN_CARD, direction: "out", quantity: 1 },
+      ],
+    });
+    expect(computePlanWarnings(draft, context())).toEqual([]);
+  });
+
+  it("flags an unbalanced swap count", () => {
+    const draft = draftWithMatchup({
+      swaps: [{ cardId: BENCH_CARD, direction: "in", quantity: 1 }],
+    });
+    const warnings = computePlanWarnings(draft, context());
+    expect(warnings).toContainEqual({
+      code: "swap-unbalanced",
+      matchupIndex: 0,
+      inCount: 1,
+      outCount: 0,
+    });
+  });
+
+  it("flags an IN swap that exceeds available sideboard copies", () => {
+    const draft = draftWithMatchup({
+      swaps: [
+        { cardId: BENCH_CARD, direction: "in", quantity: 3 },
+        { cardId: MAIN_CARD, direction: "out", quantity: 3 },
+      ],
+    });
+    const warnings = computePlanWarnings(draft, context());
+    expect(warnings).toContainEqual({
+      code: "in-exceeds-sideboard",
+      matchupIndex: 0,
+      cardId: BENCH_CARD,
+      requested: 3,
+      available: 2,
+    });
+  });
+
+  it("flags an OUT swap that exceeds maindeck copies", () => {
+    const draft = draftWithMatchup({
+      swaps: [
+        { cardId: BENCH_CARD, direction: "in", quantity: 5 },
+        { cardId: MAIN_CARD, direction: "out", quantity: 5 },
+      ],
+    });
+    const warnings = computePlanWarnings(draft, context());
+    expect(warnings).toContainEqual({
+      code: "out-exceeds-maindeck",
+      matchupIndex: 0,
+      cardId: MAIN_CARD,
+      requested: 5,
+      available: 3,
+    });
+  });
+
+  it("flags a matchup with no Legend", () => {
+    const draft: PlanDraft = { ...createEmptyPlanDraft(), matchups: [createEmptyMatchup()] };
+    expect(computePlanWarnings(draft, context())).toContainEqual({
+      code: "matchup-no-legend",
+      matchupIndex: 0,
+    });
+  });
+
+  it("flags a battlefield not in the deck", () => {
+    const draft: PlanDraft = {
+      ...createEmptyPlanDraft(),
+      battlefieldGame1CardId: "99999999-9999-9999-9999-999999999999",
+    };
+    expect(computePlanWarnings(draft, context())).toContainEqual({
+      code: "battlefield-not-in-deck",
+      scenario: "game1",
+      cardId: "99999999-9999-9999-9999-999999999999",
+    });
+  });
+
+  it("does not flag a battlefield the deck runs", () => {
+    const draft: PlanDraft = { ...createEmptyPlanDraft(), battlefieldGame1CardId: BATTLEFIELD };
+    expect(computePlanWarnings(draft, context())).toEqual([]);
+  });
+
+  it("flags a battlefield used in more than one scenario, once", () => {
+    const draft: PlanDraft = {
+      ...createEmptyPlanDraft(),
+      battlefieldGame1CardId: BATTLEFIELD,
+      battlefieldFirstCardId: BATTLEFIELD,
+      battlefieldSecondCardId: BATTLEFIELD,
+    };
+    const duplicates = computePlanWarnings(draft, context()).filter(
+      (warning) => warning.code === "battlefield-duplicate",
+    );
+    expect(duplicates).toEqual([{ code: "battlefield-duplicate", cardId: BATTLEFIELD }]);
+  });
+
+  it("skips battlefield checks in custom mode", () => {
+    const draft: PlanDraft = {
+      ...createEmptyPlanDraft(),
+      battlefieldCustom: true,
+      // Both an out-of-deck pick and a duplicate that would warn in pick mode.
+      battlefieldGame1CardId: "99999999-9999-9999-9999-999999999999",
+      battlefieldFirstCardId: "99999999-9999-9999-9999-999999999999",
+    };
+    const battlefieldWarnings = computePlanWarnings(draft, context()).filter(
+      (warning) =>
+        warning.code === "battlefield-not-in-deck" || warning.code === "battlefield-duplicate",
+    );
+    expect(battlefieldWarnings).toEqual([]);
+  });
+});
+
+describe("isPlanDraftEmpty", () => {
+  it("is true for a fresh draft", () => {
+    expect(isPlanDraftEmpty(createEmptyPlanDraft())).toBe(true);
+  });
+
+  it("is true when the only matchup has no Legend", () => {
+    const draft: PlanDraft = { ...createEmptyPlanDraft(), matchups: [createEmptyMatchup()] };
+    expect(isPlanDraftEmpty(draft)).toBe(true);
+  });
+
+  it("is false once strategy text is present", () => {
+    expect(isPlanDraftEmpty({ ...createEmptyPlanDraft(), generalStrategy: "x" })).toBe(false);
+  });
+
+  it("is false once a custom battlefield note is present", () => {
+    expect(
+      isPlanDraftEmpty({
+        ...createEmptyPlanDraft(),
+        battlefieldCustom: true,
+        battlefieldNote: "x",
+      }),
+    ).toBe(false);
+  });
+
+  it("is false once a complete matchup exists", () => {
+    expect(isPlanDraftEmpty(draftWithMatchup())).toBe(false);
+  });
+});
+
+function emptyPlanResponse(overrides?: Partial<DeckPlanResponse>): DeckPlanResponse {
+  return {
+    generalStrategy: "",
+    mulliganSplit: false,
+    mulliganGeneral: "",
+    mulliganFirst: "",
+    mulliganSecond: "",
+    battlefieldGame1CardId: null,
+    battlefieldFirstCardId: null,
+    battlefieldSecondCardId: null,
+    battlefieldCustom: false,
+    battlefieldNote: "",
+    matchups: [],
+    ...overrides,
+  };
+}
+
+function card(overrides: Partial<Card> & { slug: string; name: string }): Card {
+  return {
+    type: "unit",
+    superTypes: [],
+    domains: [],
+    might: null,
+    energy: null,
+    power: null,
+    keywords: [],
+    tags: [],
+    mightBonus: null,
+    errata: null,
+    bans: [],
+    ...overrides,
+  };
+}
+
+describe("planReferencedCardIds", () => {
+  it("is empty for a plan with no battlefields and no matchups", () => {
+    expect(planReferencedCardIds(emptyPlanResponse())).toEqual([]);
+  });
+
+  it("collects battlefields, opponent Legends, and swap cards, deduplicated", () => {
+    const plan = emptyPlanResponse({
+      battlefieldGame1CardId: BATTLEFIELD,
+      battlefieldFirstCardId: null,
+      battlefieldSecondCardId: BATTLEFIELD, // same as G1 → deduped
+      matchups: [
+        {
+          id: "m1",
+          opponentLegendCardId: LEGEND,
+          subtitle: "",
+          notes: "",
+          swaps: [
+            { cardId: MAIN_CARD, direction: "out", quantity: 1 },
+            { cardId: BENCH_CARD, direction: "in", quantity: 1 },
+          ],
+        },
+      ],
+    });
+    const ids = planReferencedCardIds(plan);
+    expect(new Set(ids)).toEqual(new Set([BATTLEFIELD, LEGEND, MAIN_CARD, BENCH_CARD]));
+    expect(ids).toHaveLength(4);
+  });
+});
+
+describe("buildPlanCardMeta", () => {
+  it("returns meta for catalog-known cards and skips unknown ones", () => {
+    const plan = emptyPlanResponse({
+      battlefieldGame1CardId: BATTLEFIELD,
+      matchups: [
+        {
+          id: "m1",
+          opponentLegendCardId: LEGEND,
+          subtitle: "",
+          notes: "",
+          swaps: [{ cardId: MAIN_CARD, direction: "out", quantity: 1 }],
+        },
+      ],
+    });
+    const cardsById: Record<string, Card> = {
+      [LEGEND]: card({ slug: "diana", name: "Diana", type: "legend" }),
+      [BATTLEFIELD]: card({ slug: "the-rift", name: "The Rift", type: "battlefield" }),
+      // MAIN_CARD intentionally absent from the catalog map
+    };
+    const meta = buildPlanCardMeta(plan, cardsById, (id) => (id === LEGEND ? "img-diana" : null));
+
+    expect(meta).toHaveLength(2);
+    const legend = meta.find((entry) => entry.cardId === LEGEND);
+    expect(legend).toEqual({
+      cardId: LEGEND,
+      cardName: "Diana",
+      cardSlug: "diana",
+      cardType: "legend",
+      imageId: "img-diana",
+    });
+    expect(meta.find((entry) => entry.cardId === BATTLEFIELD)?.imageId).toBeNull();
+    expect(meta.find((entry) => entry.cardId === MAIN_CARD)).toBeUndefined();
+  });
+
+  it("is empty when the plan references nothing", () => {
+    expect(buildPlanCardMeta(emptyPlanResponse(), {}, () => null)).toEqual([]);
+  });
+});
+
+describe("planSummary", () => {
+  it("is empty for an empty plan", () => {
+    expect(planSummary(emptyPlanResponse())).toBe("");
+  });
+
+  it("lists each present section in order", () => {
+    const plan = emptyPlanResponse({
+      generalStrategy: "Race",
+      mulliganGeneral: "Keep removal",
+      battlefieldGame1CardId: BATTLEFIELD,
+      matchups: [
+        { id: "m1", opponentLegendCardId: LEGEND, subtitle: "", notes: "", swaps: [] },
+        { id: "m2", opponentLegendCardId: BENCH_CARD, subtitle: "", notes: "", swaps: [] },
+      ],
+    });
+    expect(planSummary(plan)).toBe("Strategy · Mulligan · Battlefields · 2 matchups");
+  });
+
+  it("pluralizes a single matchup correctly and honors the mulligan split", () => {
+    const plan = emptyPlanResponse({
+      mulliganSplit: true,
+      mulliganFirst: "Keep threats",
+      matchups: [{ id: "m1", opponentLegendCardId: LEGEND, subtitle: "", notes: "", swaps: [] }],
+    });
+    expect(planSummary(plan)).toBe("Mulligan · 1 matchup");
+  });
+
+  it("counts a custom battlefield note as battlefields", () => {
+    const plan = emptyPlanResponse({ battlefieldCustom: true, battlefieldNote: "Take the river" });
+    expect(planSummary(plan)).toBe("Battlefields");
+  });
+});
