@@ -38,6 +38,7 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  onClick, // custom: composed below so callers can still pass onClick
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean;
@@ -51,6 +52,15 @@ function DialogContent({
           "bg-background ring-foreground/10 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto overscroll-contain rounded-xl p-4 text-sm ring-1 duration-100 outline-none sm:max-w-sm",
           className,
         )}
+        onClick={(event) => {
+          // custom: BaseUI portals the popup to the body, but React synthetic events
+          // custom: still bubble through the React tree to ancestors. Without this, a
+          // custom: dialog rendered inside a clickable ancestor (e.g. a deck tile <Link>)
+          // custom: fires that ancestor when a control inside the dialog is clicked —
+          // custom: confirming a deck delete navigated into the editor (#159).
+          event.stopPropagation(); // custom:
+          onClick?.(event); // custom:
+        }}
         {...props}
       >
         {children}

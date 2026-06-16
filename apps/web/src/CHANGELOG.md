@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-06-16
+
+- fix: Deleting a deck from the deck list no longer opens the deck editor for the deck you just removed; it now stays on the deck list
+
 ## 2026-06-12
 
 - feat: Judges can withdraw a deck-check entry when a player drops out and restore it if they return, and group admins can delete an entry for good, both right from the checker page
