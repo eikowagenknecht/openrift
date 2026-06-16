@@ -10,9 +10,9 @@ interface TestCard {
 }
 
 const catalogue: Record<string, DeckCheckCardIdentity> = {
-  "p-zed": { name: "Zed", shortCode: "OGN-200", domains: ["mind"] },
-  "p-ahri": { name: "Ahri", shortCode: "OGN-010", domains: ["fury"] },
-  "p-jinx": { name: "Jinx", shortCode: "OGN-100", domains: ["fury", "mind"] },
+  "p-zed": { name: "Zed", shortCode: "OGN-200", domains: ["mind"], energy: 4, power: 5 },
+  "p-ahri": { name: "Ahri", shortCode: "OGN-010", domains: ["fury"], energy: 3, power: 4 },
+  "p-jinx": { name: "Jinx", shortCode: "OGN-100", domains: ["fury", "mind"], energy: 5, power: 6 },
 };
 
 const DOMAIN_ORDER = ["fury", "calm", "mind", "body", "chaos", "order", "colorless"];
@@ -128,8 +128,8 @@ describe("sortDeckCheckCards", () => {
 
   it("sorts by name within the same domain for the 'domain' sort", () => {
     const sameDomain: Record<string, DeckCheckCardIdentity> = {
-      "p-a": { name: "Annie", shortCode: "OGN-001", domains: ["fury"] },
-      "p-b": { name: "Brand", shortCode: "OGN-002", domains: ["fury"] },
+      "p-a": { name: "Annie", shortCode: "OGN-001", domains: ["fury"], energy: 2, power: 1 },
+      "p-b": { name: "Brand", shortCode: "OGN-002", domains: ["fury"], energy: 2, power: 1 },
     };
     const sameDomainIdentify = (printingId: string | null) =>
       printingId ? sameDomain[printingId] : undefined;
@@ -159,8 +159,8 @@ describe("sortDeckCheckCards", () => {
 
   it("ranks domains missing from the order list after known domains", () => {
     const exotic: Record<string, DeckCheckCardIdentity> = {
-      "p-known": { name: "Known", shortCode: "OGN-001", domains: ["fury"] },
-      "p-exotic": { name: "Exotic", shortCode: "OGN-002", domains: ["void"] },
+      "p-known": { name: "Known", shortCode: "OGN-001", domains: ["fury"], energy: 1, power: 1 },
+      "p-exotic": { name: "Exotic", shortCode: "OGN-002", domains: ["void"], energy: 1, power: 1 },
     };
     const exoticIdentify = (printingId: string | null) =>
       printingId ? exotic[printingId] : undefined;
@@ -171,6 +171,83 @@ describe("sortDeckCheckCards", () => {
     expect(names(sortDeckCheckCards(mixed, "domain", "asc", exoticIdentify, DOMAIN_ORDER))).toEqual(
       ["Known", "Exotic"],
     );
+  });
+
+  it("sorts by energy, then power, then name for the 'energy' sort", () => {
+    // Ahri (3) → Zed (4) → Jinx (5) by energy cost.
+    expect(names(sortDeckCheckCards(cards, "energy", "asc", identify))).toEqual([
+      "Ahri",
+      "Zed",
+      "Jinx",
+    ]);
+    expect(names(sortDeckCheckCards(cards, "energy", "desc", identify))).toEqual([
+      "Jinx",
+      "Zed",
+      "Ahri",
+    ]);
+  });
+
+  it("breaks equal energy by power, then name, for the 'energy' sort", () => {
+    const sameEnergy: Record<string, DeckCheckCardIdentity> = {
+      "p-low": { name: "Lux", shortCode: "OGN-001", domains: ["mind"], energy: 3, power: 2 },
+      "p-high": { name: "Vi", shortCode: "OGN-002", domains: ["fury"], energy: 3, power: 7 },
+      "p-tie": { name: "Ekko", shortCode: "OGN-003", domains: ["mind"], energy: 3, power: 2 },
+    };
+    const sameEnergyIdentify = (printingId: string | null) =>
+      printingId ? sameEnergy[printingId] : undefined;
+    const sameEnergyCards: TestCard[] = [
+      { sortOrder: 0, rawName: "Vi", resolvedPrintingId: "p-high" },
+      { sortOrder: 1, rawName: "Lux", resolvedPrintingId: "p-low" },
+      { sortOrder: 2, rawName: "Ekko", resolvedPrintingId: "p-tie" },
+    ];
+    // Equal energy: lower power first, then name breaks the power tie.
+    expect(names(sortDeckCheckCards(sameEnergyCards, "energy", "asc", sameEnergyIdentify))).toEqual(
+      ["Ekko", "Lux", "Vi"],
+    );
+  });
+
+  it("ranks cards with null energy after numbered cards in the 'energy' sort", () => {
+    const withNull: Record<string, DeckCheckCardIdentity> = {
+      "p-num": { name: "Garen", shortCode: "OGN-001", domains: ["body"], energy: 2, power: 3 },
+      "p-null": {
+        name: "Howling Abyss",
+        shortCode: "OGN-090",
+        domains: [],
+        energy: null,
+        power: null,
+      },
+    };
+    const nullIdentify = (printingId: string | null) =>
+      printingId ? withNull[printingId] : undefined;
+    const nullCards: TestCard[] = [
+      { sortOrder: 0, rawName: "Howling Abyss", resolvedPrintingId: "p-null" },
+      { sortOrder: 1, rawName: "Garen", resolvedPrintingId: "p-num" },
+    ];
+    expect(names(sortDeckCheckCards(nullCards, "energy", "asc", nullIdentify))).toEqual([
+      "Garen",
+      "Howling Abyss",
+    ]);
+  });
+
+  it("pins unmatched lines to the end of the 'energy' sort in both directions", () => {
+    const withUnmatched: TestCard[] = [
+      { sortOrder: 0, rawName: "Unknown A", resolvedPrintingId: null },
+      { sortOrder: 1, rawName: "Jinx", resolvedPrintingId: "p-jinx" },
+      { sortOrder: 2, rawName: "Unknown B", resolvedPrintingId: null },
+      { sortOrder: 3, rawName: "Ahri", resolvedPrintingId: "p-ahri" },
+    ];
+    expect(names(sortDeckCheckCards(withUnmatched, "energy", "asc", identify))).toEqual([
+      "Ahri",
+      "Jinx",
+      "Unknown A",
+      "Unknown B",
+    ]);
+    expect(names(sortDeckCheckCards(withUnmatched, "energy", "desc", identify))).toEqual([
+      "Jinx",
+      "Ahri",
+      "Unknown A",
+      "Unknown B",
+    ]);
   });
 
   it("breaks ties by import order", () => {

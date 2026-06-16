@@ -1352,7 +1352,7 @@ function CardChecklist({
   const [hovered, setHovered] = useState<HoveredPreview | null>(null);
 
   const printingById = new Map(allPrintings.map((printing) => [printing.id, printing]));
-  // Resolve catalogue identity for the "name" / "id" / "domain" sorts.
+  // Resolve catalogue identity for the "name" / "id" / "domain" / "energy" sorts.
   const identify = (printingId: string | null) => {
     const printing = printingId ? printingById.get(printingId) : undefined;
     return printing
@@ -1360,6 +1360,8 @@ function CardChecklist({
           name: printing.card.name,
           shortCode: printing.shortCode,
           domains: printing.card.domains,
+          energy: printing.card.energy,
+          power: printing.card.power,
         }
       : undefined;
   };
@@ -1522,6 +1524,7 @@ const CHECK_SORT_OPTIONS: SortGroupOption<DeckCheckSort>[] = [
   { value: "id", label: "ID" },
   { value: "name", label: "Name" },
   { value: "domain", label: "Domain" },
+  { value: "energy", label: "Energy" },
 ];
 
 function ZoneSection({
