@@ -7,7 +7,7 @@ import { getSiteUrl } from "@/lib/site-config";
 
 export const Route = createFileRoute("/_app/_authenticated/groups/$slug_/shared")({
   ssr: "data-only",
-  head: () => seoHead({ siteUrl: getSiteUrl(), title: "Shared", noIndex: true }),
+  head: () => seoHead({ siteUrl: getSiteUrl(), title: "Collections", noIndex: true }),
   loader: async ({ context, params }) => {
     await context.queryClient.ensureQueryData(
       friendGroupDetailQueryOptions(context.userId, params.slug),

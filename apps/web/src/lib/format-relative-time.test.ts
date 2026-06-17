@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { formatRelativeTime } from "./format-relative-time";
+import { formatRelativeTime, formatTimeRemaining } from "./format-relative-time";
 
 const NOW = new Date("2026-06-08T12:00:00.000Z");
 
 function ago(ms: number): string {
   return new Date(NOW.getTime() - ms).toISOString();
+}
+
+function ahead(ms: number): string {
+  return new Date(NOW.getTime() + ms).toISOString();
 }
 
 const SECOND = 1000;
@@ -49,5 +53,31 @@ describe("formatRelativeTime", () => {
 
   it("returns empty string for an unparseable timestamp", () => {
     expect(formatRelativeTime("not-a-date", NOW)).toBe("");
+  });
+});
+
+describe("formatTimeRemaining", () => {
+  it("renders sub-minute (and already-past) as 'expiring now'", () => {
+    expect(formatTimeRemaining(ahead(0), NOW)).toBe("expiring now");
+    expect(formatTimeRemaining(ahead(59 * SECOND), NOW)).toBe("expiring now");
+    expect(formatTimeRemaining(ago(MINUTE), NOW)).toBe("expiring now");
+  });
+
+  it("renders minutes", () => {
+    expect(formatTimeRemaining(ahead(MINUTE), NOW)).toBe("1m left");
+    expect(formatTimeRemaining(ahead(59 * MINUTE), NOW)).toBe("59m left");
+  });
+
+  it("renders hours", () => {
+    expect(formatTimeRemaining(ahead(HOUR), NOW)).toBe("1h left");
+    expect(formatTimeRemaining(ahead(23 * HOUR), NOW)).toBe("23h left");
+  });
+
+  it("renders days at or beyond 24h", () => {
+    expect(formatTimeRemaining(ahead(DAY), NOW)).toBe("1d left");
+  });
+
+  it("returns empty string for an unparseable timestamp", () => {
+    expect(formatTimeRemaining("not-a-date", NOW)).toBe("");
   });
 });

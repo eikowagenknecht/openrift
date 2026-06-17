@@ -1,6 +1,6 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { FriendGroupPageFrame } from "@/components/friend-groups/friend-group-shell";
+import { FriendGroupSectionFrame } from "@/components/friend-groups/friend-group-shell";
 import { TradesPageContent } from "@/components/friend-groups/friend-group-trades-page";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/groups/$slug_/trades")({
@@ -10,9 +10,9 @@ export const Route = createLazyFileRoute("/_app/_authenticated/groups/$slug_/tra
 function GroupTradesRoute() {
   const { slug } = Route.useParams();
   return (
-    <FriendGroupPageFrame
+    <FriendGroupSectionFrame
       slug={slug}
-      active="trades"
+      title="Trades"
       render={(data) => <TradesPageContent slug={slug} data={data} />}
     />
   );

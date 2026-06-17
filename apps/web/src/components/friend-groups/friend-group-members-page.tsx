@@ -16,6 +16,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -29,6 +30,7 @@ import { UserAvatar } from "@/components/user-avatar";
 import {
   useAcceptFriendGroupInvite,
   useDeclineFriendGroupInvite,
+  useFriendGroupDetail,
   useKickFriendGroupMember,
   useTransferFriendGroupOwnership,
   useUpdateFriendGroupNickname,
@@ -37,7 +39,7 @@ import {
 import { useRequiredUserId } from "@/lib/auth-session";
 import { getSiteUrl } from "@/lib/site-config";
 
-import { isAdmin, ROLE_LABEL, SECTION_HEADING } from "./friend-group-shell";
+import { isAdmin, ROLE_LABEL } from "./friend-group-shell";
 
 /**
  * The Members page: pending join requests (admins only) above the roster, each
@@ -55,23 +57,25 @@ export function MembersPageContent({
   const viewerRole = data.viewerRole ?? "member";
   const acceptInvite = useAcceptFriendGroupInvite();
   const declineInvite = useDeclineFriendGroupInvite();
-  // Members whose wish/trade lists are visible here — the ones who can show
-  // up in matches. Organize lists don't count toward trading.
-  const sharingUserIds = new Set(
-    data.shares
-      .filter((share) => share.listIntent === "wish" || share.listIntent === "trade")
-      .map((share) => share.userId),
-  );
+  // Per-member counts of what each shares with the group, shown neutrally on
+  // their row. Organize lists don't count toward trading, so only wish/trade
+  // lists and collections are tallied.
+  const wishlistCountByUser = new Map<string, number>();
+  const tradelistCountByUser = new Map<string, number>();
+  for (const share of data.shares) {
+    if (share.listIntent === "wish") {
+      wishlistCountByUser.set(share.userId, (wishlistCountByUser.get(share.userId) ?? 0) + 1);
+    } else if (share.listIntent === "trade") {
+      tradelistCountByUser.set(share.userId, (tradelistCountByUser.get(share.userId) ?? 0) + 1);
+    }
+  }
+  const collectionCountByUser = new Map<string, number>();
+  for (const share of data.collectionShares) {
+    collectionCountByUser.set(share.userId, (collectionCountByUser.get(share.userId) ?? 0) + 1);
+  }
 
   return (
     <section className="flex flex-col gap-4">
-      {isAdmin(viewerRole) ? (
-        <div className="flex items-center justify-between gap-2">
-          <h2 className={SECTION_HEADING}>Members</h2>
-          <InviteButton slug={slug} code={data.group.code} />
-        </div>
-      ) : null}
-
       {isAdmin(viewerRole) && data.pendingRequests.length > 0 ? (
         <div className="flex flex-col gap-2 rounded-md border border-dashed p-3">
           <h3 className="font-medium">Pending requests</h3>
@@ -122,7 +126,11 @@ export function MembersPageContent({
             member={member}
             viewerId={viewerId}
             viewerRole={viewerRole}
-            sharesLists={sharingUserIds.has(member.userId)}
+            shareCounts={{
+              wishlists: wishlistCountByUser.get(member.userId) ?? 0,
+              tradelists: tradelistCountByUser.get(member.userId) ?? 0,
+              collections: collectionCountByUser.get(member.userId) ?? 0,
+            }}
           />
         ))}
       </div>
@@ -131,29 +139,29 @@ export function MembersPageContent({
 }
 
 /**
- * Copies the group's join link and confirms with a toast. When code-based
- * joining is disabled (no code), or the clipboard is unavailable, it falls
- * back to the Manage page, which has the join-code controls and email invites.
- * @returns The invite button.
+ * The Members page's top-bar action: an Invite button for admins/owners that
+ * copies the join link (or routes to Manage when the group has no join code).
+ * Hidden for everyone else. Reads the (already-loaded) group from the cache so
+ * the route can pass it as a plain element.
+ * @returns The invite action, or null.
  */
-function InviteButton({ slug, code }: { slug: string; code: string | null }) {
+export function MembersInviteAction({ slug }: { slug: string }) {
+  const { data } = useFriendGroupDetail(slug);
   const navigate = useNavigate();
+  if (!isAdmin(data.viewerRole ?? "member")) {
+    return null;
+  }
+  const code = data.group.code;
   if (code === null) {
     return (
-      <Button
-        size="sm"
-        variant="outline"
-        render={<Link to="/groups/$slug/manage" params={{ slug }} />}
-      >
-        <UserPlusIcon />
+      <PageTopBarPrimaryButton render={<Link to="/groups/$slug/manage" params={{ slug }} />}>
+        <UserPlusIcon className="size-4" />
         Invite
-      </Button>
+      </PageTopBarPrimaryButton>
     );
   }
   return (
-    <Button
-      size="sm"
-      variant="outline"
+    <PageTopBarPrimaryButton
       onClick={async () => {
         const joinUrl = `${getSiteUrl()}/groups/join?code=${encodeURIComponent(code)}`;
         try {
@@ -164,9 +172,9 @@ function InviteButton({ slug, code }: { slug: string; code: string | null }) {
         }
       }}
     >
-      <UserPlusIcon />
+      <UserPlusIcon className="size-4" />
       Invite
-    </Button>
+    </PageTopBarPrimaryButton>
   );
 }
 
@@ -175,15 +183,30 @@ function MemberRow({
   member,
   viewerId,
   viewerRole,
-  sharesLists,
+  shareCounts,
 }: {
   slug: string;
   member: FriendGroupMemberResponse;
   viewerId: string;
   viewerRole: FriendGroupRole;
-  sharesLists: boolean;
+  shareCounts: { wishlists: number; tradelists: number; collections: number };
 }) {
   const isSelf = member.userId === viewerId;
+  // Show only the non-zero shares, neutrally — "2 wishlists · 1 tradelist".
+  // Nothing extra renders when a member shares nothing.
+  const shareSummary = [
+    shareCounts.wishlists > 0
+      ? `${shareCounts.wishlists} ${shareCounts.wishlists === 1 ? "wishlist" : "wishlists"}`
+      : null,
+    shareCounts.tradelists > 0
+      ? `${shareCounts.tradelists} ${shareCounts.tradelists === 1 ? "tradelist" : "tradelists"}`
+      : null,
+    shareCounts.collections > 0
+      ? `${shareCounts.collections} ${shareCounts.collections === 1 ? "collection" : "collections"}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const [nickname, setNickname] = useState(member.nickname ?? "");
   const [nicknameDirty, setNicknameDirty] = useState(false);
   const updateNickname = useUpdateFriendGroupNickname();
@@ -219,12 +242,7 @@ function MemberRow({
         <span className="truncate font-medium">{member.userName ?? "Unknown user"}</span>
         <span className="text-muted-foreground text-xs">
           {ROLE_LABEL[member.role]}
-          {sharesLists ? null : (
-            <span className={isSelf ? "text-amber-700 dark:text-amber-400" : undefined}>
-              {" "}
-              · {isSelf ? "you're not sharing any lists" : "not sharing lists"}
-            </span>
-          )}
+          {shareSummary ? ` · ${shareSummary}` : null}
         </span>
       </Link>
       {isSelf ? (

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { DeckCheckKeysSection } from "@/components/deck-check/deck-check-keys-section";
-import { isAdmin, SECTION_HEADING } from "@/components/friend-groups/friend-group-shell";
+import { isAdmin } from "@/components/friend-groups/friend-group-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -47,15 +47,14 @@ export function DeckCheckEventsPage({
   return (
     <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className={SECTION_HEADING}>Events</h2>
-          {admin ? (
+        {admin ? (
+          <div className="flex justify-end">
             <Button size="sm" onClick={() => setCreateOpen(true)}>
               <PlusIcon className="size-4" />
               New event
             </Button>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
         {events.items.length === 0 ? (
           <p className="text-muted-foreground">
             No events yet. An admin creates the event here; entrant decklists are then sent to it

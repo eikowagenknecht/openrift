@@ -23,58 +23,66 @@ import {
   useShareListWithFriendGroup,
 } from "@/hooks/use-friend-groups";
 import { useBulkAddListEntries, useCreateList } from "@/hooks/use-lists";
-import { entryForPrinting, listTargetOptions, preferredListId } from "@/lib/tradelist-exchange";
+import { listTargetOptions, preferredListId } from "@/lib/tradelist-exchange";
 
-/** Sentinel for the "create a new wishlist" radio option. */
+/** Sentinel for the "create a new tradelist" radio option. */
 const NEW_LIST = "__new__";
 
-export interface TradelistRequestContext {
+export interface OfferToWishlistContext {
   /** The group slug, used as the trade + share scope. */
   groupSlug: string;
   groupName: string;
-  /** The tradelist owner — the giver of the requested copies. */
+  /** The wishlist owner — the receiver of the offered copies. */
   counterpartyUserId: string;
   counterpartyName: string;
 }
 
-interface RequestFromTradelistDialogProps extends TradelistRequestContext {
+/** A printing the viewer can offer, paired with the personal copies backing it. */
+export interface OfferablePrintingChoice {
+  printing: Printing;
+  copyIds: string[];
+}
+
+interface OfferToWishlistDialogProps extends OfferToWishlistContext {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** The printing being requested; `null` while the dialog is closed. */
-  printing: Printing | null;
-  /** Copies of this printing visible on the tradelist — a soft cap for the stepper. */
-  availableHint: number;
+  /** Printings of the wanted card the viewer owns; empty while the dialog is closed. */
+  choices: OfferablePrintingChoice[];
+  /** How many the member wants — a soft cap for the stepper. */
+  wantQuantity: number;
 }
 
 /**
- * "I want this" flow launched from a member's shared tradelist. Adds the card to
- * one of the viewer's wishlists (creating one if needed), shares that wishlist
- * with the group after an explicit confirmation so a match exists, then sends
- * the trade request. When the card already matches a shared wishlist the picker
- * is skipped and it goes straight to a one-tap confirm.
+ * "Offer" flow launched from a member's shared wishlist. The mirror of the
+ * tradelist "I want this" request: the viewer offers copies they own of a card
+ * the member wants. It adds those copies to one of the viewer's tradelists
+ * (creating one if needed), shares that tradelist with the group after an
+ * explicit confirmation so a match exists, then sends the trade as giver. When
+ * the card already matches a shared tradelist the picker is skipped and it goes
+ * straight to a one-tap confirm.
  *
  * @returns The dialog element.
  */
-export function RequestFromTradelistDialog({
+export function OfferToWishlistDialog({
   open,
   onOpenChange,
-  printing,
-  availableHint,
+  choices,
+  wantQuantity,
   groupSlug,
   groupName,
   counterpartyUserId,
   counterpartyName,
-}: RequestFromTradelistDialogProps) {
+}: OfferToWishlistDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        {open && printing ? (
+        {open && choices.length > 0 ? (
           <Suspense
             fallback={<div className="text-muted-foreground py-4 text-sm">Loading your lists…</div>}
           >
-            <RequestBody
-              printing={printing}
-              availableHint={availableHint}
+            <OfferBody
+              choices={choices}
+              wantQuantity={wantQuantity}
               groupSlug={groupSlug}
               groupName={groupName}
               counterpartyUserId={counterpartyUserId}
@@ -88,29 +96,22 @@ export function RequestFromTradelistDialog({
   );
 }
 
-function RequestBody({
-  printing,
-  availableHint,
+function OfferBody({
+  choices,
+  wantQuantity,
   groupSlug,
   groupName,
   counterpartyUserId,
   counterpartyName,
   onClose,
-}: TradelistRequestContext & {
-  printing: Printing;
-  availableHint: number;
+}: OfferToWishlistContext & {
+  choices: OfferablePrintingChoice[];
+  wantQuantity: number;
   onClose: () => void;
 }) {
   const { data: shareable } = useFriendGroupShareableLists(groupSlug);
   const { data: matches } = useFriendGroupMatches(groupSlug);
-  const options = listTargetOptions(shareable.items, "wish");
-
-  // If the card already matches a wishlist shared with this group, there is
-  // nothing to add or share — skip straight to the request confirm. This also
-  // avoids bumping the existing wish quantity on every click.
-  const existingMatch = matches.othersHaveYourWants.find(
-    (row) => row.printingId === printing.id && row.counterpartyUserId === counterpartyUserId,
-  );
+  const options = listTargetOptions(shareable.items, "trade");
 
   const createList = useCreateList();
   const bulkAdd = useBulkAddListEntries();
@@ -119,76 +120,109 @@ function RequestBody({
   const pending =
     createList.isPending || bulkAdd.isPending || shareWithGroup.isPending || createTrade.isPending;
 
-  const maxQuantity = Math.max(
-    1,
-    existingMatch ? Math.min(existingMatch.buyQuantity, availableHint) : availableHint,
+  // `choices` arrives most-owned first, so the first is the natural default.
+  const [choiceIndex, setChoiceIndex] = useState(0);
+  const chosenPrinting = choices[choiceIndex] ?? choices[0];
+  const ownedCount = chosenPrinting.copyIds.length;
+  const cardName = chosenPrinting.printing.card.name;
+
+  // Already a shared match → the copies are on a shared tradelist and the
+  // member wants them, so skip list-picking and go straight to confirm.
+  const existingMatch = matches.othersWantYourHaves.find(
+    (row) =>
+      row.printingId === chosenPrinting.printing.id &&
+      row.counterpartyUserId === counterpartyUserId,
   );
+
+  const matchCap = existingMatch ? existingMatch.buyQuantity : wantQuantity;
+  const maxQuantity = Math.max(1, Math.min(ownedCount, matchCap));
   const [quantity, setQuantity] = useState(1);
   const clampQuantity = (value: number) => Math.min(Math.max(1, value), maxQuantity);
+  const effectiveQuantity = clampQuantity(quantity);
 
   const [phase, setPhase] = useState<"pick" | "confirm-share">("pick");
   const [selectedId, setSelectedId] = useState<string>(() => preferredListId(options) ?? NEW_LIST);
-  const [newName, setNewName] = useState("Wishlist");
+  const [newName, setNewName] = useState("Tradelist");
 
-  const cardName = printing.card.name;
-  const chosen = options.find((option) => option.listId === selectedId);
+  const chosenList = options.find((option) => option.listId === selectedId);
   // New lists are always private at first, and an existing list the viewer
   // picked might not be shared with this group yet — both need the explicit
-  // share confirmation before the request can match.
-  const needsShare = selectedId === NEW_LIST ? true : chosen ? !chosen.isShared : false;
-  const chosenName =
-    selectedId === NEW_LIST ? newName.trim() || "Wishlist" : (chosen?.listName ?? "");
+  // share confirmation before the offer can match.
+  const needsShare = selectedId === NEW_LIST ? true : chosenList ? !chosenList.isShared : false;
+  const chosenListName =
+    selectedId === NEW_LIST ? newName.trim() || "Tradelist" : (chosenList?.listName ?? "");
 
-  const sendRequest = async () => {
+  const sendOffer = async () => {
     try {
-      if (existingMatch) {
-        await createTrade.mutateAsync({
-          groupSlug,
-          counterpartyUserId,
-          role: "receiver",
-          printingId: printing.id,
-          quantity,
-        });
-      } else {
+      const copyIds = chosenPrinting.copyIds.slice(0, effectiveQuantity);
+      if (!existingMatch) {
         let listId: string;
-        let listKind: "card" | "printing";
         if (selectedId === NEW_LIST) {
           const created = await createList.mutateAsync({
-            name: newName.trim() || "Wishlist",
-            intent: "wish",
-            kind: "card",
+            name: newName.trim() || "Tradelist",
+            intent: "trade",
+            kind: "copy",
           });
           listId = created.id;
-          listKind = "card";
-        } else if (chosen) {
-          listId = chosen.listId;
-          // Wishlists are only ever card- or printing-kind; narrow the widened
-          // ListTargetOption kind defensively.
-          listKind = chosen.listKind === "printing" ? "printing" : "card";
+        } else if (chosenList) {
+          listId = chosenList.listId;
         } else {
           return;
         }
         await bulkAdd.mutateAsync({
           listId,
-          entries: [entryForPrinting(listKind, printing, quantity)],
+          entries: copyIds.map((copyId) => ({ copyId })),
         });
         if (needsShare) {
           await shareWithGroup.mutateAsync({ slug: groupSlug, listId });
         }
-        await createTrade.mutateAsync({
-          groupSlug,
-          counterpartyUserId,
-          role: "receiver",
-          printingId: printing.id,
-          quantity,
-        });
       }
-      toast.success(`Requested ${cardName} from ${counterpartyName}`);
+      await createTrade.mutateAsync({
+        groupSlug,
+        counterpartyUserId,
+        role: "giver",
+        printingId: chosenPrinting.printing.id,
+        quantity: effectiveQuantity,
+      });
+      toast.success(`Offered ${cardName} to ${counterpartyName}`);
       onClose();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't send the request");
+      toast.error(error instanceof Error ? error.message : "Couldn't send the offer");
     }
   };
+
+  const printingPicker =
+    choices.length > 1 ? (
+      <div className="flex flex-col gap-1">
+        <span className="text-muted-foreground text-sm">Which printing are you offering?</span>
+        <RadioGroup
+          value={String(choiceIndex)}
+          onValueChange={(value) => {
+            setChoiceIndex(Number(value));
+            setQuantity(1);
+          }}
+        >
+          {choices.map((choice, index) => {
+            const inputId = `offer-printing-${choice.printing.id}`;
+            return (
+              <label
+                key={choice.printing.id}
+                htmlFor={inputId}
+                className="hover:bg-muted/50 flex cursor-pointer items-center gap-3 rounded-md px-2 py-2"
+              >
+                <RadioGroupItem id={inputId} value={String(index)} />
+                <span className="min-w-0 flex-1 truncate font-medium">
+                  {choice.printing.shortCode}
+                </span>
+                <span className="text-muted-foreground shrink-0 text-xs">
+                  {choice.copyIds.length} owned
+                </span>
+              </label>
+            );
+          })}
+        </RadioGroup>
+      </div>
+    ) : null;
 
   const stepper = (
     <div className="flex items-center justify-between gap-4 py-2">
@@ -199,8 +233,8 @@ function RequestBody({
           variant="outline"
           size="icon-sm"
           aria-label="Decrease quantity"
-          disabled={quantity <= 1}
-          onClick={() => setQuantity((current) => clampQuantity(current - 1))}
+          disabled={effectiveQuantity <= 1}
+          onClick={() => setQuantity(clampQuantity(effectiveQuantity - 1))}
         >
           <MinusIcon />
         </Button>
@@ -208,7 +242,7 @@ function RequestBody({
           type="number"
           min={1}
           max={maxQuantity}
-          value={quantity}
+          value={effectiveQuantity}
           aria-label="Quantity"
           className="w-16 [appearance:textfield] text-center [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           onChange={(event) => setQuantity(clampQuantity(Number(event.target.value)))}
@@ -218,8 +252,8 @@ function RequestBody({
           variant="outline"
           size="icon-sm"
           aria-label="Increase quantity"
-          disabled={quantity >= maxQuantity}
-          onClick={() => setQuantity((current) => clampQuantity(current + 1))}
+          disabled={effectiveQuantity >= maxQuantity}
+          onClick={() => setQuantity(clampQuantity(effectiveQuantity + 1))}
         >
           <PlusIcon />
         </Button>
@@ -232,17 +266,18 @@ function RequestBody({
     return (
       <>
         <DialogHeader>
-          <DialogTitle>Request this card</DialogTitle>
+          <DialogTitle>Offer this card</DialogTitle>
           <DialogDescription>
-            Ask {counterpartyName} for {cardName}. They&apos;ll get a notification, and accepting
-            reserves it for you.
+            Offer {cardName} to {counterpartyName}. They&apos;ll get a notification, and accepting
+            reserves it for them.
           </DialogDescription>
         </DialogHeader>
+        {printingPicker}
         {stepper}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-          <Button type="button" disabled={pending} onClick={sendRequest}>
-            Send request
+          <Button type="button" disabled={pending} onClick={sendOffer}>
+            Send offer
           </Button>
         </DialogFooter>
       </>
@@ -255,12 +290,12 @@ function RequestBody({
       <>
         <DialogHeader>
           <DialogTitle>
-            Share {chosenName} with {groupName}?
+            Share {chosenListName} with {groupName}?
           </DialogTitle>
           <DialogDescription>
-            To request this card, {groupName} needs to see that you want it. Members will be able to
-            view every card on {chosenName}. You can unshare it anytime from the group&apos;s manage
-            page.
+            To offer this card, {groupName} needs to see that you have it. Members will be able to
+            view every card on {chosenListName}. You can unshare it anytime from the group&apos;s
+            manage page.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
@@ -272,8 +307,8 @@ function RequestBody({
           >
             Back
           </Button>
-          <Button type="button" disabled={pending} onClick={sendRequest}>
-            Share and send request
+          <Button type="button" disabled={pending} onClick={sendOffer}>
+            Share and send offer
           </Button>
         </DialogFooter>
       </>
@@ -283,16 +318,18 @@ function RequestBody({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Request this card</DialogTitle>
+        <DialogTitle>Offer this card</DialogTitle>
         <DialogDescription>
-          Pick a wishlist for {cardName}. Sharing it with {groupName} is what lets{" "}
-          {counterpartyName} see your request.
+          Pick a tradelist for {cardName}. Sharing it with {groupName} is what lets{" "}
+          {counterpartyName} see your offer.
         </DialogDescription>
       </DialogHeader>
 
+      {printingPicker}
+
       <RadioGroup value={selectedId} onValueChange={(value) => setSelectedId(String(value))}>
         {options.map((option) => {
-          const inputId = `request-wishlist-${option.listId}`;
+          const inputId = `offer-tradelist-${option.listId}`;
           return (
             <label
               key={option.listId}
@@ -302,7 +339,7 @@ function RequestBody({
               <RadioGroupItem id={inputId} value={option.listId} />
               <span className="min-w-0 flex-1 truncate font-medium">{option.listName}</span>
               <span className="text-muted-foreground shrink-0 text-xs">
-                {option.entryCount} {option.entryCount === 1 ? "card" : "cards"}
+                {option.entryCount} {option.entryCount === 1 ? "copy" : "copies"}
               </span>
               <Badge variant={option.isShared ? "secondary" : "outline"} className="shrink-0">
                 {option.isShared ? "Shared" : "Will be shared"}
@@ -311,12 +348,12 @@ function RequestBody({
           );
         })}
         <label
-          htmlFor="request-wishlist-new"
+          htmlFor="offer-tradelist-new"
           className="hover:bg-muted/50 flex cursor-pointer items-center gap-3 rounded-md px-2 py-2"
         >
-          <RadioGroupItem id="request-wishlist-new" value={NEW_LIST} />
+          <RadioGroupItem id="offer-tradelist-new" value={NEW_LIST} />
           <PlusSquareIcon className="text-muted-foreground size-4 shrink-0" />
-          <span className="flex-1 font-medium">New wishlist</span>
+          <span className="flex-1 font-medium">New tradelist</span>
           <Badge variant="outline" className="shrink-0">
             Will be shared
           </Badge>
@@ -327,8 +364,8 @@ function RequestBody({
         <Input
           value={newName}
           onChange={(event) => setNewName(event.target.value)}
-          placeholder="Wishlist name"
-          aria-label="New wishlist name"
+          placeholder="Tradelist name"
+          aria-label="New tradelist name"
         />
       ) : null}
 
@@ -345,8 +382,8 @@ function RequestBody({
             Continue
           </Button>
         ) : (
-          <Button type="button" disabled={pending} onClick={sendRequest}>
-            Send request
+          <Button type="button" disabled={pending} onClick={sendOffer}>
+            Send offer
           </Button>
         )}
       </DialogFooter>

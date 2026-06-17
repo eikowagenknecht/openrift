@@ -4,7 +4,7 @@ import type {
   Printing,
   PublicListDetailResponse,
 } from "@openrift/shared";
-import { HeartIcon, ListIcon } from "lucide-react";
+import { HandshakeIcon, HeartIcon, ListIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 
 import { CardViewer } from "@/components/card-viewer";
@@ -21,6 +21,11 @@ import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { COUNT_PILL_BASE, COUNT_PILL_INTERACTIVE } from "@/components/cards/count-pill";
 import { StaticCountTableActions } from "@/components/cards/static-count-table-actions";
+import { OfferToWishlistDialog } from "@/components/friend-groups/offer-to-wishlist-dialog";
+import type {
+  OfferablePrintingChoice,
+  OfferToWishlistContext,
+} from "@/components/friend-groups/offer-to-wishlist-dialog";
 import { RequestFromTradelistDialog } from "@/components/friend-groups/request-from-tradelist-dialog";
 import type { TradelistRequestContext } from "@/components/friend-groups/request-from-tradelist-dialog";
 import {
@@ -44,11 +49,13 @@ import {
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
+import { useCopies } from "@/hooks/use-copies";
 import { useChannelRegistry } from "@/hooks/use-enums";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { FilterSearchProvider, useFilterSearch } from "@/lib/search-schemas";
+import { offerablePrintings, personalCopyIdsByPrinting } from "@/lib/tradelist-exchange";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
@@ -77,16 +84,26 @@ const SHARED_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set([
   "customTags",
 ]);
 
+/**
+ * The friend-group exchange surfaced on a member's shared list: a "Want" request
+ * on a member's tradelist (`request`), or an "Offer" on a member's wishlist
+ * (`offer`). Both contexts carry the same fields; `mode` selects the direction.
+ */
+export type ListExchangeContext =
+  | ({ mode: "request" } & TradelistRequestContext)
+  | ({ mode: "offer" } & OfferToWishlistContext);
+
 interface SharedListContentProps {
   data: PublicListDetailResponse;
   /** Back arrow rendered as the first slot inside the list header. */
   backLink?: React.ReactNode;
   /**
-   * Enables the per-card "I want this" request flow. Passed only by the
-   * friend-group shared-list route, and only for a trade-intent list viewed by
-   * someone other than its owner — never on the public share route.
+   * Enables the per-card friend-group exchange (Want on a tradelist, Offer on a
+   * wishlist). Passed only by the friend-group shared-list route, and only for a
+   * list viewed by someone other than its owner — never on the public share
+   * route.
    */
-  trade?: TradelistRequestContext;
+  exchange?: ListExchangeContext;
 }
 
 /**
@@ -96,7 +113,7 @@ interface SharedListContentProps {
  *
  * @returns The full page body.
  */
-export function SharedListContent({ data, backLink, trade }: SharedListContentProps) {
+export function SharedListContent({ data, backLink, exchange }: SharedListContentProps) {
   const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
   const topBarHeight = useMeasuredHeight(topBarSlot);
   const { list, owner, entries } = data;
@@ -113,7 +130,7 @@ export function SharedListContent({ data, backLink, trade }: SharedListContentPr
           />
         </div>
         <div className="flex min-w-0 flex-1 flex-col px-3 pb-3">
-          <SharedListBody data={data} trade={trade} />
+          <SharedListBody data={data} exchange={exchange} />
         </div>
       </div>
     </PageTopBarHeightContext>
@@ -122,10 +139,10 @@ export function SharedListContent({ data, backLink, trade }: SharedListContentPr
 
 function SharedListBody({
   data,
-  trade,
+  exchange,
 }: {
   data: PublicListDetailResponse;
-  trade?: TradelistRequestContext;
+  exchange?: ListExchangeContext;
 }) {
   const hydrated = useHydrated();
   // The top bar renders before hydration (so crawlers see the name + owner).
@@ -136,17 +153,17 @@ function SharedListBody({
   }
   return (
     <Suspense fallback={<p className="text-muted-foreground py-3 text-sm">Loading cards…</p>}>
-      <SharedListGrid data={data} trade={trade} />
+      <SharedListGrid data={data} exchange={exchange} />
     </Suspense>
   );
 }
 
 function SharedListGrid({
   data,
-  trade,
+  exchange,
 }: {
   data: PublicListDetailResponse;
-  trade?: TradelistRequestContext;
+  exchange?: ListExchangeContext;
 }) {
   const { entries, list } = data;
   const { printingsById, printingsByCardId, sets } = useCards();
@@ -155,8 +172,35 @@ function SharedListGrid({
   const channels = useChannelRegistry();
   const keywordReverseMap = useKeywordReverseMap();
   const isMobile = useIsMobile();
-  // The printing whose "I want this" dialog is open (trade surfaces only).
+  // The printing whose "I want this" dialog is open (request surfaces only).
   const [requestPrinting, setRequestPrinting] = useState<Printing | null>(null);
+  // The open "Offer" dialog target: the printings of the wanted card the viewer
+  // owns, plus how many the member wants (offer surfaces only).
+  const [offerTarget, setOfferTarget] = useState<{
+    choices: OfferablePrintingChoice[];
+    wantQuantity: number;
+  } | null>(null);
+
+  // Offer needs the viewer's own copies to know what they can give. The whole
+  // grid is client-only (gated above), so the SSR-unsafe live query is safe.
+  const { data: ownedCopies } = useCopies();
+  const copyIdsByPrinting =
+    exchange?.mode === "offer"
+      ? personalCopyIdsByPrinting(ownedCopies)
+      : new Map<string, string[]>();
+  // The printings (with backing copy ids) the viewer can offer against a wanted
+  // entry: the exact printing for a printing-kind wishlist, any printing of the
+  // card for a card-kind one, narrowed to what the viewer personally owns.
+  const offerChoicesForPrinting = (printing: Printing): OfferablePrintingChoice[] => {
+    const candidatePrintingIds =
+      list.kind === "printing"
+        ? [printing.id]
+        : (printingsByCardId.get(printing.cardId) ?? []).map((candidate) => candidate.id);
+    return offerablePrintings(candidatePrintingIds, copyIdsByPrinting).map((entry) => ({
+      printing: printingsById[entry.printingId] ?? printing,
+      copyIds: entry.copyIds,
+    }));
+  };
 
   const { filters, sortBy, sortDir, groupBy, hasActiveFilters } = useFilterValues();
   const { setSearch } = useFilterActions();
@@ -255,14 +299,27 @@ function SharedListGrid({
     // owner's tradelist). The match view already hides reserved copies; here
     // the badge explains why a card you can see isn't matchable.
     const reserved = entry?.kind === "copy" && entry.reserved;
-    // On a tradelist the viewer can request a card: the strip becomes a "Want"
-    // button instead of the read-only quantity pill. Trade lists are copy-kind,
-    // so this never collides with the count strip below.
-    const strip = trade ? (
-      <WantStrip onClick={() => setRequestPrinting(item.printing)} disabled={reserved} />
-    ) : entry && list.kind !== "copy" ? (
-      <CardCountStrip count={entry.quantity} icon={ListIcon} />
-    ) : undefined;
+    // The strip becomes the friend-group action when this is a member's list:
+    // "Want" on their tradelist, "Offer" on their wishlist (disabled when the
+    // viewer owns no copies of the card). Otherwise it's the read-only quantity
+    // pill. Tradelists are copy-kind, so the action never collides with it.
+    let strip: React.ReactNode;
+    if (exchange?.mode === "request") {
+      strip = <WantStrip onClick={() => setRequestPrinting(item.printing)} disabled={reserved} />;
+    } else if (exchange?.mode === "offer") {
+      const choices = offerChoicesForPrinting(item.printing);
+      strip = (
+        <OfferStrip
+          disabled={choices.length === 0}
+          onClick={() => setOfferTarget({ choices, wantQuantity: entry?.quantity ?? 1 })}
+        />
+      );
+    } else if (entry && list.kind !== "copy") {
+      strip = <CardCountStrip count={entry.quantity} icon={ListIcon} />;
+    } else {
+      strip = undefined;
+    }
+
     return (
       <CardCell
         printing={item.printing}
@@ -359,7 +416,7 @@ function SharedListGrid({
           rightPane={rightPane}
           addStripHeight={ADD_STRIP_HEIGHT}
           table={
-            trade
+            exchange?.mode === "request"
               ? {
                   actionsColumn: "narrow",
                   actionsLabel: "Trade",
@@ -370,13 +427,27 @@ function SharedListGrid({
                     />
                   ),
                 }
-              : list.kind === "copy"
-                ? { actionsColumn: "none" }
-                : {
+              : exchange?.mode === "offer"
+                ? {
                     actionsColumn: "narrow",
-                    actionsLabel: "Qty",
-                    actionsCell: <SharedListQuantityCell entryByItemId={entryByItemId} />,
+                    actionsLabel: "Offer",
+                    actionsCell: (
+                      <OfferActionsCell
+                        entryByItemId={entryByItemId}
+                        offerChoicesForPrinting={offerChoicesForPrinting}
+                        onOffer={(choices, wantQuantity) =>
+                          setOfferTarget({ choices, wantQuantity })
+                        }
+                      />
+                    ),
                   }
+                : list.kind === "copy"
+                  ? { actionsColumn: "none" }
+                  : {
+                      actionsColumn: "narrow",
+                      actionsLabel: "Qty",
+                      actionsCell: <SharedListQuantityCell entryByItemId={entryByItemId} />,
+                    }
           }
         >
           {isMobile && (
@@ -388,7 +459,7 @@ function SharedListGrid({
             />
           )}
         </CardViewer>
-        {trade ? (
+        {exchange?.mode === "request" ? (
           <RequestFromTradelistDialog
             open={requestPrinting !== null}
             onOpenChange={(open) => {
@@ -400,10 +471,26 @@ function SharedListGrid({
             availableHint={
               requestPrinting ? (entriesByPrintingId.get(requestPrinting.id)?.length ?? 1) : 1
             }
-            groupSlug={trade.groupSlug}
-            groupName={trade.groupName}
-            counterpartyUserId={trade.counterpartyUserId}
-            counterpartyName={trade.counterpartyName}
+            groupSlug={exchange.groupSlug}
+            groupName={exchange.groupName}
+            counterpartyUserId={exchange.counterpartyUserId}
+            counterpartyName={exchange.counterpartyName}
+          />
+        ) : null}
+        {exchange?.mode === "offer" ? (
+          <OfferToWishlistDialog
+            open={offerTarget !== null}
+            onOpenChange={(open) => {
+              if (!open) {
+                setOfferTarget(null);
+              }
+            }}
+            choices={offerTarget?.choices ?? []}
+            wantQuantity={offerTarget?.wantQuantity ?? 1}
+            groupSlug={exchange.groupSlug}
+            groupName={exchange.groupName}
+            counterpartyUserId={exchange.counterpartyUserId}
+            counterpartyName={exchange.counterpartyName}
           />
         ) : null}
       </CardBrowserFilterProvider>
@@ -442,6 +529,34 @@ function WantStrip({ onClick, disabled }: { onClick: () => void; disabled?: bool
   );
 }
 
+// Per-cell "Offer" pill rendered above a wishlist card; opens the offer flow.
+// Disabled when the viewer owns no copies of the card — you can only offer what
+// you have.
+function OfferStrip({ disabled, onClick }: { disabled: boolean; onClick: () => void }) {
+  return (
+    // h-5 + mb-1 = 24px, matching ADD_STRIP_HEIGHT so the virtualizer estimate holds.
+    <div className="relative z-30 mb-1 flex h-5 items-center justify-center">
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-label={disabled ? "You don't own this card" : "Offer this card"}
+        title={disabled ? "You don't own this card" : undefined}
+        disabled={disabled}
+        onClick={(event) => {
+          event.stopPropagation();
+          if (!disabled) {
+            onClick();
+          }
+        }}
+        className={cn(COUNT_PILL_BASE, disabled ? "opacity-40" : COUNT_PILL_INTERACTIVE)}
+      >
+        <HandshakeIcon className="size-3" />
+        <span>Offer</span>
+      </button>
+    </div>
+  );
+}
+
 /**
  * Table-row request action for a member's tradelist. `printing` and `itemId`
  * are injected by the table via cloneElement; absent on header/placeholder
@@ -470,6 +585,44 @@ function TradelistRequestActionsCell({
   return (
     <Button type="button" size="sm" variant="outline" onClick={() => onRequest(printing)}>
       Want
+    </Button>
+  );
+}
+
+/**
+ * Table-row offer action for a member's wishlist. `printing` and `itemId` are
+ * injected by the table via cloneElement; absent on the header/placeholder rows.
+ * Disabled when the viewer owns no copies to offer.
+ * @returns The offer button, or null when no printing is bound.
+ */
+function OfferActionsCell({
+  printing,
+  itemId,
+  entryByItemId,
+  offerChoicesForPrinting,
+  onOffer,
+}: {
+  printing?: Printing;
+  itemId?: string;
+  entryByItemId: Map<string, ListEntryDetailResponse>;
+  offerChoicesForPrinting: (printing: Printing) => OfferablePrintingChoice[];
+  onOffer: (choices: OfferablePrintingChoice[], wantQuantity: number) => void;
+}) {
+  if (!printing) {
+    return null;
+  }
+  const choices = offerChoicesForPrinting(printing);
+  const wantQuantity = (itemId ? entryByItemId.get(itemId)?.quantity : undefined) ?? 1;
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      disabled={choices.length === 0}
+      title={choices.length === 0 ? "You don't own this card" : undefined}
+      onClick={() => onOffer(choices, wantQuantity)}
+    >
+      Offer
     </Button>
   );
 }

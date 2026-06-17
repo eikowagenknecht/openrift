@@ -2,7 +2,7 @@ import { ArrowLeftIcon } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import { cloneElement, Fragment } from "react";
 
-import { PageTopBar, PageTopBarSticky } from "@/components/layout/page-top-bar";
+import { PageTopBar, PageTopBarActions, PageTopBarSticky } from "@/components/layout/page-top-bar";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -64,20 +64,24 @@ export function TopBarBreadcrumbTrail({ segments }: { segments: TopBarCrumb[] })
 
 /**
  * Standalone sticky bar hosting a {@link TopBarBreadcrumbTrail}, for drill-down
- * pages that don't already render their own PageTopBar.
+ * pages that don't already render their own PageTopBar. Pass `actions` to pin
+ * right-aligned action buttons (wrap them in the `PageTopBar*Button` family).
  * @returns The sticky breadcrumb bar.
  */
 export function TopBarBreadcrumbBar({
   segments,
   maxWidth = "5xl",
+  actions,
 }: {
   segments: TopBarCrumb[];
   maxWidth?: "md" | "4xl" | "5xl" | "6xl";
+  actions?: ReactNode;
 }) {
   return (
     <PageTopBarSticky maxWidth={maxWidth}>
       <PageTopBar className="gap-2">
         <TopBarBreadcrumbTrail segments={segments} />
+        {actions ? <PageTopBarActions>{actions}</PageTopBarActions> : null}
       </PageTopBar>
     </PageTopBarSticky>
   );

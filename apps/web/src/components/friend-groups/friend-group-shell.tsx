@@ -12,10 +12,11 @@ import {
   PageTopBarSticky,
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
-import { Badge } from "@/components/ui/badge";
+import {
+  TopBarBreadcrumbSeparator,
+  TopBarBreadcrumbTrail,
+} from "@/components/layout/top-bar-breadcrumb";
 import { Button } from "@/components/ui/button";
-import { useTradeActionCounts } from "@/hooks/use-card-trades";
-import { useMyTournamentDecks } from "@/hooks/use-deck-check-player";
 import { useDeclineFriendGroupInvite, useFriendGroupDetail } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { cn, PAGE_PADDING, PAGE_PADDING_NO_TOP } from "@/lib/utils";
@@ -41,22 +42,19 @@ export function isJudge(role: FriendGroupRole | null): role is "admin" | "owner"
   return role === "admin" || role === "owner" || role === "judge";
 }
 
-/** The navigable group pages, keyed for the sub-nav's active state. */
-export type GroupPage = "overview" | "trades" | "shared" | "members" | "checks";
-
 /**
- * Loads the group, shows the pending-approval stub for would-be members, and
- * otherwise wraps `render(data)` in the shared header + sub-nav shell. Every
- * group page (overview, trades, shared, members) mounts through this.
- * @returns The framed group page, or the pending stub.
+ * The group overview frame: loads the group, shows the pending-approval stub
+ * for would-be members, and otherwise renders the group header (name + Manage)
+ * and description above `render(data)`. Only the overview mounts through this;
+ * the section pages (trades / shared / members / events) use
+ * {@link FriendGroupSectionFrame}.
+ * @returns The framed overview, or the pending stub.
  */
 export function FriendGroupPageFrame({
   slug,
-  active,
   render,
 }: {
   slug: string;
-  active: GroupPage;
   render: (data: FriendGroupDetailResponse) => ReactNode;
 }) {
   const { data } = useFriendGroupDetail(slug);
@@ -64,17 +62,82 @@ export function FriendGroupPageFrame({
     return <PendingApprovalStub data={data} />;
   }
   return (
-    <FriendGroupShell slug={slug} data={data} active={active}>
-      {render(data)}
-    </FriendGroupShell>
+    <>
+      <PageTopBarSticky maxWidth="5xl">
+        <PageTopBar>
+          <PageTopBarTitle>{data.group.name}</PageTopBarTitle>
+          <PageTopBarActions>
+            <PageTopBarButton render={<Link to="/groups/$slug/manage" params={{ slug }} />}>
+              <SettingsIcon className="size-4" />
+              Manage
+            </PageTopBarButton>
+          </PageTopBarActions>
+        </PageTopBar>
+      </PageTopBarSticky>
+      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING_NO_TOP)}>
+        {data.group.description ? (
+          <header>
+            <PageDescription>{data.group.description}</PageDescription>
+          </header>
+        ) : null}
+        {render(data)}
+      </div>
+    </>
   );
 }
 
 /**
- * Frame for drill-down pages below a tab (event, entrant, ...): loads the
- * group, shows the pending-approval stub, and otherwise renders the page
- * without the group header and tab bar — those pages carry a
- * TopBarBreadcrumbBar instead (the app's drill-down convention).
+ * Frame for a group section page (trades, shared, members, events): loads the
+ * group, shows the pending stub, and otherwise renders the section's title as
+ * the big page heading *inside* the drill-down bar (`Group / <Title>`), matching
+ * the collection/list drill-down pages. Sections are reached from the overview
+ * tiles and navigated back via the breadcrumb, which collapses to a single back
+ * arrow on phones — replacing the old horizontal tab bar.
+ * @returns The framed section page, or the pending stub.
+ */
+export function FriendGroupSectionFrame({
+  slug,
+  title,
+  actions,
+  render,
+}: {
+  slug: string;
+  title: string;
+  actions?: ReactNode;
+  render: (data: FriendGroupDetailResponse) => ReactNode;
+}) {
+  const { data } = useFriendGroupDetail(slug);
+  if (data.viewerStatus === "pending") {
+    return <PendingApprovalStub data={data} />;
+  }
+  return (
+    <>
+      <PageTopBarSticky maxWidth="5xl">
+        <PageTopBar>
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:items-baseline">
+            <TopBarBreadcrumbTrail
+              segments={[
+                { label: data.group.name, link: <Link to="/groups/$slug" params={{ slug }} /> },
+              ]}
+            />
+            <TopBarBreadcrumbSeparator className="hidden sm:inline" />
+            <PageTopBarTitle>{title}</PageTopBarTitle>
+          </div>
+          {actions ? <PageTopBarActions>{actions}</PageTopBarActions> : null}
+        </PageTopBar>
+      </PageTopBarSticky>
+      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING_NO_TOP)}>
+        {render(data)}
+      </div>
+    </>
+  );
+}
+
+/**
+ * Frame for deeper drill-down pages (event, entrant, ...): loads the group,
+ * shows the pending-approval stub, and otherwise renders the page without the
+ * group header — those pages carry their own TopBarBreadcrumbBar (the app's
+ * drill-down convention).
  * @returns The framed drill-down page, or the pending stub.
  */
 export function GroupDrilldownFrame({
@@ -110,165 +173,5 @@ function PendingApprovalStub({ data }: { data: FriendGroupDetailResponse }) {
         Cancel request
       </Button>
     </div>
-  );
-}
-
-function FriendGroupShell({
-  slug,
-  data,
-  active,
-  children,
-}: {
-  slug: string;
-  data: FriendGroupDetailResponse;
-  active: GroupPage;
-  children: ReactNode;
-}) {
-  const { data: actionCounts } = useTradeActionCounts();
-  // A plain member still gets the Events tab when they entered one of this
-  // group's events; the tab then shows only their own entries (ADR-026).
-  const { data: ownTournamentDecks } = useMyTournamentDecks();
-  const hasOwnEntries = (ownTournamentDecks?.items ?? []).some(
-    (entry) => entry.groupSlug === data.group.slug,
-  );
-  const tradesActionCount =
-    actionCounts?.byGroup.find((entry) => entry.groupId === data.group.id)?.count ?? 0;
-  // `pendingRequests` is only populated for admins/owners, so the badge hides
-  // itself for plain members.
-  const pendingRequestCount = data.pendingRequests.length;
-  const memberCount = data.members.length;
-
-  return (
-    <>
-      <PageTopBarSticky maxWidth="5xl">
-        <PageTopBar>
-          <PageTopBarTitle>{data.group.name}</PageTopBarTitle>
-          <PageTopBarActions>
-            <Badge variant="secondary">
-              {memberCount} {memberCount === 1 ? "member" : "members"}
-            </Badge>
-            <Badge variant="secondary">{ROLE_LABEL[data.viewerRole ?? "member"]}</Badge>
-            <PageTopBarButton render={<Link to="/groups/$slug/manage" params={{ slug }} />}>
-              <SettingsIcon className="size-4" />
-              Manage
-            </PageTopBarButton>
-          </PageTopBarActions>
-        </PageTopBar>
-      </PageTopBarSticky>
-      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING_NO_TOP)}>
-        {data.group.description ? (
-          <header>
-            <PageDescription>{data.group.description}</PageDescription>
-          </header>
-        ) : null}
-
-        <GroupNav
-          slug={slug}
-          active={active}
-          tradesBadge={tradesActionCount}
-          membersBadge={pendingRequestCount}
-          showChecks={isJudge(data.viewerRole) || hasOwnEntries}
-        />
-
-        {children}
-      </div>
-    </>
-  );
-}
-
-function GroupNav({
-  slug,
-  active,
-  tradesBadge,
-  membersBadge,
-  showChecks,
-}: {
-  slug: string;
-  active: GroupPage;
-  tradesBadge: number;
-  membersBadge: number;
-  showChecks: boolean;
-}) {
-  return (
-    // The hairline is an inset shadow, not border-b: the links' active 2px
-    // border must overlap it, and with overflow-x-auto a child can't hang
-    // below the nav box (the classic -mb-px trick would clip or add a
-    // vertical scrollbar).
-    <nav className="-mx-3 flex gap-1 overflow-x-auto px-3 shadow-[inset_0_-1px_0_0_var(--border)]">
-      <GroupNavLink
-        to="/groups/$slug"
-        slug={slug}
-        label="Overview"
-        isActive={active === "overview"}
-      />
-      <GroupNavLink
-        to="/groups/$slug/trades"
-        slug={slug}
-        label="Trades"
-        badge={tradesBadge}
-        isActive={active === "trades"}
-      />
-      <GroupNavLink
-        to="/groups/$slug/shared"
-        slug={slug}
-        label="Shared"
-        isActive={active === "shared"}
-      />
-      <GroupNavLink
-        to="/groups/$slug/members"
-        slug={slug}
-        label="Members"
-        badge={membersBadge}
-        isActive={active === "members"}
-      />
-      {showChecks ? (
-        <GroupNavLink
-          to="/groups/$slug/checks"
-          slug={slug}
-          label="Events"
-          isActive={active === "checks"}
-        />
-      ) : null}
-    </nav>
-  );
-}
-
-function GroupNavLink({
-  to,
-  slug,
-  label,
-  badge = 0,
-  isActive,
-}: {
-  to:
-    | "/groups/$slug"
-    | "/groups/$slug/trades"
-    | "/groups/$slug/shared"
-    | "/groups/$slug/members"
-    | "/groups/$slug/checks";
-  slug: string;
-  label: string;
-  badge?: number;
-  isActive: boolean;
-}) {
-  return (
-    <Link
-      to={to}
-      params={{ slug }}
-      aria-current={isActive ? "page" : undefined}
-      className={cn(
-        "flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 font-medium whitespace-nowrap transition-colors",
-        isActive
-          ? "border-primary text-foreground"
-          : "text-muted-foreground hover:text-foreground border-transparent",
-      )}
-    >
-      {label}
-      {badge > 0 ? (
-        <Badge variant="count" aria-label={`${badge} need your action`}>
-          {badge > 9 ? "9+" : badge}
-        </Badge>
-      ) : null}
-    </Link>
   );
 }

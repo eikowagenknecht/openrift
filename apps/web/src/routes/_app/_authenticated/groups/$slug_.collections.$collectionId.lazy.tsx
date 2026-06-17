@@ -44,7 +44,7 @@ function SharedCollectionRoute() {
         <TopBarBreadcrumbTrail
           segments={[
             { label: groupDetail.group.name, link: <Link to="/groups/$slug" params={{ slug }} /> },
-            { label: "Shared", link: <Link to="/groups/$slug/shared" params={{ slug }} /> },
+            { label: "Collections", link: <Link to="/groups/$slug/shared" params={{ slug }} /> },
           ]}
         />
       }

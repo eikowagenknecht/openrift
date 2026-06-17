@@ -4,6 +4,9 @@
 
 ### Highlights
 
+- feat(Groups): **Redesigned group dashboard** — the group overview now leads with tappable cards for trades, collections, members, and upcoming events instead of a tab bar, a bold banner flags trades waiting on your action, and opening a section uses a back-breadcrumb to return to the group; on phones the cards stack one per row
+- feat(Trades): **Offer cards from member wishlists** — while browsing a group member's wishlist, tap Offer on a card you own to send it their way, choosing or creating the tradelist it comes from, the mirror of the Want button on tradelists
+- feat(Groups): **One-stop Trades page** — members' shared wishlists and tradelists now live on the group's Trades page, right alongside the possible trades, so you can browse what everyone offers and act on it in one place; the Shared page keeps the group's pooled and personal collections
 - feat(Decks): **Deck Plan tab** — write out how to pilot a deck: your gameplan, what to keep in your opening hand (separate notes for going first or second), which battlefield to take, and how to sideboard each matchup. A matchup can point at a specific Legend or card, or just be named like "Aggro". Your plan also shows on the deck's shared page
 - feat(Collection): **Take a card off your tradelist** — each card (and a whole selection) has a take-off action that asks what happened: if you sold or traded it, it's also removed from your collection (warning you first if the same copy is on another list); if you're keeping it, it just comes off the tradelist
 - feat(Trades): **Email notifications for trades** — get an email the moment someone requests a trade with you, so you don't miss it before it expires (turn it off in your profile), and you can opt into a daily digest of new matches in your groups. If the same person fires off several requests in a row, the first arrives right away and the rest are bundled into one follow-up a few minutes later, so a burst can't flood your inbox
@@ -11,6 +14,8 @@
 
 ### Other
 
+- feat(Trades): **Time left on pending trades** — a pending trade now shows how long until it expires (requests lapse 24 hours after they're sent) and turns amber in the final stretch
+- feat(Collection): **Share collections with a group** — pick which of your personal collections a group can see, the same way you already share wishlists and tradelists
 - feat(Collection): **Reserved cards on tradelists** — a card that's part of a live trade now shows a "Reserved" badge, both on your own tradelist and when others view your shared or group tradelists. You can't sell it off your list, and others can't request it, until the trade is finished — so an in-progress trade can't be broken by accident
 - feat(App): **Cleaner What's new page** — release notes now lead with a short bold summary, group the big changes as highlights with the rest tucked behind a toggle, and tag each entry with its area
 - feat(Trades): **Choose where traded cards land** — adding the cards from a finished trade to your collection now asks which collection they go in, with the option to create a new one on the spot, instead of always dropping them in your inbox

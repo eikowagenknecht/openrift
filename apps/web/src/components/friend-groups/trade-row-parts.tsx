@@ -6,9 +6,13 @@ import type { ReactNode } from "react";
 import { FinishIcon } from "@/components/cards/finish-icon";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/user-avatar";
+import { formatTimeRemaining } from "@/lib/format-relative-time";
 import { getFilterIconPath } from "@/lib/icons";
 import { tradeStatusLabel } from "@/lib/trade-derivation";
 import { cn } from "@/lib/utils";
+
+/** A pending trade slips into the danger zone this long before it auto-expires. */
+const EXPIRY_URGENT_MS = 2 * 60 * 60 * 1000;
 
 /**
  * The round direction badge shared by match rows and trade rows: green arrow in
@@ -121,6 +125,42 @@ export function TradeStatusBadge({
     <Badge variant="secondary" className="shrink-0">
       {tradeStatusLabel(status)}
     </Badge>
+  );
+}
+
+/**
+ * The countdown shown next to a pending trade's status badge. A request expires
+ * 24h after it's sent (ADR-019); this tells the viewer how long is left to act
+ * before it auto-expires, turning amber in the final stretch. Renders nothing
+ * once the trade is no longer pending or has no deadline.
+ * @returns The countdown element, or null.
+ */
+export function TradeExpiry({
+  status,
+  expiresAt,
+}: {
+  status: CardTradeStatus;
+  expiresAt: string | null;
+}) {
+  if (status !== "pending" || expiresAt === null) {
+    return null;
+  }
+  const label = formatTimeRemaining(expiresAt);
+  if (label === "") {
+    return null;
+  }
+  const urgent = new Date(expiresAt).getTime() - Date.now() < EXPIRY_URGENT_MS;
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1 text-xs whitespace-nowrap",
+        urgent ? "font-medium text-amber-700 dark:text-amber-400" : "text-muted-foreground",
+      )}
+      title="Pending requests expire 24 hours after they're sent"
+    >
+      <ClockIcon className="size-3" />
+      {label}
+    </span>
   );
 }
 

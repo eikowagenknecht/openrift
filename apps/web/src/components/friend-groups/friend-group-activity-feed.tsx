@@ -13,7 +13,9 @@ import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { UserAvatar } from "@/components/user-avatar";
 import { useCards } from "@/hooks/use-cards";
 import { useFriendGroupActivity } from "@/hooks/use-friend-groups";
+import { useRequiredUserId } from "@/lib/auth-session";
 import { formatRelativeTime } from "@/lib/format-relative-time";
+import { cn } from "@/lib/utils";
 
 import { SECTION_HEADING } from "./friend-group-shell";
 
@@ -29,17 +31,51 @@ const LIST_INTENT_NOUN: Record<ListIntent, string> = {
 };
 
 const FEED_VISIBLE = 20;
-const ROW_CLASS = "hover:bg-muted/50 flex items-center gap-3 rounded-md px-2 py-2";
+const ROW_CLASS = "hover:bg-muted/50 flex items-center gap-3 rounded-md px-2 py-2.5";
+
+const DAY_MS = 86_400_000;
+type ActivityBucket = "today" | "yesterday" | "week" | "earlier";
+const BUCKET_ORDER: readonly ActivityBucket[] = ["today", "yesterday", "week", "earlier"];
+const BUCKET_LABEL: Record<ActivityBucket, string> = {
+  today: "Today",
+  yesterday: "Yesterday",
+  week: "Earlier this week",
+  earlier: "Earlier",
+};
+
+/**
+ * Sorts an activity timestamp into a relative day bucket, matching how
+ * {@link formatRelativeTime} reads "now" so the heading and the per-row label
+ * never disagree.
+ * @returns The bucket the event belongs to.
+ */
+function activityBucket(at: string, now: Date): ActivityBucket {
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const ts = new Date(at).getTime();
+  if (ts >= startOfToday) {
+    return "today";
+  }
+  if (ts >= startOfToday - DAY_MS) {
+    return "yesterday";
+  }
+  if (ts >= startOfToday - 6 * DAY_MS) {
+    return "week";
+  }
+  return "earlier";
+}
 
 /**
  * The group's recent activity: completed trades, new matches for the viewer,
- * shared lists/collections, and members joining — newest first. Derived
- * server-side from existing rows (no event log); see the activity endpoint.
+ * shared lists/collections, and members joining — newest first, split into
+ * relative day groups and threaded onto a timeline rail. Derived server-side
+ * from existing rows (no event log); see the activity endpoint.
  * @returns The activity-feed section.
  */
 export function FriendGroupActivityFeed({ slug }: { slug: string }) {
   const { data } = useFriendGroupActivity(slug);
   const events = data.events.slice(0, FEED_VISIBLE);
+  const now = new Date();
+  const grouped = Map.groupBy(events, (event) => activityBucket(event.at, now));
 
   return (
     <section className="flex flex-col gap-4">
@@ -49,13 +85,34 @@ export function FriendGroupActivityFeed({ slug }: { slug: string }) {
           Nothing yet. Trades, shared lists, and new members will show up here.
         </p>
       ) : (
-        <ul className="flex max-w-3xl flex-col">
-          {events.map((event) => (
-            <li key={activityKey(event)}>
-              <ActivityRow slug={slug} event={event} />
-            </li>
-          ))}
-        </ul>
+        <div className="flex max-w-3xl flex-col gap-5">
+          {BUCKET_ORDER.map((bucket) => {
+            const group = grouped.get(bucket);
+            if (!group || group.length === 0) {
+              return null;
+            }
+            return (
+              <div key={bucket} className="flex flex-col gap-1">
+                <h3 className="text-muted-foreground/70 text-2xs px-2 font-medium tracking-wide uppercase">
+                  {BUCKET_LABEL[bucket]}
+                </h3>
+                <ul
+                  className={cn(
+                    "flex flex-col",
+                    group.length > 1 &&
+                      "before:bg-border relative before:absolute before:top-6 before:bottom-6 before:left-6 before:w-px",
+                  )}
+                >
+                  {group.map((event) => (
+                    <li key={activityKey(event)} className="relative">
+                      <ActivityRow slug={slug} event={event} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
       )}
     </section>
   );
@@ -83,6 +140,7 @@ function activityKey(event: FriendGroupActivityEvent): string {
 
 function ActivityRow({ slug, event }: { slug: string; event: FriendGroupActivityEvent }) {
   const { cardsById, printingsById } = useCards();
+  const viewerId = useRequiredUserId();
 
   const cardName = (cardId: string): string => cardsById[cardId]?.name ?? "a card";
   const thumb = (printingId: string, alt: string): ReactNode => {
@@ -104,13 +162,17 @@ function ActivityRow({ slug, event }: { slug: string; event: FriendGroupActivity
     case "trade-completed": {
       return (
         <Link to="/groups/$slug/trades" params={{ slug }} className={ROW_CLASS}>
-          <FeedIcon icon={ArrowLeftRightIcon} />
+          <FeedIcon icon={ArrowLeftRightIcon} tone="primary" />
           {thumb(event.printingId, cardName(event.cardId))}
           {text(
             <>
-              <strong className="font-medium">{event.giverName ?? "A member"}</strong> traded{" "}
-              {event.quantity}× {cardName(event.cardId)} to{" "}
-              <strong className="font-medium">{event.receiverName ?? "a member"}</strong>
+              <strong className="font-medium">
+                {event.giverUserId === viewerId ? "You" : (event.giverName ?? "A member")}
+              </strong>{" "}
+              traded {event.quantity}× {cardName(event.cardId)} to{" "}
+              <strong className="font-medium">
+                {event.receiverUserId === viewerId ? "you" : (event.receiverName ?? "a member")}
+              </strong>
             </>,
           )}
           {time}

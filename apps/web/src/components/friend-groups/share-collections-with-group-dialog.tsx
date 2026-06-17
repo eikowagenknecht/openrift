@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { HandshakeIcon, HeartIcon } from "lucide-react";
+import { BookOpenIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -13,53 +13,50 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  useFriendGroupShareableLists,
-  useShareListWithFriendGroup,
+  useFriendGroupShareableCollections,
+  useShareCollectionWithFriendGroup,
 } from "@/hooks/use-friend-groups";
 
 /**
- * One-time prompt shown right after a member joins a group (accepts an invite),
- * the deliberate point of consent that replaces the old share-by-default. Lists
- * the member's wish/trade lists pre-selected so a single click shares them, but
- * sharing only happens when they confirm — skipping shares nothing.
+ * Picks which of the viewer's personal collections a group can see, the
+ * collection counterpart to {@link import("./share-lists-with-group-dialog").ShareListsWithGroupDialog}.
+ * Lists every collection the viewer hasn't shared yet, pre-selected so the
+ * common "share them all" case is one confirm.
  * @returns The dialog node.
  */
-export function ShareListsWithGroupDialog({
+export function ShareCollectionsWithGroupDialog({
   slug,
   groupName,
   open,
   onOpenChange,
-  cancelLabel = "Skip for now",
-  preselectAll = true,
+  cancelLabel = "Cancel",
+  preselectAll = false,
 }: {
   slug: string;
   groupName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Footer dismiss label. Defaults to the join-flow "Skip for now". */
+  /** Footer dismiss label. */
   cancelLabel?: string;
-  /**
-   * Whether to start with every candidate checked. True for the join flow's
-   * one-click "share them all"; false for a deliberate "Share more", where the
-   * member wants to pick what to add.
-   */
+  /** Whether to start with every candidate checked. Off for "Share more". */
   preselectAll?: boolean;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Share lists with {groupName}?</DialogTitle>
+          <DialogTitle>Share collections with {groupName}?</DialogTitle>
           <DialogDescription>
-            Pick the wishlists and tradelists this group can see, so members can find trades with
-            you. Nothing is shared until you confirm, and you can change this anytime from the
-            group&apos;s manage page.
+            Pick the collections this group can see. Shared collections are read-only for other
+            members, and you can change this anytime from the group&apos;s manage page.
           </DialogDescription>
         </DialogHeader>
         <Suspense
-          fallback={<div className="text-muted-foreground py-4 text-sm">Loading your lists…</div>}
+          fallback={
+            <div className="text-muted-foreground py-4 text-sm">Loading your collections…</div>
+          }
         >
-          <ShareListsBody
+          <ShareCollectionsBody
             slug={slug}
             onOpenChange={onOpenChange}
             cancelLabel={cancelLabel}
@@ -71,7 +68,7 @@ export function ShareListsWithGroupDialog({
   );
 }
 
-function ShareListsBody({
+function ShareCollectionsBody({
   slug,
   onOpenChange,
   cancelLabel,
@@ -82,34 +79,31 @@ function ShareListsBody({
   cancelLabel: string;
   preselectAll: boolean;
 }) {
-  const { data } = useFriendGroupShareableLists(slug);
-  const share = useShareListWithFriendGroup();
+  const { data } = useFriendGroupShareableCollections(slug);
+  const share = useShareCollectionWithFriendGroup();
 
-  const tradableLists = data.items.filter(
-    (item) => item.listIntent === "wish" || item.listIntent === "trade",
-  );
-  const candidates = tradableLists.filter((item) => item.sharedAt === null);
+  const candidates = data.items.filter((item) => item.sharedAt === null);
 
-  // The join flow pre-checks everything for a one-click "share them all"; a
-  // deliberate "Share more" starts empty so the member picks what to add.
+  // "Share more" starts empty so the member picks what to add; callers that want
+  // a one-click "share them all" can opt in with preselectAll.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
-    () => new Set(preselectAll ? candidates.map((item) => item.listId) : []),
+    () => new Set(preselectAll ? candidates.map((item) => item.collectionId) : []),
   );
 
   if (candidates.length === 0) {
     return (
       <>
         <p className="text-muted-foreground">
-          {tradableLists.length === 0 ? (
+          {data.items.length === 0 ? (
             <>
-              You don&apos;t have a wishlist or tradelist to share yet.{" "}
+              You don&apos;t have a collection to share yet.{" "}
               <Link to="/collections" className="text-foreground underline underline-offset-4">
                 Create one
               </Link>{" "}
               and you can share it with this group from its manage page.
             </>
           ) : (
-            "You've already shared all your wishlists and tradelists with this group."
+            "You've already shared all your collections with this group."
           )}
         </p>
         <DialogFooter>
@@ -122,9 +116,9 @@ function ShareListsBody({
   }
 
   const handleShare = async () => {
-    const toShare = candidates.filter((item) => selectedIds.has(item.listId));
+    const toShare = candidates.filter((item) => selectedIds.has(item.collectionId));
     await Promise.allSettled(
-      toShare.map((item) => share.mutateAsync({ slug, listId: item.listId })),
+      toShare.map((item) => share.mutateAsync({ slug, collectionId: item.collectionId })),
     );
     onOpenChange(false);
   };
@@ -133,10 +127,10 @@ function ShareListsBody({
     <>
       <ul className="flex flex-col gap-2">
         {candidates.map((item) => {
-          const checkboxId = `share-list-${item.listId}`;
-          const isSelected = selectedIds.has(item.listId);
+          const checkboxId = `share-collection-${item.collectionId}`;
+          const isSelected = selectedIds.has(item.collectionId);
           return (
-            <li key={item.listId} className="flex items-center gap-3">
+            <li key={item.collectionId} className="flex items-center gap-3">
               <Checkbox
                 id={checkboxId}
                 checked={isSelected}
@@ -145,9 +139,9 @@ function ShareListsBody({
                   setSelectedIds((prev) => {
                     const next = new Set(prev);
                     if (checked === false) {
-                      next.delete(item.listId);
+                      next.delete(item.collectionId);
                     } else {
-                      next.add(item.listId);
+                      next.add(item.collectionId);
                     }
                     return next;
                   });
@@ -157,15 +151,8 @@ function ShareListsBody({
                 htmlFor={checkboxId}
                 className="flex min-w-0 flex-1 cursor-pointer items-center gap-2"
               >
-                {item.listIntent === "wish" ? (
-                  <HeartIcon className="text-muted-foreground size-4 shrink-0" />
-                ) : (
-                  <HandshakeIcon className="text-muted-foreground size-4 shrink-0" />
-                )}
-                <span className="truncate font-medium">{item.listName}</span>
-                <span className="text-muted-foreground shrink-0 text-xs">
-                  {item.entryCount} {item.entryCount === 1 ? "card" : "cards"}
-                </span>
+                <BookOpenIcon className="text-muted-foreground size-4 shrink-0" />
+                <span className="truncate font-medium">{item.collectionName}</span>
               </label>
             </li>
           );
@@ -176,7 +163,7 @@ function ShareListsBody({
           {cancelLabel}
         </Button>
         <Button onClick={handleShare} disabled={share.isPending || selectedIds.size === 0}>
-          {selectedIds.size === 1 ? "Share 1 list" : `Share ${selectedIds.size} lists`}
+          {selectedIds.size === 1 ? "Share 1 collection" : `Share ${selectedIds.size} collections`}
         </Button>
       </DialogFooter>
     </>

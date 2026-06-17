@@ -1,8 +1,8 @@
 import type { PublicListDetailResponse } from "@openrift/shared";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 
-import type { TradelistRequestContext } from "@/components/friend-groups/request-from-tradelist-dialog";
 import { TopBarBreadcrumbTrail } from "@/components/layout/top-bar-breadcrumb";
+import type { ListExchangeContext } from "@/components/list/shared-list-content";
 import { SharedListContent } from "@/components/list/shared-list-content";
 import { useFriendGroupDetail, useFriendGroupSharedList } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
@@ -20,12 +20,15 @@ function SharedListRoute() {
   const search = Route.useSearch();
   const { fromUser } = search;
 
-  // "I want this" is only meaningful on someone else's tradelist: requesting a
-  // card means matching your wishlist against their copies. Offered from the
-  // owner's own list, or on a wish/organize list, it makes no sense.
-  const trade: TradelistRequestContext | undefined =
-    data.list.intent === "trade" && data.list.ownerUserId !== viewerId
+  // The per-card exchange only makes sense on another member's list: "Want" on
+  // their tradelist (match your wishlist against their copies), "Offer" on their
+  // wishlist (give them a card they want from copies you own). The owner's own
+  // list and organize lists get neither.
+  const isOtherMembersList = data.list.ownerUserId !== viewerId;
+  const exchange: ListExchangeContext | undefined =
+    isOtherMembersList && (data.list.intent === "trade" || data.list.intent === "wish")
       ? {
+          mode: data.list.intent === "trade" ? "request" : "offer",
           groupSlug: slug,
           groupName: groupDetail.group.name,
           counterpartyUserId: data.list.ownerUserId,
@@ -75,7 +78,7 @@ function SharedListRoute() {
             ]
           : [
               groupCrumb,
-              { label: "Shared", link: <Link to="/groups/$slug/shared" params={{ slug }} /> },
+              { label: "Trades", link: <Link to="/groups/$slug/trades" params={{ slug }} /> },
             ]
       }
     />
@@ -83,7 +86,7 @@ function SharedListRoute() {
 
   return (
     <FilterSearchProvider value={search}>
-      <SharedListContent data={publicShape} backLink={backLink} trade={trade} />
+      <SharedListContent data={publicShape} backLink={backLink} exchange={exchange} />
     </FilterSearchProvider>
   );
 }

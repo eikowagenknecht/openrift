@@ -12,7 +12,6 @@ function GroupOverviewRoute() {
   return (
     <FriendGroupPageFrame
       slug={slug}
-      active="overview"
       render={(data) => <OverviewContent slug={slug} data={data} />}
     />
   );

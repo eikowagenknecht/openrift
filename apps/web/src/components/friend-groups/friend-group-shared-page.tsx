@@ -2,28 +2,36 @@ import type {
   FriendGroupCollectionShareResponse,
   FriendGroupDetailResponse,
   FriendGroupMemberResponse,
-  FriendGroupShareResponse,
 } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { BookOpenIcon, ChevronDownIcon, PlusIcon, Share2Icon } from "lucide-react";
-import { useState } from "react";
+import { ChevronDownIcon, PlusIcon, Share2Icon } from "lucide-react";
+import { Suspense, useState } from "react";
 
 import { CreateCollectionDialog } from "@/components/collection/create-collection-dialog";
-import { Badge } from "@/components/ui/badge";
+import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { UserAvatar } from "@/components/user-avatar";
 import { useCollections } from "@/hooks/use-collections";
+import {
+  useFriendGroupDetail,
+  useFriendGroupShareableCollections,
+} from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
 
 import { SECTION_HEADING } from "./friend-group-shell";
-import { SharedCollectionRow } from "./shared-collection-row";
-import { SharedListRow } from "./shared-list-row";
+import { ShareCollectionsWithGroupDialog } from "./share-collections-with-group-dialog";
+import {
+  COLLECTION_ROW_CLASS,
+  CollectionRowContent,
+  SharedCollectionRow,
+} from "./shared-collection-row";
 
 /**
- * The Shared page: the group's pooled collections, then each member's own
- * collections and lists shared with the group (grouped under the member).
- * @returns The shared-page content.
+ * The Collections page: the group's pooled collections, then each member's own
+ * collections shared with the group (grouped under the member). Wishlists and
+ * tradelists live on the Trades page, not here.
+ * @returns The collections-page content.
  */
 export function SharedPageContent({
   slug,
@@ -40,53 +48,63 @@ export function SharedPageContent({
   );
 }
 
-function GroupCollectionsSection({ data }: { data: FriendGroupDetailResponse }) {
-  const { data: collections } = useCollections();
+/**
+ * The Shared page's top-bar action: a button to create a new group-pooled
+ * collection, plus the dialog it opens. Reads the (already-loaded) group from
+ * the cache so the route can pass it as a plain element. Any member may create a
+ * group collection, so it's shown to everyone.
+ * @returns The create-collection action.
+ */
+export function SharedCollectionAction({ slug }: { slug: string }) {
+  const { data } = useFriendGroupDetail(slug);
   const [createOpen, setCreateOpen] = useState(false);
-  const groupCollections = collections.filter((col) => col.groupId === data.group.id);
-
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <h2 className={SECTION_HEADING}>Group collections</h2>
-        <Button size="sm" variant="ghost" onClick={() => setCreateOpen(true)}>
-          <PlusIcon className="size-4" />
-          New shared collection
-        </Button>
-      </div>
-      {groupCollections.length === 0 ? (
-        <p className="text-muted-foreground text-sm">
-          No group collections yet. Any member can create one. A group collection is a pooled
-          inventory the whole group can add to and remove from.
-        </p>
-      ) : (
-        <ul className="flex flex-col gap-1">
-          {groupCollections.map((col) => (
-            <li key={col.id}>
-              <Link
-                to="/collections/$collectionId"
-                params={{ collectionId: col.id }}
-                search={(prev) => prev}
-                className="hover:bg-muted/50 flex items-center gap-2 rounded-md px-3 py-2"
-              >
-                <BookOpenIcon className="size-4" />
-                <span className="flex-1 truncate">{col.name}</span>
-                {col.copyCount > 0 ? (
-                  <Badge variant="ghost" className="text-2xs">
-                    {col.copyCount}
-                  </Badge>
-                ) : null}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+    <>
+      <PageTopBarPrimaryButton onClick={() => setCreateOpen(true)}>
+        <PlusIcon className="size-4" />
+        New shared collection
+      </PageTopBarPrimaryButton>
       <CreateCollectionDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
         groupSlug={data.group.slug}
         groupName={data.group.name}
       />
+    </>
+  );
+}
+
+function GroupCollectionsSection({ data }: { data: FriendGroupDetailResponse }) {
+  const { data: collections } = useCollections();
+  const groupCollections = collections.filter((col) => col.groupId === data.group.id);
+
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className={SECTION_HEADING}>Group collections</h2>
+      {groupCollections.length === 0 ? (
+        <p className="text-muted-foreground text-sm">
+          No group collections yet. Any member can create one. A group collection is a pooled
+          inventory the whole group can add to and remove from.
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {groupCollections.map((col) => (
+            <li key={col.id}>
+              <Link
+                to="/collections/$collectionId"
+                params={{ collectionId: col.id }}
+                search={(prev) => prev}
+                className={COLLECTION_ROW_CLASS}
+              >
+                <CollectionRowContent
+                  name={col.name}
+                  subtitle={`Group collection · ${col.copyCount} ${col.copyCount === 1 ? "Copy" : "Copies"}`}
+                />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
@@ -94,14 +112,15 @@ function GroupCollectionsSection({ data }: { data: FriendGroupDetailResponse }) 
 interface OwnerShares {
   member: FriendGroupMemberResponse;
   collections: FriendGroupCollectionShareResponse[];
-  lists: FriendGroupShareResponse[];
 }
 
 function MemberSharesSection({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
   const viewerId = useRequiredUserId();
-  // Group each member's shared collections and wishlists/tradelists under the
-  // member, joined to the roster for the avatar/nickname. Anonymous owners and
-  // members with nothing shared fall away.
+  // Group each member's shared collections under the member, joined to the
+  // roster for the avatar/nickname. Wishlists and tradelists live on the Trades
+  // page. Anonymous owners and members with nothing shared fall away — except
+  // the viewer, whose row is always shown so they have a stable place to share
+  // from.
   const membersById = new Map(data.members.map((member) => [member.userId, member]));
   const byOwner = new Map<string, OwnerShares>();
   const bucketFor = (userId: string): OwnerShares | undefined => {
@@ -111,7 +130,7 @@ function MemberSharesSection({ slug, data }: { slug: string; data: FriendGroupDe
     }
     let bucket = byOwner.get(userId);
     if (!bucket) {
-      bucket = { member, collections: [], lists: [] };
+      bucket = { member, collections: [] };
       byOwner.set(userId, bucket);
     }
     return bucket;
@@ -119,15 +138,12 @@ function MemberSharesSection({ slug, data }: { slug: string; data: FriendGroupDe
   for (const share of data.collectionShares) {
     bucketFor(share.userId)?.collections.push(share);
   }
-  for (const share of data.shares) {
-    if (share.listIntent === "wish" || share.listIntent === "trade") {
-      bucketFor(share.userId)?.lists.push(share);
-    }
-  }
+  // Always keep the viewer's own row, even when they've shared nothing yet.
+  bucketFor(viewerId);
   // The viewer first (their shares are the ones they can act on), then the
-  // rest alphabetically.
+  // rest alphabetically. Other members with nothing shared are dropped.
   const owners = [...byOwner.values()]
-    .filter((owner) => owner.collections.length > 0 || owner.lists.length > 0)
+    .filter((owner) => owner.collections.length > 0 || owner.member.userId === viewerId)
     .sort((a, b) => {
       if (a.member.userId !== b.member.userId) {
         if (a.member.userId === viewerId) {
@@ -144,65 +160,105 @@ function MemberSharesSection({ slug, data }: { slug: string; data: FriendGroupDe
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className={SECTION_HEADING}>Member collections and lists</h2>
+      <h2 className={SECTION_HEADING}>Member collections</h2>
       {owners.length === 0 ? (
         <p className="text-muted-foreground text-sm">
-          No members have shared a collection or list with this group yet. You can share one of
-          yours from Manage.
+          No members have shared a collection with this group yet. You can share one of yours from
+          Manage. Wishlists and tradelists live on the Trades page.
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          {owners.map(({ member, collections, lists }) => (
-            <Collapsible key={member.userId}>
-              <div className="flex items-center gap-2">
-                <CollapsibleTrigger className="hover:bg-muted/50 flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left font-medium">
-                  <UserAvatar
-                    image={member.userImage}
-                    name={member.userName}
-                    gravatarHash={member.gravatarHash}
-                    size="sm"
-                  />
-                  <span className="truncate">{member.userName ?? "Member"}</span>
-                  {member.nickname ? (
-                    <span className="text-muted-foreground text-xs">{member.nickname}</span>
-                  ) : null}
-                  <span className="text-muted-foreground text-xs">
-                    ({collections.length + lists.length})
-                  </span>
-                  <ChevronDownIcon className="text-muted-foreground ml-auto size-4 shrink-0 transition-transform data-[panel-open]:rotate-180" />
-                </CollapsibleTrigger>
-                {member.userId === viewerId ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="shrink-0"
-                    render={<Link to="/groups/$slug/manage" params={{ slug }} />}
-                  >
-                    <Share2Icon />
-                    Share more
-                  </Button>
-                ) : null}
-              </div>
-              <CollapsibleContent>
-                <div className="mt-1 ml-8 flex flex-col gap-2">
-                  {collections.map((share) => (
-                    <SharedCollectionRow key={share.collectionId} slug={slug} share={share} />
-                  ))}
-                  {lists.map((share) => (
-                    <SharedListRow
-                      key={share.listId}
-                      slug={slug}
-                      member={member}
-                      share={share}
-                      showMember={false}
+          {owners.map(({ member, collections }) => {
+            const isViewer = member.userId === viewerId;
+            // The viewer's row carries the share entry point; it only renders a
+            // button when there's actually a collection left to share.
+            const shareButton = isViewer ? (
+              <Suspense fallback={null}>
+                <ShareMoreButton slug={slug} groupName={data.group.name} />
+              </Suspense>
+            ) : null;
+            if (collections.length === 0) {
+              // Only the viewer reaches this — others with nothing shared are
+              // filtered out above.
+              return (
+                <div key={member.userId} className="flex items-center gap-2">
+                  <div className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 font-medium">
+                    <UserAvatar
+                      image={member.userImage}
+                      name={member.userName}
+                      gravatarHash={member.gravatarHash}
+                      size="sm"
                     />
-                  ))}
+                    <span className="truncate">{member.userName ?? "Member"}</span>
+                    <span className="text-muted-foreground text-xs">(nothing shared yet)</span>
+                  </div>
+                  {shareButton}
                 </div>
-              </CollapsibleContent>
-            </Collapsible>
-          ))}
+              );
+            }
+            return (
+              <Collapsible key={member.userId}>
+                <div className="flex items-center gap-2">
+                  <CollapsibleTrigger className="hover:bg-muted/50 flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left font-medium">
+                    <UserAvatar
+                      image={member.userImage}
+                      name={member.userName}
+                      gravatarHash={member.gravatarHash}
+                      size="sm"
+                    />
+                    <span className="truncate">{member.userName ?? "Member"}</span>
+                    {member.nickname ? (
+                      <span className="text-muted-foreground text-xs">{member.nickname}</span>
+                    ) : null}
+                    <span className="text-muted-foreground text-xs">({collections.length})</span>
+                    <ChevronDownIcon className="text-muted-foreground ml-auto size-4 shrink-0 transition-transform data-[panel-open]:rotate-180" />
+                  </CollapsibleTrigger>
+                  {shareButton}
+                </div>
+                <CollapsibleContent>
+                  <div className="mt-1 ml-8 flex flex-col gap-2">
+                    {collections.map((share) => (
+                      <SharedCollectionRow key={share.collectionId} slug={slug} share={share} />
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          })}
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * The viewer's "Share more" button next to their own row. Renders nothing when
+ * they have no unshared collection left, so it never opens a dead-end "you've
+ * already shared everything" dialog. Reads the shareable-collections query, so
+ * it must be wrapped in a Suspense boundary.
+ * @returns The share button and its dialog, or null when nothing is shareable.
+ */
+function ShareMoreButton({ slug, groupName }: { slug: string; groupName: string }) {
+  const { data } = useFriendGroupShareableCollections(slug);
+  const [open, setOpen] = useState(false);
+
+  const hasShareable = data.items.some((item) => item.sharedAt === null);
+  if (!hasShareable) {
+    return null;
+  }
+
+  return (
+    <>
+      <Button size="sm" variant="outline" className="shrink-0" onClick={() => setOpen(true)}>
+        <Share2Icon />
+        Share more
+      </Button>
+      <ShareCollectionsWithGroupDialog
+        slug={slug}
+        groupName={groupName}
+        open={open}
+        onOpenChange={setOpen}
+      />
+    </>
   );
 }

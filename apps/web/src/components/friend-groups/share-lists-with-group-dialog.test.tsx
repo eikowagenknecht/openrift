@@ -34,13 +34,14 @@ const { ShareListsWithGroupDialog } = await import("./share-lists-with-group-dia
 
 const onOpenChange = vi.fn();
 
-function renderDialog() {
+function renderDialog(props?: { preselectAll?: boolean }) {
   return render(
     <ShareListsWithGroupDialog
       slug="bothfeld"
       groupName="Bothfeld Connection"
       open
       onOpenChange={onOpenChange}
+      {...props}
     />,
   );
 }
@@ -69,10 +70,17 @@ describe("ShareListsWithGroupDialog", () => {
     onOpenChange.mockClear();
   });
 
-  it("pre-selects every unshared wish/trade list", () => {
+  it("pre-selects every unshared wish/trade list in the join flow", () => {
     renderDialog();
     expect(screen.getByRole("checkbox", { name: /My Wants/u })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: /For Trade/u })).toBeChecked();
+  });
+
+  it("starts empty when preselectAll is off, as for a deliberate Share more", () => {
+    renderDialog({ preselectAll: false });
+    expect(screen.getByRole("checkbox", { name: /My Wants/u })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /For Trade/u })).not.toBeChecked();
+    expect(screen.getByRole("button", { name: /^Share/u })).toBeDisabled();
   });
 
   it("shares every selected list on confirm and closes", async () => {
@@ -138,8 +146,8 @@ describe("ShareListsWithGroupDialog", () => {
     expect(screen.queryByRole("checkbox", { name: /Binder/u })).not.toBeInTheDocument();
   });
 
-  it("offers a create-a-list message when there is nothing to share", () => {
-    currentItems = [{ ...TRADE, sharedAt: "2026-06-16T00:00:00Z" }];
+  it("offers a create-a-list message when no wishlists or tradelists exist", () => {
+    currentItems = [];
     renderDialog();
 
     expect(
@@ -148,5 +156,18 @@ describe("ShareListsWithGroupDialog", () => {
     expect(screen.queryByRole("button", { name: /^Share/u })).not.toBeInTheDocument();
     // The footer "Close" plus the dialog's built-in close icon both match.
     expect(screen.getAllByRole("button", { name: "Close" }).length).toBeGreaterThan(0);
+  });
+
+  it("says everything is already shared when no list is left to share", () => {
+    currentItems = [{ ...TRADE, sharedAt: "2026-06-16T00:00:00Z" }];
+    renderDialog();
+
+    expect(
+      screen.getByText(/already shared all your wishlists and tradelists/iu),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/don't have a wishlist or tradelist to share yet/iu),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Share/u })).not.toBeInTheDocument();
   });
 });

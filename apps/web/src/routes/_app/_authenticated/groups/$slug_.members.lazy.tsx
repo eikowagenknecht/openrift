@@ -1,7 +1,10 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { MembersPageContent } from "@/components/friend-groups/friend-group-members-page";
-import { FriendGroupPageFrame } from "@/components/friend-groups/friend-group-shell";
+import {
+  MembersInviteAction,
+  MembersPageContent,
+} from "@/components/friend-groups/friend-group-members-page";
+import { FriendGroupSectionFrame } from "@/components/friend-groups/friend-group-shell";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/groups/$slug_/members")({
   component: GroupMembersRoute,
@@ -10,9 +13,10 @@ export const Route = createLazyFileRoute("/_app/_authenticated/groups/$slug_/mem
 function GroupMembersRoute() {
   const { slug } = Route.useParams();
   return (
-    <FriendGroupPageFrame
+    <FriendGroupSectionFrame
       slug={slug}
-      active="members"
+      title="Members"
+      actions={<MembersInviteAction slug={slug} />}
       render={(data) => <MembersPageContent slug={slug} data={data} />}
     />
   );

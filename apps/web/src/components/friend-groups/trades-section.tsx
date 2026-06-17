@@ -26,6 +26,7 @@ import {
   CardMetaLine,
   CounterpartyChip,
   TradeDirectionIcon,
+  TradeExpiry,
   TradeStatusBadge,
 } from "./trade-row-parts";
 
@@ -112,6 +113,8 @@ function TradeRow({ trade }: { trade: CardTradeResponse }) {
           counterpartyName={trade.counterparty.name}
           awaitingViewer={awaitingViewer}
         />
+
+        <TradeExpiry status={trade.status} expiresAt={trade.expiresAt} />
 
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:ml-0">
           {trade.actionNeeded === "accept-or-decline" ? (
@@ -250,19 +253,26 @@ interface TradesSectionProps {
   groupId: string;
   /**
    * The "Possible trades" suggestions block, injected between the active trade
-   * buckets (In progress / Action needed) and Completed so the page reads
-   * In progress → Action needed → Possible trades → Completed.
+   * buckets (In progress / Action needed) and the wishlists & tradelists so the
+   * page reads In progress → Action needed → Possible trades → Wishlists &
+   * tradelists → Completed.
    */
   suggestions: React.ReactNode;
+  /**
+   * The "Wishlists & tradelists" browse block (each member's shared wishlists
+   * and tradelists), slotted just below the suggestions so the Trades page is the
+   * one-stop place to both act on matches and browse what members offer.
+   */
+  memberLists: React.ReactNode;
 }
 
 /**
  * The viewer's trades in this group, bucketed into In progress / Action needed /
- * Completed, with the Possible trades suggestions slotted in just above
- * Completed. The active work the viewer can act on stays at the top.
+ * Completed, with the Possible trades suggestions and Wishlists & tradelists slotted in
+ * just above Completed. The active work the viewer can act on stays at the top.
  * @returns The trades content.
  */
-export function TradesSection({ groupId, suggestions }: TradesSectionProps) {
+export function TradesSection({ groupId, suggestions, memberLists }: TradesSectionProps) {
   const { data } = useGroupTrades(groupId);
 
   const trades = data?.items ?? [];
@@ -271,6 +281,7 @@ export function TradesSection({ groupId, suggestions }: TradesSectionProps) {
     return (
       <div className="flex flex-col gap-8">
         {suggestions}
+        {memberLists}
         <p className="text-muted-foreground">
           No trades in this group yet. When you request one of the suggestions above, it&apos;ll
           show up here.
@@ -288,6 +299,7 @@ export function TradesSection({ groupId, suggestions }: TradesSectionProps) {
       <TradeGroup heading="In progress" trades={active} />
       <TradeGroup heading="Action needed" trades={actionNeeded} />
       {suggestions}
+      {memberLists}
       <CompletedTradeGroup trades={history} />
     </div>
   );

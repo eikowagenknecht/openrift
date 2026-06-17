@@ -1,8 +1,15 @@
-import type { FriendGroupDetailResponse } from "@openrift/shared";
+import type {
+  FriendGroupDetailResponse,
+  FriendGroupMemberResponse,
+  FriendGroupShareResponse,
+} from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { HandshakeIcon, HeartIcon, Share2Icon } from "lucide-react";
+import { ChevronDownIcon, HandshakeIcon, HeartIcon, Share2Icon } from "lucide-react";
+import { Suspense, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { UserAvatar } from "@/components/user-avatar";
 import { useGroupTrades } from "@/hooks/use-card-trades";
 import {
   useFriendGroupMatches,
@@ -14,12 +21,15 @@ import { withoutLiveTradeMatches } from "@/lib/trade-derivation";
 
 import { SECTION_HEADING } from "./friend-group-shell";
 import { MatchTradeList } from "./match-row-card";
+import { ShareListsWithGroupDialog } from "./share-lists-with-group-dialog";
+import { SharedListRow } from "./shared-list-row";
 import { TradesSection } from "./trades-section";
 
 /**
  * The Trades page, ordered In progress → Action needed → Possible trades →
- * Completed: the viewer's active trades sit at the top, the match suggestions
- * are slotted in above Completed by {@link TradesSection}.
+ * Wishlists & tradelists → Completed: the viewer's active trades sit at the top, the
+ * match suggestions and the per-member list browser are slotted in above
+ * Completed by {@link TradesSection}.
  * @returns the trades-page content.
  */
 export function TradesPageContent({
@@ -33,6 +43,7 @@ export function TradesPageContent({
     <TradesSection
       groupId={data.group.id}
       suggestions={<SuggestedSection slug={slug} data={data} />}
+      memberLists={<MemberListsSection slug={slug} data={data} />}
     />
   );
 }
@@ -147,5 +158,175 @@ function ShareYourListsPrompt({ slug }: { slug: string }) {
         ))}
       </ul>
     </div>
+  );
+}
+
+interface OwnerLists {
+  member: FriendGroupMemberResponse;
+  lists: FriendGroupShareResponse[];
+}
+
+/**
+ * Each member's shared wishlists and tradelists, grouped per member (the viewer
+ * first, then alphabetically) in a collapsible. Moved here from the Shared page
+ * so the Trades page is the single place to browse what members offer and act
+ * on it. The viewer's own row is always shown — even with nothing shared — and
+ * carries an inline "Share more" button that opens the share dialog.
+ * @returns The wishlists-and-tradelists section.
+ */
+function MemberListsSection({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
+  const viewerId = useRequiredUserId();
+  // Group each member's shared wishlists/tradelists under the member, joined to
+  // the roster for the avatar/nickname. Anonymous owners and members with
+  // nothing shared fall away — except the viewer, whose row is always shown so
+  // they have a stable place to share from.
+  const membersById = new Map(data.members.map((member) => [member.userId, member]));
+  const byOwner = new Map<string, OwnerLists>();
+  const bucketFor = (userId: string): OwnerLists | undefined => {
+    const member = membersById.get(userId);
+    if (!member) {
+      return undefined;
+    }
+    let bucket = byOwner.get(userId);
+    if (!bucket) {
+      bucket = { member, lists: [] };
+      byOwner.set(userId, bucket);
+    }
+    return bucket;
+  };
+  for (const share of data.shares) {
+    if (share.listIntent === "wish" || share.listIntent === "trade") {
+      bucketFor(share.userId)?.lists.push(share);
+    }
+  }
+  // Always keep the viewer's own row, even when they've shared nothing yet.
+  bucketFor(viewerId);
+  // The viewer first (their lists are the ones they can act on), then the rest
+  // alphabetically. Other members with nothing shared are dropped.
+  const owners = [...byOwner.values()]
+    .filter((owner) => owner.lists.length > 0 || owner.member.userId === viewerId)
+    .sort((a, b) => {
+      if (a.member.userId === viewerId) {
+        return -1;
+      }
+      if (b.member.userId === viewerId) {
+        return 1;
+      }
+      const aName = a.member.userName ?? "￿";
+      const bName = b.member.userName ?? "￿";
+      return aName.localeCompare(bName);
+    });
+
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className={SECTION_HEADING}>Wishlists &amp; tradelists</h2>
+      {owners.length === 0 ? (
+        <p className="text-muted-foreground">
+          No members have shared a wishlist or tradelist with this group yet.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {owners.map(({ member, lists }) => {
+            const isViewer = member.userId === viewerId;
+            // The viewer's row carries the share entry point; it only renders a
+            // button when there's actually something left to share.
+            const shareButton = isViewer ? (
+              <Suspense fallback={null}>
+                <ShareMoreButton slug={slug} groupName={data.group.name} />
+              </Suspense>
+            ) : null;
+            if (lists.length === 0) {
+              // Only the viewer reaches this — others with nothing shared are
+              // filtered out above.
+              return (
+                <div key={member.userId} className="flex items-center gap-2">
+                  <div className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 font-medium">
+                    <UserAvatar
+                      image={member.userImage}
+                      name={member.userName}
+                      gravatarHash={member.gravatarHash}
+                      size="sm"
+                    />
+                    <span className="truncate">{member.userName ?? "Member"}</span>
+                    <span className="text-muted-foreground text-xs">(nothing shared yet)</span>
+                  </div>
+                  {shareButton}
+                </div>
+              );
+            }
+            return (
+              <Collapsible key={member.userId}>
+                <div className="flex items-center gap-2">
+                  <CollapsibleTrigger className="hover:bg-muted/50 flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left font-medium">
+                    <UserAvatar
+                      image={member.userImage}
+                      name={member.userName}
+                      gravatarHash={member.gravatarHash}
+                      size="sm"
+                    />
+                    <span className="truncate">{member.userName ?? "Member"}</span>
+                    {member.nickname ? (
+                      <span className="text-muted-foreground text-xs">{member.nickname}</span>
+                    ) : null}
+                    <span className="text-muted-foreground text-xs">({lists.length})</span>
+                    <ChevronDownIcon className="text-muted-foreground ml-auto size-4 shrink-0 transition-transform data-[panel-open]:rotate-180" />
+                  </CollapsibleTrigger>
+                  {shareButton}
+                </div>
+                <CollapsibleContent>
+                  <div className="mt-1 ml-8 flex flex-col gap-2">
+                    {lists.map((share) => (
+                      <SharedListRow
+                        key={share.listId}
+                        slug={slug}
+                        member={member}
+                        share={share}
+                        showMember={false}
+                      />
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * The viewer's "Share more" button next to their own row. Renders nothing when
+ * they have no unshared wishlist or tradelist left, so it never opens a
+ * dead-end "you've already shared everything" dialog. Reads the shareable-lists
+ * query, so it must be wrapped in a Suspense boundary.
+ * @returns The share button and its dialog, or null when nothing is shareable.
+ */
+function ShareMoreButton({ slug, groupName }: { slug: string; groupName: string }) {
+  const { data } = useFriendGroupShareableLists(slug);
+  const [open, setOpen] = useState(false);
+
+  const hasShareable = data.items.some(
+    (item) => (item.listIntent === "wish" || item.listIntent === "trade") && item.sharedAt === null,
+  );
+  if (!hasShareable) {
+    return null;
+  }
+
+  return (
+    <>
+      <Button size="sm" variant="outline" className="shrink-0" onClick={() => setOpen(true)}>
+        <Share2Icon />
+        Share more
+      </Button>
+      <ShareListsWithGroupDialog
+        slug={slug}
+        groupName={groupName}
+        open={open}
+        onOpenChange={setOpen}
+        cancelLabel="Cancel"
+        preselectAll={false}
+      />
+    </>
   );
 }
