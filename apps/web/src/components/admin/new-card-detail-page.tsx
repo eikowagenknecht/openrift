@@ -21,9 +21,9 @@ import {
   buildSourceLabels,
   useCardDetailData,
 } from "@/components/admin/card-detail-shared";
-import type { CardSearchResult } from "@/components/admin/card-search-dropdown";
-import { CardSearchDropdown } from "@/components/admin/card-search-dropdown";
 import { GroupImagePreview } from "@/components/admin/image-preview";
+import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
+import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
 import {
   SectionHeader,
   SectionHeaderDescription,

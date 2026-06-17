@@ -446,13 +446,17 @@ export interface DeckPlansTable {
   updatedAt: UpdatedAt;
 }
 
-/** One opponent matchup within a deck's plan. Unique per (deckId, opponentLegendCardId, subtitle). */
+/**
+ * One opponent matchup within a deck's plan. Identified by an optional linked
+ * card (any type) plus a free-text label; a CHECK requires at least one.
+ */
 export interface DeckMatchupPlansTable {
   id: Generated<string>;
   deckId: string;
-  /** FK → cards(id): the opponent's Legend. */
-  opponentLegendCardId: string;
-  subtitle: Generated<string>;
+  /** FK → cards(id): the opponent's identity card (Legend, Aurora, …). Null for a label-only matchup. */
+  opponentCardId: string | null;
+  /** Free-text opponent label (archetype / domain / build name). Empty when a card carries the identity. */
+  opponentLabel: Generated<string>;
   notes: Generated<string>;
   sortOrder: Generated<number>;
   createdAt: CreatedAt;

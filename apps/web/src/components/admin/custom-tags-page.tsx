@@ -7,8 +7,8 @@ import type {
   AdminColumnDef,
   AdminDraftSlotProps,
 } from "@/components/admin/admin-table";
-import { CardSearchDropdown } from "@/components/admin/card-search-dropdown";
-import type { CardSearchResult } from "@/components/admin/card-search-dropdown";
+import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
+import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
 import {
   SectionHeader,
   SectionHeaderDescription,

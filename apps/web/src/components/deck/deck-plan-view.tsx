@@ -168,9 +168,17 @@ export function DeckPlanView({
               return (
                 <div key={matchup.id} className="space-y-3 rounded-lg border p-3">
                   <div className="flex items-center gap-2">
-                    <CardLine cardId={matchup.opponentLegendCardId} lookup={lookup} />
-                    {matchup.subtitle !== "" && (
-                      <span className="text-muted-foreground truncate">{matchup.subtitle}</span>
+                    {matchup.opponentCardId === null ? (
+                      <span className="truncate font-medium">{matchup.opponentLabel}</span>
+                    ) : (
+                      <>
+                        <CardLine cardId={matchup.opponentCardId} lookup={lookup} />
+                        {matchup.opponentLabel !== "" && (
+                          <span className="text-muted-foreground truncate">
+                            {matchup.opponentLabel}
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
                   <div className="flex flex-col gap-4 sm:flex-row">

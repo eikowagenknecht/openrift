@@ -192,8 +192,8 @@ export function toDeckPlan(data: DeckPlanData): DeckPlanResponse {
     battlefieldNote: plan?.battlefieldNote ?? "",
     matchups: matchups.map((matchup) => ({
       id: matchup.id,
-      opponentLegendCardId: matchup.opponentLegendCardId,
-      subtitle: matchup.subtitle,
+      opponentCardId: matchup.opponentCardId,
+      opponentLabel: matchup.opponentLabel,
       notes: matchup.notes,
       swaps: matchup.swaps.map((swap) => ({
         cardId: swap.cardId,

@@ -62,13 +62,14 @@ export const publicDecksRoute = createApiApp().openapi(getPublicDeckByShareToken
   const cardMetaById = new Map(cardMetas.map((meta) => [meta.id, meta]));
 
   // The plan references cards the deck may not contain (notably the opponent
-  // Legend), so denormalize their display meta separately for anon viewers.
+  // identity card), so denormalize their display meta separately for anon
+  // viewers. The opponent card is optional, so nulls are filtered out below.
   const visiblePlan = isEmptyDeckPlan(plan) ? null : plan;
   const planCardIds = visiblePlan
     ? [
         ...new Set(
           [
-            ...visiblePlan.matchups.map((matchup) => matchup.opponentLegendCardId),
+            ...visiblePlan.matchups.map((matchup) => matchup.opponentCardId),
             ...visiblePlan.matchups.flatMap((matchup) => matchup.swaps.map((swap) => swap.cardId)),
             visiblePlan.battlefieldGame1CardId,
             visiblePlan.battlefieldFirstCardId,

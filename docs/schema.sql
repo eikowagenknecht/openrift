@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict GBbbKrSNldHKpKpWqQPKrZIA9qAw0ZAmQCN8BwtrgD6A8d76oMwQtR2pSNzv19n
+\restrict YPfBsIqmGsUh5cdqdSSHttViQllHln7EzOXFoR1SE1mGLQc376PWZu190hBjcKB
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -963,14 +963,15 @@ CREATE TABLE public.deck_formats (
 CREATE TABLE public.deck_matchup_plans (
     id uuid DEFAULT uuidv7() NOT NULL,
     deck_id uuid NOT NULL,
-    opponent_legend_card_id uuid NOT NULL,
-    subtitle text DEFAULT ''::text NOT NULL,
+    opponent_card_id uuid,
     notes text DEFAULT ''::text NOT NULL,
     sort_order smallint DEFAULT 0 NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT chk_deck_matchup_plans_notes CHECK ((length(notes) <= 4000)),
-    CONSTRAINT chk_deck_matchup_plans_subtitle CHECK ((length(subtitle) <= 120))
+    opponent_label text DEFAULT ''::text NOT NULL,
+    CONSTRAINT chk_deck_matchup_plans_identity CHECK (((opponent_card_id IS NOT NULL) OR (opponent_label <> ''::text))),
+    CONSTRAINT chk_deck_matchup_plans_label CHECK ((length(opponent_label) <= 120)),
+    CONSTRAINT chk_deck_matchup_plans_notes CHECK ((length(notes) <= 4000))
 );
 
 
@@ -2794,14 +2795,6 @@ ALTER TABLE ONLY public.deck_check_entries
 
 
 --
--- Name: deck_matchup_plans uq_deck_matchup_plans_deck_legend_subtitle; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.deck_matchup_plans
-    ADD CONSTRAINT uq_deck_matchup_plans_deck_legend_subtitle UNIQUE (deck_id, opponent_legend_card_id, subtitle);
-
-
---
 -- Name: deck_matchup_swaps uq_deck_matchup_swaps_plan_card_direction; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4288,19 +4281,19 @@ ALTER TABLE ONLY public.deck_check_keys
 
 
 --
+-- Name: deck_matchup_plans deck_matchup_plans_card_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_matchup_plans
+    ADD CONSTRAINT deck_matchup_plans_card_fkey FOREIGN KEY (opponent_card_id) REFERENCES public.cards(id) ON DELETE SET NULL;
+
+
+--
 -- Name: deck_matchup_plans deck_matchup_plans_deck_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.deck_matchup_plans
     ADD CONSTRAINT deck_matchup_plans_deck_fkey FOREIGN KEY (deck_id) REFERENCES public.decks(id) ON DELETE CASCADE;
-
-
---
--- Name: deck_matchup_plans deck_matchup_plans_legend_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.deck_matchup_plans
-    ADD CONSTRAINT deck_matchup_plans_legend_fkey FOREIGN KEY (opponent_legend_card_id) REFERENCES public.cards(id) ON DELETE CASCADE;
 
 
 --
@@ -4879,5 +4872,5 @@ ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.friend_grou
 -- PostgreSQL database dump complete
 --
 
-\unrestrict GBbbKrSNldHKpKpWqQPKrZIA9qAw0ZAmQCN8BwtrgD6A8d76oMwQtR2pSNzv19n
+\unrestrict YPfBsIqmGsUh5cdqdSSHttViQllHln7EzOXFoR1SE1mGLQc376PWZu190hBjcKB
 

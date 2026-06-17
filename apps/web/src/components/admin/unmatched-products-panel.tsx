@@ -3,9 +3,9 @@ import { useNavigate } from "@tanstack/react-router";
 import { AlertTriangleIcon, BanIcon, EllipsisVerticalIcon, LinkIcon, XIcon } from "lucide-react";
 import React, { useMemo, useState } from "react";
 
-import type { CardSearchResult } from "@/components/admin/card-search-dropdown";
-import { CardSearchDropdown } from "@/components/admin/card-search-dropdown";
 import { displayedProductLanguage } from "@/components/admin/marketplace-products-table";
+import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
+import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {

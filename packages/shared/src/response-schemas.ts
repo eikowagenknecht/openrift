@@ -805,8 +805,8 @@ const deckMatchupSwapResponseSchema = z.object({
 
 const deckMatchupPlanResponseSchema = z.object({
   id: z.string(),
-  opponentLegendCardId: z.string(),
-  subtitle: z.string(),
+  opponentCardId: z.string().nullable(),
+  opponentLabel: z.string(),
   notes: z.string(),
   swaps: z.array(deckMatchupSwapResponseSchema),
 });

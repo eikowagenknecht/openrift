@@ -56,8 +56,8 @@ describe.skipIf(!ctx)("deckPlansRepo (integration)", () => {
       battlefieldNote: "",
       matchups: [
         {
-          opponentLegendCardId: CARD_CALM_UNIT.id,
-          subtitle: "Wuju Bladesman",
+          opponentCardId: CARD_CALM_UNIT.id,
+          opponentLabel: "Wuju Bladesman",
           notes: "Watch the bench",
           swaps: [
             { cardId: CARD_FURY_UNIT.id, direction: "out", quantity: 2 },
@@ -72,7 +72,8 @@ describe.skipIf(!ctx)("deckPlansRepo (integration)", () => {
     expect(data.plan?.mulliganSplit).toBe(true);
     expect(data.plan?.battlefieldG1CardId).toBe(CARD_BODY_UNIT.id);
     expect(data.matchups).toHaveLength(1);
-    expect(data.matchups[0]?.subtitle).toBe("Wuju Bladesman");
+    expect(data.matchups[0]?.opponentCardId).toBe(CARD_CALM_UNIT.id);
+    expect(data.matchups[0]?.opponentLabel).toBe("Wuju Bladesman");
     expect(data.matchups[0]?.swaps).toHaveLength(2);
     const outSwap = data.matchups[0]?.swaps.find((swap) => swap.direction === "out");
     expect(outSwap?.cardId).toBe(CARD_FURY_UNIT.id);
@@ -93,8 +94,8 @@ describe.skipIf(!ctx)("deckPlansRepo (integration)", () => {
       battlefieldCustom: false,
       battlefieldNote: "",
       matchups: [
-        { opponentLegendCardId: CARD_CALM_UNIT.id, subtitle: "a", notes: "", swaps: [] },
-        { opponentLegendCardId: CARD_CALM_UNIT.id, subtitle: "b", notes: "", swaps: [] },
+        { opponentCardId: CARD_CALM_UNIT.id, opponentLabel: "a", notes: "", swaps: [] },
+        { opponentCardId: CARD_CALM_UNIT.id, opponentLabel: "b", notes: "", swaps: [] },
       ],
     });
 
@@ -110,14 +111,14 @@ describe.skipIf(!ctx)("deckPlansRepo (integration)", () => {
       battlefieldCustom: false,
       battlefieldNote: "",
       matchups: [
-        { opponentLegendCardId: CARD_FURY_UNIT.id, subtitle: "first", notes: "", swaps: [] },
-        { opponentLegendCardId: CARD_CALM_UNIT.id, subtitle: "second", notes: "", swaps: [] },
+        { opponentCardId: CARD_FURY_UNIT.id, opponentLabel: "first", notes: "", swaps: [] },
+        { opponentCardId: CARD_CALM_UNIT.id, opponentLabel: "second", notes: "", swaps: [] },
       ],
     });
 
     const data = await plans.getForDeck(deckId);
     expect(data.plan?.generalStrategy).toBe("v2");
-    expect(data.matchups.map((matchup) => matchup.subtitle)).toEqual(["first", "second"]);
+    expect(data.matchups.map((matchup) => matchup.opponentLabel)).toEqual(["first", "second"]);
   });
 
   it("preserves the plan row's id and created_at across an edit (upsert, not delete+insert)", async () => {
@@ -153,8 +154,59 @@ describe.skipIf(!ctx)("deckPlansRepo (integration)", () => {
     expect(second.updatedAt.getTime()).toBeGreaterThanOrEqual(first.updatedAt.getTime());
   });
 
-  it("rejects duplicate matchups (same legend + subtitle) via the unique constraint", async () => {
-    const deckId = await makeDeck("Plan Duplicate");
+  it("persists a non-Legend opponent card and a label-only matchup", async () => {
+    const deckId = await makeDeck("Plan Opponent Identity");
+    await plans.replaceForDeck(deckId, {
+      generalStrategy: "",
+      mulliganSplit: false,
+      mulliganGeneral: "",
+      mulliganFirst: "",
+      mulliganSecond: "",
+      battlefieldG1CardId: null,
+      battlefieldFirstCardId: null,
+      battlefieldSecondCardId: null,
+      battlefieldCustom: false,
+      battlefieldNote: "",
+      matchups: [
+        // CARD_BODY_UNIT is a Unit, not a Legend — now a valid opponent card.
+        { opponentCardId: CARD_BODY_UNIT.id, opponentLabel: "", notes: "", swaps: [] },
+        // Label-only matchup: no linked card (an archetype like "Aggro").
+        { opponentCardId: null, opponentLabel: "Aggro", notes: "", swaps: [] },
+      ],
+    });
+
+    const data = await plans.getForDeck(deckId);
+    expect(data.matchups).toHaveLength(2);
+    expect(data.matchups[0]?.opponentCardId).toBe(CARD_BODY_UNIT.id);
+    expect(data.matchups[1]?.opponentCardId).toBeNull();
+    expect(data.matchups[1]?.opponentLabel).toBe("Aggro");
+  });
+
+  it("allows two matchups that share an opponent (no uniqueness constraint)", async () => {
+    const deckId = await makeDeck("Plan Same Opponent");
+    await plans.replaceForDeck(deckId, {
+      generalStrategy: "",
+      mulliganSplit: false,
+      mulliganGeneral: "",
+      mulliganFirst: "",
+      mulliganSecond: "",
+      battlefieldG1CardId: null,
+      battlefieldFirstCardId: null,
+      battlefieldSecondCardId: null,
+      battlefieldCustom: false,
+      battlefieldNote: "",
+      matchups: [
+        { opponentCardId: CARD_CALM_UNIT.id, opponentLabel: "dup", notes: "", swaps: [] },
+        { opponentCardId: CARD_CALM_UNIT.id, opponentLabel: "dup", notes: "", swaps: [] },
+      ],
+    });
+
+    const data = await plans.getForDeck(deckId);
+    expect(data.matchups).toHaveLength(2);
+  });
+
+  it("rejects a matchup with neither a card nor a label (identity CHECK)", async () => {
+    const deckId = await makeDeck("Plan Empty Matchup");
     await expect(
       plans.replaceForDeck(deckId, {
         generalStrategy: "",
@@ -167,10 +219,7 @@ describe.skipIf(!ctx)("deckPlansRepo (integration)", () => {
         battlefieldSecondCardId: null,
         battlefieldCustom: false,
         battlefieldNote: "",
-        matchups: [
-          { opponentLegendCardId: CARD_CALM_UNIT.id, subtitle: "dup", notes: "", swaps: [] },
-          { opponentLegendCardId: CARD_CALM_UNIT.id, subtitle: "dup", notes: "", swaps: [] },
-        ],
+        matchups: [{ opponentCardId: null, opponentLabel: "", notes: "", swaps: [] }],
       }),
     ).rejects.toThrow();
   });
@@ -195,7 +244,7 @@ describe.skipIf(!ctx)("deckPlansRepo (integration)", () => {
       battlefieldSecondCardId: null,
       battlefieldCustom: false,
       battlefieldNote: "",
-      matchups: [{ opponentLegendCardId: CARD_CALM_UNIT.id, subtitle: "", notes: "", swaps: [] }],
+      matchups: [{ opponentCardId: CARD_CALM_UNIT.id, opponentLabel: "", notes: "", swaps: [] }],
     });
     await decks.deleteByIdForUser(deck.id, userId);
 

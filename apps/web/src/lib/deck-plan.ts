@@ -27,9 +27,10 @@ function nextMatchupUid(): string {
 export interface PlanMatchupDraft {
   /** Stable client-side id (React key); not persisted. */
   uid: string;
-  /** Null while the user is still picking the opponent Legend. */
-  opponentLegendCardId: string | null;
-  subtitle: string;
+  /** Optional linked identity card (any type); null for a label-only matchup. */
+  opponentCardId: string | null;
+  /** Free-text opponent label (archetype / domain / build name). */
+  opponentLabel: string;
   notes: string;
   swaps: PlanSwapDraft[];
 }
@@ -60,7 +61,7 @@ export interface DeckPlanContext {
 }
 
 export type PlanWarning =
-  | { code: "matchup-no-legend"; matchupIndex: number }
+  | { code: "matchup-no-opponent"; matchupIndex: number }
   | { code: "swap-unbalanced"; matchupIndex: number; inCount: number; outCount: number }
   | {
       code: "in-exceeds-sideboard";
@@ -80,7 +81,7 @@ export type PlanWarning =
   | { code: "battlefield-duplicate"; cardId: string };
 
 export function createEmptyMatchup(): PlanMatchupDraft {
-  return { uid: nextMatchupUid(), opponentLegendCardId: null, subtitle: "", notes: "", swaps: [] };
+  return { uid: nextMatchupUid(), opponentCardId: null, opponentLabel: "", notes: "", swaps: [] };
 }
 
 export function createEmptyPlanDraft(): PlanDraft {
@@ -114,8 +115,8 @@ export function planResponseToDraft(plan: DeckPlanResponse): PlanDraft {
     battlefieldNote: plan.battlefieldNote,
     matchups: plan.matchups.map((matchup) => ({
       uid: nextMatchupUid(),
-      opponentLegendCardId: matchup.opponentLegendCardId,
-      subtitle: matchup.subtitle,
+      opponentCardId: matchup.opponentCardId,
+      opponentLabel: matchup.opponentLabel,
       notes: matchup.notes,
       swaps: matchup.swaps.map((swap) => ({
         cardId: swap.cardId,
@@ -126,17 +127,17 @@ export function planResponseToDraft(plan: DeckPlanResponse): PlanDraft {
   };
 }
 
-// True once a matchup has an opponent Legend picked; only complete matchups are saved.
-export function isMatchupComplete(matchup: PlanMatchupDraft): matchup is PlanMatchupDraft & {
-  opponentLegendCardId: string;
-} {
-  return matchup.opponentLegendCardId !== null;
+// True once a matchup is identifiable — a linked card, a label, or both; only
+// complete matchups are saved.
+export function isMatchupComplete(matchup: PlanMatchupDraft): boolean {
+  return matchup.opponentCardId !== null || matchup.opponentLabel.trim() !== "";
 }
 
 /**
- * Converts the editor draft to the save payload. Drops matchups without a
- * Legend and swaps without a card or non-positive quantity, and trims text, so
- * an in-progress row never reaches the API.
+ * Converts the editor draft to the save payload. Drops matchups with no
+ * opponent (neither a linked card nor a label) and swaps without a card or
+ * non-positive quantity, and trims text, so an in-progress row never reaches
+ * the API.
  *
  * @returns The normalized save payload.
  */
@@ -153,8 +154,8 @@ export function planDraftToSaveInput(draft: PlanDraft): DeckPlanSaveInput {
     battlefieldCustom: draft.battlefieldCustom,
     battlefieldNote: draft.battlefieldNote.trim(),
     matchups: draft.matchups.filter(isMatchupComplete).map((matchup) => ({
-      opponentLegendCardId: matchup.opponentLegendCardId,
-      subtitle: matchup.subtitle.trim(),
+      opponentCardId: matchup.opponentCardId,
+      opponentLabel: matchup.opponentLabel.trim(),
       notes: matchup.notes.trim(),
       swaps: matchup.swaps
         .filter((swap) => swap.cardId !== "" && swap.quantity > 0)
@@ -186,7 +187,7 @@ export function computePlanWarnings(draft: PlanDraft, context: DeckPlanContext):
 
   draft.matchups.forEach((matchup, matchupIndex) => {
     if (!isMatchupComplete(matchup)) {
-      warnings.push({ code: "matchup-no-legend", matchupIndex });
+      warnings.push({ code: "matchup-no-opponent", matchupIndex });
     }
 
     const inCount = countSwaps(matchup, "in");
@@ -277,7 +278,8 @@ export function isPlanDraftEmpty(draft: PlanDraft): boolean {
 
 /**
  * Every card id a plan references: the per-scenario battlefields, plus each
- * matchup's opponent Legend and swapped cards. Deduplicated.
+ * matchup's opponent identity card (when linked) and swapped cards.
+ * Deduplicated.
  * @returns The distinct referenced card ids.
  */
 export function planReferencedCardIds(plan: DeckPlanResponse): string[] {
@@ -292,7 +294,9 @@ export function planReferencedCardIds(plan: DeckPlanResponse): string[] {
     }
   }
   for (const matchup of plan.matchups) {
-    ids.add(matchup.opponentLegendCardId);
+    if (matchup.opponentCardId !== null) {
+      ids.add(matchup.opponentCardId);
+    }
     for (const swap of matchup.swaps) {
       ids.add(swap.cardId);
     }

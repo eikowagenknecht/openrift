@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useCards } from "@/hooks/use-cards";
 import { deckPlanQueryOptions } from "@/hooks/use-deck-plan";
-import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useRequiredUserId } from "@/lib/auth-session";
 import {
@@ -44,14 +43,13 @@ export function DeckOverviewPlanSection({
   onCardClick?: ClickHandler;
 }) {
   const userId = useRequiredUserId();
-  const planEnabled = useFeatureEnabled("deck-plans");
-  const planQuery = useQuery({ ...deckPlanQueryOptions(userId, deckId), enabled: planEnabled });
+  const planQuery = useQuery(deckPlanQueryOptions(userId, deckId));
   const { cardsById } = useCards();
   const { getPreferredFrontImage } = usePreferredPrinting();
   const setPlanActive = useDeckBuilderUiStore((state) => state.setPlanActive);
 
   const plan = planQuery.data?.plan;
-  if (!planEnabled || !plan || isPlanDraftEmpty(planResponseToDraft(plan))) {
+  if (!plan || isPlanDraftEmpty(planResponseToDraft(plan))) {
     return null;
   }
 
@@ -222,9 +220,9 @@ function PlanBattlefields({
   );
 }
 
-// One matchup: a hero header (full-size opponent Legend portrait + name and
-// build subtitle), a divider, then the OUT / IN sideboard swaps in two columns,
-// with the per-matchup notes underneath.
+// One matchup: a hero header (the opponent card's portrait + name when one is
+// linked, otherwise just the free-text label), a divider, then the OUT / IN
+// sideboard swaps in two columns, with the per-matchup notes underneath.
 function MatchupCard({
   matchup,
   lookup,
@@ -236,7 +234,11 @@ function MatchupCard({
   onHoverCard?: HoverHandler;
   onCardClick?: ClickHandler;
 }) {
-  const legend = lookup(matchup.opponentLegendCardId);
+  const opponentCard = matchup.opponentCardId === null ? null : lookup(matchup.opponentCardId);
+  // The linked card is the primary title; the label falls back to it when no
+  // card is linked, and rides along as a secondary line when one is.
+  const title = opponentCard?.cardName ?? matchup.opponentLabel;
+  const secondaryLabel = matchup.opponentCardId === null ? "" : matchup.opponentLabel;
   const outSwaps = matchup.swaps.filter((swap) => swap.direction === "out");
   const inSwaps = matchup.swaps.filter((swap) => swap.direction === "in");
   const hasSwaps = outSwaps.length > 0 || inSwaps.length > 0;
@@ -244,19 +246,21 @@ function MatchupCard({
   return (
     <div className="space-y-3 rounded-lg border p-3">
       <div className="flex items-start gap-3">
-        <PlanThumb
-          cardId={matchup.opponentLegendCardId}
-          cardName={legend?.cardName ?? "Unknown card"}
-          imageId={legend?.imageId ?? null}
-          className="aspect-card w-24"
-          onHoverCard={onHoverCard}
-          onCardClick={onCardClick}
-        />
+        {matchup.opponentCardId !== null && (
+          <PlanThumb
+            cardId={matchup.opponentCardId}
+            cardName={opponentCard?.cardName ?? "Unknown card"}
+            imageId={opponentCard?.imageId ?? null}
+            className="aspect-card w-24"
+            onHoverCard={onHoverCard}
+            onCardClick={onCardClick}
+          />
+        )}
         <div className="min-w-0 flex-1 space-y-1">
           <div className="space-y-0.5">
-            <div className="font-medium">{legend?.cardName ?? "Unknown card"}</div>
-            {matchup.subtitle !== "" && (
-              <div className="text-muted-foreground text-sm">{matchup.subtitle}</div>
+            <div className="font-medium">{title}</div>
+            {secondaryLabel !== "" && (
+              <div className="text-muted-foreground text-sm">{secondaryLabel}</div>
             )}
           </div>
           {matchup.notes !== "" && (

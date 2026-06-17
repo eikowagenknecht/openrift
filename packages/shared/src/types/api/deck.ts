@@ -127,10 +127,19 @@ export interface DeckMatchupSwapResponse {
 /** One opponent matchup within a deck plan: who they are plus the swaps and notes for that game. */
 export interface DeckMatchupPlanResponse {
   id: string;
-  /** Catalog card id of the opponent's Legend (identity), used for the icon and a catalog link. */
-  opponentLegendCardId: string;
-  /** Free-text build name, e.g. "Scorn of the Moon". Empty when not set. */
-  subtitle: string;
+  /**
+   * Catalog card id of the opponent's identity card (any type — a Legend,
+   * Aurora, a domain signpost), used for the icon and a catalog link. Null
+   * for a matchup identified only by its label (e.g. "Aggro", "Control").
+   */
+  opponentCardId: string | null;
+  /**
+   * Free-text opponent label: an archetype ("Aggro"), a domain, or a build
+   * name ("Diana – Scorn of the Moon"). Empty when the card carries the
+   * identity on its own. At least one of `opponentCardId` / `opponentLabel` is
+   * always set.
+   */
+  opponentLabel: string;
   /** Free-text matchup note. Empty when not set. */
   notes: string;
   swaps: DeckMatchupSwapResponse[];

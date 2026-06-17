@@ -259,12 +259,21 @@ const deckMatchupSwapSchema = z.object({
   quantity: z.number().int().positive().max(99),
 });
 
-const deckMatchupPlanSchema = z.object({
-  opponentLegendCardId: z.uuid(),
-  subtitle: z.string().max(120).default(""),
-  notes: z.string().max(4000).default(""),
-  swaps: z.array(deckMatchupSwapSchema).max(40),
-});
+const deckMatchupPlanSchema = z
+  .object({
+    // The opponent identity card (any type) — optional. Null for a matchup
+    // identified only by its free-text label (an archetype, a domain, …).
+    opponentCardId: z.uuid().nullable().default(null),
+    // Free-text opponent label; carries archetype/domain/build names.
+    opponentLabel: z.string().max(120).default(""),
+    notes: z.string().max(4000).default(""),
+    swaps: z.array(deckMatchupSwapSchema).max(40),
+  })
+  // A matchup must be identifiable by at least one of card / label.
+  .refine((matchup) => matchup.opponentCardId !== null || matchup.opponentLabel.trim() !== "", {
+    message: "A matchup needs an opponent: link a card or enter a name",
+    path: ["opponentLabel"],
+  });
 
 /** PUT /decks/{id}/plan body — the whole plan, saved as a unit. */
 export const updateDeckPlanSchema = z.object({

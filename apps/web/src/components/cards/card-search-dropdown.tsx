@@ -61,7 +61,7 @@ export function CardSearchDropdown({
         disabled={disabled}
         showTrigger={false}
         showClear
-        // oxlint-disable-next-line jsx-a11y/no-autofocus -- admin-only UI, autofocus is intentional (matches the previous implementation)
+        // oxlint-disable-next-line jsx-a11y/no-autofocus -- opt-in via the autoFocus prop; callers pass it intentionally
         autoFocus={autoFocus}
       />
       {/* Grow to fit the card rows (label + sublabel + detail) instead of the

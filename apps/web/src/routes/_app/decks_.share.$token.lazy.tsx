@@ -26,7 +26,6 @@ import { useDeckItems } from "@/hooks/use-deck-items";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useCloneSharedDeck, usePublicDeck } from "@/hooks/use-decks";
 import { useDeckFormatList } from "@/hooks/use-enums";
-import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
@@ -104,7 +103,6 @@ function SharedDeckContent({
   const marketplace = marketplaceOrder[0] ?? "cardtrader";
   const isMobile = useIsMobile();
   const hydrated = useHydrated();
-  const planEnabled = useFeatureEnabled("deck-plans");
   const showImages = useDisplayStore((state) => state.showImages);
   const detailOpen = useSelectionStore((state) => state.detailOpen);
   const { labels: formatLabels } = useDeckFormatList();
@@ -266,9 +264,7 @@ function SharedDeckContent({
         </Suspense>
       )}
 
-      {planEnabled && data.plan && (
-        <DeckPlanView plan={data.plan} planCardMeta={data.planCardMeta} />
-      )}
+      {data.plan && <DeckPlanView plan={data.plan} planCardMeta={data.planCardMeta} />}
 
       {ownershipData && (
         <DeckMissingCardsDialog

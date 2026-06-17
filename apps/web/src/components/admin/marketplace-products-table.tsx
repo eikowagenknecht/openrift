@@ -13,8 +13,8 @@ import {
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
-import type { CardSearchResult } from "@/components/admin/card-search-dropdown";
-import { CardSearchDropdown } from "@/components/admin/card-search-dropdown";
+import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
+import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {

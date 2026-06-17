@@ -12,8 +12,8 @@ import {
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
-import { CardSearchDropdown } from "@/components/admin/card-search-dropdown";
-import type { CardSearchResult } from "@/components/admin/card-search-dropdown";
+import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
+import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useCards } from "@/hooks/use-cards";
 import { useDeckPlan, useSaveDeckPlan } from "@/hooks/use-deck-plan";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import {
@@ -63,18 +64,18 @@ function buildContext(deckCards: DeckBuilderCard[]): DeckPlanContext {
 }
 
 function toResults(
-  cards: { cardId: string; cardName: string }[],
+  cards: { cardId: string; cardName: string; cardType?: string }[],
   query: string,
 ): CardSearchResult[] {
   const needle = query.trim().toLowerCase();
   return cards
     .filter((card) => needle === "" || card.cardName.toLowerCase().includes(needle))
     .slice(0, 50)
-    .map((card) => ({ id: card.cardId, label: card.cardName }));
+    .map((card) => ({ id: card.cardId, label: card.cardName, detail: card.cardType }));
 }
 
 // A compact thumbnail + name chip for a picked card. Hovering shows the full
-// card via the page's floating preview (opponent Legends aren't in the deck, so
+// card via the page's floating preview (the opponent card isn't in the deck, so
 // the name/image come from the catalog).
 function CardChip({
   cardId,
@@ -131,7 +132,7 @@ function CardChip({
   );
 }
 
-// Searchable picker over a fixed candidate set (deck zone cards or all Legends).
+// Searchable picker over a fixed candidate set (deck zone cards or the catalog).
 // Remounts the dropdown after each pick so its input clears instead of keeping
 // the chosen label.
 function CardPicker({
@@ -139,7 +140,7 @@ function CardPicker({
   onSelect,
   placeholder,
 }: {
-  candidates: { cardId: string; cardName: string }[];
+  candidates: { cardId: string; cardName: string; cardType?: string }[];
   onSelect: (cardId: string) => void;
   placeholder: string;
 }) {
@@ -184,8 +185,8 @@ function ColumnLabel({ children, className }: { children: ReactNode; className?:
 
 function warningMessage(warning: PlanWarning, nameOf: (cardId: string) => string): string {
   switch (warning.code) {
-    case "matchup-no-legend": {
-      return "Pick an opponent Legend for this matchup.";
+    case "matchup-no-opponent": {
+      return "Name this matchup or link a card.";
     }
     case "swap-unbalanced": {
       return `Swaps don’t balance: ${warning.outCount} out, ${warning.inCount} in.`;
@@ -235,7 +236,7 @@ interface MatchupEditorProps {
   index: number;
   isFirst: boolean;
   isLast: boolean;
-  legendCandidates: { cardId: string; cardName: string }[];
+  cardCandidates: { cardId: string; cardName: string; cardType?: string }[];
   maindeckCandidates: { cardId: string; cardName: string }[];
   sideboardCandidates: { cardId: string; cardName: string }[];
   warnings: PlanWarning[];
@@ -251,7 +252,7 @@ function MatchupEditor({
   index,
   isFirst,
   isLast,
-  legendCandidates,
+  cardCandidates,
   maindeckCandidates,
   sideboardCandidates,
   warnings,
@@ -263,13 +264,16 @@ function MatchupEditor({
 }: MatchupEditorProps) {
   const [collapsed, setCollapsed] = useState(false);
 
-  const legendName = matchup.opponentLegendCardId ? nameOf(matchup.opponentLegendCardId) : null;
-  const subtitle = matchup.subtitle.trim();
-  const summaryTitle = legendName
-    ? subtitle
-      ? `${legendName} · ${subtitle}`
-      : legendName
-    : "New matchup";
+  // The linked card is the primary name; the label is secondary (or primary on
+  // its own when no card is linked).
+  const cardName = matchup.opponentCardId ? nameOf(matchup.opponentCardId) : null;
+  const label = matchup.opponentLabel.trim();
+  const hasOpponent = cardName !== null || label !== "";
+  const summaryTitle = cardName
+    ? label
+      ? `${cardName} · ${label}`
+      : cardName
+    : label || "New matchup";
   const outCount = matchup.swaps
     .filter((swap) => swap.direction === "out")
     .reduce((total, swap) => total + swap.quantity, 0);
@@ -362,7 +366,7 @@ function MatchupEditor({
             <ChevronDownIcon className="text-muted-foreground size-4 shrink-0" />
           )}
           <span
-            className={cn("truncate text-sm font-medium", !legendName && "text-muted-foreground")}
+            className={cn("truncate text-sm font-medium", !hasOpponent && "text-muted-foreground")}
           >
             {summaryTitle}
           </span>
@@ -406,30 +410,30 @@ function MatchupEditor({
         <div className="space-y-3 p-3">
           <div className="flex items-start gap-2">
             <div className="min-w-0 flex-1 space-y-2">
-              <ColumnLabel>Opponent Legend</ColumnLabel>
+              <ColumnLabel>Key card</ColumnLabel>
               <div className="h-8">
-                {matchup.opponentLegendCardId ? (
+                {matchup.opponentCardId ? (
                   <CardChip
-                    cardId={matchup.opponentLegendCardId}
+                    cardId={matchup.opponentCardId}
                     variant="field"
-                    onRemove={() => onChange({ opponentLegendCardId: null })}
+                    onRemove={() => onChange({ opponentCardId: null })}
                     onHoverCard={onHoverCard}
                   />
                 ) : (
                   <CardPicker
-                    candidates={legendCandidates}
-                    onSelect={(cardId) => onChange({ opponentLegendCardId: cardId })}
-                    placeholder="Search opponent Legend…"
+                    candidates={cardCandidates}
+                    onSelect={(cardId) => onChange({ opponentCardId: cardId })}
+                    placeholder="Search a card (Diana, Aurora…)"
                   />
                 )}
               </div>
             </div>
             <div className="min-w-0 flex-1 space-y-2">
-              <ColumnLabel>Build name</ColumnLabel>
+              <ColumnLabel>Build</ColumnLabel>
               <Input
-                value={matchup.subtitle}
-                onChange={(event) => onChange({ subtitle: event.target.value })}
-                placeholder="Optional, e.g. Scorn of the Moon"
+                value={matchup.opponentLabel}
+                onChange={(event) => onChange({ opponentLabel: event.target.value })}
+                placeholder="e.g. Scorn of the Moon, Aggro, Control"
                 maxLength={120}
                 className="h-8 w-full"
               />
@@ -474,6 +478,7 @@ export function DeckPlanEditor({
   const savePlan = useSaveDeckPlan();
   const { allPrintings } = useCards();
   const { getPreferredPrinting } = usePreferredPrinting();
+  const { labels } = useEnumOrders();
   const [draft, setDraft] = useState<PlanDraft>(() => planResponseToDraft(data.plan));
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
 
@@ -485,15 +490,17 @@ export function DeckPlanEditor({
   );
   const nameOf = (cardId: string) => getPreferredPrinting(cardId)?.card.name ?? "a card";
 
-  // Candidate sets for the pickers.
-  const legendSeen = new Set<string>();
-  const legendCandidates: { cardId: string; cardName: string }[] = [];
+  // Candidate sets for the pickers. The opponent card can be any catalog card
+  // (a Legend, Aurora, a domain signpost), deduped by card id.
+  const cardSeen = new Set<string>();
+  const cardCandidates: { cardId: string; cardName: string; cardType?: string }[] = [];
   for (const printing of allPrintings) {
-    if (printing.card.type === "legend" && !legendSeen.has(printing.cardId)) {
-      legendSeen.add(printing.cardId);
-      legendCandidates.push({
+    if (!cardSeen.has(printing.cardId)) {
+      cardSeen.add(printing.cardId);
+      cardCandidates.push({
         cardId: printing.cardId,
         cardName: legendDisplayName(printing.card),
+        cardType: labels.cardTypes[printing.card.type],
       });
     }
   }
@@ -750,7 +757,7 @@ export function DeckPlanEditor({
                 index={index}
                 isFirst={index === 0}
                 isLast={index === draft.matchups.length - 1}
-                legendCandidates={legendCandidates}
+                cardCandidates={cardCandidates}
                 maindeckCandidates={maindeckCandidates}
                 sideboardCandidates={sideboardCandidates}
                 warnings={warnings.filter(

@@ -75,7 +75,6 @@ import { useDeckOwnership } from "@/hooks/use-deck-ownership";
 import { deckPlanQueryOptions } from "@/hooks/use-deck-plan";
 import { useDeckDetail, useExportDeck, useUpdateDeck } from "@/hooks/use-decks";
 import { useDeckFormatList } from "@/hooks/use-enums";
-import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { useDeckBuildingCounts } from "@/hooks/use-owned-count";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useRequiredUserId, useSession } from "@/lib/auth-session";
@@ -149,11 +148,10 @@ function DeckEditorContent({
   const setActiveZone = useDeckBuilderUiStore((state) => state.setActiveZone);
   const planActive = useDeckBuilderUiStore((state) => state.planActive);
   const setPlanActive = useDeckBuilderUiStore((state) => state.setPlanActive);
-  const planEnabled = useFeatureEnabled("deck-plans");
-  const showPlan = planEnabled && planActive;
+  const showPlan = planActive;
   // Non-blocking read so the sidebar entry can show whether a plan exists yet
   // (dashed when empty). The editor itself loads the plan via its own suspense.
-  const planQuery = useQuery({ ...deckPlanQueryOptions(userId, deckId), enabled: planEnabled });
+  const planQuery = useQuery(deckPlanQueryOptions(userId, deckId));
   const hasPlan = planQuery.data
     ? !isPlanDraftEmpty(planResponseToDraft(planQuery.data.plan))
     : false;
@@ -607,33 +605,31 @@ function DeckEditorContent({
                   onViewMissing={() => setMissingOpen(true)}
                   hideStatsAndOwnership={activeZone === null}
                   afterOverview={
-                    planEnabled && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setPlanActive(true);
-                          // Close any open card detail so the hover preview isn't suppressed.
-                          useSelectionStore.getState().closeDetail();
-                          if (isMobile) {
-                            setOpenMobile(false);
-                          }
-                        }}
-                        className={cn(
-                          "h-auto justify-start gap-2 rounded-lg px-2.5 py-2 text-left",
-                          !hasPlan && "border-dashed",
-                          showPlan && "bg-primary/10 font-bold",
-                        )}
-                      >
-                        <ClipboardListIcon className="size-3.5" />
-                        <span>Plan</span>
-                        {hasPlan ? null : (
-                          <span className="text-muted-foreground ml-auto text-xs font-normal">
-                            empty
-                          </span>
-                        )}
-                      </Button>
-                    )
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setPlanActive(true);
+                        // Close any open card detail so the hover preview isn't suppressed.
+                        useSelectionStore.getState().closeDetail();
+                        if (isMobile) {
+                          setOpenMobile(false);
+                        }
+                      }}
+                      className={cn(
+                        "h-auto justify-start gap-2 rounded-lg px-2.5 py-2 text-left",
+                        !hasPlan && "border-dashed",
+                        showPlan && "bg-primary/10 font-bold",
+                      )}
+                    >
+                      <ClipboardListIcon className="size-3.5" />
+                      <span>Plan</span>
+                      {hasPlan ? null : (
+                        <span className="text-muted-foreground ml-auto text-xs font-normal">
+                          empty
+                        </span>
+                      )}
+                    </Button>
                   }
                   deckItems={deckItems}
                 />

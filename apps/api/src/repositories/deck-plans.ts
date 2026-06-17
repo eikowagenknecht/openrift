@@ -32,8 +32,8 @@ export interface DeckPlanInput {
   battlefieldCustom: boolean;
   battlefieldNote: string;
   matchups: {
-    opponentLegendCardId: string;
-    subtitle: string;
+    opponentCardId: string | null;
+    opponentLabel: string;
     notes: string;
     swaps: { cardId: string; direction: "in" | "out"; quantity: number }[];
   }[];
@@ -119,8 +119,8 @@ export function deckPlansRepo(db: Kysely<Database>) {
             .insertInto("deckMatchupPlans")
             .values({
               deckId,
-              opponentLegendCardId: matchup.opponentLegendCardId,
-              subtitle: matchup.subtitle,
+              opponentCardId: matchup.opponentCardId,
+              opponentLabel: matchup.opponentLabel,
               notes: matchup.notes,
               sortOrder: index,
             })

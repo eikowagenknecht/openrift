@@ -61,10 +61,6 @@ const KNOWN_FLAGS: KnownFlag[] = [
     key: "help-how-to-play",
     description: "Show the How to Play Riftbound help article",
   },
-  {
-    key: "deck-plans",
-    description: "Show the Plan tab in the deck builder and plans on shared deck pages",
-  },
 ];
 
 function FlagKeyCell({ row }: AdminCellSlotProps<FeatureFlagResponse>) {

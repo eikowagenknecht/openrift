@@ -20,8 +20,8 @@ export interface DeckPlanSaveInput {
   battlefieldCustom: boolean;
   battlefieldNote: string;
   matchups: {
-    opponentLegendCardId: string;
-    subtitle: string;
+    opponentCardId: string | null;
+    opponentLabel: string;
     notes: string;
     swaps: { cardId: string; direction: "in" | "out"; quantity: number }[];
   }[];

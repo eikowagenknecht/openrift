@@ -20,6 +20,7 @@ import {
   moveCopiesSchema,
   updateCollectionSchema,
   updateDeckCardsSchema,
+  updateDeckPlanSchema,
   updateDeckSchema,
   updateListEntrySchema,
   updateListSchema,
@@ -629,5 +630,32 @@ describe("collectionValueHistoryQuerySchema", () => {
 
   it("accepts an empty query (all filters optional)", () => {
     expect(collectionValueHistoryQuerySchema.safeParse({}).success).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Deck plan schema (ADR-029)
+// ---------------------------------------------------------------------------
+
+describe("updateDeckPlanSchema matchup identity", () => {
+  const cardId = "11111111-1111-4111-8111-111111111111";
+
+  function planWith(matchup: Record<string, unknown>) {
+    return { matchups: [matchup] };
+  }
+
+  it("accepts a matchup identified by a card only", () => {
+    const result = updateDeckPlanSchema.safeParse(planWith({ opponentCardId: cardId, swaps: [] }));
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a matchup identified by a label only", () => {
+    const result = updateDeckPlanSchema.safeParse(planWith({ opponentLabel: "Aggro", swaps: [] }));
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a matchup with neither a card nor a label", () => {
+    const result = updateDeckPlanSchema.safeParse(planWith({ opponentLabel: "  ", swaps: [] }));
+    expect(result.success).toBe(false);
   });
 });
