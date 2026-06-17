@@ -27,6 +27,6 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
-  await db.schema.dropIndex("idx_card_trades_request_email_pending").on("card_trades").execute();
+  await db.schema.dropIndex("idx_card_trades_request_email_pending").execute();
   await db.schema.alterTable("card_trades").dropColumn("request_email_sent_at").execute();
 }
