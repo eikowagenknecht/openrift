@@ -32,6 +32,7 @@ import { listKindIcon } from "@/components/list/create-list-dialog";
 import { ListHeader } from "@/components/list/list-header";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -249,11 +250,16 @@ function SharedListGrid({
     // Copy-kind lists have implicit quantity 1 per entry, so the strip
     // adds nothing there.
     const entry = entryByItemId.get(item.id);
+    // A copy already pinned to a live trade can't be requested again, so the
+    // Want button is disabled and a "Reserved" badge marks it (mirrors the
+    // owner's tradelist). The match view already hides reserved copies; here
+    // the badge explains why a card you can see isn't matchable.
+    const reserved = entry?.kind === "copy" && entry.reserved;
     // On a tradelist the viewer can request a card: the strip becomes a "Want"
     // button instead of the read-only quantity pill. Trade lists are copy-kind,
     // so this never collides with the count strip below.
     const strip = trade ? (
-      <WantStrip onClick={() => setRequestPrinting(item.printing)} />
+      <WantStrip onClick={() => setRequestPrinting(item.printing)} disabled={reserved} />
     ) : entry && list.kind !== "copy" ? (
       <CardCountStrip count={entry.quantity} icon={ListIcon} />
     ) : undefined;
@@ -268,6 +274,16 @@ function SharedListGrid({
         siblings={siblings}
         priceRange={priceRangeByCardId?.get(cardId)}
         strip={strip}
+        leftOverlay={
+          reserved ? (
+            <Badge
+              variant="success"
+              className="pointer-events-none absolute top-1.5 right-1.5 z-20"
+            >
+              Reserved
+            </Badge>
+          ) : undefined
+        }
       />
     );
   };
@@ -347,7 +363,12 @@ function SharedListGrid({
               ? {
                   actionsColumn: "narrow",
                   actionsLabel: "Trade",
-                  actionsCell: <TradelistRequestActionsCell onRequest={setRequestPrinting} />,
+                  actionsCell: (
+                    <TradelistRequestActionsCell
+                      entryByItemId={entryByItemId}
+                      onRequest={setRequestPrinting}
+                    />
+                  ),
                 }
               : list.kind === "copy"
                 ? { actionsColumn: "none" }
@@ -391,19 +412,28 @@ function SharedListGrid({
 }
 
 // Per-cell "Want" pill rendered above a tradelist card; opens the request flow.
-function WantStrip({ onClick }: { onClick: () => void }) {
+// Disabled (greyed, non-interactive) when the copy is reserved by a live trade —
+// it can't be requested, and the card carries a "Reserved" badge instead.
+function WantStrip({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
   return (
     // h-5 + mb-1 = 24px, matching ADD_STRIP_HEIGHT so the virtualizer estimate holds.
     <div className="relative z-30 mb-1 flex h-5 items-center justify-center">
       <button
         type="button"
         tabIndex={-1}
-        aria-label="Request this card"
+        disabled={disabled}
+        aria-label={disabled ? "Reserved — already in a trade" : "Request this card"}
         onClick={(event) => {
           event.stopPropagation();
+          if (disabled) {
+            return;
+          }
           onClick();
         }}
-        className={cn(COUNT_PILL_BASE, COUNT_PILL_INTERACTIVE)}
+        className={cn(
+          COUNT_PILL_BASE,
+          disabled ? "cursor-not-allowed opacity-50" : COUNT_PILL_INTERACTIVE,
+        )}
       >
         <HeartIcon className="size-3" />
         <span>Want</span>
@@ -413,19 +443,29 @@ function WantStrip({ onClick }: { onClick: () => void }) {
 }
 
 /**
- * Table-row request action for a member's tradelist. `printing` is injected by
- * the table via cloneElement; absent on the header/placeholder rows.
- * @returns The request button, or null when no printing is bound.
+ * Table-row request action for a member's tradelist. `printing` and `itemId`
+ * are injected by the table via cloneElement; absent on header/placeholder
+ * rows. A copy reserved by a live trade shows a "Reserved" badge in place of
+ * the request button, since it can't be requested again.
+ * @returns The request button, a Reserved badge, or null when no printing is bound.
  */
 function TradelistRequestActionsCell({
   printing,
+  itemId,
+  entryByItemId,
   onRequest,
 }: {
   printing?: Printing;
+  itemId?: string;
+  entryByItemId: Map<string, ListEntryDetailResponse>;
   onRequest: (printing: Printing) => void;
 }) {
   if (!printing) {
     return null;
+  }
+  const entry = itemId ? entryByItemId.get(itemId) : undefined;
+  if (entry?.kind === "copy" && entry.reserved) {
+    return <Badge variant="success">Reserved</Badge>;
   }
   return (
     <Button type="button" size="sm" variant="outline" onClick={() => onRequest(printing)}>

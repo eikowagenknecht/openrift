@@ -89,6 +89,8 @@ export type ListEntryDetailResponse =
       shortCode: string;
       language: string;
       imageId: string | null;
+      /** True when the copy is pinned to a live in-app trade (ADR-019). */
+      reserved: boolean;
     });
 
 export interface ListDetailResponse {

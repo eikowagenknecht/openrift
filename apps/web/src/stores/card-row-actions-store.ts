@@ -11,8 +11,14 @@ export interface CardRowClickModifiers {
 /** Bulk actions offered by the /collections right-click menu (mirror the floating action bar). */
 export type CollectionContextAction = "move" | "addToList" | "dispose";
 
-/** Bulk actions offered by the /lists right-click menu (mirror the floating action bar). */
-export type ListBulkAction = "move" | "remove";
+/**
+ * Bulk actions offered by the /lists right-click menu (mirror the floating
+ * action bar). "remove" unlists card/printing-kind entries directly. "takeOff"
+ * is the copy-kind (tradelist) path: it opens a chooser asking whether the copy
+ * was kept (just unlist) or sold/traded (also dispose it from the collection),
+ * so the two outcomes aren't two lookalike buttons.
+ */
+export type ListBulkAction = "move" | "remove" | "takeOff";
 
 interface CardRowHandlers {
   onRowClick?: (printing: Printing) => void;

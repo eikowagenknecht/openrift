@@ -32,6 +32,26 @@ describe("queryKeys", () => {
     expect(queryKeys.copies.byCollection("user-1", "abc")).toEqual(["copies", "user-1", "abc"]);
   });
 
+  it("copies.listMemberships keys per (user, copyIds) with a null exclude slot by default", () => {
+    expect(queryKeys.copies.listMemberships("user-1", ["c1", "c2"])).toEqual([
+      "copies",
+      "user-1",
+      "list-memberships",
+      ["c1", "c2"],
+      null,
+    ]);
+  });
+
+  it("copies.listMemberships distinguishes an excludeListId so the 'Sold' check caches separately", () => {
+    expect(queryKeys.copies.listMemberships("user-1", ["c1"], "lst-9")).toEqual([
+      "copies",
+      "user-1",
+      "list-memberships",
+      ["c1"],
+      "lst-9",
+    ]);
+  });
+
   it("decks.all keys per user", () => {
     expect(queryKeys.decks.all("user-1")).toEqual(["decks", "user-1"]);
   });

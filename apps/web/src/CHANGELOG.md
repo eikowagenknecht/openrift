@@ -5,11 +5,12 @@
 ### Highlights
 
 - feat(Decks): **Deck Plan tab** — write out how to pilot a deck: your gameplan, what to keep in your opening hand (separate notes for going first or second), which battlefield to take, and how to sideboard each matchup. A matchup can point at a specific Legend or card, or just be named like "Aggro". Your plan also shows on the deck's shared page
-- feat(Collection): **Inline tradelist removal** — each card on a tradelist now has a remove button right on the card, so you can take it off without opening the right-click menu
+- feat(Collection): **Take a card off your tradelist** — each card (and a whole selection) has a take-off action that asks what happened: if you sold or traded it, it's also removed from your collection (warning you first if the same copy is on another list); if you're keeping it, it just comes off the tradelist
 - feat(Tournaments): **Zone fixes after approval** — a judge can still move a card to its correct zone after a list is approved or checked, while adding and removing cards stays limited to before approval, and the card's name is locked at that point so a zone fix can't quietly swap one card for another
 
 ### Other
 
+- feat(Collection): **Reserved cards on tradelists** — a card that's part of a live trade now shows a "Reserved" badge, both on your own tradelist and when others view your shared or group tradelists. You can't sell it off your list, and others can't request it, until the trade is finished — so an in-progress trade can't be broken by accident
 - feat(App): **Cleaner What's new page** — release notes now lead with a short bold summary, group the big changes as highlights with the rest tucked behind a toggle, and tag each entry with its area
 - feat(Trades): **Choose where traded cards land** — adding the cards from a finished trade to your collection now asks which collection they go in, with the option to create a new one on the spot, instead of always dropping them in your inbox
 - fix(App): **Steady toolbars under the iOS header** — on a notched iPhone the sticky toolbars on the card and deck pages no longer flicker or sit at the wrong height when the app runs from the Home Screen, where the header grows to clear the Dynamic Island

@@ -69,18 +69,25 @@ export function useCopies(collectionId?: string): {
  * Which of the viewer's own lists reference `copyIds`. Backs the dispose
  * confirmation's cross-list warning, so it stays disabled until `enabled` (the
  * dialog is open) and there is at least one id. Ids are deduped + sorted for a
- * stable query key across selection order.
+ * stable query key across selection order. Pass `excludeListId` to drop the
+ * originating list from the result — used by the "Sold" action on a list page,
+ * where the copy is necessarily on the current list and only the *other* lists
+ * are worth warning about.
  * @returns react-query result carrying a `CopyListMembershipsResponse`.
  */
-export function useCopyListMemberships(copyIds: string[], enabled: boolean) {
+export function useCopyListMemberships(
+  copyIds: string[],
+  enabled: boolean,
+  excludeListId?: string,
+) {
   const userId = useUserId();
   const stableIds = [...new Set(copyIds)].toSorted();
   return useQuery({
-    queryKey: queryKeys.copies.listMemberships(userId ?? "", stableIds),
+    queryKey: queryKeys.copies.listMemberships(userId ?? "", stableIds, excludeListId),
     queryFn: (): Promise<CopyListMembershipsResponse> =>
       callApiJson(
         browserApiClient().api.v1.copies["list-memberships"].$post({
-          json: { copyIds: stableIds },
+          json: { copyIds: stableIds, excludeListId },
         }),
         "Couldn't check list membership",
       ),

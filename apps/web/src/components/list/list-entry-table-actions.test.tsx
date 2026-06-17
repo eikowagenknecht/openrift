@@ -60,28 +60,29 @@ describe("ListEntryTableActions — quantity mode (card/printing-kind lists)", (
   });
 });
 
-describe("ListEntryTableActions — trash-only mode (copy-kind lists)", () => {
-  it("hides the stepper entirely — copy-kind entries are singular", () => {
+describe("ListEntryTableActions — take-off mode (copy-kind tradelists)", () => {
+  it("shows a single Take off list button and no stepper", () => {
     render(
-      <ListEntryTableActions showQuantity={false} onRemove={vi.fn()} isRemovePending={false} />,
+      <ListEntryTableActions showQuantity={false} onTakeOff={vi.fn()} isRemovePending={false} />,
     );
 
     expect(screen.queryByLabelText("Increase quantity")).toBeNull();
     expect(screen.queryByLabelText("Decrease quantity")).toBeNull();
-    expect(screen.getByLabelText("Remove from list")).toBeDefined();
+    expect(screen.queryByLabelText("Remove from list")).toBeNull();
+    expect(screen.getByLabelText("Take off list")).toBeDefined();
   });
 
-  it("fires onRemove from the trash button", async () => {
-    const onRemove = vi.fn();
+  it("fires onTakeOff from the button", async () => {
+    const onTakeOff = vi.fn();
     render(
-      <ListEntryTableActions showQuantity={false} onRemove={onRemove} isRemovePending={false} />,
+      <ListEntryTableActions showQuantity={false} onTakeOff={onTakeOff} isRemovePending={false} />,
     );
-    await userEvent.click(screen.getByLabelText("Remove from list"));
-    expect(onRemove).toHaveBeenCalledTimes(1);
+    await userEvent.click(screen.getByLabelText("Take off list"));
+    expect(onTakeOff).toHaveBeenCalledTimes(1);
   });
 
-  it("disables the remove button while a remove mutation is pending", () => {
-    render(<ListEntryTableActions showQuantity={false} onRemove={vi.fn()} isRemovePending />);
-    expect((screen.getByLabelText("Remove from list") as HTMLButtonElement).disabled).toBe(true);
+  it("disables the button while a removal is pending", () => {
+    render(<ListEntryTableActions showQuantity={false} onTakeOff={vi.fn()} isRemovePending />);
+    expect((screen.getByLabelText("Take off list") as HTMLButtonElement).disabled).toBe(true);
   });
 });

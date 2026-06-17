@@ -13,6 +13,7 @@ import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
 import { DraggableListEntry } from "@/components/list/draggable-list-entry";
 import { ListEntryContextMenu } from "@/components/list/list-entry-context-menu";
 import { TradePreferenceGridPill } from "@/components/trade-preferences/trade-preference-grid-pill";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   dispatchEntryQuantityChange,
@@ -174,12 +175,14 @@ export const ListGridCell = memo(function ListGridCell({
       <DraggableListEntry id={dragId} data={dragData} />
     ) : undefined;
 
-  // Move / Remove act on the current selection when this entry is part of it,
+  // Move / take-off act on the current selection when this entry is part of it,
   // otherwise just this entry — the browser resolves which via the bulk-action
-  // handler. Trade preference stays single-entry.
+  // handler. Trade preference stays single-entry. Copy-kind tradelists use
+  // "Take off list…" (a keep-vs-sold chooser); other kinds get a plain Remove.
   const contextMenu = entry ? (
     <ListEntryContextMenu
-      onRemove={() => dispatchListBulkAction(entry.id, "remove")}
+      onRemove={kind === "copy" ? undefined : () => dispatchListBulkAction(entry.id, "remove")}
+      onTakeOff={kind === "copy" ? () => dispatchListBulkAction(entry.id, "takeOff") : undefined}
       onMove={() => dispatchListBulkAction(entry.id, "move")}
       onSetPreference={supportsTradePrefs ? () => dispatchSetPreference(entry.id) : undefined}
     />
@@ -292,27 +295,33 @@ function buildStrip({
   ) : null;
 
   if (kind === "copy") {
-    // Copy-kind (tradelists): no count, no stepper. Surface a remove button next
-    // to the trade pill so removal isn't hidden behind the context menu. The
-    // pill stays centered between a spacer and the remove button (mirrors
-    // CardCountStrip's layout); the strip-height container keeps card sizes
-    // uniform across kinds. `entry` is guaranteed non-null here (early-returned
-    // above).
+    // Copy-kind (tradelists): no count, no stepper. Surface a take-off button
+    // so it isn't hidden behind the context menu. It opens the keep-vs-sold
+    // chooser rather than removing outright, since taking a copy off a tradelist
+    // has two outcomes (kept vs sold). The trade pill stays dead-centered while
+    // the "Reserved" badge (when the copy is pinned to a live trade) and the
+    // take-off button float to the edges, so an uneven-width badge can't shove
+    // the pill off-center. `entry` is guaranteed non-null here.
+    const reserved = entry.kind === "copy" && entry.reserved;
     return (
-      <div className="relative z-30 mb-1 flex h-5 items-center justify-between">
-        <span className="size-5" />
+      <div className="relative z-30 mb-1 flex h-5 items-center justify-center">
+        {reserved && (
+          <Badge variant="success" className="absolute top-1/2 left-0 -translate-y-1/2">
+            Reserved
+          </Badge>
+        )}
         {tradePill}
         <Button
           type="button"
           tabIndex={-1}
           size="icon-xs"
           variant="ghost"
-          className="text-muted-foreground hover:text-destructive"
+          className="text-muted-foreground hover:text-destructive absolute top-1/2 right-0 -translate-y-1/2"
           onClick={(event) => {
             event.stopPropagation();
-            dispatchRemoveEntry(entry.id, entry.cardName);
+            dispatchListBulkAction(entry.id, "takeOff");
           }}
-          aria-label={`Remove ${entry.cardName} from list`}
+          aria-label={`Take ${entry.cardName} off list`}
         >
           <XIcon />
         </Button>

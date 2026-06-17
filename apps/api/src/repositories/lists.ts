@@ -62,6 +62,8 @@ export type ListEntryRow =
         copyId: string;
         printingId: string;
         collectionId: string;
+        /** True when the copy is pinned to a live in-app trade (ADR-019). */
+        reserved: boolean;
       });
 
 /**
@@ -260,6 +262,7 @@ export function listsRepo(db: Kysely<Database>) {
     async listMembershipsForCopies(
       copyIds: readonly string[],
       userId: string,
+      excludeListId?: string,
     ): Promise<{
       lists: { id: string; name: string; copyCount: number }[];
       copiesOnAnyList: number;
@@ -267,11 +270,17 @@ export function listsRepo(db: Kysely<Database>) {
       if (copyIds.length === 0) {
         return { lists: [], copiesOnAnyList: 0 };
       }
-      const rows = await db
+      let query = db
         .selectFrom("listEntries as le")
         .innerJoin("lists as l", "l.id", "le.listId")
         .where("le.copyId", "in", [...copyIds])
-        .where("l.userId", "=", userId)
+        .where("l.userId", "=", userId);
+      // Drop the originating list so its own membership doesn't show up in the
+      // "Sold" confirmation — the user already knows the copy is leaving it.
+      if (excludeListId !== undefined) {
+        query = query.where("l.id", "!=", excludeListId);
+      }
+      const rows = await query
         .select(["l.id as listId", "l.name as listName", "le.copyId as copyId"])
         .execute();
 
@@ -830,6 +839,9 @@ async function copyEntryQuery(
         .on("pi.isActive", "=", true),
     )
     .leftJoin("imageFiles as ci", "ci.id", "pi.imageFileId")
+    // A copy is pinned to at most one live trade (UNIQUE copy_id), so this
+    // join can't multiply rows. Its presence means the copy is reserved.
+    .leftJoin("cardTradeCopies as ctc", "ctc.copyId", "cp.id")
     .where("le.listId", "=", scope.listId);
   if (scope.userId !== undefined) {
     q = q.where("le.userId", "=", scope.userId);
@@ -853,6 +865,7 @@ async function copyEntryQuery(
       imageId("ci").as("imageId"),
       "cp.collectionId",
       "cp.printingId",
+      "ctc.copyId as reservedByTradeCopyId",
     ])
     .execute();
   return rows.map((row) => ({
@@ -871,6 +884,7 @@ async function copyEntryQuery(
     shortCode: row.shortCode,
     language: row.language,
     imageId: row.imageId,
+    reserved: row.reservedByTradeCopyId !== null,
     tradeOverride: tradeOverrideFromRow(row),
   }));
 }

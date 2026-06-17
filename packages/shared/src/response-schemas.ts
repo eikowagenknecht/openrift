@@ -1013,6 +1013,9 @@ const listEntryDetailResponseSchema = z
       copyId: z.string(),
       printingId: z.string(),
       ...listEntryDetailPrintingFieldsShape,
+      // True when the copy is pinned to a live in-app trade (ADR-019): it's
+      // mid-trade, so the tradelist shows a "Reserved" badge and blocks Sold.
+      reserved: z.boolean(),
     }),
   ])
   .openapi("ListEntryDetailResponse");

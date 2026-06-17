@@ -208,6 +208,10 @@ export const disposeCopiesSchema = z.object({
 
 export const copyListMembershipsSchema = z.object({
   copyIds: z.array(z.uuid()).min(1).max(500),
+  // When set, that list is excluded from the result. Used by the "Sold" action
+  // on a list page: the copy is necessarily on the current list, so the
+  // cross-list warning should only name the *other* lists it also sits on.
+  excludeListId: z.uuid().optional(),
 });
 
 /**

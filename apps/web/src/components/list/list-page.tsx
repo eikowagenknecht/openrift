@@ -5,6 +5,7 @@ import type {
   Printing,
   TradePreference,
 } from "@openrift/shared";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   CheckSquareIcon,
@@ -16,6 +17,7 @@ import {
   Share2Icon,
   Trash2Icon,
   UploadIcon,
+  XIcon,
 } from "lucide-react";
 import { use, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -45,10 +47,12 @@ import { ListImportDialog } from "@/components/list/list-import-dialog";
 import { ListRemoveDialog } from "@/components/list/list-remove-dialog";
 import { ListShareDialog } from "@/components/list/list-share-dialog";
 import { MoveToListDialog } from "@/components/list/move-to-list-dialog";
+import { TakeOffTradelistDialog } from "@/components/list/take-off-tradelist-dialog";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { TradePreferenceDialog } from "@/components/trade-preferences/trade-preference-dialog";
 import { TradePreferencePill } from "@/components/trade-preferences/trade-preference-pill";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -70,6 +74,7 @@ import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCardSelection } from "@/hooks/use-card-selection";
 import { useCards } from "@/hooks/use-cards";
+import { useCopyListMemberships, useDisposeCopies } from "@/hooks/use-copies";
 import { useChannelRegistry } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
@@ -85,10 +90,12 @@ import {
   useUpdateListEntry,
 } from "@/hooks/use-lists";
 import { useOwnedCount } from "@/hooks/use-owned-count";
-import { useSession } from "@/lib/auth-session";
+import { useSession, useUserId } from "@/lib/auth-session";
+import { queryKeys } from "@/lib/query-keys";
 import { FilterSearchProvider, useFilterSearch } from "@/lib/search-schemas";
 import { resolveContextActionTarget } from "@/lib/stack-selection";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
+import type { ListBulkAction } from "@/stores/card-row-actions-store";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useListEntriesStore } from "@/stores/list-entries-store";
@@ -393,6 +400,8 @@ interface ListActionsCellProps extends TableRowSlotProps {
   onEditTradePref: (entryId: string) => void;
   onRemoveEntry: (entryId: string, cardName: string) => void;
   onQuantityChange: (entryId: string, quantity: number) => void;
+  /** Copy-kind only: open the keep-vs-sold chooser for the row's copy. */
+  onTakeOff?: (entryId: string) => void;
   isRemovePendingFor: (entryId: string) => boolean;
   isQuantityPendingFor: (entryId: string) => boolean;
 }
@@ -409,6 +418,7 @@ function ListActionsCell({
   onEditTradePref,
   onRemoveEntry,
   onQuantityChange,
+  onTakeOff,
   isRemovePendingFor,
   isQuantityPendingFor,
 }: ListActionsCellProps) {
@@ -435,10 +445,11 @@ function ListActionsCell({
   return (
     <div className="flex items-center gap-2">
       {tradePill}
+      {entry.kind === "copy" && entry.reserved && <Badge variant="success">Reserved</Badge>}
       {kind === "copy" ? (
         <ListEntryTableActions
           showQuantity={false}
-          onRemove={() => onRemoveEntry(entry.id, entry.cardName)}
+          onTakeOff={() => onTakeOff?.(entry.id)}
           isRemovePending={isRemovePendingFor(entry.id)}
         />
       ) : (
@@ -540,6 +551,34 @@ function ListEntryBrowser({
   const { data: allLists } = useLists();
   const moveEntries = useMoveListEntries();
   const bulkRemove = useBulkRemoveListEntries();
+
+  // ── "Take off list" (copy-kind tradelists) ──────────────────────────
+  // Taking a copy off a tradelist has two outcomes — kept (just unlist) or
+  // sold/traded (also dispose). The chooser dialog asks which. The sold path
+  // reuses the /collections dispose flow: it hard-deletes the copies (cascading
+  // them off every list, including this one) and warns about the *other* lists
+  // they also sit on — `listId` is excluded so this list isn't named.
+  const userId = useUserId();
+  const queryClient = useQueryClient();
+  const [takeOffOpen, setTakeOffOpen] = useState(false);
+  const disposeCopies = useDisposeCopies();
+  // Resolve list-entry ids to the physical copy ids dispose operates on.
+  const copyIdByEntryId = new Map(
+    entries.flatMap((entry) => (entry.kind === "copy" ? [[entry.id, entry.copyId] as const] : [])),
+  );
+  const entriesToCopyIds = (entryIds: readonly string[]): string[] =>
+    entryIds.flatMap((entryId) => {
+      const copyId = copyIdByEntryId.get(entryId);
+      return copyId ? [copyId] : [];
+    });
+  const takeOffCopyIds = entriesToCopyIds(actionEntryIds);
+  const takeOffMemberships = useCopyListMemberships(takeOffCopyIds, takeOffOpen, listId);
+  // Copies pinned to a live trade can't be sold (disposing breaks the trade),
+  // so the chooser blocks the sold outcome when any target is reserved.
+  const reservedEntryIds = new Set(
+    entries.flatMap((entry) => (entry.kind === "copy" && entry.reserved ? [entry.id] : [])),
+  );
+  const takeOffReservedCount = actionEntryIds.filter((id) => reservedEntryIds.has(id)).length;
 
   // Drop any in-progress selection when the list changes, and force browse
   // mode in the catalog (library) view where most tiles have no entry to act
@@ -771,11 +810,15 @@ function ListEntryBrowser({
     setLastSelectedItemId(itemId);
   };
 
-  // Snapshot the target entry ids, then open the matching dialog.
-  const openListAction = (action: "move" | "remove", entryIds: string[]) => {
+  // Snapshot the target entry ids, then open the matching dialog. Copy-kind
+  // take-off and card/printing remove both target entry ids; the take-off
+  // chooser derives copy ids for its sold branch from them.
+  const openListAction = (action: ListBulkAction, entryIds: string[]) => {
     setActionEntryIds(entryIds);
     if (action === "move") {
       setMoveOpen(true);
+    } else if (action === "takeOff") {
+      setTakeOffOpen(true);
     } else {
       setRemoveOpen(true);
     }
@@ -803,6 +846,45 @@ function ListEntryBrowser({
           toast.success(`Removed ${count} card${count === 1 ? "" : "s"} from list`);
           clearSelection();
           setRemoveOpen(false);
+        },
+      },
+    );
+  };
+
+  // Take-off outcome 1 — kept: just unlist the entries, copies stay put.
+  const handleTakeOffKeep = () => {
+    const count = actionEntryIds.length;
+    bulkRemove.mutate(
+      { listId, entryIds: actionEntryIds },
+      {
+        onSuccess: () => {
+          toast.success(`Removed ${count} card${count === 1 ? "" : "s"} from list`);
+          clearSelection();
+          setTakeOffOpen(false);
+        },
+      },
+    );
+  };
+
+  // Take-off outcome 2 — sold/traded: dispose the backing copies.
+  const handleTakeOffSold = () => {
+    const count = takeOffCopyIds.length;
+    disposeCopies.mutate(
+      { copyIds: takeOffCopyIds },
+      {
+        onSuccess: () => {
+          toast.success(`Marked ${count} card${count === 1 ? "" : "s"} as sold`);
+          clearSelection();
+          setTakeOffOpen(false);
+          // Dispose hard-deletes the copies and cascades their list entries
+          // away server-side, so refresh this list (and the sidebar counts) to
+          // drop the now-deleted entries from view.
+          if (userId) {
+            void queryClient.invalidateQueries({
+              queryKey: queryKeys.lists.detail(userId, listId),
+            });
+            void queryClient.invalidateQueries({ queryKey: queryKeys.lists.all(userId) });
+          }
         },
       },
     );
@@ -1054,6 +1136,9 @@ function ListEntryBrowser({
                 onEditTradePref={setPrefDialogEntryId}
                 onRemoveEntry={onRemoveEntry}
                 onQuantityChange={onQuantityChange}
+                onTakeOff={
+                  kind === "copy" ? (entryId) => openListAction("takeOff", [entryId]) : undefined
+                }
                 isRemovePendingFor={isRemovePendingFor}
                 isQuantityPendingFor={isQuantityPendingFor}
               />
@@ -1078,13 +1163,24 @@ function ListEntryBrowser({
                   onClick: () => openListAction("move", [...selected]),
                   disabled: moveEntries.isPending,
                 },
-                {
-                  label: "Remove",
-                  icon: <Trash2Icon />,
-                  variant: "destructive",
-                  onClick: () => openListAction("remove", [...selected]),
-                  disabled: bulkRemove.isPending,
-                },
+                // Copy-kind tradelists collapse remove + sold into one "Take off
+                // list" action that opens the keep-vs-sold chooser; other kinds
+                // have no copy to dispose, so they keep a plain Remove.
+                kind === "copy"
+                  ? {
+                      label: "Take off list",
+                      icon: <XIcon />,
+                      variant: "destructive" as const,
+                      onClick: () => openListAction("takeOff", [...selected]),
+                      disabled: bulkRemove.isPending || disposeCopies.isPending,
+                    }
+                  : {
+                      label: "Remove",
+                      icon: <Trash2Icon />,
+                      variant: "destructive" as const,
+                      onClick: () => openListAction("remove", [...selected]),
+                      disabled: bulkRemove.isPending,
+                    },
               ]}
               onClear={clearSelection}
             />
@@ -1102,6 +1198,17 @@ function ListEntryBrowser({
             count={actionEntryIds.length}
             onConfirm={handleBulkRemove}
             isPending={bulkRemove.isPending}
+          />
+          <TakeOffTradelistDialog
+            open={takeOffOpen}
+            onOpenChange={setTakeOffOpen}
+            count={actionEntryIds.length}
+            onKeep={handleTakeOffKeep}
+            onSold={handleTakeOffSold}
+            isPending={bulkRemove.isPending || disposeCopies.isPending}
+            memberships={takeOffMemberships.data}
+            membershipsLoading={takeOffMemberships.isLoading}
+            reservedCount={takeOffReservedCount}
           />
         </CardViewer>
         {prefDialogEntry && (

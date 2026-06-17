@@ -100,6 +100,18 @@ describe("listsRepo", () => {
     });
   });
 
+  it("listMembershipsForCopies aggregates correctly when an excludeListId is passed", async () => {
+    // The originating list is excluded at the SQL layer (verified by the
+    // integration suite — the mock db ignores WHERE), so the repo only ever
+    // sees the remaining rows. This guards the param plumbing + aggregation.
+    const db = createMockDb([{ listId: "lst-binder", listName: "Binder", copyId: "copy-1" }]);
+    const repo = listsRepo(db);
+    expect(await repo.listMembershipsForCopies(["copy-1"], "u1", "lst-trades")).toEqual({
+      lists: [{ id: "lst-binder", name: "Binder", copyCount: 1 }],
+      copiesOnAnyList: 1,
+    });
+  });
+
   it("listMembershipsForCopies returns empty when no list references the copies", async () => {
     const db = createMockDb([]);
     const repo = listsRepo(db);

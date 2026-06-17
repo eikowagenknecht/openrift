@@ -326,6 +326,7 @@ export function toListEntryDetail(
         shortCode: string;
         language: string;
         imageId: string | null;
+        reserved: boolean;
         tradeOverride: TradePreference;
       },
 ): ListEntryDetailResponse {
@@ -377,6 +378,7 @@ export function toListEntryDetail(
     shortCode: row.shortCode,
     language: row.language,
     imageId: row.imageId,
+    reserved: row.reserved,
     tradeOverride: row.tradeOverride,
   };
 }

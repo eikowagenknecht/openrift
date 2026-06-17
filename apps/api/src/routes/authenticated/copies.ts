@@ -188,6 +188,6 @@ export const copiesRoute = copiesApp
     const { lists } = c.get("repos");
     const userId = getUserId(c);
     const body = c.req.valid("json");
-    const result = await lists.listMembershipsForCopies(body.copyIds, userId);
+    const result = await lists.listMembershipsForCopies(body.copyIds, userId, body.excludeListId);
     return c.json(result satisfies CopyListMembershipsResponse, 200);
   });

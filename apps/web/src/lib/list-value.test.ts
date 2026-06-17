@@ -62,6 +62,7 @@ function copyEntry(printing: Printing, quantity: number): ListEntryDetailRespons
     shortCode: printing.shortCode,
     language: printing.language,
     imageId: null,
+    reserved: false,
     tradeOverride: EMPTY_TRADE_PREFERENCE,
   };
 }

@@ -8,7 +8,16 @@ import {
 } from "@/components/ui/context-menu";
 
 interface ListEntryContextMenuProps {
-  onRemove: () => void;
+  /**
+   * Card/printing-kind lists: a plain "Remove from list" item. Copy-kind
+   * tradelists pass {@link onTakeOff} instead — exactly one of the two is set.
+   */
+  onRemove?: () => void;
+  /**
+   * Copy-kind tradelists: a "Take off list…" item that opens the keep-vs-sold
+   * chooser (each entry maps to a physical copy, so removal has two outcomes).
+   */
+  onTakeOff?: () => void;
   onViewDetail?: () => void;
   /** When set, adds a "Trade preference…" item that opens the editor dialog. */
   onSetPreference?: () => void;
@@ -21,12 +30,14 @@ interface ListEntryContextMenuProps {
  * Right-click / long-press menu on a list-entry tile. Mirrors the deck
  * card-detail menu pattern but offers Move / Remove (and an optional View
  * details) since lists don't have zone-aware quantity adjustment. When the
- * entry is part of the current select-mode selection, Move and Remove act on
- * the whole selection; otherwise just this entry (resolved by the browser).
+ * entry is part of the current select-mode selection, Move and the destructive
+ * action act on the whole selection; otherwise just this entry (resolved by the
+ * browser).
  * @returns The wrapped children with a context menu attached.
  */
 export function ListEntryContextMenu({
   onRemove,
+  onTakeOff,
   onViewDetail,
   onSetPreference,
   onMove,
@@ -71,15 +82,28 @@ export function ListEntryContextMenu({
             Move to list…
           </ContextMenuItem>
         ) : null}
-        <ContextMenuItem
-          className="text-destructive focus:text-destructive"
-          onClick={(event) => {
-            event.stopPropagation();
-            onRemove();
-          }}
-        >
-          Remove from list
-        </ContextMenuItem>
+        {onTakeOff ? (
+          <ContextMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={(event) => {
+              event.stopPropagation();
+              onTakeOff();
+            }}
+          >
+            Take off list…
+          </ContextMenuItem>
+        ) : null}
+        {onRemove ? (
+          <ContextMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={(event) => {
+              event.stopPropagation();
+              onRemove();
+            }}
+          >
+            Remove from list
+          </ContextMenuItem>
+        ) : null}
       </ContextMenuContent>
     </ContextMenu>
   );

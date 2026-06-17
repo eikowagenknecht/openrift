@@ -496,6 +496,7 @@ describe("toListEntryDetail", () => {
       rarity: "rare",
       finish: "foil",
       imageId: "img-1",
+      reserved: true,
     });
     expect(result).toEqual({
       kind: "copy",
@@ -510,6 +511,7 @@ describe("toListEntryDetail", () => {
       rarity: "rare",
       finish: "foil",
       imageId: "img-1",
+      reserved: true,
     });
   });
 });

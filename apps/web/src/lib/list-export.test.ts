@@ -109,6 +109,7 @@ function copyEntry(
     shortCode: opts.shortCode,
     language: "EN",
     imageId: null,
+    reserved: false,
     tradeOverride: EMPTY_TRADE_PREFERENCE,
   };
 }
