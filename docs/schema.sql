@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict YPfBsIqmGsUh5cdqdSSHttViQllHln7EzOXFoR1SE1mGLQc376PWZu190hBjcKB
+\restrict I1e4dJtu129MC7emDHq917vhJpjavOVHMJXJR3rSagoKkTvKR5BxsqAv5b7WaS3
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -664,6 +664,7 @@ CREATE TABLE public.card_trades (
     completed_at timestamp with time zone,
     closed_at timestamp with time zone,
     expires_at timestamp with time zone,
+    request_email_sent_at timestamp with time zone,
     CONSTRAINT chk_card_trades_distinct_parties CHECK ((giver_user_id <> receiver_user_id)),
     CONSTRAINT chk_card_trades_initiator CHECK ((initiator = ANY (ARRAY['giver'::text, 'receiver'::text]))),
     CONSTRAINT chk_card_trades_quantity CHECK ((quantity > 0)),
@@ -3021,6 +3022,13 @@ CREATE INDEX idx_card_trades_receiver ON public.card_trades USING btree (receive
 
 
 --
+-- Name: idx_card_trades_request_email_pending; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_card_trades_request_email_pending ON public.card_trades USING btree (created_at) WHERE ((request_email_sent_at IS NULL) AND (status = 'pending'::text));
+
+
+--
 -- Name: idx_cards_norm_name; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4872,5 +4880,5 @@ ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.friend_grou
 -- PostgreSQL database dump complete
 --
 
-\unrestrict YPfBsIqmGsUh5cdqdSSHttViQllHln7EzOXFoR1SE1mGLQc376PWZu190hBjcKB
+\unrestrict I1e4dJtu129MC7emDHq917vhJpjavOVHMJXJR3rSagoKkTvKR5BxsqAv5b7WaS3
 

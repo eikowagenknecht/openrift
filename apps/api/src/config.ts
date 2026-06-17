@@ -59,6 +59,10 @@ export function createConfig(env: Record<string, string | undefined>) {
       // ADR-030 daily match digest. Defaults to once a day at 08:00 UTC; set
       // CRON_TRADE_DIGEST to an empty string to disable.
       tradeDigestSchedule: env.CRON_TRADE_DIGEST ?? "0 8 * * *",
+      // ADR-030 coalesced trade-request flush. Runs every minute by default and
+      // sends the follow-up once a sender→recipient burst has settled; set
+      // CRON_TRADE_REQUEST_FLUSH to an empty string to disable.
+      tradeRequestFlushSchedule: env.CRON_TRADE_REQUEST_FLUSH ?? "* * * * *",
     },
 
     discordWebhooks: {

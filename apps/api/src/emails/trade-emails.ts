@@ -65,6 +65,85 @@ export function buildTradeRequestEmail(input: TradeRequestEmailInput): {
   };
 }
 
+interface CoalescedRequest {
+  cardName: string;
+  quantity: number;
+  /** `wants` = they want your card, `offers` = they're offering you one. */
+  kind: "wants" | "offers";
+}
+
+export interface CoalescedRequestGroup {
+  groupName: string;
+  /** Deep link to this group's Trades tab. */
+  tradesUrl: string;
+  requests: CoalescedRequest[];
+}
+
+export interface CoalescedTradeRequestsEmailInput {
+  /** Display name of the recipient (the non-initiator); may be null. */
+  recipientName: string | null;
+  /** Display name of the one member whose requests are coalesced here. */
+  senderName: string | null;
+  groups: CoalescedRequestGroup[];
+  /** One-click unsubscribe link for the `tradeRequests` channel. */
+  unsubscribeUrl: string;
+}
+
+/**
+ * Builds the coalesced "{sender} sent you several more trade requests" email —
+ * the trailing follow-up after the instant one, folding a burst from a single
+ * member into one message (ADR-030).
+ * @returns The subject line and full HTML body.
+ */
+export function buildCoalescedTradeRequestsEmail(input: CoalescedTradeRequestsEmailInput): {
+  subject: string;
+  html: string;
+} {
+  const sender = input.senderName ?? "A group member";
+  const greeting = input.recipientName ? `Hi ${escapeHtml(input.recipientName)},` : "Hi,";
+  const total = input.groups.reduce((sum, group) => sum + group.requests.length, 0);
+
+  const groupBlocks = input.groups
+    .map((group) => {
+      const rows = group.requests
+        .map((request) => {
+          const card = quantityLabel(request.quantity, request.cardName);
+          const phrase =
+            request.kind === "wants"
+              ? `wants your <strong>${escapeHtml(card)}</strong>`
+              : `offers you <strong>${escapeHtml(card)}</strong>`;
+          return `<li style="margin:0 0 4px;">${phrase}</li>`;
+        })
+        .join("");
+      return `
+        <div style="margin:0 0 20px;">
+          <p style="margin:0 0 8px;font-weight:600;">${escapeHtml(group.groupName)}</p>
+          <ul style="margin:0 0 10px;padding-left:18px;">${rows}</ul>
+          <p style="margin:0;">${emailButton("View the trades", group.tradesUrl)}</p>
+        </div>
+      `;
+    })
+    .join("");
+
+  const countLabel = total === 1 ? "1 more trade request" : `${total} more trade requests`;
+  const subject = `${sender} sent you ${countLabel} — OpenRift`;
+
+  const bodyHtml = `
+    <p style="margin:0 0 12px;">${greeting}</p>
+    <p style="margin:0 0 20px;"><strong>${escapeHtml(sender)}</strong> has more trade requests waiting for you. Heads up: trade requests expire 24 hours after they're sent.</p>
+    ${groupBlocks}
+  `;
+
+  return {
+    subject,
+    html: renderEmailLayout({
+      heading: "More trade requests",
+      bodyHtml,
+      unsubscribe: { url: input.unsubscribeUrl, label: "Trade-request emails" },
+    }),
+  };
+}
+
 interface DigestMatch {
   cardName: string;
   /** Who has the card — counterparty nickname, then name, then a fallback. */

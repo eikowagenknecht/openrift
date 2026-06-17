@@ -106,6 +106,7 @@ import * as m157 from "./157-deck-check-claim-token.js";
 import * as m158 from "./158-deck-plans.js";
 import * as m159 from "./159-deck-plan-battlefield-note.js";
 import * as m160 from "./160-deck-matchup-opponent.js";
+import * as m161 from "./161-trade-request-email-coalesce.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -271,4 +272,5 @@ export const migrations: Record<string, Migration> = {
   "158-deck-plans": m158,
   "159-deck-plan-battlefield-note": m159,
   "160-deck-matchup-opponent": m160,
+  "161-trade-request-email-coalesce": m161,
 };

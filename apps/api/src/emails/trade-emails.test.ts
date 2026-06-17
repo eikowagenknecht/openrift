@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { buildTradeMatchDigestEmail, buildTradeRequestEmail } from "./trade-emails.js";
+import {
+  buildCoalescedTradeRequestsEmail,
+  buildTradeMatchDigestEmail,
+  buildTradeRequestEmail,
+} from "./trade-emails.js";
 
 const REQUEST_BASE = {
   recipientName: "Riven",
@@ -38,6 +42,62 @@ describe("buildTradeRequestEmail", () => {
       ...REQUEST_BASE,
       initiatorName: "<script>alert(1)</script>",
       kind: "wants",
+    });
+    expect(html).not.toContain("<script>alert(1)</script>");
+    expect(html).toContain("&lt;script&gt;");
+  });
+});
+
+describe("buildCoalescedTradeRequestsEmail", () => {
+  const BASE = {
+    recipientName: "Riven",
+    senderName: "Garen",
+    unsubscribeUrl: "https://openrift.app/api/v1/unsubscribe?token=abc",
+    groups: [
+      {
+        groupName: "Playgroup",
+        tradesUrl: "https://openrift.app/groups/playgroup/trades",
+        requests: [
+          { cardName: "Azir", quantity: 1, kind: "wants" as const },
+          { cardName: "Lux", quantity: 2, kind: "offers" as const },
+        ],
+      },
+    ],
+  };
+
+  it("names the sender and counts the requests in the subject", () => {
+    const { subject, html } = buildCoalescedTradeRequestsEmail(BASE);
+    expect(subject).toBe("Garen sent you 2 more trade requests — OpenRift");
+    expect(html).toContain("Playgroup");
+    expect(html).toContain("wants your <strong>Azir</strong>");
+    expect(html).toContain("offers you <strong>2× Lux</strong>");
+    expect(html).toContain(BASE.groups[0].tradesUrl);
+    expect(html).toContain(BASE.unsubscribeUrl);
+  });
+
+  it("uses singular wording for a single request", () => {
+    const { subject } = buildCoalescedTradeRequestsEmail({
+      ...BASE,
+      groups: [
+        {
+          groupName: "G",
+          tradesUrl: "t",
+          requests: [{ cardName: "C", quantity: 1, kind: "wants" }],
+        },
+      ],
+    });
+    expect(subject).toBe("Garen sent you 1 more trade request — OpenRift");
+  });
+
+  it("falls back to a generic sender label when the name is null", () => {
+    const { subject } = buildCoalescedTradeRequestsEmail({ ...BASE, senderName: null });
+    expect(subject).toBe("A group member sent you 2 more trade requests — OpenRift");
+  });
+
+  it("escapes HTML in user-controlled fields", () => {
+    const { html } = buildCoalescedTradeRequestsEmail({
+      ...BASE,
+      senderName: "<script>alert(1)</script>",
     });
     expect(html).not.toContain("<script>alert(1)</script>");
     expect(html).toContain("&lt;script&gt;");

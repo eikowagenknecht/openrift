@@ -65,6 +65,15 @@ describe.skipIf(!ctx)("trade-request email (integration)", () => {
     await insertUsers(true);
     await repos.userPreferences.upsert(GIVER_ID, { emailNotifications: null });
     await repos.userPreferences.upsert(RECEIVER_ID, { emailNotifications: null });
+    // Clear prior trades so the leading-edge throttle (ADR-030) sees a clean
+    // window each test — otherwise a notified row from an earlier test would
+    // queue the next request instead of sending it instantly.
+    await db
+      .deleteFrom("cardTrades")
+      .where((eb) =>
+        eb.or([eb("giverUserId", "in", ALL_USER_IDS), eb("receiverUserId", "in", ALL_USER_IDS)]),
+      )
+      .execute();
   });
 
   afterAll(async () => {

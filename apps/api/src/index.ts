@@ -26,6 +26,7 @@ import {
 } from "./services/price-refresh/index.js";
 import { runJob } from "./services/run-job.js";
 import { extractDigestWatermark, sendTradeMatchDigest } from "./services/trade-match-digest.js";
+import { flushCoalescedTradeRequests } from "./services/trade-notifications.js";
 import { validateWellKnownSlugs } from "./services/validate-well-known.js";
 
 const JOB_RUNS_RETENTION_DAYS = 30;
@@ -267,6 +268,29 @@ if (config.cron.tradeDigestSchedule) {
     );
   });
   tdLog.info(`Cron registered (${tdSchedule})`);
+}
+
+if (config.cron.tradeRequestFlushSchedule) {
+  const trfLog = log.child({ service: "trade-request-flush" });
+  const trfSchedule = config.cron.tradeRequestFlushSchedule;
+
+  cronJobs.tradeRequestFlush = new Cron(trfSchedule, { protect: true }, async () => {
+    await runJob(
+      { repos, log: trfLog },
+      "email.flush_trade_requests",
+      "cron",
+      () =>
+        flushCoalescedTradeRequests({
+          repos,
+          log: trfLog,
+          sendEmail,
+          appBaseUrl: config.appBaseUrl,
+          unsubscribeSecret: config.auth.secret,
+        }),
+      { summarize: (result) => result },
+    );
+  });
+  trfLog.info(`Cron registered (${trfSchedule})`);
 }
 
 // ── 4. Start server ─────────────────────────────────────────────────────────

@@ -48,6 +48,22 @@ export interface CompletedTradeFeedRow {
   receiverName: string | null;
 }
 
+/** A queued trade-request awaiting a coalesced email (ADR-030). */
+export interface QueuedRequestEmailRow {
+  id: string;
+  groupId: string;
+  groupSlug: string;
+  groupName: string;
+  cardId: string;
+  printingId: string;
+  quantity: number;
+  initiator: CardTradeInitiator;
+  /** The initiator — whose burst of requests is being coalesced. */
+  senderUserId: string;
+  /** The non-initiator — who receives the email. */
+  recipientUserId: string;
+}
+
 function isoOrNull(value: Date | null): string | null {
   return value === null ? null : value.toISOString();
 }
@@ -349,6 +365,104 @@ export function cardTradesRepo(db: Kysely<Database>) {
         groupSlug: row.groupSlug,
         count: Number(row.count),
       }));
+    },
+
+    // ── Request-email coalescing (ADR-030) ───────────────────────────────────
+    // The "sender" is the initiator; the "recipient" is the non-initiator who
+    // gets the email. A burst of requests from one sender to one recipient is
+    // throttled to a leading instant email plus one coalesced follow-up per
+    // window. `request_email_sent_at` is the per-trade marker (NULL = queued).
+
+    /**
+     * Leading-edge claim: stamps this trade as emailed iff no email has gone to
+     * the same sender→recipient pair within `windowSeconds`. Guarded so two
+     * concurrent requests can't both win the instant slot.
+     * @returns `true` if the caller may send the instant email; `false` if the
+     *   trade is now queued for the coalesced flush (someone already led).
+     */
+    async claimInstantRequestEmail(
+      tradeId: string,
+      senderUserId: string,
+      recipientUserId: string,
+      windowSeconds: number,
+    ): Promise<boolean> {
+      const result = await db
+        .updateTable("cardTrades")
+        .set({ requestEmailSentAt: sql`now()` })
+        .where("id", "=", tradeId)
+        .where("requestEmailSentAt", "is", null)
+        .where(
+          sql<boolean>`NOT EXISTS (
+            SELECT 1 FROM card_trades x
+            WHERE x.request_email_sent_at IS NOT NULL
+              AND x.request_email_sent_at > now() - (${windowSeconds} * interval '1 second')
+              AND (CASE WHEN x.initiator = 'giver' THEN x.giver_user_id ELSE x.receiver_user_id END) = ${senderUserId}
+              AND (CASE WHEN x.initiator = 'giver' THEN x.receiver_user_id ELSE x.giver_user_id END) = ${recipientUserId}
+          )`,
+        )
+        .returning("id")
+        .execute();
+      return result.length > 0;
+    },
+
+    /**
+     * Queued (un-notified) pending requests whose sender→recipient burst has
+     * settled — no email to that pair within `windowSeconds`. Ordered so the
+     * flush can group consecutive rows by (recipient, sender). Joins the group
+     * for the email's deep link.
+     * @returns The queued request rows due for a coalesced email.
+     */
+    async listDueCoalescedRequests(windowSeconds: number): Promise<QueuedRequestEmailRow[]> {
+      const result = await sql<QueuedRequestEmailRow>`
+        SELECT
+          t.id,
+          t.group_id,
+          g.slug AS group_slug,
+          g.name AS group_name,
+          t.card_id,
+          t.printing_id,
+          t.quantity,
+          t.initiator,
+          (CASE WHEN t.initiator = 'giver' THEN t.giver_user_id ELSE t.receiver_user_id END) AS sender_user_id,
+          (CASE WHEN t.initiator = 'giver' THEN t.receiver_user_id ELSE t.giver_user_id END) AS recipient_user_id
+        FROM card_trades t
+        JOIN friend_groups g ON g.id = t.group_id
+        WHERE t.status = 'pending'
+          AND t.request_email_sent_at IS NULL
+          AND t.expires_at > now()
+          AND NOT EXISTS (
+            SELECT 1 FROM card_trades x
+            WHERE x.request_email_sent_at IS NOT NULL
+              AND x.request_email_sent_at > now() - (${windowSeconds} * interval '1 second')
+              AND (CASE WHEN x.initiator = 'giver' THEN x.giver_user_id ELSE x.receiver_user_id END)
+                    = (CASE WHEN t.initiator = 'giver' THEN t.giver_user_id ELSE t.receiver_user_id END)
+              AND (CASE WHEN x.initiator = 'giver' THEN x.receiver_user_id ELSE x.giver_user_id END)
+                    = (CASE WHEN t.initiator = 'giver' THEN t.receiver_user_id ELSE t.giver_user_id END)
+          )
+        ORDER BY recipient_user_id, sender_user_id, t.created_at
+      `.execute(db);
+      return result.rows;
+    },
+
+    /**
+     * Stamps the given trades as emailed, but only those still un-notified
+     * (NULL) — so the flush never double-claims a trade the instant path took
+     * concurrently. Used both to mark a coalesced email sent and to suppress an
+     * opted-out recipient's queue.
+     * @returns The ids actually claimed by this call.
+     */
+    async claimRequestEmails(tradeIds: readonly string[]): Promise<string[]> {
+      if (tradeIds.length === 0) {
+        return [];
+      }
+      const result = await db
+        .updateTable("cardTrades")
+        .set({ requestEmailSentAt: sql`now()` })
+        .where("id", "in", [...tradeIds])
+        .where("requestEmailSentAt", "is", null)
+        .returning("id")
+        .execute();
+      return result.map((row) => row.id);
     },
 
     /**

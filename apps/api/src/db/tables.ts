@@ -815,6 +815,12 @@ export interface CardTradesTable {
   closedAt: Date | null;
   /** pending TTL (created_at + 24h); cleared once not pending. */
   expiresAt: Date | null;
+  /**
+   * ADR-030 coalescing marker: when the recipient was emailed about this
+   * request (instant or coalesced), or when it was suppressed (opted out).
+   * NULL = still queued, awaiting the flush cron.
+   */
+  requestEmailSentAt: Date | null;
 }
 
 interface CardTradeCopiesTable {
