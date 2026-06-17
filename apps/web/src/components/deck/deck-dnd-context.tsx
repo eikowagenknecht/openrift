@@ -9,7 +9,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { snapCenterToCursor } from "@dnd-kit/modifiers";
-import { imageUrl } from "@openrift/shared";
+import { imageUrl, legendDisplayName } from "@openrift/shared";
 import type { DeckZone } from "@openrift/shared";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -213,7 +213,11 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
     } else if (data?.type === "browser-card") {
       setDragInfo({
         cardId: data.card.cardId,
-        cardName: data.card.cardName,
+        cardName: legendDisplayName({
+          name: data.card.cardName,
+          type: data.card.cardType,
+          tags: data.card.tags,
+        }),
         quantity: 1,
         fromBrowser: true,
       });

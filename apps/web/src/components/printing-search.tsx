@@ -1,4 +1,5 @@
 import type { Printing } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 
 import { ImportCatalogSearch } from "@/components/import/import-catalog-search";
 import type { EnumLabels } from "@/hooks/use-enums";
@@ -43,7 +44,7 @@ export function PrintingSearch({
         return allPrintings
           .filter(
             (printing) =>
-              printing.card.name.toLowerCase().includes(lower) ||
+              legendDisplayName(printing.card).toLowerCase().includes(lower) ||
               printing.shortCode.toLowerCase().includes(lower),
           )
           .slice(0, MAX_RESULTS);
@@ -51,7 +52,7 @@ export function PrintingSearch({
       getKey={(printing) => printing.id}
       renderItem={(printing) => (
         <>
-          <span className="truncate font-medium">{printing.card.name}</span>
+          <span className="truncate font-medium">{legendDisplayName(printing.card)}</span>
           <span className="text-muted-foreground shrink-0">
             {formatImportPrintingLabel(printing, labels)}
           </span>

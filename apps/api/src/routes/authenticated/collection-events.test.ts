@@ -54,6 +54,7 @@ const dbEvent = {
   cardName: "Fire Dragon",
   cardType: "unit",
   cardSuperTypes: ["Dragon"],
+  tags: [],
 };
 
 // ---------------------------------------------------------------------------

@@ -1,4 +1,5 @@
 import type { Printing } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 import type { ReactNode } from "react";
 import { memo } from "react";
 
@@ -94,7 +95,7 @@ export const BrowserCardCell = memo(function BrowserCardCell({
         pillOverride={
           <OwnedCollectionsPopover
             printingId={displayPrinting.id}
-            cardName={displayPrinting.card.name}
+            cardName={legendDisplayName(displayPrinting.card)}
             shortCode={displayPrinting.shortCode}
             count={ownedCount}
             totalCount={totalCount}

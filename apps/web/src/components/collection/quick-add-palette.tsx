@@ -1,5 +1,5 @@
 import type { Printing } from "@openrift/shared";
-import { getOrientation, imageUrl } from "@openrift/shared";
+import { getOrientation, imageUrl, legendDisplayName } from "@openrift/shared";
 import { ChevronRightIcon, MinusIcon, PlusIcon, SearchIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -130,7 +130,7 @@ function PaletteInner({
         for (const list of printingsByCardId.values()) {
           const found = list.find((printing) => printing.id === id);
           if (found) {
-            return found.card.name;
+            return legendDisplayName(found.card);
           }
         }
       });
@@ -220,7 +220,7 @@ function PaletteInner({
     useAddModeStore.getState().recordUndo(printing.id);
     try {
       await disposeCopies.mutateAsync({ copyIds: [copyIdToRemove] });
-      toast.success(`Removed 1× ${printing.card.name}`);
+      toast.success(`Removed 1× ${legendDisplayName(printing.card)}`);
       const input = inputRef.current;
       if (input) {
         input.focus();
@@ -333,14 +333,14 @@ function PaletteInner({
               >
                 <img
                   src={previewThumbnail}
-                  alt={previewPrinting.card.name}
+                  alt={legendDisplayName(previewPrinting.card)}
                   className="size-full object-cover"
                 />
               </div>
             ) : (
               <img
                 src={previewThumbnail}
-                alt={previewPrinting.card.name}
+                alt={legendDisplayName(previewPrinting.card)}
                 className="absolute inset-0 w-full object-cover"
               />
             )}
@@ -486,7 +486,7 @@ function PaletteInner({
                             variant="ghost"
                             onClick={() => handleUndo(printing)}
                             disabled={sessionAdded === 0}
-                            aria-label={`Undo add ${printing.card.name}`}
+                            aria-label={`Undo add ${legendDisplayName(printing.card)}`}
                           >
                             <MinusIcon />
                           </Button>
@@ -509,7 +509,7 @@ function PaletteInner({
                             tabIndex={-1}
                             size="icon-xs"
                             onClick={() => handleAdd(printing)}
-                            aria-label={`Add ${printing.card.name}`}
+                            aria-label={`Add ${legendDisplayName(printing.card)}`}
                             className="group-data-[selected=true]:bg-accent-foreground group-data-[selected=true]:text-accent group-data-[selected=true]:hover:bg-accent-foreground/80"
                           >
                             <PlusIcon />

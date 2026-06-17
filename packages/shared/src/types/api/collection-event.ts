@@ -16,6 +16,7 @@ export interface CollectionEventResponse {
   cardName: string;
   cardType: CardType;
   cardSuperTypes: string[];
+  tags: string[];
 }
 
 export interface CollectionEventListResponse {

@@ -44,6 +44,7 @@ type CollectionEventRow = Pick<
     cardName: string;
     cardType: CardType;
     cardSuperTypes: string[];
+    tags: string[];
   };
 
 /**
@@ -87,6 +88,7 @@ export function collectionEventsRepo(db: Kysely<Database>) {
           "card.name as cardName",
           "card.type as cardType",
           "mca.superTypes as cardSuperTypes",
+          "card.tags as tags",
         ])
         .where("ce.userId", "=", userId)
         .orderBy("ce.createdAt", "desc")

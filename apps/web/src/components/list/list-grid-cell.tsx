@@ -1,4 +1,5 @@
 import type { Currency, ListKind, Printing, TradePreference } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 import { ListIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { memo } from "react";
@@ -259,14 +260,14 @@ function buildStrip({
         decrement={{
           onClick: () =>
             entry && displayedCount <= 1
-              ? dispatchRemoveEntry(entry.id, displayPrinting.card.name)
+              ? dispatchRemoveEntry(entry.id, legendDisplayName(displayPrinting.card))
               : dispatchEntryQuantityChange(entry?.id ?? "", displayedCount - 1),
           disabled: displayedCount === 0,
-          ariaLabel: `Decrease ${displayPrinting.card.name} quantity on list`,
+          ariaLabel: `Decrease ${legendDisplayName(displayPrinting.card)} quantity on list`,
         }}
         increment={{
           onClick: () => dispatchIncrement(displayPrinting),
-          ariaLabel: `Add ${displayPrinting.card.name} to list`,
+          ariaLabel: `Add ${legendDisplayName(displayPrinting.card)} to list`,
         }}
       />
     );

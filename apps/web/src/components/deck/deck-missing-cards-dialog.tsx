@@ -65,7 +65,7 @@ export function DeckMissingCardsDialog({
     if (zoneCmp !== 0) {
       return zoneCmp;
     }
-    return a.cardName.localeCompare(b.cardName);
+    return a.displayName.localeCompare(b.displayName);
   });
 
   const groupedByZone = [...Map.groupBy(sorted, (card) => card.zone).entries()];
@@ -176,7 +176,7 @@ export function DeckMissingCardsDialog({
                         <span className="text-muted-foreground font-mono">
                           {card.displayPrinting?.shortCode ?? "--"}
                         </span>
-                        <span>{card.cardName}</span>
+                        <span>{card.displayName}</span>
                       </MarketplaceLink>
                       {card.locked > 0 && (
                         <Tooltip>

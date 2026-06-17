@@ -7,7 +7,7 @@ import type {
   DeckZone,
   Marketplace,
 } from "@openrift/shared";
-import { WellKnown, validateDeck } from "@openrift/shared";
+import { WellKnown, legendDisplayName, validateDeck } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import {
   AlertTriangleIcon,
@@ -847,7 +847,7 @@ function ZoneThumb({
   const dragData: DeckCardDragData = {
     type: "deck-card",
     cardId: card.cardId,
-    cardName: card.cardName,
+    cardName: legendDisplayName({ name: card.cardName, type: card.cardType, tags: card.tags }),
     fromZone: zone,
     quantity: card.quantity,
     preferredPrintingId: card.preferredPrintingId,
@@ -895,7 +895,7 @@ function ZoneThumb({
     >
       <img
         src={thumbnail}
-        alt={card.cardName}
+        alt={legendDisplayName({ name: card.cardName, type: card.cardType, tags: card.tags })}
         className={cn("rounded-md object-cover shadow-sm", isLandscape ? "h-20 w-28" : "h-28 w-20")}
         draggable={false}
       />

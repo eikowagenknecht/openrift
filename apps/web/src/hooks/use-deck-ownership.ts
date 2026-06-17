@@ -1,5 +1,5 @@
 import type { Marketplace, PriceLookup, Printing, Rarity } from "@openrift/shared";
-import { preferredPrinting } from "@openrift/shared";
+import { legendDisplayName, preferredPrinting } from "@openrift/shared";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 
@@ -8,7 +8,10 @@ import { usePrices } from "./use-prices";
 
 export interface CardOwnership {
   cardId: string;
+  /** Canonical catalog name — used for marketplace search URLs and the copy/paste buy-list. */
   cardName: string;
+  /** Colloquial Legend name ("Azir, Emperor of the Sands") for on-screen display only. */
+  displayName: string;
   zone: string;
   needed: number;
   owned: number;
@@ -167,6 +170,7 @@ export function computeDeckOwnership(
     const entry: CardOwnership = {
       cardId: card.cardId,
       cardName: card.cardName,
+      displayName: legendDisplayName({ name: card.cardName, type: card.cardType, tags: card.tags }),
       zone: card.zone,
       needed: card.quantity,
       owned: ownedInZone,

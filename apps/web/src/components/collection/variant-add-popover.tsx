@@ -1,4 +1,5 @@
 import type { Printing } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 import { MinusIcon, PlusIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -171,7 +172,7 @@ export function VariantAddPopover({
                   variant="ghost"
                   onClick={(event) => onUndoAdd(printing, event.currentTarget)}
                   disabled={owned === 0}
-                  aria-label={`Remove ${printing.card.name}`}
+                  aria-label={`Remove ${legendDisplayName(printing.card)}`}
                 >
                   <MinusIcon />
                 </Button>
@@ -182,7 +183,7 @@ export function VariantAddPopover({
                   size="icon-xs"
                   variant="ghost"
                   onClick={() => onQuickAdd(printing)}
-                  aria-label={`Add ${printing.card.name}`}
+                  aria-label={`Add ${legendDisplayName(printing.card)}`}
                 >
                   <PlusIcon />
                 </Button>

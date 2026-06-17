@@ -659,6 +659,7 @@ const collectionEventResponseSchema = z
     cardName: z.string(),
     cardType: cardTypeSchema,
     cardSuperTypes: z.array(z.string()),
+    tags: z.array(z.string()),
   })
   .openapi("CollectionEventResponse");
 

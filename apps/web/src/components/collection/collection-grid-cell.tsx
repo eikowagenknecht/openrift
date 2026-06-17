@@ -1,4 +1,5 @@
 import type { Printing } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 import type { ReactNode } from "react";
 import { memo } from "react";
 
@@ -184,19 +185,19 @@ export const CollectionGridCell = memo(function CollectionGridCell({
           ownedCount > 0
             ? {
                 onClick: (event) => dispatchDecrement(displayPrinting, event.currentTarget),
-                ariaLabel: `Remove ${displayPrinting.card.name}`,
+                ariaLabel: `Remove ${legendDisplayName(displayPrinting.card)}`,
               }
             : undefined
         }
         increment={{
           onClick: () => dispatchIncrement(displayPrinting),
-          ariaLabel: `Add ${displayPrinting.card.name}`,
+          ariaLabel: `Add ${legendDisplayName(displayPrinting.card)}`,
         }}
         pillOverride={pillOverride}
         onPillClick={!pillOverride && variantTrigger ? variantTrigger : undefined}
         pillAriaLabel={
           !pillOverride && variantTrigger
-            ? `Choose variant for ${displayPrinting.card.name}`
+            ? `Choose variant for ${legendDisplayName(displayPrinting.card)}`
             : undefined
         }
       />
@@ -209,7 +210,7 @@ export const CollectionGridCell = memo(function CollectionGridCell({
         pillOverride={
           <OwnedCollectionsPopover
             printingId={displayPrinting.id}
-            cardName={displayPrinting.card.name}
+            cardName={legendDisplayName(displayPrinting.card)}
             shortCode={displayPrinting.shortCode}
             count={ownedCount}
             totalCount={totalInCollection}

@@ -1,4 +1,5 @@
 import type { Printing } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { MinusIcon, PackageIcon, PlusIcon } from "lucide-react";
 import { useRef, useState } from "react";
@@ -186,7 +187,7 @@ function VariantsSection({
                 variant="ghost"
                 onClick={(event) => onUndoAdd(printing, event.currentTarget)}
                 disabled={owned === 0}
-                aria-label={`Remove ${printing.card.name}`}
+                aria-label={`Remove ${legendDisplayName(printing.card)}`}
               >
                 <MinusIcon />
               </Button>
@@ -197,7 +198,7 @@ function VariantsSection({
                 size="icon-xs"
                 variant="ghost"
                 onClick={() => onAdd(printing)}
-                aria-label={`Add ${printing.card.name}`}
+                aria-label={`Add ${legendDisplayName(printing.card)}`}
               >
                 <PlusIcon />
               </Button>

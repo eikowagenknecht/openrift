@@ -1,5 +1,5 @@
 import type { ActivityAction, CollectionEventResponse } from "@openrift/shared";
-import { imageUrl } from "@openrift/shared";
+import { imageUrl, legendDisplayName } from "@openrift/shared";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import {
   ArrowLeftRightIcon,
@@ -221,6 +221,11 @@ function EventCard({
 }) {
   const config = ACTION_CONFIG[event.action];
   const Icon = config.icon;
+  const displayName = legendDisplayName({
+    name: event.cardName,
+    type: event.cardType,
+    tags: event.tags,
+  });
   const totalPrice = price === undefined ? undefined : price * count;
   const { labels } = useEnumOrders();
   const cardTypeLabel = labels.cardTypes[event.cardType];
@@ -255,7 +260,7 @@ function EventCard({
       {event.imageId ? (
         <img
           src={imageUrl(event.imageId, "120w")}
-          alt={event.cardName}
+          alt={displayName}
           className="h-12 w-[2.15rem] shrink-0 rounded-sm object-cover"
         />
       ) : (
@@ -271,7 +276,7 @@ function EventCard({
               {count}x
             </Badge>
           )}
-          <p className="truncate text-sm font-medium">{event.cardName}</p>
+          <p className="truncate text-sm font-medium">{displayName}</p>
         </div>
         <p className="text-muted-foreground flex items-center gap-1 text-xs">
           {event.shortCode}

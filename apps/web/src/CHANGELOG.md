@@ -8,7 +8,7 @@
 
 - feat: Removing cards from a collection now warns you when those cards are also on one of your lists, names the lists they'll drop off, and asks you to confirm. That way deleting them in one place can't quietly strip them from another
 - feat: Removing a large batch of cards now asks you to type the number to confirm, so a stray tap can't wipe out a big selection
-- feat: Legends now show their champion name first, like "Azir, Emperor of the Sands", in the card list, tables, and deck zones, and importing a decklist recognizes that form as well as the plain card name
+- feat: Legends now show their champion name first, like "Azir, Emperor of the Sands", everywhere they appear (card lists, tables, deck zones, the card detail page, the pack opener, your activity feed, and the buy list), and the card search boxes (Quick Add, deck plans, deck checker, import) find a Legend whether you type the champion or the card's own name
 - feat: Lists now stay private until you choose to share them — a new list starts with every group unchecked, and joining a group no longer makes your existing lists visible to it automatically. You pick which groups can see each list
 - feat: When you create a group or accept an invite to one, you're asked which of your wishlists and tradelists to share with it, so trades can start right away
 - feat: The button for choosing which filters to show now stays out of the way and appears when you hover over the filter panel

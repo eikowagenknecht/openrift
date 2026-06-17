@@ -1,5 +1,6 @@
 import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion";
 import type { DeckFormat, DeckResponse, DeckZone, Printing } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import {
@@ -942,14 +943,17 @@ function deduplicateToCards(allPrintings: Printing[], query: string): ResolvedCa
     if (seen.has(printing.cardId)) {
       continue;
     }
+    // Match the colloquial Legend name too ("Azir, Emperor of the Sands"), and
+    // surface it as the display name so the dropdown reads like the rest of the app.
+    const displayName = legendDisplayName(printing.card);
     if (
-      printing.card.name.toLowerCase().includes(lower) ||
+      displayName.toLowerCase().includes(lower) ||
       printing.shortCode.toLowerCase().includes(lower)
     ) {
       seen.add(printing.cardId);
       results.push({
         cardId: printing.cardId,
-        cardName: printing.card.name,
+        cardName: displayName,
         cardType: printing.card.type,
         superTypes: printing.card.superTypes,
         domains: printing.card.domains,

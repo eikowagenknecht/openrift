@@ -11,6 +11,7 @@ function printing(overrides: Partial<PackPrinting>): PackPrinting {
     cardSlug: "card",
     cardType: "unit",
     cardSuperTypes: [],
+    tags: [],
     rarity: "common",
     finish: "normal",
     artVariant: "normal",

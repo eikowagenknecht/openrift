@@ -5,6 +5,7 @@ import type {
   Marketplace,
   MarketplaceInfo,
 } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ArrowDownLeftIcon, ArrowUpRightIcon, ChevronDownIcon } from "lucide-react";
 import { useState } from "react";
@@ -173,6 +174,7 @@ function resolveMatchRows(
     const set = setsById.get(row.setId);
     return {
       ...row,
+      cardName: card ? legendDisplayName(card) : row.cardName,
       cardSlug: card?.slug ?? row.cardId,
       shortCode: printingsById[row.printingId]?.shortCode ?? "",
       setName: set?.name ?? row.setId,

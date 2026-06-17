@@ -1,5 +1,5 @@
 import type { Printing, SortDirection, SortOption } from "@openrift/shared";
-import { filterCards, getAvailableFilters, sortCards } from "@openrift/shared";
+import { filterCards, getAvailableFilters, legendDisplayName, sortCards } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createLazyFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { LinkIcon, PackageIcon } from "lucide-react";
@@ -1339,12 +1339,12 @@ function PromoMobileCard({
       <CardArtThumb
         imageId={image?.imageId}
         variant="400w"
-        alt={printing.card.name}
+        alt={legendDisplayName(printing.card)}
         className="h-20"
       />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
-          <div className="truncate font-medium">{printing.card.name}</div>
+          <div className="truncate font-medium">{legendDisplayName(printing.card)}</div>
           {showOwnedCount && ownedCount > 0 && (
             <span className="text-muted-foreground shrink-0 tabular-nums">&times;{ownedCount}</span>
           )}

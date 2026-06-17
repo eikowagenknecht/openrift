@@ -1,3 +1,4 @@
+import { legendDisplayName } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createLazyFileRoute, useCanGoBack, useNavigate, useRouter } from "@tanstack/react-router";
 import { ArrowLeftIcon } from "lucide-react";
@@ -43,8 +44,9 @@ function ContributeCorrectionPage() {
       <header className="flex flex-col gap-1">
         <Heading level={1}>Suggest a correction</Heading>
         <p className="text-muted-foreground">
-          Spotted something off on <span className="font-medium">{data.card.name}</span>? Edit any
-          field that needs fixing and we&apos;ll review the change.
+          Spotted something off on{" "}
+          <span className="font-medium">{legendDisplayName(data.card)}</span>? Edit any field that
+          needs fixing and we&apos;ll review the change.
         </p>
       </header>
       <ContributeForm initial={initial} lockedSlug={cardSlug} />

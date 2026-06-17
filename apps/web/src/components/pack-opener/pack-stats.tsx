@@ -1,5 +1,5 @@
 import type { Marketplace, PackPull, PackResult, PriceLookup } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { WellKnown, legendDisplayName } from "@openrift/shared";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -78,7 +78,11 @@ export function PackStats({ packs, prices, marketplace }: PackStatsProps) {
         valuedCount++;
       } else if (marketplace) {
         unpricedPulls.push({
-          cardName: pull.printing.cardName,
+          cardName: legendDisplayName({
+            name: pull.printing.cardName,
+            type: pull.printing.cardType,
+            tags: pull.printing.tags,
+          }),
           shortCode: pull.printing.shortCode,
           rarity: rarityLabel(rarity),
         });
@@ -173,7 +177,11 @@ function buildNotablePulls(
     }
     seen.add(key);
     notable.push({
-      cardName: pull.printing.cardName,
+      cardName: legendDisplayName({
+        name: pull.printing.cardName,
+        type: pull.printing.cardType,
+        tags: pull.printing.tags,
+      }),
       shortCode: pull.printing.shortCode,
       rarity,
       slotLabel: slotLabel(pull, rarityLabel),

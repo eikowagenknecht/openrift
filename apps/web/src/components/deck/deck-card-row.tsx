@@ -189,7 +189,7 @@ export function DeckCardRow({
   const dragData: DeckCardDragData = {
     type: "deck-card",
     cardId: card.cardId,
-    cardName: card.cardName,
+    cardName: legendDisplayName({ name: card.cardName, type: card.cardType, tags: card.tags }),
     fromZone: card.zone as DeckZone,
     quantity: card.quantity,
     preferredPrintingId: card.preferredPrintingId,

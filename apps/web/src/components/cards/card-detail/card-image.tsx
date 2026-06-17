@@ -1,5 +1,5 @@
 import type { Printing } from "@openrift/shared";
-import { imageUrl } from "@openrift/shared";
+import { imageUrl, legendDisplayName } from "@openrift/shared";
 import { useState } from "react";
 
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
@@ -64,7 +64,7 @@ export function CardImage({
                     width={558}
                     height={400}
                     fetchPriority="high"
-                    alt={card.name}
+                    alt={legendDisplayName(card)}
                     className="size-full object-cover"
                     onLoad={() => setImgLoaded(true)}
                   />
@@ -77,7 +77,7 @@ export function CardImage({
                   width={400}
                   height={558}
                   fetchPriority="high"
-                  alt={card.name}
+                  alt={legendDisplayName(card)}
                   className={cn(
                     "absolute inset-0 block w-full transition-opacity duration-300",
                     imgLoaded ? "opacity-100" : "opacity-0",

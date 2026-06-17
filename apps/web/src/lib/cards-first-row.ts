@@ -2,6 +2,7 @@ import type { CatalogResponse, GroupByField, SortOption } from "@openrift/shared
 import {
   filterCards,
   getOrientation,
+  legendDisplayName,
   sortByLanguageAndCanonicalRank,
   sortCards,
 } from "@openrift/shared";
@@ -110,7 +111,7 @@ export function extractFirstRow(
     }
     result.push({
       printingId: printing.id,
-      cardName: printing.card.name,
+      cardName: legendDisplayName(printing.card),
       setSlug: printing.setSlug,
       imageId: front.imageId,
       rotated: needsCssRotation(getOrientation(printing.card.type)),

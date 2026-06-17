@@ -1,4 +1,4 @@
-import { imageUrl } from "@openrift/shared";
+import { imageUrl, legendDisplayName } from "@openrift/shared";
 import {
   AlertTriangleIcon,
   ArrowDownIcon,
@@ -111,7 +111,9 @@ function CardChip({
           className={cn("shrink-0 rounded-xs object-cover", landscape ? "h-5 w-8" : "h-7 w-5")}
         />
       ) : null}
-      <span className="truncate">{printing?.card.name ?? "Unknown card"}</span>
+      <span className="truncate">
+        {printing ? legendDisplayName(printing.card) : "Unknown card"}
+      </span>
       {onRemove ? (
         <button
           type="button"
@@ -489,7 +491,10 @@ export function DeckPlanEditor({
   for (const printing of allPrintings) {
     if (printing.card.type === "legend" && !legendSeen.has(printing.cardId)) {
       legendSeen.add(printing.cardId);
-      legendCandidates.push({ cardId: printing.cardId, cardName: printing.card.name });
+      legendCandidates.push({
+        cardId: printing.cardId,
+        cardName: legendDisplayName(printing.card),
+      });
     }
   }
   const maindeckCandidates = deckCards

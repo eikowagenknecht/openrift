@@ -1,5 +1,5 @@
 import type { CatalogPrintingResponse, PackPull } from "@openrift/shared";
-import { WellKnown, getOrientation, imageUrl } from "@openrift/shared";
+import { WellKnown, getOrientation, imageUrl, legendDisplayName } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
 import { FoilOverlay } from "@/components/cards/foil-overlay";
@@ -49,6 +49,11 @@ export function PullCard({ pull, image, className, shimmer = true }: PullCardPro
   // per-page toggle.
   const showFoil = printing.finish === WellKnown.finish.FOIL;
   const rotated = needsCssRotation(getOrientation(printing.cardType));
+  const displayName = legendDisplayName({
+    name: printing.cardName,
+    type: printing.cardType,
+    tags: printing.tags,
+  });
 
   return (
     <Link
@@ -75,7 +80,7 @@ export function PullCard({ pull, image, className, shimmer = true }: PullCardPro
                 src={imageUrl(image.imageId, "240w")}
                 srcSet={`${imageUrl(image.imageId, "240w")} 240w, ${imageUrl(image.imageId, "400w")} 400w`}
                 sizes="(max-width: 640px) 40vw, 160px"
-                alt={printing.cardName}
+                alt={displayName}
                 loading="lazy"
                 className="size-full object-cover"
               />
@@ -85,20 +90,20 @@ export function PullCard({ pull, image, className, shimmer = true }: PullCardPro
               src={imageUrl(image.imageId, "240w")}
               srcSet={`${imageUrl(image.imageId, "240w")} 240w, ${imageUrl(image.imageId, "400w")} 400w`}
               sizes="(max-width: 640px) 40vw, 160px"
-              alt={printing.cardName}
+              alt={displayName}
               loading="lazy"
               className="absolute inset-0 size-full object-cover"
             />
           )
         ) : (
           <div className="bg-muted absolute inset-0 flex items-center justify-center p-2 text-center text-xs">
-            {printing.cardName}
+            {displayName}
           </div>
         )}
         {showFoil && <FoilOverlay active shimmer={shimmer} />}
       </div>
       <div className="mt-1 px-0.5 text-xs">
-        <div className="text-foreground truncate">{printing.cardName}</div>
+        <div className="text-foreground truncate">{displayName}</div>
         <div className="text-muted-foreground flex items-center justify-between tabular-nums">
           <span>{printing.shortCode}</span>
           <span>{slotLabel(pull, labels.rarities)}</span>

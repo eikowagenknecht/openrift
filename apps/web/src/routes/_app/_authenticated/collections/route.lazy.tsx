@@ -9,7 +9,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { snapCenterToCursor } from "@dnd-kit/modifiers";
-import { imageUrl } from "@openrift/shared";
+import { imageUrl, legendDisplayName } from "@openrift/shared";
 import { createLazyFileRoute, Outlet } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -348,7 +348,9 @@ function ListEntryDragPreview({ drag }: { drag: ListEntryDragData }) {
         draggable={false}
       />
       <div className="bg-background/80 absolute right-0 bottom-0 left-0 rounded-b-lg px-1.5 py-1 backdrop-blur-sm">
-        <p className="truncate text-center text-xs font-medium">{drag.cardName}</p>
+        <p className="truncate text-center text-xs font-medium">
+          {legendDisplayName(drag.printing.card)}
+        </p>
       </div>
       {drag.totalQuantity > 1 && (
         <div className="bg-primary text-primary-foreground absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full text-xs font-bold shadow">

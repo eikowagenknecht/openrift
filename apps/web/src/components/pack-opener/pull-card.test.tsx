@@ -24,6 +24,7 @@ function makePull(overrides: Partial<PackPrinting> = {}): PackPull {
     cardSlug: "test-card",
     cardType: "unit",
     cardSuperTypes: [],
+    tags: [],
     rarity: "common",
     finish: "normal",
     artVariant: "normal",

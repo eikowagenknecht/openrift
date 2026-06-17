@@ -4,6 +4,7 @@ import {
   EUR_MARKETPLACES,
   getOrientation,
   imageUrl,
+  legendDisplayName,
   preferredPrinting,
   snapshotHeadline,
   WellKnown,
@@ -229,7 +230,7 @@ function CardDetailPage() {
 
       {/* Card header */}
       <div className="flex items-start justify-between gap-3">
-        <Heading level={1}>{card.name}</Heading>
+        <Heading level={1}>{legendDisplayName(card)}</Heading>
         <div className="flex shrink-0 items-center gap-2">
           <Button
             variant="outline"
@@ -240,7 +241,7 @@ function CardDetailPage() {
             <PencilLineIcon className="size-4" />
             <span className="hidden sm:inline">Suggest a correction</span>
           </Button>
-          <ShareLinkButton cardName={card.name} />
+          <ShareLinkButton cardName={legendDisplayName(card)} />
         </div>
       </div>
 
@@ -255,7 +256,7 @@ function CardDetailPage() {
               width={heroWidth}
               height={heroHeight}
               fetchPriority="high"
-              alt={card.name}
+              alt={legendDisplayName(card)}
               className="w-full rounded-xl"
             />
           ) : (
@@ -686,7 +687,7 @@ function PrintingCard({
     >
       <CardArtThumb
         imageId={frontImage?.imageId}
-        alt={printing.card.name}
+        alt={legendDisplayName(printing.card)}
         className="w-10"
         loading="lazy"
         fallback={<span className="bg-muted/40 block size-full" />}

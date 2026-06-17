@@ -9,6 +9,7 @@ export function toPackPrinting(p: Printing): PackPrinting {
     cardSlug: p.card.slug,
     cardType: p.card.type,
     cardSuperTypes: p.card.superTypes,
+    tags: p.card.tags,
     rarity: p.rarity,
     finish: p.finish,
     artVariant: p.artVariant,

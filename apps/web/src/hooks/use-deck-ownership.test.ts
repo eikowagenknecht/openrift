@@ -81,6 +81,32 @@ describe("computeDeckOwnership", () => {
     expect(result.missingCards[0].shortfall).toBe(2);
   });
 
+  it("exposes the Legend's colloquial display name while keeping the bare catalog name", () => {
+    const cardId = "legend-1";
+    const deckCards = [
+      stubDeckBuilderCard({
+        cardId,
+        quantity: 1,
+        zone: "legend",
+        cardName: "Emperor of the Sands",
+        cardType: "legend",
+        tags: ["Azir"],
+      }),
+    ];
+
+    const result = computeDeckOwnership(
+      deckCards,
+      [stubPrinting({ id: "printing-1", cardId })],
+      {},
+      "tcgplayer",
+      EMPTY_PRICE_LOOKUP,
+      EN_FIRST,
+    );
+
+    expect(result.missingCards[0].cardName).toBe("Emperor of the Sands");
+    expect(result.missingCards[0].displayName).toBe("Azir, Emperor of the Sands");
+  });
+
   it("marks an unowned card as fully missing", () => {
     const cardId = "card-1";
 

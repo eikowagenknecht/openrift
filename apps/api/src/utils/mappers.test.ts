@@ -555,6 +555,7 @@ describe("toCollectionEvent", () => {
       cardName: "Shadow Knight",
       cardType: "unit",
       cardSuperTypes: ["champion"],
+      tags: ["Hecarim"],
     });
     expect(result).toEqual({
       id: "ev-1",
@@ -572,6 +573,7 @@ describe("toCollectionEvent", () => {
       cardName: "Shadow Knight",
       cardType: "unit",
       cardSuperTypes: ["champion"],
+      tags: ["Hecarim"],
     });
   });
 
@@ -592,6 +594,7 @@ describe("toCollectionEvent", () => {
       cardName: "Shadow Knight",
       cardType: "unit",
       cardSuperTypes: ["champion"],
+      tags: [],
     });
     expect(result.imageId).toBeNull();
   });

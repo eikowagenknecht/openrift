@@ -5,7 +5,7 @@ import type {
   FriendGroupDetailResponse,
   Printing,
 } from "@openrift/shared";
-import { imageUrl } from "@openrift/shared";
+import { imageUrl, legendDisplayName } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   BanIcon,
@@ -1003,30 +1003,32 @@ function CardNameSearchField({
         const matches: Printing[] = [];
         for (const printings of printingsByCardId.values()) {
           const printing = printings[0];
-          if (printing?.card.name.toLowerCase().includes(lower)) {
+          // Match the colloquial Legend name too, so "Azir" finds "Emperor of
+          // the Sands" (displayed as "Azir, Emperor of the Sands").
+          if (printing && legendDisplayName(printing.card).toLowerCase().includes(lower)) {
             matches.push(printing);
           }
         }
         return matches
           .toSorted(
             (first, second) =>
-              Number(second.card.name.toLowerCase().startsWith(lower)) -
-                Number(first.card.name.toLowerCase().startsWith(lower)) ||
-              first.card.name.localeCompare(second.card.name),
+              Number(legendDisplayName(second.card).toLowerCase().startsWith(lower)) -
+                Number(legendDisplayName(first.card).toLowerCase().startsWith(lower)) ||
+              legendDisplayName(first.card).localeCompare(legendDisplayName(second.card)),
           )
           .slice(0, 8);
       }}
       getKey={(printing) => printing.cardId}
       renderItem={(printing) => (
         <>
-          <span className="truncate font-medium">{printing.card.name}</span>
+          <span className="truncate font-medium">{legendDisplayName(printing.card)}</span>
           <span className="text-muted-foreground shrink-0">
             {labels.cardTypes[printing.card.type]}
           </span>
         </>
       )}
-      onSelect={(printing) => onNameChange(printing.card.name)}
-      fillOnSelect={(printing) => printing.card.name}
+      onSelect={(printing) => onNameChange(legendDisplayName(printing.card))}
+      fillOnSelect={(printing) => legendDisplayName(printing.card)}
       onQueryChange={onNameChange}
       inputClassName="w-full"
     />
@@ -1407,12 +1409,20 @@ function FixZonesDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const { zoneLabels } = useZoneOrder();
+  const { printingsByCardId } = useCards();
   const applyZoneFixes = useApplyDeckCheckZoneFixes();
   // Every suggestion starts selected; a judge unticks any move that is
   // deliberate (e.g. a custom format that parks a card in a non-standard zone).
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(suggestions.map((suggestion) => suggestion.cardId)),
   );
+
+  // The server-stored name is the bare catalog name; show the colloquial Legend
+  // name ("Azir, Emperor of the Sands") from the catalog when we can resolve it.
+  const displayNameFor = (suggestion: DeckCheckEntryDetailResponse["zoneSuggestions"][number]) => {
+    const printing = printingsByCardId.get(suggestion.cardId)?.[0];
+    return printing ? legendDisplayName(printing.card) : suggestion.cardName;
+  };
 
   const handleApply = async () => {
     const cardIds = suggestions
@@ -1461,7 +1471,9 @@ function FixZonesDialog({
                     })
                   }
                 />
-                <span className="min-w-0 flex-1 truncate font-normal">{suggestion.cardName}</span>
+                <span className="min-w-0 flex-1 truncate font-normal">
+                  {displayNameFor(suggestion)}
+                </span>
                 <span className="text-muted-foreground shrink-0 text-sm">
                   {zoneLabels[suggestion.currentZone]} → {zoneLabels[suggestion.suggestedZone]}
                 </span>
@@ -1896,7 +1908,7 @@ function ChecklistRow({
   const [fixOpen, setFixOpen] = useState(false);
   const found = card.foundCopies[copyIndex] === true;
   const matched = printing !== undefined && card.matchStatus === "matched";
-  const name = matched ? printing.card.name : card.rawName;
+  const name = matched ? legendDisplayName(printing.card) : card.rawName;
 
   const toggle = async () => {
     // Ticking is the physical check; allowed while submitted or approved, frozen otherwise.

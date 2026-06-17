@@ -401,6 +401,7 @@ export function toCollectionEvent(row: {
   cardName: string;
   cardType: string;
   cardSuperTypes: string[];
+  tags: string[];
 }): CollectionEventResponse {
   return {
     id: row.id,
@@ -418,6 +419,7 @@ export function toCollectionEvent(row: {
     cardName: row.cardName,
     cardType: row.cardType as CollectionEventResponse["cardType"],
     cardSuperTypes: row.cardSuperTypes,
+    tags: row.tags,
   };
 }
 

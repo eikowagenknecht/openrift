@@ -24,6 +24,7 @@ function p(overrides: Partial<PackPrinting> & { id: string }): PackPrinting {
     cardSlug: overrides.id,
     cardType: "unit",
     cardSuperTypes: [],
+    tags: [],
     rarity: "common",
     finish: "normal",
     artVariant: "normal",

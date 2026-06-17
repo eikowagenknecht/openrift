@@ -1,5 +1,5 @@
 import type { Printing } from "@openrift/shared";
-import { normalizeNameForMatching } from "@openrift/shared";
+import { legendDisplayName, normalizeNameForMatching } from "@openrift/shared";
 
 interface QuickAddCardResult {
   /** The card ID shared by all printings in this group. */
@@ -58,7 +58,9 @@ export function searchCards(
     if (printings.length === 0) {
       continue;
     }
-    const cardName = printings[0].card.name;
+    // Match and display by the colloquial Legend name ("Azir, Emperor of the
+    // Sands") so typing the champion finds it; non-Legends are unchanged.
+    const cardName = legendDisplayName(printings[0].card);
     const normalizedName = normalizeNameForMatching(cardName);
 
     let rank: number;
