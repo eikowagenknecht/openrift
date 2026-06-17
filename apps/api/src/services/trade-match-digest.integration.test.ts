@@ -6,7 +6,7 @@ import { friendGroupsRepo } from "../repositories/friend-groups.js";
 import { CARD_FURY_UNIT, PRINTING_1 } from "../test/fixtures/constants.js";
 import { createDbContext } from "../test/integration-context.js";
 import type { TradeMatchDigestDeps } from "./trade-match-digest.js";
-import { sendTradeMatchDigest, TRADE_MATCH_DIGEST_DISABLED_FLAG } from "./trade-match-digest.js";
+import { sendTradeMatchDigest, TRADE_MATCH_DIGEST_FLAG } from "./trade-match-digest.js";
 
 const GIVER_ID = "a0000000-0060-4000-a000-000000000001";
 const DIGEST_ID = "a0000000-0059-4000-a000-000000000001";
@@ -231,10 +231,10 @@ describe.skipIf(!ctx)("trade match digest (integration)", () => {
     expect(sent.find((email) => email.to === DIGEST_EMAIL)).toBeUndefined();
   });
 
-  it("sends nothing when the kill-switch flag is enabled", async () => {
+  it("sends nothing when the feature flag is turned off", async () => {
     await repos.featureFlags.create({
-      key: TRADE_MATCH_DIGEST_DISABLED_FLAG,
-      enabled: true,
+      key: TRADE_MATCH_DIGEST_FLAG,
+      enabled: false,
       description: null,
     });
     try {
@@ -244,14 +244,14 @@ describe.skipIf(!ctx)("trade match digest (integration)", () => {
       expect(result).toEqual({ recipients: 0, emailsSent: 0, matches: 0 });
       expect(sent.find((email) => email.to === DIGEST_EMAIL)).toBeUndefined();
     } finally {
-      await repos.featureFlags.deleteByKey(TRADE_MATCH_DIGEST_DISABLED_FLAG);
+      await repos.featureFlags.deleteByKey(TRADE_MATCH_DIGEST_FLAG);
     }
   });
 
-  it("still sends when the flag exists but is disabled (default-on kill switch)", async () => {
+  it("still sends when the flag is on (default-on kill switch)", async () => {
     await repos.featureFlags.create({
-      key: TRADE_MATCH_DIGEST_DISABLED_FLAG,
-      enabled: false,
+      key: TRADE_MATCH_DIGEST_FLAG,
+      enabled: true,
       description: null,
     });
     try {
@@ -260,7 +260,7 @@ describe.skipIf(!ctx)("trade match digest (integration)", () => {
       await sendTradeMatchDigest(makeDeps(EPOCH, sent));
       expect(sent.find((email) => email.to === DIGEST_EMAIL)).toBeDefined();
     } finally {
-      await repos.featureFlags.deleteByKey(TRADE_MATCH_DIGEST_DISABLED_FLAG);
+      await repos.featureFlags.deleteByKey(TRADE_MATCH_DIGEST_FLAG);
     }
   });
 });

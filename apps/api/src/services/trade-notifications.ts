@@ -10,11 +10,12 @@ import type { CardTrade } from "../repositories/card-trades.js";
 type SendEmail = ReturnType<typeof createEmailSender>;
 
 /**
- * Kill switch (ADR-030). A `disable-*` flag so it's a true opt-out: absent or
- * `enabled=false` → send; toggle `enabled=true` to stop sending if a bug shows
- * up. Keep in sync with the KNOWN_FLAGS entry in the admin feature-flags page.
+ * Kill switch (ADR-030). Default on: absent (never seeded) or `enabled=true` →
+ * send; toggle the flag off to stop sending if a bug shows up. Seeded
+ * `enabled=true` in KNOWN_FLAGS so creating it doesn't change behaviour. Keep
+ * in sync with the admin feature-flags page.
  */
-export const TRADE_REQUEST_EMAIL_DISABLED_FLAG = "disable-trade-request-email";
+export const TRADE_REQUEST_EMAIL_FLAG = "trade-request-email";
 
 /** Dependencies the trade-request email needs beyond `repos` (ADR-030). */
 export interface TradeEmailDeps {
@@ -40,8 +41,9 @@ export async function sendTradeRequestEmail(
   deps: TradeEmailDeps,
 ): Promise<void> {
   try {
-    // Kill switch: stop all trade-request emails if the flag is toggled on.
-    if ((await repos.featureFlags.isEnabled(TRADE_REQUEST_EMAIL_DISABLED_FLAG)) === true) {
+    // Kill switch (default on): stop all trade-request emails only if the flag
+    // has been explicitly turned off.
+    if ((await repos.featureFlags.isEnabled(TRADE_REQUEST_EMAIL_FLAG)) === false) {
       return;
     }
 

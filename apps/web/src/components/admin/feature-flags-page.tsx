@@ -46,6 +46,13 @@ interface FlagDraft {
 interface KnownFlag {
   key: string;
   description: string;
+  /**
+   * Value to seed when an admin creates this flag from the list. Defaults to
+   * `false` (the convention for "enable to turn on" flags). Set `true` for a
+   * default-on kill switch so creating it doesn't change behaviour — turn it
+   * off to disable the feature.
+   */
+  enabled?: boolean;
 }
 
 const KNOWN_FLAGS: KnownFlag[] = [
@@ -62,12 +69,14 @@ const KNOWN_FLAGS: KnownFlag[] = [
     description: "Show the How to Play Riftbound help article",
   },
   {
-    key: "disable-trade-request-email",
-    description: "Kill switch: turn ON to stop sending instant trade-request emails (ADR-030)",
+    key: "trade-request-email",
+    description: "Instant trade-request emails (ADR-030). On by default — turn OFF to stop sending",
+    enabled: true,
   },
   {
-    key: "disable-trade-match-digest",
-    description: "Kill switch: turn ON to stop sending the daily trade match digest (ADR-030)",
+    key: "trade-match-digest",
+    description: "Daily trade match digest (ADR-030). On by default — turn OFF to stop sending",
+    enabled: true,
   },
 ];
 
@@ -217,6 +226,7 @@ function GlobalFlagsSection() {
                   createMutation.mutateAsync({
                     key: known.key,
                     description,
+                    enabled: known.enabled ?? false,
                   })
                 }
               />

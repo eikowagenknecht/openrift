@@ -7,7 +7,7 @@ import { PRINTING_1 } from "../test/fixtures/constants.js";
 import { createDbContext } from "../test/integration-context.js";
 import { createTrade } from "./card-trades.js";
 import type { TradeEmailDeps } from "./trade-notifications.js";
-import { TRADE_REQUEST_EMAIL_DISABLED_FLAG } from "./trade-notifications.js";
+import { TRADE_REQUEST_EMAIL_FLAG } from "./trade-notifications.js";
 
 const GIVER_ID = "a0000000-0057-4000-a000-000000000001";
 const RECEIVER_ID = "a0000000-0058-4000-a000-000000000001";
@@ -242,10 +242,10 @@ describe.skipIf(!ctx)("trade-request email (integration)", () => {
     expect(trade.status).toBe("pending");
   });
 
-  it("does not email when the kill-switch flag is enabled", async () => {
+  it("does not email when the feature flag is turned off", async () => {
     await repos.featureFlags.create({
-      key: TRADE_REQUEST_EMAIL_DISABLED_FLAG,
-      enabled: true,
+      key: TRADE_REQUEST_EMAIL_FLAG,
+      enabled: false,
       description: null,
     });
     try {
@@ -255,14 +255,14 @@ describe.skipIf(!ctx)("trade-request email (integration)", () => {
       expect(trade.status).toBe("pending");
       expect(sent).toHaveLength(0);
     } finally {
-      await repos.featureFlags.deleteByKey(TRADE_REQUEST_EMAIL_DISABLED_FLAG);
+      await repos.featureFlags.deleteByKey(TRADE_REQUEST_EMAIL_FLAG);
     }
   });
 
-  it("still emails when the flag exists but is disabled (default-on kill switch)", async () => {
+  it("still emails when the flag is on (default-on kill switch)", async () => {
     await repos.featureFlags.create({
-      key: TRADE_REQUEST_EMAIL_DISABLED_FLAG,
-      enabled: false,
+      key: TRADE_REQUEST_EMAIL_FLAG,
+      enabled: true,
       description: null,
     });
     try {
@@ -271,7 +271,7 @@ describe.skipIf(!ctx)("trade-request email (integration)", () => {
       await requestAsReceiver(group, deps);
       expect(sent).toHaveLength(1);
     } finally {
-      await repos.featureFlags.deleteByKey(TRADE_REQUEST_EMAIL_DISABLED_FLAG);
+      await repos.featureFlags.deleteByKey(TRADE_REQUEST_EMAIL_FLAG);
     }
   });
 });
