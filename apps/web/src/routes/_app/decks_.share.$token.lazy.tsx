@@ -26,12 +26,12 @@ import { useDeckItems } from "@/hooks/use-deck-items";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useCloneSharedDeck, usePublicDeck } from "@/hooks/use-decks";
 import { useDeckFormatList } from "@/hooks/use-enums";
+import { useHeaderHeight } from "@/hooks/use-header-height";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
-import { getHeaderHeight } from "@/lib/header-height";
 import type { FilterSearch } from "@/lib/search-schemas";
 import { FilterSearchProvider } from "@/lib/search-schemas";
 import { CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
@@ -103,6 +103,7 @@ function SharedDeckContent({
   const marketplace = marketplaceOrder[0] ?? "cardtrader";
   const isMobile = useIsMobile();
   const hydrated = useHydrated();
+  const headerHeight = useHeaderHeight();
   const showImages = useDisplayStore((state) => state.showImages);
   const detailOpen = useSelectionStore((state) => state.detailOpen);
   const { labels: formatLabels } = useDeckFormatList();
@@ -208,7 +209,7 @@ function SharedDeckContent({
 
       <div
         className="@container flex items-stretch gap-6"
-        style={{ "--sticky-top": `${getHeaderHeight() + topBarHeight}px` } as React.CSSProperties}
+        style={{ "--sticky-top": `${headerHeight + topBarHeight}px` } as React.CSSProperties}
       >
         <div className="min-w-0 flex-1">
           <DeckOverview

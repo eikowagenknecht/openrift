@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/select";
 import { useCreateDeck, useDecks } from "@/hooks/use-decks";
 import { useDeckFormatList, useEnumOrders } from "@/hooks/use-enums";
+import { useHeaderHeight } from "@/hooks/use-header-height";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckListItemWithNames } from "@/lib/deck-list-utils";
 import {
@@ -51,7 +52,6 @@ import {
   partitionByArchived,
   sortDecks,
 } from "@/lib/deck-list-utils";
-import { getHeaderHeight } from "@/lib/header-height";
 import { cn, CONTAINER_WIDTH, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 import { useDeckListPrefsStore } from "@/stores/deck-list-prefs-store";
 
@@ -179,7 +179,7 @@ export function DeckListPage() {
   // add its height to the header height, mirroring CardBrowserLayout's offset.
   const [titleSlot, setTitleSlot] = useState<HTMLDivElement | null>(null);
   const titleHeight = useMeasuredHeight(titleSlot);
-  const toolbarOffset = getHeaderHeight() + titleHeight;
+  const toolbarOffset = useHeaderHeight() + titleHeight;
 
   const search = useDeckListPrefsStore((state) => state.search);
   const sortField = useDeckListPrefsStore((state) => state.sortField);

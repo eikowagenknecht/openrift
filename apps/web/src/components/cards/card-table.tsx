@@ -5,9 +5,9 @@ import { Fragment, cloneElement, memo, useEffect, useLayoutEffect, useRef, useSt
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import { Button } from "@/components/ui/button";
 import { useEnumOrders } from "@/hooks/use-enums";
+import { useHeaderHeight } from "@/hooks/use-header-height";
 import { buildGroups } from "@/lib/card-groups";
 import type { CardGroup } from "@/lib/card-groups";
-import { getHeaderHeight } from "@/lib/header-height";
 import { useWindowVirtualizerFresh } from "@/lib/virtualizer-fresh";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 
@@ -179,13 +179,18 @@ export function CardTable({
   groupBy = "set",
   groupDir = "asc",
   selectedItemId,
-  stickyOffset = getHeaderHeight(),
+  stickyOffset: stickyOffsetProp,
   actionsColumn,
   actionsCell,
   actionsLabel,
   rowWrapper,
 }: CardTableProps) {
   const { orders, labels } = useEnumOrders();
+  // Resolve the sticky offset in the body (not as a default param) so the live
+  // header measurement settles after hydration instead of mismatching the SSR
+  // markup. See useHeaderHeight.
+  const headerHeight = useHeaderHeight();
+  const stickyOffset = stickyOffsetProp ?? headerHeight;
 
   const containerRef = useRef<HTMLDivElement>(null);
 

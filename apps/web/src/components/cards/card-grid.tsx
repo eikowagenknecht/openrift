@@ -5,10 +5,10 @@ import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState } from "re
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { useAdminSettings } from "@/hooks/use-admin-settings";
 import { useEnumOrders } from "@/hooks/use-enums";
+import { useHeaderHeight } from "@/hooks/use-header-height";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 import { buildGroups } from "@/lib/card-groups";
 import type { CardGroup } from "@/lib/card-groups";
-import { getHeaderHeight } from "@/lib/header-height";
 import { cn } from "@/lib/utils";
 import { useWindowVirtualizerFresh } from "@/lib/virtualizer-fresh";
 import { useDisplayStore } from "@/stores/display-store";
@@ -230,9 +230,14 @@ export function CardGrid({
   groupDir = "asc",
   selectedItemId,
   addStripHeight = 0,
-  stickyOffset = getHeaderHeight(),
+  stickyOffset: stickyOffsetProp,
 }: CardGridProps) {
   const { orders, labels } = useEnumOrders();
+  // Resolve the sticky offset in the body (not as a default param) so the live
+  // header measurement settles after hydration instead of mismatching the SSR
+  // markup. See useHeaderHeight.
+  const headerHeight = useHeaderHeight();
+  const stickyOffset = stickyOffsetProp ?? headerHeight;
 
   const maxColumns = useDisplayStore((s) => s.maxColumns);
   const setPhysicalMax = useDisplayStore((s) => s.setPhysicalMax);

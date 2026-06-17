@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { createContext, use, useLayoutEffect, useRef, useState } from "react";
 
 import { PageTopBarHeightContext } from "@/components/layout/page-top-bar";
-import { getHeaderHeight } from "@/lib/header-height";
+import { useHeaderHeight } from "@/hooks/use-header-height";
 import { cn } from "@/lib/utils";
 
 interface CardBrowserLayoutOffsets {
@@ -95,7 +95,7 @@ export function CardBrowserLayout({
     return () => observer.disconnect();
   }, []);
 
-  const headerOffset = getHeaderHeight() + pageTopBarHeight;
+  const headerOffset = useHeaderHeight() + pageTopBarHeight;
   const toolbarOffset = headerOffset + toolbarHeight;
   const stickyOffset = toolbarOffset + aboveGridHeight;
 

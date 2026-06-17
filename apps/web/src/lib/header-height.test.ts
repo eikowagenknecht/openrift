@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { getHeaderHeight } from "./header-height";
+import { getHeaderHeight, SSR_HEADER_HEIGHT } from "./header-height";
 
 // jsdom always defines `window`, so the SSR (`window === undefined`) branch is
 // not exercised here; it is covered by the static fallback constant. These
@@ -24,10 +24,14 @@ describe("getHeaderHeight", () => {
     expect(getHeaderHeight()).toBe(116);
   });
 
+  it("exposes the SSR fallback as a shared constant", () => {
+    expect(SSR_HEADER_HEIGHT).toBe(57);
+  });
+
   it("falls back to the --header-height CSS variable when no header is mounted", () => {
     document.documentElement.style.setProperty("--header-height", "57px");
 
-    expect(getHeaderHeight()).toBe(57);
+    expect(getHeaderHeight()).toBe(SSR_HEADER_HEIGHT);
   });
 
   it("falls back to 57 when the variable is unset or non-numeric", () => {
@@ -38,6 +42,6 @@ describe("getHeaderHeight", () => {
       "calc(57px + env(safe-area-inset-top, 0px))",
     );
 
-    expect(getHeaderHeight()).toBe(57);
+    expect(getHeaderHeight()).toBe(SSR_HEADER_HEIGHT);
   });
 });

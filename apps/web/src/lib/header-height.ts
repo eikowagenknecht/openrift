@@ -1,4 +1,13 @@
 /**
+ * The header's chrome height (57px content + border) without any safe-area
+ * inset. This is the value emitted during SSR and on the first client render,
+ * so render-time sticky offsets agree across hydration. Notched iOS devices
+ * grow the header beyond this; `useHeaderHeight()` upgrades to the measured
+ * value after mount.
+ */
+export const SSR_HEADER_HEIGHT = 57;
+
+/**
  * Site header height in pixels. Includes the header's 1px bottom border, so
  * callers can use it directly as a sticky-top offset.
  *
@@ -15,12 +24,12 @@
  */
 export function getHeaderHeight(): number {
   if (globalThis.window === undefined) {
-    return 57;
+    return SSR_HEADER_HEIGHT;
   }
   const header = document.querySelector("header[data-app-header]");
   if (header) {
     return header.getBoundingClientRect().height;
   }
   const value = getComputedStyle(document.documentElement).getPropertyValue("--header-height");
-  return Number.parseFloat(value) || 57;
+  return Number.parseFloat(value) || SSR_HEADER_HEIGHT;
 }

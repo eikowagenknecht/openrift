@@ -75,6 +75,7 @@ import { useDeckOwnership } from "@/hooks/use-deck-ownership";
 import { deckPlanQueryOptions } from "@/hooks/use-deck-plan";
 import { useDeckDetail, useExportDeck, useUpdateDeck } from "@/hooks/use-decks";
 import { useDeckFormatList } from "@/hooks/use-enums";
+import { useHeaderHeight } from "@/hooks/use-header-height";
 import { useDeckBuildingCounts } from "@/hooks/use-owned-count";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useRequiredUserId, useSession } from "@/lib/auth-session";
@@ -83,7 +84,6 @@ import { toDeckBuilderCard } from "@/lib/deck-builder-card";
 import { hydrateDeckDraft, useDeckSaveStatus } from "@/lib/deck-builder-collection";
 import { isPlanDraftEmpty, planResponseToDraft } from "@/lib/deck-plan";
 import { ZONE_LABELS } from "@/lib/deck-zone-labels";
-import { getHeaderHeight } from "@/lib/header-height";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
@@ -264,6 +264,7 @@ function DeckEditorContent({
   const showImages = useDisplayStore((state) => state.showImages);
   const detailOpen = useSelectionStore((state) => state.detailOpen);
   const topBarHeight = use(PageTopBarHeightContext);
+  const headerHeight = useHeaderHeight();
 
   // Switching between overview and zone mode swaps the items array under the
   // detail pane (deck items vs catalog items), so clear the selection at the
@@ -657,7 +658,7 @@ function DeckEditorContent({
               className="@container flex flex-1 items-stretch gap-6"
               style={
                 {
-                  "--sticky-top": `${getHeaderHeight() + topBarHeight}px`,
+                  "--sticky-top": `${headerHeight + topBarHeight}px`,
                 } as React.CSSProperties
               }
             >
