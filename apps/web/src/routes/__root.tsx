@@ -100,8 +100,17 @@ export const Route = createRootRouteWithContext<{
       meta: [
         { title: "OpenRift — Riftbound Card Collection Browser" },
         { charSet: "utf-8" },
-        { name: "viewport", content: "width=device-width, initial-scale=1" },
+        // viewport-fit=cover lets the app draw into the iOS safe areas (behind
+        // the Dynamic Island / notch and rounded corners) so the header's blur
+        // can extend up there instead of iOS painting a solid theme-color band.
+        // The insets are then reclaimed via env(safe-area-inset-*) in index.css
+        // and on the sticky header.
+        { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
         { name: "theme-color", content: "#1d1538" },
+        // Standalone iOS PWA: draw web content under a translucent status bar so
+        // the safe-area handling above takes effect instead of an opaque strip.
+        { name: "apple-mobile-web-app-capable", content: "yes" },
+        { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
         { name: "impact-site-verification", content: "5a360cf2-9e98-4886-8c05-4e2e1a39ce0e" },
         // Preview deploys must never be indexed. Layer 1 of 3 (see also
         // /robots.txt in server.ts and X-Robots-Tag in preview nginx).

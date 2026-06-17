@@ -48,7 +48,7 @@ export function useMeasuredHeight(el: HTMLElement | null) {
  * border, so the bar lands flush below it.
  */
 export const PAGE_TOP_BAR_STICKY =
-  "bg-background/80 sticky top-(--header-height) z-30 px-3 py-3 backdrop-blur-lg";
+  "bg-background/80 sticky top-(--header-height) z-30 px-safe py-3 backdrop-blur-lg";
 
 const STICKY_MAX_WIDTH = {
   md: "max-w-md",
@@ -85,7 +85,7 @@ export function PageTopBarSticky({
     // the sticky layer instead would shift the bar 12px left of the column.
     <div className={cn(PAGE_TOP_BAR_STICKY, maxWidth && "px-0", className)} {...props}>
       {maxWidth ? (
-        <div className={cn("mx-auto w-full px-3", STICKY_MAX_WIDTH[maxWidth])}>{children}</div>
+        <div className={cn("px-safe mx-auto w-full", STICKY_MAX_WIDTH[maxWidth])}>{children}</div>
       ) : (
         children
       )}

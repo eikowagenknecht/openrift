@@ -649,9 +649,12 @@ export function Header() {
     (tradeActionCounts?.total ?? 0);
 
   return (
-    <header className="bg-background/80 border-border-accent sticky top-0 z-50 border-b backdrop-blur-lg">
+    <header
+      data-app-header
+      className="bg-background/80 border-border-accent sticky top-0 z-50 border-b pt-[env(safe-area-inset-top)] backdrop-blur-lg"
+    >
       <div
-        className={`${CONTAINER_WIDTH} grid h-14 grid-cols-[1fr_auto_1fr] items-center px-3 md:grid-cols-[1fr_auto]`}
+        className={`${CONTAINER_WIDTH} px-safe grid h-14 grid-cols-[1fr_auto_1fr] items-center md:grid-cols-[1fr_auto]`}
       >
         {/* Left: Hamburger on mobile */}
         <div className="flex items-center gap-1 md:hidden">

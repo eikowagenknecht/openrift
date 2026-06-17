@@ -274,7 +274,7 @@ export function DeckListPage() {
             // gives the sticky band a clean bottom — unlike card-browser
             // surfaces, the filters live inside this toolbar, not a separate
             // aboveGrid strip, so the band must pad its own bottom.
-            className="bg-background/80 sticky z-20 -mx-3 px-3 pb-3 backdrop-blur-lg sm:rounded-b-xl"
+            className="bg-background/80 mx-safe-neg px-safe sticky z-20 pb-3 backdrop-blur-lg sm:rounded-b-xl"
             style={{ top: toolbarOffset }}
           >
             <DeckListToolbar

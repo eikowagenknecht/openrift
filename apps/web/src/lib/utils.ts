@@ -13,8 +13,13 @@ export function cn(...inputs: ClassValue[]) {
 export const CONTAINER_WIDTH =
   "w-full mx-auto max-w-7xl wide:max-w-(--container-max-wide) xwide:max-w-(--container-max-xwide) xxwide:max-w-(--container-max-xxwide)";
 
-/** Horizontal page padding — shared axis constant for one-off compositions. */
-const PAGE_X = "px-3";
+/**
+ * Horizontal page padding — shared axis constant for one-off compositions.
+ * `px-safe` keeps the normal 0.75rem gutter but grows to clear the iOS safe
+ * areas (Dynamic Island / rounded corners intruding from the sides in
+ * landscape); resolves to plain 0.75rem on every non-notched device.
+ */
+const PAGE_X = "px-safe";
 
 /** Standard page padding applied by leaf routes that want the default inset. */
 export const PAGE_PADDING = `${PAGE_X} py-3`;
@@ -22,8 +27,8 @@ export const PAGE_PADDING = `${PAGE_X} py-3`;
 /** Page padding without top — for pages whose sticky toolbar already provides top spacing. */
 export const PAGE_PADDING_NO_TOP = `${PAGE_X} pb-3`;
 
-/** Footer padding — horizontal + bottom only. */
-export const FOOTER_PADDING_NO_TOP = `${PAGE_X} pb-3`;
+/** Footer padding — horizontal + bottom only. `pb-safe` clears the iOS home indicator. */
+export const FOOTER_PADDING_NO_TOP = `${PAGE_X} pb-safe`;
 
 /**
  * Capitalises the first character of a single word (e.g. "regions" → "Regions").

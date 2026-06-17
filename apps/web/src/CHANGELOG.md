@@ -11,6 +11,7 @@
 ### Other
 
 - feat(App): **Cleaner What's new page** — release notes now lead with a short bold summary, group the big changes as highlights with the rest tucked behind a toggle, and tag each entry with its area
+- fix(App): **iOS Home Screen safe areas** — when the app is added to the Home Screen on iPhone, the area behind the status bar and Dynamic Island no longer shows a solid band; the header's blur now carries up behind it, and in landscape the content stays clear of the island and the rounded corners
 - fix(Cards): **Printing-specific link previews** — sharing a link to a specific printing now shows that printing's art in the preview instead of always falling back to the card's default printing
 - fix(Tournaments): **No re-flag after a flagged issue** — a deck-check entry already submitted with an issue flagged no longer shows the "Request changes" button, which would have just re-flagged the same issue
 

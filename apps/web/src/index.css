@@ -290,8 +290,12 @@ html.hide-scrollbar::-webkit-scrollbar {
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1rem;
   /* Full header height including the 1px border-b. Single source of truth —
-     read in JS via lib/header-height.ts, used in CSS for sticky offsets. */
-  --header-height: 57px;
+     used in CSS for sticky offsets. On iOS standalone PWAs the header also
+     carries the top safe-area inset (it pads its blur up behind the Dynamic
+     Island), so the inset is folded in here; it resolves to 0 everywhere else.
+     JS reads the live header height via lib/header-height.ts (this calc string
+     does not resolve through getComputedStyle on an unregistered property). */
+  --header-height: calc(57px + env(safe-area-inset-top, 0px));
   --sticky-top: calc(var(--header-height) + 1rem);
   --breakpoint-wide: 107.5rem;
   --container-max-wide: 107.5rem;
@@ -526,4 +530,29 @@ html.hide-scrollbar::-webkit-scrollbar {
     font-size: inherit;
     padding-inline: 0.4em;
   }
+}
+
+/* Horizontal page inset that clears the iOS safe areas. In landscape the
+   Dynamic Island and rounded corners intrude from the sides, so edge content
+   must clear env(safe-area-inset-left/right); max() keeps the normal 0.75rem
+   gutter in portrait and on every non-notched device (insets resolve to 0).
+   Apply to inner content containers so a parent's background/blur still bleeds
+   to the physical edge while its content stays clear. */
+@utility px-safe {
+  padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+}
+
+/* Bottom inset that clears the iOS home indicator, with the same max() floor. */
+@utility pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+}
+
+/* Negative horizontal margin that exactly cancels a `px-safe` parent gutter, so
+   a full-bleed background (sticky toolbar blur) reaches the physical edge. Pair
+   with `px-safe` to re-inset the content. Matches `-mx-3` on non-notched
+   devices. */
+@utility mx-safe-neg {
+  margin-left: calc(-1 * max(0.75rem, env(safe-area-inset-left, 0px)));
+  margin-right: calc(-1 * max(0.75rem, env(safe-area-inset-right, 0px)));
 }
