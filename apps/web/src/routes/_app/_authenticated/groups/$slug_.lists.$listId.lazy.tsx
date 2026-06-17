@@ -1,9 +1,11 @@
 import type { PublicListDetailResponse } from "@openrift/shared";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 
+import type { TradelistRequestContext } from "@/components/friend-groups/request-from-tradelist-dialog";
 import { TopBarBreadcrumbTrail } from "@/components/layout/top-bar-breadcrumb";
 import { SharedListContent } from "@/components/list/shared-list-content";
 import { useFriendGroupDetail, useFriendGroupSharedList } from "@/hooks/use-friend-groups";
+import { useRequiredUserId } from "@/lib/auth-session";
 import { FilterSearchProvider } from "@/lib/search-schemas";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/groups/$slug_/lists/$listId")({
@@ -12,10 +14,24 @@ export const Route = createLazyFileRoute("/_app/_authenticated/groups/$slug_/lis
 
 function SharedListRoute() {
   const { slug, listId } = Route.useParams();
+  const viewerId = useRequiredUserId();
   const { data } = useFriendGroupSharedList(slug, listId);
   const { data: groupDetail } = useFriendGroupDetail(slug);
   const search = Route.useSearch();
   const { fromUser } = search;
+
+  // "I want this" is only meaningful on someone else's tradelist: requesting a
+  // card means matching your wishlist against their copies. Offered from the
+  // owner's own list, or on a wish/organize list, it makes no sense.
+  const trade: TradelistRequestContext | undefined =
+    data.list.intent === "trade" && data.list.ownerUserId !== viewerId
+      ? {
+          groupSlug: slug,
+          groupName: groupDetail.group.name,
+          counterpartyUserId: data.list.ownerUserId,
+          counterpartyName: data.list.ownerName ?? "this member",
+        }
+      : undefined;
 
   // The friend-group endpoint omits createdAt/updatedAt on the list and nests
   // the owner inside `list`; the shared browser expects the public-share
@@ -67,7 +83,7 @@ function SharedListRoute() {
 
   return (
     <FilterSearchProvider value={search}>
-      <SharedListContent data={publicShape} backLink={backLink} />
+      <SharedListContent data={publicShape} backLink={backLink} trade={trade} />
     </FilterSearchProvider>
   );
 }

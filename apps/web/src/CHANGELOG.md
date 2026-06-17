@@ -6,6 +6,8 @@
 
 ## 2026-06-16
 
+- feat: While browsing a group member's tradelist, each card now has a Want button: tap it to ask for that card. You pick which wishlist it goes on (or create one on the spot), confirm before that list is shared with the group, and the request is sent in one step
+- feat: The group Trades page reads more clearly — your active trades sit at the top, completed ones collapse out of the way, possible trades stand apart as outlined cards, and a trade you've sent now says who you're waiting on instead of just "Pending"
 - feat: Removing cards from a collection now warns you when those cards are also on one of your lists, names the lists they'll drop off, and asks you to confirm. That way deleting them in one place can't quietly strip them from another
 - feat: Removing a large batch of cards now asks you to type the number to confirm, so a stray tap can't wipe out a big selection
 - feat: Legends now show their champion name first, like "Azir, Emperor of the Sands", everywhere they appear (card lists, tables, deck zones, the card detail page, the pack opener, your activity feed, and the buy list), and the card search boxes (Quick Add, deck plans, deck checker, import) find a Legend whether you type the champion or the card's own name

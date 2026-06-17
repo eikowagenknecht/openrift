@@ -1,10 +1,9 @@
 import type { CardTradeResponse } from "@openrift/shared";
-import { ArrowDownLeftIcon, ArrowUpRightIcon } from "lucide-react";
+import { ChevronDownIcon } from "lucide-react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { UserAvatar } from "@/components/user-avatar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   useAcceptTrade,
   useApplyTradeSync,
@@ -15,11 +14,18 @@ import {
   useSkipTradeSync,
 } from "@/hooks/use-card-trades";
 import { useCards } from "@/hooks/use-cards";
-import { tradeSection, tradeStatusLabel } from "@/lib/trade-derivation";
+import { useEnumOrders } from "@/hooks/use-enums";
+import { tradeSection } from "@/lib/trade-derivation";
 import { cn } from "@/lib/utils";
 import { useTradeActionStore } from "@/stores/trade-action-store";
 
 import { SECTION_HEADING } from "./friend-group-shell";
+import {
+  CardMetaLine,
+  CounterpartyChip,
+  TradeDirectionIcon,
+  TradeStatusBadge,
+} from "./trade-row-parts";
 
 /**
  * One trade as a wide row with a contextual action set.
@@ -27,6 +33,7 @@ import { SECTION_HEADING } from "./friend-group-shell";
  */
 function TradeRow({ trade }: { trade: CardTradeResponse }) {
   const { cardsById, printingsById } = useCards();
+  const { labels } = useEnumOrders();
   const acting = useTradeActionStore((state) => state.pending.has(trade.id));
   const begin = useTradeActionStore((state) => state.begin);
   const settle = useTradeActionStore((state) => state.settle);
@@ -44,8 +51,11 @@ function TradeRow({ trade }: { trade: CardTradeResponse }) {
   const imageId = printing?.images.find((image) => image.face === "front")?.imageId ?? null;
 
   const incoming = trade.role === "receiver";
-  const DirectionIcon = incoming ? ArrowDownLeftIcon : ArrowUpRightIcon;
-  const counterpartyName = trade.counterparty.nickname ?? trade.counterparty.name ?? "Member";
+  // A pending trade awaiting the viewer's accept/decline is "Your decision", not
+  // "Waiting for them". Only the "Waiting for {name}" badge names the member, so
+  // the chip drops its name there to avoid printing it twice in a row.
+  const awaitingViewer = trade.actionNeeded === "accept-or-decline";
+  const badgeNamesCounterparty = trade.status === "pending" && !awaitingViewer;
 
   function run<TVariables>(
     mutation: { mutate: (variables: TVariables, options?: { onSettled?: () => void }) => void },
@@ -59,18 +69,7 @@ function TradeRow({ trade }: { trade: CardTradeResponse }) {
 
   return (
     <div className="bg-card flex items-center gap-3 rounded-md border p-2">
-      <span
-        className={cn(
-          "flex size-7 shrink-0 items-center justify-center rounded-full",
-          incoming
-            ? "bg-green-500/10 text-green-600 dark:text-green-500"
-            : "bg-amber-500/10 text-amber-600 dark:text-amber-500",
-        )}
-        title={incoming ? "Comes to you" : "Goes to them"}
-        aria-label={incoming ? "Comes to you" : "Goes to them"}
-      >
-        <DirectionIcon className="size-4" />
-      </span>
+      <TradeDirectionIcon incoming={incoming} />
 
       <CardArtThumb imageId={imageId} alt={cardName} className="w-10" loading="lazy" />
 
@@ -78,21 +77,31 @@ function TradeRow({ trade }: { trade: CardTradeResponse }) {
         <span className="truncate font-medium">
           {trade.quantity}× {cardName}
         </span>
-        <span className="text-muted-foreground text-xs">
-          {incoming ? "From" : "To"} {counterpartyName}
-        </span>
+        {printing ? (
+          <CardMetaLine
+            shortCode={printing.shortCode}
+            rarity={printing.rarity}
+            rarityLabel={labels.rarities[printing.rarity]}
+            finish={printing.finish}
+            finishLabel={labels.finishes[printing.finish]}
+          />
+        ) : null}
       </div>
 
-      <UserAvatar
-        image={trade.counterparty.image}
+      <CounterpartyChip
+        groupSlug={trade.groupSlug}
+        userId={trade.counterparty.userId}
         name={trade.counterparty.name}
+        image={trade.counterparty.image}
         gravatarHash={trade.counterparty.gravatarHash}
-        size="sm"
+        hideName={badgeNamesCounterparty}
       />
 
-      <Badge variant="secondary" className="shrink-0">
-        {tradeStatusLabel(trade.status)}
-      </Badge>
+      <TradeStatusBadge
+        status={trade.status}
+        counterpartyName={trade.counterparty.name}
+        awaitingViewer={awaitingViewer}
+      />
 
       <div className="flex shrink-0 items-center gap-1.5">
         {trade.actionNeeded === "accept-or-decline" ? (
@@ -174,27 +183,71 @@ function TradeGroup({ heading, trades }: { heading: string; trades: CardTradeRes
   );
 }
 
+/**
+ * Completed trades, collapsed by default behind a clickable heading. History
+ * accrues and rarely needs acting on, so it stays out of the way until the
+ * viewer expands it.
+ * @returns The collapsible completed group, or null when empty.
+ */
+function CompletedTradeGroup({ trades }: { trades: CardTradeResponse[] }) {
+  if (trades.length === 0) {
+    return null;
+  }
+  return (
+    <Collapsible defaultOpen={false} className="flex flex-col gap-3">
+      <h3>
+        <CollapsibleTrigger
+          className={cn(
+            SECTION_HEADING,
+            "hover:text-foreground flex w-full items-center gap-2 text-left transition-colors",
+          )}
+        >
+          <ChevronDownIcon className="size-4 shrink-0 transition-transform data-[panel-open]:rotate-180" />
+          Completed
+          <span className="text-xs">({trades.length})</span>
+        </CollapsibleTrigger>
+      </h3>
+      <CollapsibleContent>
+        <div className="flex flex-col gap-2">
+          {trades.map((trade) => (
+            <TradeRow key={trade.id} trade={trade} />
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 interface TradesSectionProps {
   groupId: string;
+  /**
+   * The "Possible trades" suggestions block, injected between the active trade
+   * buckets (In progress / Action needed) and Completed so the page reads
+   * In progress → Action needed → Possible trades → Completed.
+   */
+  suggestions: React.ReactNode;
 }
 
 /**
- * The viewer's trades in this group, bucketed into Action needed / In progress /
- * Completed. Rendered below the Possible trades section on the Trades page, so
- * the empty-state copy can point the viewer back up to the suggestions.
+ * The viewer's trades in this group, bucketed into In progress / Action needed /
+ * Completed, with the Possible trades suggestions slotted in just above
+ * Completed. The active work the viewer can act on stays at the top.
  * @returns The trades content.
  */
-export function TradesSection({ groupId }: TradesSectionProps) {
+export function TradesSection({ groupId, suggestions }: TradesSectionProps) {
   const { data } = useGroupTrades(groupId);
 
   const trades = data?.items ?? [];
 
   if (trades.length === 0) {
     return (
-      <p className="text-muted-foreground">
-        No trades in this group yet. When you request one of the suggestions above, it&apos;ll show
-        up here.
-      </p>
+      <div className="flex flex-col gap-8">
+        {suggestions}
+        <p className="text-muted-foreground">
+          No trades in this group yet. When you request one of the suggestions above, it&apos;ll
+          show up here.
+        </p>
+      </div>
     );
   }
 
@@ -204,9 +257,10 @@ export function TradesSection({ groupId }: TradesSectionProps) {
 
   return (
     <div className="flex flex-col gap-8">
-      <TradeGroup heading="Action needed" trades={actionNeeded} />
       <TradeGroup heading="In progress" trades={active} />
-      <TradeGroup heading="Completed" trades={history} />
+      <TradeGroup heading="Action needed" trades={actionNeeded} />
+      {suggestions}
+      <CompletedTradeGroup trades={history} />
     </div>
   );
 }

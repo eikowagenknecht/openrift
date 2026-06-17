@@ -17,9 +17,10 @@ import { MatchTradeList } from "./match-row-card";
 import { TradesSection } from "./trades-section";
 
 /**
- * The Trades page: suggested trades (matches) up top, then the viewer's own
- * trades in this group bucketed into Action needed / Active / History.
- * @returns The trades-page content.
+ * The Trades page, ordered In progress → Action needed → Possible trades →
+ * Completed: the viewer's active trades sit at the top, the match suggestions
+ * are slotted in above Completed by {@link TradesSection}.
+ * @returns the trades-page content.
  */
 export function TradesPageContent({
   slug,
@@ -29,10 +30,10 @@ export function TradesPageContent({
   data: FriendGroupDetailResponse;
 }) {
   return (
-    <div className="flex flex-col gap-8">
-      <SuggestedSection slug={slug} data={data} />
-      <TradesSection groupId={data.group.id} />
-    </div>
+    <TradesSection
+      groupId={data.group.id}
+      suggestions={<SuggestedSection slug={slug} data={data} />}
+    />
   );
 }
 

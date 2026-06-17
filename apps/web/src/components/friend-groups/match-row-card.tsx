@@ -6,16 +6,12 @@ import type {
   MarketplaceInfo,
 } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
-import { Link } from "@tanstack/react-router";
-import { ArrowDownLeftIcon, ArrowUpRightIcon, ChevronDownIcon } from "lucide-react";
+import { ChevronDownIcon } from "lucide-react";
 import { useState } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
-import { FinishIcon } from "@/components/cards/finish-icon";
 import { MatchPreferenceCell } from "@/components/trade-preferences/match-preference-cell";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { UserAvatar } from "@/components/user-avatar";
 import {
   useAcceptTrade,
   useCreateTrade,
@@ -25,13 +21,18 @@ import {
 import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useMarketplaceInfo } from "@/hooks/use-marketplace-info";
-import { getFilterIconPath } from "@/lib/icons";
 import type { MatchDirection } from "@/lib/trade-derivation";
 import { matchSuggestionKey } from "@/lib/trade-derivation";
 import { cn } from "@/lib/utils";
 import { useMatchVariantsFoldStore } from "@/stores/match-variants-fold-store";
 
 import { RequestTradeDialog } from "./request-trade-dialog";
+import {
+  CardMetaLine,
+  CounterpartyChip,
+  TradeDirectionIcon,
+  TradeStatusBadge,
+} from "./trade-row-parts";
 
 /**
  * Key into the live-trade lookup: the other member + the exact printing.
@@ -83,11 +84,7 @@ function MatchRowTradeAction({
       );
     }
     // Your own pending request awaiting them, or a reserved trade.
-    return (
-      <Badge variant="secondary" className="shrink-0">
-        {liveTrade.status === "reserved" ? "Reserved" : "Pending"}
-      </Badge>
-    );
+    return <TradeStatusBadge status={liveTrade.status} counterpartyName={match.counterpartyName} />;
   }
 
   const incoming = match.direction === "incoming";
@@ -96,7 +93,6 @@ function MatchRowTradeAction({
   return (
     <>
       <Button
-        variant="outline"
         size="sm"
         className="shrink-0"
         disabled={createTrade.isPending || match.availableCount <= 0}
@@ -185,29 +181,21 @@ function resolveMatchRows(
 }
 
 /**
- * The compact metadata line for a match row: shortcode, rarity icon, finish icon,
- * and the available count. The shortcode already encodes the set, so the set
- * name is dropped; rarity and finish render as icons rather than words.
+ * The compact metadata line for a match row: the shared card-detail line plus
+ * the available count. The shortcode already encodes the set, so the set name
+ * is dropped; rarity and finish render as icons rather than words.
  * @returns The metadata line element.
  */
 function MatchRowMeta({ match }: { match: AggregatedMatch }) {
-  const rarityIcon = getFilterIconPath("rarities", match.rarity);
   return (
-    <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-      <span className="font-medium">{match.shortCode}</span>
-      {rarityIcon ? (
-        <img
-          src={rarityIcon}
-          alt={match.rarityLabel}
-          title={match.rarityLabel}
-          width={28}
-          height={28}
-          className="size-3.5"
-        />
-      ) : null}
-      <FinishIcon finish={match.finish} title={match.finishLabel} />
-      <span>· ×{match.availableCount} available</span>
-    </span>
+    <CardMetaLine
+      shortCode={match.shortCode}
+      rarity={match.rarity}
+      rarityLabel={match.rarityLabel}
+      finish={match.finish}
+      finishLabel={match.finishLabel}
+      trailing={<span>· ×{match.availableCount} available</span>}
+    />
   );
 }
 
@@ -277,7 +265,6 @@ function MatchRow({
   liveTrade?: CardTradeResponse;
 }) {
   const incoming = match.direction === "incoming";
-  const DirectionIcon = incoming ? ArrowDownLeftIcon : ArrowUpRightIcon;
   // sellPref is always the seller's side, buyPref the buyer's. When the card
   // comes to you the counterparty is the seller (sellPref = their ask); when it
   // goes to them they're the buyer (buyPref = their offer).
@@ -289,19 +276,11 @@ function MatchRow({
     counterpartyPref.pricePref !== null || counterpartyPref.tradeType !== null;
 
   return (
-    <div className="bg-card hover:bg-muted flex items-center gap-3 rounded-md border p-2 transition-colors">
-      <span
-        className={cn(
-          "flex size-7 shrink-0 items-center justify-center rounded-full",
-          incoming
-            ? "bg-green-500/10 text-green-600 dark:text-green-500"
-            : "bg-amber-500/10 text-amber-600 dark:text-amber-500",
-        )}
-        title={incoming ? "Comes to you" : "Goes to them"}
-        aria-label={incoming ? "Comes to you" : "Goes to them"}
-      >
-        <DirectionIcon className="size-4" />
-      </span>
+    // A suggestion (an opportunity), not a started trade: dashed border + no
+    // resting fill (an outlined slot that fills on hover), versus the solid,
+    // filled bg-card rows of trades the viewer has actually started.
+    <div className="hover:bg-muted flex items-center gap-3 rounded-md border border-dashed p-2 transition-colors">
+      <TradeDirectionIcon incoming={incoming} />
 
       <CardArtThumb imageId={match.imageId} alt={match.cardName} className="w-10" loading="lazy" />
 
@@ -327,19 +306,18 @@ function MatchRow({
       ) : null}
 
       {showCounterparty ? (
-        <Link
-          to="/groups/$slug/members/$userId"
-          params={{ slug: groupSlug, userId: match.counterpartyUserId }}
-          className="hover:bg-muted/60 flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1"
-        >
-          <UserAvatar
-            image={match.counterpartyImage}
-            name={match.counterpartyName}
-            gravatarHash={match.counterpartyGravatarHash}
-            size="sm"
-          />
-          <span className="hidden text-sm sm:inline">{match.counterpartyName ?? "Member"}</span>
-        </Link>
+        <CounterpartyChip
+          groupSlug={groupSlug}
+          userId={match.counterpartyUserId}
+          name={match.counterpartyName}
+          image={match.counterpartyImage}
+          gravatarHash={match.counterpartyGravatarHash}
+          // The action slot shows "Waiting for {name}" for a sent-and-pending
+          // trade, so the chip drops its name to avoid repeating it.
+          hideName={
+            liveTrade?.status === "pending" && liveTrade.actionNeeded !== "accept-or-decline"
+          }
+        />
       ) : null}
 
       <MatchRowTradeAction match={match} groupSlug={groupSlug} liveTrade={liveTrade} />
@@ -448,7 +426,6 @@ function MatchTradeRowGroup({
   const expanded = useMatchVariantsFoldStore((state) => state.expanded.has(group.foldId));
   const toggle = useMatchVariantsFoldStore((state) => state.toggle);
   const incoming = group.direction === "incoming";
-  const DirectionIcon = incoming ? ArrowDownLeftIcon : ArrowUpRightIcon;
 
   // Surface live-trade activity on the collapsed header (a specific variant's
   // accept/decline still lives on the expanded row). Reserved outranks pending.
@@ -463,7 +440,8 @@ function MatchTradeRowGroup({
       : null;
 
   return (
-    <div className="bg-card overflow-hidden rounded-md border">
+    // Suggestion group: dashed border + no resting fill, matching MatchRow.
+    <div className="overflow-hidden rounded-md border border-dashed">
       <div className="hover:bg-muted flex items-center gap-3 p-2 transition-colors">
         <button
           type="button"
@@ -471,18 +449,7 @@ function MatchTradeRowGroup({
           aria-expanded={expanded}
           className="hover:text-foreground flex min-w-0 flex-1 items-center gap-3 text-left transition-colors"
         >
-          <span
-            className={cn(
-              "flex size-7 shrink-0 items-center justify-center rounded-full",
-              incoming
-                ? "bg-green-500/10 text-green-600 dark:text-green-500"
-                : "bg-amber-500/10 text-amber-600 dark:text-amber-500",
-            )}
-            title={incoming ? "Comes to you" : "Goes to them"}
-            aria-label={incoming ? "Comes to you" : "Goes to them"}
-          >
-            <DirectionIcon className="size-4" />
-          </span>
+          <TradeDirectionIcon incoming={incoming} />
 
           <CardArtThumb
             imageId={group.imageId}
@@ -510,25 +477,20 @@ function MatchTradeRowGroup({
         </button>
 
         {showCounterparty ? (
-          <Link
-            to="/groups/$slug/members/$userId"
-            params={{ slug: groupSlug, userId: group.counterpartyUserId }}
-            className="hover:bg-muted/60 flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1"
-          >
-            <UserAvatar
-              image={group.counterpartyImage}
-              name={group.counterpartyName}
-              gravatarHash={group.counterpartyGravatarHash}
-              size="sm"
-            />
-            <span className="hidden text-sm sm:inline">{group.counterpartyName ?? "Member"}</span>
-          </Link>
+          <CounterpartyChip
+            groupSlug={groupSlug}
+            userId={group.counterpartyUserId}
+            name={group.counterpartyName}
+            image={group.counterpartyImage}
+            gravatarHash={group.counterpartyGravatarHash}
+            // A pending header status renders "Waiting for {name}", so drop the
+            // chip's name to avoid showing it twice.
+            hideName={headerStatus === "pending"}
+          />
         ) : null}
 
         {headerStatus ? (
-          <Badge variant="secondary" className="shrink-0">
-            {headerStatus === "reserved" ? "Reserved" : "Pending"}
-          </Badge>
+          <TradeStatusBadge status={headerStatus} counterpartyName={group.counterpartyName} />
         ) : null}
       </div>
 

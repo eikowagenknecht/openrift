@@ -4,7 +4,7 @@ import type {
   Printing,
   PublicListDetailResponse,
 } from "@openrift/shared";
-import { ListIcon } from "lucide-react";
+import { HeartIcon, ListIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 
 import { CardViewer } from "@/components/card-viewer";
@@ -19,7 +19,10 @@ import { CardCell } from "@/components/cards/card-cell";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
+import { COUNT_PILL_BASE, COUNT_PILL_INTERACTIVE } from "@/components/cards/count-pill";
 import { StaticCountTableActions } from "@/components/cards/static-count-table-actions";
+import { RequestFromTradelistDialog } from "@/components/friend-groups/request-from-tradelist-dialog";
+import type { TradelistRequestContext } from "@/components/friend-groups/request-from-tradelist-dialog";
 import {
   PAGE_TOP_BAR_STICKY,
   PageTopBarHeightContext,
@@ -29,6 +32,7 @@ import { listKindIcon } from "@/components/list/create-list-dialog";
 import { ListHeader } from "@/components/list/list-header";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
+import { Button } from "@/components/ui/button";
 import {
   Empty,
   EmptyDescription,
@@ -44,6 +48,7 @@ import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { FilterSearchProvider, useFilterSearch } from "@/lib/search-schemas";
+import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
@@ -75,6 +80,12 @@ interface SharedListContentProps {
   data: PublicListDetailResponse;
   /** Back arrow rendered as the first slot inside the list header. */
   backLink?: React.ReactNode;
+  /**
+   * Enables the per-card "I want this" request flow. Passed only by the
+   * friend-group shared-list route, and only for a trade-intent list viewed by
+   * someone other than its owner — never on the public share route.
+   */
+  trade?: TradelistRequestContext;
 }
 
 /**
@@ -84,7 +95,7 @@ interface SharedListContentProps {
  *
  * @returns The full page body.
  */
-export function SharedListContent({ data, backLink }: SharedListContentProps) {
+export function SharedListContent({ data, backLink, trade }: SharedListContentProps) {
   const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
   const topBarHeight = useMeasuredHeight(topBarSlot);
   const { list, owner, entries } = data;
@@ -101,14 +112,20 @@ export function SharedListContent({ data, backLink }: SharedListContentProps) {
           />
         </div>
         <div className="flex min-w-0 flex-1 flex-col px-3 pb-3">
-          <SharedListBody data={data} />
+          <SharedListBody data={data} trade={trade} />
         </div>
       </div>
     </PageTopBarHeightContext>
   );
 }
 
-function SharedListBody({ data }: { data: PublicListDetailResponse }) {
+function SharedListBody({
+  data,
+  trade,
+}: {
+  data: PublicListDetailResponse;
+  trade?: TradelistRequestContext;
+}) {
   const hydrated = useHydrated();
   // The top bar renders before hydration (so crawlers see the name + owner).
   // The grid depends on the global catalog (useCards) plus client-only
@@ -118,12 +135,18 @@ function SharedListBody({ data }: { data: PublicListDetailResponse }) {
   }
   return (
     <Suspense fallback={<p className="text-muted-foreground py-3 text-sm">Loading cards…</p>}>
-      <SharedListGrid data={data} />
+      <SharedListGrid data={data} trade={trade} />
     </Suspense>
   );
 }
 
-function SharedListGrid({ data }: { data: PublicListDetailResponse }) {
+function SharedListGrid({
+  data,
+  trade,
+}: {
+  data: PublicListDetailResponse;
+  trade?: TradelistRequestContext;
+}) {
   const { entries, list } = data;
   const { printingsById, printingsByCardId, sets } = useCards();
   const display = useCardThumbnailDisplay();
@@ -131,6 +154,8 @@ function SharedListGrid({ data }: { data: PublicListDetailResponse }) {
   const channels = useChannelRegistry();
   const keywordReverseMap = useKeywordReverseMap();
   const isMobile = useIsMobile();
+  // The printing whose "I want this" dialog is open (trade surfaces only).
+  const [requestPrinting, setRequestPrinting] = useState<Printing | null>(null);
 
   const { filters, sortBy, sortDir, groupBy, hasActiveFilters } = useFilterValues();
   const { setSearch } = useFilterActions();
@@ -224,10 +249,14 @@ function SharedListGrid({ data }: { data: PublicListDetailResponse }) {
     // Copy-kind lists have implicit quantity 1 per entry, so the strip
     // adds nothing there.
     const entry = entryByItemId.get(item.id);
-    const strip =
-      entry && list.kind !== "copy" ? (
-        <CardCountStrip count={entry.quantity} icon={ListIcon} />
-      ) : undefined;
+    // On a tradelist the viewer can request a card: the strip becomes a "Want"
+    // button instead of the read-only quantity pill. Trade lists are copy-kind,
+    // so this never collides with the count strip below.
+    const strip = trade ? (
+      <WantStrip onClick={() => setRequestPrinting(item.printing)} />
+    ) : entry && list.kind !== "copy" ? (
+      <CardCountStrip count={entry.quantity} icon={ListIcon} />
+    ) : undefined;
     return (
       <CardCell
         printing={item.printing}
@@ -314,13 +343,19 @@ function SharedListGrid({ data }: { data: PublicListDetailResponse }) {
           rightPane={rightPane}
           addStripHeight={ADD_STRIP_HEIGHT}
           table={
-            list.kind === "copy"
-              ? { actionsColumn: "none" }
-              : {
+            trade
+              ? {
                   actionsColumn: "narrow",
-                  actionsLabel: "Qty",
-                  actionsCell: <SharedListQuantityCell entryByItemId={entryByItemId} />,
+                  actionsLabel: "Trade",
+                  actionsCell: <TradelistRequestActionsCell onRequest={setRequestPrinting} />,
                 }
+              : list.kind === "copy"
+                ? { actionsColumn: "none" }
+                : {
+                    actionsColumn: "narrow",
+                    actionsLabel: "Qty",
+                    actionsCell: <SharedListQuantityCell entryByItemId={entryByItemId} />,
+                  }
           }
         >
           {isMobile && (
@@ -332,8 +367,70 @@ function SharedListGrid({ data }: { data: PublicListDetailResponse }) {
             />
           )}
         </CardViewer>
+        {trade ? (
+          <RequestFromTradelistDialog
+            open={requestPrinting !== null}
+            onOpenChange={(open) => {
+              if (!open) {
+                setRequestPrinting(null);
+              }
+            }}
+            printing={requestPrinting}
+            availableHint={
+              requestPrinting ? (entriesByPrintingId.get(requestPrinting.id)?.length ?? 1) : 1
+            }
+            groupSlug={trade.groupSlug}
+            groupName={trade.groupName}
+            counterpartyUserId={trade.counterpartyUserId}
+            counterpartyName={trade.counterpartyName}
+          />
+        ) : null}
       </CardBrowserFilterProvider>
     </FilterSearchProvider>
+  );
+}
+
+// Per-cell "Want" pill rendered above a tradelist card; opens the request flow.
+function WantStrip({ onClick }: { onClick: () => void }) {
+  return (
+    // h-5 + mb-1 = 24px, matching ADD_STRIP_HEIGHT so the virtualizer estimate holds.
+    <div className="relative z-30 mb-1 flex h-5 items-center justify-center">
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-label="Request this card"
+        onClick={(event) => {
+          event.stopPropagation();
+          onClick();
+        }}
+        className={cn(COUNT_PILL_BASE, COUNT_PILL_INTERACTIVE)}
+      >
+        <HeartIcon className="size-3" />
+        <span>Want</span>
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Table-row request action for a member's tradelist. `printing` is injected by
+ * the table via cloneElement; absent on the header/placeholder rows.
+ * @returns The request button, or null when no printing is bound.
+ */
+function TradelistRequestActionsCell({
+  printing,
+  onRequest,
+}: {
+  printing?: Printing;
+  onRequest: (printing: Printing) => void;
+}) {
+  if (!printing) {
+    return null;
+  }
+  return (
+    <Button type="button" size="sm" variant="outline" onClick={() => onRequest(printing)}>
+      Want
+    </Button>
   );
 }
 
