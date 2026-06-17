@@ -72,37 +72,16 @@ async function seedInboxCopy(email: string, cardName: string): Promise<void> {
   }
 }
 
-async function findCardWithMultiplePrintings(): Promise<string> {
-  const sql = loadDb();
-  try {
-    const rows = (await sql`
-      SELECT c.name
-      FROM cards c
-      JOIN printings p ON p.card_id = c.id
-      GROUP BY c.id, c.name
-      HAVING COUNT(p.id) > 1
-      ORDER BY c.name
-      LIMIT 1
-    `) as { name: string }[];
-    if (rows.length === 0) {
-      throw new Error("No card with multiple printings found in seed data");
-    }
-    return rows[0].name;
-  } finally {
-    await sql.end();
-  }
-}
-
 /**
- * Locate the desktop catalog-mode toggle button. The button has only an icon
- * (PackageIcon or PackagePlusIcon) plus a tooltip, so we target it via the
- * icon's lucide class name — no other button on /cards uses these icons.
- * @returns A locator for the catalog-mode button.
+ * Locate the desktop "Show owned count" toggle. It has only an icon
+ * (PackageIcon) plus a tooltip, so we target it via the icon's lucide class
+ * name — no other button on /cards uses this icon.
+ * @returns A locator for the show-owned-count toggle.
  */
 function catalogModeButton(page: Page) {
   return page
     .getByRole("button")
-    .filter({ has: page.locator("svg.lucide-package, svg.lucide-package-plus") })
+    .filter({ has: page.locator("svg.lucide-package") })
     .first();
 }
 
@@ -154,115 +133,17 @@ test.describe("cards /cards (logged in)", () => {
     }
   });
 
-  test("catalog-mode button cycles Off → Count → Add → Off", async ({ page }) => {
-    userEmail = await createAndLogin(page);
-    await page.goto("/cards");
-    await waitForCards(page);
-
-    const button = catalogModeButton(page);
-    await expect(button).toBeVisible();
-
-    // Off: native title reads "Show owned count"
-    await expect(button).toHaveAttribute("title", "Show owned count");
-    await button.click();
-
-    // Count: title reads "Switch to add mode"
-    await expect(button).toHaveAttribute("title", "Switch to add mode");
-    await button.click();
-
-    // Add: title reads "Turn off". Icon changes to PackagePlusIcon.
-    await expect(button).toHaveAttribute("title", "Turn off");
-    await expect(page.locator("svg.lucide-package-plus")).toBeVisible();
-    await button.click();
-
-    // Back to Off
-    await expect(button).toHaveAttribute("title", "Show owned count");
-  });
-
-  test("Count mode shows an owned-count strip on cards", async ({ page }) => {
+  test("Show owned count toggle shows an owned-count strip on cards", async ({ page }) => {
     userEmail = await createAndLogin(page);
     await seedInboxCopy(userEmail, "Annie, Fiery");
     await page.goto("/cards");
     await waitForCards(page);
 
+    // Turn the "Show owned count" toggle on.
     await catalogModeButton(page).click();
 
     // OwnedCollectionsPopover only renders when the user owns >= 1 copy of a printing;
     // with one seeded copy of Annie, Fiery, its strip shows "×1".
-    await expect(page.getByText("×1").first()).toBeVisible({ timeout: 10_000 });
-  });
-
-  test("Add mode: clicking + increments count and persists after reload", async ({ page }) => {
-    const email = await createAndLogin(page);
-    userEmail = email;
-    await page.goto("/cards");
-    await waitForCards(page);
-
-    // Narrow the grid to one card so the + button is unambiguous and the
-    // virtualizer doesn't shift rows while Playwright clicks.
-    await page.getByPlaceholder(/search/iu).fill("Annie, Fiery");
-    await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 10_000 });
-
-    // Off → Count → Add
-    const button = catalogModeButton(page);
-    await button.click();
-    await button.click();
-
-    // The CollectionAddStrip's + button is tabindex=-1 with an inline SVG
-    // whose path starts with "M8 2a1 1 0 0 1 1 1v4h4" (see collection-add-strip.tsx).
-    const addButton = page
-      .locator('button[tabindex="-1"]:has(svg path[d^="M8 2a1 1 0 0 1 1 1v4h4"])')
-      .first();
-    await expect(addButton).toBeVisible({ timeout: 10_000 });
-    await addButton.click();
-
-    // The add is batched (300ms) before the POST; poll the DB to confirm the
-    // copy was persisted before asserting on the UI.
-    await expect
-      .poll(
-        async () => {
-          const sql = loadDb();
-          try {
-            const rows = (await sql`
-              SELECT COUNT(*)::int AS count
-              FROM copies cp
-              JOIN users u ON u.id = cp.user_id
-              JOIN collections c ON c.id = cp.collection_id
-              WHERE u.email = ${email} AND c.is_inbox = true
-            `) as { count: number }[];
-            return rows[0].count;
-          } finally {
-            await sql.end();
-          }
-        },
-        { timeout: 10_000 },
-      )
-      .toBe(1);
-
-    // With a copy persisted, the Add strip shows ×1.
-    await expect(page.getByText("×1").first()).toBeVisible({ timeout: 10_000 });
-
-    // Reload clears the local add-mode store — a persisting count has come from the API.
-    // catalogMode is persisted in localStorage (display-store), so the mode
-    // after reload depends on where the pre-reload cycle ended. Drive the
-    // cycle by observing the button's title until we reach Add mode.
-    await page.reload();
-    await waitForCards(page);
-    await page.getByPlaceholder(/search/iu).fill("Annie, Fiery");
-    await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 10_000 });
-
-    const modeButton = catalogModeButton(page);
-    for (let i = 0; i < 3; i++) {
-      const title = await modeButton.getAttribute("title");
-      if (title === "Turn off") {
-        break;
-      }
-      await modeButton.click();
-      // Wait for the title to change so the next iteration doesn't read stale state.
-      await expect(modeButton).not.toHaveAttribute("title", title ?? "", { timeout: 5000 });
-    }
-    await expect(modeButton).toHaveAttribute("title", "Turn off");
-
     await expect(page.getByText("×1").first()).toBeVisible({ timeout: 10_000 });
   });
 
@@ -334,84 +215,13 @@ test.describe("cards /cards (logged in)", () => {
     }
   });
 
-  test("Add mode: clicking the variant affordance opens the VariantAddPopover", async ({
-    page,
-  }) => {
-    const multiPrintingCard = await findCardWithMultiplePrintings();
-    userEmail = await createAndLogin(page);
+  test("anonymous users see no owned-count UI on /cards", async ({ page }) => {
     await page.goto("/cards");
     await waitForCards(page);
 
-    // The variant affordance only renders in the "one per card" (cards) view,
-    // because that's where a single tile represents multiple printings. The
-    // default view is "printings", so explicitly switch views first.
-    await page.getByRole("button", { name: "One per card" }).click();
-
-    // Narrow the grid to the multi-printing card so the variant affordance is easy to click.
-    await page.getByPlaceholder(/search/iu).fill(multiPrintingCard);
-    await expect(page.getByText(multiPrintingCard).first()).toBeVisible({ timeout: 10_000 });
-
-    // Enter Add mode (Off → Count → Add).
-    const button = catalogModeButton(page);
-    await button.click();
-    await button.click();
-
-    // The variant affordance is the middle button of the strip, showing "×N".
-    const variantButton = page
-      .locator('button[tabindex="-1"]')
-      .filter({ hasText: /^×\d/u })
-      .first();
-    await expect(variantButton).toBeVisible({ timeout: 10_000 });
-    await variantButton.click();
-
-    // VariantAddPopover is a shadow-lg container with per-printing card-ID labels
-    // (font-mono). Rarity thumbnails only render when printings have mixed rarities,
-    // so they aren't a reliable selector.
-    const popover = page.locator("div.shadow-lg").filter({
-      has: page.locator("span.font-mono"),
-    });
-    await expect(popover.first()).toBeVisible({ timeout: 5000 });
-
-    // Clicking outside (on the search input) closes the popover.
-    await page.getByPlaceholder(/search/iu).click();
-    await expect(popover.first()).not.toBeVisible({ timeout: 5000 });
-  });
-
-  test("mobile: the catalog-mode toolbar button cycles the same modes", async ({ page }) => {
-    userEmail = await createAndLogin(page);
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/cards");
-    await waitForCards(page);
-
-    // The catalog-mode button lives directly in the mobile toolbar (it used
-    // to be tucked inside the Options drawer, but was promoted so users can
-    // reach it in one tap).
-    const button = catalogModeButton(page);
-    await expect(button).toBeVisible();
-
-    // Off → Count → Add → Off. The button has no visible label on mobile
-    // either, so we drive the cycle through its `title` attribute.
-    await expect(button).toHaveAttribute("title", "Show owned count");
-    await button.click();
-
-    await expect(button).toHaveAttribute("title", "Switch to add mode");
-    await button.click();
-
-    await expect(button).toHaveAttribute("title", "Turn off");
-    await button.click();
-
-    await expect(button).toHaveAttribute("title", "Show owned count");
-  });
-
-  test("anonymous users see no catalog-mode UI on /cards", async ({ page }) => {
-    await page.goto("/cards");
-    await waitForCards(page);
-
-    // No desktop catalog-mode button.
+    // No desktop show-owned-count toggle.
     await expect(
-      page
-        .getByRole("button")
-        .filter({ has: page.locator("svg.lucide-package, svg.lucide-package-plus") }),
+      page.getByRole("button").filter({ has: page.locator("svg.lucide-package") }),
     ).toHaveCount(0);
 
     // Open the mobile options drawer — there should be no "Collection mode" row.

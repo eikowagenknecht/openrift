@@ -1,7 +1,8 @@
 import type { Printing } from "@openrift/shared";
+import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { PackageIcon } from "lucide-react";
-import { useEffect, useDeferredValue } from "react";
+import { useEffect, useState, useDeferredValue } from "react";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
@@ -15,6 +16,7 @@ import {
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CatalogTableActions } from "@/components/cards/catalog-table-actions";
+import { QuickAddPalette } from "@/components/collection/quick-add-palette";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { Toggle } from "@/components/ui/toggle";
@@ -22,12 +24,13 @@ import { useCardData, useCatalogFilterMeta } from "@/hooks/use-card-data";
 import { useCardDeepLink } from "@/hooks/use-card-deep-link";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
+import { collectionsQueryOptions } from "@/hooks/use-collections";
 import { useChannelRegistry } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
-import { useSession } from "@/lib/auth-session";
+import { useSession, useUserId } from "@/lib/auth-session";
 import { splitsCardIntoTiles, tileSiblings } from "@/lib/card-tiles";
 import { maxOwnedCount } from "@/lib/owned-bucket";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
@@ -66,7 +69,9 @@ function CatalogActionsCell({ printing, view, printingsByCardId }: CatalogAction
 
 /**
  * Standalone catalog browser for the /cards route.
- * Provides filters, search, and a card detail pane — no collection or add-mode features.
+ * Provides filters, search, and a card detail pane. The grid itself is a
+ * read-only reference (no per-cell add controls); Ctrl/Cmd+K opens the
+ * quick-add palette to add cards to the user's Inbox.
  * @returns The catalog browser view.
  */
 export function CardBrowser() {
@@ -74,14 +79,44 @@ export function CardBrowser() {
   const showImages = useDisplayStore((s) => s.showImages);
   const cardsShowCounts = useDisplayStore((s) => s.cardsShowCounts);
   const toggleCardsShowCounts = useDisplayStore((s) => s.toggleCardsShowCounts);
-  const { allPrintings, printingsById, sets } = useCards();
+  const {
+    allPrintings,
+    printingsById,
+    sets,
+    printingsByCardId: catalogAllPrintingsByCardId,
+  } = useCards();
   const channels = useChannelRegistry();
   // Lifted out of <CardThumbnail> — see useCardThumbnailDisplay for the why.
   // We reuse display.prices / display.favoriteMarketplace below for useCardData.
   const display = useCardThumbnailDisplay();
   const { data: session } = useSession();
+  const userId = useUserId();
   const isLoggedIn = Boolean(session?.user);
   const { data: ownedCountByPrinting } = useOwnedCount(isLoggedIn);
+
+  // Quick add (Ctrl/Cmd+K) targets the user's Inbox. The catalog stays a
+  // read-only reference grid — this palette is the only add path here. Use the
+  // login-gated query (not useCollections, which subscribes to the live copies
+  // collection and requires a user) so logged-out visitors don't trip it.
+  const { data: collections } = useQuery({
+    ...collectionsQueryOptions(userId ?? ""),
+    enabled: isLoggedIn,
+  });
+  const inboxId = collections?.find((collection) => collection.isInbox)?.id;
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  useEffect(() => {
+    if (!inboxId) {
+      return;
+    }
+    const handler = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+        event.preventDefault();
+        setQuickAddOpen((prev) => !prev);
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [inboxId]);
 
   const {
     filters,
@@ -295,46 +330,58 @@ export function CardBrowser() {
   );
 
   return (
-    <CardBrowserFilterProvider
-      availableFilters={filterMeta.availableFilters}
-      availableLanguages={filterMeta.availableLanguages}
-      filterCounts={filterMeta.filterCounts}
-      setDisplayLabel={filterMeta.setDisplayLabel}
-      hiddenSections={hiddenFilterSections}
-      ownedCountMax={ownedCountBound}
-    >
-      <BrowserCardViewer
-        items={items}
-        totalItems={allPrintings.length}
-        renderCard={renderCard}
-        setOrder={sets}
-        groupBy={groupBy}
-        groupDir={groupDir}
-        deferredSortedCards={deferredSortedCards}
-        printingsByCardId={printingsByCardId}
-        view={view}
-        stale={isGridStale}
-        toolbar={toolbar}
-        leftPane={leftPane}
-        aboveGrid={<BrowserActiveFilters />}
-        rightPane={rightPane}
-        addStripHeight={showStrip ? ADD_STRIP_HEIGHT : undefined}
-        table={{
-          actionsColumn: showStrip ? "narrow" : "none",
-          actionsCell: showStrip ? (
-            <CatalogActionsCell view={view} printingsByCardId={printingsByCardId} />
-          ) : undefined,
-        }}
+    <>
+      <CardBrowserFilterProvider
+        availableFilters={filterMeta.availableFilters}
+        availableLanguages={filterMeta.availableLanguages}
+        filterCounts={filterMeta.filterCounts}
+        setDisplayLabel={filterMeta.setDisplayLabel}
+        hiddenSections={hiddenFilterSections}
+        ownedCountMax={ownedCountBound}
       >
-        {isMobile && (
-          <SelectionMobileOverlay
-            items={items}
-            printingsByCardId={printingsByCardId}
-            showImages={showImages}
-            onSearchAndClose={searchAndClose}
-          />
-        )}
-      </BrowserCardViewer>
-    </CardBrowserFilterProvider>
+        <BrowserCardViewer
+          items={items}
+          totalItems={allPrintings.length}
+          renderCard={renderCard}
+          setOrder={sets}
+          groupBy={groupBy}
+          groupDir={groupDir}
+          deferredSortedCards={deferredSortedCards}
+          printingsByCardId={printingsByCardId}
+          view={view}
+          stale={isGridStale}
+          toolbar={toolbar}
+          leftPane={leftPane}
+          aboveGrid={<BrowserActiveFilters />}
+          rightPane={rightPane}
+          addStripHeight={showStrip ? ADD_STRIP_HEIGHT : undefined}
+          table={{
+            actionsColumn: showStrip ? "narrow" : "none",
+            actionsCell: showStrip ? (
+              <CatalogActionsCell view={view} printingsByCardId={printingsByCardId} />
+            ) : undefined,
+          }}
+        >
+          {isMobile && (
+            <SelectionMobileOverlay
+              items={items}
+              printingsByCardId={printingsByCardId}
+              showImages={showImages}
+              onSearchAndClose={searchAndClose}
+            />
+          )}
+        </BrowserCardViewer>
+      </CardBrowserFilterProvider>
+      {inboxId && (
+        <QuickAddPalette
+          open={quickAddOpen}
+          onOpenChange={setQuickAddOpen}
+          collectionId={inboxId}
+          collectionName="Inbox"
+          printingsByCardId={catalogAllPrintingsByCardId}
+          ownedCountByPrinting={ownedCountByPrinting}
+        />
+      )}
+    </>
   );
 }
