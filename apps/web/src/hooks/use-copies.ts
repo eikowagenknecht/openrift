@@ -9,6 +9,7 @@ import { trackEvent } from "@/lib/analytics";
 import { useUserId } from "@/lib/auth-session";
 import { useCopiesCollection } from "@/lib/copies-collection";
 import { queryKeys } from "@/lib/query-keys";
+import { randomUuid } from "@/lib/random-uuid";
 import { browserApiClient, callApi, callApiJson } from "@/lib/server-fns/api-client";
 import type { CollectionsResponse } from "@/lib/server-fns/api-types";
 import { isTempCopyId, TEMP_COPY_ID_PREFIX } from "@/lib/temp-copy-id";
@@ -400,7 +401,7 @@ export function useBatchedAddCopies(callbacks?: BatchedAddCallbacks) {
       // server-assigned row on success. The tempId is returned so callers
       // can record it in session-level "recently added" UI immediately and
       // swap for the real id after the API confirms.
-      const tempId = `${TEMP_COPY_ID_PREFIX}${crypto.randomUUID()}`;
+      const tempId = `${TEMP_COPY_ID_PREFIX}${randomUuid()}`;
       if (copiesCollection) {
         const groupId = userId ? groupIdForCollection(queryClient, userId, collectionId) : null;
         copiesCollection.utils.writeInsert([{ id: tempId, printingId, collectionId, groupId }]);

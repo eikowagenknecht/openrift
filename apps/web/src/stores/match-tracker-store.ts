@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+import { randomUuid } from "@/lib/random-uuid";
+
 type GameStatus = "setup" | "playing" | "finished";
 type GameMode = "ffa" | "teams";
 
@@ -42,7 +44,7 @@ function defaultTeam(index: number): TeamId {
 
 function makePlayer(index: number): TrackedPlayer {
   return {
-    id: crypto.randomUUID(),
+    id: randomUuid(),
     name: `Player ${index + 1}`,
     points: 0,
     xp: 0,
