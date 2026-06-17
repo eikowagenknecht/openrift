@@ -138,22 +138,24 @@ function CardDetailPage() {
     languageLabels[selectedPrinting.language] ?? selectedPrinting.language,
   ]);
   const rarityIcon = getFilterIconPath("rarities", selectedPrinting.rarity);
-  leftRows.push([
-    "Rarity",
-    <span key="rarity" className="inline-flex items-center gap-1.5">
-      <span className="inline-flex w-4 shrink-0 justify-center">
-        {rarityIcon && <img src={rarityIcon} alt="" width={28} height={28} className="size-4" />}
-      </span>
-      {labels.rarities[selectedPrinting.rarity]}
-    </span>,
-  ]);
-  leftRows.push([
-    "Finish",
-    <span key="finish" className="inline-flex items-center gap-1.5">
-      <FinishIcon finish={selectedPrinting.finish} className="w-4 shrink-0 justify-center" />
-      {labels.finishes[selectedPrinting.finish] ?? selectedPrinting.finish}
-    </span>,
-  ]);
+  leftRows.push(
+    [
+      "Rarity",
+      <span key="rarity" className="inline-flex items-center gap-1.5">
+        <span className="inline-flex w-4 shrink-0 justify-center">
+          {rarityIcon && <img src={rarityIcon} alt="" width={28} height={28} className="size-4" />}
+        </span>
+        {labels.rarities[selectedPrinting.rarity]}
+      </span>,
+    ],
+    [
+      "Finish",
+      <span key="finish" className="inline-flex items-center gap-1.5">
+        <FinishIcon finish={selectedPrinting.finish} className="w-4 shrink-0 justify-center" />
+        {labels.finishes[selectedPrinting.finish] ?? selectedPrinting.finish}
+      </span>,
+    ],
+  );
   if (selectedPrinting.artVariant !== WellKnown.artVariant.NORMAL) {
     leftRows.push([
       "Art variant",

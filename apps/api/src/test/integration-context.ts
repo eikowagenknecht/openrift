@@ -17,7 +17,8 @@ import type { Database } from "../db/types.js";
 import type { Services } from "../deps.js";
 import type { Io } from "../io.js";
 
-export type { Io, Services };
+export type { Io } from "../io.js";
+export type { Services } from "../deps.js";
 
 // ---------------------------------------------------------------------------
 // Shared Kysely instance — created once per process, reused across files

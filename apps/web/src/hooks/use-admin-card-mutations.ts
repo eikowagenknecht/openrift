@@ -23,7 +23,7 @@ export type {
   CreateCardBody,
   CreatePrintingBody,
   PatchCandidatePrintingBody,
-};
+} from "@/lib/server-fns/api-types";
 
 // ── Server functions ─────────────────────────────────────────────────────────
 

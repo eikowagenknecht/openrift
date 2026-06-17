@@ -4,11 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { getLatestJobRunFn } from "@/components/admin/refresh-actions";
 import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
-import type {
-  JobRunView,
-  PrintingEventsListResponse,
-  PrintingEventView,
-} from "@/lib/server-fns/api-types";
+import type { JobRunView, PrintingEventsListResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 interface WebhookFailure {
@@ -80,7 +76,7 @@ export function isFlushPrintingEventsResult(value: unknown): value is FlushPrint
 // Re-exported for consumers (printing-events-page); the shape is derived from
 // the API response in api-types, so it stays aligned with the route schema
 // (including the corrected `frontImageId` field).
-export type { PrintingEventView };
+export type { PrintingEventView } from "@/lib/server-fns/api-types";
 
 const fetchPrintingEvents = createServerFn({ method: "GET" })
   .middleware([withCookies])

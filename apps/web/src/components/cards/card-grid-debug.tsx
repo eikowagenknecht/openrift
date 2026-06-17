@@ -184,17 +184,19 @@ export function CardGridDebug({
             const l2 = (metaEl as Element).children[1];
             const l2Rect = l2?.getBoundingClientRect();
             const measGap = l1Rect && l2Rect ? l2Rect.top - l1Rect.bottom : 0;
-            metaChildren.push({
-              label: "gap",
-              exp: META_LINE_GAP,
-              meas: measGap,
-            });
-            metaChildren.push({
-              label: "L2",
-              exp: META_LINE_HEIGHT,
-              meas: l2?.getBoundingClientRect().height ?? 0,
-              note: "text-xs",
-            });
+            metaChildren.push(
+              {
+                label: "gap",
+                exp: META_LINE_GAP,
+                meas: measGap,
+              },
+              {
+                label: "L2",
+                exp: META_LINE_HEIGHT,
+                meas: l2?.getBoundingClientRect().height ?? 0,
+                note: "text-xs",
+              },
+            );
 
             labelChildren.push({
               label: "meta",

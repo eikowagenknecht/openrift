@@ -9,7 +9,7 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 
 // Request body derived from the route (api-types); response is the shared API
 // type. Re-exported for the candidate-upload page.
-export type { UploadCandidatesBody };
+export type { UploadCandidatesBody } from "@/lib/server-fns/api-types";
 
 // ── Server functions ─────────────────────────────────────────────────────────
 

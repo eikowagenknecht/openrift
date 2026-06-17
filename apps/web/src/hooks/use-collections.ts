@@ -20,7 +20,7 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 // Re-export for back-compat with consumers that pulled it from this module
 // before the split. Route loaders should import from @/lib/collections-query
 // directly so the loader path doesn't drag in @tanstack/react-db.
-export { collectionsQueryOptions };
+export { collectionsQueryOptions } from "@/lib/collections-query";
 
 export function useCollections() {
   const userId = useRequiredUserId();
