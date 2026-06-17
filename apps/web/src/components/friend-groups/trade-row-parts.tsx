@@ -127,9 +127,8 @@ export function TradeStatusBadge({
 /**
  * The counterparty chip on the right of a row: avatar + name, linking to the
  * member's page. Shared so match rows and trade rows present the member the
- * same way. The name hides on phones to keep the row compact, and is hidden
- * entirely (`hideName`) when an adjacent status badge already names the member,
- * so the name isn't shown twice.
+ * same way. The name is hidden (`hideName`) only when an adjacent status badge
+ * already names the member, so the name isn't shown twice.
  * @returns The counterparty chip element.
  */
 export function CounterpartyChip({
@@ -157,7 +156,7 @@ export function CounterpartyChip({
       title={name ?? "Member"}
     >
       <UserAvatar image={image} name={name} gravatarHash={gravatarHash} size="sm" />
-      {hideName ? null : <span className="hidden text-sm sm:inline">{name ?? "Member"}</span>}
+      {hideName ? null : <span className="text-sm">{name ?? "Member"}</span>}
     </Link>
   );
 }

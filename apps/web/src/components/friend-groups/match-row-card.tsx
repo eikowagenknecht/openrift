@@ -69,9 +69,6 @@ function MatchRowTradeAction({
       const args = { tradeId: liveTrade.id, groupSlug };
       return (
         <div className="flex shrink-0 items-center gap-1.5">
-          <Button size="sm" disabled={busy} onClick={() => acceptTrade.mutate(args)}>
-            Accept
-          </Button>
           <Button
             size="sm"
             variant="outline"
@@ -79,6 +76,9 @@ function MatchRowTradeAction({
             onClick={() => declineTrade.mutate(args)}
           >
             Decline
+          </Button>
+          <Button size="sm" disabled={busy} onClick={() => acceptTrade.mutate(args)}>
+            Accept
           </Button>
         </div>
       );
@@ -279,48 +279,60 @@ function MatchRow({
     // A suggestion (an opportunity), not a started trade: dashed border + no
     // resting fill (an outlined slot that fills on hover), versus the solid,
     // filled bg-card rows of trades the viewer has actually started.
-    <div className="hover:bg-muted flex items-center gap-3 rounded-md border border-dashed p-2 transition-colors">
-      <TradeDirectionIcon incoming={incoming} />
+    // On phones the row stacks: the card identity (with price hint + member
+    // chip) sits on top, and the action drops to its own right-aligned bar
+    // below. From sm up both groups dissolve (sm:contents) back into one row.
+    <div className="hover:bg-muted flex flex-col gap-2 rounded-md border border-dashed p-2 transition-colors sm:flex-row sm:items-center sm:gap-3">
+      <div className="flex min-w-0 items-center gap-3 sm:contents">
+        <TradeDirectionIcon incoming={incoming} />
 
-      <CardArtThumb imageId={match.imageId} alt={match.cardName} className="w-10" loading="lazy" />
+        <CardArtThumb
+          imageId={match.imageId}
+          alt={match.cardName}
+          className="w-10"
+          loading="lazy"
+        />
 
-      <div
-        className="flex min-w-0 flex-1 flex-col gap-0.5"
-        title={`From ${match.counterpartyListName}`}
-      >
-        <span className="truncate font-medium">
-          {match.buyQuantity}× {match.cardName}
-        </span>
-        <MatchRowMeta match={match} />
+        <div
+          className="flex min-w-0 flex-1 flex-col gap-0.5"
+          title={`From ${match.counterpartyListName}`}
+        >
+          <span className="truncate font-medium">
+            {match.buyQuantity}× {match.cardName}
+          </span>
+          <MatchRowMeta match={match} />
+        </div>
+
+        {hasCounterpartyPref ? (
+          <div className="w-32 shrink-0 text-right">
+            <MatchPreferenceCell
+              label={priceLabel}
+              pref={counterpartyPref}
+              marketplaceInfos={marketplaceInfos}
+              searchQuery={match.cardName}
+            />
+          </div>
+        ) : null}
+
+        {showCounterparty ? (
+          <CounterpartyChip
+            groupSlug={groupSlug}
+            userId={match.counterpartyUserId}
+            name={match.counterpartyName}
+            image={match.counterpartyImage}
+            gravatarHash={match.counterpartyGravatarHash}
+            // The action slot shows "Waiting for {name}" for a sent-and-pending
+            // trade, so the chip drops its name to avoid repeating it.
+            hideName={
+              liveTrade?.status === "pending" && liveTrade.actionNeeded !== "accept-or-decline"
+            }
+          />
+        ) : null}
       </div>
 
-      {hasCounterpartyPref ? (
-        <div className="w-32 shrink-0 text-right">
-          <MatchPreferenceCell
-            label={priceLabel}
-            pref={counterpartyPref}
-            marketplaceInfos={marketplaceInfos}
-            searchQuery={match.cardName}
-          />
-        </div>
-      ) : null}
-
-      {showCounterparty ? (
-        <CounterpartyChip
-          groupSlug={groupSlug}
-          userId={match.counterpartyUserId}
-          name={match.counterpartyName}
-          image={match.counterpartyImage}
-          gravatarHash={match.counterpartyGravatarHash}
-          // The action slot shows "Waiting for {name}" for a sent-and-pending
-          // trade, so the chip drops its name to avoid repeating it.
-          hideName={
-            liveTrade?.status === "pending" && liveTrade.actionNeeded !== "accept-or-decline"
-          }
-        />
-      ) : null}
-
-      <MatchRowTradeAction match={match} groupSlug={groupSlug} liveTrade={liveTrade} />
+      <div className="flex justify-end sm:contents">
+        <MatchRowTradeAction match={match} groupSlug={groupSlug} liveTrade={liveTrade} />
+      </div>
     </div>
   );
 }
@@ -442,7 +454,7 @@ function MatchTradeRowGroup({
   return (
     // Suggestion group: dashed border + no resting fill, matching MatchRow.
     <div className="overflow-hidden rounded-md border border-dashed">
-      <div className="hover:bg-muted flex items-center gap-3 p-2 transition-colors">
+      <div className="hover:bg-muted flex flex-col gap-2 p-2 transition-colors sm:flex-row sm:items-center sm:gap-3">
         <button
           type="button"
           onClick={() => toggle(group.foldId)}
@@ -476,21 +488,28 @@ function MatchTradeRowGroup({
           />
         </button>
 
-        {showCounterparty ? (
-          <CounterpartyChip
-            groupSlug={groupSlug}
-            userId={group.counterpartyUserId}
-            name={group.counterpartyName}
-            image={group.counterpartyImage}
-            gravatarHash={group.counterpartyGravatarHash}
-            // A pending header status renders "Waiting for {name}", so drop the
-            // chip's name to avoid showing it twice.
-            hideName={headerStatus === "pending"}
-          />
-        ) : null}
+        {showCounterparty || headerStatus ? (
+          // The header has no action buttons, so the member chip and status
+          // badge sit on their own row on phones; from sm up they dissolve back
+          // into the header row.
+          <div className="flex flex-wrap items-center gap-2 sm:contents">
+            {showCounterparty ? (
+              <CounterpartyChip
+                groupSlug={groupSlug}
+                userId={group.counterpartyUserId}
+                name={group.counterpartyName}
+                image={group.counterpartyImage}
+                gravatarHash={group.counterpartyGravatarHash}
+                // A pending header status renders "Waiting for {name}", so drop the
+                // chip's name to avoid showing it twice.
+                hideName={headerStatus === "pending"}
+              />
+            ) : null}
 
-        {headerStatus ? (
-          <TradeStatusBadge status={headerStatus} counterpartyName={group.counterpartyName} />
+            {headerStatus ? (
+              <TradeStatusBadge status={headerStatus} counterpartyName={group.counterpartyName} />
+            ) : null}
+          </div>
         ) : null}
       </div>
 

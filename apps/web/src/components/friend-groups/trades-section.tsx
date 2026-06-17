@@ -1,5 +1,6 @@
 import type { CardTradeResponse } from "@openrift/shared";
 import { ChevronDownIcon } from "lucide-react";
+import { useState } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import { tradeSection } from "@/lib/trade-derivation";
 import { cn } from "@/lib/utils";
 import { useTradeActionStore } from "@/stores/trade-action-store";
 
+import { AddToCollectionDialog } from "./add-to-collection-dialog";
 import { SECTION_HEADING } from "./friend-group-shell";
 import {
   CardMetaLine,
@@ -37,6 +39,7 @@ function TradeRow({ trade }: { trade: CardTradeResponse }) {
   const acting = useTradeActionStore((state) => state.pending.has(trade.id));
   const begin = useTradeActionStore((state) => state.begin);
   const settle = useTradeActionStore((state) => state.settle);
+  const [addOpen, setAddOpen] = useState(false);
 
   const accept = useAcceptTrade();
   const decline = useDeclineTrade();
@@ -68,74 +71,66 @@ function TradeRow({ trade }: { trade: CardTradeResponse }) {
   const actionArgs = { tradeId: trade.id, groupSlug: trade.groupSlug };
 
   return (
-    <div className="bg-card flex items-center gap-3 rounded-md border p-2">
-      <TradeDirectionIcon incoming={incoming} />
+    // On phones the row stacks: the card identity (with the member chip) sits on
+    // top, and an action bar below carries the status badge on the left and the
+    // buttons on the right. From sm up both groups dissolve (sm:contents) back
+    // into one horizontal row.
+    <div className="bg-card flex flex-col gap-2 rounded-md border p-2 sm:flex-row sm:items-center sm:gap-3">
+      <div className="flex min-w-0 items-center gap-3 sm:contents">
+        <TradeDirectionIcon incoming={incoming} />
 
-      <CardArtThumb imageId={imageId} alt={cardName} className="w-10" loading="lazy" />
+        <CardArtThumb imageId={imageId} alt={cardName} className="w-10" loading="lazy" />
 
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate font-medium">
-          {trade.quantity}× {cardName}
-        </span>
-        {printing ? (
-          <CardMetaLine
-            shortCode={printing.shortCode}
-            rarity={printing.rarity}
-            rarityLabel={labels.rarities[printing.rarity]}
-            finish={printing.finish}
-            finishLabel={labels.finishes[printing.finish]}
-          />
-        ) : null}
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="truncate font-medium">
+            {trade.quantity}× {cardName}
+          </span>
+          {printing ? (
+            <CardMetaLine
+              shortCode={printing.shortCode}
+              rarity={printing.rarity}
+              rarityLabel={labels.rarities[printing.rarity]}
+              finish={printing.finish}
+              finishLabel={labels.finishes[printing.finish]}
+            />
+          ) : null}
+        </div>
+
+        <CounterpartyChip
+          groupSlug={trade.groupSlug}
+          userId={trade.counterparty.userId}
+          name={trade.counterparty.name}
+          image={trade.counterparty.image}
+          gravatarHash={trade.counterparty.gravatarHash}
+          hideName={badgeNamesCounterparty}
+        />
       </div>
 
-      <CounterpartyChip
-        groupSlug={trade.groupSlug}
-        userId={trade.counterparty.userId}
-        name={trade.counterparty.name}
-        image={trade.counterparty.image}
-        gravatarHash={trade.counterparty.gravatarHash}
-        hideName={badgeNamesCounterparty}
-      />
+      <div className="flex items-center gap-2 sm:contents">
+        <TradeStatusBadge
+          status={trade.status}
+          counterpartyName={trade.counterparty.name}
+          awaitingViewer={awaitingViewer}
+        />
 
-      <TradeStatusBadge
-        status={trade.status}
-        counterpartyName={trade.counterparty.name}
-        awaitingViewer={awaitingViewer}
-      />
+        <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:ml-0">
+          {trade.actionNeeded === "accept-or-decline" ? (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={acting}
+                onClick={() => run(decline, actionArgs)}
+              >
+                Decline
+              </Button>
+              <Button size="sm" disabled={acting} onClick={() => run(accept, actionArgs)}>
+                Accept
+              </Button>
+            </>
+          ) : null}
 
-      <div className="flex shrink-0 items-center gap-1.5">
-        {trade.actionNeeded === "accept-or-decline" ? (
-          <>
-            <Button size="sm" disabled={acting} onClick={() => run(accept, actionArgs)}>
-              Accept
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={acting}
-              onClick={() => run(decline, actionArgs)}
-            >
-              Decline
-            </Button>
-          </>
-        ) : null}
-
-        {trade.actionNeeded === "cancel" ? (
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={acting}
-            onClick={() => run(cancel, actionArgs)}
-          >
-            Cancel
-          </Button>
-        ) : null}
-
-        {trade.actionNeeded === "complete" ? (
-          <>
-            <Button size="sm" disabled={acting} onClick={() => run(complete, actionArgs)}>
-              Mark traded
-            </Button>
+          {trade.actionNeeded === "cancel" ? (
             <Button
               size="sm"
               variant="outline"
@@ -144,25 +139,58 @@ function TradeRow({ trade }: { trade: CardTradeResponse }) {
             >
               Cancel
             </Button>
-          </>
-        ) : null}
+          ) : null}
 
-        {trade.actionNeeded === "apply-sync" ? (
-          <>
-            <Button size="sm" disabled={acting} onClick={() => run(applySync, actionArgs)}>
-              {incoming ? "Add to my collection" : "Update my collection"}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={acting}
-              onClick={() => run(skipSync, actionArgs)}
-            >
-              Skip
-            </Button>
-          </>
-        ) : null}
+          {trade.actionNeeded === "complete" ? (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={acting}
+                onClick={() => run(cancel, actionArgs)}
+              >
+                Cancel
+              </Button>
+              <Button size="sm" disabled={acting} onClick={() => run(complete, actionArgs)}>
+                Mark traded
+              </Button>
+            </>
+          ) : null}
+
+          {trade.actionNeeded === "apply-sync" ? (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={acting}
+                onClick={() => run(skipSync, actionArgs)}
+              >
+                Skip
+              </Button>
+              {incoming ? (
+                <Button size="sm" disabled={acting} onClick={() => setAddOpen(true)}>
+                  Add to my collection
+                </Button>
+              ) : (
+                <Button size="sm" disabled={acting} onClick={() => run(applySync, actionArgs)}>
+                  Remove from my collection
+                </Button>
+              )}
+            </>
+          ) : null}
+        </div>
       </div>
+
+      {incoming && trade.actionNeeded === "apply-sync" ? (
+        <AddToCollectionDialog
+          open={addOpen}
+          onOpenChange={setAddOpen}
+          tradeId={trade.id}
+          groupSlug={trade.groupSlug}
+          cardName={cardName}
+          quantity={trade.quantity}
+        />
+      ) : null}
     </div>
   );
 }
