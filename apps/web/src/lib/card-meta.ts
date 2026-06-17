@@ -29,6 +29,29 @@ export function pickCardMetaPrinting(
 }
 
 /**
+ * Resolves which printing drives a card-detail page's SSR meta tags. When the
+ * URL pins a specific printing (`?printingId=`) and it exists on the card, that
+ * variant wins so shared-link unfurls show the matching art and rules text;
+ * otherwise it falls back to the language-preferred printing a fresh visitor
+ * would land on.
+ *
+ * @param printingId The `?printingId=` search value, or `undefined` when the
+ *   URL carries no variant.
+ * @param languageOrder Effective language order passed through to
+ *   `pickCardMetaPrinting` for the fallback.
+ * @returns The pinned printing when `printingId` matches one, otherwise the
+ *   preferred printing, or `undefined` when there are none.
+ */
+export function resolveCardMetaPrinting(
+  printings: CatalogPrintingResponse[],
+  printingId: string | undefined,
+  languageOrder: readonly string[],
+): CatalogPrintingResponse | undefined {
+  const linked = printingId ? printings.find((printing) => printing.id === printingId) : undefined;
+  return linked ?? pickCardMetaPrinting(printings, languageOrder);
+}
+
+/**
  * Builds a meta-description string for a card-detail SSR head.
  * Strips rules-text markup so emoji shortcodes (`:rb_energy_2:`) and
  * `[keyword:foo]` macros don't leak into WhatsApp / Telegram / Twitter

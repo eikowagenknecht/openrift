@@ -5,6 +5,7 @@ import {
   buildCardMetaDescription,
   getCardFrontImageFullUrl,
   pickCardMetaPrinting,
+  resolveCardMetaPrinting,
 } from "./card-meta";
 
 const baseCard: CardDetailResponse["card"] = {
@@ -152,5 +153,30 @@ describe("pickCardMetaPrinting", () => {
     const picked = pickCardMetaPrinting([ja, de], ["EN"]);
     expect(picked).toBeDefined();
     expect([ja.id, de.id]).toContain(picked?.id);
+  });
+});
+
+describe("resolveCardMetaPrinting", () => {
+  const LANG_ORDER = ["EN", "DE", "JA"] as const;
+  // The EN printing is what `pickCardMetaPrinting` prefers, so the fallback is
+  // distinguishable from a pinned non-EN variant.
+  const en: CatalogPrintingResponse = { ...makePrinting("EN text"), id: "p-en", language: "EN" };
+  const ja: CatalogPrintingResponse = { ...makePrinting("JA text"), id: "p-ja", language: "JA" };
+
+  it("returns the pinned printing when printingId matches one on the card", () => {
+    // Pin the JA variant even though EN is the language-preferred fallback.
+    expect(resolveCardMetaPrinting([en, ja], "p-ja", LANG_ORDER)?.id).toBe("p-ja");
+  });
+
+  it("falls back to the preferred printing when printingId is undefined", () => {
+    expect(resolveCardMetaPrinting([ja, en], undefined, LANG_ORDER)?.id).toBe("p-en");
+  });
+
+  it("falls back to the preferred printing when printingId matches nothing", () => {
+    expect(resolveCardMetaPrinting([ja, en], "does-not-exist", LANG_ORDER)?.id).toBe("p-en");
+  });
+
+  it("returns undefined when there are no printings", () => {
+    expect(resolveCardMetaPrinting([], "p-ja", LANG_ORDER)).toBeUndefined();
   });
 });

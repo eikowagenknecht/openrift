@@ -4,6 +4,7 @@
 
 - feat: Decks now have a Plan tab for writing out how to pilot the deck — your general gameplan, what to keep in your opening hand (with separate notes for going first or second), which battlefield to take each game, and how to sideboard against each matchup. A matchup can point at a specific card (a Legend, or a single card like Aurora) or just be named, like "Aggro" or "Control". Your plan also shows on the deck's shared page
 - feat: On a tradelist, each card now has a remove button right on the card, so you can take it off the list without opening the right-click menu
+- fix: Sharing a link to a specific printing of a card now shows that printing's art in the link preview. Before, the preview always fell back to the card's default printing no matter which one the link pointed to
 
 ## 2026-06-16
 

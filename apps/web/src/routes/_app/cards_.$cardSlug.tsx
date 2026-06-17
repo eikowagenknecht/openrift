@@ -12,7 +12,7 @@ import { pricesQueryOptions } from "@/hooks/use-prices";
 import {
   buildCardMetaDescription,
   getCardFrontImageFullUrl,
-  pickCardMetaPrinting,
+  resolveCardMetaPrinting,
 } from "@/lib/card-meta";
 import { breadcrumbJsonLd, productJsonLd, seoHead, toAbsoluteUrl } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
@@ -31,7 +31,6 @@ interface MarketplaceOffer {
 
 interface CardDetailLoaderData {
   data: CardDetailResponse;
-  printingId: string | undefined;
   languageOrder: readonly string[];
   domainLabels: Record<string, string>;
   cardTypeLabels: Record<string, string>;
@@ -57,10 +56,11 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
   // fresh match in `status: "pending"`, throws `loadPromise` to the route's
   // Suspense boundary, briefly renders `CardDetailPending`, and remounts the
   // detail subtree (wasted work + visible skeleton flash on slow connections).
-  // The loader still gets the URL's `printingId` via `location.search` below,
-  // so the SSR head/meta tags pick the right variant for shared links.
+  // The `head` below reads `printingId` from the match's live search (not from
+  // loaderData), so the SSR meta tags still pick the right variant for shared
+  // links without the loader having to depend on it.
   loaderDeps: () => ({}),
-  head: ({ loaderData }) => {
+  head: ({ loaderData, match }) => {
     const siteUrl = getSiteUrl();
     const loaded = loaderData as CardDetailLoaderData | undefined;
     const data = loaded?.data;
@@ -68,13 +68,16 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
       return seoHead({ siteUrl, title: "Card" });
     }
 
-    // If the URL carries `?printingId=X` for a real printing, feature that
-    // variant in the meta tags so shared links unfurl with the matching art
-    // and rules text. Fall back to the EN-first preferred printing otherwise.
-    const linked = loaded?.printingId
-      ? data.printings.find((p) => p.id === loaded.printingId)
-      : undefined;
-    const metaPrinting = linked ?? pickCardMetaPrinting(data.printings, loaded.languageOrder);
+    // Read `?printingId=X` straight from the match's validated search rather
+    // than from loaderData: the loader is memoized on a deliberately empty
+    // `loaderDeps` (see above) so it can't carry the per-variant id, but `head`
+    // runs against the live search and so unfurls a shared variant link with the
+    // matching art and rules text. Falls back to the EN-first preferred printing.
+    const metaPrinting = resolveCardMetaPrinting(
+      data.printings,
+      match.search.printingId,
+      loaded.languageOrder,
+    );
     const imageUrl = toAbsoluteUrl(siteUrl, getCardFrontImageFullUrl(metaPrinting));
     const description = buildCardMetaDescription(data.card, metaPrinting, {
       domains: loaded.domainLabels,
@@ -114,7 +117,7 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
       ],
     };
   },
-  loader: async ({ context, params, location }): Promise<CardDetailLoaderData> => {
+  loader: async ({ context, params }): Promise<CardDetailLoaderData> => {
     // Fetch card detail and init in parallel. The head/meta preview picks
     // the preferred printing using the live language sort order from
     // /api/enums — logged-out crawlers fall through to this default.
@@ -137,10 +140,6 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
     const languageOrder = effectiveLanguageOrder([], languageRows);
     const labelMap = (rows: readonly { slug: string; label: string }[]) =>
       Object.fromEntries(rows.map((row) => [row.slug, row.label]));
-    // `LoaderFnContext.location` is typed as `ParsedLocation<{}>` — TanStack
-    // Router doesn't propagate the route's `validateSearch` type here — so
-    // re-parse with the schema to recover `printingId` in a type-safe way.
-    const { printingId } = cardDetailSearchSchema.parse(location.search);
 
     // Prices come from the /prices resource now, not inlined on the
     // card response. They're SEO-only here, so a price-fetch failure must not
@@ -165,7 +164,6 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
 
     return {
       data,
-      printingId,
       languageOrder,
       domainLabels: labelMap(init.enums.domains ?? []),
       cardTypeLabels: labelMap(init.enums.cardTypes ?? []),
