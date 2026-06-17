@@ -1,4 +1,4 @@
-import { MinusIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { MinusIcon, PlusIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -80,7 +80,7 @@ export function ListEntryTableActions(props: ListEntryTableActionsProps) {
         disabled={props.isRemovePending}
         aria-label="Remove from list"
       >
-        <Trash2Icon className="size-3.5" />
+        <XIcon className="size-3.5" />
       </Button>
     </div>
   );

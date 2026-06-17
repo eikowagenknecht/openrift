@@ -1,5 +1,5 @@
 import type { Currency, ListKind, Printing, TradePreference } from "@openrift/shared";
-import { ListIcon } from "lucide-react";
+import { ListIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { memo } from "react";
 
@@ -12,6 +12,7 @@ import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
 import { DraggableListEntry } from "@/components/list/draggable-list-entry";
 import { ListEntryContextMenu } from "@/components/list/list-entry-context-menu";
 import { TradePreferenceGridPill } from "@/components/trade-preferences/trade-preference-grid-pill";
+import { Button } from "@/components/ui/button";
 import {
   dispatchEntryQuantityChange,
   dispatchIncrement,
@@ -290,11 +291,32 @@ function buildStrip({
   ) : null;
 
   if (kind === "copy") {
-    // Copy-kind: no count, no stepper. Wrap the trade pill in a strip-height
-    // container so card sizes stay uniform across kinds.
-    return tradePill ? (
-      <div className="relative z-30 mb-1 flex h-5 items-center justify-center">{tradePill}</div>
-    ) : null;
+    // Copy-kind (tradelists): no count, no stepper. Surface a remove button next
+    // to the trade pill so removal isn't hidden behind the context menu. The
+    // pill stays centered between a spacer and the remove button (mirrors
+    // CardCountStrip's layout); the strip-height container keeps card sizes
+    // uniform across kinds. `entry` is guaranteed non-null here (early-returned
+    // above).
+    return (
+      <div className="relative z-30 mb-1 flex h-5 items-center justify-between">
+        <span className="size-5" />
+        {tradePill}
+        <Button
+          type="button"
+          tabIndex={-1}
+          size="icon-xs"
+          variant="ghost"
+          className="text-muted-foreground hover:text-destructive"
+          onClick={(event) => {
+            event.stopPropagation();
+            dispatchRemoveEntry(entry.id, entry.cardName);
+          }}
+          aria-label={`Remove ${entry.cardName} from list`}
+        >
+          <XIcon />
+        </Button>
+      </div>
+    );
   }
 
   const isPending = isQuantityPending(entry.id);

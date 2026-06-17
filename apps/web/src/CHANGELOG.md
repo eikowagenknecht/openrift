@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-06-17
+
+- feat: On a tradelist, each card now has a remove button right on the card, so you can take it off the list without opening the right-click menu
+
 ## 2026-06-16
 
 - feat: Removing cards from a collection now warns you when those cards are also on one of your lists, names the lists they'll drop off, and asks you to confirm. That way deleting them in one place can't quietly strip them from another
