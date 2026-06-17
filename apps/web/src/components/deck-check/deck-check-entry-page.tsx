@@ -291,6 +291,8 @@ export function DeckCheckEntryPage({
               columns={columns}
               cellWidth={cellWidth}
               locked={detail.entry.state !== "submitted"}
+              fixLocked={!zoneFixAllowed(detail.entry.state)}
+              fixZoneOnly={detail.entry.state === "approved" || detail.entry.state === "checked"}
               tickLocked={detail.entry.state !== "submitted" && detail.entry.state !== "approved"}
               onStale={() => void refetch()}
             />
@@ -1036,6 +1038,18 @@ function CardNameSearchField({
   );
 }
 
+/**
+ * Whether a judge may still correct a card's zone in this entry state. Adding,
+ * removing, and re-identifying cards stay locked to the submitted state
+ * (ADR-027), but a mis-zoned import is a filing error rather than a change to
+ * the deck's contents, so zone corrections remain allowed once the list is
+ * approved or checked.
+ * @returns True for submitted, approved, and checked.
+ */
+function zoneFixAllowed(state: DeckCheckEntryDetailResponse["entry"]["state"]): boolean {
+  return state === "submitted" || state === "approved" || state === "checked";
+}
+
 function FixCardDialog({
   slug,
   eventId,
@@ -1043,6 +1057,7 @@ function FixCardDialog({
   card,
   open,
   onOpenChange,
+  zoneOnly = false,
 }: {
   slug: string;
   eventId: string;
@@ -1050,6 +1065,12 @@ function FixCardDialog({
   card: DeckCheckEntryCardResponse;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * Restrict the dialog to moving the card between zones, leaving its name (and
+   * thus its catalog identity) fixed. Used once a list is approved or checked,
+   * where re-identifying a card would amount to swapping it out.
+   */
+  zoneOnly?: boolean;
 }) {
   const { zoneOrder, zoneLabels } = useZoneOrder();
   const [name, setName] = useState(card.rawName);
@@ -1098,29 +1119,37 @@ function FixCardDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Fix card</DialogTitle>
+          <DialogTitle>{zoneOnly ? "Move card" : "Fix card"}</DialogTitle>
           <DialogDescription>
-            Correct the submitted name or move the card to the right zone. The name is matched
-            against the catalog again; ticks stay.
+            {zoneOnly
+              ? "Move the card to the right zone. Its name can't be changed once the list is approved; ticks stay."
+              : "Correct the submitted name or move the card to the right zone. The name is matched against the catalog again; ticks stay."}
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
-          {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- keydown only relays Enter from the combobox input to the dialog's submit */}
-          <div
-            className="flex flex-col gap-1.5"
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.defaultPrevented) {
-                void handleSave();
-              }
-            }}
-          >
-            <Label>Card name</Label>
-            <CardNameSearchField
-              key={String(open)}
-              initialName={card.rawName}
-              onNameChange={setName}
-            />
-          </div>
+          {zoneOnly ? (
+            <div className="flex flex-col gap-1.5">
+              <Label>Card name</Label>
+              <p className="text-muted-foreground text-sm">{card.rawName}</p>
+            </div>
+          ) : (
+            // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- keydown only relays Enter from the combobox input to the dialog's submit
+            <div
+              className="flex flex-col gap-1.5"
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.defaultPrevented) {
+                  void handleSave();
+                }
+              }}
+            >
+              <Label>Card name</Label>
+              <CardNameSearchField
+                key={String(open)}
+                initialName={card.rawName}
+                onNameChange={setName}
+              />
+            </div>
+          )}
           <div className="flex gap-3">
             <div className="flex flex-1 flex-col gap-1.5">
               <Label>Zone</Label>
@@ -1324,9 +1353,9 @@ function FindingsBanner({
   const [fixZonesOpen, setFixZonesOpen] = useState(false);
   const unmatched = detail.cards.filter((card) => card.matchStatus !== "matched");
   const suggestions = detail.zoneSuggestions;
-  // Moving cards is only allowed while the list is editable (submitted), the same
-  // gate the per-card pencil and the Add card button use.
-  const canFixZones = suggestions.length > 0 && detail.entry.state === "submitted";
+  // Zone corrections are allowed while submitted, approved, or checked — the same
+  // gate the per-card pencil uses. Add/remove stays locked to submitted.
+  const canFixZones = suggestions.length > 0 && zoneFixAllowed(detail.entry.state);
   if (detail.violations.length === 0 && unmatched.length === 0 && suggestions.length === 0) {
     return null;
   }
@@ -1547,6 +1576,8 @@ function CardChecklist({
   columns,
   cellWidth,
   locked,
+  fixLocked,
+  fixZoneOnly,
   tickLocked,
   onStale,
 }: {
@@ -1559,8 +1590,12 @@ function CardChecklist({
   sortDir: "asc" | "desc";
   columns: number;
   cellWidth: number;
-  /** Card edits (add / remove / fix) are only allowed while submitted (ADR-027). */
+  /** Adding and removing cards are only allowed while submitted (ADR-027). */
   locked: boolean;
+  /** Zone fixes are allowed while submitted, approved, or checked. */
+  fixLocked: boolean;
+  /** Once approved or checked, the fix dialog only moves zones (no re-identify). */
+  fixZoneOnly: boolean;
   /** Found-ticks are frozen outside the submitted and approved (physical check) states. */
   tickLocked: boolean;
   onStale: () => void;
@@ -1641,6 +1676,8 @@ function CardChecklist({
             columns={columns}
             cellWidth={cellWidth}
             locked={locked}
+            fixLocked={fixLocked}
+            fixZoneOnly={fixZoneOnly}
             tickLocked={tickLocked}
             onStale={onStale}
           />
@@ -1666,6 +1703,8 @@ function CardChecklist({
               cellWidth={cellWidth}
               intrinsic
               locked={locked}
+              fixLocked={fixLocked}
+              fixZoneOnly={fixZoneOnly}
               tickLocked={tickLocked}
               onStale={onStale}
             />
@@ -1684,6 +1723,8 @@ function CardChecklist({
           columns={columns}
           cellWidth={cellWidth}
           locked={locked}
+          fixLocked={fixLocked}
+          fixZoneOnly={fixZoneOnly}
           tickLocked={tickLocked}
           onStale={onStale}
         />
@@ -1761,6 +1802,8 @@ function ZoneSection({
   cellWidth,
   intrinsic,
   locked,
+  fixLocked,
+  fixZoneOnly,
   tickLocked,
   onStale,
 }: {
@@ -1782,6 +1825,10 @@ function ZoneSection({
   intrinsic?: boolean;
   /** Locked outside the submitted state; hides the per-copy remove control. */
   locked: boolean;
+  /** Locked outside submitted/approved/checked; hides the per-copy fix control. */
+  fixLocked: boolean;
+  /** Once approved or checked, the fix dialog only moves zones (no re-identify). */
+  fixZoneOnly: boolean;
   /** Found-ticks frozen outside the submitted and approved (physical check) states. */
   tickLocked: boolean;
   onStale: () => void;
@@ -1827,6 +1874,8 @@ function ZoneSection({
                 }
                 onHover={onHover}
                 locked={locked}
+                fixLocked={fixLocked}
+                fixZoneOnly={fixZoneOnly}
                 tickLocked={tickLocked}
                 onStale={onStale}
               />
@@ -1861,6 +1910,8 @@ function ZoneSection({
               copyIndex={copyIndex}
               cellWidth={cellWidth}
               locked={locked}
+              fixLocked={fixLocked}
+              fixZoneOnly={fixZoneOnly}
               tickLocked={tickLocked}
               onStale={onStale}
             />
@@ -1887,6 +1938,8 @@ function ChecklistRow({
   printing,
   onHover,
   locked,
+  fixLocked,
+  fixZoneOnly,
   tickLocked,
   onStale,
 }: {
@@ -1897,8 +1950,12 @@ function ChecklistRow({
   copyIndex: number;
   printing?: Printing;
   onHover?: (printing: Printing | null) => void;
-  /** Locked outside the submitted state; hides the fix / remove controls. */
+  /** Locked outside the submitted state; hides the per-copy remove control. */
   locked: boolean;
+  /** Locked outside submitted/approved/checked; hides the fix control. */
+  fixLocked: boolean;
+  /** Once approved or checked, the fix dialog only moves zones (no re-identify). */
+  fixZoneOnly: boolean;
   /** Ticking frozen outside the submitted and approved (physical check) states. */
   tickLocked: boolean;
   onStale: () => void;
@@ -1974,32 +2031,39 @@ function ChecklistRow({
           <span className="text-muted-foreground text-2xs shrink-0">copy {copyIndex + 1}</span>
         ) : null}
       </button>
-      {locked ? null : (
+      {fixLocked && locked ? null : (
         <div className="flex shrink-0 items-center gap-0.5 pr-1">
-          <button
-            type="button"
-            aria-label={`Fix ${name}`}
-            className="text-muted-foreground hover:text-foreground rounded p-1"
-            onClick={() => setFixOpen(true)}
-          >
-            <PencilIcon className="size-3.5" />
-          </button>
-          <FixCardDialog
-            slug={slug}
-            eventId={eventId}
-            entryId={entryId}
-            card={card}
-            open={fixOpen}
-            onOpenChange={setFixOpen}
-          />
-          <button
-            type="button"
-            aria-label={`Remove this copy of ${card.rawName}`}
-            className="text-muted-foreground hover:text-destructive rounded p-1"
-            onClick={() => setRemoveOpen(true)}
-          >
-            <XIcon className="size-3.5" />
-          </button>
+          {fixLocked ? null : (
+            <>
+              <button
+                type="button"
+                aria-label={fixZoneOnly ? `Move ${name}` : `Fix ${name}`}
+                className="text-muted-foreground hover:text-foreground rounded p-1"
+                onClick={() => setFixOpen(true)}
+              >
+                <PencilIcon className="size-3.5" />
+              </button>
+              <FixCardDialog
+                slug={slug}
+                eventId={eventId}
+                entryId={entryId}
+                card={card}
+                open={fixOpen}
+                onOpenChange={setFixOpen}
+                zoneOnly={fixZoneOnly}
+              />
+            </>
+          )}
+          {locked ? null : (
+            <button
+              type="button"
+              aria-label={`Remove this copy of ${card.rawName}`}
+              className="text-muted-foreground hover:text-destructive rounded p-1"
+              onClick={() => setRemoveOpen(true)}
+            >
+              <XIcon className="size-3.5" />
+            </button>
+          )}
         </div>
       )}
       <ConfirmActionDialog
@@ -2038,6 +2102,8 @@ function ChecklistCell({
   copyIndex,
   cellWidth,
   locked,
+  fixLocked,
+  fixZoneOnly,
   tickLocked,
   onStale,
 }: {
@@ -2049,6 +2115,10 @@ function ChecklistCell({
   cellWidth: number;
   /** Locked outside the submitted state; hides the remove control. */
   locked: boolean;
+  /** Locked outside submitted/approved/checked; hides the fix control. */
+  fixLocked: boolean;
+  /** Once approved or checked, the fix dialog only moves zones (no re-identify). */
+  fixZoneOnly: boolean;
   /** Ticking frozen outside the submitted and approved (physical check) states. */
   tickLocked: boolean;
   onStale: () => void;
@@ -2090,62 +2160,76 @@ function ChecklistCell({
     </div>
   ) : null;
 
-  const removeAffordance = locked ? null : (
-    <>
-      <button
-        type="button"
-        aria-label={`Remove this copy of ${card.rawName}`}
-        className="bg-background/80 hover:text-destructive pointer-events-auto absolute top-1 right-1 z-20 rounded-full p-1 shadow-sm"
-        onClick={(event) => {
-          event.stopPropagation();
-          setRemoveOpen(true);
-        }}
-      >
-        <XIcon className="size-3.5" />
-      </button>
-      <ConfirmActionDialog
-        open={removeOpen}
-        onOpenChange={setRemoveOpen}
-        title={`Remove ${card.rawName}?`}
-        description={
-          card.quantity > 1
-            ? "Only this copy is removed from the list."
-            : "The card is removed from this list."
-        }
-        confirmLabel="Remove"
-        pendingLabel="Removing..."
-        isPending={removeCard.isPending}
-        onConfirm={async () => {
-          await removeCard.mutateAsync({ slug, eventId, entryId, cardId: card.id, copyIndex });
-          setRemoveOpen(false);
-        }}
-      />
-    </>
-  );
-
-  const fixAffordance = locked ? null : (
-    <>
-      <button
-        type="button"
-        aria-label={`Fix ${card.rawName}`}
-        className="bg-background/80 hover:text-foreground pointer-events-auto absolute top-1 right-8 z-20 rounded-full p-1 shadow-sm"
-        onClick={(event) => {
-          event.stopPropagation();
-          setFixOpen(true);
-        }}
-      >
-        <PencilIcon className="size-3.5" />
-      </button>
-      <FixCardDialog
-        slug={slug}
-        eventId={eventId}
-        entryId={entryId}
-        card={card}
-        open={fixOpen}
-        onOpenChange={setFixOpen}
-      />
-    </>
-  );
+  // Fix / remove live in a bar above the card (not overlaid on the image), so
+  // the controls stay fully tappable on touch instead of fighting the cell's
+  // tap-to-tick handler. Mirrors the deck editor's DeckAddStrip placement.
+  const actionStrip =
+    fixLocked && locked ? null : (
+      <>
+        <div className="relative z-10 mb-1 flex h-5 items-center justify-end gap-0.5">
+          {fixLocked ? null : (
+            <Button
+              type="button"
+              variant="ghost"
+              tabIndex={-1}
+              aria-label={fixZoneOnly ? `Move ${card.rawName}` : `Fix ${card.rawName}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                setFixOpen(true);
+              }}
+              className="text-muted-foreground hover:text-foreground size-5 rounded p-0"
+            >
+              <PencilIcon className="size-3.5" />
+            </Button>
+          )}
+          {locked ? null : (
+            <Button
+              type="button"
+              variant="ghost"
+              tabIndex={-1}
+              aria-label={`Remove this copy of ${card.rawName}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                setRemoveOpen(true);
+              }}
+              className="text-muted-foreground hover:text-destructive size-5 rounded p-0"
+            >
+              <XIcon className="size-3.5" />
+            </Button>
+          )}
+        </div>
+        {fixLocked ? null : (
+          <FixCardDialog
+            slug={slug}
+            eventId={eventId}
+            entryId={entryId}
+            card={card}
+            open={fixOpen}
+            onOpenChange={setFixOpen}
+            zoneOnly={fixZoneOnly}
+          />
+        )}
+        {locked ? null : (
+          <ConfirmActionDialog
+            open={removeOpen}
+            onOpenChange={setRemoveOpen}
+            title={`Remove ${card.rawName}?`}
+            description={
+              card.quantity > 1
+                ? "Only this copy is removed from the list."
+                : "The card is removed from this list."
+            }
+            confirmLabel="Remove"
+            pendingLabel="Removing..."
+            isPending={removeCard.isPending}
+            onConfirm={async () => {
+              await removeCard.mutateAsync({ slug, eventId, entryId, cardId: card.id, copyIndex });
+              setRemoveOpen(false);
+            }}
+          />
+        )}
+      </>
+    );
 
   const printing = card.resolvedPrintingId
     ? allPrintings.find((candidate) => candidate.id === card.resolvedPrintingId)
@@ -2153,20 +2237,21 @@ function ChecklistCell({
 
   if (!printing || card.matchStatus !== "matched") {
     return (
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => void toggle()}
-          className={`flex h-full w-full flex-col items-start gap-1 rounded-md border border-dashed border-amber-500/60 bg-amber-500/10 p-2 text-left text-sm ${found ? "opacity-60" : ""}`}
-        >
-          <span className="font-medium break-all">{card.rawName}</span>
-          <span className="text-muted-foreground">
-            {card.matchStatus === "ambiguous" ? "Several matches" : "Not in catalog"}
-          </span>
-        </button>
-        {fixAffordance}
-        {foundOverlay}
-        {removeAffordance}
+      <div>
+        {actionStrip}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => void toggle()}
+            className={`flex h-full w-full flex-col items-start gap-1 rounded-md border border-dashed border-amber-500/60 bg-amber-500/10 p-2 text-left text-sm ${found ? "opacity-60" : ""}`}
+          >
+            <span className="font-medium break-all">{card.rawName}</span>
+            <span className="text-muted-foreground">
+              {card.matchStatus === "ambiguous" ? "Several matches" : "Not in catalog"}
+            </span>
+          </button>
+          {foundOverlay}
+        </div>
       </div>
     );
   }
@@ -2178,13 +2263,9 @@ function ChecklistCell({
       display={display}
       showImages
       onClick={() => void toggle()}
-      leftOverlay={
-        <>
-          {foundOverlay}
-          {fixAffordance}
-          {removeAffordance}
-        </>
-      }
+      strip={actionStrip}
+      stripSlot="aboveCard"
+      leftOverlay={foundOverlay}
       dimmed={found}
     />
   );

@@ -794,7 +794,8 @@ export function CandidateSpreadsheet({
                     editingField !== field.key && (
                       <button
                         type="button"
-                        className="text-muted-foreground hover:bg-muted hover:text-foreground absolute top-1 right-1 hidden rounded p-0.5 group-hover/active:inline-flex"
+                        // Shown on touch (no hover); hover-revealed only at md+.
+                        className="text-muted-foreground hover:bg-muted hover:text-foreground absolute top-1 right-1 inline-flex rounded p-0.5 md:hidden md:group-hover/active:inline-flex"
                         onClick={(e) => {
                           e.stopPropagation();
                           onActiveChange(field.key, null);

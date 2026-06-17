@@ -2,6 +2,7 @@
 
 ## 2026-06-17
 
+- feat: A judge can still move a card to its correct zone after a list is approved or checked, while adding and removing cards stays limited to before approval. The card's name is locked at that point, so a zone fix can't quietly swap one card for another
 - feat: Decks now have a Plan tab for writing out how to pilot the deck — your general gameplan, what to keep in your opening hand (with separate notes for going first or second), which battlefield to take each game, and how to sideboard against each matchup. A matchup can point at a specific card (a Legend, or a single card like Aurora) or just be named, like "Aggro" or "Control". Your plan also shows on the deck's shared page
 - feat: On a tradelist, each card now has a remove button right on the card, so you can take it off the list without opening the right-click menu
 - fix: Sharing a link to a specific printing of a card now shows that printing's art in the link preview. Before, the preview always fell back to the card's default printing no matter which one the link pointed to
@@ -21,6 +22,7 @@
 - feat: When a tournament tool imports a deck with cards in the wrong zone, the checker now flags the mis-zoned cards and lets a judge move them all to the right zone in one step, while reviewing each move so a deliberately unusual deck is left alone
 - feat: When a tournament tool sends a deck with cards in the wrong zone, a judge can now move a card (or just some of its copies) to the right zone straight from the "Fix card" dialog, instead of deleting and re-adding it
 - feat: The deck checker can now sort cards by energy, ordering each zone by energy cost, then power, then name
+- fix: In the deck checker's card grid, the edit and remove buttons now sit in a bar above each card instead of being tucked onto the image on hover, so they're easy to tap on a phone
 - fix: The title bar on a shared group list or collection now puts a separator between the breadcrumb and the title and lines them up, instead of running the last breadcrumb straight into the title
 - fix: The deck-check card grid no longer sometimes opens stuck at two columns; sections now reliably show the column count you set
 - fix: A group page now shows its member count as a chip in the page header next to the role, instead of as a stray line floating above the tabs
