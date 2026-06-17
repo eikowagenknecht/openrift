@@ -5,7 +5,7 @@ import { emailOTP } from "better-auth/plugins/email-otp";
 import type { Dialect, Kysely } from "kysely";
 
 import type { createConfig } from "./config.js";
-import { matchOrigin } from "./cors.js";
+import { isLocalDevOrigin, matchOrigin } from "./cors.js";
 import type { Database } from "./db/index.js";
 import { sanitizeDisplayName, validateDisplayName } from "./display-name.js";
 import type { createEmailSender } from "./email.js";
@@ -223,6 +223,12 @@ export function createAuth(deps: {
     trustedOrigins: (request) => {
       const origin = request?.headers.get("origin");
       if (origin && matchOrigin(origin, config.corsOrigin)) {
+        return [origin];
+      }
+      // In dev, trust local devices (a phone/tablet on the same network hitting
+      // the dev server by its LAN IP) so they can sign in without adding their
+      // rotating IPs to CORS_ORIGIN. Never applies in production/preview.
+      if (config.isDev && origin && isLocalDevOrigin(origin)) {
         return [origin];
       }
       return config.corsOrigin?.split(",").map((s) => s.trim()) ?? [];

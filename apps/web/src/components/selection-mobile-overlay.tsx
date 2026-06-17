@@ -102,7 +102,8 @@ export function SelectionMobileOverlay({
       }}
     >
       <DrawerContent
-        className="data-[swipe-direction=down]:mt-0 data-[swipe-direction=down]:h-full data-[swipe-direction=down]:max-h-screen data-[swipe-direction=down]:rounded-none data-[swipe-direction=down]:border-t-0"
+        hideHandle
+        className="data-[swipe-direction=down]:top-[env(safe-area-inset-top,0px)] data-[swipe-direction=down]:mt-0 data-[swipe-direction=down]:h-[calc(100dvh-env(safe-area-inset-top,0px))] data-[swipe-direction=down]:max-h-none data-[swipe-direction=down]:overflow-hidden"
         style={getDomainTintStyle(selectedCard.card.domains, domainColors)}
       >
         <DrawerHeader className="sr-only">

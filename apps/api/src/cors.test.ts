@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { matchOrigin } from "./cors";
+import { isLocalDevOrigin, matchOrigin } from "./cors";
 
 describe("matchOrigin", () => {
   // -- No restriction --
@@ -77,5 +77,41 @@ describe("matchOrigin", () => {
 
   it("does not partial-match without wildcard", () => {
     expect(matchOrigin("https://openrift.app.evil.com", "https://openrift.app")).toBeUndefined();
+  });
+});
+
+describe("isLocalDevOrigin", () => {
+  it("trusts localhost on any port", () => {
+    expect(isLocalDevOrigin("http://localhost:5173")).toBe(true);
+    expect(isLocalDevOrigin("http://localhost")).toBe(true);
+    expect(isLocalDevOrigin("https://localhost:3000")).toBe(true);
+  });
+
+  it("trusts loopback addresses", () => {
+    expect(isLocalDevOrigin("http://127.0.0.1:5173")).toBe(true);
+    expect(isLocalDevOrigin("http://[::1]:5173")).toBe(true);
+  });
+
+  it("trusts RFC 1918 private-LAN IPv4 addresses", () => {
+    expect(isLocalDevOrigin("http://192.168.40.110:5173")).toBe(true);
+    expect(isLocalDevOrigin("http://10.0.0.5:5173")).toBe(true);
+    expect(isLocalDevOrigin("http://172.16.0.1:5173")).toBe(true);
+    expect(isLocalDevOrigin("http://172.31.255.255:5173")).toBe(true);
+  });
+
+  it("rejects public addresses and non-private 172 ranges", () => {
+    expect(isLocalDevOrigin("https://openrift.app")).toBe(false);
+    expect(isLocalDevOrigin("http://172.15.0.1:5173")).toBe(false);
+    expect(isLocalDevOrigin("http://172.32.0.1:5173")).toBe(false);
+    expect(isLocalDevOrigin("http://8.8.8.8")).toBe(false);
+  });
+
+  it("rejects a hostname that merely embeds a private IP", () => {
+    expect(isLocalDevOrigin("https://192.168.0.1.evil.com")).toBe(false);
+  });
+
+  it("returns false for malformed origins", () => {
+    expect(isLocalDevOrigin("not a url")).toBe(false);
+    expect(isLocalDevOrigin("")).toBe(false);
   });
 });

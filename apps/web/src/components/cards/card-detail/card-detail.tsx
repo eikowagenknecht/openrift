@@ -88,28 +88,33 @@ export function CardDetail({
 
   return (
     <div
-      className="bg-background overflow-y-auto rounded-lg px-3"
+      className="bg-background overflow-y-auto rounded-lg md:px-3"
       style={getDomainTintStyle(card.domains, domainColors)}
     >
       {/* Mobile header */}
       {onClose && (
-        <div className="border-border/30 sticky top-0 z-10 border-b p-4 backdrop-blur md:hidden">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={onClose}
-            aria-label="Close card details"
-            className="absolute top-4 right-4"
-          >
-            <XIcon className="size-4" />
-          </Button>
-          <CardDetailHeading
-            printing={printing}
-            setNumber={setNumber}
-            onTagClick={onTagClick}
-            truncate
-            titleClassName="pr-8"
-          />
+        <div className="border-border/30 sticky top-0 z-10 border-b px-4 pt-3 pb-4 backdrop-blur md:hidden">
+          {/* Drag pill hosted inside the blurred header so the blur band reaches the
+              drawer's top edge (the drawer's built-in pill is suppressed via hideHandle). */}
+          <div className="bg-muted mx-auto mb-3 h-1 w-[100px] rounded-full" />
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onClose}
+              aria-label="Close card details"
+              className="absolute top-0 right-0"
+            >
+              <XIcon className="size-4" />
+            </Button>
+            <CardDetailHeading
+              printing={printing}
+              setNumber={setNumber}
+              onTagClick={onTagClick}
+              truncate
+              titleClassName="pr-8"
+            />
+          </div>
         </div>
       )}
 
