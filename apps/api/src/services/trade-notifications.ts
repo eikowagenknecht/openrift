@@ -29,7 +29,7 @@ export const TRADE_REQUEST_EMAIL_FLAG = "trade-request-email";
  * email to that pair are queued and folded into a single follow-up by the
  * flush cron — so a burst of requests can't spam the recipient's inbox.
  */
-export const REQUEST_EMAIL_COALESCE_WINDOW_SECONDS = 5 * 60;
+const REQUEST_EMAIL_COALESCE_WINDOW_SECONDS = 5 * 60;
 
 /** Dependencies the trade-request email needs beyond `repos` (ADR-030). */
 export interface TradeEmailDeps {
