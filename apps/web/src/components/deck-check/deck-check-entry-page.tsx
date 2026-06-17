@@ -94,6 +94,7 @@ import { useEnumOrders, useZoneOrder } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
+import { canRequestChanges } from "@/lib/deck-check-actions";
 import { sortDeckCheckCards } from "@/lib/deck-check-sort";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { getSiteUrl } from "@/lib/site-config";
@@ -428,7 +429,7 @@ function EntryHeader({
           <ClaimLinkButton entry={entry} />
           {entry.state === "submitted" ? (
             <>
-              {entry.claimedUserId ? (
+              {canRequestChanges(entry) ? (
                 <Button
                   size="sm"
                   variant="outline"
