@@ -4,6 +4,7 @@ import type { jobRunsRepo } from "../repositories/job-runs.js";
 
 interface ChangelogEntry {
   type: "feat" | "fix";
+  section: "highlight" | "other";
   message: string;
 }
 
@@ -25,7 +26,10 @@ const MAX_DESCRIPTION_CHARS = 4000;
 
 /**
  * Parses a changelog markdown document into all dated sections.
- * Sections without any feat/fix entries are dropped.
+ * Sections without any feat/fix entries are dropped. Entries carry their
+ * `### Highlights` / `### Other` sub-section (legacy un-sectioned entries
+ * default to `other`); the optional `(Area)` tag is tolerated but not kept.
+ * The message keeps its `**Title** — body` markdown, which Discord renders.
  *
  * @returns Sections sorted oldest-first by date.
  */
@@ -37,11 +41,24 @@ export function parseChangelogSections(markdown: string): ChangelogSection[] {
     const lines = block.trim().split("\n");
     const date = lines[0].trim();
     const entries: ChangelogEntry[] = [];
+    let current: "highlight" | "other" = "other";
     for (const line of lines.slice(1)) {
-      const match = line.match(/^- (?<type>feat|fix): (?<message>.+)$/u);
+      const heading = line
+        .match(/^### (?<name>.+)$/u)
+        ?.groups?.name.trim()
+        .toLowerCase();
+      if (heading) {
+        current = heading === "highlights" ? "highlight" : "other";
+        continue;
+      }
+      const match = line.match(/^- (?<type>feat|fix)(?:\([^)]+\))?: (?<message>.+)$/u);
       const groups = match?.groups;
       if (groups) {
-        entries.push({ type: groups.type as "feat" | "fix", message: groups.message });
+        entries.push({
+          type: groups.type as "feat" | "fix",
+          section: current,
+          message: groups.message,
+        });
       }
     }
     if (entries.length > 0) {
@@ -52,7 +69,7 @@ export function parseChangelogSections(markdown: string): ChangelogSection[] {
   return sections.toSorted((a, b) => a.date.localeCompare(b.date));
 }
 
-function formatEntryLines(entries: ChangelogEntry[]): string[] {
+function formatSectionLines(entries: ChangelogEntry[]): string[] {
   const feats = entries.filter((entry) => entry.type === "feat");
   const fixes = entries.filter((entry) => entry.type === "fix");
   const lines: string[] = [];
@@ -61,6 +78,21 @@ function formatEntryLines(entries: ChangelogEntry[]): string[] {
   }
   for (const entry of fixes) {
     lines.push(`🔧 ${entry.message}`);
+  }
+  return lines;
+}
+
+function formatEntryLines(entries: ChangelogEntry[]): string[] {
+  const highlights = entries.filter((entry) => entry.section === "highlight");
+  const other = entries.filter((entry) => entry.section !== "highlight");
+  // When there are highlights, label both blocks; an all-"other" day (or a
+  // legacy un-sectioned date) just lists its entries without a header.
+  if (highlights.length === 0) {
+    return formatSectionLines(other);
+  }
+  const lines = ["__Highlights__", ...formatSectionLines(highlights)];
+  if (other.length > 0) {
+    lines.push("", "__Other__", ...formatSectionLines(other));
   }
   return lines;
 }

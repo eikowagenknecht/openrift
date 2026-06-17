@@ -66,9 +66,38 @@ Some random text
       {
         date: "2026-04-08",
         entries: [
-          { type: "feat", message: "Valid entry" },
-          { type: "fix", message: "Another valid entry" },
+          { type: "feat", section: "other", message: "Valid entry" },
+          { type: "fix", section: "other", message: "Another valid entry" },
         ],
+      },
+    ]);
+  });
+
+  it("tags entries by their Highlights/Other sub-section and tolerates (Area)", () => {
+    const markdown = `## 2026-06-16
+
+### Highlights
+
+- feat(Trades): **Want button** — request a card from a tradelist
+- fix: **Plain fix** — something fixed
+
+### Other
+
+- feat(Decks): **Sort by energy** — orders each zone by energy
+`;
+    const sections = parseChangelogSections(markdown);
+
+    expect(sections[0].entries).toEqual([
+      {
+        type: "feat",
+        section: "highlight",
+        message: "**Want button** — request a card from a tradelist",
+      },
+      { type: "fix", section: "highlight", message: "**Plain fix** — something fixed" },
+      {
+        type: "feat",
+        section: "other",
+        message: "**Sort by energy** — orders each zone by energy",
       },
     ]);
   });
@@ -91,9 +120,9 @@ just notes, no real entries
 describe("buildDiscordPayloads", () => {
   it("builds a single payload with feats before fixes when entries fit", () => {
     const payloads = buildDiscordPayloads("2026-04-08", [
-      { type: "fix", message: "Fixed a bug" },
-      { type: "feat", message: "Added a feature" },
-      { type: "feat", message: "Another feature" },
+      { type: "fix", section: "other", message: "Fixed a bug" },
+      { type: "feat", section: "other", message: "Added a feature" },
+      { type: "feat", section: "other", message: "Another feature" },
     ]);
 
     expect(payloads).toEqual([
@@ -109,11 +138,24 @@ describe("buildDiscordPayloads", () => {
     ]);
   });
 
+  it("labels Highlights and Other blocks when highlights are present", () => {
+    const payloads = buildDiscordPayloads("2026-06-16", [
+      { type: "feat", section: "highlight", message: "**Big thing** — matters" },
+      { type: "feat", section: "other", message: "**Small thing** — minor" },
+      { type: "fix", section: "other", message: "**A fix** — fixed" },
+    ]);
+
+    expect(payloads[0].embeds[0].description).toBe(
+      "__Highlights__\n🆕 **Big thing** — matters\n\n__Other__\n🆕 **Small thing** — minor\n🔧 **A fix** — fixed",
+    );
+  });
+
   it("splits entries into multiple payloads when description would exceed Discord's 4096 limit", () => {
     // Regression: 2026-04-18 in real changelog had ~4449 chars and Discord
     // returned 400 because embed[0].description exceeded 4096.
     const longEntry = {
       type: "feat" as const,
+      section: "other" as const,
       message: "x".repeat(500),
     };
     const payloads = buildDiscordPayloads(
