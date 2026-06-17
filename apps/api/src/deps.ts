@@ -72,6 +72,7 @@ import { ensureInbox } from "./services/inbox.js";
 import { ingestCandidates } from "./services/ingest-candidates.js";
 import { moveListEntries } from "./services/lists.js";
 import { getMappingOverview } from "./services/marketplace-mapping.js";
+import type { TradeEmailDeps } from "./services/trade-notifications.js";
 
 export interface Repos {
   collectionEvents: ReturnType<typeof collectionEventsRepo>;
@@ -242,3 +243,20 @@ export const services: Services = {
   applyTradeSync,
   skipTradeSync,
 };
+
+/**
+ * Builds the services object, binding the ADR-030 trade-request email deps into
+ * `createTrade` so the route handler keeps its plain `(repos, input)` call. When
+ * `emailDeps` is absent (e.g. SMTP unconfigured, or in tests that don't assert
+ * mail) `createTrade` simply skips the best-effort email.
+ * @returns A {@link Services} object wired with the given email deps.
+ */
+export function createServices(emailDeps?: TradeEmailDeps): Services {
+  if (emailDeps === undefined) {
+    return services;
+  }
+  return {
+    ...services,
+    createTrade: (repos, input) => createTrade(repos, input, emailDeps),
+  };
+}

@@ -908,6 +908,13 @@ export const userPreferencesResponseSchema = z
     defaultCardView: z.enum(["cards", "printings"]).optional(),
     defaultCurrency: z.enum(["EUR", "USD"]).optional(),
     hiddenFilterSections: z.array(z.string()).optional(),
+    // ADR-030: round-trips so the profile toggles read the stored state.
+    emailNotifications: z
+      .object({
+        tradeMatches: z.boolean().optional(),
+        tradeRequests: z.boolean().optional(),
+      })
+      .optional(),
   })
   .openapi("UserPreferencesResponse");
 

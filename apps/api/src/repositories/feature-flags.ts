@@ -14,6 +14,16 @@ export function featureFlagsRepo(db: Kysely<Database>) {
       return db.selectFrom("featureFlags").select(["key", "enabled"]).execute();
     },
 
+    /** @returns The flag's `enabled` state, or `undefined` if no row exists for the key. */
+    async isEnabled(key: string): Promise<boolean | undefined> {
+      const row = await db
+        .selectFrom("featureFlags")
+        .select("enabled")
+        .where("key", "=", key)
+        .executeTakeFirst();
+      return row?.enabled;
+    },
+
     /** @returns All flags with full details, ordered by key (for admin). */
     listAll(): Promise<Selectable<FeatureFlagsTable>[]> {
       return db.selectFrom("featureFlags").selectAll().orderBy("key").execute();

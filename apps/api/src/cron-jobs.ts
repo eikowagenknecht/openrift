@@ -8,4 +8,5 @@ export const cronJobs = {
   changelog: null as Cron | null,
   jobRunsCleanup: null as Cron | null,
   cardTradesExpire: null as Cron | null,
+  tradeMatchDigest: null as Cron | null,
 };

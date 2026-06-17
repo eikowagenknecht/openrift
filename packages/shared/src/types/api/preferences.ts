@@ -56,6 +56,36 @@ export interface UserPreferencesResponse {
    * Empty/missing = every applicable section is shown (the default).
    */
   hiddenFilterSections?: string[];
+  /**
+   * Transactional email opt-ins (ADR-030). The two channels carry *different*
+   * defaults, encoded in the read-side gate, not the stored data:
+   * - `tradeMatches` (daily match digest) is OFF unless explicitly `true`.
+   * - `tradeRequests` (instant trade-request email) is ON unless explicitly `false`.
+   * An absent `emailNotifications` therefore means "digest off, request on",
+   * which is why existing users need no backfill.
+   */
+  emailNotifications?: EmailNotificationPreference;
+}
+
+/** Per-channel transactional email opt-ins (ADR-030). */
+export interface EmailNotificationPreference {
+  tradeMatches?: boolean;
+  tradeRequests?: boolean;
+}
+
+/** Email-notification channel keys, used for unsubscribe links and toggles. */
+export type EmailNotificationChannel = keyof EmailNotificationPreference;
+
+/** @returns Whether the daily match digest is enabled (opt-in: default off). */
+export function isTradeMatchDigestEnabled(prefs: EmailNotificationPreference | undefined): boolean {
+  return prefs?.tradeMatches === true;
+}
+
+/** @returns Whether the instant trade-request email is enabled (opt-out: default on). */
+export function isTradeRequestEmailEnabled(
+  prefs: EmailNotificationPreference | undefined,
+): boolean {
+  return prefs?.tradeRequests !== false;
 }
 
 /** Fully resolved preferences — no optional fields. */

@@ -595,6 +595,16 @@ export const updatePreferencesSchema = z.object({
     .refine((arr) => new Set(arr).size === arr.length, { message: "Duplicate filter sections" })
     .nullable()
     .optional(),
+  // ADR-030 email notifications. The shallow server merge replaces this whole
+  // key, so the web always sends both channels (preserving the unchanged one);
+  // `null` resets the object, restoring both defaults (digest off, request on).
+  emailNotifications: z
+    .object({
+      tradeMatches: z.boolean().optional(),
+      tradeRequests: z.boolean().optional(),
+    })
+    .nullable()
+    .optional(),
 });
 
 // ─── Pod tournaments (ADR-022) ───────────────────────────────────────────────

@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { useEffect, useRef } from "react";
 
+import { useHydrated } from "@/hooks/use-hydrated";
 import { useUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
 import { sanitizePalette, sanitizeServerResponse, sanitizeTheme } from "@/lib/sanitize-preferences";
@@ -76,13 +77,22 @@ function getPrefsSnapshot(): UserPreferencesResponse & {
 export function usePreferencesSync(enabled: boolean) {
   const queryClient = useQueryClient();
   const userId = useUserId();
+  const hydrated = useHydrated();
   const hydrating = useRef(false);
   const saving = useRef(false);
 
+  // Client-only (`hydrated`): this query is otherwise started fire-and-forget
+  // during the SSR render (the session is SSR-prefetched, so it's enabled
+  // server-side), which the router SSR-query integration dehydrates as
+  // `pending` and can then hydrate stuck-`pending` on the client — the prefs
+  // would never resolve. The hook only consumes `data` in client effects, so
+  // gating on hydration is behaviour-neutral except that it fetches fresh on
+  // the client. The `markPrefsHydrated` fallback below keys off the `enabled`
+  // (logged-in) prop, not this query, so the language-seed signal is unaffected.
   const { data, isError } = useQuery({
     queryKey: queryKeys.preferences.all(userId ?? ""),
     queryFn: () => fetchPreferencesFn(),
-    enabled: enabled && Boolean(userId),
+    enabled: enabled && Boolean(userId) && hydrated,
   });
 
   const debouncedSave = useDebouncedCallback(
@@ -93,7 +103,14 @@ export function usePreferencesSync(enabled: boolean) {
       const prefs = getPrefsSnapshot();
       await patchPreferencesFn({ data: { prefs } });
       saving.current = true;
-      queryClient.setQueryData(queryKeys.preferences.all(userId), prefs);
+      // Merge, not replace: the snapshot only carries display/theme/palette
+      // prefs, so a plain overwrite would evict server-only keys like
+      // `emailNotifications` (ADR-030) from the shared cache, which the profile
+      // toggles read.
+      queryClient.setQueryData(
+        queryKeys.preferences.all(userId),
+        (previous: UserPreferencesResponse | undefined) => ({ ...previous, ...prefs }),
+      );
     },
     { wait: 1000 },
   );

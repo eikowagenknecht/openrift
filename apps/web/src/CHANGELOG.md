@@ -6,6 +6,7 @@
 
 - feat(Decks): **Deck Plan tab** — write out how to pilot a deck: your gameplan, what to keep in your opening hand (separate notes for going first or second), which battlefield to take, and how to sideboard each matchup. A matchup can point at a specific Legend or card, or just be named like "Aggro". Your plan also shows on the deck's shared page
 - feat(Collection): **Take a card off your tradelist** — each card (and a whole selection) has a take-off action that asks what happened: if you sold or traded it, it's also removed from your collection (warning you first if the same copy is on another list); if you're keeping it, it just comes off the tradelist
+- feat(Trades): **Email notifications for trades** — get an email the moment someone requests a trade with you, so you don't miss it before it expires (turn it off in your profile), and you can opt into a daily digest of new matches in your groups
 - feat(Tournaments): **Zone fixes after approval** — a judge can still move a card to its correct zone after a list is approved or checked, while adding and removing cards stays limited to before approval, and the card's name is locked at that point so a zone fix can't quietly swap one card for another
 
 ### Other

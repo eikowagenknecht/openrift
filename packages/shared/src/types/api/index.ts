@@ -3,12 +3,19 @@ export type { ApiErrorResponse } from "./error.js";
 export type {
   CompletionScopePreference,
   DefaultCardView,
+  EmailNotificationChannel,
+  EmailNotificationPreference,
   Palette,
   ResolvedPreferences,
   Theme,
   UserPreferencesResponse,
 } from "./preferences.js";
-export { PALETTES, PREFERENCE_DEFAULTS } from "./preferences.js";
+export {
+  isTradeMatchDigestEnabled,
+  isTradeRequestEmailEnabled,
+  PALETTES,
+  PREFERENCE_DEFAULTS,
+} from "./preferences.js";
 
 export type { InitResponse } from "./init.js";
 

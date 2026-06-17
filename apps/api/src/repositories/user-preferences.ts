@@ -1,7 +1,23 @@
-import type { UserPreferencesResponse } from "@openrift/shared/types";
+import type { EmailNotificationPreference, UserPreferencesResponse } from "@openrift/shared/types";
 import type { Kysely, Selectable } from "kysely";
+import { sql } from "kysely";
 
 import type { Database, UserPreferencesTable } from "../db/index.js";
+
+/** A verified-email user who has opted into the daily match digest (ADR-030). */
+export interface MatchDigestRecipient {
+  userId: string;
+  email: string;
+  name: string | null;
+}
+
+/** The data needed to gate + address a transactional email to one user (ADR-030). */
+export interface EmailNotificationContext {
+  email: string;
+  emailVerified: boolean;
+  name: string | null;
+  emailNotifications: EmailNotificationPreference;
+}
 
 /** Incoming PATCH body — values can be null (reset to default) or undefined (don't touch). */
 export type PartialPreferences = {
@@ -58,6 +74,58 @@ export function userPreferencesRepo(db: Kysely<Database>) {
         .executeTakeFirstOrThrow();
 
       return parseData(row.data);
+    },
+
+    /**
+     * Verified-email users who have opted into the daily match digest (ADR-030).
+     * The JSONB blob is double-encoded (a jsonb string scalar of the serialized
+     * object — see {@link parseData}), so the predicate unwraps it with
+     * `data #>> '{}'` before drilling into `emailNotifications.tradeMatches`.
+     * @returns Opted-in recipients with their email + name.
+     */
+    async listMatchDigestRecipients(): Promise<MatchDigestRecipient[]> {
+      const rows = await db
+        .selectFrom("userPreferences as up")
+        .innerJoin("users as u", "u.id", "up.userId")
+        .select(["u.id as userId", "u.email as email", "u.name as name"])
+        .where("u.emailVerified", "=", true)
+        .where(
+          sql<boolean>`((up.data #>> '{}')::jsonb -> 'emailNotifications' ->> 'tradeMatches') = 'true'`,
+        )
+        .execute();
+      return rows;
+    },
+
+    /**
+     * Address + gate data for a single user's transactional email (ADR-030).
+     * Left-joins preferences so a user with no preferences row still resolves
+     * (empty `emailNotifications`, which reads as request-on / digest-off).
+     * @returns The context, or `undefined` if the user does not exist.
+     */
+    async getEmailNotificationContext(
+      userId: string,
+    ): Promise<EmailNotificationContext | undefined> {
+      const row = await db
+        .selectFrom("users as u")
+        .leftJoin("userPreferences as up", "up.userId", "u.id")
+        .select([
+          "u.email as email",
+          "u.emailVerified as emailVerified",
+          "u.name as name",
+          "up.data",
+        ])
+        .where("u.id", "=", userId)
+        .executeTakeFirst();
+      if (row === undefined) {
+        return undefined;
+      }
+      const data = row.data === null || row.data === undefined ? {} : parseData(row.data);
+      return {
+        email: row.email,
+        emailVerified: row.emailVerified,
+        name: row.name,
+        emailNotifications: data.emailNotifications ?? {},
+      };
     },
   };
 }

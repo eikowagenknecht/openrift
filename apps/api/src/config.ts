@@ -56,6 +56,9 @@ export function createConfig(env: Record<string, string | undefined>) {
       cardmarketSchedule: env.CRON_CARDMARKET,
       cardtraderSchedule: env.CRON_CARDTRADER,
       changelogSchedule: env.CRON_CHANGELOG,
+      // ADR-030 daily match digest. Defaults to once a day at 08:00 UTC; set
+      // CRON_TRADE_DIGEST to an empty string to disable.
+      tradeDigestSchedule: env.CRON_TRADE_DIGEST ?? "0 8 * * *",
     },
 
     discordWebhooks: {

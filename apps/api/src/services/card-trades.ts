@@ -6,6 +6,8 @@ import { AppError } from "../errors.js";
 import type { CardTrade } from "../repositories/card-trades.js";
 import { disposeCopiesInTransaction } from "./copies.js";
 import { logEvents } from "./event-logger.js";
+import type { TradeEmailDeps } from "./trade-notifications.js";
+import { sendTradeRequestEmail } from "./trade-notifications.js";
 
 /** Pending requests expire this long after creation (ADR-019, hard-coded). */
 const PENDING_TTL_HOURS = 24;
@@ -75,6 +77,7 @@ async function reloadDto(
 export async function createTrade(
   repos: Repos,
   input: CreateTradeInput,
+  emailDeps?: TradeEmailDeps,
 ): Promise<CardTradeResponse> {
   const { callerUserId, groupSlug, counterpartyUserId, role, printingId, quantity } = input;
 
@@ -180,6 +183,13 @@ export async function createTrade(
       throw new AppError(409, ERROR_CODES.CONFLICT, "A live trade for this card already exists");
     }
     throw error;
+  }
+
+  // ADR-030: notify the non-initiator. After commit, outside any transaction,
+  // and best-effort (the helper swallows its own errors) so a mail failure can
+  // never fail the trade — the bell stays the source of truth.
+  if (emailDeps !== undefined) {
+    await sendTradeRequestEmail(repos, created, emailDeps);
   }
 
   return reloadDto(repos, created.id, callerUserId);

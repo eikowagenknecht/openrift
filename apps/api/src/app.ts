@@ -13,7 +13,8 @@ import { z } from "zod";
 import { matchOrigin } from "./cors.js";
 import type { Database } from "./db/index.js";
 import type { Services } from "./deps.js";
-import { createRepos, createTransact, services as defaultServices } from "./deps.js";
+import { createRepos, createServices, createTransact } from "./deps.js";
+import type { createEmailSender } from "./email.js";
 import { AppError, codeForStatus } from "./errors.js";
 import { defaultIo } from "./io.js";
 import type { Io } from "./io.js";
@@ -55,6 +56,7 @@ import { setsRoute } from "./routes/public/sets.js";
 import { publicShareImagesRoute } from "./routes/public/share-images.js";
 import { siteSettingsRoute } from "./routes/public/site-settings.js";
 import { sitemapDataRoute } from "./routes/public/sitemap.js";
+import { unsubscribeRoute } from "./routes/public/unsubscribe.js";
 import { publicUserShareRoute } from "./routes/public/user-share.js";
 import type { Auth, Config, Variables } from "./types.js";
 
@@ -65,6 +67,8 @@ export interface AppDeps {
   log: Logger;
   io?: Io;
   services?: Partial<Services>;
+  /** ADR-030: enables the instant trade-request email. Omitted in tests that don't assert mail. */
+  sendEmail?: ReturnType<typeof createEmailSender>;
 }
 
 /** 10 requests per minute per IP for sensitive auth endpoints */
@@ -85,9 +89,19 @@ const rateLimitedAuthPrefixes = [
 
 export function createApp(deps: AppDeps) {
   const { db, auth, config, log } = deps;
-  const services: Services = deps.services
-    ? { ...defaultServices, ...deps.services }
-    : defaultServices;
+  // ADR-030: bind the trade-request email deps into createTrade. Only when an
+  // SMTP sender is provided — tests and SMTP-less envs get the plain services.
+  const built = createServices(
+    deps.sendEmail
+      ? {
+          sendEmail: deps.sendEmail,
+          appBaseUrl: config.appBaseUrl,
+          unsubscribeSecret: config.auth.secret,
+          log,
+        }
+      : undefined,
+  );
+  const services: Services = deps.services ? { ...built, ...deps.services } : built;
 
   const app = createApiApp();
 
@@ -429,6 +443,7 @@ export function createApp(deps: AppDeps) {
       .route("/api/v1", deckCheckClaimRoute)
       .route("/api/v1", publicShareImagesRoute)
       .route("/api/v1", sentryTunnelRoute)
+      .route("/api/v1", unsubscribeRoute)
 
       // ── Authenticated routes (require a valid session) ──────────────────
       .route("/api/v1", collectionsRoute)

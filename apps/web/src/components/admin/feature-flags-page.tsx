@@ -61,6 +61,14 @@ const KNOWN_FLAGS: KnownFlag[] = [
     key: "help-how-to-play",
     description: "Show the How to Play Riftbound help article",
   },
+  {
+    key: "disable-trade-request-email",
+    description: "Kill switch: turn ON to stop sending instant trade-request emails (ADR-030)",
+  },
+  {
+    key: "disable-trade-match-digest",
+    description: "Kill switch: turn ON to stop sending the daily trade match digest (ADR-030)",
+  },
 ];
 
 function FlagKeyCell({ row }: AdminCellSlotProps<FeatureFlagResponse>) {

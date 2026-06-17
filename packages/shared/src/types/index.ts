@@ -127,12 +127,19 @@ export type {
   UnmatchedCardDetailResponse,
   CompletionScopePreference,
   DefaultCardView,
+  EmailNotificationChannel,
+  EmailNotificationPreference,
   Palette,
   ResolvedPreferences,
   Theme,
   UserPreferencesResponse,
 } from "./api/index.js";
-export { PALETTES, PREFERENCE_DEFAULTS } from "./api/index.js";
+export {
+  isTradeMatchDigestEnabled,
+  isTradeRequestEmailEnabled,
+  PALETTES,
+  PREFERENCE_DEFAULTS,
+} from "./api/index.js";
 
 export type {
   RuleChangesResponse,

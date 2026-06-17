@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-06-16
 ---
 
@@ -60,6 +60,7 @@ No change to the trade tables, the match query, or the bell. The only schema tou
 - Good: the digest's "new since" filter is one `WHERE matchedAt > $watermark` clause on an already-audited query; no index or materialisation needed.
 - Good: no migration backfill either way. The digest defaults off (absent key reads as off), and the request email defaults on by treating an absent key as on (gate `!== false`), so existing users get the right behaviour with no data change.
 - Bad: the request email reaches users who never opted in (it is on by default). This is the deliberate trade-off for not missing a 24h-expiry request; mitigated by one-click unsubscribe in every email and by trade requests being genuinely low-volume (human-initiated, at most one live trade per pair + printing).
+- Each send path also has an admin **kill-switch feature flag** (`disable-trade-request-email`, `disable-trade-match-digest`) so a bug can be stopped without a deploy. They are `disable-*` flags, default-off: absent or off → send (the ADR behaviour above); toggle on → stop. Checked at the send site (`featureFlags.isEnabled`); per-user preferences and unsubscribe still apply on top.
 - Bad: the global watermark can re-fire a match if a component timestamp bumps (re-share, copy re-add). Accepted for v1 (see _Watermark semantics_); upgradeable to a dedup table without schema change to trades.
 - Bad: `sendEmail` must now reach the service layer, a small dependency-wiring change in `deps.ts` / `index.ts`.
 - Bad: two new user-facing email types to keep on-brand and accessible. Mitigated by a single shared HTML layout helper.

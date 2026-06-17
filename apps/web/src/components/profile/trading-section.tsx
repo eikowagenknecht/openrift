@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { useDisplayStore } from "@/stores/display-store";
 
+import { EmailNotificationsControls } from "./email-notifications-controls";
 import { ResetButton } from "./reset-button";
 
 const CURRENCY_LABEL: Record<Currency, string> = {
@@ -75,6 +76,7 @@ export function TradingSection() {
             </SelectContent>
           </Select>
         </div>
+        <EmailNotificationsControls />
       </CardContent>
     </Card>
   );

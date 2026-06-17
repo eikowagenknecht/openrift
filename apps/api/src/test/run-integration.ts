@@ -100,6 +100,14 @@ const TEST_USERS: TestUser[] = [
   { id: "a0000000-0054-4000-a000-000000000001", email: "repo-0054@test.com", isAdmin: false },
   { id: "a0000000-0055-4000-a000-000000000001", email: "repo-0055@test.com", isAdmin: false },
   { id: "a0000000-0056-4000-a000-000000000001", email: "repo-0056@test.com", isAdmin: false },
+  // Trade email-notification tests (ADR-030)
+  { id: "a0000000-0057-4000-a000-000000000001", email: "req-0057@test.com", isAdmin: false },
+  { id: "a0000000-0058-4000-a000-000000000001", email: "req-0058@test.com", isAdmin: false },
+  { id: "a0000000-0059-4000-a000-000000000001", email: "digest-0059@test.com", isAdmin: false },
+  { id: "a0000000-0060-4000-a000-000000000001", email: "digest-0060@test.com", isAdmin: false },
+  { id: "a0000000-0061-4000-a000-000000000001", email: "digest-0061@test.com", isAdmin: false },
+  { id: "a0000000-0062-4000-a000-000000000001", email: "digest-0062@test.com", isAdmin: false },
+  { id: "a0000000-0063-4000-a000-000000000001", email: "unsub-0063@test.com", isAdmin: false },
 ];
 
 // ---------------------------------------------------------------------------
@@ -186,6 +194,10 @@ const PARALLEL_FILES = [
   "src/repositories/user-shares.integration.test.ts",
   // Card trades (ADR-019)
   "src/repositories/card-trades.integration.test.ts",
+  // Trade email notifications (ADR-030)
+  "src/services/trade-request-email.integration.test.ts",
+  "src/services/trade-match-digest.integration.test.ts",
+  "src/routes/public/unsubscribe.integration.test.ts",
 ];
 
 /** Files that formerly used mock.module() — now empty since services are injected via context */

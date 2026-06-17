@@ -1,0 +1,113 @@
+import type { UserPreferencesResponse } from "@openrift/shared";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@tanstack/react-start", () => ({
+  createServerFn: () => {
+    const chain = {
+      handler:
+        (fn: (args: { context: { cookie: string }; data: unknown }) => unknown) =>
+        (args?: { data?: unknown }) =>
+          fn({ context: { cookie: "" }, data: args?.data }),
+      middleware: () => chain,
+      validator: () => chain,
+    };
+    return chain;
+  },
+}));
+
+vi.mock("@/lib/server-fns/middleware", () => ({ withCookies: () => {} }));
+vi.mock("@/lib/auth-session", () => ({ useUserId: () => "test-user-id" }));
+
+// Controllable client-hydration flag — the fix gates the read on this.
+let hydratedValue = true;
+vi.mock("@/hooks/use-hydrated", () => ({ useHydrated: () => hydratedValue }));
+
+const { useEmailNotifications } = await import("./use-email-notifications");
+
+interface FetchCall {
+  method: string;
+  body: unknown;
+}
+
+// Stubs global fetch: GET returns `prefs`, PATCH/other returns 200. Records calls.
+function stubFetch(prefs: UserPreferencesResponse) {
+  const calls: FetchCall[] = [];
+  const fetchMock = vi.fn(async (_input: unknown, init?: { method?: string; body?: string }) => {
+    const method = init?.method ?? "GET";
+    calls.push({ method, body: init?.body ? JSON.parse(init.body) : undefined });
+    if (method === "GET") {
+      return Response.json(prefs);
+    }
+    return new Response(null, { status: 200 });
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  return { fetchMock, calls };
+}
+
+function wrap() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  };
+}
+
+beforeEach(() => {
+  hydratedValue = true;
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("useEmailNotifications", () => {
+  it("stays loading and never fetches until the client has hydrated", () => {
+    hydratedValue = false;
+    const { fetchMock } = stubFetch({});
+    const { result } = renderHook(() => useEmailNotifications(), { wrapper: wrap() });
+
+    expect(result.current.isLoading).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("resolves the gates from the server preferences once hydrated", async () => {
+    stubFetch({ emailNotifications: { tradeMatches: true, tradeRequests: false } });
+    const { result } = renderHook(() => useEmailNotifications(), { wrapper: wrap() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.gates).toEqual({ tradeMatches: true, tradeRequests: false });
+  });
+
+  it("falls back to per-channel defaults when the preference is absent", async () => {
+    stubFetch({});
+    const { result } = renderHook(() => useEmailNotifications(), { wrapper: wrap() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.gates).toEqual({ tradeMatches: false, tradeRequests: true });
+  });
+
+  it("ignores a toggle while the preferences are still loading", () => {
+    hydratedValue = false;
+    const { calls } = stubFetch({});
+    const { result } = renderHook(() => useEmailNotifications(), { wrapper: wrap() });
+
+    act(() => result.current.setChannel("tradeMatches", true));
+    expect(calls.some((call) => call.method !== "GET")).toBe(false);
+  });
+
+  it("PATCHes the whole object, preserving the sibling channel", async () => {
+    const { calls } = stubFetch({ emailNotifications: { tradeRequests: false } });
+    const { result } = renderHook(() => useEmailNotifications(), { wrapper: wrap() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    act(() => result.current.setChannel("tradeMatches", true));
+
+    await waitFor(() => expect(calls.some((call) => call.method !== "GET")).toBe(true));
+    const patch = calls.find((call) => call.method !== "GET");
+    expect(patch?.body).toEqual({
+      emailNotifications: { tradeRequests: false, tradeMatches: true },
+    });
+  });
+});

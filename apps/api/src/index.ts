@@ -25,6 +25,7 @@ import {
   refreshTcgplayerPrices,
 } from "./services/price-refresh/index.js";
 import { runJob } from "./services/run-job.js";
+import { extractDigestWatermark, sendTradeMatchDigest } from "./services/trade-match-digest.js";
 import { validateWellKnownSlugs } from "./services/validate-well-known.js";
 
 const JOB_RUNS_RETENTION_DAYS = 30;
@@ -239,9 +240,38 @@ if (config.cron.changelogSchedule) {
   cteLog.info("Cron registered (*/15 * * * *)");
 }
 
+if (config.cron.tradeDigestSchedule) {
+  const tdLog = log.child({ service: "trade-match-digest" });
+  const tdSchedule = config.cron.tradeDigestSchedule;
+
+  cronJobs.tradeMatchDigest = new Cron(tdSchedule, { protect: true }, async () => {
+    const prior = await repos.jobRuns.findLatestForResume("email.trade_match_digest");
+    const sinceTimestamp = extractDigestWatermark(prior?.result);
+    // Watermark from the run *start*, not end, so matches created mid-run aren't
+    // skipped (at worst re-sent next day — acceptable under watermark-only).
+    const runStartedAt = new Date();
+    await runJob(
+      { repos, log: tdLog },
+      "email.trade_match_digest",
+      "cron",
+      () =>
+        sendTradeMatchDigest({
+          repos,
+          log: tdLog,
+          sendEmail,
+          appBaseUrl: config.appBaseUrl,
+          unsubscribeSecret: config.auth.secret,
+          sinceTimestamp,
+        }),
+      { summarize: (result) => ({ ...result, lastRunAt: runStartedAt.toISOString() }) },
+    );
+  });
+  tdLog.info(`Cron registered (${tdSchedule})`);
+}
+
 // ── 4. Start server ─────────────────────────────────────────────────────────
 
-const app = createApp({ db, auth, config, log });
+const app = createApp({ db, auth, config, log, sendEmail });
 
 Bun.serve({ fetch: app.fetch, port: config.port });
 log.info(`API server listening on http://localhost:${config.port}`);

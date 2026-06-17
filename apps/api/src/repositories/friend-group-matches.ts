@@ -130,19 +130,24 @@ export function friendGroupMatchesRepo(db: Kysely<Database>) {
       groupId: string;
       viewerUserId: string;
       limit: number;
+      /** ADR-030: only matches whose `matchedAt` is strictly after this moment. */
+      sinceTimestamp?: Date;
     }): Promise<IncomingMatchFeedRow[]> {
       return runIncomingMatchFeedQuery(db, scope);
     },
   };
 }
 
+/** The `matchedAt` proxy: the latest of the timestamps that made the match possible. */
+const matchedAtExpr = sql<Date>`greatest(s_sell.shared_at, s_buy.shared_at, cp.created_at, le_buy.created_at, le_sell.created_at)`;
+
 async function runIncomingMatchFeedQuery(
   db: Kysely<Database>,
-  scope: { groupId: string; viewerUserId: string; limit: number },
+  scope: { groupId: string; viewerUserId: string; limit: number; sinceTimestamp?: Date },
 ): Promise<IncomingMatchFeedRow[]> {
   // Same join skeleton as `others-have-your-wants` (seller = counterparty,
   // buyer = viewer), trimmed to feed columns plus a `matchedAt` proxy.
-  const rows = await db
+  let query = db
     .selectFrom("friendGroupListShares as s_sell")
     .innerJoin("lists as l_sell", "l_sell.id", "s_sell.listId")
     .innerJoin("listEntries as le_sell", "le_sell.listId", "l_sell.id")
@@ -183,7 +188,17 @@ async function runIncomingMatchFeedQuery(
           eb(eb.ref("le_buy.printingId"), "=", eb.ref("cp.printingId")),
         ]),
       ]),
-    )
+    );
+
+  // ADR-030 digest: keep only matches that appeared strictly after the
+  // watermark. Each raw row's `matchedAt` is its own `greatest(...)`; a
+  // (counterparty, printing) is "new" iff its max surviving row is > the
+  // watermark, which is exactly what filtering raw rows then deduping yields.
+  if (scope.sinceTimestamp !== undefined) {
+    query = query.where(sql<boolean>`${matchedAtExpr} > ${scope.sinceTimestamp}`);
+  }
+
+  const rows = await query
     .select((eb) => [
       eb.ref("s_sell.userId").as("counterpartyUserId"),
       eb.ref("cp_user.name").as("counterpartyName"),
@@ -191,9 +206,7 @@ async function runIncomingMatchFeedQuery(
       eb.ref("cp_user.email").as("counterpartyEmail"),
       eb.ref("cp.printingId").as("printingId"),
       eb.ref("p.cardId").as("cardId"),
-      sql<Date>`greatest(s_sell.shared_at, s_buy.shared_at, cp.created_at, le_buy.created_at, le_sell.created_at)`.as(
-        "matchedAt",
-      ),
+      matchedAtExpr.as("matchedAt"),
     ])
     .execute();
 
