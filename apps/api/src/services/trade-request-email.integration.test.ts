@@ -65,9 +65,8 @@ describe.skipIf(!ctx)("trade-request email (integration)", () => {
     await insertUsers(true);
     await repos.userPreferences.upsert(GIVER_ID, { emailNotifications: null });
     await repos.userPreferences.upsert(RECEIVER_ID, { emailNotifications: null });
-    // Clear prior trades so the leading-edge throttle (ADR-030) sees a clean
-    // window each test — otherwise a notified row from an earlier test would
-    // queue the next request instead of sending it instantly.
+    // Clear prior trades so each test starts from a clean slate (createTrade
+    // rejects a duplicate live trade for the same pair + printing).
     await db
       .deleteFrom("cardTrades")
       .where((eb) =>
@@ -200,7 +199,12 @@ describe.skipIf(!ctx)("trade-request email (integration)", () => {
     );
   }
 
-  it("emails the non-initiator (the giver) by default on a receiver-initiated request", async () => {
+  it("emails the non-initiator (the giver) instantly on a receiver-initiated request", async () => {
+    // Recipient (the giver) opts into the instant cadence so the email sends
+    // straight from createTrade instead of queueing for the coalescing flush.
+    await repos.userPreferences.upsert(GIVER_ID, {
+      emailNotifications: { tradeRequestCadence: "instant" },
+    });
     const group = await setupMatch();
     const { deps, sent } = makeEmailDeps();
     const trade = await requestAsReceiver(group, deps);
@@ -210,7 +214,11 @@ describe.skipIf(!ctx)("trade-request email (integration)", () => {
     expect(sent[0].subject).toContain("wants to trade for");
   });
 
-  it("emails the receiver (non-initiator) on a giver-initiated offer", async () => {
+  it("emails the receiver (non-initiator) instantly on a giver-initiated offer", async () => {
+    // Recipient (the receiver) opts into the instant cadence.
+    await repos.userPreferences.upsert(RECEIVER_ID, {
+      emailNotifications: { tradeRequestCadence: "instant" },
+    });
     const group = await setupMatch();
     const { deps, sent } = makeEmailDeps();
     await offerAsGiver(group, deps);
@@ -269,6 +277,9 @@ describe.skipIf(!ctx)("trade-request email (integration)", () => {
   });
 
   it("still emails when the flag is on (default-on kill switch)", async () => {
+    await repos.userPreferences.upsert(GIVER_ID, {
+      emailNotifications: { tradeRequestCadence: "instant" },
+    });
     await repos.featureFlags.create({
       key: TRADE_REQUEST_EMAIL_FLAG,
       enabled: true,
