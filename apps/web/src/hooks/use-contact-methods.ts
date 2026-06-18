@@ -61,17 +61,6 @@ const deleteContactMethodFn = createServerFn({ method: "POST" })
       ),
   );
 
-const reorderContactMethodsFn = createServerFn({ method: "POST" })
-  .validator((input: { ids: string[] }) => input)
-  .middleware([withCookies])
-  .handler(
-    ({ context, data }): Promise<UserContactMethodsResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["contact-methods"].reorder.$post({ json: data }),
-        "Couldn't reorder contact methods",
-      ),
-  );
-
 /** @returns The signed-in user's account-level contact methods (empty until loaded). */
 export function useContactMethods(): { contactMethods: ContactMethod[]; isLoading: boolean } {
   const userId = useUserId();
@@ -113,14 +102,6 @@ export function useDeleteContactMethod() {
   const userId = useUserId();
   return useMutationWithInvalidation<UserContactMethodsResponse, { id: string }>({
     mutationFn: (data) => deleteContactMethodFn({ data }),
-    invalidates: () => [queryKeys.contactMethods.all(userId ?? "")],
-  });
-}
-
-export function useReorderContactMethods() {
-  const userId = useUserId();
-  return useMutationWithInvalidation<UserContactMethodsResponse, { ids: string[] }>({
-    mutationFn: (data) => reorderContactMethodsFn({ data }),
     invalidates: () => [queryKeys.contactMethods.all(userId ?? "")],
   });
 }

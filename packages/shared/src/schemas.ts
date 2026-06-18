@@ -502,8 +502,6 @@ export const createContactMethodSchema = z.object({
   value: z.string().trim().min(1).max(200),
 });
 
-export const updateContactMethodSchema = createContactMethodSchema;
-
 export const reorderContactMethodsSchema = z.object({
   ids: z.array(z.uuid()),
 });

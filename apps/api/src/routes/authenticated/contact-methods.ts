@@ -1,11 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
 import { userContactMethodsResponseSchema } from "@openrift/shared/response-schemas";
-import {
-  createContactMethodSchema,
-  reorderContactMethodsSchema,
-  updateContactMethodSchema,
-} from "@openrift/shared/schemas";
+import { createContactMethodSchema, reorderContactMethodsSchema } from "@openrift/shared/schemas";
 
 import { AppError } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
@@ -59,7 +55,7 @@ const updateContactMethod = createRoute({
   request: {
     params: contactMethodIdParamSchema,
     body: {
-      content: { "application/json": { schema: updateContactMethodSchema } },
+      content: { "application/json": { schema: createContactMethodSchema } },
       required: true,
     },
   },

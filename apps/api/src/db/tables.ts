@@ -566,7 +566,7 @@ export interface FriendGroupMembersTable {
 }
 
 /** Account-level contact channels a user can reveal per group (migration 162). */
-export interface UserContactMethodsTable {
+interface UserContactMethodsTable {
   id: Generated<string>;
   userId: string;
   /** CHECK: one of the known contact channels. */
@@ -579,7 +579,7 @@ export interface UserContactMethodsTable {
 }
 
 /** Which of a member's contact methods are revealed to a given group (migration 162). */
-export interface FriendGroupMemberContactsTable {
+interface FriendGroupMemberContactsTable {
   groupId: string;
   userId: string;
   contactMethodId: string;
