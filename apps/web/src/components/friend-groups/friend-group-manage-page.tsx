@@ -467,7 +467,7 @@ function ShareableListRow({
           }}
           disabled={share.isPending || unshare.isPending}
         />
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="font-medium">{row.listName}</span>
           <div className="flex flex-wrap items-center gap-1.5">
             <Badge variant="outline" className="text-2xs gap-1">
