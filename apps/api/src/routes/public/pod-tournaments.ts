@@ -20,7 +20,11 @@ const tokenPodParam = z.object({ token: z.string().min(1), podId: z.uuid() });
  */
 async function buildReport(repos: Repos, tournament: PodTournament): Promise<PodReportResponse> {
   const [standings, rounds] = await Promise.all([
-    repos.podTournaments.computeStandings(tournament.id, tournament.scoringScheme),
+    repos.podTournaments.computeStandings(
+      tournament.id,
+      tournament.scoringScheme,
+      tournament.byePoints,
+    ),
     repos.podTournaments.loadRounds(tournament.id, tournament.scoringScheme),
   ]);
   return {
@@ -28,6 +32,7 @@ async function buildReport(repos: Repos, tournament: PodTournament): Promise<Pod
     status: tournament.status,
     currentRound: tournament.currentRound,
     scoringScheme: tournament.scoringScheme,
+    byePoints: tournament.byePoints,
     standings,
     rounds: rounds.map((round) => ({
       ...round,
@@ -87,7 +92,7 @@ export const publicPodTournamentsRoute = createApiApp()
     const { token, podId } = c.req.valid("param");
     const tournament = await repos.podTournaments.findByReportToken(token);
     assertFound(tournament, "Not found");
-    await submitPodResult(repos, tournament.id, podId, c.req.valid("json").placements, {
+    await submitPodResult(repos, tournament.id, podId, c.req.valid("json").results, {
       allowFinalized: false,
     });
     return c.json(await buildReport(repos, tournament), 200);

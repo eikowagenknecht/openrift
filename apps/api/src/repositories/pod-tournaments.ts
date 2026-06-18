@@ -48,9 +48,11 @@ export interface PodForResult {
 /** Per-player aggregate, derived from the finalized rounds (the lean model's source of truth). */
 interface PlayerAggregate {
   score: number;
+  /** Sum of raw game points across finalized pods; first tie-breaker after score. */
+  gamePoints: number;
   pods3: number;
   pods4: number;
-  /** Byes taken: a bye sits a round out for win-equivalent points (a flat 3). */
+  /** Byes taken: a bye sits a round out for the tournament's bye points. */
   byes: number;
   /** Pods won outright (sole 1st place; a tied 1st does not count). */
   podWins: number;
@@ -63,10 +65,19 @@ interface FinalizedMemberRow {
   size: number;
   playerId: string;
   placement: number | null;
+  gamePoints: number | null;
 }
 
-/** Win-equivalent points awarded for a bye, scheme-independent (a pod win is always 3). */
-const BYE_POINTS = 3;
+// A stable pseudo-random key per player id, used as the final standings
+// tie-breaker so fully-tied players get an arbitrary but consistent order instead
+// of reshuffling on every read. Math.imul keeps each step within a 32-bit int.
+function tieBreakKey(id: string): number {
+  let hash = 0;
+  for (let index = 0; index < id.length; index++) {
+    hash = Math.imul(hash, 31) + (id.codePointAt(index) ?? 0);
+  }
+  return hash;
+}
 
 // jsonb can come back as a parsed object (postgres.js) or a string (Bun); normalize.
 function parseBreakdown(value: unknown): PodPenaltyBreakdown {
@@ -76,6 +87,7 @@ function parseBreakdown(value: unknown): PodPenaltyBreakdown {
 function emptyAggregate(): PlayerAggregate {
   return {
     score: 0,
+    gamePoints: 0,
     pods3: 0,
     pods4: 0,
     byes: 0,
@@ -87,19 +99,22 @@ function emptyAggregate(): PlayerAggregate {
 
 /**
  * Fold the finalized pod/member rows (and finalized byes) into per-player
- * aggregates. Points are derived per pod via the pure scorer; opponent counts
- * come from co-membership; a sole 1st place is a pod win; a bye adds
- * win-equivalent points and a round played but no opponents or pod tally.
+ * aggregates. Scheme points are derived per pod from placement via the pure
+ * scorer; raw game points are summed for the tie-breaker; opponent counts come
+ * from co-membership; a sole 1st place is a pod win; a bye adds the tournament's
+ * bye points and a round played but no opponents or pod tally.
  *
  * @param rows The finalized pod-member rows.
  * @param byePlayerIds One entry per finalized bye (a player id, repeated per bye).
  * @param scheme The active scoring scheme.
+ * @param byePoints Score points a sat-out (bye) game is worth for this tournament.
  * @returns A map from player id to their derived aggregate.
  */
 function foldFinalized(
   rows: FinalizedMemberRow[],
   byePlayerIds: string[],
   scheme: ScoringScheme,
+  byePoints: number,
 ): Map<string, PlayerAggregate> {
   const aggregates = new Map<string, PlayerAggregate>();
   const ensure = (id: string): PlayerAggregate => {
@@ -122,6 +137,7 @@ function foldFinalized(
     members.forEach((member, index) => {
       const aggregate = ensure(member.playerId);
       aggregate.score += points[index] ?? 0;
+      aggregate.gamePoints += member.gamePoints ?? 0;
       aggregate.roundsPlayed += 1;
       if (size === 3) {
         aggregate.pods3 += 1;
@@ -154,7 +170,7 @@ function foldFinalized(
 
   for (const playerId of byePlayerIds) {
     const aggregate = ensure(playerId);
-    aggregate.score += BYE_POINTS;
+    aggregate.score += byePoints;
     aggregate.roundsPlayed += 1;
     aggregate.byes += 1;
   }
@@ -167,6 +183,7 @@ interface PodMemberRow {
   playerId: string;
   displayName: string;
   placement: number | null;
+  gamePoints: number | null;
 }
 
 function toPodResponse(pod: Pod, memberRows: PodMemberRow[], scheme: ScoringScheme): PodResponse {
@@ -189,6 +206,7 @@ function toPodResponse(pod: Pod, memberRows: PodMemberRow[], scheme: ScoringSche
     members: memberRows.map((member, index) => ({
       playerId: member.playerId,
       displayName: member.displayName,
+      gamePoints: member.gamePoints,
       placement: member.placement,
       points: points ? (points[index] ?? null) : null,
     })),
@@ -250,6 +268,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
         "p.size as size",
         "m.playerId as playerId",
         "m.placement as placement",
+        "m.gamePoints as gamePoints",
       ])
       .where("r.tournamentId", "=", tournamentId)
       .where("r.status", "=", "finalized")
@@ -368,6 +387,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
         status?: PodTournamentStatus;
         currentRound?: number;
         scoringScheme?: PodScoringScheme;
+        byePoints?: number;
       },
     ): Promise<PodTournament | undefined> {
       return db
@@ -591,16 +611,16 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       return { pod, round, tournament, memberPlayerIds: memberRows.map((row) => row.playerId) };
     },
 
-    /** Writes each member's placement and flips the pod to `reported`, atomically. */
+    /** Writes each member's game points + derived placement and flips the pod to `reported`. */
     async setPodResult(
       podId: string,
-      placements: { playerId: string; placement: number }[],
+      results: { playerId: string; placement: number; gamePoints: number }[],
     ): Promise<void> {
       await db.transaction().execute(async (trx) => {
-        for (const { playerId, placement } of placements) {
+        for (const { playerId, placement, gamePoints } of results) {
           await trx
             .updateTable("podMembers")
-            .set({ placement })
+            .set({ placement, gamePoints })
             .where("podId", "=", podId)
             .where("playerId", "=", playerId)
             .execute();
@@ -660,6 +680,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
     async loadPairingSnapshot(
       tournamentId: string,
       scheme: PodScoringScheme,
+      byePoints: number,
     ): Promise<PairingPlayer[]> {
       const [activePlayers, finalizedRows, finalizedByes] = await Promise.all([
         db
@@ -672,7 +693,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
         loadFinalizedRows(tournamentId),
         loadFinalizedByePlayerIds(tournamentId),
       ]);
-      const aggregates = foldFinalized(finalizedRows, finalizedByes, scheme);
+      const aggregates = foldFinalized(finalizedRows, finalizedByes, scheme, byePoints);
       return activePlayers.map((player) => {
         const aggregate = aggregates.get(player.id);
         return {
@@ -696,6 +717,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
     async loadOpenRoundSnapshot(
       tournamentId: string,
       scheme: PodScoringScheme,
+      byePoints: number,
     ): Promise<PodSnapshotPlayer[]> {
       const [players, finalizedRows, finalizedByes] = await Promise.all([
         db
@@ -707,7 +729,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
         loadFinalizedRows(tournamentId),
         loadFinalizedByePlayerIds(tournamentId),
       ]);
-      const aggregates = foldFinalized(finalizedRows, finalizedByes, scheme);
+      const aggregates = foldFinalized(finalizedRows, finalizedByes, scheme, byePoints);
       return players.map((player) => {
         const aggregate = aggregates.get(player.id);
         return {
@@ -722,12 +744,14 @@ export function podTournamentsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * @returns All players as standings rows, sorted by the document's tie-break
-     *   order: score → pod wins → average opponent score → registration order.
+     * @returns All players as standings rows, sorted by the tie-break order:
+     *   tournament score → pod wins → average opponent score → game points →
+     *   average opponent game points → random (a stable per-player draw).
      */
     async computeStandings(
       tournamentId: string,
       scheme: PodScoringScheme,
+      byePoints: number,
     ): Promise<PodStandingRow[]> {
       const [players, finalizedRows, finalizedByes] = await Promise.all([
         db
@@ -739,35 +763,41 @@ export function podTournamentsRepo(db: Kysely<Database>) {
         loadFinalizedRows(tournamentId),
         loadFinalizedByePlayerIds(tournamentId),
       ]);
-      const aggregates = foldFinalized(finalizedRows, finalizedByes, scheme);
+      const aggregates = foldFinalized(finalizedRows, finalizedByes, scheme, byePoints);
       const scoreOf = (id: string): number => aggregates.get(id)?.score ?? 0;
+      const gamePointsOf = (id: string): number => aggregates.get(id)?.gamePoints ?? 0;
+      const meanOver = (ids: string[], valueOf: (id: string) => number): number =>
+        ids.length === 0 ? 0 : ids.reduce((sum, id) => sum + valueOf(id), 0) / ids.length;
       const rows: PodStandingRow[] = players.map((player) => {
         const aggregate = aggregates.get(player.id);
         const opponents = aggregate ? [...aggregate.opponents.keys()] : [];
-        const avgOpponentScore =
-          opponents.length === 0
-            ? 0
-            : opponents.reduce((sum, opponentId) => sum + scoreOf(opponentId), 0) /
-              opponents.length;
         return {
           playerId: player.id,
           displayName: player.displayName,
           status: player.status,
           droppedAfterRound: player.droppedAfterRound,
           score: aggregate?.score ?? 0,
+          gamePoints: aggregate?.gamePoints ?? 0,
           roundsPlayed: aggregate?.roundsPlayed ?? 0,
           pods3Count: aggregate?.pods3 ?? 0,
           pods4Count: aggregate?.pods4 ?? 0,
           byeCount: aggregate?.byes ?? 0,
           podWins: aggregate?.podWins ?? 0,
-          avgOpponentScore,
+          avgOpponentScore: meanOver(opponents, scoreOf),
+          avgOpponentGamePoints: meanOver(opponents, gamePointsOf),
         };
       });
-      // `players` is already in registration order; toSorted is stable, so a full
-      // tie on the three keys preserves that order (the document's final fallback).
+      // Final fallback is "random", but a fresh draw on every read would reshuffle
+      // tied players each refresh; instead derive a stable per-player draw from the
+      // id hash so the arbitrary order holds across reads.
       return rows.toSorted(
         (a, b) =>
-          b.score - a.score || b.podWins - a.podWins || b.avgOpponentScore - a.avgOpponentScore,
+          b.score - a.score ||
+          b.podWins - a.podWins ||
+          b.avgOpponentScore - a.avgOpponentScore ||
+          b.gamePoints - a.gamePoints ||
+          b.avgOpponentGamePoints - a.avgOpponentGamePoints ||
+          tieBreakKey(a.playerId) - tieBreakKey(b.playerId),
       );
     },
 
@@ -796,7 +826,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
           : db
               .selectFrom("podMembers as m")
               .innerJoin("podPlayers as pl", "pl.id", "m.playerId")
-              .select(["m.podId", "m.playerId", "pl.displayName", "m.placement"])
+              .select(["m.podId", "m.playerId", "pl.displayName", "m.placement", "m.gamePoints"])
               .where("m.podId", "in", podIds)
               .execute(),
         db

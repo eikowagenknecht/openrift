@@ -14,6 +14,7 @@ function round(): PodRoundResponse {
   const member = (playerId: string) => ({
     playerId,
     displayName: playerId,
+    gamePoints: null,
     placement: null,
     points: null,
   });

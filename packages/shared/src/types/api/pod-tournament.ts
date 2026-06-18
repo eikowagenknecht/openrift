@@ -10,6 +10,8 @@ export interface PodTournamentResponse {
   status: PodTournamentStatus;
   currentRound: number;
   scoringScheme: PodScoringScheme;
+  /** Score points a sat-out (bye) game is worth (organizer-configurable; default 3). */
+  byePoints: number;
   /** `null` when the participant report link is disabled. */
   reportToken: string | null;
   createdAt: string;
@@ -42,23 +44,29 @@ export interface PodStandingRow {
   status: PodPlayerStatus;
   droppedAfterRound: number | null;
   score: number;
+  /** Sum of raw game points across finalized pods. Third tie-breaker. */
+  gamePoints: number;
   roundsPlayed: number;
   pods3Count: number;
   pods4Count: number;
-  /** Byes taken (each a sat-out round worth win-equivalent points). */
+  /** Byes taken (each a sat-out round worth the tournament's bye points). */
   byeCount: number;
   /** Pods won outright (sole 1st place). First standings tie-breaker after score. */
   podWins: number;
   /** Mean current score of every player met so far. Second tie-breaker. */
   avgOpponentScore: number;
+  /** Mean game points of every player met so far. Fourth tie-breaker. */
+  avgOpponentGamePoints: number;
 }
 
 export interface PodMemberResponse {
   playerId: string;
   displayName: string;
-  /** 1-based; ties share a value; `null` until the pod is reported. */
+  /** Raw game points entered for this player; `null` until the pod is reported. */
+  gamePoints: number | null;
+  /** 1-based; ties share a value; derived from game points; `null` until reported. */
   placement: number | null;
-  /** Derived from placement at read time; `null` until reported. */
+  /** Scheme points derived from placement at read time; `null` until reported. */
   points: number | null;
 }
 
@@ -138,6 +146,8 @@ export interface PodReportResponse {
   currentRound: number;
   /** The active scheme, so the participant result form can preview derived points. */
   scoringScheme: PodScoringScheme;
+  /** Score points a sat-out (bye) game is worth, shown on the byes card. */
+  byePoints: number;
   standings: PodStandingRow[];
   rounds: PodRoundResponse[];
 }

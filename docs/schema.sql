@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 6gRSMLfFEOVx5mIr6fCswAWuhsTtMQawqNapwlGycmjHc7VGanmFn4HHvzJKHKN
+\restrict pUT2EjQKZPFIVKotpcM3Zr13OgE6glSRHRIa4tSKs0mVc3xDwjHZ86sqK2xAgGu
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1597,6 +1597,8 @@ CREATE TABLE public.pod_members (
     pod_id uuid NOT NULL,
     player_id uuid NOT NULL,
     placement integer,
+    game_points integer,
+    CONSTRAINT chk_pod_members_game_points CHECK (((game_points IS NULL) OR (game_points >= 0))),
     CONSTRAINT chk_pod_members_placement CHECK (((placement IS NULL) OR ((placement >= 1) AND (placement <= 4))))
 );
 
@@ -1650,6 +1652,8 @@ CREATE TABLE public.pod_tournaments (
     report_token text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    bye_points integer DEFAULT 3 NOT NULL,
+    CONSTRAINT chk_pod_tournaments_bye_points CHECK ((bye_points >= 0)),
     CONSTRAINT chk_pod_tournaments_name CHECK (((length(name) >= 1) AND (length(name) <= 120))),
     CONSTRAINT chk_pod_tournaments_scheme CHECK ((scoring_scheme = ANY (ARRAY['standard'::text, 'three_pod_reduced'::text]))),
     CONSTRAINT chk_pod_tournaments_status CHECK ((status = ANY (ARRAY['setup'::text, 'running'::text, 'completed'::text])))
@@ -4953,5 +4957,5 @@ ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.copies;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 6gRSMLfFEOVx5mIr6fCswAWuhsTtMQawqNapwlGycmjHc7VGanmFn4HHvzJKHKN
+\unrestrict pUT2EjQKZPFIVKotpcM3Zr13OgE6glSRHRIa4tSKs0mVc3xDwjHZ86sqK2xAgGu
 

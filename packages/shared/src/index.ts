@@ -395,6 +395,7 @@ export {
   generatePairing,
   InvalidPlayerCountError,
   makeLocalSearchStrategy,
+  placementsFromGamePoints,
   pointsForPlacements,
   SPREAD_WARNING_THRESHOLD,
   suggestedRoundCount,

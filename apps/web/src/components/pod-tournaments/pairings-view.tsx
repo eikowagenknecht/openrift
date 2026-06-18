@@ -18,9 +18,9 @@ import { snapshotToPlayers, WarningBadge, WarningList } from "./pairing-warnings
 import { PodResultForm } from "./pod-result-form";
 import { formatScore } from "./standings-table";
 
-interface Placement {
+interface PodResultEntry {
   playerId: string;
-  placement: number;
+  gamePoints: number;
 }
 
 interface PairingsViewProps {
@@ -29,6 +29,8 @@ interface PairingsViewProps {
   scoresByPlayer: Map<string, number>;
   /** The active scheme, so the result form previews the right points. */
   scheme: PodScoringScheme;
+  /** Score points a sat-out (bye) game is worth, shown on the byes card. */
+  byePoints: number;
   /** Organizer view: show the fairness internals (penalty, rematches, spread, warnings). */
   showPenalty: boolean;
   /**
@@ -40,7 +42,7 @@ interface PairingsViewProps {
   warningsExpanded?: boolean;
   /** Whether the given pod may be scored right now (e.g. its round is reporting). */
   canEnterResult: (round: PodRoundResponse, pod: PodResponse) => boolean;
-  onSubmitResult: (podId: string, placements: Placement[]) => Promise<void>;
+  onSubmitResult: (podId: string, results: PodResultEntry[]) => Promise<void>;
   /** Organizer round-level controls (finalize / re-roll / edit), rendered in the round header. */
   renderRoundActions?: (round: PodRoundResponse) => ReactNode;
   emptyMessage: string;
@@ -58,6 +60,7 @@ export function PairingsView({
   rounds,
   scoresByPlayer,
   scheme,
+  byePoints,
   showPenalty,
   snapshot,
   warningsExpanded = true,
@@ -136,6 +139,7 @@ export function PairingsView({
               {round.byes.length > 0 ? (
                 <ByesCard
                   byes={round.byes}
+                  byePoints={byePoints}
                   warnings={byeWarnings}
                   warningsExpanded={warningsExpanded}
                   nameById={nameById}
@@ -170,12 +174,14 @@ function RoundPenaltySummary({ round }: { round: PodRoundResponse }) {
 
 function ByesCard({
   byes,
+  byePoints,
   warnings,
   warningsExpanded,
   nameById,
   showPenalty,
 }: {
   byes: PodRoundResponse["byes"];
+  byePoints: number;
   warnings: PairingWarning[];
   warningsExpanded: boolean;
   nameById: Map<string, string>;
@@ -199,7 +205,9 @@ function ByesCard({
           {byes.map((bye) => (
             <li key={bye.playerId} className="flex items-center justify-between gap-2">
               <span className="font-medium">{bye.displayName}</span>
-              <span className="font-semibold tabular-nums">+3 bye</span>
+              <span className="font-semibold tabular-nums">
+                {byePoints > 0 ? `+${byePoints} bye` : "sat out · 0"}
+              </span>
             </li>
           ))}
         </ul>
@@ -227,18 +235,18 @@ function PodCard({
   warningsExpanded: boolean;
   nameById: Map<string, string>;
   canEnter: boolean;
-  onSubmit: (podId: string, placements: Placement[]) => Promise<void>;
+  onSubmit: (podId: string, results: PodResultEntry[]) => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const reported = pod.resultStatus === "reported";
 
-  async function handleSubmit(placements: Placement[]) {
+  async function handleSubmit(results: PodResultEntry[]) {
     setSaving(true);
     // React Compiler can't yet lower try/finally, so reset `saving` in both the
     // success and error paths and rethrow to preserve the original propagation.
     try {
-      await onSubmit(pod.id, placements);
+      await onSubmit(pod.id, results);
       setEditing(false);
     } catch (error) {
       setSaving(false);
@@ -297,8 +305,11 @@ function PodCard({
                     ) : null}
                   </span>
                   {member.points !== null && (
-                    <span className="font-semibold tabular-nums">
-                      +{formatScore(member.points)}
+                    <span className="flex items-center gap-2 tabular-nums">
+                      {member.gamePoints !== null && (
+                        <span className="text-muted-foreground">{member.gamePoints} game</span>
+                      )}
+                      <span className="font-semibold">+{formatScore(member.points)}</span>
                     </span>
                   )}
                 </li>

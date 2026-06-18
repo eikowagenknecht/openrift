@@ -1,59 +1,70 @@
 import type { PodResponse, PodScoringScheme } from "@openrift/shared";
-import { pointsForPlacements } from "@openrift/shared";
+import { placementsFromGamePoints, pointsForPlacements } from "@openrift/shared";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface PodResultFormProps {
   pod: PodResponse;
   /** The active scheme, so the live points preview matches what will be scored. */
   scheme: PodScoringScheme;
-  onSubmit: (placements: { playerId: string; placement: number }[]) => Promise<void> | void;
+  onSubmit: (results: { playerId: string; gamePoints: number }[]) => Promise<void> | void;
   submitting: boolean;
   onCancel?: () => void;
 }
 
-// Points can be fractional (a tied placement averages, e.g. 1.5); show one decimal only then.
+// Scheme points can be fractional (a tied place averages, e.g. 1.5); show one decimal only then.
 function formatPoints(points: number): string {
   return Number.isInteger(points) ? String(points) : points.toFixed(1);
 }
 
+// Parse the controlled input back to a whole, non-negative game-point count, or null when blank/invalid.
+function parsePoints(value: string): number | null {
+  if (value.trim() === "") {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+}
+
+// Suffix the place number (1st / 2nd / 3rd / 4th) so the derived placement reads naturally.
+function ordinal(place: number): string {
+  const suffix = place === 1 ? "st" : place === 2 ? "nd" : place === 3 ? "rd" : "th";
+  return `${place}${suffix}`;
+}
+
 /**
- * Placement selector for one pod. Each player picks a 1..N place from a linked
- * toggle-button group; ties are entered by giving two players the same place.
- * Once every player has a place the derived points (with tie averaging) preview
- * live next to each name. Points are still computed server-side on save, never
- * typed. The same form serves the organizer and the participant link.
+ * Result entry for one pod. Each player's raw game points are typed (in Riftbound
+ * a game is won at 8 points; more is possible if a turn overshoots). Once every
+ * player has a value, the derived placement and scheme points (with tie averaging)
+ * preview live next to each name; the server re-derives both on save. The same
+ * form serves the organizer and the participant link.
  * @returns The result-entry form.
  */
 export function PodResultForm({ pod, scheme, onSubmit, submitting, onCancel }: PodResultFormProps) {
-  const [places, setPlaces] = useState<Record<string, string>>(() =>
+  const [points, setPoints] = useState<Record<string, string>>(() =>
     Object.fromEntries(
       pod.members.map((member) => [
         member.playerId,
-        member.placement === null ? "" : String(member.placement),
+        member.gamePoints === null ? "" : String(member.gamePoints),
       ]),
     ),
   );
-  const slots = Array.from({ length: pod.size }, (_, index) => String(index + 1));
-  const allSet = pod.members.every((member) => places[member.playerId]);
-  const previewPoints = allSet
-    ? pointsForPlacements(
-        pod.members.map((member) => Number(places[member.playerId])),
-        pod.size,
-        scheme,
-      )
-    : null;
+  const parsed = pod.members.map((member) => parsePoints(points[member.playerId] ?? ""));
+  const allSet = parsed.every((value) => value !== null);
+  const placements = allSet ? placementsFromGamePoints(parsed as number[]) : null;
+  const previewPoints = placements ? pointsForPlacements(placements, pod.size, scheme) : null;
 
   async function handleSubmit() {
     if (!allSet) {
       return;
     }
     await onSubmit(
-      pod.members.map((member) => ({
+      pod.members.map((member, index) => ({
         playerId: member.playerId,
-        placement: Number(places[member.playerId]),
+        gamePoints: parsed[index] as number,
       })),
     );
   }
@@ -67,31 +78,33 @@ export function PodResultForm({ pod, scheme, onSubmit, submitting, onCancel }: P
         >
           <span className="flex items-center gap-2">
             <span className="font-medium">{member.displayName}</span>
-            {previewPoints ? (
+            {previewPoints && placements ? (
               <span className="text-muted-foreground tabular-nums">
-                +{formatPoints(previewPoints[index] ?? 0)}
+                {ordinal(placements[index] ?? 1)} · +{formatPoints(previewPoints[index] ?? 0)}
               </span>
             ) : null}
           </span>
-          <ToggleGroup
-            variant="outline"
-            size="sm"
-            aria-label={`Place for ${member.displayName}`}
-            value={places[member.playerId] ? [places[member.playerId]] : []}
-            onValueChange={([next]) =>
-              setPlaces((prev) => ({ ...prev, [member.playerId]: next ?? "" }))
-            }
-          >
-            {slots.map((slot) => (
-              <ToggleGroupItem key={slot} value={slot} className="min-w-9 tabular-nums">
-                {slot}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+          <span className="flex items-center gap-2">
+            <Label htmlFor={`pts-${member.playerId}`} className="text-muted-foreground">
+              Points
+            </Label>
+            <Input
+              id={`pts-${member.playerId}`}
+              type="number"
+              min={0}
+              inputMode="numeric"
+              value={points[member.playerId] ?? ""}
+              onChange={(event) =>
+                setPoints((prev) => ({ ...prev, [member.playerId]: event.target.value }))
+              }
+              className="w-20 tabular-nums"
+            />
+          </span>
         </div>
       ))}
       <p className="text-muted-foreground">
-        Tie two players by giving them the same place. Points are worked out automatically.
+        Enter the game points for each player (8 wins; more is possible). Places and points are
+        worked out automatically.
       </p>
       <div className="flex justify-end gap-2">
         {onCancel ? (

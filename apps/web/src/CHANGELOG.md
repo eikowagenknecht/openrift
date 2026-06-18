@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Tournaments): **Enter game points, not places** — score each pod by typing every player's game points (8 wins, more when a turn overshoots), and the finishing order and standings points are worked out for you. Total game points now break ties in the standings.
 - feat(Groups): **Take cards from a group bulk box** — browse a group collection and move copies into your inbox with the Take button on each card. A confirmation lets you choose how many copies to take. Cards on your wishlist show a red heart with how many you still want. Click it to jump to that wishlist, and after taking one you wanted, you're asked whether to drop it from the list.
 
 ### Other
@@ -13,6 +14,7 @@
 - feat(Groups): **QR code for the join link** — admins can show a scannable QR of the group invite link, handy for inviting people in person.
 - feat(Tournaments): **Past events tucked away** — a group's events page now leads with upcoming events and folds past and archived ones into a collapsible "Past and archived" section
 - feat(Tournaments): **Deck-check API keys moved to Manage** — a group's deck-check API keys now live on the Manage page with the other admin settings.
+- feat(Tournaments): **Set what a sat-out game is worth** — a tournament setting controls the points a bye scores, from the usual win-equivalent down to 0 when sitting out means a player dropped or was not back in time.
 - fix(App): **Page titles line up with content** — the title row on pages like Groups and Collection no longer sits indented from the cards below it, and the menu and avatar in the top bar line up with the content too. The misalignment was most obvious on phones held in landscape.
 - fix(Collection): **Only your own cards on trade and wishlists** — cards from a group's shared collection aren't yours to trade away, so trade and wish lists no longer accept them. Dragging or adding such a card now skips those lists with a clear note instead of the old, confusing "already on the list" message, and the list isn't offered as a target in the first place. Organize lists still take shared group cards.
 - fix(App): **Clear the notch in landscape** — on the installed iPhone app held sideways, sidebar pages and the match tracker no longer slip under the Dynamic Island or home indicator, so the layout stops looking shifted to one side.

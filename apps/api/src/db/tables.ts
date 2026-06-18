@@ -621,6 +621,8 @@ export interface PodTournamentsTable {
   status: Generated<PodTournamentStatus>;
   currentRound: Generated<number>;
   scoringScheme: Generated<PodScoringScheme>;
+  /** Score points a sat-out (bye) game is worth; CHECK >= 0. Defaults to 3. */
+  byePoints: Generated<number>;
   /** Nullable disables the participant report link; unique where not null. */
   reportToken: string | null;
   createdAt: CreatedAt;
@@ -670,14 +672,16 @@ export interface PodsTable {
 interface PodMembersTable {
   podId: string;
   playerId: string;
-  /** 1-based; ties share a value; NULL until the pod is reported. */
+  /** 1-based; ties share a value; NULL until the pod is reported. Derived from gamePoints. */
   placement: number | null;
+  /** Raw game points the player ended the pod on; CHECK >= 0; NULL until reported. */
+  gamePoints: number | null;
 }
 
-// Byes (migration 147). A row records that a player sat a round out for
-// win-equivalent points (a flat 3, derived on read — no points column). Manual
-// only. Not exported for the same reason as PodMembersTable: no module derives a
-// Selectable<> from it.
+// Byes (migration 147). A row records that a player sat a round out; the score
+// it is worth is the tournament's bye_points (derived on read — no points
+// column). Manual only. Not exported for the same reason as PodMembersTable: no
+// module derives a Selectable<> from it.
 interface PodByesTable {
   roundId: string;
   playerId: string;

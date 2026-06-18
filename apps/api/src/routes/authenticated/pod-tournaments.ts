@@ -66,6 +66,7 @@ function toTournament(row: PodTournament): PodTournamentResponse {
     status: row.status,
     currentRound: row.currentRound,
     scoringScheme: row.scoringScheme,
+    byePoints: row.byePoints,
     reportToken: row.reportToken,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -92,14 +93,22 @@ async function buildDetail(
 ): Promise<PodTournamentDetailResponse> {
   const [players, standings, rounds, openRound] = await Promise.all([
     repos.podTournaments.listPlayers(tournament.id),
-    repos.podTournaments.computeStandings(tournament.id, tournament.scoringScheme),
+    repos.podTournaments.computeStandings(
+      tournament.id,
+      tournament.scoringScheme,
+      tournament.byePoints,
+    ),
     repos.podTournaments.loadRounds(tournament.id, tournament.scoringScheme),
     repos.podTournaments.findOpenRound(tournament.id),
   ]);
   // The snapshot (for open-round warnings + the manual editor) is only meaningful
   // while a round is open, and it stays organizer-only.
   const openRoundSnapshot = openRound
-    ? await repos.podTournaments.loadOpenRoundSnapshot(tournament.id, tournament.scoringScheme)
+    ? await repos.podTournaments.loadOpenRoundSnapshot(
+        tournament.id,
+        tournament.scoringScheme,
+        tournament.byePoints,
+      )
     : null;
   return {
     tournament: toTournament(tournament),
@@ -378,6 +387,7 @@ export const podTournamentsRoute = podTournamentsApp
       name: body.name,
       status: body.status,
       scoringScheme: body.scoringScheme,
+      byePoints: body.byePoints,
     });
     return c.json(await detailById(repos, id, userId), 200);
   })
@@ -488,7 +498,7 @@ export const podTournamentsRoute = podTournamentsApp
     const repos = c.get("repos");
     const { id, podId } = c.req.valid("param");
     const tournament = await loadOwnedTournament(repos, id, userId);
-    await submitPodResult(repos, tournament.id, podId, c.req.valid("json").placements, {
+    await submitPodResult(repos, tournament.id, podId, c.req.valid("json").results, {
       allowFinalized: true,
     });
     return c.json(await detailById(repos, id, userId), 200);

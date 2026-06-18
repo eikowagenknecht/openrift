@@ -12,7 +12,7 @@ export type {
 export { DEFAULT_LOCAL_SEARCH_BUDGET, DEFAULT_PAIRING_CONFIG } from "./types.js";
 export { determinePodSizes, suggestedRoundCount } from "./pod-sizes.js";
 export type { ScoringScheme } from "./points.js";
-export { pointsForPlacements } from "./points.js";
+export { placementsFromGamePoints, pointsForPlacements } from "./points.js";
 export { evaluatePairing, evaluatePod } from "./evaluate.js";
 export {
   generatePairing,

@@ -14,9 +14,9 @@ import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/serve
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-interface Placement {
+interface PodResultEntry {
   playerId: string;
-  placement: number;
+  gamePoints: number;
 }
 
 interface PairingPodInput {
@@ -126,6 +126,7 @@ const updateTournamentFn = createServerFn({ method: "POST" })
       name?: string;
       status?: "running" | "completed";
       scoringScheme?: PodScoringScheme;
+      byePoints?: number;
     }) => input,
   )
   .middleware([withCookies])
@@ -290,7 +291,7 @@ const finalizeRoundFn = createServerFn({ method: "POST" })
   );
 
 const submitResultFn = createServerFn({ method: "POST" })
-  .validator((input: { id: string; podId: string; placements: Placement[] }) => input)
+  .validator((input: { id: string; podId: string; results: PodResultEntry[] }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<PodTournamentDetailResponse> =>
@@ -298,7 +299,7 @@ const submitResultFn = createServerFn({ method: "POST" })
         serverApiClient(context.cookie).api.v1["pod-tournaments"][":id"].pods[":podId"].result.$put(
           {
             param: encodeParams({ id: data.id, podId: data.podId }),
-            json: { placements: data.placements },
+            json: { results: data.results },
           },
         ),
         "Couldn't save result",
@@ -320,13 +321,13 @@ const setReportTokenFn = createServerFn({ method: "POST" })
   });
 
 const submitReportResultFn = createServerFn({ method: "POST" })
-  .validator((input: { token: string; podId: string; placements: Placement[] }) => input)
+  .validator((input: { token: string; podId: string; results: PodResultEntry[] }) => input)
   .handler(
     ({ data }): Promise<PodReportResponse> =>
       callApiJson(
         serverApiClient().api.v1["pod-tournaments"].report[":token"].pods[":podId"].result.$put({
           param: encodeParams({ token: data.token, podId: data.podId }),
-          json: { placements: data.placements },
+          json: { results: data.results },
         }),
         "Couldn't save result",
       ),
@@ -351,6 +352,7 @@ export function useUpdatePodTournament() {
       name?: string;
       status?: "running" | "completed";
       scoringScheme?: PodScoringScheme;
+      byePoints?: number;
     }
   >({
     mutationFn: (data) => updateTournamentFn({ data }),
@@ -432,7 +434,7 @@ export function useFinalizePodRound() {
 }
 
 export function useSubmitPodResult() {
-  return useIdMutation<{ id: string; podId: string; placements: Placement[] }>((data) =>
+  return useIdMutation<{ id: string; podId: string; results: PodResultEntry[] }>((data) =>
     submitResultFn({ data }),
   );
 }
@@ -442,10 +444,11 @@ export function useSetPodReportToken() {
 }
 
 export function useSubmitReportResult(token: string) {
-  return useMutationWithInvalidation<PodReportResponse, { podId: string; placements: Placement[] }>(
-    {
-      mutationFn: (data) => submitReportResultFn({ data: { token, ...data } }),
-      invalidates: () => [queryKeys.podTournaments.report(token)],
-    },
-  );
+  return useMutationWithInvalidation<
+    PodReportResponse,
+    { podId: string; results: PodResultEntry[] }
+  >({
+    mutationFn: (data) => submitReportResultFn({ data: { token, ...data } }),
+    invalidates: () => [queryKeys.podTournaments.report(token)],
+  });
 }

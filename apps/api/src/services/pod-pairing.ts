@@ -3,6 +3,7 @@ import {
   evaluatePairing,
   generatePairing,
   InvalidPlayerCountError,
+  placementsFromGamePoints,
 } from "@openrift/shared";
 import type { PairingPlayer, PairingResult, Pod, PodSnapshotPlayer } from "@openrift/shared";
 
@@ -34,6 +35,7 @@ async function runPairing(
   const snapshot = await repos.podTournaments.loadPairingSnapshot(
     tournament.id,
     tournament.scoringScheme,
+    tournament.byePoints,
   );
   const activeIds = new Set(snapshot.map((player) => player.id));
   for (const byeId of byePlayerIds) {
@@ -199,6 +201,7 @@ export async function replaceRoundPairing(
   const snapshot = await repos.podTournaments.loadOpenRoundSnapshot(
     tournament.id,
     tournament.scoringScheme,
+    tournament.byePoints,
   );
   const players = snapshot.map((entry) => toPairingPlayer(entry));
   const enginePods: Pod[] = pods.map((pod) => ({ size: pod.size, playerIds: pod.playerIds }));
@@ -249,14 +252,16 @@ export async function finalizeRound(
 }
 
 /**
- * Submit (or, for the owner, edit) one pod's placements. Validates the pod
- * belongs to the tournament, the round is writable, and the placement set covers
- * exactly the pod's members within `1..size`.
+ * Submit (or, for the owner, edit) one pod's result: each member's raw game
+ * points. Validates the pod belongs to the tournament, the round is writable, and
+ * the result covers exactly the pod's members. The server derives each player's
+ * placement from the points (higher finishes first; equal points share a place)
+ * before storing both.
  *
  * @param repos The request repos.
  * @param tournamentId The tournament the caller is authorized for.
  * @param podId The pod being scored.
- * @param placements One `{ playerId, placement }` per pod member.
+ * @param results One `{ playerId, gamePoints }` per pod member.
  * @param options `allowFinalized` lets the owner edit a finalized round; the
  *   participant link cannot.
  * @returns Nothing.
@@ -265,7 +270,7 @@ export async function submitPodResult(
   repos: Repos,
   tournamentId: string,
   podId: string,
-  placements: { playerId: string; placement: number }[],
+  results: { playerId: string; gamePoints: number }[],
   options: { allowFinalized: boolean },
 ): Promise<void> {
   const found = await repos.podTournaments.findPodForResult(podId);
@@ -281,34 +286,38 @@ export async function submitPodResult(
   }
 
   const size = found.pod.size;
-  if (placements.length !== size) {
+  if (results.length !== size) {
     throw new AppError(
       400,
       ERROR_CODES.BAD_REQUEST,
-      `A ${size}-player pod needs exactly ${size} placements.`,
+      `A ${size}-player pod needs exactly ${size} results.`,
     );
   }
   const memberIds = new Set(found.memberPlayerIds);
   const seen = new Set<string>();
-  for (const { playerId, placement } of placements) {
+  for (const { playerId, gamePoints } of results) {
     if (!memberIds.has(playerId)) {
-      throw new AppError(
-        400,
-        ERROR_CODES.BAD_REQUEST,
-        "A placement names a player not in this pod.",
-      );
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "A result names a player not in this pod.");
     }
     if (seen.has(playerId)) {
-      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "A player appears twice in the placements.");
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "A player appears twice in the results.");
     }
     seen.add(playerId);
-    if (placement < 1 || placement > size) {
-      throw new AppError(400, ERROR_CODES.BAD_REQUEST, `Placement must be between 1 and ${size}.`);
+    if (gamePoints < 0) {
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Game points cannot be negative.");
     }
   }
   if (seen.size !== memberIds.size) {
-    throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Every player in the pod needs a placement.");
+    throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Every player in the pod needs a result.");
   }
 
-  await repos.podTournaments.setPodResult(podId, placements);
+  const placements = placementsFromGamePoints(results.map((result) => result.gamePoints));
+  await repos.podTournaments.setPodResult(
+    podId,
+    results.map((result, index) => ({
+      playerId: result.playerId,
+      placement: placements[index] ?? 1,
+      gamePoints: result.gamePoints,
+    })),
+  );
 }

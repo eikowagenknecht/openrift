@@ -642,6 +642,7 @@ export const updatePodTournamentSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   status: z.enum(["running", "completed"]).optional(),
   scoringScheme: z.enum(["standard", "three_pod_reduced"]).optional(),
+  byePoints: z.number().int().min(0).max(99).optional(),
 });
 
 export const podTournamentIdParamSchema = z.object({ id: z.uuid() });
@@ -686,17 +687,17 @@ export const updatePodPlayerSchema = z.object({
 });
 
 /**
- * One pod's result: a placement per member. Each `placement` is a 1-based slot
- * within the pod size (ties share a value); points are derived by the server, so
- * they are never sent. The server validates the player set and the 1..podSize
- * range against the pod.
+ * One pod's result: the raw game points each member ended on (a Riftbound game
+ * is won at 8 points, but overshooting past 8 is allowed). The server derives
+ * each player's placement and scheme points from these, so neither is sent. The
+ * server validates the player set against the pod.
  */
 export const podResultSchema = z.object({
-  placements: z
+  results: z
     .array(
       z.object({
         playerId: z.uuid(),
-        placement: z.number().int().min(1).max(4),
+        gamePoints: z.number().int().min(0).max(99),
       }),
     )
     .min(3)

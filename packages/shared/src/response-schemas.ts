@@ -1743,6 +1743,7 @@ export const podTournamentResponseSchema = z
     status: podTournamentStatusSchema,
     currentRound: z.number().int().nonnegative(),
     scoringScheme: podScoringSchemeSchema,
+    byePoints: z.number().int().nonnegative(),
     reportToken: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
@@ -1778,18 +1779,21 @@ const podStandingRowSchema = z
     status: podPlayerStatusSchema,
     droppedAfterRound: z.number().int().nullable(),
     score: z.number(),
+    gamePoints: z.number().nonnegative(),
     roundsPlayed: z.number().int().nonnegative(),
     pods3Count: z.number().int().nonnegative(),
     pods4Count: z.number().int().nonnegative(),
     byeCount: z.number().int().nonnegative(),
     podWins: z.number().int().nonnegative(),
     avgOpponentScore: z.number(),
+    avgOpponentGamePoints: z.number(),
   })
   .openapi("PodStandingRow");
 
 const podMemberResponseSchema = z.object({
   playerId: z.string(),
   displayName: z.string(),
+  gamePoints: z.number().int().nullable(),
   placement: z.number().int().nullable(),
   points: z.number().nullable(),
 });
@@ -1855,6 +1859,7 @@ export const podReportResponseSchema = z
     status: podTournamentStatusSchema,
     currentRound: z.number().int().nonnegative(),
     scoringScheme: podScoringSchemeSchema,
+    byePoints: z.number().int().nonnegative(),
     standings: z.array(podStandingRowSchema),
     rounds: z.array(podRoundResponseSchema),
   })

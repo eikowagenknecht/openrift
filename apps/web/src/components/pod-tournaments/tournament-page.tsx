@@ -119,12 +119,13 @@ export function PairingsTab({ id, data }: { id: string; data: PodTournamentDetai
         rounds={shownRounds}
         scoresByPlayer={scoresByPlayer}
         scheme={data.tournament.scoringScheme}
+        byePoints={data.tournament.byePoints}
         showPenalty
         snapshot={data.openRoundSnapshot}
         warningsExpanded={warningsExpanded}
         canEnterResult={() => !completed}
-        onSubmitResult={(podId, placements) =>
-          run(() => submitResult.mutateAsync({ id, podId, placements }))
+        onSubmitResult={(podId, results) =>
+          run(() => submitResult.mutateAsync({ id, podId, results }))
         }
         renderRoundActions={(round) => {
           if (round.status !== "reporting") {
@@ -375,12 +376,17 @@ export function SettingsTab({ id, data }: { id: string; data: PodTournamentDetai
   const setReportToken = useSetPodReportToken();
   const tournament = data.tournament;
   const [name, setName] = useState(tournament.name);
+  const [byePoints, setByePoints] = useState(String(tournament.byePoints));
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [reportLinkConfirm, setReportLinkConfirm] = useState<"rotate" | "disable" | null>(null);
 
   const reportUrl = tournament.reportToken
     ? `${getSiteUrl()}/tournaments/run/report/${tournament.reportToken}`
     : null;
+  const parsedByePoints =
+    byePoints.trim() !== "" && Number.isInteger(Number(byePoints)) && Number(byePoints) >= 0
+      ? Number(byePoints)
+      : null;
 
   async function run(action: () => Promise<unknown>) {
     try {
@@ -466,6 +472,41 @@ export function SettingsTab({ id, data }: { id: string; data: PodTournamentDetai
             ))}
           </SelectContent>
         </Select>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="font-semibold">Sat-out points</h2>
+        <p className="text-muted-foreground">
+          Score a player gets for a round they sit out (a bye). Set 0 when sitting out means they
+          dropped or were not back in time.
+        </p>
+        <div className="flex gap-2">
+          <Input
+            type="number"
+            min={0}
+            inputMode="numeric"
+            aria-label="Sat-out points"
+            value={byePoints}
+            disabled={tournament.status === "completed"}
+            onChange={(event) => setByePoints(event.target.value)}
+            className="w-24 tabular-nums"
+          />
+          <Button
+            disabled={
+              tournament.status === "completed" ||
+              updateTournament.isPending ||
+              parsedByePoints === null ||
+              parsedByePoints === tournament.byePoints
+            }
+            onClick={() => {
+              if (parsedByePoints !== null) {
+                void run(() => updateTournament.mutateAsync({ id, byePoints: parsedByePoints }));
+              }
+            }}
+          >
+            Save
+          </Button>
+        </div>
       </section>
 
       <section className="flex flex-col gap-2">

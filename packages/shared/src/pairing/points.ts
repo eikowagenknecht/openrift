@@ -54,3 +54,22 @@ export function pointsForPlacements(
   }
   return placements.map((placement) => pointsByValue.get(placement) ?? 0);
 }
+
+/**
+ * Derive each player's placement from the raw game points they ended a pod on.
+ *
+ * Higher points finish ahead, so the standard competition ranking applies: a
+ * player's place is `1 + (how many players scored strictly more)`, which makes
+ * equal points share a place and the next group skip the tied slots. The result
+ * feeds {@link pointsForPlacements} directly (it reads placements by order, so
+ * the skipped values never lose a points slot).
+ *
+ * Examples (read left to right in player order): `[8, 5, 5, 2]` -> `[1, 2, 2, 4]`;
+ * `[8, 8, 3, 3]` -> `[1, 1, 3, 3]`; `[6, 6, 6]` -> `[1, 1, 1]`.
+ *
+ * @param gamePoints The raw game points per player, in player order.
+ * @returns The 1-based placement per player, in the same order as `gamePoints`.
+ */
+export function placementsFromGamePoints(gamePoints: number[]): number[] {
+  return gamePoints.map((points) => 1 + gamePoints.filter((other) => other > points).length);
+}

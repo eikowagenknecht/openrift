@@ -46,6 +46,7 @@ export function StandingsTable({ standings }: { standings: PodStandingRow[] }) {
                 {row.podWins} win{row.podWins === 1 ? "" : "s"}
               </span>
               <span>opp {formatScore(row.avgOpponentScore)}</span>
+              <span>{row.gamePoints} game</span>
               <span>
                 {row.roundsPlayed} round{row.roundsPlayed === 1 ? "" : "s"}
               </span>
@@ -71,6 +72,7 @@ export function StandingsTable({ standings }: { standings: PodStandingRow[] }) {
               <TableHead className="text-right">Score</TableHead>
               <TableHead className="text-right">Wins</TableHead>
               <TableHead className="text-right">Opp</TableHead>
+              <TableHead className="text-right">Game</TableHead>
               <TableHead className="text-right">Rounds</TableHead>
               <TableHead className="text-right">3-pods</TableHead>
               <TableHead className="text-right">4-pods</TableHead>
@@ -94,6 +96,7 @@ export function StandingsTable({ standings }: { standings: PodStandingRow[] }) {
                 <TableCell className="text-right tabular-nums">
                   {formatScore(row.avgOpponentScore)}
                 </TableCell>
+                <TableCell className="text-right tabular-nums">{row.gamePoints}</TableCell>
                 <TableCell className="text-right tabular-nums">{row.roundsPlayed}</TableCell>
                 <TableCell className="text-right tabular-nums">{row.pods3Count}</TableCell>
                 <TableCell className="text-right tabular-nums">{row.pods4Count}</TableCell>
