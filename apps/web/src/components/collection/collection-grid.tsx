@@ -460,6 +460,10 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // to the selection or to just the clicked card. Decoupled from `selected` so
   // a browse-mode right-click can act on one card without entering select mode.
   const [actionCopyIds, setActionCopyIds] = useState<string[]>([]);
+  // True when `actionCopyIds` are all copies of a single card, so the
+  // Add-to-list dialog can offer a "how many copies" stepper instead of always
+  // adding every copy.
+  const [actionSingleCard, setActionSingleCard] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -612,10 +616,28 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     if (action === "move") {
       setMoveOpen(true);
     } else if (action === "addToList") {
+      setActionSingleCard(copyIdsShareOneCard(copyIds));
       setAddToListOpen(true);
     } else {
       setDisposeOpen(true);
     }
+  };
+
+  // Whether every target copy belongs to the same card. The right-click menu on
+  // a single card resolves to all its copies; the float bar can span several
+  // cards. Only the single-card case gets the "how many copies" stepper.
+  const copyIdsShareOneCard = (copyIds: string[]) => {
+    if (copyIds.length <= 1) {
+      return true;
+    }
+    const cardIdByCopyId = new Map<string, string>();
+    for (const stack of stacks) {
+      for (const copyId of stack.copyIds) {
+        cardIdByCopyId.set(copyId, stack.printing.cardId);
+      }
+    }
+    const cardIds = new Set(copyIds.map((copyId) => cardIdByCopyId.get(copyId)));
+    return cardIds.size === 1;
   };
 
   const handleDeleteCollection = () => {
@@ -1340,6 +1362,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             onOpenChange={setAddToListOpen}
             copyIds={actionCopyIds}
             groupOwnedOnly={sourceCollectionIsGroup}
+            singleCard={actionSingleCard}
             onAdded={clearSelection}
           />
         </BrowserCardViewer>

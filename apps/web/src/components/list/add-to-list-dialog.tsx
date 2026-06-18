@@ -1,5 +1,5 @@
-import { FolderIcon, HandshakeIcon, PlusIcon } from "lucide-react";
-import { useState } from "react";
+import { FolderIcon, HandshakeIcon, MinusIcon, PlusIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,13 @@ interface AddToListDialogProps {
    * (mirrors the server's personalOnly rule for trade/wish lists).
    */
   groupOwnedOnly?: boolean;
+  /**
+   * True when all `copyIds` are copies of the same card (the right-click /
+   * single-card path). Only then is a "how many copies" choice meaningful, so
+   * the dialog shows a 1..count stepper and adds just the chosen number. A
+   * multi-card selection from the float bar keeps the add-all behavior.
+   */
+  singleCard?: boolean;
   onAdded?: () => void;
 }
 
@@ -44,6 +51,7 @@ export function AddToListDialog({
   onOpenChange,
   copyIds,
   groupOwnedOnly = false,
+  singleCard = false,
   onAdded,
 }: AddToListDialogProps) {
   const { data: allLists } = useLists();
@@ -62,11 +70,23 @@ export function AddToListDialog({
   const [highlightedId, setHighlightedId] = useState("");
 
   const count = copyIds.length;
-  const exceedsLimit = count > MAX_BULK_ADD;
+
+  // How many of the card's copies to add. Only meaningful for a single-card
+  // target; a multi-card selection always adds every selected copy. Re-arm to
+  // "all" each time the dialog opens for a fresh target.
+  const canChooseQuantity = singleCard && count > 1;
+  const [quantity, setQuantity] = useState(count);
+  useEffect(() => {
+    if (open) {
+      setQuantity(count);
+    }
+  }, [open, count]);
+  const effectiveQuantity = canChooseQuantity ? quantity : count;
+  const exceedsLimit = effectiveQuantity > MAX_BULK_ADD;
 
   const addToList = (listId: string, listName: string) => {
     bulkAdd.mutate(
-      { listId, entries: copyIds.map((copyId) => ({ copyId })) },
+      { listId, entries: copyIds.slice(0, effectiveQuantity).map((copyId) => ({ copyId })) },
       {
         onSuccess: (result) => {
           // Copy-kind adds never bump quantity (duplicates DO NOTHING), so a
@@ -119,11 +139,37 @@ export function AddToListDialog({
         <DialogHeader>
           <DialogTitle>Add to list</DialogTitle>
           <DialogDescription>
-            {count === 1
+            {effectiveQuantity === 1
               ? "Choose a list to add this copy to."
-              : `Choose a list to add these ${count} copies to.`}
+              : `Choose a list to add these ${effectiveQuantity} copies to.`}
           </DialogDescription>
         </DialogHeader>
+        {canChooseQuantity && (
+          <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
+            <span className="text-sm">Copies to add</span>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="icon"
+                disabled={quantity <= 1 || isPending}
+                onClick={() => setQuantity((current) => Math.max(1, current - 1))}
+                aria-label="One fewer"
+              >
+                <MinusIcon className="size-4" />
+              </Button>
+              <span className="w-8 text-center text-lg font-medium tabular-nums">{quantity}</span>
+              <Button
+                variant="outline"
+                size="icon"
+                disabled={quantity >= count || isPending}
+                onClick={() => setQuantity((current) => Math.min(count, current + 1))}
+                aria-label="One more"
+              >
+                <PlusIcon className="size-4" />
+              </Button>
+            </div>
+          </div>
+        )}
         {exceedsLimit && (
           <p className="border-destructive/30 bg-destructive/10 text-destructive rounded-md border px-3 py-2 text-sm">
             You can add at most {MAX_BULK_ADD} copies at a time. Deselect {count - MAX_BULK_ADD}{" "}
