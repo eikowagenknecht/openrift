@@ -67,7 +67,7 @@ EXPOSE 3001
 CMD ["bun", "run", ".output/server/index.mjs"]
 
 # ─── Stage 4: Proxy (nginx — reverse proxy + static asset serving) ──────────
-FROM nginx:1.31.1-alpine AS proxy
+FROM nginx:1.31.2-alpine AS proxy
 
 RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx/web.conf /etc/nginx/conf.d/web.conf
