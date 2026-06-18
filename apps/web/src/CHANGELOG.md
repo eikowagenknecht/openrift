@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-06-18
+
+### Other
+
+- feat(Tournaments): **Deck-check API keys moved to Manage** — a group's deck-check API keys now live on the group's Manage page alongside the other admin settings, instead of at the bottom of the Deck checks page
+
 ## 2026-06-17
 
 ### Highlights

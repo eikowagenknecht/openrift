@@ -4,9 +4,9 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
-import { SECTION_HEADING } from "@/components/friend-groups/friend-group-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -56,8 +56,9 @@ function isoDay(timestamp: string): string {
 
 /**
  * Admin-only API-key management plus the integration details an organizer
- * needs to send entrant decklists to this group.
- * @returns The API-keys settings section.
+ * needs to send entrant decklists to this group. Lives on the group's Manage
+ * page.
+ * @returns The API-keys settings card.
  */
 export function DeckCheckKeysSection({ slug }: { slug: string }) {
   const { data } = useDeckCheckKeys(slug, true);
@@ -82,94 +83,97 @@ export function DeckCheckKeysSection({ slug }: { slug: string }) {
 }`;
 
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className={SECTION_HEADING}>API keys</h2>
-        <Button size="sm" onClick={() => setCreateOpen(true)}>
-          <PlusIcon className="size-4" />
-          Create key
-        </Button>
-      </div>
-      <p className="text-muted-foreground text-sm">
-        An API key lets another website or tool send entrant decklists to this group, for example
-        the site where players submit their lists. Lists it sends again are updated in place; lists
-        it leaves out stay untouched.
-      </p>
-
-      {data && data.items.length > 0 ? (
-        <div className="flex flex-col gap-2">
-          {data.items.map((key) => (
-            <KeyRow key={key.id} slug={slug} apiKey={key} />
-          ))}
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-base">Deck-check API keys</CardTitle>
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <PlusIcon className="size-4" />
+            Create key
+          </Button>
         </div>
-      ) : (
-        <p className="text-muted-foreground text-sm">No keys yet.</p>
-      )}
+        <CardDescription>
+          An API key lets another website or tool send entrant decklists to this group, for example
+          the site where players submit their lists. Lists it sends again are updated in place;
+          lists it leaves out stay untouched.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {data && data.items.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            {data.items.map((key) => (
+              <KeyRow key={key.id} slug={slug} apiKey={key} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-muted-foreground text-sm">No keys yet.</p>
+        )}
 
-      <details>
-        <summary className="text-muted-foreground cursor-pointer text-sm">
-          How to send decklists
-        </summary>
-        <div className="mt-2 flex flex-col gap-2 text-sm">
-          <p>
-            Send a POST request to{" "}
-            <code className="break-all">{getSiteUrl()}/api/v1/ingest/deck-check</code> with the
-            header <code>Authorization: Bearer &lt;your key&gt;</code> and a JSON body like this:
-          </p>
-          <p>
-            Pushes can only fill events that already exist: create the event here first, then copy
-            its id from the event page (next to the name) into <code>eventId</code>. The{" "}
-            <code>externalId</code> of an entry is your own id for that player, so sending it again
-            updates the same entry. <code>playerEmail</code>, <code>riotId</code>, and{" "}
-            <code>submittedAt</code> (when the player turned in the list) are optional and shown to
-            judges next to the name.
-          </p>
-          <p>
-            <code>allowDeckPublishing</code> records whether the player agreed to the organizer
-            publishing their deck list publicly after the event; <code>allowNameSharing</code> and{" "}
-            <code>allowRiotIdSharing</code> further record whether their name or Riot ID may be
-            shown with it. Send <code>false</code> when the player declined; leaving a flag out
-            keeps what is stored (new entries default to allowed). Leaving an entry out of a push
-            never withdraws it: to withdraw a player, send the entry with <code>withdrawn</code> set
-            to <code>true</code>; sending it again without the flag restores it.
-          </p>
-          <p>
-            Valid card sections are <code>legend</code>, <code>champion</code>, <code>main</code>,{" "}
-            <code>runes</code>, <code>battlefield</code>, <code>sideboard</code>, and{" "}
-            <code>overflow</code>. Common variants like <code>deck</code>, <code>maindeck</code>,{" "}
-            <code>side</code>, and plural forms work too; anything else rejects the push.
-          </p>
-          <pre className="bg-muted overflow-x-auto rounded-md p-3">{EXAMPLE_PAYLOAD}</pre>
-          <p>
-            A successful push returns <code>200</code> with a summary of the result and a per-entry
-            list keyed by your <code>externalId</code>:
-          </p>
-          <p>
-            The counts tell you how the push landed: <code>entriesCreated</code>,{" "}
-            <code>entriesUpdated</code>, <code>entriesUnchanged</code>, and{" "}
-            <code>entriesWithdrawn</code>. <code>checksInvalidated</code> counts entries whose
-            approval or check was reset because their list changed in this push. Each item in{" "}
-            <code>entries</code> echoes your <code>externalId</code> alongside OpenRift&apos;s
-            stable <code>entryId</code> and a <code>claimUrl</code>.
-          </p>
-          <p>
-            Put the <code>claimUrl</code> in your confirmation email to the player: opening it and
-            signing in (or creating an account) connects the entry to their OpenRift account, so
-            they can see its status any time. It works even if you never share the player&apos;s
-            email with OpenRift.
-          </p>
-          <pre className="bg-muted overflow-x-auto rounded-md p-3">{exampleResponse}</pre>
-        </div>
-      </details>
+        <details>
+          <summary className="text-muted-foreground cursor-pointer text-sm">
+            How to send decklists
+          </summary>
+          <div className="mt-2 flex flex-col gap-2 text-sm">
+            <p>
+              Send a POST request to{" "}
+              <code className="break-all">{getSiteUrl()}/api/v1/ingest/deck-check</code> with the
+              header <code>Authorization: Bearer &lt;your key&gt;</code> and a JSON body like this:
+            </p>
+            <p>
+              Pushes can only fill events that already exist: create the event on the group&apos;s
+              Deck checks page first, then copy its id from the event page (next to the name) into{" "}
+              <code>eventId</code>. The <code>externalId</code> of an entry is your own id for that
+              player, so sending it again updates the same entry. <code>playerEmail</code>,{" "}
+              <code>riotId</code>, and <code>submittedAt</code> (when the player turned in the list)
+              are optional and shown to judges next to the name.
+            </p>
+            <p>
+              <code>allowDeckPublishing</code> records whether the player agreed to the organizer
+              publishing their deck list publicly after the event; <code>allowNameSharing</code> and{" "}
+              <code>allowRiotIdSharing</code> further record whether their name or Riot ID may be
+              shown with it. Send <code>false</code> when the player declined; leaving a flag out
+              keeps what is stored (new entries default to allowed). Leaving an entry out of a push
+              never withdraws it: to withdraw a player, send the entry with <code>withdrawn</code>{" "}
+              set to <code>true</code>; sending it again without the flag restores it.
+            </p>
+            <p>
+              Valid card sections are <code>legend</code>, <code>champion</code>, <code>main</code>,{" "}
+              <code>runes</code>, <code>battlefield</code>, <code>sideboard</code>, and{" "}
+              <code>overflow</code>. Common variants like <code>deck</code>, <code>maindeck</code>,{" "}
+              <code>side</code>, and plural forms work too; anything else rejects the push.
+            </p>
+            <pre className="bg-muted overflow-x-auto rounded-md p-3">{EXAMPLE_PAYLOAD}</pre>
+            <p>
+              A successful push returns <code>200</code> with a summary of the result and a
+              per-entry list keyed by your <code>externalId</code>:
+            </p>
+            <p>
+              The counts tell you how the push landed: <code>entriesCreated</code>,{" "}
+              <code>entriesUpdated</code>, <code>entriesUnchanged</code>, and{" "}
+              <code>entriesWithdrawn</code>. <code>checksInvalidated</code> counts entries whose
+              approval or check was reset because their list changed in this push. Each item in{" "}
+              <code>entries</code> echoes your <code>externalId</code> alongside OpenRift&apos;s
+              stable <code>entryId</code> and a <code>claimUrl</code>.
+            </p>
+            <p>
+              Put the <code>claimUrl</code> in your confirmation email to the player: opening it and
+              signing in (or creating an account) connects the entry to their OpenRift account, so
+              they can see its status any time. It works even if you never share the player&apos;s
+              email with OpenRift.
+            </p>
+            <pre className="bg-muted overflow-x-auto rounded-md p-3">{exampleResponse}</pre>
+          </div>
+        </details>
 
-      <CreateKeyDialog
-        slug={slug}
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        onMinted={setMintedToken}
-      />
-      <MintedKeyDialog token={mintedToken} onClose={() => setMintedToken(null)} />
-    </section>
+        <CreateKeyDialog
+          slug={slug}
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          onMinted={setMintedToken}
+        />
+        <MintedKeyDialog token={mintedToken} onClose={() => setMintedToken(null)} />
+      </CardContent>
+    </Card>
   );
 }
 

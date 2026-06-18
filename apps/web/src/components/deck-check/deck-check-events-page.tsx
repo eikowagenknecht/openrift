@@ -4,7 +4,6 @@ import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { DeckCheckKeysSection } from "@/components/deck-check/deck-check-keys-section";
 import { isAdmin } from "@/components/friend-groups/friend-group-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -68,8 +67,6 @@ export function DeckCheckEventsPage({
           </div>
         )}
       </section>
-
-      {admin ? <DeckCheckKeysSection slug={slug} /> : null}
 
       <CreateEventDialog slug={slug} open={createOpen} onOpenChange={setCreateOpen} />
     </div>
