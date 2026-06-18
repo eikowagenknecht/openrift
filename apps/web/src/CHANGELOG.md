@@ -15,6 +15,7 @@
 - fix(Collection): **Card preview in the quick-add picker on phones** — expanding a card in the quick-add picker now shows its image at the top of the sheet, instead of no preview at all as on desktop.
 - fix(Cards): **Filters scroll on landscape phones** — the filter panel held sideways no longer fills the whole screen with no way to scroll; it now scrolls inside so every section stays reachable.
 - fix(Groups): **Alphabetical member and trade lists** — the members roster sorts by role then name instead of join date, and a member's possible trades are ordered by card name.
+- fix(Groups): **Group list on mobile** — each group on the groups list now stacks on small screens, so a long group name wraps in full instead of being cut off, with the member count and badges dropping to a line below
 
 ## 2026-06-17
 
