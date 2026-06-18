@@ -4,7 +4,7 @@
 
 ### Highlights
 
-- feat(Groups): **Take cards from a group bulk box** — browse a group collection and move copies into your inbox with the Take button on each card. A confirmation lets you choose how many copies to take. Cards on your wishlist show a red heart with how many you still want; click it to jump to that wishlist, and after taking one you wanted, you're asked whether to drop it from the list
+- feat(Groups): **Take cards from a group bulk box** — browse a group collection and move copies into your inbox with the Take button on each card. A confirmation lets you choose how many copies to take. Cards on your wishlist show a red heart with how many you still want. Click it to jump to that wishlist, and after taking one you wanted, you're asked whether to drop it from the list.
 
 ### Other
 
@@ -17,7 +17,7 @@
 - fix(Collection): **Only your own cards on trade and wishlists** — cards from a group's shared collection aren't yours to trade away, so trade and wish lists no longer accept them. Dragging or adding such a card now skips those lists with a clear note instead of the old, confusing "already on the list" message, and the list isn't offered as a target in the first place. Organize lists still take shared group cards.
 - fix(App): **Clear the notch in landscape** — on the installed iPhone app held sideways, sidebar pages and the match tracker no longer slip under the Dynamic Island or home indicator, so the layout stops looking shifted to one side.
 - fix(Collection): **Card preview in the quick-add picker on phones** — expanding a card in the quick-add picker now shows its image at the top of the sheet, instead of no preview at all as on desktop.
-- fix(Cards): **Filters scroll on landscape phones** — the filter panel held sideways no longer fills the whole screen with no way to scroll; it now scrolls inside so every section stays reachable.
+- fix(Cards): **Filters scroll on landscape phones** — the filter panel held sideways no longer fills the whole screen with no way to scroll. It now scrolls inside so every section stays reachable.
 - fix(Groups): **Compact share-lists rows** — each list under "Share your lists" now keeps its name and tags on one line, wrapping only when it has to.
 - fix(Groups): **Alphabetical member and trade lists** — the members roster sorts by role then name instead of join date, and a member's possible trades are ordered by card name.
 - fix(Groups): **Group list on mobile** — each group on the groups list now stacks on small screens, so a long group name wraps in full instead of being cut off, with the member count and badges dropping to a line below
@@ -26,12 +26,12 @@
 
 ### Highlights
 
-- feat(Groups): **Share contact methods, not a nickname** — let group members reach you on Discord, Signal, phone, or email; you control which channels each group sees, and nothing shows until you opt in.
+- feat(Groups): **Share contact methods, not a nickname** — let group members reach you on Discord, Signal, phone, or email. You control which channels each group sees, and nothing shows until you opt in.
 - feat(Groups): **Redesigned group dashboard** — your group opens to what matters: trades waiting on you, what members are sharing, and upcoming events, each a tap away.
 - feat(Trades): **Offer cards from member wishlists** — see something on a member's wishlist you own? Offer it in one tap, straight from their list.
 - feat(Groups): **One-stop Trades page** — browse everything members offer and everything they want in one place, right next to the trades you can make.
 - feat(Decks): **Deck Plan tab** — capture how to pilot a deck: gameplan, opening hand, battlefield, and per-matchup sideboarding, then share it on the deck page.
-- feat(Collection): **Take a card off your tradelist** — sold or traded a card? Take it off in one step and it leaves your collection too; keeping it just clears the tradelist.
+- feat(Collection): **Take a card off your tradelist** — sold or traded a card? Take it off in one step and it leaves your collection too. Keeping it just clears the tradelist.
 - feat(Trades): **Email notifications for trades** — know the moment someone wants to trade with you, with an optional daily digest of new matches in your groups.
 - feat(Tournaments): **Zone fixes after approval** — judges can correct a mis-zoned card after approval without being able to swap it for a different one.
 
@@ -57,7 +57,7 @@
 - feat(Trades): **Want button on shared tradelists** — request a card straight from a group member's tradelist, picking or creating the wishlist it goes on, in one step.
 - feat(Trades): **Clearer group Trades page** — active trades come first, completed ones collapse away, and a sent trade tells you who you're waiting on.
 - feat(Cards): **Legends shown by champion name** — Legends now lead with their champion name everywhere, and search finds them by either the champion or the card name.
-- feat(Collection): **List sharing is now opt-in** — lists start private and joining a group no longer auto-shares them; you choose which to share when creating or joining.
+- feat(Collection): **List sharing is now opt-in** — lists start private and joining a group no longer auto-shares them. You choose which to share when creating or joining.
 - feat(Tournaments): **Fix mis-zoned tournament decks** — a judge can move flagged cards (all or some copies) to the right zone in one step, reviewing each move first.
 - feat(Collection): **Safer collection removal** — removing cards warns when they're also on a list and names which, and big batches ask you to type the count to confirm.
 
@@ -77,7 +77,7 @@
 - fix(Account): **Clean session expiry** — an expired session sends you to the login page instead of freezing on an error.
 - fix(Account): **Password-reset feedback** — the page now tells you if a code couldn't be sent and reminds you to check spam, instead of silently advancing.
 - fix(Groups): **Activity-feed icon sizes** — member avatars now line up with the other event icons.
-- fix(Decks): **Deleting a deck** — no longer opens the editor for the deck you just removed; it stays on the deck list.
+- fix(Decks): **Deleting a deck** — no longer opens the editor for the deck you just removed. It stays on the deck list.
 
 ## 2026-06-12
 
@@ -116,7 +116,7 @@
 
 ### Highlights
 
-- feat(Tournaments): **Add deck-check entrants by hand** — judges can type a player's name and paste their decklist when the organizer system can't send it; system entries carry an API badge.
+- feat(Tournaments): **Add deck-check entrants by hand** — judges can type a player's name and paste their decklist when the organizer system can't send it. System entries carry an API badge.
 - feat(Groups): **Group collection tiles** — the overview splits the group's own collections from members' shared ones, with new-collection, share, and invite buttons.
 - feat(Decks): **Pinned deck list filter bar** — the deck list's search and filter bar stays pinned as you scroll, so you can refine without scrolling back up.
 - fix(App): **Faster first load after a release** — releases now refresh only the files that changed instead of discarding all cached files, so first visits aren't slow.
@@ -176,7 +176,7 @@
 - feat(Groups): **Join request badges** — requests waiting for your approval show as a count on the Groups nav item and under the group's name.
 - feat(Cards): **Customize filters** — pick which filters you see and hide the rest, with your choice carried across devices when signed in.
 - feat(Decks): **Overflow zone holds anything** — the Overflow zone now holds any card type in unlimited copies, none counting toward deck legality or the 3-copy limit.
-- fix(Collection): **Sensible list pricing** — lists no longer force a fixed default price; set fixed prices on individual cards where a single number makes sense.
+- fix(Collection): **Sensible list pricing** — lists no longer force a fixed default price. Set fixed prices on individual cards where a single number makes sense.
 - fix(Cards): **Per-section owned counts** — a card in more than one set or rarity now shows that section's count instead of the same number everywhere.
 
 ### Other
@@ -184,7 +184,7 @@
 - feat(Groups): **Group invite link privacy** — an invite link no longer reveals who owns the group, while still showing the name, member count, and description.
 - fix(App): **Steady changelog dates** — changelog, sets, and profile dates no longer flicker to the wrong day after loading when your time zone is behind UTC.
 - fix(Groups): **Proper names in group headers** — rarity, type, domain, and super type headers show the proper name instead of the internal code.
-- fix(Cards): **Marker grouping in Printings only** — grouping by marker or channel is offered only in Printings view; Cards view falls back to grouping by Set.
+- fix(Cards): **Marker grouping in Printings only** — grouping by marker or channel is offered only in Printings view. Cards view falls back to grouping by Set.
 - fix(Cards): **Steady scrolling in long lists** — long card lists no longer jump or shift as cards load and settle.
 - fix(Cards): **Fan-out past the column edge** — hovering a card you own across several printings lets the fan-out spread past the column edge instead of being clipped.
 - fix(Groups): **Withdraw a code join request** — joining with a code now shows your request under Awaiting approval where you can cancel it.
@@ -198,7 +198,7 @@
 - feat(Decks): **Cards and Printings in the deck builder** — switch the browser to Printings to pick a specific printing's art as you add it, with the 3-copy limit still applying across all printings.
 - feat(Collection): **Collection starts in your languages** — your collection opens filtered to your preferred languages, clearable to see cards you own in other languages.
 - fix(Trades): **Trade collection update** — the one-click update that adds received cards after a trade now works instead of failing on the receiving side.
-- fix(Collection): **Adding cards no longer drops them** — cards you add now stay; before, the app misread the server's reply and rolled them back with a spurious error.
+- fix(Collection): **Adding cards no longer drops them** — cards you add now stay. Before, the app misread the server's reply and rolled them back with a spurious error.
 
 ### Other
 
@@ -420,7 +420,7 @@
 
 ### Highlights
 
-- feat(Decks): **Freeform decks unrestricted** — freeform decks drop constructed limits, allowing multiple legends and champions, 4+ battlefields, 4+ copies across zones, and any number of runes; autofill and rebalance now apply only to constructed decks.
+- feat(Decks): **Freeform decks unrestricted** — freeform decks drop constructed limits, allowing multiple legends and champions, 4+ battlefields, 4+ copies across zones, and any number of runes. Autofill and rebalance now apply only to constructed decks.
 - feat(Decks): **Switch deck format from editor** — the deck editor's 3-dot menu gains a Change to freeform / Change to constructed action, matching the deck list menu.
 - feat(Decks): **Custom Tags filter for freeform** — the freeform deck builder gains a Custom Tags filter to narrow the card list by curated tags (like region) when building themed decks.
 - fix(App): **One-shot reload on crash** — a rare crash that left the page blank now triggers a single reload, so you don't have to refresh by hand.
@@ -709,7 +709,7 @@
 ### Other
 
 - fix(Cards): **CardTrader condition filter** — CardTrader prices now exclude played-condition listings correctly so only Near Mint counts, instead of letting worse conditions show as cheapest.
-- fix(Collection): **No grid flash on add or remove** — the collection grid no longer briefly grays out on each add or remove; the dim only appears when a filter or sort change is actually slow.
+- fix(Collection): **No grid flash on add or remove** — the collection grid no longer briefly grays out on each add or remove. The dim only appears when a filter or sort change is actually slow.
 
 ## 2026-04-22
 
