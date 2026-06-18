@@ -47,8 +47,16 @@ export function useMeasuredHeight(el: HTMLElement | null) {
  * makes sticky a no-op. `--header-height` already includes the header's 1px
  * border, so the bar lands flush below it.
  */
-export const PAGE_TOP_BAR_STICKY =
-  "bg-background/80 sticky top-(--header-height) z-30 px-safe py-3 backdrop-blur-lg";
+// Base sticky styles WITHOUT the horizontal gutter. `px-safe` is a custom
+// utility that tailwind-merge does not recognise, so adding `px-0` later does
+// NOT cancel it (`cn("px-safe", "px-0")` keeps both) — the `maxWidth` branch
+// would otherwise inherit `px-safe` on the full-bleed layer AND apply it again
+// on the inner column, double-insetting the bar's content. Keep the gutter out
+// of the base and add it explicitly only on the full-bleed (non-maxWidth) path.
+const PAGE_TOP_BAR_STICKY_BASE =
+  "bg-background/80 sticky top-(--header-height) z-30 py-3 backdrop-blur-lg";
+
+export const PAGE_TOP_BAR_STICKY = `${PAGE_TOP_BAR_STICKY_BASE} px-safe`;
 
 const STICKY_MAX_WIDTH = {
   md: "max-w-md",
@@ -81,9 +89,14 @@ export function PageTopBarSticky({
   return (
     // With maxWidth, the horizontal padding moves inside the centered
     // container so the bar's content edges match a content column that is
-    // `mx-auto max-w-* px-3` (padding inside the measured box). Padding on
-    // the sticky layer instead would shift the bar 12px left of the column.
-    <div className={cn(PAGE_TOP_BAR_STICKY, maxWidth && "px-0", className)} {...props}>
+    // `mx-auto max-w-* px-safe` (padding inside the measured box). The
+    // full-bleed layer keeps no gutter (base styles) so its `px-safe` can't
+    // stack with the inner column's `px-safe`; without maxWidth the gutter
+    // lives on the sticky layer itself.
+    <div
+      className={cn(maxWidth ? PAGE_TOP_BAR_STICKY_BASE : PAGE_TOP_BAR_STICKY, className)}
+      {...props}
+    >
       {maxWidth ? (
         <div className={cn("px-safe mx-auto w-full", STICKY_MAX_WIDTH[maxWidth])}>{children}</div>
       ) : (

@@ -656,8 +656,10 @@ export function Header() {
       <div
         className={`${CONTAINER_WIDTH} px-safe grid h-14 grid-cols-[1fr_auto_1fr] items-center md:grid-cols-[1fr_auto]`}
       >
-        {/* Left: Hamburger on mobile */}
-        <div className="flex items-center gap-1 md:hidden">
+        {/* Left: Hamburger on mobile. -ml-1 pulls the 20px glyph out of the
+            28px icon button's padding so it lands on the px-safe gutter,
+            flush with page content below (cards, titles). */}
+        <div className="-ml-1 flex items-center gap-1 md:hidden">
           <MenuButton onClick={() => setMobileMenuOpen(true)} />
         </div>
 
@@ -676,8 +678,10 @@ export function Header() {
         {/* Center: Logo on mobile */}
         <LogoLink className="md:hidden" />
 
-        {/* Right: Feedback + Support + User menu */}
-        <div className="flex items-center gap-1 justify-self-end">
+        {/* Right: Feedback + Support + User menu. -mr-0.5 pulls the trailing
+            avatar (24px in a 28px icon button) out to the px-safe gutter so the
+            header's right edge aligns with flush page content. */}
+        <div className="-mr-0.5 flex items-center gap-1 justify-self-end">
           <FeedbackPopover />
           <Link
             to="/support"
