@@ -154,6 +154,9 @@ function PaletteInner({
     : null;
   const previewImageId = previewPrinting?.images[0]?.imageId ?? null;
   const previewThumbnail = previewImageId ? imageUrl(previewImageId, "full") : null;
+  // The mobile preview renders at a smaller, fixed width, so a lighter variant
+  // is plenty (400w covers ~160px CSS at DPR 2).
+  const previewThumbnailMobile = previewImageId ? imageUrl(previewImageId, "400w") : null;
   const previewRotated = previewPrinting
     ? needsCssRotation(getOrientation(previewPrinting.card.type))
     : false;
@@ -319,6 +322,36 @@ function PaletteInner({
 
   return (
     <div className="relative">
+      {/* Card image preview — shown at the top of the drawer on mobile, where
+          there's no off-canvas space for the desktop side pane. */}
+      {isMobile && previewPrinting && previewThumbnailMobile && (
+        <div className="mb-3 flex justify-center">
+          <div
+            className="bg-muted aspect-card relative w-40 overflow-hidden"
+            style={{ borderRadius: "5% / 3.6%" }}
+          >
+            {previewRotated ? (
+              <div
+                className="absolute top-1/2 left-1/2 overflow-hidden"
+                style={LANDSCAPE_ROTATION_STYLE}
+              >
+                <img
+                  src={previewThumbnailMobile}
+                  alt={legendDisplayName(previewPrinting.card)}
+                  className="size-full object-cover"
+                />
+              </div>
+            ) : (
+              <img
+                src={previewThumbnailMobile}
+                alt={legendDisplayName(previewPrinting.card)}
+                className="absolute inset-0 w-full object-cover"
+              />
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Card image preview — floats left of the dialog on desktop */}
       {previewPrinting && previewThumbnail && (
         <div className="absolute top-0 right-full mr-3 hidden w-96 lg:block">
