@@ -440,10 +440,14 @@ export const listsRoute = listsApp
     const { id: listId } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    const list = await lists.getIdAndKind(listId, userId);
+    const list = await lists.getIdKindIntent(listId, userId);
     assertFound(list, "List not found");
 
-    const target = await resolveEntryTarget(list.kind, body, userId, copies);
+    // Trade/wish lists may only reference copies the user personally owns — a
+    // card you merely have group access to isn't yours to trade away or wish
+    // for. Organize lists may reference shared group copies too.
+    const personalOnly = list.intent !== "organize";
+    const target = await resolveEntryTarget(list.kind, body, userId, copies, personalOnly);
 
     let row;
     try {
@@ -481,7 +485,7 @@ export const listsRoute = listsApp
     const { id: listId } = c.req.valid("param");
     const { entries } = c.req.valid("json");
 
-    const list = await lists.getIdAndKind(listId, userId);
+    const list = await lists.getIdKindIntent(listId, userId);
     assertFound(list, "List not found");
 
     // Reject the whole batch if any entry's target column doesn't match the
@@ -497,10 +501,13 @@ export const listsRoute = listsApp
       }
     }
 
-    // Copy-kind lists: filter to copies the user can access (their personal
-    // collections plus shared group collections); drop the rest silently
-    // rather than 400-ing the whole batch. Card/printing kinds pass through
-    // (FK enforces target row existence).
+    // Copy-kind lists: filter to copies the user may reference; drop the rest
+    // silently rather than 400-ing the whole batch. Trade lists are restricted
+    // to the user's own collections (a copy you merely have group access to
+    // isn't yours to trade away); organize-copy lists may reference shared
+    // group collections too. Card/printing kinds pass through (FK enforces
+    // target row existence).
+    const personalOnly = list.intent !== "organize";
     let usableEntries = entries;
     if (list.kind === "copy") {
       const copyIdsRequested = entries
@@ -508,7 +515,7 @@ export const listsRoute = listsApp
         .filter((id): id is string => id !== undefined);
       const accessibleCopyIds = new Set(
         copyIdsRequested.length > 0
-          ? await copies.filterAccessibleByViewer(copyIdsRequested, userId)
+          ? await copies.filterAccessibleByViewer(copyIdsRequested, userId, personalOnly)
           : [],
       );
       usableEntries = entries.filter(
@@ -557,10 +564,19 @@ export const listsRoute = listsApp
     const { id: listId } = c.req.valid("param");
     const { copyIds } = c.req.valid("json");
 
-    const list = await lists.getIdAndKind(listId, userId);
+    const list = await lists.getIdKindIntent(listId, userId);
     assertFound(list, "List not found");
 
-    const result = await lists.bulkCreateEntriesFromCopies(listId, list.kind, userId, copyIds);
+    // Trade/wish lists derive entries only from the user's own copies; organize
+    // lists may derive from shared group copies too.
+    const personalOnly = list.intent !== "organize";
+    const result = await lists.bulkCreateEntriesFromCopies(
+      listId,
+      list.kind,
+      userId,
+      copyIds,
+      personalOnly,
+    );
 
     return c.json(result satisfies ListBulkAddResponse, 200);
   })
@@ -652,7 +668,7 @@ export const listsRoute = listsApp
     const { id: listId } = c.req.valid("param");
     const { entryIds } = c.req.valid("json");
 
-    const list = await lists.getIdAndKind(listId, userId);
+    const list = await lists.getIdKindIntent(listId, userId);
     assertFound(list, "List not found");
 
     await lists.deleteEntriesByIds(entryIds, listId, userId);
@@ -749,7 +765,10 @@ async function resolveEntryTarget(
   kind: ListKind,
   body: { cardId?: string; printingId?: string; copyId?: string },
   userId: string,
-  copies: { existsForViewer: (id: string, userId: string) => Promise<unknown> },
+  copies: {
+    existsForViewer: (id: string, userId: string, personalOnly?: boolean) => Promise<unknown>;
+  },
+  personalOnly: boolean,
 ): Promise<{ cardId: string | null; printingId: string | null; copyId: string | null }> {
   if (!targetMatchesKind(kind, body)) {
     throw new AppError(
@@ -767,7 +786,7 @@ async function resolveEntryTarget(
   // kind === "copy"
   const copyId = body.copyId;
   if (copyId !== undefined) {
-    const accessible = await copies.existsForViewer(copyId, userId);
+    const accessible = await copies.existsForViewer(copyId, userId, personalOnly);
     assertFound(accessible, "Copy not found");
   }
   return { cardId: null, printingId: null, copyId: copyId ?? null };

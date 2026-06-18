@@ -47,10 +47,14 @@ describe("listsRepo", () => {
     expect(await repo.getByIdForUser("lst-1", "u1")).toEqual(LIST);
   });
 
-  it("getIdAndKind returns id + kind when owned", async () => {
-    const db = createMockDb([{ id: "lst-1", kind: "card" }]);
+  it("getIdKindIntent returns id + kind + intent when owned", async () => {
+    const db = createMockDb([{ id: "lst-1", kind: "card", intent: "wish" }]);
     const repo = listsRepo(db);
-    expect(await repo.getIdAndKind("lst-1", "u1")).toEqual({ id: "lst-1", kind: "card" });
+    expect(await repo.getIdKindIntent("lst-1", "u1")).toEqual({
+      id: "lst-1",
+      kind: "card",
+      intent: "wish",
+    });
   });
 
   it("create returns the created list", async () => {
@@ -241,7 +245,7 @@ describe("listsRepo", () => {
   it("bulkCreateEntriesFromCopies returns zero counts for empty input", async () => {
     const db = createMockDb([{ id: "should-not-appear" }]);
     const repo = listsRepo(db);
-    expect(await repo.bulkCreateEntriesFromCopies("lst-1", "card", "u1", [])).toEqual({
+    expect(await repo.bulkCreateEntriesFromCopies("lst-1", "card", "u1", [], false)).toEqual({
       added: 0,
       updated: 0,
       skipped: 0,
@@ -253,7 +257,9 @@ describe("listsRepo", () => {
     // belonged to the user; everything is reported as skipped.
     const db = createMockDb([]);
     const repo = listsRepo(db);
-    expect(await repo.bulkCreateEntriesFromCopies("lst-1", "card", "u1", ["c1", "c2"])).toEqual({
+    expect(
+      await repo.bulkCreateEntriesFromCopies("lst-1", "card", "u1", ["c1", "c2"], false),
+    ).toEqual({
       added: 0,
       updated: 0,
       skipped: 2,

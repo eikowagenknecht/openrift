@@ -20,6 +20,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
   const createdListIds: string[] = [];
   const createdCollectionIds: string[] = [];
   const createdCopyIds: string[] = [];
+  const createdGroupIds: string[] = [];
 
   afterAll(async () => {
     if (createdListIds.length > 0) {
@@ -30,6 +31,12 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     }
     if (createdCollectionIds.length > 0) {
       await db.deleteFrom("collections").where("id", "in", createdCollectionIds).execute();
+    }
+    // Members and the group go last — collections referencing the group must be
+    // gone first (handled above).
+    if (createdGroupIds.length > 0) {
+      await db.deleteFrom("friendGroupMembers").where("groupId", "in", createdGroupIds).execute();
+      await db.deleteFrom("friendGroups").where("id", "in", createdGroupIds).execute();
     }
   });
 
@@ -58,6 +65,35 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
         collectionId: collection.id,
         printingId: PRINTING_1.id,
       })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+    createdCopyIds.push(copy.id);
+    return copy;
+  }
+
+  // A copy living in a *group* collection the user is a member of. The user can
+  // see it, but doesn't personally own it — so it must not be addable to a
+  // trade/wish list (personalOnly), only to an organize list.
+  async function createGroupCopy() {
+    const group = await db
+      .insertInto("friendGroups")
+      .values({ slug: `lists-test-group-${createdGroupIds.length}`, name: "Lists Test Group" })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+    createdGroupIds.push(group.id);
+    await db
+      .insertInto("friendGroupMembers")
+      .values({ groupId: group.id, userId, role: "member" })
+      .execute();
+    const groupCollection = await db
+      .insertInto("collections")
+      .values({ groupId: group.id, name: "Group Binder", isInbox: false, sortOrder: 1 })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+    createdCollectionIds.push(groupCollection.id);
+    const copy = await db
+      .insertInto("copies")
+      .values({ collectionId: groupCollection.id, printingId: PRINTING_1.id })
       .returningAll()
       .executeTakeFirstOrThrow();
     createdCopyIds.push(copy.id);
@@ -147,7 +183,7 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     expect(await repo.getByIdForUser(list.id, userId)).toBeDefined();
   });
 
-  it("getIdAndKind returns id + kind for the owner only", async () => {
+  it("getIdKindIntent returns id + kind + intent for the owner only", async () => {
     const list = await repo.create({
       userId,
       name: "IdKind",
@@ -155,9 +191,13 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
       kind: "printing",
     });
     createdListIds.push(list.id);
-    expect(await repo.getIdAndKind(list.id, userId)).toEqual({ id: list.id, kind: "printing" });
+    expect(await repo.getIdKindIntent(list.id, userId)).toEqual({
+      id: list.id,
+      kind: "printing",
+      intent: "wish",
+    });
     expect(
-      await repo.getIdAndKind(list.id, "a0000000-9999-4000-a000-000000000099"),
+      await repo.getIdKindIntent(list.id, "a0000000-9999-4000-a000-000000000099"),
     ).toBeUndefined();
   });
 
@@ -549,10 +589,13 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     });
     createdListIds.push(list.id);
 
-    const result = await repo.bulkCreateEntriesFromCopies(list.id, "copy", userId, [
-      copyA.id,
-      copyB.id,
-    ]);
+    const result = await repo.bulkCreateEntriesFromCopies(
+      list.id,
+      "copy",
+      userId,
+      [copyA.id, copyB.id],
+      true,
+    );
     expect(result).toEqual({ added: 2, updated: 0, skipped: 0 });
 
     const rows = await repo.entriesWithDetails(list.id, "copy", userId);
@@ -572,10 +615,13 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     });
     createdListIds.push(list.id);
 
-    const result = await repo.bulkCreateEntriesFromCopies(list.id, "printing", userId, [
-      copyA.id,
-      copyB.id,
-    ]);
+    const result = await repo.bulkCreateEntriesFromCopies(
+      list.id,
+      "printing",
+      userId,
+      [copyA.id, copyB.id],
+      true,
+    );
     expect(result).toEqual({ added: 1, updated: 0, skipped: 0 });
   });
 
@@ -590,10 +636,13 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     });
     createdListIds.push(list.id);
 
-    const result = await repo.bulkCreateEntriesFromCopies(list.id, "card", userId, [
-      copyA.id,
-      copyB.id,
-    ]);
+    const result = await repo.bulkCreateEntriesFromCopies(
+      list.id,
+      "card",
+      userId,
+      [copyA.id, copyB.id],
+      true,
+    );
     // Both copies are of the same card via PRINTING_1.
     expect(result).toEqual({ added: 1, updated: 0, skipped: 0 });
   });
@@ -612,12 +661,16 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     });
     createdListIds.push(list.id);
 
-    expect(await repo.bulkCreateEntriesFromCopies(list.id, "card", userId, [copy.id])).toEqual({
+    expect(
+      await repo.bulkCreateEntriesFromCopies(list.id, "card", userId, [copy.id], true),
+    ).toEqual({
       added: 1,
       updated: 0,
       skipped: 0,
     });
-    expect(await repo.bulkCreateEntriesFromCopies(list.id, "card", userId, [copy.id])).toEqual({
+    expect(
+      await repo.bulkCreateEntriesFromCopies(list.id, "card", userId, [copy.id], true),
+    ).toEqual({
       added: 0,
       updated: 1,
       skipped: 0,
@@ -641,12 +694,16 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     });
     createdListIds.push(list.id);
 
-    expect(await repo.bulkCreateEntriesFromCopies(list.id, "copy", userId, [copy.id])).toEqual({
+    expect(
+      await repo.bulkCreateEntriesFromCopies(list.id, "copy", userId, [copy.id], true),
+    ).toEqual({
       added: 1,
       updated: 0,
       skipped: 0,
     });
-    expect(await repo.bulkCreateEntriesFromCopies(list.id, "copy", userId, [copy.id])).toEqual({
+    expect(
+      await repo.bulkCreateEntriesFromCopies(list.id, "copy", userId, [copy.id], true),
+    ).toEqual({
       added: 0,
       updated: 0,
       skipped: 1,
@@ -667,7 +724,13 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     createdListIds.push(list.id);
 
     const fakeCopyId = "a0000000-0040-4000-a000-0000000099aa";
-    const result = await repo.bulkCreateEntriesFromCopies(list.id, "card", userId, [fakeCopyId]);
+    const result = await repo.bulkCreateEntriesFromCopies(
+      list.id,
+      "card",
+      userId,
+      [fakeCopyId],
+      true,
+    );
     expect(result).toEqual({ added: 0, updated: 0, skipped: 1 });
   });
 
@@ -686,11 +749,60 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     createdListIds.push(list.id);
 
     const fakeCopyId = "a0000000-0040-4000-a000-00000000bb22";
-    const result = await repo.bulkCreateEntriesFromCopies(list.id, "copy", userId, [
-      copy.id,
-      fakeCopyId,
-    ]);
+    const result = await repo.bulkCreateEntriesFromCopies(
+      list.id,
+      "copy",
+      userId,
+      [copy.id, fakeCopyId],
+      true,
+    );
     expect(result).toEqual({ added: 1, updated: 0, skipped: 1 });
+  });
+
+  // Regression: a copy in a shared group collection is visible to the member
+  // but isn't theirs to trade away. With personalOnly it must be skipped on a
+  // trade list, never added.
+  it("bulkCreateEntriesFromCopies skips group-collection copies on a trade list (personalOnly)", async () => {
+    const groupCopy = await createGroupCopy();
+    const list = await repo.create({
+      userId,
+      name: "Trade (group copy)",
+      intent: "trade",
+      kind: "copy",
+    });
+    createdListIds.push(list.id);
+
+    const result = await repo.bulkCreateEntriesFromCopies(
+      list.id,
+      "copy",
+      userId,
+      [groupCopy.id],
+      true,
+    );
+    expect(result).toEqual({ added: 0, updated: 0, skipped: 1 });
+    expect(await repo.entriesWithDetails(list.id, "copy", userId)).toHaveLength(0);
+  });
+
+  // The same group copy is fine on an organize list, where personalOnly is off.
+  it("bulkCreateEntriesFromCopies adds group-collection copies on an organize list", async () => {
+    const groupCopy = await createGroupCopy();
+    const list = await repo.create({
+      userId,
+      name: "Organize (group copy)",
+      intent: "organize",
+      kind: "copy",
+    });
+    createdListIds.push(list.id);
+
+    const result = await repo.bulkCreateEntriesFromCopies(
+      list.id,
+      "copy",
+      userId,
+      [groupCopy.id],
+      false,
+    );
+    expect(result).toEqual({ added: 1, updated: 0, skipped: 0 });
+    expect(await repo.entriesWithDetails(list.id, "copy", userId)).toHaveLength(1);
   });
 
   // ── Enriched read ──────────────────────────────────────────────────────────

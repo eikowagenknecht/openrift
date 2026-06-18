@@ -69,6 +69,7 @@ function renderCell(props: { dataView: "cards" | "printings"; siblings: Printing
       stacked
       siblings={props.siblings}
       collectionId={collectionId}
+      sourceCollectionIsGroup={false}
       display={display}
       showImages
     />,
@@ -120,6 +121,7 @@ describe("CollectionGridCell selection checkbox", () => {
         stacked
         siblings={[printingX, printingY]}
         collectionId={collectionId}
+        sourceCollectionIsGroup={false}
         display={display}
         showImages
       />,
@@ -141,6 +143,7 @@ function renderStripCell(props: { stacked: boolean; mode: "browse" | "select" })
       stacked={props.stacked}
       siblings={undefined}
       collectionId={collectionId}
+      sourceCollectionIsGroup={false}
       display={display}
       showImages
     />,

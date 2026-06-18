@@ -23,6 +23,15 @@ export interface CardDragData {
   /** Up to 3 unique printings from the dragged cards, for the overlay preview. */
   previewPrintings: Printing[];
   sourceCollectionId: string | undefined;
+  /**
+   * True when every dragged copy lives in a shared *group* collection (none are
+   * personally owned). Such copies aren't the user's to trade away or wish for,
+   * so a trade/wish list refuses the drop — mirroring the server's personalOnly
+   * rule. A mixed drag still lands its personal copies, so this stays false
+   * unless the whole drag is group-owned. Always false for select-mode drags,
+   * whose copy set is resolved live at drop time (see {@link resolveSelectionDrag}).
+   */
+  sourceAllGroupCopies: boolean;
 }
 
 /**

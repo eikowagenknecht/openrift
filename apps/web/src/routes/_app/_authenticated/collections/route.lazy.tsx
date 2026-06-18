@@ -222,6 +222,15 @@ function CollectionLayout() {
       return;
     }
 
+    // Copies you only have group access to aren't yours to trade away or wish
+    // for. The sidebar already won't highlight such a drop, but a drop still
+    // fires here, so refuse it with a clear note rather than a silent no-op
+    // (the server would skip every copy and report nothing added).
+    if (dropData.listIntent !== "organize" && dragData.sourceAllGroupCopies) {
+      toast.info("Cards from a shared group collection can't go on trade or wish lists");
+      return;
+    }
+
     // Adding to a list is non-destructive (copies stay in their collection),
     // so the stack-trim-to-one default doesn't apply — all copies under the
     // dragged tile flow into the server, which derives the right entry shape

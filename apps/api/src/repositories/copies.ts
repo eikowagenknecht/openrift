@@ -107,10 +107,15 @@ export function copiesRepo(db: Kysely<Database>) {
       return query.execute();
     },
 
-    /** @returns Whether a copy is in a collection the viewer can access, or `undefined`. */
+    /**
+     * @returns Whether the user may reference this copy, or `undefined`. With
+     *   `personalOnly` the copy must be in one of the user's own collections;
+     *   otherwise shared group collections the user belongs to count too.
+     */
     existsForViewer(
       id: string,
       userId: string,
+      personalOnly = false,
     ): Promise<Pick<Selectable<CopiesTable>, "id"> | undefined> {
       return db
         .selectFrom("copies as cp")
@@ -120,12 +125,24 @@ export function copiesRepo(db: Kysely<Database>) {
         )
         .select("cp.id")
         .where("cp.id", "=", id)
-        .where((eb) => eb.or([eb("col.userId", "=", userId), eb("gm.userId", "=", userId)]))
+        .where((eb) =>
+          personalOnly
+            ? eb("col.userId", "=", userId)
+            : eb.or([eb("col.userId", "=", userId), eb("gm.userId", "=", userId)]),
+        )
         .executeTakeFirst();
     },
 
-    /** @returns The subset of input IDs the viewer can access (via collection ownership/membership). */
-    async filterAccessibleByViewer(ids: readonly string[], userId: string): Promise<string[]> {
+    /**
+     * @returns The subset of input IDs the user may reference. With
+     *   `personalOnly` only copies in the user's own collections qualify;
+     *   otherwise shared group collections the user belongs to count too.
+     */
+    async filterAccessibleByViewer(
+      ids: readonly string[],
+      userId: string,
+      personalOnly = false,
+    ): Promise<string[]> {
       if (ids.length === 0) {
         return [];
       }
@@ -137,7 +154,11 @@ export function copiesRepo(db: Kysely<Database>) {
         )
         .select("cp.id")
         .where("cp.id", "in", ids as string[])
-        .where((eb) => eb.or([eb("col.userId", "=", userId), eb("gm.userId", "=", userId)]))
+        .where((eb) =>
+          personalOnly
+            ? eb("col.userId", "=", userId)
+            : eb.or([eb("col.userId", "=", userId), eb("gm.userId", "=", userId)]),
+        )
         .execute();
       return rows.map((row) => row.id);
     },

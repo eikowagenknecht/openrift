@@ -14,6 +14,7 @@ interface DraggableCardProps {
   printing: Printing;
   previewPrintings: Printing[];
   sourceCollectionId: string | undefined;
+  sourceAllGroupCopies: boolean;
   children?: ReactNode;
 }
 
@@ -25,6 +26,7 @@ export function DraggableCard({
   printing,
   previewPrintings,
   sourceCollectionId,
+  sourceAllGroupCopies,
   children,
 }: DraggableCardProps) {
   const isMobile = useIsMobile();
@@ -37,6 +39,7 @@ export function DraggableCard({
     printing,
     previewPrintings,
     sourceCollectionId,
+    sourceAllGroupCopies,
   };
 
   const { setNodeRef, listeners, attributes, isDragging } = useDraggable({ id, data });

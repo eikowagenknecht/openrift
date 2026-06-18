@@ -22,6 +22,12 @@ interface AddToListDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   copyIds: string[];
+  /**
+   * True when every selected copy lives in a shared group collection. Such
+   * copies aren't the user's to trade away, so only organize lists are offered
+   * (mirrors the server's personalOnly rule for trade/wish lists).
+   */
+  groupOwnedOnly?: boolean;
   onAdded?: () => void;
 }
 
@@ -33,14 +39,23 @@ interface AddToListDialogProps {
  * The user picks which intent the new list belongs to when creating inline.
  * @returns The dialog component.
  */
-export function AddToListDialog({ open, onOpenChange, copyIds, onAdded }: AddToListDialogProps) {
+export function AddToListDialog({
+  open,
+  onOpenChange,
+  copyIds,
+  groupOwnedOnly = false,
+  onAdded,
+}: AddToListDialogProps) {
   const { data: allLists } = useLists();
   const bulkAdd = useBulkAddListEntries();
   const createList = useCreateList();
 
   // Owned copies can only land in copy-kind lists. Trade is always copy by
   // the intent×kind constraint; organize×copy is the other valid target.
-  const eligibleLists = allLists.filter((list) => list.kind === "copy");
+  // Group-owned copies can't go on a tradelist, so drop those targets.
+  const eligibleLists = allLists.filter(
+    (list) => list.kind === "copy" && (!groupOwnedOnly || list.intent === "organize"),
+  );
 
   const [createIntent, setCreateIntent] = useState<"trade" | "organize" | null>(null);
   const [newName, setNewName] = useState("");
@@ -54,14 +69,19 @@ export function AddToListDialog({ open, onOpenChange, copyIds, onAdded }: AddToL
       { listId, entries: copyIds.map((copyId) => ({ copyId })) },
       {
         onSuccess: (result) => {
-          if (result.added === 0) {
-            toast.info(`Already on "${listName}"`);
-          } else if (result.skipped > 0) {
+          // Copy-kind adds never bump quantity (duplicates DO NOTHING), so a
+          // zero `added` means nothing landed — either every copy was already
+          // there or the server skipped it. Don't assert which: the old
+          // "Already on" message was wrong when copies were skipped for
+          // ownership.
+          if (result.added > 0) {
             toast.success(
-              `Added ${result.added} to "${listName}" (${result.skipped} already there)`,
+              result.skipped > 0
+                ? `Added ${result.added} to "${listName}" (${result.skipped} skipped)`
+                : `Added ${result.added} to "${listName}"`,
             );
           } else {
-            toast.success(`Added ${result.added} to "${listName}"`);
+            toast.info(`Nothing added to "${listName}"`);
           }
           onAdded?.();
           onOpenChange(false);
@@ -136,18 +156,26 @@ export function AddToListDialog({ open, onOpenChange, copyIds, onAdded }: AddToL
             </p>
           ) : null}
         </div>
+        {groupOwnedOnly && (
+          <p className="text-muted-foreground text-sm">
+            These cards belong to a shared group collection, so they can only go on an organize
+            list.
+          </p>
+        )}
         {createIntent === null ? (
           <div className="flex flex-wrap gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground justify-start"
-              onClick={() => setCreateIntent("trade")}
-              disabled={disableAdd}
-            >
-              <PlusIcon className="size-3.5" />
-              New tradelist
-            </Button>
+            {!groupOwnedOnly && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground justify-start"
+                onClick={() => setCreateIntent("trade")}
+                disabled={disableAdd}
+              >
+                <PlusIcon className="size-3.5" />
+                New tradelist
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"

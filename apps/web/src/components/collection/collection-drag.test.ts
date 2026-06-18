@@ -159,6 +159,7 @@ describe("resolveSelectionDrag", () => {
     printing: stubPrinting(),
     previewPrintings: [],
     sourceCollectionId: "col-1",
+    sourceAllGroupCopies: false,
   };
 
   it("leaves a lone (non-selection) drag untouched", () => {

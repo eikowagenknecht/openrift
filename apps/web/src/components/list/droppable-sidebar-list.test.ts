@@ -21,6 +21,7 @@ const collectionDrag: CardDragData = {
   printing: STUB_PRINTING,
   previewPrintings: [STUB_PRINTING],
   sourceCollectionId: "col-1",
+  sourceAllGroupCopies: false,
 };
 
 const listDrag: ListEntryDragData = {
@@ -41,6 +42,31 @@ describe("isCompatibleDrop", () => {
 
   it("accepts collection-card drops on any list", () => {
     expect(isCompatibleDrop(collectionDrag, target)).toBe(true);
+  });
+
+  it("rejects an all-group-copy drag onto a wish list", () => {
+    const groupDrag = { ...collectionDrag, sourceAllGroupCopies: true };
+    expect(isCompatibleDrop(groupDrag, { ...target, listIntent: "wish" })).toBe(false);
+  });
+
+  it("rejects an all-group-copy drag onto a trade list", () => {
+    const groupDrag = { ...collectionDrag, sourceAllGroupCopies: true };
+    const tradeTarget = {
+      listId: "list-b",
+      listKind: "copy" as const,
+      listIntent: "trade" as const,
+    };
+    expect(isCompatibleDrop(groupDrag, tradeTarget)).toBe(false);
+  });
+
+  it("accepts an all-group-copy drag onto an organize list", () => {
+    const groupDrag = { ...collectionDrag, sourceAllGroupCopies: true };
+    const organizeTarget = {
+      listId: "list-b",
+      listKind: "copy" as const,
+      listIntent: "organize" as const,
+    };
+    expect(isCompatibleDrop(groupDrag, organizeTarget)).toBe(true);
   });
 
   it("accepts list-entry drops when kind + intent match and the lists differ", () => {

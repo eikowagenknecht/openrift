@@ -166,14 +166,14 @@ export function listsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns The list's id and kind, scoped to a user, or `undefined`. */
-    getIdAndKind(
+    /** @returns The list's id, kind, and intent, scoped to a user, or `undefined`. */
+    getIdKindIntent(
       id: string,
       userId: string,
-    ): Promise<Pick<Selectable<ListsTable>, "id" | "kind"> | undefined> {
+    ): Promise<Pick<Selectable<ListsTable>, "id" | "kind" | "intent"> | undefined> {
       return db
         .selectFrom("lists")
-        .select(["id", "kind"])
+        .select(["id", "kind", "intent"])
         .where("id", "=", id)
         .where("userId", "=", userId)
         .executeTakeFirst();
@@ -488,10 +488,11 @@ export function listsRepo(db: Kysely<Database>) {
      *   - `added`: derived targets that produced a brand-new entry.
      *   - `updated`: derived targets that matched an existing entry — the
      *     existing row's quantity is incremented (see `bulkCreateEntries`).
-     *   - `skipped`: non-owned copy IDs (defense-in-depth filter via
-     *     `cp.user_id`). Kind-dedup collapses (3 copies of one card → 1 card
-     *     entry) are NOT counted as skipped — the user got the entry they
-     *     wanted; the other two folded into the same row.
+     *   - `skipped`: copy IDs that didn't qualify (see `personalOnly`: own
+     *     collections only for trade/wish, plus shared group collections for
+     *     organize). Kind-dedup collapses (3 copies of one card → 1 card entry)
+     *     are NOT counted as skipped — the user got the entry they wanted; the
+     *     other two folded into the same row.
      *
      * @returns `{ added, updated, skipped }` — drives the success-toast
      *   wording ("Added N", "Updated quantity", "(M not owned)").
@@ -501,15 +502,18 @@ export function listsRepo(db: Kysely<Database>) {
       kind: ListKind,
       userId: string,
       copyIds: readonly string[],
+      personalOnly: boolean,
     ): Promise<{ added: number; updated: number; skipped: number }> {
       if (copyIds.length === 0) {
         return { added: 0, updated: 0, skipped: 0 };
       }
 
-      // Resolve { copyId, printingId, cardId } for the subset the viewer can
-      // access — copies in their personal collections plus shared group
-      // collections they belong to. Copies the viewer can't access are
-      // silently dropped; we recover the count via `copyIds.length -
+      // Resolve { copyId, printingId, cardId } for the addable subset. With
+      // `personalOnly` (trade/wish lists), only copies in the user's own
+      // collections qualify — a card you merely have group access to isn't
+      // yours to trade away or to wish for. Without it (organize lists), shared
+      // group collections the user belongs to count too. Copies that don't
+      // qualify are silently dropped; we recover the count via `copyIds.length -
       // owned.length` so they still surface as skipped instead of vanishing
       // from the toast.
       const owned = await db
@@ -521,7 +525,11 @@ export function listsRepo(db: Kysely<Database>) {
         )
         .select(["cp.id as copyId", "cp.printingId", "p.cardId"])
         .where("cp.id", "in", [...copyIds])
-        .where((eb) => eb.or([eb("col.userId", "=", userId), eb("gm.userId", "=", userId)]))
+        .where((eb) =>
+          personalOnly
+            ? eb("col.userId", "=", userId)
+            : eb.or([eb("col.userId", "=", userId), eb("gm.userId", "=", userId)]),
+        )
         .execute();
 
       const nonOwnedCount = copyIds.length - owned.length;

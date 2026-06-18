@@ -175,6 +175,8 @@ interface CollectionRowWrapperProps {
   collectionId: string | undefined;
   stackByItemId: Map<string, StackedEntry>;
   allCopyIdsByTile: Map<string, string[]>;
+  /** True when the source collection is a shared group collection. */
+  sourceCollectionIsGroup: boolean;
   tileGroupBy: GroupByField;
   mode: "browse" | "select";
   stacked: boolean;
@@ -188,6 +190,7 @@ function CollectionRowWrapper({
   collectionId,
   stackByItemId,
   allCopyIdsByTile,
+  sourceCollectionIsGroup,
   tileGroupBy,
   mode,
   stacked,
@@ -211,6 +214,10 @@ function CollectionRowWrapper({
   const copyIds = isFromSelection ? [...selected] : stacked ? effectiveCopyIds : [itemId];
   const isStackDrag = !isFromSelection && stacked && effectiveCopyIds.length > 1;
   const previewPrintings = dragPreviewPrintings.length > 0 ? dragPreviewPrintings : [printing];
+  // True only when the whole (non-selection) drag is group-owned copies, so a
+  // trade/wish list can refuse it. Select-mode drags resolve their copy set
+  // live at drop time, so we don't flag them from this stale snapshot.
+  const sourceAllGroupCopies = !isFromSelection && copyIds.length > 0 && sourceCollectionIsGroup;
   return (
     <DraggableCard
       id={itemId}
@@ -220,6 +227,7 @@ function CollectionRowWrapper({
       printing={printing}
       previewPrintings={previewPrintings}
       sourceCollectionId={collectionId}
+      sourceAllGroupCopies={sourceAllGroupCopies}
     >
       {children}
     </DraggableCard>
@@ -485,6 +493,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const inboxId = inbox?.id;
   const inboxName = inbox?.name;
   const currentCollection = collectionId ? collectionsMap.get(collectionId) : undefined;
+  // In a group collection every copy is shared, not personally owned, so it
+  // can't go on a trade/wish list. We gate the drag/add affordances on this.
+  // (The "All cards" view has no single collection, so this is false there and
+  // the server still enforces the rule.)
+  const sourceCollectionIsGroup = Boolean(currentCollection?.groupId);
   const addTarget = collectionId ?? inboxId;
 
   // A group-owned collection is a communal "bulk box": any member can take a
@@ -960,6 +973,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           : undefined
       }
       collectionId={collectionId}
+      sourceCollectionIsGroup={sourceCollectionIsGroup}
       display={display}
       showImages={showImages}
       priceRange={catalogPriceRangeByCardId?.get(item.printing.cardId)}
@@ -1257,6 +1271,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
                 collectionId={collectionId}
                 stackByItemId={stackByItemId}
                 allCopyIdsByTile={allCopyIdsByTile}
+                sourceCollectionIsGroup={sourceCollectionIsGroup}
                 tileGroupBy={tileGroupBy}
                 mode={mode}
                 stacked={stacked}
@@ -1324,6 +1339,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             open={addToListOpen}
             onOpenChange={setAddToListOpen}
             copyIds={actionCopyIds}
+            groupOwnedOnly={sourceCollectionIsGroup}
             onAdded={clearSelection}
           />
         </BrowserCardViewer>

@@ -86,6 +86,13 @@ export function isCompatibleDrop(
     return false;
   }
   if (drag.type === "collection-card") {
+    // Copies you only have group access to aren't yours to trade away or wish
+    // for, so trade/wish lists refuse a drag made up entirely of them (mirrors
+    // the server's personalOnly rule). Organize lists, and any drag that
+    // includes personal copies, still land.
+    if (drag.sourceAllGroupCopies && target.listIntent !== "organize") {
+      return false;
+    }
     return true;
   }
   if (drag.type !== "list-entry") {

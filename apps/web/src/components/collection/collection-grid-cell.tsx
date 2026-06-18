@@ -54,6 +54,11 @@ interface CollectionGridCellProps {
   siblings: Printing[] | undefined;
   /** Active collection id, or undefined on the all-collections aggregate. */
   collectionId: string | undefined;
+  /**
+   * True when the active collection is a shared group collection. Its copies
+   * aren't personally owned, so a drag of them can't land on a trade/wish list.
+   */
+  sourceCollectionIsGroup: boolean;
   display: CardThumbnailDisplay;
   showImages: boolean;
   priceRange?: { min: number; max: number };
@@ -98,6 +103,7 @@ export const CollectionGridCell = memo(function CollectionGridCell({
   stacked,
   siblings,
   collectionId,
+  sourceCollectionIsGroup,
   display,
   showImages,
   priceRange,
@@ -290,6 +296,10 @@ export const CollectionGridCell = memo(function CollectionGridCell({
   const ownCopyIds = stacked ? effectiveCopyIds : [itemId];
   const isStackDrag = !isItemSelected && stacked && ownCopyIds.length > 1;
   const previewPrintings = dragPreview.length > 0 ? dragPreview : [displayPrinting];
+  // A group collection's copies aren't personally owned, so flag a non-selection
+  // drag of them so trade/wish lists refuse it. Selection drags resolve their
+  // copy set live at drop time, so they're never flagged here.
+  const sourceAllGroupCopies = !isItemSelected && ownCopyIds.length > 0 && sourceCollectionIsGroup;
   const wrap =
     ownCopyIds.length > 0 ? (
       <DraggableCard
@@ -300,6 +310,7 @@ export const CollectionGridCell = memo(function CollectionGridCell({
         printing={displayPrinting}
         previewPrintings={previewPrintings}
         sourceCollectionId={collectionId}
+        sourceAllGroupCopies={sourceAllGroupCopies}
       />
     ) : undefined;
 
