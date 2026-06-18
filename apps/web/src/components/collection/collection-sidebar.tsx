@@ -405,7 +405,7 @@ export function CollectionSidebar() {
   }
 
   return (
-    <NestedSidebar className="ml-3">
+    <NestedSidebar className="ml-safe">
       <MobileSidebarHeader />
       <SidebarHeader>
         <SidebarMenu>

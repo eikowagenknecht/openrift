@@ -584,7 +584,7 @@ function DeckEditorContent({
         />
       )}
       <DeckDndContext deckId={deckId}>
-        <div ref={containerRef} className={cn(CONTAINER_WIDTH, "relative flex gap-4 px-3")}>
+        <div ref={containerRef} className={cn(CONTAINER_WIDTH, "px-safe relative flex gap-4")}>
           <NestedSidebar
             className="w-(--sidebar-width)!"
             extraOffset="calc(0.75rem + 2rem + 0.75rem)"

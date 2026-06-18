@@ -317,7 +317,7 @@ function CollectionContent({
   setTopBarSlot: (el: HTMLDivElement | null) => void;
 }) {
   return (
-    <div className="flex min-w-0 flex-1 flex-col px-3 pb-3">
+    <div className="pr-safe flex min-w-0 flex-1 flex-col pb-3 pl-3">
       {/* Page top bar lives in the content column (not full-width above the sidebar)
           so the sidebar can rise to the header. -mx-3 full-bleeds the blur across the
           column while PAGE_TOP_BAR_STICKY's own px-3 keeps its content aligned. */}

@@ -543,6 +543,25 @@ html.hide-scrollbar::-webkit-scrollbar {
   padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
 }
 
+/* Single-side variants of px-safe, for elements where only one edge meets the
+   physical viewport edge (e.g. the content column next to a sidebar: its right
+   edge clears the island, its left edge is an interior gap). Same 0.75rem floor,
+   so they're drop-in replacements for pl-3 / pr-3 with no change off iOS. */
+@utility pl-safe {
+  padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+}
+
+@utility pr-safe {
+  padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+}
+
+/* Left margin that clears the iOS safe area, for the leading edge of a sidebar
+   that sits flush-ish against the viewport. Drop-in for ml-3 (same 0.75rem
+   floor); in landscape the Dynamic Island no longer eats the sidebar's edge. */
+@utility ml-safe {
+  margin-left: max(0.75rem, env(safe-area-inset-left, 0px));
+}
+
 /* Bottom inset that clears the iOS home indicator, with the same max() floor. */
 @utility pb-safe {
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));

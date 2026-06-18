@@ -5,6 +5,7 @@
 ### Other
 
 - feat(Tournaments): **Deck-check API keys moved to Manage** — a group's deck-check API keys now live on the Manage page with the other admin settings.
+- fix(App): **Clear the notch in landscape** — on the installed iPhone app held sideways, sidebar pages and the match tracker no longer slip under the Dynamic Island or home indicator, so the layout stops looking shifted to one side.
 - fix(Cards): **Filters scroll on landscape phones** — the filter panel held sideways no longer fills the whole screen with no way to scroll; it now scrolls inside so every section stays reachable.
 - fix(Groups): **Alphabetical member and trade lists** — the members roster sorts by role then name instead of join date, and a member's possible trades are ordered by card name.
 

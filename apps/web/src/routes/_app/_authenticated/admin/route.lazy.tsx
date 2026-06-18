@@ -13,7 +13,7 @@ export const Route = createLazyFileRoute("/_app/_authenticated/admin")({
 function AdminLayout() {
   return (
     <div className="flex-1">
-      <SidebarProvider className="min-h-0!">
+      <SidebarProvider className="min-h-0! pr-[env(safe-area-inset-right,0px)] pl-[env(safe-area-inset-left,0px)]">
         <AdminSidebar />
         <AdminContent />
       </SidebarProvider>

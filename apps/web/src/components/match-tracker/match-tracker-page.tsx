@@ -50,7 +50,11 @@ function MatchBoard() {
   const xpSize = xpSizeTier(panelHeight);
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col gap-2 px-2 py-2">
+    // Full-bleed board: clear the iOS safe areas so a landscape Dynamic Island
+    // (sides) and the home indicator (bottom) don't cover the edge panels. Top
+    // is handled by the sticky app header. max() keeps the dense 8px gutter
+    // everywhere the insets resolve to 0.
+    <div className="relative flex min-h-0 flex-1 flex-col gap-2 pt-2 pr-[max(0.5rem,env(safe-area-inset-right,0px))] pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pl-[max(0.5rem,env(safe-area-inset-left,0px))]">
       <MatchToolbar />
       <div ref={boardRef} className="flex min-h-0 flex-1 flex-col gap-2">
         {rows.map((seats) => (
