@@ -5,6 +5,7 @@
 ### Other
 
 - feat(Tournaments): **Deck-check API keys moved to Manage** — a group's deck-check API keys now live on the group's Manage page alongside the other admin settings, instead of at the bottom of the Deck checks page
+- fix(Cards): **Filters scroll on landscape phones** — opening the filter panel with a phone held sideways no longer fills the whole screen with no way to scroll; the panel now caps its height and scrolls inside, so every filter section stays reachable
 
 ## 2026-06-17
 
