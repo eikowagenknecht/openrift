@@ -5,7 +5,9 @@ import { friendGroupDetailQueryOptions } from "@/hooks/use-friend-groups";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
-export const Route = createFileRoute("/_app/_authenticated/groups/$slug_/checks_/$eventId")({
+export const Route = createFileRoute(
+  "/_app/_authenticated/groups/$slug_/events_/$eventId_/$entryId",
+)({
   ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Event", noIndex: true }),
   loader: async ({ context, params }) => {

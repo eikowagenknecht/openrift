@@ -9,6 +9,7 @@
 ### Other
 
 - feat(Groups): **QR code for the join link** — admins can show a scannable QR of the group invite link, handy for inviting people in person.
+- feat(Tournaments): **Past events tucked away** — a group's events page now leads with upcoming events and folds past and archived ones into a collapsible "Past and archived" section
 - feat(Tournaments): **Deck-check API keys moved to Manage** — a group's deck-check API keys now live on the Manage page with the other admin settings.
 - fix(App): **Clear the notch in landscape** — on the installed iPhone app held sideways, sidebar pages and the match tracker no longer slip under the Dynamic Island or home indicator, so the layout stops looking shifted to one side.
 - fix(Collection): **Card preview in the quick-add picker on phones** — expanding a card in the quick-add picker now shows its image at the top of the sheet, instead of no preview at all as on desktop.

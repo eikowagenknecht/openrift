@@ -102,7 +102,7 @@ export function DeckCheckEventPage({
   const { event, entries } = detail;
   const crumbs = [
     { label: data.group.name, link: <Link to="/groups/$slug" params={{ slug }} /> },
-    { label: "Events", link: <Link to="/groups/$slug/checks" params={{ slug }} /> },
+    { label: "Events", link: <Link to="/groups/$slug/events" params={{ slug }} /> },
     { label: event.name },
   ];
   const needle = search.trim().toLowerCase();
@@ -274,7 +274,7 @@ export function DeckCheckEventPage({
           onConfirm={async () => {
             await deleteEvent.mutateAsync({ slug, eventId });
             setDeleteOpen(false);
-            void navigate({ to: "/groups/$slug/checks", params: { slug } });
+            void navigate({ to: "/groups/$slug/events", params: { slug } });
           }}
         />
       </div>
@@ -530,7 +530,7 @@ function EntryRow({
 }) {
   return (
     <Link
-      to="/groups/$slug/checks/$eventId/$entryId"
+      to="/groups/$slug/events/$eventId/$entryId"
       params={{ slug, eventId, entryId: entry.id }}
       className="bg-card hover:bg-muted hover:text-foreground flex items-center gap-3 rounded-md border p-3 transition-colors"
     >
@@ -728,7 +728,7 @@ function AddManualEntryDialog({
     reset();
     onOpenChange(false);
     void navigate({
-      to: "/groups/$slug/checks/$eventId/$entryId",
+      to: "/groups/$slug/events/$eventId/$entryId",
       params: { slug, eventId, entryId: detail.entry.id },
     });
   };

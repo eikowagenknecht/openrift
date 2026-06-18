@@ -165,10 +165,10 @@ export function DeckCheckEntryPage({
 
   const crumbs = [
     { label: data.group.name, link: <Link to="/groups/$slug" params={{ slug }} /> },
-    { label: "Events", link: <Link to="/groups/$slug/checks" params={{ slug }} /> },
+    { label: "Events", link: <Link to="/groups/$slug/events" params={{ slug }} /> },
     {
       label: detail.event.name,
-      link: <Link to="/groups/$slug/checks/$eventId" params={{ slug, eventId }} />,
+      link: <Link to="/groups/$slug/events/$eventId" params={{ slug, eventId }} />,
     },
     { label: detail.entry.playerName },
   ];
@@ -573,7 +573,7 @@ function EntryHeader({
           onConfirm={async () => {
             await deleteEntry.mutateAsync({ slug, eventId, entryId });
             setDeleteOpen(false);
-            void navigate({ to: "/groups/$slug/checks/$eventId", params: { slug, eventId } });
+            void navigate({ to: "/groups/$slug/events/$eventId", params: { slug, eventId } });
           }}
         />
       ) : null}

@@ -4,7 +4,7 @@ import { DeckCheckEventsPage } from "@/components/deck-check/deck-check-events-p
 import { GroupTournamentDecksView } from "@/components/deck-check/group-tournament-decks-view";
 import { FriendGroupSectionFrame, isJudge } from "@/components/friend-groups/friend-group-shell";
 
-export const Route = createLazyFileRoute("/_app/_authenticated/groups/$slug_/checks")({
+export const Route = createLazyFileRoute("/_app/_authenticated/groups/$slug_/events")({
   component: GroupChecksRoute,
 });
 

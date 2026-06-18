@@ -1,12 +1,13 @@
 import type { DeckCheckEventSummaryResponse, FriendGroupDetailResponse } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { PlusIcon } from "lucide-react";
+import { ChevronDownIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { isAdmin } from "@/components/friend-groups/friend-group-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
@@ -26,10 +27,13 @@ import {
 } from "@/components/ui/select";
 import { useCreateDeckCheckEvent, useDeckCheckEvents } from "@/hooks/use-deck-check";
 import { useDeckFormatList } from "@/hooks/use-enums";
+import { partitionDeckCheckEvents } from "@/lib/deck-check-events";
+import { cn } from "@/lib/utils";
 
 /**
- * The group's deck-check events, newest first, with the push-key settings for
- * admins below. Reached via the group's "Deck checks" tab (judge+).
+ * The group's deck-check events, newest first, with past and archived events
+ * tucked into a collapsible section below. Reached via the group's "Events"
+ * tab (judge+).
  * @returns The events page content.
  */
 export function DeckCheckEventsPage({
@@ -42,6 +46,7 @@ export function DeckCheckEventsPage({
   const { data: events } = useDeckCheckEvents(slug);
   const admin = isAdmin(data.viewerRole);
   const [createOpen, setCreateOpen] = useState(false);
+  const { current, pastOrArchived } = partitionDeckCheckEvents(events.items);
 
   return (
     <div className="flex flex-col gap-8">
@@ -61,11 +66,16 @@ export function DeckCheckEventsPage({
           </p>
         ) : (
           <div className="flex flex-col gap-2">
-            {events.items.map((event) => (
-              <EventRow key={event.id} slug={slug} event={event} />
-            ))}
+            {current.length === 0 ? (
+              <p className="text-muted-foreground">No upcoming events.</p>
+            ) : (
+              current.map((event) => <EventRow key={event.id} slug={slug} event={event} />)
+            )}
           </div>
         )}
+        {pastOrArchived.length > 0 ? (
+          <PastAndArchivedEvents slug={slug} events={pastOrArchived} />
+        ) : null}
       </section>
 
       <CreateEventDialog slug={slug} open={createOpen} onOpenChange={setCreateOpen} />
@@ -73,11 +83,44 @@ export function DeckCheckEventsPage({
   );
 }
 
+/**
+ * Past and archived events tucked into a collapsible section so the list leads
+ * with what's upcoming. Collapsed by default; the count stays visible on the
+ * trigger.
+ * @returns The collapsible past-and-archived section.
+ */
+function PastAndArchivedEvents({
+  slug,
+  events,
+}: {
+  slug: string;
+  events: DeckCheckEventSummaryResponse[];
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex w-full cursor-pointer items-center gap-1.5 text-sm font-medium transition-colors">
+        <ChevronDownIcon
+          className={cn("size-4 shrink-0 transition-transform", open && "rotate-180")}
+        />
+        Past and archived ({events.length})
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="mt-2 flex flex-col gap-2">
+          {events.map((event) => (
+            <EventRow key={event.id} slug={slug} event={event} />
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 function EventRow({ slug, event }: { slug: string; event: DeckCheckEventSummaryResponse }) {
   const { labels } = useDeckFormatList();
   return (
     <Link
-      to="/groups/$slug/checks/$eventId"
+      to="/groups/$slug/events/$eventId"
       params={{ slug, eventId: event.id }}
       className="bg-card hover:bg-muted hover:text-foreground flex items-center gap-3 rounded-md border p-3 transition-colors"
     >

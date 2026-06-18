@@ -10,6 +10,7 @@ import { useDeckCheckEvents } from "@/hooks/use-deck-check";
 import { useMyTournamentDecks } from "@/hooks/use-deck-check-player";
 import { useFriendGroupMatches } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
+import { isPastOrArchivedEvent } from "@/lib/deck-check-events";
 import { countTradeSuggestions, withoutLiveTradeMatches } from "@/lib/trade-derivation";
 import { cn } from "@/lib/utils";
 
@@ -118,7 +119,7 @@ function ActionCards({ slug, data }: { slug: string; data: FriendGroupDetailResp
             <JudgeEventsTile slug={slug} ownEntries={ownEntries.length} />
           ) : (
             <StatCard
-              to="/groups/$slug/checks"
+              to="/groups/$slug/events"
               slug={slug}
               icon={TrophyIcon}
               label="Events"
@@ -185,14 +186,8 @@ function JudgeEventsTile({ slug, ownEntries }: { slug: string; ownEntries: numbe
   const items = events.items;
   // A dated event in the future (or an active one not yet dated) is "upcoming";
   // everything else — past dates and archived events — counts as past.
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const upcoming = items.filter(
-    (event) =>
-      event.status === "active" &&
-      (event.eventDate === null || new Date(event.eventDate).getTime() >= startOfToday.getTime()),
-  ).length;
-  const past = items.length - upcoming;
+  const past = items.filter((event) => isPastOrArchivedEvent(event)).length;
+  const upcoming = items.length - past;
   const hint =
     ownEntries > 0
       ? `${ownEntries} of your ${ownEntries === 1 ? "entry" : "entries"}`
@@ -203,7 +198,7 @@ function JudgeEventsTile({ slug, ownEntries }: { slug: string; ownEntries: numbe
           : undefined;
   return (
     <StatCard
-      to="/groups/$slug/checks"
+      to="/groups/$slug/events"
       slug={slug}
       icon={TrophyIcon}
       label="Upcoming events"
@@ -217,7 +212,7 @@ type StatCardTarget =
   | "/groups/$slug/trades"
   | "/groups/$slug/shared"
   | "/groups/$slug/members"
-  | "/groups/$slug/checks";
+  | "/groups/$slug/events";
 
 /**
  * A dashboard tile linking to one of the group pages: a tinted icon chip, a

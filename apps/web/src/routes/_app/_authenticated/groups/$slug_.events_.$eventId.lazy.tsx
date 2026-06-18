@@ -4,7 +4,7 @@ import { DeckCheckEventPage } from "@/components/deck-check/deck-check-event-pag
 import { DeckCheckGuard } from "@/components/deck-check/deck-check-guard";
 import { GroupDrilldownFrame } from "@/components/friend-groups/friend-group-shell";
 
-export const Route = createLazyFileRoute("/_app/_authenticated/groups/$slug_/checks_/$eventId")({
+export const Route = createLazyFileRoute("/_app/_authenticated/groups/$slug_/events_/$eventId")({
   component: GroupCheckEventRoute,
 });
 
