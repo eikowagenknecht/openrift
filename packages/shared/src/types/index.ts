@@ -132,13 +132,18 @@ export type {
   Palette,
   ResolvedPreferences,
   Theme,
+  TradeRequestEmailCadence,
   UserPreferencesResponse,
 } from "./api/index.js";
 export {
+  DEFAULT_TRADE_REQUEST_EMAIL_CADENCE,
+  getTradeRequestEmailCadence,
   isTradeMatchDigestEnabled,
   isTradeRequestEmailEnabled,
   PALETTES,
   PREFERENCE_DEFAULTS,
+  TRADE_REQUEST_EMAIL_CADENCE_MINUTES,
+  TRADE_REQUEST_EMAIL_CADENCES,
 } from "./api/index.js";
 
 export type {

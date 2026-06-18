@@ -1,4 +1,8 @@
-import type { EmailNotificationChannel, UserPreferencesResponse } from "@openrift/shared";
+import type {
+  EmailNotificationChannel,
+  TradeRequestEmailCadence,
+  UserPreferencesResponse,
+} from "@openrift/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -7,6 +11,7 @@ import { useUserId } from "@/lib/auth-session";
 import type { EmailNotificationGates } from "@/lib/email-notification-prefs";
 import {
   buildEmailNotificationPatch,
+  buildTradeRequestCadencePatch,
   resolveEmailNotificationGates,
 } from "@/lib/email-notification-prefs";
 import { queryKeys } from "@/lib/query-keys";
@@ -42,6 +47,7 @@ export interface UseEmailNotificationsResult {
   isLoading: boolean;
   isSaving: boolean;
   setChannel: (channel: EmailNotificationChannel, value: boolean) => void;
+  setCadence: (cadence: TradeRequestEmailCadence) => void;
 }
 
 /**
@@ -95,6 +101,14 @@ export function useEmailNotifications(): UseEmailNotificationsResult {
         return;
       }
       mutation.mutate(buildEmailNotificationPatch(data.emailNotifications, channel, value));
+    },
+    setCadence: (cadence) => {
+      // Same guard as setChannel: wait for the saved object before merging so we
+      // don't drop the sibling toggles.
+      if (data === undefined) {
+        return;
+      }
+      mutation.mutate(buildTradeRequestCadencePatch(data.emailNotifications, cadence));
     },
   };
 }

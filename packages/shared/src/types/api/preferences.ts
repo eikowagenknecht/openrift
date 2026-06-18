@@ -67,25 +67,58 @@ export interface UserPreferencesResponse {
   emailNotifications?: EmailNotificationPreference;
 }
 
+/**
+ * How often trade-request emails are delivered to a recipient (ADR-030).
+ * `instant` sends every request right away; the `Nmin` values debounce a burst
+ * into one email sent N minutes after the last request.
+ */
+export const TRADE_REQUEST_EMAIL_CADENCES = ["instant", "5min", "15min", "30min", "60min"] as const;
+export type TradeRequestEmailCadence = (typeof TRADE_REQUEST_EMAIL_CADENCES)[number];
+
+/** Minutes each cadence maps to (`instant` = 0 = no debounce). */
+export const TRADE_REQUEST_EMAIL_CADENCE_MINUTES: Record<TradeRequestEmailCadence, number> = {
+  instant: 0,
+  "5min": 5,
+  "15min": 15,
+  "30min": 30,
+  "60min": 60,
+};
+
+/** Cadence applied when the recipient hasn't chosen one (and for existing users). */
+export const DEFAULT_TRADE_REQUEST_EMAIL_CADENCE: TradeRequestEmailCadence = "5min";
+
 /** Per-channel transactional email opt-ins (ADR-030). */
 export interface EmailNotificationPreference {
   tradeMatches?: boolean;
   tradeRequests?: boolean;
+  /** Delivery cadence for trade-request emails; absent = {@link DEFAULT_TRADE_REQUEST_EMAIL_CADENCE}. */
+  tradeRequestCadence?: TradeRequestEmailCadence;
 }
 
-/** Email-notification channel keys, used for unsubscribe links and toggles. */
-export type EmailNotificationChannel = keyof EmailNotificationPreference;
+/**
+ * Email-notification channel keys, used for unsubscribe links and toggles. Pinned
+ * to the boolean opt-in keys (not `keyof EmailNotificationPreference`) so the
+ * non-boolean cadence field stays out of the on/off toggle path.
+ */
+export type EmailNotificationChannel = "tradeMatches" | "tradeRequests";
 
 /** @returns Whether the daily match digest is enabled (opt-in: default off). */
 export function isTradeMatchDigestEnabled(prefs: EmailNotificationPreference | undefined): boolean {
   return prefs?.tradeMatches === true;
 }
 
-/** @returns Whether the instant trade-request email is enabled (opt-out: default on). */
+/** @returns Whether the trade-request email is enabled (opt-out: default on). */
 export function isTradeRequestEmailEnabled(
   prefs: EmailNotificationPreference | undefined,
 ): boolean {
   return prefs?.tradeRequests !== false;
+}
+
+/** @returns The recipient's trade-request email cadence (default when unset). */
+export function getTradeRequestEmailCadence(
+  prefs: EmailNotificationPreference | undefined,
+): TradeRequestEmailCadence {
+  return prefs?.tradeRequestCadence ?? DEFAULT_TRADE_REQUEST_EMAIL_CADENCE;
 }
 
 /** Fully resolved preferences — no optional fields. */

@@ -1,6 +1,11 @@
 import { formatContactMethodsSummary } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
-import { isTradeRequestEmailEnabled } from "@openrift/shared/types";
+import {
+  getTradeRequestEmailCadence,
+  isTradeRequestEmailEnabled,
+  TRADE_REQUEST_EMAIL_CADENCE_MINUTES,
+} from "@openrift/shared/types";
+import type { TradeRequestEmailCadence } from "@openrift/shared/types";
 
 import type { Repos } from "../deps.js";
 import type { createEmailSender } from "../email.js";
@@ -25,12 +30,33 @@ type SendEmail = ReturnType<typeof createEmailSender>;
 export const TRADE_REQUEST_EMAIL_FLAG = "trade-request-email";
 
 /**
- * Coalescing window (ADR-030). The first request from one sender to one
- * recipient emails instantly; further requests within this window of the last
- * email to that pair are queued and folded into a single follow-up by the
- * flush cron — so a burst of requests can't spam the recipient's inbox.
+ * Decides whether a recipient's queued burst of requests from one sender is due
+ * for its coalesced email (ADR-030). `instant` is always due (the flush only
+ * sees instant rows as a fallback when the instant send failed). An `Nmin`
+ * cadence is a trailing debounce: send once the burst has been quiet for the
+ * window (N min since the last request), capped at twice the window so a
+ * never-ending trickle can't defer the email forever.
+ * @returns Whether the group should be emailed now.
  */
-const REQUEST_EMAIL_COALESCE_WINDOW_SECONDS = 5 * 60;
+export function isRequestGroupDue(
+  cadence: TradeRequestEmailCadence,
+  createdAts: readonly Date[],
+  now: Date,
+): boolean {
+  const windowMinutes = TRADE_REQUEST_EMAIL_CADENCE_MINUTES[cadence];
+  if (windowMinutes === 0) {
+    return true;
+  }
+  if (createdAts.length === 0) {
+    return false;
+  }
+  const windowMs = windowMinutes * 60_000;
+  const nowMs = now.getTime();
+  const times = createdAts.map((createdAt) => createdAt.getTime());
+  const quietFor = nowMs - Math.max(...times);
+  const agedFor = nowMs - Math.min(...times);
+  return quietFor >= windowMs || agedFor >= 2 * windowMs;
+}
 
 /** Dependencies the trade-request email needs beyond `repos` (ADR-030). */
 export interface TradeEmailDeps {
@@ -46,10 +72,10 @@ export interface TradeEmailDeps {
  * Emails the non-initiator that a trade was requested (ADR-030). Gated by the
  * recipient's `tradeRequests` preference (on by default) and a verified email.
  *
- * Leading-edge throttled: only the first request to this recipient from this
- * sender within {@link REQUEST_EMAIL_COALESCE_WINDOW_SECONDS} sends here; later
- * requests in the window are left queued (`request_email_sent_at` stays NULL)
- * for {@link flushCoalescedTradeRequests} to fold into one follow-up.
+ * Honours the recipient's cadence: `instant` claims and sends the email right
+ * away; any `Nmin` cadence leaves the request queued (`request_email_sent_at`
+ * stays NULL) for {@link flushCoalescedTradeRequests} to debounce and fold into
+ * one follow-up.
  *
  * Best-effort and side-effect-only: it never throws. The caller invokes it
  * after the trade row has committed and outside any transaction, so a mail
@@ -67,9 +93,8 @@ export async function sendTradeRequestEmail(
       return;
     }
 
-    // The recipient is the *non-initiator*; the sender is the initiator.
+    // The recipient is the *non-initiator*.
     const recipientUserId = trade.initiator === "giver" ? trade.receiverUserId : trade.giverUserId;
-    const senderUserId = trade.initiator === "giver" ? trade.giverUserId : trade.receiverUserId;
 
     const context = await repos.userPreferences.getEmailNotificationContext(recipientUserId);
     if (context === undefined || !context.emailVerified) {
@@ -79,16 +104,16 @@ export async function sendTradeRequestEmail(
       return;
     }
 
-    // Leading-edge claim: send instantly only if no email has gone to this
-    // sender→recipient pair within the window. Otherwise the trade stays queued
-    // (NULL) and the flush coalesces it — preventing a burst of instant emails.
-    const isLeading = await repos.cardTrades.claimInstantRequestEmail(
-      trade.id,
-      senderUserId,
-      recipientUserId,
-      REQUEST_EMAIL_COALESCE_WINDOW_SECONDS,
-    );
-    if (!isLeading) {
+    // A non-instant cadence debounces: leave the request queued (NULL) for the
+    // flush to fold into one email. Only the instant cadence sends from here.
+    if (getTradeRequestEmailCadence(context.emailNotifications) !== "instant") {
+      return;
+    }
+
+    // Instant cadence: claim this row so the flush won't also send it, then
+    // email. If the claim loses (e.g. the flush grabbed it first), skip.
+    const claimed = await repos.cardTrades.claimRequestEmails([trade.id]);
+    if (claimed.length === 0) {
       return;
     }
 
@@ -136,12 +161,10 @@ export interface CoalescedRequestFlushDeps {
   appBaseUrl: string;
   /** App secret used to sign the stateless unsubscribe token. */
   unsubscribeSecret: string;
-  /** Defaults to {@link REQUEST_EMAIL_COALESCE_WINDOW_SECONDS}; overridable in tests. */
-  windowSeconds?: number;
 }
 
 export interface CoalescedRequestFlushResult {
-  /** Distinct (sender, recipient) pairs whose burst had settled. */
+  /** Distinct (sender, recipient) pairs whose burst was due. */
   pairs: number;
   /** Coalesced emails actually sent (gated + send didn't throw). */
   emailsSent: number;
@@ -151,18 +174,18 @@ export interface CoalescedRequestFlushResult {
 
 /**
  * Sends the coalesced follow-up emails (ADR-030): for each sender→recipient
- * pair whose burst has settled (no email within the window), folds all that
- * pair's queued requests into one email. Claiming marks the requests handled
- * whether or not we send, so an opted-out recipient's queue is suppressed
- * rather than retried every tick. Per-pair sends are best-effort — a failure is
- * logged and the run continues.
- * @returns Counts of pairs considered, emails sent, and requests included.
+ * pair whose burst is due under the recipient's cadence (see
+ * {@link isRequestGroupDue}), folds all that pair's queued requests into one
+ * email. A still-settling burst is left queued (not claimed) for a later tick;
+ * an opted-out recipient's queue is claimed-and-suppressed so it isn't retried
+ * forever. Per-pair sends are best-effort — a failure is logged and the run
+ * continues.
+ * @returns Counts of pairs emailed, emails sent, and requests included.
  */
 export async function flushCoalescedTradeRequests(
   deps: CoalescedRequestFlushDeps,
 ): Promise<CoalescedRequestFlushResult> {
   const { repos, log, sendEmail, appBaseUrl, unsubscribeSecret } = deps;
-  const windowSeconds = deps.windowSeconds ?? REQUEST_EMAIL_COALESCE_WINDOW_SECONDS;
 
   // Kill switch (shared with the instant email): leave queued rows untouched
   // while off, so they resume when the flag is turned back on.
@@ -170,15 +193,16 @@ export async function flushCoalescedTradeRequests(
     return { pairs: 0, emailsSent: 0, requests: 0 };
   }
 
-  const due = await repos.cardTrades.listDueCoalescedRequests(windowSeconds);
-  if (due.length === 0) {
+  const pending = await repos.cardTrades.listPendingRequestEmails();
+  if (pending.length === 0) {
     return { pairs: 0, emailsSent: 0, requests: 0 };
   }
 
   // The query orders by (recipient, sender, created_at), so each pair's rows
   // are contiguous and chronological.
-  const byPair = Map.groupBy(due, (row) => `${row.recipientUserId}|${row.senderUserId}`);
+  const byPair = Map.groupBy(pending, (row) => `${row.recipientUserId}|${row.senderUserId}`);
 
+  const now = new Date();
   const contextByUser = new Map<string, EmailNotificationContext | undefined>();
   const labelsByGroup = new Map<string, Map<string, string>>();
   let pairs = 0;
@@ -186,19 +210,7 @@ export async function flushCoalescedTradeRequests(
   let requests = 0;
 
   for (const rows of byPair.values()) {
-    pairs += 1;
     const { recipientUserId, senderUserId } = rows[0];
-
-    // Claim every queued row for this pair (skips any the instant path grabbed
-    // concurrently). Claimed rows won't be reconsidered next tick — this also
-    // suppresses an opted-out recipient's queue below.
-    const claimedIds = new Set(
-      await repos.cardTrades.claimRequestEmails(rows.map((row) => row.id)),
-    );
-    const claimedRows = rows.filter((row) => claimedIds.has(row.id));
-    if (claimedRows.length === 0) {
-      continue;
-    }
 
     if (!contextByUser.has(recipientUserId)) {
       contextByUser.set(
@@ -212,7 +224,33 @@ export async function flushCoalescedTradeRequests(
       !context.emailVerified ||
       !isTradeRequestEmailEnabled(context.emailNotifications)
     ) {
-      // Suppressed: the claimed rows stay marked so we don't retry, no email.
+      // Suppressed: claim the queued rows so they stay marked and we don't
+      // retry this pair every tick, then move on without emailing.
+      await repos.cardTrades.claimRequestEmails(rows.map((row) => row.id));
+      continue;
+    }
+
+    // Apply the recipient's cadence. A still-settling burst stays queued
+    // (unclaimed) for a later tick rather than being sent early.
+    const cadence = getTradeRequestEmailCadence(context.emailNotifications);
+    if (
+      !isRequestGroupDue(
+        cadence,
+        rows.map((row) => row.createdAt),
+        now,
+      )
+    ) {
+      continue;
+    }
+    pairs += 1;
+
+    // Claim every queued row for this pair (skips any the instant path grabbed
+    // concurrently). Claimed rows won't be reconsidered next tick.
+    const claimedIds = new Set(
+      await repos.cardTrades.claimRequestEmails(rows.map((row) => row.id)),
+    );
+    const claimedRows = rows.filter((row) => claimedIds.has(row.id));
+    if (claimedRows.length === 0) {
       continue;
     }
 

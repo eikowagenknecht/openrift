@@ -7,6 +7,7 @@ import type { UseEmailNotificationsResult } from "@/hooks/use-email-notification
 import { EmailNotificationsControls } from "./email-notifications-controls";
 
 const setChannel = vi.fn();
+const setCadence = vi.fn();
 let hookValue: UseEmailNotificationsResult;
 
 vi.mock("@/hooks/use-email-notifications", () => ({
@@ -15,12 +16,14 @@ vi.mock("@/hooks/use-email-notifications", () => ({
 
 beforeEach(() => {
   setChannel.mockReset();
+  setCadence.mockReset();
   hookValue = {
-    // Defaults for an absent preference: request on, digest off.
-    gates: { tradeMatches: false, tradeRequests: true },
+    // Defaults for an absent preference: request on, digest off, default cadence.
+    gates: { tradeMatches: false, tradeRequests: true, tradeRequestCadence: "5min" },
     isLoading: false,
     isSaving: false,
     setChannel,
+    setCadence,
   };
 });
 
@@ -47,6 +50,22 @@ describe("EmailNotificationsControls", () => {
     render(<EmailNotificationsControls />);
     await userEvent.click(screen.getByRole("switch", { name: "Trade requests" }));
     expect(setChannel).toHaveBeenCalledWith("tradeRequests", false);
+  });
+
+  it("shows the current cadence and picking a new one calls setCadence", async () => {
+    render(<EmailNotificationsControls />);
+    const frequency = screen.getByLabelText("Frequency");
+    expect(frequency).toHaveTextContent("Every 5 minutes");
+
+    await userEvent.click(frequency);
+    await userEvent.click(screen.getByRole("option", { name: "Instant" }));
+    expect(setCadence).toHaveBeenCalledWith("instant");
+  });
+
+  it("disables the frequency control when trade-request emails are off", () => {
+    hookValue = { ...hookValue, gates: { ...hookValue.gates, tradeRequests: false } };
+    render(<EmailNotificationsControls />);
+    expect(screen.getByLabelText("Frequency")).toBeDisabled();
   });
 
   it("disables both switches while saving", () => {

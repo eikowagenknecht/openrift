@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { TRADE_REQUEST_EMAIL_CADENCES } from "./types/api/preferences.js";
+
 /**
  * Field rules inlined from api/db/schemas — mirrors DB CHECK constraints for
  * the subset needed by shared request-validation schemas.
@@ -625,6 +627,7 @@ export const updatePreferencesSchema = z.object({
     .object({
       tradeMatches: z.boolean().optional(),
       tradeRequests: z.boolean().optional(),
+      tradeRequestCadence: z.enum(TRADE_REQUEST_EMAIL_CADENCES).optional(),
     })
     .nullable()
     .optional(),

@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { ERROR_CODES } from "./error-codes.js";
 import type { ErrorCode } from "./error-codes.js";
+import { TRADE_REQUEST_EMAIL_CADENCES } from "./types/api/preferences.js";
 
 // ── Error envelope ───────────────────────────────────────────────────────────
 // The single shape every 4xx/5xx returns ({ error, code }). Published here so
@@ -913,6 +914,7 @@ export const userPreferencesResponseSchema = z
       .object({
         tradeMatches: z.boolean().optional(),
         tradeRequests: z.boolean().optional(),
+        tradeRequestCadence: z.enum(TRADE_REQUEST_EMAIL_CADENCES).optional(),
       })
       .optional(),
   })

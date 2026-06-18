@@ -8,13 +8,18 @@ export type {
   Palette,
   ResolvedPreferences,
   Theme,
+  TradeRequestEmailCadence,
   UserPreferencesResponse,
 } from "./preferences.js";
 export {
+  DEFAULT_TRADE_REQUEST_EMAIL_CADENCE,
+  getTradeRequestEmailCadence,
   isTradeMatchDigestEnabled,
   isTradeRequestEmailEnabled,
   PALETTES,
   PREFERENCE_DEFAULTS,
+  TRADE_REQUEST_EMAIL_CADENCE_MINUTES,
+  TRADE_REQUEST_EMAIL_CADENCES,
 } from "./preferences.js";
 
 export type { InitResponse } from "./init.js";

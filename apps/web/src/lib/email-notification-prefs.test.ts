@@ -2,18 +2,21 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildEmailNotificationPatch,
+  buildTradeRequestCadencePatch,
   resolveEmailNotificationGates,
 } from "./email-notification-prefs";
 
 describe("resolveEmailNotificationGates", () => {
-  it("applies per-channel defaults when the key is absent", () => {
+  it("applies per-setting defaults when the key is absent", () => {
     expect(resolveEmailNotificationGates(undefined)).toEqual({
       tradeMatches: false, // digest is opt-in
       tradeRequests: true, // request email is opt-out
+      tradeRequestCadence: "5min", // default cadence
     });
     expect(resolveEmailNotificationGates({})).toEqual({
       tradeMatches: false,
       tradeRequests: true,
+      tradeRequestCadence: "5min",
     });
   });
 
@@ -25,6 +28,32 @@ describe("resolveEmailNotificationGates", () => {
   it("request email is on unless explicitly false", () => {
     expect(resolveEmailNotificationGates({ tradeRequests: false }).tradeRequests).toBe(false);
     expect(resolveEmailNotificationGates({ tradeRequests: true }).tradeRequests).toBe(true);
+  });
+
+  it("reflects the stored cadence when set", () => {
+    expect(
+      resolveEmailNotificationGates({ tradeRequestCadence: "instant" }).tradeRequestCadence,
+    ).toBe("instant");
+    expect(
+      resolveEmailNotificationGates({ tradeRequestCadence: "30min" }).tradeRequestCadence,
+    ).toBe("30min");
+  });
+});
+
+describe("buildTradeRequestCadencePatch", () => {
+  it("sets the cadence when there is no prior object", () => {
+    expect(buildTradeRequestCadencePatch(undefined, "instant")).toEqual({
+      tradeRequestCadence: "instant",
+    });
+  });
+
+  it("preserves the channel toggles while changing the cadence", () => {
+    expect(
+      buildTradeRequestCadencePatch(
+        { tradeRequests: false, tradeMatches: true, tradeRequestCadence: "5min" },
+        "60min",
+      ),
+    ).toEqual({ tradeRequests: false, tradeMatches: true, tradeRequestCadence: "60min" });
   });
 });
 

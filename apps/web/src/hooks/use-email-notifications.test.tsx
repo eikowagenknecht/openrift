@@ -73,19 +73,33 @@ describe("useEmailNotifications", () => {
   });
 
   it("resolves the gates from the server preferences once hydrated", async () => {
-    stubFetch({ emailNotifications: { tradeMatches: true, tradeRequests: false } });
+    stubFetch({
+      emailNotifications: {
+        tradeMatches: true,
+        tradeRequests: false,
+        tradeRequestCadence: "30min",
+      },
+    });
     const { result } = renderHook(() => useEmailNotifications(), { wrapper: wrap() });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.gates).toEqual({ tradeMatches: true, tradeRequests: false });
+    expect(result.current.gates).toEqual({
+      tradeMatches: true,
+      tradeRequests: false,
+      tradeRequestCadence: "30min",
+    });
   });
 
-  it("falls back to per-channel defaults when the preference is absent", async () => {
+  it("falls back to per-setting defaults when the preference is absent", async () => {
     stubFetch({});
     const { result } = renderHook(() => useEmailNotifications(), { wrapper: wrap() });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.gates).toEqual({ tradeMatches: false, tradeRequests: true });
+    expect(result.current.gates).toEqual({
+      tradeMatches: false,
+      tradeRequests: true,
+      tradeRequestCadence: "5min",
+    });
   });
 
   it("ignores a toggle while the preferences are still loading", () => {
@@ -108,6 +122,20 @@ describe("useEmailNotifications", () => {
     const patch = calls.find((call) => call.method !== "GET");
     expect(patch?.body).toEqual({
       emailNotifications: { tradeRequests: false, tradeMatches: true },
+    });
+  });
+
+  it("PATCHes a cadence change while preserving the channel toggles", async () => {
+    const { calls } = stubFetch({ emailNotifications: { tradeMatches: true } });
+    const { result } = renderHook(() => useEmailNotifications(), { wrapper: wrap() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    act(() => result.current.setCadence("instant"));
+
+    await waitFor(() => expect(calls.some((call) => call.method !== "GET")).toBe(true));
+    const patch = calls.find((call) => call.method !== "GET");
+    expect(patch?.body).toEqual({
+      emailNotifications: { tradeMatches: true, tradeRequestCadence: "instant" },
     });
   });
 });

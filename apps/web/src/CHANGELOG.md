@@ -8,6 +8,7 @@
 
 ### Other
 
+- feat(Trades): **Choose your trade email frequency** — get trade-request emails instantly or batched every 5, 15, 30, or 60 minutes from your notification settings.
 - feat(Groups): **QR code for the join link** — admins can show a scannable QR of the group invite link, handy for inviting people in person.
 - feat(Tournaments): **Past events tucked away** — a group's events page now leads with upcoming events and folds past and archived ones into a collapsible "Past and archived" section
 - feat(Tournaments): **Deck-check API keys moved to Manage** — a group's deck-check API keys now live on the Manage page with the other admin settings.
