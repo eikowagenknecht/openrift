@@ -13,8 +13,10 @@ import {
   HandshakeIcon,
   HeartIcon,
   KeyIcon,
+  QrCodeIcon,
   Trash2Icon,
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import type { ComponentType, SVGProps } from "react";
 import { useState } from "react";
 
@@ -189,8 +191,12 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
   const [newSlug, setNewSlug] = useState(data.group.slug);
   const [rotateConfirmOpen, setRotateConfirmOpen] = useState(false);
   const [disableConfirmOpen, setDisableConfirmOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
 
   const slugChanged = newSlug !== data.group.slug;
+  const joinUrl = data.group.code
+    ? `${getSiteUrl()}/groups/join?code=${encodeURIComponent(data.group.code)}`
+    : null;
 
   async function handleSave() {
     const trimmedName = name.trim();
@@ -270,15 +276,34 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() =>
-                  navigator.clipboard.writeText(
-                    `${getSiteUrl()}/groups/join?code=${encodeURIComponent(data.group.code ?? "")}`,
-                  )
-                }
+                onClick={() => navigator.clipboard.writeText(joinUrl ?? "")}
               >
                 <CopyIcon className="size-4" />
                 Copy link
               </Button>
+              <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+                <DialogTrigger render={<Button size="sm" variant="ghost" />}>
+                  <QrCodeIcon className="size-4" />
+                  QR code
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Join code QR</DialogTitle>
+                    <DialogDescription>
+                      Scan this to open the invite link and join the group.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex flex-col items-center gap-4">
+                    {/* QR modules need a light background to scan in either theme. */}
+                    <div className="w-fit rounded-md bg-white p-4">
+                      <QRCodeSVG value={joinUrl ?? ""} size={224} />
+                    </div>
+                    <code className="text-muted-foreground text-center text-sm break-all">
+                      {joinUrl}
+                    </code>
+                  </div>
+                </DialogContent>
+              </Dialog>
               <Dialog open={rotateConfirmOpen} onOpenChange={setRotateConfirmOpen}>
                 <DialogTrigger render={<Button size="sm" variant="destructive" />}>
                   Rotate
