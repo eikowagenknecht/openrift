@@ -40,6 +40,13 @@ export type {
 export type { CollectionEventListResponse, CollectionEventResponse } from "./collection-event.js";
 
 export type {
+  ContactMethod,
+  ContactMethodType,
+  UserContactMethodsResponse,
+} from "./contact-method.js";
+export { CONTACT_METHOD_TYPES } from "./contact-method.js";
+
+export type {
   CollectionValueHistoryPoint,
   CollectionValueHistoryResponse,
 } from "./collection-value-history.js";

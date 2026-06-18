@@ -26,6 +26,7 @@ import { cardTradesRoute } from "./routes/authenticated/card-trades.js";
 import { collectionEventsRoute } from "./routes/authenticated/collection-events.js";
 import { collectionValueHistoryRoute } from "./routes/authenticated/collection-value-history.js";
 import { collectionsRoute } from "./routes/authenticated/collections.js";
+import { contactMethodsRoute } from "./routes/authenticated/contact-methods.js";
 import { copiesRoute } from "./routes/authenticated/copies.js";
 import { deckCheckPlayerRoute } from "./routes/authenticated/deck-check-player.js";
 import { deckCheckRoute } from "./routes/authenticated/deck-check.js";
@@ -451,6 +452,7 @@ export function createApp(deps: AppDeps) {
       .route("/api/v1", collectionEventsRoute)
       .route("/api/v1", collectionValueHistoryRoute)
       .route("/api/v1", decksRoute)
+      .route("/api/v1", contactMethodsRoute)
       .route("/api/v1", preferencesRoute)
       .route("/api/v1", userShareRoute)
       .route("/api/v1", listsRoute)

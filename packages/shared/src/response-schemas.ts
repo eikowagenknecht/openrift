@@ -1231,6 +1231,29 @@ export const friendGroupListResponseSchema = z
   })
   .openapi("FriendGroupListResponse");
 
+export const contactMethodSchema = z
+  .object({
+    id: z.string(),
+    type: z.enum([
+      "discord",
+      "signal",
+      "telegram",
+      "whatsapp",
+      "phone",
+      "email",
+      "in_person",
+      "other",
+    ]),
+    value: z.string(),
+  })
+  .openapi("ContactMethod");
+
+export const userContactMethodsResponseSchema = z
+  .object({
+    items: z.array(contactMethodSchema),
+  })
+  .openapi("UserContactMethodsResponse");
+
 export const friendGroupMemberResponseSchema = z
   .object({
     userId: z.string(),
@@ -1238,7 +1261,7 @@ export const friendGroupMemberResponseSchema = z
     userImage: z.string().nullable(),
     gravatarHash: z.string(),
     role: friendGroupRoleSchema,
-    nickname: z.string().nullable(),
+    contactMethods: z.array(contactMethodSchema),
     joinedAt: z.string(),
   })
   .openapi("FriendGroupMemberResponse");
@@ -1346,7 +1369,6 @@ const friendGroupMatchRowSchema = z
     counterpartyName: z.string().nullable(),
     counterpartyImage: z.string().nullable(),
     counterpartyGravatarHash: z.string(),
-    counterpartyNickname: z.string().nullable(),
     counterpartyListId: z.string(),
     counterpartyListName: z.string(),
     sellEntryId: z.string(),
@@ -1659,7 +1681,7 @@ const cardTradeCounterpartySchema = z
     name: z.string().nullable(),
     image: z.string().nullable(),
     gravatarHash: z.string(),
-    nickname: z.string().nullable(),
+    contactMethods: z.array(contactMethodSchema),
   })
   .openapi("CardTradeCounterparty");
 

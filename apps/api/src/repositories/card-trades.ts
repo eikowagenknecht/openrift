@@ -6,6 +6,7 @@ import type {
   CardTradeResponse,
   CardTradeRole,
   CardTradeStatus,
+  ContactMethod,
 } from "@openrift/shared/types";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
@@ -92,7 +93,9 @@ function deriveActionNeeded(
 }
 
 /**
- * Base DTO query: trade + group slug + both parties' user/nickname columns.
+ * Base DTO query: trade + group slug + both parties' user columns. The
+ * counterparty's revealed contact methods are loaded separately (per group) by
+ * {@link loadCounterpartyContacts} and merged in {@link mapTradeRow}.
  * @returns The Kysely select builder for trade DTO rows.
  */
 function tradeDtoBaseQuery(db: Kysely<Database>) {
@@ -101,16 +104,6 @@ function tradeDtoBaseQuery(db: Kysely<Database>) {
     .innerJoin("friendGroups as g", "g.id", "t.groupId")
     .innerJoin("users as giverUser", "giverUser.id", "t.giverUserId")
     .innerJoin("users as receiverUser", "receiverUser.id", "t.receiverUserId")
-    .leftJoin("friendGroupMembers as giverMember", (join) =>
-      join
-        .onRef("giverMember.groupId", "=", "t.groupId")
-        .onRef("giverMember.userId", "=", "t.giverUserId"),
-    )
-    .leftJoin("friendGroupMembers as receiverMember", (join) =>
-      join
-        .onRef("receiverMember.groupId", "=", "t.groupId")
-        .onRef("receiverMember.userId", "=", "t.receiverUserId"),
-    )
     .select([
       "t.id",
       "t.groupId",
@@ -134,38 +127,103 @@ function tradeDtoBaseQuery(db: Kysely<Database>) {
       "giverUser.name as giverName",
       "giverUser.image as giverImage",
       "giverUser.email as giverEmail",
-      "giverMember.nickname as giverNickname",
       "receiverUser.name as receiverName",
       "receiverUser.image as receiverImage",
       "receiverUser.email as receiverEmail",
-      "receiverMember.nickname as receiverNickname",
     ]);
 }
 
 type TradeDtoRow = Awaited<ReturnType<ReturnType<typeof tradeDtoBaseQuery>["execute"]>>[number];
 
 /**
+ * Lookup key for a member's revealed contacts: `${groupId}:${userId}`.
+ * @returns The composite key string.
+ */
+function contactsKey(groupId: string, userId: string): string {
+  return `${groupId}:${userId}`;
+}
+
+/**
+ * Loads, for each trade's counterparty, the contact methods they reveal to that
+ * group — one query for all the rows. The viewer's own contacts are never
+ * needed (the viewer knows how to reach themselves).
+ * @returns A map of `${groupId}:${counterpartyUserId}` → revealed contacts.
+ */
+async function loadCounterpartyContacts(
+  db: Kysely<Database>,
+  rows: TradeDtoRow[],
+  userId: string,
+): Promise<Map<string, ContactMethod[]>> {
+  const pairs = rows.map((row) => ({
+    groupId: row.groupId,
+    counterpartyUserId: row.giverUserId === userId ? row.receiverUserId : row.giverUserId,
+  }));
+  const lookup = new Map<string, ContactMethod[]>();
+  if (pairs.length === 0) {
+    return lookup;
+  }
+
+  const contactRows = await db
+    .selectFrom("friendGroupMemberContacts as fgmc")
+    .innerJoin("userContactMethods as ucm", "ucm.id", "fgmc.contactMethodId")
+    .select([
+      "fgmc.groupId as groupId",
+      "fgmc.userId as userId",
+      "ucm.id as id",
+      "ucm.type as type",
+      "ucm.value as value",
+    ])
+    .where((eb) =>
+      eb.or(
+        pairs.map((pair) =>
+          eb.and([
+            eb("fgmc.groupId", "=", pair.groupId),
+            eb("fgmc.userId", "=", pair.counterpartyUserId),
+          ]),
+        ),
+      ),
+    )
+    .orderBy("ucm.sortOrder", "asc")
+    .orderBy("ucm.id", "asc")
+    .execute();
+
+  for (const row of contactRows) {
+    const key = contactsKey(row.groupId, row.userId);
+    const list = lookup.get(key) ?? [];
+    list.push({ id: row.id, type: row.type, value: row.value });
+    lookup.set(key, list);
+  }
+  return lookup;
+}
+
+/**
  * Orient a raw joined row to the viewer (role-relative counterparty + flags).
  * @returns The viewer-oriented trade DTO.
  */
-function mapTradeRow(row: TradeDtoRow, userId: string): CardTradeResponse {
+function mapTradeRow(
+  row: TradeDtoRow,
+  userId: string,
+  contactsLookup: Map<string, ContactMethod[]>,
+): CardTradeResponse {
   const viewerIsGiver = row.giverUserId === userId;
   const role: CardTradeRole = viewerIsGiver ? "giver" : "receiver";
 
+  const counterpartyUserId = viewerIsGiver ? row.receiverUserId : row.giverUserId;
+  const contactMethods = contactsLookup.get(contactsKey(row.groupId, counterpartyUserId)) ?? [];
   const counterparty: CardTradeCounterparty = viewerIsGiver
     ? {
         userId: row.receiverUserId,
         name: row.receiverName,
         image: row.receiverImage,
         gravatarHash: gravatarHashForEmail(row.receiverEmail),
-        nickname: row.receiverNickname,
+        contactMethods,
       }
     : {
         userId: row.giverUserId,
         name: row.giverName,
         image: row.giverImage,
         gravatarHash: gravatarHashForEmail(row.giverEmail),
-        nickname: row.giverNickname,
+        contactMethods,
       };
 
   const viewerSyncAppliedAt = viewerIsGiver ? row.giverSyncAppliedAt : row.receiverSyncAppliedAt;
@@ -271,7 +329,8 @@ export function cardTradesRepo(db: Kysely<Database>) {
         query = query.where("t.status", "=", filters.status);
       }
       const rows = await query.orderBy("t.updatedAt", "desc").execute();
-      return rows.map((row) => mapTradeRow(row, userId));
+      const contactsLookup = await loadCounterpartyContacts(db, rows, userId);
+      return rows.map((row) => mapTradeRow(row, userId, contactsLookup));
     },
 
     /**
@@ -325,7 +384,11 @@ export function cardTradesRepo(db: Kysely<Database>) {
         )
         .execute();
       const row = rows[0];
-      return row === undefined ? undefined : mapTradeRow(row, userId);
+      if (row === undefined) {
+        return undefined;
+      }
+      const contactsLookup = await loadCounterpartyContacts(db, [row], userId);
+      return mapTradeRow(row, userId, contactsLookup);
     },
 
     /**

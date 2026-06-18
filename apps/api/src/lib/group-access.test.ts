@@ -10,7 +10,6 @@ function membership(role: FriendGroupRole): GroupMember {
     groupId: "g1",
     userId: "u1",
     role,
-    nickname: null,
     joinedAt: new Date(),
   };
 }

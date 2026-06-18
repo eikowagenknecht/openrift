@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict I1e4dJtu129MC7emDHq917vhJpjavOVHMJXJR3rSagoKkTvKR5BxsqAv5b7WaS3
+\restrict 6gRSMLfFEOVx5mIr6fCswAWuhsTtMQawqNapwlGycmjHc7VGanmFn4HHvzJKHKN
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1167,6 +1167,17 @@ CREATE TABLE public.friend_group_list_shares (
 
 
 --
+-- Name: friend_group_member_contacts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.friend_group_member_contacts (
+    group_id uuid NOT NULL,
+    user_id text NOT NULL,
+    contact_method_id uuid NOT NULL
+);
+
+
+--
 -- Name: friend_group_members; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1174,9 +1185,7 @@ CREATE TABLE public.friend_group_members (
     group_id uuid NOT NULL,
     user_id text NOT NULL,
     role text NOT NULL,
-    nickname text,
     joined_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT chk_friend_group_members_nickname CHECK (((nickname IS NULL) OR (length(nickname) <= 80))),
     CONSTRAINT chk_friend_group_members_role CHECK ((role = ANY (ARRAY['owner'::text, 'admin'::text, 'judge'::text, 'member'::text])))
 );
 
@@ -1933,6 +1942,23 @@ CREATE TABLE public.super_types (
 
 
 --
+-- Name: user_contact_methods; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.user_contact_methods (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    user_id text NOT NULL,
+    type text NOT NULL,
+    value text NOT NULL,
+    sort_order integer DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_user_contact_methods_type CHECK ((type = ANY (ARRAY['discord'::text, 'signal'::text, 'telegram'::text, 'whatsapp'::text, 'phone'::text, 'email'::text, 'in_person'::text, 'other'::text]))),
+    CONSTRAINT chk_user_contact_methods_value CHECK (((length(value) >= 1) AND (length(value) <= 200)))
+);
+
+
+--
 -- Name: user_feature_flags; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2401,6 +2427,14 @@ ALTER TABLE ONLY public.friend_group_invites
 
 ALTER TABLE ONLY public.friend_group_list_shares
     ADD CONSTRAINT friend_group_list_shares_pkey PRIMARY KEY (group_id, list_id);
+
+
+--
+-- Name: friend_group_member_contacts friend_group_member_contacts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_member_contacts
+    ADD CONSTRAINT friend_group_member_contacts_pkey PRIMARY KEY (group_id, user_id, contact_method_id);
 
 
 --
@@ -2884,6 +2918,14 @@ ALTER TABLE ONLY public.printings
 
 
 --
+-- Name: user_contact_methods user_contact_methods_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_contact_methods
+    ADD CONSTRAINT user_contact_methods_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: user_feature_flags user_feature_flags_pk; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3204,6 +3246,13 @@ CREATE INDEX idx_friend_group_list_shares_list ON public.friend_group_list_share
 
 
 --
+-- Name: idx_friend_group_member_contacts_member; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_friend_group_member_contacts_member ON public.friend_group_member_contacts USING btree (group_id, user_id);
+
+
+--
 -- Name: idx_friend_group_members_user; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3432,6 +3481,13 @@ CREATE UNIQUE INDEX idx_sessions_token ON public.sessions USING btree (token);
 --
 
 CREATE INDEX idx_sessions_user_id ON public.sessions USING btree (user_id);
+
+
+--
+-- Name: idx_user_contact_methods_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_user_contact_methods_user ON public.user_contact_methods USING btree (user_id);
 
 
 --
@@ -3915,6 +3971,13 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.sessions FOR EACH ROW 
 --
 
 CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.sets FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: user_contact_methods trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.user_contact_methods FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -4553,6 +4616,22 @@ ALTER TABLE ONLY public.friend_group_list_shares
 
 
 --
+-- Name: friend_group_member_contacts friend_group_member_contacts_member_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_member_contacts
+    ADD CONSTRAINT friend_group_member_contacts_member_fkey FOREIGN KEY (group_id, user_id) REFERENCES public.friend_group_members(group_id, user_id) ON DELETE CASCADE;
+
+
+--
+-- Name: friend_group_member_contacts friend_group_member_contacts_method_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_member_contacts
+    ADD CONSTRAINT friend_group_member_contacts_method_fkey FOREIGN KEY (contact_method_id) REFERENCES public.user_contact_methods(id) ON DELETE CASCADE;
+
+
+--
 -- Name: friend_group_members friend_group_members_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4825,6 +4904,14 @@ ALTER TABLE ONLY public.sessions
 
 
 --
+-- Name: user_contact_methods user_contact_methods_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_contact_methods
+    ADD CONSTRAINT user_contact_methods_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: user_feature_flags user_feature_flags_flag_key_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4856,13 +4943,6 @@ CREATE PUBLICATION electric_publication_default WITH (publish = 'insert, update,
 
 
 --
--- Name: electric_publication_default collections; Type: PUBLICATION TABLE; Schema: public; Owner: -
---
-
-ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.collections;
-
-
---
 -- Name: electric_publication_default copies; Type: PUBLICATION TABLE; Schema: public; Owner: -
 --
 
@@ -4870,15 +4950,8 @@ ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.copies;
 
 
 --
--- Name: electric_publication_default friend_group_members; Type: PUBLICATION TABLE; Schema: public; Owner: -
---
-
-ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.friend_group_members;
-
-
---
 -- PostgreSQL database dump complete
 --
 
-\unrestrict I1e4dJtu129MC7emDHq917vhJpjavOVHMJXJR3rSagoKkTvKR5BxsqAv5b7WaS3
+\unrestrict 6gRSMLfFEOVx5mIr6fCswAWuhsTtMQawqNapwlGycmjHc7VGanmFn4HHvzJKHKN
 

@@ -48,6 +48,9 @@ export const queryKeys = {
   preferences: {
     all: (userId: string) => ["preferences", userId] as const,
   },
+  contactMethods: {
+    all: (userId: string) => ["contact-methods", userId] as const,
+  },
   copies: {
     all: (userId: string) => ["copies", userId] as const,
     byCollection: (userId: string, id: string) => ["copies", userId, id] as const,

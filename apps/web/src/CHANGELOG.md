@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Groups): **Share contact methods, not a nickname** — add your contact channels (Discord, Signal, phone, email, or wherever people reach you) once in your profile, then pick which to share in each group's settings. They show as tidy, tappable chips next to your name on the Members and Trades pages, replacing the single free-text contact line, and nothing is shown to anyone until you choose to share it
 - feat(Groups): **Redesigned group dashboard** — the group overview now leads with tappable cards for trades, collections, members, and upcoming events instead of a tab bar, a bold banner flags trades waiting on your action, and opening a section uses a back-breadcrumb to return to the group; on phones the cards stack one per row
 - feat(Trades): **Offer cards from member wishlists** — while browsing a group member's wishlist, tap Offer on a card you own to send it their way, choosing or creating the tradelist it comes from, the mirror of the Want button on tradelists
 - feat(Groups): **One-stop Trades page** — members' shared wishlists and tradelists now live on the group's Trades page, right alongside the possible trades, so you can browse what everyone offers and act on it in one place; the Shared page keeps the group's pooled and personal collections

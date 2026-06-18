@@ -2,6 +2,9 @@ export type {
   ActivityAction,
   CollectionEventListResponse,
   CollectionEventResponse,
+  ContactMethod,
+  ContactMethodType,
+  UserContactMethodsResponse,
   AdminCardDetailResponse,
   AdminMarketplaceName,
   AdminPrintingImageResponse,
@@ -270,6 +273,7 @@ export {
   DEFAULT_SEARCH_SCOPE,
   NONE,
   ALL_MARKETPLACES,
+  CONTACT_METHOD_TYPES,
   isTradeMatchDigestEnabled,
   isTradeRequestEmailEnabled,
   PALETTES,
@@ -293,6 +297,8 @@ export {
   sortCards,
 } from "./filters.js";
 export type { SortCardsOptions } from "./filters.js";
+
+export { CONTACT_METHOD_LABELS, formatContactMethodsSummary } from "./contact-methods.js";
 
 export { snapshotHeadline } from "./types/api/pricing.js";
 export { ERROR_CODES } from "./error-codes.js";

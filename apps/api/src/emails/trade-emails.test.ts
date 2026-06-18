@@ -46,6 +46,20 @@ describe("buildTradeRequestEmail", () => {
     expect(html).not.toContain("<script>alert(1)</script>");
     expect(html).toContain("&lt;script&gt;");
   });
+
+  it("renders a 'Reach …' line when the initiator shared a contact", () => {
+    const { html } = buildTradeRequestEmail({
+      ...REQUEST_BASE,
+      kind: "wants",
+      initiatorContact: "Discord: seb#1234",
+    });
+    expect(html).toContain("Reach Garen: Discord: seb#1234");
+  });
+
+  it("omits the contact line when no contact was shared", () => {
+    const { html } = buildTradeRequestEmail({ ...REQUEST_BASE, kind: "wants" });
+    expect(html).not.toContain("Reach ");
+  });
 });
 
 describe("buildCoalescedTradeRequestsEmail", () => {

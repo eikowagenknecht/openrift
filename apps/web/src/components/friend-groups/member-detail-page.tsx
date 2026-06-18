@@ -8,6 +8,7 @@ import { UserAvatar } from "@/components/user-avatar";
 import { useFriendGroupDetail, useFriendGroupMemberDetail } from "@/hooks/use-friend-groups";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
+import { ContactMethodChips } from "./contact-method-chips";
 import { ROLE_LABEL, SECTION_HEADING } from "./friend-group-shell";
 import { MatchTradeList } from "./match-row-card";
 import { SharedCollectionRow } from "./shared-collection-row";
@@ -53,12 +54,12 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
             size="lg"
             className="size-14"
           />
-          <div className="flex flex-col gap-0.5">
+          <div className="flex flex-col gap-1">
             <Heading level={1}>{member.userName ?? "Unknown user"}</Heading>
-            {member.nickname ? <p className="text-muted-foreground">{member.nickname}</p> : null}
             <Badge variant="outline" className="w-fit text-xs">
               {ROLE_LABEL[member.role]}
             </Badge>
+            <ContactMethodChips methods={member.contactMethods} />
           </div>
         </header>
 

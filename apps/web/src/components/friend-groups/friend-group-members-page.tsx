@@ -13,7 +13,6 @@ import {
   UserPlusIcon,
   XIcon,
 } from "lucide-react";
-import { useState } from "react";
 import { toast } from "sonner";
 
 import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
@@ -25,7 +24,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { UserAvatar } from "@/components/user-avatar";
 import {
   useAcceptFriendGroupInvite,
@@ -33,12 +31,12 @@ import {
   useFriendGroupDetail,
   useKickFriendGroupMember,
   useTransferFriendGroupOwnership,
-  useUpdateFriendGroupNickname,
   useUpdateFriendGroupRole,
 } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { getSiteUrl } from "@/lib/site-config";
 
+import { ContactMethodChips } from "./contact-method-chips";
 import { isAdmin, ROLE_LABEL } from "./friend-group-shell";
 
 /**
@@ -207,9 +205,6 @@ function MemberRow({
   ]
     .filter(Boolean)
     .join(" · ");
-  const [nickname, setNickname] = useState(member.nickname ?? "");
-  const [nicknameDirty, setNicknameDirty] = useState(false);
-  const updateNickname = useUpdateFriendGroupNickname();
   const updateRole = useUpdateFriendGroupRole();
   const kickMember = useKickFriendGroupMember();
   const transferOwnership = useTransferFriendGroupOwnership();
@@ -245,38 +240,7 @@ function MemberRow({
           {shareSummary ? ` · ${shareSummary}` : null}
         </span>
       </Link>
-      {isSelf ? (
-        <div className="flex items-center gap-2">
-          <Input
-            value={nickname}
-            onChange={(e) => {
-              setNickname(e.target.value);
-              setNicknameDirty(true);
-            }}
-            placeholder="Add a nickname / contact"
-            className="w-56"
-            maxLength={80}
-          />
-          {nicknameDirty ? (
-            <Button
-              size="sm"
-              onClick={async () => {
-                await updateNickname.mutateAsync({
-                  slug,
-                  userId: viewerId,
-                  nickname: nickname.trim() || null,
-                });
-                setNicknameDirty(false);
-              }}
-              disabled={updateNickname.isPending}
-            >
-              Save
-            </Button>
-          ) : null}
-        </div>
-      ) : member.nickname ? (
-        <span className="text-muted-foreground text-xs">{member.nickname}</span>
-      ) : null}
+      <ContactMethodChips methods={member.contactMethods} className="justify-end" />
 
       {(canKick || canPromote || canMakeJudge || canUnmakeJudge || canDemote || canTransfer) && (
         <DropdownMenu>

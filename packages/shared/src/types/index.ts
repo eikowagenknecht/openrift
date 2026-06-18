@@ -289,7 +289,11 @@ export type {
   ListGroupSharesResponse,
   CollectionGroupSharesResponse,
   ZoneSuggestion,
+  ContactMethod,
+  ContactMethodType,
+  UserContactMethodsResponse,
 } from "./api/index.js";
+export { CONTACT_METHOD_TYPES } from "./api/index.js";
 
 export type {
   AnySnapshot,

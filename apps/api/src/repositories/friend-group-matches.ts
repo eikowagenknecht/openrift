@@ -30,7 +30,6 @@ export interface MatchRow {
   counterpartyName: string | null;
   counterpartyImage: string | null;
   counterpartyGravatarHash: string;
-  counterpartyNickname: string | null;
 
   /** The counterparty's source list (their tradelist in "they have", their wishlist in "they want"). */
   counterpartyListId: string;
@@ -272,22 +271,13 @@ async function runMatchQuery(
       join.onRef("l_buy.id", "=", "s_buy.listId").on("l_buy.intent", "=", "wish"),
     )
     .innerJoin("listEntries as le_buy", "le_buy.listId", "l_buy.id")
-    // Counterparty profile (for grouping/avatar/nickname).
+    // Counterparty profile (for grouping/avatar).
     .innerJoin("users as cp_user", (join) =>
       join.onRef(
         "cp_user.id",
         "=",
         direction === "others-have-your-wants" ? "s_sell.userId" : "s_buy.userId",
       ),
-    )
-    .leftJoin("friendGroupMembers as cp_member", (join) =>
-      join
-        .onRef("cp_member.groupId", "=", "s_sell.groupId")
-        .onRef(
-          "cp_member.userId",
-          "=",
-          direction === "others-have-your-wants" ? "s_sell.userId" : "s_buy.userId",
-        ),
     )
     .where("s_sell.groupId", "=", scope.groupId)
     .where("l_sell.intent", "=", "trade")
@@ -343,7 +333,6 @@ async function runMatchQuery(
       eb.ref("cp_user.name").as("counterpartyName"),
       eb.ref("cp_user.image").as("counterpartyImage"),
       eb.ref("cp_user.email").as("counterpartyEmail"),
-      eb.ref("cp_member.nickname").as("counterpartyNickname"),
 
       direction === "others-have-your-wants"
         ? eb.ref("l_sell.id").as("counterpartyListId")
@@ -405,7 +394,6 @@ async function runMatchQuery(
       counterpartyName: row.counterpartyName,
       counterpartyImage: row.counterpartyImage,
       counterpartyGravatarHash: gravatarHashForEmail(row.counterpartyEmail),
-      counterpartyNickname: row.counterpartyNickname,
 
       counterpartyListId: row.counterpartyListId as string,
       counterpartyListName: row.counterpartyListName,

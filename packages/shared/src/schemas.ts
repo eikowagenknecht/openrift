@@ -484,8 +484,31 @@ export const friendGroupUpdateRoleSchema = z.object({
   role: z.enum(["admin", "judge", "member"]),
 });
 
-export const friendGroupUpdateNicknameSchema = z.object({
-  nickname: z.string().max(80).nullable(),
+export const contactMethodTypeSchema = z.enum([
+  "discord",
+  "signal",
+  "telegram",
+  "whatsapp",
+  "phone",
+  "email",
+  "in_person",
+  "other",
+]);
+
+export const createContactMethodSchema = z.object({
+  type: contactMethodTypeSchema,
+  value: z.string().trim().min(1).max(200),
+});
+
+export const updateContactMethodSchema = createContactMethodSchema;
+
+export const reorderContactMethodsSchema = z.object({
+  ids: z.array(z.uuid()),
+});
+
+/** Which of the viewer's contact methods are revealed to a given group. */
+export const setRevealedContactsSchema = z.object({
+  contactMethodIds: z.array(z.uuid()),
 });
 
 export const friendGroupTransferOwnershipSchema = z.object({

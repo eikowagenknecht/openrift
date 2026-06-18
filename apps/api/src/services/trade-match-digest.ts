@@ -67,7 +67,7 @@ interface PendingGroup {
   name: string;
   slug: string;
   rows: IncomingMatchFeedRow[];
-  /** counterparty userId → display label (nickname, then name, then fallback). */
+  /** counterparty userId → display label (the member's name, or a fallback). */
   labelByUser: Map<string, string>;
 }
 
@@ -118,11 +118,11 @@ export async function sendTradeMatchDigest(
       for (const row of rows) {
         cardIds.add(row.cardId);
       }
-      // Nicknames are per (group, member); resolve only for groups with matches.
+      // Resolve member display names only for groups with matches.
       const members = await repos.friendGroups.listMembers(group.id);
       const labelByUser = new Map<string, string>();
       for (const member of members) {
-        labelByUser.set(member.userId, member.nickname ?? member.userName ?? "A member");
+        labelByUser.set(member.userId, member.userName ?? "A member");
       }
       pending.push({ name: group.name, slug: group.slug, rows, labelByUser });
     }

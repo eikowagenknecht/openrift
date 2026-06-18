@@ -9,7 +9,6 @@ const DB_ROW = {
   counterpartyName: "Alice",
   counterpartyImage: null,
   counterpartyEmail: "alice@example.com",
-  counterpartyNickname: "Tuesday Alice",
   counterpartyListId: "lst-sell",
   counterpartyListName: "Spare Foils",
   sellEntryId: "le-1",

@@ -27,7 +27,6 @@ const ownerMembership = {
   groupId: GROUP_ID,
   userId: USER_ID,
   role: "owner" as const,
-  nickname: null,
   joinedAt: now,
 };
 
@@ -65,7 +64,8 @@ function makeApp(overrides: {
     addMember: vi.fn(),
     removeMember: vi.fn(),
     updateRole: vi.fn(),
-    updateNickname: vi.fn(),
+    getRevealedContactsForMembers: vi.fn(() => Promise.resolve(new Map())),
+    setRevealedContacts: vi.fn(),
     transferOwnership: vi.fn(),
     getInvite: vi.fn(),
     listInvitesForUser: vi.fn(() => Promise.resolve([])),

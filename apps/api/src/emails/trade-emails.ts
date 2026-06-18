@@ -20,6 +20,8 @@ export interface TradeRequestEmailInput {
   quantity: number;
   /** `wants` = receiver-initiated request, `offers` = giver-initiated offer. */
   kind: "wants" | "offers";
+  /** The initiator's revealed contact channels for this group, or `""` if none. */
+  initiatorContact?: string;
   /** Deep link to the group's Trades tab. */
   tradesUrl: string;
   /** One-click unsubscribe link for the `tradeRequests` channel. */
@@ -48,10 +50,15 @@ export function buildTradeRequestEmail(input: TradeRequestEmailInput): {
       ? `${initiator} wants to trade for ${input.cardName} — OpenRift`
       : `${initiator} offers you ${input.cardName} — OpenRift`;
 
+  const contactLine = input.initiatorContact
+    ? `<p style="margin:0 0 20px;">Reach ${escapeHtml(initiator)}: ${escapeHtml(input.initiatorContact)}</p>`
+    : "";
+
   const bodyHtml = `
     <p style="margin:0 0 12px;">${greeting}</p>
     <p style="margin:0 0 16px;">${lead}</p>
     <p style="margin:0 0 20px;">Open the trade to accept or decline it. Heads up: trade requests expire 24 hours after they're sent.</p>
+    ${contactLine}
     <p style="margin:0;">${emailButton("View the trade", input.tradesUrl)}</p>
   `;
 
@@ -146,7 +153,7 @@ export function buildCoalescedTradeRequestsEmail(input: CoalescedTradeRequestsEm
 
 interface DigestMatch {
   cardName: string;
-  /** Who has the card — counterparty nickname, then name, then a fallback. */
+  /** Who has the card — the counterparty's display name, or a fallback. */
   counterpartyLabel: string;
 }
 

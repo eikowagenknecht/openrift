@@ -1,3 +1,4 @@
+import { CONTACT_METHOD_LABELS } from "@openrift/shared";
 import type {
   FriendGroupDetailResponse,
   FriendGroupShareableListResponse,
@@ -37,6 +38,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { useContactMethods } from "@/hooks/use-contact-methods";
 import {
   useDeleteFriendGroup,
   useDisableFriendGroupCode,
@@ -51,7 +53,9 @@ import {
   useUnshareCollectionFromFriendGroup,
   useUnshareListFromFriendGroup,
   useUpdateFriendGroup,
+  useUpdateGroupContactReveal,
 } from "@/hooks/use-friend-groups";
+import { useRequiredUserId } from "@/lib/auth-session";
 import { getSiteUrl } from "@/lib/site-config";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
@@ -96,11 +100,78 @@ export function FriendGroupManagePage({ slug }: FriendGroupManagePageProps) {
         <Heading level={1}>Manage {data.group.name}</Heading>
 
         {isAdmin(viewerRole) ? <AdminSettings data={data} slug={slug} /> : null}
+        <ContactSharingPanel data={data} slug={slug} />
         <ShareableListsPanel slug={slug} />
         <ShareableCollectionsPanel slug={slug} />
         <LeaveOrDeletePanel data={data} slug={slug} />
       </div>
     </>
+  );
+}
+
+/**
+ * Lets the viewer choose which of their account-level contact methods are
+ * revealed to this group. Visible to every member, not just admins.
+ * @returns The contact-sharing card.
+ */
+function ContactSharingPanel({ data, slug }: { data: FriendGroupDetailResponse; slug: string }) {
+  const viewerId = useRequiredUserId();
+  const { contactMethods } = useContactMethods();
+  const reveal = useUpdateGroupContactReveal();
+
+  const self = data.members.find((member) => member.userId === viewerId);
+  const revealedIds = new Set((self?.contactMethods ?? []).map((method) => method.id));
+
+  function toggle(methodId: string, next: boolean) {
+    const ids = new Set(revealedIds);
+    if (next) {
+      ids.add(methodId);
+    } else {
+      ids.delete(methodId);
+    }
+    reveal.mutate({ slug, userId: viewerId, contactMethodIds: [...ids] });
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Your contacts in this group</CardTitle>
+        <CardDescription>
+          Choose which of your contact methods this group&apos;s members can see. They show up next
+          to your name on the Members and Trades pages.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {contactMethods.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            You haven&apos;t added any contact methods yet.{" "}
+            <Link to="/profile" hash="contacts" className="underline">
+              Add them in your profile
+            </Link>
+            .
+          </p>
+        ) : (
+          contactMethods.map((method) => (
+            <Label
+              key={method.id}
+              className="flex items-center gap-3 font-normal"
+              htmlFor={`reveal-${method.id}`}
+            >
+              <Checkbox
+                id={`reveal-${method.id}`}
+                checked={revealedIds.has(method.id)}
+                onCheckedChange={(checked) => toggle(method.id, checked === true)}
+                disabled={reveal.isPending}
+              />
+              <span className="text-muted-foreground text-sm">
+                {CONTACT_METHOD_LABELS[method.type]}
+              </span>
+              <span className="truncate">{method.value}</span>
+            </Label>
+          ))
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

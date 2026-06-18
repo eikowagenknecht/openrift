@@ -530,19 +530,19 @@ const updateRoleFn = createServerFn({ method: "POST" })
       ),
   );
 
-const updateNicknameFn = createServerFn({ method: "POST" })
-  .validator((input: { slug: string; userId: string; nickname: string | null }) => input)
+const setRevealedContactsFn = createServerFn({ method: "POST" })
+  .validator((input: { slug: string; userId: string; contactMethodIds: string[] }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<FriendGroupMemberResponse> =>
       callApiJson(
         serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].members[
           ":userId"
-        ].nickname.$patch({
+        ].contacts.$put({
           param: encodeParams({ slug: data.slug, userId: data.userId }),
-          json: { nickname: data.nickname },
+          json: { contactMethodIds: data.contactMethodIds },
         }),
-        "Couldn't update nickname",
+        "Couldn't update shared contacts",
       ),
   );
 
@@ -742,13 +742,13 @@ export function useUpdateFriendGroupRole() {
   });
 }
 
-export function useUpdateFriendGroupNickname() {
+export function useUpdateGroupContactReveal() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<
     FriendGroupMemberResponse,
-    { slug: string; userId: string; nickname: string | null }
+    { slug: string; userId: string; contactMethodIds: string[] }
   >({
-    mutationFn: (data) => updateNicknameFn({ data }),
+    mutationFn: (data) => setRevealedContactsFn({ data }),
     invalidates: (variables) => [queryKeys.friendGroups.detail(userId, variables.slug)],
   });
 }

@@ -83,8 +83,8 @@ export default function GroupsArticle() {
             the group&apos;s name and description, promote members, and remove members.
           </DefinitionRow>
           <DefinitionRow icon={<UserIcon className="size-3.5" />} label="Member">
-            Share their own lists, create shared collections, set a nickname, and leave the group at
-            any time.
+            Share their own lists, create shared collections, choose which contact methods to share,
+            and leave the group at any time.
           </DefinitionRow>
         </DefinitionList>
       </section>
@@ -230,19 +230,20 @@ export default function GroupsArticle() {
         </p>
       </section>
 
-      {/* Members and nicknames */}
+      {/* Members and contacts */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Members and nicknames</h2>
+        <h2 className="mb-2 text-lg font-semibold">Members and contacts</h2>
         <p className="text-muted-foreground">
           The Members section lists everyone in the group with their role. Click a member to open
           their profile inside this group, which shows their shared lists and your matches with them
           specifically.
         </p>
         <p className="text-muted-foreground mt-2">
-          Set a <strong className="text-foreground">nickname</strong> on yourself in each group as a
-          place to leave contact info, like your Discord handle, store name, or phone number, so the
-          people you&apos;re trading with know how to reach you. Nicknames are visible to everyone
-          in the group and only to them.
+          Add your <strong className="text-foreground">contact methods</strong> once in your profile
+          (Discord, Signal, phone, email, or wherever people reach you), then open a group&apos;s
+          settings to choose which of them to share with that group. Shared contacts appear next to
+          your name on the Members and Trades pages, visible only to that group&apos;s members, so
+          the people you&apos;re trading with know how to reach you.
         </p>
       </section>
 

@@ -14,6 +14,7 @@ import type {
   ArtVariant,
   CardFace,
   CardType,
+  ContactMethodType,
   DeckFormat,
   DeckFormatConfig,
   DeckZone,
@@ -561,9 +562,27 @@ export interface FriendGroupMembersTable {
   groupId: string;
   userId: string;
   role: FriendGroupRole;
-  /** CHECK: length <= 80 */
-  nickname: string | null;
   joinedAt: ColumnType<Date, Date | undefined, Date>;
+}
+
+/** Account-level contact channels a user can reveal per group (migration 162). */
+export interface UserContactMethodsTable {
+  id: Generated<string>;
+  userId: string;
+  /** CHECK: one of the known contact channels. */
+  type: ContactMethodType;
+  /** CHECK: length 1..200. */
+  value: string;
+  sortOrder: Generated<number>;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/** Which of a member's contact methods are revealed to a given group (migration 162). */
+export interface FriendGroupMemberContactsTable {
+  groupId: string;
+  userId: string;
+  contactMethodId: string;
 }
 
 export interface FriendGroupInvitesTable {
@@ -1369,6 +1388,10 @@ export interface Database {
   friendGroupInvites: FriendGroupInvitesTable;
   friendGroupListShares: FriendGroupListSharesTable;
   friendGroupCollectionShares: FriendGroupCollectionSharesTable;
+
+  // Contact methods (migration 162)
+  userContactMethods: UserContactMethodsTable;
+  friendGroupMemberContacts: FriendGroupMemberContactsTable;
 
   // Pod tournaments (migration 145, ADR-022)
   podTournaments: PodTournamentsTable;

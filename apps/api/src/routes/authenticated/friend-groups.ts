@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
 import type {
+  ContactMethod,
   FriendGroupActivityEvent,
   FriendGroupActivityResponse,
   FriendGroupCollectionShareResponse,
@@ -52,8 +53,8 @@ import {
   friendGroupSlugAndUserParamSchema,
   friendGroupSlugParamSchema,
   friendGroupTransferOwnershipSchema,
-  friendGroupUpdateNicknameSchema,
   friendGroupUpdateRoleSchema,
+  setRevealedContactsSchema,
   updateFriendGroupSchema,
 } from "@openrift/shared/schemas";
 
@@ -86,14 +87,14 @@ function toGroup(row: Group, includeCode: boolean): FriendGroupResponse {
   };
 }
 
-function toMember(row: MemberWithUser): FriendGroupMemberResponse {
+function toMember(row: MemberWithUser, contactMethods: ContactMethod[]): FriendGroupMemberResponse {
   return {
     userId: row.userId,
     userName: row.userName,
     userImage: row.userImage,
     gravatarHash: gravatarHashForEmail(row.userEmail),
     role: row.role,
-    nickname: row.nickname,
+    contactMethods,
     joinedAt: row.joinedAt.toISOString(),
   };
 }
@@ -438,15 +439,15 @@ const updateRole = createRoute({
   },
 });
 
-const updateNickname = createRoute({
-  method: "patch",
-  path: "/friend-groups/{slug}/members/{userId}/nickname",
+const setRevealedContacts = createRoute({
+  method: "put",
+  path: "/friend-groups/{slug}/members/{userId}/contacts",
   tags: ["Friend Groups"],
   security: cookieAuth,
   request: {
     params: friendGroupSlugAndUserParamSchema,
     body: {
-      content: { "application/json": { schema: friendGroupUpdateNicknameSchema } },
+      content: { "application/json": { schema: setRevealedContactsSchema } },
       required: true,
     },
   },
@@ -784,18 +785,19 @@ export const friendGroupsRoute = friendGroupsApp
     }
 
     const isAdmin = hasRole(membership.role, "admin");
-    const [members, shares, collectionShares, pendingRequests] = await Promise.all([
+    const [members, shares, collectionShares, pendingRequests, contactsByUser] = await Promise.all([
       friendGroups.listMembers(group.id),
       friendGroups.listSharesForGroup(group.id),
       friendGroups.collectionSharesForGroup(group.id),
       isAdmin ? friendGroups.listRequestsForGroup(group.id) : Promise.resolve([]),
+      friendGroups.getRevealedContactsForMembers(group.id),
     ]);
 
     const response: FriendGroupDetailResponse = {
       group: toGroup(group, canSeeCode(membership.role)),
       viewerStatus: "member",
       viewerRole: membership.role,
-      members: members.map((row) => toMember(row)),
+      members: members.map((row) => toMember(row, contactsByUser.get(row.userId) ?? [])),
       shares: shares.map((row) => toShare(row)),
       collectionShares: collectionShares.map((row) => toCollectionShare(row)),
       pendingRequests: pendingRequests.map((row) => toRequest(row)),
@@ -1055,36 +1057,40 @@ export const friendGroupsRoute = friendGroupsApp
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Member not found");
     }
     // Re-fetch with user join to return the full DTO.
-    const members = await friendGroups.listMembers(ctx.group.id);
+    const [members, contactsByUser] = await Promise.all([
+      friendGroups.listMembers(ctx.group.id),
+      friendGroups.getRevealedContactsForMembers(ctx.group.id),
+    ]);
     const enriched = members.find((member) => member.userId === targetUserId);
     if (!enriched) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Member not found");
     }
-    return c.json(toMember(enriched), 200);
+    return c.json(toMember(enriched, contactsByUser.get(targetUserId) ?? []), 200);
   })
 
-  // ── UPDATE NICKNAME (self only) ─────────────────────────────────────────
-  .openapi(updateNickname, async (c) => {
+  // ── SET REVEALED CONTACTS (self only) ───────────────────────────────────
+  .openapi(setRevealedContacts, async (c) => {
     const viewerId = getUserId(c);
     const { friendGroups } = c.get("repos");
     const { slug, userId: targetUserId } = c.req.valid("param");
-    const { nickname } = c.req.valid("json");
+    const { contactMethodIds } = c.req.valid("json");
 
     if (targetUserId !== viewerId) {
-      throw new AppError(403, ERROR_CODES.FORBIDDEN, "Members can only edit their own nickname");
+      throw new AppError(403, ERROR_CODES.FORBIDDEN, "Members can only edit their own contacts");
     }
     const ctx = await loadGroupForMember(c.get("repos"), slug, viewerId);
 
-    const updated = await friendGroups.updateNickname(ctx.group.id, viewerId, nickname);
-    if (!updated) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Member not found");
-    }
-    const members = await friendGroups.listMembers(ctx.group.id);
+    await friendGroups.setRevealedContacts(ctx.group.id, viewerId, contactMethodIds);
+
+    const [members, contactsByUser] = await Promise.all([
+      friendGroups.listMembers(ctx.group.id),
+      friendGroups.getRevealedContactsForMembers(ctx.group.id),
+    ]);
     const enriched = members.find((member) => member.userId === viewerId);
     if (!enriched) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Member not found");
     }
-    return c.json(toMember(enriched), 200);
+    return c.json(toMember(enriched, contactsByUser.get(viewerId) ?? []), 200);
   })
 
   // ── KICK MEMBER (admin+) ────────────────────────────────────────────────
@@ -1256,7 +1262,10 @@ export const friendGroupsRoute = friendGroupsApp
 
     const ctx = await loadGroupForMember(c.get("repos"), slug, viewerId);
 
-    const members = await friendGroups.listMembers(ctx.group.id);
+    const [members, contactsByUser] = await Promise.all([
+      friendGroups.listMembers(ctx.group.id),
+      friendGroups.getRevealedContactsForMembers(ctx.group.id),
+    ]);
     const counterparty = members.find((member) => member.userId === counterpartyUserId);
     if (!counterparty) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Member not found");
@@ -1285,7 +1294,7 @@ export const friendGroupsRoute = friendGroupsApp
     ]);
 
     const response: FriendGroupMemberDetailResponse = {
-      member: toMember(counterparty),
+      member: toMember(counterparty, contactsByUser.get(counterpartyUserId) ?? []),
       shares: memberShares.map((row) => toShare(row)),
       collectionShares: memberCollectionShares.map((row) => toCollectionShare(row)),
       matches,

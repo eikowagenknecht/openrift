@@ -18,7 +18,6 @@ const MEMBER = {
   groupId: "grp-1",
   userId: "u1",
   role: "member" as const,
-  nickname: null,
   joinedAt: new Date(),
 };
 
@@ -115,9 +114,22 @@ describe("friendGroupsRepo", () => {
     expect(await repo.updateRole("grp-1", "u1", "admin")).toEqual(MEMBER);
   });
 
-  it("updateNickname returns the patched row", async () => {
-    const repo = friendGroupsRepo(createMockDb([MEMBER]));
-    expect(await repo.updateNickname("grp-1", "u1", "Tuesday Alice")).toEqual(MEMBER);
+  it("getRevealedContactsForMembers groups revealed methods by userId", async () => {
+    const repo = friendGroupsRepo(
+      createMockDb([
+        { userId: "u1", id: "m-1", type: "discord", value: "seb#1234" },
+        { userId: "u1", id: "m-2", type: "email", value: "a@b.com" },
+        { userId: "u2", id: "m-3", type: "phone", value: "+49" },
+      ]),
+    );
+    const byUser = await repo.getRevealedContactsForMembers("grp-1");
+    expect(byUser.get("u1")?.map((method) => method.id)).toEqual(["m-1", "m-2"]);
+    expect(byUser.get("u2")?.map((method) => method.id)).toEqual(["m-3"]);
+  });
+
+  it("setRevealedContacts resolves without throwing", async () => {
+    const repo = friendGroupsRepo(createMockDb([{ id: "m-1" }]));
+    await expect(repo.setRevealedContacts("grp-1", "u1", ["m-1"])).resolves.toBeUndefined();
   });
 
   it("transferOwnership resolves without throwing", async () => {

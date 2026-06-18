@@ -1,6 +1,8 @@
 // In-app trade execution DTOs (ADR-019). These mirror `cardTrade*ResponseSchema`
 // in `response-schemas.ts`; keep the two in sync.
 
+import type { ContactMethod } from "./contact-method.js";
+
 /** The viewer's side of a trade. */
 export type CardTradeRole = "giver" | "receiver";
 
@@ -24,8 +26,8 @@ export interface CardTradeCounterparty {
   image: string | null;
   /** SHA-256 of the lowercased email — Gravatar fallback without leaking the email. */
   gravatarHash: string;
-  /** The counterparty's per-group nickname (ADR-013), the channel for arranging the swap. */
-  nickname: string | null;
+  /** Contact channels the counterparty revealed to this group — how to arrange the swap (ADR-013). */
+  contactMethods: ContactMethod[];
 }
 
 /**

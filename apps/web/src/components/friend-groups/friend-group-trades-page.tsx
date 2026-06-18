@@ -19,6 +19,7 @@ import {
 import { useRequiredUserId } from "@/lib/auth-session";
 import { withoutLiveTradeMatches } from "@/lib/trade-derivation";
 
+import { ContactMethodChips } from "./contact-method-chips";
 import { SECTION_HEADING } from "./friend-group-shell";
 import { MatchTradeList } from "./match-row-card";
 import { ShareListsWithGroupDialog } from "./share-lists-with-group-dialog";
@@ -265,14 +266,12 @@ function MemberListsSection({ slug, data }: { slug: string; data: FriendGroupDet
                       size="sm"
                     />
                     <span className="truncate">{member.userName ?? "Member"}</span>
-                    {member.nickname ? (
-                      <span className="text-muted-foreground text-xs">{member.nickname}</span>
-                    ) : null}
                     <span className="text-muted-foreground text-xs">({lists.length})</span>
                     <ChevronDownIcon className="text-muted-foreground ml-auto size-4 shrink-0 transition-transform data-[panel-open]:rotate-180" />
                   </CollapsibleTrigger>
                   {shareButton}
                 </div>
+                <ContactMethodChips methods={member.contactMethods} className="mt-1 ml-8" />
                 <CollapsibleContent>
                   <div className="mt-1 ml-8 flex flex-col gap-2">
                     {lists.map((share) => (

@@ -1,3 +1,4 @@
+import type { ContactMethod } from "@openrift/shared";
 import { sql } from "kysely";
 import type { Insertable, Kysely, Selectable, Updateable } from "kysely";
 
@@ -214,15 +215,10 @@ export function friendGroupsRepo(db: Kysely<Database>) {
     },
 
     /** Idempotent member insert (DO NOTHING on existing row). */
-    async addMember(
-      groupId: string,
-      userId: string,
-      role: FriendGroupRole,
-      nickname: string | null = null,
-    ): Promise<void> {
+    async addMember(groupId: string, userId: string, role: FriendGroupRole): Promise<void> {
       await db
         .insertInto("friendGroupMembers")
-        .values({ groupId, userId, role, nickname })
+        .values({ groupId, userId, role })
         .onConflict((oc) => oc.columns(["groupId", "userId"]).doNothing())
         .execute();
     },
@@ -256,19 +252,69 @@ export function friendGroupsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns The updated row, or `undefined` if no membership matched. */
-    updateNickname(
+    /**
+     * The contact methods every member has revealed to this group, keyed by
+     * userId and ordered by the owner's `sort_order`. Members with no revealed
+     * methods are simply absent from the map.
+     * @returns A map of userId → the revealed {@link ContactMethod}s.
+     */
+    async getRevealedContactsForMembers(groupId: string): Promise<Map<string, ContactMethod[]>> {
+      const rows = await db
+        .selectFrom("friendGroupMemberContacts as fgmc")
+        .innerJoin("userContactMethods as ucm", "ucm.id", "fgmc.contactMethodId")
+        .select(["fgmc.userId as userId", "ucm.id as id", "ucm.type as type", "ucm.value as value"])
+        .where("fgmc.groupId", "=", groupId)
+        .orderBy("ucm.sortOrder", "asc")
+        .orderBy("ucm.id", "asc")
+        .execute();
+
+      const byUser = new Map<string, ContactMethod[]>();
+      for (const row of rows) {
+        const list = byUser.get(row.userId) ?? [];
+        list.push({ id: row.id, type: row.type, value: row.value });
+        byUser.set(row.userId, list);
+      }
+      return byUser;
+    },
+
+    /**
+     * Replaces the set of contact methods a member reveals to a group. Only ids
+     * the member actually owns are accepted (others are silently dropped), so a
+     * caller can't reveal someone else's method.
+     */
+    async setRevealedContacts(
       groupId: string,
       userId: string,
-      nickname: string | null,
-    ): Promise<GroupMember | undefined> {
-      return db
-        .updateTable("friendGroupMembers")
-        .set({ nickname })
-        .where("groupId", "=", groupId)
-        .where("userId", "=", userId)
-        .returningAll()
-        .executeTakeFirst();
+      contactMethodIds: string[],
+    ): Promise<void> {
+      await db.transaction().execute(async (trx) => {
+        await trx
+          .deleteFrom("friendGroupMemberContacts")
+          .where("groupId", "=", groupId)
+          .where("userId", "=", userId)
+          .execute();
+
+        if (contactMethodIds.length === 0) {
+          return;
+        }
+
+        // Keep only ids this user owns — guards against revealing another
+        // member's method by id.
+        const owned = await trx
+          .selectFrom("userContactMethods")
+          .select("id")
+          .where("userId", "=", userId)
+          .where("id", "in", contactMethodIds)
+          .execute();
+        if (owned.length === 0) {
+          return;
+        }
+
+        await trx
+          .insertInto("friendGroupMemberContacts")
+          .values(owned.map((row) => ({ groupId, userId, contactMethodId: row.id })))
+          .execute();
+      });
     },
 
     /**

@@ -51,6 +51,7 @@ import { setsRepo } from "./repositories/sets.js";
 import { siteSettingsRepo } from "./repositories/site-settings.js";
 import { statusRepo } from "./repositories/status.js";
 import { superTypesRepo } from "./repositories/super-types.js";
+import { userContactMethodsRepo } from "./repositories/user-contact-methods.js";
 import { userFeatureFlagsRepo } from "./repositories/user-feature-flags.js";
 import { userPreferencesRepo } from "./repositories/user-preferences.js";
 import { userSharesRepo } from "./repositories/user-shares.js";
@@ -101,6 +102,7 @@ export interface Repos {
   finishes: ReturnType<typeof finishesRepo>;
   friendGroups: ReturnType<typeof friendGroupsRepo>;
   friendGroupMatches: ReturnType<typeof friendGroupMatchesRepo>;
+  userContactMethods: ReturnType<typeof userContactMethodsRepo>;
   podTournaments: ReturnType<typeof podTournamentsRepo>;
   userFeatureFlags: ReturnType<typeof userFeatureFlagsRepo>;
   health: ReturnType<typeof healthRepo>;
@@ -181,6 +183,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     finishes: finishesRepo(db),
     friendGroups: friendGroupsRepo(db),
     friendGroupMatches: friendGroupMatchesRepo(db),
+    userContactMethods: userContactMethodsRepo(db),
     podTournaments: podTournamentsRepo(db),
     userFeatureFlags: userFeatureFlagsRepo(db),
     health: healthRepo(db),

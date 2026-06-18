@@ -1,4 +1,5 @@
 import type { CardType, Finish, Rarity } from "../enums.js";
+import type { ContactMethod } from "./contact-method.js";
 import type { ListEntryDetailResponse, ListIntent, ListKind } from "./list.js";
 import type { Currency, EffectiveTradePreference, TradePreference } from "./trade-preferences.js";
 
@@ -45,7 +46,8 @@ export interface FriendGroupMemberResponse {
   /** SHA-256 of the lowercased email — drives a Gravatar fallback without leaking the email. */
   gravatarHash: string;
   role: FriendGroupRole;
-  nickname: string | null;
+  /** Contact channels this member reveals to the group (account-level, opt-in per group). */
+  contactMethods: ContactMethod[];
   joinedAt: string;
 }
 
@@ -141,7 +143,6 @@ export interface FriendGroupMatchRow {
   counterpartyName: string | null;
   counterpartyImage: string | null;
   counterpartyGravatarHash: string;
-  counterpartyNickname: string | null;
   /** Counterparty's source list (their sell list when they "have", their buy list when they "want"). */
   counterpartyListId: string;
   counterpartyListName: string;

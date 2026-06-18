@@ -23,7 +23,7 @@ function stubTrade(overrides: Partial<CardTradeResponse> = {}): CardTradeRespons
       name: "Robin",
       image: null,
       gravatarHash: "hash",
-      nickname: null,
+      contactMethods: [],
     },
     printingId: "printing-1",
     cardId: "card-1",
@@ -127,7 +127,7 @@ describe("withoutLiveTradeMatches", () => {
           name: null,
           image: null,
           gravatarHash: "h",
-          nickname: null,
+          contactMethods: [],
         },
       }),
     ];
@@ -145,7 +145,7 @@ describe("withoutLiveTradeMatches", () => {
           name: null,
           image: null,
           gravatarHash: "h",
-          nickname: null,
+          contactMethods: [],
         },
       }),
     ];
@@ -169,7 +169,7 @@ describe("withoutLiveTradeMatches", () => {
           name: null,
           image: null,
           gravatarHash: "h",
-          nickname: null,
+          contactMethods: [],
         },
       }),
     ];
@@ -188,7 +188,7 @@ describe("withoutLiveTradeMatches", () => {
             name: null,
             image: null,
             gravatarHash: "h",
-            nickname: null,
+            contactMethods: [],
           },
         }),
       ];
@@ -212,7 +212,7 @@ describe("withoutLiveTradeMatches", () => {
           name: null,
           image: null,
           gravatarHash: "h",
-          nickname: null,
+          contactMethods: [],
         },
       }),
     ];

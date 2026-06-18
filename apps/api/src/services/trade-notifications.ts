@@ -1,3 +1,4 @@
+import { formatContactMethodsSummary } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
 import { isTradeRequestEmailEnabled } from "@openrift/shared/types";
 
@@ -92,12 +93,14 @@ export async function sendTradeRequestEmail(
     }
 
     // The recipient-oriented DTO carries the initiator as `counterparty` (name +
-    // nickname) and the group slug for the deep link — no extra user query.
+    // revealed contact methods) and the group slug for the deep link — no extra
+    // user query.
     const dto = await repos.cardTrades.getDtoByIdForUser(trade.id, recipientUserId);
     if (dto === undefined) {
       return;
     }
-    const initiatorName = dto.counterparty.nickname ?? dto.counterparty.name;
+    const initiatorName = dto.counterparty.name;
+    const initiatorContact = formatContactMethodsSummary(dto.counterparty.contactMethods);
 
     const cards = await repos.catalog.cardsByIds([trade.cardId]);
     const cardName = cards[0]?.name ?? "a card";
@@ -113,6 +116,7 @@ export async function sendTradeRequestEmail(
       quantity: trade.quantity,
       // receiver-initiated = the initiator wants the card; giver-initiated = offer.
       kind: trade.initiator === "receiver" ? "wants" : "offers",
+      initiatorContact,
       tradesUrl,
       unsubscribeUrl,
     });
@@ -212,7 +216,7 @@ export async function flushCoalescedTradeRequests(
       continue;
     }
 
-    // Resolve the sender's label (nickname preferred), and collect card ids.
+    // Resolve the sender's display label, and collect card ids.
     let senderLabel: string | null = null;
     const cardIds = new Set<string>();
     for (const row of claimedRows) {
@@ -222,7 +226,7 @@ export async function flushCoalescedTradeRequests(
           const members = await repos.friendGroups.listMembers(row.groupId);
           const labels = new Map<string, string>();
           for (const member of members) {
-            labels.set(member.userId, member.nickname ?? member.userName ?? "A member");
+            labels.set(member.userId, member.userName ?? "A member");
           }
           labelsByGroup.set(row.groupId, labels);
         }
