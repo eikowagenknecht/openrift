@@ -2,6 +2,10 @@
 
 ## 2026-06-18
 
+### Highlights
+
+- feat(Groups): **Take cards from a group bulk box** — browse a group collection and move copies into your inbox with the Take button on each card. A confirmation lets you choose how many copies to take. Cards on your wishlist show a red heart with how many you still want; click it to jump to that wishlist, and after taking one you wanted, you're asked whether to drop it from the list
+
 ### Other
 
 - feat(Tournaments): **Deck-check API keys moved to Manage** — a group's deck-check API keys now live on the Manage page with the other admin settings.

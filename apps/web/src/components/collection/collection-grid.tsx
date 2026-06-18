@@ -1,4 +1,5 @@
 import type { GroupByField, Marketplace, Printing } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   BookOpenIcon,
@@ -82,6 +83,8 @@ import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
+import { useWishEntries } from "@/hooks/use-wish-entries";
+import type { WishEntryFlat } from "@/hooks/use-wish-entries";
 import { useSession } from "@/lib/auth-session";
 import { cardsViewTileKey, splitsCardIntoTiles, tileSiblings } from "@/lib/card-tiles";
 import { collectionTableActionsColumn } from "@/lib/collection-table";
@@ -107,6 +110,8 @@ import { DraggableCard } from "./draggable-card";
 import { EditCollectionDialog } from "./edit-collection-dialog";
 import { MoveDialog } from "./move-dialog";
 import { QuickAddPalette } from "./quick-add-palette";
+import { TakeConfirmDialog } from "./take-confirm-dialog";
+import { TakeWishlistFollowUpDialog } from "./take-wishlist-followup-dialog";
 
 const COLLECTION_GRID_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set([
   "markers",
@@ -451,6 +456,21 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  // Group "bulk box" take confirmation: set when the viewer asks to take, holds
+  // every takeable copy of the card plus the quantity the dialog opens on, so
+  // the confirm dialog can offer a 1..available stepper and run the move.
+  const [takeConfirm, setTakeConfirm] = useState<{
+    printing: Printing;
+    availableCopyIds: string[];
+    initialQuantity: number;
+  } | null>(null);
+  // Group "bulk box" post-take wishlist cleanup: set when a just-taken card
+  // matched one or more of the viewer's wish lists.
+  const [takeFollowUp, setTakeFollowUp] = useState<{
+    printing: Printing;
+    entries: WishEntryFlat[];
+    takenQuantity: number;
+  } | null>(null);
   const moveCopies = useMoveCopies();
   const disposeCopies = useDisposeCopies();
   // Which of the viewer's lists reference the copies about to be disposed — only
@@ -466,6 +486,13 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const inboxName = inbox?.name;
   const currentCollection = collectionId ? collectionsMap.get(collectionId) : undefined;
   const addTarget = collectionId ?? inboxId;
+
+  // A group-owned collection is a communal "bulk box": any member can take a
+  // copy into their own inbox (a free-pile claim, distinct from the 1:1 trade
+  // matcher). Wishlist highlighting + the "Take a copy" action only apply here.
+  const isGroupCollection = Boolean(currentCollection?.groupId);
+  const canTake = isGroupCollection && Boolean(inboxId);
+  const wish = useWishEntries(isGroupCollection);
 
   // ── Variant-popover state (used by the count-pill, locations popover, and
   //    keyboard +/- on table rows) ─────────────────────────────────────
@@ -768,6 +795,70 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     openAction(action, copyIds);
   };
 
+  // Take one copy of a card from the group "bulk box" into the viewer's inbox.
+  // Reuses the move pipeline (member → inbox is a writable move); no trade
+  // record, since a free pile has no reciprocation. If the card was on the
+  // viewer's wishlist, offer to prune it afterwards — never silently.
+  // Resolve which copies a take could claim and open the confirm dialog first,
+  // so a stray click on the Take button can't silently move cards out of the
+  // box. The dialog offers a 1..available quantity stepper before the move.
+  const handleTake = (itemId: string, count: number) => {
+    const stack = stackByItemId.get(itemId);
+    if (!stack || !inboxId) {
+      return;
+    }
+    // Copies view: the tile *is* one physical copy. Stacked views: every copy
+    // of the printing currently in the box is takeable.
+    const availableCopyIds = stacked ? stack.copyIds : [itemId];
+    if (availableCopyIds.length === 0) {
+      return;
+    }
+    const initialQuantity = Math.min(Math.max(1, count), availableCopyIds.length);
+    setTakeConfirm({ printing: stack.printing, availableCopyIds, initialQuantity });
+  };
+
+  // Run the take the viewer confirmed: move the chosen number of copies into
+  // their inbox, then offer the wishlist cleanup when the card was one they
+  // wanted.
+  const performTake = (quantity: number) => {
+    if (!takeConfirm || !inboxId) {
+      return;
+    }
+    const { printing, availableCopyIds } = takeConfirm;
+    const copyIds = availableCopyIds.slice(0, Math.max(1, quantity));
+    const takenQuantity = copyIds.length;
+    moveCopies.mutate(
+      { copyIds, toCollectionId: inboxId },
+      {
+        onSuccess: () => {
+          toast.success(
+            takenQuantity === 1
+              ? `Took ${legendDisplayName(printing.card)}`
+              : `Took ${takenQuantity}× ${legendDisplayName(printing.card)}`,
+          );
+          setTakeConfirm(null);
+          const matches = wish.entriesForPrinting(printing.cardId, printing.id);
+          if (matches.length > 0) {
+            setTakeFollowUp({ printing, entries: matches, takenQuantity });
+          }
+        },
+      },
+    );
+  };
+
+  // Heart-marker click: open the wish list this card sits on (the first, when it
+  // spans several).
+  const handleOpenWishlist = (itemId: string) => {
+    const stack = stackByItemId.get(itemId);
+    if (!stack) {
+      return;
+    }
+    const [firstMatch] = wish.entriesForPrinting(stack.printing.cardId, stack.printing.id);
+    if (firstMatch) {
+      void navigate({ to: "/collections/lists/$listId", params: { listId: firstMatch.listId } });
+    }
+  };
+
   // Register table-row action handlers in the no-subscribe store so the
   // virtualized CardTable + per-cell CollectionGridCell can dispatch row
   // clicks / +/- / select-mode actions without taking these unstable closures
@@ -829,6 +920,8 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         setLastSelectedItemId(itemId);
       },
       onContextAction: handleContextAction,
+      onTake: handleTake,
+      onOpenWishlist: handleOpenWishlist,
     });
     return () => {
       useCardRowActionsStore.getState().setHandlers({});
@@ -870,6 +963,10 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       display={display}
       showImages={showImages}
       priceRange={catalogPriceRangeByCardId?.get(item.printing.cardId)}
+      wishQuantity={
+        isGroupCollection ? wish.wishedQuantity(item.printing.cardId, item.printing.id) : 0
+      }
+      canTake={canTake}
     />
   );
 
@@ -1027,6 +1124,29 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           shareToken={currentCollection.shareToken}
         />
       )}
+      <TakeConfirmDialog
+        printing={takeConfirm?.printing ?? null}
+        maxQuantity={takeConfirm?.availableCopyIds.length ?? 1}
+        initialQuantity={takeConfirm?.initialQuantity ?? 1}
+        inboxName={inboxName ?? "Inbox"}
+        isPending={moveCopies.isPending}
+        onConfirm={performTake}
+        onOpenChange={(open) => {
+          if (!open) {
+            setTakeConfirm(null);
+          }
+        }}
+      />
+      <TakeWishlistFollowUpDialog
+        printing={takeFollowUp?.printing ?? null}
+        entries={takeFollowUp?.entries ?? []}
+        takenQuantity={takeFollowUp?.takenQuantity ?? 1}
+        onOpenChange={(open) => {
+          if (!open) {
+            setTakeFollowUp(null);
+          }
+        }}
+      />
     </>
   );
 

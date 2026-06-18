@@ -56,7 +56,7 @@ const fetchListDetail = createServerFn({ method: "GET" })
     return res.json() as Promise<ListDetailResponse>;
   });
 
-function listsQueryOptions(userId: string, intent?: ListIntent) {
+export function listsQueryOptions(userId: string, intent?: ListIntent) {
   return queryOptions({
     queryKey: queryKeys.lists.all(userId, intent),
     queryFn: () => fetchLists({ data: intent ? { intent } : undefined }),

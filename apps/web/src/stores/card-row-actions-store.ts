@@ -48,6 +48,17 @@ interface CardRowHandlers {
    * otherwise just this card — then opens the matching dialog.
    */
   onContextAction?: (itemId: string, action: CollectionContextAction) => void;
+  /**
+   * /collections group "bulk box": take `count` copies of this card from the
+   * shared group collection into the viewer's inbox (a free-pile claim, capped
+   * to what the box holds). Only wired up when the collection is group-owned.
+   */
+  onTake?: (itemId: string, count: number) => void;
+  /**
+   * /collections group "bulk box": open the wish list this card is on (the
+   * heart marker click). Only wired up when the collection is group-owned.
+   */
+  onOpenWishlist?: (itemId: string) => void;
   /** /lists: set an entry's quantity directly (browse-mode +/- buttons on the quantity strip). */
   onEntryQuantityChange?: (entryId: string, quantity: number) => void;
   /** /lists: remove an entry directly (the minus button at quantity 1, no confirm). */
@@ -127,6 +138,14 @@ export function dispatchItemToggle(itemId: string): void {
 
 export function dispatchContextAction(itemId: string, action: CollectionContextAction): void {
   useCardRowActionsStore.getState().handlers.onContextAction?.(itemId, action);
+}
+
+export function dispatchTake(itemId: string, count: number): void {
+  useCardRowActionsStore.getState().handlers.onTake?.(itemId, count);
+}
+
+export function dispatchOpenWishlist(itemId: string): void {
+  useCardRowActionsStore.getState().handlers.onOpenWishlist?.(itemId);
 }
 
 export function dispatchEntryQuantityChange(entryId: string, quantity: number): void {

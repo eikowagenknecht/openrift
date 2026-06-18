@@ -1,6 +1,7 @@
 import type { Printing } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
-import type { ReactNode } from "react";
+import { ArrowDownToLineIcon, HeartIcon } from "lucide-react";
+import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { memo } from "react";
 
 import type { CardRenderContext } from "@/components/card-viewer-types";
@@ -8,19 +9,24 @@ import { CardCell } from "@/components/cards/card-cell";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { OwnedCollectionsPopover } from "@/components/cards/card-detail/owned-collections-popover";
 import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
+import { COUNT_PILL_BASE, COUNT_PILL_INTERACTIVE } from "@/components/cards/count-pill";
 import { BrowseLocationsPopover } from "@/components/collection/browse-locations-popover";
 import { CollectionCardContextMenu } from "@/components/collection/collection-card-context-menu";
 import { DraggableCard } from "@/components/collection/draggable-card";
 import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
+import { Button } from "@/components/ui/button";
 import { useOwnedCopyIdsForPrintings, useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
 import { isStackSelected } from "@/lib/stack-selection";
+import { cn } from "@/lib/utils";
 import {
   dispatchDecrement,
   dispatchIncrement,
   dispatchItemClick,
   dispatchItemToggle,
   dispatchOpenVariants,
+  dispatchOpenWishlist,
   dispatchSiblingClick,
+  dispatchTake,
 } from "@/stores/card-row-actions-store";
 import { useDragPreviewStore } from "@/stores/drag-preview-store";
 import { useGridFocusStore } from "@/stores/grid-focus-store";
@@ -51,6 +57,13 @@ interface CollectionGridCellProps {
   display: CardThumbnailDisplay;
   showImages: boolean;
   priceRange?: { min: number; max: number };
+  /**
+   * Group "bulk box": total quantity the viewer wishes for this card across
+   * their wish lists (0 = not wished). Drives the heart marker + its count.
+   */
+  wishQuantity?: number;
+  /** Group "bulk box": offer the "Take a copy" claim (strip button + menu). */
+  canTake?: boolean;
 }
 
 /**
@@ -88,6 +101,8 @@ export const CollectionGridCell = memo(function CollectionGridCell({
   display,
   showImages,
   priceRange,
+  wishQuantity,
+  canTake,
 }: CollectionGridCellProps) {
   const inCardsView = dataView === "cards";
 
@@ -163,6 +178,44 @@ export const CollectionGridCell = memo(function CollectionGridCell({
   //  - browse + unowned (library): + only, no popover
   //  - select + owned: read-only count, OwnedCollectionsPopover
   //  - select + unowned: no strip (nothing to display)
+  // Group "bulk box" controls that live inside the count strip, next to the
+  // amount: a wishlist heart (with the wished quantity) and a one-click Take
+  // button. Only meaningful on a group-owned collection, so both are gated by
+  // the props the grid only sets there.
+  const wished = wishQuantity ?? 0;
+  // "Take all you want": one copy per wished copy, capped to what the box holds.
+  const takeAllCount = wished > 0 ? Math.min(wished, ownedCount) : 0;
+  const boxExtras =
+    wished > 0 || canTake ? (
+      <>
+        {wished > 0 && (
+          <WishlistHeart
+            quantity={wished}
+            onClick={(event) => {
+              event.stopPropagation();
+              dispatchOpenWishlist(itemId);
+            }}
+          />
+        )}
+        {canTake && (
+          <Button
+            type="button"
+            tabIndex={-1}
+            size="icon-xs"
+            variant="ghost"
+            onClick={(event) => {
+              event.stopPropagation();
+              dispatchTake(itemId, 1);
+            }}
+            aria-label={`Take a copy of ${legendDisplayName(displayPrinting.card)}`}
+            title="Take a copy"
+          >
+            <ArrowDownToLineIcon />
+          </Button>
+        )}
+      </>
+    ) : undefined;
+
   let strip: ReactNode | undefined;
   if (stacked && mode === "browse") {
     const pillOverride =
@@ -200,6 +253,7 @@ export const CollectionGridCell = memo(function CollectionGridCell({
             ? `Choose variant for ${legendDisplayName(displayPrinting.card)}`
             : undefined
         }
+        extras={boxExtras}
       />
     );
   } else if (stacked && (ownedCount > 0 || cardTotalInCollection > 0)) {
@@ -284,11 +338,51 @@ export const CollectionGridCell = memo(function CollectionGridCell({
       strip={strip}
       leftOverlay={leftOverlay}
       contextMenu={
-        // Right-click move / add-to-list / dispose. Only owned cards have copies
-        // to act on, so unowned library tiles get no menu.
-        cardTotalInCollection > 0 ? <CollectionCardContextMenu itemId={itemId} /> : undefined
+        // Right-click move / add-to-list / dispose (+ "Take a copy" on a group
+        // box). Only owned cards have copies to act on, so unowned library tiles
+        // get no menu.
+        cardTotalInCollection > 0 ? (
+          <CollectionCardContextMenu
+            itemId={itemId}
+            canTake={canTake}
+            takeAllCount={takeAllCount}
+          />
+        ) : undefined
       }
       wrap={wrap}
     />
   );
 });
+
+/**
+ * Wishlist marker shown in the count strip next to the box amount on a group
+ * "bulk box" tile. Styled like the box count pill (same muted background +
+ * hover) with a red heart, and shows the wished quantity (×N) when the viewer
+ * wants more than one. Opens the wish list it's on when clicked.
+ * @returns The wishlist heart button.
+ */
+function WishlistHeart({
+  quantity,
+  onClick,
+}: {
+  quantity: number;
+  onClick: (event: ReactMouseEvent<HTMLButtonElement>) => void;
+}) {
+  return (
+    <button
+      type="button"
+      tabIndex={-1}
+      onClick={onClick}
+      className={cn(COUNT_PILL_BASE, COUNT_PILL_INTERACTIVE, "gap-0.5 px-1.5")}
+      title={
+        quantity > 1 ? `On your wishlist (×${quantity}), open it` : "On your wishlist, open it"
+      }
+    >
+      <HeartIcon className="size-3 fill-current text-rose-500" />
+      {quantity > 1 && <span>×{quantity}</span>}
+      <span className="sr-only">
+        On your wishlist{quantity > 1 ? `, ${quantity} wanted` : ""}, open it
+      </span>
+    </button>
+  );
+}
