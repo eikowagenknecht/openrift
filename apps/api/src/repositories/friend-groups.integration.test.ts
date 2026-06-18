@@ -156,6 +156,32 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     expect(members[0]?.role).toBe("owner");
   });
 
+  it("listMembers orders by role, then by name case-insensitively", async () => {
+    const group = await createGroup(VIEWER_ID);
+    await repo.addMember(group.id, ADMIN_ID, "admin");
+    await repo.addMember(group.id, SELLER_ID, "member");
+    await repo.addMember(group.id, OUTSIDER_ID, "member");
+    // Names chosen so that lower-cased ordering ("alice" < "Bob") differs from
+    // raw byte ordering ("Bob" < "alice"), proving the lower(u.name) sort.
+    await db.updateTable("users").set({ name: "alice" }).where("id", "=", SELLER_ID).execute();
+    await db.updateTable("users").set({ name: "Bob" }).where("id", "=", OUTSIDER_ID).execute();
+
+    const members = await repo.listMembers(group.id);
+    expect(members.map((member) => member.userId)).toEqual([
+      VIEWER_ID, // owner
+      ADMIN_ID, // admin
+      SELLER_ID, // member "alice"
+      OUTSIDER_ID, // member "Bob"
+    ]);
+
+    // Restore the shared seed name so later tests see the original fixture.
+    await db
+      .updateTable("users")
+      .set({ name: "Test User" })
+      .where("id", "in", [SELLER_ID, OUTSIDER_ID])
+      .execute();
+  });
+
   it("rejects a second owner via the partial unique index", async () => {
     const group = await createGroup(VIEWER_ID);
     await repo.addMember(group.id, ADMIN_ID, "admin");

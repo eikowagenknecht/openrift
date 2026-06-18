@@ -137,7 +137,8 @@ export function friendGroupsRepo(db: Kysely<Database>) {
 
     /**
      * @returns The roster joined with each user's profile. Sorted by role
-     *   (owner → admin → member) and then by `joined_at`, so the owner is
+     *   (owner → admin → member) and then by name (case-insensitive, NULL
+     *   names last), with `joined_at` as a final tiebreaker, so the owner is
      *   always at the top.
      */
     listMembers(groupId: string): Promise<MemberWithUser[]> {
@@ -164,6 +165,7 @@ export function friendGroupsRepo(db: Kysely<Database>) {
             "asc",
           )
           // oxlint-enable promise/prefer-await-to-then
+          .orderBy(sql`lower(u.name)`, "asc")
           .orderBy("m.joinedAt", "asc")
           .execute()
       );

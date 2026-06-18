@@ -34,6 +34,10 @@ import {
   TradeStatusBadge,
 } from "./trade-row-parts";
 
+// Receive-first, give-second: incoming rows sort ahead of outgoing ones, then
+// each direction is ordered by card name.
+const DIRECTION_ORDER: Record<MatchDirection, number> = { incoming: 0, outgoing: 1 };
+
 /**
  * Key into the live-trade lookup: the other member + the exact printing.
  * @returns The composite lookup key.
@@ -582,7 +586,14 @@ export function MatchTradeList({
   const outgoingRows = aggregateMatches(
     resolveMatchRows(outgoing, cardsById, printingsById, sets, labels),
   ).map((match): DirectedMatch => ({ ...match, direction: "outgoing" }));
-  const groups = groupTradeMatches([...incomingRows, ...outgoingRows]);
+  // Keep the "everything you'd receive, then everything you'd give" split, but
+  // order each direction by card name so the list reads alphabetically instead
+  // of in match-discovery order.
+  const groups = groupTradeMatches([...incomingRows, ...outgoingRows]).toSorted(
+    (a, b) =>
+      DIRECTION_ORDER[a.direction] - DIRECTION_ORDER[b.direction] ||
+      a.cardName.localeCompare(b.cardName),
+  );
   const infosByPrinting = marketplaceInfo?.infos ?? {};
 
   return (
