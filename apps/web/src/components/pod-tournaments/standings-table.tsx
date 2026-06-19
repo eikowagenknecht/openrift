@@ -11,11 +11,12 @@ import {
 import { cn } from "@/lib/utils";
 
 /**
- * Render a score as an integer when whole, otherwise one decimal (ties produce .5s).
+ * Render a score as an integer when whole, otherwise up to two decimals (averages
+ * like avg-opponent-score can produce 1.75, which should not round to 1.8).
  * @returns The formatted score string.
  */
 export function formatScore(score: number): string {
-  return Number.isInteger(score) ? String(score) : score.toFixed(1);
+  return Number.isInteger(score) ? String(score) : parseFloat(score.toFixed(2)).toString();
 }
 
 export function StandingsTable({ standings }: { standings: PodStandingRow[] }) {
