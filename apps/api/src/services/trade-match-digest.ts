@@ -45,6 +45,13 @@ export interface TradeMatchDigestResult {
   matches: number;
 }
 
+/** A match digest did nothing when no recipient was emailed and no match was
+ *  included (flag off, first run, or nobody had new matches).
+ *  @returns True when the run had no work to do. */
+export function isTradeMatchDigestNoop(result: TradeMatchDigestResult): boolean {
+  return result.recipients === 0 && result.emailsSent === 0 && result.matches === 0;
+}
+
 /**
  * Reads the digest watermark from a prior run's stored `result`.
  * @returns The last run-start time as a Date, or `null` if there's no usable

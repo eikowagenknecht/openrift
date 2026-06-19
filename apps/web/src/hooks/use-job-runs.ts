@@ -15,6 +15,8 @@ export interface JobRunsQueryParams {
   kind?: string;
   trigger?: string;
   status?: string;
+  /** "did-work" | "noop" — filters by whether a run did anything. */
+  activity?: string;
 }
 
 const fetchJobRuns = createServerFn({ method: "GET" })
@@ -33,6 +35,9 @@ const fetchJobRuns = createServerFn({ method: "GET" })
     }
     if (data.status !== undefined) {
       query.status = data.status;
+    }
+    if (data.activity !== undefined) {
+      query.activity = data.activity;
     }
     return callApiJson(
       serverApiClient(context.cookie).api.admin.v1["job-runs"].$get({ query }),

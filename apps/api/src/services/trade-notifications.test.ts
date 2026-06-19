@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isRequestGroupDue } from "./trade-notifications.js";
+import { isRequestGroupDue, isTradeRequestFlushNoop } from "./trade-notifications.js";
 
 const NOW = new Date("2026-06-18T12:00:00.000Z");
 
@@ -30,5 +30,19 @@ describe("isRequestGroupDue", () => {
 
   it("is not due for an empty timed group", () => {
     expect(isRequestGroupDue("15min", [], NOW)).toBe(false);
+  });
+});
+
+describe("isTradeRequestFlushNoop", () => {
+  it("is a no-op when nothing was due, sent, or folded in", () => {
+    expect(isTradeRequestFlushNoop({ pairs: 0, emailsSent: 0, requests: 0 })).toBe(true);
+  });
+
+  it("did work when an email was sent", () => {
+    expect(isTradeRequestFlushNoop({ pairs: 1, emailsSent: 1, requests: 3 })).toBe(false);
+  });
+
+  it("did work when a pair was due even if the send was gated to zero emails", () => {
+    expect(isTradeRequestFlushNoop({ pairs: 2, emailsSent: 0, requests: 5 })).toBe(false);
   });
 });

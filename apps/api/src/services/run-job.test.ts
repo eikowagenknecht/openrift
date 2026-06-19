@@ -71,6 +71,34 @@ describe("runJob", () => {
     );
   });
 
+  it("records noop=true when classifyNoop reports no work", async () => {
+    await runJob(ctx.deps, "k", "cron", async () => ({ sent: 0 }), {
+      classifyNoop: (r) => r.sent === 0,
+    });
+    expect(ctx.mocks.succeed).toHaveBeenCalledWith(
+      "run-1",
+      expect.objectContaining({ noop: true }),
+    );
+  });
+
+  it("records noop=false when classifyNoop reports work was done", async () => {
+    await runJob(ctx.deps, "k", "cron", async () => ({ sent: 3 }), {
+      classifyNoop: (r) => r.sent === 0,
+    });
+    expect(ctx.mocks.succeed).toHaveBeenCalledWith(
+      "run-1",
+      expect.objectContaining({ noop: false }),
+    );
+  });
+
+  it("leaves noop null when no classifier is given", async () => {
+    await runJob(ctx.deps, "k", "cron", async () => "ignored");
+    expect(ctx.mocks.succeed).toHaveBeenCalledWith(
+      "run-1",
+      expect.objectContaining({ noop: null }),
+    );
+  });
+
   it("catches fn errors, writes failed row with message, returns null", async () => {
     const fn = vi.fn(async () => {
       throw new Error("boom");

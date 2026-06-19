@@ -1274,6 +1274,7 @@ CREATE TABLE public.job_runs (
     duration_ms integer,
     error_message text,
     result jsonb,
+    noop boolean,
     CONSTRAINT chk_job_runs_status CHECK ((status = ANY (ARRAY['running'::text, 'succeeded'::text, 'failed'::text]))),
     CONSTRAINT chk_job_runs_trigger CHECK ((trigger = ANY (ARRAY['cron'::text, 'admin'::text, 'api'::text])))
 );

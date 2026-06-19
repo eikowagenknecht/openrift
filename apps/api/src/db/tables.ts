@@ -1312,6 +1312,9 @@ interface JobRunsTable {
   durationMs: ColumnType<number | null, number | null | undefined, number | null>;
   errorMessage: ColumnType<string | null, string | null | undefined, string | null>;
   result: ColumnType<unknown, string | null | undefined, string | null>;
+  /** Activity axis: true = succeeded but found no work, false = did work, null
+   *  = unclassified (failed runs, jobs without a classifier, pre-migration). */
+  noop: ColumnType<boolean | null, boolean | null | undefined, boolean | null>;
 }
 
 // ─── Junction tables (migration 059) ─────────────────────────────────────────

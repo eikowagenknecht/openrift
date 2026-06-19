@@ -18,15 +18,25 @@ import { createRepos } from "./deps.js";
 import { createEmailSender } from "./email.js";
 import { wellKnownRepo } from "./repositories/well-known.js";
 import { extractWatermark, postChangelogToDiscord } from "./services/changelog-discord.js";
-import { flushPendingPrintingEvents } from "./services/flush-printing-events.js";
+import {
+  flushPendingPrintingEvents,
+  isPrintingFlushNoop,
+} from "./services/flush-printing-events.js";
 import {
   refreshCardmarketPrices,
   refreshCardtraderPrices,
   refreshTcgplayerPrices,
 } from "./services/price-refresh/index.js";
 import { runJob } from "./services/run-job.js";
-import { extractDigestWatermark, sendTradeMatchDigest } from "./services/trade-match-digest.js";
-import { flushCoalescedTradeRequests } from "./services/trade-notifications.js";
+import {
+  extractDigestWatermark,
+  isTradeMatchDigestNoop,
+  sendTradeMatchDigest,
+} from "./services/trade-match-digest.js";
+import {
+  flushCoalescedTradeRequests,
+  isTradeRequestFlushNoop,
+} from "./services/trade-notifications.js";
 import { validateWellKnownSlugs } from "./services/validate-well-known.js";
 
 const JOB_RUNS_RETENTION_DAYS = 30;
@@ -203,7 +213,7 @@ if (config.cron.changelogSchedule) {
           config.appBaseUrl,
           peLog,
         ),
-      { summarize: (result) => result },
+      { summarize: (result) => result, classifyNoop: isPrintingFlushNoop },
     );
   });
   peLog.info("Cron registered (*/15 * * * *)");
@@ -221,7 +231,7 @@ if (config.cron.changelogSchedule) {
         const deleted = await repos.jobRuns.purgeOlderThan(cutoff);
         return { deleted, cutoff: cutoff.toISOString() };
       },
-      { summarize: (summary) => summary },
+      { summarize: (summary) => summary, classifyNoop: (summary) => summary.deleted === 0 },
     );
   });
   jrLog.info("Cron registered (0 4 * * *)");
@@ -235,7 +245,7 @@ if (config.cron.changelogSchedule) {
       "card_trades.expire_pending",
       "cron",
       () => repos.cardTrades.expirePending(),
-      { summarize: (result) => result },
+      { summarize: (result) => result, classifyNoop: (result) => result.expired === 0 },
     );
   });
   cteLog.info("Cron registered (*/15 * * * *)");
@@ -264,7 +274,10 @@ if (config.cron.tradeDigestSchedule) {
           unsubscribeSecret: config.auth.secret,
           sinceTimestamp,
         }),
-      { summarize: (result) => ({ ...result, lastRunAt: runStartedAt.toISOString() }) },
+      {
+        summarize: (result) => ({ ...result, lastRunAt: runStartedAt.toISOString() }),
+        classifyNoop: isTradeMatchDigestNoop,
+      },
     );
   });
   tdLog.info(`Cron registered (${tdSchedule})`);
@@ -287,7 +300,7 @@ if (config.cron.tradeRequestFlushSchedule) {
           appBaseUrl: config.appBaseUrl,
           unsubscribeSecret: config.auth.secret,
         }),
-      { summarize: (result) => result },
+      { summarize: (result) => result, classifyNoop: isTradeRequestFlushNoop },
     );
   });
   trfLog.info(`Cron registered (${trfSchedule})`);

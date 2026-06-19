@@ -13,6 +13,9 @@ export interface JobRun {
   durationMs: number | null;
   errorMessage: string | null;
   result: unknown;
+  /** Activity axis for a succeeded run: true = no work done, false = did work,
+   *  null = unclassified (failures, unclassified jobs, pre-migration rows). */
+  noop: boolean | null;
 }
 
 /** postgres.js under Bun returns jsonb columns as a JSON-encoded string instead
@@ -51,7 +54,10 @@ export function jobRunsRepo(db: Kysely<Database>) {
      * Mark a run as succeeded with an optional JSON result summary.
      * @returns Resolves when the row has been updated.
      */
-    async succeed(id: string, params: { durationMs: number; result?: unknown }): Promise<void> {
+    async succeed(
+      id: string,
+      params: { durationMs: number; result?: unknown; noop?: boolean | null },
+    ): Promise<void> {
       await db
         .updateTable("jobRuns")
         .set({
@@ -59,6 +65,7 @@ export function jobRunsRepo(db: Kysely<Database>) {
           finishedAt: new Date(),
           durationMs: params.durationMs,
           result: params.result === undefined ? null : JSON.stringify(params.result),
+          noop: params.noop ?? null,
         })
         .where("id", "=", id)
         .execute();
@@ -144,6 +151,7 @@ export function jobRunsRepo(db: Kysely<Database>) {
           "durationMs",
           "errorMessage",
           "result",
+          "noop",
         ])
         .where("kind", "=", kind)
         .where("result", "is not", null)
@@ -173,6 +181,7 @@ export function jobRunsRepo(db: Kysely<Database>) {
           "durationMs",
           "errorMessage",
           "result",
+          "noop",
         ])
         .orderBy("startedAt", "desc")
         .limit(params.limit ?? 20);
@@ -195,6 +204,9 @@ export function jobRunsRepo(db: Kysely<Database>) {
       kind?: string;
       trigger?: JobTrigger;
       status?: JobStatus;
+      /** Filter by activity: true = only no-ops, false = only runs that did
+       *  work (excludes unclassified null rows), undefined = no filter. */
+      noop?: boolean;
       limit: number;
       offset: number;
     }): Promise<{ rows: JobRun[]; total: number }> {
@@ -210,6 +222,7 @@ export function jobRunsRepo(db: Kysely<Database>) {
           "durationMs",
           "errorMessage",
           "result",
+          "noop",
         ])
         .orderBy("startedAt", "desc")
         .orderBy("id", "desc")
@@ -229,6 +242,10 @@ export function jobRunsRepo(db: Kysely<Database>) {
       if (params.status !== undefined) {
         rowQuery = rowQuery.where("status", "=", params.status);
         countQuery = countQuery.where("status", "=", params.status);
+      }
+      if (params.noop !== undefined) {
+        rowQuery = rowQuery.where("noop", "=", params.noop);
+        countQuery = countQuery.where("noop", "=", params.noop);
       }
       const [rows, countRow] = await Promise.all([
         rowQuery.execute(),
@@ -266,7 +283,7 @@ export function jobRunsRepo(db: Kysely<Database>) {
         SELECT DISTINCT ON (kind)
           id, kind, trigger, status, started_at AS "startedAt",
           finished_at AS "finishedAt", duration_ms AS "durationMs",
-          error_message AS "errorMessage", result
+          error_message AS "errorMessage", result, noop
         FROM job_runs
         ORDER BY kind, started_at DESC
       `.execute(db);

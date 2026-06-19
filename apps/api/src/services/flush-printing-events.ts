@@ -46,6 +46,13 @@ interface FlushSummary {
   failures?: WebhookFailure[];
 }
 
+/** A printing-events flush did nothing when there were no events to deliver, so
+ *  neither a successful nor a failed webhook call was attempted.
+ *  @returns True when the run had no work to do. */
+export function isPrintingFlushNoop(summary: { sent: number; failed: number }): boolean {
+  return summary.sent === 0 && summary.failed === 0;
+}
+
 function describeFailures(failures: WebhookFailure[]): string {
   return failures
     .map((f) => {

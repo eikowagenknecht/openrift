@@ -21,14 +21,16 @@ const listJobRuns = createRoute({
 
 export const adminJobRunsRoute = createApiApp().openapi(listJobRuns, async (c) => {
   const { jobRuns } = c.get("repos");
-  const { kind, trigger, status, page, limit } = c.req.valid("query");
+  const { kind, trigger, status, activity, page, limit } = c.req.valid("query");
 
   const pageSize = limit ?? 50;
   const pageNumber = page ?? 1;
   const offset = (pageNumber - 1) * pageSize;
+  // "did-work" maps to noop=false (excludes unclassified null rows), "noop" to true.
+  const noop = activity === undefined ? undefined : activity === "noop";
 
   const [{ rows, total }, kinds] = await Promise.all([
-    jobRuns.listPage({ kind, trigger, status, limit: pageSize, offset }),
+    jobRuns.listPage({ kind, trigger, status, noop, limit: pageSize, offset }),
     jobRuns.listKinds(),
   ]);
   const runs: JobRunView[] = rows.map((row) => ({
@@ -44,6 +46,7 @@ export const adminJobRunsRoute = createApiApp().openapi(listJobRuns, async (c) =
       row.result === null || typeof row.result !== "object"
         ? null
         : (row.result as Record<string, unknown>),
+    noop: row.noop,
   }));
   return c.json({
     runs,

@@ -9,6 +9,11 @@ const tracer = trace.getTracer("openrift-api/jobs");
 interface RunJobOptions<T> {
   /** If provided, its return value is stored as the run's `result` JSONB. */
   summarize?: (result: T) => unknown;
+  /** If provided, classifies a successful run's activity: `true` when the run
+   *  found no work to do, `false` when it did work. Runs without a classifier
+   *  (and all failures) leave `noop` null. Operates on the raw job result, not
+   *  the summarized form. */
+  classifyNoop?: (result: T) => boolean;
 }
 
 interface RunJobDeps {
@@ -70,7 +75,8 @@ async function runJobInner<T>(
     const result = await fn(id);
     const durationMs = Date.now() - startMs;
     const summary = options?.summarize?.(result);
-    await repos.jobRuns.succeed(id, { durationMs, result: summary });
+    const noop = options?.classifyNoop?.(result) ?? null;
+    await repos.jobRuns.succeed(id, { durationMs, result: summary, noop });
     log.info({ kind, runId: id, durationMs }, "Job succeeded");
     return result;
   } catch (error) {
@@ -125,7 +131,8 @@ export async function runJobAsync<T>(
         const result = await fn(id);
         const durationMs = Date.now() - startMs;
         const summary = options?.summarize?.(result);
-        await repos.jobRuns.succeed(id, { durationMs, result: summary });
+        const noop = options?.classifyNoop?.(result) ?? null;
+        await repos.jobRuns.succeed(id, { durationMs, result: summary, noop });
         log.info({ kind, runId: id, durationMs }, "Job succeeded (async)");
       } catch (error) {
         const durationMs = Date.now() - startMs;

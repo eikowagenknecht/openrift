@@ -89,6 +89,7 @@ export function JobRunsPage() {
   const [kindFilter, setKindFilter] = useState(ANY);
   const [triggerFilter, setTriggerFilter] = useState(ANY);
   const [statusFilter, setStatusFilter] = useState(ANY);
+  const [activityFilter, setActivityFilter] = useState(ANY);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [lastUpdated, setLastUpdated] = useState("");
 
@@ -97,6 +98,7 @@ export function JobRunsPage() {
     kind: kindFilter === ANY ? undefined : kindFilter,
     trigger: triggerFilter === ANY ? undefined : triggerFilter,
     status: statusFilter === ANY ? undefined : statusFilter,
+    activity: activityFilter === ANY ? undefined : activityFilter,
   });
 
   useEffect(() => {
@@ -172,6 +174,16 @@ export function JobRunsPage() {
               { value: "running", label: "running" },
               { value: "succeeded", label: "succeeded" },
               { value: "failed", label: "failed" },
+            ]}
+          />
+          <FilterSelect
+            value={activityFilter}
+            onChange={(value) => changeFilter(setActivityFilter, value)}
+            width="w-36"
+            options={[
+              { value: ANY, label: "All activity" },
+              { value: "did-work", label: "did work" },
+              { value: "noop", label: "no-op" },
             ]}
           />
           <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
@@ -293,9 +305,13 @@ function JobRunRow({
   const cancelRegen = useCancelRegenerateImages();
   const canCancel = run.status === "running" && CANCELLABLE_KINDS.has(run.kind);
 
+  // A no-op run succeeded but found nothing to do — dim it so the runs that
+  // actually did something stand out at a glance.
+  const isNoop = run.noop === true;
+
   return (
     <>
-      <TableRow>
+      <TableRow className={isNoop ? "text-muted-foreground" : undefined}>
         <TableCell className="p-0 pl-2">
           {showDetails ? (
             <Button
@@ -319,7 +335,14 @@ function JobRunRow({
           <TriggerBadge trigger={run.trigger} />
         </TableCell>
         <TableCell>
-          <JobStatusBadge status={run.status} />
+          <div className="flex items-center gap-1.5">
+            <JobStatusBadge status={run.status} />
+            {isNoop && (
+              <Badge variant="outline" className="text-muted-foreground">
+                no-op
+              </Badge>
+            )}
+          </div>
         </TableCell>
         <TableCell>
           <span className="font-mono" title={formatAbsolute(run.startedAt)}>

@@ -172,6 +172,13 @@ export interface CoalescedRequestFlushResult {
   requests: number;
 }
 
+/** A trade-request flush did nothing when no pair was due (flag off, or no
+ *  pending requests), so no email was sent and no queued request was folded in.
+ *  @returns True when the run had no work to do. */
+export function isTradeRequestFlushNoop(result: CoalescedRequestFlushResult): boolean {
+  return result.pairs === 0 && result.emailsSent === 0 && result.requests === 0;
+}
+
 /**
  * Sends the coalesced follow-up emails (ADR-030): for each sender→recipient
  * pair whose burst is due under the recipient's cadence (see

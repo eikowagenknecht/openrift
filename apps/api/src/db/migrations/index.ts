@@ -109,6 +109,7 @@ import * as m160 from "./160-deck-matchup-opponent.js";
 import * as m161 from "./161-trade-request-email-coalesce.js";
 import * as m162 from "./162-contact-methods.js";
 import * as m163 from "./163-pod-game-points.js";
+import * as m164 from "./164-job-run-noop.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -277,4 +278,5 @@ export const migrations: Record<string, Migration> = {
   "161-trade-request-email-coalesce": m161,
   "162-contact-methods": m162,
   "163-pod-game-points": m163,
+  "164-job-run-noop": m164,
 };

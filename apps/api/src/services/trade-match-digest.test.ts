@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { extractDigestWatermark } from "./trade-match-digest.js";
+import { extractDigestWatermark, isTradeMatchDigestNoop } from "./trade-match-digest.js";
 
 describe("extractDigestWatermark", () => {
   it("reads a valid ISO timestamp from the stored result", () => {
@@ -19,5 +19,15 @@ describe("extractDigestWatermark", () => {
     expect(extractDigestWatermark({ lastRunAt: 12_345 })).toBeNull();
     expect(extractDigestWatermark({ lastRunAt: "not-a-date" })).toBeNull();
     expect(extractDigestWatermark("string")).toBeNull();
+  });
+});
+
+describe("isTradeMatchDigestNoop", () => {
+  it("is a no-op when no recipient was emailed and no match was included", () => {
+    expect(isTradeMatchDigestNoop({ recipients: 0, emailsSent: 0, matches: 0 })).toBe(true);
+  });
+
+  it("did work when at least one digest email went out", () => {
+    expect(isTradeMatchDigestNoop({ recipients: 4, emailsSent: 2, matches: 9 })).toBe(false);
   });
 });

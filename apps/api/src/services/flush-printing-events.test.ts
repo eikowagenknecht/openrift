@@ -9,7 +9,7 @@ vi.mock("./discord-webhook.js", () => ({
 }));
 
 import { flushPrintingEvents } from "./discord-webhook.js";
-import { flushPendingPrintingEvents } from "./flush-printing-events.js";
+import { flushPendingPrintingEvents, isPrintingFlushNoop } from "./flush-printing-events.js";
 
 const mockFlush = vi.mocked(flushPrintingEvents);
 
@@ -236,5 +236,19 @@ describe("flushPendingPrintingEvents", () => {
 
     // Retry counter still gets bumped before we throw.
     expect(repos.printingEvents.markRetry).toHaveBeenCalledWith(["evt-1"]);
+  });
+});
+
+describe("isPrintingFlushNoop", () => {
+  it("is a no-op when no webhook delivery was attempted", () => {
+    expect(isPrintingFlushNoop({ sent: 0, failed: 0 })).toBe(true);
+  });
+
+  it("did work when an event was delivered", () => {
+    expect(isPrintingFlushNoop({ sent: 5, failed: 0 })).toBe(false);
+  });
+
+  it("did work when a delivery failed (failures are not a no-op)", () => {
+    expect(isPrintingFlushNoop({ sent: 0, failed: 3 })).toBe(false);
   });
 });

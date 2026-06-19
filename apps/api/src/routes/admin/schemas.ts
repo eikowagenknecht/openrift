@@ -220,6 +220,9 @@ const jobRunViewSchema = z.object({
   durationMs: z.number().nullable(),
   errorMessage: z.string().nullable(),
   result: z.record(z.string(), z.any()).nullable(),
+  /** Activity: true = succeeded but no work done, false = did work, null = not
+   *  classified (failures, jobs without a classifier, pre-migration rows). */
+  noop: z.boolean().nullable(),
 });
 
 export const jobRunsListResponseSchema = z.object({
@@ -238,6 +241,8 @@ export const jobRunsQuerySchema = z.object({
   kind: z.string().optional(),
   trigger: z.enum(["cron", "admin", "api"]).optional(),
   status: z.enum(["running", "succeeded", "failed"]).optional(),
+  /** "did-work" keeps only runs that did something, "noop" only the idle ones. */
+  activity: z.enum(["did-work", "noop"]).optional(),
   page: z.coerce.number().int().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
 });

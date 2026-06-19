@@ -545,6 +545,9 @@ export interface JobRunView {
   errorMessage: string | null;
   /** Per-job summary written by the runJob helper. Shape depends on kind. */
   result: Record<string, unknown> | null;
+  /** Activity axis for a succeeded run: true = no work done, false = did work,
+   *  null = unclassified (failures, jobs without a classifier, old rows). */
+  noop: boolean | null;
 }
 
 export interface JobRunsListResponse {
