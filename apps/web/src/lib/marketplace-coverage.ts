@@ -116,7 +116,7 @@ export function buildCoverageMapBySlug(
 // Prices-to-assign buckets
 // ---------------------------------------------------------------------------
 
-export type Marketplace = "tcgplayer" | "cardmarket" | "cardtrader";
+type Marketplace = "tcgplayer" | "cardmarket" | "cardtrader";
 
 /**
  * One source+language slice of a card's unbound (staged) marketplace entries.
