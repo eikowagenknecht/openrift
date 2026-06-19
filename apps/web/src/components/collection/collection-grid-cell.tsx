@@ -16,6 +16,7 @@ import { DraggableCard } from "@/components/collection/draggable-card";
 import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
 import { Button } from "@/components/ui/button";
 import { useOwnedCopyIdsForPrintings, useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
+import type { WishEntryFlat } from "@/hooks/use-wish-entries";
 import { isStackSelected } from "@/lib/stack-selection";
 import {
   dispatchDecrement,
@@ -23,7 +24,6 @@ import {
   dispatchItemClick,
   dispatchItemToggle,
   dispatchOpenVariants,
-  dispatchOpenWishlist,
   dispatchSiblingClick,
   dispatchTake,
 } from "@/stores/card-row-actions-store";
@@ -62,10 +62,13 @@ interface CollectionGridCellProps {
   showImages: boolean;
   priceRange?: { min: number; max: number };
   /**
-   * Group "bulk box": total quantity the viewer wishes for this card across
-   * their wish lists (0 = not wished). Drives the heart marker + its count.
+   * Group "bulk box": the viewer's wish entries matching this card, used to draw
+   * the heart marker (with the total wished quantity) and to list every wishlist
+   * the card sits on in its popover. Only set — and only non-empty — on a
+   * group-owned collection for cards the viewer wants; `undefined` otherwise so
+   * the cell's memo isn't busted by a fresh array on cards with no wish.
    */
-  wishQuantity?: number;
+  wishEntries?: readonly WishEntryFlat[];
   /** Group "bulk box": offer the "Take a copy" claim (strip button + menu). */
   canTake?: boolean;
 }
@@ -106,7 +109,7 @@ export const CollectionGridCell = memo(function CollectionGridCell({
   display,
   showImages,
   priceRange,
-  wishQuantity,
+  wishEntries,
   canTake,
 }: CollectionGridCellProps) {
   const inCardsView = dataView === "cards";
@@ -184,24 +187,17 @@ export const CollectionGridCell = memo(function CollectionGridCell({
   //  - select + owned: read-only count, OwnedCollectionsPopover
   //  - select + unowned: no strip (nothing to display)
   // Group "bulk box" controls that live inside the count strip, next to the
-  // amount: a wishlist heart (with the wished quantity) and a one-click Take
-  // button. Only meaningful on a group-owned collection, so both are gated by
-  // the props the grid only sets there.
-  const wished = wishQuantity ?? 0;
+  // amount: a wishlist heart (with the total wished quantity, opening a popover
+  // of every wishlist the card is on) and a one-click Take button. Only
+  // meaningful on a group-owned collection, so both are gated by the props the
+  // grid only sets there.
+  const wished = wishEntries?.reduce((sum, entry) => sum + entry.quantity, 0) ?? 0;
   // "Take all you want": one copy per wished copy, capped to what the box holds.
   const takeAllCount = wished > 0 ? Math.min(wished, ownedCount) : 0;
   const boxExtras =
     wished > 0 || canTake ? (
       <>
-        {wished > 0 && (
-          <WishlistHeart
-            quantity={wished}
-            onClick={(event) => {
-              event.stopPropagation();
-              dispatchOpenWishlist(itemId);
-            }}
-          />
-        )}
+        {wished > 0 && wishEntries && <WishlistHeart entries={wishEntries} />}
         {canTake && (
           <Button
             type="button"

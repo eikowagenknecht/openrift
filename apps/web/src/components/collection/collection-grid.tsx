@@ -881,19 +881,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     );
   };
 
-  // Heart-marker click: open the wish list this card sits on (the first, when it
-  // spans several).
-  const handleOpenWishlist = (itemId: string) => {
-    const stack = stackByItemId.get(itemId);
-    if (!stack) {
-      return;
-    }
-    const [firstMatch] = wish.entriesForPrinting(stack.printing.cardId, stack.printing.id);
-    if (firstMatch) {
-      void navigate({ to: "/collections/lists/$listId", params: { listId: firstMatch.listId } });
-    }
-  };
-
   // Register table-row action handlers in the no-subscribe store so the
   // virtualized CardTable + per-cell CollectionGridCell can dispatch row
   // clicks / +/- / select-mode actions without taking these unstable closures
@@ -956,7 +943,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       },
       onContextAction: handleContextAction,
       onTake: handleTake,
-      onOpenWishlist: handleOpenWishlist,
     });
     return () => {
       useCardRowActionsStore.getState().setHandlers({});
@@ -975,36 +961,42 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // item-level props and self-subscribes to override / count / selection /
   // copy IDs so this closure doesn't bust the per-row memo when stacks change
   // on +/-.
-  const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => (
-    <CollectionGridCell
-      printing={item.printing}
-      itemId={item.id}
-      cardWidth={ctx.cardWidth}
-      priority={ctx.priority}
-      dataView={dataView}
-      mode={mode}
-      showLibrary={showLibrary}
-      stacked={stacked}
-      siblings={
-        dataView === "cards"
-          ? tileSiblings(
-              item.printing,
-              catalogPrintingsByCardId.get(item.printing.cardId),
-              tileGroupBy,
-            )
-          : undefined
-      }
-      collectionId={collectionId}
-      sourceCollectionIsGroup={sourceCollectionIsGroup}
-      display={display}
-      showImages={showImages}
-      priceRange={catalogPriceRangeByCardId?.get(item.printing.cardId)}
-      wishQuantity={
-        isGroupCollection ? wish.wishedQuantity(item.printing.cardId, item.printing.id) : 0
-      }
-      canTake={canTake}
-    />
-  );
+  const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
+    // Wish entries only on a group "bulk box". Pass `undefined` for cards the
+    // viewer doesn't want so the cell's memo holds (a fresh empty array each
+    // render would bust it); only genuinely-wished cells carry an array.
+    const wishEntries = isGroupCollection
+      ? wish.entriesForPrinting(item.printing.cardId, item.printing.id)
+      : undefined;
+    return (
+      <CollectionGridCell
+        printing={item.printing}
+        itemId={item.id}
+        cardWidth={ctx.cardWidth}
+        priority={ctx.priority}
+        dataView={dataView}
+        mode={mode}
+        showLibrary={showLibrary}
+        stacked={stacked}
+        siblings={
+          dataView === "cards"
+            ? tileSiblings(
+                item.printing,
+                catalogPrintingsByCardId.get(item.printing.cardId),
+                tileGroupBy,
+              )
+            : undefined
+        }
+        collectionId={collectionId}
+        sourceCollectionIsGroup={sourceCollectionIsGroup}
+        display={display}
+        showImages={showImages}
+        priceRange={catalogPriceRangeByCardId?.get(item.printing.cardId)}
+        wishEntries={wishEntries}
+        canTake={canTake}
+      />
+    );
+  };
 
   // ── Toolbar ─────────────────────────────────────────────────────────
   const formatValue = formatterForMarketplace(favoriteMarketplace as Marketplace);

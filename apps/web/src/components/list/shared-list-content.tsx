@@ -5,7 +5,6 @@ import type {
   PublicListDetailResponse,
 } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
-import { useNavigate } from "@tanstack/react-router";
 import { HandshakeIcon, HeartIcon, ListIcon, XIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
@@ -232,13 +231,6 @@ function SharedListGrid({
   // member's tradelist (a red heart in the strip, mirroring the group bulk box).
   // Only fetched in request mode; safe (empty) for logged-out public viewers.
   const wish = useWishEntries(exchange?.mode === "request");
-  const navigate = useNavigate();
-  const openWishlistFor = (printing: Printing) => {
-    const [firstMatch] = wish.entriesForPrinting(printing.cardId, printing.id);
-    if (firstMatch) {
-      void navigate({ to: "/collections/lists/$listId", params: { listId: firstMatch.listId } });
-    }
-  };
 
   // Claim/release resize the single live trade per printing rather than opening a
   // second one (forbidden by the backend's unique-live-trade index): claiming the
@@ -436,20 +428,11 @@ function SharedListGrid({
           />
         ) : undefined;
       // A red heart when the viewer already wishes for this card, mirroring the
-      // group bulk box; click opens the wishlist it's on. This is the cue that
-      // explains the request dialog: a wished card already matches a shared
-      // wishlist, so its first request skips the list picker.
-      const wishedQuantity = wish.wishedQuantity(item.printing.cardId, item.printing.id);
-      const wishSlot =
-        wishedQuantity > 0 ? (
-          <WishlistHeart
-            quantity={wishedQuantity}
-            onClick={(event) => {
-              event.stopPropagation();
-              openWishlistFor(item.printing);
-            }}
-          />
-        ) : undefined;
+      // group bulk box; click opens a popover listing every wishlist it's on.
+      // This is the cue that explains the request dialog: a wished card already
+      // matches a shared wishlist, so its first request skips the list picker.
+      const wishEntries = wish.entriesForPrinting(item.printing.cardId, item.printing.id);
+      const wishSlot = wishEntries.length > 0 ? <WishlistHeart entries={wishEntries} /> : undefined;
       // The action and the status both live in this one strip row (right-aligned),
       // so every tradelist copy keeps the same height: a claimable copy shows
       // "Request", a requested copy shows "Requested ×" (click to release), and a
