@@ -10,7 +10,7 @@ import type { TradeEmailDeps } from "./trade-notifications.js";
 import { sendTradeRequestEmail } from "./trade-notifications.js";
 
 /** Pending requests expire this long after creation (ADR-019, hard-coded). */
-const PENDING_TTL_HOURS = 24;
+const PENDING_TTL_HOURS = 24 * 7;
 
 /** Generous cap when counting the giver's unreserved supply for the dialog/validation. */
 const SUPPLY_COUNT_LIMIT = 1000;

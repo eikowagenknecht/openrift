@@ -43,12 +43,12 @@ Supporting forks (also resolved with the owner):
 
 5. **Initiation** — either direction: request a card you want _or_ offer one you have _(chosen)_ · wanter-requests-only.
 6. **Reservation granularity** — reserve by quantity; the remainder of a stack stays matchable _(chosen)_ · reserve the whole entry and auto-decline others.
-7. **Expiry** — pending requests auto-expire after **24h**; accepted reservations never auto-expire; either party can always cancel manually before completion _(chosen)_.
+7. **Expiry** — pending requests auto-expire after **7d**; accepted reservations never auto-expire; either party can always cancel manually before completion _(chosen)_.
 8. **Terms** — bare yes/no, no message, no in-app negotiation _(chosen)_ · optional note · structured negotiation.
 
 ## Decision Outcome
 
-Build a **single-card trade record** (`card_trades`) with an explicit state machine, a **per-copy reservation link** (`card_trade_copies`), a **reserved-copy exclusion** in the match query, a **propose-and-confirm post-trade sync** that drives the existing copy-mutation services (`addCopies` / `disposeCopies`) and list repo, a **global notification bell** fed by polling, and a per-group **Trades** tab. Pending requests expire after 24h via a cron job; reservations persist until completed or cancelled.
+Build a **single-card trade record** (`card_trades`) with an explicit state machine, a **per-copy reservation link** (`card_trade_copies`), a **reserved-copy exclusion** in the match query, a **propose-and-confirm post-trade sync** that drives the existing copy-mutation services (`addCopies` / `disposeCopies`) and list repo, a **global notification bell** fed by polling, and a per-group **Trades** tab. Pending requests expire after 7d via a cron job; reservations persist until completed or cancelled.
 
 The decisive enabling fact (verified against `docs/schema.sql`, constraint `chk_lists_intent_kind`): a `trade`-intent list is **always `kind = 'copy'`**. Every tradable item is therefore a concrete owned `copy` with a known `printing_id`, living in a collection. This removes all ambiguity the feature could otherwise have — there is always a specific printing to reserve, a specific copy to remove from the giver's collection, and a specific printing to add to the receiver's. The match query already exposes `copyId` and `printingId` on every row (`MatchRow`, `apps/api/src/repositories/friend-group-matches.ts:39-49`).
 
@@ -81,7 +81,7 @@ One `card_trades` row = one card moving in one direction between two members of 
                  │
    create ──► pending ──── cancel (initiator) ─────────────► cancelled (terminal)
  (initiator)     │
-                 ├──────── 24h elapsed (cron) ─────────────► expired   (terminal)
+                 ├──────── 7d elapsed (cron) ─────────────► expired   (terminal)
                  │
                  └ accept (recipient) ─► reserved ─ cancel (either) ──► cancelled (terminal)
                                             │
@@ -92,12 +92,12 @@ One `card_trades` row = one card moving in one direction between two members of 
                                                   their side's sync             their side's sync
 ```
 
-- **`pending`** — created by the initiator; awaiting the recipient. Carries `expires_at = created_at + 24h`. **No copies are reserved yet** (pending never hides anything — multiple members may have pending requests against the same stack).
+- **`pending`** — created by the initiator; awaiting the recipient. Carries `expires_at = created_at + 7d`. **No copies are reserved yet** (pending never hides anything — multiple members may have pending requests against the same stack).
 - **`reserved`** — the recipient accepted. `quantity` specific copies are pinned into `card_trade_copies` and become invisible in every match view. No expiry.
 - **`completed`** — either party marked the physical swap done. Each side independently gets a proposed sync (see below). Terminal as a trade; the only follow-up is each party resolving their own sync.
 - **`declined`** — recipient declined a pending request. Terminal.
 - **`cancelled`** — initiator cancelled while `pending`, or either party cancelled while `reserved`. Releases any reserved copies. Terminal.
-- **`expired`** — pending request hit 24h with no response (cron). Terminal.
+- **`expired`** — pending request hit 7d with no response (cron). Terminal.
 
 Status timestamps: `accepted_at`, `completed_at`, `closed_at` (declined/cancelled/expired), plus `created_at` / `updated_at`. `last_actor_user_id` records who caused the most recent transition (drives unread, below).
 
@@ -105,7 +105,7 @@ Status timestamps: `accepted_at`, `completed_at`, `closed_at` (declined/cancelle
 
 ### Reservation semantics (supply-side, by quantity)
 
-On **accept**, the system selects `quantity` of the giver's copies of `printing_id` that are (a) currently in a `trade`-intent list shared with this group and (b) not already in `card_trade_copies`, and inserts a row per copy into `card_trade_copies(trade_id, copy_id)`. If fewer than `quantity` unreserved copies are available, **accept is rejected** with a clear "only N left" error — the recipient (giver) then declines, since there is no negotiation step to adjust quantity. Pending requests are **never** auto-declined by a competing acceptance; they simply expire at 24h or become un-acceptable once the stack is exhausted.
+On **accept**, the system selects `quantity` of the giver's copies of `printing_id` that are (a) currently in a `trade`-intent list shared with this group and (b) not already in `card_trade_copies`, and inserts a row per copy into `card_trade_copies(trade_id, copy_id)`. If fewer than `quantity` unreserved copies are available, **accept is rejected** with a clear "only N left" error — the recipient (giver) then declines, since there is no negotiation step to adjust quantity. Pending requests are **never** auto-declined by a competing acceptance; they simply expire at 7d or become un-acceptable once the stack is exhausted.
 
 `card_trade_copies` holds **only currently-spoken-for copies**. Rows are created on accept and removed when the claim ends:
 
@@ -149,7 +149,7 @@ A new **global bell** in the app header aggregates _trade_ activity across all t
 
 ### Expiry & cron
 
-Pending requests expire 24h after creation. A new cron job runs every 15 minutes and sets `status='expired'`, `closed_at=now()` for `pending` rows where `expires_at < now()`. Add a `cardTradesExpire: null as Cron | null` slot to the `cronJobs` object in `apps/api/src/cron-jobs.ts`, then wire the schedule in `apps/api/src/index.ts` alongside the existing jobs — `new Cron(schedule, { protect: true }, …)` calling `runJob({ repos, log }, "card-trades.expire", "cron", () => repos.cardTrades.expirePending())`. A partial index on `(expires_at) WHERE status='pending'` keeps the scan cheap. Reservations never auto-expire.
+Pending requests expire 7d after creation. A new cron job runs every 15 minutes and sets `status='expired'`, `closed_at=now()` for `pending` rows where `expires_at < now()`. Add a `cardTradesExpire: null as Cron | null` slot to the `cronJobs` object in `apps/api/src/cron-jobs.ts`, then wire the schedule in `apps/api/src/index.ts` alongside the existing jobs — `new Cron(schedule, { protect: true }, …)` calling `runJob({ repos, log }, "card-trades.expire", "cron", () => repos.cardTrades.expirePending())`. A partial index on `(expires_at) WHERE status='pending'` keeps the scan cheap. Reservations never auto-expire.
 
 ### Authorization
 
@@ -219,7 +219,7 @@ CREATE TABLE card_trades (
   accepted_at             timestamptz,
   completed_at            timestamptz,
   closed_at               timestamptz,   -- declined / cancelled / expired
-  expires_at              timestamptz,   -- pending TTL (created_at + 24h); cleared once not pending
+  expires_at              timestamptz,   -- pending TTL (created_at + 7d); cleared once not pending
   CHECK (giver_user_id <> receiver_user_id)
 );
 
@@ -262,7 +262,7 @@ CREATE TABLE card_trade_copies (
 
 ### Repository — `apps/api/src/repositories/card-trades.ts`
 
-- `create({ groupId, initiator, giverUserId, receiverUserId, printingId, cardId, quantity, receiverWishEntryId })` → inserts `pending`, `expires_at = now() + interval '24 hours'`, `last_actor = initiator`.
+- `create({ groupId, initiator, giverUserId, receiverUserId, printingId, cardId, quantity, receiverWishEntryId })` → inserts `pending`, `expires_at = now() + interval '7 days'`, `last_actor = initiator`.
 - `accept(tradeId, byUserId)` → validates `byUserId` is the non-initiator; selects and pins `quantity` unreserved group-shared copies into `card_trade_copies` (rejects if too few); status → `reserved`.
 - `decline(tradeId, byUserId)` / `cancel(tradeId, byUserId)` → guard per _Authorization_; on cancel from `reserved`, delete the `card_trade_copies` rows.
 - `markTraded(tradeId, byUserId)` → `reserved` → `completed`.
@@ -303,7 +303,7 @@ Everything below is decided. Implementation needs no further input.
 
 **Trade DTO** (returned by `GET /api/v1/trades` and `/:id`): `{ id, groupId, groupSlug, role ('giver'|'receiver' — the viewer's side), initiator, counterparty: { userId, name, nickname, gravatarHash }, printingId, cardId, quantity, status, createdAt, updatedAt, acceptedAt, completedAt, closedAt, expiresAt, viewerSeenAt, viewerSyncAppliedAt, counterpartySyncAppliedAt, unseen (bool), actionNeeded ('accept-or-decline'|'cancel'|'complete'|'apply-sync'|null) }`. Card name/image are **not** in the DTO — the web resolves them from the loaded catalog by `printingId`/`cardId`, exactly as match rows and copies do.
 
-**Creation — `POST /api/v1/trades`.** Originates only from a match row, so a matching shared wish always exists. The handler sets `giver_user_id` = the copy owner (`s_sell.userId` from the match), `receiver_user_id` = the wisher, `initiator` = the caller's role on that row, `receiver_wish_entry_id` = the match's `buyEntryId`, `printing_id`/`card_id` from the match, `group_id` from the row, `status='pending'`, `expires_at = now() + 24h`, `last_actor_user_id` = caller. Validates: caller and counterparty are both current members; the match still holds (re-run the match repo scoped to that counterparty + printing); `1 ≤ quantity ≤ availableCount`; and no existing live trade for `(group, giver, receiver, printing)` — `uq_card_trades_live` returns **409** otherwise. Dialog quantity: default `min(demandQuantity, availableCount)`, min 1, max `availableCount`; `availableCount` already nets out reserved copies (filtered from the match query).
+**Creation — `POST /api/v1/trades`.** Originates only from a match row, so a matching shared wish always exists. The handler sets `giver_user_id` = the copy owner (`s_sell.userId` from the match), `receiver_user_id` = the wisher, `initiator` = the caller's role on that row, `receiver_wish_entry_id` = the match's `buyEntryId`, `printing_id`/`card_id` from the match, `group_id` from the row, `status='pending'`, `expires_at = now() + 7d`, `last_actor_user_id` = caller. Validates: caller and counterparty are both current members; the match still holds (re-run the match repo scoped to that counterparty + printing); `1 ≤ quantity ≤ availableCount`; and no existing live trade for `(group, giver, receiver, printing)` — `uq_card_trades_live` returns **409** otherwise. Dialog quantity: default `min(demandQuantity, availableCount)`, min 1, max `availableCount`; `availableCount` already nets out reserved copies (filtered from the match query).
 
 **Acceptance — `POST /api/v1/trades/:id/accept`.** Caller must be the **non-initiator**. One transaction: select `quantity` copy ids that (a) belong to the giver, (b) sit on a `trade`-intent list shared with this group, and (c) are absent from `card_trade_copies`; if fewer than `quantity`, abort **409** "Only N copies still available". Insert the selected ids, flip `status='reserved'`, set `accepted_at`, `expires_at=NULL`, `last_actor`=caller. `UNIQUE(copy_id)` makes a racing concurrent accept of the same copy fail; the loser re-selects or returns the 409.
 
@@ -315,7 +315,7 @@ Everything below is decided. Implementation needs no further input.
 
 | From → To            | Who           | `last_actor` | Side effects                    |
 | -------------------- | ------------- | ------------ | ------------------------------- |
-| (create) → pending   | initiator     | initiator    | `expires_at = +24h`             |
+| (create) → pending   | initiator     | initiator    | `expires_at = +7d`              |
 | pending → reserved   | non-initiator | acceptor     | pin copies; `expires_at = NULL` |
 | pending → declined   | non-initiator | decliner     | `closed_at`                     |
 | pending → cancelled  | initiator     | initiator    | `closed_at`                     |
@@ -336,7 +336,7 @@ Cron expiry uses `last_actor = NULL` ("system"), which counts as unseen for both
 
 **Membership & account changes.** Leaving or being kicked **cancels the departing member's `pending`/`reserved` trades in that group and releases their reserved copies** — both the `/leave` and kick handlers (`apps/api/src/routes/authenticated/friend-groups.ts`) call `cardTrades.cancelForDepartingMember(transact, groupId, userId)` alongside `removeMember`. Account deletion needs no special code: `card_trades.{giver,receiver}_user_id → users ON DELETE CASCADE` deletes the user's trades, and `card_trade_copies` cascades from both `trade_id` and `copy_id`, releasing the counterparty's claims by FK.
 
-**Pending whose basis vanished.** No proactive hooks into the unshare / remove-copy paths — they stay decoupled from trades. A pending request whose underlying shared copies no longer exist simply fails acceptance (the availability check returns 409 and the request is set `cancelled`, `last_actor=NULL`) or lapses at the 24h expiry. Reserved trades are immune — their copies are pinned.
+**Pending whose basis vanished.** No proactive hooks into the unshare / remove-copy paths — they stay decoupled from trades. A pending request whose underlying shared copies no longer exist simply fails acceptance (the availability check returns 409 and the request is set `cancelled`, `last_actor=NULL`) or lapses at the 7d expiry. Reserved trades are immune — their copies are pinned.
 
 **Trades tab.** Three sections (Action needed / Active / History), each sorted `updated_at DESC`. Rows show card thumbnail, counterparty (name + nickname + avatar), derived direction, quantity, status, and the contextual buttons (Accept/Decline · Cancel · Mark traded · Apply/Skip sync). **Price/trade-type preferences are not shown here** — terms are out-of-band; prefs live only on discovery (match) rows.
 
@@ -357,10 +357,10 @@ Cron expiry uses `last_actor = NULL` ("system"), which counts as unseen for both
 
 - **Email and web push.** In-app polling only for v1. Revisit if "I missed a request" becomes a real complaint — a service worker + Web Push, or transactional email, can layer on later without schema change.
 - **Real-time delivery (websocket / SSE).** Polling is sufficient at friend-group scale.
-- **Reservation auto-expiry.** Only pending requests expire (24h). A stuck reservation is resolved by manual cancel. Add a reservation TTL later only if abandoned reservations pile up.
+- **Reservation auto-expiry.** Only pending requests expire (7d). A stuck reservation is resolved by manual cancel. Add a reservation TTL later only if abandoned reservations pile up.
 - **Bulk actions** (accept/cancel many at once) and a one-click "trade everything we match on".
 - **Consolidating the three notification badges** (invites, join-requests, trades) into one inbox.
-- **Configurable expiry window.** Hard-coded 24h for now.
+- **Configurable expiry window.** Hard-coded 7d for now.
 
 ## Confirmation
 
@@ -373,14 +373,14 @@ Repository / integration tests (`apps/api`, temporary DB via `setupTestDb()`, dr
 - `UNIQUE(copy_id)` prevents a copy being reserved by two live trades.
 - `complete` makes both sides' sync available; **giver Apply** (via `disposeCopies`) emits a `removed` event, deletes the reserved copies, and cascade-removes their copy-kind tradelist entries; **receiver Apply** (via `addCopies`) emits an `added` event, inserts `quantity` copies of the exact `printing_id` into the chosen collection (default inbox), and decrements/removes the matched wish entry; either side **Skip** resolves without mutating that side (giver Skip also releases the reserved copies).
 - A `pending` request is auto-cancelled when the giver removes/unshares its underlying copies before acceptance; a `reserved` trade survives later edits/unshares of the giver's tradelist.
-- `expirePending()` moves only `pending` rows past 24h to `expired`, nothing else.
+- `expirePending()` moves only `pending` rows past 7d to `expired`, nothing else.
 - Authorization: non-members cannot create; only the non-initiator can accept/decline; only the initiator can cancel a pending; either party can cancel a reservation and mark traded; each party can only sync their own side.
 - `uq_card_trades_live` rejects a second live trade for the same `(group, giver, receiver, printing)` with 409; once the first is terminal (declined/cancelled/expired/completed), a new one is allowed.
 - Two concurrent accepts that would pin the same copy: exactly one succeeds; the other gets the "only N available" 409 (enforced by `UNIQUE(copy_id)`).
 - `disposeCopies` refuses a copy that is in `card_trade_copies` (409); `moveCopies` on a reserved copy still succeeds; `applyGiverSync` (which releases the reservation first) disposes successfully.
 - Leaving or being kicked cancels the departing member's `pending`/`reserved` trades in that group and releases their reserved copies; remaining members' match views recover those copies.
 - Deleting a user's account cascades away their trades and releases the counterparty's reserved copies (FK only — no service code).
-- Cron expiry sets `status='expired'` and `last_actor=NULL` for `pending` past 24h only; the initiator sees the expired trade as unread until they view it.
+- Cron expiry sets `status='expired'` and `last_actor=NULL` for `pending` past 7d only; the initiator sees the expired trade as unread until they view it.
 - Bell unread excludes changes the viewer made themselves and includes system (`last_actor IS NULL`) changes; opening the bell clears unread without clearing status-derived "action needed".
 
 Unit tests (`apps/web`, vitest): the bell unread/actionable derivation (seen vs unseen, self-actor excluded, per status); the trade-action store reducers (optimistic transitions, reset between tests via `createStoreResetter()`); quantity-default computation for the Request/Offer dialog.

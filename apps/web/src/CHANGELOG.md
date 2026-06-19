@@ -4,6 +4,7 @@
 
 ### Other
 
+- feat(Trades): **Trade requests last a week** — pending trade requests now expire 7 days after they're sent instead of 24 hours, giving you more time to respond.
 - fix(Trades): **Wishlist requests stay specific** — requesting a card from a member's tradelist now adds it to a wishlist that matches just that printing, not every printing of the card, and the list picker shows whether each list tracks cards or printings.
 
 ## 2026-06-18

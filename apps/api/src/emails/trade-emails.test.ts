@@ -21,7 +21,7 @@ describe("buildTradeRequestEmail", () => {
     expect(subject).toBe("Garen wants to trade for Azir, Emperor of the Sands — OpenRift");
     expect(html).toContain("wants to trade for");
     expect(html).toContain("Garen");
-    expect(html).toContain("expire 24 hours");
+    expect(html).toContain("expire 7 days");
     expect(html).toContain(REQUEST_BASE.tradesUrl);
     expect(html).toContain(REQUEST_BASE.unsubscribeUrl);
   });

@@ -57,7 +57,7 @@ export function buildTradeRequestEmail(input: TradeRequestEmailInput): {
   const bodyHtml = `
     <p style="margin:0 0 12px;">${greeting}</p>
     <p style="margin:0 0 16px;">${lead}</p>
-    <p style="margin:0 0 20px;">Open the trade to accept or decline it. Heads up: trade requests expire 24 hours after they're sent.</p>
+    <p style="margin:0 0 20px;">Open the trade to accept or decline it. Heads up: trade requests expire 7 days after they're sent.</p>
     ${contactLine}
     <p style="margin:0;">${emailButton("View the trade", input.tradesUrl)}</p>
   `;
@@ -137,7 +137,7 @@ export function buildCoalescedTradeRequestsEmail(input: CoalescedTradeRequestsEm
 
   const bodyHtml = `
     <p style="margin:0 0 12px;">${greeting}</p>
-    <p style="margin:0 0 20px;"><strong>${escapeHtml(sender)}</strong> has more trade requests waiting for you. Heads up: trade requests expire 24 hours after they're sent.</p>
+    <p style="margin:0 0 20px;"><strong>${escapeHtml(sender)}</strong> has more trade requests waiting for you. Heads up: trade requests expire 7 days after they're sent.</p>
     ${groupBlocks}
   `;
 

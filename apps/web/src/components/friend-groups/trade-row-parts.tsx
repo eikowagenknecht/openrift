@@ -12,7 +12,7 @@ import { tradeStatusLabel } from "@/lib/trade-derivation";
 import { cn } from "@/lib/utils";
 
 /** A pending trade slips into the danger zone this long before it auto-expires. */
-const EXPIRY_URGENT_MS = 2 * 60 * 60 * 1000;
+const EXPIRY_URGENT_MS = 24 * 60 * 60 * 1000;
 
 /**
  * The round direction badge shared by match rows and trade rows: green arrow in
@@ -156,7 +156,7 @@ export function TradeExpiry({
         "inline-flex shrink-0 items-center gap-1 text-xs whitespace-nowrap",
         urgent ? "font-medium text-amber-700 dark:text-amber-400" : "text-muted-foreground",
       )}
-      title="Pending requests expire 24 hours after they're sent"
+      title="Pending requests expire 7 days after they're sent"
     >
       <ClockIcon className="size-3" />
       {label}
