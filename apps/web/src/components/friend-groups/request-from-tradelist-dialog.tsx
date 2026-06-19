@@ -3,6 +3,7 @@ import { MinusIcon, PlusIcon, PlusSquareIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
 
+import { listKindIcon } from "@/components/list/create-list-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -138,6 +139,9 @@ function RequestBody({
 
   const cardName = printing.card.name;
   const chosen = options.find((option) => option.listId === selectedId);
+  // The kind a new wishlist would be created as, shown as its glyph on the
+  // "New wishlist" option so the picker stays consistent with the rows above.
+  const NewKindIcon = listKindIcon(requestListKind());
   // New lists are always private at first, and an existing list the viewer
   // picked might not be shared with this group yet — both need the explicit
   // share confirmation before the request can match.
@@ -295,6 +299,7 @@ function RequestBody({
       <RadioGroup value={selectedId} onValueChange={(value) => setSelectedId(String(value))}>
         {options.map((option) => {
           const inputId = `request-wishlist-${option.listId}`;
+          const KindIcon = listKindIcon(option.listKind);
           return (
             <label
               key={option.listId}
@@ -303,7 +308,8 @@ function RequestBody({
             >
               <RadioGroupItem id={inputId} value={option.listId} />
               <span className="min-w-0 flex-1 truncate font-medium">{option.listName}</span>
-              <span className="text-muted-foreground shrink-0 text-xs">
+              <span className="text-muted-foreground inline-flex shrink-0 items-center gap-1 text-xs">
+                <KindIcon className="size-3" />
                 {option.entryCount} {listKindNoun(option.listKind, option.entryCount)}
               </span>
               <Badge variant={option.isShared ? "secondary" : "outline"} className="shrink-0">
@@ -319,7 +325,10 @@ function RequestBody({
           <RadioGroupItem id="request-wishlist-new" value={NEW_LIST} />
           <PlusSquareIcon className="text-muted-foreground size-4 shrink-0" />
           <span className="min-w-0 flex-1 truncate font-medium">New wishlist</span>
-          <span className="text-muted-foreground shrink-0 text-xs">printings</span>
+          <span className="text-muted-foreground inline-flex shrink-0 items-center gap-1 text-xs">
+            <NewKindIcon className="size-3" />
+            printings
+          </span>
           <Badge variant="outline" className="shrink-0">
             Will be shared
           </Badge>
