@@ -1,7 +1,7 @@
 import type { Printing } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
-import { ArrowDownToLineIcon, HeartIcon } from "lucide-react";
-import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
+import { ArrowDownToLineIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { memo } from "react";
 
 import type { CardRenderContext } from "@/components/card-viewer-types";
@@ -9,7 +9,7 @@ import { CardCell } from "@/components/cards/card-cell";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { OwnedCollectionsPopover } from "@/components/cards/card-detail/owned-collections-popover";
 import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
-import { COUNT_PILL_BASE, COUNT_PILL_INTERACTIVE } from "@/components/cards/count-pill";
+import { WishlistHeart } from "@/components/cards/wishlist-heart";
 import { BrowseLocationsPopover } from "@/components/collection/browse-locations-popover";
 import { CollectionCardContextMenu } from "@/components/collection/collection-card-context-menu";
 import { DraggableCard } from "@/components/collection/draggable-card";
@@ -17,7 +17,6 @@ import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
 import { Button } from "@/components/ui/button";
 import { useOwnedCopyIdsForPrintings, useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
 import { isStackSelected } from "@/lib/stack-selection";
-import { cn } from "@/lib/utils";
 import {
   dispatchDecrement,
   dispatchIncrement,
@@ -364,36 +363,3 @@ export const CollectionGridCell = memo(function CollectionGridCell({
     />
   );
 });
-
-/**
- * Wishlist marker shown in the count strip next to the box amount on a group
- * "bulk box" tile. Styled like the box count pill (same muted background +
- * hover) with a red heart, and shows the wished quantity (×N) when the viewer
- * wants more than one. Opens the wish list it's on when clicked.
- * @returns The wishlist heart button.
- */
-function WishlistHeart({
-  quantity,
-  onClick,
-}: {
-  quantity: number;
-  onClick: (event: ReactMouseEvent<HTMLButtonElement>) => void;
-}) {
-  return (
-    <button
-      type="button"
-      tabIndex={-1}
-      onClick={onClick}
-      className={cn(COUNT_PILL_BASE, COUNT_PILL_INTERACTIVE, "gap-0.5 px-1.5")}
-      title={
-        quantity > 1 ? `On your wishlist (×${quantity}), open it` : "On your wishlist, open it"
-      }
-    >
-      <HeartIcon className="size-3 fill-current text-rose-500" />
-      {quantity > 1 && <span>×{quantity}</span>}
-      <span className="sr-only">
-        On your wishlist{quantity > 1 ? `, ${quantity} wanted` : ""}, open it
-      </span>
-    </button>
-  );
-}

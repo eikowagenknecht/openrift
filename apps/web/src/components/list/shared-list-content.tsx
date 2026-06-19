@@ -5,6 +5,7 @@ import type {
   PublicListDetailResponse,
 } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
+import { useNavigate } from "@tanstack/react-router";
 import { HandshakeIcon, HeartIcon, ListIcon, XIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
@@ -24,6 +25,7 @@ import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { COUNT_PILL_BASE, COUNT_PILL_INTERACTIVE } from "@/components/cards/count-pill";
 import { StaticCountTableActions } from "@/components/cards/static-count-table-actions";
+import { WishlistHeart } from "@/components/cards/wishlist-heart";
 import { OfferToWishlistDialog } from "@/components/friend-groups/offer-to-wishlist-dialog";
 import type {
   OfferablePrintingChoice,
@@ -40,7 +42,7 @@ import { listKindIcon } from "@/components/list/create-list-dialog";
 import { ListHeader } from "@/components/list/list-header";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
-import { Badge, badgeVariants } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -59,6 +61,7 @@ import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
+import { useWishEntries } from "@/hooks/use-wish-entries";
 import { FilterSearchProvider, useFilterSearch } from "@/lib/search-schemas";
 import {
   offerablePrintings,
@@ -224,6 +227,18 @@ function SharedListGrid({
     exchange?.mode === "request" && userTrades
       ? pendingRequestsByPrinting(userTrades.items, exchange.groupSlug, exchange.counterpartyUserId)
       : EMPTY_PENDING_REQUESTS;
+
+  // The viewer's wish-list membership, to flag cards they already want on a
+  // member's tradelist (a red heart in the strip, mirroring the group bulk box).
+  // Only fetched in request mode; safe (empty) for logged-out public viewers.
+  const wish = useWishEntries(exchange?.mode === "request");
+  const navigate = useNavigate();
+  const openWishlistFor = (printing: Printing) => {
+    const [firstMatch] = wish.entriesForPrinting(printing.cardId, printing.id);
+    if (firstMatch) {
+      void navigate({ to: "/collections/lists/$listId", params: { listId: firstMatch.listId } });
+    }
+  };
 
   // Claim/release resize the single live trade per printing rather than opening a
   // second one (forbidden by the backend's unique-live-trade index): claiming the
@@ -420,14 +435,31 @@ function SharedListGrid({
             align="start"
           />
         ) : undefined;
+      // A red heart when the viewer already wishes for this card, mirroring the
+      // group bulk box; click opens the wishlist it's on. This is the cue that
+      // explains the request dialog: a wished card already matches a shared
+      // wishlist, so its first request skips the list picker.
+      const wishedQuantity = wish.wishedQuantity(item.printing.cardId, item.printing.id);
+      const wishSlot =
+        wishedQuantity > 0 ? (
+          <WishlistHeart
+            quantity={wishedQuantity}
+            onClick={(event) => {
+              event.stopPropagation();
+              openWishlistFor(item.printing);
+            }}
+          />
+        ) : undefined;
       // The action and the status both live in this one strip row (right-aligned),
       // so every tradelist copy keeps the same height: a claimable copy shows
       // "Request", a requested copy shows "Requested ×" (click to release), and a
-      // reserved copy shows "Reserved".
+      // reserved copy shows "Reserved". The owned-count and wish-heart pills sit
+      // left.
       strip = (
         <RequestStrip
           state={reserved ? "reserved" : alreadyRequested ? "requested" : "claimable"}
           ownedSlot={ownedSlot}
+          wishSlot={wishSlot}
           disabled={tradeMutating}
           onRequest={() => handleClaim(item.printing)}
           onRelease={() => handleRelease(item.printing)}
@@ -624,11 +656,13 @@ function SharedListGrid({
 // request opens the dialog to pick + share a wishlist, later requests bump the
 // live request's quantity), a requested copy shows a "Requested ×" button that
 // releases one copy (decrement, or cancel at the last), and a reserved copy shows
-// a read-only "Reserved" badge. The owned-count pill, when present, sits at the
-// left. `disabled` guards against a request/release already in flight.
+// a read-only "Reserved" badge. The owned-count and wish-heart pills, when
+// present, sit at the left. `disabled` guards against a request/release already
+// in flight.
 function RequestStrip({
   state,
   ownedSlot,
+  wishSlot,
   disabled,
   onRequest,
   onRelease,
@@ -636,6 +670,8 @@ function RequestStrip({
   state: "claimable" | "requested" | "reserved";
   /** Owned-count pill (collections popover), left-aligned. Omitted when the viewer owns none. */
   ownedSlot?: React.ReactNode;
+  /** Wishlist heart pill, left-aligned next to the owned count. Omitted when not wished. */
+  wishSlot?: React.ReactNode;
   disabled?: boolean;
   onRequest: () => void;
   onRelease: () => void;
@@ -643,10 +679,25 @@ function RequestStrip({
   return (
     // h-5 + mb-1 = 24px, matching ADD_STRIP_HEIGHT so the virtualizer estimate holds.
     <div className="relative z-30 mb-1 flex h-5 items-center">
-      {ownedSlot ? <span className="absolute left-0">{ownedSlot}</span> : null}
-      <span className="ml-auto">
+      {ownedSlot || wishSlot ? (
+        <span className="absolute inset-y-0 left-0 flex items-center gap-1">
+          {ownedSlot}
+          {wishSlot}
+        </span>
+      ) : null}
+      <span className="ml-auto flex items-center">
+        {/* All three states share the count-pill shape so they read as one
+            control across cards; color carries the state (neutral = actionable,
+            primary tint = requested by you, green = reserved/locked). */}
         {state === "reserved" ? (
-          <Badge variant="success">Reserved</Badge>
+          <span
+            className={cn(
+              COUNT_PILL_BASE,
+              "bg-green-500/10 text-green-700 dark:bg-green-500/20 dark:text-green-400",
+            )}
+          >
+            Reserved
+          </span>
         ) : state === "requested" ? (
           <button
             type="button"
@@ -661,11 +712,12 @@ function RequestStrip({
               }
             }}
             className={cn(
-              badgeVariants({ variant: "subtle" }),
-              "cursor-pointer gap-1 disabled:cursor-not-allowed disabled:opacity-50",
+              COUNT_PILL_BASE,
+              "bg-primary/10 text-primary",
+              disabled ? "cursor-not-allowed opacity-50" : "hover:bg-primary/20 cursor-pointer",
             )}
           >
-            Requested
+            <span>Requested</span>
             <XIcon className="size-3" />
           </button>
         ) : (

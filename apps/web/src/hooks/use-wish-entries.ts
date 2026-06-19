@@ -2,7 +2,7 @@ import type { ListDetailResponse } from "@openrift/shared";
 import { useQueries, useQuery } from "@tanstack/react-query";
 
 import { listDetailQueryOptions, listsQueryOptions } from "@/hooks/use-lists";
-import { useRequiredUserId } from "@/lib/auth-session";
+import { useUserId } from "@/lib/auth-session";
 
 /** A single wish-list entry, flattened with its owning list's name for display. */
 export interface WishEntryFlat {
@@ -83,17 +83,24 @@ export function buildWishMembership(details: readonly ListDetailResponse[]): Wis
 
 /**
  * The viewer's wish-list membership, for highlighting wanted cards in a group
- * "bulk box" and offering a post-take wishlist cleanup. Pass `enabled=false` on
- * surfaces that don't need it (e.g. personal collections) to skip every fetch.
+ * "bulk box" or on a member's tradelist, and offering a post-take wishlist
+ * cleanup. Pass `enabled=false` on surfaces that don't need it (e.g. personal
+ * collections) to skip every fetch. Safe to call on surfaces that also render
+ * for logged-out visitors (e.g. the public shared-list browser): with no signed-in
+ * user it stays empty and fetches nothing.
  *
  * @returns A {@link WishMembership}; empty until the wish lists have loaded.
  */
 export function useWishEntries(enabled: boolean): WishMembership {
-  const userId = useRequiredUserId();
-  const { data: wishLists } = useQuery({ ...listsQueryOptions(userId, "wish"), enabled });
+  const userId = useUserId();
+  const active = enabled && userId !== null;
+  const { data: wishLists } = useQuery({
+    ...listsQueryOptions(userId ?? "", "wish"),
+    enabled: active,
+  });
   const lists = wishLists ?? [];
   const detailResults = useQueries({
-    queries: enabled ? lists.map((list) => listDetailQueryOptions(userId, list.id)) : [],
+    queries: active ? lists.map((list) => listDetailQueryOptions(userId ?? "", list.id)) : [],
   });
   const details = detailResults
     .map((result) => result.data)
