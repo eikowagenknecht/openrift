@@ -196,11 +196,11 @@ export function ActiveFilters({
   }
 
   return (
-    <div className="bg-muted/50 mb-1.5 flex items-center gap-2 rounded-lg py-1.5 pr-1.5 pl-3 sm:mb-3">
+    <div className="mb-3 flex items-center gap-2">
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
         {filterState.search && (
           <div className="flex items-center gap-1">
-            <span className="text-muted-foreground text-xs">Search:</span>
+            <span className="text-muted-foreground hidden text-xs sm:inline">Search:</span>
             <Badge variant="secondary" className="gap-1">
               &ldquo;{filterState.search}&rdquo;
               <button
@@ -215,7 +215,7 @@ export function ActiveFilters({
         )}
         {filterGroups.map(({ key, label, values, displayLabel: groupDisplayLabel }) => (
           <div key={key} className="flex min-w-0 flex-wrap items-center gap-1">
-            <span className="text-muted-foreground text-xs">{label}:</span>
+            <span className="text-muted-foreground hidden text-xs sm:inline">{label}:</span>
             {values.map((value) => {
               // Markers, channels, and owned buckets don't have icon assets —
               // skip the lookup so we can pass `key` straight through.
@@ -248,7 +248,9 @@ export function ActiveFilters({
               key={`customTags-${categorySlug}`}
               className="flex min-w-0 flex-wrap items-center gap-1"
             >
-              <span className="text-muted-foreground text-xs">{categoryLabel}:</span>
+              <span className="text-muted-foreground hidden text-xs sm:inline">
+                {categoryLabel}:
+              </span>
               {values.map((slug) => {
                 const tag = customTagBySlug.get(slug);
                 return (
@@ -296,7 +298,7 @@ export function ActiveFilters({
         )}
         {filterState.signed !== null && (
           <div className="flex items-center gap-1">
-            <span className="text-muted-foreground text-xs">Flag:</span>
+            <span className="text-muted-foreground hidden text-xs sm:inline">Flag:</span>
             <Badge variant="secondary" className="gap-1">
               {filterState.signed === false ? "Not Signed" : "Signed"}
               <button type="button" onClick={clearSigned} className="hover:text-foreground ml-0.5">
@@ -307,7 +309,7 @@ export function ActiveFilters({
         )}
         {filterState.promo !== null && (
           <div className="flex items-center gap-1">
-            <span className="text-muted-foreground text-xs">Flag:</span>
+            <span className="text-muted-foreground hidden text-xs sm:inline">Flag:</span>
             <Badge variant="secondary" className="gap-1">
               {filterState.promo === false ? "Not Promo" : "Promo"}
               <button type="button" onClick={clearPromo} className="hover:text-foreground ml-0.5">
@@ -318,7 +320,7 @@ export function ActiveFilters({
         )}
         {filterState.banned !== null && (
           <div className="flex items-center gap-1">
-            <span className="text-muted-foreground text-xs">Flag:</span>
+            <span className="text-muted-foreground hidden text-xs sm:inline">Flag:</span>
             <Badge variant="secondary" className="gap-1">
               {filterState.banned === false ? "Not Banned" : "Banned"}
               <button type="button" onClick={clearBanned} className="hover:text-foreground ml-0.5">
@@ -329,7 +331,7 @@ export function ActiveFilters({
         )}
         {filterState.errata !== null && (
           <div className="flex items-center gap-1">
-            <span className="text-muted-foreground text-xs">Flag:</span>
+            <span className="text-muted-foreground hidden text-xs sm:inline">Flag:</span>
             <Badge variant="secondary" className="gap-1">
               {filterState.errata === false ? "No Errata" : "Errata"}
               <button type="button" onClick={clearErrata} className="hover:text-foreground ml-0.5">
@@ -340,9 +342,9 @@ export function ActiveFilters({
         )}
       </div>
       <Button
-        variant="destructive"
+        variant="ghost"
         size="icon-sm"
-        className="shrink-0 self-start"
+        className="text-muted-foreground hover:text-foreground shrink-0 self-start"
         onClick={clearAllFilters}
         title="Clear all filters"
       >
@@ -373,8 +375,11 @@ function RangeBadge({
 
   return (
     <div className="flex items-center gap-1">
-      <span className="text-muted-foreground text-xs">{label}:</span>
+      <span className="text-muted-foreground hidden text-xs sm:inline">{label}:</span>
       <Badge variant="secondary" className="gap-1">
+        {/* On mobile the external prefix is hidden, so carry the label inside
+            the chip ("Energy 1-3") — a bare range value alone is ambiguous. */}
+        <span className="sm:hidden">{label}</span>
         {valueLabel}
         <button type="button" onClick={onClear} className="hover:text-foreground ml-0.5">
           <XIcon className="size-3" />

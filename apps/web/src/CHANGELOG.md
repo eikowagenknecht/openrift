@@ -11,6 +11,7 @@
 - feat(Trades): **Trade requests last a week** — pending trade requests now expire 7 days after they're sent instead of 24 hours, giving you more time to respond.
 - feat(Trades): **See what you already own on a tradelist** — browsing a member's tradelist now shows how many of each printing you own next to the Request button, so you can skip cards you already have.
 - feat(Trades): **Wishlist hearts on tradelists** — a member's tradelist now flags cards already on your wishlist with a red heart (with how many you want), and clicking it lists every wishlist the card is on so you can open the right one.
+- fix(App): **Cleaner mobile filter bar** — the title, search, and active filters now group with even spacing on phones, and active filters read as lightweight tags (with their category shown inline) instead of a heavy panel.
 - fix(Trades): **Wishlist requests stay specific** — requesting a card from a member's tradelist now adds it to a wishlist that matches just that printing, not every printing of the card, and the list picker shows whether each list tracks cards or printings.
 
 ## 2026-06-18

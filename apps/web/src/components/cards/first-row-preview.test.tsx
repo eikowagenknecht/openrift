@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AvailableFiltersWire, CardCounts } from "@/lib/cards-facets";
 import type { FirstRowCard } from "@/lib/cards-first-row";
+import { FilterSearchProvider } from "@/lib/search-schemas";
 
 interface LoaderData {
   firstRow: FirstRowCard[];
@@ -45,6 +46,17 @@ vi.mock("@/components/filters/active-filters", () => ({
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { FirstRowPreview } from "./first-row-preview";
+
+// FirstRowPreview reads filter search (for the toolbar's active-filter grouping),
+// so renders need a FilterSearchProvider. An empty value is enough — these tests
+// exercise the SSR grid/chrome, not specific filter state.
+function renderPreview() {
+  return render(
+    <FilterSearchProvider value={{}}>
+      <FirstRowPreview />
+    </FilterSearchProvider>,
+  );
+}
 
 function makeCard(i: number, setSlug = "OGN"): FirstRowCard {
   return {
@@ -100,19 +112,19 @@ describe("FirstRowPreview", () => {
     mockUseLoaderData.mockReturnValue(
       makeLoaderData({ firstRow: [makeCard(0), makeCard(1), makeCard(2)] }),
     );
-    const { container } = render(<FirstRowPreview />);
+    const { container } = renderPreview();
     expect(container.querySelectorAll("img")).toHaveLength(3);
   });
 
   it("returns null when facets is null (client-side navigation)", () => {
     mockUseLoaderData.mockReturnValue(makeLoaderData({ facets: null }));
-    const { container } = render(<FirstRowPreview />);
+    const { container } = renderPreview();
     expect(container.firstChild).toBeNull();
   });
 
   it("renders the SSR chrome even when firstRow is empty", () => {
     mockUseLoaderData.mockReturnValue(makeLoaderData({ firstRow: [] }));
-    const { container } = render(<FirstRowPreview />);
+    const { container } = renderPreview();
     // Chrome is present even without a first-row payload — the layout shell
     // still reserves toolbar / left pane space.
     expect(container.firstChild).not.toBeNull();
@@ -123,7 +135,7 @@ describe("FirstRowPreview", () => {
     mockUseLoaderData.mockReturnValue(
       makeLoaderData({ firstRow: [makeCard(0), makeCard(1), makeCard(2)] }),
     );
-    const { container } = render(<FirstRowPreview />);
+    const { container } = renderPreview();
     const imgs = container.querySelectorAll("img");
     expect(imgs[0]?.getAttribute("fetchpriority")).toBe("high");
     expect(imgs[1]?.getAttribute("fetchpriority")).toBeNull();
@@ -137,7 +149,7 @@ describe("FirstRowPreview", () => {
         setLabels: { OGN: "Origins" },
       }),
     );
-    const { container } = render(<FirstRowPreview />);
+    const { container } = renderPreview();
     expect(container.textContent).toContain("OGN");
     expect(container.textContent).toContain("Origins");
   });
@@ -146,7 +158,7 @@ describe("FirstRowPreview", () => {
     mockUseLoaderData.mockReturnValue(
       makeLoaderData({ firstRow: [makeCard(0, "ARC")], setLabels: {} }),
     );
-    const { container } = render(<FirstRowPreview />);
+    const { container } = renderPreview();
     expect(container.textContent).toContain("ARC");
   });
 
@@ -155,7 +167,7 @@ describe("FirstRowPreview", () => {
     // otherwise the filter sidebar makes viewport-based breakpoints over-count
     // columns vs. what `useResponsiveColumns` picks at runtime.
     mockUseLoaderData.mockReturnValue(makeLoaderData({ firstRow: [makeCard(0)] }));
-    const { container } = render(<FirstRowPreview />);
+    const { container } = renderPreview();
     const grid = container.querySelector(".grid");
     const className = grid?.className ?? "";
     expect(className).toContain("grid-cols-2");
@@ -174,7 +186,7 @@ describe("FirstRowPreview", () => {
     // the SSR shell.
     const cards = Array.from({ length: 16 }, (_, i) => makeCard(i));
     mockUseLoaderData.mockReturnValue(makeLoaderData({ firstRow: cards }));
-    const { container } = render(<FirstRowPreview />);
+    const { container } = renderPreview();
     const cells = container.querySelectorAll(".grid > div");
     expect(cells).toHaveLength(16);
     // Items 0-3 always visible (2 cols × 2 rows at base).
@@ -199,7 +211,7 @@ describe("FirstRowPreview", () => {
     mockUseLoaderData.mockReturnValue(
       makeLoaderData({ firstRow: [{ ...makeCard(0), rotated: true }] }),
     );
-    const { container } = render(<FirstRowPreview />);
+    const { container } = renderPreview();
     const img = container.querySelector("img");
     // Rotated branch fills a -90deg-rotated overlay (size-full object-cover),
     // unlike the portrait branch's aspect-card image.
@@ -210,7 +222,7 @@ describe("FirstRowPreview", () => {
 
   it("keeps portrait cards in the aspect-card box (no rotation)", () => {
     mockUseLoaderData.mockReturnValue(makeLoaderData({ firstRow: [makeCard(0)] }));
-    const { container } = render(<FirstRowPreview />);
+    const { container } = renderPreview();
     const img = container.querySelector("img");
     expect(img?.className).toContain("aspect-card");
     expect(img?.parentElement?.getAttribute("style") ?? "").not.toContain("rotate(-90deg)");
@@ -218,7 +230,7 @@ describe("FirstRowPreview", () => {
 
   it("sets srcset, sizes, width, height, and alt on every image", () => {
     mockUseLoaderData.mockReturnValue(makeLoaderData({ firstRow: [makeCard(0), makeCard(1)] }));
-    const { container } = render(<FirstRowPreview />);
+    const { container } = renderPreview();
     const imgs = container.querySelectorAll("img");
     for (const img of imgs) {
       expect(img.getAttribute("srcset")).toMatch(/-400w\.webp 400w, .*-full\.webp 800w/u);

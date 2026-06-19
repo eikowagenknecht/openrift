@@ -17,8 +17,10 @@ import {
 } from "@/components/filters/options-bar";
 import { SearchBar } from "@/components/filters/search-bar";
 import { Pane } from "@/components/layout/panes";
+import { useFilterValues } from "@/hooks/use-card-filters";
 import { fromWireFacets, fromWireFilterCounts } from "@/lib/cards-facets";
 import { LANDSCAPE_ROTATION_STYLE } from "@/lib/images";
+import { cn } from "@/lib/utils";
 
 const cardsRoute = getRouteApi("/_app/cards");
 
@@ -78,6 +80,10 @@ function visibilityForIndex(i: number): string {
 export function FirstRowPreview() {
   const { firstRow, facets, availableLanguages, setLabels, counts, filterCounts } =
     cardsRoute.useLoaderData();
+  // Match the live toolbar's grouping: tighten the gap below the search row when
+  // the active-filters strip renders below it. Keeps SSR chrome dimensions in
+  // step with the hydrated <CardBrowser> so the swap doesn't shift the layout.
+  const { hasActiveFilters } = useFilterValues();
   if (facets === null) {
     return null;
   }
@@ -90,7 +96,7 @@ export function FirstRowPreview() {
     <CardBrowserLayout
       toolbar={
         <>
-          <div className="mb-1.5 flex items-start gap-3 sm:mb-3">
+          <div className={cn("flex items-start gap-3", hasActiveFilters ? "mb-2" : "mb-3")}>
             <SearchBar totalCards={counts.totalCards} filteredCount={counts.filteredCount} />
             <DesktopOptionsBar className="hidden sm:flex" />
             <FilterToggleButton className="@wide:hidden hidden sm:flex" />

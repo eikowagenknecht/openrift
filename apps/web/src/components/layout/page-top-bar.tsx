@@ -53,8 +53,13 @@ export function useMeasuredHeight(el: HTMLElement | null) {
 // would otherwise inherit `px-safe` on the full-bleed layer AND apply it again
 // on the inner column, double-insetting the bar's content. Keep the gutter out
 // of the base and add it explicitly only on the full-bleed (non-maxWidth) path.
+// `pb-2` on mobile (not `py-3`): a borderless title sitting above content reads
+// as more space than it measures, so the gap below it is tightened to 8px on
+// phones to optically match the tighter rhythm of the controls below. Desktop
+// keeps the 12px gap (`sm:pb-3`); the top stays 12px since the header's border
+// anchors it (no optical inflation there).
 const PAGE_TOP_BAR_STICKY_BASE =
-  "bg-background/80 sticky top-(--header-height) z-30 py-3 backdrop-blur-lg";
+  "bg-background/80 sticky top-(--header-height) z-30 pt-3 pb-2 backdrop-blur-lg sm:pb-3";
 
 export const PAGE_TOP_BAR_STICKY = `${PAGE_TOP_BAR_STICKY_BASE} px-safe`;
 
@@ -165,7 +170,7 @@ export function PageTopBarTitle({ onToggleSidebar, children }: PageTopBarTitlePr
     return (
       <>
         <h1 className="md:hidden">
-          <Button variant="ghost" className="mr-2 gap-1" onClick={onToggleSidebar}>
+          <Button variant="ghost" className="mr-2 -ml-2.5 gap-1" onClick={onToggleSidebar}>
             {children}
             <ChevronDownIcon className="text-muted-foreground size-4" />
           </Button>
