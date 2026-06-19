@@ -19,6 +19,13 @@ import { SortableHeader } from "@/components/admin/sortable-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -31,10 +38,12 @@ import {
   useAcceptFavoritePrintings,
 } from "@/hooks/use-admin-card-mutations";
 import { parseSortParam, stringifySort } from "@/lib/admin-cards-search";
+import { ALL_ASSIGNABLE_SCOPE, bucketScopeKey, scopeLabel } from "@/lib/marketplace-coverage";
 import type {
   CardCoverage,
   DirectionCoverage,
   MarketplaceCoverage,
+  PriceAssignBucket,
 } from "@/lib/marketplace-coverage";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
@@ -361,9 +370,11 @@ const OVERSCAN = 20;
 export function AcceptedCardsTable({
   data,
   coverageBySlug,
+  assignBucketsBySlug,
 }: {
   data: Row[];
   coverageBySlug: Map<string, CardCoverage>;
+  assignBucketsBySlug: Map<string, PriceAssignBucket[]>;
 }) {
   const queryClient = useQueryClient();
   const [acceptAllProgress, setAcceptAllProgress] = useState<{
@@ -372,12 +383,13 @@ export function AcceptedCardsTable({
   } | null>(null);
 
   const navigate = useNavigate({ from: CardsRoute.fullPath });
-  const { sorting, globalFilter, setSlug, activeStatus } = CardsRoute.useSearch({
+  const { sorting, globalFilter, setSlug, activeStatus, priceScope } = CardsRoute.useSearch({
     select: (s) => ({
       sorting: parseSortParam(s.sort),
       globalFilter: s.q ?? "",
       setSlug: s.set,
       activeStatus: s.status ?? null,
+      priceScope: s.priceScope ?? ALL_ASSIGNABLE_SCOPE,
     }),
   });
 
@@ -387,31 +399,100 @@ export function AcceptedCardsTable({
     (r) => r.uncheckedCardCount + r.uncheckedPrintingCount > 0,
   ).length;
 
-  function hasPricesToAssign(slug: string | null): boolean {
-    const cov = slug ? coverageBySlug.get(slug) : undefined;
-    if (!cov) {
+  // Does a card have any unbound entry matching the given scope? The umbrella
+  // "all" scope counts only assignable buckets, so CardTrader entries for a
+  // language we don't stock printings of (e.g. French) drop out of the default
+  // count but stay reachable by selecting their scope explicitly.
+  function matchesScope(slug: string | null, scope: string): boolean {
+    const buckets = slug ? assignBucketsBySlug.get(slug) : undefined;
+    if (!buckets) {
       return false;
     }
-    const status = (d: DirectionCoverage) => d.status === "partial" || d.status === "none";
-    return (
-      status(cov.tcgplayer.entries) ||
-      status(cov.cardmarket.entries) ||
-      status(cov.cardtrader.entries)
-    );
+    if (scope === ALL_ASSIGNABLE_SCOPE) {
+      return buckets.some((b) => b.unbound > 0 && b.assignable);
+    }
+    return buckets.some((b) => bucketScopeKey(b) === scope && b.unbound > 0);
   }
 
-  const pricesToAssignCount = data.filter((r) => hasPricesToAssign(r.cardSlug)).length;
+  // Scope options for the picker: the umbrella, then every (source, language)
+  // bucket present in the current data, each with its card count. Built from the
+  // visible `data` so the counts track the active set filter.
+  const scopeCardCounts = new Map<string, number>();
+  for (const row of data) {
+    const buckets = row.cardSlug ? assignBucketsBySlug.get(row.cardSlug) : undefined;
+    if (!buckets) {
+      continue;
+    }
+    const seen = new Set<string>();
+    for (const bucket of buckets) {
+      if (bucket.unbound === 0) {
+        continue;
+      }
+      const key = bucketScopeKey(bucket);
+      if (!seen.has(key)) {
+        seen.add(key);
+        scopeCardCounts.set(key, (scopeCardCounts.get(key) ?? 0) + 1);
+      }
+    }
+  }
+
+  const allAssignableCount = data.filter((r) =>
+    matchesScope(r.cardSlug, ALL_ASSIGNABLE_SCOPE),
+  ).length;
+
+  // CM / TCG first, then CardTrader buckets sorted by language code.
+  const scopeOrder = (key: string) => {
+    if (key.startsWith("cardmarket")) {
+      return `0:${key}`;
+    }
+    if (key.startsWith("tcgplayer")) {
+      return `1:${key}`;
+    }
+    return `2:${key}`;
+  };
+  const scopeOptions = [
+    {
+      value: ALL_ASSIGNABLE_SCOPE,
+      label: scopeLabel(ALL_ASSIGNABLE_SCOPE),
+      count: allAssignableCount,
+    },
+    ...[...scopeCardCounts.keys()]
+      .toSorted((a, b) => scopeOrder(a).localeCompare(scopeOrder(b)))
+      .map((key) => ({ value: key, label: scopeLabel(key), count: scopeCardCounts.get(key) ?? 0 })),
+  ];
+  const selectItems = scopeOptions.map((o) => ({
+    value: o.value,
+    label: `${o.label} (${o.count})`,
+  }));
+
+  // Any card with at least one unbound entry (so the toggle appears even when
+  // the only buckets are un-assignable noise the umbrella count hides).
+  const pricesToAssignTotal = scopeCardCounts.size > 0;
+  const activeScopeCount = data.filter((r) => matchesScope(r.cardSlug, priceScope)).length;
 
   const filteredData =
     activeStatus === "unchecked"
       ? data.filter((r) => r.uncheckedCardCount + r.uncheckedPrintingCount > 0)
       : activeStatus === "prices-to-assign"
-        ? data.filter((r) => hasPricesToAssign(r.cardSlug))
+        ? data.filter((r) => matchesScope(r.cardSlug, priceScope))
         : data;
 
   function toggleStatus(status: NonNullable<typeof activeStatus>) {
     void navigate({
       search: (prev) => ({ ...prev, status: activeStatus === status ? undefined : status }),
+      replace: true,
+    });
+  }
+
+  // Picking a scope also activates the prices-to-assign filter. The umbrella
+  // scope is stored as an absent param so the URL stays clean by default.
+  function changePriceScope(value: string | null) {
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        status: "prices-to-assign",
+        priceScope: value && value !== ALL_ASSIGNABLE_SCOPE ? value : undefined,
+      }),
       replace: true,
     });
   }
@@ -541,13 +622,29 @@ export function AcceptedCardsTable({
           </Button>
         )}
 
-        {pricesToAssignCount > 0 && (
-          <Button
-            variant={activeStatus === "prices-to-assign" ? "default" : "outline"}
-            onClick={() => toggleStatus("prices-to-assign")}
-          >
-            Prices to assign ({pricesToAssignCount})
-          </Button>
+        {pricesToAssignTotal && (
+          <>
+            <Button
+              variant={activeStatus === "prices-to-assign" ? "default" : "outline"}
+              onClick={() => toggleStatus("prices-to-assign")}
+            >
+              Prices to assign ({activeScopeCount})
+            </Button>
+            {activeStatus === "prices-to-assign" && (
+              <Select items={selectItems} value={priceScope} onValueChange={changePriceScope}>
+                <SelectTrigger aria-label="Price source scope" className="w-56">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {selectItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </>
         )}
 
         <p className="text-muted-foreground">

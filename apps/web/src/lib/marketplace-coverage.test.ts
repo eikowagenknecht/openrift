@@ -5,7 +5,14 @@ import type {
 } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import { buildCoverageMapBySlug, computeCardCoverage } from "./marketplace-coverage";
+import {
+  bucketScopeKey,
+  buildCoverageMapBySlug,
+  buildPriceAssignBucketsBySlug,
+  computeCardCoverage,
+  computePriceAssignBuckets,
+  scopeLabel,
+} from "./marketplace-coverage";
 
 function printing(
   overrides: Partial<UnifiedMappingPrintingResponse> = {},
@@ -302,5 +309,101 @@ describe("buildCoverageMapBySlug", () => {
 
   it("returns an empty map for empty input", () => {
     expect(buildCoverageMapBySlug([])).toEqual(new Map());
+  });
+});
+
+describe("computePriceAssignBuckets", () => {
+  it("returns no buckets when there are no staged entries", () => {
+    expect(computePriceAssignBuckets(group([printing()]))).toEqual([]);
+  });
+
+  it("buckets a Cardmarket staged entry as language-agnostic and assignable against EN", () => {
+    const buckets = computePriceAssignBuckets(
+      group([printing({ language: "EN" })], { cmStaged: [stagedProduct()] }),
+    );
+    expect(buckets).toEqual([
+      { marketplace: "cardmarket", language: null, unbound: 1, assignable: true },
+    ]);
+  });
+
+  it("CM/TCG buckets are un-assignable when the card has no EN printing", () => {
+    const buckets = computePriceAssignBuckets(
+      group([printing({ language: "ZH" })], { tcgStaged: [stagedProduct()] }),
+    );
+    expect(buckets).toEqual([
+      { marketplace: "tcgplayer", language: null, unbound: 1, assignable: false },
+    ]);
+  });
+
+  it("splits CardTrader entries per language and marks FR un-assignable without a FR printing", () => {
+    const buckets = computePriceAssignBuckets(
+      group([printing({ language: "EN" })], {
+        ctStaged: [
+          stagedProduct({ language: "EN" }),
+          stagedProduct({ language: "FR" }),
+          stagedProduct({ language: "FR" }),
+        ],
+      }),
+    );
+    expect(buckets).toContainEqual({
+      marketplace: "cardtrader",
+      language: "EN",
+      unbound: 1,
+      assignable: true,
+    });
+    expect(buckets).toContainEqual({
+      marketplace: "cardtrader",
+      language: "FR",
+      unbound: 2,
+      assignable: false,
+    });
+  });
+
+  it("marks a CardTrader FR bucket assignable once a FR printing exists", () => {
+    const buckets = computePriceAssignBuckets(
+      group([printing({ printingId: "p-fr", language: "FR" })], {
+        ctStaged: [stagedProduct({ language: "FR" })],
+      }),
+    );
+    expect(buckets).toEqual([
+      { marketplace: "cardtrader", language: "FR", unbound: 1, assignable: true },
+    ]);
+  });
+});
+
+describe("buildPriceAssignBucketsBySlug", () => {
+  it("indexes buckets by card slug", () => {
+    const map = buildPriceAssignBucketsBySlug([
+      group([printing({ language: "EN" })], { cardSlug: "fireball", cmStaged: [stagedProduct()] }),
+      group([printing({ printingId: "p-2", language: "EN" })], {
+        cardSlug: "blizzard",
+        cardId: "card-2",
+      }),
+    ]);
+    expect(map.get("fireball")).toHaveLength(1);
+    expect(map.get("blizzard")).toEqual([]);
+  });
+});
+
+describe("bucketScopeKey", () => {
+  it("collapses language-agnostic marketplaces to their name", () => {
+    expect(bucketScopeKey({ marketplace: "cardmarket", language: null })).toBe("cardmarket");
+    expect(bucketScopeKey({ marketplace: "tcgplayer", language: null })).toBe("tcgplayer");
+  });
+
+  it("carries the language for CardTrader", () => {
+    expect(bucketScopeKey({ marketplace: "cardtrader", language: "FR" })).toBe("cardtrader:FR");
+  });
+});
+
+describe("scopeLabel", () => {
+  it.each([
+    ["all", "All assignable"],
+    ["cardmarket", "Cardmarket"],
+    ["tcgplayer", "TCGplayer"],
+    ["cardtrader:EN", "CardTrader · EN"],
+    ["cardtrader:FR", "CardTrader · FR"],
+  ])("labels %s as %s", (scope, expected) => {
+    expect(scopeLabel(scope)).toBe(expected);
   });
 });

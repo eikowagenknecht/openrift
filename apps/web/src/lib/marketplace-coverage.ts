@@ -111,3 +111,125 @@ export function buildCoverageMapBySlug(
   }
   return result;
 }
+
+// ---------------------------------------------------------------------------
+// Prices-to-assign buckets
+// ---------------------------------------------------------------------------
+
+export type Marketplace = "tcgplayer" | "cardmarket" | "cardtrader";
+
+/**
+ * One source+language slice of a card's unbound (staged) marketplace entries.
+ *
+ * The "prices to assign" filter splits on this so that, e.g., a CardTrader
+ * French entry on a card that has no French printing doesn't drown out the
+ * entries you can actually act on.
+ */
+export interface PriceAssignBucket {
+  marketplace: Marketplace;
+  /**
+   * `null` for Cardmarket / TCGplayer (language-agnostic feeds, assumed EN); a
+   * language code (`"EN"`, `"FR"`, …) for CardTrader, which is per-language.
+   */
+  language: string | null;
+  /** Count of unbound (staged) products in this bucket. */
+  unbound: number;
+  /**
+   * Whether a printing of the matching language exists on this card, so the
+   * staged entries can actually be assigned. CardTrader French entries are
+   * only assignable once a French printing exists; until then they're noise.
+   */
+  assignable: boolean;
+}
+
+// The language a staged product would be assigned against (CM/TCG default to EN).
+function targetLanguage(language: string | null): string {
+  return language ?? "EN";
+}
+
+/**
+ * Stable scope key for a bucket, used in the URL and the scope picker.
+ * Language-agnostic marketplaces collapse to their name (`"cardmarket"`,
+ * `"tcgplayer"`); CardTrader carries its language (`"cardtrader:FR"`).
+ *
+ * @returns The scope key string.
+ */
+export function bucketScopeKey(
+  bucket: Pick<PriceAssignBucket, "marketplace" | "language">,
+): string {
+  return bucket.language === null ? bucket.marketplace : `${bucket.marketplace}:${bucket.language}`;
+}
+
+const MARKETPLACE_LABELS: Record<Marketplace, string> = {
+  tcgplayer: "TCGplayer",
+  cardmarket: "Cardmarket",
+  cardtrader: "CardTrader",
+};
+
+/** The umbrella scope key — every assignable bucket, across all sources. */
+export const ALL_ASSIGNABLE_SCOPE = "all";
+
+/**
+ * Human label for a scope key (`"cardtrader:FR"` → `"CardTrader · FR"`).
+ *
+ * @returns The display label.
+ */
+export function scopeLabel(scope: string): string {
+  if (scope === ALL_ASSIGNABLE_SCOPE) {
+    return "All assignable";
+  }
+  const [marketplace, language] = scope.split(":") as [Marketplace, string?];
+  const base = MARKETPLACE_LABELS[marketplace] ?? marketplace;
+  return language ? `${base} · ${language}` : base;
+}
+
+/**
+ * Split one card's unbound staged entries into source+language buckets, marking
+ * each as assignable or not based on whether a matching-language printing exists.
+ *
+ * @returns One bucket per (marketplace, language) slice that has unbound entries.
+ */
+export function computePriceAssignBuckets(group: UnifiedMappingGroupResponse): PriceAssignBucket[] {
+  const printingLanguages = new Set(group.printings.map((printing) => printing.language));
+  const marketplaces: Marketplace[] = ["tcgplayer", "cardmarket", "cardtrader"];
+  const buckets: PriceAssignBucket[] = [];
+
+  for (const marketplace of marketplaces) {
+    const staged = group[marketplace].stagedProducts;
+    if (staged.length === 0) {
+      continue;
+    }
+    // CM/TCG staged products carry no language (assumed EN), so they all fall
+    // into the single `null` bucket. CardTrader splits per language.
+    const countByLanguage = new Map<string | null, number>();
+    for (const product of staged) {
+      const language = marketplace === "cardtrader" ? product.language : null;
+      countByLanguage.set(language, (countByLanguage.get(language) ?? 0) + 1);
+    }
+    for (const [language, unbound] of countByLanguage) {
+      buckets.push({
+        marketplace,
+        language,
+        unbound,
+        assignable: printingLanguages.has(targetLanguage(language)),
+      });
+    }
+  }
+
+  return buckets;
+}
+
+/**
+ * Build a map from card slug to its prices-to-assign buckets.
+ *
+ * @returns A Map keyed by `cardSlug`; cards with no unbound entries get `[]`.
+ */
+export function buildPriceAssignBucketsBySlug(
+  groups: UnifiedMappingGroupResponse[],
+): Map<string, PriceAssignBucket[]> {
+  const result = new Map<string, PriceAssignBucket[]>();
+  for (const group of groups) {
+    result.set(group.cardSlug, computePriceAssignBuckets(group));
+  }
+  return result;
+}

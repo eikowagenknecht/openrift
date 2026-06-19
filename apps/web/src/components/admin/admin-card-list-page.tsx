@@ -17,7 +17,7 @@ import { useAdminCardList, useAllCards } from "@/hooks/use-admin-card-queries";
 import { useSets } from "@/hooks/use-sets";
 import { useUnifiedMappings } from "@/hooks/use-unified-mappings";
 import { filterCardsBySet } from "@/lib/admin-cards-search";
-import { buildCoverageMapBySlug } from "@/lib/marketplace-coverage";
+import { buildCoverageMapBySlug, buildPriceAssignBucketsBySlug } from "@/lib/marketplace-coverage";
 import { Route } from "@/routes/_app/_authenticated/admin/cards";
 
 const ALL_SETS = "__all__";
@@ -58,6 +58,7 @@ export function AdminCardListPage() {
     unified.unmatchedProducts.cardtrader.length;
 
   const coverageBySlug = buildCoverageMapBySlug(unified.groups);
+  const assignBucketsBySlug = buildPriceAssignBucketsBySlug(unified.groups);
 
   function changeSet(value: string | null) {
     const next = value && value !== ALL_SETS ? value : undefined;
@@ -78,6 +79,7 @@ export function AdminCardListPage() {
             q: undefined,
             sort: undefined,
             status: undefined,
+            priceScope: undefined,
           }),
           replace: true,
         });
@@ -110,7 +112,11 @@ export function AdminCardListPage() {
         </div>
       </div>
       <TabsContent value="cards" className="flex min-h-0 flex-1 flex-col">
-        <AcceptedCardsTable data={cards} coverageBySlug={coverageBySlug} />
+        <AcceptedCardsTable
+          data={cards}
+          coverageBySlug={coverageBySlug}
+          assignBucketsBySlug={assignBucketsBySlug}
+        />
       </TabsContent>
       <TabsContent value="candidates" className="flex min-h-0 flex-1 flex-col">
         <CandidateCardsTable data={candidates} />
