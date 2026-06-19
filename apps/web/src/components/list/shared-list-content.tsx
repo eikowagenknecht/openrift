@@ -4,6 +4,7 @@ import type {
   Printing,
   PublicListDetailResponse,
 } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 import { HandshakeIcon, HeartIcon, ListIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 
@@ -17,6 +18,7 @@ import {
 } from "@/components/cards/card-browser-filter-scaffold";
 import { CardCell } from "@/components/cards/card-cell";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
+import { OwnedCollectionsPopover } from "@/components/cards/card-detail/owned-collections-popover";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { COUNT_PILL_BASE, COUNT_PILL_INTERACTIVE } from "@/components/cards/count-pill";
@@ -54,6 +56,7 @@ import { useChannelRegistry } from "@/hooks/use-enums";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
+import { useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
 import { FilterSearchProvider, useFilterSearch } from "@/lib/search-schemas";
 import { offerablePrintings, personalCopyIdsByPrinting } from "@/lib/tradelist-exchange";
 import { cn } from "@/lib/utils";
@@ -216,6 +219,15 @@ function SharedListGrid({
     printingsByCardId,
   );
 
+  // On a member's tradelist, surface how many of each printing the viewer
+  // already owns next to the "Want" button, so they don't request duplicates
+  // they don't need. Only the request surface shows this; the live query is
+  // safe because the whole grid is client-only (gated above).
+  const { data: ownedCounts } = useOwnedCountsForPrintings(
+    listPrintings.map((printing) => printing.id),
+    exchange?.mode === "request",
+  );
+
   // Card-kind fan: scope the catalog map to the user's preferred languages
   // so a public viewer sees the printings they care about, not every
   // language reprint. Empty prefs means show all.
@@ -305,7 +317,26 @@ function SharedListGrid({
     // pill. Tradelists are copy-kind, so the action never collides with it.
     let strip: React.ReactNode;
     if (exchange?.mode === "request") {
-      strip = <WantStrip onClick={() => setRequestPrinting(item.printing)} disabled={reserved} />;
+      // Mirror the catalog: the owned-count pill opens the "in your collections"
+      // breakdown. Rendered only when the viewer owns at least one copy.
+      const ownedCount = ownedCounts?.totals[item.printing.id] ?? 0;
+      strip = (
+        <WantStrip
+          onClick={() => setRequestPrinting(item.printing)}
+          disabled={reserved}
+          ownedSlot={
+            ownedCount > 0 ? (
+              <OwnedCollectionsPopover
+                printingId={item.printing.id}
+                cardName={legendDisplayName(item.printing.card)}
+                shortCode={item.printing.shortCode}
+                count={ownedCount}
+                align="start"
+              />
+            ) : undefined
+          }
+        />
+      );
     } else if (exchange?.mode === "offer") {
       const choices = offerChoicesForPrinting(item.printing);
       strip = (
@@ -501,10 +532,22 @@ function SharedListGrid({
 // Per-cell "Want" pill rendered above a tradelist card; opens the request flow.
 // Disabled (greyed, non-interactive) when the copy is reserved by a live trade —
 // it can't be requested, and the card carries a "Reserved" badge instead.
-function WantStrip({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
+function WantStrip({
+  onClick,
+  disabled,
+  ownedSlot,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  /** Owned-count pill (collections popover), left-aligned. Omitted when the viewer owns none. */
+  ownedSlot?: React.ReactNode;
+}) {
   return (
     // h-5 + mb-1 = 24px, matching ADD_STRIP_HEIGHT so the virtualizer estimate holds.
     <div className="relative z-30 mb-1 flex h-5 items-center justify-center">
+      {/* Left-aligned so the Want button stays centered and consistent whether
+          or not the viewer owns copies. */}
+      {ownedSlot ? <span className="absolute left-0">{ownedSlot}</span> : null}
       <button
         type="button"
         tabIndex={-1}
