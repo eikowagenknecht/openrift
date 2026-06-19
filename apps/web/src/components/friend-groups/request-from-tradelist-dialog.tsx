@@ -23,7 +23,13 @@ import {
   useShareListWithFriendGroup,
 } from "@/hooks/use-friend-groups";
 import { useBulkAddListEntries, useCreateList } from "@/hooks/use-lists";
-import { entryForPrinting, listTargetOptions, preferredListId } from "@/lib/tradelist-exchange";
+import {
+  entryForPrinting,
+  listKindNoun,
+  listTargetOptions,
+  preferredListId,
+  requestListKind,
+} from "@/lib/tradelist-exchange";
 
 /** Sentinel for the "create a new wishlist" radio option. */
 const NEW_LIST = "__new__";
@@ -151,20 +157,16 @@ function RequestBody({
         });
       } else {
         let listId: string;
-        let listKind: "card" | "printing";
+        const listKind = requestListKind(chosen);
         if (selectedId === NEW_LIST) {
           const created = await createList.mutateAsync({
             name: newName.trim() || "Wishlist",
             intent: "wish",
-            kind: "card",
+            kind: listKind,
           });
           listId = created.id;
-          listKind = "card";
         } else if (chosen) {
           listId = chosen.listId;
-          // Wishlists are only ever card- or printing-kind; narrow the widened
-          // ListTargetOption kind defensively.
-          listKind = chosen.listKind === "printing" ? "printing" : "card";
         } else {
           return;
         }
@@ -302,7 +304,7 @@ function RequestBody({
               <RadioGroupItem id={inputId} value={option.listId} />
               <span className="min-w-0 flex-1 truncate font-medium">{option.listName}</span>
               <span className="text-muted-foreground shrink-0 text-xs">
-                {option.entryCount} {option.entryCount === 1 ? "card" : "cards"}
+                {option.entryCount} {listKindNoun(option.listKind, option.entryCount)}
               </span>
               <Badge variant={option.isShared ? "secondary" : "outline"} className="shrink-0">
                 {option.isShared ? "Shared" : "Will be shared"}
@@ -316,7 +318,8 @@ function RequestBody({
         >
           <RadioGroupItem id="request-wishlist-new" value={NEW_LIST} />
           <PlusSquareIcon className="text-muted-foreground size-4 shrink-0" />
-          <span className="flex-1 font-medium">New wishlist</span>
+          <span className="min-w-0 flex-1 truncate font-medium">New wishlist</span>
+          <span className="text-muted-foreground shrink-0 text-xs">printings</span>
           <Badge variant="outline" className="shrink-0">
             Will be shared
           </Badge>

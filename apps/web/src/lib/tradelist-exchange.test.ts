@@ -4,10 +4,12 @@ import { describe, expect, it } from "vitest";
 import type { ListTargetOption } from "./tradelist-exchange";
 import {
   entryForPrinting,
+  listKindNoun,
   listTargetOptions,
   offerablePrintings,
   personalCopyIdsByPrinting,
   preferredListId,
+  requestListKind,
 } from "./tradelist-exchange";
 
 const EMPTY_PREF = { pricePref: null, priceAbsoluteCents: null, tradeType: null };
@@ -99,6 +101,48 @@ describe("entryForPrinting", () => {
     expect(entryForPrinting("card", printing, 0).quantity).toBe(1);
     expect(entryForPrinting("card", printing, -5).quantity).toBe(1);
     expect(entryForPrinting("card", printing, 2.9).quantity).toBe(2);
+  });
+});
+
+describe("listKindNoun", () => {
+  it("uses the singular noun when the count is exactly one", () => {
+    expect(listKindNoun("card", 1)).toBe("card");
+    expect(listKindNoun("printing", 1)).toBe("printing");
+    expect(listKindNoun("copy", 1)).toBe("copy");
+  });
+
+  it("uses the plural noun for zero or many", () => {
+    expect(listKindNoun("card", 0)).toBe("cards");
+    expect(listKindNoun("printing", 3)).toBe("printings");
+    expect(listKindNoun("copy", 2)).toBe("copies");
+  });
+});
+
+describe("requestListKind", () => {
+  const option = (kind: ListTargetOption["listKind"]): ListTargetOption => ({
+    listId: "w",
+    listName: "Wishlist",
+    listKind: kind,
+    entryCount: 0,
+    isShared: false,
+  });
+
+  it("makes a new wishlist printing-kind so it matches only the requested printing", () => {
+    // Regression: a new wishlist used to be created card-kind, which matched
+    // every printing of the card and surfaced far more matches than intended.
+    expect(requestListKind(undefined)).toBe("printing");
+  });
+
+  it("keeps a printing-kind chosen list as printing", () => {
+    expect(requestListKind(option("printing"))).toBe("printing");
+  });
+
+  it("keeps a card-kind chosen list as card", () => {
+    expect(requestListKind(option("card"))).toBe("card");
+  });
+
+  it("narrows an unexpected copy-kind chosen list to card", () => {
+    expect(requestListKind(option("copy"))).toBe("card");
   });
 });
 

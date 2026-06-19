@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-06-19
+
+### Other
+
+- fix(Trades): **Wishlist requests stay specific** — requesting a card from a member's tradelist now adds it to a wishlist that matches just that printing, not every printing of the card, and the list picker shows whether each list tracks cards or printings.
+
 ## 2026-06-18
 
 ### Highlights

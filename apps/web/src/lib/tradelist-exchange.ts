@@ -42,6 +42,41 @@ export function listTargetOptions(
   return options;
 }
 
+const LIST_KIND_NOUN: Record<ListKind, { singular: string; plural: string }> = {
+  card: { singular: "card", plural: "cards" },
+  printing: { singular: "printing", plural: "printings" },
+  copy: { singular: "copy", plural: "copies" },
+};
+
+/**
+ * The count-appropriate, lowercase noun for a list kind, so a picker can label
+ * an option "3 printings" vs "3 cards" and make the matching granularity
+ * visible. Capitalize at the call site if a label needs it.
+ *
+ * @returns The singular noun when count is 1, otherwise the plural.
+ */
+export function listKindNoun(kind: ListKind, count: number): string {
+  const noun = LIST_KIND_NOUN[kind];
+  return count === 1 ? noun.singular : noun.plural;
+}
+
+/**
+ * The entry kind to use when the request-from-tradelist flow lands a printing on
+ * a wishlist. A brand-new wishlist (no `chosen`) is printing-kind: the request
+ * always targets one specific printing, so a card-kind list — which matches
+ * every printing of the card — would surface far more matches than the viewer
+ * asked for. An existing list keeps its own kind, narrowed defensively to
+ * card/printing since wishlists are never copy-kind.
+ *
+ * @returns `"printing"` for new lists, otherwise the chosen list's narrowed kind.
+ */
+export function requestListKind(chosen?: ListTargetOption): "card" | "printing" {
+  if (!chosen) {
+    return "printing";
+  }
+  return chosen.listKind === "printing" ? "printing" : "card";
+}
+
 /** Bulk-add entry payload for a single printing, shaped to a list's kind. */
 interface PrintingEntryPayload {
   cardId?: string;
