@@ -150,6 +150,7 @@ function RequestBody({
     selectedId === NEW_LIST ? newName.trim() || "Wishlist" : (chosen?.listName ?? "");
 
   const sendRequest = async () => {
+    const newListName = newName.trim() || "Wishlist";
     try {
       if (existingMatch) {
         await createTrade.mutateAsync({
@@ -164,7 +165,7 @@ function RequestBody({
         const listKind = requestListKind(chosen);
         if (selectedId === NEW_LIST) {
           const created = await createList.mutateAsync({
-            name: newName.trim() || "Wishlist",
+            name: newListName,
             intent: "wish",
             kind: listKind,
           });

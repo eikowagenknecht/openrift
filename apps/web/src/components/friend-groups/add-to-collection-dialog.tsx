@@ -95,11 +95,12 @@ function AddToCollectionBody({
   const [newName, setNewName] = useState("Collection");
 
   const confirm = async () => {
+    const newCollectionName = newName.trim() || "Collection";
     try {
       let targetCollectionId: string;
       if (selectedId === NEW_COLLECTION) {
         const created = await createCollection.mutateAsync({
-          name: newName.trim() || "Collection",
+          name: newCollectionName,
         });
         targetCollectionId = created.id;
       } else {

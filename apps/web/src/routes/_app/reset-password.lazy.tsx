@@ -39,34 +39,28 @@ function ResetPasswordPage() {
     }
     setEmailError("");
     setLoading(true);
-    try {
-      const result = await authClient.emailOtp.sendVerificationOtp({
-        email: trimmed,
-        type: "forget-password",
-      });
-      if (result.error) {
-        setEmailError(requestOtpErrorMessage(result.error));
-        return;
-      }
-      setStep("code");
-    } finally {
-      setLoading(false);
+    const result = await authClient.emailOtp.sendVerificationOtp({
+      email: trimmed,
+      type: "forget-password",
+    });
+    setLoading(false);
+    if (result.error) {
+      setEmailError(requestOtpErrorMessage(result.error));
+      return;
     }
+    setStep("code");
   }
 
   async function handleResend() {
     setResending(true);
     setError("");
-    try {
-      const result = await authClient.emailOtp.sendVerificationOtp({
-        email: email.trim(),
-        type: "forget-password",
-      });
-      if (result.error) {
-        setError(requestOtpErrorMessage(result.error));
-      }
-    } finally {
-      setResending(false);
+    const result = await authClient.emailOtp.sendVerificationOtp({
+      email: email.trim(),
+      type: "forget-password",
+    });
+    setResending(false);
+    if (result.error) {
+      setError(requestOtpErrorMessage(result.error));
     }
   }
 

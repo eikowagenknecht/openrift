@@ -153,13 +153,14 @@ function OfferBody({
     selectedId === NEW_LIST ? newName.trim() || "Tradelist" : (chosenList?.listName ?? "");
 
   const sendOffer = async () => {
+    const newListName = newName.trim() || "Tradelist";
     try {
       const copyIds = chosenPrinting.copyIds.slice(0, effectiveQuantity);
       if (!existingMatch) {
         let listId: string;
         if (selectedId === NEW_LIST) {
           const created = await createList.mutateAsync({
-            name: newName.trim() || "Tradelist",
+            name: newListName,
             intent: "trade",
             kind: "copy",
           });
