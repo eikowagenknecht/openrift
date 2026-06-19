@@ -128,7 +128,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{job=\"openrift-api\",ok=\"false\"}[5m])) / clamp_min(sum(rate(http_requests_total{job=\"openrift-api\"}[5m])), 1e-9)",
+          "expr": "(sum(rate(http_requests_total{job=\"openrift-api\",status=~\"5..\"}[5m])) or vector(0)) / clamp_min(sum(rate(http_requests_total{job=\"openrift-api\"}[5m])), 1e-9)",
           "refId": "A"
         }
       ],

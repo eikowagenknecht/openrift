@@ -115,7 +115,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{job=\"openrift-api\",status=~\"5..\",${audience}}[$__range])) / clamp_min(sum(rate(http_requests_total{job=\"openrift-api\",${audience}}[$__range])), 1e-9)",
+          "expr": "(sum(rate(http_requests_total{job=\"openrift-api\",status=~\"5..\",${audience}}[$__range])) or vector(0)) / clamp_min(sum(rate(http_requests_total{job=\"openrift-api\",${audience}}[$__range])), 1e-9)",
           "legendFormat": "Error %",
           "refId": "A"
         }

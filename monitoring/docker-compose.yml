@@ -134,7 +134,8 @@ services:
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
-      - "--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-90d}"
+      - "--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-30d}"
+      - "--storage.tsdb.retention.size=${PROMETHEUS_RETENTION_SIZE:-5GB}"
       - "--web.console.libraries=/etc/prometheus/console_libraries"
       - "--web.console.templates=/etc/prometheus/consoles"
       - "--web.enable-remote-write-receiver"
