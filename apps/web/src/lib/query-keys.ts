@@ -173,6 +173,8 @@ export const queryKeys = {
     siteSettings: ["admin", "site-settings"] as const,
     status: ["admin", "status"] as const,
     jobRuns: ["admin", "job-runs"] as const,
+    jobRunsList: (params: { page: number; kind?: string; trigger?: string; status?: string }) =>
+      ["admin", "job-runs", "list", params] as const,
     jobRunsByKind: (kind: string) => ["admin", "job-runs", "by-kind", kind] as const,
     cronStatus: ["admin", "cron-status"] as const,
     cacheStatus: ["admin", "cache-status"] as const,

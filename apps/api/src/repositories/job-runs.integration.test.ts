@@ -147,6 +147,58 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
     });
   });
 
+  it("listPage returns a page of rows plus the total matching count", async () => {
+    for (let index = 0; index < 5; index++) {
+      const { id } = await repo.start({ kind: "page.kind", trigger: "cron" });
+      await repo.succeed(id, { durationMs: index });
+    }
+
+    const firstPage = await repo.listPage({ limit: 2, offset: 0 });
+    expect(firstPage.total).toBe(5);
+    expect(firstPage.rows).toHaveLength(2);
+
+    const secondPage = await repo.listPage({ limit: 2, offset: 2 });
+    expect(secondPage.rows).toHaveLength(2);
+
+    const lastPage = await repo.listPage({ limit: 2, offset: 4 });
+    expect(lastPage.rows).toHaveLength(1);
+
+    // Pages must not overlap — every row id across pages is distinct.
+    const ids = [...firstPage.rows, ...secondPage.rows, ...lastPage.rows].map((row) => row.id);
+    expect(new Set(ids).size).toBe(5);
+  });
+
+  it("listPage counts only rows matching the filters", async () => {
+    const cron = await repo.start({ kind: "kind.x", trigger: "cron" });
+    await repo.succeed(cron.id, { durationMs: 1 });
+    const admin = await repo.start({ kind: "kind.x", trigger: "admin" });
+    await repo.fail(admin.id, { durationMs: 2, errorMessage: "boom" });
+    const other = await repo.start({ kind: "kind.y", trigger: "cron" });
+    await repo.succeed(other.id, { durationMs: 3 });
+
+    const byKind = await repo.listPage({ kind: "kind.x", limit: 10, offset: 0 });
+    expect(byKind.total).toBe(2);
+    const byTrigger = await repo.listPage({ trigger: "admin", limit: 10, offset: 0 });
+    expect(byTrigger.total).toBe(1);
+    const byStatus = await repo.listPage({ status: "failed", limit: 10, offset: 0 });
+    expect(byStatus.total).toBe(1);
+    const combined = await repo.listPage({
+      kind: "kind.x",
+      status: "succeeded",
+      limit: 10,
+      offset: 0,
+    });
+    expect(combined.total).toBe(1);
+    expect(combined.rows[0]?.id).toBe(cron.id);
+  });
+
+  it("listKinds returns distinct kinds sorted alphabetically", async () => {
+    await repo.start({ kind: "kind.b", trigger: "cron" });
+    await repo.start({ kind: "kind.a", trigger: "cron" });
+    await repo.start({ kind: "kind.b", trigger: "admin" });
+    expect(await repo.listKinds()).toEqual(["kind.a", "kind.b"]);
+  });
+
   it("purgeOlderThan deletes rows whose started_at is before the cutoff", async () => {
     const { id } = await repo.start({ kind: "test.kind", trigger: "cron" });
     // Backdate the row so the cutoff catches it

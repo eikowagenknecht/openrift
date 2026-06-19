@@ -21,9 +21,16 @@ const listJobRuns = createRoute({
 
 export const adminJobRunsRoute = createApiApp().openapi(listJobRuns, async (c) => {
   const { jobRuns } = c.get("repos");
-  const { kind, limit } = c.req.valid("query");
+  const { kind, trigger, status, page, limit } = c.req.valid("query");
 
-  const rows = await jobRuns.listRecent({ kind, limit });
+  const pageSize = limit ?? 50;
+  const pageNumber = page ?? 1;
+  const offset = (pageNumber - 1) * pageSize;
+
+  const [{ rows, total }, kinds] = await Promise.all([
+    jobRuns.listPage({ kind, trigger, status, limit: pageSize, offset }),
+    jobRuns.listKinds(),
+  ]);
   const runs: JobRunView[] = rows.map((row) => ({
     id: row.id,
     kind: row.kind,
@@ -38,5 +45,11 @@ export const adminJobRunsRoute = createApiApp().openapi(listJobRuns, async (c) =
         ? null
         : (row.result as Record<string, unknown>),
   }));
-  return c.json({ runs } satisfies JobRunsListResponse);
+  return c.json({
+    runs,
+    total,
+    page: pageNumber,
+    limit: pageSize,
+    kinds,
+  } satisfies JobRunsListResponse);
 });

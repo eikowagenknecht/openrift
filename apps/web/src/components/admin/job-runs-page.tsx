@@ -1,4 +1,10 @@
-import { ChevronDownIcon, ChevronRightIcon, LoaderIcon, RefreshCwIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  LoaderIcon,
+  RefreshCwIcon,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { JobStatusBadge } from "@/components/admin/job-status-badge";
@@ -21,6 +27,7 @@ import {
 } from "@/components/ui/table";
 import { useAdminJobRuns } from "@/hooks/use-job-runs";
 import { useCancelRegenerateImages } from "@/hooks/use-rehost";
+import { getPageItems } from "@/lib/paginate";
 import type { JobRunView } from "@/lib/server-fns/api-types";
 
 /** Job kinds that expose a cancel endpoint. Only resumable jobs that re-read
@@ -78,12 +85,19 @@ function hasResult(result: Record<string, unknown> | null): boolean {
 }
 
 export function JobRunsPage() {
-  const { data, refetch, isFetching, dataUpdatedAt } = useAdminJobRuns();
-  const [lastUpdated, setLastUpdated] = useState("");
+  const [page, setPage] = useState(1);
   const [kindFilter, setKindFilter] = useState(ANY);
   const [triggerFilter, setTriggerFilter] = useState(ANY);
   const [statusFilter, setStatusFilter] = useState(ANY);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [lastUpdated, setLastUpdated] = useState("");
+
+  const { data, refetch, isFetching, dataUpdatedAt } = useAdminJobRuns({
+    page,
+    kind: kindFilter === ANY ? undefined : kindFilter,
+    trigger: triggerFilter === ANY ? undefined : triggerFilter,
+    status: statusFilter === ANY ? undefined : statusFilter,
+  });
 
   useEffect(() => {
     if (dataUpdatedAt > 0) {
@@ -91,26 +105,11 @@ export function JobRunsPage() {
     }
   }, [dataUpdatedAt]);
 
-  const runs = data?.runs ?? [];
-
-  const kindSet = new Set<string>();
-  for (const run of runs) {
-    kindSet.add(run.kind);
+  // A filter change reframes the whole result set, so jump back to page 1.
+  function changeFilter(setFilter: (value: string) => void, value: string) {
+    setFilter(value);
+    setPage(1);
   }
-  const kinds = [...kindSet].toSorted();
-
-  const filtered = runs.filter((run) => {
-    if (kindFilter !== ANY && run.kind !== kindFilter) {
-      return false;
-    }
-    if (triggerFilter !== ANY && run.trigger !== triggerFilter) {
-      return false;
-    }
-    if (statusFilter !== ANY && run.status !== statusFilter) {
-      return false;
-    }
-    return true;
-  });
 
   function toggleExpanded(id: string) {
     setExpanded((prev) => {
@@ -128,17 +127,25 @@ export function JobRunsPage() {
     return null;
   }
 
+  const { runs, total, limit, kinds } = data;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const rangeStart = total === 0 ? 0 : (page - 1) * limit + 1;
+  const rangeEnd = (page - 1) * limit + runs.length;
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-muted-foreground text-sm">
-          Auto-refreshes every 15 seconds.{lastUpdated && ` Last updated ${lastUpdated}.`} Showing
-          the {runs.length} most recent runs.
+          Auto-refreshes every 15 seconds on the first page.
+          {lastUpdated && ` Last updated ${lastUpdated}.`}{" "}
+          {total === 0
+            ? "No runs match the current filters."
+            : `Showing ${rangeStart}–${rangeEnd} of ${total} runs.`}
         </p>
         <div className="flex items-center gap-2">
           <FilterSelect
             value={kindFilter}
-            onChange={setKindFilter}
+            onChange={(value) => changeFilter(setKindFilter, value)}
             width="w-52"
             options={[
               { value: ANY, label: "All kinds" },
@@ -147,7 +154,7 @@ export function JobRunsPage() {
           />
           <FilterSelect
             value={triggerFilter}
-            onChange={setTriggerFilter}
+            onChange={(value) => changeFilter(setTriggerFilter, value)}
             width="w-36"
             options={[
               { value: ANY, label: "All triggers" },
@@ -158,7 +165,7 @@ export function JobRunsPage() {
           />
           <FilterSelect
             value={statusFilter}
-            onChange={setStatusFilter}
+            onChange={(value) => changeFilter(setStatusFilter, value)}
             width="w-36"
             options={[
               { value: ANY, label: "All statuses" },
@@ -187,14 +194,14 @@ export function JobRunsPage() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {filtered.length === 0 && (
+          {runs.length === 0 && (
             <TableRow>
               <TableCell colSpan={7} className="text-muted-foreground h-24 text-center">
-                {runs.length === 0 ? "No job runs yet." : "No runs match the current filters."}
+                {total === 0 ? "No job runs yet." : "No runs match the current filters."}
               </TableCell>
             </TableRow>
           )}
-          {filtered.map((run) => {
+          {runs.map((run) => {
             const showDetails = run.errorMessage !== null || hasResult(run.result);
             const isOpen = expanded.has(run.id);
             return (
@@ -209,7 +216,66 @@ export function JobRunsPage() {
           })}
         </TableBody>
       </Table>
+
+      <JobRunsPager page={page} totalPages={totalPages} onPageChange={setPage} />
     </div>
+  );
+}
+
+function JobRunsPager({
+  page,
+  totalPages,
+  onPageChange,
+}: {
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) {
+  if (totalPages <= 1) {
+    return null;
+  }
+  const items = getPageItems(page, totalPages);
+  return (
+    <nav className="flex items-center justify-center gap-1" aria-label="Job run pages">
+      <Button
+        variant="outline"
+        size="icon"
+        className="size-8"
+        disabled={page <= 1}
+        onClick={() => onPageChange(page - 1)}
+        aria-label="Previous page"
+      >
+        <ChevronLeftIcon className="size-4" />
+      </Button>
+      {items.map((item, index) =>
+        item === "ellipsis" ? (
+          <span key={`ellipsis-${index}`} className="text-muted-foreground px-1.5">
+            …
+          </span>
+        ) : (
+          <Button
+            key={item}
+            variant={item === page ? "default" : "outline"}
+            size="icon"
+            className="size-8 font-mono"
+            aria-current={item === page ? "page" : undefined}
+            onClick={() => onPageChange(item)}
+          >
+            {item}
+          </Button>
+        ),
+      )}
+      <Button
+        variant="outline"
+        size="icon"
+        className="size-8"
+        disabled={page >= totalPages}
+        onClick={() => onPageChange(page + 1)}
+        aria-label="Next page"
+      >
+        <ChevronRightIcon className="size-4" />
+      </Button>
+    </nav>
   );
 }
 

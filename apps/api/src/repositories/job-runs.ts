@@ -184,6 +184,79 @@ export function jobRunsRepo(db: Kysely<Database>) {
     },
 
     /**
+     * List a single page of runs ordered by start time descending, with the
+     * total matching-row count for building a numbered pager. Filters by kind,
+     * trigger, and status are all applied server-side so they span the whole
+     * table rather than just the loaded page. Sort is tie-broken by id so the
+     * ordering is stable across pages when rows share a started_at.
+     * @returns The page rows plus the total count of rows matching the filters.
+     */
+    async listPage(params: {
+      kind?: string;
+      trigger?: JobTrigger;
+      status?: JobStatus;
+      limit: number;
+      offset: number;
+    }): Promise<{ rows: JobRun[]; total: number }> {
+      let rowQuery = db
+        .selectFrom("jobRuns")
+        .select([
+          "id",
+          "kind",
+          "trigger",
+          "status",
+          "startedAt",
+          "finishedAt",
+          "durationMs",
+          "errorMessage",
+          "result",
+        ])
+        .orderBy("startedAt", "desc")
+        .orderBy("id", "desc")
+        .limit(params.limit)
+        .offset(params.offset);
+      let countQuery = db
+        .selectFrom("jobRuns")
+        .select((eb) => eb.fn.countAll<string>().as("total"));
+      if (params.kind !== undefined) {
+        rowQuery = rowQuery.where("kind", "=", params.kind);
+        countQuery = countQuery.where("kind", "=", params.kind);
+      }
+      if (params.trigger !== undefined) {
+        rowQuery = rowQuery.where("trigger", "=", params.trigger);
+        countQuery = countQuery.where("trigger", "=", params.trigger);
+      }
+      if (params.status !== undefined) {
+        rowQuery = rowQuery.where("status", "=", params.status);
+        countQuery = countQuery.where("status", "=", params.status);
+      }
+      const [rows, countRow] = await Promise.all([
+        rowQuery.execute(),
+        countQuery.executeTakeFirstOrThrow(),
+      ]);
+      return {
+        rows: rows.map((row) => ({ ...row, result: parseResult(row.result) }) as JobRun),
+        total: Number(countRow.total),
+      };
+    },
+
+    /**
+     * The distinct job kinds present in the table, sorted alphabetically.
+     * Backs the kind filter dropdown so it lists every kind, not just the
+     * ones on the currently-loaded page.
+     * @returns Sorted distinct kind strings.
+     */
+    async listKinds(): Promise<string[]> {
+      const rows = await db
+        .selectFrom("jobRuns")
+        .select("kind")
+        .distinct()
+        .orderBy("kind", "asc")
+        .execute();
+      return rows.map((row) => row.kind);
+    },
+
+    /**
      * For each kind seen in the table, return the latest run row.
      * Used by the admin status dashboard.
      * @returns A map from kind to its latest JobRun.

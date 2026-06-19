@@ -1,4 +1,4 @@
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
@@ -6,28 +6,55 @@ import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import type { JobRunsListResponse, JobRunView } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
 
-const DEFAULT_LIMIT = 200;
+/** Rows per page on the admin job-runs table. */
+export const JOB_RUNS_PAGE_SIZE = 50;
+
+/** Filters and 1-based page that select one page of the job-runs table. */
+export interface JobRunsQueryParams {
+  page: number;
+  kind?: string;
+  trigger?: string;
+  status?: string;
+}
 
 const fetchJobRuns = createServerFn({ method: "GET" })
+  .validator((input: JobRunsQueryParams) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<JobRunsListResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["job-runs"].$get({
-          query: { limit: String(DEFAULT_LIMIT) },
-        }),
-        "Couldn't load job runs",
-      ),
-  );
+  .handler(({ context, data }): Promise<JobRunsListResponse> => {
+    const query: Record<string, string> = {
+      page: String(data.page),
+      limit: String(JOB_RUNS_PAGE_SIZE),
+    };
+    if (data.kind !== undefined) {
+      query.kind = data.kind;
+    }
+    if (data.trigger !== undefined) {
+      query.trigger = data.trigger;
+    }
+    if (data.status !== undefined) {
+      query.status = data.status;
+    }
+    return callApiJson(
+      serverApiClient(context.cookie).api.admin.v1["job-runs"].$get({ query }),
+      "Couldn't load job runs",
+    );
+  });
 
-export const adminJobRunsQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.jobRuns,
-  queryFn: () => fetchJobRuns(),
-  refetchInterval: 15_000,
-});
+export function adminJobRunsQueryOptions(params: JobRunsQueryParams) {
+  return queryOptions({
+    queryKey: queryKeys.admin.jobRunsList(params),
+    queryFn: () => fetchJobRuns({ data: params }),
+    // Only the freshest page keeps auto-refreshing; deeper pages would shift
+    // under the reader as new runs arrive, so we leave them static.
+    refetchInterval: params.page === 1 ? 15_000 : false,
+    // Keep the previous page on screen while the next loads, so paging never
+    // flashes the route skeleton.
+    placeholderData: keepPreviousData,
+  });
+}
 
-export function useAdminJobRuns() {
-  return useQuery(adminJobRunsQueryOptions);
+export function useAdminJobRuns(params: JobRunsQueryParams) {
+  return useQuery(adminJobRunsQueryOptions(params));
 }
 
 /** Cadence for polling an actively-running job's row. Tighter than the

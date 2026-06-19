@@ -224,10 +224,21 @@ const jobRunViewSchema = z.object({
 
 export const jobRunsListResponseSchema = z.object({
   runs: z.array(jobRunViewSchema),
+  /** Total rows matching the active filters, across all pages. */
+  total: z.number().int(),
+  /** The 1-based page number this response represents. */
+  page: z.number().int(),
+  /** Page size used to compute the page count. */
+  limit: z.number().int(),
+  /** Distinct job kinds in the table, for the kind filter dropdown. */
+  kinds: z.array(z.string()),
 });
 
 export const jobRunsQuerySchema = z.object({
   kind: z.string().optional(),
+  trigger: z.enum(["cron", "admin", "api"]).optional(),
+  status: z.enum(["running", "succeeded", "failed"]).optional(),
+  page: z.coerce.number().int().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
 });
 

@@ -549,6 +549,14 @@ export interface JobRunView {
 
 export interface JobRunsListResponse {
   runs: JobRunView[];
+  /** Total rows matching the active filters, across all pages. */
+  total: number;
+  /** The 1-based page number this response represents. */
+  page: number;
+  /** Page size used to compute the page count. */
+  limit: number;
+  /** Distinct job kinds in the table, for the kind filter dropdown. */
+  kinds: string[];
 }
 
 export interface ClearPricesResponse {
