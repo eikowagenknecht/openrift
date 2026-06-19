@@ -48,13 +48,20 @@ export function CollapsibleFilterPanel({
       onOpenChange={setFiltersExpanded}
       className="@wide:hidden mb-3 hidden sm:block"
     >
-      <CollapsibleContent className="group relative flex h-(--collapsible-panel-height) max-h-[60svh] flex-col overflow-hidden transition-[height] duration-200 data-[ending-style]:h-0 data-[starting-style]:h-0">
-        {/* Cap the panel to the viewport and scroll internally. Without this the
-            panel renders at full content height inside the sticky toolbar, so on
-            short (landscape-phone) viewports it fills the screen with no way to
-            reach the sections below the fold. h-full ties the scroll area to the
-            (capped) animated outer height so the open/close transition still works. */}
-        <div className="flex h-full flex-col gap-3 overflow-y-auto">
+      <CollapsibleContent className="group relative flex h-(--collapsible-panel-height) flex-col overflow-hidden transition-[height] duration-200 data-[ending-style]:h-0 data-[starting-style]:h-0">
+        {/* Cap-and-scroll ONLY on short viewports. On a short (landscape-phone)
+            screen the panel would otherwise render at full content height inside
+            the sticky toolbar and fill the screen with no way to reach the
+            sections below the fold, so there we clamp to 60svh and scroll
+            internally. On taller screens we deliberately do NOT make this a
+            scroll container: a filter range slider's thumb carries an absolutely
+            positioned `after:-inset-2` hit area (see ui/slider.tsx) that hangs a
+            few px below the laid-out content. It adds nothing to layout height but
+            DOES count toward a scroll container's scrollHeight, so an always-on
+            `overflow-y-auto` left a permanent stray scroll even when nothing was
+            clamped. Gating the overflow on viewport height keeps the desktop panel
+            exactly as tall as its content (no scroll, no padding to offset). */}
+        <div className="flex flex-col gap-3 [@media(max-height:600px)]:max-h-[60svh] [@media(max-height:600px)]:overflow-y-auto">
           <div className="grid grid-cols-1 items-start gap-x-6 gap-y-3 lg:grid-cols-2">
             <FilterBadgeSections
               availableFilters={availableFilters}
