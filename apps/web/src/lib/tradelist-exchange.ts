@@ -1,4 +1,57 @@
-import type { FriendGroupShareableListResponse, ListIntent, ListKind } from "@openrift/shared";
+import type {
+  CardTradeResponse,
+  FriendGroupShareableListResponse,
+  ListIntent,
+  ListKind,
+} from "@openrift/shared";
+
+/** The viewer's live pending request for one printing: its id + claimed quantity. */
+export interface PendingRequest {
+  tradeId: string;
+  quantity: number;
+}
+
+/**
+ * The viewer's open *pending* "Want" request for each printing, against a
+ * specific member in a specific group — the trade id (so a claim/release can
+ * resize it) and how many copies it currently claims. Used to mark exactly that
+ * many copies on the member's tradelist as requested and to drive per-copy
+ * claim/release. A request the viewer made is one where they are the `receiver`
+ * (the giver is the member whose copies they want).
+ *
+ * Only `pending` requests are included: once a request is accepted (`reserved`),
+ * the specific copies are pinned and already carry the copy-accurate "Reserved"
+ * marker, so including it here too would double-mark. Terminal trades (`declined`
+ * / `cancelled` / `expired` / `completed`) are excluded so the marker clears once
+ * a request is resolved. At most one live trade can exist per printing+member
+ * (the `uq_card_trades_live` index), so each printing maps to a single request;
+ * the defensive sum guards a stale duplicate.
+ *
+ * @returns A map from printing id to its pending request; empty when there are none.
+ */
+export function pendingRequestsByPrinting(
+  trades: readonly CardTradeResponse[],
+  groupSlug: string,
+  counterpartyUserId: string,
+): Map<string, PendingRequest> {
+  const requests = new Map<string, PendingRequest>();
+  for (const trade of trades) {
+    if (
+      trade.groupSlug === groupSlug &&
+      trade.counterparty.userId === counterpartyUserId &&
+      trade.role === "receiver" &&
+      trade.status === "pending"
+    ) {
+      const existing = requests.get(trade.printingId);
+      if (existing) {
+        existing.quantity += trade.quantity;
+      } else {
+        requests.set(trade.printingId, { tradeId: trade.id, quantity: trade.quantity });
+      }
+    }
+  }
+  return requests;
+}
 
 /**
  * A list a viewer can route an exchange onto: a wishlist for the "I want this"

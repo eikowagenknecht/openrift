@@ -1,4 +1,4 @@
-import type { FriendGroupShareableListResponse } from "@openrift/shared";
+import type { CardTradeResponse, FriendGroupShareableListResponse } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import type { ListTargetOption } from "./tradelist-exchange";
@@ -7,6 +7,7 @@ import {
   listKindNoun,
   listTargetOptions,
   offerablePrintings,
+  pendingRequestsByPrinting,
   personalCopyIdsByPrinting,
   preferredListId,
   requestListKind,
@@ -222,5 +223,110 @@ describe("offerablePrintings", () => {
 
   it("returns an empty array when the viewer owns none of the candidates", () => {
     expect(offerablePrintings(["p1"], new Map([["p2", ["c1"]]]))).toEqual([]);
+  });
+});
+
+describe("pendingRequestsByPrinting", () => {
+  function stubTrade(overrides: Partial<CardTradeResponse> = {}): CardTradeResponse {
+    return {
+      id: "trade-1",
+      groupId: "group-1",
+      groupSlug: "my-group",
+      role: "receiver",
+      initiator: "receiver",
+      counterparty: {
+        userId: "member-1",
+        name: "Member",
+        image: null,
+        gravatarHash: "hash",
+        contactMethods: [],
+      },
+      printingId: "p1",
+      cardId: "card-1",
+      quantity: 1,
+      status: "pending",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+      acceptedAt: null,
+      completedAt: null,
+      closedAt: null,
+      expiresAt: null,
+      viewerSyncAppliedAt: null,
+      counterpartySyncAppliedAt: null,
+      actionNeeded: null,
+      ...overrides,
+    };
+  }
+
+  it("maps each printing to its pending request's trade id and quantity", () => {
+    const result = pendingRequestsByPrinting(
+      [
+        stubTrade({ id: "t1", printingId: "p1", quantity: 2 }),
+        stubTrade({ id: "t2", printingId: "p2", quantity: 1 }),
+      ],
+      "my-group",
+      "member-1",
+    );
+    expect(result.get("p1")).toEqual({ tradeId: "t1", quantity: 2 });
+    expect(result.get("p2")).toEqual({ tradeId: "t2", quantity: 1 });
+  });
+
+  it("excludes reserved requests (their copies are pinned and marked separately)", () => {
+    const result = pendingRequestsByPrinting(
+      [stubTrade({ printingId: "p1", status: "reserved" })],
+      "my-group",
+      "member-1",
+    );
+    expect(result.size).toBe(0);
+  });
+
+  it("excludes terminal statuses so a resolved request clears the marker", () => {
+    const result = pendingRequestsByPrinting(
+      [
+        stubTrade({ printingId: "p1", status: "declined" }),
+        stubTrade({ printingId: "p2", status: "cancelled" }),
+        stubTrade({ printingId: "p3", status: "expired" }),
+        stubTrade({ printingId: "p4", status: "completed" }),
+      ],
+      "my-group",
+      "member-1",
+    );
+    expect(result.size).toBe(0);
+  });
+
+  it("excludes trades where the viewer is the giver, not the requester", () => {
+    const result = pendingRequestsByPrinting(
+      [stubTrade({ printingId: "p1", role: "giver" })],
+      "my-group",
+      "member-1",
+    );
+    expect(result.size).toBe(0);
+  });
+
+  it("scopes to the given group and counterparty", () => {
+    const result = pendingRequestsByPrinting(
+      [
+        stubTrade({ printingId: "p1", groupSlug: "other-group" }),
+        stubTrade({
+          printingId: "p2",
+          counterparty: {
+            userId: "member-2",
+            name: "Other",
+            image: null,
+            gravatarHash: "hash2",
+            contactMethods: [],
+          },
+        }),
+        stubTrade({ id: "t3", printingId: "p3", quantity: 4 }),
+      ],
+      "my-group",
+      "member-1",
+    );
+    expect([...result.keys()]).toEqual(["p3"]);
+    expect(result.get("p3")).toEqual({ tradeId: "t3", quantity: 4 });
+  });
+
+  it("returns an empty map when there are no trades", () => {
+    expect(pendingRequestsByPrinting([], "my-group", "member-1").size).toBe(0);
   });
 });

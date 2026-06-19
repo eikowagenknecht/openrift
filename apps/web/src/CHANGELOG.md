@@ -2,10 +2,14 @@
 
 ## 2026-06-19
 
+### Highlights
+
+- feat(Trades): **Request copies one at a time** — request individual copies from a member's tradelist, each requested copy shows a "Requested" tag you can click to give back, and requesting more adjusts your existing request instead of erroring.
+
 ### Other
 
 - feat(Trades): **Trade requests last a week** — pending trade requests now expire 7 days after they're sent instead of 24 hours, giving you more time to respond.
-- feat(Trades): **See what you already own on a tradelist** — browsing a member's tradelist now shows how many of each printing you own next to the Want button, so you can skip cards you already have.
+- feat(Trades): **See what you already own on a tradelist** — browsing a member's tradelist now shows how many of each printing you own next to the Claim button, so you can skip cards you already have.
 - fix(Trades): **Wishlist requests stay specific** — requesting a card from a member's tradelist now adds it to a wishlist that matches just that printing, not every printing of the card, and the list picker shows whether each list tracks cards or printings.
 
 ## 2026-06-18

@@ -586,6 +586,11 @@ export const cardTradesQuerySchema = z.object({
   status: cardTradeStatusSchema.optional(),
 });
 
+/** Resize a pending request to a new total quantity (initiator only). */
+export const setCardTradeQuantitySchema = z.object({
+  quantity: z.number().int().min(1),
+});
+
 /** Receiver-sync target collection; omitted defaults to the receiver's inbox. */
 export const cardTradeSyncSchema = z.object({
   targetCollectionId: z.uuid().optional(),

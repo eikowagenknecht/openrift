@@ -759,6 +759,22 @@ export function cardTradesRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Resizes a still-pending trade's quantity. Guards on `status = 'pending'` so
+     * a lost race against accept/decline/cancel matches zero rows. Bumps
+     * `updated_at` (a real change to the trade).
+     * @returns Rows affected (0 if no longer pending).
+     */
+    async setPendingQuantity(id: string, byUserId: string, quantity: number): Promise<number> {
+      const result = await db
+        .updateTable("cardTrades")
+        .set({ quantity, lastActorUserId: byUserId, updatedAt: sql`now()` })
+        .where("id", "=", id)
+        .where("status", "=", "pending")
+        .executeTakeFirst();
+      return Number(result.numUpdatedRows);
+    },
+
+    /**
      * Records the giver resolved their side's sync. Guards on completed + unset so
      * a concurrent double-apply matches zero rows. Does NOT bump `updated_at`.
      * @returns Rows affected (0 if not completed or already resolved).

@@ -5,8 +5,9 @@ import type {
   PublicListDetailResponse,
 } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
-import { HandshakeIcon, HeartIcon, ListIcon } from "lucide-react";
+import { HandshakeIcon, HeartIcon, ListIcon, XIcon } from "lucide-react";
 import { Suspense, useState } from "react";
+import { toast } from "sonner";
 
 import { CardViewer } from "@/components/card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
@@ -39,7 +40,7 @@ import { listKindIcon } from "@/components/list/create-list-dialog";
 import { ListHeader } from "@/components/list/list-header";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
-import { Badge } from "@/components/ui/badge";
+import { Badge, badgeVariants } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -50,6 +51,7 @@ import {
 } from "@/components/ui/empty";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
+import { useCancelTrade, useSetTradeQuantity, useUserTrades } from "@/hooks/use-card-trades";
 import { useCards } from "@/hooks/use-cards";
 import { useCopies } from "@/hooks/use-copies";
 import { useChannelRegistry } from "@/hooks/use-enums";
@@ -58,7 +60,12 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
 import { FilterSearchProvider, useFilterSearch } from "@/lib/search-schemas";
-import { offerablePrintings, personalCopyIdsByPrinting } from "@/lib/tradelist-exchange";
+import {
+  offerablePrintings,
+  pendingRequestsByPrinting,
+  personalCopyIdsByPrinting,
+} from "@/lib/tradelist-exchange";
+import type { PendingRequest } from "@/lib/tradelist-exchange";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
@@ -79,6 +86,9 @@ function SharedListQuantityCell({
   }
   return <StaticCountTableActions count={entryByItemId.get(itemId)?.quantity ?? 0} />;
 }
+
+// Stable empty so the non-request path doesn't allocate a fresh map each render.
+const EMPTY_PENDING_REQUESTS: ReadonlyMap<string, PendingRequest> = new Map();
 
 const SHARED_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set([
   "owned",
@@ -205,6 +215,70 @@ function SharedListGrid({
     }));
   };
 
+  // The viewer's pending "Want" request for each printing (trade id + claimed
+  // quantity), against this member in this group. Drives per-copy claim/release
+  // and marks exactly the claimed copies as requested. The query is polled and
+  // invalidated on every claim/release, so the markers track the live state.
+  const { data: userTrades } = useUserTrades();
+  const pendingByPrinting =
+    exchange?.mode === "request" && userTrades
+      ? pendingRequestsByPrinting(userTrades.items, exchange.groupSlug, exchange.counterpartyUserId)
+      : EMPTY_PENDING_REQUESTS;
+
+  // Claim/release resize the single live trade per printing rather than opening a
+  // second one (forbidden by the backend's unique-live-trade index): claiming the
+  // first copy opens the request dialog (to pick + share a wishlist), every later
+  // claim just bumps the quantity, and releasing decrements or cancels at zero.
+  const setTradeQuantity = useSetTradeQuantity();
+  const cancelTrade = useCancelTrade();
+  const tradeMutating = setTradeQuantity.isPending || cancelTrade.isPending;
+
+  const handleClaim = async (printing: Printing) => {
+    if (exchange?.mode !== "request") {
+      return;
+    }
+    const pending = pendingByPrinting.get(printing.id);
+    if (pending === undefined) {
+      setRequestPrinting(printing);
+      return;
+    }
+    try {
+      await setTradeQuantity.mutateAsync({
+        tradeId: pending.tradeId,
+        quantity: pending.quantity + 1,
+        groupSlug: exchange.groupSlug,
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't claim that copy");
+    }
+  };
+
+  const handleRelease = async (printing: Printing) => {
+    if (exchange?.mode !== "request") {
+      return;
+    }
+    const pending = pendingByPrinting.get(printing.id);
+    if (pending === undefined) {
+      return;
+    }
+    // Releasing the last claimed copy cancels the request; otherwise it just
+    // shrinks the quantity by one. Built outside the try so the React Compiler
+    // doesn't bail (it can't handle a conditional value inside try/catch).
+    const release =
+      pending.quantity > 1
+        ? setTradeQuantity.mutateAsync({
+            tradeId: pending.tradeId,
+            quantity: pending.quantity - 1,
+            groupSlug: exchange.groupSlug,
+          })
+        : cancelTrade.mutateAsync({ tradeId: pending.tradeId, groupSlug: exchange.groupSlug });
+    try {
+      await release;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't release that copy");
+    }
+  };
+
   const { filters, sortBy, sortDir, groupBy, hasActiveFilters } = useFilterValues();
   const { setSearch } = useFilterActions();
   const filterSearch = useFilterSearch();
@@ -261,11 +335,23 @@ function SharedListGrid({
 
   const items: CardViewerItem[] = [];
   const entryByItemId = new Map<string, ListEntryDetailResponse>();
+  // The specific copy tiles to mark as "Requested": for each printing, the first
+  // N non-reserved copies, where N is the viewer's pending requested quantity.
+  // Marking individual copies (rather than the whole printing) leaves the rest of
+  // a multi-copy entry requestable. Reserved copies are skipped — they carry the
+  // "Reserved" marker already. Only relevant for the copy-kind tradelist view.
+  const requestedItemIds = new Set<string>();
   if (view === "copies") {
     for (const sortedPrinting of sortedCards) {
+      let remainingRequested = pendingByPrinting.get(sortedPrinting.id)?.quantity ?? 0;
       for (const entry of entriesByPrintingId.get(sortedPrinting.id) ?? []) {
         items.push({ id: entry.id, printing: sortedPrinting });
         entryByItemId.set(entry.id, entry);
+        const reserved = entry.kind === "copy" && entry.reserved;
+        if (remainingRequested > 0 && !reserved) {
+          requestedItemIds.add(entry.id);
+          remainingRequested -= 1;
+        }
       }
     }
   } else {
@@ -306,35 +392,45 @@ function SharedListGrid({
     // Copy-kind lists have implicit quantity 1 per entry, so the strip
     // adds nothing there.
     const entry = entryByItemId.get(item.id);
-    // A copy already pinned to a live trade can't be requested again, so the
-    // Want button is disabled and a "Reserved" badge marks it (mirrors the
-    // owner's tradelist). The match view already hides reserved copies; here
-    // the badge explains why a card you can see isn't matchable.
+    // A copy pinned to a live (accepted) trade — yours or another member's — can't
+    // be claimed; it carries the "Reserved" badge and no action.
     const reserved = entry?.kind === "copy" && entry.reserved;
-    // The strip becomes the friend-group action when this is a member's list:
-    // "Want" on their tradelist, "Offer" on their wishlist (disabled when the
-    // viewer owns no copies of the card). Otherwise it's the read-only quantity
-    // pill. Tradelists are copy-kind, so the action never collides with it.
+    // This specific copy is covered by one of the viewer's pending requests to
+    // this member. It shows a "Requested" badge (click to release) and no claim
+    // button. Reserved copies are never in this set, so the markers don't overlap.
+    const alreadyRequested = exchange?.mode === "request" && requestedItemIds.has(item.id);
+    // Strip = the per-card action. On a tradelist (request mode), only a claimable
+    // copy gets a "Claim" button — requested copies show no button (release is on
+    // the badge), and reserved copies show none. On a wishlist it's "Offer";
+    // otherwise the read-only quantity pill. Tradelists are copy-kind, so the
+    // action never collides with the quantity pill.
     let strip: React.ReactNode;
     if (exchange?.mode === "request") {
       // Mirror the catalog: the owned-count pill opens the "in your collections"
-      // breakdown. Rendered only when the viewer owns at least one copy.
+      // breakdown. Shown on every tradelist copy that the viewer owns, regardless
+      // of claim state.
       const ownedCount = ownedCounts?.totals[item.printing.id] ?? 0;
+      const ownedSlot =
+        ownedCount > 0 ? (
+          <OwnedCollectionsPopover
+            printingId={item.printing.id}
+            cardName={legendDisplayName(item.printing.card)}
+            shortCode={item.printing.shortCode}
+            count={ownedCount}
+            align="start"
+          />
+        ) : undefined;
+      // The action and the status both live in this one strip row (right-aligned),
+      // so every tradelist copy keeps the same height: a claimable copy shows
+      // "Request", a requested copy shows "Requested ×" (click to release), and a
+      // reserved copy shows "Reserved".
       strip = (
-        <WantStrip
-          onClick={() => setRequestPrinting(item.printing)}
-          disabled={reserved}
-          ownedSlot={
-            ownedCount > 0 ? (
-              <OwnedCollectionsPopover
-                printingId={item.printing.id}
-                cardName={legendDisplayName(item.printing.card)}
-                shortCode={item.printing.shortCode}
-                count={ownedCount}
-                align="start"
-              />
-            ) : undefined
-          }
+        <RequestStrip
+          state={reserved ? "reserved" : alreadyRequested ? "requested" : "claimable"}
+          ownedSlot={ownedSlot}
+          disabled={tradeMutating}
+          onRequest={() => handleClaim(item.printing)}
+          onRelease={() => handleRelease(item.printing)}
         />
       );
     } else if (exchange?.mode === "offer") {
@@ -362,16 +458,6 @@ function SharedListGrid({
         siblings={siblings}
         priceRange={priceRangeByCardId?.get(cardId)}
         strip={strip}
-        leftOverlay={
-          reserved ? (
-            <Badge
-              variant="success"
-              className="pointer-events-none absolute top-1.5 right-1.5 z-20"
-            >
-              Reserved
-            </Badge>
-          ) : undefined
-        }
       />
     );
   };
@@ -454,7 +540,10 @@ function SharedListGrid({
                   actionsCell: (
                     <TradelistRequestActionsCell
                       entryByItemId={entryByItemId}
-                      onRequest={setRequestPrinting}
+                      requestedItemIds={requestedItemIds}
+                      disabled={tradeMutating}
+                      onRequest={handleClaim}
+                      onRelease={handleRelease}
                     />
                   ),
                 }
@@ -529,45 +618,78 @@ function SharedListGrid({
   );
 }
 
-// Per-cell "Want" pill rendered above a tradelist card; opens the request flow.
-// Disabled (greyed, non-interactive) when the copy is reserved by a live trade —
-// it can't be requested, and the card carries a "Reserved" badge instead.
-function WantStrip({
-  onClick,
-  disabled,
+// Per-cell strip rendered above every copy on a member's tradelist. The status
+// and the action share one right-aligned slot so the row height never changes as
+// a copy moves between states: a claimable copy shows a "Request" button (first
+// request opens the dialog to pick + share a wishlist, later requests bump the
+// live request's quantity), a requested copy shows a "Requested ×" button that
+// releases one copy (decrement, or cancel at the last), and a reserved copy shows
+// a read-only "Reserved" badge. The owned-count pill, when present, sits at the
+// left. `disabled` guards against a request/release already in flight.
+function RequestStrip({
+  state,
   ownedSlot,
+  disabled,
+  onRequest,
+  onRelease,
 }: {
-  onClick: () => void;
-  disabled?: boolean;
+  state: "claimable" | "requested" | "reserved";
   /** Owned-count pill (collections popover), left-aligned. Omitted when the viewer owns none. */
   ownedSlot?: React.ReactNode;
+  disabled?: boolean;
+  onRequest: () => void;
+  onRelease: () => void;
 }) {
   return (
     // h-5 + mb-1 = 24px, matching ADD_STRIP_HEIGHT so the virtualizer estimate holds.
-    <div className="relative z-30 mb-1 flex h-5 items-center justify-center">
-      {/* Left-aligned so the Want button stays centered and consistent whether
-          or not the viewer owns copies. */}
+    <div className="relative z-30 mb-1 flex h-5 items-center">
       {ownedSlot ? <span className="absolute left-0">{ownedSlot}</span> : null}
-      <button
-        type="button"
-        tabIndex={-1}
-        disabled={disabled}
-        aria-label={disabled ? "Reserved — already in a trade" : "Request this card"}
-        onClick={(event) => {
-          event.stopPropagation();
-          if (disabled) {
-            return;
-          }
-          onClick();
-        }}
-        className={cn(
-          COUNT_PILL_BASE,
-          disabled ? "cursor-not-allowed opacity-50" : COUNT_PILL_INTERACTIVE,
+      <span className="ml-auto">
+        {state === "reserved" ? (
+          <Badge variant="success">Reserved</Badge>
+        ) : state === "requested" ? (
+          <button
+            type="button"
+            tabIndex={-1}
+            disabled={disabled}
+            aria-label="Cancel this copy"
+            title="Click to cancel this copy"
+            onClick={(event) => {
+              event.stopPropagation();
+              if (!disabled) {
+                onRelease();
+              }
+            }}
+            className={cn(
+              badgeVariants({ variant: "subtle" }),
+              "cursor-pointer gap-1 disabled:cursor-not-allowed disabled:opacity-50",
+            )}
+          >
+            Requested
+            <XIcon className="size-3" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            tabIndex={-1}
+            disabled={disabled}
+            aria-label="Request this copy"
+            onClick={(event) => {
+              event.stopPropagation();
+              if (!disabled) {
+                onRequest();
+              }
+            }}
+            className={cn(
+              COUNT_PILL_BASE,
+              disabled ? "cursor-not-allowed opacity-50" : COUNT_PILL_INTERACTIVE,
+            )}
+          >
+            <HeartIcon className="size-3" />
+            <span>Request</span>
+          </button>
         )}
-      >
-        <HeartIcon className="size-3" />
-        <span>Want</span>
-      </button>
+      </span>
     </div>
   );
 }
@@ -601,33 +723,61 @@ function OfferStrip({ disabled, onClick }: { disabled: boolean; onClick: () => v
 }
 
 /**
- * Table-row request action for a member's tradelist. `printing` and `itemId`
- * are injected by the table via cloneElement; absent on header/placeholder
- * rows. A copy reserved by a live trade shows a "Reserved" badge in place of
- * the request button, since it can't be requested again.
- * @returns The request button, a Reserved badge, or null when no printing is bound.
+ * Table-row request action for a member's tradelist. `printing` and `itemId` are
+ * injected by the table via cloneElement; absent on header/placeholder rows. A
+ * copy in one of the viewer's pending requests shows a "Requested" chip with a
+ * release (×) button; a reserved copy shows a read-only "Reserved" badge; a
+ * claimable copy shows the "Request" button.
+ * @returns The request button, a release control, a Reserved badge, or null when no printing is bound.
  */
 function TradelistRequestActionsCell({
   printing,
   itemId,
   entryByItemId,
+  requestedItemIds,
+  disabled,
   onRequest,
+  onRelease,
 }: {
   printing?: Printing;
   itemId?: string;
   entryByItemId: Map<string, ListEntryDetailResponse>;
+  requestedItemIds: ReadonlySet<string>;
+  disabled?: boolean;
   onRequest: (printing: Printing) => void;
+  onRelease: (printing: Printing) => void;
 }) {
   if (!printing) {
     return null;
+  }
+  if (itemId && requestedItemIds.has(itemId)) {
+    return (
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        disabled={disabled}
+        aria-label="Cancel this copy"
+        onClick={() => onRelease(printing)}
+      >
+        Requested
+        <XIcon className="size-3" />
+      </Button>
+    );
   }
   const entry = itemId ? entryByItemId.get(itemId) : undefined;
   if (entry?.kind === "copy" && entry.reserved) {
     return <Badge variant="success">Reserved</Badge>;
   }
   return (
-    <Button type="button" size="sm" variant="outline" onClick={() => onRequest(printing)}>
-      Want
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      disabled={disabled}
+      onClick={() => onRequest(printing)}
+    >
+      Request
     </Button>
   );
 }

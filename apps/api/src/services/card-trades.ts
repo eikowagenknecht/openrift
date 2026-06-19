@@ -337,6 +337,77 @@ export function cancelTrade(
 }
 
 /**
+ * Resizes a still-pending request to a new total quantity (initiator only). Used
+ * by per-copy claiming on a member's tradelist: claiming/releasing a copy bumps
+ * the single live trade up or down rather than opening a second one (the unique
+ * index `uq_card_trades_live` forbids two live trades per printing). Validates
+ * the new quantity against live supply, and raises the linked wish entry so the
+ * trade never wants more than the wishlist asks for (sync would otherwise drive
+ * it negative). A quantity of 0 is not allowed here — release the last copy via
+ * {@link cancelTrade} instead.
+ * @returns The resized trade as a viewer-oriented DTO.
+ */
+export function setTradeQuantity(
+  transact: Transact,
+  tradeId: string,
+  byUserId: string,
+  quantity: number,
+): Promise<CardTradeResponse> {
+  return transact(async (trxRepos) => {
+    if (quantity < 1) {
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Quantity must be at least 1");
+    }
+    const trade = await trxRepos.cardTrades.getById(tradeId);
+    if (trade === undefined) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Trade not found");
+    }
+    const role = callerRole(trade, byUserId);
+    if (role === null) {
+      throw new AppError(403, ERROR_CODES.FORBIDDEN, "You are not a party to this trade");
+    }
+    if (trade.status !== "pending") {
+      throw new AppError(409, ERROR_CODES.CONFLICT, "This request can no longer be changed");
+    }
+    if (role !== trade.initiator) {
+      throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only the initiator can change this request");
+    }
+
+    // Cap by the giver's live (unreserved) supply, mirroring createTrade.
+    const availableCopies = await trxRepos.cardTrades.selectUnreservedGroupSharedCopies(
+      trade.groupId,
+      trade.giverUserId,
+      trade.printingId,
+      SUPPLY_COUNT_LIMIT,
+    );
+    if (quantity > availableCopies.length) {
+      throw tooFewAvailable(availableCopies.length);
+    }
+
+    // Keep the receiver's wish entry ≥ the request: claiming a copy is an explicit
+    // "I want this one too", and trade-sync decrements the wish by the trade
+    // quantity, so a smaller wish would go negative. Receiver-initiated requests
+    // always carry the entry; the guard keeps the giver-offer path safe.
+    if (trade.receiverWishEntryId !== null) {
+      const wishEntry = await trxRepos.lists.getEntryByIdForUser(
+        trade.receiverWishEntryId,
+        trade.receiverUserId,
+      );
+      if (wishEntry !== undefined && wishEntry.quantity < quantity) {
+        await trxRepos.lists.updateEntry(wishEntry.id, wishEntry.listId, trade.receiverUserId, {
+          quantity,
+        });
+      }
+    }
+
+    const updated = await trxRepos.cardTrades.setPendingQuantity(tradeId, byUserId, quantity);
+    if (updated === 0) {
+      throw new AppError(409, ERROR_CODES.CONFLICT, "This request can no longer be changed");
+    }
+    return reloadDto(trxRepos, tradeId, byUserId);
+  });
+}
+
+/**
  * Marks a reserved trade as physically traded (either party).
  * @returns The completed trade as a viewer-oriented DTO.
  */

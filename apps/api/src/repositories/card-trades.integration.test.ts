@@ -7,6 +7,7 @@ import {
   completeTrade,
   createTrade,
   declineTrade,
+  setTradeQuantity,
   skipTradeSync,
   applyTradeSync,
 } from "../services/card-trades.js";
@@ -385,6 +386,56 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     // Now a fresh request is allowed.
     const second = await request(group, 1);
     expect(second.status).toBe("pending");
+  });
+
+  it("setTradeQuantity resizes a pending request and raises the wish entry to match", async () => {
+    // Receiver wishes 1 but the giver has 3 — claiming more copies bumps both the
+    // trade and the wish entry so sync accounting stays valid.
+    const { group, wishEntryId } = await setupMatch(3, 1);
+    const trade = await request(group, 1);
+    const resized = await setTradeQuantity(transact, trade.id, RECEIVER_ID, 3);
+    expect(resized.quantity).toBe(3);
+    const wishEntry = await repos.lists.getEntryByIdForUser(wishEntryId, RECEIVER_ID);
+    expect(wishEntry?.quantity).toBe(3);
+    // Lowering again leaves the wish entry where it was (we never want less).
+    const lowered = await setTradeQuantity(transact, trade.id, RECEIVER_ID, 2);
+    expect(lowered.quantity).toBe(2);
+    const wishAfter = await repos.lists.getEntryByIdForUser(wishEntryId, RECEIVER_ID);
+    expect(wishAfter?.quantity).toBe(3);
+  });
+
+  it("setTradeQuantity caps at the giver's available supply", async () => {
+    const { group } = await setupMatch(2);
+    const trade = await request(group, 1);
+    await expect(setTradeQuantity(transact, trade.id, RECEIVER_ID, 3)).rejects.toMatchObject({
+      status: 409,
+    });
+  });
+
+  it("setTradeQuantity rejects a quantity below 1 (release the last copy via cancel)", async () => {
+    const { group } = await setupMatch(2);
+    const trade = await request(group, 1);
+    await expect(setTradeQuantity(transact, trade.id, RECEIVER_ID, 0)).rejects.toMatchObject({
+      status: 400,
+    });
+  });
+
+  it("setTradeQuantity is initiator-only and pending-only", async () => {
+    const { group } = await setupMatch(2);
+    const trade = await request(group, 1);
+    // The giver (non-initiator) cannot resize the request.
+    await expect(setTradeQuantity(transact, trade.id, GIVER_ID, 2)).rejects.toMatchObject({
+      status: 403,
+    });
+    // An outsider cannot either.
+    await expect(setTradeQuantity(transact, trade.id, OUTSIDER_ID, 2)).rejects.toMatchObject({
+      status: 403,
+    });
+    // Once reserved it can no longer be resized.
+    await acceptTrade(transact, trade.id, GIVER_ID);
+    await expect(setTradeQuantity(transact, trade.id, RECEIVER_ID, 2)).rejects.toMatchObject({
+      status: 409,
+    });
   });
 
   it("only the non-initiator can accept/decline; only the initiator can cancel a pending", async () => {

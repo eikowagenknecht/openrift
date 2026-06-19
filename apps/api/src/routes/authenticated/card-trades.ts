@@ -10,6 +10,7 @@ import {
   cardTradesQuerySchema,
   createCardTradeSchema,
   idParamSchema,
+  setCardTradeQuantitySchema,
 } from "@openrift/shared/schemas";
 
 import { getUserId } from "../../middleware/get-user-id.js";
@@ -106,6 +107,25 @@ const completeTradeRoute = createRoute({
     200: {
       content: { "application/json": { schema: cardTradeResponseSchema } },
       description: "Completed",
+    },
+  },
+});
+
+const setQuantityTradeRoute = createRoute({
+  method: "post",
+  path: "/{id}/quantity",
+  tags: [TAG],
+  request: {
+    params: idParamSchema,
+    body: {
+      content: { "application/json": { schema: setCardTradeQuantitySchema } },
+      required: true,
+    },
+  },
+  responses: {
+    200: {
+      content: { "application/json": { schema: cardTradeResponseSchema } },
+      description: "Resized",
     },
   },
 });
@@ -212,6 +232,16 @@ export const cardTradesRoute = cardTradesApp
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
     return c.json(await completeTrade(transact, id, userId));
+  })
+
+  // ── POST /trades/:id/quantity ────────────────────────────────────────────────
+  .openapi(setQuantityTradeRoute, async (c) => {
+    const { setTradeQuantity } = c.get("services");
+    const transact = c.get("transact");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+    const { quantity } = c.req.valid("json");
+    return c.json(await setTradeQuantity(transact, id, userId, quantity));
   })
 
   // ── POST /trades/:id/sync ────────────────────────────────────────────────────

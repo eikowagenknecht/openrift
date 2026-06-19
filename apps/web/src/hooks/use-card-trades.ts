@@ -56,6 +56,20 @@ const createTradeFn = createServerFn({ method: "POST" })
     ),
   );
 
+const setTradeQuantityFn = createServerFn({ method: "POST" })
+  .validator((input: { tradeId: string; quantity: number }) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data }): Promise<CardTradeResponse> =>
+      callApiJson(
+        serverApiClient(context.cookie).api.v1.trades[":id"].quantity.$post({
+          param: encodeParams({ id: data.tradeId }),
+          json: { quantity: data.quantity },
+        }),
+        "Couldn't update the request",
+      ),
+  );
+
 const tradeActionFn = createServerFn({ method: "POST" })
   .validator(
     (input: { tradeId: string; action: "accept" | "decline" | "cancel" | "complete" }) => input,
@@ -181,6 +195,24 @@ export function useCreateTrade() {
     }
   >({
     mutationFn: (data) => createTradeFn({ data }),
+    invalidates: (variables) => tradeInvalidationKeys(userId, variables.groupSlug),
+  });
+}
+
+/**
+ * Resizes a pending request to a new total quantity (per-copy claim/release on a
+ * member's tradelist). Invalidates the same keys as create so the tradelist
+ * markers and the Trades page both refresh.
+ * @returns The set-quantity mutation.
+ */
+export function useSetTradeQuantity() {
+  const userId = useRequiredUserId();
+  return useMutationWithInvalidation<
+    CardTradeResponse,
+    { tradeId: string; quantity: number; groupSlug?: string }
+  >({
+    mutationFn: (data) =>
+      setTradeQuantityFn({ data: { tradeId: data.tradeId, quantity: data.quantity } }),
     invalidates: (variables) => tradeInvalidationKeys(userId, variables.groupSlug),
   });
 }

@@ -63,6 +63,7 @@ import {
   completeTrade,
   createTrade,
   declineTrade,
+  setTradeQuantity,
   skipTradeSync,
 } from "./services/card-trades.js";
 import { deleteCollection } from "./services/collections.js";
@@ -148,6 +149,7 @@ export interface Services {
   declineTrade: typeof declineTrade;
   cancelTrade: typeof cancelTrade;
   completeTrade: typeof completeTrade;
+  setTradeQuantity: typeof setTradeQuantity;
   applyTradeSync: typeof applyTradeSync;
   skipTradeSync: typeof skipTradeSync;
 }
@@ -243,6 +245,7 @@ export const services: Services = {
   declineTrade,
   cancelTrade,
   completeTrade,
+  setTradeQuantity,
   applyTradeSync,
   skipTradeSync,
 };
