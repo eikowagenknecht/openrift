@@ -47,7 +47,7 @@ export default function WhyOpenRiftArticle() {
       </section>
 
       <p className="text-muted-foreground">
-        This comparison reflects my opinions as of early 2026, not marketing. Features change and I
+        This comparison reflects my opinions as of mid-2026, not marketing. Features change and I
         may have missed things. If you believe something is inaccurate, please{" "}
         <a
           href="mailto:support@openrift.app"
@@ -89,7 +89,7 @@ export default function WhyOpenRiftArticle() {
           <FeatureCard
             icon={<HeartIcon className="size-4" />}
             title="Community, not social network"
-            description="I have exciting ideas around small private groups, sharing, and trading. No forums though, or anything else that needs full-time content moderation."
+            description="Small private groups, list sharing, and trading between members are all here, with more ideas in the works. No forums though, or anything else that needs full-time content moderation."
           />
           <FeatureCard
             icon={<SparklesIcon className="size-4" />}
@@ -136,8 +136,10 @@ export default function WhyOpenRiftArticle() {
           I&apos;m not sure.
         </p>
         <p className="text-muted-foreground mb-3">
-          Last verified on 2026-05-27. When you&apos;re reading this, it&apos;s probably already
-          slightly out of date, as counts and features change regularly.
+          OpenRift&apos;s own rows were last refreshed on 2026-06-21. The competitor counts and
+          features were last verified on 2026-05-27 and may have drifted since. When you&apos;re
+          reading this, it&apos;s probably already slightly out of date, as counts and features
+          change regularly.
         </p>
 
         {/* Desktop: full table */}
@@ -509,6 +511,16 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
       riftcore: "Automatic trade binder plus multiple manual and dynamic want lists.",
     },
   },
+  {
+    kind: "row",
+    feature: "Trade matching",
+    values: ["yes", "unknown", "unknown", "unknown", "unknown"],
+    detail: {
+      general:
+        "Matches your wishlists against what other members offer (and the reverse) inside a private group, with one-tap requests, price preferences, and email alerts.",
+      openrift: "Built around small private groups rather than a public marketplace.",
+    },
+  },
   { kind: "section", title: "Deck Building" },
   {
     kind: "row",
@@ -577,6 +589,16 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
       general: "One-click link that opens the deck in RiftAtlas's online playtester.",
     },
   },
+  {
+    kind: "row",
+    feature: "Deck plans / sideboard guides",
+    values: ["yes", "unknown", "unknown", "unknown", "unknown"],
+    detail: {
+      general:
+        "Document how to pilot a deck (gameplan, opening hand, battlefield) with per-matchup sideboarding, shown on the shared deck page.",
+      openrift: "Available on every deck and included when you share it.",
+    },
+  },
   { kind: "section", title: "User Experience" },
   {
     kind: "row",
@@ -612,6 +634,15 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
     detail: {
       general:
         "Design your own Riftbound-style card with your own background image, then download it or copy it to share. Everything stays in your browser.",
+    },
+  },
+  {
+    kind: "row",
+    feature: "Pack opener simulator",
+    values: ["yes", "unknown", "unknown", "unknown", "unknown"],
+    detail: {
+      general:
+        "Open virtual boosters at the real published pull rates, flip cards one at a time or crack a whole display, and see the rarity breakdown and best pulls.",
     },
   },
   {
@@ -715,6 +746,17 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
       riftmana: "Tournament decklists available, but not organized per tournament.",
       riftboundGg: "Tournament data plus decklists.",
       riftcore: "A mix of tournament and community data; sourcing is unclear.",
+    },
+  },
+  {
+    kind: "row",
+    feature: "Tournament organizer tools",
+    values: ["yes", "unknown", "unknown", "unknown", "unknown"],
+    detail: {
+      general:
+        "Run an event yourself: free-for-all pod scoring and standings, player deck submission via a per-event link, and judge deck-check tools.",
+      openrift:
+        "Aimed at running casual leagues and pod events, not browsing other people's results.",
     },
   },
   {

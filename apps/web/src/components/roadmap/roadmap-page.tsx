@@ -1,14 +1,18 @@
 import { Link } from "@tanstack/react-router";
 import {
+  ArrowRightLeftIcon,
   BanIcon,
   BotIcon,
   CheckIcon,
   CircleDotIcon,
+  ClipboardListIcon,
   FileWarningIcon,
   FolderSyncIcon,
+  Gamepad2Icon,
   HeartIcon,
   LayersIcon,
   LibraryIcon,
+  PackageOpenIcon,
   PaletteIcon,
   PieChartIcon,
   PrinterIcon,
@@ -18,6 +22,7 @@ import {
   Share2Icon,
   ShuffleIcon,
   SmartphoneIcon,
+  SwordsIcon,
   TrophyIcon,
   UploadIcon,
   UsersIcon,
@@ -58,6 +63,29 @@ const roadmapItems: RoadmapItem[] = [
   },
   // Done
   {
+    title: "Tournament Tools",
+    description:
+      "Run free-for-all pod events with standings, plus player deck submission and judge deck-check tools.",
+    icon: <SwordsIcon className="size-4" />,
+    done: true,
+    date: "Jun 2026",
+  },
+  {
+    title: "Deck Plans",
+    description:
+      "Document how to pilot a deck: gameplan, opening hand, battlefield, and per-matchup sideboarding.",
+    icon: <ClipboardListIcon className="size-4" />,
+    done: true,
+    date: "Jun 2026",
+  },
+  {
+    title: "Match Tracker",
+    description: "Keep score and XP for 2 to 4 players on one device, works offline.",
+    icon: <Gamepad2Icon className="size-4" />,
+    done: true,
+    date: "Jun 2026",
+  },
+  {
     title: "Card Designer",
     description:
       "Design your own Riftbound-style card with your own art, then download or copy it to share.",
@@ -70,6 +98,14 @@ const roadmapItems: RoadmapItem[] = [
     description:
       "Small private groups to share wishlists and tradelists, with live matches of who has the cards you want.",
     icon: <UsersIcon className="size-4" />,
+    done: true,
+    date: "May 2026",
+  },
+  {
+    title: "Trades",
+    description:
+      "Trade matching across your groups, with one-tap requests, price preferences, and email alerts.",
+    icon: <ArrowRightLeftIcon className="size-4" />,
     done: true,
     date: "May 2026",
   },
@@ -135,6 +171,14 @@ const roadmapItems: RoadmapItem[] = [
     title: "Collection Import/Export",
     description: "Import and export collections as CSV files.",
     icon: <UploadIcon className="size-4" />,
+    done: true,
+    date: "Apr 2026",
+  },
+  {
+    title: "Pack Opener",
+    description:
+      "Open virtual boosters at the real published pull rates to see what you might pull.",
+    icon: <PackageOpenIcon className="size-4" />,
     done: true,
     date: "Apr 2026",
   },
