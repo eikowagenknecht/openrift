@@ -392,7 +392,7 @@ curl -s localhost:8080/api/health | jq .
 # Preview
 cd ~/openrift-preview && docker compose ps
 curl -s localhost:8081/health    # Should return "ok"
-curl -s localhost:8082/api/health | jq .
+curl -s localhost:8081/api/health | jq .
 ```
 
 ### Directory Layout

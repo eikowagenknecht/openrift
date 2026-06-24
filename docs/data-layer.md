@@ -1,6 +1,8 @@
 # Data Layer
 
-PostgreSQL database managed by Kysely migrations in `packages/shared/src/db/migrations/`.
+PostgreSQL database managed by Kysely migrations in `apps/api/src/db/migrations/`.
+
+> The authoritative current schema is `docs/schema.sql` (a `pg_dump --schema-only` snapshot). When the tables below and `schema.sql` disagree, `schema.sql` wins — prefer reading it for exact column lists, constraints, and indexes.
 
 ## Naming Conventions
 
@@ -46,20 +48,21 @@ Game card identity — one row per unique card. Stats and rules live here; physi
 | `slug`        | text        | not null, unique                                           |
 | `norm_name`   | text        | not null — auto-set by trigger (lowercase, alphanumeric)   |
 | `type`        | text        | not null (Legend, Unit, Rune, Spell, Gear, Battlefield)    |
-| `super_types` | text[]      | not null, default '{}' (Basic, Champion, Signature, Token) |
-| `domains`     | text[]      | not null (Fury, Calm, Mind, Body, Chaos, Order, Colorless) |
 | `might`       | integer     | nullable — Unit only                                       |
 | `energy`      | integer     | nullable — Unit, Spell, Gear only                          |
 | `power`       | integer     | nullable — Unit, Spell, Gear only                          |
 | `might_bonus` | integer     | nullable — Gear only                                       |
 | `keywords`    | text[]      | not null, default '{}'                                     |
-| `rules_text`  | text        | nullable                                                   |
-| `effect_text` | text        | nullable                                                   |
 | `tags`        | text[]      | not null, default '{}'                                     |
+| `comment`     | text        | nullable — admin notes                                     |
 | `created_at`  | timestamptz | not null, default now()                                    |
 | `updated_at`  | timestamptz | not null, default now()                                    |
 
-Stats are nullable with type-specific semantics: `might` is only set for Units, `might_bonus` only for Gear, and `energy`/`power` only for Unit, Spell, and Gear. CHECK constraints enforce valid domain and type values, non-negative stats, and non-empty text fields (nulls are allowed, empty strings are not).
+Stats are nullable with type-specific semantics: `might` is only set for Units, `might_bonus` only for Gear, and `energy`/`power` only for Unit, Spell, and Gear. CHECK constraints enforce non-negative stats and non-empty text fields (nulls are allowed, empty strings are not).
+
+**Domains and super-types** are no longer array columns on `cards` — they were normalized into the `card_domains` and `card_super_types` junction tables (see [Reference Tables](#reference-tables) below). The API still surfaces them as arrays on the `Card` type.
+
+**Rules and effect text** do not live on `cards`. Printing-specific text is stored on `printings` (`printed_rules_text` / `printed_effect_text`), and admin-authored corrections live in the `card_errata` table (surfaced as `correctedRulesText` / `correctedEffectText`).
 
 ### `printings`
 
@@ -70,23 +73,30 @@ Physical product variations of a game card (art, rarity, finish, etc.). One card
 | `id`                  | uuid        | primary key, default uuidv7()                     |
 | `card_id`             | uuid        | not null, FK → cards.id                           |
 | `set_id`              | uuid        | not null, FK → sets.id                            |
-| `slug`                | text        | not null, unique                                  |
 | `short_code`          | text        | not null                                          |
+| `public_code`         | text        | not null                                          |
 | `rarity`              | text        | not null (Common, Uncommon, Rare, Epic, Showcase) |
 | `art_variant`         | text        | not null (normal, altart, overnumbered, ultimate) |
 | `is_signed`           | boolean     | not null, default false                           |
 | `finish`              | text        | not null (normal, foil)                           |
+| `language`            | text        | not null, default 'EN'                            |
+| `marker_slugs`        | text[]      | not null, default '{}' — denormalized, sorted, GIN-indexed mirror of `printing_markers` (kept in sync by trigger) |
 | `artist`              | text        | not null                                          |
-| `public_code`         | text        | not null                                          |
+| `printed_name`        | text        | nullable (localized/printed card name)            |
 | `printed_rules_text`  | text        | nullable (may differ from card's canonical text)  |
 | `printed_effect_text` | text        | nullable                                          |
 | `flavor_text`         | text        | nullable                                          |
+| `printed_year`        | smallint    | nullable — year stamped on the physical card      |
 | `comment`             | text        | nullable — admin notes                            |
-| `promo_type_id`       | uuid        | nullable, FK → promo_types.id                     |
 | `created_at`          | timestamptz | not null, default now()                           |
 | `updated_at`          | timestamptz | not null, default now()                           |
 
-Indexes: `card_id`, `set_id`, `rarity`. Unique constraint on `(short_code, art_variant, is_signed, promo_type_id, rarity, finish)`.
+There is no `slug` column on `printings` (only `cards` has a slug). Promo/distribution classification is no longer a single `promo_type_id` FK — it now lives in the `markers` / `printing_markers` and `distribution_channels` / `printing_distribution_channels` tables (see [Reference Tables](#reference-tables)).
+
+Indexes: `card_id`, `set_id`, `rarity`, plus a GIN index on `marker_slugs`. Two deferrable unique constraints enforce identity and variant uniqueness:
+
+- `uq_printings_identity` — `UNIQUE NULLS NOT DISTINCT (card_id, short_code, finish, marker_slugs, language)`
+- `uq_printings_variant` — `UNIQUE (short_code, art_variant, is_signed, marker_slugs, rarity, finish, language)`
 
 All FKs use `NO ACTION` on delete — deleting a card or set is blocked while printings reference it. This is intentional: printings are the primary unit of ownership (collections, wishlists) so they must never be silently removed.
 
@@ -108,18 +118,24 @@ Image data for printings, supporting multiple providers (e.g. gallery, rehosted 
 
 CHECK constraint ensures at least one of `original_url` or `rehosted_url` is set. Unique partial index ensures at most one active image per `(printing_id, face)`. Unique index on `(printing_id, face, provider)`.
 
-### `promo_types`
+### Reference Tables
 
-Lookup table for promo variant classification (e.g. "prerelease", "promo-pack").
+The old single `promo_types` lookup + `printings.promo_type_id` FK was replaced (migration `091-promos-rework`) by two orthogonal concepts: **markers** (variant/promo tags like "prerelease") and **distribution channels** (how a printing was distributed, a hierarchy of events/products). Each is a lookup table joined to printings through a junction table. Card domains and super-types were likewise normalized into junction tables (migration `062-reference-tables`).
 
-| Column       | Type        | Constraints                   |
-| ------------ | ----------- | ----------------------------- |
-| `id`         | uuid        | primary key, default uuidv7() |
-| `slug`       | text        | not null, unique              |
-| `label`      | text        | not null                      |
-| `sort_order` | integer     | not null, default 0           |
-| `created_at` | timestamptz | not null, default now()       |
-| `updated_at` | timestamptz | not null, default now()       |
+#### `markers` and `printing_markers`
+
+`markers` is a lookup of variant/promo tags (`id`, `slug` unique, `label`, `description` nullable, `sort_order`, timestamps). `printing_markers` is the junction (`printing_id`, `marker_id`). The sorted set of slugs for each printing is denormalized onto `printings.marker_slugs` (GIN-indexed) by trigger for fast filtering.
+
+#### `distribution_channels` and `printing_distribution_channels`
+
+`distribution_channels` (the renamed former `promo_types` table) classifies how a printing was distributed. Columns: `id`, `slug` unique, `label`, `description` nullable, `sort_order`, `kind` (`event` | `product`), `parent_id` (nullable, self-FK for the hierarchy; a CHECK forbids self-parenting), `children_label` nullable, timestamps. `printing_distribution_channels` is the junction (`printing_id`, `channel_id`, optional `distribution_note`).
+
+#### `domains`, `super_types`, `art_variants`, `finishes`, `rarities`
+
+Value lookups for the corresponding well-known card attributes (each keyed by `slug` with a `label` and `sort_order`). Cards link to domains/super-types through junctions:
+
+- `card_domains` — `(card_id, domain_slug, ordinal)`; `ordinal` orders multi-domain cards.
+- `card_super_types` — `(card_id, super_type_slug)`.
 
 ### `card_name_aliases`
 
@@ -502,8 +518,9 @@ Staged printing data from providers, linked to a candidate card. Can optionally 
 | `image_url`           | text        | nullable                                              |
 | `extra_data`          | jsonb       | nullable                                              |
 | `printing_id`         | uuid        | nullable, FK → printings.id                           |
-| `promo_type_id`       | uuid        | nullable, FK → promo_types.id                         |
-| `group_key`           | text        | not null — auto-set by trigger for deduplication      |
+| `language`            | text        | nullable                                              |
+| `printed_name`        | text        | nullable                                              |
+| `marker_slugs`        | text[]      | not null, default '{}'                                |
 | `checked_at`          | timestamptz | nullable — set when reviewed                          |
 | `created_at`          | timestamptz | not null, default now()                               |
 | `updated_at`          | timestamptz | not null, default now()                               |

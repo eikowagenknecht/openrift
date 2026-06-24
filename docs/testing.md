@@ -83,15 +83,15 @@ bun run test:integration          # all integration tests (via Turbo)
 
 Every integration test **must** use a temporary database. Never hit the development or production database from tests.
 
-Use `setupTestDb()` from `@openrift/shared/test/integration-setup` (or its inline equivalent for API tests that need dynamic imports). It:
+Use `setupTestDb()` from `apps/api/src/test/integration-setup.ts` (or its inline equivalent for API tests that need dynamic imports). It:
 
 1. Creates a fresh `openrift_test_<timestamp>` database
 2. Runs all migrations
 3. Returns a Kysely instance and a `teardown()` that drops the database
 
 ```ts
-// packages/shared example (static imports)
-import { setupTestDb } from "../../test/integration-setup.js";
+// apps/api example (static imports)
+import { setupTestDb } from "./test/integration-setup.js";
 
 let db: Kysely<Database>;
 let teardown: () => Promise<void>;

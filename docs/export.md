@@ -21,7 +21,9 @@ openrift-{collection-name}-{date}.csv
 | 5   | Domain      | Card domain(s), separated by `/` for multi-domain cards                 | `Fury`, `Mind / Body`                                             |
 | 6   | Finish      | Card finish                                                             | `normal`, `foil`                                                  |
 | 7   | Art Variant | Art variant type                                                        | `normal`, `altart`, `overnumbered`, `ultimate`                    |
-| 8   | Quantity    | Number of copies owned                                                  | `1`, `3`                                                          |
+| 8   | Promo       | Promo/distribution marker slugs, joined with `+` (empty for non-promo)  | `prerelease`, `judge+promo`                                       |
+| 9   | Language    | Printing language                                                       | `en`, `ja`                                                        |
+| 10  | Quantity    | Number of copies owned                                                  | `1`, `3`                                                          |
 
 ## Card ID format
 
@@ -45,10 +47,10 @@ Examples:
 ## Example
 
 ```csv
-Card ID,Card Name,Rarity,Type,Domain,Finish,Art Variant,Quantity
-OGN-001,Blazing Scorcher,Common,Unit,Fury,normal,normal,3
-OGN-004f,Cleave,Common,Unit,Fury,foil,normal,1
-OGN-030a,Emberclaw Champion,Rare,Unit,Fury / Mind,normal,altart,1
+Card ID,Card Name,Rarity,Type,Domain,Finish,Art Variant,Promo,Language,Quantity
+OGN-001,Blazing Scorcher,Common,Unit,Fury,normal,normal,,en,3
+OGN-004f,Cleave,Common,Unit,Fury,foil,normal,,en,1
+OGN-030a,Emberclaw Champion,Rare,Unit,Fury / Mind,normal,altart,prerelease,en,1
 ```
 
 ## Escaping

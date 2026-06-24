@@ -53,6 +53,16 @@ Email sending is disabled when `SMTP_HOST` is unset.
 | `CARDTRADER_API_TOKEN` |                             | CardTrader API token. Required for CardTrader refresh; leave empty to skip.              |
 | `CHANGELOG_PATH`       | `apps/web/src/CHANGELOG.md` | Path to the changelog file read by the Discord cron job.                                 |
 
+#### Discord Webhooks
+
+Each webhook is independent — leave any unset to disable that notification stream. These are environment variables only; they are **not** configurable as site settings.
+
+| Variable                            | Description                                                                                                       |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `DISCORD_WEBHOOK_NEW_PRINTINGS`     | Webhook URL for the new-printings channel. Receives notifications when new printings are created.                |
+| `DISCORD_WEBHOOK_PRINTING_CHANGES`  | Webhook URL for the data-updates channel. Receives notifications when printing data changes.                     |
+| `DISCORD_WEBHOOK_CHANGELOG`         | Webhook URL for the changelog post driven by `CRON_CHANGELOG`.                                                   |
+
 ### Web (Vite)
 
 | Variable             | Default | Description                                                                                                                        |
@@ -119,13 +129,11 @@ The site settings system is generic (any kebab-case key works), but only the key
 | ---------------------------------- | ----- | ------------------------------------------------------------------------------------------------------- |
 | `umami-url`                        | web   | Base URL of the Umami analytics instance (e.g. `https://analytics.example.com`).                        |
 | `umami-website-id`                 | web   | Umami website ID. Both `umami-url` and `umami-website-id` must be set for the analytics script to load. |
-| `discord-webhook-new-printings`    | api   | Discord webhook URL for the #new-cards channel. Receives notifications when new printings are created.  |
-| `discord-webhook-printing-changes` | api   | Discord webhook URL for the #data-updates channel. Receives notifications when printing data changes.   |
 
 ### How It Works
 
 **Analytics:** When both Umami settings are configured, the web app injects a `<script>` tag pointing to `{umami-url}/script.js` with the `data-website-id` attribute. Removing either setting disables analytics.
 
-**Discord notifications:** When webhook URLs are configured, a cron job flushes pending printing events to Discord every 15 minutes. New printings are posted to the new-printings channel; field changes (with before/after values) are posted to the changes channel. Events are consolidated per printing within each flush window to reduce noise.
+**Discord notifications:** Webhook URLs are configured via environment variables (`DISCORD_WEBHOOK_*`, see above), **not** site settings. When configured, a cron job flushes pending printing events to Discord every 15 minutes. New printings are posted to the new-printings channel; field changes (with before/after values) are posted to the changes channel. Events are consolidated per printing within each flush window to reduce noise.
 
 To add a new site setting that code actually reads, use `useSiteSettingValue("your-key")` on the frontend or query the `site_settings` table on the API side. Also add the key to the `KNOWN_SETTINGS` array in `apps/web/src/components/admin/site-settings-page.tsx` so it appears in the admin UI.

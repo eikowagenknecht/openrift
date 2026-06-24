@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- [Bun](https://bun.sh/) 1.2+
+- [Bun](https://bun.sh/) 1.3+
 - [Docker](https://www.docker.com/) (for PostgreSQL)
 
 ## Getting Started
@@ -17,7 +17,7 @@ cp .env.example .env
 # Start PostgreSQL
 docker compose up db -d
 
-# Run database migrations and refresh card catalog
+# Run database migrations
 bun db:migrate
 
 # Start all dev servers
@@ -36,7 +36,7 @@ bun dev        # All apps + shared type checking in parallel
 
 ## Database
 
-PostgreSQL runs in Docker. Data persists in the `pg_data` volume — to wipe it: `docker compose down -v`.
+PostgreSQL runs in Docker. Data persists in a bind mount at `./data/postgres` — to wipe it, stop the container and remove the directory: `docker compose down && rm -rf ./data/postgres`.
 
 ```bash
 bun db:migrate    # Run pending migrations
@@ -44,7 +44,7 @@ bun db:rollback   # Roll back the last migration
 bun make-admin -- <email>  # Grant admin role to a user
 ```
 
-Migrations live in `packages/shared/src/db/`.
+Migrations live in `apps/api/src/db/migrations/` and must be registered in that directory's `index.ts` barrel. The `bun db:migrate` / `bun db:rollback` scripts wrap `scripts/run-migrations.ts`.
 
 To open a psql shell against the local database:
 
@@ -66,7 +66,7 @@ docker exec openrift-db-1 psql -U openrift -c "SELECT count(*) FROM cards;"
 | ----------------------------- | ------------------------- |
 | Database not running          | `docker compose up db -d` |
 | Migrations not applied        | `bun db:migrate`          |
-| Database empty (no card data) | `bun db:seed`             |
+| Database empty (no card data) | Import the catalog from the admin panel (`/admin`) — there is no CLI seed command. Grant yourself admin with `bun make-admin -- <email>` first. |
 
 ## Linting and Formatting
 
