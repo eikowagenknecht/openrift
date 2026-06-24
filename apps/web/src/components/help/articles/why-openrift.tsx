@@ -514,7 +514,7 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   {
     kind: "row",
     feature: "Trade matching",
-    values: ["yes", "unknown", "unknown", "unknown", "unknown"],
+    values: ["yes", "no", "no", "no", "no"],
     detail: {
       general:
         "Matches your wishlists against what other members offer (and the reverse) inside a private group, with one-tap requests, price preferences, and email alerts.",

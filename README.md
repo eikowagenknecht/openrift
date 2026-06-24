@@ -4,7 +4,7 @@ An open-source collection tracker and deck builder for [Riftbound](https://riftb
 
 _Built with Fury. Maintained with Calm._
 
-> Built in 2026. Live, actively developed, and improving fast. See the [changelog](apps/web/src/CHANGELOG.md).
+> Built in 2026 and actively developed. See the [changelog](apps/web/src/CHANGELOG.md).
 
 **[openrift.app](https://openrift.app)** · [Help](https://openrift.app/help) · [Roadmap](https://openrift.app/roadmap) · [Card data](https://github.com/openriftapp/openrift-data) · [Discord](https://discord.gg/Qb6RcjXq6z)
 
@@ -18,14 +18,16 @@ The [honest comparison](https://openrift.app/help/why-openrift) lays out where O
 
 ## What it does
 
-- **Every card, every printing.** Complete catalog including Chinese printings and promos, with daily prices from TCGplayer, Cardmarket, and CardTrader shown side by side.
-- **Collection tracking that mirrors real life.** Name collections after where cards actually live, like "Red Deck Box", "Binder 1", or "Lent to Sebastian". Every copy lives in exactly one place.
-- **Deck builder that knows what you own.** Format validation, energy curves, deck codes. See what you're missing and print the rest as proxies.
-- **Yours to keep.** Open source (AGPL-3.0), ad-free, no tracking beyond cookie-free Umami analytics. Export to CSV any time, or self-host the whole stack.
+- **Every card, every printing.** The most complete Riftbound catalog, including Chinese printings and promos (French cards aren't in yet). Daily prices from three marketplaces (TCGplayer, Cardmarket, CardTrader) sit side by side, with history charts.
+- **Collections that match real life.** Name a collection after wherever the cards actually sit ("Red Deck Box", "Binder 1", "Lent to Sebastian"), and each copy lives in exactly one of them.
+- **Lists, groups, and trades.** Build wishlists and tradelists, share them by link or inside a small private group, and let trade matching show who has the cards you want. No other Riftbound site does this.
+- **A deck builder that checks your collection.** Format validation, energy curves, deck codes, and per-matchup deck plans, plus a list of what you're still missing so you can proxy the rest.
+- **More than a tracker.** Pack opener, card designer, tournament tools, and a searchable rules reference round things out.
+- **Private and open.** Ad-free with zero third-party trackers, just cookie-free Umami analytics. Open source under AGPL-3.0, with CSV and deck-code export so your data is never locked in.
 
 ## What it doesn't do
 
-No AI deck suggestions; we don't think everything needs AI shoehorned in. No forums or social network, since content moderation is a full-time job and we're a tool, not a social space. Plenty else is on the [roadmap](https://openrift.app/roadmap), including a mobile app with card scanning. The [honest comparison](https://openrift.app/help/why-openrift) lays out what's there, what's coming, and what isn't.
+No AI deck suggestions, because not everything needs AI bolted on. No forums or social feed either, because moderation is a full-time job and this is a tool, not a hangout. There's plenty on the [roadmap](https://openrift.app/roadmap) though, including a mobile app with card scanning. The [honest comparison](https://openrift.app/help/why-openrift) spells out what OpenRift has today and what it doesn't.
 
 ## For developers
 
