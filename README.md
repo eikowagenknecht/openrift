@@ -60,3 +60,7 @@ OpenRift is an unofficial fan project, not affiliated with or endorsed by Riot G
 ## License
 
 [AGPL-3.0](LICENSE)
+
+---
+
+Made by Eiko Wagenknecht. I also build [LootScraper](https://github.com/eikowagenknecht/lootscraper).
