@@ -1,45 +1,57 @@
 # OpenRift
 
-An open-source collection tracker and deck builder for [Riftbound](https://riftbound.leagueoflegends.com/), League of Legends' trading card game.
-
 _Built with Fury. Maintained with Calm._
 
-> Built in 2026 and actively developed. See the [changelog](apps/web/src/CHANGELOG.md).
+An open-source, [actively developed](apps/web/src/CHANGELOG.md) companion app for [Riftbound](https://riftbound.leagueoflegends.com/), League of Legends' trading card game. Track your collection, build decks, trade, and more.
 
-**[openrift.app](https://openrift.app)** · [Help](https://openrift.app/help) · [Roadmap](https://openrift.app/roadmap) · [Card data](https://github.com/openriftapp/openrift-data) · [Discord](https://discord.gg/Qb6RcjXq6z)
+Live and free to use at **[openrift.app](https://openrift.app)**, no install required. This repository is the code that runs it.
 
 ![OpenRift card browser](docs/assets/screenshot.webp)
 
-## Why
-
-I wanted to track my collection, and nothing I tried fit. One site was missing cards, another felt slow on mobile and dropped cards mid-edit, a third had every feature but the basics didn't feel solid. And none of them worked well on both desktop and mobile. So naturally, after a full week of patient, rigorous evaluation, I did the only reasonable thing and built a competing product from scratch.
-
-The [honest comparison](https://openrift.app/help/why-openrift) lays out where OpenRift stands next to the alternatives.
-
 ## What it does
 
-- **Every card, every printing.** The most complete Riftbound catalog, including Chinese printings and promos (French cards aren't in yet). Daily prices from three marketplaces (TCGplayer, Cardmarket, CardTrader) sit side by side, with history charts.
-- **Collections that match real life.** Name a collection after wherever the cards actually sit ("Red Deck Box", "Binder 1", "Lent to Sebastian"), and each copy lives in exactly one of them.
-- **Lists, groups, and trades.** Build wishlists and tradelists, share them by link or inside a small private group, and let trade matching show who has the cards you want. No other Riftbound site does this.
-- **A deck builder that checks your collection.** Format validation, energy curves, deck codes, and per-matchup deck plans, plus a list of what you're still missing so you can proxy the rest.
-- **More than a tracker.** Pack opener, card designer, tournament tools, and a searchable rules reference round things out.
-- **Private and open.** Ad-free with zero third-party trackers, just cookie-free Umami analytics. Open source under AGPL-3.0, with CSV and deck-code export so your data is never locked in.
+- **Comprehensive catalog.** More cards and printings than anywhere else. Almost all English cards and promos, plus many Chinese cards. French isn't in yet, unfortunately.
+- **Accurate price tracking.** Daily prices from TCGplayer, Cardmarket, and CardTrader, side by side, with history charts.
+- **One card, one place.** Collections map to the real world: a deck box, a binder, a card lent to a friend. Each copy lives in exactly one, so the app always mirrors what's actually on your shelf.
+- **Wishlists and tradelists.** Track the cards you want and the spares you'd part with, and share either by link with anyone.
+- **Private groups.** Form a small group with friends or your local game store, with collections owned by the whole group, a view into each member's own collections, and trade matching that surfaces who has the cards you're after. No other Riftbound site does this.
+- **Your decks, your rules.** Validate against official and custom formats, or build freeform with no limits at all. Energy curves, deck codes, per-matchup plans, and a list of what you're still missing so you can proxy or buy the rest.
+- **A full toolbox.** Pack opener, card designer, tournament tools, and a searchable rules reference are all built in with more to come.
+- **Private and open.** Zero third-party trackers, just cookie-free Umami analytics. Open source under AGPL-3.0, with import and export options, so your data is never locked in.
+
+There is plenty more on the public [roadmap](https://openrift.app/roadmap) and I like to get feedback about what would make this app even better for **you**.
 
 ## What it doesn't do
 
-No AI deck suggestions, because not everything needs AI bolted on. No forums or social feed either, because moderation is a full-time job and this is a tool, not a hangout. There's plenty on the [roadmap](https://openrift.app/roadmap) though, including a mobile app with card scanning. The [honest comparison](https://openrift.app/help/why-openrift) spells out what OpenRift has today and what it doesn't.
+Some things are left out on purpose, each for a reason.
+
+- No ads, because nobody has ever wished a page had more ads on it. If I ever monetize beyond donations and affiliate links, I promise it'll be in a way I'd be happy with as a user myself. The ideas I have in mind would **add** value rather than take anything away from you.
+- No forums, because moderation is a full-time job I don't have time for.
+- No AI deck suggestions, because as good as AI is at some things, deck-building today isn't one of them.
+
+For where OpenRift stands against the alternatives, and what it has today versus what it doesn't, see the [honest comparison](https://openrift.app/help/why-openrift).
+
+## Why
+
+I wanted to track my collection, and nothing I tried fit. One site was missing cards, another felt slow on mobile and dropped cards mid-edit, a third had every feature on the planet but the basics didn't feel solid. And none of them worked really well on both desktop and mobile.
+
+So naturally, after a full week of patient, rigorous evaluation, I did the only reasonable thing and built my own from scratch. One thing led to another, and four months in, it's grown into something quite nice that I use every day.
+
+If you want to talk about OpenRift there's a [Discord](https://discord.gg/Qb6RcjXq6z).
 
 ## For developers
 
-Turborepo monorepo: TanStack Start frontend (`apps/web`), Hono API (`apps/api`), shared types (`packages/shared`), PostgreSQL. Bun, TypeScript end-to-end, Tailwind + shadcn/ui, oxlint + oxfmt.
+OpenRift is a TypeScript monorepo: a TanStack Start + shadcn/ui frontend (`apps/web`), a Hono API on Bun (`apps/api`), and PostgreSQL accessed through Kysely.
 
-- [Architecture](docs/architecture.md) — monorepo structure, packages, infrastructure
-- [Data Layer](docs/data-layer.md) — database schema and API endpoints
-- [Development](docs/development.md) — prerequisites, setup, commands
-- [Deployment](docs/deployment.md) — VPS setup, Docker Compose, CI/CD
-- [Contributing](docs/contributing.md) — code style, conventions, changelog
+- [Architecture](docs/architecture.md) covers the monorepo structure, packages, and infrastructure.
+- [Data Layer](docs/data-layer.md) documents the database schema and API endpoints.
+- [Development](docs/development.md) lists the prerequisites, setup, and commands.
+- [Deployment](docs/deployment.md) walks through VPS setup, Docker Compose, and CI/CD.
+- [Contributing](docs/contributing.md) explains code style, conventions, and the changelog.
 
-Issues and PRs welcome. To contribute card data (not code), see [openrift-data](https://github.com/openriftapp/openrift-data).
+On the AI question: yes, Claude does a lot of the typing, so you might find a stray em dash here and there. That doesn't mean OpenRift is vibe-coded. The architecture and the decisions that matter are mine, and with 20+ years of full-stack experience behind it, I review and shape every part of the code.
+
+Issues and pull requests are welcome. If you open a pull request, please make sure you understand the code you're submitting, since it's held to the same standard. To contribute card data rather than code, see [openrift-data](https://github.com/openriftapp/openrift-data).
 
 ## Legal
 
