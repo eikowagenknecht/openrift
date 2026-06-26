@@ -180,7 +180,7 @@ services:
   # Queried by Grafana via :3100 on the internal network; host 3101 is for
   # ad-hoc curl (Grafana already binds 3100 on the host).
   loki:
-    image: grafana/loki:3.7.2
+    image: grafana/loki:3.7.3
     user: "${UID:-1000}:${GID:-1000}"
     command: ["-config.file=/etc/loki/loki.yml"]
     ports:
