@@ -46,7 +46,7 @@ describe.skipIf(!ctx)("userPreferencesRepo (integration)", () => {
     // Second upsert exercises the ON CONFLICT DO UPDATE path.
     // Note: under bun, postgres.js returns jsonb as a string, which means
     // the repo's `existing?.data` spread produces incorrect merges. This is
-    // a known bun/postgres.js discrepancy (see api-coverage-findings.md).
+    // a known bun/postgres.js discrepancy.
     // We just verify the DB operation itself succeeds.
     const result = await repo.upsert(userId, { theme: "dark" });
     expect(result).toBeDefined();
