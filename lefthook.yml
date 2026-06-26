@@ -38,17 +38,12 @@ pre-commit:
 pre-push:
   commands:
     typescript-check:
-      # Skipped on the constrained remote runner, where `tsgo` gets
-      # OOM-killed in the constrained container. CI runs the full typecheck
-      # on every PR, so this stays covered there.
-      skip:
-        - run: test -n "$REMOTE_RUNNER"
+      # Runs everywhere, including constrained remote/CI runners.
+      # The old OOM that forced a remote skip came from the Hono `AppType` graph
+      # (tsgo peaked ~11.9 GB); the oRPC migration collapsed it to ~2.2 GB.
       glob: "*.{ts,tsx}"
       run: bun run --cwd packages/shared typecheck && bun run --cwd apps/web typecheck
     knip-check:
-      # Skipped on the web/remote runner for the same memory reasons; CI covers it.
-      skip:
-        - run: test -n "$REMOTE_RUNNER"
       glob: "*.{js,ts,cjs,mjs,jsx,tsx}"
       run: bun run knip
     lockfile-check:
