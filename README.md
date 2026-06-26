@@ -25,9 +25,9 @@ There is plenty more on the public [roadmap](https://openrift.app/roadmap) and I
 
 Some things are left out on purpose, each for a reason.
 
-- No ads, because nobody has ever wished a page had more ads on it. If I ever monetize beyond donations and affiliate links, I promise it'll be in a way I'd be happy with as a user myself. The ideas I have in mind would **add** value rather than take anything away from you.
-- No forums, because moderation is a full-time job I don't have time for.
-- No AI deck suggestions, because as good as AI is at some things, deck-building today isn't one of them.
+- **No ads**, because nobody has ever wished a page had more ads on it. If I ever monetize beyond donations and affiliate links, I promise it'll be in a way I'd be happy with as a user myself. The ideas I have in mind would **add** value rather than take anything away from you.
+- **No forums**, because moderation is a full-time job I don't have time for.
+- **No AI** deck suggestions, because as good as AI is at some things, deck-building today isn't one of them.
 
 For where OpenRift stands against the alternatives, and what it has today versus what it doesn't, see the [honest comparison](https://openrift.app/help/why-openrift).
 
