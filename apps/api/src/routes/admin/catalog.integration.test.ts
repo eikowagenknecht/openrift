@@ -256,7 +256,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
       expect(res.status).toBe(400);
       const json = await res.json();
       expect(json.code).toBe("BAD_REQUEST");
-      expect(json.error).toContain("Duplicate");
+      expect(json.message).toContain("Duplicate");
     });
 
     it("rejects reorder with unknown set IDs (400)", async () => {
@@ -270,7 +270,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
       expect(res.status).toBe(400);
       const json = await res.json();
       expect(json.code).toBe("BAD_REQUEST");
-      expect(json.error).toContain("Unknown");
+      expect(json.message).toContain("Unknown");
     });
   });
 
@@ -340,7 +340,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
       expect(delRes.status).toBe(409);
       const delJson = await delRes.json();
       expect(delJson.code).toBe("CONFLICT");
-      expect(delJson.error).toContain("printing");
+      expect(delJson.message).toContain("printing");
 
       // Clean up
       await testDb.deleteFrom("printings").where("shortCode", "=", "CAT-PRINT-001").execute();

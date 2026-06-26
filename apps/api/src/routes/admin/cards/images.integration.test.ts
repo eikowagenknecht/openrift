@@ -368,7 +368,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       expect(res.status).toBe(400);
 
       const json = await res.json();
-      expect(json.error).toBe("Candidate printing not linked to a printing");
+      expect(json.message).toBe("Candidate printing not linked to a printing");
     });
 
     it("returns 400 when printing source has no image URL", async () => {
@@ -380,7 +380,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       expect(res.status).toBe(400);
 
       const json = await res.json();
-      expect(json.error).toBe("Candidate printing has no image URL");
+      expect(json.message).toBe("Candidate printing has no image URL");
     });
   });
 
@@ -622,7 +622,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       expect(res.status).toBe(400);
 
       const json = await res.json();
-      expect(json.error).toBe("Image has no original URL to rehost");
+      expect(json.message).toBe("Image has no original URL to rehost");
 
       // Clean up
       await db.deleteFrom("printingImages").where("id", "=", noUrlImage.id).execute();
@@ -673,7 +673,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       expect(res.status).toBe(400);
 
       const json = await res.json();
-      expect(json.error).toBe("Image is not rehosted");
+      expect(json.message).toBe("Image is not rehosted");
     });
 
     it("returns 404 for non-existent image", async () => {

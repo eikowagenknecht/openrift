@@ -89,7 +89,7 @@ describe.skipIf(!adminCtx)("Admin site-settings routes (integration)", () => {
       expect(res.status).toBe(409);
 
       const json = await res.json();
-      expect(json.error).toContain("already exists");
+      expect(json.message).toContain("already exists");
     });
 
     it("returns 400 for invalid key (not kebab-case)", async () => {
@@ -195,7 +195,7 @@ describe.skipIf(!adminCtx)("Admin site-settings routes (integration)", () => {
       expect(res.status).toBe(404);
 
       const json = await res.json();
-      expect(json.error).toContain("not found");
+      expect(json.message).toContain("not found");
     });
 
     it("returns 400 when neither value nor scope is provided", async () => {
@@ -222,7 +222,7 @@ describe.skipIf(!adminCtx)("Admin site-settings routes (integration)", () => {
       expect(res.status).toBe(404);
 
       const json = await res.json();
-      expect(json.error).toContain("not found");
+      expect(json.message).toContain("not found");
     });
 
     it("verifies no iss- settings remain", async () => {

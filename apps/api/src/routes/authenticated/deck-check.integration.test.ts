@@ -821,7 +821,7 @@ describe.skipIf(!ownerCtx)("deck-check routes (integration, ADR-025)", () => {
         }),
       );
       expect(res.status).toBe(422);
-      expect(((await res.json()) as { error: string }).error).toContain("commander");
+      expect(((await res.json()) as { message: string }).message).toContain("commander");
     });
 
     it("rejects adding to an archived event with 409", async () => {

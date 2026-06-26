@@ -125,7 +125,7 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
       );
       expect(res.status).toBe(400);
       const body = await res.json();
-      expect(body.error).toMatch(/older|chronological/iu);
+      expect(body.message).toMatch(/older|chronological/iu);
     });
   });
 

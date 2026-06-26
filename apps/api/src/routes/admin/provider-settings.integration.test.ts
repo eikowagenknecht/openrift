@@ -141,7 +141,7 @@ describe.skipIf(!adminCtx)("Admin provider-settings routes (integration)", () =>
       expect(res.status).toBe(400);
 
       const json = await res.json();
-      expect(json.error).toContain("Duplicate");
+      expect(json.message).toContain("Duplicate");
     });
   });
 
