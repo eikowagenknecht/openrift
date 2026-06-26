@@ -51,6 +51,21 @@ export function bundleShareImageUrl(
 }
 
 /**
+ * Absolute URL of the server-rendered share image for a shared collection.
+ * Adding/removing copies does not advance `collections.updatedAt`, so callers
+ * pass a composite `updatedAt-copyCount` version to keep the cached og:image
+ * fresh as the collection changes.
+ * @returns The image URL, used as the og:image.
+ */
+export function collectionShareImageUrl(
+  siteUrl: string,
+  shareToken: string,
+  version: number | string,
+): string {
+  return `${siteUrl}${API_BASE}/collections/share/${shareToken}/image.png?v=${version}`;
+}
+
+/**
  * Fetches a share image and triggers a browser download with the given
  * filename. Done via fetch + object URL (rather than an `<a download>` on the
  * image URL directly) so the chosen filename is honored regardless of

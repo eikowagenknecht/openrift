@@ -26,6 +26,13 @@ import { assertFound } from "../../utils/assertions.js";
 /** Long immutable cache: the `?v=` version makes each URL content-addressed. */
 const IMAGE_CACHE_CONTROL = "public, immutable, max-age=31536000";
 
+/**
+ * Per-printing rows resolved for a collection's share image. The grid only
+ * draws a dozen tiles, so this just bounds the art lookup; the accurate "+N
+ * more" count comes from a separate distinct count, not this slice.
+ */
+const COLLECTION_SHARE_CARD_CAP = 60;
+
 /** @returns A PNG response with the immutable share-image cache headers. */
 function pngResponse(png: Buffer): Response {
   return new Response(png, {
@@ -103,6 +110,37 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
       unit: { one: "card", many: "cards" },
       cards,
       totalCount: cards.length,
+      siteHost: siteHostFromOrigin(config.corsOrigin),
+    });
+
+    return pngResponse(png);
+  })
+
+  // ── GET /collections/share/:token/image.png ───────────────────────────────
+  .get("/collections/share/:token/image.png", async (c) => {
+    const { collections, copies } = c.get("repos");
+    const config = c.get("config");
+    const io = c.get("io");
+    const token = c.req.param("token");
+
+    // findByShareToken only resolves public collections, so a private token (or
+    // an unknown one) 404s — the image must never leak a non-shared collection.
+    const found = await collections.findByShareToken(token);
+    assertFound(found, "Not found");
+
+    const { cards, totalDistinct } = await copies.collectionShareImageCards(
+      found.collection.id,
+      COLLECTION_SHARE_CARD_CAP,
+    );
+
+    const png = await renderShareImage(io, {
+      ownerName: found.ownerName ?? "Anonymous",
+      title: found.collection.name,
+      intentLabel: "Collection",
+      // Collections are printing-level (one tile per distinct printing).
+      unit: { one: "printing", many: "printings" },
+      cards,
+      totalCount: totalDistinct,
       siteHost: siteHostFromOrigin(config.corsOrigin),
     });
 

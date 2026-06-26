@@ -26,6 +26,12 @@ const mockUserSharesRepo = {
 const mockCanonicalPrintingsRepo = {
   resolvePrintingMetaForRows: vi.fn(() => Promise.resolve([] as unknown[])),
 };
+const mockCollectionsRepo = {
+  findByShareToken: vi.fn(),
+};
+const mockCopiesRepo = {
+  collectionShareImageCards: vi.fn(),
+};
 
 const app = new Hono()
   .use("*", async (c, next) => {
@@ -33,6 +39,8 @@ const app = new Hono()
       lists: mockListsRepo,
       userShares: mockUserSharesRepo,
       canonicalPrintings: mockCanonicalPrintingsRepo,
+      collections: mockCollectionsRepo,
+      copies: mockCopiesRepo,
     } as never);
     c.set("io", {} as never);
     // Comma-separated allow-list (as CORS_ORIGIN really is) to guard the footer
@@ -95,6 +103,8 @@ beforeEach(() => {
   mockUserSharesRepo.listsForOwner.mockReset();
   mockCanonicalPrintingsRepo.resolvePrintingMetaForRows.mockReset();
   mockCanonicalPrintingsRepo.resolvePrintingMetaForRows.mockResolvedValue([]);
+  mockCollectionsRepo.findByShareToken.mockReset();
+  mockCopiesRepo.collectionShareImageCards.mockReset();
 });
 
 describe("GET /api/v1/lists/share/:token/image.png", () => {
@@ -225,6 +235,54 @@ describe("GET /api/v1/users/share/:token/image.png", () => {
     const res = await app.request("/api/v1/users/share/nope/image.png");
 
     expect(res.status).toBe(404);
+    expect(renderMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /api/v1/collections/share/:token/image.png", () => {
+  it("renders a PNG with an immutable cache header and maps collection metadata", async () => {
+    mockCollectionsRepo.findByShareToken.mockResolvedValue({
+      collection: { id: "col-1", name: "My Binder", updatedAt: NOW, copyCount: 7 },
+      ownerName: "Bob",
+      ownerEmail: "bob@example.test",
+    });
+    mockCopiesRepo.collectionShareImageCards.mockResolvedValue({
+      cards: [
+        { cardName: "Teemo, Scout", quantity: 3, imageId: "img-1" },
+        { cardName: "Jinx, Rebel", quantity: 1, imageId: null },
+      ],
+      // Larger than the returned cards array so "+N more" overflow is exercised.
+      totalDistinct: 14,
+    });
+
+    const res = await app.request("/api/v1/collections/share/tok-col/image.png?v=1700-7");
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/png");
+    expect(res.headers.get("cache-control")).toMatch(/immutable/u);
+    const body = Buffer.from(await res.arrayBuffer());
+    expect(body.subarray(0, 4)).toEqual(PNG_MAGIC);
+
+    expect(mockCopiesRepo.collectionShareImageCards).toHaveBeenCalledWith("col-1", 60);
+    expect(renderMock).toHaveBeenCalledTimes(1);
+    expect(renderMock.mock.calls[0]![1]).toMatchObject({
+      ownerName: "Bob",
+      title: "My Binder",
+      intentLabel: "Collection",
+      unit: { one: "printing", many: "printings" },
+      totalCount: 14,
+      siteHost: "openrift.app",
+    });
+    expect(renderMock.mock.calls[0]![1].cards).toHaveLength(2);
+  });
+
+  it("returns 404 for an unknown or private token and does not render", async () => {
+    mockCollectionsRepo.findByShareToken.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/collections/share/nope/image.png");
+
+    expect(res.status).toBe(404);
+    expect(mockCopiesRepo.collectionShareImageCards).not.toHaveBeenCalled();
     expect(renderMock).not.toHaveBeenCalled();
   });
 });

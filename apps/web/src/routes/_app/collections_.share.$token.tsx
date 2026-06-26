@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { publicCollectionQueryOptions } from "@/hooks/use-collections";
 import { filterSearchSchema } from "@/lib/search-schemas";
 import { seoHead } from "@/lib/seo";
+import { collectionShareImageUrl, shareImageVersion } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
 import { CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
 
@@ -22,7 +23,11 @@ export const Route = createFileRoute("/_app/collections_/share/$token")({
     const title = `${collection.name} (collection)`;
     const description =
       collection.description ?? `A Riftbound card collection shared by ${owner.displayName}.`;
-    return seoHead({ siteUrl, title, description, path });
+    // Copies changing does not bump collections.updatedAt, so fold copyCount
+    // into the version to bust the immutably-cached og:image on add/remove.
+    const version = `${shareImageVersion(collection.updatedAt)}-${collection.copyCount}`;
+    const ogImage = collectionShareImageUrl(siteUrl, params.token, version);
+    return seoHead({ siteUrl, title, description, path, ogImage });
   },
   loader: async ({ context, params }): Promise<PublicCollectionDetailResponse> => {
     try {

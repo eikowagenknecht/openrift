@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   bundleShareImageUrl,
+  collectionShareImageUrl,
   downloadImageFromUrl,
   listShareImageUrl,
   shareImageVersion,
@@ -45,6 +46,20 @@ describe("bundleShareImageUrl", () => {
   it("accepts a composite string version (epoch-count) for membership-aware busting", () => {
     expect(bundleShareImageUrl("https://openrift.app", "tok123", "1700-3")).toBe(
       "https://openrift.app/api/v1/users/share/tok123/image.png?v=1700-3",
+    );
+  });
+});
+
+describe("collectionShareImageUrl", () => {
+  it("builds an absolute /api/v1 collection image URL with the version param", () => {
+    expect(collectionShareImageUrl("https://openrift.app", "tok123", 42)).toBe(
+      "https://openrift.app/api/v1/collections/share/tok123/image.png?v=42",
+    );
+  });
+
+  it("accepts a composite updatedAt-copyCount version (so adds/removes bust the cache)", () => {
+    expect(collectionShareImageUrl("https://openrift.app", "tok123", "1700-12")).toBe(
+      "https://openrift.app/api/v1/collections/share/tok123/image.png?v=1700-12",
     );
   });
 });

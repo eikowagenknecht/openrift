@@ -282,5 +282,65 @@ export function copiesRepo(db: Kysely<Database>) {
         .groupBy(["p.cardId", "cp.printingId"])
         .execute();
     },
+
+    /**
+     * Aggregates a collection's copies into one tile-row per printing for the
+     * share image (ADR-024): summed quantity, card name, and the active front
+     * image. Ordered by quantity desc then name so the grid leads with the
+     * deepest holdings, and capped (`cap`) so an oversized collection can't force
+     * unbounded per-request work — only a dozen tiles are ever drawn. The total
+     * distinct-printing count is queried separately so the "+N more" tile stays
+     * accurate even when the row fetch is capped.
+     * @returns Capped per-printing render rows and the total distinct-printing count.
+     */
+    async collectionShareImageCards(
+      collectionId: string,
+      cap: number,
+    ): Promise<{
+      cards: { cardName: string; quantity: number; imageId: string | null }[];
+      totalDistinct: number;
+    }> {
+      const rows = await db
+        .selectFrom("copies as cp")
+        .innerJoin("printings as p", "p.id", "cp.printingId")
+        .innerJoin("cards as c", "c.id", "p.cardId")
+        .leftJoin("printingImages as pi", (join) =>
+          join
+            .onRef("pi.printingId", "=", "p.id")
+            .on("pi.face", "=", "front")
+            .on("pi.isActive", "=", true),
+        )
+        .leftJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId")
+        .select((eb) => [
+          "c.name as cardName",
+          "imgf.id as imageFileId",
+          "imgf.rehostedUrl as rehostedUrl",
+          eb.cast<number>(eb.fn.countAll(), "integer").as("quantity"),
+        ])
+        .where("cp.collectionId", "=", collectionId)
+        .groupBy(["cp.printingId", "c.name", "imgf.id", "imgf.rehostedUrl"])
+        .orderBy((eb) => eb.fn.countAll(), "desc")
+        .orderBy("c.name")
+        .limit(cap)
+        .execute();
+
+      const distinct = await db
+        .selectFrom("copies")
+        .select(sql<number>`count(distinct printing_id)::int`.as("count"))
+        .where("collectionId", "=", collectionId)
+        .executeTakeFirstOrThrow();
+
+      return {
+        // The renderer reads rehosted (self-hosted) WebP off disk; a printing
+        // with no rehosted image gets a name-only tile, matching imageId() in
+        // query-helpers. So null out the id unless the image was rehosted.
+        cards: rows.map((row) => ({
+          cardName: row.cardName,
+          quantity: row.quantity,
+          imageId: row.rehostedUrl ? row.imageFileId : null,
+        })),
+        totalDistinct: distinct.count,
+      };
+    },
   };
 }

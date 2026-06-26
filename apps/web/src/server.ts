@@ -11,6 +11,7 @@ import handler, { createServerEntry } from "@tanstack/react-start/server-entry";
 
 import { helpArticleList } from "./components/help/articles";
 import { applyPageCacheControl } from "./lib/page-cache";
+import { VALID_RULE_KINDS } from "./lib/rules-kinds";
 import { fetchApiJson } from "./lib/server-fns/fetch-api";
 
 // Opt-in SSR timing instrumentation. Mirrors the API's LOG_REQUESTS flag:
@@ -91,6 +92,13 @@ async function generateSitemap(): Promise<string> {
     }
     urls.push(
       `  <url><loc>${siteUrl}/help/${article.slug}</loc><lastmod>${DEPLOY_DATE}</lastmod><changefreq>monthly</changefreq><priority>0.3</priority></url>`,
+    );
+  }
+  // Per-kind rules pages (core, tournament). Each 302s to its latest version,
+  // but the kind URL is the stable, version-independent entry worth indexing.
+  for (const kind of VALID_RULE_KINDS) {
+    urls.push(
+      `  <url><loc>${siteUrl}/rules/${kind}</loc><lastmod>${DEPLOY_DATE}</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>`,
     );
   }
   for (const entry of data.cards) {

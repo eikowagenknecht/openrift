@@ -400,7 +400,7 @@ export function collectionsRepo(db: Kysely<Database>) {
      */
     async findByShareToken(shareToken: string): Promise<
       | {
-          collection: Selectable<CollectionsTable>;
+          collection: CollectionWithCount;
           ownerName: string | null;
           // Null for group-owned collections (a group has no email/gravatar).
           ownerEmail: string | null;
@@ -415,6 +415,12 @@ export function collectionsRepo(db: Kysely<Database>) {
         .select([
           sql<string | null>`coalesce(u.name, g.name)`.as("ownerName"),
           "u.email as ownerEmail",
+          // Real copy count for the public response and the share-image cache
+          // version (copies changing does not bump collections.updated_at, so
+          // the og:image URL keys on updated_at + this count to stay fresh).
+          sql<number>`(select count(*)::int from copies where copies.collection_id = c.id)`.as(
+            "copyCount",
+          ),
         ])
         .where("c.shareToken", "=", shareToken)
         .where("c.isPublic", "=", true)
