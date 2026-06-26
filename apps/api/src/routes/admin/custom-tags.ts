@@ -17,10 +17,9 @@ import { assertFound } from "../../utils/assertions.js";
 const os = implement(adminCustomTagsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin custom-tags taxonomy: tag categories, tags,
- * and per-card assignment. Logic unchanged from the previous
- * `@hono/zod-openapi` handlers; conflict / not-found / bad-request states are
- * thrown as `AppError` and mapped by the handler's appErrorInterceptor.
+ * Admin custom-tags taxonomy: tag categories, tags, and per-card assignment.
+ * Conflict / not-found / bad-request states are thrown as `AppError` and mapped
+ * by the handler's appErrorInterceptor.
  */
 export const adminCustomTagsRouter = {
   // ── Categories ────────────────────────────────────────────────────────────

@@ -27,10 +27,9 @@ const log = createLogger("admin");
 const os = implement(adminImagesContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin image tooling. Logic unchanged from the
- * previous `@hono/zod-openapi` handlers; `rehost` / `regenerate` read their
- * query via detailed input structure. Not-found / conflict states are thrown
- * as `AppError` and mapped by the handler's appErrorInterceptor.
+ * Admin image tooling. `rehost` / `regenerate` read their options from the
+ * query input. Not-found / conflict states are thrown as `AppError` and mapped
+ * by the handler's appErrorInterceptor.
  */
 export const adminImagesRouter = {
   rehost: os.rehost.handler(async ({ input, context }) => {

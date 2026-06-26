@@ -10,10 +10,9 @@ import { toListEntryDetail, toPublicList } from "../../utils/mappers.js";
 const os = implement(publicUserShareContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the public user-share bundle reads (ADR-018). Logic
- * unchanged from the previous `@hono/zod-openapi` handlers; the unknown-token /
- * unknown-list 404 is now a typed `errors.NOT_FOUND()`. The viewer-dependent
- * `Cache-Control` is set in the mount (it knows `loadSession`'s result).
+ * Public user-share bundle reads (ADR-018). An unknown token / unknown list
+ * returns a typed `errors.NOT_FOUND()`. The viewer-dependent `Cache-Control`
+ * is set in the mount (it knows `loadSession`'s result).
  */
 export const publicUserShareRouter = {
   bundle: os.bundle.handler(

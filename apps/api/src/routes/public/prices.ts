@@ -23,10 +23,9 @@ function emptyMarketplaceInfo(): MarketplaceInfo {
 }
 
 /**
- * oRPC implementation of the public price reads. Logic unchanged from the
- * previous `@hono/zod-openapi` handlers; an unknown printing in `history`
- * still resolves to an `available: false` payload (200) rather than a 404.
- * The short-TTL `Cache-Control` is applied uniformly in the mount.
+ * Public price reads. An unknown printing in `history` resolves to an
+ * `available: false` payload (200) rather than a 404. The short-TTL
+ * `Cache-Control` is applied uniformly in the mount.
  */
 export const pricesRouter = {
   /**

@@ -10,9 +10,8 @@ import { generateShareToken } from "../../utils/share-token.js";
 const os = implement(userShareContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the signed-in user's bundle-share management
- * (ADR-018). Logic unchanged from the previous handlers; the "user not found"
- * cases are typed NOT_FOUND errors instead of assertFound's thrown AppError.
+ * The signed-in user's bundle-share management (ADR-018). The "user not found"
+ * cases are typed NOT_FOUND errors declared on the contract.
  */
 export const userShareRouter = {
   get: os.get.handler(async ({ context }): Promise<UserShareStateResponse> => {

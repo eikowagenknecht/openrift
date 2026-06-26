@@ -1,4 +1,4 @@
-import { idParamSchema } from "@openrift/shared/schemas";
+import { idParamSchema, isoDate, isoDateTime } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -11,9 +11,9 @@ const banResponseSchema = z.object({
   cardId: z.string(),
   formatId: z.string(),
   formatName: z.string(),
-  bannedAt: z.string(),
+  bannedAt: isoDate,
   reason: z.string().nullable(),
-  createdAt: z.string(),
+  createdAt: isoDateTime,
 });
 
 const formatIdSchema = z.string().min(1);
@@ -36,7 +36,7 @@ export const adminCardBansContract = {
     .input(
       idParamSchema.extend({
         formatId: formatIdSchema,
-        bannedAt: z.string().date(),
+        bannedAt: isoDate,
         reason: reasonSchema,
       }),
     )
@@ -46,7 +46,7 @@ export const adminCardBansContract = {
     .input(
       idParamSchema.extend({
         formatId: formatIdSchema,
-        bannedAt: z.string().date().optional(),
+        bannedAt: isoDate.optional(),
         reason: reasonSchema,
       }),
     )

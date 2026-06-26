@@ -13,10 +13,9 @@ import { createMarketplaceConfigs } from "./marketplace-configs.js";
 const os = implement(adminUnifiedMappingsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin unified marketplace-mappings. Logic
- * unchanged from the previous `@hono/zod-openapi` handlers; `save` (query +
- * body) and `unmap` (query) use detailed input structure. Any thrown
- * `AppError` is mapped by the handler's {@link appErrorInterceptor}.
+ * Admin unified marketplace-mappings. `save` (query + body) and `unmap` (query)
+ * use detailed input structure. Any thrown `AppError` is mapped by the
+ * handler's {@link appErrorInterceptor}.
  */
 export const adminUnifiedMappingsRouter = {
   list: os.list.handler(async ({ context }) => {

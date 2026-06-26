@@ -8,8 +8,7 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(deckCheckClaimContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the public deck-check claim landing. Logic unchanged
- * from the previous handler; the unknown-token 404 is a typed NOT_FOUND.
+ * The public deck-check claim landing. An unknown token returns a typed NOT_FOUND.
  */
 export const deckCheckClaimRouter = {
   landing: os.landing.handler(

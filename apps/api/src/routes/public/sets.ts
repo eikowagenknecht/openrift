@@ -14,10 +14,9 @@ import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-r
 const os = implement(setsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the public sets contract. Logic is unchanged from the
- * previous `@hono/zod-openapi` handlers; the 404 for an unknown slug is now a
- * typed `errors.NOT_FOUND()` (declared on the contract) rather than a thrown
- * `AppError`, so the web client sees it as a statically-known error.
+ * Public sets reads. An unknown slug returns a typed `errors.NOT_FOUND()`
+ * (declared on the contract), so the web client sees it as a statically-known
+ * error.
  */
 export const setsRouter = {
   list: os.list.handler(async ({ context }): Promise<SetListResponse> => {

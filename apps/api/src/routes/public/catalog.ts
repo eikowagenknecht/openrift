@@ -13,8 +13,7 @@ import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-r
 const os = implement(catalogContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of `GET /catalog`. Logic unchanged from the previous
- * `@hono/zod-openapi` handler.
+ * `GET /catalog`.
  *
  * Cards and printings are both returned as maps keyed by their own id; the id
  * is therefore omitted from each value (identity lives in the key). Sets stay

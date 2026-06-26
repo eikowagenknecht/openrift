@@ -1,3 +1,4 @@
+import { isoDateTime } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -13,8 +14,8 @@ const adminUserSchema = z.object({
   deckCount: z.number(),
   collectionCount: z.number(),
   listCount: z.number(),
-  createdAt: z.string(),
-  lastActiveAt: z.string().nullable(),
+  createdAt: isoDateTime,
+  lastActiveAt: isoDateTime.nullable(),
 });
 
 /**

@@ -1,3 +1,4 @@
+import { isoDateTime } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -13,8 +14,8 @@ const markerSchema = z.object({
   label: z.string(),
   description: z.string().nullable(),
   sortOrder: z.number(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  createdAt: isoDateTime,
+  updatedAt: isoDateTime,
 });
 
 const idParamSchema = z.object({ id: z.uuid() });

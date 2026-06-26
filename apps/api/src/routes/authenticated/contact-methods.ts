@@ -9,10 +9,9 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(contactMethodsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the authenticated contact-methods contract. Every
- * mutation returns the refreshed list. Logic unchanged from the previous
- * handlers; the not-found cases on update/delete are now typed NOT_FOUND
- * errors instead of thrown AppErrors.
+ * Authenticated contact-methods contract. Every mutation returns the refreshed
+ * list. The not-found cases on update/delete are typed NOT_FOUND errors
+ * declared on the contract.
  */
 export const contactMethodsRouter = {
   list: os.list.handler(async ({ context }): Promise<UserContactMethodsResponse> => {

@@ -140,11 +140,9 @@ function canSeeCode(role: FriendGroupRole): boolean {
 const os = implement(friendGroupsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the friend-groups contract (mounted at
- * `/api/v1/friend-groups`). Logic unchanged from the previous
- * `@hono/zod-openapi` handlers; role checks / not-found / conflict / bad-request
- * states are thrown as `AppError` and mapped by the handler's
- * appErrorInterceptor. The `201` `Location` header on create is dropped.
+ * The friend-groups contract, mounted at `/api/v1/friend-groups`. Role checks /
+ * not-found / conflict / bad-request states are thrown as `AppError` and mapped
+ * by the handler's appErrorInterceptor.
  */
 export const friendGroupsRouter = {
   // ── LIST ────────────────────────────────────────────────────────────────

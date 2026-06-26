@@ -9,10 +9,8 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(adminCatalogContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin set (catalog) management. Logic unchanged
- * from the previous `@hono/zod-openapi` handlers; conflict / not-found /
- * bad-request states are thrown as `AppError` and mapped by the handler's
- * appErrorInterceptor.
+ * Admin set (catalog) management. Conflict / not-found / bad-request states are
+ * thrown as `AppError` and mapped by the handler's appErrorInterceptor.
  */
 export const adminCatalogRouter = {
   listSets: os.listSets.handler(async ({ context }) => {

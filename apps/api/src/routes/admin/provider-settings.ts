@@ -10,9 +10,8 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(adminProviderSettingsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin provider-settings. Logic unchanged from the
- * previous `@hono/zod-openapi` handlers; bad-request states are thrown as
- * `AppError` and mapped by the handler's {@link appErrorInterceptor}.
+ * Admin provider-settings. Bad-request states are thrown as `AppError` and
+ * mapped by the handler's {@link appErrorInterceptor}.
  */
 export const adminProviderSettingsRouter = {
   list: os.list.handler(async ({ context }) => {

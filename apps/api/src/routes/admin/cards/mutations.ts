@@ -23,11 +23,9 @@ import { assertDeleted, assertFound, assertUpdated } from "../../../utils/assert
 const os = implement(adminCardMutationsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the bespoke admin card mutations. Migrated
- * incrementally off the chained `@hono/zod-openapi` `mutationsRoute`; this slice
- * covers the candidate check/uncheck verbs and the candidate-printing
- * operations. Logic is ported verbatim; not-found / bad-request states are
- * thrown as `AppError` (via the `assert*` helpers or directly) and mapped by the
+ * Bespoke admin card mutations: the candidate check/uncheck verbs and the
+ * candidate-printing operations. Not-found / bad-request states are thrown as
+ * `AppError` (via the `assert*` helpers or directly) and mapped by the
  * handler's appErrorInterceptor.
  */
 export const adminCardMutationsRouter = {

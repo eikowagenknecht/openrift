@@ -13,8 +13,7 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(cardTradesContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the authenticated card-trades contract (mounted at
- * `/api/v1/trades`). Logic unchanged from the previous handlers; the trade
+ * Authenticated card-trades contract (mounted at `/api/v1/trades`). The trade
  * services throw `AppError` for state failures, which are mapped by the
  * handler's appErrorInterceptor.
  */

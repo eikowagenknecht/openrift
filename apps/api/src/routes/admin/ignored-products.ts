@@ -8,9 +8,8 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(adminIgnoredProductsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin ignored-products controls. Logic unchanged
- * from the previous `@hono/zod-openapi` handlers; any thrown `AppError` is
- * mapped by the handler's appErrorInterceptor.
+ * Admin ignored-products controls. Any thrown `AppError` is mapped by the
+ * handler's appErrorInterceptor.
  */
 export const adminIgnoredProductsRouter = {
   list: os.list.handler(async ({ context }) => {

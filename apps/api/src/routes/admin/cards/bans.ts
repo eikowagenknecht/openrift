@@ -10,12 +10,11 @@ import { assertFound } from "../../../utils/assertions.js";
 const os = implement(adminCardBansContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin card-ban management. Ported from the
- * previous `@hono/zod-openapi` handlers; not-found / conflict states are
- * thrown as `AppError` (via {@link assertFound} or directly) and mapped by the
- * handler's appErrorInterceptor. `createdAt` is mapped from `Date` to
- * an ISO string for the output schema. (The DELETE handler now 404s on a
- * no-match, consistent with PATCH — see the inline note in `remove`.)
+ * Admin card-ban management. Not-found / conflict states are thrown as
+ * `AppError` (via {@link assertFound} or directly) and mapped by the handler's
+ * appErrorInterceptor. `createdAt` is mapped from `Date` to an ISO string for
+ * the output schema. The DELETE handler 404s on a no-match, consistent with
+ * PATCH — see the inline note in `remove`.
  */
 export const adminCardBansRouter = {
   list: os.list.handler(async ({ input, context }) => {

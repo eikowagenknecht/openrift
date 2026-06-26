@@ -32,11 +32,9 @@ const patchFields: FieldMapping<Updateable<CollectionsTable>> = {
 const os = implement(collectionsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the authenticated collections contract (mounted at
- * `/api/v1/collections`). Logic unchanged from the previous `@hono/zod-openapi`
- * handlers; not-found / forbidden / conflict states are still thrown as
- * `AppError` and mapped by the handler's appErrorInterceptor. The `201`
- * `Location` header is dropped — no consumer read it.
+ * Authenticated collections contract (mounted at `/api/v1/collections`).
+ * Not-found / forbidden / conflict states are thrown as `AppError` and mapped
+ * by the handler's appErrorInterceptor.
  */
 export const collectionsRouter = {
   // ── LIST ────────────────────────────────────────────────────────────────────

@@ -8,9 +8,9 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(sitemapContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the public sitemap-data contract.
+ * Public sitemap-data read.
  * `GET /api/v1/sitemap-data` — all card and set entries (slug + updatedAt) for
- * sitemap generation. Logic unchanged; only the routing layer moved.
+ * sitemap generation.
  */
 export const sitemapRouter = {
   get: os.get.handler(async ({ context }): Promise<SitemapDataResponse> => {

@@ -1,3 +1,4 @@
+import { isoDateTime } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -9,7 +10,7 @@ const ignoredCardSchema = z.object({
   id: z.string(),
   provider: z.string(),
   externalId: z.string(),
-  createdAt: z.string(),
+  createdAt: isoDateTime,
 });
 
 const ignoredPrintingSchema = z.object({
@@ -17,7 +18,7 @@ const ignoredPrintingSchema = z.object({
   provider: z.string(),
   externalId: z.string(),
   finish: z.string().nullable(),
-  createdAt: z.string(),
+  createdAt: isoDateTime,
 });
 
 const cardInput = z.object({

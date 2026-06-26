@@ -5,11 +5,13 @@ import { OpenAPIGenerator } from "@orpc/openapi";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 
 // The oRPC OpenAPI document is generated from the shared contracts (the same
-// values the routers implement), so every migrated endpoint appears in the spec
-// without a second source of truth. Zod v4 schemas are converted by the zod4
-// converter; schemas are inlined per-operation (no `components.schemas`), so
-// there is no $ref-name collision with the legacy `@hono/zod-openapi` doc that
-// still covers the handful of not-yet-migrated routes.
+// values the routers implement), so every JSON endpoint appears in the spec
+// from a single source of truth — this is the only OpenAPI document the API
+// produces. Zod v4 schemas are converted by the zod4 converter and inlined
+// per-operation (no `components.schemas`). The only routes absent from the doc
+// are a few plain Hono utility endpoints that don't serve typed JSON (health,
+// the Sentry tunnel, share/list image generators, email unsubscribe); they are
+// excluded on purpose, not pending migration.
 
 const generator = new OpenAPIGenerator({
   schemaConverters: [new ZodToJsonSchemaConverter()],

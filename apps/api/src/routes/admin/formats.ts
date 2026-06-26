@@ -7,9 +7,8 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(adminFormatsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin formats list. Logic unchanged from the
- * previous `@hono/zod-openapi` handler; any thrown `AppError` is mapped by the
- * handler's appErrorInterceptor.
+ * Admin formats list. Any thrown `AppError` is mapped by the handler's
+ * appErrorInterceptor.
  */
 export const adminFormatsRouter = {
   list: os.list.handler(async ({ context }) => {

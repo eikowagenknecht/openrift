@@ -7,9 +7,8 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(adminStagingCardOverridesContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin staging-card-overrides. Logic unchanged from
- * the previous `@hono/zod-openapi` handlers; any thrown `AppError` is mapped by
- * the handler's {@link appErrorInterceptor}. The DELETE reads its SKU key from
+ * Admin staging-card-overrides. Any thrown `AppError` is mapped by the
+ * handler's {@link appErrorInterceptor}. The DELETE reads its SKU key from
  * detailed `query` input (compact mode drops DELETE query params).
  */
 export const adminStagingCardOverridesRouter = {

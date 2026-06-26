@@ -42,8 +42,8 @@ function toRuleResponse(row: {
 const os = implement(rulesContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the public rules contract. Logic unchanged from the
- * previous `@hono/zod-openapi` handlers; only the routing layer moved.
+ * Public rules reads: rules at a given (or latest) version, and the list of
+ * available versions per kind.
  */
 export const rulesRouter = {
   list: os.list.handler(async ({ input, context }): Promise<RulesListResponse> => {

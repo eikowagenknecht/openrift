@@ -114,13 +114,13 @@ export const adminImagesContract = {
     .output(jobStartedResponseSchema),
   cancelRegenerate: oc
     .route({ method: "POST", path: `${BASE}/regenerate-images/cancel`, tags: [TAG] })
-    .output(z.object({ runId: z.string().uuid(), cancelRequested: z.literal(true) })),
+    .output(z.object({ runId: z.uuid(), cancelRequested: z.literal(true) })),
   cleanupOrphaned: oc
     .route({ method: "POST", path: `${BASE}/cleanup-orphaned`, tags: [TAG] })
     .output(cleanupResultSchema),
   unrehost: oc
     .route({ method: "POST", path: `${BASE}/unrehost-images`, tags: [TAG] })
-    .input(z.object({ imageIds: z.array(z.string().uuid()).min(1).max(1000) }))
+    .input(z.object({ imageIds: z.array(z.uuid()).min(1).max(1000) }))
     .output(unrehostResultSchema),
   clearRehosted: oc
     .route({ method: "POST", path: `${BASE}/clear-rehosted`, tags: [TAG] })

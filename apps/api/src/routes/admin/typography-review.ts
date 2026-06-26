@@ -44,10 +44,8 @@ function fixTagList(tags: string[]): string[] {
 }
 
 /**
- * oRPC implementation of the admin typography-review. Logic unchanged from the
- * previous `@hono/zod-openapi` handlers; not-found targets are thrown as
- * `AppError` (previously bare 404 responses) and mapped by the handler's
- * {@link appErrorInterceptor}.
+ * Admin typography-review: not-found targets are thrown as `AppError` and
+ * mapped by the handler's {@link appErrorInterceptor}.
  */
 export const adminTypographyReviewRouter = {
   list: os.list.handler(async ({ context }) => {

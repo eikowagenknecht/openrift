@@ -9,10 +9,8 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(adminCardTypesContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin card type taxonomy CRUD. Logic unchanged
- * from the previous `@hono/zod-openapi` handlers; conflict / not-found /
- * bad-request states are thrown as `AppError` and mapped by the handler's
- * appErrorInterceptor.
+ * Admin card type taxonomy CRUD. Conflict / not-found / bad-request states are
+ * thrown as `AppError` and mapped by the handler's appErrorInterceptor.
  */
 export const adminCardTypesRouter = {
   list: os.list.handler(async ({ context }) => {

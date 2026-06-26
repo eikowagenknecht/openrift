@@ -92,10 +92,8 @@ export function parseRulesText(text: string): ParsedRule[] {
 }
 
 /**
- * oRPC implementation of the admin rules management. Logic unchanged from the
- * previous `@hono/zod-openapi` handlers; conflict / bad-request / not-found
- * states are thrown as `AppError` and mapped by the handler's
- * {@link appErrorInterceptor}.
+ * Admin rules management. Conflict / bad-request / not-found states are thrown
+ * as `AppError` and mapped by the handler's {@link appErrorInterceptor}.
  */
 export const adminRulesRouter = {
   import: os.import.handler(async ({ input, context }) => {

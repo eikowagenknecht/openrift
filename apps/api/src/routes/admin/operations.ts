@@ -16,11 +16,9 @@ const log = createLogger("admin");
 const os = implement(adminOperationsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin operations. Logic unchanged from the
- * previous `@hono/zod-openapi` handlers; the refresh actions return a run
- * handle (202) immediately so Cloudflare doesn't 502 on long operations —
- * callers poll job-runs. Any thrown `AppError` is mapped by the handler's
- * {@link appErrorInterceptor}.
+ * Admin operations. The refresh actions return a run handle (202) immediately
+ * so Cloudflare doesn't 502 on long operations — callers poll job-runs. Any
+ * thrown `AppError` is mapped by the handler's {@link appErrorInterceptor}.
  */
 export const adminOperationsRouter = {
   clearPrices: os.clearPrices.handler(async ({ input, context }) => {

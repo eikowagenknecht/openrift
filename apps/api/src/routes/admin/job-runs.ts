@@ -8,9 +8,8 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(adminJobRunsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin job-runs table. Logic unchanged from the
- * previous `@hono/zod-openapi` handler; any thrown `AppError` is mapped by the
- * handler's {@link appErrorInterceptor}.
+ * Admin job-runs table. Any thrown `AppError` is mapped by the handler's
+ * {@link appErrorInterceptor}.
  */
 export const adminJobRunsRouter = {
   list: os.list.handler(async ({ input, context }): Promise<JobRunsListResponse> => {

@@ -8,9 +8,9 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(initContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the public init contract.
+ * Public init read.
  * `GET /api/v1/init` — enums + keywords + distribution channels + custom tags
- * in a single request. Logic unchanged; only the routing layer moved.
+ * in a single request.
  */
 export const initRouter = {
   get: os.get.handler(async ({ context }): Promise<InitResponse> => {

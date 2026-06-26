@@ -15,6 +15,6 @@ export const slugRegex = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
  * new run's id plus whether it started or a run was already in flight.
  */
 export const jobStartedResponseSchema = z.object({
-  runId: z.string().uuid(),
+  runId: z.uuid(),
   status: z.enum(["running", "already_running"]),
 });

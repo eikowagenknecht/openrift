@@ -1,3 +1,4 @@
+import { isoDateTime } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -11,8 +12,8 @@ const jobRunViewSchema = z.object({
   kind: z.string(),
   trigger: triggerEnum,
   status: statusEnum,
-  startedAt: z.string(),
-  finishedAt: z.string().nullable(),
+  startedAt: isoDateTime,
+  finishedAt: isoDateTime.nullable(),
   durationMs: z.number().nullable(),
   errorMessage: z.string().nullable(),
   result: z.record(z.string(), z.any()).nullable(),

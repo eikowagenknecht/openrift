@@ -15,6 +15,8 @@ import {
   disposeCopiesSchema,
   idAndItemIdParamSchema,
   idParamSchema,
+  isoDate,
+  isoDateTime,
   keyParamSchema,
   listIntentQuerySchema,
   moveCopiesSchema,
@@ -657,5 +659,43 @@ describe("updateDeckPlanSchema matchup identity", () => {
   it("rejects a matchup with neither a card nor a label", () => {
     const result = updateDeckPlanSchema.safeParse(planWith({ opponentLabel: "  ", swaps: [] }));
     expect(result.success).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Serialization primitives
+// ---------------------------------------------------------------------------
+
+describe("isoDateTime", () => {
+  it("accepts the output of Date.toISOString()", () => {
+    expect(isoDateTime.safeParse(new Date("2026-06-26T12:00:00.000Z").toISOString()).success).toBe(
+      true,
+    );
+  });
+
+  it("accepts a date-time without sub-seconds", () => {
+    expect(isoDateTime.safeParse("2026-06-26T12:00:00Z").success).toBe(true);
+  });
+
+  it("rejects a date-only string", () => {
+    expect(isoDateTime.safeParse("2026-06-26").success).toBe(false);
+  });
+
+  it("rejects a non-date string", () => {
+    expect(isoDateTime.safeParse("not-a-date").success).toBe(false);
+  });
+});
+
+describe("isoDate", () => {
+  it("accepts a Postgres date-column string (YYYY-MM-DD)", () => {
+    expect(isoDate.safeParse("2026-06-26").success).toBe(true);
+  });
+
+  it("rejects a full date-time string", () => {
+    expect(isoDate.safeParse("2026-06-26T12:00:00.000Z").success).toBe(false);
+  });
+
+  it("rejects an impossible date", () => {
+    expect(isoDate.safeParse("2026-13-40").success).toBe(false);
   });
 });

@@ -8,11 +8,10 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(adminCoreContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin "core" endpoints. Logic unchanged from the
- * previous `@hono/zod-openapi` handlers on `admin/index.ts`. Both are pure
- * reads that never throw `AppError` (no service calls), so no error bridging is
- * needed. `me` always returns `{ isAdmin: true }` — reaching the handler means
- * the `requireAdmin` mount gate already passed.
+ * Admin "core" endpoints. Both are pure reads that never throw `AppError` (no
+ * service calls), so no error bridging is needed. `me` always returns
+ * `{ isAdmin: true }` — reaching the handler means the `requireAdmin` mount
+ * gate already passed.
  */
 export const adminCoreRouter = {
   me: os.me.handler(() => ({ isAdmin: true })),

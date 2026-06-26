@@ -23,11 +23,10 @@ import { assertFound } from "../../../utils/assertions.js";
 const os = implement(adminCardImagesContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin card-image tooling. Ported from the previous
- * `@hono/zod-openapi` handlers; not-found / bad-request / payload-too-large
- * states are thrown as `AppError` (via {@link assertFound} or directly) and
- * mapped by the handler's appErrorInterceptor. `uploadImage` reads its
- * `File` from the multipart body (oRPC compact input).
+ * Admin card-image tooling. Not-found / bad-request / payload-too-large states
+ * are thrown as `AppError` (via {@link assertFound} or directly) and mapped by
+ * the handler's appErrorInterceptor. `uploadImage` reads its `File` from the
+ * multipart body.
  */
 export const adminCardImagesRouter = {
   setImage: os.setImage.handler(async ({ input, context }): Promise<void> => {

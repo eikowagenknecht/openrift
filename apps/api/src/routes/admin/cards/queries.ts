@@ -13,12 +13,11 @@ import {
 const os = implement(adminCardQueriesContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the read-only admin card queries. Logic unchanged from
- * the previous `@hono/zod-openapi` handlers. `providerStats` coerces the
- * `lastUpdated` timestamp (a native `Date` from the driver, despite its
- * `sql<string>` type) to an ISO string for the `z.string()` output schema, and
- * `getCandidateCard` may throw `AppError` (missing alias) which is mapped by the
- * handler's appErrorInterceptor.
+ * Read-only admin card queries. `providerStats` coerces the `lastUpdated`
+ * timestamp (a native `Date` from the driver, despite its `sql<string>` type)
+ * to an ISO string for the `z.string()` output schema, and `getCandidateCard`
+ * may throw `AppError` (missing alias) which is mapped by the handler's
+ * appErrorInterceptor.
  */
 export const adminCardQueriesRouter = {
   allCards: os.allCards.handler(async ({ context }) => {

@@ -25,12 +25,9 @@ import { generateShareToken } from "../../utils/share-token.js";
 const os = implement(listsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the authenticated unified-lists contract (ADR-017),
- * mounted at `/api/v1/lists`. Logic unchanged from the previous
- * `@hono/zod-openapi` handlers; bad-request / not-found / conflict states are
- * thrown as `AppError` and mapped by the handler's appErrorInterceptor.
- * The `201` `Location` headers on create / create-entry are dropped — no
- * consumer read them.
+ * The authenticated unified-lists contract (ADR-017), mounted at
+ * `/api/v1/lists`. Bad-request / not-found / conflict states are thrown as
+ * `AppError` and mapped by the handler's appErrorInterceptor.
  */
 export const listsRouter = {
   // ── LIST ────────────────────────────────────────────────────────────────────

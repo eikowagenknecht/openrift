@@ -11,9 +11,8 @@ import { assertDeleted, assertFound } from "../../utils/assertions.js";
 const os = implement(adminSiteSettingsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin site-settings CRUD. Logic unchanged from the
- * previous `@hono/zod-openapi` handlers; conflict / not-found states are thrown
- * as `AppError` and mapped by the handler's {@link appErrorInterceptor}.
+ * Admin site-settings CRUD. Conflict / not-found states are thrown as
+ * `AppError` and mapped by the handler's {@link appErrorInterceptor}.
  */
 export const adminSiteSettingsRouter = {
   list: os.list.handler(async ({ context }) => {

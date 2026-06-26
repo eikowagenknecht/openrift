@@ -9,10 +9,6 @@ import type { ApiContext } from "../../orpc/context.js";
 
 const os = implement(collectionValueHistoryContract).$context<ApiContext>().use(requireUser);
 
-/**
- * oRPC implementation of the authenticated collection value-history contract.
- * Logic unchanged from the previous handler; only the routing layer moved.
- */
 export const collectionValueHistoryRouter = {
   get: os.get.handler(async ({ input: query, context }) => {
     const { marketplace: repos } = context.repos;

@@ -9,10 +9,9 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(adminDeckZonesContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin deck-zones taxonomy. Deck zones are a fixed
- * set, so only list / reorder / relabel are exposed. Logic unchanged from the
- * previous `@hono/zod-openapi` handlers; not-found / bad-request states are
- * thrown as `AppError` and mapped by the handler's appErrorInterceptor.
+ * Admin deck-zones taxonomy. Deck zones are a fixed set, so only list /
+ * reorder / relabel are exposed. Not-found / bad-request states are thrown as
+ * `AppError` and mapped by the handler's appErrorInterceptor.
  */
 export const adminDeckZonesRouter = {
   list: os.list.handler(async ({ context }) => {

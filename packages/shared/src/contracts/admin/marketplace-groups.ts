@@ -13,7 +13,7 @@ const marketplaceGroupSchema = z.object({
   name: z.string().nullable(),
   abbreviation: z.string().nullable(),
   groupKind: groupKindEnum,
-  setId: z.string().uuid().nullable(),
+  setId: z.uuid().nullable(),
   stagedCount: z.number(),
   assignedCount: z.number(),
 });
@@ -38,7 +38,7 @@ export const adminMarketplaceGroupsContract = {
           id: z.coerce.number().int(),
           name: z.string().nullable().optional(),
           groupKind: groupKindEnum.optional(),
-          setId: z.string().uuid().nullable().optional(),
+          setId: z.uuid().nullable().optional(),
         })
         .refine((o) => o.name !== undefined || o.groupKind !== undefined || o.setId !== undefined, {
           message: "At least one field (name, groupKind, setId) must be provided",

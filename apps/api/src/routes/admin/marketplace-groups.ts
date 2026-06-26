@@ -10,9 +10,8 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(adminMarketplaceGroupsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin marketplace-groups. Logic unchanged from the
- * previous `@hono/zod-openapi` handlers; not-found is thrown as `AppError` and
- * mapped by the handler's {@link appErrorInterceptor}.
+ * Admin marketplace-groups. Not-found is thrown as `AppError` and mapped by the
+ * handler's {@link appErrorInterceptor}.
  */
 export const adminMarketplaceGroupsRouter = {
   list: os.list.handler(async ({ context }) => {

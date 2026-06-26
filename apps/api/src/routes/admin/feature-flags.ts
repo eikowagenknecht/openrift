@@ -11,13 +11,10 @@ import { assertDeleted, assertFound } from "../../utils/assertions.js";
 const os = implement(adminFeatureFlagsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin feature-flags tooling: global flag CRUD plus
- * per-user overrides (previously split across `feature-flags` and
- * `user-feature-flags` hono routers, merged here so the static
- * `feature-flags/overrides` path and the `feature-flags/{key}` param path
- * resolve within one oRPC handler). Logic unchanged; conflict / not-found
- * states are thrown as `AppError` and mapped by the handler's
- * appErrorInterceptor.
+ * Admin feature-flags tooling: global flag CRUD plus per-user overrides. The
+ * static `feature-flags/overrides` path and the `feature-flags/{key}` param
+ * path resolve within one router. Conflict / not-found states are thrown as
+ * `AppError` and mapped by the handler's appErrorInterceptor.
  */
 export const adminFeatureFlagsRouter = {
   // ── Global flags ──────────────────────────────────────────────────────────

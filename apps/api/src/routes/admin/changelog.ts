@@ -12,9 +12,8 @@ const log = createLogger("admin");
 const os = implement(adminChangelogContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin changelog Discord post action. Logic
- * unchanged from the previous `@hono/zod-openapi` handler; any thrown
- * `AppError` is mapped by the handler's appErrorInterceptor.
+ * Admin changelog Discord post action. Any thrown `AppError` is mapped by the
+ * handler's appErrorInterceptor.
  */
 export const adminChangelogRouter = {
   post: os.post.handler(async ({ context }) => {

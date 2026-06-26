@@ -9,10 +9,8 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(adminSuperTypesContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin super type taxonomy CRUD. Logic unchanged
- * from the previous `@hono/zod-openapi` handlers; conflict / not-found /
- * bad-request states are thrown as `AppError` and mapped by the handler's
- * {@link appErrorInterceptor}.
+ * Admin super type taxonomy CRUD. Conflict / not-found / bad-request states are
+ * thrown as `AppError` and mapped by the handler's {@link appErrorInterceptor}.
  */
 export const adminSuperTypesRouter = {
   list: os.list.handler(async ({ context }) => {

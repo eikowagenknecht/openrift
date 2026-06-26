@@ -11,11 +11,10 @@ import { assertFound } from "../../utils/assertions.js";
 const os = implement(adminDistributionChannelsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin distribution-channels taxonomy CRUD.
- * Channels are keyed by their UUID `id` and may nest via `parentId`. Logic
- * unchanged from the previous `@hono/zod-openapi` handlers; conflict /
- * not-found / has-children / in-use states are thrown as `AppError` and mapped
- * by the handler's appErrorInterceptor.
+ * Admin distribution-channels taxonomy CRUD. Channels are keyed by their UUID
+ * `id` and may nest via `parentId`. Conflict / not-found / has-children /
+ * in-use states are thrown as `AppError` and mapped by the handler's
+ * appErrorInterceptor.
  */
 export const adminDistributionChannelsRouter = {
   list: os.list.handler(async ({ context }) => {

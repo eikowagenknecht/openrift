@@ -10,9 +10,8 @@ import { toListEntryDetail, toPublicList } from "../../utils/mappers.js";
 const os = implement(publicListsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the public (share-token) list view. Logic unchanged
- * from the previous handler; the 404 for an unknown/non-public token is now a
- * typed `errors.NOT_FOUND()` instead of a thrown AppError.
+ * Public (share-token) list view. An unknown/non-public token returns a typed
+ * `errors.NOT_FOUND()`.
  */
 export const publicListsRouter = {
   share: os.share.handler(async ({ input, context, errors }): Promise<PublicListDetailResponse> => {

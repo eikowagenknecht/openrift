@@ -15,9 +15,8 @@ const FLUSH_KIND = "discord.flush_printing_events";
 const os = implement(adminPrintingEventsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin printing-events Discord queue. Logic
- * unchanged from the previous `@hono/zod-openapi` handlers; any thrown
- * `AppError` is mapped by the handler's {@link appErrorInterceptor}.
+ * Admin printing-events Discord queue. Any thrown `AppError` is mapped by the
+ * handler's {@link appErrorInterceptor}.
  */
 export const adminPrintingEventsRouter = {
   flush: os.flush.handler(async ({ context }) => {

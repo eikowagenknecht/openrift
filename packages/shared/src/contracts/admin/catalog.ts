@@ -1,4 +1,4 @@
-import { idParamSchema } from "@openrift/shared/schemas";
+import { idParamSchema, isoDate } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -21,7 +21,7 @@ const adminSetSchema = z.object({
   name: z.string(),
   printedTotal: z.number().nullable(),
   sortOrder: z.number(),
-  releasedAt: z.string().nullable(),
+  releasedAt: isoDate.nullable(),
   released: z.boolean(),
   setType: setFieldRules.setType,
   cardCount: z.number(),
@@ -44,7 +44,7 @@ export const adminCatalogContract = {
       idParamSchema.extend({
         name: setFieldRules.name,
         printedTotal: setFieldRules.printedTotal,
-        releasedAt: z.string().nullable(),
+        releasedAt: isoDate.nullable(),
         released: z.boolean(),
         setType: setFieldRules.setType,
       }),
@@ -56,7 +56,7 @@ export const adminCatalogContract = {
         id: setFieldRules.slug,
         name: setFieldRules.name,
         printedTotal: setFieldRules.printedTotal,
-        releasedAt: z.string().nullable().optional(),
+        releasedAt: isoDate.nullable().optional(),
       }),
     )
     .output(z.object({ id: z.string() })),

@@ -14,7 +14,7 @@ const MM = "/api/admin/v1/marketplace-mappings";
 const saveMappingsBody = z.object({
   mappings: z.array(
     z.object({
-      printingId: z.string().uuid(),
+      printingId: z.uuid(),
       externalId: z.number(),
       // The marketplace's own view of the SKU finish — always `normal` / `foil`.
       finish: z.string(),
@@ -58,7 +58,7 @@ export const adminUnifiedMappingsContract = {
       z.object({
         query: z.object({
           marketplace: marketplaceEnum,
-          printingId: z.string().uuid(),
+          printingId: z.uuid(),
           externalId: z.coerce.number().int(),
           finish: z.string(),
           language: z.string().optional(),

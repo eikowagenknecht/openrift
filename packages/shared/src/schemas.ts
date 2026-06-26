@@ -71,6 +71,31 @@ const isAllowedIntentKind = (
 };
 
 // ---------------------------------------------------------------------------
+// Shared serialization primitives
+// ---------------------------------------------------------------------------
+
+/**
+ * A PostgreSQL `timestamptz` value serialized to an ISO 8601 date-time string
+ * (e.g. `"2026-06-26T12:00:00.000Z"`), the shape produced by `Date.toISOString()`.
+ *
+ * JSON has no `Date` type, so in OpenAPI mode timestamps cross the wire as
+ * strings. Using this instead of bare `z.string()` makes the generated OpenAPI
+ * spec carry `format: date-time` (so Swagger documents it and Schemathesis fuzzes
+ * it as a date), while the inferred TypeScript type stays `string`. Revive to a
+ * `Date` at the client boundary (a TanStack Query `select`), not in the schema —
+ * an output `.transform()` would run server-side and re-serialize to a string.
+ */
+export const isoDateTime = z.iso.datetime();
+
+/**
+ * A PostgreSQL `date` value serialized as a date-only string (`"2026-06-26"`),
+ * the shape the postgres driver returns for `date` columns (OID 1082, see
+ * `apps/api/src/db/connect.ts`). The OpenAPI counterpart to {@link isoDateTime}
+ * for date-only fields; emits `format: date` in the spec.
+ */
+export const isoDate = z.iso.date();
+
+// ---------------------------------------------------------------------------
 // Common param & query schemas (used by zValidator("param"//"query"))
 // ---------------------------------------------------------------------------
 

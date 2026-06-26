@@ -1,3 +1,4 @@
+import { isoDate, isoDateTime } from "@openrift/shared/schemas";
 import { z } from "zod";
 
 import {
@@ -276,13 +277,13 @@ export type IngestCard = z.infer<typeof ingestCardFieldsSchema> & {
 
 export const createBanSchema = z.object({
   formatId: z.string().min(1),
-  bannedAt: z.string().date(),
+  bannedAt: isoDate,
   reason: z.string().min(1).nullable().optional(),
 });
 
 export const updateBanSchema = z.object({
   formatId: z.string().min(1),
-  bannedAt: z.string().date().optional(),
+  bannedAt: isoDate.optional(),
   reason: z.string().min(1).nullable().optional(),
 });
 
@@ -295,9 +296,9 @@ export const banResponseSchema = z.object({
   cardId: z.string().openapi({ example: "019cfc3b-0389-744b-837c-792fd586300e" }),
   formatId: z.string().openapi({ example: "standard" }),
   formatName: z.string().openapi({ example: "Standard" }),
-  bannedAt: z.string().openapi({ example: "2026-01-15" }),
+  bannedAt: isoDate.openapi({ example: "2026-01-15" }),
   reason: z.string().nullable().openapi({ example: "Power level concerns" }),
-  createdAt: z.string().openapi({ example: "2026-01-15T12:00:00.000Z" }),
+  createdAt: isoDateTime.openapi({ example: "2026-01-15T12:00:00.000Z" }),
 });
 
 // ── Queries ────────────────────────────────────────────────────────────────

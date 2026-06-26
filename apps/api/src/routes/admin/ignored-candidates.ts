@@ -7,9 +7,8 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(adminIgnoredCandidatesContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin ignored-candidates controls. Logic unchanged
- * from the previous `@hono/zod-openapi` handlers; any thrown `AppError` is
- * mapped by the handler's appErrorInterceptor.
+ * Admin ignored-candidates controls. Any thrown `AppError` is mapped by the
+ * handler's appErrorInterceptor.
  */
 export const adminIgnoredCandidatesRouter = {
   list: os.list.handler(async ({ context }) => {

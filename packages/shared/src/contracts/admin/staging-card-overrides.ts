@@ -21,7 +21,7 @@ export const adminStagingCardOverridesContract = {
       externalId: z.number(),
       finish: z.string(),
       language: z.string().nullable(),
-      cardId: z.string().uuid(),
+      cardId: z.uuid(),
     }),
   ),
   remove: oc

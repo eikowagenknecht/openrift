@@ -15,10 +15,9 @@ import { toCopy } from "../../utils/mappers.js";
 const os = implement(copiesContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the authenticated copies contract. Logic unchanged
- * from the previous handlers; the FK-violation 400 on `add` is now a typed
- * `errors.BAD_REQUEST()` rather than a thrown AppError. `move`/`dispose` return
- * 204 (no body) via the contract's `successStatus`.
+ * Authenticated copies contract. The FK-violation 400 on `add` is a typed
+ * `errors.BAD_REQUEST()` declared on the contract. `move`/`dispose` return 204
+ * (no body) via the contract's `successStatus`.
  */
 export const copiesRouter = {
   // All copies the viewer can access: their personal collections plus the

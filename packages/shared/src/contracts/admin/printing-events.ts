@@ -1,3 +1,4 @@
+import { isoDateTime } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -33,7 +34,7 @@ const printingEventViewSchema = z.object({
   languageName: z.string().nullable(),
   frontImageId: z.string().nullable(),
   changes: z.array(fieldChangeSchema).nullable(),
-  createdAt: z.string(),
+  createdAt: isoDateTime,
 });
 
 /**
@@ -52,7 +53,7 @@ export const adminPrintingEventsContract = {
     .output(z.object({ events: z.array(printingEventViewSchema) })),
   retry: oc
     .route({ method: "POST", path: `${PE}/retry`, tags: [TAG] })
-    .input(z.object({ ids: z.array(z.string().uuid()).min(1) }))
+    .input(z.object({ ids: z.array(z.uuid()).min(1) }))
     .output(z.object({ retried: z.number() })),
 };
 

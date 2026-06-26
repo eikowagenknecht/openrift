@@ -1,3 +1,4 @@
+import { isoDateTime } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -13,7 +14,7 @@ const ignoredProductSchema = z.discriminatedUnion("level", [
     marketplace: z.string(),
     externalId: z.number(),
     productName: z.string(),
-    createdAt: z.string(),
+    createdAt: isoDateTime,
   }),
   z.object({
     level: z.literal("variant"),
@@ -22,7 +23,7 @@ const ignoredProductSchema = z.discriminatedUnion("level", [
     finish: z.string(),
     language: z.string().nullable(),
     productName: z.string(),
-    createdAt: z.string(),
+    createdAt: isoDateTime,
   }),
 ]);
 

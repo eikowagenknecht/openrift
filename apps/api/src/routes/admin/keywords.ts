@@ -8,10 +8,9 @@ import { discoverKeywordTranslations } from "../../services/keyword-translation-
 const os = implement(adminKeywordsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin keyword tooling: usage stats, per-keyword
- * display styles, a recompute job, and keyword translation discovery/upsert.
- * Logic unchanged from the previous `@hono/zod-openapi` handlers; any thrown
- * `AppError` is mapped by the handler's {@link appErrorInterceptor}.
+ * Admin keyword tooling: usage stats, per-keyword display styles, a recompute
+ * job, and keyword translation discovery/upsert. Any thrown `AppError` is
+ * mapped by the handler's {@link appErrorInterceptor}.
  */
 export const adminKeywordsRouter = {
   stats: os.stats.handler(async ({ context }) => {

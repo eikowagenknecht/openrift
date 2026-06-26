@@ -1,3 +1,4 @@
+import { isoDate, isoDateTime } from "@openrift/shared/schemas";
 import { z } from "zod";
 
 import { setFieldRules } from "../../db/schemas.js";
@@ -7,7 +8,7 @@ import { setFieldRules } from "../../db/schemas.js";
 export const updateSetSchema = z.object({
   name: setFieldRules.name,
   printedTotal: setFieldRules.printedTotal,
-  releasedAt: z.string().nullable(),
+  releasedAt: isoDate.nullable(),
   released: z.boolean(),
   setType: setFieldRules.setType,
 });
@@ -16,11 +17,11 @@ export const createSetSchema = z.object({
   id: setFieldRules.slug,
   name: setFieldRules.name,
   printedTotal: setFieldRules.printedTotal,
-  releasedAt: z.string().nullable().optional(),
+  releasedAt: isoDate.nullable().optional(),
 });
 
 export const reorderSetsSchema = z.object({
-  ids: z.array(z.string().uuid()).min(1),
+  ids: z.array(z.uuid()).min(1),
 });
 
 // ── Feature Flags ──────────────────────────────────────────────────────────
@@ -80,7 +81,7 @@ export const updateGroupSchema = z
   .object({
     name: z.string().nullable().optional(),
     groupKind: marketplaceGroupKindEnum.optional(),
-    setId: z.string().uuid().nullable().optional(),
+    setId: z.uuid().nullable().optional(),
   })
   .refine((o) => o.name !== undefined || o.groupKind !== undefined || o.setId !== undefined, {
     message: "At least one field (name, groupKind, setId) must be provided",
@@ -121,23 +122,23 @@ export const updateCustomTagCategorySchema = z.object({
 export const createCustomTagSchema = z.object({
   slug: z.string().min(1).regex(slugRegex, "Slug must be kebab-case (e.g. bandle-city)"),
   label: z.string().min(1),
-  categoryId: z.string().uuid(),
+  categoryId: z.uuid(),
   description: z.string().min(1).nullable().optional(),
 });
 
 export const updateCustomTagSchema = z.object({
   slug: z.string().min(1).regex(slugRegex, "Slug must be kebab-case").optional(),
   label: z.string().min(1).optional(),
-  categoryId: z.string().uuid().optional(),
+  categoryId: z.uuid().optional(),
   description: z.string().min(1).nullable().optional(),
 });
 
 export const setCardCustomTagsSchema = z.object({
-  customTagIds: z.array(z.string().uuid()),
+  customTagIds: z.array(z.uuid()),
 });
 
 export const addCardsToCustomTagSchema = z.object({
-  cardIds: z.array(z.string().uuid()),
+  cardIds: z.array(z.uuid()),
 });
 
 // ── Distribution Channels ──────────────────────────────────────────────────
@@ -149,7 +150,7 @@ export const createDistributionChannelSchema = z.object({
   label: z.string().min(1),
   description: z.string().min(1).nullable().optional(),
   kind: distributionChannelKindEnum.optional(),
-  parentId: z.string().uuid().nullable().optional(),
+  parentId: z.uuid().nullable().optional(),
   childrenLabel: z.string().min(1).nullable().optional(),
 });
 
@@ -158,7 +159,7 @@ export const updateDistributionChannelSchema = z.object({
   label: z.string().min(1).optional(),
   description: z.string().min(1).nullable().optional(),
   kind: distributionChannelKindEnum.optional(),
-  parentId: z.string().uuid().nullable().optional(),
+  parentId: z.uuid().nullable().optional(),
   childrenLabel: z.string().min(1).nullable().optional(),
 });
 
@@ -206,17 +207,17 @@ export const clearPricesSchema = z.object({
 // ── Job runs ──────────────────────────────────────────────────────────────
 
 export const jobRunStartedResponseSchema = z.object({
-  runId: z.string().uuid().openapi({ example: "4f8e4f36-2b7b-4c8d-8b6e-5c2e3a8f1a2b" }),
+  runId: z.uuid().openapi({ example: "4f8e4f36-2b7b-4c8d-8b6e-5c2e3a8f1a2b" }),
   status: z.enum(["running", "already_running"]).openapi({ example: "running" }),
 });
 
 const jobRunViewSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   kind: z.string().openapi({ example: "cardtrader.refresh" }),
   trigger: z.enum(["cron", "admin", "api"]),
   status: z.enum(["running", "succeeded", "failed"]),
-  startedAt: z.string().openapi({ example: "2026-04-23T12:00:00.000Z" }),
-  finishedAt: z.string().nullable(),
+  startedAt: isoDateTime.openapi({ example: "2026-04-23T12:00:00.000Z" }),
+  finishedAt: isoDateTime.nullable(),
   durationMs: z.number().nullable(),
   errorMessage: z.string().nullable(),
   result: z.record(z.string(), z.any()).nullable(),
@@ -306,7 +307,7 @@ export const marketplaceSchema = z.object({
 export const saveMappingsSchema = z.object({
   mappings: z.array(
     z.object({
-      printingId: z.string().uuid(),
+      printingId: z.uuid(),
       externalId: z.number(),
       /** The marketplace's own view of the SKU finish — always `normal` / `foil`. */
       finish: z.string(),
@@ -321,7 +322,7 @@ export const saveMappingsSchema = z.object({
 // form, and an omitted `language` means null (CM/TCG have no language axis).
 export const unmapQuerySchema = z.object({
   marketplace: z.enum(["tcgplayer", "cardmarket", "cardtrader"]),
-  printingId: z.string().uuid(),
+  printingId: z.uuid(),
   externalId: z.coerce.number().int(),
   /** The marketplace's own view of the SKU finish — always `normal` / `foil`. */
   finish: z.string(),
@@ -336,7 +337,7 @@ export const stagingCardOverrideSchema = z.object({
   externalId: z.number(),
   finish: z.string(),
   language: z.string().nullable(),
-  cardId: z.string().uuid(),
+  cardId: z.uuid(),
 });
 
 // DELETE /staging-card-overrides addresses the override by its product SKU via
@@ -352,7 +353,7 @@ export const deleteOverrideQuerySchema = z.object({
 
 export const typographyDiffItemSchema = z.object({
   entity: z.enum(["card", "printing"]),
-  id: z.string().uuid().openapi({ example: "019cfc3b-0389-744b-837c-792fd586300e" }),
+  id: z.uuid().openapi({ example: "019cfc3b-0389-744b-837c-792fd586300e" }),
   name: z.string().openapi({ example: "Jinx, Rebel" }),
   field: z.string().openapi({ example: "printedRulesText" }),
   current: z.string().openapi({ example: 'Deal 2 damage to target unit. "This\'ll hurt..."' }),
@@ -361,7 +362,7 @@ export const typographyDiffItemSchema = z.object({
 
 export const acceptTypographyFixSchema = z.object({
   entity: z.enum(["card", "printing"]),
-  id: z.string().uuid(),
+  id: z.uuid(),
   field: z.string(),
   proposed: z.string(),
 });

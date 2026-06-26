@@ -13,9 +13,8 @@ import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-r
 const os = implement(cardsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the public card-detail contract. Logic unchanged from
- * the previous handler; the unknown-slug 404 is a typed NOT_FOUND. Prices are
- * NOT inlined — they are served separately by `/prices` (CACHE-1).
+ * The public card-detail contract. An unknown slug returns a typed NOT_FOUND.
+ * Prices are NOT inlined — they are served separately by `/prices` (CACHE-1).
  */
 export const cardsRouter = {
   detail: os.detail.handler(async ({ input, context, errors }): Promise<CardDetailResponse> => {

@@ -9,10 +9,8 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(adminArtVariantsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin art-variants taxonomy CRUD. Logic unchanged
- * from the previous `@hono/zod-openapi` handlers; conflict / not-found /
- * bad-request states are thrown as `AppError` and mapped by the handler's
- * appErrorInterceptor.
+ * Admin art-variants taxonomy CRUD. Conflict / not-found / bad-request states
+ * are thrown as `AppError` and mapped by the handler's appErrorInterceptor.
  */
 export const adminArtVariantsRouter = {
   list: os.list.handler(async ({ context }) => {

@@ -9,10 +9,8 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(adminRaritiesContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin rarity taxonomy CRUD. Logic unchanged
- * from the previous `@hono/zod-openapi` handlers; conflict / not-found /
- * bad-request states are thrown as `AppError` and mapped by the handler's
- * {@link appErrorInterceptor}.
+ * Admin rarity taxonomy CRUD. Conflict / not-found / bad-request states are
+ * thrown as `AppError` and mapped by the handler's {@link appErrorInterceptor}.
  */
 export const adminRaritiesRouter = {
   list: os.list.handler(async ({ context }) => {

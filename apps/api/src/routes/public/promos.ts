@@ -14,8 +14,8 @@ import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-r
 const os = implement(promosContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the public promos contract. Logic unchanged from the
- * previous handler; only the routing layer moved.
+ * Public promos read: channel-distributed printings with their cards, bans,
+ * errata, images, and per-channel rollup counts.
  */
 export const promosRouter = {
   list: os.list.handler(async ({ context }): Promise<PromosListResponse> => {

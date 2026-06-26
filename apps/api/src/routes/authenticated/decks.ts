@@ -190,11 +190,9 @@ const patchFields: FieldMapping<DeckUpdateInput> = {
 const os = implement(decksContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the authenticated decks contract (mounted at
- * `/api/v1/decks`). Logic unchanged from the previous `@hono/zod-openapi`
- * handlers; bad-request and not-found states are thrown as `AppError` and
- * mapped to ORPCErrors by the handler's appErrorInterceptor. The `201`
- * `Location` headers on create / clone are dropped — no consumer read them.
+ * The authenticated decks contract, mounted at `/api/v1/decks`. Bad-request and
+ * not-found states are thrown as `AppError` and mapped to ORPCErrors by the
+ * handler's appErrorInterceptor.
  */
 export const decksRouter = {
   // ── LIST ────────────────────────────────────────────────────────────────────

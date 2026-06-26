@@ -132,11 +132,9 @@ async function ensurePlayerInTournament(
 const os = implement(podTournamentsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the authenticated pod-tournament contract (ADR-022),
- * mounted at `/api/v1/pod-tournaments`. Owner-only; logic unchanged from the
- * previous `@hono/zod-openapi` handlers. Not-found / not-owner / conflict states
+ * The authenticated pod-tournament contract (ADR-022), mounted at
+ * `/api/v1/pod-tournaments`. Owner-only. Not-found / not-owner / conflict states
  * are thrown as `AppError` and mapped to ORPCErrors by the handler's appErrorInterceptor.
- * The `201` `Location` header on create is dropped — no consumer read it.
  */
 export const podTournamentsRouter = {
   list: os.list.handler(async ({ context }): Promise<PodTournamentListResponse> => {

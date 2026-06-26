@@ -37,7 +37,7 @@ const marketplaceInfoQuerySchema = z.object({
       });
       return z.NEVER;
     }
-    const uuid = z.string().uuid();
+    const uuid = z.uuid();
     for (const id of ids) {
       const parsed = uuid.safeParse(id);
       if (!parsed.success) {

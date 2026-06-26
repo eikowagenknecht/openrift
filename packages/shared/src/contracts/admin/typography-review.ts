@@ -7,7 +7,7 @@ const TR = "/api/admin/v1/typography-review";
 
 const typographyDiffItemSchema = z.object({
   entity: z.enum(["card", "printing"]),
-  id: z.string().uuid(),
+  id: z.uuid(),
   name: z.string(),
   field: z.string(),
   current: z.string(),
@@ -28,7 +28,7 @@ export const adminTypographyReviewContract = {
   accept: oc.route({ method: "POST", path: `${TR}/accept`, tags: [TAG], successStatus: 204 }).input(
     z.object({
       entity: z.enum(["card", "printing"]),
-      id: z.string().uuid(),
+      id: z.uuid(),
       field: z.string(),
       proposed: z.string(),
     }),

@@ -1,3 +1,4 @@
+import { isoDateTime } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -18,8 +19,8 @@ const channelSchema = z.object({
   sortOrder: z.number(),
   parentId: z.string().nullable(),
   childrenLabel: z.string().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  createdAt: isoDateTime,
+  updatedAt: isoDateTime,
   printingCount: z.number(),
 });
 
@@ -49,7 +50,7 @@ export const adminDistributionChannelsContract = {
         label: z.string().min(1),
         description: z.string().min(1).nullable().optional(),
         kind: channelKindEnum.optional(),
-        parentId: z.string().uuid().nullable().optional(),
+        parentId: z.uuid().nullable().optional(),
         childrenLabel: z.string().min(1).nullable().optional(),
       }),
     )
@@ -60,7 +61,7 @@ export const adminDistributionChannelsContract = {
       label: z.string().min(1).optional(),
       description: z.string().min(1).nullable().optional(),
       kind: channelKindEnum.optional(),
-      parentId: z.string().uuid().nullable().optional(),
+      parentId: z.uuid().nullable().optional(),
       childrenLabel: z.string().min(1).nullable().optional(),
     }),
   ),

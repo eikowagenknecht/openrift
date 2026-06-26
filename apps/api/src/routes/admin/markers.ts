@@ -31,10 +31,9 @@ function toMarkerResponse(row: {
 }
 
 /**
- * oRPC implementation of the admin markers taxonomy CRUD. Markers are keyed by
- * their UUID `id`. Logic unchanged from the previous `@hono/zod-openapi`
- * handlers; conflict / not-found / in-use states are thrown as `AppError` and
- * mapped by the handler's {@link appErrorInterceptor}.
+ * Admin markers taxonomy CRUD. Markers are keyed by their UUID `id`. Conflict /
+ * not-found / in-use states are thrown as `AppError` and mapped by the
+ * handler's {@link appErrorInterceptor}.
  */
 export const adminMarkersRouter = {
   list: os.list.handler(async ({ context }) => {

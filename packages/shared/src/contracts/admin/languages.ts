@@ -1,3 +1,4 @@
+import { isoDateTime } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -9,8 +10,8 @@ const languageSchema = z.object({
   code: z.string(),
   name: z.string(),
   sortOrder: z.number(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  createdAt: isoDateTime,
+  updatedAt: isoDateTime,
 });
 
 const codeParamSchema = z.object({ code: z.string().min(1) });

@@ -231,11 +231,10 @@ function requireListVisible(entry: DeckCheckEntry): void {
 const os = implement(deckCheckContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the judge-facing deck-check contract (ADR-026/027),
- * mounted under `/api/v1/friend-groups/{slug}`. Logic unchanged from the
- * previous `@hono/zod-openapi` handlers; every endpoint is role-gated and the
- * access checks / not-found / conflict states are thrown as `AppError` and
- * mapped to ORPCErrors by the handler's appErrorInterceptor.
+ * The judge-facing deck-check contract (ADR-026/027), mounted under
+ * `/api/v1/friend-groups/{slug}`. Every endpoint is role-gated; the access
+ * checks / not-found / conflict states are thrown as `AppError` and mapped to
+ * ORPCErrors by the handler's appErrorInterceptor.
  */
 export const deckCheckRouter = {
   // ── EVENTS ──────────────────────────────────────────────────────────────

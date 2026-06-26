@@ -10,10 +10,6 @@ import { toCollectionEvent } from "../../utils/mappers.js";
 
 const os = implement(collectionEventsContract).$context<ApiContext>().use(requireUser);
 
-/**
- * oRPC implementation of the authenticated collection-events contract. Logic
- * unchanged from the previous handler; only the routing layer moved.
- */
 export const collectionEventsRouter = {
   list: os.list.handler(async ({ input, context }): Promise<CollectionEventListResponse> => {
     const { collectionEvents } = context.repos;

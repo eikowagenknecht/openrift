@@ -12,10 +12,9 @@ const log = createLogger("admin-cache");
 const os = implement(adminCacheContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin Cloudflare cache controls. Logic unchanged
- * from the previous `@hono/zod-openapi` handlers; not-configured (503) /
- * upstream-failure (502) states are thrown as `AppError` and mapped by the
- * handler's appErrorInterceptor.
+ * Admin Cloudflare cache controls. Not-configured (503) / upstream-failure
+ * (502) states are thrown as `AppError` and mapped by the handler's
+ * appErrorInterceptor.
  */
 export const adminCacheRouter = {
   status: os.status.handler(({ context }) => {

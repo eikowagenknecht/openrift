@@ -15,8 +15,7 @@ import {
 const os = implement(publicDecksContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the public shared-deck view. Logic unchanged from the
- * previous handler; the unknown-token 404 is a typed NOT_FOUND. Card +
+ * Public shared-deck view. An unknown token returns a typed NOT_FOUND. Card +
  * preferred-printing data is denormalized so the share page can SSR without
  * the global catalog.
  */

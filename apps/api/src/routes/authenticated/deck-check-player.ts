@@ -251,10 +251,9 @@ async function persistSubmission(
 const os = implement(deckCheckPlayerContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the player-facing deck-check contract (ADR-026/027),
- * mounted at `/api/v1/deck-check`. Logic unchanged from the previous
- * `@hono/zod-openapi` handlers; not-found / conflict / validation states are
- * thrown as `AppError` and mapped to ORPCErrors by the handler's appErrorInterceptor.
+ * Player-facing deck-check contract (ADR-026/027), mounted at
+ * `/api/v1/deck-check`. Not-found / conflict / validation states are thrown as
+ * `AppError` and mapped to ORPCErrors by the handler's appErrorInterceptor.
  */
 export const deckCheckPlayerRouter = {
   listMine: os.listMine.handler(async ({ context }): Promise<PlayerDeckCheckEntriesResponse> => {

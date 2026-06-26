@@ -11,10 +11,9 @@ import { assertFound } from "../../utils/assertions.js";
 const os = implement(adminLanguagesContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin languages taxonomy CRUD. Languages are keyed
- * by their `code`. Logic unchanged from the previous `@hono/zod-openapi`
- * handlers; conflict / not-found / in-use states are thrown as `AppError` and
- * mapped by the handler's {@link appErrorInterceptor}.
+ * Admin languages taxonomy CRUD. Languages are keyed by their `code`. Conflict
+ * / not-found / in-use states are thrown as `AppError` and mapped by the
+ * handler's {@link appErrorInterceptor}.
  */
 export const adminLanguagesRouter = {
   list: os.list.handler(async ({ context }) => {

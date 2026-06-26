@@ -11,12 +11,11 @@ const THUMBNAIL_SAMPLE_SIZE = 36;
 const os = implement(landingSummaryContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the public landing-summary contract.
+ * Public landing-summary read.
  *
  * `GET /api/v1/landing-summary` — the lightweight hero payload: card count,
  * printing count, copy count, and a per-day-stable sample of thumbnail ids for
- * the decorative card scatter. Logic is unchanged from the previous
- * `@hono/zod-openapi` handler — only the routing layer moved.
+ * the decorative card scatter.
  */
 export const landingSummaryRouter = {
   get: os.get.handler(async ({ context }): Promise<LandingSummaryResponse> => {

@@ -1,3 +1,4 @@
+import { isoDateTime } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -10,8 +11,8 @@ const flagSchema = z.object({
   key: z.string(),
   enabled: z.boolean(),
   description: z.string().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  createdAt: isoDateTime,
+  updatedAt: isoDateTime,
 });
 
 const overrideSchema = z.object({

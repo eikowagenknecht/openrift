@@ -31,9 +31,8 @@ function toCronStatus(job: Cron | null, lastRun: JobRun | undefined) {
 }
 
 /**
- * oRPC implementation of the admin status dashboard. Logic unchanged from the
- * previous `@hono/zod-openapi` handler; any thrown `AppError` is mapped to an
- * ORPCError by the handler's {@link appErrorInterceptor}.
+ * Admin status dashboard. Any thrown `AppError` is mapped to an ORPCError by
+ * the handler's {@link appErrorInterceptor}.
  */
 export const adminStatusRouter = {
   get: os.get.handler(async ({ context }) => {

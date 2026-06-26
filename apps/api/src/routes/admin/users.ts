@@ -7,9 +7,8 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(adminUsersContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the admin users list. Logic unchanged from the
- * previous `@hono/zod-openapi` handler; `createdAt` / `lastActiveAt` are mapped
- * from `Date` to ISO strings to satisfy the contract output schema.
+ * Admin users list. `createdAt` / `lastActiveAt` are mapped from `Date` to ISO
+ * strings to satisfy the contract output schema.
  */
 export const adminUsersRouter = {
   list: os.list.handler(async ({ context }) => {

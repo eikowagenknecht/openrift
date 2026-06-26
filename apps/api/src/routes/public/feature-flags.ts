@@ -8,12 +8,11 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(featureFlagsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the public feature-flags contract.
+ * Public feature-flags read.
  *
  * `GET /api/v1/feature-flags` — returns `{ flags: { key: enabled } }`. When a
  * session is present the per-user overrides are merged over the global
- * defaults; anonymous callers get the global defaults only. Logic is unchanged
- * from the previous `@hono/zod-openapi` handler — only the routing layer moved.
+ * defaults; anonymous callers get the global defaults only.
  */
 export const featureFlagsRouter = {
   get: os.get.handler(async ({ context }): Promise<FeatureFlagsResponse> => {

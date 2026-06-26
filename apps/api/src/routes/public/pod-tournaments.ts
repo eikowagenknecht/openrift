@@ -40,8 +40,7 @@ async function buildReport(repos: Repos, tournament: PodTournament): Promise<Pod
 const os = implement(publicPodTournamentsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the public, token-gated pod-tournament surface
- * (ADR-022). Logic unchanged from the previous handlers; the not-found case is
+ * Public, token-gated pod-tournament surface (ADR-022). The not-found case is
  * a typed NOT_FOUND, and AppErrors thrown by `submitPodResult` (bad state /
  * conflict) reach the client through the global error interceptor, which maps
  * their status + code onto the response.

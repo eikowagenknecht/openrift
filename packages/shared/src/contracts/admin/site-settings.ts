@@ -1,3 +1,4 @@
+import { isoDateTime } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -11,8 +12,8 @@ const siteSettingSchema = z.object({
   key: z.string(),
   value: z.string(),
   scope: z.string(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  createdAt: isoDateTime,
+  updatedAt: isoDateTime,
 });
 
 /**
