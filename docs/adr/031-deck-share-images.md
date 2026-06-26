@@ -7,7 +7,7 @@ date: 2026-06-26
 
 ## Context and Problem Statement
 
-Decks are shared into the same WhatsApp and Discord channels as lists, but the public deck share route (`/decks/share/<token>`) only set its `og:image` to the Legend card's full art — a single card, and nothing at all for freeform decks with no Legend. ADR-024 already built a server-rendered, edge-cached share-image pipeline for lists and bundles (satori → sharp, version-keyed immutable URL). We want the same "looks like a real post" unfurl for decks, but a deck has structure a list does not: a Legend identity, a rune-domain split, battlefields, a cost curve, and a sideboard. The community decklist tool "Archive" sets the visual bar — a left identity panel plus a labelled grid.
+Decks are shared into the same WhatsApp and Discord channels as lists, but the public deck share route (`/decks/share/<token>`) only set its `og:image` to the Legend card's full art — a single card, and nothing at all for freeform decks with no Legend. ADR-024 already built a server-rendered, edge-cached share-image pipeline for lists and bundles (satori-rendered SVG → PNG, version-keyed immutable URL). We want the same "looks like a real post" unfurl for decks, but a deck has structure a list does not: a Legend identity, a rune-domain split, battlefields, a cost curve, and a sideboard. The community decklist tool "Archive" sets the visual bar — a left identity panel plus a labelled grid.
 
 This ADR records how the deck image is rendered, how it is cached, and the one decision that differs materially from ADR-024 (the cache-bust version source).
 
@@ -26,10 +26,11 @@ This ADR records how the deck image is rendered, how it is cached, and the one d
 
 ## Decision Outcome
 
-Chosen option: **C**. The satori hyperscript, font loader, card-art transcoder, and satori → sharp finish are extracted from `share-image.ts` into `share-image-core.ts`; the list renderer and a new `deck-image.ts` both compose them. `renderDeckImage(io, input, scale)` draws the deck-shaped layout and is wired as the `og:image` for `/decks/share/<token>` plus an HQ download in the deck share dialog.
+Chosen option: **C**. The satori hyperscript, font loader, card-art transcoder, and satori → resvg finish are extracted from `share-image.ts` into `share-image-core.ts`; the list renderer and a new `deck-image.ts` both compose them. `renderDeckImage(io, input, scale)` draws the deck-shaped layout and is wired as the `og:image` for `/decks/share/<token>` plus an HQ download in the deck share dialog.
 
 - **Layout.** A title row (deck name · owner handle, format · card count), a left identity panel (Legend hero, rune-domain glyph summary, battlefields), a cost-sorted grid of the champion + main cards (no "+N more" cap — a deck's distinct-card count is bounded, so the whole deck shows), an optional sideboard strip, and a footer with the host and a QR to the deck. Card images already bake in cost/power/name/text, so a tile is just the art plus a quantity badge.
-- **One layout, two resolutions.** satori lays out once at the base 1200×630; raster sources (card art, glyphs, QR) are embedded at `display-px × scale` and sharp rasterizes the SVG at `density = 72 × scale`. The `og:image` renders at 1× (1200×630); the download renders at 3× (3600×1890) behind `?size=hq`. Vector text/paths stay crisp; raster sources are crisp because they are embedded at the matching resolution. Source art (`full` variant, ~800px short edge) caps useful detail near 3×.
+- **One layout, two resolutions.** satori lays out once at the base 1200×630; raster sources (card art, glyphs, QR) are embedded at `display-px × scale` and resvg rasterizes the SVG at `zoom = scale`. The `og:image` renders at 1× (1200×630); the download renders at 2× (2400×1260) behind `?size=hq`. Vector text/paths stay crisp; raster sources are crisp because they are embedded at the matching resolution. Source art (`full` variant, ~800px short edge) stays sharp through 2×.
+- **Rasterizer: resvg, not sharp.** The final SVG → PNG step uses `@resvg/resvg-js`, the rasterizer satori is designed to pair with (as `@vercel/og` does), not sharp's librsvg path. This was load-bearing: measured on the same ~28-tile deck, sharp's rasterize is super-linear and dominates (1× ≈ 2.5s, 2× ≈ 14s, 3× ≈ 45s), while resvg renders the identical SVG in 1× ≈ 0.4s, 2× ≈ 0.8s, 3× ≈ 1.6s — ~17–28× faster. sharp is kept only for the per-tile WebP/SVG → PNG transcoding (`cardArtDataUri`, glyphs); resvg owns the final raster for every share-image surface (lists, bundles, collections, decks). Its Alpine musl prebuilt ships in the lockfile, the same proven path as sharp.
 - **Rune-domain summary.** Runes are grouped by domain and shown as the domain glyph + a count. The glyphs ship as `apps/api/src/assets/glyphs/rune-*.svg` (copied from the web app's public glyphs), loaded and rasterized like the bundled fonts; a missing glyph falls back to a gold dot.
 - **QR code.** Generated server-side with `qrcode` (the web app's `qrcode.react` is React-only). Encodes the deck share URL; omitted when no origin is configured.
 
@@ -43,13 +44,14 @@ The image URL carries `?v=<lists/decks.updated_at epoch>`, immutably cached. ADR
 - Good, because the deck path is purely additive (new core module + service + one route + a three-line `head()` change) and rides ADR-024's edge cache unchanged.
 - Good, because no schema change is required — the version source already advances on every deck edit.
 - Bad, because the API image now bundles the rune glyph SVGs and a `qrcode` dependency.
-- Bad, because the 3× render is heavy (a 3600×1890 rasterize is multi-second); acceptable for an on-demand, immutably-cached download, not for hot paths.
+- Good, because moving the final raster from sharp(librsvg) to resvg cut render time ~17–28× (2× HQ: ~14s → ~0.8s), which also makes the existing list/bundle/collection images faster for free. HQ is set to **2×** (2400×1260) as a file-size/quality default — plenty sharp given the ~800px source art, and ~half the bytes of 3×; with resvg even 3× is now ~1.6s, so a later bump is cheap. Both sizes are immutably edge-cached, so each renders once.
+- Bad, because the API image now carries a second native rasterizer (`@resvg/resvg-js`) alongside sharp.
 - Bad, because satori's CSS subset means the deck layout is hand-built and maintained separately from the app's components (same trade-off as ADR-024).
 
 ### Confirmation
 
-- API renderer unit tests (`deck-image.test.ts`): a full constructed deck, a freeform deck with no Legend (panel collapses), an empty deck (placeholder), the 3× variant renders at 3600×1890, and the no-QR path — all produce a valid PNG.
-- Route unit tests (`share-images.test.ts`): `Content-Type: image/png`, the immutable `Cache-Control`, enriched deck cards passed to the renderer, `size=hq` selects scale 3, and 404 for an unknown/private token.
+- API renderer unit tests (`deck-image.test.ts`): a full constructed deck, a freeform deck with no Legend (panel collapses), an empty deck (placeholder), the 2× variant renders at 2400×1260, and the no-QR path — all produce a valid PNG.
+- Route unit tests (`share-images.test.ts`): `Content-Type: image/png`, the immutable `Cache-Control`, enriched deck cards passed to the renderer, `size=hq` selects scale 2, and 404 for an unknown/private token.
 - Web unit tests for the `deckShareImageUrl` helper (base + `size=hq`).
 
 ## More Information

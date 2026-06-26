@@ -163,9 +163,11 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
     assertFound(found, "Not found");
 
     const cards = await buildDeckImageCards(repos, found.deck.id, found.deck.userId);
-    // `?size=hq` renders the same layout at 3× for the download; default 1× is
+    // `?size=hq` renders the same layout at 2× for the download; default 1× is
     // the og:image. The first CORS origin is the canonical site origin for the QR.
-    const scale = c.req.query("size") === "hq" ? 3 : 1;
+    // The rasterize cost grows super-linearly with output pixels (see ADR-031),
+    // so HQ is capped at 2× — still crisp for screen/print, ~half the render of 3×.
+    const scale = c.req.query("size") === "hq" ? 2 : 1;
     const firstOrigin = config.corsOrigin?.split(",")[0]?.trim();
     const shareUrl = firstOrigin ? `${firstOrigin}/decks/share/${token}` : undefined;
 

@@ -10,7 +10,7 @@ import {
 
 /**
  * Server-rendered share images for lists and bundles (ADR-024). satori lays an
- * element tree out to SVG, then sharp rasterizes it to PNG (both via
+ * element tree out to SVG, then resvg rasterizes it to PNG (both via
  * `share-image-core`). The output is wired as the og:image for the public share
  * routes and offered as a downloadable attachment, so a pasted link unfurls with
  * card art in WhatsApp and Discord.

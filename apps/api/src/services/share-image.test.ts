@@ -4,7 +4,7 @@ import { defaultIo } from "../io.js";
 import type { ShareImageCard } from "./share-image.js";
 import { renderShareImage } from "./share-image.js";
 
-// Exercises the real pipeline (font load + satori + sharp). No DB or media
+// Exercises the real pipeline (font load + satori + resvg). No DB or media
 // needed: a null imageId falls back to a name-only tile, which still renders.
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 

@@ -1,3 +1,4 @@
+import { Resvg } from "@resvg/resvg-js";
 import satori from "satori";
 
 import type { Io } from "../io.js";
@@ -6,7 +7,7 @@ import { CARD_MEDIA_DIR } from "./image-rehost.js";
 /**
  * Shared primitives for the server-rendered share images (ADR-024, ADR-031):
  * the satori hyperscript, the bundled fonts, the card-art / SVG transcoders, and
- * the satori → sharp finish. The list/bundle renderer (`share-image.ts`) and the
+ * the satori → resvg finish. The list/bundle renderer (`share-image.ts`) and the
  * deck renderer (`deck-image.ts`) both compose these; the layouts live in those
  * files, the reusable bits live here.
  *
@@ -152,9 +153,11 @@ export async function svgToPngDataUri(
 
 /**
  * Lays the element tree out with satori, then rasterizes the SVG to PNG with
- * sharp. The `scale` multiplies the input density so the same base-sized layout
- * renders at N× resolution (vector text/paths stay crisp; raster sources must be
- * embedded at the matching resolution by the caller).
+ * resvg. resvg is the canonical satori rasterizer and is ~20× faster here than
+ * sharp's librsvg path (ADR-031): a 2× render drops from ~14s to ~0.8s. satori
+ * renders text as vector paths, so resvg needs no fonts; `zoom: scale` renders
+ * the same base-sized layout at N× (raster sources are embedded at the matching
+ * resolution by the caller, so they stay crisp).
  * @returns PNG bytes.
  */
 export async function renderTreeToPng(
@@ -170,8 +173,9 @@ export async function renderTreeToPng(
     height,
     fonts,
   });
-  return io
-    .sharp(Buffer.from(svg), { density: 72 * scale })
-    .png()
-    .toBuffer();
+  const rendered = new Resvg(svg, {
+    fitTo: { mode: "zoom", value: scale },
+    font: { loadSystemFonts: false },
+  }).render();
+  return Buffer.from(rendered.asPng());
 }

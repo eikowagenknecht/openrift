@@ -16,7 +16,7 @@ import {
 /**
  * Server-rendered deck share image (ADR-031): a beautified, Archive-style
  * decklist rendered to PNG for the public deck share route's og:image and an
- * HQ download. Built from the same satori + sharp primitives as the list image
+ * HQ download. Built from the same satori + resvg primitives as the list image
  * (`share-image-core`), but with a deck-shaped layout: a left identity panel
  * (Legend hero, rune-domain summary, battlefields), a cost-sorted grid of the
  * rest of the deck, an optional sideboard strip, and a QR to the deck.

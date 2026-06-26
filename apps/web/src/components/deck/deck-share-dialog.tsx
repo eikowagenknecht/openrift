@@ -62,7 +62,7 @@ export function DeckShareDialog({
     }
     setDownloadingImage(true);
     // The public/og image route needs a share token, so the HQ download is only
-    // offered while the deck is shared. `size: "hq"` renders the 3× variant.
+    // offered while the deck is shared. `size: "hq"` renders the 2× variant.
     // Computed before the try: React Compiler can't yet lower a logical
     // expression inside try/catch, and these pure values can't throw.
     const url = deckShareImageUrl(getSiteUrl(), shareToken, shareImageVersion(updatedAt), "hq");

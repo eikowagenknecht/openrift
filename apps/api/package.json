@@ -27,6 +27,7 @@
     "@orpc/server": "1.14.6",
     "@orpc/zod": "1.14.6",
     "@piltoverarchive/riftbound-deck-codes": "1.2.0",
+    "@resvg/resvg-js": "2.6.2",
     "@sentry/bun": "10.58.0",
     "better-auth": "1.6.19",
     "croner": "10.0.1",

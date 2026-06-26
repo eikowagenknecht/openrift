@@ -60,12 +60,12 @@ describe("renderDeckImage", () => {
     expect(png.subarray(0, 8)).toEqual(PNG_MAGIC);
   });
 
-  it("renders the HQ variant at 3× resolution from the same layout", async () => {
-    const png = await renderDeckImage(defaultIo, { ...baseInput, cards: constructedDeck }, 3);
+  it("renders the HQ variant at 2× resolution from the same layout", async () => {
+    const png = await renderDeckImage(defaultIo, { ...baseInput, cards: constructedDeck }, 2);
     const meta = await defaultIo.sharp(png).metadata();
-    expect(meta.width).toBe(3600);
-    expect(meta.height).toBe(1890);
-  }, 30_000); // The 3× canvas (3600×1890) is heavy to rasterize; generous for cold CI.
+    expect(meta.width).toBe(2400);
+    expect(meta.height).toBe(1260);
+  }, 30_000); // The 2× canvas (2400×1260) is heavy to rasterize; generous for cold CI.
 
   it("renders without a QR when no share URL is given", async () => {
     const png = await renderDeckImage(defaultIo, {

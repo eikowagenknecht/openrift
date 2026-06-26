@@ -382,13 +382,13 @@ describe("GET /api/v1/decks/share/:token/image.png", () => {
     ]);
   });
 
-  it("renders the HQ variant at 3× when size=hq", async () => {
+  it("renders the HQ variant at 2× when size=hq", async () => {
     setupDeck();
 
     const res = await app.request("/api/v1/decks/share/tok-deck/image.png?v=999&size=hq");
 
     expect(res.status).toBe(200);
-    expect(renderDeckMock.mock.calls[0]![2]).toBe(3);
+    expect(renderDeckMock.mock.calls[0]![2]).toBe(2);
   });
 
   it("returns 404 for an unknown deck token and does not render", async () => {
