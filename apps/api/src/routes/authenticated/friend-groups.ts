@@ -1382,8 +1382,7 @@ export const friendGroupsRoute = friendGroupsApp
     const favMarketplace = await getFavoriteMarketplace(repos, shared.collection.userId);
     const value = await marketplace.singleCollectionValue(collectionId, favMarketplace);
     // Full set (no pagination): the shared-collection detail view renders every
-    // copy and reports the exact copyCount. Unbounded by design today — see the
-    // pagination note (E3) in docs/plans/api-review.md.
+    // copy and reports the exact copyCount. Unbounded by design today.
     const copyRows = await copies.listForCollection(collectionId);
 
     const response: FriendGroupSharedCollectionDetailResponse = {
