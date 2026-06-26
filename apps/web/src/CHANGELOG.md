@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Decks): **Rich deck share previews** — shared deck links now unfurl with a full visual decklist (legend, runes, battlefields, and cards), and you can download a high-resolution version for chats or printing.
 - feat(Collection): **Rich previews for shared collections** — a shared collection link now unfurls with a card-art preview when posted to Discord, chat, or social, the same way shared lists already do.
 
 ## 2026-06-19

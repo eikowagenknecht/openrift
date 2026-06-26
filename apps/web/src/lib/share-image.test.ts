@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   bundleShareImageUrl,
   collectionShareImageUrl,
+  deckShareImageUrl,
   downloadImageFromUrl,
   listShareImageUrl,
   shareImageVersion,
@@ -32,6 +33,20 @@ describe("listShareImageUrl", () => {
   it("builds an absolute /api/v1 list image URL with the version param", () => {
     expect(listShareImageUrl("https://openrift.app", "tok123", 42)).toBe(
       "https://openrift.app/api/v1/lists/share/tok123/image.png?v=42",
+    );
+  });
+});
+
+describe("deckShareImageUrl", () => {
+  it("builds an absolute /api/v1 deck image URL with the version param", () => {
+    expect(deckShareImageUrl("https://openrift.app", "tok123", 42)).toBe(
+      "https://openrift.app/api/v1/decks/share/tok123/image.png?v=42",
+    );
+  });
+
+  it("appends size=hq for the high-resolution download variant", () => {
+    expect(deckShareImageUrl("https://openrift.app", "tok123", 42, "hq")).toBe(
+      "https://openrift.app/api/v1/decks/share/tok123/image.png?v=42&size=hq",
     );
   });
 });

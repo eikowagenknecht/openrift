@@ -1,11 +1,11 @@
 import type { PublicDeckDetailResponse } from "@openrift/shared";
-import { WellKnown, imageUrl } from "@openrift/shared";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
 import { publicDeckQueryOptions } from "@/hooks/use-decks";
-import { seoHead, toAbsoluteUrl } from "@/lib/seo";
+import { seoHead } from "@/lib/seo";
+import { deckShareImageUrl, shareImageVersion } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
 import { CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
 
@@ -29,14 +29,11 @@ export const Route = createFileRoute("/_app/decks_/share/$token")({
     if (!data) {
       return seoHead({ siteUrl, title: "Shared deck", path });
     }
-    const { deck, owner, cards } = data;
-    // Constructed decks have exactly one Legend; freeform decks may have none,
-    // in which case seoHead falls back to the branded site og-image.
-    const legend = cards.find((card) => card.zone === WellKnown.deckZone.LEGEND);
-    const ogImage = toAbsoluteUrl(
-      siteUrl,
-      legend?.imageId ? imageUrl(legend.imageId, "full") : undefined,
-    );
+    const { deck, owner } = data;
+    // Server-rendered beautified deck image (ADR-031): Legend hero, rune-domain
+    // summary, battlefields, and the cost-sorted deck. Versioned off the deck's
+    // updatedAt (bumped on every card change), so the immutable URL busts on edit.
+    const ogImage = deckShareImageUrl(siteUrl, params.token, shareImageVersion(deck.updatedAt));
     const formatLabel = formatLabelFromSlug(deck.format);
     const title = `${deck.name} (${formatLabel} deck)`;
     const description =

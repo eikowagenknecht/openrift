@@ -39,6 +39,21 @@ export function listOwnerImageUrl(siteUrl: string, listId: string, version: numb
 }
 
 /**
+ * Absolute URL of the server-rendered share image for a shared deck (ADR-031),
+ * used as the og:image. `size: "hq"` requests the 3× download variant.
+ * @returns The deck image URL.
+ */
+export function deckShareImageUrl(
+  siteUrl: string,
+  shareToken: string,
+  version: number,
+  size?: "hq",
+): string {
+  const base = `${siteUrl}${API_BASE}/decks/share/${shareToken}/image.png?v=${version}`;
+  return size === "hq" ? `${base}&size=hq` : base;
+}
+
+/**
  * Absolute URL of the server-rendered share image for a user's share bundle.
  * @returns The image URL, used as the og:image and the download source.
  */

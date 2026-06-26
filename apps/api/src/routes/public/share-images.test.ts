@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
+import type * as DeckImageModule from "../../services/deck-image.js";
+import { renderDeckImage } from "../../services/deck-image.js";
 import { renderShareImage } from "../../services/share-image.js";
 import { publicShareImagesRoute } from "./share-images";
 
@@ -13,7 +15,17 @@ vi.mock("../../services/share-image.js", () => ({
   ),
 }));
 
+// Mock only the heavy renderer; keep buildDeckImageCards/formatLabelFromSlug real
+// so the route's enrichment data flow is exercised.
+vi.mock("../../services/deck-image.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof DeckImageModule>()),
+  renderDeckImage: vi.fn(() =>
+    Promise.resolve(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
+  ),
+}));
+
 const renderMock = vi.mocked(renderShareImage);
+const renderDeckMock = vi.mocked(renderDeckImage);
 
 const mockListsRepo = {
   findByShareToken: vi.fn(),
@@ -32,6 +44,13 @@ const mockCollectionsRepo = {
 const mockCopiesRepo = {
   collectionShareImageCards: vi.fn(),
 };
+const mockDecksRepo = {
+  findByShareToken: vi.fn(),
+  cardsForDeck: vi.fn(),
+};
+const mockCatalogRepo = {
+  cardsByIds: vi.fn(),
+};
 
 const app = new Hono()
   .use("*", async (c, next) => {
@@ -41,6 +60,8 @@ const app = new Hono()
       canonicalPrintings: mockCanonicalPrintingsRepo,
       collections: mockCollectionsRepo,
       copies: mockCopiesRepo,
+      decks: mockDecksRepo,
+      catalog: mockCatalogRepo,
     } as never);
     c.set("io", {} as never);
     // Comma-separated allow-list (as CORS_ORIGIN really is) to guard the footer
@@ -97,6 +118,7 @@ function copyEntry(id: string, cardName: string, quantity: number) {
 
 beforeEach(() => {
   renderMock.mockClear();
+  renderDeckMock.mockClear();
   mockListsRepo.findByShareToken.mockReset();
   mockListsRepo.entriesWithDetailsAnon.mockReset();
   mockUserSharesRepo.findOwnerByShareToken.mockReset();
@@ -105,6 +127,9 @@ beforeEach(() => {
   mockCanonicalPrintingsRepo.resolvePrintingMetaForRows.mockResolvedValue([]);
   mockCollectionsRepo.findByShareToken.mockReset();
   mockCopiesRepo.collectionShareImageCards.mockReset();
+  mockDecksRepo.findByShareToken.mockReset();
+  mockDecksRepo.cardsForDeck.mockReset();
+  mockCatalogRepo.cardsByIds.mockReset();
 });
 
 describe("GET /api/v1/lists/share/:token/image.png", () => {
@@ -284,5 +309,95 @@ describe("GET /api/v1/collections/share/:token/image.png", () => {
     expect(res.status).toBe(404);
     expect(mockCopiesRepo.collectionShareImageCards).not.toHaveBeenCalled();
     expect(renderMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /api/v1/decks/share/:token/image.png", () => {
+  const deck = {
+    id: "d0000000-0001-4000-a000-000000000010",
+    userId: "u1",
+    name: "Best of Diana",
+    format: "constructed",
+  };
+
+  function setupDeck() {
+    mockDecksRepo.findByShareToken.mockResolvedValue({
+      deck,
+      ownerName: "drawphasetcg",
+      ownerEmail: "owner@example.test",
+    });
+    mockDecksRepo.cardsForDeck.mockResolvedValue([
+      { cardId: "card-1", zone: "legend", quantity: 1, preferredPrintingId: null },
+      { cardId: "card-2", zone: "main", quantity: 3, preferredPrintingId: null },
+    ]);
+    mockCatalogRepo.cardsByIds.mockResolvedValue([
+      { id: "card-1", name: "Scorn of the Moon", energy: null, domains: ["order"] },
+      { id: "card-2", name: "Gust", energy: 1, domains: ["fury"] },
+    ]);
+    mockCanonicalPrintingsRepo.resolvePrintingMetaForRows.mockResolvedValue([
+      { cardId: "card-1", imageId: "img-1" },
+      { cardId: "card-2", imageId: "img-2" },
+    ]);
+  }
+
+  it("renders a PNG with an immutable cache header and the enriched deck cards", async () => {
+    setupDeck();
+
+    const res = await app.request("/api/v1/decks/share/tok-deck/image.png?v=999");
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/png");
+    expect(res.headers.get("cache-control")).toMatch(/immutable/u);
+    const body = Buffer.from(await res.arrayBuffer());
+    expect(body.subarray(0, 4)).toEqual(PNG_MAGIC);
+
+    expect(renderDeckMock).toHaveBeenCalledTimes(1);
+    const [, input, scale] = renderDeckMock.mock.calls[0]!;
+    expect(scale).toBe(1);
+    expect(input).toMatchObject({
+      deckName: "Best of Diana",
+      ownerName: "drawphasetcg",
+      formatLabel: "Constructed",
+      siteHost: "openrift.app",
+      shareUrl: "https://openrift.app/decks/share/tok-deck",
+    });
+    // Cards are enriched with zone, art id, energy, and domains for the layout.
+    expect(input.cards).toEqual([
+      {
+        cardName: "Scorn of the Moon",
+        quantity: 1,
+        imageId: "img-1",
+        energy: null,
+        domains: ["order"],
+        zone: "legend",
+      },
+      {
+        cardName: "Gust",
+        quantity: 3,
+        imageId: "img-2",
+        energy: 1,
+        domains: ["fury"],
+        zone: "main",
+      },
+    ]);
+  });
+
+  it("renders the HQ variant at 3× when size=hq", async () => {
+    setupDeck();
+
+    const res = await app.request("/api/v1/decks/share/tok-deck/image.png?v=999&size=hq");
+
+    expect(res.status).toBe(200);
+    expect(renderDeckMock.mock.calls[0]![2]).toBe(3);
+  });
+
+  it("returns 404 for an unknown deck token and does not render", async () => {
+    mockDecksRepo.findByShareToken.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/decks/share/nope/image.png");
+
+    expect(res.status).toBe(404);
+    expect(mockDecksRepo.cardsForDeck).not.toHaveBeenCalled();
+    expect(renderDeckMock).not.toHaveBeenCalled();
   });
 });

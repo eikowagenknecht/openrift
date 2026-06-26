@@ -1,6 +1,11 @@
 import { Hono } from "hono";
 
 import {
+  buildDeckImageCards,
+  formatLabelFromSlug,
+  renderDeckImage,
+} from "../../services/deck-image.js";
+import {
   buildCards,
   renderListImage,
   siteHostFromOrigin,
@@ -143,6 +148,39 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
       totalCount: totalDistinct,
       siteHost: siteHostFromOrigin(config.corsOrigin),
     });
+
+    return pngResponse(png);
+  })
+
+  // ── GET /decks/share/:token/image.png ─────────────────────────────────────
+  .get("/decks/share/:token/image.png", async (c) => {
+    const repos = c.get("repos");
+    const config = c.get("config");
+    const io = c.get("io");
+    const token = c.req.param("token");
+
+    const found = await repos.decks.findByShareToken(token);
+    assertFound(found, "Not found");
+
+    const cards = await buildDeckImageCards(repos, found.deck.id, found.deck.userId);
+    // `?size=hq` renders the same layout at 3× for the download; default 1× is
+    // the og:image. The first CORS origin is the canonical site origin for the QR.
+    const scale = c.req.query("size") === "hq" ? 3 : 1;
+    const firstOrigin = config.corsOrigin?.split(",")[0]?.trim();
+    const shareUrl = firstOrigin ? `${firstOrigin}/decks/share/${token}` : undefined;
+
+    const png = await renderDeckImage(
+      io,
+      {
+        deckName: found.deck.name,
+        ownerName: found.ownerName ?? "Anonymous",
+        formatLabel: formatLabelFromSlug(found.deck.format),
+        cards,
+        siteHost: siteHostFromOrigin(config.corsOrigin),
+        shareUrl,
+      },
+      scale,
+    );
 
     return pngResponse(png);
   });
