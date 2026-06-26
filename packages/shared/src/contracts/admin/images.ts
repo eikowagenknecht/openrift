@@ -1,6 +1,8 @@
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
+import { jobStartedResponseSchema } from "./shared.js";
+
 const TAG = "Admin - Images";
 
 const BASE = "/api/admin/v1";
@@ -13,11 +15,6 @@ const rehostResultSchema = z.object({
   skipped: z.number(),
   failed: z.number(),
   errors: z.array(z.string()),
-});
-
-const jobKickoffSchema = z.object({
-  runId: z.string().uuid(),
-  status: z.enum(["running", "already_running"]),
 });
 
 const cleanupResultSchema = z.object({
@@ -114,7 +111,7 @@ export const adminImagesContract = {
         }),
       }),
     )
-    .output(jobKickoffSchema),
+    .output(jobStartedResponseSchema),
   cancelRegenerate: oc
     .route({ method: "POST", path: `${BASE}/regenerate-images/cancel`, tags: [TAG] })
     .output(z.object({ runId: z.string().uuid(), cancelRequested: z.literal(true) })),

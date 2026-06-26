@@ -1,10 +1,7 @@
-import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
-import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { appErrorInterceptor } from "../../orpc/app-error-interceptor.js";
-import { buildApiContext } from "../../orpc/context.js";
+import { registerRouterForTest } from "../../test/mount-router.js";
 import type { Variables } from "../../types.js";
 import { adminLanguagesRouter } from "./languages";
 
@@ -20,29 +17,13 @@ const mockRepo = {
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-const handler = new OpenAPIHandler(adminLanguagesRouter, { interceptors: [appErrorInterceptor] });
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
   c.set("repos", { languages: mockRepo } as never);
   await next();
 });
-const handle = async (c: Context<{ Variables: Variables }>) => {
-  const { matched, response } = await handler.handle(c.req.raw, {
-    context: buildApiContext(c),
-  });
-  if (matched && response) {
-    return response;
-  }
-  return c.notFound();
-};
-for (const path of [
-  "/api/admin/v1/languages",
-  "/api/admin/v1/languages/reorder",
-  "/api/admin/v1/languages/:code",
-]) {
-  app.all(path, handle);
-}
+registerRouterForTest(app, adminLanguagesRouter);
 
 const now = new Date("2026-03-17T00:00:00.000Z");
 

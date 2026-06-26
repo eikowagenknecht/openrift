@@ -1,10 +1,7 @@
-import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
-import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { appErrorInterceptor } from "../../orpc/app-error-interceptor.js";
-import { buildApiContext } from "../../orpc/context.js";
+import { registerRouterForTest } from "../../test/mount-router.js";
 import type { Variables } from "../../types.js";
 import { adminDeckFormatsRouter } from "./deck-formats";
 
@@ -22,30 +19,13 @@ const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
 // Mount the oRPC router directly (without the requireAdmin gate). AppErrors are
 // bridged to ORPCErrors inside the router, so 4xx responses carry `{ message }`.
-const handler = new OpenAPIHandler(adminDeckFormatsRouter, { interceptors: [appErrorInterceptor] });
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
   c.set("repos", { deckFormats: mockRepo } as never);
   await next();
 });
-
-const handle = async (c: Context<{ Variables: Variables }>) => {
-  const { matched, response } = await handler.handle(c.req.raw, {
-    context: buildApiContext(c),
-  });
-  if (matched && response) {
-    return response;
-  }
-  return c.notFound();
-};
-for (const path of [
-  "/api/admin/v1/deck-formats",
-  "/api/admin/v1/deck-formats/reorder",
-  "/api/admin/v1/deck-formats/:slug",
-]) {
-  app.all(path, handle);
-}
+registerRouterForTest(app, adminDeckFormatsRouter);
 
 const baseRow = {
   slug: "primary",

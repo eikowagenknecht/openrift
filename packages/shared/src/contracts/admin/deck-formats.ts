@@ -1,6 +1,8 @@
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
+import { slugRegex } from "./shared.js";
+
 const TAG = "Admin - Deck Formats";
 
 const BASE = "/api/admin/v1/deck-formats";
@@ -31,10 +33,7 @@ export const adminDeckFormatsContract = {
     .route({ method: "POST", path: BASE, tags: [TAG], successStatus: 201 })
     .input(
       z.object({
-        slug: z
-          .string()
-          .min(1)
-          .regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u, "Slug must be kebab-case"),
+        slug: z.string().min(1).regex(slugRegex, "Slug must be kebab-case"),
         label: z.string().min(1),
       }),
     )

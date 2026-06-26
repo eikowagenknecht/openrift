@@ -1,10 +1,7 @@
-import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
-import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { appErrorInterceptor } from "../../orpc/app-error-interceptor.js";
-import { buildApiContext } from "../../orpc/context.js";
+import { registerRouterForTest } from "../../test/mount-router.js";
 import type { Variables } from "../../types.js";
 import { adminCustomTagsRouter } from "./custom-tags";
 
@@ -39,7 +36,6 @@ const mockCatalog = {
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-const handler = new OpenAPIHandler(adminCustomTagsRouter, { interceptors: [appErrorInterceptor] });
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
@@ -50,26 +46,7 @@ app.use("*", async (c, next) => {
   } as never);
   await next();
 });
-const handle = async (c: Context<{ Variables: Variables }>) => {
-  const { matched, response } = await handler.handle(c.req.raw, {
-    context: buildApiContext(c),
-  });
-  if (matched && response) {
-    return response;
-  }
-  return c.notFound();
-};
-for (const path of [
-  "/api/admin/v1/custom-tag-categories",
-  "/api/admin/v1/custom-tag-categories/:id",
-  "/api/admin/v1/custom-tags",
-  "/api/admin/v1/custom-tags/assignments",
-  "/api/admin/v1/custom-tags/:id",
-  "/api/admin/v1/custom-tags/:id/cards",
-  "/api/admin/v1/cards/:id/custom-tags",
-]) {
-  app.all(path, handle);
-}
+registerRouterForTest(app, adminCustomTagsRouter);
 
 const now = new Date("2026-03-17T00:00:00.000Z");
 const CAT_ID = "019d4999-4219-72f6-b7bb-64004e1b1b01";

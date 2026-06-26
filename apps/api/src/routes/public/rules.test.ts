@@ -1,9 +1,6 @@
-import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
-import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { buildApiContext } from "../../orpc/context.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
 import type { Variables } from "../../types.js";
 import { rulesRouter } from "./rules";
@@ -26,8 +23,6 @@ const mockRulesRepo = {
   ),
 };
 
-const handler = new OpenAPIHandler(rulesRouter);
-
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("repos", {
@@ -36,19 +31,7 @@ app.use("*", async (c, next) => {
   } as any);
   await next();
 });
-
-const handle = async (c: Context<{ Variables: Variables }>) => {
-  const { matched, response } = await handler.handle(c.req.raw, {
-    context: buildApiContext(c),
-  });
-  if (matched && response) {
-    return response;
-  }
-  return c.notFound();
-};
-for (const path of ["/api/v1/rules", "/api/v1/rules/versions"]) {
-  app.all(path, handle);
-}
+registerRouterForTest(app, rulesRouter);
 
 const dbRule = {
   id: "r0000000-0001-4000-a000-000000000001",

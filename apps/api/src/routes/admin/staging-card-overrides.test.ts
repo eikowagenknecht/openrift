@@ -1,13 +1,10 @@
 /* oxlint-disable
    unicorn/no-useless-undefined
    -- test file: mocks resolve with explicit undefined */
-import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
-import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { appErrorInterceptor } from "../../orpc/app-error-interceptor.js";
-import { buildApiContext } from "../../orpc/context.js";
+import { registerRouterForTest } from "../../test/mount-router.js";
 import type { Variables } from "../../types.js";
 import { adminStagingCardOverridesRouter } from "./staging-card-overrides";
 
@@ -26,25 +23,13 @@ const mockMktAdmin = {
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-const handler = new OpenAPIHandler(adminStagingCardOverridesRouter, {
-  interceptors: [appErrorInterceptor],
-});
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
   c.set("repos", { marketplaceAdmin: mockMktAdmin } as never);
   await next();
 });
-const handle = async (c: Context<{ Variables: Variables }>) => {
-  const { matched, response } = await handler.handle(c.req.raw, {
-    context: buildApiContext(c),
-  });
-  if (matched && response) {
-    return response;
-  }
-  return c.notFound();
-};
-app.all("/api/admin/v1/staging-card-overrides", handle);
+registerRouterForTest(app, adminStagingCardOverridesRouter);
 
 // ---------------------------------------------------------------------------
 // Tests

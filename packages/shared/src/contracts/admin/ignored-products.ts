@@ -1,11 +1,11 @@
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
+import { marketplaceEnum } from "../../schemas.js";
+
 const TAG = "Admin - Ignored Products";
 
 const IP = "/api/admin/v1/ignored-products";
-
-const marketplaceEnum = z.enum(["tcgplayer", "cardmarket", "cardtrader"]);
 
 const ignoredProductSchema = z.discriminatedUnion("level", [
   z.object({

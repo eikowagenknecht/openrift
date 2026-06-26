@@ -1,11 +1,7 @@
 import { appendSetTotal, fixTypography } from "@openrift/shared";
-import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
-import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { appErrorInterceptor } from "../../../orpc/app-error-interceptor.js";
-import { buildApiContext } from "../../../orpc/context.js";
 import { acceptFavoritePrintingsForCard } from "../../../services/accept-favorite-printings.js";
 import { acceptFavoriteNewCard } from "../../../services/accept-gallery.js";
 import {
@@ -13,8 +9,9 @@ import {
   deletePrinting,
   updatePrintingMarkers,
 } from "../../../services/printing-admin.js";
+import { registerRouterForTest } from "../../../test/mount-router.js";
 import type { Variables } from "../../../types.js";
-import { adminCardMutationsRouter } from "./mutations-orpc";
+import { adminCardMutationsRouter } from "./mutations";
 
 vi.mock("../../../services/printing-admin.js", () => ({
   acceptPrinting: vi.fn(),
@@ -105,9 +102,6 @@ const mockCandidateCards = {};
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-const handler = new OpenAPIHandler(adminCardMutationsRouter, {
-  interceptors: [appErrorInterceptor],
-});
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
@@ -135,44 +129,7 @@ app.use("*", async (c, next) => {
   } as never);
   await next();
 });
-const handle = async (c: Context<{ Variables: Variables }>) => {
-  const { matched, response } = await handler.handle(c.req.raw, {
-    context: buildApiContext(c),
-  });
-  if (matched && response) {
-    return response;
-  }
-  return c.notFound();
-};
-for (const path of [
-  "/api/admin/v1/cards/:candidateCardId/check",
-  "/api/admin/v1/cards/:candidateCardId/uncheck",
-  "/api/admin/v1/cards/:cardId/check-all",
-  "/api/admin/v1/cards/:cardId/rename",
-  "/api/admin/v1/cards/:cardId/errata",
-  "/api/admin/v1/cards/:cardId/accept-field",
-  "/api/admin/v1/cards/printing/:printingId/accept-field",
-  "/api/admin/v1/cards/candidate-printings/check-all",
-  "/api/admin/v1/cards/candidate-printings/link",
-  "/api/admin/v1/cards/candidate-printings/:id",
-  "/api/admin/v1/cards/candidate-printings/:id/check",
-  "/api/admin/v1/cards/candidate-printings/:id/uncheck",
-  "/api/admin/v1/cards/candidate-printings/:id/copy",
-  "/api/admin/v1/cards/printing/:printingId",
-  "/api/admin/v1/cards/by-provider/:provider/check",
-  "/api/admin/v1/cards/by-provider/:provider",
-  "/api/admin/v1/cards/errata/upload",
-  "/api/admin/v1/cards/create",
-  "/api/admin/v1/cards/new/:name/accept",
-  "/api/admin/v1/cards/new/:name/accept-favorites",
-  "/api/admin/v1/cards/new/:name/link",
-  "/api/admin/v1/cards/:cardSlug/accept-favorite-printings",
-  "/api/admin/v1/cards/:cardId/accept-printing",
-  "/api/admin/v1/cards/:cardId/printings",
-  "/api/admin/v1/cards/upload",
-]) {
-  app.all(path, handle);
-}
+registerRouterForTest(app, adminCardMutationsRouter);
 
 const CARD_ID = "00000000-0000-4000-a000-000000000010";
 const CP_ID = "00000000-0000-4000-a000-000000000011";

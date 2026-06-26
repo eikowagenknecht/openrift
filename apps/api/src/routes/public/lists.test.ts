@@ -1,9 +1,7 @@
-import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
-import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { buildApiContext } from "../../orpc/context.js";
+import { registerRouterForTest } from "../../test/mount-router.js";
 import type { Variables } from "../../types.js";
 import { publicListsRouter } from "./lists";
 
@@ -17,8 +15,6 @@ const mockListsRepo = {
   entriesWithDetailsAnon: vi.fn(() => Promise.resolve([] as object[])),
 };
 
-const handler = new OpenAPIHandler(publicListsRouter);
-
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("repos", {
@@ -27,18 +23,7 @@ app.use("*", async (c, next) => {
   } as any);
   await next();
 });
-
-const handle = async (c: Context<{ Variables: Variables }>) => {
-  const { matched, response } = await handler.handle(c.req.raw, { context: buildApiContext(c) });
-  if (matched && response) {
-    return response;
-  }
-  return c.notFound();
-};
-
-for (const path of ["/api/v1/lists/share/:token"]) {
-  app.all(path, handle);
-}
+registerRouterForTest(app, publicListsRouter);
 
 const LIST_ID = "a0000000-0001-4000-a000-000000000010";
 const NOW = new Date("2026-04-20T00:00:00Z");

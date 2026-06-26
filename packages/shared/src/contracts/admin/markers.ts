@@ -1,11 +1,11 @@
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
+import { slugRegex } from "./shared.js";
+
 const TAG = "Admin - Markers";
 
 const MARKERS = "/api/admin/v1/markers";
-
-const slugRegex = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 
 const markerSchema = z.object({
   id: z.string(),

@@ -1,13 +1,13 @@
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
+import { slugRegex } from "./shared.js";
+
 const TAG = "Admin - Custom Tags";
 
 const BASE = "/api/admin/v1";
 const CATEGORIES = `${BASE}/custom-tag-categories`;
 const TAGS = `${BASE}/custom-tags`;
-
-const slugRegex = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 
 const customTagSchema = z.object({
   id: z.string(),

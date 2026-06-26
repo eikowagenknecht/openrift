@@ -1,9 +1,7 @@
-import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
-import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { buildApiContext } from "../../orpc/context.js";
+import { registerRouterForTest } from "../../test/mount-router.js";
 import type { Variables } from "../../types.js";
 import { sitemapRouter } from "./sitemap";
 
@@ -11,8 +9,6 @@ const mockCatalogRepo = {
   allCardSitemapEntries: vi.fn(() => Promise.resolve([] as object[])),
   allSetSitemapEntries: vi.fn(() => Promise.resolve([] as object[])),
 };
-
-const handler = new OpenAPIHandler(sitemapRouter);
 
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
@@ -22,18 +18,7 @@ app.use("*", async (c, next) => {
   } as any);
   await next();
 });
-
-const handle = async (c: Context<{ Variables: Variables }>) => {
-  const { matched, response } = await handler.handle(c.req.raw, { context: buildApiContext(c) });
-  if (matched && response) {
-    return response;
-  }
-  return c.notFound();
-};
-
-for (const path of ["/api/v1/sitemap-data"]) {
-  app.all(path, handle);
-}
+registerRouterForTest(app, sitemapRouter);
 
 describe("GET /api/v1/sitemap-data", () => {
   beforeEach(() => {

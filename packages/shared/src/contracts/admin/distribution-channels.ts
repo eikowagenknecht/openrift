@@ -1,11 +1,11 @@
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
+import { slugRegex } from "./shared.js";
+
 const TAG = "Admin - Distribution Channels";
 
 const DC = "/api/admin/v1/distribution-channels";
-
-const slugRegex = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 
 const channelKindEnum = z.enum(["event", "product"]);
 

@@ -425,7 +425,15 @@ export const bulkDeleteListEntriesSchema = z.object({
   entryIds: z.array(z.uuid()).min(1).max(500),
 });
 
-const marketplaceEnum = z.enum(["tcgplayer", "cardmarket", "cardtrader"]);
+/**
+ * The set of supported price marketplaces, as a Zod enum. Canonical home —
+ * shared by the write-side preference schema below and the admin
+ * price/operations contracts
+ * (`contracts/admin/{operations,staging-card-overrides,unified-mappings,ignored-products}.ts`),
+ * so the enum is defined once. (`ALL_MARKETPLACES` in `types/pricing.ts` is the
+ * plain-array counterpart for non-Zod consumers.)
+ */
+export const marketplaceEnum = z.enum(["tcgplayer", "cardmarket", "cardtrader"]);
 
 const themeEnum = z.enum(["light", "dark", "auto"]);
 

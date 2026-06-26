@@ -1,8 +1,7 @@
-import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
-import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { registerRouterForTest } from "../../test/mount-router.js";
 import type { Variables } from "../../types.js";
 
 // The router calls the changelog-discord service helpers and run-job at module
@@ -15,10 +14,6 @@ vi.mock("../../services/run-job.js", () => ({
   runJob: vi.fn(),
 }));
 
-// eslint-disable-next-line import/first -- imported after vi.mock so the mocks apply.
-import { appErrorInterceptor } from "../../orpc/app-error-interceptor.js";
-// eslint-disable-next-line import/first -- imported after vi.mock so the mocks apply.
-import { buildApiContext } from "../../orpc/context.js";
 // eslint-disable-next-line import/first -- imported after vi.mock so the mocks apply.
 import { runJob } from "../../services/run-job.js";
 // eslint-disable-next-line import/first
@@ -35,7 +30,6 @@ const USER_ID = "a0000000-0001-4000-a000-000000000001";
 // Mount the oRPC router directly (without the requireAdmin gate). AppErrors are
 // bridged to ORPCErrors inside the router, so 4xx/5xx responses carry
 // `{ message }`.
-const handler = new OpenAPIHandler(adminChangelogRouter, { interceptors: [appErrorInterceptor] });
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
@@ -46,19 +40,7 @@ app.use("*", async (c, next) => {
   } as never);
   await next();
 });
-
-const handle = async (c: Context<{ Variables: Variables }>) => {
-  const { matched, response } = await handler.handle(c.req.raw, {
-    context: buildApiContext(c),
-  });
-  if (matched && response) {
-    return response;
-  }
-  return c.notFound();
-};
-for (const path of ["/api/admin/v1/changelog/post"]) {
-  app.all(path, handle);
-}
+registerRouterForTest(app, adminChangelogRouter);
 
 describe("POST /changelog/post", () => {
   beforeEach(() => {

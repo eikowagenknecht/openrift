@@ -1,10 +1,7 @@
-import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
-import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { appErrorInterceptor } from "../../orpc/app-error-interceptor.js";
-import { buildApiContext } from "../../orpc/context.js";
+import { registerRouterForTest } from "../../test/mount-router.js";
 import type { Variables } from "../../types.js";
 
 // The handler reads `Bun.version`, but vitest runs under Node where the `Bun`
@@ -46,7 +43,6 @@ const USER_ID = "a0000000-0001-4000-a000-000000000001";
 // Mount the oRPC router directly (without the requireAdmin gate). AppErrors are
 // bridged to ORPCErrors inside the router, so 4xx/5xx responses carry
 // `{ message }`.
-const handler = new OpenAPIHandler(adminStatusRouter, { interceptors: [appErrorInterceptor] });
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
@@ -54,19 +50,7 @@ app.use("*", async (c, next) => {
   c.set("config", { isDev: false } as never);
   await next();
 });
-
-const handle = async (c: Context<{ Variables: Variables }>) => {
-  const { matched, response } = await handler.handle(c.req.raw, {
-    context: buildApiContext(c),
-  });
-  if (matched && response) {
-    return response;
-  }
-  return c.notFound();
-};
-for (const path of ["/api/admin/v1/status"]) {
-  app.all(path, handle);
-}
+registerRouterForTest(app, adminStatusRouter);
 
 const dbStatus = {
   status: "ok",
@@ -132,7 +116,7 @@ describe("GET /status", () => {
       c.set("config", { isDev: true } as never);
       await next();
     });
-    devApp.all("/api/admin/v1/status", handle);
+    registerRouterForTest(devApp, adminStatusRouter);
 
     const res = await devApp.request("/api/admin/v1/status");
     expect(res.status).toBe(200);

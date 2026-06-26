@@ -1,10 +1,6 @@
-import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
-import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { appErrorInterceptor } from "../../../orpc/app-error-interceptor.js";
-import { buildApiContext } from "../../../orpc/context.js";
 import {
   deleteRehostFiles,
   downloadImage,
@@ -13,6 +9,7 @@ import {
   regenerateFromOrig,
   rehostSingleImage,
 } from "../../../services/image-rehost.js";
+import { registerRouterForTest } from "../../../test/mount-router.js";
 import type { Variables } from "../../../types.js";
 import { adminCardImagesRouter } from "./images";
 
@@ -82,7 +79,6 @@ const mockTransact = vi.fn(
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const mockIo = { fetch: vi.fn() };
 
-const handler = new OpenAPIHandler(adminCardImagesRouter, { interceptors: [appErrorInterceptor] });
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
@@ -91,28 +87,7 @@ app.use("*", async (c, next) => {
   c.set("repos", { printingImages: mockPrintingImages } as never);
   await next();
 });
-const handle = async (c: Context<{ Variables: Variables }>) => {
-  const { matched, response } = await handler.handle(c.req.raw, {
-    context: buildApiContext(c),
-  });
-  if (matched && response) {
-    return response;
-  }
-  return c.notFound();
-};
-for (const path of [
-  "/api/admin/v1/cards/candidate-printings/:id/set-image",
-  "/api/admin/v1/cards/printing-images/:imageId",
-  "/api/admin/v1/cards/printing-images/:imageId/activate",
-  "/api/admin/v1/cards/printing-images/:imageId/unrehost",
-  "/api/admin/v1/cards/printing-images/:imageId/rehost",
-  "/api/admin/v1/cards/printing-images/:imageId/rotate",
-  "/api/admin/v1/cards/printing-images/:imageId/set-needs-trim",
-  "/api/admin/v1/cards/printing/:printingId/add-image-url",
-  "/api/admin/v1/cards/printing/:printingId/upload-image",
-]) {
-  app.all(path, handle);
-}
+registerRouterForTest(app, adminCardImagesRouter);
 
 const SET_IMAGE =
   "/api/admin/v1/cards/candidate-printings/00000000-0000-4000-a000-000000000001/set-image";

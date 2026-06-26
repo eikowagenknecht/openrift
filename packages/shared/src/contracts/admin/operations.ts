@@ -1,16 +1,12 @@
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
+import { marketplaceEnum } from "../../schemas.js";
+import { jobStartedResponseSchema } from "./shared.js";
+
 const TAG = "Admin - Operations";
 
 const BASE = "/api/admin/v1";
-
-const marketplaceEnum = z.enum(["tcgplayer", "cardmarket", "cardtrader"]);
-
-const jobRunStartedResponseSchema = z.object({
-  runId: z.string().uuid(),
-  status: z.enum(["running", "already_running"]),
-});
 
 const clearPricesResponseSchema = z.object({
   marketplace: z.string(),
@@ -39,7 +35,7 @@ export const adminOperationsContract = {
       tags: [TAG],
       successStatus: 202,
     })
-    .output(jobRunStartedResponseSchema),
+    .output(jobStartedResponseSchema),
   refreshCardmarket: oc
     .route({
       method: "POST",
@@ -47,7 +43,7 @@ export const adminOperationsContract = {
       tags: [TAG],
       successStatus: 202,
     })
-    .output(jobRunStartedResponseSchema),
+    .output(jobStartedResponseSchema),
   refreshCardtrader: oc
     .route({
       method: "POST",
@@ -55,7 +51,7 @@ export const adminOperationsContract = {
       tags: [TAG],
       successStatus: 202,
     })
-    .output(jobRunStartedResponseSchema),
+    .output(jobStartedResponseSchema),
   refreshMatviews: oc.route({
     method: "POST",
     path: `${BASE}/refresh-materialized-views`,

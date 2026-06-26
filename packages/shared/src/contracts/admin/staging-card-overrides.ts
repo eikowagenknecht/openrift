@@ -1,11 +1,11 @@
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
+import { marketplaceEnum } from "../../schemas.js";
+
 const TAG = "Admin - Staging";
 
 const SCO = "/api/admin/v1/staging-card-overrides";
-
-const marketplaceEnum = z.enum(["tcgplayer", "cardmarket", "cardtrader"]);
 
 /**
  * oRPC contract for the admin staging-card-overrides (mounted at

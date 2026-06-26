@@ -5,12 +5,11 @@ import {
   unifiedMappingsCardResponseSchema,
   unifiedMappingsResponseSchema,
 } from "../../response-schemas.js";
+import { marketplaceEnum } from "../../schemas.js";
 
 const TAG = "Admin - Mappings";
 
 const MM = "/api/admin/v1/marketplace-mappings";
-
-const marketplaceEnum = z.enum(["tcgplayer", "cardmarket", "cardtrader"]);
 
 const saveMappingsBody = z.object({
   mappings: z.array(

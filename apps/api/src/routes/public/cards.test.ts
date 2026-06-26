@@ -1,9 +1,6 @@
-import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
-import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { buildApiContext } from "../../orpc/context.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
 import type { Variables } from "../../types.js";
 import { cardsRouter } from "./cards";
@@ -25,11 +22,6 @@ const mockDistributionChannelsRepo = {
   listAll: vi.fn(() => Promise.resolve([] as Record<string, unknown>[])),
 };
 
-// The mount uses its own internal handler; re-bind a fresh handler here so the
-// app routes against the exported `cardsRouter` (matches the migrated-pattern
-// reference tests, which mount the exported router directly).
-const handler = new OpenAPIHandler(cardsRouter);
-
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("repos", {
@@ -39,19 +31,7 @@ app.use("*", async (c, next) => {
   } as any);
   await next();
 });
-
-const handle = async (c: Context<{ Variables: Variables }>) => {
-  const { matched, response } = await handler.handle(c.req.raw, {
-    context: buildApiContext(c),
-  });
-  if (matched && response) {
-    return response;
-  }
-  return c.notFound();
-};
-for (const path of ["/api/v1/cards/:cardSlug"]) {
-  app.all(path, handle);
-}
+registerRouterForTest(app, cardsRouter);
 
 const CARD_ID = "c0000000-0001-4000-a000-000000000001";
 const SET_ID = "s0000000-0001-4000-a000-000000000001";

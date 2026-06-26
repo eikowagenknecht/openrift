@@ -1,10 +1,7 @@
-import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
-import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { appErrorInterceptor } from "../../orpc/app-error-interceptor.js";
-import { buildApiContext } from "../../orpc/context.js";
+import { registerRouterForTest } from "../../test/mount-router.js";
 import type { Variables } from "../../types.js";
 import { adminRulesRouter, parseRulesText } from "./rules";
 
@@ -129,7 +126,6 @@ const mockTransact = vi.fn(async (cb: (txRepos: { rules: typeof mockRulesRepo })
   cb({ rules: mockRulesRepo }),
 );
 
-const handler = new OpenAPIHandler(adminRulesRouter, { interceptors: [appErrorInterceptor] });
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("repos", { rules: mockRulesRepo } as never);
@@ -137,18 +133,7 @@ app.use("*", async (c, next) => {
   c.set("user", { id: "a0000000-0001-4000-a000-000000000001" } as never);
   await next();
 });
-const handle = async (c: Context<{ Variables: Variables }>) => {
-  const { matched, response } = await handler.handle(c.req.raw, {
-    context: buildApiContext(c),
-  });
-  if (matched && response) {
-    return response;
-  }
-  return c.notFound();
-};
-for (const path of ["/api/admin/v1/rules/import", "/api/admin/v1/rules/:kind/versions/:version"]) {
-  app.all(path, handle);
-}
+registerRouterForTest(app, adminRulesRouter);
 
 describe("POST /api/admin/v1/rules/import", () => {
   beforeEach(() => {

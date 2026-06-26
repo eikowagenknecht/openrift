@@ -1,10 +1,6 @@
-import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
-import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { appErrorInterceptor } from "../../orpc/app-error-interceptor.js";
-import { buildApiContext } from "../../orpc/context.js";
 import {
   REGENERATE_IMAGES_KIND,
   cleanupOrphanedFiles,
@@ -16,6 +12,7 @@ import {
   runRegenerateImagesJob,
   unrehostImages,
 } from "../../services/image-rehost.js";
+import { registerRouterForTest } from "../../test/mount-router.js";
 import type { Variables } from "../../types.js";
 import { adminImagesRouter } from "./images";
 
@@ -84,7 +81,6 @@ const mockIo = { fetch: vi.fn() };
 
 // Mount the oRPC router directly (without the requireAdmin gate). AppErrors
 // thrown by handlers are bridged to ORPCErrors inside the router.
-const handler = new OpenAPIHandler(adminImagesRouter, { interceptors: [appErrorInterceptor] });
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
@@ -96,30 +92,7 @@ app.use("*", async (c, next) => {
   } as never);
   await next();
 });
-const handle = async (c: Context<{ Variables: Variables }>) => {
-  const { matched, response } = await handler.handle(c.req.raw, {
-    context: buildApiContext(c),
-  });
-  if (matched && response) {
-    return response;
-  }
-  return c.notFound();
-};
-for (const path of [
-  "/api/admin/v1/rehost-images",
-  "/api/admin/v1/regenerate-images",
-  "/api/admin/v1/regenerate-images/cancel",
-  "/api/admin/v1/cleanup-orphaned",
-  "/api/admin/v1/unrehost-images",
-  "/api/admin/v1/clear-rehosted",
-  "/api/admin/v1/rehost-status",
-  "/api/admin/v1/broken-images",
-  "/api/admin/v1/low-res-images",
-  "/api/admin/v1/missing-images",
-  "/api/admin/v1/migrate-directories",
-]) {
-  app.all(path, handle);
-}
+registerRouterForTest(app, adminImagesRouter);
 
 // ---------------------------------------------------------------------------
 // Tests

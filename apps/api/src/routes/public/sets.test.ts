@@ -1,9 +1,7 @@
-import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
-import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { buildApiContext } from "../../orpc/context.js";
+import { registerRouterForTest } from "../../test/mount-router.js";
 import type { Variables } from "../../types.js";
 import { setsRouter } from "./sets";
 
@@ -29,8 +27,6 @@ const mockDistributionChannelsRepo = {
   listAll: vi.fn(() => Promise.resolve([] as object[])),
 };
 
-const handler = new OpenAPIHandler(setsRouter);
-
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("repos", {
@@ -40,18 +36,7 @@ app.use("*", async (c, next) => {
   } as any);
   await next();
 });
-
-const handle = async (c: Context<{ Variables: Variables }>) => {
-  const { matched, response } = await handler.handle(c.req.raw, { context: buildApiContext(c) });
-  if (matched && response) {
-    return response;
-  }
-  return c.notFound();
-};
-
-for (const path of ["/api/v1/sets", "/api/v1/sets/:setSlug"]) {
-  app.all(path, handle);
-}
+registerRouterForTest(app, setsRouter);
 
 const SET_ID = "019cfc3b-0369-7890-a450-7859471cc3f6";
 const CARD_ID = "019cfc3b-0389-744b-837c-792fd586300e";

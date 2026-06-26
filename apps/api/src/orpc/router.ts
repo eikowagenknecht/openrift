@@ -11,7 +11,7 @@ import { adminCacheRouter } from "../routes/admin/cache.js";
 import { adminCardTypesRouter } from "../routes/admin/card-types.js";
 import { adminCardBansRouter } from "../routes/admin/cards/bans.js";
 import { adminCardImagesRouter } from "../routes/admin/cards/images.js";
-import { adminCardMutationsRouter } from "../routes/admin/cards/mutations-orpc.js";
+import { adminCardMutationsRouter } from "../routes/admin/cards/mutations.js";
 import { adminCardQueriesRouter } from "../routes/admin/cards/queries.js";
 import { adminCatalogRouter } from "../routes/admin/catalog.js";
 import { adminChangelogRouter } from "../routes/admin/changelog.js";

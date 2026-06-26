@@ -1,10 +1,7 @@
-import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
-import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { appErrorInterceptor } from "../../orpc/app-error-interceptor.js";
-import { buildApiContext } from "../../orpc/context.js";
+import { registerRouterForTest } from "../../test/mount-router.js";
 import type { Variables } from "../../types.js";
 import { adminDistributionChannelsRouter } from "./distribution-channels";
 
@@ -24,32 +21,13 @@ const USER_ID = "a0000000-0001-4000-a000-000000000001";
 // resolved session + admins repo) so the tests exercise the handler logic.
 // AppErrors are bridged to ORPCErrors inside the router, so the OpenAPIHandler
 // returns the bridged 4xx status with `{ message }` in the body.
-const handler = new OpenAPIHandler(adminDistributionChannelsRouter, {
-  interceptors: [appErrorInterceptor],
-});
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
   c.set("repos", { distributionChannels: mockRepo } as never);
   await next();
 });
-
-const handle = async (c: Context<{ Variables: Variables }>) => {
-  const { matched, response } = await handler.handle(c.req.raw, {
-    context: buildApiContext(c),
-  });
-  if (matched && response) {
-    return response;
-  }
-  return c.notFound();
-};
-for (const path of [
-  "/api/admin/v1/distribution-channels",
-  "/api/admin/v1/distribution-channels/reorder",
-  "/api/admin/v1/distribution-channels/:id",
-]) {
-  app.all(path, handle);
-}
+registerRouterForTest(app, adminDistributionChannelsRouter);
 
 const baseRow = {
   id: "019d4999-4219-72f6-b7bb-64004e1b1bff",

@@ -2,6 +2,7 @@ import { oc } from "@orpc/contract";
 import { z } from "zod";
 
 import { diffValueSchema } from "../../response-schemas.js";
+import { jobStartedResponseSchema } from "./shared.js";
 
 const TAG = "Admin - Operations";
 
@@ -35,11 +36,6 @@ const printingEventViewSchema = z.object({
   createdAt: z.string(),
 });
 
-const flushStartedResponseSchema = z.object({
-  runId: z.string().uuid(),
-  status: z.enum(["running", "already_running"]),
-});
-
 /**
  * oRPC contract for the admin printing-events Discord queue (mounted under
  * `/api/admin/v1/printing-events`, admin-gated by the mount): start a flush job
@@ -50,7 +46,7 @@ const flushStartedResponseSchema = z.object({
 export const adminPrintingEventsContract = {
   flush: oc
     .route({ method: "POST", path: `${PE}/flush`, tags: [TAG], successStatus: 202 })
-    .output(flushStartedResponseSchema),
+    .output(jobStartedResponseSchema),
   list: oc
     .route({ method: "GET", path: PE, tags: [TAG] })
     .output(z.object({ events: z.array(printingEventViewSchema) })),
