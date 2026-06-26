@@ -1,86 +1,29 @@
-import { createRoute } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
-import { z } from "zod";
+import { adminDeckZonesContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 
-const deckZoneSchema = z.object({
-  slug: z.string().openapi({ example: "main" }),
-  label: z.string().openapi({ example: "Main Deck" }),
-  sortOrder: z.number().openapi({ example: 1 }),
-  isWellKnown: z.boolean().openapi({ example: true }),
-});
+const os = implement(adminDeckZonesContract).$context<ApiContext>().use(requireUser);
 
-// ── Route definitions ───────────────────────────────────────────────────────
-
-const listDeckZones = createRoute({
-  method: "get",
-  path: "/deck-zones",
-  tags: ["Admin - Deck Zones"],
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({ deckZones: z.array(deckZoneSchema) }),
-        },
-      },
-      description: "List deck zones",
-    },
-  },
-});
-
-const reorderDeckZones = createRoute({
-  method: "put",
-  path: "/deck-zones/reorder",
-  tags: ["Admin - Deck Zones"],
-  request: {
-    body: {
-      content: {
-        "application/json": {
-          schema: z.object({ slugs: z.array(z.string().min(1)).min(1) }),
-        },
-      },
-    },
-  },
-  responses: {
-    204: { description: "Deck zones reordered" },
-  },
-});
-
-const updateDeckZone = createRoute({
-  method: "patch",
-  path: "/deck-zones/{slug}",
-  tags: ["Admin - Deck Zones"],
-  request: {
-    params: z.object({ slug: z.string().min(1) }),
-    body: {
-      content: {
-        "application/json": {
-          schema: z.object({ label: z.string().min(1).optional() }),
-        },
-      },
-    },
-  },
-  responses: {
-    204: { description: "Deck zone updated" },
-  },
-});
-
-// ── Route ───────────────────────────────────────────────────────────────────
-
-export const adminDeckZonesRoute = createApiApp()
-  // ── GET /admin/deck-zones ────────────────────────────────────────────
-  .openapi(listDeckZones, async (c) => {
-    const { deckZones: repo } = c.get("repos");
+/**
+ * oRPC implementation of the admin deck-zones taxonomy. Deck zones are a fixed
+ * set, so only list / reorder / relabel are exposed. Logic unchanged from the
+ * previous `@hono/zod-openapi` handlers; not-found / bad-request states are
+ * thrown as `AppError` and mapped by the handler's appErrorInterceptor.
+ */
+export const adminDeckZonesRouter = {
+  list: os.list.handler(async ({ context }) => {
+    const { deckZones: repo } = context.repos;
     const rows = await repo.listAll();
-    return c.json({ deckZones: rows });
-  })
+    return { deckZones: rows };
+  }),
 
-  // ── PUT /admin/deck-zones/reorder ────────────────────────────────────
-  .openapi(reorderDeckZones, async (c) => {
-    const { deckZones: repo } = c.get("repos");
-    const { slugs } = c.req.valid("json");
+  reorder: os.reorder.handler(async ({ input, context }): Promise<void> => {
+    const { deckZones: repo } = context.repos;
+    const { slugs } = input;
 
     const uniqueSlugs = new Set(slugs);
     if (uniqueSlugs.size !== slugs.length) {
@@ -107,24 +50,19 @@ export const adminDeckZonesRoute = createApiApp()
     }
 
     await repo.reorder(slugs);
-    return c.body(null, 204);
-  })
+  }),
 
-  // ── PATCH /admin/deck-zones/:slug ────────────────────────────────────
-  .openapi(updateDeckZone, async (c) => {
-    const { deckZones: repo } = c.get("repos");
-    const { slug } = c.req.valid("param");
-    const body = c.req.valid("json");
+  update: os.update.handler(async ({ input, context }): Promise<void> => {
+    const { deckZones: repo } = context.repos;
 
     const allZones = await repo.listAll();
-    const existing = allZones.find((zone) => zone.slug === slug);
+    const existing = allZones.find((zone) => zone.slug === input.slug);
     if (!existing) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Deck zone "${slug}" not found`);
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Deck zone "${input.slug}" not found`);
     }
 
-    if (body.label) {
-      await repo.update(slug, { label: body.label });
+    if (input.label) {
+      await repo.update(input.slug, { label: input.label });
     }
-
-    return c.body(null, 204);
-  });
+  }),
+};

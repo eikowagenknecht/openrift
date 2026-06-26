@@ -1,17 +1,12 @@
-import { createRoute, z } from "@hono/zod-openapi";
 import type { PodReportResponse } from "@openrift/shared";
-import { podReportResponseSchema } from "@openrift/shared/response-schemas";
-import { podResultSchema } from "@openrift/shared/schemas";
+import { publicPodTournamentsContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
 import type { Repos } from "../../deps.js";
-import { errorResponses } from "../../openapi-helpers.js";
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 import type { PodTournament } from "../../repositories/pod-tournaments.js";
 import { submitPodResult } from "../../services/pod-pairing.js";
-import { assertFound } from "../../utils/assertions.js";
-
-const tokenParam = z.object({ token: z.string().min(1) });
-const tokenPodParam = z.object({ token: z.string().min(1), podId: z.uuid() });
 
 /**
  * Builds the token-gated follow-along payload: standings plus every round's
@@ -42,58 +37,38 @@ async function buildReport(repos: Repos, tournament: PodTournament): Promise<Pod
   };
 }
 
-const getReport = createRoute({
-  method: "get",
-  path: "/pod-tournaments/report/{token}",
-  tags: ["Pod Tournaments"],
-  request: { params: tokenParam },
-  responses: {
-    200: {
-      content: { "application/json": { schema: podReportResponseSchema } },
-      description: "Follow-along",
-    },
-    ...errorResponses(404),
-  },
-});
-
-const submitReport = createRoute({
-  method: "put",
-  path: "/pod-tournaments/report/{token}/pods/{podId}/result",
-  tags: ["Pod Tournaments"],
-  request: {
-    params: tokenPodParam,
-    body: { content: { "application/json": { schema: podResultSchema } }, required: true },
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: podReportResponseSchema } },
-      description: "Updated follow-along",
-    },
-    ...errorResponses(400, 404, 409),
-  },
-});
+const os = implement(publicPodTournamentsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * Public, token-gated participant surface (ADR-022). The report token resolves
- * to one tournament; it grants a read-only follow-along plus exactly one write:
- * submitting a pod's result while its round is `reporting`. A disabled / rotated
- * token simply fails the lookup (404).
+ * oRPC implementation of the public, token-gated pod-tournament surface
+ * (ADR-022). Logic unchanged from the previous handlers; the not-found case is
+ * a typed NOT_FOUND, and AppErrors thrown by `submitPodResult` (bad state /
+ * conflict) reach the client through the global error interceptor, which maps
+ * their status + code onto the response.
  */
-export const publicPodTournamentsRoute = createApiApp()
-  .openapi(getReport, async (c) => {
-    const repos = c.get("repos");
-    const tournament = await repos.podTournaments.findByReportToken(c.req.valid("param").token);
-    assertFound(tournament, "Not found");
-    return c.json(await buildReport(repos, tournament), 200);
-  })
+export const publicPodTournamentsRouter = {
+  report: os.report.handler(async ({ input, context, errors }): Promise<PodReportResponse> => {
+    const repos = context.repos;
+    const tournament = await repos.podTournaments.findByReportToken(input.token);
+    if (!tournament) {
+      throw errors.NOT_FOUND({ message: "Not found" });
+    }
+    return buildReport(repos, tournament);
+  }),
 
-  .openapi(submitReport, async (c) => {
-    const repos = c.get("repos");
-    const { token, podId } = c.req.valid("param");
-    const tournament = await repos.podTournaments.findByReportToken(token);
-    assertFound(tournament, "Not found");
-    await submitPodResult(repos, tournament.id, podId, c.req.valid("json").results, {
-      allowFinalized: false,
-    });
-    return c.json(await buildReport(repos, tournament), 200);
-  });
+  submitResult: os.submitResult.handler(
+    async ({ input, context, errors }): Promise<PodReportResponse> => {
+      const repos = context.repos;
+      const tournament = await repos.podTournaments.findByReportToken(input.token);
+      if (!tournament) {
+        throw errors.NOT_FOUND({ message: "Not found" });
+      }
+      // submitPodResult throws AppError on bad state (round not reporting,
+      // conflict); the global error interceptor maps it to the typed response.
+      await submitPodResult(repos, tournament.id, input.podId, input.results, {
+        allowFinalized: false,
+      });
+      return buildReport(repos, tournament);
+    },
+  ),
+};

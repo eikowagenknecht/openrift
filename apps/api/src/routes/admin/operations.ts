@@ -1,157 +1,73 @@
-import { createRoute } from "@hono/zod-openapi";
-import type { ClearPricesResponse, JobRunStartedResponse } from "@openrift/shared";
+import { adminOperationsContract } from "@openrift/shared/contracts";
 import { createLogger } from "@openrift/shared/logger";
-import { z } from "zod";
+import { implement } from "@orpc/server";
 
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 import {
   refreshCardmarketPrices,
   refreshCardtraderPrices,
   refreshTcgplayerPrices,
 } from "../../services/price-refresh/index.js";
 import { runJobAsync } from "../../services/run-job.js";
-import { clearPricesSchema, jobRunStartedResponseSchema } from "./schemas.js";
 
 const log = createLogger("admin");
 
-// ── Route definitions ───────────────────────────────────────────────────────
+const os = implement(adminOperationsContract).$context<ApiContext>().use(requireUser);
 
-const clearPrices = createRoute({
-  method: "post",
-  path: "/clear-prices",
-  tags: ["Admin - Operations"],
-  request: {
-    body: { content: { "application/json": { schema: clearPricesSchema } } },
-  },
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            marketplace: z.string().openapi({ example: "cardmarket" }),
-            deleted: z.object({
-              prices: z.number().openapi({ example: 4821 }),
-              variants: z.number().openapi({ example: 468 }),
-              products: z.number().openapi({ example: 312 }),
-            }),
-          }),
-        },
-      },
-      description: "Price data cleared",
-    },
-  },
-});
+/**
+ * oRPC implementation of the admin operations. Logic unchanged from the
+ * previous `@hono/zod-openapi` handlers; the refresh actions return a run
+ * handle (202) immediately so Cloudflare doesn't 502 on long operations —
+ * callers poll job-runs. Any thrown `AppError` is mapped by the handler's
+ * {@link appErrorInterceptor}.
+ */
+export const adminOperationsRouter = {
+  clearPrices: os.clearPrices.handler(async ({ input, context }) => {
+    const { marketplaceAdmin: mktAdmin } = context.repos;
+    const { prices, variants, products } = await mktAdmin.clearPriceData(input.marketplace);
+    return { marketplace: input.marketplace, deleted: { prices, variants, products } };
+  }),
 
-const refreshTcgplayer = createRoute({
-  method: "post",
-  path: "/refresh-tcgplayer-prices",
-  tags: ["Admin - Operations"],
-  responses: {
-    202: {
-      content: { "application/json": { schema: jobRunStartedResponseSchema } },
-      description: "TCGPlayer price refresh scheduled",
-    },
-  },
-});
-
-const refreshCardmarket = createRoute({
-  method: "post",
-  path: "/refresh-cardmarket-prices",
-  tags: ["Admin - Operations"],
-  responses: {
-    202: {
-      content: { "application/json": { schema: jobRunStartedResponseSchema } },
-      description: "Cardmarket price refresh scheduled",
-    },
-  },
-});
-
-const refreshCardtrader = createRoute({
-  method: "post",
-  path: "/refresh-cardtrader-prices",
-  tags: ["Admin - Operations"],
-  responses: {
-    202: {
-      content: { "application/json": { schema: jobRunStartedResponseSchema } },
-      description: "Cardtrader price refresh scheduled",
-    },
-  },
-});
-
-const refreshMatviews = createRoute({
-  method: "post",
-  path: "/refresh-materialized-views",
-  tags: ["Admin - Operations"],
-  responses: {
-    204: { description: "All materialized views refreshed" },
-  },
-});
-
-// ── Route ───────────────────────────────────────────────────────────────────
-
-export const operationsRoute = createApiApp()
-  // ── Clear price data ─────────────────────────────────────────────────────────
-
-  .openapi(clearPrices, async (c) => {
-    const { marketplaceAdmin: mktAdmin } = c.get("repos");
-    const { marketplace } = c.req.valid("json");
-
-    const { prices, variants, products } = await mktAdmin.clearPriceData(marketplace);
-    return c.json({
-      marketplace,
-      deleted: { prices, variants, products },
-    } satisfies ClearPricesResponse);
-  })
-
-  // ── Manual refresh endpoints (fire-and-forget) ──────────────────────────────
-  // Return 202 with a runId immediately so Cloudflare doesn't 502 on long
-  // operations. Poll GET /admin/job-runs?kind=<kind> for completion.
-
-  .openapi(refreshTcgplayer, async (c) => {
-    const repos = c.get("repos");
-    const fetchFn = c.get("io").fetch;
-    const started = await runJobAsync(
+  refreshTcgplayer: os.refreshTcgplayer.handler(async ({ context }) => {
+    const repos = context.repos;
+    const fetchFn = context.io.fetch;
+    return await runJobAsync(
       { repos, log },
       "tcgplayer.refresh",
       "admin",
       () => refreshTcgplayerPrices(fetchFn, repos, log),
       { summarize: (result) => result },
     );
-    return c.json(started satisfies JobRunStartedResponse, 202);
-  })
+  }),
 
-  .openapi(refreshCardmarket, async (c) => {
-    const repos = c.get("repos");
-    const fetchFn = c.get("io").fetch;
-    const started = await runJobAsync(
+  refreshCardmarket: os.refreshCardmarket.handler(async ({ context }) => {
+    const repos = context.repos;
+    const fetchFn = context.io.fetch;
+    return await runJobAsync(
       { repos, log },
       "cardmarket.refresh",
       "admin",
       () => refreshCardmarketPrices(fetchFn, repos, log),
       { summarize: (result) => result },
     );
-    return c.json(started satisfies JobRunStartedResponse, 202);
-  })
+  }),
 
-  .openapi(refreshCardtrader, async (c) => {
-    const repos = c.get("repos");
-    const fetchFn = c.get("io").fetch;
-    const config = c.get("config");
-    const ctToken = config.cardtraderApiToken;
-    const started = await runJobAsync(
+  refreshCardtrader: os.refreshCardtrader.handler(async ({ context }) => {
+    const repos = context.repos;
+    const fetchFn = context.io.fetch;
+    const ctToken = context.config.cardtraderApiToken;
+    return await runJobAsync(
       { repos, log },
       "cardtrader.refresh",
       "admin",
       () => refreshCardtraderPrices(fetchFn, repos, log, ctToken),
       { summarize: (result) => result },
     );
-    return c.json(started satisfies JobRunStartedResponse, 202);
-  })
+  }),
 
-  // ── Refresh materialized views ──────────────────────────────────────────────
-
-  .openapi(refreshMatviews, async (c) => {
-    const { marketplace, catalog } = c.get("repos");
+  refreshMatviews: os.refreshMatviews.handler(async ({ context }): Promise<void> => {
+    const { marketplace, catalog } = context.repos;
     await Promise.all([marketplace.refreshLatestPrices(), catalog.refreshCardAggregates()]);
-    return c.body(null, 204);
-  });
+  }),
+};

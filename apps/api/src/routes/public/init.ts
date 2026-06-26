@@ -1,30 +1,28 @@
-import { createRoute } from "@hono/zod-openapi";
 import type { CustomTag, DistributionChannel, InitResponse, KeywordEntry } from "@openrift/shared";
-import { initResponseSchema } from "@openrift/shared/response-schemas";
-import { etag } from "hono/etag";
+import { initContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 
-const getInit = createRoute({
-  method: "get",
-  path: "/init",
-  tags: ["Init"],
-  responses: {
-    200: {
-      content: { "application/json": { schema: initResponseSchema } },
-      description: "Bootstrap data: enums and keywords",
-    },
-  },
-});
+const os = implement(initContract).$context<ApiContext>().use(requireUser);
 
-const initApp = createApiApp();
-initApp.use("/init", etag());
-
-/** Public: GET /init — returns enums + keywords in a single request. */
-export const initRoute = initApp.openapi(getInit, async (c) => {
-  const { enums, keywords, distributionChannels, customTags, catalog } = c.get("repos");
-  const [enumData, keywordRows, translations, channelRows, customTagRows, championIdentifierTags] =
-    await Promise.all([
+/**
+ * oRPC implementation of the public init contract.
+ * `GET /api/v1/init` — enums + keywords + distribution channels + custom tags
+ * in a single request. Logic unchanged; only the routing layer moved.
+ */
+export const initRouter = {
+  get: os.get.handler(async ({ context }): Promise<InitResponse> => {
+    const { enums, keywords, distributionChannels, customTags, catalog } = context.repos;
+    const [
+      enumData,
+      keywordRows,
+      translations,
+      channelRows,
+      customTagRows,
+      championIdentifierTags,
+    ] = await Promise.all([
       enums.all(),
       keywords.listAll(),
       keywords.listAllTranslations(),
@@ -33,60 +31,58 @@ export const initRoute = initApp.openapi(getInit, async (c) => {
       catalog.championIdentifierTags(),
     ]);
 
-  const keywordsMap: Record<string, KeywordEntry> = {};
-  for (const row of keywordRows) {
-    keywordsMap[row.name] = { color: row.color, darkText: row.darkText };
-  }
-
-  for (const translation of translations) {
-    const entry = keywordsMap[translation.keywordName];
-    if (entry) {
-      entry.translations ??= {};
-      entry.translations[translation.language] = translation.label;
+    const keywordsMap: Record<string, KeywordEntry> = {};
+    for (const row of keywordRows) {
+      keywordsMap[row.name] = { color: row.color, darkText: row.darkText };
     }
-  }
 
-  const strippedEnums = Object.fromEntries(
-    Object.entries(enumData).map(([key, rows]) => [
-      key,
-      rows.map((row) => {
-        const { isWellKnown: _isWellKnown, ...rest } = row as { isWellKnown?: boolean } & Record<
-          string,
-          unknown
-        >;
-        return rest;
-      }),
-    ]),
-  ) as unknown as InitResponse["enums"];
+    for (const translation of translations) {
+      const entry = keywordsMap[translation.keywordName];
+      if (entry) {
+        entry.translations ??= {};
+        entry.translations[translation.language] = translation.label;
+      }
+    }
 
-  const channelsResponse: DistributionChannel[] = channelRows.map((row) => ({
-    id: row.id,
-    slug: row.slug,
-    label: row.label,
-    description: row.description,
-    kind: row.kind,
-    parentId: row.parentId,
-    childrenLabel: row.childrenLabel,
-  }));
+    const strippedEnums = Object.fromEntries(
+      Object.entries(enumData).map(([key, rows]) => [
+        key,
+        rows.map((row) => {
+          const { isWellKnown: _isWellKnown, ...rest } = row as { isWellKnown?: boolean } & Record<
+            string,
+            unknown
+          >;
+          return rest;
+        }),
+      ]),
+    ) as unknown as InitResponse["enums"];
 
-  const customTagsResponse: CustomTag[] = customTagRows.map((row) => ({
-    id: row.id,
-    slug: row.slug,
-    label: row.label,
-    category: row.category,
-    categoryLabel: row.categoryLabel,
-    description: row.description,
-    sortOrder: row.sortOrder,
-  }));
+    const channelsResponse: DistributionChannel[] = channelRows.map((row) => ({
+      id: row.id,
+      slug: row.slug,
+      label: row.label,
+      description: row.description,
+      kind: row.kind,
+      parentId: row.parentId,
+      childrenLabel: row.childrenLabel,
+    }));
 
-  // Reference data (enums/keywords/channels/tags) changes on the same weeks-apart
-  // cadence as the catalog, so it joins the catalog-stable tier (1h + SWR + ETag).
-  c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-  return c.json({
-    enums: strippedEnums,
-    keywords: keywordsMap,
-    distributionChannels: channelsResponse,
-    customTags: customTagsResponse,
-    championIdentifierTags,
-  } satisfies InitResponse);
-});
+    const customTagsResponse: CustomTag[] = customTagRows.map((row) => ({
+      id: row.id,
+      slug: row.slug,
+      label: row.label,
+      category: row.category,
+      categoryLabel: row.categoryLabel,
+      description: row.description,
+      sortOrder: row.sortOrder,
+    }));
+
+    return {
+      enums: strippedEnums,
+      keywords: keywordsMap,
+      distributionChannels: channelsResponse,
+      customTags: customTagsResponse,
+      championIdentifierTags,
+    };
+  }),
+};

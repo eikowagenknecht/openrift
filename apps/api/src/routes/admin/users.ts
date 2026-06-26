@@ -1,55 +1,23 @@
-import { createRoute } from "@hono/zod-openapi";
-import type { AdminUserResponse } from "@openrift/shared";
-import { z } from "zod";
+import { adminUsersContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 
-// ── Route definitions ───────────────────────────────────────────────────────
+const os = implement(adminUsersContract).$context<ApiContext>().use(requireUser);
 
-const listUsers = createRoute({
-  method: "get",
-  path: "/users",
-  tags: ["Admin - Users"],
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            users: z.array(
-              z.object({
-                id: z.string().openapi({ example: "V07rIX7hwiXgRxHwxo1HtV1ybv8Z7iyK" }),
-                email: z.string().openapi({ example: "player@example.com" }),
-                name: z.string().nullable().openapi({ example: "Example Player" }),
-                image: z.string().nullable().openapi({ example: "https://example.com/avatar.jpg" }),
-                isAdmin: z.boolean().openapi({ example: true }),
-                cardCount: z.number().openapi({ example: 342 }),
-                deckCount: z.number().openapi({ example: 5 }),
-                collectionCount: z.number().openapi({ example: 3 }),
-                listCount: z.number().openapi({ example: 4 }),
-                createdAt: z.string().openapi({ example: "2026-03-11T18:04:22.059Z" }),
-                lastActiveAt: z
-                  .string()
-                  .nullable()
-                  .openapi({ example: "2026-04-22T09:13:51.412Z" }),
-              }),
-            ),
-          }),
-        },
-      },
-      description: "List all users with aggregate counts",
-    },
-  },
-});
+/**
+ * oRPC implementation of the admin users list. Logic unchanged from the
+ * previous `@hono/zod-openapi` handler; `createdAt` / `lastActiveAt` are mapped
+ * from `Date` to ISO strings to satisfy the contract output schema.
+ */
+export const adminUsersRouter = {
+  list: os.list.handler(async ({ context }) => {
+    const { users: usersRepo } = context.repos;
+    const rows = await usersRepo.listWithCounts();
 
-// ── Router ──────────────────────────────────────────────────────────────────
-
-export const adminUsersRoute = createApiApp().openapi(listUsers, async (c) => {
-  const { users: usersRepo } = c.get("repos");
-  const rows = await usersRepo.listWithCounts();
-
-  return c.json({
-    users: rows.map(
-      (r): AdminUserResponse => ({
+    return {
+      users: rows.map((r) => ({
         id: r.id,
         email: r.email,
         name: r.name,
@@ -61,7 +29,7 @@ export const adminUsersRoute = createApiApp().openapi(listUsers, async (c) => {
         listCount: r.listCount,
         createdAt: r.createdAt.toISOString(),
         lastActiveAt: r.lastActiveAt ? r.lastActiveAt.toISOString() : null,
-      }),
-    ),
-  });
-});
+      })),
+    };
+  }),
+};

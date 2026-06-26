@@ -1,4 +1,5 @@
 import type { CopyListMembershipsResponse, CopyResponse } from "@openrift/shared";
+import { copiesContract } from "@openrift/shared/contracts";
 import { createTransaction, eq, useLiveQuery } from "@tanstack/react-db";
 import { useBatcher } from "@tanstack/react-pacer";
 import type { QueryClient } from "@tanstack/react-query";
@@ -10,8 +11,8 @@ import { useUserId } from "@/lib/auth-session";
 import { useCopiesCollection } from "@/lib/copies-collection";
 import { queryKeys } from "@/lib/query-keys";
 import { randomUuid } from "@/lib/random-uuid";
-import { browserApiClient, callApi, callApiJson } from "@/lib/server-fns/api-client";
 import type { CollectionsResponse } from "@/lib/server-fns/api-types";
+import { browserApiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { isTempCopyId, TEMP_COPY_ID_PREFIX } from "@/lib/temp-copy-id";
 import { withTimeout } from "@/lib/with-timeout";
 
@@ -85,12 +86,7 @@ export function useCopyListMemberships(
   return useQuery({
     queryKey: queryKeys.copies.listMemberships(userId ?? "", stableIds, excludeListId),
     queryFn: (): Promise<CopyListMembershipsResponse> =>
-      callApiJson(
-        browserApiClient().api.v1.copies["list-memberships"].$post({
-          json: { copyIds: stableIds, excludeListId },
-        }),
-        "Couldn't check list membership",
-      ),
+      browserApiOrpcClient(copiesContract).listMemberships({ copyIds: stableIds, excludeListId }),
     enabled: enabled && Boolean(userId) && stableIds.length > 0,
     staleTime: 30 * 1000,
     refetchOnWindowFocus: false,
@@ -140,10 +136,7 @@ async function addCopiesApi(
   try {
     // POST /copies returns the { items } envelope (CopyAddResponse) — the typed
     // client infers it, so the caller maps over the real array, not the object.
-    const { items } = await callApiJson(
-      browserApiClient().api.v1.copies.$post({ json: body }, { init: { signal } }),
-      "Couldn't add cards",
-    );
+    const { items } = await browserApiOrpcClient(copiesContract).add(body, { signal });
     return items;
   } catch (error) {
     rethrowAsNetworkError(error);
@@ -155,10 +148,7 @@ async function moveCopiesApi(
   signal: AbortSignal,
 ): Promise<void> {
   try {
-    await callApi(
-      browserApiClient().api.v1.copies.move.$post({ json: body }, { init: { signal } }),
-      "Couldn't move cards",
-    );
+    await browserApiOrpcClient(copiesContract).move(body, { signal });
   } catch (error) {
     rethrowAsNetworkError(error);
   }
@@ -166,10 +156,7 @@ async function moveCopiesApi(
 
 async function disposeCopiesApi(body: { copyIds: string[] }, signal: AbortSignal): Promise<void> {
   try {
-    await callApi(
-      browserApiClient().api.v1.copies.dispose.$post({ json: body }, { init: { signal } }),
-      "Couldn't remove cards",
-    );
+    await browserApiOrpcClient(copiesContract).dispose(body, { signal });
   } catch (error) {
     rethrowAsNetworkError(error);
   }

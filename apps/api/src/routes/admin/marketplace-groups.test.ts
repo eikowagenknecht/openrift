@@ -1,8 +1,12 @@
+import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AppError } from "../../errors.js";
-import { marketplaceGroupsRoute } from "./marketplace-groups";
+import { appErrorInterceptor } from "../../orpc/app-error-interceptor.js";
+import { buildApiContext } from "../../orpc/context.js";
+import type { Variables } from "../../types.js";
+import { adminMarketplaceGroupsRouter } from "./marketplace-groups";
 
 // ---------------------------------------------------------------------------
 // Mock repo
@@ -16,24 +20,37 @@ const mockMktAdmin = {
 };
 
 // ---------------------------------------------------------------------------
-// Test app
+// Test app — mount the oRPC router directly (without the requireAdmin gate).
+// AppErrors are bridged to ORPCErrors inside the router, so 4xx responses
+// carry `{ message }`.
 // ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("user", { id: USER_ID });
-    c.set("repos", { marketplaceAdmin: mockMktAdmin } as never);
-    await next();
-  })
-  .route("/api/v1", marketplaceGroupsRoute)
-  .onError((err, c) => {
-    if (err instanceof AppError) {
-      return c.json({ error: err.message, code: err.code }, err.status as 400);
-    }
-    throw err;
+const handler = new OpenAPIHandler(adminMarketplaceGroupsRouter, {
+  interceptors: [appErrorInterceptor],
+});
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  c.set("user", { id: USER_ID } as never);
+  c.set("repos", { marketplaceAdmin: mockMktAdmin } as never);
+  await next();
+});
+const handle = async (c: Context<{ Variables: Variables }>) => {
+  const { matched, response } = await handler.handle(c.req.raw, {
+    context: buildApiContext(c),
   });
+  if (matched && response) {
+    return response;
+  }
+  return c.notFound();
+};
+for (const path of [
+  "/api/admin/v1/marketplace-groups",
+  "/api/admin/v1/marketplace-groups/:marketplace/:id",
+]) {
+  app.all(path, handle);
+}
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -61,7 +78,7 @@ const dbGroup2 = {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("GET /api/v1/marketplace-groups", () => {
+describe("GET /marketplace-groups", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -76,7 +93,7 @@ describe("GET /api/v1/marketplace-groups", () => {
       { marketplace: "cardmarket", groupId: 200, count: 10 },
     ]);
 
-    const res = await app.request("/api/v1/marketplace-groups");
+    const res = await app.request("/api/admin/v1/marketplace-groups");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.groups).toHaveLength(2);
@@ -107,7 +124,7 @@ describe("GET /api/v1/marketplace-groups", () => {
     mockMktAdmin.stagingCountsByMarketplaceGroup.mockResolvedValue([]);
     mockMktAdmin.assignedCountsByMarketplaceGroup.mockResolvedValue([]);
 
-    const res = await app.request("/api/v1/marketplace-groups");
+    const res = await app.request("/api/admin/v1/marketplace-groups");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.groups[0].stagedCount).toBe(0);
@@ -115,14 +132,14 @@ describe("GET /api/v1/marketplace-groups", () => {
   });
 });
 
-describe("PATCH /api/v1/marketplace-groups/:marketplace/:id", () => {
+describe("PATCH /marketplace-groups/:marketplace/:id", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  it("returns 204 on successful name update", async () => {
+  it("returns 204 on successful name update (coercing the numeric id)", async () => {
     mockMktAdmin.updateGroup.mockResolvedValue(true);
-    const res = await app.request("/api/v1/marketplace-groups/tcgplayer/100", {
+    const res = await app.request("/api/admin/v1/marketplace-groups/tcgplayer/100", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "Renamed Group" }),
@@ -135,7 +152,7 @@ describe("PATCH /api/v1/marketplace-groups/:marketplace/:id", () => {
 
   it("returns 204 when setting name to null", async () => {
     mockMktAdmin.updateGroup.mockResolvedValue(true);
-    const res = await app.request("/api/v1/marketplace-groups/cardmarket/200", {
+    const res = await app.request("/api/admin/v1/marketplace-groups/cardmarket/200", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: null }),
@@ -146,7 +163,7 @@ describe("PATCH /api/v1/marketplace-groups/:marketplace/:id", () => {
 
   it("returns 204 when updating groupKind", async () => {
     mockMktAdmin.updateGroup.mockResolvedValue(true);
-    const res = await app.request("/api/v1/marketplace-groups/cardmarket/200", {
+    const res = await app.request("/api/admin/v1/marketplace-groups/cardmarket/200", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ groupKind: "special" }),
@@ -159,7 +176,7 @@ describe("PATCH /api/v1/marketplace-groups/:marketplace/:id", () => {
 
   it("returns 204 when assigning a setId", async () => {
     mockMktAdmin.updateGroup.mockResolvedValue(true);
-    const res = await app.request("/api/v1/marketplace-groups/tcgplayer/100", {
+    const res = await app.request("/api/admin/v1/marketplace-groups/tcgplayer/100", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ setId: "019cfc3b-0389-744b-837c-792fd586300e" }),
@@ -172,7 +189,7 @@ describe("PATCH /api/v1/marketplace-groups/:marketplace/:id", () => {
 
   it("returns 204 when clearing setId to null", async () => {
     mockMktAdmin.updateGroup.mockResolvedValue(true);
-    const res = await app.request("/api/v1/marketplace-groups/tcgplayer/100", {
+    const res = await app.request("/api/admin/v1/marketplace-groups/tcgplayer/100", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ setId: null }),
@@ -182,7 +199,7 @@ describe("PATCH /api/v1/marketplace-groups/:marketplace/:id", () => {
   });
 
   it("returns 400 when setId is not a UUID", async () => {
-    const res = await app.request("/api/v1/marketplace-groups/tcgplayer/100", {
+    const res = await app.request("/api/admin/v1/marketplace-groups/tcgplayer/100", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ setId: "not-a-uuid" }),
@@ -191,7 +208,7 @@ describe("PATCH /api/v1/marketplace-groups/:marketplace/:id", () => {
   });
 
   it("returns 400 when body is empty", async () => {
-    const res = await app.request("/api/v1/marketplace-groups/tcgplayer/100", {
+    const res = await app.request("/api/admin/v1/marketplace-groups/tcgplayer/100", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
@@ -201,13 +218,13 @@ describe("PATCH /api/v1/marketplace-groups/:marketplace/:id", () => {
 
   it("returns 404 when group not found", async () => {
     mockMktAdmin.updateGroup.mockResolvedValue(false);
-    const res = await app.request("/api/v1/marketplace-groups/tcgplayer/999", {
+    const res = await app.request("/api/admin/v1/marketplace-groups/tcgplayer/999", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "Unknown" }),
     });
     expect(res.status).toBe(404);
     const json = await res.json();
-    expect(json.error).toContain("not found");
+    expect(json.message).toContain("not found");
   });
 });

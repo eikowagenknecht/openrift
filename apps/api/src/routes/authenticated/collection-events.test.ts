@@ -2,7 +2,9 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
-import { collectionEventsRoute } from "./collection-events";
+import { registerRouterForTest } from "../../test/mount-router.js";
+import type { Variables } from "../../types.js";
+import { collectionEventsRouter } from "./collection-events";
 
 // ---------------------------------------------------------------------------
 // Mock repos
@@ -13,24 +15,27 @@ const mockCollectionEventsRepo = {
 };
 
 // ---------------------------------------------------------------------------
-// Test app
+// Test app — mounts the oRPC handler as production does; a pre-set user
+// satisfies requireAuth (resolveSession is idempotent).
 // ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("user", { id: USER_ID });
-    c.set("repos", { collectionEvents: mockCollectionEventsRepo } as never);
-    await next();
-  })
-  .route("/api/v1", collectionEventsRoute)
-  .onError((err, c) => {
-    if (err instanceof AppError) {
-      return c.json({ error: err.message, code: err.code }, err.status as 400);
-    }
-    throw err;
-  });
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  // oxlint-disable-next-line no-explicit-any -- test stubs don't match full types
+  c.set("user", { id: USER_ID } as any);
+  // oxlint-disable-next-line no-explicit-any -- test mock doesn't match full Repos type
+  c.set("repos", { collectionEvents: mockCollectionEventsRepo } as any);
+  await next();
+});
+registerRouterForTest(app, collectionEventsRouter);
+app.onError((err, c) => {
+  if (err instanceof AppError) {
+    return c.json({ error: err.message, code: err.code }, err.status as 400);
+  }
+  throw err;
+});
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -40,7 +45,7 @@ const now = new Date("2026-03-17T00:00:00Z");
 
 const dbEvent = {
   id: "a0000000-0001-4000-a000-000000000050",
-  action: "add",
+  action: "added",
   copyId: "a0000000-0001-4000-a000-000000000020",
   printingId: "a0000000-0001-4000-a000-000000000030",
   fromCollectionId: null,
@@ -73,7 +78,7 @@ describe("GET /api/v1/collection-events", () => {
     const json = await res.json();
     expect(json.items).toHaveLength(1);
     expect(json.items[0].id).toBe(dbEvent.id);
-    expect(json.items[0].action).toBe("add");
+    expect(json.items[0].action).toBe("added");
     expect(json.items[0].cardName).toBe("Fire Dragon");
     expect(json.nextCursor).toBeNull();
   });
@@ -136,7 +141,7 @@ describe("GET /api/v1/collection-events", () => {
     const event = json.items[0];
 
     expect(event.id).toBe(dbEvent.id);
-    expect(event.action).toBe("add");
+    expect(event.action).toBe("added");
     expect(event.copyId).toBe(dbEvent.copyId);
     expect(event.printingId).toBe(dbEvent.printingId);
     expect(event.fromCollectionId).toBeNull();

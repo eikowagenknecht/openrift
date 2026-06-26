@@ -1,7 +1,8 @@
 import type { EmailNotificationChannel } from "@openrift/shared/types";
+import { Hono } from "hono";
 
 import { verifyUnsubscribeToken } from "../../emails/unsubscribe-token.js";
-import { createApiApp } from "../../openapi.js";
+import type { Variables } from "../../types.js";
 
 const CHANNEL_LABELS: Record<EmailNotificationChannel, string> = {
   tradeMatches: "the daily match digest",
@@ -39,34 +40,37 @@ function page(title: string, message: string, homeUrl: string): string {
 // ADR-030 one-click unsubscribe. Unauthenticated: the HMAC token is the only
 // credential and is scoped to a single (userId, channel). Verifying it flips
 // exactly that channel to `false`, preserving the sibling channel.
-export const unsubscribeRoute = createApiApp().get("/unsubscribe", async (c) => {
-  const token = c.req.query("token");
-  const config = c.get("config");
-  const { userPreferences } = c.get("repos");
+export const unsubscribeRoute = new Hono<{ Variables: Variables }>().get(
+  "/unsubscribe",
+  async (c) => {
+    const token = c.req.query("token");
+    const config = c.get("config");
+    const { userPreferences } = c.get("repos");
 
-  const homeUrl = config.appBaseUrl || "/";
-  const decoded = token ? verifyUnsubscribeToken(config.auth.secret, token) : null;
-  if (decoded === null) {
+    const homeUrl = config.appBaseUrl || "/";
+    const decoded = token ? verifyUnsubscribeToken(config.auth.secret, token) : null;
+    if (decoded === null) {
+      return c.html(
+        page(
+          "Link not valid",
+          "This unsubscribe link is invalid or has expired. Nothing was changed. You can manage email notifications anytime in your profile.",
+          homeUrl,
+        ),
+        400,
+      );
+    }
+
+    // Preserve the sibling channel: read the current object, then flip just this one.
+    const context = await userPreferences.getEmailNotificationContext(decoded.userId);
+    const next = { ...context?.emailNotifications, [decoded.channel]: false };
+    await userPreferences.upsert(decoded.userId, { emailNotifications: next });
+
     return c.html(
       page(
-        "Link not valid",
-        "This unsubscribe link is invalid or has expired. Nothing was changed. You can manage email notifications anytime in your profile.",
+        "You're unsubscribed",
+        `You'll no longer receive ${CHANNEL_LABELS[decoded.channel]}. You can turn this back on anytime in your OpenRift profile.`,
         homeUrl,
       ),
-      400,
     );
-  }
-
-  // Preserve the sibling channel: read the current object, then flip just this one.
-  const context = await userPreferences.getEmailNotificationContext(decoded.userId);
-  const next = { ...context?.emailNotifications, [decoded.channel]: false };
-  await userPreferences.upsert(decoded.userId, { emailNotifications: next });
-
-  return c.html(
-    page(
-      "You're unsubscribed",
-      `You'll no longer receive ${CHANNEL_LABELS[decoded.channel]}. You can turn this back on anytime in your OpenRift profile.`,
-      homeUrl,
-    ),
-  );
-});
+  },
+);

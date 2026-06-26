@@ -1,86 +1,27 @@
-import { createRoute } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
-import { idParamSchema } from "@openrift/shared/schemas";
-import { z } from "zod";
+import { adminCardBansContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
 import { AppError } from "../../../errors.js";
-import { createApiApp } from "../../../openapi.js";
+import { requireUser } from "../../../orpc/base.js";
+import type { ApiContext } from "../../../orpc/context.js";
 import { assertFound } from "../../../utils/assertions.js";
-import { banResponseSchema, createBanSchema, removeBanSchema, updateBanSchema } from "./schemas.js";
 
-// ── Route definitions ───────────────────────────────────────────────────────
+const os = implement(adminCardBansContract).$context<ApiContext>().use(requireUser);
 
-const listBans = createRoute({
-  method: "get",
-  path: "/{id}/bans",
-  tags: ["Admin - Cards"],
-  request: { params: idParamSchema },
-  responses: {
-    200: {
-      content: {
-        "application/json": { schema: z.object({ bans: z.array(banResponseSchema) }) },
-      },
-      description: "Active bans for the card",
-    },
-  },
-});
-
-const createBan = createRoute({
-  method: "post",
-  path: "/{id}/bans",
-  tags: ["Admin - Cards"],
-  request: {
-    params: idParamSchema,
-    body: { content: { "application/json": { schema: createBanSchema } } },
-  },
-  responses: {
-    201: {
-      content: { "application/json": { schema: z.object({ ban: banResponseSchema }) } },
-      description: "Ban created",
-    },
-  },
-});
-
-const updateBan = createRoute({
-  method: "patch",
-  path: "/{id}/bans",
-  tags: ["Admin - Cards"],
-  request: {
-    params: idParamSchema,
-    body: { content: { "application/json": { schema: updateBanSchema } } },
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: z.object({ ban: banResponseSchema }) } },
-      description: "Ban updated",
-    },
-  },
-});
-
-const removeBan = createRoute({
-  method: "delete",
-  path: "/{id}/bans",
-  tags: ["Admin - Cards"],
-  request: {
-    params: idParamSchema,
-    body: { content: { "application/json": { schema: removeBanSchema } } },
-  },
-  responses: {
-    204: { description: "Ban removed" },
-  },
-});
-
-// ── Route ───────────────────────────────────────────────────────────────────
-
-export const cardBansRoute = createApiApp()
-  // ── GET /admin/cards/:id/bans ── ───────────────────────────────────────────
-
-  .openapi(listBans, async (c) => {
-    const { cardBans } = c.get("repos");
-    const { id } = c.req.valid("param");
-
-    const rows = await cardBans.listByCard(id);
-    return c.json({
+/**
+ * oRPC implementation of the admin card-ban management. Ported from the
+ * previous `@hono/zod-openapi` handlers; not-found / conflict states are
+ * thrown as `AppError` (via {@link assertFound} or directly) and mapped by the
+ * handler's appErrorInterceptor. `createdAt` is mapped from `Date` to
+ * an ISO string for the output schema. (The DELETE handler now 404s on a
+ * no-match, consistent with PATCH — see the inline note in `remove`.)
+ */
+export const adminCardBansRouter = {
+  list: os.list.handler(async ({ input, context }) => {
+    const { cardBans } = context.repos;
+    const rows = await cardBans.listByCard(input.id);
+    return {
       bans: rows.map((r) => ({
         id: r.id,
         cardId: r.cardId,
@@ -90,15 +31,12 @@ export const cardBansRoute = createApiApp()
         reason: r.reason,
         createdAt: r.createdAt.toISOString(),
       })),
-    });
-  })
+    };
+  }),
 
-  // ── POST /admin/cards/:id/bans ──────────────────────────────────────────
-
-  .openapi(createBan, async (c) => {
-    const { cardBans, catalog } = c.get("repos");
-    const { id } = c.req.valid("param");
-    const { formatId, bannedAt, reason } = c.req.valid("json");
+  create: os.create.handler(async ({ input, context }) => {
+    const { cardBans, catalog } = context.repos;
+    const { id, formatId, bannedAt, reason } = input;
 
     // Verify card exists
     const card = await catalog.cardById(id);
@@ -110,35 +48,24 @@ export const cardBansRoute = createApiApp()
       throw new AppError(409, ERROR_CODES.CONFLICT, `Card is already banned in ${formatId}`);
     }
 
-    const row = await cardBans.create({
-      cardId: id,
-      formatId,
-      bannedAt,
-      reason: reason ?? null,
-    });
+    const row = await cardBans.create({ cardId: id, formatId, bannedAt, reason: reason ?? null });
 
-    return c.json(
-      {
-        ban: {
-          id: row.id,
-          cardId: row.cardId,
-          formatId: row.formatId,
-          formatName: row.formatName,
-          bannedAt: row.bannedAt,
-          reason: row.reason,
-          createdAt: row.createdAt.toISOString(),
-        },
+    return {
+      ban: {
+        id: row.id,
+        cardId: row.cardId,
+        formatId: row.formatId,
+        formatName: row.formatName,
+        bannedAt: row.bannedAt,
+        reason: row.reason,
+        createdAt: row.createdAt.toISOString(),
       },
-      201,
-    );
-  })
+    };
+  }),
 
-  // ── PATCH /admin/cards/:id/bans ─────────────────────────────────────────
-
-  .openapi(updateBan, async (c) => {
-    const { cardBans } = c.get("repos");
-    const { id } = c.req.valid("param");
-    const { formatId, bannedAt, reason } = c.req.valid("json");
+  update: os.update.handler(async ({ input, context }) => {
+    const { cardBans } = context.repos;
+    const { id, formatId, bannedAt, reason } = input;
 
     const fields: { bannedAt?: string; reason?: string | null } = {};
     if (bannedAt !== undefined) {
@@ -151,7 +78,7 @@ export const cardBansRoute = createApiApp()
     const row = await cardBans.update(id, formatId, fields);
     assertFound(row, `No active ban found for format ${formatId}`);
 
-    return c.json({
+    return {
       ban: {
         id: row.id,
         cardId: row.cardId,
@@ -161,18 +88,19 @@ export const cardBansRoute = createApiApp()
         reason: row.reason,
         createdAt: row.createdAt.toISOString(),
       },
-    });
-  })
+    };
+  }),
 
-  // ── DELETE /admin/cards/:id/bans ────────────────────────────────────────
+  remove: os.remove.handler(async ({ input, context }): Promise<void> => {
+    const { cardBans } = context.repos;
+    const { id, formatId } = input;
 
-  .openapi(removeBan, async (c) => {
-    const { cardBans } = c.get("repos");
-    const { id } = c.req.valid("param");
-    const { formatId } = c.req.valid("json");
-
+    // `unban` returns a boolean (not a row), so use an explicit check rather
+    // than `assertFound` (which only catches null/undefined) — this 404s when
+    // no active ban matched, consistent with the PATCH handler above.
     const removed = await cardBans.unban(id, formatId);
-    assertFound(removed, `No active ban found for format ${formatId}`);
-
-    return c.body(null, 204);
-  });
+    if (!removed) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, `No active ban found for format ${formatId}`);
+    }
+  }),
+};

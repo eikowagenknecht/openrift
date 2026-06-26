@@ -1,8 +1,9 @@
 import type { MarketplaceInfoResponse } from "@openrift/shared";
+import { pricesContract } from "@openrift/shared/contracts";
 import { useQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
-import { browserApiClient, callApiJson } from "@/lib/server-fns/api-client";
+import { browserApiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 /**
  * Fetch `MarketplaceInfo` (productId, availability) for a
@@ -16,15 +17,12 @@ export function useMarketplaceInfo(printingIds: string[]) {
   const stableIds = [...new Set(printingIds)].toSorted();
   return useQuery({
     queryKey: queryKeys.marketplaceInfo.byPrintings(stableIds),
-    // Typed via the browser hc client (same-origin, edge-cacheable). The route
-    // checks the query + response against the API contract.
+    // Typed via the browser oRPC client (same-origin, edge-cacheable). The
+    // contract validates the comma-joined query + the response shape.
     queryFn: (): Promise<MarketplaceInfoResponse> =>
-      callApiJson(
-        browserApiClient().api.v1.prices["marketplace-info"].$get({
-          query: { printings: stableIds.join(",") },
-        }),
-        "Couldn't load marketplace info",
-      ),
+      browserApiOrpcClient(pricesContract).marketplaceInfo({
+        printings: stableIds.join(","),
+      }),
     enabled: stableIds.length > 0,
     staleTime: 60 * 60 * 1000,
     refetchOnWindowFocus: false,

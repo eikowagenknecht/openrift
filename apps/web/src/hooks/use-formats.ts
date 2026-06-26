@@ -1,18 +1,16 @@
+import { adminFormatsContract } from "@openrift/shared/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchFormatsFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<{ formats: { id: string; name: string }[] }> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1.formats.$get(),
-        "Couldn't load formats",
-      ),
+      apiOrpcClient(adminFormatsContract, context.cookie).list(),
   );
 
 export function useFormats() {

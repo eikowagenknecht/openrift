@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { landingSummaryRoute } from "./landing-summary";
+import { registerRouterForTest } from "../../test/mount-router.js";
+import type { Variables } from "../../types.js";
+import { landingSummaryRouter } from "./landing-summary";
 
 const mockCatalogRepo = {
   landingSummary: vi.fn(() =>
@@ -14,13 +16,14 @@ const mockCatalogRepo = {
   ),
 };
 
-// oxlint-disable-next-line -- test mock doesn't match full Repos type
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("repos", { catalog: mockCatalogRepo } as never);
-    await next();
-  })
-  .route("/api/v1", landingSummaryRoute);
+// Mounts the oRPC handler exactly as production does, with the repos injected.
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  // oxlint-disable-next-line no-explicit-any -- test stub doesn't match full Repos type
+  c.set("repos", { catalog: mockCatalogRepo } as any);
+  await next();
+});
+registerRouterForTest(app, landingSummaryRouter);
 
 describe("GET /api/v1/landing-summary", () => {
   beforeEach(() => {
@@ -48,27 +51,6 @@ describe("GET /api/v1/landing-summary", () => {
   it("requests at most 36 thumbnails so the desktop scatter is fully populated", async () => {
     await app.request("/api/v1/landing-summary");
     expect(mockCatalogRepo.landingSummary).toHaveBeenCalledWith(36);
-  });
-
-  it("returns the cache header /catalog uses so Cloudflare can edge-cache", async () => {
-    const res = await app.request("/api/v1/landing-summary");
-    expect(res.headers.get("Cache-Control")).toBe(
-      "public, max-age=3600, stale-while-revalidate=86400",
-    );
-  });
-
-  it("returns ETag", async () => {
-    const res = await app.request("/api/v1/landing-summary");
-    expect(res.headers.get("ETag")).toBeTruthy();
-  });
-
-  it("returns 304 when If-None-Match matches", async () => {
-    const first = await app.request("/api/v1/landing-summary");
-    const tag = first.headers.get("ETag") ?? "";
-    const second = await app.request("/api/v1/landing-summary", {
-      headers: { "If-None-Match": tag },
-    });
-    expect(second.status).toBe(304);
   });
 
   it("returns an empty thumbnailIds array when the catalog has none", async () => {

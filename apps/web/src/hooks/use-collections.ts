@@ -3,6 +3,8 @@ import type {
   CollectionShareResponse,
   PublicCollectionDetailResponse,
 } from "@openrift/shared";
+import { collectionsContract, publicCollectionsContract } from "@openrift/shared/contracts";
+import { ORPCError } from "@orpc/client";
 import { useLiveQuery } from "@tanstack/react-db";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
@@ -12,9 +14,9 @@ import { collectionsQueryOptions } from "@/lib/collections-query";
 import { useCopiesCollection } from "@/lib/copies-collection";
 import { queryKeys } from "@/lib/query-keys";
 import { reorderInPlace } from "@/lib/reorder-in-place";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import type { CollectionsResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 // Re-export for back-compat with consumers that pulled it from this module
@@ -80,13 +82,8 @@ const createCollectionFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(
-    ({ context, data }): Promise<CollectionsResponse["items"][number]> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.collections.$post({
-          json: data,
-        }),
-        "Couldn't create collection",
-      ),
+    ({ context, data }): Promise<CollectionResponse> =>
+      apiOrpcClient(collectionsContract, context.cookie).create(data),
   );
 
 export function useCreateCollection() {
@@ -105,16 +102,10 @@ export function useCreateCollection() {
 const updateCollectionFn = createServerFn({ method: "POST" })
   .validator((input: { id: string; name?: string; description?: string | null }) => input)
   .middleware([withCookies])
-  .handler(({ context, data }): Promise<CollectionsResponse["items"][number]> => {
-    const { id, ...fields } = data;
-    return callApiJson(
-      serverApiClient(context.cookie).api.v1.collections[":id"].$patch({
-        param: encodeParams({ id }),
-        json: fields,
-      }),
-      "Couldn't update collection",
-    );
-  });
+  .handler(
+    ({ context, data }): Promise<CollectionResponse> =>
+      apiOrpcClient(collectionsContract, context.cookie).update(data),
+  );
 
 export function useUpdateCollection() {
   const userId = useRequiredUserId();
@@ -129,13 +120,10 @@ const setDeckbuildingFn = createServerFn({ method: "POST" })
   .validator((input: { id: string; available: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1.collections[":id"].deckbuilding.$put({
-        param: encodeParams({ id: data.id }),
-        json: { available: data.available },
-      }),
-      "Couldn't update deck-building availability",
-    );
+    await apiOrpcClient(collectionsContract, context.cookie).setDeckbuilding({
+      id: data.id,
+      available: data.available,
+    });
   });
 
 /**
@@ -160,12 +148,7 @@ const reorderCollectionsFn = createServerFn({ method: "POST" })
   .validator((input: { orderedIds: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1.collections.reorder.$post({
-        json: data,
-      }),
-      "Couldn't reorder collections",
-    );
+    await apiOrpcClient(collectionsContract, context.cookie).reorder(data);
   });
 
 /**
@@ -213,12 +196,7 @@ const deleteCollectionFn = createServerFn({ method: "POST" })
   .validator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1.collections[":id"].$delete({
-        param: encodeParams({ id: data.id }),
-      }),
-      "Couldn't delete collection",
-    );
+    await apiOrpcClient(collectionsContract, context.cookie).remove({ id: data.id });
   });
 
 // ── Collection sharing ──────────────────────────────────────────────────────
@@ -228,12 +206,7 @@ const shareCollectionFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data: collectionId }): Promise<CollectionShareResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.collections[":id"].share.$post({
-          param: encodeParams({ id: collectionId }),
-        }),
-        "Couldn't share collection",
-      ),
+      apiOrpcClient(collectionsContract, context.cookie).share({ id: collectionId }),
   );
 
 export function useShareCollection() {
@@ -262,12 +235,7 @@ const unshareCollectionFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: collectionId }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1.collections[":id"].share.$delete({
-        param: encodeParams({ id: collectionId }),
-      }),
-      "Couldn't unshare collection",
-    );
+    await apiOrpcClient(collectionsContract, context.cookie).unshare({ id: collectionId });
   });
 
 export function useUnshareCollection() {
@@ -293,22 +261,18 @@ export function useUnshareCollection() {
 const fetchPublicCollectionFn = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .handler(async ({ data: token }): Promise<PublicCollectionDetailResponse> => {
-    const shareEndpoint = serverApiClient().api.v1.collections.share[":token"];
-    // 404 is legitimate (unknown/expired token) — map to NOT_FOUND without logging.
-    const firstRes = await callApi(
-      shareEndpoint.$get({
-        param: encodeParams({ token }),
-        // The route declares a query schema (copies pagination), so hc requires
-        // the `query` arg even on the first page where no cursor is sent.
-        query: {},
-      }),
-      "Couldn't load shared collection",
-      [404],
-    );
-    if ((firstRes.status as number) === 404) {
-      throw new Error("NOT_FOUND");
+    // Migrated to oRPC: contract-typed client. 404 (unknown/expired token) is a
+    // typed NOT_FOUND error mapped to the sentinel the route boundary expects.
+    const client = apiOrpcClient(publicCollectionsContract);
+    let firstPage: PublicCollectionDetailResponse;
+    try {
+      firstPage = await client.share({ token });
+    } catch (error) {
+      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+        throw new Error("NOT_FOUND");
+      }
+      throw error;
     }
-    const firstPage = (await firstRes.json()) as PublicCollectionDetailResponse;
 
     // Walk the cursor server-side so the SSR payload carries every copy for
     // collections larger than the API's per-page cap. Matches the authenticated
@@ -316,14 +280,7 @@ const fetchPublicCollectionFn = createServerFn({ method: "GET" })
     const allCopies = [...firstPage.items];
     let cursor = firstPage.nextCursor;
     while (cursor) {
-      const nextRes = await callApi(
-        shareEndpoint.$get({
-          param: encodeParams({ token }),
-          query: { cursor },
-        }),
-        "Couldn't load shared collection",
-      );
-      const page = (await nextRes.json()) as PublicCollectionDetailResponse;
+      const page = await client.share({ token, cursor });
       allCopies.push(...page.items);
       cursor = page.nextCursor;
     }

@@ -1,24 +1,18 @@
-import type { MarkerResponse } from "@openrift/shared";
+import type { AdminMarkersResponse } from "@openrift/shared/contracts";
+import { adminMarkersContract } from "@openrift/shared/contracts";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
-
-interface AdminMarkersResponse {
-  markers: MarkerResponse[];
-}
 
 const fetchMarkers = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminMarkersResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1.markers.$get(),
-        "Couldn't load markers",
-      ),
+      apiOrpcClient(adminMarkersContract, context.cookie).list(),
   );
 
 export const adminMarkersQueryOptions = queryOptions({
@@ -35,10 +29,7 @@ const createMarkerFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; label: string; description?: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.markers.$post({ json: data }),
-      "Couldn't create marker",
-    );
+    await apiOrpcClient(adminMarkersContract, context.cookie).create(data);
   });
 
 export function useCreateMarker() {
@@ -55,17 +46,7 @@ const updateMarkerFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.markers[":id"].$patch({
-        param: encodeParams({ id: data.id }),
-        json: {
-          slug: data.slug,
-          label: data.label,
-          description: data.description,
-        },
-      }),
-      "Couldn't update marker",
-    );
+    await apiOrpcClient(adminMarkersContract, context.cookie).update(data);
   });
 
 export function useUpdateMarker() {
@@ -84,12 +65,7 @@ const deleteMarkerFn = createServerFn({ method: "POST" })
   .validator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.markers[":id"].$delete({
-        param: encodeParams({ id: data.id }),
-      }),
-      "Couldn't delete marker",
-    );
+    await apiOrpcClient(adminMarkersContract, context.cookie).remove({ id: data.id });
   });
 
 export function useDeleteMarker() {
@@ -103,12 +79,7 @@ const reorderMarkersFn = createServerFn({ method: "POST" })
   .validator((input: { ids: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.markers.reorder.$put({
-        json: { ids: data.ids },
-      }),
-      "Couldn't reorder markers",
-    );
+    await apiOrpcClient(adminMarkersContract, context.cookie).reorder({ ids: data.ids });
   });
 
 export function useReorderMarkers() {

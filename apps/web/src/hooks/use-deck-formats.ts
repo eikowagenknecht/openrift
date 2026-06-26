@@ -1,20 +1,18 @@
+import type { AdminDeckFormatsResponse } from "@openrift/shared/contracts";
+import { adminDeckFormatsContract } from "@openrift/shared/contracts";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
-import type { AdminDeckFormatsResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchDeckFormats = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminDeckFormatsResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["deck-formats"].$get(),
-        "Couldn't load deck formats",
-      ),
+      apiOrpcClient(adminDeckFormatsContract, context.cookie).list(),
   );
 
 export const adminDeckFormatsQueryOptions = queryOptions({
@@ -30,12 +28,7 @@ const createDeckFormatFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; label: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["deck-formats"].$post({
-        json: data,
-      }),
-      "Couldn't create deck format",
-    );
+    await apiOrpcClient(adminDeckFormatsContract, context.cookie).create(data);
   });
 
 export function useCreateDeckFormat() {
@@ -49,13 +42,7 @@ const updateDeckFormatFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; label?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["deck-formats"][":slug"].$patch({
-        param: encodeParams({ slug: data.slug }),
-        json: { label: data.label },
-      }),
-      "Couldn't update deck format",
-    );
+    await apiOrpcClient(adminDeckFormatsContract, context.cookie).update(data);
   });
 
 export function useUpdateDeckFormat() {
@@ -69,12 +56,7 @@ const reorderDeckFormatsFn = createServerFn({ method: "POST" })
   .validator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["deck-formats"].reorder.$put({
-        json: { slugs: data.slugs },
-      }),
-      "Couldn't reorder deck formats",
-    );
+    await apiOrpcClient(adminDeckFormatsContract, context.cookie).reorder({ slugs: data.slugs });
   });
 
 export function useReorderDeckFormats() {
@@ -88,12 +70,7 @@ const deleteDeckFormatFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["deck-formats"][":slug"].$delete({
-        param: encodeParams({ slug: data.slug }),
-      }),
-      "Couldn't delete deck format",
-    );
+    await apiOrpcClient(adminDeckFormatsContract, context.cookie).remove({ slug: data.slug });
   });
 
 export function useDeleteDeckFormat() {

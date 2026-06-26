@@ -1,47 +1,33 @@
-import { createRoute } from "@hono/zod-openapi";
 import type { CollectionEventListResponse } from "@openrift/shared";
-import { collectionEventListResponseSchema } from "@openrift/shared/response-schemas";
-import { collectionEventsQuerySchema } from "@openrift/shared/schemas";
+import { collectionEventsContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
-import { getUserId } from "../../middleware/get-user-id.js";
-import { requireAuth } from "../../middleware/require-auth.js";
-import { cookieAuth, errorResponses } from "../../openapi-helpers.js";
-import { createApiApp } from "../../openapi.js";
+import { requireUserId } from "../../middleware/get-user-id.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 import { buildEventsCursor } from "../../repositories/collection-events.js";
 import { toCollectionEvent } from "../../utils/mappers.js";
 
-const listEvents = createRoute({
-  method: "get",
-  path: "/",
-  tags: ["Collection Events"],
-  security: cookieAuth,
-  request: { query: collectionEventsQuerySchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: collectionEventListResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(400, 401),
-  },
-});
+const os = implement(collectionEventsContract).$context<ApiContext>().use(requireUser);
 
-const collectionEventsApp = createApiApp().basePath("/collection-events");
-collectionEventsApp.use(requireAuth);
-export const collectionEventsRoute = collectionEventsApp.openapi(listEvents, async (c) => {
-  const { collectionEvents } = c.get("repos");
-  const userId = getUserId(c);
-  const { cursor, limit: rawLimit } = c.req.valid("query");
-  const limit = rawLimit ?? 100;
+/**
+ * oRPC implementation of the authenticated collection-events contract. Logic
+ * unchanged from the previous handler; only the routing layer moved.
+ */
+export const collectionEventsRouter = {
+  list: os.list.handler(async ({ input, context }): Promise<CollectionEventListResponse> => {
+    const { collectionEvents } = context.repos;
+    const userId = requireUserId(context.user);
+    const limit = input.limit ?? 100;
 
-  const rows = await collectionEvents.listForUser(userId, limit, cursor);
+    const rows = await collectionEvents.listForUser(userId, limit, input.cursor);
 
-  const hasMore = rows.length > limit;
-  const items = rows.slice(0, limit);
-
-  const lastItem = items.at(-1);
-  const result: CollectionEventListResponse = {
-    items: items.map((r) => toCollectionEvent(r)),
-    nextCursor: hasMore && lastItem ? buildEventsCursor(lastItem.createdAt, lastItem.id) : null,
-  };
-  return c.json(result, 200);
-});
+    const hasMore = rows.length > limit;
+    const items = rows.slice(0, limit);
+    const lastItem = items.at(-1);
+    return {
+      items: items.map((r) => toCollectionEvent(r)),
+      nextCursor: hasMore && lastItem ? buildEventsCursor(lastItem.createdAt, lastItem.id) : null,
+    };
+  }),
+};

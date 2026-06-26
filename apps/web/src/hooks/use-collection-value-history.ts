@@ -4,13 +4,19 @@ import type {
   Marketplace,
   TimeRange,
 } from "@openrift/shared";
+import { collectionValueHistoryContract } from "@openrift/shared/contracts";
+import type { ContractRouterClient } from "@orpc/contract";
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
-import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
+
+type ValueHistoryQuery = Parameters<
+  ContractRouterClient<typeof collectionValueHistoryContract>["get"]
+>[0];
 
 interface ValueHistoryInput {
   marketplace: string;
@@ -67,9 +73,9 @@ const fetchCollectionValueHistory = createServerFn({ method: "GET" })
       query.errata = String(scope.errata);
     }
 
-    return callApiJson(
-      serverApiClient(context.cookie).api.v1["collection-value-history"].$get({ query }),
-      "Couldn't load collection value history",
+    // Migrated to oRPC: contract-typed client instead of the hc client.
+    return apiOrpcClient(collectionValueHistoryContract, context.cookie).get(
+      query as ValueHistoryQuery,
     );
   });
 

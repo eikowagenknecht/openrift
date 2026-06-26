@@ -1,0 +1,24 @@
+import { oc } from "@orpc/contract";
+import { z } from "zod";
+
+const TAG = "Admin - Formats";
+
+const FORMATS = "/api/admin/v1/formats";
+
+const formatSchema = z.object({ id: z.string(), name: z.string() });
+
+/**
+ * oRPC contract for the admin formats list (mounted at `/api/admin/v1/formats`,
+ * admin-gated by the mount). Read-only: the formats are derived from the
+ * card-bans repository.
+ */
+export const adminFormatsContract = {
+  list: oc
+    .route({ method: "GET", path: FORMATS, tags: [TAG] })
+    .output(z.object({ formats: z.array(formatSchema) })),
+};
+
+export type AdminFormatsContract = typeof adminFormatsContract;
+export interface AdminFormatsResponse {
+  formats: z.infer<typeof formatSchema>[];
+}

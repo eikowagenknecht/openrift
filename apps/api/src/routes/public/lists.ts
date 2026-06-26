@@ -1,52 +1,37 @@
-import { createRoute } from "@hono/zod-openapi";
 import type { PublicListDetailResponse } from "@openrift/shared";
-import { publicListDetailResponseSchema } from "@openrift/shared/response-schemas";
-import { z } from "zod";
+import { publicListsContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
 import { gravatarHashForEmail } from "../../lib/gravatar.js";
-import { errorResponses } from "../../openapi-helpers.js";
-import { createApiApp } from "../../openapi.js";
-import { assertFound } from "../../utils/assertions.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 import { toListEntryDetail, toPublicList } from "../../utils/mappers.js";
 
-const shareTokenParamSchema = z.object({
-  token: z.string().min(1),
-});
+const os = implement(publicListsContract).$context<ApiContext>().use(requireUser);
 
-const getPublicListByShareToken = createRoute({
-  method: "get",
-  path: "/lists/share/{token}",
-  tags: ["Lists"],
-  request: { params: shareTokenParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: publicListDetailResponseSchema } },
-      description: "Shared list",
-    },
-    ...errorResponses(404),
-  },
-});
+/**
+ * oRPC implementation of the public (share-token) list view. Logic unchanged
+ * from the previous handler; the 404 for an unknown/non-public token is now a
+ * typed `errors.NOT_FOUND()` instead of a thrown AppError.
+ */
+export const publicListsRouter = {
+  share: os.share.handler(async ({ input, context, errors }): Promise<PublicListDetailResponse> => {
+    const { lists } = context.repos;
 
-/** Public: GET /lists/share/{token} — anonymous view of a shared list.
- *  Returns 404 if the token does not match or the list isn't public. */
-export const publicListsRoute = createApiApp().openapi(getPublicListByShareToken, async (c) => {
-  const { lists } = c.get("repos");
-  const { token } = c.req.valid("param");
+    const found = await lists.findByShareToken(input.token);
+    if (!found) {
+      throw errors.NOT_FOUND({ message: "Not found" });
+    }
 
-  const found = await lists.findByShareToken(token);
-  assertFound(found, "Not found");
+    const entries = await lists.entriesWithDetailsAnon(found.list.id, found.list.kind);
 
-  const entries = await lists.entriesWithDetailsAnon(found.list.id, found.list.kind);
-
-  const response: PublicListDetailResponse = {
-    list: toPublicList(found.list),
-    entries: entries.map((row) => toListEntryDetail(row)),
-    owner: {
-      displayName: found.ownerName ?? "Anonymous",
-      gravatarHash: gravatarHashForEmail(found.ownerEmail),
-    },
-  };
-
-  c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
-  return c.json(response, 200);
-});
+    return {
+      list: toPublicList(found.list),
+      entries: entries.map((row) => toListEntryDetail(row)),
+      owner: {
+        displayName: found.ownerName ?? "Anonymous",
+        gravatarHash: gravatarHashForEmail(found.ownerEmail),
+      },
+    };
+  }),
+};

@@ -1,20 +1,18 @@
+import type { AdminLanguagesResponse } from "@openrift/shared/contracts";
+import { adminLanguagesContract } from "@openrift/shared/contracts";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
-import type { AdminLanguagesResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchLanguages = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminLanguagesResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1.languages.$get(),
-        "Couldn't load languages",
-      ),
+      apiOrpcClient(adminLanguagesContract, context.cookie).list(),
   );
 
 export const adminLanguagesQueryOptions = queryOptions({
@@ -31,12 +29,7 @@ const createLanguageFn = createServerFn({ method: "POST" })
   .validator((input: { code: string; name: string; sortOrder?: number }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.languages.$post({
-        json: data,
-      }),
-      "Couldn't create language",
-    );
+    await apiOrpcClient(adminLanguagesContract, context.cookie).create(data);
   });
 
 export function useCreateLanguage() {
@@ -51,13 +44,7 @@ const updateLanguageFn = createServerFn({ method: "POST" })
   .validator((input: { code: string; name?: string; sortOrder?: number }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.languages[":code"].$patch({
-        param: encodeParams({ code: data.code }),
-        json: { name: data.name, sortOrder: data.sortOrder },
-      }),
-      "Couldn't update language",
-    );
+    await apiOrpcClient(adminLanguagesContract, context.cookie).update(data);
   });
 
 export function useUpdateLanguage() {
@@ -72,12 +59,7 @@ const reorderLanguagesFn = createServerFn({ method: "POST" })
   .validator((input: { codes: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.languages.reorder.$put({
-        json: { codes: data.codes },
-      }),
-      "Couldn't reorder languages",
-    );
+    await apiOrpcClient(adminLanguagesContract, context.cookie).reorder({ codes: data.codes });
   });
 
 export function useReorderLanguages() {
@@ -91,12 +73,7 @@ const deleteLanguageFn = createServerFn({ method: "POST" })
   .validator((input: { code: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.languages[":code"].$delete({
-        param: encodeParams({ code: data.code }),
-      }),
-      "Couldn't delete language",
-    );
+    await apiOrpcClient(adminLanguagesContract, context.cookie).remove({ code: data.code });
   });
 
 export function useDeleteLanguage() {

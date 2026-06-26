@@ -1,20 +1,18 @@
+import type { AdminCardTypesResponse } from "@openrift/shared/contracts";
+import { adminCardTypesContract } from "@openrift/shared/contracts";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
-import type { AdminCardTypesResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchCardTypes = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminCardTypesResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["card-types"].$get(),
-        "Couldn't load card types",
-      ),
+      apiOrpcClient(adminCardTypesContract, context.cookie).list(),
   );
 
 export const adminCardTypesQueryOptions = queryOptions({
@@ -30,12 +28,7 @@ const createCardTypeFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; label: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["card-types"].$post({
-        json: data,
-      }),
-      "Couldn't create card type",
-    );
+    await apiOrpcClient(adminCardTypesContract, context.cookie).create(data);
   });
 
 export function useCreateCardType() {
@@ -49,13 +42,7 @@ const updateCardTypeFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; label?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["card-types"][":slug"].$patch({
-        param: encodeParams({ slug: data.slug }),
-        json: { label: data.label },
-      }),
-      "Couldn't update card type",
-    );
+    await apiOrpcClient(adminCardTypesContract, context.cookie).update(data);
   });
 
 export function useUpdateCardType() {
@@ -69,12 +56,7 @@ const reorderCardTypesFn = createServerFn({ method: "POST" })
   .validator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["card-types"].reorder.$put({
-        json: { slugs: data.slugs },
-      }),
-      "Couldn't reorder card types",
-    );
+    await apiOrpcClient(adminCardTypesContract, context.cookie).reorder({ slugs: data.slugs });
   });
 
 export function useReorderCardTypes() {
@@ -88,12 +70,7 @@ const deleteCardTypeFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["card-types"][":slug"].$delete({
-        param: encodeParams({ slug: data.slug }),
-      }),
-      "Couldn't delete card type",
-    );
+    await apiOrpcClient(adminCardTypesContract, context.cookie).remove({ slug: data.slug });
   });
 
 export function useDeleteCardType() {

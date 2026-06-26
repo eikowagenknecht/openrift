@@ -1,9 +1,10 @@
+import { adminCacheContract } from "@openrift/shared/contracts";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 interface CacheStatusResponse {
@@ -14,10 +15,7 @@ const fetchCacheStatus = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<CacheStatusResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1.cache.status.$get(),
-        "Couldn't load cache status",
-      ),
+      apiOrpcClient(adminCacheContract, context.cookie).status(),
   );
 
 export const adminCacheStatusQueryOptions = queryOptions({
@@ -32,12 +30,9 @@ export function useCacheStatus() {
 const purgeCacheFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context }) => {
-    // callApi surfaces the API's { error } message (e.g. "Cloudflare
-    // credentials not configured") in the toast, so no manual parse is needed.
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cache.purge.$post(),
-      "Couldn't purge cache",
-    );
+    // The oRPC client throws on a non-2xx with the API's message (e.g.
+    // "Cloudflare credentials not configured"), surfaced in the toast.
+    await apiOrpcClient(adminCacheContract, context.cookie).purge();
   });
 
 export function usePurgeCache() {

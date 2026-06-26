@@ -1,17 +1,18 @@
+import type { InitResponse } from "@openrift/shared";
+import { initContract } from "@openrift/shared/contracts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
-import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
-import type { InitResponse } from "@/lib/server-fns/api-types";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchInit = createServerFn({ method: "GET" }).handler(
   (): Promise<InitResponse> =>
     serverCache.fetchQuery({
       queryKey: ["server-cache", "init"],
-      queryFn: () =>
-        callApiJson(serverApiClient().api.v1.init.$get(), "Couldn't load initial data"),
+      // Migrated to oRPC: contract-typed client instead of the hc client.
+      queryFn: () => apiOrpcClient(initContract).get(),
     }),
 );
 

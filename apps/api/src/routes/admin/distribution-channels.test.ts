@@ -1,8 +1,12 @@
+import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AppError } from "../../errors.js";
-import { adminDistributionChannelsRoute } from "./distribution-channels";
+import { appErrorInterceptor } from "../../orpc/app-error-interceptor.js";
+import { buildApiContext } from "../../orpc/context.js";
+import type { Variables } from "../../types.js";
+import { adminDistributionChannelsRouter } from "./distribution-channels";
 
 const mockRepo = {
   listAll: vi.fn(),
@@ -16,19 +20,36 @@ const mockRepo = {
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("user", { id: USER_ID });
-    c.set("repos", { distributionChannels: mockRepo } as never);
-    await next();
-  })
-  .route("/api/v1", adminDistributionChannelsRoute)
-  .onError((err, c) => {
-    if (err instanceof AppError) {
-      return c.json({ error: err.message, code: err.code }, err.status as 400);
-    }
-    throw err;
+// Mount the oRPC router directly (without the requireAdmin gate, which needs a
+// resolved session + admins repo) so the tests exercise the handler logic.
+// AppErrors are bridged to ORPCErrors inside the router, so the OpenAPIHandler
+// returns the bridged 4xx status with `{ message }` in the body.
+const handler = new OpenAPIHandler(adminDistributionChannelsRouter, {
+  interceptors: [appErrorInterceptor],
+});
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  c.set("user", { id: USER_ID } as never);
+  c.set("repos", { distributionChannels: mockRepo } as never);
+  await next();
+});
+
+const handle = async (c: Context<{ Variables: Variables }>) => {
+  const { matched, response } = await handler.handle(c.req.raw, {
+    context: buildApiContext(c),
   });
+  if (matched && response) {
+    return response;
+  }
+  return c.notFound();
+};
+for (const path of [
+  "/api/admin/v1/distribution-channels",
+  "/api/admin/v1/distribution-channels/reorder",
+  "/api/admin/v1/distribution-channels/:id",
+]) {
+  app.all(path, handle);
+}
 
 const baseRow = {
   id: "019d4999-4219-72f6-b7bb-64004e1b1bff",
@@ -43,7 +64,7 @@ const baseRow = {
   updatedAt: new Date("2026-04-01T10:00:00.000Z"),
 };
 
-describe("GET /api/v1/distribution-channels", () => {
+describe("GET /distribution-channels", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -53,7 +74,7 @@ describe("GET /api/v1/distribution-channels", () => {
     mockRepo.listAll.mockResolvedValue([baseRow, otherRow]);
     mockRepo.usageCountsByChannel.mockResolvedValue([{ channelId: baseRow.id, count: 7 }]);
 
-    const res = await app.request("/api/v1/distribution-channels");
+    const res = await app.request("/api/admin/v1/distribution-channels");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.distributionChannels).toHaveLength(2);
@@ -62,7 +83,7 @@ describe("GET /api/v1/distribution-channels", () => {
   });
 });
 
-describe("DELETE /api/v1/distribution-channels/:id", () => {
+describe("DELETE /distribution-channels/:id", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -73,7 +94,7 @@ describe("DELETE /api/v1/distribution-channels/:id", () => {
     mockRepo.countInUse.mockResolvedValue(0);
     mockRepo.deleteById.mockResolvedValue(undefined);
 
-    const res = await app.request(`/api/v1/distribution-channels/${baseRow.id}`, {
+    const res = await app.request(`/api/admin/v1/distribution-channels/${baseRow.id}`, {
       method: "DELETE",
     });
     expect(res.status).toBe(204);
@@ -85,12 +106,12 @@ describe("DELETE /api/v1/distribution-channels/:id", () => {
     mockRepo.getById.mockResolvedValue(baseRow);
     mockRepo.hasChildren.mockResolvedValue({ id: "child" });
 
-    const res = await app.request(`/api/v1/distribution-channels/${baseRow.id}?force=true`, {
+    const res = await app.request(`/api/admin/v1/distribution-channels/${baseRow.id}?force=true`, {
       method: "DELETE",
     });
     expect(res.status).toBe(409);
     const json = await res.json();
-    expect(json.error).toContain("child channels");
+    expect(json.message).toContain("child channels");
     expect(mockRepo.deleteById).not.toHaveBeenCalled();
     expect(mockRepo.deleteLinksForChannel).not.toHaveBeenCalled();
   });
@@ -100,12 +121,12 @@ describe("DELETE /api/v1/distribution-channels/:id", () => {
     mockRepo.hasChildren.mockResolvedValue(undefined);
     mockRepo.countInUse.mockResolvedValue(3);
 
-    const res = await app.request(`/api/v1/distribution-channels/${baseRow.id}`, {
+    const res = await app.request(`/api/admin/v1/distribution-channels/${baseRow.id}`, {
       method: "DELETE",
     });
     expect(res.status).toBe(409);
     const json = await res.json();
-    expect(json.error).toContain("3 printings");
+    expect(json.message).toContain("3 printings");
     expect(mockRepo.deleteLinksForChannel).not.toHaveBeenCalled();
     expect(mockRepo.deleteById).not.toHaveBeenCalled();
   });
@@ -117,7 +138,7 @@ describe("DELETE /api/v1/distribution-channels/:id", () => {
     mockRepo.deleteLinksForChannel.mockResolvedValue(undefined);
     mockRepo.deleteById.mockResolvedValue(undefined);
 
-    const res = await app.request(`/api/v1/distribution-channels/${baseRow.id}?force=true`, {
+    const res = await app.request(`/api/admin/v1/distribution-channels/${baseRow.id}?force=true`, {
       method: "DELETE",
     });
     expect(res.status).toBe(204);
@@ -128,7 +149,7 @@ describe("DELETE /api/v1/distribution-channels/:id", () => {
   it("returns 404 when the channel does not exist", async () => {
     mockRepo.getById.mockResolvedValue(undefined);
 
-    const res = await app.request(`/api/v1/distribution-channels/${baseRow.id}`, {
+    const res = await app.request(`/api/admin/v1/distribution-channels/${baseRow.id}`, {
       method: "DELETE",
     });
     expect(res.status).toBe(404);

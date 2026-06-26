@@ -1,6 +1,7 @@
 import { createLogger } from "@openrift/shared/logger";
+import { Hono } from "hono";
 
-import { createApiApp } from "../../openapi.js";
+import type { Variables } from "../../types.js";
 
 const log = createLogger("sentry-tunnel");
 
@@ -18,56 +19,59 @@ const MAX_ENVELOPE_BYTES = 1_000_000;
 // upstream only held a connection open per envelope and cluttered the network
 // tab with multi-second requests. The trade-off is that the SDK no longer sees
 // upstream 429s and won't back off; upstream failures are logged instead.
-export const sentryTunnelRoute = createApiApp().post("/sentry-tunnel", async (c) => {
-  const { sentryDsnSsr } = c.get("config");
-  const { fetch } = c.get("io");
+export const sentryTunnelRoute = new Hono<{ Variables: Variables }>().post(
+  "/sentry-tunnel",
+  async (c) => {
+    const { sentryDsnSsr } = c.get("config");
+    const { fetch } = c.get("io");
 
-  if (!sentryDsnSsr) {
-    return c.json({ error: "Sentry tunnel not configured" }, 503);
-  }
+    if (!sentryDsnSsr) {
+      return c.json({ error: "Sentry tunnel not configured" }, 503);
+    }
 
-  const allowed = new URL(sentryDsnSsr);
-  const allowedProjectId = allowed.pathname.replace(/^\/+/u, "");
+    const allowed = new URL(sentryDsnSsr);
+    const allowedProjectId = allowed.pathname.replace(/^\/+/u, "");
 
-  const body = await c.req.raw.arrayBuffer();
-  if (body.byteLength > MAX_ENVELOPE_BYTES) {
-    return c.body(null, 413);
-  }
+    const body = await c.req.raw.arrayBuffer();
+    if (body.byteLength > MAX_ENVELOPE_BYTES) {
+      return c.body(null, 413);
+    }
 
-  const text = new TextDecoder().decode(body);
-  const newlineIdx = text.indexOf("\n");
-  if (newlineIdx === -1) {
-    return c.body(null, 400);
-  }
-
-  let envelopeDsn: URL;
-  try {
-    const header = JSON.parse(text.slice(0, newlineIdx)) as { dsn?: string };
-    if (!header.dsn) {
+    const text = new TextDecoder().decode(body);
+    const newlineIdx = text.indexOf("\n");
+    if (newlineIdx === -1) {
       return c.body(null, 400);
     }
-    envelopeDsn = new URL(header.dsn);
-  } catch {
-    return c.body(null, 400);
-  }
 
-  const projectId = envelopeDsn.pathname.replace(/^\/+/u, "");
-  if (envelopeDsn.host !== allowed.host || projectId !== allowedProjectId) {
-    return c.body(null, 400);
-  }
+    let envelopeDsn: URL;
+    try {
+      const header = JSON.parse(text.slice(0, newlineIdx)) as { dsn?: string };
+      if (!header.dsn) {
+        return c.body(null, 400);
+      }
+      envelopeDsn = new URL(header.dsn);
+    } catch {
+      return c.body(null, 400);
+    }
 
-  const headers: Record<string, string> = {
-    "content-type": c.req.header("content-type") ?? "application/x-sentry-envelope",
-  };
-  const encoding = c.req.header("content-encoding");
-  if (encoding) {
-    headers["content-encoding"] = encoding;
-  }
+    const projectId = envelopeDsn.pathname.replace(/^\/+/u, "");
+    if (envelopeDsn.host !== allowed.host || projectId !== allowedProjectId) {
+      return c.body(null, 400);
+    }
 
-  void forwardEnvelope(fetch, envelopeDsn.host, projectId, headers, body);
+    const headers: Record<string, string> = {
+      "content-type": c.req.header("content-type") ?? "application/x-sentry-envelope",
+    };
+    const encoding = c.req.header("content-encoding");
+    if (encoding) {
+      headers["content-encoding"] = encoding;
+    }
 
-  return c.body(null, 200);
-});
+    void forwardEnvelope(fetch, envelopeDsn.host, projectId, headers, body);
+
+    return c.body(null, 200);
+  },
+);
 
 /**
  * Forward a validated envelope to Sentry ingest in the background. Never

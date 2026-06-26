@@ -1,4 +1,6 @@
 import type { UserPreferencesResponse } from "@openrift/shared";
+import { preferencesContract } from "@openrift/shared/contracts";
+import type { ContractRouterClient } from "@orpc/contract";
 import { useDebouncedCallback } from "@tanstack/react-pacer";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
@@ -8,31 +10,31 @@ import { useHydrated } from "@/hooks/use-hydrated";
 import { useUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
 import { sanitizePalette, sanitizeServerResponse, sanitizeTheme } from "@/lib/sanitize-preferences";
-import { callApi, callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useDisplayStore } from "@/stores/display-store";
 import { usePaletteStore } from "@/stores/palette-store";
 import { useThemeStore } from "@/stores/theme-store";
 
+// PATCH input derived from the contract (write subset, all optional).
+type PreferencesUpdateInput = Parameters<
+  ContractRouterClient<typeof preferencesContract>["update"]
+>[0];
+
+// Migrated to oRPC: contract-typed client instead of the hc client.
 const fetchPreferencesFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<UserPreferencesResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.preferences.$get(),
-        "Couldn't load preferences",
-      ),
+      apiOrpcClient(preferencesContract, context.cookie).get(),
   );
 
 const patchPreferencesFn = createServerFn({ method: "POST" })
   .validator((input: { prefs: UserPreferencesResponse }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1.preferences.$patch({
-        json: data.prefs,
-      }),
-      "Couldn't save preferences",
+    await apiOrpcClient(preferencesContract, context.cookie).update(
+      data.prefs as PreferencesUpdateInput,
     );
   });
 

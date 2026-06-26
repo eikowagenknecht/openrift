@@ -1,27 +1,27 @@
 import type { PriceLookup, PricesResponse } from "@openrift/shared";
 import { priceLookupFromMap } from "@openrift/shared";
+import { pricesContract } from "@openrift/shared/contracts";
 import type { QueryClient } from "@tanstack/react-query";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
-import { browserApiClient, callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
+import { apiOrpcClient, browserApiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchPrices = createServerFn({ method: "GET" }).handler(
   (): Promise<PricesResponse> =>
     serverCache.fetchQuery({
       queryKey: ["server-cache", "prices"],
-      queryFn: () => callApiJson(serverApiClient().api.v1.prices.$get(), "Couldn't load prices"),
+      queryFn: () => apiOrpcClient(pricesContract).prices(),
     }),
 );
 
 // Client-side fetch goes directly to /api/v1/prices so Cloudflare can serve
-// it from the edge cache — same pattern as use-cards.ts. Typed via the browser
-// hc client: the route path + response shape are checked against the API
-// contract, and a non-2xx surfaces the server's error message.
+// it from the edge cache — same pattern as use-cards.ts. The oRPC OpenAPI link
+// resolves the route from the contract and decodes the typed response.
 function fetchPricesFromEdge(): Promise<PricesResponse> {
-  return callApiJson(browserApiClient().api.v1.prices.$get(), "Couldn't load prices");
+  return browserApiOrpcClient(pricesContract).prices();
 }
 
 export const pricesQueryOptions = queryOptions({

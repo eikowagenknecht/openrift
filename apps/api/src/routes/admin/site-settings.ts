@@ -1,86 +1,25 @@
-import { createRoute } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
 import type { SiteSettingResponse } from "@openrift/shared";
-import { keyParamSchema } from "@openrift/shared/schemas";
-import { z } from "zod";
+import { adminSiteSettingsContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 import { assertDeleted, assertFound } from "../../utils/assertions.js";
-import { createSettingSchema, updateSettingSchema } from "./schemas.js";
 
-// ── Route definitions ───────────────────────────────────────────────────────
+const os = implement(adminSiteSettingsContract).$context<ApiContext>().use(requireUser);
 
-const listSettings = createRoute({
-  method: "get",
-  path: "/site-settings",
-  tags: ["Admin - Site Settings"],
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            settings: z.array(
-              z.object({
-                key: z.string().openapi({ example: "umami-url" }),
-                value: z.string().openapi({ example: "https://analytics.example.com" }),
-                scope: z.string().openapi({ example: "web" }),
-                createdAt: z.string().openapi({ example: "2026-04-01T10:00:00.000Z" }),
-                updatedAt: z.string().openapi({ example: "2026-04-01T10:00:00.000Z" }),
-              }),
-            ),
-          }),
-        },
-      },
-      description: "List site settings",
-    },
-  },
-});
-
-const createSetting = createRoute({
-  method: "post",
-  path: "/site-settings",
-  tags: ["Admin - Site Settings"],
-  request: {
-    body: { content: { "application/json": { schema: createSettingSchema } } },
-  },
-  responses: {
-    201: { description: "Created" },
-  },
-});
-
-const updateSetting = createRoute({
-  method: "patch",
-  path: "/site-settings/{key}",
-  tags: ["Admin - Site Settings"],
-  request: {
-    params: keyParamSchema,
-    body: { content: { "application/json": { schema: updateSettingSchema } } },
-  },
-  responses: {
-    204: { description: "No Content" },
-  },
-});
-
-const deleteSetting = createRoute({
-  method: "delete",
-  path: "/site-settings/{key}",
-  tags: ["Admin - Site Settings"],
-  request: {
-    params: keyParamSchema,
-  },
-  responses: {
-    204: { description: "No Content" },
-  },
-});
-
-// ── Route ───────────────────────────────────────────────────────────────────
-
-export const adminSiteSettingsRoute = createApiApp()
-  .openapi(listSettings, async (c) => {
-    const { siteSettings } = c.get("repos");
+/**
+ * oRPC implementation of the admin site-settings CRUD. Logic unchanged from the
+ * previous `@hono/zod-openapi` handlers; conflict / not-found states are thrown
+ * as `AppError` and mapped by the handler's {@link appErrorInterceptor}.
+ */
+export const adminSiteSettingsRouter = {
+  list: os.list.handler(async ({ context }) => {
+    const { siteSettings } = context.repos;
     const rows = await siteSettings.listAll();
-    return c.json({
+    return {
       settings: rows.map(
         (r): SiteSettingResponse => ({
           key: r.key,
@@ -90,42 +29,28 @@ export const adminSiteSettingsRoute = createApiApp()
           updatedAt: r.updatedAt.toISOString(),
         }),
       ),
-    });
-  })
+    };
+  }),
 
-  .openapi(createSetting, async (c) => {
-    const { siteSettings } = c.get("repos");
-    const { key, value, scope } = c.req.valid("json");
-
-    const created = await siteSettings.create({
-      key,
-      value,
-      scope: scope ?? "web",
-    });
+  create: os.create.handler(async ({ input, context }): Promise<void> => {
+    const { siteSettings } = context.repos;
+    const { key, value, scope } = input;
+    const created = await siteSettings.create({ key, value, scope: scope ?? "web" });
     if (!created) {
       throw new AppError(409, ERROR_CODES.CONFLICT, `Setting "${key}" already exists`);
     }
+  }),
 
-    return c.body(null, 201);
-  })
-
-  .openapi(updateSetting, async (c) => {
-    const { siteSettings } = c.get("repos");
-    const { key } = c.req.valid("param");
-    const body = c.req.valid("json");
-
+  update: os.update.handler(async ({ input, context }): Promise<void> => {
+    const { siteSettings } = context.repos;
+    const { key, ...body } = input;
     const updated = await siteSettings.update(key, body);
     assertFound(updated, `Setting "${key}" not found`);
+  }),
 
-    return c.body(null, 204);
-  })
-
-  .openapi(deleteSetting, async (c) => {
-    const { siteSettings } = c.get("repos");
-    const { key } = c.req.valid("param");
-
-    const result = await siteSettings.deleteByKey(key);
-    assertDeleted(result, `Setting "${key}" not found`);
-
-    return c.body(null, 204);
-  });
+  remove: os.remove.handler(async ({ input, context }): Promise<void> => {
+    const { siteSettings } = context.repos;
+    const result = await siteSettings.deleteByKey(input.key);
+    assertDeleted(result, `Setting "${input.key}" not found`);
+  }),
+};

@@ -48,8 +48,10 @@ describe("OpenAPI doc split", () => {
     expect(doc.info.title).toBe("OpenRift API");
     expect(paths.length).toBeGreaterThan(0);
     expect(paths.some((p) => p.startsWith("/api/admin/"))).toBe(false);
-    // A representative public path is still present.
-    expect(paths.some((p) => p.startsWith("/api/v1/"))).toBe(true);
+    // A migrated oRPC endpoint (from the contract-derived spec) is present...
+    expect(paths).toContain("/api/v1/catalog");
+    // ...alongside a plain-Hono route whose doc entry comes from a doc-only contract.
+    expect(paths).toContain("/api/v1/ingest/deck-check");
   });
 
   it("admin /api/admin/doc contains only the admin surface", async () => {
@@ -58,7 +60,8 @@ describe("OpenAPI doc split", () => {
     expect(doc.info.title).toBe("OpenRift Admin API");
     expect(paths.length).toBeGreaterThan(0);
     expect(paths.every((p) => p.startsWith("/api/admin/"))).toBe(true);
-    // A representative admin path is present at the new base.
-    expect(paths).toContain("/api/admin/v1/me");
+    // A representative migrated oRPC admin endpoint (from the contract spec).
+    // The sentry smoke test is a plain Hono route and intentionally not documented.
+    expect(paths).toContain("/api/admin/v1/users");
   });
 });

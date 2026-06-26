@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AppError } from "../../errors.js";
-import { publicCollectionsRoute } from "./collections";
+import { registerRouterForTest } from "../../test/mount-router.js";
+import type { Variables } from "../../types.js";
+import { publicCollectionsRouter } from "./collections";
 
 const mockCollectionsRepo = {
   findByShareToken: vi.fn(
@@ -25,23 +26,18 @@ const mockUserPreferencesRepo = {
   getByUserId: vi.fn(() => Promise.resolve(undefined)),
 };
 
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("repos", {
-      collections: mockCollectionsRepo,
-      copies: mockCopiesRepo,
-      marketplace: mockMarketplaceRepo,
-      userPreferences: mockUserPreferencesRepo,
-    } as never);
-    await next();
-  })
-  .route("/api/v1", publicCollectionsRoute)
-  .onError((err, c) => {
-    if (err instanceof AppError) {
-      return c.json({ error: err.message, code: err.code }, err.status as 404);
-    }
-    throw err;
-  });
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  c.set("repos", {
+    collections: mockCollectionsRepo,
+    copies: mockCopiesRepo,
+    marketplace: mockMarketplaceRepo,
+    userPreferences: mockUserPreferencesRepo,
+    // oxlint-disable-next-line no-explicit-any -- test mock doesn't match full Repos type
+  } as any);
+  await next();
+});
+registerRouterForTest(app, publicCollectionsRouter);
 
 const COLLECTION_ID = "a0000000-0001-4000-a000-000000000010";
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
@@ -196,16 +192,5 @@ describe("GET /api/v1/collections/share/:token", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.collection.id).toBe(dbInbox.id);
-  });
-
-  it("sets a public cache-control header for browsers and CDNs", async () => {
-    mockCollectionsRepo.findByShareToken.mockResolvedValue({
-      collection: dbCollection,
-      ownerName: "Alice",
-    });
-    mockCopiesRepo.listForCollection.mockResolvedValue([]);
-
-    const res = await app.request("/api/v1/collections/share/tok-abc");
-    expect(res.headers.get("cache-control")).toMatch(/public/u);
   });
 });

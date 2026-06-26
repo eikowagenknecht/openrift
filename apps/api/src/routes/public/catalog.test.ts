@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { catalogRoute } from "./catalog";
+import { registerRouterForTest } from "../../test/mount-router.js";
+import type { Variables } from "../../types.js";
+import { catalogRouter } from "./catalog";
 
 // ---------------------------------------------------------------------------
 // Mock repos
@@ -27,23 +29,34 @@ const mockCustomTagsRepo = {
   assignmentsByCard: vi.fn(() => Promise.resolve(new Map<string, string[]>())),
 };
 
-// oxlint-disable-next-line -- test mock doesn't match full Repos type
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("repos", {
-      catalog: mockCatalogRepo,
-      distributionChannels: mockDistributionChannelsRepo,
-      customTags: mockCustomTagsRepo,
-    } as never);
-    await next();
-  })
-  .route("/api/v1", catalogRoute);
+// Mount the catalog router the way production does (one OpenAPIHandler behind a
+// catch-all). Cache-Control + `etag()` are app-level concerns (orpc/cache-policy.ts
+// and its test), so they are not asserted here.
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  c.set("repos", {
+    catalog: mockCatalogRepo,
+    distributionChannels: mockDistributionChannelsRepo,
+    customTags: mockCustomTagsRepo,
+  } as never);
+  await next();
+});
+registerRouterForTest(app, catalogRouter);
 
 // ---------------------------------------------------------------------------
 // Test data
 // ---------------------------------------------------------------------------
 
-const dbSet = { id: "OGS", slug: "OGS", name: "Original Set" };
+// `releasedAt` / `released` / `setType` are real `sets` columns — the catalog
+// output schema requires them, so the fixture carries them too.
+const dbSet = {
+  id: "OGS",
+  slug: "OGS",
+  name: "Original Set",
+  releasedAt: "2025-10-31",
+  released: true,
+  setType: "main" as const,
+};
 
 const dbCard = {
   id: "OGS-001",
@@ -79,6 +92,10 @@ const dbPrintingRow = {
   printedName: null,
   printedYear: null,
   language: "EN",
+  // `comment` + `canonicalRank` ride through from the `printings_ordered` view;
+  // the catalog output schema requires both.
+  comment: null,
+  canonicalRank: 1,
 };
 
 const dbImage = {
@@ -134,7 +151,14 @@ describe("GET /api/v1/catalog", () => {
   it("returns sets as { id, slug, name } objects", async () => {
     const res = await app.request("/api/v1/catalog");
     const json = await res.json();
-    expect(json.sets[0]).toEqual({ id: "OGS", slug: "OGS", name: "Original Set" });
+    expect(json.sets[0]).toEqual({
+      id: "OGS",
+      slug: "OGS",
+      name: "Original Set",
+      releasedAt: "2025-10-31",
+      released: true,
+      setType: "main",
+    });
   });
 
   it("returns cards keyed by card ID with non-null fields preserved", async () => {
@@ -247,7 +271,14 @@ describe("GET /api/v1/catalog", () => {
   });
 
   it("returns printings from multiple sets keyed by printing id", async () => {
-    const secondSet = { id: "S2", slug: "S2", name: "Set Two" };
+    const secondSet = {
+      id: "S2",
+      slug: "S2",
+      name: "Set Two",
+      releasedAt: null,
+      released: false,
+      setType: "supplemental" as const,
+    };
     const secondCard = { ...dbCard, id: "S2-001", slug: "S2-001" };
     const secondRow = {
       ...dbPrintingRow,
@@ -287,37 +318,11 @@ describe("GET /api/v1/catalog", () => {
     expect(json.sets).toEqual([]);
   });
 
-  it("returns ETag and Cache-Control headers", async () => {
-    const res = await app.request("/api/v1/catalog");
-    expect(res.headers.get("ETag")).toBeTruthy();
-    expect(res.headers.get("Cache-Control")).toBe(
-      "public, max-age=3600, stale-while-revalidate=86400",
-    );
-  });
-
   it("accepts and ignores the ?v= cache-busting param (same body and ETag)", async () => {
     const plain = await app.request("/api/v1/catalog");
     const versioned = await app.request("/api/v1/catalog?v=some-etag-token");
     expect(versioned.status).toBe(200);
-    expect(versioned.headers.get("ETag")).toBe(plain.headers.get("ETag"));
     expect(await versioned.json()).toEqual(await plain.json());
-  });
-
-  it("returns 304 when If-None-Match matches current ETag", async () => {
-    const first = await app.request("/api/v1/catalog");
-    const etag = first.headers.get("ETag") ?? "";
-
-    const res = await app.request("/api/v1/catalog", {
-      headers: { "If-None-Match": etag },
-    });
-    expect(res.status).toBe(304);
-  });
-
-  it("returns 200 when If-None-Match does not match", async () => {
-    const res = await app.request("/api/v1/catalog", {
-      headers: { "If-None-Match": '"stale"' },
-    });
-    expect(res.status).toBe(200);
   });
 
   it("returns multiple images for a single printing", async () => {

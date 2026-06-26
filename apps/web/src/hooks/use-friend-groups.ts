@@ -14,13 +14,15 @@ import type {
   FriendGroupSharedCollectionDetailResponse,
   FriendGroupSharedListDetailResponse,
 } from "@openrift/shared";
+import { friendGroupsContract } from "@openrift/shared/contracts";
+import { ORPCError } from "@orpc/client";
 import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 // ── Server functions: queries ───────────────────────────────────────────────
@@ -29,47 +31,37 @@ const fetchGroups = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<FriendGroupListResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"].$get(),
-        "Couldn't load groups",
-      ),
+      apiOrpcClient(friendGroupsContract, context.cookie).list(),
   );
 
 const fetchPendingInvitesCount = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<FriendGroupPendingInvitesCountResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"]["pending-invites-count"].$get(),
-        "Couldn't load invite count",
-      ),
+      apiOrpcClient(friendGroupsContract, context.cookie).pendingInvitesCount(),
   );
 
 const fetchPendingRequestsCount = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<FriendGroupPendingRequestsCountResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"]["pending-requests-count"].$get(),
-        "Couldn't load request count",
-      ),
+      apiOrpcClient(friendGroupsContract, context.cookie).pendingRequestsCount(),
   );
 
 const fetchGroupDetail = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: slug }): Promise<FriendGroupDetailResponse> => {
-    const res = await callApi(
-      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].$get({
-        param: encodeParams({ slug }),
-      }),
-      "Couldn't load group",
-      [404],
-    );
-    if ((res.status as number) === 404) {
-      throw new Error("NOT_FOUND");
+    // 404 (unknown group, or one the viewer can't see) maps to the NOT_FOUND
+    // sentinel the route boundary expects.
+    try {
+      return await apiOrpcClient(friendGroupsContract, context.cookie).get({ slug });
+    } catch (error) {
+      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+        throw new Error("NOT_FOUND");
+      }
+      throw error;
     }
-    return res.json() as Promise<FriendGroupDetailResponse>;
   });
 
 const fetchGroupMatches = createServerFn({ method: "GET" })
@@ -77,12 +69,7 @@ const fetchGroupMatches = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data: slug }): Promise<FriendGroupMatchesResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].matches.$get({
-          param: encodeParams({ slug }),
-        }),
-        "Couldn't load matches",
-      ),
+      apiOrpcClient(friendGroupsContract, context.cookie).matches({ slug }),
   );
 
 const fetchGroupActivity = createServerFn({ method: "GET" })
@@ -90,12 +77,7 @@ const fetchGroupActivity = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data: slug }): Promise<FriendGroupActivityResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].activity.$get({
-          param: encodeParams({ slug }),
-        }),
-        "Couldn't load activity",
-      ),
+      apiOrpcClient(friendGroupsContract, context.cookie).activity({ slug }),
   );
 
 const fetchMemberDetail = createServerFn({ method: "GET" })
@@ -103,12 +85,7 @@ const fetchMemberDetail = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<FriendGroupMemberDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].members[":userId"].$get({
-          param: encodeParams({ slug: data.slug, userId: data.userId }),
-        }),
-        "Couldn't load member",
-      ),
+      apiOrpcClient(friendGroupsContract, context.cookie).getMemberDetail(data),
   );
 
 const fetchShareableLists = createServerFn({ method: "GET" })
@@ -116,46 +93,36 @@ const fetchShareableLists = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data: slug }): Promise<FriendGroupShareableListsResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"]["shareable-lists"].$get({
-          param: encodeParams({ slug }),
-        }),
-        "Couldn't load lists",
-      ),
+      apiOrpcClient(friendGroupsContract, context.cookie).shareableLists({ slug }),
   );
 
 const fetchJoinPreview = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: code }): Promise<FriendGroupJoinPreviewResponse> => {
-    const res = await callApi(
-      serverApiClient(context.cookie).api.v1["friend-groups"].preview.$get({
-        query: { code },
-      }),
-      "Couldn't load preview",
-      [404],
-    );
-    if ((res.status as number) === 404) {
-      throw new Error("NOT_FOUND");
+    // 404 (no group matches the code) maps to the NOT_FOUND sentinel.
+    try {
+      return await apiOrpcClient(friendGroupsContract, context.cookie).preview({ code });
+    } catch (error) {
+      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+        throw new Error("NOT_FOUND");
+      }
+      throw error;
     }
-    return res.json() as Promise<FriendGroupJoinPreviewResponse>;
   });
 
 const fetchSharedList = createServerFn({ method: "GET" })
   .validator((input: { slug: string; listId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }): Promise<FriendGroupSharedListDetailResponse> => {
-    const res = await callApi(
-      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].lists[":listId"].$get({
-        param: encodeParams({ slug: data.slug, listId: data.listId }),
-      }),
-      "Couldn't load list",
-      [404],
-    );
-    if ((res.status as number) === 404) {
-      throw new Error("NOT_FOUND");
+    try {
+      return await apiOrpcClient(friendGroupsContract, context.cookie).getSharedList(data);
+    } catch (error) {
+      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+        throw new Error("NOT_FOUND");
+      }
+      throw error;
     }
-    return res.json() as Promise<FriendGroupSharedListDetailResponse>;
   });
 
 const fetchShareableCollections = createServerFn({ method: "GET" })
@@ -163,33 +130,21 @@ const fetchShareableCollections = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data: slug }): Promise<FriendGroupShareableCollectionsResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"][
-          "shareable-collections"
-        ].$get({
-          param: encodeParams({ slug }),
-        }),
-        "Couldn't load collections",
-      ),
+      apiOrpcClient(friendGroupsContract, context.cookie).shareableCollections({ slug }),
   );
 
 const fetchSharedCollection = createServerFn({ method: "GET" })
   .validator((input: { slug: string; collectionId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }): Promise<FriendGroupSharedCollectionDetailResponse> => {
-    const res = await callApi(
-      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].collections[
-        ":collectionId"
-      ].$get({
-        param: encodeParams({ slug: data.slug, collectionId: data.collectionId }),
-      }),
-      "Couldn't load collection",
-      [404],
-    );
-    if ((res.status as number) === 404) {
-      throw new Error("NOT_FOUND");
+    try {
+      return await apiOrpcClient(friendGroupsContract, context.cookie).getSharedCollection(data);
+    } catch (error) {
+      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+        throw new Error("NOT_FOUND");
+      }
+      throw error;
     }
-    return res.json() as Promise<FriendGroupSharedCollectionDetailResponse>;
   });
 
 // ── Hooks ───────────────────────────────────────────────────────────────────
@@ -362,12 +317,7 @@ const createGroupFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<FriendGroupResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"].$post({
-          json: data,
-        }),
-        "Couldn't create group",
-      ),
+      apiOrpcClient(friendGroupsContract, context.cookie).create(data),
   );
 
 const updateGroupFn = createServerFn({ method: "POST" })
@@ -378,25 +328,19 @@ const updateGroupFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(({ context, data }): Promise<FriendGroupResponse> => {
     const { slug, newSlug, ...fields } = data;
-    return callApiJson(
-      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].$patch({
-        param: encodeParams({ slug }),
-        json: { ...fields, slug: newSlug },
-      }),
-      "Couldn't update group",
-    );
+    // Detailed input: the path slug (current) and the body slug (rename target)
+    // are distinct fields, so they ride in separate envelopes.
+    return apiOrpcClient(friendGroupsContract, context.cookie).update({
+      params: { slug },
+      body: { ...fields, slug: newSlug },
+    });
   });
 
 const deleteGroupFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: slug }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].$delete({
-        param: encodeParams({ slug }),
-      }),
-      "Couldn't delete group",
-    );
+    await apiOrpcClient(friendGroupsContract, context.cookie).remove({ slug });
   });
 
 const rotateCodeFn = createServerFn({ method: "POST" })
@@ -404,12 +348,7 @@ const rotateCodeFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data: slug }): Promise<FriendGroupResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].code.rotate.$post({
-          param: encodeParams({ slug }),
-        }),
-        "Couldn't rotate code",
-      ),
+      apiOrpcClient(friendGroupsContract, context.cookie).rotateCode({ slug }),
   );
 
 const disableCodeFn = createServerFn({ method: "POST" })
@@ -417,12 +356,7 @@ const disableCodeFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data: slug }): Promise<FriendGroupResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].code.$delete({
-          param: encodeParams({ slug }),
-        }),
-        "Couldn't disable code",
-      ),
+      apiOrpcClient(friendGroupsContract, context.cookie).disableCode({ slug }),
   );
 
 const enableCodeFn = createServerFn({ method: "POST" })
@@ -430,88 +364,49 @@ const enableCodeFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data: slug }): Promise<FriendGroupResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].code.$post({
-          param: encodeParams({ slug }),
-        }),
-        "Couldn't enable code",
-      ),
+      apiOrpcClient(friendGroupsContract, context.cookie).enableCode({ slug }),
   );
 
 const joinByCodeFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: code }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1["friend-groups"].join.$post({
-        json: { code },
-      }),
-      "Couldn't submit join request",
-    );
+    await apiOrpcClient(friendGroupsContract, context.cookie).join({ code });
   });
 
 const inviteByEmailFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; email: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].invites.$post({
-        param: encodeParams({ slug: data.slug }),
-        json: { email: data.email },
-      }),
-      "Couldn't send invite",
-    );
+    await apiOrpcClient(friendGroupsContract, context.cookie).inviteByEmail(data);
   });
 
 const acceptInviteFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; userId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].invites[
-        ":userId"
-      ].accept.$post({
-        param: encodeParams({ slug: data.slug, userId: data.userId }),
-      }),
-      "Couldn't accept",
-    );
+    await apiOrpcClient(friendGroupsContract, context.cookie).acceptInvite(data);
   });
 
 const declineInviteFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; userId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].invites[":userId"].$delete({
-        param: encodeParams({ slug: data.slug, userId: data.userId }),
-      }),
-      "Couldn't decline",
-    );
+    await apiOrpcClient(friendGroupsContract, context.cookie).declineInvite(data);
   });
 
 const leaveFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: slug }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].leave.$post({
-        param: encodeParams({ slug }),
-      }),
-      "Couldn't leave group",
-    );
+    await apiOrpcClient(friendGroupsContract, context.cookie).leave({ slug });
   });
 
 const transferOwnershipFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; userId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"]["transfer-ownership"].$post({
-        param: encodeParams({ slug: data.slug }),
-        json: { userId: data.userId },
-      }),
-      "Couldn't transfer ownership",
-    );
+    await apiOrpcClient(friendGroupsContract, context.cookie).transferOwnership(data);
   });
 
 const updateRoleFn = createServerFn({ method: "POST" })
@@ -519,15 +414,7 @@ const updateRoleFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<FriendGroupMemberResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].members[
-          ":userId"
-        ].role.$patch({
-          param: encodeParams({ slug: data.slug, userId: data.userId }),
-          json: { role: data.role },
-        }),
-        "Couldn't update role",
-      ),
+      apiOrpcClient(friendGroupsContract, context.cookie).updateRole(data),
   );
 
 const setRevealedContactsFn = createServerFn({ method: "POST" })
@@ -535,79 +422,42 @@ const setRevealedContactsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<FriendGroupMemberResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].members[
-          ":userId"
-        ].contacts.$put({
-          param: encodeParams({ slug: data.slug, userId: data.userId }),
-          json: { contactMethodIds: data.contactMethodIds },
-        }),
-        "Couldn't update shared contacts",
-      ),
+      apiOrpcClient(friendGroupsContract, context.cookie).setRevealedContacts(data),
   );
 
 const kickMemberFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; userId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].members[":userId"].$delete({
-        param: encodeParams({ slug: data.slug, userId: data.userId }),
-      }),
-      "Couldn't remove member",
-    );
+    await apiOrpcClient(friendGroupsContract, context.cookie).kickMember(data);
   });
 
 const shareListFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; listId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].lists.$post({
-        param: encodeParams({ slug: data.slug }),
-        json: { listId: data.listId },
-      }),
-      "Couldn't share list",
-    );
+    await apiOrpcClient(friendGroupsContract, context.cookie).shareList(data);
   });
 
 const unshareListFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; listId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].lists[":listId"].$delete({
-        param: encodeParams({ slug: data.slug, listId: data.listId }),
-      }),
-      "Couldn't unshare list",
-    );
+    await apiOrpcClient(friendGroupsContract, context.cookie).unshareList(data);
   });
 
 const shareCollectionFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; collectionId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].collections.$post({
-        param: encodeParams({ slug: data.slug }),
-        json: { collectionId: data.collectionId },
-      }),
-      "Couldn't share collection",
-    );
+    await apiOrpcClient(friendGroupsContract, context.cookie).shareCollection(data);
   });
 
 const unshareCollectionFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; collectionId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].collections[
-        ":collectionId"
-      ].$delete({
-        param: encodeParams({ slug: data.slug, collectionId: data.collectionId }),
-      }),
-      "Couldn't unshare collection",
-    );
+    await apiOrpcClient(friendGroupsContract, context.cookie).unshareCollection(data);
   });
 
 // ── Mutation hooks ──────────────────────────────────────────────────────────

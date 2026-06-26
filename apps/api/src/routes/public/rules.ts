@@ -1,4 +1,3 @@
-import { createRoute } from "@hono/zod-openapi";
 import type {
   RuleKind,
   RuleResponse,
@@ -6,62 +5,14 @@ import type {
   RuleVersionResponse,
   RuleVersionsListResponse,
 } from "@openrift/shared";
-import {
-  rulesListResponseSchema,
-  ruleVersionsListResponseSchema,
-} from "@openrift/shared/response-schemas";
-import { etag } from "hono/etag";
-import { z } from "zod";
+import { rulesContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
-import { errorResponses } from "../../openapi-helpers.js";
-import { createApiApp } from "../../openapi.js";
-
-const ruleKindEnum = z.enum(["core", "tournament"]);
-
-// ── Route definitions ───────────────────────────────────────────────────────
-
-const listRules = createRoute({
-  method: "get",
-  path: "/rules",
-  tags: ["Rules"],
-  request: {
-    query: z.object({
-      kind: ruleKindEnum,
-      version: z.string().optional(),
-    }),
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: rulesListResponseSchema } },
-      description: "List of rules",
-    },
-    ...errorResponses(400),
-  },
-});
-
-const listVersions = createRoute({
-  method: "get",
-  path: "/rules/versions",
-  tags: ["Rules"],
-  request: {
-    query: z.object({
-      kind: ruleKindEnum.optional(),
-    }),
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: ruleVersionsListResponseSchema } },
-      description: "List of rule versions",
-    },
-    ...errorResponses(400),
-  },
-});
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 
 /**
  * Maps a database rule row to a response shape.
- *
  * @returns Formatted rule response.
  */
 function toRuleResponse(row: {
@@ -88,17 +39,16 @@ function toRuleResponse(row: {
   };
 }
 
-// ── Route ───────────────────────────────────────────────────────────────────
+const os = implement(rulesContract).$context<ApiContext>().use(requireUser);
 
-const rulesApp = createApiApp();
-rulesApp.use("/rules", etag());
-rulesApp.use("/rules/versions", etag());
-
-export const rulesRoute = rulesApp
-  // ── GET /rules ──────────────────────────────────────────────────────────
-  .openapi(listRules, async (c) => {
-    const { rules: repo } = c.get("repos");
-    const { kind, version } = c.req.valid("query");
+/**
+ * oRPC implementation of the public rules contract. Logic unchanged from the
+ * previous `@hono/zod-openapi` handlers; only the routing layer moved.
+ */
+export const rulesRouter = {
+  list: os.list.handler(async ({ input, context }): Promise<RulesListResponse> => {
+    const { rules: repo } = context.repos;
+    const { kind, version } = input;
 
     const rows = version ? await repo.listAtVersion(kind, version) : await repo.listLatest(kind);
 
@@ -108,44 +58,34 @@ export const rulesRoute = rulesApp
 
     const changes = version ? await repo.listChangesAtVersion(kind, version) : null;
 
-    c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-    return c.json(
-      {
-        kind,
-        rules: rows.map((row) => toRuleResponse(row)),
-        version: effectiveVersion,
-        ...(changes
-          ? {
-              changes: {
-                added: changes.added,
-                modifiedPrev: changes.modifiedPrev,
-                removed: changes.removed.map((row) => toRuleResponse(row)),
-              },
-            }
-          : {}),
-      } satisfies RulesListResponse,
-      200,
-    );
-  })
+    return {
+      kind,
+      rules: rows.map((row) => toRuleResponse(row)),
+      version: effectiveVersion,
+      ...(changes
+        ? {
+            changes: {
+              added: changes.added,
+              modifiedPrev: changes.modifiedPrev,
+              removed: changes.removed.map((row) => toRuleResponse(row)),
+            },
+          }
+        : {}),
+    };
+  }),
 
-  // ── GET /rules/versions ─────────────────────────────────────────────────
-  .openapi(listVersions, async (c) => {
-    const { rules: repo } = c.get("repos");
-    const { kind } = c.req.valid("query");
-    const rows = await repo.listVersions(kind);
-
-    c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-    return c.json(
-      {
-        versions: rows.map(
-          (r): RuleVersionResponse => ({
-            kind: r.kind as RuleKind,
-            version: r.version,
-            comments: r.comments,
-            importedAt: r.importedAt.toISOString(),
-          }),
-        ),
-      } satisfies RuleVersionsListResponse,
-      200,
-    );
-  });
+  versions: os.versions.handler(async ({ input, context }): Promise<RuleVersionsListResponse> => {
+    const { rules: repo } = context.repos;
+    const rows = await repo.listVersions(input.kind);
+    return {
+      versions: rows.map(
+        (r): RuleVersionResponse => ({
+          kind: r.kind as RuleKind,
+          version: r.version,
+          comments: r.comments,
+          importedAt: r.importedAt.toISOString(),
+        }),
+      ),
+    };
+  }),
+};

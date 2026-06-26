@@ -29,8 +29,9 @@ describe("cardDetailQueryOptions", () => {
   });
 
   it("throws Error('NOT_FOUND') when the API returns 404", async () => {
-    // callApi accepts the 404 (acceptStatuses) and returns it; the handler maps
-    // it to NOT_FOUND. Mock global fetch — the boundary the hc client calls.
+    // The oRPC client surfaces a 404 as an ORPCError with code NOT_FOUND; the
+    // handler maps it to the sentinel. Mock global fetch — the boundary the
+    // oRPC OpenAPI link calls.
     const fetchMock = vi.fn().mockResolvedValueOnce(new Response(null, { status: 404 }));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -41,8 +42,11 @@ describe("cardDetailQueryOptions", () => {
       (queryFn as () => Promise<unknown>)(),
     ).rejects.toThrow("NOT_FOUND");
 
-    const [url] = fetchMock.mock.calls[0] as [string];
-    expect(url).toBe("http://localhost:3000/api/v1/cards/does-not-exist");
+    // oRPC's fetch link may call fetch(url, init) or fetch(request); read the
+    // URL from whichever shape it used.
+    const [first] = fetchMock.mock.calls[0] as [string | Request];
+    const calledUrl = first instanceof Request ? first.url : String(first);
+    expect(calledUrl).toBe("http://localhost:3000/api/v1/cards/does-not-exist");
   });
 
   it("returns the parsed payload on 200", async () => {

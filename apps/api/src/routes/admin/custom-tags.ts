@@ -1,4 +1,3 @@
-import { createRoute } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
 import type {
   AdminCustomTagAssignmentsResponse,
@@ -7,249 +6,58 @@ import type {
   CustomTagCategoryResponse,
   CustomTagResponse,
 } from "@openrift/shared";
-import { idParamSchema } from "@openrift/shared/schemas";
-import { z } from "zod";
+import { adminCustomTagsContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 import { assertFound } from "../../utils/assertions.js";
-import {
-  addCardsToCustomTagSchema,
-  createCustomTagCategorySchema,
-  createCustomTagSchema,
-  setCardCustomTagsSchema,
-  updateCustomTagCategorySchema,
-  updateCustomTagSchema,
-} from "./schemas.js";
 
-const customTagSchema = z.object({
-  id: z.string().openapi({ example: "019d4999-4219-72f6-b7bb-64004e1b1bff" }),
-  slug: z.string().openapi({ example: "bandle-city" }),
-  label: z.string().openapi({ example: "Bandle City" }),
-  category: z.string().openapi({ example: "region" }),
-  categoryLabel: z.string().openapi({ example: "Region" }),
-  categoryId: z.string().openapi({ example: "019d4999-0000-72f6-b7bb-64004e1b1bff" }),
-  description: z.string().nullable().openapi({ example: null }),
-  sortOrder: z.number().openapi({ example: 0 }),
-  cardCount: z.number().openapi({ example: 12 }),
-  createdAt: z.string().openapi({ example: "2026-05-15T10:00:00.000Z" }),
-  updatedAt: z.string().openapi({ example: "2026-05-15T10:00:00.000Z" }),
-});
+const os = implement(adminCustomTagsContract).$context<ApiContext>().use(requireUser);
 
-const customTagCategorySchema = z.object({
-  id: z.string().openapi({ example: "019d4999-0000-72f6-b7bb-64004e1b1bff" }),
-  slug: z.string().openapi({ example: "region" }),
-  label: z.string().openapi({ example: "Region" }),
-  description: z.string().nullable().openapi({ example: null }),
-  sortOrder: z.number().openapi({ example: 0 }),
-  tagCount: z.number().openapi({ example: 3 }),
-  createdAt: z.string().openapi({ example: "2026-05-15T10:00:00.000Z" }),
-  updatedAt: z.string().openapi({ example: "2026-05-15T10:00:00.000Z" }),
-});
-
-const listCustomTagCategories = createRoute({
-  method: "get",
-  path: "/custom-tag-categories",
-  tags: ["Admin - Custom Tags"],
-  responses: {
-    200: {
-      content: {
-        "application/json": { schema: z.object({ categories: z.array(customTagCategorySchema) }) },
-      },
-      description: "List custom-tag categories with tag-count usage",
-    },
-  },
-});
-
-const createCustomTagCategory = createRoute({
-  method: "post",
-  path: "/custom-tag-categories",
-  tags: ["Admin - Custom Tags"],
-  request: {
-    body: { content: { "application/json": { schema: createCustomTagCategorySchema } } },
-  },
-  responses: {
-    201: {
-      content: { "application/json": { schema: z.object({ category: customTagCategorySchema }) } },
-      description: "Custom-tag category created",
-    },
-  },
-});
-
-const updateCustomTagCategory = createRoute({
-  method: "patch",
-  path: "/custom-tag-categories/{id}",
-  tags: ["Admin - Custom Tags"],
-  request: {
-    params: idParamSchema,
-    body: { content: { "application/json": { schema: updateCustomTagCategorySchema } } },
-  },
-  responses: { 204: { description: "Custom-tag category updated" } },
-});
-
-const deleteCustomTagCategory = createRoute({
-  method: "delete",
-  path: "/custom-tag-categories/{id}",
-  tags: ["Admin - Custom Tags"],
-  request: { params: idParamSchema },
-  responses: {
-    204: { description: "Custom-tag category deleted" },
-    409: { description: "Category is in use by one or more tags" },
-  },
-});
-
-const listCustomTags = createRoute({
-  method: "get",
-  path: "/custom-tags",
-  tags: ["Admin - Custom Tags"],
-  responses: {
-    200: {
-      content: {
-        "application/json": { schema: z.object({ tags: z.array(customTagSchema) }) },
-      },
-      description: "List custom tags with card-count usage",
-    },
-  },
-});
-
-const listCustomTagAssignments = createRoute({
-  method: "get",
-  path: "/custom-tags/assignments",
-  tags: ["Admin - Custom Tags"],
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({ assignments: z.record(z.string(), z.array(z.string())) }),
-        },
-      },
-      description: "Map of card id → custom-tag slugs",
-    },
-  },
-});
-
-const createCustomTag = createRoute({
-  method: "post",
-  path: "/custom-tags",
-  tags: ["Admin - Custom Tags"],
-  request: { body: { content: { "application/json": { schema: createCustomTagSchema } } } },
-  responses: {
-    201: {
-      content: { "application/json": { schema: z.object({ tag: customTagSchema }) } },
-      description: "Custom tag created",
-    },
-  },
-});
-
-const updateCustomTag = createRoute({
-  method: "patch",
-  path: "/custom-tags/{id}",
-  tags: ["Admin - Custom Tags"],
-  request: {
-    params: idParamSchema,
-    body: { content: { "application/json": { schema: updateCustomTagSchema } } },
-  },
-  responses: { 204: { description: "Custom tag updated" } },
-});
-
-const deleteCustomTag = createRoute({
-  method: "delete",
-  path: "/custom-tags/{id}",
-  tags: ["Admin - Custom Tags"],
-  request: { params: idParamSchema },
-  responses: { 204: { description: "Custom tag deleted (assignments cascade)" } },
-});
-
-const setCardCustomTags = createRoute({
-  method: "put",
-  path: "/cards/{id}/custom-tags",
-  tags: ["Admin - Custom Tags"],
-  request: {
-    params: idParamSchema,
-    body: { content: { "application/json": { schema: setCardCustomTagsSchema } } },
-  },
-  responses: { 204: { description: "Card's custom tags replaced" } },
-});
-
-const getCardCustomTags = createRoute({
-  method: "get",
-  path: "/cards/{id}/custom-tags",
-  tags: ["Admin - Custom Tags"],
-  request: { params: idParamSchema },
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({ customTagIds: z.array(z.string()) }),
-        },
-      },
-      description: "Custom-tag ids currently assigned to this card",
-    },
-  },
-});
-
-const addCardsToCustomTag = createRoute({
-  method: "post",
-  path: "/custom-tags/{id}/cards",
-  tags: ["Admin - Custom Tags"],
-  request: {
-    params: idParamSchema,
-    body: { content: { "application/json": { schema: addCardsToCustomTagSchema } } },
-  },
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            added: z.number().openapi({ example: 12 }),
-            requested: z.number().openapi({ example: 15 }),
+/**
+ * oRPC implementation of the admin custom-tags taxonomy: tag categories, tags,
+ * and per-card assignment. Logic unchanged from the previous
+ * `@hono/zod-openapi` handlers; conflict / not-found / bad-request states are
+ * thrown as `AppError` and mapped by the handler's appErrorInterceptor.
+ */
+export const adminCustomTagsRouter = {
+  // ── Categories ────────────────────────────────────────────────────────────
+  listCategories: os.listCategories.handler(
+    async ({ context }): Promise<AdminCustomTagCategoryListResponse> => {
+      const { customTagCategories: catRepo, customTags: tagRepo } = context.repos;
+      const [cats, tags] = await Promise.all([catRepo.listAll(), tagRepo.listAll()]);
+      const counts = new Map<string, number>();
+      for (const tag of tags) {
+        counts.set(tag.categoryId, (counts.get(tag.categoryId) ?? 0) + 1);
+      }
+      return {
+        categories: cats.map(
+          (cat): CustomTagCategoryResponse => ({
+            id: cat.id,
+            slug: cat.slug,
+            label: cat.label,
+            description: cat.description,
+            sortOrder: cat.sortOrder,
+            tagCount: counts.get(cat.id) ?? 0,
+            createdAt: cat.createdAt.toISOString(),
+            updatedAt: cat.updatedAt.toISOString(),
           }),
-        },
-      },
-      description: "Bulk-attached cards to a custom tag",
+        ),
+      };
     },
-  },
-});
+  ),
 
-export const adminCustomTagsRoute = createApiApp()
-  // ── Categories ─────────────────────────────────────────────────────────
-  .openapi(listCustomTagCategories, async (c) => {
-    const { customTagCategories: catRepo, customTags: tagRepo } = c.get("repos");
-    const [cats, tags] = await Promise.all([catRepo.listAll(), tagRepo.listAll()]);
-    const counts = new Map<string, number>();
-    for (const tag of tags) {
-      counts.set(tag.categoryId, (counts.get(tag.categoryId) ?? 0) + 1);
-    }
-    const body: AdminCustomTagCategoryListResponse = {
-      categories: cats.map(
-        (cat): CustomTagCategoryResponse => ({
-          id: cat.id,
-          slug: cat.slug,
-          label: cat.label,
-          description: cat.description,
-          sortOrder: cat.sortOrder,
-          tagCount: counts.get(cat.id) ?? 0,
-          createdAt: cat.createdAt.toISOString(),
-          updatedAt: cat.updatedAt.toISOString(),
-        }),
-      ),
-    };
-    return c.json(body);
-  })
-  .openapi(createCustomTagCategory, async (c) => {
-    const { customTagCategories: repo } = c.get("repos");
-    const { slug, label, description } = c.req.valid("json");
+  createCategory: os.createCategory.handler(async ({ input, context }) => {
+    const { customTagCategories: repo } = context.repos;
+    const { slug, label, description } = input;
     const existing = await repo.getBySlug(slug);
     if (existing) {
       throw new AppError(409, ERROR_CODES.CONFLICT, `Category "${slug}" already exists`);
     }
     const maxSortOrder = await repo.getMaxSortOrder();
-    const created = await repo.create({
-      slug,
-      label,
-      description,
-      sortOrder: maxSortOrder + 1,
-    });
+    const created = await repo.create({ slug, label, description, sortOrder: maxSortOrder + 1 });
     const category: CustomTagCategoryResponse = {
       id: created.id,
       slug: created.slug,
@@ -260,12 +68,12 @@ export const adminCustomTagsRoute = createApiApp()
       createdAt: created.createdAt.toISOString(),
       updatedAt: created.updatedAt.toISOString(),
     };
-    return c.json({ category }, 201);
-  })
-  .openapi(updateCustomTagCategory, async (c) => {
-    const { customTagCategories: repo } = c.get("repos");
-    const { id } = c.req.valid("param");
-    const body = c.req.valid("json");
+    return { category };
+  }),
+
+  updateCategory: os.updateCategory.handler(async ({ input, context }): Promise<void> => {
+    const { customTagCategories: repo } = context.repos;
+    const { id, ...body } = input;
     const existing = await repo.getById(id);
     assertFound(existing, "Custom-tag category not found");
     if (body.slug !== undefined && body.slug !== existing.slug) {
@@ -275,11 +83,11 @@ export const adminCustomTagsRoute = createApiApp()
       }
     }
     await repo.update(id, body);
-    return c.body(null, 204);
-  })
-  .openapi(deleteCustomTagCategory, async (c) => {
-    const { customTagCategories: repo } = c.get("repos");
-    const { id } = c.req.valid("param");
+  }),
+
+  removeCategory: os.removeCategory.handler(async ({ input, context }): Promise<void> => {
+    const { customTagCategories: repo } = context.repos;
+    const { id } = input;
     const existing = await repo.getById(id);
     assertFound(existing, "Custom-tag category not found");
     if (await repo.isInUse(id)) {
@@ -290,12 +98,11 @@ export const adminCustomTagsRoute = createApiApp()
       );
     }
     await repo.deleteById(id);
-    return c.body(null, 204);
-  })
+  }),
 
-  // ── Tags ───────────────────────────────────────────────────────────────
-  .openapi(listCustomTags, async (c) => {
-    const { customTags: repo } = c.get("repos");
+  // ── Tags ──────────────────────────────────────────────────────────────────
+  listTags: os.listTags.handler(async ({ context }): Promise<AdminCustomTagListResponse> => {
+    const { customTags: repo } = context.repos;
     const [rows, assignments] = await Promise.all([repo.listAll(), repo.assignmentsByCard()]);
     const counts = new Map<string, number>();
     for (const slugs of assignments.values()) {
@@ -303,7 +110,7 @@ export const adminCustomTagsRoute = createApiApp()
         counts.set(slug, (counts.get(slug) ?? 0) + 1);
       }
     }
-    const body: AdminCustomTagListResponse = {
+    return {
       tags: rows.map(
         (r): CustomTagResponse => ({
           id: r.id,
@@ -320,19 +127,19 @@ export const adminCustomTagsRoute = createApiApp()
         }),
       ),
     };
-    return c.json(body);
-  })
-  .openapi(listCustomTagAssignments, async (c) => {
-    const { customTags: repo } = c.get("repos");
-    const map = await repo.assignmentsByCard();
-    const body: AdminCustomTagAssignmentsResponse = {
-      assignments: Object.fromEntries(map),
-    };
-    return c.json(body);
-  })
-  .openapi(createCustomTag, async (c) => {
-    const { customTags: repo, customTagCategories: catRepo } = c.get("repos");
-    const { slug, label, categoryId, description } = c.req.valid("json");
+  }),
+
+  listAssignments: os.listAssignments.handler(
+    async ({ context }): Promise<AdminCustomTagAssignmentsResponse> => {
+      const { customTags: repo } = context.repos;
+      const map = await repo.assignmentsByCard();
+      return { assignments: Object.fromEntries(map) };
+    },
+  ),
+
+  createTag: os.createTag.handler(async ({ input, context }) => {
+    const { customTags: repo, customTagCategories: catRepo } = context.repos;
+    const { slug, label, categoryId, description } = input;
     const category = await catRepo.getById(categoryId);
     if (!category) {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, `Unknown category id: ${categoryId}`);
@@ -362,12 +169,12 @@ export const adminCustomTagsRoute = createApiApp()
       createdAt: created.createdAt.toISOString(),
       updatedAt: created.updatedAt.toISOString(),
     };
-    return c.json({ tag }, 201);
-  })
-  .openapi(updateCustomTag, async (c) => {
-    const { customTags: repo, customTagCategories: catRepo } = c.get("repos");
-    const { id } = c.req.valid("param");
-    const body = c.req.valid("json");
+    return { tag };
+  }),
+
+  updateTag: os.updateTag.handler(async ({ input, context }): Promise<void> => {
+    const { customTags: repo, customTagCategories: catRepo } = context.repos;
+    const { id, ...body } = input;
     const existing = await repo.getById(id);
     assertFound(existing, "Custom tag not found");
     if (body.slug !== undefined && body.slug !== existing.slug) {
@@ -383,28 +190,37 @@ export const adminCustomTagsRoute = createApiApp()
       }
     }
     await repo.update(id, body);
-    return c.body(null, 204);
-  })
-  .openapi(deleteCustomTag, async (c) => {
-    const { customTags: repo } = c.get("repos");
-    const { id } = c.req.valid("param");
+  }),
+
+  removeTag: os.removeTag.handler(async ({ input, context }): Promise<void> => {
+    const { customTags: repo } = context.repos;
+    const { id } = input;
     const existing = await repo.getById(id);
     assertFound(existing, "Custom tag not found");
     await repo.deleteById(id);
-    return c.body(null, 204);
-  })
-  .openapi(getCardCustomTags, async (c) => {
-    const { customTags: repo, catalog } = c.get("repos");
-    const { id } = c.req.valid("param");
-    const card = await catalog.cardById(id);
+  }),
+
+  addCards: os.addCards.handler(async ({ input, context }) => {
+    const { customTags: repo } = context.repos;
+    const { id, cardIds } = input;
+    const existing = await repo.getById(id);
+    assertFound(existing, "Custom tag not found");
+    const added = await repo.addToCards(id, cardIds);
+    return { added, requested: cardIds.length };
+  }),
+
+  // ── Per-card assignment ─────────────────────────────────────────────────
+  getCardTags: os.getCardTags.handler(async ({ input, context }) => {
+    const { customTags: repo, catalog } = context.repos;
+    const card = await catalog.cardById(input.id);
     assertFound(card, "Card not found");
-    const customTagIds = await repo.tagIdsForCard(id);
-    return c.json({ customTagIds });
-  })
-  .openapi(setCardCustomTags, async (c) => {
-    const { customTags: repo, catalog } = c.get("repos");
-    const { id } = c.req.valid("param");
-    const { customTagIds } = c.req.valid("json");
+    const customTagIds = await repo.tagIdsForCard(input.id);
+    return { customTagIds };
+  }),
+
+  setCardTags: os.setCardTags.handler(async ({ input, context }): Promise<void> => {
+    const { customTags: repo, catalog } = context.repos;
+    const { id, customTagIds } = input;
     const card = await catalog.cardById(id);
     assertFound(card, "Card not found");
     if (customTagIds.length > 0) {
@@ -419,14 +235,5 @@ export const adminCustomTagsRoute = createApiApp()
       }
     }
     await repo.setForCard(id, customTagIds);
-    return c.body(null, 204);
-  })
-  .openapi(addCardsToCustomTag, async (c) => {
-    const { customTags: repo } = c.get("repos");
-    const { id } = c.req.valid("param");
-    const { cardIds } = c.req.valid("json");
-    const existing = await repo.getById(id);
-    assertFound(existing, "Custom tag not found");
-    const added = await repo.addToCards(id, cardIds);
-    return c.json({ added, requested: cardIds.length });
-  });
+  }),
+};

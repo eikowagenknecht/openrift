@@ -1,91 +1,13 @@
-import { createRoute } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
 import type { RuleKind } from "@openrift/shared";
-import { z } from "zod";
+import { adminRulesContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 
-// ── Schemas ─────────────────────────────────────────────────────────────────
-
-const ruleKindEnum = z.enum(["core", "tournament"]);
-
-const importRulesSchema = z.object({
-  kind: ruleKindEnum,
-  version: z.string().min(1),
-  comments: z.string().nullable().optional(),
-  content: z.string().min(1),
-});
-
-// ── Route definitions ───────────────────────────────────────────────────────
-
-const importRules = createRoute({
-  method: "post",
-  path: "/rules/import",
-  tags: ["Admin - Rules"],
-  request: {
-    body: { content: { "application/json": { schema: importRulesSchema } } },
-  },
-  responses: {
-    201: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            kind: ruleKindEnum,
-            version: z.string().openapi({ example: "1.2.0" }),
-            rulesCount: z.number().openapi({ example: 248 }),
-            added: z.number().openapi({ example: 12 }),
-            modified: z.number().openapi({ example: 5 }),
-            removed: z.number().openapi({ example: 2 }),
-          }),
-        },
-      },
-      description: "Rules imported",
-    },
-  },
-});
-
-const deleteVersion = createRoute({
-  method: "delete",
-  path: "/rules/{kind}/versions/{version}",
-  tags: ["Admin - Rules"],
-  request: {
-    params: z.object({ kind: ruleKindEnum, version: z.string() }),
-  },
-  responses: {
-    204: { description: "Version deleted" },
-  },
-});
-
-const updateVersion = createRoute({
-  method: "patch",
-  path: "/rules/{kind}/versions/{version}",
-  tags: ["Admin - Rules"],
-  request: {
-    params: z.object({ kind: ruleKindEnum, version: z.string() }),
-    body: {
-      content: {
-        "application/json": {
-          schema: z.object({ comments: z.string().nullable() }),
-        },
-      },
-    },
-  },
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            kind: ruleKindEnum,
-            version: z.string(),
-            comments: z.string().nullable(),
-          }),
-        },
-      },
-      description: "Version updated",
-    },
-  },
-});
+const os = implement(adminRulesContract).$context<ApiContext>().use(requireUser);
 
 // ── Parser ──────────────────────────────────────────────────────────────────
 
@@ -169,14 +91,17 @@ export function parseRulesText(text: string): ParsedRule[] {
   return rules;
 }
 
-// ── Route ───────────────────────────────────────────────────────────────────
-
-export const adminRulesRoute = createApiApp()
-  // ── POST /admin/rules/import ──────────────────────────────────────────
-  .openapi(importRules, async (c) => {
-    const { rules: repo } = c.get("repos");
-    const transact = c.get("transact");
-    const body = c.req.valid("json");
+/**
+ * oRPC implementation of the admin rules management. Logic unchanged from the
+ * previous `@hono/zod-openapi` handlers; conflict / bad-request / not-found
+ * states are thrown as `AppError` and mapped by the handler's
+ * {@link appErrorInterceptor}.
+ */
+export const adminRulesRouter = {
+  import: os.import.handler(async ({ input, context }) => {
+    const { rules: repo } = context.repos;
+    const transact = context.transact;
+    const body = input;
 
     const existing = await repo.getVersion(body.kind, body.version);
     if (existing) {
@@ -199,8 +124,7 @@ export const adminRulesRoute = createApiApp()
 
     // The diff model assumes versions arrive in chronological order. Importing
     // a version older than what's already on file would corrupt reads of the
-    // existing newer versions (no tombstones were written for rules the new
-    // older one might add). Reject up front.
+    // existing newer versions. Reject up front.
     if (previousVersion && body.version < previousVersion) {
       throw new AppError(
         400,
@@ -301,23 +225,19 @@ export const adminRulesRoute = createApiApp()
       }
     });
 
-    return c.json(
-      {
-        kind: body.kind,
-        version: body.version,
-        rulesCount: rulesWithChanges.length,
-        added,
-        modified,
-        removed,
-      },
-      201,
-    );
-  })
+    return {
+      kind: body.kind,
+      version: body.version,
+      rulesCount: rulesWithChanges.length,
+      added,
+      modified,
+      removed,
+    };
+  }),
 
-  // ── DELETE /admin/rules/{kind}/versions/{version} ─────────────────────
-  .openapi(deleteVersion, async (c) => {
-    const { rules: repo } = c.get("repos");
-    const { kind, version } = c.req.valid("param");
+  removeVersion: os.removeVersion.handler(async ({ input, context }): Promise<void> => {
+    const { rules: repo } = context.repos;
+    const { kind, version } = input;
 
     const existing = await repo.getVersion(kind, version);
     if (!existing) {
@@ -329,14 +249,11 @@ export const adminRulesRoute = createApiApp()
     }
 
     await repo.deleteVersion(kind, version);
-    return c.body(null, 204);
-  })
+  }),
 
-  // ── PATCH /admin/rules/{kind}/versions/{version} ──────────────────────
-  .openapi(updateVersion, async (c) => {
-    const { rules: repo } = c.get("repos");
-    const { kind, version } = c.req.valid("param");
-    const { comments } = c.req.valid("json");
+  updateVersion: os.updateVersion.handler(async ({ input, context }) => {
+    const { rules: repo } = context.repos;
+    const { kind, version, comments } = input;
 
     const updated = await repo.updateComments(kind, version, comments);
     if (!updated) {
@@ -347,8 +264,10 @@ export const adminRulesRoute = createApiApp()
       );
     }
 
-    return c.json(
-      { kind: updated.kind as RuleKind, version: updated.version, comments: updated.comments },
-      200,
-    );
-  });
+    return {
+      kind: updated.kind as RuleKind,
+      version: updated.version,
+      comments: updated.comments,
+    };
+  }),
+};

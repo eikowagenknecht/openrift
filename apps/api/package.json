@@ -3,12 +3,6 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": {
-    "./rpc": {
-      "types": "./dist/rpc-types.d.ts",
-      "default": "./src/rpc-types.ts"
-    }
-  },
   "scripts": {
     "test": "vitest run",
     "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=lcov",
@@ -21,13 +15,17 @@
   },
   "dependencies": {
     "@hono/swagger-ui": "0.6.1",
-    "@hono/zod-openapi": "1.4.0",
     "@openrift/shared": "workspace:*",
     "@opentelemetry/api": "1.9.1",
     "@opentelemetry/exporter-trace-otlp-http": "0.219.0",
     "@opentelemetry/resources": "2.8.0",
     "@opentelemetry/sdk-node": "0.219.0",
     "@opentelemetry/semantic-conventions": "1.41.1",
+    "@orpc/client": "1.14.6",
+    "@orpc/contract": "1.14.6",
+    "@orpc/openapi": "1.14.6",
+    "@orpc/server": "1.14.6",
+    "@orpc/zod": "1.14.6",
     "@piltoverarchive/riftbound-deck-codes": "1.2.0",
     "@sentry/bun": "10.58.0",
     "better-auth": "1.6.19",

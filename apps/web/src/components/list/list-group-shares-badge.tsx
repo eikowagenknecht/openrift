@@ -1,4 +1,5 @@
 import type { ListGroupSharesResponse, ListIntent } from "@openrift/shared";
+import { listsContract } from "@openrift/shared/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { UsersIcon } from "lucide-react";
@@ -7,20 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { useFriendGroupsList } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
-import { callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchShares = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data: listId }): Promise<ListGroupSharesResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.lists[":id"]["group-shares"].$get({
-          param: encodeParams({ id: listId }),
-        }),
-        "Couldn't load group shares",
-      ),
+      apiOrpcClient(listsContract, context.cookie).groupShares({ id: listId }),
   );
 
 interface Props {

@@ -1,7 +1,12 @@
+import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { typographyReviewRoute } from "./typography-review";
+import { appErrorInterceptor } from "../../orpc/app-error-interceptor.js";
+import { buildApiContext } from "../../orpc/context.js";
+import type { Variables } from "../../types.js";
+import { adminTypographyReviewRouter } from "./typography-review";
 
 // ---------------------------------------------------------------------------
 // Mock repos
@@ -25,13 +30,27 @@ const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const CARD_ID = "a0000000-0001-4000-a000-0000000000aa";
 const PRINTING_ID = "a0000000-0001-4000-a000-0000000000bb";
 
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("user", { id: USER_ID });
-    c.set("repos", { catalog: mockCatalog, candidateMutations: mockMutations } as never);
-    await next();
-  })
-  .route("/api/v1", typographyReviewRoute);
+const handler = new OpenAPIHandler(adminTypographyReviewRouter, {
+  interceptors: [appErrorInterceptor],
+});
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  c.set("user", { id: USER_ID } as never);
+  c.set("repos", { catalog: mockCatalog, candidateMutations: mockMutations } as never);
+  await next();
+});
+const handle = async (c: Context<{ Variables: Variables }>) => {
+  const { matched, response } = await handler.handle(c.req.raw, {
+    context: buildApiContext(c),
+  });
+  if (matched && response) {
+    return response;
+  }
+  return c.notFound();
+};
+for (const path of ["/api/admin/v1/typography-review", "/api/admin/v1/typography-review/accept"]) {
+  app.all(path, handle);
+}
 
 const baseCard = {
   id: CARD_ID,
@@ -77,11 +96,11 @@ beforeEach(() => {
   mockCatalog.printings.mockResolvedValue([]);
 });
 
-describe("GET /api/v1/typography-review", () => {
+describe("GET /api/admin/v1/typography-review", () => {
   it("flags an apostrophe in a card name", async () => {
     mockCatalog.cards.mockResolvedValue([{ ...baseCard, name: "Jinx's Wrath" }]);
 
-    const res = await app.request("/api/v1/typography-review");
+    const res = await app.request("/api/admin/v1/typography-review");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.diffs).toContainEqual({
@@ -97,7 +116,7 @@ describe("GET /api/v1/typography-review", () => {
   it("flags an apostrophe in a card tag", async () => {
     mockCatalog.cards.mockResolvedValue([{ ...baseCard, tags: ["Hero's Quest", "Plain"] }]);
 
-    const res = await app.request("/api/v1/typography-review");
+    const res = await app.request("/api/admin/v1/typography-review");
     const json = await res.json();
     expect(json.diffs).toContainEqual({
       entity: "card",
@@ -113,7 +132,7 @@ describe("GET /api/v1/typography-review", () => {
     mockCatalog.cards.mockResolvedValue([baseCard]);
     mockCatalog.printings.mockResolvedValue([{ ...basePrinting, printedName: "Jinx's Wrath" }]);
 
-    const res = await app.request("/api/v1/typography-review");
+    const res = await app.request("/api/admin/v1/typography-review");
     const json = await res.json();
     expect(json.diffs).toContainEqual({
       entity: "printing",
@@ -130,17 +149,17 @@ describe("GET /api/v1/typography-review", () => {
       { ...baseCard, name: "Jinx’s Wrath", tags: ["Hero’s Quest"] },
     ]);
 
-    const res = await app.request("/api/v1/typography-review");
+    const res = await app.request("/api/admin/v1/typography-review");
     const json = await res.json();
     expect(json.diffs).toEqual([]);
   });
 });
 
-describe("POST /api/v1/typography-review/accept", () => {
+describe("POST /api/admin/v1/typography-review/accept", () => {
   it("updates card.name when entity=card and field=name", async () => {
     mockMutations.updateCardById.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/typography-review/accept", {
+    const res = await app.request("/api/admin/v1/typography-review/accept", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -161,7 +180,7 @@ describe("POST /api/v1/typography-review/accept", () => {
     mockCatalog.cards.mockResolvedValue([{ ...baseCard, tags: ["Hero's Quest", "Plain"] }]);
     mockMutations.updateCardById.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/typography-review/accept", {
+    const res = await app.request("/api/admin/v1/typography-review/accept", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -181,7 +200,7 @@ describe("POST /api/v1/typography-review/accept", () => {
   it("returns 404 when accepting tags for an unknown card", async () => {
     mockCatalog.cards.mockResolvedValue([]);
 
-    const res = await app.request("/api/v1/typography-review/accept", {
+    const res = await app.request("/api/admin/v1/typography-review/accept", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -207,7 +226,7 @@ describe("POST /api/v1/typography-review/accept", () => {
     });
     mockMutations.upsertCardErrata.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/typography-review/accept", {
+    const res = await app.request("/api/admin/v1/typography-review/accept", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

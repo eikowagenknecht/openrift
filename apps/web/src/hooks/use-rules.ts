@@ -1,11 +1,12 @@
 import type { RuleKind, RulesListResponse, RuleVersionsListResponse } from "@openrift/shared";
+import { adminRulesContract, rulesContract } from "@openrift/shared/contracts";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchRulesAtVersion = createServerFn({ method: "GET" })
@@ -15,12 +16,7 @@ const fetchRulesAtVersion = createServerFn({ method: "GET" })
       serverCache.fetchQuery({
         queryKey: ["server-cache", "rules", data.kind, data.version],
         queryFn: () =>
-          callApiJson(
-            serverApiClient().api.v1.rules.$get({
-              query: { kind: data.kind, version: data.version },
-            }),
-            "Couldn't load rules",
-          ),
+          apiOrpcClient(rulesContract).list({ kind: data.kind, version: data.version }),
       }),
   );
 
@@ -32,13 +28,7 @@ const fetchVersions = createServerFn({ method: "GET" })
       : ["server-cache", "rules-versions"];
     return serverCache.fetchQuery({
       queryKey: cacheKey,
-      queryFn: () =>
-        callApiJson(
-          serverApiClient().api.v1.rules.versions.$get({
-            query: data.kind ? { kind: data.kind } : {},
-          }),
-          "Couldn't load rule versions",
-        ),
+      queryFn: () => apiOrpcClient(rulesContract).versions(data.kind ? { kind: data.kind } : {}),
     });
   });
 
@@ -75,17 +65,12 @@ const importRulesFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const result = await callApiJson(
-      serverApiClient(context.cookie).api.admin.v1.rules.import.$post({
-        json: {
-          kind: data.kind,
-          version: data.version,
-          comments: data.comments,
-          content: data.content,
-        },
-      }),
-      "Couldn't import rules",
-    );
+    const result = await apiOrpcClient(adminRulesContract, context.cookie).import({
+      kind: data.kind,
+      version: data.version,
+      comments: data.comments,
+      content: data.content,
+    });
     await serverCache.invalidateQueries({ queryKey: ["server-cache", "rules"] });
     await serverCache.invalidateQueries({ queryKey: ["server-cache", "rules-versions"] });
     return result;
@@ -107,12 +92,10 @@ const deleteRuleVersionFn = createServerFn({ method: "POST" })
   .validator((input: { kind: RuleKind; version: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.rules[":kind"].versions[":version"].$delete({
-        param: encodeParams({ kind: data.kind, version: data.version }),
-      }),
-      "Couldn't delete rule version",
-    );
+    await apiOrpcClient(adminRulesContract, context.cookie).removeVersion({
+      kind: data.kind,
+      version: data.version,
+    });
     await serverCache.invalidateQueries({ queryKey: ["server-cache", "rules"] });
     await serverCache.invalidateQueries({ queryKey: ["server-cache", "rules-versions"] });
   });
@@ -128,13 +111,11 @@ const updateRuleVersionCommentsFn = createServerFn({ method: "POST" })
   .validator((input: { kind: RuleKind; version: string; comments: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const result = await callApiJson(
-      serverApiClient(context.cookie).api.admin.v1.rules[":kind"].versions[":version"].$patch({
-        param: encodeParams({ kind: data.kind, version: data.version }),
-        json: { comments: data.comments },
-      }),
-      "Couldn't update version comments",
-    );
+    const result = await apiOrpcClient(adminRulesContract, context.cookie).updateVersion({
+      kind: data.kind,
+      version: data.version,
+      comments: data.comments,
+    });
     await serverCache.invalidateQueries({ queryKey: ["server-cache", "rules-versions"] });
     return result;
   });

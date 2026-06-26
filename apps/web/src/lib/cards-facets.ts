@@ -21,12 +21,13 @@ import {
   getAvailableFilters,
   priceLookupFromMap,
 } from "@openrift/shared";
+import { initContract, pricesContract } from "@openrift/shared/contracts";
 import { createServerFn } from "@tanstack/react-start";
 
 import { enrichCatalog, readCatalogFromServerCache } from "@/lib/catalog-query";
 import type { FilterSearch } from "@/lib/search-schemas";
 import { serverCache } from "@/lib/server-cache";
-import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 // Default marketplace used to compute the SSR price range. Matches the
 // fallback in <CardBrowser> for users with no `marketplaceOrder` preference.
@@ -43,14 +44,15 @@ const SSR_DEFAULT_VIEW = "cards";
 function readPricesFromServerCache(): Promise<PricesResponse> {
   return serverCache.fetchQuery({
     queryKey: ["server-cache", "prices"],
-    queryFn: () => callApiJson(serverApiClient().api.v1.prices.$get(), "Couldn't load prices"),
+    queryFn: () => apiOrpcClient(pricesContract).prices(),
   });
 }
 
 function readInitFromServerCache(): Promise<InitResponse> {
   return serverCache.fetchQuery({
     queryKey: ["server-cache", "init"],
-    queryFn: () => callApiJson(serverApiClient().api.v1.init.$get(), "Couldn't load initial data"),
+    // Migrated to oRPC: contract-typed client instead of the hc client.
+    queryFn: () => apiOrpcClient(initContract).get(),
   });
 }
 

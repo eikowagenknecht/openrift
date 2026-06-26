@@ -1,74 +1,24 @@
-import { createRoute } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
 import type { ProviderSettingResponse } from "@openrift/shared";
-import { providerParamSchema } from "@openrift/shared/schemas";
-import { z } from "zod";
+import { adminProviderSettingsContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { createApiApp } from "../../openapi.js";
-import { reorderProvidersSchema, updateProviderSettingSchema } from "./schemas.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 
-// ── Route definitions ───────────────────────────────────────────────────────
+const os = implement(adminProviderSettingsContract).$context<ApiContext>().use(requireUser);
 
-const listProviderSettings = createRoute({
-  method: "get",
-  path: "/provider-settings",
-  tags: ["Admin - Provider Settings"],
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            providerSettings: z.array(
-              z.object({
-                provider: z.string().openapi({ example: "riftcore" }),
-                sortOrder: z.number().openapi({ example: 7 }),
-                isHidden: z.boolean().openapi({ example: true }),
-                isFavorite: z.boolean().openapi({ example: false }),
-              }),
-            ),
-          }),
-        },
-      },
-      description: "List provider settings",
-    },
-  },
-});
-
-const reorderProviders = createRoute({
-  method: "put",
-  path: "/provider-settings/reorder",
-  tags: ["Admin - Provider Settings"],
-  request: {
-    body: { content: { "application/json": { schema: reorderProvidersSchema } } },
-  },
-  responses: {
-    204: { description: "Providers reordered" },
-  },
-});
-
-const updateProviderSetting = createRoute({
-  method: "patch",
-  path: "/provider-settings/{provider}",
-  tags: ["Admin - Provider Settings"],
-  request: {
-    params: providerParamSchema,
-    body: { content: { "application/json": { schema: updateProviderSettingSchema } } },
-  },
-  responses: {
-    204: { description: "Provider setting updated" },
-  },
-});
-
-// ── Route ───────────────────────────────────────────────────────────────────
-
-export const adminProviderSettingsRoute = createApiApp()
-  // ── GET /admin/provider-settings ──────────────────────────────────────────
-
-  .openapi(listProviderSettings, async (c) => {
-    const { providerSettings: repo } = c.get("repos");
+/**
+ * oRPC implementation of the admin provider-settings. Logic unchanged from the
+ * previous `@hono/zod-openapi` handlers; bad-request states are thrown as
+ * `AppError` and mapped by the handler's {@link appErrorInterceptor}.
+ */
+export const adminProviderSettingsRouter = {
+  list: os.list.handler(async ({ context }) => {
+    const { providerSettings: repo } = context.repos;
     const rows = await repo.listAll();
-    return c.json({
+    return {
       providerSettings: rows.map(
         (r): ProviderSettingResponse => ({
           provider: r.provider,
@@ -77,14 +27,12 @@ export const adminProviderSettingsRoute = createApiApp()
           isFavorite: r.isFavorite,
         }),
       ),
-    });
-  })
+    };
+  }),
 
-  // ── PUT /admin/provider-settings/reorder ──────────────────────────────────
-
-  .openapi(reorderProviders, async (c) => {
-    const { providerSettings: repo } = c.get("repos");
-    const { providers } = c.req.valid("json");
+  reorder: os.reorder.handler(async ({ input, context }): Promise<void> => {
+    const { providerSettings: repo } = context.repos;
+    const { providers } = input;
 
     const uniqueProviders = new Set(providers);
     if (uniqueProviders.size !== providers.length) {
@@ -92,16 +40,11 @@ export const adminProviderSettingsRoute = createApiApp()
     }
 
     await repo.reorder(providers);
-    return c.body(null, 204);
-  })
+  }),
 
-  // ── PATCH /admin/provider-settings/:provider ────────────────────────────────
-
-  .openapi(updateProviderSetting, async (c) => {
-    const { providerSettings: repo } = c.get("repos");
-    const { provider } = c.req.valid("param");
-    const body = c.req.valid("json");
-
+  update: os.update.handler(async ({ input, context }): Promise<void> => {
+    const { providerSettings: repo } = context.repos;
+    const { provider, ...body } = input;
     await repo.upsert(provider, body);
-    return c.body(null, 204);
-  });
+  }),
+};

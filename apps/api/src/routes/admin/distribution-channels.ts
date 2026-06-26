@@ -1,108 +1,28 @@
-import { createRoute } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
 import type { DistributionChannelResponse } from "@openrift/shared";
-import { idParamSchema } from "@openrift/shared/schemas";
-import { z } from "zod";
+import { adminDistributionChannelsContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 import { assertFound } from "../../utils/assertions.js";
-import { createDistributionChannelSchema, updateDistributionChannelSchema } from "./schemas.js";
 
-const channelSchema = z.object({
-  id: z.string().openapi({ example: "019d4999-4219-72f6-b7bb-64004e1b1bff" }),
-  slug: z.string().openapi({ example: "nexus-night-2025" }),
-  label: z.string().openapi({ example: "Nexus Night 2025" }),
-  description: z.string().nullable().openapi({ example: null }),
-  kind: z.enum(["event", "product"]).openapi({ example: "event" }),
-  sortOrder: z.number().openapi({ example: 0 }),
-  parentId: z.string().nullable().openapi({ example: null }),
-  childrenLabel: z.string().nullable().openapi({ example: null }),
-  createdAt: z.string().openapi({ example: "2026-04-01T10:00:00.000Z" }),
-  updatedAt: z.string().openapi({ example: "2026-04-01T10:00:00.000Z" }),
-  printingCount: z.number().openapi({ example: 0 }),
-});
+const os = implement(adminDistributionChannelsContract).$context<ApiContext>().use(requireUser);
 
-const listChannels = createRoute({
-  method: "get",
-  path: "/distribution-channels",
-  tags: ["Admin - Distribution Channels"],
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({ distributionChannels: z.array(channelSchema) }),
-        },
-      },
-      description: "List distribution channels",
-    },
-  },
-});
-
-const createChannel = createRoute({
-  method: "post",
-  path: "/distribution-channels",
-  tags: ["Admin - Distribution Channels"],
-  request: {
-    body: { content: { "application/json": { schema: createDistributionChannelSchema } } },
-  },
-  responses: {
-    201: {
-      content: {
-        "application/json": { schema: z.object({ distributionChannel: channelSchema }) },
-      },
-      description: "Distribution channel created",
-    },
-  },
-});
-
-const updateChannel = createRoute({
-  method: "patch",
-  path: "/distribution-channels/{id}",
-  tags: ["Admin - Distribution Channels"],
-  request: {
-    params: idParamSchema,
-    body: { content: { "application/json": { schema: updateDistributionChannelSchema } } },
-  },
-  responses: { 204: { description: "Distribution channel updated" } },
-});
-
-const deleteChannel = createRoute({
-  method: "delete",
-  path: "/distribution-channels/{id}",
-  tags: ["Admin - Distribution Channels"],
-  request: {
-    params: idParamSchema,
-    query: z.object({
-      force: z
-        .enum(["true", "false"])
-        .optional()
-        .openapi({ description: "When true, also unlinks the channel from all printings." }),
-    }),
-  },
-  responses: { 204: { description: "Distribution channel deleted" } },
-});
-
-const reorderChannels = createRoute({
-  method: "put",
-  path: "/distribution-channels/reorder",
-  tags: ["Admin - Distribution Channels"],
-  request: {
-    body: {
-      content: {
-        "application/json": { schema: z.object({ ids: z.array(z.string().min(1)).min(1) }) },
-      },
-    },
-  },
-  responses: { 204: { description: "Distribution channels reordered" } },
-});
-
-export const adminDistributionChannelsRoute = createApiApp()
-  .openapi(listChannels, async (c) => {
-    const { distributionChannels: repo } = c.get("repos");
+/**
+ * oRPC implementation of the admin distribution-channels taxonomy CRUD.
+ * Channels are keyed by their UUID `id` and may nest via `parentId`. Logic
+ * unchanged from the previous `@hono/zod-openapi` handlers; conflict /
+ * not-found / has-children / in-use states are thrown as `AppError` and mapped
+ * by the handler's appErrorInterceptor.
+ */
+export const adminDistributionChannelsRouter = {
+  list: os.list.handler(async ({ context }) => {
+    const { distributionChannels: repo } = context.repos;
     const [rows, counts] = await Promise.all([repo.listAll(), repo.usageCountsByChannel()]);
     const countById = new Map(counts.map((row) => [row.channelId, row.count]));
-    return c.json({
+    return {
       distributionChannels: rows.map(
         (r): DistributionChannelResponse => ({
           id: r.id,
@@ -118,11 +38,12 @@ export const adminDistributionChannelsRoute = createApiApp()
           printingCount: countById.get(r.id) ?? 0,
         }),
       ),
-    });
-  })
-  .openapi(reorderChannels, async (c) => {
-    const { distributionChannels: repo } = c.get("repos");
-    const { ids } = c.req.valid("json");
+    };
+  }),
+
+  reorder: os.reorder.handler(async ({ input, context }): Promise<void> => {
+    const { distributionChannels: repo } = context.repos;
+    const { ids } = input;
     const uniqueIds = new Set(ids);
     if (uniqueIds.size !== ids.length) {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Duplicate ids in reorder list.");
@@ -145,11 +66,11 @@ export const adminDistributionChannelsRoute = createApiApp()
       );
     }
     await repo.reorder(ids);
-    return c.body(null, 204);
-  })
-  .openapi(createChannel, async (c) => {
-    const { distributionChannels: repo } = c.get("repos");
-    const { slug, label, description, kind, parentId, childrenLabel } = c.req.valid("json");
+  }),
+
+  create: os.create.handler(async ({ input, context }) => {
+    const { distributionChannels: repo } = context.repos;
+    const { slug, label, description, kind, parentId, childrenLabel } = input;
     const existing = await repo.getBySlug(slug);
     if (existing) {
       throw new AppError(
@@ -182,12 +103,12 @@ export const adminDistributionChannelsRoute = createApiApp()
       updatedAt: created.updatedAt.toISOString(),
       printingCount: 0,
     };
-    return c.json({ distributionChannel }, 201);
-  })
-  .openapi(updateChannel, async (c) => {
-    const { distributionChannels: repo } = c.get("repos");
-    const { id } = c.req.valid("param");
-    const body = c.req.valid("json");
+    return { distributionChannel };
+  }),
+
+  update: os.update.handler(async ({ input, context }): Promise<void> => {
+    const { distributionChannels: repo } = context.repos;
+    const { id, ...body } = input;
     const existing = await repo.getById(id);
     assertFound(existing, "Distribution channel not found");
     if (body.slug !== undefined && body.slug !== existing.slug) {
@@ -196,8 +117,8 @@ export const adminDistributionChannelsRoute = createApiApp()
         throw new AppError(409, ERROR_CODES.CONFLICT, `Slug "${body.slug}" already in use`);
       }
     }
-    // When the parent changes, append the row to the new sibling group's end so
-    // sort orders don't collide with existing siblings under that parent.
+    // When the parent changes, append the row to the new sibling group's end
+    // so sort orders don't collide with existing siblings under that parent.
     const parentChanged =
       body.parentId !== undefined && (body.parentId ?? null) !== existing.parentId;
     const updates = { ...body, parentId: body.parentId ?? null };
@@ -207,13 +128,12 @@ export const adminDistributionChannelsRoute = createApiApp()
     } else {
       await repo.update(id, updates);
     }
-    return c.body(null, 204);
-  })
-  .openapi(deleteChannel, async (c) => {
-    const { distributionChannels: repo } = c.get("repos");
-    const { id } = c.req.valid("param");
-    const { force: forceParam } = c.req.valid("query");
-    const force = forceParam === "true";
+  }),
+
+  remove: os.remove.handler(async ({ input, context }): Promise<void> => {
+    const { distributionChannels: repo } = context.repos;
+    const { id } = input.params;
+    const force = input.query.force === "true";
     const existing = await repo.getById(id);
     assertFound(existing, "Distribution channel not found");
     const childRow = await repo.hasChildren(id);
@@ -236,5 +156,5 @@ export const adminDistributionChannelsRoute = createApiApp()
       await repo.deleteLinksForChannel(id);
     }
     await repo.deleteById(id);
-    return c.body(null, 204);
-  });
+  }),
+};

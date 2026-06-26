@@ -7,13 +7,14 @@ import type {
   DeckCheckKeyMintedResponse,
   DeckCheckKeysResponse,
 } from "@openrift/shared";
+import { deckCheckContract } from "@openrift/shared/contracts";
 import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 /** Multi-judge shared state is polled; this is the reconcile cadence. */
@@ -26,12 +27,7 @@ const fetchDeckCheckEvents = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data: slug }): Promise<DeckCheckEventListResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks.$get({
-          param: encodeParams({ slug }),
-        }),
-        "Couldn't load deck checks",
-      ),
+      apiOrpcClient(deckCheckContract, context.cookie).listEvents({ slug }),
   );
 
 const fetchDeckCheckEvent = createServerFn({ method: "GET" })
@@ -39,12 +35,7 @@ const fetchDeckCheckEvent = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckCheckEventDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[":eventId"].$get({
-          param: encodeParams({ slug: data.slug, eventId: data.eventId }),
-        }),
-        "Couldn't load the event",
-      ),
+      apiOrpcClient(deckCheckContract, context.cookie).getEventDetail(data),
   );
 
 const fetchDeckCheckEntry = createServerFn({ method: "GET" })
@@ -52,14 +43,7 @@ const fetchDeckCheckEntry = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[":eventId"].entries[
-          ":entryId"
-        ].$get({
-          param: encodeParams({ slug: data.slug, eventId: data.eventId, entryId: data.entryId }),
-        }),
-        "Couldn't load the entry",
-      ),
+      apiOrpcClient(deckCheckContract, context.cookie).getEntryDetail(data),
   );
 
 const fetchDeckCheckKeys = createServerFn({ method: "GET" })
@@ -67,12 +51,7 @@ const fetchDeckCheckKeys = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data: slug }): Promise<DeckCheckKeysResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"]["deck-check-keys"].$get({
-          param: encodeParams({ slug }),
-        }),
-        "Couldn't load push keys",
-      ),
+      apiOrpcClient(deckCheckContract, context.cookie).listKeys({ slug }),
   );
 
 // ── Query hooks ─────────────────────────────────────────────────────────────
@@ -158,18 +137,7 @@ const createEventFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckCheckEventSummaryResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks.$post({
-          param: encodeParams({ slug: data.slug }),
-          json: {
-            name: data.name,
-            eventDate: data.eventDate,
-            format: data.format,
-            allowedSets: data.allowedSets,
-          },
-        }),
-        "Couldn't create the event",
-      ),
+      apiOrpcClient(deckCheckContract, context.cookie).createEvent(data),
   );
 
 const updateEventFn = createServerFn({ method: "POST" })
@@ -190,34 +158,14 @@ const updateEventFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckCheckEventSummaryResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[":eventId"].$patch({
-          param: encodeParams({ slug: data.slug, eventId: data.eventId }),
-          json: {
-            name: data.name,
-            eventDate: data.eventDate,
-            format: data.format,
-            allowedSets: data.allowedSets,
-            status: data.status,
-            listLockMode: data.listLockMode,
-            allowSelfSubmission: data.allowSelfSubmission,
-            submissionsCloseAt: data.submissionsCloseAt,
-          },
-        }),
-        "Couldn't update the event",
-      ),
+      apiOrpcClient(deckCheckContract, context.cookie).updateEvent(data),
   );
 
 const deleteEventFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; eventId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[":eventId"].$delete({
-        param: encodeParams({ slug: data.slug, eventId: data.eventId }),
-      }),
-      "Couldn't delete the event",
-    );
+    await apiOrpcClient(deckCheckContract, context.cookie).deleteEvent(data);
   });
 
 const reResolveEventFn = createServerFn({ method: "POST" })
@@ -225,12 +173,7 @@ const reResolveEventFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<{ updatedLines: number }> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[":eventId"][
-          "re-resolve"
-        ].$post({ param: encodeParams({ slug: data.slug, eventId: data.eventId }) }),
-        "Couldn't re-resolve cards",
-      ),
+      apiOrpcClient(deckCheckContract, context.cookie).reResolveEvent(data),
   );
 
 const createEntryFn = createServerFn({ method: "POST" })
@@ -247,20 +190,7 @@ const createEntryFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[
-          ":eventId"
-        ].entries.$post({
-          param: encodeParams({ slug: data.slug, eventId: data.eventId }),
-          json: {
-            playerName: data.playerName,
-            playerEmail: data.playerEmail,
-            riotId: data.riotId,
-            cards: data.cards,
-          },
-        }),
-        "Couldn't add the player",
-      ),
+      apiOrpcClient(deckCheckContract, context.cookie).createManualEntry(data),
   );
 
 const setEntryStateFn = createServerFn({ method: "POST" })
@@ -278,20 +208,7 @@ const setEntryStateFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[":eventId"].entries[
-          ":entryId"
-        ].state.$put({
-          param: encodeParams({ slug: data.slug, eventId: data.eventId, entryId: data.entryId }),
-          json: {
-            state: data.state,
-            reviewOutcome: data.reviewOutcome,
-            notes: data.notes,
-            playerMessage: data.playerMessage,
-          },
-        }),
-        "Couldn't update the entry",
-      ),
+      apiOrpcClient(deckCheckContract, context.cookie).setEntryState(data),
   );
 
 const denyUnlockRequestFn = createServerFn({ method: "POST" })
@@ -299,28 +216,14 @@ const denyUnlockRequestFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[":eventId"].entries[
-          ":entryId"
-        ]["unlock-request"].$delete({
-          param: encodeParams({ slug: data.slug, eventId: data.eventId, entryId: data.entryId }),
-        }),
-        "Couldn't decline the request",
-      ),
+      apiOrpcClient(deckCheckContract, context.cookie).denyUnlockRequest(data),
   );
 
 const deleteEntryFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; eventId: string; entryId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[":eventId"].entries[
-        ":entryId"
-      ].$delete({
-        param: encodeParams({ slug: data.slug, eventId: data.eventId, entryId: data.entryId }),
-      }),
-      "Couldn't delete the entry",
-    );
+    await apiOrpcClient(deckCheckContract, context.cookie).deleteEntry(data);
   });
 
 const updateEntryFn = createServerFn({ method: "POST" })
@@ -341,23 +244,7 @@ const updateEntryFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[":eventId"].entries[
-          ":entryId"
-        ].$patch({
-          param: encodeParams({ slug: data.slug, eventId: data.eventId, entryId: data.entryId }),
-          json: {
-            playerName: data.playerName,
-            playerEmail: data.playerEmail,
-            riotId: data.riotId,
-            playerMessage: data.playerMessage,
-            allowDeckPublishing: data.allowDeckPublishing,
-            allowNameSharing: data.allowNameSharing,
-            allowRiotIdSharing: data.allowRiotIdSharing,
-          },
-        }),
-        "Couldn't update the player",
-      ),
+      apiOrpcClient(deckCheckContract, context.cookie).updateEntry(data),
   );
 
 const linkEntryFn = createServerFn({ method: "POST" })
@@ -365,15 +252,7 @@ const linkEntryFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[":eventId"].entries[
-          ":entryId"
-        ].link.$put({
-          param: encodeParams({ slug: data.slug, eventId: data.eventId, entryId: data.entryId }),
-          json: { userId: data.userId },
-        }),
-        "Couldn't link the account",
-      ),
+      apiOrpcClient(deckCheckContract, context.cookie).linkEntry(data),
   );
 
 const unlinkEntryFn = createServerFn({ method: "POST" })
@@ -381,14 +260,7 @@ const unlinkEntryFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[":eventId"].entries[
-          ":entryId"
-        ].link.$delete({
-          param: encodeParams({ slug: data.slug, eventId: data.eventId, entryId: data.entryId }),
-        }),
-        "Couldn't unlink the account",
-      ),
+      apiOrpcClient(deckCheckContract, context.cookie).unlinkEntry(data),
   );
 
 const searchAccountsFn = createServerFn({ method: "GET" })
@@ -396,15 +268,7 @@ const searchAccountsFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckCheckAccountSearchResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"][
-          "deck-check-account-search"
-        ].$get({
-          param: encodeParams({ slug: data.slug }),
-          query: { q: data.q },
-        }),
-        "Couldn't search accounts",
-      ),
+      apiOrpcClient(deckCheckContract, context.cookie).searchAccounts(data),
   );
 
 const regenerateSubmissionTokenFn = createServerFn({ method: "POST" })
@@ -412,14 +276,7 @@ const regenerateSubmissionTokenFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckCheckEventSummaryResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[":eventId"][
-          "submission-token"
-        ].$post({
-          param: encodeParams({ slug: data.slug, eventId: data.eventId }),
-        }),
-        "Couldn't regenerate the submission link",
-      ),
+      apiOrpcClient(deckCheckContract, context.cookie).regenerateSubmissionToken(data),
   );
 
 const addCardFn = createServerFn({ method: "POST" })
@@ -436,15 +293,7 @@ const addCardFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[":eventId"].entries[
-          ":entryId"
-        ].cards.$post({
-          param: encodeParams({ slug: data.slug, eventId: data.eventId, entryId: data.entryId }),
-          json: { name: data.name, quantity: data.quantity, section: data.section },
-        }),
-        "Couldn't add the card",
-      ),
+      apiOrpcClient(deckCheckContract, context.cookie).addCard(data),
   );
 
 const renameCardFn = createServerFn({ method: "POST" })
@@ -462,20 +311,7 @@ const renameCardFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[":eventId"].entries[
-          ":entryId"
-        ].cards[":cardId"].$patch({
-          param: encodeParams({
-            slug: data.slug,
-            eventId: data.eventId,
-            entryId: data.entryId,
-            cardId: data.cardId,
-          }),
-          json: { name: data.name, section: data.section, copies: data.copies },
-        }),
-        "Couldn't fix the card",
-      ),
+      apiOrpcClient(deckCheckContract, context.cookie).renameCard(data),
   );
 
 const applyZoneFixesFn = createServerFn({ method: "POST" })
@@ -485,15 +321,7 @@ const applyZoneFixesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckCheckEntryDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[":eventId"].entries[
-          ":entryId"
-        ]["zone-fixes"].$post({
-          param: encodeParams({ slug: data.slug, eventId: data.eventId, entryId: data.entryId }),
-          json: { cardIds: data.cardIds },
-        }),
-        "Couldn't fix the card zones",
-      ),
+      apiOrpcClient(deckCheckContract, context.cookie).applyZoneFixes(data),
   );
 
 const removeCardFn = createServerFn({ method: "POST" })
@@ -508,20 +336,7 @@ const removeCardFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[":eventId"].entries[
-        ":entryId"
-      ].cards[":cardId"].copies[":copyIndex"].$delete({
-        param: encodeParams({
-          slug: data.slug,
-          eventId: data.eventId,
-          entryId: data.entryId,
-          cardId: data.cardId,
-          copyIndex: String(data.copyIndex),
-        }),
-      }),
-      "Couldn't remove the card",
-    );
+    await apiOrpcClient(deckCheckContract, context.cookie).removeCardCopy(data);
   });
 
 const tickCardFn = createServerFn({ method: "POST" })
@@ -537,20 +352,7 @@ const tickCardFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"].checks[":eventId"].entries[
-        ":entryId"
-      ].cards[":cardId"].$put({
-        param: encodeParams({
-          slug: data.slug,
-          eventId: data.eventId,
-          entryId: data.entryId,
-          cardId: data.cardId,
-        }),
-        json: { copyIndex: data.copyIndex, found: data.found },
-      }),
-      "Couldn't store the tick",
-    );
+    await apiOrpcClient(deckCheckContract, context.cookie).tickCard(data);
   });
 
 const mintKeyFn = createServerFn({ method: "POST" })
@@ -558,40 +360,21 @@ const mintKeyFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckCheckKeyMintedResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["friend-groups"][":slug"]["deck-check-keys"].$post({
-          param: encodeParams({ slug: data.slug }),
-          json: { label: data.label },
-        }),
-        "Couldn't mint a push key",
-      ),
+      apiOrpcClient(deckCheckContract, context.cookie).mintKey(data),
   );
 
 const renameKeyFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; keyId: string; label: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"]["deck-check-keys"][
-        ":keyId"
-      ].$patch({
-        param: encodeParams({ slug: data.slug, keyId: data.keyId }),
-        json: { label: data.label },
-      }),
-      "Couldn't rename the key",
-    );
+    await apiOrpcClient(deckCheckContract, context.cookie).renameKey(data);
   });
 
 const revokeKeyFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; keyId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1["friend-groups"][":slug"]["deck-check-keys"][
-        ":keyId"
-      ].$delete({ param: encodeParams({ slug: data.slug, keyId: data.keyId }) }),
-      "Couldn't revoke the key",
-    );
+    await apiOrpcClient(deckCheckContract, context.cookie).revokeKey(data);
   });
 
 // ── Mutation hooks ──────────────────────────────────────────────────────────

@@ -236,5 +236,20 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
         "public, max-age=3600, stale-while-revalidate=86400",
       );
     });
+
+    // Conditional-GET wiring: the catch-all applies `etag()` to ETAG_PATHS, so a
+    // matching If-None-Match must short-circuit to 304 (covered here because the
+    // pure cache-policy unit test cannot exercise the middleware).
+    it("returns an ETag and serves 304 for a matching If-None-Match", async () => {
+      const first = await app.fetch(req("GET", "/catalog"));
+      const etag = first.headers.get("ETag");
+      expect(etag).toBeTruthy();
+
+      const conditional = new Request("http://localhost/api/v1/catalog", {
+        headers: { "If-None-Match": etag as string },
+      });
+      const second = await app.fetch(conditional);
+      expect(second.status).toBe(304);
+    });
   });
 });

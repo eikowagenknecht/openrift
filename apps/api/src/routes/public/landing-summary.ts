@@ -1,51 +1,32 @@
-import { createRoute } from "@hono/zod-openapi";
 import type { LandingSummaryResponse } from "@openrift/shared";
-import { landingSummaryResponseSchema } from "@openrift/shared/response-schemas";
-import { etag } from "hono/etag";
+import { landingSummaryContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 
 // Cap the scatter at desktop's full deck (36 cards) — mobile uses fewer.
 const THUMBNAIL_SAMPLE_SIZE = 36;
 
-const getLandingSummary = createRoute({
-  method: "get",
-  path: "/landing-summary",
-  tags: ["Catalog"],
-  responses: {
-    200: {
-      content: { "application/json": { schema: landingSummaryResponseSchema } },
-      description: "Lightweight payload for the public landing page",
-    },
-  },
-});
+const os = implement(landingSummaryContract).$context<ApiContext>().use(requireUser);
 
-const landingSummaryApp = createApiApp();
-landingSummaryApp.use("/landing-summary", etag());
-export const landingSummaryRoute = landingSummaryApp
-  /**
-   * `GET /landing-summary` — Lightweight payload for the public landing page.
-   *
-   * Returns the four values the hero actually consumes: card count, printing
-   * count, copy count, and a per-day-stable sample of front-face non-landscape
-   * thumbnail URLs for the decorative card scatter. The full `/catalog`
-   * response is ~310 KB; this is a fraction of that since it skips card and
-   * set metadata entirely.
-   */
-  .openapi(getLandingSummary, async (c) => {
-    const { catalog } = c.get("repos");
+/**
+ * oRPC implementation of the public landing-summary contract.
+ *
+ * `GET /api/v1/landing-summary` — the lightweight hero payload: card count,
+ * printing count, copy count, and a per-day-stable sample of thumbnail ids for
+ * the decorative card scatter. Logic is unchanged from the previous
+ * `@hono/zod-openapi` handler — only the routing layer moved.
+ */
+export const landingSummaryRouter = {
+  get: os.get.handler(async ({ context }): Promise<LandingSummaryResponse> => {
+    const { catalog } = context.repos;
     const summary = await catalog.landingSummary(THUMBNAIL_SAMPLE_SIZE);
-
-    const content: LandingSummaryResponse = {
+    return {
       cardCount: summary.cardCount,
       printingCount: summary.printingCount,
       copyCount: summary.copyCount,
       thumbnailIds: summary.thumbnailIds,
     };
-
-    // Match /catalog so Cloudflare can serve from the edge with the same
-    // SWR window. The deterministic per-day shuffle keeps the body identical
-    // for every visitor across a UTC day.
-    c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-    return c.json(content);
-  });
+  }),
+};

@@ -48,12 +48,19 @@ export interface ApiErrorShape extends Error {
  * or revoked. This is an expected lifecycle state (sessions expire while tabs
  * stay open), not a bug: the query layer reacts by refetching the session,
  * which routes the user to /login (see `createQueryClient` and the
- * `_authenticated` layout). Structural for the same reason as
- * {@link isApiError}.
- * @returns Whether `error` is an ApiError with HTTP status 401.
+ * `_authenticated` layout).
+ *
+ * Matched structurally on `status === 401`, not via {@link isApiError}, so it
+ * covers BOTH error shapes the app produces: the raw-fetch {@link ApiError}
+ * (`name: "ApiError"`) and oRPC's `ORPCError` from the migrated endpoints
+ * (`name: "Error"`). Both carry `status` as an own property, so it survives the
+ * server-function boundary's prototype-dropping serialization.
+ * @returns Whether `error` carries HTTP status 401.
  */
 export function isSessionExpiredError(error: unknown): boolean {
-  return isApiError(error) && error.status === 401;
+  return (
+    typeof error === "object" && error !== null && (error as { status?: unknown }).status === 401
+  );
 }
 
 /**
@@ -79,15 +86,16 @@ export function isApiError(value: unknown): value is ApiErrorShape {
  * network failure). Logs the raw failure to the console (never the toast) and
  * records a `diagnostic` string for the console.
  *
- * Shared by {@link import("./fetch-api").fetchApi} (raw fetch) and
- * {@link import("./api-client").callApi} (Hono RPC) so both honor the exact
- * same error contract. The caller does the `throw` (`throw await
+ * Used by the raw-`fetch` callers ({@link import("./fetch-api").fetchApi} and
+ * the catalog ETag fetch in `catalog-query.ts`) so they honor the exact same
+ * error contract. The caller does the `throw` (`throw await
  * apiErrorFromResponse(...)`) so control flow stays visible at the call site.
+ * Errors from the migrated oRPC endpoints surface as `ORPCError` instead and
+ * never pass through here.
  *
- * The `res` param is typed structurally so both a DOM `Response` and Hono's
- * `ClientResponse` satisfy it. `request.method` is optional because hc's
- * `ClientResponse` does not carry the request method — the URL alone labels the
- * call in that path.
+ * The `res` param is typed structurally so a DOM `Response` satisfies it;
+ * `request.method` is optional so a caller that doesn't carry it can label the
+ * call by URL alone.
  * @returns The ApiError to throw.
  */
 export async function apiErrorFromResponse(

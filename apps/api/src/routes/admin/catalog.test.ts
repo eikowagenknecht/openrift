@@ -1,8 +1,12 @@
+import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AppError } from "../../errors.js";
-import { catalogRoute } from "./catalog";
+import { appErrorInterceptor } from "../../orpc/app-error-interceptor.js";
+import { buildApiContext } from "../../orpc/context.js";
+import type { Variables } from "../../types.js";
+import { adminCatalogRouter } from "./catalog";
 
 // ---------------------------------------------------------------------------
 // Mock repo
@@ -20,27 +24,37 @@ const mockSetsRepo = {
 };
 
 // ---------------------------------------------------------------------------
-// Test app
+// Test app — mount the oRPC router directly (without the requireAdmin gate).
+// AppErrors are bridged to ORPCErrors, so the error body is `{ message, code }`.
 // ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("user", { id: USER_ID });
-    c.set("repos", { sets: mockSetsRepo } as never);
-    await next();
-  })
-  .route("/api/v1", catalogRoute)
-  .onError((err, c) => {
-    if (err instanceof AppError) {
-      return c.json({ error: err.message, code: err.code }, err.status as 400);
-    }
-    throw err;
+const handler = new OpenAPIHandler(adminCatalogRouter, {
+  interceptors: [appErrorInterceptor],
+});
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  c.set("user", { id: USER_ID } as never);
+  c.set("repos", { sets: mockSetsRepo } as never);
+  await next();
+});
+const handle = async (c: Context<{ Variables: Variables }>) => {
+  const { matched, response } = await handler.handle(c.req.raw, {
+    context: buildApiContext(c),
   });
+  if (matched && response) {
+    return response;
+  }
+  return c.notFound();
+};
+for (const path of ["/api/admin/v1/sets", "/api/admin/v1/sets/reorder", "/api/admin/v1/sets/:id"]) {
+  app.all(path, handle);
+}
 
 // ---------------------------------------------------------------------------
-// Test data
+// Test data — `released` / `setType` are real `sets` columns, so the fixtures
+// include them (the output schema requires them).
 // ---------------------------------------------------------------------------
 
 const setId1 = "a0000000-0001-4000-a000-000000000010";
@@ -53,6 +67,8 @@ const dbSet1 = {
   printedTotal: 100,
   sortOrder: 0,
   releasedAt: "2026-01-01",
+  released: true,
+  setType: "main" as const,
 };
 
 const dbSet2 = {
@@ -62,13 +78,15 @@ const dbSet2 = {
   printedTotal: null,
   sortOrder: 1,
   releasedAt: null,
+  released: false,
+  setType: "supplemental" as const,
 };
 
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("GET /api/v1/sets", () => {
+describe("GET /api/admin/v1/sets", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -81,7 +99,7 @@ describe("GET /api/v1/sets", () => {
       { setId: setId2, printingCount: 10 },
     ]);
 
-    const res = await app.request("/api/v1/sets");
+    const res = await app.request("/api/admin/v1/sets");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.sets).toHaveLength(2);
@@ -92,6 +110,8 @@ describe("GET /api/v1/sets", () => {
       printedTotal: 100,
       sortOrder: 0,
       releasedAt: "2026-01-01",
+      released: true,
+      setType: "main",
       cardCount: 50,
       printingCount: 75,
     });
@@ -102,6 +122,8 @@ describe("GET /api/v1/sets", () => {
       printedTotal: null,
       sortOrder: 1,
       releasedAt: null,
+      released: false,
+      setType: "supplemental",
       cardCount: 0,
       printingCount: 10,
     });
@@ -112,7 +134,7 @@ describe("GET /api/v1/sets", () => {
     mockSetsRepo.cardCountsBySet.mockResolvedValue([]);
     mockSetsRepo.printingCountsBySet.mockResolvedValue([]);
 
-    const res = await app.request("/api/v1/sets");
+    const res = await app.request("/api/admin/v1/sets");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.sets[0].cardCount).toBe(0);
@@ -120,14 +142,14 @@ describe("GET /api/v1/sets", () => {
   });
 });
 
-describe("PATCH /api/v1/sets/:id", () => {
+describe("PATCH /api/admin/v1/sets/:id", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   it("returns 204 on successful update", async () => {
     mockSetsRepo.update.mockResolvedValue(true);
-    const res = await app.request(`/api/v1/sets/${setId1}`, {
+    const res = await app.request(`/api/admin/v1/sets/${setId1}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -150,7 +172,7 @@ describe("PATCH /api/v1/sets/:id", () => {
 
   it("returns 404 when set not found", async () => {
     mockSetsRepo.update.mockResolvedValue(null);
-    const res = await app.request(`/api/v1/sets/${setId1}`, {
+    const res = await app.request(`/api/admin/v1/sets/${setId1}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -163,12 +185,12 @@ describe("PATCH /api/v1/sets/:id", () => {
     });
     expect(res.status).toBe(404);
     const json = await res.json();
-    expect(json.error).toContain("not found");
+    expect(json.message).toContain("not found");
   });
 
   it("accepts null releasedAt", async () => {
     mockSetsRepo.update.mockResolvedValue(true);
-    const res = await app.request(`/api/v1/sets/${setId1}`, {
+    const res = await app.request(`/api/admin/v1/sets/${setId1}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -190,14 +212,14 @@ describe("PATCH /api/v1/sets/:id", () => {
   });
 });
 
-describe("POST /api/v1/sets", () => {
+describe("POST /api/admin/v1/sets", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   it("returns 201 with created set id", async () => {
     mockSetsRepo.createIfNotExists.mockResolvedValue(setId1);
-    const res = await app.request("/api/v1/sets", {
+    const res = await app.request("/api/admin/v1/sets", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -220,7 +242,7 @@ describe("POST /api/v1/sets", () => {
 
   it("returns 409 when set already exists", async () => {
     mockSetsRepo.createIfNotExists.mockResolvedValue(null);
-    const res = await app.request("/api/v1/sets", {
+    const res = await app.request("/api/admin/v1/sets", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -232,25 +254,21 @@ describe("POST /api/v1/sets", () => {
     });
     expect(res.status).toBe(409);
     const json = await res.json();
-    expect(json.error).toContain("already exists");
+    expect(json.message).toContain("already exists");
   });
 
   it("creates set with optional releasedAt omitted", async () => {
     mockSetsRepo.createIfNotExists.mockResolvedValue(setId1);
-    const res = await app.request("/api/v1/sets", {
+    const res = await app.request("/api/admin/v1/sets", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: "new-set",
-        name: "New Set",
-        printedTotal: 50,
-      }),
+      body: JSON.stringify({ id: "new-set", name: "New Set", printedTotal: 50 }),
     });
     expect(res.status).toBe(201);
   });
 });
 
-describe("DELETE /api/v1/sets/:id", () => {
+describe("DELETE /api/admin/v1/sets/:id", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -258,25 +276,21 @@ describe("DELETE /api/v1/sets/:id", () => {
   it("returns 204 when set has no printings", async () => {
     mockSetsRepo.printingCount.mockResolvedValue(0);
     mockSetsRepo.deleteById.mockResolvedValue(undefined);
-    const res = await app.request(`/api/v1/sets/${setId1}`, {
-      method: "DELETE",
-    });
+    const res = await app.request(`/api/admin/v1/sets/${setId1}`, { method: "DELETE" });
     expect(res.status).toBe(204);
     expect(mockSetsRepo.deleteById).toHaveBeenCalledWith(setId1);
   });
 
   it("returns 409 when set still has printings", async () => {
     mockSetsRepo.printingCount.mockResolvedValue(5);
-    const res = await app.request(`/api/v1/sets/${setId1}`, {
-      method: "DELETE",
-    });
+    const res = await app.request(`/api/admin/v1/sets/${setId1}`, { method: "DELETE" });
     expect(res.status).toBe(409);
     const json = await res.json();
-    expect(json.error).toContain("5 printing(s)");
+    expect(json.message).toContain("5 printing(s)");
   });
 });
 
-describe("PUT /api/v1/sets/reorder", () => {
+describe("PUT /api/admin/v1/sets/reorder", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -284,7 +298,7 @@ describe("PUT /api/v1/sets/reorder", () => {
   it("returns 204 on successful reorder", async () => {
     mockSetsRepo.listAll.mockResolvedValue([dbSet1, dbSet2]);
     mockSetsRepo.reorder.mockResolvedValue(undefined);
-    const res = await app.request("/api/v1/sets/reorder", {
+    const res = await app.request("/api/admin/v1/sets/reorder", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ids: [setId2, setId1] }),
@@ -294,38 +308,38 @@ describe("PUT /api/v1/sets/reorder", () => {
   });
 
   it("returns 400 when ids contain duplicates", async () => {
-    const res = await app.request("/api/v1/sets/reorder", {
+    const res = await app.request("/api/admin/v1/sets/reorder", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ids: [setId1, setId1] }),
     });
     expect(res.status).toBe(400);
     const json = await res.json();
-    expect(json.error).toContain("Duplicate");
+    expect(json.message).toContain("Duplicate");
   });
 
   it("returns 400 when ids count does not match existing sets", async () => {
     mockSetsRepo.listAll.mockResolvedValue([dbSet1, dbSet2]);
-    const res = await app.request("/api/v1/sets/reorder", {
+    const res = await app.request("/api/admin/v1/sets/reorder", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ids: [setId1] }),
     });
     expect(res.status).toBe(400);
     const json = await res.json();
-    expect(json.error).toContain("Expected 2");
+    expect(json.message).toContain("Expected 2");
   });
 
   it("returns 400 when ids contain unknown set IDs", async () => {
     const unknownId = "a0000000-0001-4000-a000-000000000099";
     mockSetsRepo.listAll.mockResolvedValue([dbSet1, dbSet2]);
-    const res = await app.request("/api/v1/sets/reorder", {
+    const res = await app.request("/api/admin/v1/sets/reorder", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ids: [setId1, unknownId] }),
     });
     expect(res.status).toBe(400);
     const json = await res.json();
-    expect(json.error).toContain("Unknown set IDs");
+    expect(json.message).toContain("Unknown set IDs");
   });
 });

@@ -1,11 +1,12 @@
 import type { DeckPlanDetailResponse } from "@openrift/shared";
+import { decksContract } from "@openrift/shared/contracts";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
-import { callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 /** The plan payload the editor sends on save. Matchups carry no id (the server assigns them). */
 export interface DeckPlanSaveInput {
@@ -32,12 +33,7 @@ const fetchDeckPlanFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data: deckId }): Promise<DeckPlanDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.decks[":id"].plan.$get({
-          param: encodeParams({ id: deckId }),
-        }),
-        "Couldn't load deck plan",
-      ),
+      apiOrpcClient(decksContract, context.cookie).getPlan({ id: deckId }),
   );
 
 export function deckPlanQueryOptions(userId: string, deckId: string) {
@@ -58,13 +54,7 @@ const saveDeckPlanFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckPlanDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.decks[":id"].plan.$put({
-          param: encodeParams({ id: data.deckId }),
-          json: data.plan,
-        }),
-        "Couldn't save deck plan",
-      ),
+      apiOrpcClient(decksContract, context.cookie).replacePlan({ id: data.deckId, ...data.plan }),
   );
 
 // Persists the whole plan (explicit Save). Updates the plan cache with the server's canonical copy.

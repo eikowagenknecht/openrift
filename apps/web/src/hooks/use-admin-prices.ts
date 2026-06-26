@@ -1,4 +1,5 @@
 import type { ClearPricesResponse, JobRunStartedResponse } from "@openrift/shared";
+import { adminOperationsContract } from "@openrift/shared/contracts";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -7,26 +8,22 @@ import {
   getLatestJobRunFn,
   refreshActions,
 } from "@/components/admin/refresh-actions";
-import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import type { JobRunView } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 // ── Server function for clear prices ─────────────────────────────────────────
 
 const clearPricesFn = createServerFn({ method: "POST" })
-  // The typed client enforces the route's marketplace enum (was `string` under
-  // fetchApi, which skipped body typing); callers pass clearActions[*].source,
-  // which is already one of these literals.
+  // The oRPC client enforces the route's marketplace enum; callers pass
+  // clearActions[*].source, which is already one of these literals.
   .validator((input: { marketplace: "cardmarket" | "cardtrader" | "tcgplayer" }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<ClearPricesResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["clear-prices"].$post({
-          json: { marketplace: data.marketplace },
-        }),
-        "Couldn't clear prices",
-      ),
+      apiOrpcClient(adminOperationsContract, context.cookie).clearPrices({
+        marketplace: data.marketplace,
+      }),
   );
 
 // ── Mutations ─────────────────────────────────────────────────────────────────

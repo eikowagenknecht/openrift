@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AppError } from "../../errors.js";
-import { publicDecksRoute } from "./decks";
+import { registerRouterForTest } from "../../test/mount-router.js";
+import type { Variables } from "../../types.js";
+import { publicDecksRouter } from "./decks";
 
 const mockRepo = {
   findByShareToken: vi.fn(
@@ -30,24 +31,19 @@ const mockCustomTagsRepo = {
   assignmentsForCardIds: vi.fn(() => Promise.resolve(new Map<string, string[]>())),
 };
 
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("repos", {
-      decks: mockRepo,
-      deckPlans: mockDeckPlansRepo,
-      catalog: mockCatalogRepo,
-      canonicalPrintings: mockCanonicalPrintingsRepo,
-      customTags: mockCustomTagsRepo,
-    } as never);
-    await next();
-  })
-  .route("/api/v1", publicDecksRoute)
-  .onError((err, c) => {
-    if (err instanceof AppError) {
-      return c.json({ error: err.message, code: err.code }, err.status as 404);
-    }
-    throw err;
-  });
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  c.set("repos", {
+    decks: mockRepo,
+    deckPlans: mockDeckPlansRepo,
+    catalog: mockCatalogRepo,
+    canonicalPrintings: mockCanonicalPrintingsRepo,
+    customTags: mockCustomTagsRepo,
+    // oxlint-disable-next-line no-explicit-any -- test mock doesn't match full Repos type
+  } as any);
+  await next();
+});
+registerRouterForTest(app, publicDecksRouter);
 
 const DECK_ID = "a0000000-0001-4000-a000-000000000010";
 const USER_ID = "a0000000-0001-4000-a000-000000000001";

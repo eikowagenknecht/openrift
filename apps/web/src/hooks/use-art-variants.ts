@@ -1,20 +1,18 @@
+import type { AdminArtVariantsResponse } from "@openrift/shared/contracts";
+import { adminArtVariantsContract } from "@openrift/shared/contracts";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
-import type { AdminArtVariantsResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchArtVariants = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminArtVariantsResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["art-variants"].$get(),
-        "Couldn't load art variants",
-      ),
+      apiOrpcClient(adminArtVariantsContract, context.cookie).list(),
   );
 
 export const adminArtVariantsQueryOptions = queryOptions({
@@ -30,12 +28,7 @@ const createArtVariantFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; label: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["art-variants"].$post({
-        json: data,
-      }),
-      "Couldn't create art variant",
-    );
+    await apiOrpcClient(adminArtVariantsContract, context.cookie).create(data);
   });
 
 export function useCreateArtVariant() {
@@ -49,13 +42,7 @@ const updateArtVariantFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; label?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["art-variants"][":slug"].$patch({
-        param: encodeParams({ slug: data.slug }),
-        json: { label: data.label },
-      }),
-      "Couldn't update art variant",
-    );
+    await apiOrpcClient(adminArtVariantsContract, context.cookie).update(data);
   });
 
 export function useUpdateArtVariant() {
@@ -69,12 +56,7 @@ const reorderArtVariantsFn = createServerFn({ method: "POST" })
   .validator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["art-variants"].reorder.$put({
-        json: { slugs: data.slugs },
-      }),
-      "Couldn't reorder art variants",
-    );
+    await apiOrpcClient(adminArtVariantsContract, context.cookie).reorder({ slugs: data.slugs });
   });
 
 export function useReorderArtVariants() {
@@ -88,12 +70,7 @@ const deleteArtVariantFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["art-variants"][":slug"].$delete({
-        param: encodeParams({ slug: data.slug }),
-      }),
-      "Couldn't delete art variant",
-    );
+    await apiOrpcClient(adminArtVariantsContract, context.cookie).remove({ slug: data.slug });
   });
 
 export function useDeleteArtVariant() {

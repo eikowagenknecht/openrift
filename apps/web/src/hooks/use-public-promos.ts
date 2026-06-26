@@ -1,11 +1,12 @@
 import type { Printing, PromosListResponse } from "@openrift/shared";
+import { promosContract } from "@openrift/shared/contracts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
-import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchPromoList = createServerFn({ method: "GET" })
   .middleware([withCookies])
@@ -13,8 +14,8 @@ const fetchPromoList = createServerFn({ method: "GET" })
     ({ context }): Promise<PromosListResponse> =>
       serverCache.fetchQuery({
         queryKey: ["server-cache", "promos"],
-        queryFn: () =>
-          callApiJson(serverApiClient(context.cookie).api.v1.promos.$get(), "Couldn't load promos"),
+        // Migrated to oRPC: contract-typed client instead of the hc client.
+        queryFn: () => apiOrpcClient(promosContract, context.cookie).list(),
       }),
   );
 

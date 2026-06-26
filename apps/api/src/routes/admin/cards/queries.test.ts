@@ -2,16 +2,21 @@
    no-empty-function,
    unicorn/no-useless-undefined
    -- test file: mocks require empty fns and explicit undefined */
+import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { appErrorInterceptor } from "../../../orpc/app-error-interceptor.js";
+import { buildApiContext } from "../../../orpc/context.js";
 import {
   buildCandidateCardList,
-  buildExport,
   buildCardDetail,
+  buildExport,
   buildUnmatchedDetail,
 } from "../../../services/candidate-queries.js";
-import { queriesRoute } from "./queries";
+import type { Variables } from "../../../types.js";
+import { adminCardQueriesRouter } from "./queries";
 
 // ---------------------------------------------------------------------------
 // Mock modules
@@ -44,45 +49,66 @@ const mockProviderSettings = {
   favoriteProviders: vi.fn().mockResolvedValue(new Set(["gallery"])),
 };
 
-// ---------------------------------------------------------------------------
-// Test app
-// ---------------------------------------------------------------------------
-
-const USER_ID = "a0000000-0001-4000-a000-000000000001";
-
 const mockMarketplaceMapping = {
   variantsForCard: vi.fn().mockResolvedValue([]),
 };
 
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("user", { id: USER_ID });
-    c.set("repos", {
-      candidateCards: mockCandidateCards,
-      providerSettings: mockProviderSettings,
-      marketplaceMapping: mockMarketplaceMapping,
-    } as never);
-    await next();
-  })
-  .route("/api/v1", queriesRoute);
+// ---------------------------------------------------------------------------
+// Test app — mount the oRPC router directly (without the requireAdmin gate).
+// ---------------------------------------------------------------------------
+
+const USER_ID = "a0000000-0001-4000-a000-000000000001";
+
+const handler = new OpenAPIHandler(adminCardQueriesRouter, { interceptors: [appErrorInterceptor] });
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  c.set("user", { id: USER_ID } as never);
+  c.set("repos", {
+    candidateCards: mockCandidateCards,
+    providerSettings: mockProviderSettings,
+    marketplaceMapping: mockMarketplaceMapping,
+  } as never);
+  await next();
+});
+const handle = async (c: Context<{ Variables: Variables }>) => {
+  const { matched, response } = await handler.handle(c.req.raw, {
+    context: buildApiContext(c),
+  });
+  if (matched && response) {
+    return response;
+  }
+  return c.notFound();
+};
+for (const path of [
+  "/api/admin/v1/cards",
+  "/api/admin/v1/cards/all-cards",
+  "/api/admin/v1/cards/provider-names",
+  "/api/admin/v1/cards/distinct-artists",
+  "/api/admin/v1/cards/provider-stats",
+  "/api/admin/v1/cards/export",
+  "/api/admin/v1/cards/new/:name",
+  "/api/admin/v1/cards/:cardSlug",
+]) {
+  app.get(path, handle);
+}
 
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("GET /api/v1/all-cards", () => {
+describe("GET /api/admin/v1/cards/all-cards", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   it("returns 200 with all cards", async () => {
     const cards = [
-      { id: "card-1", slug: "fireball", name: "Fireball", type: "spell" },
-      { id: "card-2", slug: "bolt", name: "Bolt", type: "spell" },
+      { id: "card-1", slug: "fireball", name: "Fireball", type: "spell", setSlugs: ["ogn"] },
+      { id: "card-2", slug: "bolt", name: "Bolt", type: "spell", setSlugs: [] },
     ];
     mockCandidateCards.listAllCards.mockResolvedValue(cards);
 
-    const res = await app.request("/api/v1/all-cards");
+    const res = await app.request("/api/admin/v1/cards/all-cards");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual(cards);
@@ -91,14 +117,14 @@ describe("GET /api/v1/all-cards", () => {
   it("returns empty array when no cards exist", async () => {
     mockCandidateCards.listAllCards.mockResolvedValue([]);
 
-    const res = await app.request("/api/v1/all-cards");
+    const res = await app.request("/api/admin/v1/cards/all-cards");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual([]);
   });
 });
 
-describe("GET /api/v1/provider-names", () => {
+describe("GET /api/admin/v1/cards/provider-names", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -106,7 +132,7 @@ describe("GET /api/v1/provider-names", () => {
   it("returns 200 with distinct provider names", async () => {
     mockCandidateCards.distinctProviderNames.mockResolvedValue(["gallery", "ocr"]);
 
-    const res = await app.request("/api/v1/provider-names");
+    const res = await app.request("/api/admin/v1/cards/provider-names");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual(["gallery", "ocr"]);
@@ -115,14 +141,14 @@ describe("GET /api/v1/provider-names", () => {
   it("returns empty array when no providers exist", async () => {
     mockCandidateCards.distinctProviderNames.mockResolvedValue([]);
 
-    const res = await app.request("/api/v1/provider-names");
+    const res = await app.request("/api/admin/v1/cards/provider-names");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual([]);
   });
 });
 
-describe("GET /api/v1/distinct-artists", () => {
+describe("GET /api/admin/v1/cards/distinct-artists", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -130,32 +156,45 @@ describe("GET /api/v1/distinct-artists", () => {
   it("returns 200 with distinct artist names", async () => {
     mockCandidateCards.distinctArtists.mockResolvedValue(["Jane Doe", "John Smith"]);
 
-    const res = await app.request("/api/v1/distinct-artists");
+    const res = await app.request("/api/admin/v1/cards/distinct-artists");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual(["Jane Doe", "John Smith"]);
   });
 });
 
-describe("GET /api/v1/provider-stats", () => {
+describe("GET /api/admin/v1/cards/provider-stats", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  it("returns 200 with provider statistics", async () => {
-    const stats = [
-      { provider: "gallery", cardCount: 100, printingCount: 200, lastUpdated: "2026-01-15" },
-    ];
-    mockCandidateCards.providerStats.mockResolvedValue(stats);
+  it("returns 200 with provider statistics, coercing a Date lastUpdated to ISO", async () => {
+    // The driver returns the `max(timestamptz)` as a native Date despite the
+    // repo's `sql<string>` type; the handler coerces it to ISO for the schema.
+    mockCandidateCards.providerStats.mockResolvedValue([
+      {
+        provider: "gallery",
+        cardCount: 100,
+        printingCount: 200,
+        lastUpdated: new Date("2026-01-15T08:30:00.000Z"),
+      },
+    ]);
 
-    const res = await app.request("/api/v1/provider-stats");
+    const res = await app.request("/api/admin/v1/cards/provider-stats");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json).toEqual(stats);
+    expect(json).toEqual([
+      {
+        provider: "gallery",
+        cardCount: 100,
+        printingCount: 200,
+        lastUpdated: "2026-01-15T08:30:00.000Z",
+      },
+    ]);
   });
 });
 
-describe("GET /api/v1/", () => {
+describe("GET /api/admin/v1/cards (candidate list)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -179,7 +218,7 @@ describe("GET /api/v1/", () => {
     ];
     mockBuildCandidateCardList.mockResolvedValue(candidates);
 
-    const res = await app.request("/api/v1");
+    const res = await app.request("/api/admin/v1/cards");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual(candidates);
@@ -187,21 +226,17 @@ describe("GET /api/v1/", () => {
   });
 });
 
-describe("GET /api/v1/export", () => {
+describe("GET /api/admin/v1/cards/export", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   it("returns 200 with export data", async () => {
-    const exportData = [
-      {
-        card: { name: "Fireball", type: "spell" },
-        printings: [],
-      },
-    ];
+    const exportData = [{ card: { name: "Fireball", type: "spell" }, printings: [] }];
+    // oxlint-disable-next-line no-explicit-any -- loose passthrough export shape
     mockBuildExport.mockResolvedValue(exportData as any);
 
-    const res = await app.request("/api/v1/export");
+    const res = await app.request("/api/admin/v1/cards/export");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual(exportData);
@@ -209,7 +244,7 @@ describe("GET /api/v1/export", () => {
   });
 });
 
-describe("GET /api/v1/:cardSlug", () => {
+describe("GET /api/admin/v1/cards/:cardSlug", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -226,9 +261,10 @@ describe("GET /api/v1/:cardSlug", () => {
       printingImages: [],
       setTotals: {},
     };
+    // oxlint-disable-next-line no-explicit-any -- partial detail fixture
     mockBuildCandidateCardDetail.mockResolvedValue(detail as any);
 
-    const res = await app.request("/api/v1/fireball");
+    const res = await app.request("/api/admin/v1/cards/fireball");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.displayName).toBe("Fireball");
@@ -240,9 +276,10 @@ describe("GET /api/v1/:cardSlug", () => {
   });
 
   it("passes the correct cardSlug parameter", async () => {
+    // oxlint-disable-next-line no-explicit-any -- partial detail fixture
     mockBuildCandidateCardDetail.mockResolvedValue({ card: null } as any);
 
-    await app.request("/api/v1/abandon");
+    await app.request("/api/admin/v1/cards/abandon");
 
     expect(mockBuildCandidateCardDetail).toHaveBeenCalledWith(
       mockCandidateCards,
@@ -252,7 +289,7 @@ describe("GET /api/v1/:cardSlug", () => {
   });
 });
 
-describe("GET /api/v1/new/:name", () => {
+describe("GET /api/admin/v1/cards/new/:name", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -266,9 +303,10 @@ describe("GET /api/v1/new/:name", () => {
       defaultCardId: "",
       setTotals: {},
     };
+    // oxlint-disable-next-line no-explicit-any -- partial detail fixture
     mockBuildUnmatchedDetail.mockResolvedValue(detail as any);
 
-    const res = await app.request("/api/v1/new/newcard");
+    const res = await app.request("/api/admin/v1/cards/new/newcard");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.displayName).toBe("New Card");
@@ -276,17 +314,19 @@ describe("GET /api/v1/new/:name", () => {
   });
 
   it("decodes URI-encoded name parameter", async () => {
+    // oxlint-disable-next-line no-explicit-any -- partial detail fixture
     mockBuildUnmatchedDetail.mockResolvedValue({ displayName: "Card Name" } as any);
 
-    await app.request("/api/v1/new/card%20name");
+    await app.request("/api/admin/v1/cards/new/card%20name");
 
     expect(mockBuildUnmatchedDetail).toHaveBeenCalledWith(mockCandidateCards, "card name");
   });
 
   it("handles special characters in name", async () => {
+    // oxlint-disable-next-line no-explicit-any -- partial detail fixture
     mockBuildUnmatchedDetail.mockResolvedValue({ displayName: "Ki'Ryn" } as any);
 
-    await app.request("/api/v1/new/ki%27ryn");
+    await app.request("/api/admin/v1/cards/new/ki%27ryn");
 
     expect(mockBuildUnmatchedDetail).toHaveBeenCalledWith(mockCandidateCards, "ki'ryn");
   });

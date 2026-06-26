@@ -1,7 +1,12 @@
+import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ignoredProductsRoute } from "./ignored-products";
+import { appErrorInterceptor } from "../../orpc/app-error-interceptor.js";
+import { buildApiContext } from "../../orpc/context.js";
+import type { Variables } from "../../types.js";
+import { adminIgnoredProductsRouter } from "./ignored-products";
 
 // ---------------------------------------------------------------------------
 // Mock repo
@@ -17,18 +22,30 @@ const mockMktAdmin = {
 };
 
 // ---------------------------------------------------------------------------
-// Test app
+// Test app — mount the oRPC router directly (without the requireAdmin gate).
 // ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("user", { id: USER_ID });
-    c.set("repos", { marketplaceAdmin: mockMktAdmin } as never);
-    await next();
-  })
-  .route("/api/v1", ignoredProductsRoute);
+const handler = new OpenAPIHandler(adminIgnoredProductsRouter, {
+  interceptors: [appErrorInterceptor],
+});
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  c.set("user", { id: USER_ID } as never);
+  c.set("repos", { marketplaceAdmin: mockMktAdmin } as never);
+  await next();
+});
+const handle = async (c: Context<{ Variables: Variables }>) => {
+  const { matched, response } = await handler.handle(c.req.raw, {
+    context: buildApiContext(c),
+  });
+  if (matched && response) {
+    return response;
+  }
+  return c.notFound();
+};
+app.all("/api/admin/v1/ignored-products", handle);
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -55,17 +72,17 @@ const dbIgnoredVariantL3 = {
 };
 
 // ---------------------------------------------------------------------------
-// GET /api/v1/ignored-products
+// GET /api/admin/v1/ignored-products
 // ---------------------------------------------------------------------------
 
-describe("GET /api/v1/ignored-products", () => {
+describe("GET /api/admin/v1/ignored-products", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   it("returns 200 with serialized L2 + L3 ignored products", async () => {
     mockMktAdmin.listIgnoredProducts.mockResolvedValue([dbIgnoredProductL2, dbIgnoredVariantL3]);
-    const res = await app.request("/api/v1/ignored-products");
+    const res = await app.request("/api/admin/v1/ignored-products");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.products).toHaveLength(2);
@@ -89,7 +106,7 @@ describe("GET /api/v1/ignored-products", () => {
 
   it("returns empty array when no products are ignored", async () => {
     mockMktAdmin.listIgnoredProducts.mockResolvedValue([]);
-    const res = await app.request("/api/v1/ignored-products");
+    const res = await app.request("/api/admin/v1/ignored-products");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.products).toEqual([]);
@@ -97,10 +114,10 @@ describe("GET /api/v1/ignored-products", () => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/v1/ignored-products (L2 — product level)
+// POST /api/admin/v1/ignored-products (L2 — product level)
 // ---------------------------------------------------------------------------
 
-describe("POST /api/v1/ignored-products (L2)", () => {
+describe("POST /api/admin/v1/ignored-products (L2)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -112,7 +129,7 @@ describe("POST /api/v1/ignored-products (L2)", () => {
     ]);
     mockMktAdmin.insertIgnoredProducts.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/ignored-products", {
+    const res = await app.request("/api/admin/v1/ignored-products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -145,7 +162,7 @@ describe("POST /api/v1/ignored-products (L2)", () => {
     ]);
     mockMktAdmin.insertIgnoredProducts.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/ignored-products", {
+    const res = await app.request("/api/admin/v1/ignored-products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -162,7 +179,7 @@ describe("POST /api/v1/ignored-products (L2)", () => {
   it("returns 0 and skips insert when no products match staging", async () => {
     mockMktAdmin.getStagingProductNames.mockResolvedValue([]);
 
-    const res = await app.request("/api/v1/ignored-products", {
+    const res = await app.request("/api/admin/v1/ignored-products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -184,7 +201,7 @@ describe("POST /api/v1/ignored-products (L2)", () => {
     ]);
     mockMktAdmin.insertIgnoredProducts.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/ignored-products", {
+    const res = await app.request("/api/admin/v1/ignored-products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -205,10 +222,10 @@ describe("POST /api/v1/ignored-products (L2)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/v1/ignored-products (L3 — variant level)
+// POST /api/admin/v1/ignored-products (L3 — variant level)
 // ---------------------------------------------------------------------------
 
-describe("POST /api/v1/ignored-products (L3)", () => {
+describe("POST /api/admin/v1/ignored-products (L3)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -219,7 +236,7 @@ describe("POST /api/v1/ignored-products (L3)", () => {
     ]);
     mockMktAdmin.insertIgnoredVariants.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/ignored-products", {
+    const res = await app.request("/api/admin/v1/ignored-products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -245,17 +262,17 @@ describe("POST /api/v1/ignored-products (L3)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// DELETE /api/v1/ignored-products
+// DELETE /api/admin/v1/ignored-products
 // ---------------------------------------------------------------------------
 
-describe("DELETE /api/v1/ignored-products (L2)", () => {
+describe("DELETE /api/admin/v1/ignored-products (L2)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   it("returns 200 with count of unignored L2 products", async () => {
     mockMktAdmin.deleteIgnoredProducts.mockResolvedValue(2);
-    const res = await app.request("/api/v1/ignored-products", {
+    const res = await app.request("/api/admin/v1/ignored-products", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -272,7 +289,7 @@ describe("DELETE /api/v1/ignored-products (L2)", () => {
 
   it("returns 0 when no products were unignored", async () => {
     mockMktAdmin.deleteIgnoredProducts.mockResolvedValue(0);
-    const res = await app.request("/api/v1/ignored-products", {
+    const res = await app.request("/api/admin/v1/ignored-products", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -287,14 +304,14 @@ describe("DELETE /api/v1/ignored-products (L2)", () => {
   });
 });
 
-describe("DELETE /api/v1/ignored-products (L3)", () => {
+describe("DELETE /api/admin/v1/ignored-products (L3)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   it("returns 200 with count of unignored L3 variants", async () => {
     mockMktAdmin.deleteIgnoredVariants.mockResolvedValue(1);
-    const res = await app.request("/api/v1/ignored-products", {
+    const res = await app.request("/api/admin/v1/ignored-products", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

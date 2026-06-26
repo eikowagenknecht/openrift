@@ -1,8 +1,9 @@
+import { adminChangelogContract } from "@openrift/shared/contracts";
 import { useMutation } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 interface PostChangelogResponse {
   posted: boolean;
@@ -13,10 +14,7 @@ const postChangelogFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<PostChangelogResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1.changelog.post.$post(),
-        "Couldn't post changelog",
-      ),
+      apiOrpcClient(adminChangelogContract, context.cookie).post(),
   );
 
 export function usePostChangelog() {

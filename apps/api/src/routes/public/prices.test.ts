@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { pricesRoute } from "./prices";
+import { registerRouterForTest } from "../../test/mount-router.js";
+import type { Variables } from "../../types.js";
+import { pricesRouter } from "./prices";
 
 // ---------------------------------------------------------------------------
 // Mock repos
@@ -18,16 +20,18 @@ const mockMarketplaceRepo = {
   snapshots: vi.fn(() => Promise.resolve([] as object[])),
 };
 
-// oxlint-disable-next-line -- test mock doesn't match full Repos type
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("repos", {
-      catalog: mockCatalogRepo,
-      marketplace: mockMarketplaceRepo,
-    } as never);
-    await next();
-  })
-  .route("/api/v1", pricesRoute);
+// Mount the prices router the way production does (one OpenAPIHandler behind a
+// catch-all). oRPC input validation produces the 400s for bad range / uuid /
+// missing printings. Cache-Control + `etag()` are app-level (orpc/cache-policy.ts).
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  c.set("repos", {
+    catalog: mockCatalogRepo,
+    marketplace: mockMarketplaceRepo,
+  } as never);
+  await next();
+});
+registerRouterForTest(app, pricesRouter);
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -138,31 +142,6 @@ describe("GET /api/v1/prices", () => {
     const json = await res.json();
     expect(json.prices).toEqual({});
   });
-
-  it("returns ETag and Cache-Control headers", async () => {
-    const res = await app.request("/api/v1/prices");
-    expect(res.headers.get("ETag")).toBeTruthy();
-    expect(res.headers.get("Cache-Control")).toBe(
-      "public, max-age=3600, stale-while-revalidate=86400",
-    );
-  });
-
-  it("returns 304 when If-None-Match matches current ETag", async () => {
-    const first = await app.request("/api/v1/prices");
-    const etag = first.headers.get("ETag") ?? "";
-
-    const res = await app.request("/api/v1/prices", {
-      headers: { "If-None-Match": etag },
-    });
-    expect(res.status).toBe(304);
-  });
-
-  it("returns 200 when If-None-Match does not match", async () => {
-    const res = await app.request("/api/v1/prices", {
-      headers: { "If-None-Match": '"stale"' },
-    });
-    expect(res.status).toBe(200);
-  });
 });
 
 // ---------------------------------------------------------------------------
@@ -241,24 +220,6 @@ describe("GET /api/v1/prices/:printingId/history", () => {
     expect(json.cardmarket.productId).toBeNull();
   });
 
-  it("returns ETag and Cache-Control headers", async () => {
-    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
-    expect(res.headers.get("ETag")).toBeTruthy();
-    expect(res.headers.get("Cache-Control")).toBe(
-      "public, max-age=3600, stale-while-revalidate=86400",
-    );
-  });
-
-  it("returns 304 when If-None-Match matches current ETag", async () => {
-    const first = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
-    const etag = first.headers.get("ETag") ?? "";
-
-    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history", {
-      headers: { "If-None-Match": etag },
-    });
-    expect(res.status).toBe(304);
-  });
-
   it("accepts range query parameter", async () => {
     const res = await app.request(
       "/api/v1/prices/a0000000-0001-4000-a000-000000000001/history?range=7d",
@@ -315,6 +276,7 @@ describe("GET /api/v1/prices/:printingId/history", () => {
       variantId: "ms-ct-1",
       recordedAt: new Date("2026-03-01"),
       marketCents: null,
+      zeroLowCents: null,
       lowCents: 150,
     };
     mockMarketplaceRepo.snapshots.mockImplementation(async (variantId: string) => {

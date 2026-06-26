@@ -1,10 +1,11 @@
+import { adminIgnoredProductsContract } from "@openrift/shared/contracts";
 import { queryOptions, useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import type { IgnoredProductsResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 type Marketplace = "tcgplayer" | "cardmarket" | "cardtrader";
 
@@ -31,10 +32,7 @@ const fetchIgnoredProducts = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<IgnoredProductsResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["ignored-products"].$get(),
-        "Couldn't load ignored products",
-      ),
+      apiOrpcClient(adminIgnoredProductsContract, context.cookie).list(),
   );
 
 export const ignoredProductsQueryOptions = queryOptions({
@@ -65,12 +63,7 @@ const unignoreProductFn = createServerFn({ method: "POST" })
             ],
           };
 
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["ignored-products"].$delete({
-        json: body,
-      }),
-      "Couldn't unignore product",
-    );
+    await apiOrpcClient(adminIgnoredProductsContract, context.cookie).unignore(body);
   });
 
 export function useUnignoreProduct() {

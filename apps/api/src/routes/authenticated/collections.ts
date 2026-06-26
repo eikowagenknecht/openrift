@@ -1,33 +1,20 @@
-import { createRoute, z } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
 import type {
+  CollectionGroupSharesResponse,
   CollectionListResponse,
+  CollectionResponse,
   CollectionShareResponse,
   CopyListResponse,
 } from "@openrift/shared";
-import {
-  collectionGroupSharesResponseSchema,
-  collectionListResponseSchema,
-  collectionResponseSchema,
-  collectionShareResponseSchema,
-  copyListResponseSchema,
-} from "@openrift/shared/response-schemas";
-import {
-  copiesQuerySchema,
-  createCollectionSchema,
-  idParamSchema,
-  reorderCollectionsSchema,
-  setCollectionDeckbuildingSchema,
-  updateCollectionSchema,
-} from "@openrift/shared/schemas";
+import { collectionsContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 import type { Updateable } from "kysely";
 
 import type { CollectionsTable } from "../../db/index.js";
 import { AppError } from "../../errors.js";
-import { getUserId } from "../../middleware/get-user-id.js";
-import { requireAuth } from "../../middleware/require-auth.js";
-import { cookieAuth, errorResponses } from "../../openapi-helpers.js";
-import { createApiApp } from "../../openapi.js";
+import { requireUserId } from "../../middleware/get-user-id.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
 import { buildCopiesCursor, clampCopiesLimit } from "../../repositories/copies.js";
@@ -42,239 +29,39 @@ const patchFields: FieldMapping<Updateable<CollectionsTable>> = {
   sortOrder: "sortOrder",
 };
 
-const listCollections = createRoute({
-  method: "get",
-  path: "/",
-  tags: ["Collections"],
-  security: cookieAuth,
-  responses: {
-    200: {
-      content: { "application/json": { schema: collectionListResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(401),
-  },
-});
+const os = implement(collectionsContract).$context<ApiContext>().use(requireUser);
 
-const createCollection = createRoute({
-  method: "post",
-  path: "/",
-  tags: ["Collections"],
-  security: cookieAuth,
-  request: {
-    body: { content: { "application/json": { schema: createCollectionSchema } } },
-  },
-  responses: {
-    201: {
-      headers: z.object({
-        Location: z.string().openapi({
-          description: "URL of the created collection",
-          example: "/api/v1/collections/019cfc3b-0000-7000-8000-000000000000",
-        }),
-      }),
-      content: { "application/json": { schema: collectionResponseSchema } },
-      description: "Created",
-    },
-    ...errorResponses(400, 401, 403, 404),
-  },
-});
-
-const getCollection = createRoute({
-  method: "get",
-  path: "/{id}",
-  tags: ["Collections"],
-  security: cookieAuth,
-  request: { params: idParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: collectionResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(401, 404),
-  },
-});
-
-const updateCollection = createRoute({
-  method: "patch",
-  path: "/{id}",
-  tags: ["Collections"],
-  security: cookieAuth,
-  request: {
-    params: idParamSchema,
-    body: { content: { "application/json": { schema: updateCollectionSchema } } },
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: collectionResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(400, 401, 403, 404),
-  },
-});
-
-const deleteCollection = createRoute({
-  method: "delete",
-  path: "/{id}",
-  tags: ["Collections"],
-  security: cookieAuth,
-  request: { params: idParamSchema },
-  responses: {
-    204: { description: "No Content" },
-    ...errorResponses(401, 403, 404, 409),
-  },
-});
-
-const getCollectionCopies = createRoute({
-  method: "get",
-  path: "/{id}/copies",
-  tags: ["Collections"],
-  security: cookieAuth,
-  request: {
-    params: idParamSchema,
-    query: copiesQuerySchema,
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: copyListResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(400, 401, 404),
-  },
-});
-
-const shareCollection = createRoute({
-  method: "post",
-  path: "/{id}/share",
-  tags: ["Collections"],
-  security: cookieAuth,
-  request: { params: idParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: collectionShareResponseSchema } },
-      description: "Shared",
-    },
-    ...errorResponses(401, 403, 404),
-  },
-});
-
-const getShareState = createRoute({
-  method: "get",
-  path: "/{id}/share",
-  tags: ["Collections"],
-  security: cookieAuth,
-  request: { params: idParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: collectionShareResponseSchema } },
-      description: "Current share state (shareToken null / isPublic false if not shared)",
-    },
-    ...errorResponses(401, 403, 404),
-  },
-});
-
-const rotateShareCollection = createRoute({
-  method: "post",
-  path: "/{id}/share/rotate",
-  tags: ["Collections"],
-  security: cookieAuth,
-  request: { params: idParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: collectionShareResponseSchema } },
-      description: "Share token rotated (old token stops resolving)",
-    },
-    ...errorResponses(401, 403, 404),
-  },
-});
-
-const unshareCollection = createRoute({
-  method: "delete",
-  path: "/{id}/share",
-  tags: ["Collections"],
-  security: cookieAuth,
-  request: { params: idParamSchema },
-  responses: {
-    204: { description: "No Content" },
-    ...errorResponses(401, 403, 404),
-  },
-});
-
-const collectionGroupShares = createRoute({
-  method: "get",
-  path: "/{id}/group-shares",
-  tags: ["Collections"],
-  security: cookieAuth,
-  request: { params: idParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: collectionGroupSharesResponseSchema } },
-      description: "Groups this collection is shared with",
-    },
-    ...errorResponses(401, 404),
-  },
-});
-
-const reorderCollections = createRoute({
-  method: "post",
-  path: "/reorder",
-  tags: ["Collections"],
-  security: cookieAuth,
-  request: {
-    body: { content: { "application/json": { schema: reorderCollectionsSchema } } },
-  },
-  responses: {
-    204: { description: "No Content" },
-    ...errorResponses(400, 401),
-  },
-});
-
-const setDeckbuilding = createRoute({
-  method: "put",
-  path: "/{id}/deckbuilding",
-  tags: ["Collections"],
-  security: cookieAuth,
-  request: {
-    params: idParamSchema,
-    body: { content: { "application/json": { schema: setCollectionDeckbuildingSchema } } },
-  },
-  responses: {
-    204: { description: "No Content" },
-    ...errorResponses(400, 401, 404),
-  },
-});
-
-const collectionsApp = createApiApp().basePath("/collections");
-collectionsApp.use(requireAuth);
-export const collectionsRoute = collectionsApp
+/**
+ * oRPC implementation of the authenticated collections contract (mounted at
+ * `/api/v1/collections`). Logic unchanged from the previous `@hono/zod-openapi`
+ * handlers; not-found / forbidden / conflict states are still thrown as
+ * `AppError` and mapped by the handler's appErrorInterceptor. The `201`
+ * `Location` header is dropped — no consumer read it.
+ */
+export const collectionsRouter = {
   // ── LIST ────────────────────────────────────────────────────────────────────
-  .openapi(listCollections, async (c) => {
-    const repos = c.get("repos");
-    const userId = getUserId(c);
+  list: os.list.handler(async ({ context }): Promise<CollectionListResponse> => {
+    const repos = context.repos;
+    const userId = requireUserId(context.user);
     const favMarketplace = await getFavoriteMarketplace(repos, userId);
     const rows = await repos.collections.listAccessibleForUser(userId);
     const values = await repos.marketplace.collectionValues(
       rows.map((row) => row.id),
       favMarketplace,
     );
-    return c.json(
-      {
-        items: rows.map((row) => toCollection(row, values.get(row.id))),
-      } satisfies CollectionListResponse,
-      200,
-    );
-  })
+    return { items: rows.map((row) => toCollection(row, values.get(row.id))) };
+  }),
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
-  .openapi(createCollection, async (c) => {
-    const { collections, collectionDeckbuildingPrefs, friendGroups } = c.get("repos");
-    const userId = getUserId(c);
-    const body = c.req.valid("json");
+  create: os.create.handler(async ({ input, context }): Promise<CollectionResponse> => {
+    const { collections, collectionDeckbuildingPrefs, friendGroups } = context.repos;
+    const userId = requireUserId(context.user);
 
     let groupId: string | null = null;
     let groupSlug: string | null = null;
     let groupName: string | null = null;
-    if (body.groupSlug) {
-      const group = await friendGroups.getBySlug(body.groupSlug);
+    if (input.groupSlug) {
+      const group = await friendGroups.getBySlug(input.groupSlug);
       assertFound(group, "Group not found");
       const membership = await friendGroups.getMembership(group.id, userId);
       if (!membership) {
@@ -292,8 +79,8 @@ export const collectionsRoute = collectionsApp
     const row = await collections.create({
       userId: groupId ? null : userId,
       groupId,
-      name: body.name,
-      description: body.description ?? null,
+      name: input.name,
+      description: input.description ?? null,
       isInbox: false,
       sortOrder,
     });
@@ -304,80 +91,66 @@ export const collectionsRoute = collectionsApp
     // creator opts it OUT. Group collections default off and are opted in via
     // the per-member toggle, so we ignore an `available: true` hint here.
     let availableForDeckbuilding = groupId === null;
-    if (groupId === null && body.availableForDeckbuilding === false) {
+    if (groupId === null && input.availableForDeckbuilding === false) {
       await collectionDeckbuildingPrefs.set(userId, row.id, false);
       availableForDeckbuilding = false;
     }
 
-    c.header("Location", `/api/v1/collections/${row.id}`);
-    return c.json(
-      toCollection({
-        ...row,
-        availableForDeckbuilding,
-        copyCount: 0,
-        groupSlug,
-        groupName,
-        viewerCanAdmin: true,
-      }),
-      201,
-    );
-  })
+    return toCollection({
+      ...row,
+      availableForDeckbuilding,
+      copyCount: 0,
+      groupSlug,
+      groupName,
+      viewerCanAdmin: true,
+    });
+  }),
 
   // ── GET ONE ─────────────────────────────────────────────────────────────────
-  .openapi(getCollection, async (c) => {
-    const repos = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
-    const access = await repos.collections.getAccessForUser(id, userId);
+  get: os.get.handler(async ({ input, context }): Promise<CollectionResponse> => {
+    const repos = context.repos;
+    const userId = requireUserId(context.user);
+    const access = await repos.collections.getAccessForUser(input.id, userId);
     assertFound(access, "Not found");
     const favMarketplace = await getFavoriteMarketplace(repos, userId);
-    const value = await repos.marketplace.singleCollectionValue(id, favMarketplace);
-    return c.json(
-      toCollection({ ...access.collection, viewerCanAdmin: access.viewerCanAdmin }, value),
-      200,
-    );
-  })
+    const value = await repos.marketplace.singleCollectionValue(input.id, favMarketplace);
+    return toCollection({ ...access.collection, viewerCanAdmin: access.viewerCanAdmin }, value);
+  }),
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
-  .openapi(updateCollection, async (c) => {
-    const { collections } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
-    const body = c.req.valid("json");
-    const access = await collections.getAccessForUser(id, userId);
+  update: os.update.handler(async ({ input, context }): Promise<CollectionResponse> => {
+    const { collections } = context.repos;
+    const userId = requireUserId(context.user);
+    const access = await collections.getAccessForUser(input.id, userId);
     assertFound(access, "Not found");
     if (!access.viewerCanAdmin) {
       throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only admins can edit this collection");
     }
-    const updates = buildPatchUpdates<Updateable<CollectionsTable>>(body, patchFields);
-    const row = await collections.updateById(id, updates);
+    const updates = buildPatchUpdates<Updateable<CollectionsTable>>(input, patchFields);
+    const row = await collections.updateById(input.id, updates);
     assertFound(row, "Not found");
-    return c.json(
-      toCollection({
-        ...row,
-        // Deck-building availability is per-viewer and untouched by this
-        // admin-gated edit; carry over the value resolved during access check.
-        availableForDeckbuilding: access.collection.availableForDeckbuilding,
-        groupSlug: access.collection.groupSlug,
-        groupName: access.collection.groupName,
-        viewerCanAdmin: access.viewerCanAdmin,
-      }),
-      200,
-    );
-  })
+    return toCollection({
+      ...row,
+      // Deck-building availability is per-viewer and untouched by this
+      // admin-gated edit; carry over the value resolved during access check.
+      availableForDeckbuilding: access.collection.availableForDeckbuilding,
+      groupSlug: access.collection.groupSlug,
+      groupName: access.collection.groupName,
+      viewerCanAdmin: access.viewerCanAdmin,
+    });
+  }),
 
   // ── DELETE /collections/:id ─────────────────────────────────────────────────
   // Personal: blocks inbox, moves remaining copies to inbox, then deletes.
   // Shared: requires group admin. There's no group "inbox" — deletion fails if
   // the collection still has copies. The UI surfaces this.
-  .openapi(deleteCollection, async (c) => {
-    const repos = c.get("repos");
-    const transact = c.get("transact");
-    const { ensureInbox, deleteCollection: deleteCollectionService } = c.get("services");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
+  remove: os.remove.handler(async ({ input, context }): Promise<void> => {
+    const repos = context.repos;
+    const transact = context.transact;
+    const { ensureInbox, deleteCollection: deleteCollectionService } = context.services;
+    const userId = requireUserId(context.user);
 
-    const access = await repos.collections.getAccessForUser(id, userId);
+    const access = await repos.collections.getAccessForUser(input.id, userId);
     assertFound(access, "Not found");
     if (!access.viewerCanAdmin) {
       throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only admins can delete this collection");
@@ -389,7 +162,7 @@ export const collectionsRoute = collectionsApp
     }
 
     if (collection.groupId) {
-      const copies = await repos.collections.listCopiesInCollection(id);
+      const copies = await repos.collections.listCopiesInCollection(input.id);
       if (copies.length > 0) {
         throw new AppError(
           409,
@@ -397,86 +170,50 @@ export const collectionsRoute = collectionsApp
           "Empty the shared collection before deleting it",
         );
       }
-      await repos.collections.deleteById(id);
-      return c.body(null, 204);
+      await repos.collections.deleteById(input.id);
+      return;
     }
 
     const inboxId = await ensureInbox(repos, userId);
     await deleteCollectionService(transact, {
-      collectionId: id,
+      collectionId: input.id,
       collectionName: collection.name,
       moveCopiesTo: inboxId,
       targetName: "Inbox",
       userId,
     });
-
-    return c.body(null, 204);
-  })
+  }),
 
   // ── GET /collections/:id/copies ─────────────────────────────────────────────
-  .openapi(getCollectionCopies, async (c) => {
-    const { collections, copies } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
-    const { cursor, limit } = c.req.valid("query");
+  copies: os.copies.handler(async ({ input, context }): Promise<CopyListResponse> => {
+    const { collections, copies } = context.repos;
+    const userId = requireUserId(context.user);
 
-    const access = await collections.getAccessForUser(id, userId);
+    const access = await collections.getAccessForUser(input.id, userId);
     assertFound(access, "Not found");
 
-    const effectiveLimit = clampCopiesLimit(limit);
-    const rows = await copies.listForCollection(id, effectiveLimit, cursor);
+    const effectiveLimit = clampCopiesLimit(input.limit);
+    const rows = await copies.listForCollection(input.id, effectiveLimit, input.cursor);
     const hasMore = rows.length > effectiveLimit;
     const items = rows.slice(0, effectiveLimit);
     const lastItem = items.at(-1);
 
-    return c.json(
-      {
-        items: items.map((row) => toCopy(row)),
-        nextCursor: hasMore && lastItem ? buildCopiesCursor(lastItem.createdAt, lastItem.id) : null,
-      } satisfies CopyListResponse,
-      200,
-    );
-  })
-
-  // ── GET /collections/:id/share ────────────────────────────────────────────
-  // Reports the current share state. Owner/group-admin only. An owned-but-
-  // unshared collection returns { shareToken: null, isPublic: false } — it does
-  // NOT 404 (404 is reserved for collections the viewer can't access at all).
-  .openapi(getShareState, async (c) => {
-    const { collections } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
-
-    const access = await collections.getAccessForUser(id, userId);
-    assertFound(access, "Not found");
-    if (!access.viewerCanAdmin) {
-      throw new AppError(
-        403,
-        ERROR_CODES.FORBIDDEN,
-        "Only admins can view this collection's share state",
-      );
-    }
-
-    return c.json(
-      {
-        shareToken: access.collection.shareToken,
-        isPublic: access.collection.isPublic,
-      } satisfies CollectionShareResponse,
-      200,
-    );
-  })
+    return {
+      items: items.map((row) => toCopy(row)),
+      nextCursor: hasMore && lastItem ? buildCopiesCursor(lastItem.createdAt, lastItem.id) : null,
+    };
+  }),
 
   // ── POST /collections/:id/share ───────────────────────────────────────────
   // Enables sharing and returns the share token + is_public=true. Idempotent:
   // re-sharing an already-shared collection returns the EXISTING token unchanged
   // rather than minting a new one. Use POST /share/rotate to deliberately churn
   // the token. Personal owners or group admins only.
-  .openapi(shareCollection, async (c) => {
-    const { collections } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
+  share: os.share.handler(async ({ input, context }): Promise<CollectionShareResponse> => {
+    const { collections } = context.repos;
+    const userId = requireUserId(context.user);
 
-    const access = await collections.getAccessForUser(id, userId);
+    const access = await collections.getAccessForUser(input.id, userId);
     assertFound(access, "Not found");
     if (!access.viewerCanAdmin) {
       throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only admins can share this collection");
@@ -484,107 +221,122 @@ export const collectionsRoute = collectionsApp
 
     // Idempotent: if already public with a token, hand back the existing state.
     if (access.collection.isPublic && access.collection.shareToken) {
-      return c.json(
-        {
-          shareToken: access.collection.shareToken,
-          isPublic: true,
-        } satisfies CollectionShareResponse,
-        200,
-      );
+      return { shareToken: access.collection.shareToken, isPublic: true };
     }
 
     const token = generateShareToken();
-    const updated = await collections.setShareTokenById(id, token, true);
+    const updated = await collections.setShareTokenById(input.id, token, true);
     assertFound(updated, "Not found");
 
-    return c.json({ shareToken: token, isPublic: true } satisfies CollectionShareResponse, 200);
-  })
+    return { shareToken: token, isPublic: true };
+  }),
+
+  // ── GET /collections/:id/share ────────────────────────────────────────────
+  // Reports the current share state. Owner/group-admin only. An owned-but-
+  // unshared collection returns { shareToken: null, isPublic: false } — it does
+  // NOT 404 (404 is reserved for collections the viewer can't access at all).
+  shareState: os.shareState.handler(
+    async ({ input, context }): Promise<CollectionShareResponse> => {
+      const { collections } = context.repos;
+      const userId = requireUserId(context.user);
+
+      const access = await collections.getAccessForUser(input.id, userId);
+      assertFound(access, "Not found");
+      if (!access.viewerCanAdmin) {
+        throw new AppError(
+          403,
+          ERROR_CODES.FORBIDDEN,
+          "Only admins can view this collection's share state",
+        );
+      }
+
+      return {
+        shareToken: access.collection.shareToken,
+        isPublic: access.collection.isPublic,
+      };
+    },
+  ),
 
   // ── POST /collections/:id/share/rotate ────────────────────────────────────
   // Mints a NEW share token, invalidating the old one (old links 404 forever),
   // and ensures is_public=true. If the collection isn't shared yet, this acts as
   // "share now" — the repo's setShareTokenById handles both cases identically.
   // Owner/group-admin only.
-  .openapi(rotateShareCollection, async (c) => {
-    const { collections } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
+  rotateShare: os.rotateShare.handler(
+    async ({ input, context }): Promise<CollectionShareResponse> => {
+      const { collections } = context.repos;
+      const userId = requireUserId(context.user);
 
-    const access = await collections.getAccessForUser(id, userId);
-    assertFound(access, "Not found");
-    if (!access.viewerCanAdmin) {
-      throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only admins can rotate this share link");
-    }
+      const access = await collections.getAccessForUser(input.id, userId);
+      assertFound(access, "Not found");
+      if (!access.viewerCanAdmin) {
+        throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only admins can rotate this share link");
+      }
 
-    const token = generateShareToken();
-    const updated = await collections.setShareTokenById(id, token, true);
-    assertFound(updated, "Not found");
+      const token = generateShareToken();
+      const updated = await collections.setShareTokenById(input.id, token, true);
+      assertFound(updated, "Not found");
 
-    return c.json({ shareToken: token, isPublic: true } satisfies CollectionShareResponse, 200);
-  })
+      return { shareToken: token, isPublic: true };
+    },
+  ),
 
   // ── DELETE /collections/:id/share ─────────────────────────────────────────
   // Nulls the share token and flips is_public=false. Old links 404 forever.
-  .openapi(unshareCollection, async (c) => {
-    const { collections } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
+  unshare: os.unshare.handler(async ({ input, context }): Promise<void> => {
+    const { collections } = context.repos;
+    const userId = requireUserId(context.user);
 
-    const access = await collections.getAccessForUser(id, userId);
+    const access = await collections.getAccessForUser(input.id, userId);
     assertFound(access, "Not found");
     if (!access.viewerCanAdmin) {
       throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only admins can unshare this collection");
     }
 
-    const updated = await collections.setShareTokenById(id, null, false);
+    const updated = await collections.setShareTokenById(input.id, null, false);
     assertFound(updated, "Not found");
-
-    return c.body(null, 204);
-  })
+  }),
 
   // ── GET /collections/:id/group-shares ─────────────────────────────────────
   // "Shared with N groups" badge on the collection page. Scoped to personal
   // collections the viewer owns; non-owned/pooled collections 404.
-  .openapi(collectionGroupShares, async (c) => {
-    const { collections, friendGroups } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
+  groupShares: os.groupShares.handler(
+    async ({ input, context }): Promise<CollectionGroupSharesResponse> => {
+      const { collections, friendGroups } = context.repos;
+      const userId = requireUserId(context.user);
 
-    const access = await collections.getAccessForUser(id, userId);
-    assertFound(access, "Not found");
-    if (access.collection.userId !== userId) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Collection not found");
-    }
+      const access = await collections.getAccessForUser(input.id, userId);
+      assertFound(access, "Not found");
+      if (access.collection.userId !== userId) {
+        throw new AppError(404, ERROR_CODES.NOT_FOUND, "Collection not found");
+      }
 
-    const items = await friendGroups.groupsSharingCollection(id);
-    return c.json({ items }, 200);
-  })
+      const items = await friendGroups.groupsSharingCollection(input.id);
+      return { items };
+    },
+  ),
 
   // ── POST /collections/reorder ─────────────────────────────────────────────
   // Bulk reorder for the user's personal collections. Group-owned rows are
   // silently ignored (they stay alphabetical) so the client can pass any
   // visible-order subset without filtering first.
-  .openapi(reorderCollections, async (c) => {
-    const { collections } = c.get("repos");
-    const userId = getUserId(c);
-    const { orderedIds } = c.req.valid("json");
-    await collections.reorderPersonal(userId, orderedIds);
-    return c.body(null, 204);
-  })
+  reorder: os.reorder.handler(async ({ input, context }): Promise<void> => {
+    const { collections } = context.repos;
+    const userId = requireUserId(context.user);
+    await collections.reorderPersonal(userId, input.orderedIds);
+  }),
 
   // ── PUT /collections/:id/deckbuilding ──────────────────────────────────────
   // Sets the *caller's own* deck-building availability for a collection. This
   // is a per-viewer preference, so any member with access may set it for
   // themselves — including for shared group collections (not admin-gated).
-  .openapi(setDeckbuilding, async (c) => {
-    const { collections, collectionDeckbuildingPrefs } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
-    const { available } = c.req.valid("json");
+  setDeckbuilding: os.setDeckbuilding.handler(async ({ input, context }): Promise<void> => {
+    const { collections, collectionDeckbuildingPrefs } = context.repos;
+    const userId = requireUserId(context.user);
 
-    const access = await collections.getAccessForUser(id, userId);
+    const access = await collections.getAccessForUser(input.id, userId);
     assertFound(access, "Not found");
 
-    await collectionDeckbuildingPrefs.set(userId, id, available);
-    return c.body(null, 204);
-  });
+    await collectionDeckbuildingPrefs.set(userId, input.id, input.available);
+  }),
+};

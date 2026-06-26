@@ -6,12 +6,13 @@ import type {
   RehostStatusResponse,
   UnrehostImagesResponse,
 } from "@openrift/shared";
+import { adminImagesContract } from "@openrift/shared/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 // ── Server functions ─────────────────────────────────────────────────────────
 
@@ -19,30 +20,21 @@ const fetchRehostStatusFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<RehostStatusResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["rehost-status"].$get(),
-        "Couldn't load rehost status",
-      ),
+      apiOrpcClient(adminImagesContract, context.cookie).rehostStatus(),
   );
 
 const fetchBrokenImagesFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<BrokenImagesResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["broken-images"].$get(),
-        "Couldn't load broken images",
-      ),
+      apiOrpcClient(adminImagesContract, context.cookie).brokenImages(),
   );
 
 const fetchLowResImagesFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<LowResImagesResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["low-res-images"].$get(),
-        "Couldn't load low-res images",
-      ),
+      apiOrpcClient(adminImagesContract, context.cookie).lowResImages(),
   );
 
 interface MissingImageCard {
@@ -55,20 +47,14 @@ const fetchMissingImagesFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<MissingImageCard[]> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["missing-images"].$get(),
-        "Couldn't load missing images",
-      ),
+      apiOrpcClient(adminImagesContract, context.cookie).missingImages(),
   );
 
 const rehostImagesBatchFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<RehostImageResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["rehost-images"].$post({ query: {} }),
-        "Couldn't rehost images",
-      ),
+      apiOrpcClient(adminImagesContract, context.cookie).rehost({ query: {} }),
   );
 
 const regenerateImagesKickoffFn = createServerFn({ method: "POST" })
@@ -82,20 +68,14 @@ const regenerateImagesKickoffFn = createServerFn({ method: "POST" })
     if (data.reset) {
       query.reset = "true";
     }
-    return callApiJson(
-      serverApiClient(context.cookie).api.admin.v1["regenerate-images"].$post({ query }),
-      "Couldn't start regenerate images job",
-    );
+    return apiOrpcClient(adminImagesContract, context.cookie).regenerate({ query });
   });
 
 const cancelRegenerateImagesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<{ runId: string; cancelRequested: true }> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["regenerate-images"].cancel.$post(),
-        "Couldn't cancel regenerate images job",
-      ),
+      apiOrpcClient(adminImagesContract, context.cookie).cancelRegenerate(),
   );
 
 const unrehostImagesFn = createServerFn({ method: "POST" })
@@ -103,31 +83,20 @@ const unrehostImagesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<UnrehostImagesResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["unrehost-images"].$post({
-          json: { imageIds: data.imageIds },
-        }),
-        "Couldn't unrehost images",
-      ),
+      apiOrpcClient(adminImagesContract, context.cookie).unrehost({ imageIds: data.imageIds }),
   );
 
 const clearRehostedFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["clear-rehosted"].$post(),
-      "Couldn't clear rehosted images",
-    );
+    await apiOrpcClient(adminImagesContract, context.cookie).clearRehosted();
   });
 
 const cleanupOrphanedFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<{ scanned: number; deleted: number; errors: string[] }> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["cleanup-orphaned"].$post(),
-        "Couldn't clean up orphaned images",
-      ),
+      apiOrpcClient(adminImagesContract, context.cookie).cleanupOrphaned(),
   );
 
 const migrateDirectoriesFn = createServerFn({ method: "POST" })
@@ -141,11 +110,7 @@ const migrateDirectoriesFn = createServerFn({ method: "POST" })
       skipped: number;
       failed: number;
       errors: string[];
-    }> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["migrate-directories"].$post(),
-        "Couldn't migrate directories",
-      ),
+    }> => apiOrpcClient(adminImagesContract, context.cookie).migrateDirectories(),
   );
 
 // ── Query ─────────────────────────────────────────────────────────────────────

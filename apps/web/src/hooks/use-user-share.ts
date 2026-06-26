@@ -3,6 +3,8 @@ import type {
   PublicUserBundleResponse,
   UserShareStateResponse,
 } from "@openrift/shared";
+import { publicUserShareContract, userShareContract } from "@openrift/shared/contracts";
+import { ORPCError } from "@orpc/client";
 import {
   queryOptions,
   useMutation,
@@ -14,25 +16,17 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
-import {
-  callApi,
-  callApiJson,
-  encodeParams,
-  okJson,
-  serverApiClient,
-} from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 // ── Authenticated: read + manage your own bundle token ──────────────────────
+// Migrated to oRPC, as are the public /users/share/:token reads below.
 
 const fetchUserShareStateFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<UserShareStateResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.users.me.share.$get(),
-        "Couldn't load share state",
-      ),
+      apiOrpcClient(userShareContract, context.cookie).get(),
   );
 
 function userShareStateQueryOptions(userId: string) {
@@ -58,29 +52,20 @@ const enableUserShareFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<UserShareStateResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.users.me.share.$post(),
-        "Couldn't enable sharing",
-      ),
+      apiOrpcClient(userShareContract, context.cookie).enable(),
   );
 
 const disableUserShareFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1.users.me.share.$delete(),
-      "Couldn't disable sharing",
-    );
+    await apiOrpcClient(userShareContract, context.cookie).disable();
   });
 
 const rotateUserShareFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<UserShareStateResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.users.me.share.rotate.$post(),
-        "Couldn't rotate share link",
-      ),
+      apiOrpcClient(userShareContract, context.cookie).rotate(),
   );
 
 export function useEnableUserShare() {
@@ -128,17 +113,16 @@ const fetchPublicUserBundleFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .validator((input: string) => input)
   .handler(async ({ context, data: token }): Promise<PublicUserBundleResponse> => {
-    const res = await callApi(
-      serverApiClient(context.cookie).api.v1.users.share[":token"].$get({
-        param: encodeParams({ token }),
-      }),
-      "Couldn't load shared lists",
-      [404],
-    );
-    if ((res.status as number) === 404) {
-      throw new Error("NOT_FOUND");
+    try {
+      return await apiOrpcClient(publicUserShareContract, context.cookie).bundle({ token });
+    } catch (error) {
+      // Unknown / non-public token is a typed NOT_FOUND — map to the sentinel
+      // the route boundary expects without logging it as a failure.
+      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+        throw new Error("NOT_FOUND");
+      }
+      throw error;
     }
-    return okJson(res);
   });
 
 export function publicUserBundleQueryOptions(token: string) {
@@ -156,17 +140,20 @@ const fetchPublicUserBundleListFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .validator((input: { token: string; listId: string }) => input)
   .handler(async ({ context, data }): Promise<PublicListDetailResponse> => {
-    const res = await callApi(
-      serverApiClient(context.cookie).api.v1.users.share[":token"].lists[":listId"].$get({
-        param: encodeParams({ token: data.token, listId: data.listId }),
-      }),
-      "Couldn't load shared list",
-      [404],
-    );
-    if ((res.status as number) === 404) {
-      throw new Error("NOT_FOUND");
+    try {
+      return await apiOrpcClient(publicUserShareContract, context.cookie).bundleList({
+        token: data.token,
+        listId: data.listId,
+      });
+    } catch (error) {
+      // Unknown token/list is a typed NOT_FOUND — map to the sentinel the route
+      // boundary expects. A malformed listId (400) still surfaces as an error,
+      // matching the previous hc behavior.
+      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+        throw new Error("NOT_FOUND");
+      }
+      throw error;
     }
-    return okJson(res);
   });
 
 export function publicUserBundleListQueryOptions(token: string, listId: string) {

@@ -1,11 +1,12 @@
 import type { JobRunStartedResponse } from "@openrift/shared";
+import { adminPrintingEventsContract } from "@openrift/shared/contracts";
 import { useMutation, useQuery, useQueryClient, queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { getLatestJobRunFn } from "@/components/admin/refresh-actions";
-import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import type { JobRunView, PrintingEventsListResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 interface WebhookFailure {
   channel: "newPrintings" | "printingChanges";
@@ -28,10 +29,7 @@ const flushPrintingEventsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<JobRunStartedResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["printing-events"].flush.$post(),
-        "Couldn't start flush",
-      ),
+      apiOrpcClient(adminPrintingEventsContract, context.cookie).flush(),
   );
 
 export function useFlushPrintingEvents() {
@@ -82,10 +80,7 @@ const fetchPrintingEvents = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<PrintingEventsListResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["printing-events"].$get(),
-        "Couldn't load printing events",
-      ),
+      apiOrpcClient(adminPrintingEventsContract, context.cookie).list(),
   );
 
 export const adminPrintingEventsQueryOptions = queryOptions({
@@ -103,12 +98,7 @@ const retryPrintingEventsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<{ retried: number }> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["printing-events"].retry.$post({
-          json: data,
-        }),
-        "Couldn't retry printing events",
-      ),
+      apiOrpcClient(adminPrintingEventsContract, context.cookie).retry(data),
   );
 
 export function useRetryPrintingEvents() {

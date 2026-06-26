@@ -11,31 +11,22 @@ import type {
   DeckZone,
   PublicDeckDetailResponse,
 } from "@openrift/shared";
+import { decksContract, publicDecksContract } from "@openrift/shared/contracts";
+import { ORPCError } from "@orpc/client";
 import { useMutation, useQueryClient, queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId, useUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
-import {
-  callApi,
-  callApiJson,
-  encodeParams,
-  okJson,
-  serverApiClient,
-} from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchDecks = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<DeckListResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.decks.$get({
-          query: { includeArchived: "true" },
-        }),
-        "Couldn't load decks",
-      ),
+      apiOrpcClient(decksContract, context.cookie).list({ includeArchived: "true" }),
   );
 
 async function fetchDeckDetailImpl(
@@ -45,15 +36,14 @@ async function fetchDeckDetailImpl(
   // 404 is legitimate (unknown/deleted deck id, or one belonging to another
   // user) — map to NOT_FOUND so the route can render a not-found page
   // without logging the response as an error.
-  const res = await callApi(
-    serverApiClient(cookie).api.v1.decks[":id"].$get({ param: encodeParams({ id: deckId }) }),
-    "Couldn't load deck",
-    [404],
-  );
-  if ((res.status as number) === 404) {
-    throw new Error("NOT_FOUND");
+  try {
+    return await apiOrpcClient(decksContract, cookie).get({ id: deckId });
+  } catch (error) {
+    if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+      throw new Error("NOT_FOUND");
+    }
+    throw error;
   }
-  return okJson(res);
 }
 
 const fetchDeckDetail = createServerFn({ method: "GET" })
@@ -99,12 +89,7 @@ const createDeckFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.decks.$post({
-          json: data,
-        }),
-        "Couldn't create deck",
-      ),
+      apiOrpcClient(decksContract, context.cookie).create(data),
   );
 
 export function useCreateDeck() {
@@ -129,13 +114,14 @@ export const deleteDeckFn = createServerFn({ method: "POST" })
     // A 404 means the deck is already gone (double-click on the delete confirm,
     // a second tab, a retried request) — the outcome the user asked for, so
     // accept it as success instead of surfacing a "Not found" error toast.
-    await callApi(
-      serverApiClient(context.cookie).api.v1.decks[":id"].$delete({
-        param: encodeParams({ id: deckId }),
-      }),
-      "Couldn't delete deck",
-      [404],
-    );
+    try {
+      await apiOrpcClient(decksContract, context.cookie).remove({ id: deckId });
+    } catch (error) {
+      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+        return;
+      }
+      throw error;
+    }
   });
 
 export function useDeleteDeck() {
@@ -161,13 +147,10 @@ export const saveDeckCardsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<{ cards: DeckCardResponse[] }> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.decks[":id"].cards.$put({
-          param: encodeParams({ id: data.deckId }),
-          json: { cards: data.cards },
-        }),
-        "Couldn't save deck cards",
-      ),
+      apiOrpcClient(decksContract, context.cookie).replaceCards({
+        id: data.deckId,
+        cards: data.cards,
+      }),
   );
 
 export function useSaveDeckCards() {
@@ -222,15 +205,13 @@ const updateDeckFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(({ context, data }): Promise<DeckResponse> => {
     const { deckId, ...fields } = data;
-    return callApiJson(
-      serverApiClient(context.cookie).api.v1.decks[":id"].$patch({
-        param: encodeParams({ id: deckId }),
-        // The route types formatConfig as a loose record; DeckFormatConfig is the
-        // concrete shape (no index signature), so widen it at the boundary.
-        json: { ...fields, formatConfig: fields.formatConfig as Record<string, unknown> | null },
-      }),
-      "Couldn't update deck",
-    );
+    return apiOrpcClient(decksContract, context.cookie).update({
+      id: deckId,
+      ...fields,
+      // The contract types formatConfig as a loose record; DeckFormatConfig is
+      // the concrete shape (no index signature), so widen it at the boundary.
+      formatConfig: fields.formatConfig as Record<string, unknown> | null | undefined,
+    });
   });
 
 export function useUpdateDeck() {
@@ -280,13 +261,10 @@ const setDeckPinnedFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.decks[":id"].pin.$patch({
-          param: encodeParams({ id: data.deckId }),
-          json: { isPinned: data.isPinned },
-        }),
-        "Couldn't update deck",
-      ),
+      apiOrpcClient(decksContract, context.cookie).setPinned({
+        id: data.deckId,
+        isPinned: data.isPinned,
+      }),
   );
 
 const setDeckArchivedFn = createServerFn({ method: "POST" })
@@ -294,13 +272,10 @@ const setDeckArchivedFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.decks[":id"].archive.$patch({
-          param: encodeParams({ id: data.deckId }),
-          json: { archived: data.archived },
-        }),
-        "Couldn't update deck",
-      ),
+      apiOrpcClient(decksContract, context.cookie).setArchived({
+        id: data.deckId,
+        archived: data.archived,
+      }),
   );
 
 function applyDeckUpdateToCaches(
@@ -351,12 +326,7 @@ const cloneDeckFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data: deckId }): Promise<DeckResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.decks[":id"].clone.$post({
-          param: encodeParams({ id: deckId }),
-        }),
-        "Couldn't clone deck",
-      ),
+      apiOrpcClient(decksContract, context.cookie).clone({ id: deckId }),
   );
 
 export function useCloneDeck() {
@@ -374,16 +344,11 @@ const exportDeckFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckExportResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.decks[":id"].export.$get({
-          param: encodeParams({ id: data.deckId }),
-          // The route declares a query schema, so hc requires the `query` arg
-          // even when empty; `{}` lets the API apply its `format` default
-          // (piltover) — matching the old "omit the param" behavior.
-          query: data.format ? { format: data.format } : {},
-        }),
-        "Couldn't export deck",
-      ),
+      apiOrpcClient(decksContract, context.cookie).export({
+        id: data.deckId,
+        // Omitting format lets the contract apply its `piltover` default.
+        ...(data.format ? { format: data.format } : {}),
+      }),
   );
 
 export function useExportDeck() {
@@ -402,12 +367,7 @@ const shareDeckFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data: deckId }): Promise<DeckShareResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.decks[":id"].share.$post({
-          param: encodeParams({ id: deckId }),
-        }),
-        "Couldn't share deck",
-      ),
+      apiOrpcClient(decksContract, context.cookie).share({ id: deckId }),
   );
 
 export function useShareDeck() {
@@ -429,12 +389,7 @@ const unshareDeckFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: deckId }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1.decks[":id"].share.$delete({
-        param: encodeParams({ id: deckId }),
-      }),
-      "Couldn't unshare deck",
-    );
+    await apiOrpcClient(decksContract, context.cookie).unshare({ id: deckId });
   });
 
 export function useUnshareDeck() {
@@ -453,18 +408,16 @@ export function useUnshareDeck() {
 const fetchPublicDeckFn = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .handler(async ({ data: token }): Promise<PublicDeckDetailResponse> => {
-    // 404 is legitimate (unknown/expired token) — map to NOT_FOUND without logging.
-    const res = await callApi(
-      serverApiClient().api.v1.decks.share[":token"].$get({
-        param: encodeParams({ token }),
-      }),
-      "Couldn't load shared deck",
-      [404],
-    );
-    if ((res.status as number) === 404) {
-      throw new Error("NOT_FOUND");
+    // Migrated to oRPC: contract-typed client. 404 (unknown/expired token) is a
+    // typed NOT_FOUND error mapped to the sentinel the route boundary expects.
+    try {
+      return await apiOrpcClient(publicDecksContract).share({ token });
+    } catch (error) {
+      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+        throw new Error("NOT_FOUND");
+      }
+      throw error;
     }
-    return res.json() as Promise<PublicDeckDetailResponse>;
   });
 
 export function publicDeckQueryOptions(token: string) {
@@ -483,12 +436,7 @@ const cloneSharedDeckFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data: token }): Promise<DeckCloneResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.decks.share[":token"].clone.$post({
-          param: encodeParams({ token }),
-        }),
-        "Couldn't clone shared deck",
-      ),
+      apiOrpcClient(decksContract, context.cookie).cloneShared({ token }),
   );
 
 export function useCloneSharedDeck() {

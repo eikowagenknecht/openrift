@@ -1,11 +1,15 @@
 /* oxlint-disable
-   no-empty-function,
    unicorn/no-useless-undefined
-   -- test file: mocks require empty fns and explicit undefined */
+   -- test file: mocks resolve with explicit undefined */
+import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { stagingCardOverridesRoute } from "./staging-card-overrides";
+import { appErrorInterceptor } from "../../orpc/app-error-interceptor.js";
+import { buildApiContext } from "../../orpc/context.js";
+import type { Variables } from "../../types.js";
+import { adminStagingCardOverridesRouter } from "./staging-card-overrides";
 
 // ---------------------------------------------------------------------------
 // Mock repo
@@ -17,24 +21,36 @@ const mockMktAdmin = {
 };
 
 // ---------------------------------------------------------------------------
-// Test app
+// Test app — mount the oRPC router directly (without the requireAdmin gate).
 // ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("user", { id: USER_ID });
-    c.set("repos", { marketplaceAdmin: mockMktAdmin } as never);
-    await next();
-  })
-  .route("/api/v1", stagingCardOverridesRoute);
+const handler = new OpenAPIHandler(adminStagingCardOverridesRouter, {
+  interceptors: [appErrorInterceptor],
+});
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  c.set("user", { id: USER_ID } as never);
+  c.set("repos", { marketplaceAdmin: mockMktAdmin } as never);
+  await next();
+});
+const handle = async (c: Context<{ Variables: Variables }>) => {
+  const { matched, response } = await handler.handle(c.req.raw, {
+    context: buildApiContext(c),
+  });
+  if (matched && response) {
+    return response;
+  }
+  return c.notFound();
+};
+app.all("/api/admin/v1/staging-card-overrides", handle);
 
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("POST /api/v1/staging-card-overrides", () => {
+describe("POST /staging-card-overrides", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -42,7 +58,7 @@ describe("POST /api/v1/staging-card-overrides", () => {
   it("returns 204 when override is created", async () => {
     mockMktAdmin.upsertStagingCardOverride.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/staging-card-overrides", {
+    const res = await app.request("/api/admin/v1/staging-card-overrides", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -64,44 +80,33 @@ describe("POST /api/v1/staging-card-overrides", () => {
     });
   });
 
-  it("returns 204 with cardmarket marketplace", async () => {
+  it("returns 204 with a null language", async () => {
     mockMktAdmin.upsertStagingCardOverride.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/staging-card-overrides", {
+    const res = await app.request("/api/admin/v1/staging-card-overrides", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         marketplace: "cardmarket",
         externalId: 67_890,
         finish: "foil",
-        language: "EN",
+        language: null,
         cardId: "00000000-0000-4000-a000-000000000032",
       }),
     });
 
     expect(res.status).toBe(204);
-  });
-
-  it("returns 204 with cardtrader marketplace", async () => {
-    mockMktAdmin.upsertStagingCardOverride.mockResolvedValue(undefined);
-
-    const res = await app.request("/api/v1/staging-card-overrides", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        marketplace: "cardtrader",
-        externalId: 11_111,
-        finish: "normal",
-        language: "EN",
-        cardId: "00000000-0000-4000-a000-000000000033",
-      }),
+    expect(mockMktAdmin.upsertStagingCardOverride).toHaveBeenCalledWith({
+      marketplace: "cardmarket",
+      externalId: 67_890,
+      finish: "foil",
+      language: null,
+      cardId: "00000000-0000-4000-a000-000000000032",
     });
-
-    expect(res.status).toBe(204);
   });
 
-  it("returns 400 for invalid marketplace", async () => {
-    const res = await app.request("/api/v1/staging-card-overrides", {
+  it("returns 400 for an invalid marketplace", async () => {
+    const res = await app.request("/api/admin/v1/staging-card-overrides", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -117,28 +122,26 @@ describe("POST /api/v1/staging-card-overrides", () => {
   });
 
   it("returns 400 when required fields are missing", async () => {
-    const res = await app.request("/api/v1/staging-card-overrides", {
+    const res = await app.request("/api/admin/v1/staging-card-overrides", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        marketplace: "tcgplayer",
-      }),
+      body: JSON.stringify({ marketplace: "tcgplayer" }),
     });
 
     expect(res.status).toBe(400);
   });
 });
 
-describe("DELETE /api/v1/staging-card-overrides", () => {
+describe("DELETE /staging-card-overrides", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  it("returns 204 when override is deleted", async () => {
+  it("returns 204 and reads the SKU key from query params", async () => {
     mockMktAdmin.deleteStagingCardOverride.mockResolvedValue(undefined);
 
     const res = await app.request(
-      "/api/v1/staging-card-overrides?marketplace=tcgplayer&externalId=12345&finish=normal&language=EN",
+      "/api/admin/v1/staging-card-overrides?marketplace=tcgplayer&externalId=12345&finish=normal&language=EN",
       { method: "DELETE" },
     );
 
@@ -151,11 +154,11 @@ describe("DELETE /api/v1/staging-card-overrides", () => {
     );
   });
 
-  it("returns 204 with cardmarket marketplace", async () => {
+  it("passes null when language is omitted", async () => {
     mockMktAdmin.deleteStagingCardOverride.mockResolvedValue(undefined);
 
     const res = await app.request(
-      "/api/v1/staging-card-overrides?marketplace=cardmarket&externalId=67890&finish=foil&language=EN",
+      "/api/admin/v1/staging-card-overrides?marketplace=cardmarket&externalId=67890&finish=foil",
       { method: "DELETE" },
     );
 
@@ -164,32 +167,22 @@ describe("DELETE /api/v1/staging-card-overrides", () => {
       "cardmarket",
       67_890,
       "foil",
-      "EN",
+      null,
     );
   });
 
-  it("returns 400 for invalid marketplace", async () => {
-    const res = await app.request("/api/v1/staging-card-overrides", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        marketplace: "invalid",
-        externalId: 12_345,
-        finish: "normal",
-        language: "EN",
-      }),
-    });
+  it("returns 400 for an invalid marketplace", async () => {
+    const res = await app.request(
+      "/api/admin/v1/staging-card-overrides?marketplace=invalid&externalId=12345&finish=normal",
+      { method: "DELETE" },
+    );
 
     expect(res.status).toBe(400);
   });
 
-  it("returns 400 when required fields are missing", async () => {
-    const res = await app.request("/api/v1/staging-card-overrides", {
+  it("returns 400 when required query params are missing", async () => {
+    const res = await app.request("/api/admin/v1/staging-card-overrides?marketplace=tcgplayer", {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        marketplace: "tcgplayer",
-      }),
     });
 
     expect(res.status).toBe(400);

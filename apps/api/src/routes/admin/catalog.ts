@@ -1,111 +1,22 @@
-import { createRoute } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
-import type { AdminSetResponse } from "@openrift/shared";
-import { idParamSchema } from "@openrift/shared/schemas";
-import { z } from "zod";
+import { adminCatalogContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { createApiApp } from "../../openapi.js";
-import { createSetSchema, reorderSetsSchema, updateSetSchema } from "./schemas.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 
-// ── Route definitions ───────────────────────────────────────────────────────
+const os = implement(adminCatalogContract).$context<ApiContext>().use(requireUser);
 
-const listSets = createRoute({
-  method: "get",
-  path: "/sets",
-  tags: ["Admin - Catalog"],
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            sets: z.array(
-              z.object({
-                id: z.string().openapi({ example: "019cfc3b-0369-7890-a450-7859471cc3f6" }),
-                slug: z.string().openapi({ example: "OGN" }),
-                name: z.string().openapi({ example: "Origins" }),
-                printedTotal: z.number().nullable().openapi({ example: 298 }),
-                sortOrder: z.number().openapi({ example: 1 }),
-                releasedAt: z.string().nullable().openapi({ example: "2025-10-31" }),
-                released: z.boolean().openapi({ example: true }),
-                setType: z.enum(["main", "supplemental"]).openapi({ example: "main" }),
-                cardCount: z.number().openapi({ example: 312 }),
-                printingCount: z.number().openapi({ example: 468 }),
-              }),
-            ),
-          }),
-        },
-      },
-      description: "List sets",
-    },
-  },
-});
-
-const updateSet = createRoute({
-  method: "patch",
-  path: "/sets/{id}",
-  tags: ["Admin - Catalog"],
-  request: {
-    params: idParamSchema,
-    body: { content: { "application/json": { schema: updateSetSchema } } },
-  },
-  responses: {
-    204: { description: "Set updated" },
-  },
-});
-
-const createSet = createRoute({
-  method: "post",
-  path: "/sets",
-  tags: ["Admin - Catalog"],
-  request: {
-    body: { content: { "application/json": { schema: createSetSchema } } },
-  },
-  responses: {
-    201: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            id: z.string().openapi({ example: "019cfc3b-0369-7890-a450-7859471cc3f6" }),
-          }),
-        },
-      },
-      description: "Set created",
-    },
-  },
-});
-
-const deleteSet = createRoute({
-  method: "delete",
-  path: "/sets/{id}",
-  tags: ["Admin - Catalog"],
-  request: {
-    params: idParamSchema,
-  },
-  responses: {
-    204: { description: "Set deleted" },
-  },
-});
-
-const reorderSets = createRoute({
-  method: "put",
-  path: "/sets/reorder",
-  tags: ["Admin - Catalog"],
-  request: {
-    body: { content: { "application/json": { schema: reorderSetsSchema } } },
-  },
-  responses: {
-    204: { description: "Sets reordered" },
-  },
-});
-
-// ── Route ───────────────────────────────────────────────────────────────────
-
-export const catalogRoute = createApiApp()
-  // ── Sets CRUD ─────────────────────────────────────────────────────────────────
-
-  .openapi(listSets, async (c) => {
-    const { sets: setsRepo } = c.get("repos");
+/**
+ * oRPC implementation of the admin set (catalog) management. Logic unchanged
+ * from the previous `@hono/zod-openapi` handlers; conflict / not-found /
+ * bad-request states are thrown as `AppError` and mapped by the handler's
+ * appErrorInterceptor.
+ */
+export const adminCatalogRouter = {
+  listSets: os.listSets.handler(async ({ context }) => {
+    const { sets: setsRepo } = context.repos;
 
     const [sets, cardCounts, printingCounts] = await Promise.all([
       setsRepo.listAll(),
@@ -116,28 +27,25 @@ export const catalogRoute = createApiApp()
     const cardCountMap = new Map(cardCounts.map((r) => [r.setId, r.cardCount]));
     const printingCountMap = new Map(printingCounts.map((r) => [r.setId, r.printingCount]));
 
-    return c.json({
-      sets: sets.map(
-        (s): AdminSetResponse => ({
-          id: s.id,
-          slug: s.slug,
-          name: s.name,
-          printedTotal: s.printedTotal,
-          sortOrder: s.sortOrder,
-          releasedAt: s.releasedAt,
-          released: s.released,
-          setType: s.setType,
-          cardCount: cardCountMap.get(s.id) ?? 0,
-          printingCount: printingCountMap.get(s.id) ?? 0,
-        }),
-      ),
-    });
-  })
+    return {
+      sets: sets.map((s) => ({
+        id: s.id,
+        slug: s.slug,
+        name: s.name,
+        printedTotal: s.printedTotal,
+        sortOrder: s.sortOrder,
+        releasedAt: s.releasedAt,
+        released: s.released,
+        setType: s.setType,
+        cardCount: cardCountMap.get(s.id) ?? 0,
+        printingCount: printingCountMap.get(s.id) ?? 0,
+      })),
+    };
+  }),
 
-  .openapi(updateSet, async (c) => {
-    const { sets: setsRepo } = c.get("repos");
-    const { id } = c.req.valid("param");
-    const { name, printedTotal, releasedAt, released, setType } = c.req.valid("json");
+  updateSet: os.updateSet.handler(async ({ input, context }): Promise<void> => {
+    const { sets: setsRepo } = context.repos;
+    const { id, name, printedTotal, releasedAt, released, setType } = input;
 
     const updated = await setsRepo.update(id, {
       name,
@@ -149,25 +57,23 @@ export const catalogRoute = createApiApp()
     if (!updated) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, `Set "${id}" not found`);
     }
+  }),
 
-    return c.body(null, 204);
-  })
-
-  .openapi(createSet, async (c) => {
-    const { sets: setsRepo } = c.get("repos");
-    const { id, name, printedTotal, releasedAt } = c.req.valid("json");
+  createSet: os.createSet.handler(async ({ input, context }) => {
+    const { sets: setsRepo } = context.repos;
+    const { id, name, printedTotal, releasedAt } = input;
 
     const setId = await setsRepo.createIfNotExists({ slug: id, name, printedTotal, releasedAt });
     if (!setId) {
       throw new AppError(409, ERROR_CODES.CONFLICT, `Set with ID "${id}" already exists`);
     }
 
-    return c.json({ id: setId }, 201);
-  })
+    return { id: setId };
+  }),
 
-  .openapi(deleteSet, async (c) => {
-    const { sets: setsRepo } = c.get("repos");
-    const { id } = c.req.valid("param");
+  deleteSet: os.deleteSet.handler(async ({ input, context }): Promise<void> => {
+    const { sets: setsRepo } = context.repos;
+    const { id } = input;
 
     const printingCount = await setsRepo.printingCount(id);
     if (printingCount > 0) {
@@ -179,15 +85,11 @@ export const catalogRoute = createApiApp()
     }
 
     await setsRepo.deleteById(id);
+  }),
 
-    return c.body(null, 204);
-  })
-
-  // ── Set reorder ───────────────────────────────────────────────────────────────
-
-  .openapi(reorderSets, async (c) => {
-    const { sets: setsRepo } = c.get("repos");
-    const { ids } = c.req.valid("json");
+  reorderSets: os.reorderSets.handler(async ({ input, context }): Promise<void> => {
+    const { sets: setsRepo } = context.repos;
+    const { ids } = input;
 
     const uniqueIds = new Set(ids);
     if (uniqueIds.size !== ids.length) {
@@ -210,5 +112,5 @@ export const catalogRoute = createApiApp()
     }
 
     await setsRepo.reorder(ids);
-    return c.body(null, 204);
-  });
+  }),
+};

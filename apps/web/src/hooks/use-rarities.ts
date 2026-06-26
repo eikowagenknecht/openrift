@@ -1,20 +1,18 @@
+import type { AdminRaritiesResponse } from "@openrift/shared/contracts";
+import { adminRaritiesContract } from "@openrift/shared/contracts";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
-import type { AdminRaritiesResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchRarities = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminRaritiesResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1.rarities.$get(),
-        "Couldn't load rarities",
-      ),
+      apiOrpcClient(adminRaritiesContract, context.cookie).list(),
   );
 
 export const adminRaritiesQueryOptions = queryOptions({
@@ -30,12 +28,7 @@ const createRarityFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; label: string; color?: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.rarities.$post({
-        json: data,
-      }),
-      "Couldn't create rarity",
-    );
+    await apiOrpcClient(adminRaritiesContract, context.cookie).create(data);
   });
 
 export function useCreateRarity() {
@@ -50,13 +43,7 @@ const updateRarityFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; label?: string; color?: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.rarities[":slug"].$patch({
-        param: encodeParams({ slug: data.slug }),
-        json: { label: data.label, color: data.color },
-      }),
-      "Couldn't update rarity",
-    );
+    await apiOrpcClient(adminRaritiesContract, context.cookie).update(data);
   });
 
 export function useUpdateRarity() {
@@ -71,12 +58,7 @@ const reorderRaritiesFn = createServerFn({ method: "POST" })
   .validator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.rarities.reorder.$put({
-        json: { slugs: data.slugs },
-      }),
-      "Couldn't reorder rarities",
-    );
+    await apiOrpcClient(adminRaritiesContract, context.cookie).reorder({ slugs: data.slugs });
   });
 
 export function useReorderRarities() {
@@ -90,12 +72,7 @@ const deleteRarityFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.rarities[":slug"].$delete({
-        param: encodeParams({ slug: data.slug }),
-      }),
-      "Couldn't delete rarity",
-    );
+    await apiOrpcClient(adminRaritiesContract, context.cookie).remove({ slug: data.slug });
   });
 
 export function useDeleteRarity() {

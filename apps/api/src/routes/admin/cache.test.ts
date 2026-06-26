@@ -1,8 +1,12 @@
+import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AppError } from "../../errors.js";
-import { adminCacheRoute } from "./cache.js";
+import { appErrorInterceptor } from "../../orpc/app-error-interceptor.js";
+import { buildApiContext } from "../../orpc/context.js";
+import type { Variables } from "../../types.js";
+import { adminCacheRouter } from "./cache";
 
 // ---------------------------------------------------------------------------
 // Test app
@@ -10,20 +14,34 @@ import { adminCacheRoute } from "./cache.js";
 
 const mockFetch = vi.fn();
 
+// Mount the oRPC router directly (without the requireAdmin gate). AppErrors are
+// bridged to ORPCErrors inside the router, so 4xx/5xx responses carry
+// `{ message }`.
+const handler = new OpenAPIHandler(adminCacheRouter, {
+  interceptors: [appErrorInterceptor],
+});
+
 function buildApp(cloudflare: { apiToken: string; zoneId: string } | undefined) {
-  return new Hono()
-    .use("*", async (c, next) => {
-      c.set("io", { fetch: mockFetch } as never);
-      c.set("config", { cloudflare } as never);
-      await next();
-    })
-    .route("/api/v1", adminCacheRoute)
-    .onError((err, c) => {
-      if (err instanceof AppError) {
-        return c.json({ error: err.message, code: err.code }, err.status as 400);
-      }
-      throw err;
+  const app = new Hono<{ Variables: Variables }>();
+  app.use("*", async (c, next) => {
+    c.set("io", { fetch: mockFetch } as never);
+    c.set("config", { cloudflare } as never);
+    c.set("user", { id: "a0000000-0001-4000-a000-000000000001" } as never);
+    await next();
+  });
+  const handle = async (c: Context<{ Variables: Variables }>) => {
+    const { matched, response } = await handler.handle(c.req.raw, {
+      context: buildApiContext(c),
     });
+    if (matched && response) {
+      return response;
+    }
+    return c.notFound();
+  };
+  for (const path of ["/api/admin/v1/cache/status", "/api/admin/v1/cache/purge"]) {
+    app.all(path, handle);
+  }
+  return app;
 }
 
 const configured = { apiToken: "token-abc", zoneId: "zone-xyz" };
@@ -32,27 +50,27 @@ const configured = { apiToken: "token-abc", zoneId: "zone-xyz" };
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("GET /api/v1/cache/status", () => {
+describe("GET /cache/status", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   it("returns configured=true when credentials are set", async () => {
     const app = buildApp(configured);
-    const res = await app.request("/api/v1/cache/status");
+    const res = await app.request("/api/admin/v1/cache/status");
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ configured: true });
   });
 
   it("returns configured=false when credentials are missing", async () => {
     const app = buildApp(undefined);
-    const res = await app.request("/api/v1/cache/status");
+    const res = await app.request("/api/admin/v1/cache/status");
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ configured: false });
   });
 });
 
-describe("POST /api/v1/cache/purge", () => {
+describe("POST /cache/purge", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -61,7 +79,7 @@ describe("POST /api/v1/cache/purge", () => {
     mockFetch.mockResolvedValue(new Response(null, { status: 200 }));
     const app = buildApp(configured);
 
-    const res = await app.request("/api/v1/cache/purge", { method: "POST" });
+    const res = await app.request("/api/admin/v1/cache/purge", { method: "POST" });
 
     expect(res.status).toBe(204);
     expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -75,12 +93,12 @@ describe("POST /api/v1/cache/purge", () => {
   it("returns 503 when Cloudflare credentials are not configured", async () => {
     const app = buildApp(undefined);
 
-    const res = await app.request("/api/v1/cache/purge", { method: "POST" });
+    const res = await app.request("/api/admin/v1/cache/purge", { method: "POST" });
 
     expect(res.status).toBe(503);
     expect(mockFetch).not.toHaveBeenCalled();
     const json = await res.json();
-    expect(json.error).toContain("not configured");
+    expect(json.message).toContain("not configured");
   });
 
   it("returns 502 without leaking the Cloudflare error body to the client", async () => {
@@ -89,12 +107,12 @@ describe("POST /api/v1/cache/purge", () => {
     );
     const app = buildApp(configured);
 
-    const res = await app.request("/api/v1/cache/purge", { method: "POST" });
+    const res = await app.request("/api/admin/v1/cache/purge", { method: "POST" });
 
     expect(res.status).toBe(502);
     const json = await res.json();
-    expect(json.error).toContain("Cloudflare purge failed");
+    expect(json.message).toContain("Cloudflare purge failed");
     // The upstream body is logged server-side, not reflected to the client.
-    expect(json.error).not.toContain("bad zone");
+    expect(json.message).not.toContain("bad zone");
   });
 });

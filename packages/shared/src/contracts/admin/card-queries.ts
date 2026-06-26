@@ -1,0 +1,77 @@
+import { oc } from "@orpc/contract";
+import { z } from "zod";
+
+const TAG = "Admin - Cards";
+
+const CARDS = "/api/admin/v1/cards";
+
+const allCardsItemSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+  type: z.string(),
+  setSlugs: z.array(z.string()),
+});
+
+const providerStatsItemSchema = z.object({
+  provider: z.string(),
+  cardCount: z.number(),
+  printingCount: z.number(),
+  lastUpdated: z.string(),
+});
+
+// Mirror of the API-side `candidateCardSummarySchema` (apps/api cards/schemas).
+// Duplicated here because contracts live in the shared package and cannot
+// import from apps/api; kept in sync with `CandidateCardSummaryResponse`.
+const candidateCardSummarySchema = z.object({
+  cardSlug: z.string().nullable(),
+  name: z.string(),
+  normalizedName: z.string(),
+  shortCodes: z.array(z.string()),
+  stagingShortCodes: z.array(z.string()),
+  candidateCount: z.number(),
+  uncheckedCardCount: z.number(),
+  uncheckedPrintingCount: z.number(),
+  hasFavorite: z.boolean(),
+  favoriteStagingShortCodes: z.array(z.string()),
+  suggestedCardSlug: z.string().nullable(),
+});
+
+/**
+ * oRPC contract for the read-only admin card queries (mounted under
+ * `/api/admin/v1/cards`, admin-gated by the mount). The two detail endpoints
+ * and the export return loosely-typed payloads (`z.unknown()`) — the API maps
+ * them to the rich hand-written response interfaces, which the web client
+ * re-points to directly.
+ */
+export const adminCardQueriesContract = {
+  allCards: oc
+    .route({ method: "GET", path: `${CARDS}/all-cards`, tags: [TAG] })
+    .output(z.array(allCardsItemSchema)),
+  providerNames: oc
+    .route({ method: "GET", path: `${CARDS}/provider-names`, tags: [TAG] })
+    .output(z.array(z.string())),
+  distinctArtists: oc
+    .route({ method: "GET", path: `${CARDS}/distinct-artists`, tags: [TAG] })
+    .output(z.array(z.string())),
+  providerStats: oc
+    .route({ method: "GET", path: `${CARDS}/provider-stats`, tags: [TAG] })
+    .output(z.array(providerStatsItemSchema)),
+  listCandidates: oc
+    .route({ method: "GET", path: CARDS, tags: [TAG] })
+    .output(z.array(candidateCardSummarySchema)),
+  exportCandidates: oc
+    .route({ method: "GET", path: `${CARDS}/export`, tags: [TAG] })
+    .output(z.array(z.unknown())),
+  getCandidateCard: oc
+    .route({ method: "GET", path: `${CARDS}/{cardSlug}`, tags: [TAG] })
+    .input(z.object({ cardSlug: z.string() }))
+    .output(z.unknown()),
+  getUnmatchedDetail: oc
+    .route({ method: "GET", path: `${CARDS}/new/{name}`, tags: [TAG] })
+    .input(z.object({ name: z.string() }))
+    .output(z.unknown()),
+};
+
+export type AdminCardQueriesContract = typeof adminCardQueriesContract;
+export type AllCardsResponse = z.infer<typeof allCardsItemSchema>[];

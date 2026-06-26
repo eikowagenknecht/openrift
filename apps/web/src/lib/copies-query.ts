@@ -1,31 +1,27 @@
 import type { CopyListResponse, CopyResponse } from "@openrift/shared";
+import { collectionsContract, copiesContract } from "@openrift/shared/contracts";
 import { queryOptions } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
-import { browserApiClient, callApiJson, encodeParams } from "@/lib/server-fns/api-client";
+import { browserApiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 export async function fetchCopies(collectionId?: string): Promise<CopyListResponse> {
-  const client = browserApiClient();
   const allItems: CopyResponse[] = [];
   let cursor: string | null = null;
 
   // Same-origin fetch — cookies flow automatically, no server-function proxy.
-  // Typed via the browser hc client (route + response checked against the API
-  // contract). Paginate through all pages to ensure we fetch every copy; the
-  // global feed and the per-collection feed are distinct typed routes.
+  // Paginate through all pages to ensure we fetch every copy. Both the global
+  // feed (/copies) and the per-collection feed (/collections/:id/copies) are on
+  // oRPC.
   do {
-    const query = cursor ? { cursor } : {};
     // Annotated to break the cursor → query → page → cursor inference cycle the
     // loop creates (TS otherwise widens these to `any`).
     const page: CopyListResponse = collectionId
-      ? await callApiJson(
-          client.api.v1.collections[":id"].copies.$get({
-            param: encodeParams({ id: collectionId }),
-            query,
-          }),
-          "Couldn't load copies",
-        )
-      : await callApiJson(client.api.v1.copies.$get({ query }), "Couldn't load copies");
+      ? await browserApiOrpcClient(collectionsContract).copies({
+          id: collectionId,
+          ...(cursor ? { cursor } : {}),
+        })
+      : await browserApiOrpcClient(copiesContract).list(cursor ? { cursor } : {});
     allItems.push(...page.items);
     cursor = page.nextCursor;
   } while (cursor);

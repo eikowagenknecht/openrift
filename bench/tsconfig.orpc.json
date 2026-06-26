@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.base.json",
+  "include": ["consumer-orpc.ts", "router-orpc.ts", "routes-orpc/**/*.ts"]
+}

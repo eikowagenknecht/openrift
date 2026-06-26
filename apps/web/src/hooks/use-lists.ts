@@ -12,14 +12,16 @@ import type {
   PublicListDetailResponse,
   TradePreference,
 } from "@openrift/shared";
+import { listsContract, publicListsContract } from "@openrift/shared/contracts";
+import { ORPCError } from "@orpc/client";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
 import { reorderInPlace } from "@/lib/reorder-in-place";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 // ── LIST ─────────────────────────────────────────────────────────────────────
@@ -29,13 +31,8 @@ const fetchLists = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<ListListResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.lists.$get({
-          // The route declares a query schema (`intent` optional), so hc requires
-          // the `query` arg even when empty; `{}` sends no `intent`.
-          query: data?.intent ? { intent: data.intent } : {},
-        }),
-        "Couldn't load lists",
+      apiOrpcClient(listsContract, context.cookie).list(
+        data?.intent ? { intent: data.intent } : {},
       ),
   );
 
@@ -43,17 +40,16 @@ const fetchListDetail = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: listId }): Promise<ListDetailResponse> => {
-    const res = await callApi(
-      serverApiClient(context.cookie).api.v1.lists[":id"].$get({
-        param: encodeParams({ id: listId }),
-      }),
-      "Couldn't load list",
-      [404],
-    );
-    if ((res.status as number) === 404) {
-      throw new Error("NOT_FOUND");
+    // 404 (unknown list, or one belonging to another user) maps to the
+    // NOT_FOUND sentinel the route boundary expects.
+    try {
+      return await apiOrpcClient(listsContract, context.cookie).get({ id: listId });
+    } catch (error) {
+      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+        throw new Error("NOT_FOUND");
+      }
+      throw error;
     }
-    return res.json() as Promise<ListDetailResponse>;
   });
 
 export function listsQueryOptions(userId: string, intent?: ListIntent) {
@@ -99,12 +95,7 @@ const createListFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<ListResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.lists.$post({
-          json: data,
-        }),
-        "Couldn't create list",
-      ),
+      apiOrpcClient(listsContract, context.cookie).create(data),
   );
 
 export function useCreateList() {
@@ -132,13 +123,7 @@ const updateListFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(({ context, data }): Promise<ListResponse> => {
     const { listId, ...fields } = data;
-    return callApiJson(
-      serverApiClient(context.cookie).api.v1.lists[":id"].$patch({
-        param: encodeParams({ id: listId }),
-        json: fields,
-      }),
-      "Couldn't update list",
-    );
+    return apiOrpcClient(listsContract, context.cookie).update({ id: listId, ...fields });
   });
 
 export function useUpdateList() {
@@ -156,12 +141,7 @@ const deleteListFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: listId }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1.lists[":id"].$delete({
-        param: encodeParams({ id: listId }),
-      }),
-      "Couldn't delete list",
-    );
+    await apiOrpcClient(listsContract, context.cookie).remove({ id: listId });
   });
 
 export function useDeleteList() {
@@ -176,12 +156,7 @@ const reorderListsFn = createServerFn({ method: "POST" })
   .validator((input: { intent: ListIntent; orderedIds: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1.lists.reorder.$post({
-        json: data,
-      }),
-      "Couldn't reorder lists",
-    );
+    await apiOrpcClient(listsContract, context.cookie).reorder(data);
   });
 
 /**
@@ -241,13 +216,10 @@ const bulkAddEntriesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<ListBulkAddResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.lists[":id"].entries.bulk.$post({
-          param: encodeParams({ id: data.listId }),
-          json: { entries: data.entries },
-        }),
-        "Couldn't add to list",
-      ),
+      apiOrpcClient(listsContract, context.cookie).bulkCreateEntries({
+        id: data.listId,
+        entries: data.entries,
+      }),
   );
 
 interface BulkAddVariables {
@@ -331,13 +303,10 @@ const bulkAddCopiesToListFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<ListBulkAddResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.lists[":id"].entries["from-copies"].$post({
-          param: encodeParams({ id: data.listId }),
-          json: { copyIds: data.copyIds },
-        }),
-        "Couldn't add to list",
-      ),
+      apiOrpcClient(listsContract, context.cookie).bulkAddFromCopies({
+        id: data.listId,
+        copyIds: data.copyIds,
+      }),
   );
 
 export function useBulkAddCopiesToList() {
@@ -359,13 +328,11 @@ const moveListEntriesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<ListMoveResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.lists[":id"].entries.move.$post({
-          param: encodeParams({ id: data.fromListId }),
-          json: { toListId: data.toListId, entryIds: data.entryIds },
-        }),
-        "Couldn't move entries",
-      ),
+      apiOrpcClient(listsContract, context.cookie).moveEntries({
+        id: data.fromListId,
+        toListId: data.toListId,
+        entryIds: data.entryIds,
+      }),
   );
 
 export function useMoveListEntries() {
@@ -396,13 +363,11 @@ const updateListEntryFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(({ context, data }): Promise<ListEntryResponse> => {
     const { listId, entryId, ...fields } = data;
-    return callApiJson(
-      serverApiClient(context.cookie).api.v1.lists[":id"].entries[":itemId"].$patch({
-        param: encodeParams({ id: listId, itemId: entryId }),
-        json: fields,
-      }),
-      "Couldn't update list entry",
-    );
+    return apiOrpcClient(listsContract, context.cookie).updateEntry({
+      id: listId,
+      itemId: entryId,
+      ...fields,
+    });
   });
 
 export function useUpdateListEntry() {
@@ -457,12 +422,10 @@ const removeListEntryFn = createServerFn({ method: "POST" })
   .validator((input: { listId: string; entryId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1.lists[":id"].entries[":itemId"].$delete({
-        param: encodeParams({ id: data.listId, itemId: data.entryId }),
-      }),
-      "Couldn't remove from list",
-    );
+    await apiOrpcClient(listsContract, context.cookie).removeEntry({
+      id: data.listId,
+      itemId: data.entryId,
+    });
   });
 
 export function useRemoveListEntry() {
@@ -480,13 +443,10 @@ const bulkRemoveListEntriesFn = createServerFn({ method: "POST" })
   .validator((input: { listId: string; entryIds: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1.lists[":id"].entries["bulk-delete"].$post({
-        param: encodeParams({ id: data.listId }),
-        json: { entryIds: data.entryIds },
-      }),
-      "Couldn't remove from list",
-    );
+    await apiOrpcClient(listsContract, context.cookie).bulkDeleteEntries({
+      id: data.listId,
+      entryIds: data.entryIds,
+    });
   });
 
 export function useBulkRemoveListEntries() {
@@ -507,12 +467,7 @@ const shareListFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data: listId }): Promise<ListShareResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.lists[":id"].share.$post({
-          param: encodeParams({ id: listId }),
-        }),
-        "Couldn't share list",
-      ),
+      apiOrpcClient(listsContract, context.cookie).share({ id: listId }),
   );
 
 export function useShareList() {
@@ -537,12 +492,7 @@ const unshareListFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: listId }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1.lists[":id"].share.$delete({
-        param: encodeParams({ id: listId }),
-      }),
-      "Couldn't unshare list",
-    );
+    await apiOrpcClient(listsContract, context.cookie).unshare({ id: listId });
   });
 
 export function useUnshareList() {
@@ -558,20 +508,19 @@ export function useUnshareList() {
   });
 }
 
+// Migrated to oRPC: contract-typed client. 404 (unknown/non-public token) is a
+// typed NOT_FOUND error mapped to the sentinel the caller expects.
 const fetchPublicListFn = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .handler(async ({ data: token }): Promise<PublicListDetailResponse> => {
-    const res = await callApi(
-      serverApiClient().api.v1.lists.share[":token"].$get({
-        param: encodeParams({ token }),
-      }),
-      "Couldn't load shared list",
-      [404],
-    );
-    if ((res.status as number) === 404) {
-      throw new Error("NOT_FOUND");
+    try {
+      return await apiOrpcClient(publicListsContract).share({ token });
+    } catch (error) {
+      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+        throw new Error("NOT_FOUND");
+      }
+      throw error;
     }
-    return res.json() as Promise<PublicListDetailResponse>;
   });
 
 export function publicListQueryOptions(token: string) {

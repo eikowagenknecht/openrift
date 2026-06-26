@@ -1,15 +1,16 @@
+import type {
+  AdminFeatureFlagOverridesResponse,
+  AdminFeatureFlagsResponse,
+} from "@openrift/shared/contracts";
+import { adminFeatureFlagsContract } from "@openrift/shared/contracts";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
-import type {
-  AdminFeatureFlagOverridesResponse,
-  AdminFeatureFlagsResponse,
-} from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 export function useFeatureEnabled(key: string): boolean {
@@ -25,10 +26,7 @@ const fetchAdminFeatureFlags = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminFeatureFlagsResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["feature-flags"].$get(),
-        "Couldn't load feature flags",
-      ),
+      apiOrpcClient(adminFeatureFlagsContract, context.cookie).list(),
   );
 
 export const adminFeatureFlagsQueryOptions = queryOptions({
@@ -44,13 +42,10 @@ const toggleFeatureFlagFn = createServerFn({ method: "POST" })
   .validator((input: { key: string; enabled: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["feature-flags"][":key"].$patch({
-        param: encodeParams({ key: data.key }),
-        json: { enabled: data.enabled },
-      }),
-      "Couldn't toggle feature flag",
-    );
+    await apiOrpcClient(adminFeatureFlagsContract, context.cookie).update({
+      key: data.key,
+      enabled: data.enabled,
+    });
   });
 
 export function useToggleFeatureFlag() {
@@ -64,12 +59,7 @@ const createFeatureFlagFn = createServerFn({ method: "POST" })
   .validator((input: { key: string; description?: string | null; enabled?: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["feature-flags"].$post({
-        json: data,
-      }),
-      "Couldn't create feature flag",
-    );
+    await apiOrpcClient(adminFeatureFlagsContract, context.cookie).create(data);
   });
 
 export function useCreateFeatureFlag() {
@@ -84,12 +74,7 @@ const deleteFeatureFlagFn = createServerFn({ method: "POST" })
   .validator((input: { key: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["feature-flags"][":key"].$delete({
-        param: encodeParams({ key: data.key }),
-      }),
-      "Couldn't delete feature flag",
-    );
+    await apiOrpcClient(adminFeatureFlagsContract, context.cookie).remove({ key: data.key });
   });
 
 export function useDeleteFeatureFlag() {
@@ -107,10 +92,7 @@ const fetchAdminFeatureFlagOverrides = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminFeatureFlagOverridesResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["feature-flags"].overrides.$get(),
-        "Couldn't load feature flag overrides",
-      ),
+      apiOrpcClient(adminFeatureFlagsContract, context.cookie).listOverrides(),
   );
 
 export const adminFeatureFlagOverridesQueryOptions = queryOptions({
@@ -126,13 +108,11 @@ const upsertFeatureFlagOverrideFn = createServerFn({ method: "POST" })
   .validator((input: { userId: string; flagKey: string; enabled: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.users[":id"]["feature-flags"][":key"].$put({
-        param: encodeParams({ id: data.userId, key: data.flagKey }),
-        json: { enabled: data.enabled },
-      }),
-      "Couldn't upsert feature flag override",
-    );
+    await apiOrpcClient(adminFeatureFlagsContract, context.cookie).upsertOverride({
+      id: data.userId,
+      key: data.flagKey,
+      enabled: data.enabled,
+    });
   });
 
 export function useUpsertFeatureFlagOverride() {
@@ -147,12 +127,10 @@ const deleteFeatureFlagOverrideFn = createServerFn({ method: "POST" })
   .validator((input: { userId: string; flagKey: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.users[":id"]["feature-flags"][":key"].$delete({
-        param: encodeParams({ id: data.userId, key: data.flagKey }),
-      }),
-      "Couldn't delete feature flag override",
-    );
+    await apiOrpcClient(adminFeatureFlagsContract, context.cookie).removeOverride({
+      id: data.userId,
+      key: data.flagKey,
+    });
   });
 
 export function useDeleteFeatureFlagOverride() {

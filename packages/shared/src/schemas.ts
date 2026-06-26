@@ -376,6 +376,11 @@ const listEntryInputShape = {
   tradeOverride: tradePreferenceInputSchema.default(emptyTradePreference),
 };
 
+// Exported so the oRPC lists contract can merge it with the `{id}` path param
+// (createListEntrySchema is `.refine()`d at the top level, so it has no
+// `.shape` to extend). The route handler re-validates the one-target rule.
+export { listEntryInputShape };
+
 export const createListEntrySchema = z.object(listEntryInputShape).refine(oneListEntryTarget, {
   message: "Exactly one of cardId, printingId, or copyId must be provided",
 });
@@ -921,26 +926,32 @@ export const playerDeckCheckEntryParamSchema = z.object({
  * the manual judge entry sends). `dryRun` previews the resolved lines and
  * advisory legality findings without writing anything.
  */
+export const playerDeckCheckSubmissionShape = {
+  deckId: z.uuid().optional(),
+  deckCode: z.string().min(1).max(4000).optional(),
+  cards: z.array(addDeckCheckCardSchema).min(1).max(DECK_CHECK_MAX_CARD_LINES_PER_ENTRY).optional(),
+  /** Consent for the organizer to publish the deck list publicly; omitted = keep stored (true on first submit). */
+  allowDeckPublishing: z.boolean().optional(),
+  /** Consent to show the player's name on public platforms; omitted = keep stored (true on first submit). */
+  allowNameSharing: z.boolean().optional(),
+  /** Consent to show the player's Riot ID on public platforms; omitted = keep stored (true on first submit). */
+  allowRiotIdSharing: z.boolean().optional(),
+  dryRun: z.boolean().optional(),
+};
+
+/**
+ * Exactly one deck source must be provided.
+ * @returns True when exactly one of deckId / deckCode / cards is set.
+ */
+export const exactlyOneDeckCheckSubmissionSource = (value: {
+  deckId?: string | undefined;
+  deckCode?: string | undefined;
+  cards?: unknown;
+}): boolean =>
+  [value.deckId, value.deckCode, value.cards].filter((source) => source !== undefined).length === 1;
+
 export const playerDeckCheckSubmissionSchema = z
-  .object({
-    deckId: z.uuid().optional(),
-    deckCode: z.string().min(1).max(4000).optional(),
-    cards: z
-      .array(addDeckCheckCardSchema)
-      .min(1)
-      .max(DECK_CHECK_MAX_CARD_LINES_PER_ENTRY)
-      .optional(),
-    /** Consent for the organizer to publish the deck list publicly; omitted = keep stored (true on first submit). */
-    allowDeckPublishing: z.boolean().optional(),
-    /** Consent to show the player's name on public platforms; omitted = keep stored (true on first submit). */
-    allowNameSharing: z.boolean().optional(),
-    /** Consent to show the player's Riot ID on public platforms; omitted = keep stored (true on first submit). */
-    allowRiotIdSharing: z.boolean().optional(),
-    dryRun: z.boolean().optional(),
-  })
-  .refine(
-    (value) =>
-      [value.deckId, value.deckCode, value.cards].filter((source) => source !== undefined)
-        .length === 1,
-    { message: "Provide exactly one of deckId, deckCode, or cards" },
-  );
+  .object(playerDeckCheckSubmissionShape)
+  .refine(exactlyOneDeckCheckSubmissionSource, {
+    message: "Provide exactly one of deckId, deckCode, or cards",
+  });

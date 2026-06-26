@@ -1,10 +1,15 @@
-// oxlint-disable-next-line import/no-unassigned-import -- type augmentation: adds .openapi() to Zod schemas
-import "@asteasolutions/zod-to-openapi";
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
 
 import { ERROR_CODES } from "./error-codes.js";
 import type { ErrorCode } from "./error-codes.js";
 import { TRADE_REQUEST_EMAIL_CADENCES } from "./types/api/preferences.js";
+
+// Register `.openapi()` on the shared Zod singleton. Idempotent, so it is safe
+// alongside `@hono/zod-openapi` (which also extends Zod). Done here rather than
+// relying on an import-order side effect so this module is self-sufficient: it
+// is now imported via oRPC contracts that never pull in `@hono/zod-openapi`.
+extendZodWithOpenApi(z);
 
 // ── Error envelope ───────────────────────────────────────────────────────────
 // The single shape every 4xx/5xx returns ({ error, code }). Published here so

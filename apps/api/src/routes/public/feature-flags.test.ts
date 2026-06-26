@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
-import { featureFlagsRoute } from "./feature-flags";
+import { registerRouterForTest } from "../../test/mount-router.js";
+import type { Variables } from "../../types.js";
+import { featureFlagsRouter } from "./feature-flags";
 
 // ---------------------------------------------------------------------------
 // Mock repo
@@ -12,16 +14,24 @@ const mockFeatureFlagsRepo = {
 };
 
 // ---------------------------------------------------------------------------
-// Test app
+// Test app — mounts the oRPC handler exactly as production does, then injects
+// the repos + a no-session auth stub so the anonymous branch runs.
 // ---------------------------------------------------------------------------
 
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("repos", { featureFlags: mockFeatureFlagsRepo } as never);
-    c.set("auth", { api: { getSession: () => Promise.resolve(null) } } as never);
+function buildApp() {
+  const app = new Hono<{ Variables: Variables }>();
+  app.use("*", async (c, next) => {
+    // oxlint-disable-next-line no-explicit-any -- test stub doesn't match full Repos/Auth
+    c.set("repos", { featureFlags: mockFeatureFlagsRepo } as any);
+    // oxlint-disable-next-line no-explicit-any -- minimal auth stub: no session
+    c.set("auth", { api: { getSession: () => Promise.resolve(null) } } as any);
     await next();
-  })
-  .route("/api/v1", featureFlagsRoute);
+  });
+  registerRouterForTest(app, featureFlagsRouter);
+  return app;
+}
+
+const app = buildApp();
 
 // ---------------------------------------------------------------------------
 // Tests

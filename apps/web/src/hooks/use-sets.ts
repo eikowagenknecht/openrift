@@ -1,17 +1,18 @@
+import { adminCatalogContract } from "@openrift/shared/contracts";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import type { AdminSetsResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchSets = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminSetsResponse> =>
-      callApiJson(serverApiClient(context.cookie).api.admin.v1.sets.$get(), "Couldn't load sets"),
+      apiOrpcClient(adminCatalogContract, context.cookie).listSets(),
   );
 
 export const setsQueryOptions = queryOptions({
@@ -36,14 +37,7 @@ const updateSetFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const { id, ...patch } = data;
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.sets[":id"].$patch({
-        param: encodeParams({ id }),
-        json: patch,
-      }),
-      "Couldn't update set",
-    );
+    await apiOrpcClient(adminCatalogContract, context.cookie).updateSet(data);
   });
 
 export function useUpdateSet() {
@@ -69,12 +63,7 @@ const createSetFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.sets.$post({
-        json: data,
-      }),
-      "Couldn't create set",
-    );
+    await apiOrpcClient(adminCatalogContract, context.cookie).createSet(data);
   });
 
 export function useCreateSet() {
@@ -93,12 +82,7 @@ const deleteSetFn = createServerFn({ method: "POST" })
   .validator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.sets[":id"].$delete({
-        param: encodeParams({ id: data.id }),
-      }),
-      "Couldn't delete set",
-    );
+    await apiOrpcClient(adminCatalogContract, context.cookie).deleteSet({ id: data.id });
   });
 
 export function useDeleteSet() {
@@ -114,12 +98,7 @@ const reorderSetsFn = createServerFn({ method: "POST" })
   .validator((input: { ids: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.sets.reorder.$put({
-        json: { ids: data.ids },
-      }),
-      "Couldn't reorder sets",
-    );
+    await apiOrpcClient(adminCatalogContract, context.cookie).reorderSets({ ids: data.ids });
   });
 
 export function useReorderSets() {

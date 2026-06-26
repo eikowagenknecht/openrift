@@ -1,20 +1,18 @@
+import type { ProviderSettingsResponse } from "@openrift/shared/contracts";
+import { adminProviderSettingsContract } from "@openrift/shared/contracts";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
-import type { ProviderSettingsResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchProviderSettings = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<ProviderSettingsResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["provider-settings"].$get(),
-        "Couldn't load provider settings",
-      ),
+      apiOrpcClient(adminProviderSettingsContract, context.cookie).list(),
   );
 
 export const providerSettingsQueryOptions = queryOptions({
@@ -31,12 +29,9 @@ const reorderProviderSettingsFn = createServerFn({ method: "POST" })
   .validator((input: { providers: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["provider-settings"].reorder.$put({
-        json: { providers: data.providers },
-      }),
-      "Couldn't reorder provider settings",
-    );
+    await apiOrpcClient(adminProviderSettingsContract, context.cookie).reorder({
+      providers: data.providers,
+    });
   });
 
 export function useReorderProviderSettings() {
@@ -55,17 +50,7 @@ const updateProviderSettingFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["provider-settings"][":provider"].$patch({
-        param: encodeParams({ provider: data.provider }),
-        json: {
-          sortOrder: data.sortOrder,
-          isHidden: data.isHidden,
-          isFavorite: data.isFavorite,
-        },
-      }),
-      "Couldn't update provider setting",
-    );
+    await apiOrpcClient(adminProviderSettingsContract, context.cookie).update(data);
   });
 
 export function useUpdateProviderSetting() {

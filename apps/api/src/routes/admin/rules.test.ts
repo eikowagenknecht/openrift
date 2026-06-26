@@ -1,6 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { OpenAPIHandler } from "@orpc/openapi/fetch";
+import { Hono } from "hono";
+import type { Context } from "hono";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { parseRulesText } from "./rules";
+import { appErrorInterceptor } from "../../orpc/app-error-interceptor.js";
+import { buildApiContext } from "../../orpc/context.js";
+import type { Variables } from "../../types.js";
+import { adminRulesRouter, parseRulesText } from "./rules";
 
 describe("parseRulesText", () => {
   it("recognises titles, subtitles, and plain text by markdown prefix", () => {
@@ -101,5 +107,234 @@ describe("parseRulesText", () => {
       ["subtitle", "Golden Rule"],
       ["text", "Card text supersedes rules text."],
     ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Endpoint tests — mount the oRPC router directly (without requireAdmin).
+// ---------------------------------------------------------------------------
+
+const mockRulesRepo = {
+  getVersion: vi.fn(),
+  listVersions: vi.fn(),
+  listLatest: vi.fn(),
+  createVersion: vi.fn(),
+  insertRules: vi.fn(),
+  deleteVersion: vi.fn(),
+  updateComments: vi.fn(),
+};
+
+// transact runs its callback with a repos bundle exposing the same rules repo.
+const mockTransact = vi.fn(async (cb: (txRepos: { rules: typeof mockRulesRepo }) => unknown) =>
+  cb({ rules: mockRulesRepo }),
+);
+
+const handler = new OpenAPIHandler(adminRulesRouter, { interceptors: [appErrorInterceptor] });
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  c.set("repos", { rules: mockRulesRepo } as never);
+  c.set("transact", mockTransact as never);
+  c.set("user", { id: "a0000000-0001-4000-a000-000000000001" } as never);
+  await next();
+});
+const handle = async (c: Context<{ Variables: Variables }>) => {
+  const { matched, response } = await handler.handle(c.req.raw, {
+    context: buildApiContext(c),
+  });
+  if (matched && response) {
+    return response;
+  }
+  return c.notFound();
+};
+for (const path of ["/api/admin/v1/rules/import", "/api/admin/v1/rules/:kind/versions/:version"]) {
+  app.all(path, handle);
+}
+
+describe("POST /api/admin/v1/rules/import", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockTransact.mockImplementation(async (cb) => cb({ rules: mockRulesRepo }));
+  });
+
+  it("imports a first version with every rule counted as added (201)", async () => {
+    mockRulesRepo.getVersion.mockResolvedValue(null);
+    mockRulesRepo.listVersions.mockResolvedValue([]);
+
+    const res = await app.request("/api/admin/v1/rules/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        kind: "core",
+        version: "1.0",
+        comments: "Initial import",
+        content: ["001. # Title", "002. A rule."].join("\n"),
+      }),
+    });
+
+    expect(res.status).toBe(201);
+    const json = await res.json();
+    expect(json).toEqual({
+      kind: "core",
+      version: "1.0",
+      rulesCount: 2,
+      added: 2,
+      modified: 0,
+      removed: 0,
+    });
+    expect(mockTransact).toHaveBeenCalledOnce();
+    expect(mockRulesRepo.createVersion).toHaveBeenCalledWith({
+      kind: "core",
+      version: "1.0",
+      comments: "Initial import",
+    });
+    expect(mockRulesRepo.insertRules).toHaveBeenCalledOnce();
+  });
+
+  it("computes added/modified/removed against the previous version", async () => {
+    mockRulesRepo.getVersion.mockResolvedValue(null);
+    mockRulesRepo.listVersions.mockResolvedValue([{ version: "1.0" }]);
+    mockRulesRepo.listLatest.mockResolvedValue([
+      { ruleNumber: "001", content: "Old text." },
+      { ruleNumber: "003", content: "To be removed." },
+    ]);
+
+    const res = await app.request("/api/admin/v1/rules/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        kind: "core",
+        version: "2.0",
+        content: ["001. New text.", "002. Brand new."].join("\n"),
+      }),
+    });
+
+    expect(res.status).toBe(201);
+    const json = await res.json();
+    // 001 changed (modified), 002 is new (added), 003 dropped (removed).
+    expect(json).toMatchObject({ added: 1, modified: 1, removed: 1 });
+  });
+
+  it("409s when the version already exists for the kind", async () => {
+    mockRulesRepo.getVersion.mockResolvedValue({ kind: "core", version: "1.0" });
+
+    const res = await app.request("/api/admin/v1/rules/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "core", version: "1.0", content: "001. A rule." }),
+    });
+
+    expect(res.status).toBe(409);
+    const json = await res.json();
+    expect(json.message).toContain("already exists");
+    expect(mockRulesRepo.createVersion).not.toHaveBeenCalled();
+  });
+
+  it("400s when the content holds no parseable rules", async () => {
+    mockRulesRepo.getVersion.mockResolvedValue(null);
+    mockRulesRepo.listVersions.mockResolvedValue([]);
+
+    const res = await app.request("/api/admin/v1/rules/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "core", version: "1.0", content: "not a rule line" }),
+    });
+
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.message).toContain("No valid rules");
+  });
+
+  it("400s when importing a version older than the latest", async () => {
+    mockRulesRepo.getVersion.mockResolvedValue(null);
+    mockRulesRepo.listVersions.mockResolvedValue([{ version: "2.0" }]);
+
+    const res = await app.request("/api/admin/v1/rules/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "core", version: "1.0", content: "001. A rule." }),
+    });
+
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.message).toContain("older than");
+  });
+});
+
+describe("DELETE /api/admin/v1/rules/:kind/versions/:version", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("deletes an existing version (204)", async () => {
+    mockRulesRepo.getVersion.mockResolvedValue({ kind: "core", version: "1.0" });
+
+    const res = await app.request("/api/admin/v1/rules/core/versions/1.0", { method: "DELETE" });
+
+    expect(res.status).toBe(204);
+    expect(mockRulesRepo.deleteVersion).toHaveBeenCalledWith("core", "1.0");
+  });
+
+  it("404s when the version does not exist", async () => {
+    mockRulesRepo.getVersion.mockResolvedValue(null);
+
+    const res = await app.request("/api/admin/v1/rules/core/versions/9.9", { method: "DELETE" });
+
+    expect(res.status).toBe(404);
+    expect(mockRulesRepo.deleteVersion).not.toHaveBeenCalled();
+  });
+});
+
+describe("PATCH /api/admin/v1/rules/:kind/versions/:version", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("updates the version comments", async () => {
+    mockRulesRepo.updateComments.mockResolvedValue({
+      kind: "core",
+      version: "1.0",
+      comments: "Updated note",
+    });
+
+    const res = await app.request("/api/admin/v1/rules/core/versions/1.0", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ comments: "Updated note" }),
+    });
+
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toEqual({ kind: "core", version: "1.0", comments: "Updated note" });
+    expect(mockRulesRepo.updateComments).toHaveBeenCalledWith("core", "1.0", "Updated note");
+  });
+
+  it("clears the comments when null is passed", async () => {
+    mockRulesRepo.updateComments.mockResolvedValue({
+      kind: "tournament",
+      version: "1.0",
+      comments: null,
+    });
+
+    const res = await app.request("/api/admin/v1/rules/tournament/versions/1.0", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ comments: null }),
+    });
+
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toEqual({ kind: "tournament", version: "1.0", comments: null });
+  });
+
+  it("404s when the version does not exist", async () => {
+    mockRulesRepo.updateComments.mockResolvedValue(null);
+
+    const res = await app.request("/api/admin/v1/rules/core/versions/9.9", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ comments: "x" }),
+    });
+
+    expect(res.status).toBe(404);
   });
 });

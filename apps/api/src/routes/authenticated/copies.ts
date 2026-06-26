@@ -1,193 +1,93 @@
-import { createRoute } from "@hono/zod-openapi";
-import { ERROR_CODES } from "@openrift/shared";
 import type {
   CopyAddResponse,
   CopyListMembershipsResponse,
   CopyListResponse,
 } from "@openrift/shared";
-import {
-  copyAddResponseSchema,
-  copyListMembershipsResponseSchema,
-  copyListResponseSchema,
-} from "@openrift/shared/response-schemas";
-import {
-  addCopiesSchema,
-  copiesQuerySchema,
-  copyListMembershipsSchema,
-  disposeCopiesSchema,
-  moveCopiesSchema,
-} from "@openrift/shared/schemas";
+import { copiesContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
-import { AppError } from "../../errors.js";
-import { getUserId } from "../../middleware/get-user-id.js";
-import { requireAuth } from "../../middleware/require-auth.js";
-import { cookieAuth, errorResponses } from "../../openapi-helpers.js";
-import { createApiApp } from "../../openapi.js";
+import { requireUserId } from "../../middleware/get-user-id.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 import { buildCopiesCursor, clampCopiesLimit } from "../../repositories/copies.js";
 import { toCopy } from "../../utils/mappers.js";
 
-const listCopies = createRoute({
-  method: "get",
-  path: "/",
-  tags: ["Copies"],
-  security: cookieAuth,
-  request: { query: copiesQuerySchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: copyListResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(400, 401),
-  },
-});
+const os = implement(copiesContract).$context<ApiContext>().use(requireUser);
 
-const addCopies = createRoute({
-  method: "post",
-  path: "/",
-  tags: ["Copies"],
-  security: cookieAuth,
-  request: {
-    body: { content: { "application/json": { schema: addCopiesSchema } } },
-  },
-  responses: {
-    201: {
-      content: { "application/json": { schema: copyAddResponseSchema } },
-      description: "Created",
-    },
-    ...errorResponses(400, 401, 403),
-  },
-});
-
-const moveCopies = createRoute({
-  method: "post",
-  path: "/move",
-  tags: ["Copies"],
-  security: cookieAuth,
-  request: {
-    body: { content: { "application/json": { schema: moveCopiesSchema } } },
-  },
-  responses: {
-    204: { description: "No Content" },
-    ...errorResponses(400, 401, 403, 404),
-  },
-});
-
-const disposeCopies = createRoute({
-  method: "post",
-  path: "/dispose",
-  tags: ["Copies"],
-  security: cookieAuth,
-  request: {
-    body: { content: { "application/json": { schema: disposeCopiesSchema } } },
-  },
-  responses: {
-    204: { description: "No Content" },
-    ...errorResponses(400, 401, 403, 404),
-  },
-});
-
-const listMemberships = createRoute({
-  method: "post",
-  path: "/list-memberships",
-  tags: ["Copies"],
-  security: cookieAuth,
-  request: {
-    body: { content: { "application/json": { schema: copyListMembershipsSchema } } },
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: copyListMembershipsResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(400, 401),
-  },
-});
-
-const copiesApp = createApiApp().basePath("/copies");
-copiesApp.use(requireAuth);
-export const copiesRoute = copiesApp
-  // ── GET /copies ─────────────────────────────────────────────────────────────
+/**
+ * oRPC implementation of the authenticated copies contract. Logic unchanged
+ * from the previous handlers; the FK-violation 400 on `add` is now a typed
+ * `errors.BAD_REQUEST()` rather than a thrown AppError. `move`/`dispose` return
+ * 204 (no body) via the contract's `successStatus`.
+ */
+export const copiesRouter = {
   // All copies the viewer can access: their personal collections plus the
-  // shared collections of every group they belong to. Group-owned copies
-  // (added by any member) appear to all members. Each row carries `groupId`
-  // so the client can keep group copies out of personal "owned" totals.
+  // shared collections of every group they belong to.
+  list: os.list.handler(async ({ input, context }): Promise<CopyListResponse> => {
+    const { copies } = context.repos;
+    const effectiveLimit = clampCopiesLimit(input.limit);
 
-  .openapi(listCopies, async (c) => {
-    const { copies } = c.get("repos");
-    const { cursor, limit } = c.req.valid("query");
-    const effectiveLimit = clampCopiesLimit(limit);
-
-    const rows = await copies.listForAccessibleCollections(getUserId(c), effectiveLimit, cursor);
+    const rows = await copies.listForAccessibleCollections(
+      requireUserId(context.user),
+      effectiveLimit,
+      input.cursor,
+    );
     const hasMore = rows.length > effectiveLimit;
     const items = rows.slice(0, effectiveLimit);
     const lastItem = items.at(-1);
+    return {
+      items: items.map((row) => toCopy(row)),
+      nextCursor: hasMore && lastItem ? buildCopiesCursor(lastItem.createdAt, lastItem.id) : null,
+    };
+  }),
 
-    return c.json(
-      {
-        items: items.map((row) => toCopy(row)),
-        nextCursor: hasMore && lastItem ? buildCopiesCursor(lastItem.createdAt, lastItem.id) : null,
-      } satisfies CopyListResponse,
-      200,
-    );
-  })
-
-  // ── POST /copies ────────────────────────────────────────────────────────────
-  // Batch add copies (acquisition)
-
-  .openapi(addCopies, async (c) => {
-    const { addCopies: addCopiesService } = c.get("services");
-    const repos = c.get("repos");
-    const transact = c.get("transact");
-    const userId = getUserId(c);
-    const body = c.req.valid("json");
+  // Batch add copies (acquisition).
+  add: os.add.handler(async ({ input, context, errors }): Promise<CopyAddResponse> => {
+    const { addCopies: addCopiesService } = context.services;
+    const repos = context.repos;
+    const transact = context.transact;
+    const userId = requireUserId(context.user);
     let created;
     try {
-      created = await addCopiesService(repos, transact, userId, body.copies);
+      created = await addCopiesService(repos, transact, userId, input.copies);
     } catch (error) {
       // 23503 = foreign_key_violation: a copy references a printingId that does
       // not exist. Report a clean 400 instead of letting the FK throw a 500.
       if (error instanceof Error && "code" in error && error.code === "23503") {
-        throw new AppError(400, ERROR_CODES.BAD_REQUEST, "One or more printings do not exist");
+        throw errors.BAD_REQUEST({ message: "One or more printings do not exist" });
       }
       throw error;
     }
-    return c.json({ items: created } satisfies CopyAddResponse, 201);
-  })
+    return { items: created };
+  }),
 
-  // ── POST /copies/move ───────────────────────────────────────────────────────
-  // Move copies between collections (reorganization)
+  // Move copies between collections (reorganization).
+  move: os.move.handler(async ({ input, context }): Promise<void> => {
+    const { moveCopies: moveCopiesService } = context.services;
+    await moveCopiesService(
+      context.repos,
+      context.transact,
+      requireUserId(context.user),
+      input.copyIds,
+      input.toCollectionId,
+    );
+  }),
 
-  .openapi(moveCopies, async (c) => {
-    const { moveCopies: moveCopiesService } = c.get("services");
-    const repos = c.get("repos");
-    const transact = c.get("transact");
-    const userId = getUserId(c);
-    const body = c.req.valid("json");
-    await moveCopiesService(repos, transact, userId, body.copyIds, body.toCollectionId);
-    return c.body(null, 204);
-  })
+  // Dispose copies (disposal) — hard-deletes with metadata snapshot.
+  dispose: os.dispose.handler(async ({ input, context }): Promise<void> => {
+    const { disposeCopies: disposeCopiesService } = context.services;
+    await disposeCopiesService(context.transact, requireUserId(context.user), input.copyIds);
+  }),
 
-  // ── POST /copies/dispose ────────────────────────────────────────────────────
-  // Dispose copies (disposal) — hard-deletes with metadata snapshot
-
-  .openapi(disposeCopies, async (c) => {
-    const { disposeCopies: disposeCopiesService } = c.get("services");
-    const transact = c.get("transact");
-    const userId = getUserId(c);
-    const body = c.req.valid("json");
-    await disposeCopiesService(transact, userId, body.copyIds);
-    return c.body(null, 204);
-  })
-
-  // ── POST /copies/list-memberships ─────────────────────────────────────────────
-  // Read-only: which of the viewer's own lists reference these copies. The
-  // dispose confirmation uses it to warn that removing copies also strips them
-  // from those lists (dispose hard-deletes the copy, cascading its entries).
-
-  .openapi(listMemberships, async (c) => {
-    const { lists } = c.get("repos");
-    const userId = getUserId(c);
-    const body = c.req.valid("json");
-    const result = await lists.listMembershipsForCopies(body.copyIds, userId, body.excludeListId);
-    return c.json(result satisfies CopyListMembershipsResponse, 200);
-  });
+  // Read-only: which of the viewer's own lists reference these copies.
+  listMemberships: os.listMemberships.handler(
+    async ({ input, context }): Promise<CopyListMembershipsResponse> => {
+      const { lists } = context.repos;
+      return await lists.listMembershipsForCopies(
+        input.copyIds,
+        requireUserId(context.user),
+        input.excludeListId,
+      );
+    },
+  ),
+};

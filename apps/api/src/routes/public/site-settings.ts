@@ -1,36 +1,24 @@
-import { createRoute } from "@hono/zod-openapi";
 import type { SiteSettingsResponse } from "@openrift/shared";
-import { z } from "zod";
+import { siteSettingsContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 
-const getSiteSettings = createRoute({
-  method: "get",
-  path: "/site-settings",
-  tags: ["Site Settings"],
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            settings: z.record(z.string(), z.string()).openapi({ example: { theme: "dark" } }),
-          }),
-        },
-      },
-      description: "Web-scoped site settings as a key→value map",
-    },
-  },
-});
+const os = implement(siteSettingsContract).$context<ApiContext>().use(requireUser);
 
-/** Public: GET /site-settings — returns web-scoped settings as a `{ settings: { key: value } }` map. */
-export const siteSettingsRoute = createApiApp().openapi(getSiteSettings, async (c) => {
-  const { siteSettings } = c.get("repos");
-  const rows = await siteSettings.listByScope("web");
-
-  const settings: Record<string, string> = {};
-  for (const row of rows) {
-    settings[row.key] = row.value;
-  }
-  c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
-  return c.json({ settings } satisfies SiteSettingsResponse);
-});
+/**
+ * oRPC implementation of the public site-settings contract.
+ * `GET /api/v1/site-settings` — web-scoped settings as a `{ key: value }` map.
+ */
+export const siteSettingsRouter = {
+  get: os.get.handler(async ({ context }): Promise<SiteSettingsResponse> => {
+    const { siteSettings } = context.repos;
+    const rows = await siteSettings.listByScope("web");
+    const settings: Record<string, string> = {};
+    for (const row of rows) {
+      settings[row.key] = row.value;
+    }
+    return { settings };
+  }),
+};

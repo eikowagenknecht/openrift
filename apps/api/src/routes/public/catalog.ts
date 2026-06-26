@@ -1,50 +1,29 @@
-import { createRoute } from "@hono/zod-openapi";
 import type {
   CatalogResponse,
   CatalogResponseCardValue,
   CatalogResponsePrintingValue,
 } from "@openrift/shared";
-import { catalogResponseSchema } from "@openrift/shared/response-schemas";
-import { etag } from "hono/etag";
-import { z } from "zod";
+import { catalogContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-response.js";
 
-const getCatalog = createRoute({
-  method: "get",
-  path: "/catalog",
-  tags: ["Catalog"],
-  request: {
-    // Cache-busting token, ignored by the handler. The web client appends the
-    // catalog's current ETag as `?v=` so a content change rolls the URL and
-    // bypasses the long-lived edge cache (see web's catalog-query.ts).
-    query: z.object({ v: z.string().optional() }),
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: catalogResponseSchema } },
-      description: "Full card catalog",
-    },
-  },
-});
+const os = implement(catalogContract).$context<ApiContext>().use(requireUser);
 
-const catalogApp = createApiApp();
-catalogApp.use("/catalog", etag());
-export const catalogRoute = catalogApp
-  /**
-   * `GET /catalog` — Returns the full card catalog as {@link CatalogResponse}.
-   *
-   * Cards and printings are both returned as maps keyed by their own id; the
-   * id is therefore omitted from each value (identity lives in the key). Sets
-   * stay as an array.
-   *
-   * Prices live on a separate `/api/v1/prices` endpoint with its own cache
-   * lifetime, so the catalog ETag stays stable across daily price refreshes.
-   * Clients compose the two via the `useCards()` + `usePrices()` hook pair.
-   */
-  .openapi(getCatalog, async (c) => {
-    const repos = c.get("repos");
+/**
+ * oRPC implementation of `GET /catalog`. Logic unchanged from the previous
+ * `@hono/zod-openapi` handler.
+ *
+ * Cards and printings are both returned as maps keyed by their own id; the id
+ * is therefore omitted from each value (identity lives in the key). Sets stay
+ * an array. Prices live on a separate `/api/v1/prices` endpoint with its own
+ * cache lifetime, so the catalog ETag stays stable across daily price refreshes.
+ */
+export const catalogRouter = {
+  catalog: os.catalog.handler(async ({ context }): Promise<CatalogResponse> => {
+    const repos = context.repos;
     const { catalog } = repos;
 
     const [
@@ -119,16 +98,12 @@ export const catalogRoute = catalogApp
       };
     }
 
-    const content: CatalogResponse = {
+    return {
       sets,
       cards,
       printings,
       totalCopies,
       customTagAssignments: Object.fromEntries(customTagAssignmentsMap),
     };
-
-    // Catalog data only changes when sets/cards/printings ship — typically
-    // weeks apart. Long max-age + SWR keeps caches warm across refreshes.
-    c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-    return c.json(content);
-  });
+  }),
+};

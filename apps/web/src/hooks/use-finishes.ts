@@ -1,20 +1,18 @@
+import type { AdminFinishesResponse } from "@openrift/shared/contracts";
+import { adminFinishesContract } from "@openrift/shared/contracts";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
-import type { AdminFinishesResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchFinishes = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminFinishesResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1.finishes.$get(),
-        "Couldn't load finishes",
-      ),
+      apiOrpcClient(adminFinishesContract, context.cookie).list(),
   );
 
 export const adminFinishesQueryOptions = queryOptions({
@@ -30,10 +28,7 @@ const createFinishFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; label: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.finishes.$post({ json: data }),
-      "Couldn't create finish",
-    );
+    await apiOrpcClient(adminFinishesContract, context.cookie).create(data);
   });
 
 export function useCreateFinish() {
@@ -47,13 +42,7 @@ const updateFinishFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; label?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.finishes[":slug"].$patch({
-        param: encodeParams({ slug: data.slug }),
-        json: { label: data.label },
-      }),
-      "Couldn't update finish",
-    );
+    await apiOrpcClient(adminFinishesContract, context.cookie).update(data);
   });
 
 export function useUpdateFinish() {
@@ -67,12 +56,7 @@ const reorderFinishesFn = createServerFn({ method: "POST" })
   .validator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.finishes.reorder.$put({
-        json: { slugs: data.slugs },
-      }),
-      "Couldn't reorder finishes",
-    );
+    await apiOrpcClient(adminFinishesContract, context.cookie).reorder({ slugs: data.slugs });
   });
 
 export function useReorderFinishes() {
@@ -86,12 +70,7 @@ const deleteFinishFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.finishes[":slug"].$delete({
-        param: encodeParams({ slug: data.slug }),
-      }),
-      "Couldn't delete finish",
-    );
+    await apiOrpcClient(adminFinishesContract, context.cookie).remove({ slug: data.slug });
   });
 
 export function useDeleteFinish() {

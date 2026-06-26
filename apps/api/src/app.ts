@@ -3,8 +3,10 @@ import { ERROR_CODES } from "@openrift/shared";
 import type { ApiErrorResponse } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
 import * as Sentry from "@sentry/bun";
+import { Hono } from "hono";
 import { rateLimiter } from "hono-rate-limiter";
 import { cors } from "hono/cors";
+import { etag } from "hono/etag";
 import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { Kysely } from "kysely";
@@ -18,47 +20,21 @@ import type { createEmailSender } from "./email.js";
 import { AppError, codeForStatus } from "./errors.js";
 import { defaultIo } from "./io.js";
 import type { Io } from "./io.js";
+import { loadSession } from "./middleware/load-session.js";
 import { createMetricsMiddleware } from "./middleware/metrics.js";
 import { otelRequestMiddleware } from "./middleware/otel-request.js";
-import { createApiApp } from "./openapi.js";
-import { adminRoute } from "./routes/admin/index.js";
-import { cardTradesRoute } from "./routes/authenticated/card-trades.js";
-import { collectionEventsRoute } from "./routes/authenticated/collection-events.js";
-import { collectionValueHistoryRoute } from "./routes/authenticated/collection-value-history.js";
-import { collectionsRoute } from "./routes/authenticated/collections.js";
-import { contactMethodsRoute } from "./routes/authenticated/contact-methods.js";
-import { copiesRoute } from "./routes/authenticated/copies.js";
-import { deckCheckPlayerRoute } from "./routes/authenticated/deck-check-player.js";
-import { deckCheckRoute } from "./routes/authenticated/deck-check.js";
-import { decksRoute } from "./routes/authenticated/decks.js";
-import { friendGroupsRoute } from "./routes/authenticated/friend-groups.js";
+import { requireAdmin } from "./middleware/require-admin.js";
+import { generateContractOpenAPIDocument } from "./openapi-doc.js";
+import { cacheControlFor, ETAG_PATHS } from "./orpc/cache-policy.js";
+import { buildApiContext } from "./orpc/context.js";
+import { createApiHandler } from "./orpc/router.js";
+import { mountAdminSentryTest } from "./routes/admin/sentry-test.js";
 import { listImageRoute } from "./routes/authenticated/list-image.js";
-import { listsRoute } from "./routes/authenticated/lists.js";
-import { podTournamentsRoute } from "./routes/authenticated/pod-tournaments.js";
-import { preferencesRoute } from "./routes/authenticated/preferences.js";
-import { userShareRoute } from "./routes/authenticated/user-share.js";
-import { cardsRoute } from "./routes/public/cards.js";
-import { catalogRoute } from "./routes/public/catalog.js";
-import { publicCollectionsRoute } from "./routes/public/collections.js";
-import { deckCheckClaimRoute } from "./routes/public/deck-check-claim.js";
-import { deckCheckIngestRoute } from "./routes/public/deck-check-ingest.js";
-import { publicDecksRoute } from "./routes/public/decks.js";
-import { featureFlagsRoute } from "./routes/public/feature-flags.js";
+import { mountDeckCheckIngest } from "./routes/public/deck-check-ingest.js";
 import { healthRoute } from "./routes/public/health.js";
-import { initRoute } from "./routes/public/init.js";
-import { landingSummaryRoute } from "./routes/public/landing-summary.js";
-import { publicListsRoute } from "./routes/public/lists.js";
-import { publicPodTournamentsRoute } from "./routes/public/pod-tournaments.js";
-import { pricesRoute } from "./routes/public/prices.js";
-import { promosRoute } from "./routes/public/promos.js";
-import { rulesRoute } from "./routes/public/rules.js";
 import { sentryTunnelRoute } from "./routes/public/sentry-tunnel.js";
-import { setsRoute } from "./routes/public/sets.js";
 import { publicShareImagesRoute } from "./routes/public/share-images.js";
-import { siteSettingsRoute } from "./routes/public/site-settings.js";
-import { sitemapDataRoute } from "./routes/public/sitemap.js";
 import { unsubscribeRoute } from "./routes/public/unsubscribe.js";
-import { publicUserShareRoute } from "./routes/public/user-share.js";
 import type { Auth, Config, Variables } from "./types.js";
 
 export interface AppDeps {
@@ -104,17 +80,7 @@ export function createApp(deps: AppDeps) {
   );
   const services: Services = deps.services ? { ...built, ...deps.services } : built;
 
-  const app = createApiApp();
-
-  // Register the cookie-session security scheme once on the root app so
-  // authenticated routes can declare `security: cookieAuth` and the OpenAPI
-  // doc / Swagger UI show which endpoints need a session (and an Authorize
-  // affordance). Better Auth issues the session in this cookie.
-  app.openAPIRegistry.registerComponent("securitySchemes", "cookieAuth", {
-    type: "apiKey",
-    in: "cookie",
-    name: "better-auth.session_token",
-  });
+  const app = new Hono<{ Variables: Variables }>();
 
   // Repos and the transaction helper are stateless given a fixed `db`, so build
   // them once at app construction rather than re-instrumenting all ~50 repos on
@@ -123,6 +89,12 @@ export function createApp(deps: AppDeps) {
   // transaction, so writes stay transaction-scoped.
   const repos = createRepos(db);
   const transact = createTransact(db);
+
+  // The single oRPC handler for every migrated route. Bound to `log` so its
+  // reporting interceptor captures 5xx faults to Sentry + the structured error
+  // log (oRPC encodes handler throws into a Response, so they never reach the
+  // Hono `onError` below).
+  const apiHandler = createApiHandler(log);
 
   // ── Global error handler ────────────────────────────────────────────────
   // Normalizes all thrown errors into a consistent { error, code, details? } JSON shape.
@@ -352,52 +324,63 @@ export function createApp(deps: AppDeps) {
   // middleware explicitly. Truly-public routes skip the lookup entirely.
 
   // ── OpenAPI spec & Swagger UI ──────────────────────────────────────────
-  // the public and admin surfaces get separate OpenAPI documents so the
-  // ~150 admin operations don't pollute the public spec. Both are generated
-  // from the same app (one AppType) and split by their /api/admin/ path prefix.
+  // The public and admin surfaces get separate OpenAPI documents (split by the
+  // /api/admin/ path prefix) so the ~140 admin operations don't pollute the
+  // public spec. The spec is generated entirely from the shared oRPC contracts
+  // (`generateContractOpenAPIDocument`). A few routes are plain Hono and not in
+  // the doc on purpose (health, the sentry smoke test); the external deck-check
+  // ingest carries a doc-only contract so it stays documented.
   const ADMIN_DOC_PREFIX = "/api/admin/";
-  const filterPaths = (
-    doc: ReturnType<typeof app.getOpenAPIDocument>,
+  const filterPaths = <TDoc extends { paths?: Record<string, unknown> }>(
+    doc: TDoc,
     keep: (path: string) => boolean,
-  ): ReturnType<typeof app.getOpenAPIDocument> => ({
+  ): TDoc => ({
     ...doc,
     paths: Object.fromEntries(Object.entries(doc.paths ?? {}).filter(([path]) => keep(path))),
   });
 
-  const publicDocConfig = {
-    openapi: "3.1.0",
-    info: {
-      title: "OpenRift API",
-      version: "1.0.0",
-      description: [
-        "**Authentication:** This API uses session cookies (Better Auth).",
-        "Auth endpoints are not in this spec, they are proxied from `/api/auth/*`.",
-        "Admin endpoints live in a separate spec at `/api/admin/doc`.",
-        "",
-        "To try authenticated endpoints in Swagger UI: sign in via the web app,",
-        "then open this page on the API origin in the same browser.",
-      ].join("\n"),
-    },
+  const publicDocInfo = {
+    title: "OpenRift API",
+    version: "1.0.0",
+    description: [
+      "**Authentication:** This API uses session cookies (Better Auth).",
+      "Auth endpoints are not in this spec, they are proxied from `/api/auth/*`.",
+      "Admin endpoints live in a separate spec at `/api/admin/doc`.",
+      "",
+      "To try authenticated endpoints in Swagger UI: sign in via the web app,",
+      "then open this page on the API origin in the same browser.",
+    ].join("\n"),
   } as const;
-  const adminDocConfig = {
-    openapi: "3.1.0",
-    info: {
-      title: "OpenRift Admin API",
-      version: "1.0.0",
-      description:
-        "Admin-only operations, mounted under `/api/admin/v1` (require an admin session).",
-    },
+  const adminDocInfo = {
+    title: "OpenRift Admin API",
+    version: "1.0.0",
+    description: "Admin-only operations, mounted under `/api/admin/v1` (require an admin session).",
   } as const;
 
+  // Build the OpenAPI document from the oRPC contracts, overlaying the doc info
+  // and the cookie-session security scheme (Better Auth issues the session in
+  // this cookie). Contract schemas are inlined (no `components.schemas`).
+  const buildDoc = async (info: { title: string; version: string; description: string }) => {
+    const contractDoc = await generateContractOpenAPIDocument();
+    return {
+      ...contractDoc,
+      openapi: "3.1.0",
+      info,
+      components: {
+        ...contractDoc.components,
+        securitySchemes: {
+          ...contractDoc.components?.securitySchemes,
+          cookieAuth: { type: "apiKey", in: "cookie", name: "better-auth.session_token" },
+        },
+      },
+    };
+  };
+
   // Public doc: everything except the admin surface.
-  app.get("/api/doc", (c) =>
-    c.json(
-      filterPaths(
-        app.getOpenAPIDocument(publicDocConfig),
-        (path) => !path.startsWith(ADMIN_DOC_PREFIX),
-      ),
-    ),
-  );
+  app.get("/api/doc", async (c) => {
+    const doc = await buildDoc(publicDocInfo);
+    return c.json(filterPaths(doc, (path) => !path.startsWith(ADMIN_DOC_PREFIX)));
+  });
   // Admin doc + UI are intentionally public (no requireAdmin in front). They
   // describe the admin surface but grant no access: every operation under
   // /api/admin/v1 is gated by the admin middleware on that sub-app, so the
@@ -406,66 +389,65 @@ export function createApp(deps: AppDeps) {
   // admin reference) rather than a leak. Gate these behind requireAdmin if that
   // stance ever changes.
   // Admin doc: only the admin surface.
-  app.get("/api/admin/doc", (c) =>
-    c.json(
-      filterPaths(app.getOpenAPIDocument(adminDocConfig), (path) =>
-        path.startsWith(ADMIN_DOC_PREFIX),
-      ),
-    ),
-  );
+  app.get("/api/admin/doc", async (c) => {
+    const doc = await buildDoc(adminDocInfo);
+    return c.json(filterPaths(doc, (path) => path.startsWith(ADMIN_DOC_PREFIX)));
+  });
   app.get("/api/ui", swaggerUI({ url: "/api/doc" }));
   app.get("/api/admin/ui", swaggerUI({ url: "/api/admin/doc" }));
 
-  // Route registrations are chained so TypeScript preserves the full route
-  // type map — the frontend RPC client (`AppType`) depends on this.
-  return (
-    app
-      // ── Infrastructure (unversioned) ──────────────────────────────────────
-      .route("/api", healthRoute)
+  // ── Plain-Hono routes (not oRPC) ──────────────────────────────────────────
+  // Binary/HTML/empty responses, external error envelopes, or a deliberate
+  // throw (sentry-test) — these don't fit the oRPC JSON model, so they stay
+  // Hono. Registered before the oRPC catch-all so they win the path match.
+  mountAdminSentryTest(app);
+  mountDeckCheckIngest(app);
+  app
+    .route("/api", healthRoute)
+    .route("/api/v1", publicShareImagesRoute)
+    .route("/api/v1", sentryTunnelRoute)
+    .route("/api/v1", unsubscribeRoute)
+    .route("/api/v1", listImageRoute);
 
-      // ── Public routes (no auth required) ─────────────────────────────────
-      .route("/api/v1", catalogRoute)
-      .route("/api/v1", landingSummaryRoute)
-      .route("/api/v1", cardsRoute)
-      .route("/api/v1", setsRoute)
-      .route("/api/v1", promosRoute)
-      .route("/api/v1", sitemapDataRoute)
-      .route("/api/v1", pricesRoute)
-      .route("/api/v1", featureFlagsRoute)
-      .route("/api/v1", initRoute)
-      .route("/api/v1", siteSettingsRoute)
-      .route("/api/v1", rulesRoute)
-      .route("/api/v1", publicDecksRoute)
-      .route("/api/v1", publicCollectionsRoute)
-      .route("/api/v1", publicListsRoute)
-      .route("/api/v1", publicUserShareRoute)
-      .route("/api/v1", publicPodTournamentsRoute)
-      .route("/api/v1", deckCheckIngestRoute)
-      .route("/api/v1", deckCheckClaimRoute)
-      .route("/api/v1", publicShareImagesRoute)
-      .route("/api/v1", sentryTunnelRoute)
-      .route("/api/v1", unsubscribeRoute)
+  // ── Auth + caching middleware for the oRPC routes ─────────────────────────
+  // Auth is enforced per-procedure by the `requireUser` middleware on every
+  // router (fail-closed; public procedures opt out via `meta.auth`). The only
+  // exceptions handled here as Hono middleware:
+  //  - admin uses the clean `/api/admin/v1/*` prefix (no ambiguity);
+  //  - the two optional-auth public routes run `loadSession` so they can read
+  //    the viewer AND set `Vary: Cookie` for the edge cache (ADR-016);
+  //  - `etag()` provides the catalog/prices content version + conditional GETs.
+  app.use("/api/admin/v1/*", requireAdmin);
+  app.use("/api/v1/feature-flags", loadSession);
+  app.use("/api/v1/users/share/*", loadSession);
+  for (const path of ETAG_PATHS) {
+    app.use(path, etag());
+  }
 
-      // ── Authenticated routes (require a valid session) ──────────────────
-      .route("/api/v1", collectionsRoute)
-      .route("/api/v1", copiesRoute)
-      .route("/api/v1", collectionEventsRoute)
-      .route("/api/v1", collectionValueHistoryRoute)
-      .route("/api/v1", decksRoute)
-      .route("/api/v1", contactMethodsRoute)
-      .route("/api/v1", preferencesRoute)
-      .route("/api/v1", userShareRoute)
-      .route("/api/v1", listsRoute)
-      .route("/api/v1", listImageRoute)
-      .route("/api/v1", friendGroupsRoute)
-      .route("/api/v1", deckCheckRoute)
-      .route("/api/v1", deckCheckPlayerRoute)
-      .route("/api/v1", cardTradesRoute)
-      .route("/api/v1", podTournamentsRoute)
+  // ── Single oRPC catch-all (registered LAST) ───────────────────────────────
+  // One OpenAPIHandler serves every migrated endpoint. When oRPC has no route
+  // for the path we call next() rather than answering here, so later-registered
+  // routes still match and the app's JSON-404 notFound handler owns the miss.
+  // Cache-Control for the few cacheable public reads is applied here (the
+  // per-route mounts that used to set it are gone).
+  app.all("/api/*", async (c, next) => {
+    const { matched, response } = await apiHandler.handle(c.req.raw, {
+      context: buildApiContext(c),
+    });
+    if (!matched || !response) {
+      return next();
+    }
+    // Only successful GET reads are cacheable. The method guard keeps a private
+    // mutation that shares a cacheable prefix (e.g. POST /decks/share/{token}/clone
+    // under the public /decks/share/ read) from ever being labelled `public`.
+    if (response.ok && c.req.method === "GET") {
+      const cacheControl = cacheControlFor(c.req.path, Boolean(c.get("user")));
+      if (cacheControl) {
+        response.headers.set("Cache-Control", cacheControl);
+      }
+    }
+    return response;
+  });
 
-      // ── Admin routes (require admin role) ────────────────────────────────
-      // mounted under /api/admin/v1 (not /api/v1/admin) so admin churn is
-      // decoupled from the public v1 contract.
-      .route("/api/admin/v1", adminRoute)
-  );
+  return app;
 }

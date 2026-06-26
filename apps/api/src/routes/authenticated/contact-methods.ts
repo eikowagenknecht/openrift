@@ -1,157 +1,61 @@
-import { createRoute, z } from "@hono/zod-openapi";
-import { ERROR_CODES } from "@openrift/shared";
-import { userContactMethodsResponseSchema } from "@openrift/shared/response-schemas";
-import { createContactMethodSchema, reorderContactMethodsSchema } from "@openrift/shared/schemas";
+import type { UserContactMethodsResponse } from "@openrift/shared";
+import { contactMethodsContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
-import { AppError } from "../../errors.js";
-import { getUserId } from "../../middleware/get-user-id.js";
-import { requireAuth } from "../../middleware/require-auth.js";
-import { cookieAuth, errorResponses } from "../../openapi-helpers.js";
-import { createApiApp } from "../../openapi.js";
+import { requireUserId } from "../../middleware/get-user-id.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 
-const contactMethodIdParamSchema = z.object({
-  id: z.uuid().openapi({ param: { name: "id", in: "path" } }),
-});
+const os = implement(contactMethodsContract).$context<ApiContext>().use(requireUser);
 
-const listContactMethods = createRoute({
-  method: "get",
-  path: "/",
-  tags: ["Contact Methods"],
-  security: cookieAuth,
-  responses: {
-    200: {
-      content: { "application/json": { schema: userContactMethodsResponseSchema } },
-      description: "Success",
+/**
+ * oRPC implementation of the authenticated contact-methods contract. Every
+ * mutation returns the refreshed list. Logic unchanged from the previous
+ * handlers; the not-found cases on update/delete are now typed NOT_FOUND
+ * errors instead of thrown AppErrors.
+ */
+export const contactMethodsRouter = {
+  list: os.list.handler(async ({ context }): Promise<UserContactMethodsResponse> => {
+    const { userContactMethods } = context.repos;
+    const items = await userContactMethods.listForUser(requireUserId(context.user));
+    return { items };
+  }),
+
+  create: os.create.handler(async ({ input, context }): Promise<UserContactMethodsResponse> => {
+    const { userContactMethods } = context.repos;
+    const userId = requireUserId(context.user);
+    await userContactMethods.create(userId, input.type, input.value);
+    return { items: await userContactMethods.listForUser(userId) };
+  }),
+
+  update: os.update.handler(
+    async ({ input, context, errors }): Promise<UserContactMethodsResponse> => {
+      const { userContactMethods } = context.repos;
+      const userId = requireUserId(context.user);
+      const updated = await userContactMethods.update(input.id, userId, input.type, input.value);
+      if (updated === undefined) {
+        throw errors.NOT_FOUND({ message: "Contact method not found" });
+      }
+      return { items: await userContactMethods.listForUser(userId) };
     },
-    ...errorResponses(401),
-  },
-});
+  ),
 
-const createContactMethod = createRoute({
-  method: "post",
-  path: "/",
-  tags: ["Contact Methods"],
-  security: cookieAuth,
-  request: {
-    body: {
-      content: { "application/json": { schema: createContactMethodSchema } },
-      required: true,
+  remove: os.remove.handler(
+    async ({ input, context, errors }): Promise<UserContactMethodsResponse> => {
+      const { userContactMethods } = context.repos;
+      const userId = requireUserId(context.user);
+      const deleted = await userContactMethods.delete(input.id, userId);
+      if (!deleted) {
+        throw errors.NOT_FOUND({ message: "Contact method not found" });
+      }
+      return { items: await userContactMethods.listForUser(userId) };
     },
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: userContactMethodsResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(400, 401),
-  },
-});
+  ),
 
-const updateContactMethod = createRoute({
-  method: "patch",
-  path: "/{id}",
-  tags: ["Contact Methods"],
-  security: cookieAuth,
-  request: {
-    params: contactMethodIdParamSchema,
-    body: {
-      content: { "application/json": { schema: createContactMethodSchema } },
-      required: true,
-    },
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: userContactMethodsResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(400, 401, 404),
-  },
-});
-
-const deleteContactMethod = createRoute({
-  method: "delete",
-  path: "/{id}",
-  tags: ["Contact Methods"],
-  security: cookieAuth,
-  request: { params: contactMethodIdParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: userContactMethodsResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(401, 404),
-  },
-});
-
-const reorderContactMethods = createRoute({
-  method: "post",
-  path: "/reorder",
-  tags: ["Contact Methods"],
-  security: cookieAuth,
-  request: {
-    body: {
-      content: { "application/json": { schema: reorderContactMethodsSchema } },
-      required: true,
-    },
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: userContactMethodsResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(400, 401),
-  },
-});
-
-const contactMethodsApp = createApiApp().basePath("/contact-methods");
-contactMethodsApp.use(requireAuth);
-
-export const contactMethodsRoute = contactMethodsApp
-  .openapi(listContactMethods, async (c) => {
-    const { userContactMethods } = c.get("repos");
-    const items = await userContactMethods.listForUser(getUserId(c));
-    return c.json({ items }, 200);
-  })
-
-  .openapi(createContactMethod, async (c) => {
-    const { userContactMethods } = c.get("repos");
-    const userId = getUserId(c);
-    const { type, value } = c.req.valid("json");
-    await userContactMethods.create(userId, type, value);
-    const items = await userContactMethods.listForUser(userId);
-    return c.json({ items }, 200);
-  })
-
-  .openapi(updateContactMethod, async (c) => {
-    const { userContactMethods } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
-    const { type, value } = c.req.valid("json");
-    const updated = await userContactMethods.update(id, userId, type, value);
-    if (updated === undefined) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Contact method not found");
-    }
-    const items = await userContactMethods.listForUser(userId);
-    return c.json({ items }, 200);
-  })
-
-  .openapi(deleteContactMethod, async (c) => {
-    const { userContactMethods } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
-    const deleted = await userContactMethods.delete(id, userId);
-    if (!deleted) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Contact method not found");
-    }
-    const items = await userContactMethods.listForUser(userId);
-    return c.json({ items }, 200);
-  })
-
-  .openapi(reorderContactMethods, async (c) => {
-    const { userContactMethods } = c.get("repos");
-    const userId = getUserId(c);
-    const { ids } = c.req.valid("json");
-    await userContactMethods.reorder(userId, ids);
-    const items = await userContactMethods.listForUser(userId);
-    return c.json({ items }, 200);
-  });
+  reorder: os.reorder.handler(async ({ input, context }): Promise<UserContactMethodsResponse> => {
+    const { userContactMethods } = context.repos;
+    const userId = requireUserId(context.user);
+    await userContactMethods.reorder(userId, input.ids);
+    return { items: await userContactMethods.listForUser(userId) };
+  }),
+};

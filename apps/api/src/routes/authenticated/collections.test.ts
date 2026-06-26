@@ -2,7 +2,9 @@ import { Hono } from "hono";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
-import { collectionsRoute } from "./collections";
+import { registerRouterForTest } from "../../test/mount-router.js";
+import type { Variables } from "../../types.js";
+import { collectionsRouter } from "./collections";
 
 // ---------------------------------------------------------------------------
 // Mock repos and services
@@ -56,30 +58,30 @@ const mockDeleteCollection = vi.fn(() => Promise.resolve());
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("user", { id: USER_ID });
-    c.set("transact", (() => {}) as never);
-    c.set("repos", {
-      collections: mockCollectionsRepo,
-      copies: mockCopiesRepo,
-      marketplace: mockMarketplaceRepo,
-      userPreferences: mockUserPreferencesRepo,
-      friendGroups: mockFriendGroupsRepo,
-    } as never);
-    c.set("services", {
-      ensureInbox: mockEnsureInbox,
-      deleteCollection: mockDeleteCollection,
-    } as never);
-    await next();
-  })
-  .route("/api/v1", collectionsRoute)
-  .onError((err, c) => {
-    if (err instanceof AppError) {
-      return c.json({ error: err.message, code: err.code }, err.status as 400);
-    }
-    throw err;
-  });
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  c.set("user", { id: USER_ID } as never);
+  c.set("transact", (() => {}) as never);
+  c.set("repos", {
+    collections: mockCollectionsRepo,
+    copies: mockCopiesRepo,
+    marketplace: mockMarketplaceRepo,
+    userPreferences: mockUserPreferencesRepo,
+    friendGroups: mockFriendGroupsRepo,
+  } as never);
+  c.set("services", {
+    ensureInbox: mockEnsureInbox,
+    deleteCollection: mockDeleteCollection,
+  } as never);
+  await next();
+});
+registerRouterForTest(app, collectionsRouter);
+app.onError((err, c) => {
+  if (err instanceof AppError) {
+    return c.json({ error: err.message, code: err.code }, err.status as 400);
+  }
+  throw err;
+});
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -139,6 +141,7 @@ const dbCopy = {
   id: "a0000000-0001-4000-a000-000000000020",
   printingId: "OGS-001:rare:normal:",
   collectionId: dbCollection.id,
+  groupId: null,
   createdAt: now,
 };
 

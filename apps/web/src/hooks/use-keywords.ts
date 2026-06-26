@@ -1,19 +1,17 @@
+import type { KeywordStatsResponse } from "@openrift/shared/contracts";
+import { adminKeywordsContract } from "@openrift/shared/contracts";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
-import type { KeywordStatsResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchKeywordStats = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<KeywordStatsResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["keyword-stats"].$get(),
-        "Couldn't load keyword stats",
-      ),
+      apiOrpcClient(adminKeywordsContract, context.cookie).stats(),
   );
 
 export const keywordStatsQueryOptions = queryOptions({
@@ -27,12 +25,7 @@ export function useKeywordStats() {
 
 const recomputeKeywordsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
-  .handler(({ context }) =>
-    callApiJson(
-      serverApiClient(context.cookie).api.admin.v1["recompute-keywords"].$post(),
-      "Couldn't recompute keywords",
-    ),
-  );
+  .handler(({ context }) => apiOrpcClient(adminKeywordsContract, context.cookie).recompute());
 
 export function useRecomputeKeywords() {
   const queryClient = useQueryClient();
@@ -48,13 +41,7 @@ const updateKeywordStyleFn = createServerFn({ method: "POST" })
   .validator((input: { name: string; color: string; darkText: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.keywords[":name"].$put({
-        param: encodeParams({ name: data.name }),
-        json: { color: data.color, darkText: data.darkText },
-      }),
-      "Couldn't update keyword style",
-    );
+    await apiOrpcClient(adminKeywordsContract, context.cookie).updateStyle(data);
   });
 
 export function useUpdateKeywordStyle() {
@@ -73,12 +60,7 @@ const createKeywordStyleFn = createServerFn({ method: "POST" })
   .validator((input: { name: string; color: string; darkText: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.keywords.$post({
-        json: data,
-      }),
-      "Couldn't create keyword style",
-    );
+    await apiOrpcClient(adminKeywordsContract, context.cookie).createStyle(data);
   });
 
 export function useCreateKeywordStyle() {
@@ -97,12 +79,7 @@ const deleteKeywordStyleFn = createServerFn({ method: "POST" })
   .validator((input: { name: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.keywords[":name"].$delete({
-        param: encodeParams({ name: data.name }),
-      }),
-      "Couldn't delete keyword style",
-    );
+    await apiOrpcClient(adminKeywordsContract, context.cookie).removeStyle({ name: data.name });
   });
 
 export function useDeleteKeywordStyle() {
@@ -121,10 +98,7 @@ export function useDeleteKeywordStyle() {
 const discoverTranslationsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(({ context }) =>
-    callApiJson(
-      serverApiClient(context.cookie).api.admin.v1["discover-keyword-translations"].$post(),
-      "Couldn't discover translations",
-    ),
+    apiOrpcClient(adminKeywordsContract, context.cookie).discoverTranslations(),
   );
 
 export function useDiscoverTranslations() {
@@ -142,15 +116,7 @@ const upsertTranslationFn = createServerFn({ method: "POST" })
   .validator((input: { keywordName: string; language: string; label: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["keyword-translations"][":keywordName"][
-        ":language"
-      ].$put({
-        param: encodeParams({ keywordName: data.keywordName, language: data.language }),
-        json: { label: data.label },
-      }),
-      "Couldn't upsert translation",
-    );
+    await apiOrpcClient(adminKeywordsContract, context.cookie).upsertTranslation(data);
   });
 
 export function useUpsertTranslation() {
@@ -169,14 +135,7 @@ const deleteTranslationFn = createServerFn({ method: "POST" })
   .validator((input: { keywordName: string; language: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["keyword-translations"][":keywordName"][
-        ":language"
-      ].$delete({
-        param: encodeParams({ keywordName: data.keywordName, language: data.language }),
-      }),
-      "Couldn't delete translation",
-    );
+    await apiOrpcClient(adminKeywordsContract, context.cookie).removeTranslation(data);
   });
 
 export function useDeleteTranslation() {

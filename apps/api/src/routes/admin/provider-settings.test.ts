@@ -1,8 +1,12 @@
+import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AppError } from "../../errors.js";
-import { adminProviderSettingsRoute } from "./provider-settings";
+import { appErrorInterceptor } from "../../orpc/app-error-interceptor.js";
+import { buildApiContext } from "../../orpc/context.js";
+import type { Variables } from "../../types.js";
+import { adminProviderSettingsRouter } from "./provider-settings";
 
 // ---------------------------------------------------------------------------
 // Mock repo
@@ -14,25 +18,36 @@ const mockRepo = {
   upsert: vi.fn(),
 };
 
-// ---------------------------------------------------------------------------
-// Test app
-// ---------------------------------------------------------------------------
-
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("user", { id: USER_ID });
-    c.set("repos", { providerSettings: mockRepo } as never);
-    await next();
-  })
-  .route("/api/v1", adminProviderSettingsRoute)
-  .onError((err, c) => {
-    if (err instanceof AppError) {
-      return c.json({ error: err.message, code: err.code }, err.status as 400);
-    }
-    throw err;
+// Mount the oRPC router directly (without the requireAdmin gate). AppErrors are
+// bridged to ORPCErrors inside the router, so 4xx responses carry `{ message }`.
+const handler = new OpenAPIHandler(adminProviderSettingsRouter, {
+  interceptors: [appErrorInterceptor],
+});
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  c.set("user", { id: USER_ID } as never);
+  c.set("repos", { providerSettings: mockRepo } as never);
+  await next();
+});
+
+const handle = async (c: Context<{ Variables: Variables }>) => {
+  const { matched, response } = await handler.handle(c.req.raw, {
+    context: buildApiContext(c),
   });
+  if (matched && response) {
+    return response;
+  }
+  return c.notFound();
+};
+for (const path of [
+  "/api/admin/v1/provider-settings",
+  "/api/admin/v1/provider-settings/reorder",
+  "/api/admin/v1/provider-settings/:provider",
+]) {
+  app.all(path, handle);
+}
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -42,26 +57,28 @@ const dbSetting1 = {
   provider: "tcgplayer",
   sortOrder: 0,
   isHidden: false,
+  isFavorite: false,
 };
 
 const dbSetting2 = {
   provider: "cardmarket",
   sortOrder: 1,
   isHidden: true,
+  isFavorite: true,
 };
 
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("GET /api/v1/provider-settings", () => {
+describe("GET /provider-settings", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   it("returns 200 with serialized provider settings", async () => {
     mockRepo.listAll.mockResolvedValue([dbSetting1, dbSetting2]);
-    const res = await app.request("/api/v1/provider-settings");
+    const res = await app.request("/api/admin/v1/provider-settings");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.providerSettings).toHaveLength(2);
@@ -69,31 +86,33 @@ describe("GET /api/v1/provider-settings", () => {
       provider: "tcgplayer",
       sortOrder: 0,
       isHidden: false,
+      isFavorite: false,
     });
     expect(json.providerSettings[1]).toEqual({
       provider: "cardmarket",
       sortOrder: 1,
       isHidden: true,
+      isFavorite: true,
     });
   });
 
   it("returns empty array when no provider settings exist", async () => {
     mockRepo.listAll.mockResolvedValue([]);
-    const res = await app.request("/api/v1/provider-settings");
+    const res = await app.request("/api/admin/v1/provider-settings");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.providerSettings).toEqual([]);
   });
 });
 
-describe("PUT /api/v1/provider-settings/reorder", () => {
+describe("PUT /provider-settings/reorder", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   it("returns 204 on successful reorder", async () => {
     mockRepo.reorder.mockResolvedValue(undefined);
-    const res = await app.request("/api/v1/provider-settings/reorder", {
+    const res = await app.request("/api/admin/v1/provider-settings/reorder", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ providers: ["cardmarket", "tcgplayer"] }),
@@ -103,25 +122,25 @@ describe("PUT /api/v1/provider-settings/reorder", () => {
   });
 
   it("returns 400 when providers contain duplicates", async () => {
-    const res = await app.request("/api/v1/provider-settings/reorder", {
+    const res = await app.request("/api/admin/v1/provider-settings/reorder", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ providers: ["tcgplayer", "tcgplayer"] }),
     });
     expect(res.status).toBe(400);
     const json = await res.json();
-    expect(json.error).toContain("Duplicate");
+    expect(json.message).toContain("Duplicate");
   });
 });
 
-describe("PATCH /api/v1/provider-settings/:provider", () => {
+describe("PATCH /provider-settings/:provider", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   it("returns 204 when updating sortOrder", async () => {
     mockRepo.upsert.mockResolvedValue(undefined);
-    const res = await app.request("/api/v1/provider-settings/tcgplayer", {
+    const res = await app.request("/api/admin/v1/provider-settings/tcgplayer", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sortOrder: 5 }),
@@ -132,7 +151,7 @@ describe("PATCH /api/v1/provider-settings/:provider", () => {
 
   it("returns 204 when updating isHidden", async () => {
     mockRepo.upsert.mockResolvedValue(undefined);
-    const res = await app.request("/api/v1/provider-settings/cardmarket", {
+    const res = await app.request("/api/admin/v1/provider-settings/cardmarket", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isHidden: true }),
@@ -143,7 +162,7 @@ describe("PATCH /api/v1/provider-settings/:provider", () => {
 
   it("returns 204 when updating both fields", async () => {
     mockRepo.upsert.mockResolvedValue(undefined);
-    const res = await app.request("/api/v1/provider-settings/cardtrader", {
+    const res = await app.request("/api/admin/v1/provider-settings/cardtrader", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sortOrder: 2, isHidden: false }),

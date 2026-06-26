@@ -1,10 +1,12 @@
 import type { CardDetailResponse, Printing } from "@openrift/shared";
+import { cardsContract } from "@openrift/shared/contracts";
+import { ORPCError } from "@orpc/client";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
-import { callApi, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchCardDetail = createServerFn({ method: "GET" })
   .validator((input: string) => input)
@@ -13,18 +15,16 @@ const fetchCardDetail = createServerFn({ method: "GET" })
       serverCache.fetchQuery({
         queryKey: ["server-cache", "card-detail", data],
         queryFn: async () => {
-          // 404 is legitimate (unknown slug) — map to NOT_FOUND without logging.
-          const res = await callApi(
-            serverApiClient().api.v1.cards[":cardSlug"].$get({
-              param: encodeParams({ cardSlug: data }),
-            }),
-            "Couldn't load card",
-            [404],
-          );
-          if ((res.status as number) === 404) {
-            throw new Error("NOT_FOUND");
+          // Migrated to oRPC: 404 (unknown slug) is a typed NOT_FOUND error
+          // mapped to the sentinel the route boundary expects.
+          try {
+            return await apiOrpcClient(cardsContract).detail({ cardSlug: data });
+          } catch (error) {
+            if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+              throw new Error("NOT_FOUND");
+            }
+            throw error;
           }
-          return res.json() as Promise<CardDetailResponse>;
         },
       }),
   );

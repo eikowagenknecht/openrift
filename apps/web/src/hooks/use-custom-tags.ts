@@ -1,10 +1,11 @@
 import type { CustomTagCategoryResponse, CustomTagResponse } from "@openrift/shared";
+import { adminCustomTagsContract } from "@openrift/shared/contracts";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 interface AdminCustomTagsResponse {
@@ -25,10 +26,7 @@ const fetchCustomTags = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminCustomTagsResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["custom-tags"].$get(),
-        "Couldn't load custom tags",
-      ),
+      apiOrpcClient(adminCustomTagsContract, context.cookie).listTags(),
   );
 
 export const adminCustomTagsQueryOptions = queryOptions({
@@ -47,10 +45,7 @@ const fetchCustomTagCategories = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminCustomTagCategoriesResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["custom-tag-categories"].$get(),
-        "Couldn't load custom-tag categories",
-      ),
+      apiOrpcClient(adminCustomTagsContract, context.cookie).listCategories(),
   );
 
 export const adminCustomTagCategoriesQueryOptions = queryOptions({
@@ -69,12 +64,7 @@ const createCustomTagCategoryFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; label: string; description?: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["custom-tag-categories"].$post({
-        json: data,
-      }),
-      "Couldn't create category",
-    );
+    await apiOrpcClient(adminCustomTagsContract, context.cookie).createCategory(data);
   });
 
 export function useCreateCustomTagCategory() {
@@ -91,13 +81,7 @@ const updateCustomTagCategoryFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["custom-tag-categories"][":id"].$patch({
-        param: encodeParams({ id: data.id }),
-        json: { slug: data.slug, label: data.label, description: data.description },
-      }),
-      "Couldn't update category",
-    );
+    await apiOrpcClient(adminCustomTagsContract, context.cookie).updateCategory(data);
   });
 
 export function useUpdateCustomTagCategory() {
@@ -116,12 +100,7 @@ const deleteCustomTagCategoryFn = createServerFn({ method: "POST" })
   .validator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["custom-tag-categories"][":id"].$delete({
-        param: encodeParams({ id: data.id }),
-      }),
-      "Couldn't delete category",
-    );
+    await apiOrpcClient(adminCustomTagsContract, context.cookie).removeCategory({ id: data.id });
   });
 
 export function useDeleteCustomTagCategory() {
@@ -140,12 +119,7 @@ const createCustomTagFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["custom-tags"].$post({
-        json: data,
-      }),
-      "Couldn't create custom tag",
-    );
+    await apiOrpcClient(adminCustomTagsContract, context.cookie).createTag(data);
   });
 
 export function useCreateCustomTag() {
@@ -172,18 +146,7 @@ const updateCustomTagFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["custom-tags"][":id"].$patch({
-        param: encodeParams({ id: data.id }),
-        json: {
-          slug: data.slug,
-          label: data.label,
-          categoryId: data.categoryId,
-          description: data.description,
-        },
-      }),
-      "Couldn't update custom tag",
-    );
+    await apiOrpcClient(adminCustomTagsContract, context.cookie).updateTag(data);
   });
 
 export function useUpdateCustomTag() {
@@ -203,12 +166,7 @@ const deleteCustomTagFn = createServerFn({ method: "POST" })
   .validator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["custom-tags"][":id"].$delete({
-        param: encodeParams({ id: data.id }),
-      }),
-      "Couldn't delete custom tag",
-    );
+    await apiOrpcClient(adminCustomTagsContract, context.cookie).removeTag({ id: data.id });
   });
 
 export function useDeleteCustomTag() {
@@ -225,12 +183,7 @@ const fetchCardCustomTags = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<CardCustomTagsResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1.cards[":id"]["custom-tags"].$get({
-          param: encodeParams({ id: data.cardId }),
-        }),
-        "Couldn't load card's custom tags",
-      ),
+      apiOrpcClient(adminCustomTagsContract, context.cookie).getCardTags({ id: data.cardId }),
   );
 
 function cardCustomTagsQueryOptions(cardId: string) {
@@ -249,13 +202,10 @@ const setCardCustomTagsFn = createServerFn({ method: "POST" })
   .validator((input: { cardId: string; customTagIds: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards[":id"]["custom-tags"].$put({
-        param: encodeParams({ id: data.cardId }),
-        json: { customTagIds: data.customTagIds },
-      }),
-      "Couldn't save card's custom tags",
-    );
+    await apiOrpcClient(adminCustomTagsContract, context.cookie).setCardTags({
+      id: data.cardId,
+      customTagIds: data.customTagIds,
+    });
   });
 
 export function useSetCardCustomTags(cardId: string) {
@@ -277,13 +227,10 @@ const addCardsToCustomTagFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<AddCardsToCustomTagResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["custom-tags"][":id"].cards.$post({
-          param: encodeParams({ id: data.tagId }),
-          json: { cardIds: data.cardIds },
-        }),
-        "Couldn't attach cards to tag",
-      ),
+      apiOrpcClient(adminCustomTagsContract, context.cookie).addCards({
+        id: data.tagId,
+        cardIds: data.cardIds,
+      }),
   );
 
 export function useAddCardsToCustomTag() {

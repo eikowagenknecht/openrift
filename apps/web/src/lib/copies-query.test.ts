@@ -12,10 +12,15 @@ function makeCopy(id: string): CopyResponse {
   };
 }
 
-// fetchCopies now goes through the browser hc client, which builds an absolute
-// same-origin URL (window.location.origin is http://localhost:3000 under jsdom)
-// and calls global fetch with (url, RequestInit). These assert behavior +
-// loosely the URL path, not the exact hc-built string.
+// fetchCopies builds an absolute same-origin URL (window.location.origin is
+// http://localhost:3000 under jsdom). Both the global /copies feed and the
+// per-collection feed go through the oRPC OpenAPI client, which may call fetch
+// with a Request object or a (url, init) pair. Normalize both.
+function fetchedUrl(call: unknown[]): string {
+  const first = call[0];
+  return first instanceof Request ? first.url : String(first);
+}
+
 describe("copiesQueryOptions", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -32,7 +37,7 @@ describe("copiesQueryOptions", () => {
     const response = await fetchCopies();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0][0]).toContain("/api/v1/copies");
+    expect(fetchedUrl(fetchMock.mock.calls[0])).toContain("/api/v1/copies");
     expect(response.items.map((c) => c.id)).toEqual(["a", "b"]);
     expect(response.nextCursor).toBeNull();
   });
@@ -57,9 +62,9 @@ describe("copiesQueryOptions", () => {
     const response = await fetchCopies();
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    // Later pages carry the cursor as a query param (hc builds the URL).
-    expect(fetchMock.mock.calls[1][0]).toContain("cursor=cur-1");
-    expect(fetchMock.mock.calls[2][0]).toContain("cursor=cur-2");
+    // Later pages carry the cursor as a query param.
+    expect(fetchedUrl(fetchMock.mock.calls[1])).toContain("cursor=cur-1");
+    expect(fetchedUrl(fetchMock.mock.calls[2])).toContain("cursor=cur-2");
     expect(response.items.map((c) => c.id)).toEqual(["a", "b", "c", "d"]);
     expect(response.nextCursor).toBeNull();
   });
@@ -72,11 +77,12 @@ describe("copiesQueryOptions", () => {
       );
     vi.stubGlobal("fetch", fetchMock);
 
-    // Free-text id is percent-encoded via encodeParams (hc interpolates path
-    // params raw), so the slash/space survive as %2F/%20 in the path.
+    // oRPC percent-encodes path params, so the slash/space survive as %2F/%20.
     await fetchCopies("col/with spaces");
 
-    expect(fetchMock.mock.calls[0][0]).toContain("/api/v1/collections/col%2Fwith%20spaces/copies");
+    expect(fetchedUrl(fetchMock.mock.calls[0])).toContain(
+      "/api/v1/collections/col%2Fwith%20spaces/copies",
+    );
   });
 
   it("throws when the server responds with a non-ok status", async () => {

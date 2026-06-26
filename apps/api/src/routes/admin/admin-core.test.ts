@@ -1,40 +1,38 @@
+import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Context } from "hono";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { cronJobs } from "../../cron-jobs.js";
-import { AppError } from "../../errors.js";
-import { adminRoute } from "./index";
+import { buildApiContext } from "../../orpc/context.js";
+import type { Variables } from "../../types.js";
+import { adminCoreRouter } from "./core";
 
 // ---------------------------------------------------------------------------
-// Mock the requireAdmin middleware to pass through in tests
-// ---------------------------------------------------------------------------
-
-vi.mock("../../middleware/require-admin.js", () => ({
-  requireAdmin: vi.fn(async (_c: unknown, next: () => Promise<void>) => {
-    await next();
-  }),
-}));
-
-// ---------------------------------------------------------------------------
-// Test app
+// Test app — mount the oRPC router directly (without the requireAdmin gate).
+// `me` / `cron-status` never error, so no AppError bridging is exercised here.
 // ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("user", { id: USER_ID });
-    c.set("repos", {} as never);
-    c.set("services", {} as never);
-    await next();
-  })
-  .route("/api/admin/v1", adminRoute)
-  .onError((err, c) => {
-    if (err instanceof AppError) {
-      return c.json({ error: err.message, code: err.code }, err.status as 400);
-    }
-    throw err;
+const handler = new OpenAPIHandler(adminCoreRouter);
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  c.set("user", { id: USER_ID } as never);
+  await next();
+});
+const handle = async (c: Context<{ Variables: Variables }>) => {
+  const { matched, response } = await handler.handle(c.req.raw, {
+    context: buildApiContext(c),
   });
+  if (matched && response) {
+    return response;
+  }
+  return c.notFound();
+};
+for (const path of ["/api/admin/v1/me", "/api/admin/v1/cron-status"]) {
+  app.all(path, handle);
+}
 
 // ---------------------------------------------------------------------------
 // Tests

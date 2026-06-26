@@ -1,147 +1,45 @@
-import { createRoute } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
-import { z } from "zod";
+import { adminCardTypesContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 
-const cardTypeSchema = z.object({
-  slug: z.string().openapi({ example: "unit" }),
-  label: z.string().openapi({ example: "Unit" }),
-  sortOrder: z.number().openapi({ example: 1 }),
-  isWellKnown: z.boolean().openapi({ example: true }),
-});
+const os = implement(adminCardTypesContract).$context<ApiContext>().use(requireUser);
 
-const slugParamSchema = z.object({ slug: z.string().min(1) });
-
-// ── Route definitions ───────────────────────────────────────────────────────
-
-const listCardTypes = createRoute({
-  method: "get",
-  path: "/card-types",
-  tags: ["Admin - Card Types"],
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({ cardTypes: z.array(cardTypeSchema) }),
-        },
-      },
-      description: "List card types",
-    },
-  },
-});
-
-const reorderCardTypes = createRoute({
-  method: "put",
-  path: "/card-types/reorder",
-  tags: ["Admin - Card Types"],
-  request: {
-    body: {
-      content: {
-        "application/json": {
-          schema: z.object({ slugs: z.array(z.string().min(1)).min(1) }),
-        },
-      },
-    },
-  },
-  responses: {
-    204: { description: "Card types reordered" },
-  },
-});
-
-const createCardType = createRoute({
-  method: "post",
-  path: "/card-types",
-  tags: ["Admin - Card Types"],
-  request: {
-    body: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            slug: z
-              .string()
-              .min(1)
-              .regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u, "Slug must be kebab-case"),
-            label: z.string().min(1),
-          }),
-        },
-      },
-    },
-  },
-  responses: {
-    201: {
-      content: {
-        "application/json": {
-          schema: z.object({ cardType: cardTypeSchema }),
-        },
-      },
-      description: "Card type created",
-    },
-  },
-});
-
-const updateCardType = createRoute({
-  method: "patch",
-  path: "/card-types/{slug}",
-  tags: ["Admin - Card Types"],
-  request: {
-    params: slugParamSchema,
-    body: {
-      content: {
-        "application/json": {
-          schema: z.object({ label: z.string().min(1).optional() }),
-        },
-      },
-    },
-  },
-  responses: {
-    204: { description: "Card type updated" },
-  },
-});
-
-const deleteCardType = createRoute({
-  method: "delete",
-  path: "/card-types/{slug}",
-  tags: ["Admin - Card Types"],
-  request: {
-    params: slugParamSchema,
-  },
-  responses: {
-    204: { description: "Card type deleted" },
-  },
-});
-
-// ── Route ───────────────────────────────────────────────────────────────────
-
-export const adminCardTypesRoute = createApiApp()
-  // ── GET /admin/card-types ────────────────────────────────────────────
-  .openapi(listCardTypes, async (c) => {
-    const { cardTypes: repo } = c.get("repos");
+/**
+ * oRPC implementation of the admin card type taxonomy CRUD. Logic unchanged
+ * from the previous `@hono/zod-openapi` handlers; conflict / not-found /
+ * bad-request states are thrown as `AppError` and mapped by the handler's
+ * appErrorInterceptor.
+ */
+export const adminCardTypesRouter = {
+  list: os.list.handler(async ({ context }) => {
+    const { cardTypes: repo } = context.repos;
     const rows = await repo.listAll();
-    return c.json({ cardTypes: rows });
-  })
+    return { cardTypes: rows };
+  }),
 
-  // ── PUT /admin/card-types/reorder ────────────────────────────────────
-  .openapi(reorderCardTypes, async (c) => {
-    const { cardTypes: repo } = c.get("repos");
-    const { slugs } = c.req.valid("json");
+  reorder: os.reorder.handler(async ({ input, context }): Promise<void> => {
+    const { cardTypes: repo } = context.repos;
+    const { slugs } = input;
 
     const uniqueSlugs = new Set(slugs);
     if (uniqueSlugs.size !== slugs.length) {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Duplicate slugs in reorder list.");
     }
 
-    const allCardTypes = await repo.listAll();
-    if (slugs.length !== allCardTypes.length) {
+    const all = await repo.listAll();
+    if (slugs.length !== all.length) {
       throw new AppError(
         400,
         ERROR_CODES.BAD_REQUEST,
-        `Expected ${allCardTypes.length} slugs, got ${slugs.length}.`,
+        `Expected ${all.length} slugs, got ${slugs.length}.`,
       );
     }
 
-    const knownSlugs = new Set(allCardTypes.map((cardType) => cardType.slug));
+    const knownSlugs = new Set(all.map((row) => row.slug));
     const unknown = slugs.filter((slug) => !knownSlugs.has(slug));
     if (unknown.length > 0) {
       throw new AppError(
@@ -152,13 +50,11 @@ export const adminCardTypesRoute = createApiApp()
     }
 
     await repo.reorder(slugs);
-    return c.body(null, 204);
-  })
+  }),
 
-  // ── POST /admin/card-types ───────────────────────────────────────────
-  .openapi(createCardType, async (c) => {
-    const { cardTypes: repo } = c.get("repos");
-    const { slug, label } = c.req.valid("json");
+  create: os.create.handler(async ({ input, context }) => {
+    const { cardTypes: repo } = context.repos;
+    const { slug, label } = input;
 
     const existing = await repo.getBySlug(slug);
     if (existing) {
@@ -166,42 +62,35 @@ export const adminCardTypesRoute = createApiApp()
     }
 
     const created = await repo.create({ slug, label });
-    return c.json({ cardType: created }, 201);
-  })
+    return { cardType: created };
+  }),
 
-  // ── PATCH /admin/card-types/:slug ────────────────────────────────────
-  .openapi(updateCardType, async (c) => {
-    const { cardTypes: repo } = c.get("repos");
-    const { slug } = c.req.valid("param");
-    const body = c.req.valid("json");
+  update: os.update.handler(async ({ input, context }): Promise<void> => {
+    const { cardTypes: repo } = context.repos;
 
-    const existing = await repo.getBySlug(slug);
+    const existing = await repo.getBySlug(input.slug);
     if (!existing) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Card type "${slug}" not found`);
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Card type "${input.slug}" not found`);
     }
 
-    if (body.label) {
-      await repo.update(slug, { label: body.label });
+    if (input.label) {
+      await repo.update(input.slug, { label: input.label });
     }
+  }),
 
-    return c.body(null, 204);
-  })
+  remove: os.remove.handler(async ({ input, context }): Promise<void> => {
+    const { cardTypes: repo } = context.repos;
 
-  // ── DELETE /admin/card-types/:slug ───────────────────────────────────
-  .openapi(deleteCardType, async (c) => {
-    const { cardTypes: repo } = c.get("repos");
-    const { slug } = c.req.valid("param");
-
-    const existing = await repo.getBySlug(slug);
+    const existing = await repo.getBySlug(input.slug);
     if (!existing) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Card type "${slug}" not found`);
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Card type "${input.slug}" not found`);
     }
 
     if (existing.isWellKnown) {
       throw new AppError(409, ERROR_CODES.CONFLICT, "Cannot delete a well-known card type");
     }
 
-    const inUse = await repo.isInUse(slug);
+    const inUse = await repo.isInUse(input.slug);
     if (inUse) {
       throw new AppError(
         409,
@@ -210,6 +99,6 @@ export const adminCardTypesRoute = createApiApp()
       );
     }
 
-    await repo.deleteBySlug(slug);
-    return c.body(null, 204);
-  });
+    await repo.deleteBySlug(input.slug);
+  }),
+};

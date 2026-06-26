@@ -1,20 +1,18 @@
+import type { TypographyReviewResponse } from "@openrift/shared/contracts";
+import { adminTypographyReviewContract } from "@openrift/shared/contracts";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
-import type { TypographyReviewResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchTypographyReview = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<TypographyReviewResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["typography-review"].$get(),
-        "Couldn't load typography review",
-      ),
+      apiOrpcClient(adminTypographyReviewContract, context.cookie).list(),
   );
 
 export const typographyReviewQueryOptions = queryOptions({
@@ -32,12 +30,7 @@ const acceptTypographyFixFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["typography-review"].accept.$post({
-        json: data,
-      }),
-      "Couldn't accept typography fix",
-    );
+    await apiOrpcClient(adminTypographyReviewContract, context.cookie).accept(data);
   });
 
 export function useAcceptTypographyFix() {

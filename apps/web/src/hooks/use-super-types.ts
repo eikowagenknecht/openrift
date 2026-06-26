@@ -1,20 +1,18 @@
+import type { AdminSuperTypesResponse } from "@openrift/shared/contracts";
+import { adminSuperTypesContract } from "@openrift/shared/contracts";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
-import type { AdminSuperTypesResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchSuperTypes = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminSuperTypesResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["super-types"].$get(),
-        "Couldn't load super types",
-      ),
+      apiOrpcClient(adminSuperTypesContract, context.cookie).list(),
   );
 
 export const adminSuperTypesQueryOptions = queryOptions({
@@ -30,12 +28,7 @@ const createSuperTypeFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; label: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["super-types"].$post({
-        json: data,
-      }),
-      "Couldn't create super type",
-    );
+    await apiOrpcClient(adminSuperTypesContract, context.cookie).create(data);
   });
 
 export function useCreateSuperType() {
@@ -49,13 +42,7 @@ const updateSuperTypeFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; label?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["super-types"][":slug"].$patch({
-        param: encodeParams({ slug: data.slug }),
-        json: { label: data.label },
-      }),
-      "Couldn't update super type",
-    );
+    await apiOrpcClient(adminSuperTypesContract, context.cookie).update(data);
   });
 
 export function useUpdateSuperType() {
@@ -69,12 +56,7 @@ const reorderSuperTypesFn = createServerFn({ method: "POST" })
   .validator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["super-types"].reorder.$put({
-        json: { slugs: data.slugs },
-      }),
-      "Couldn't reorder super types",
-    );
+    await apiOrpcClient(adminSuperTypesContract, context.cookie).reorder({ slugs: data.slugs });
   });
 
 export function useReorderSuperTypes() {
@@ -88,12 +70,7 @@ const deleteSuperTypeFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["super-types"][":slug"].$delete({
-        param: encodeParams({ slug: data.slug }),
-      }),
-      "Couldn't delete super type",
-    );
+    await apiOrpcClient(adminSuperTypesContract, context.cookie).remove({ slug: data.slug });
   });
 
 export function useDeleteSuperType() {

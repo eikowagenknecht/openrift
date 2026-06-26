@@ -1,8 +1,12 @@
+import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AppError } from "../../errors.js";
-import { adminSiteSettingsRoute } from "./site-settings";
+import { appErrorInterceptor } from "../../orpc/app-error-interceptor.js";
+import { buildApiContext } from "../../orpc/context.js";
+import type { Variables } from "../../types.js";
+import { adminSiteSettingsRouter } from "./site-settings";
 
 // ---------------------------------------------------------------------------
 // Mock repo
@@ -15,25 +19,32 @@ const mockRepo = {
   deleteByKey: vi.fn(),
 };
 
-// ---------------------------------------------------------------------------
-// Test app
-// ---------------------------------------------------------------------------
-
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("user", { id: USER_ID });
-    c.set("repos", { siteSettings: mockRepo } as never);
-    await next();
-  })
-  .route("/api/v1", adminSiteSettingsRoute)
-  .onError((err, c) => {
-    if (err instanceof AppError) {
-      return c.json({ error: err.message, code: err.code }, err.status as 400);
-    }
-    throw err;
+// Mount the oRPC router directly (without the requireAdmin gate). AppErrors are
+// bridged to ORPCErrors inside the router, so 4xx responses carry `{ message }`.
+const handler = new OpenAPIHandler(adminSiteSettingsRouter, {
+  interceptors: [appErrorInterceptor],
+});
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  c.set("user", { id: USER_ID } as never);
+  c.set("repos", { siteSettings: mockRepo } as never);
+  await next();
+});
+
+const handle = async (c: Context<{ Variables: Variables }>) => {
+  const { matched, response } = await handler.handle(c.req.raw, {
+    context: buildApiContext(c),
   });
+  if (matched && response) {
+    return response;
+  }
+  return c.notFound();
+};
+for (const path of ["/api/admin/v1/site-settings", "/api/admin/v1/site-settings/:key"]) {
+  app.all(path, handle);
+}
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -61,14 +72,14 @@ const dbSetting2 = {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("GET /api/v1/site-settings", () => {
+describe("GET /api/admin/v1/site-settings", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   it("returns 200 with serialized site settings", async () => {
     mockRepo.listAll.mockResolvedValue([dbSetting1, dbSetting2]);
-    const res = await app.request("/api/v1/site-settings");
+    const res = await app.request("/api/admin/v1/site-settings");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.settings).toHaveLength(2);
@@ -90,21 +101,21 @@ describe("GET /api/v1/site-settings", () => {
 
   it("returns empty array when no settings exist", async () => {
     mockRepo.listAll.mockResolvedValue([]);
-    const res = await app.request("/api/v1/site-settings");
+    const res = await app.request("/api/admin/v1/site-settings");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.settings).toEqual([]);
   });
 });
 
-describe("POST /api/v1/site-settings", () => {
+describe("POST /api/admin/v1/site-settings", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   it("returns 201 when setting is created successfully", async () => {
     mockRepo.create.mockResolvedValue(dbSetting1);
-    const res = await app.request("/api/v1/site-settings", {
+    const res = await app.request("/api/admin/v1/site-settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ key: "umami-url", value: "https://analytics.example.com" }),
@@ -119,7 +130,7 @@ describe("POST /api/v1/site-settings", () => {
 
   it("uses provided scope instead of default", async () => {
     mockRepo.create.mockResolvedValue(dbSetting2);
-    const res = await app.request("/api/v1/site-settings", {
+    const res = await app.request("/api/admin/v1/site-settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ key: "rate-limit", value: "100", scope: "api" }),
@@ -134,25 +145,25 @@ describe("POST /api/v1/site-settings", () => {
 
   it("returns 409 when key already exists", async () => {
     mockRepo.create.mockResolvedValue(undefined);
-    const res = await app.request("/api/v1/site-settings", {
+    const res = await app.request("/api/admin/v1/site-settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ key: "umami-url", value: "https://analytics.example.com" }),
     });
     expect(res.status).toBe(409);
     const json = await res.json();
-    expect(json.error).toContain("already exists");
+    expect(json.message).toContain("already exists");
   });
 });
 
-describe("PATCH /api/v1/site-settings/:key", () => {
+describe("PATCH /api/admin/v1/site-settings/:key", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   it("returns 204 when updating value", async () => {
     mockRepo.update.mockResolvedValue(dbSetting1);
-    const res = await app.request("/api/v1/site-settings/umami-url", {
+    const res = await app.request("/api/admin/v1/site-settings/umami-url", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ value: "https://new.example.com" }),
@@ -165,7 +176,7 @@ describe("PATCH /api/v1/site-settings/:key", () => {
 
   it("returns 204 when updating scope", async () => {
     mockRepo.update.mockResolvedValue(dbSetting1);
-    const res = await app.request("/api/v1/site-settings/umami-url", {
+    const res = await app.request("/api/admin/v1/site-settings/umami-url", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ scope: "api" }),
@@ -176,7 +187,7 @@ describe("PATCH /api/v1/site-settings/:key", () => {
 
   it("returns 204 when updating both value and scope", async () => {
     mockRepo.update.mockResolvedValue(dbSetting1);
-    const res = await app.request("/api/v1/site-settings/umami-url", {
+    const res = await app.request("/api/admin/v1/site-settings/umami-url", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ value: "new-val", scope: "api" }),
@@ -187,25 +198,25 @@ describe("PATCH /api/v1/site-settings/:key", () => {
 
   it("returns 404 when setting not found", async () => {
     mockRepo.update.mockResolvedValue(undefined);
-    const res = await app.request("/api/v1/site-settings/nonexistent", {
+    const res = await app.request("/api/admin/v1/site-settings/nonexistent", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ value: "test" }),
     });
     expect(res.status).toBe(404);
     const json = await res.json();
-    expect(json.error).toContain("not found");
+    expect(json.message).toContain("not found");
   });
 });
 
-describe("DELETE /api/v1/site-settings/:key", () => {
+describe("DELETE /api/admin/v1/site-settings/:key", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   it("returns 204 on successful deletion", async () => {
     mockRepo.deleteByKey.mockResolvedValue({ numDeletedRows: 1n });
-    const res = await app.request("/api/v1/site-settings/umami-url", {
+    const res = await app.request("/api/admin/v1/site-settings/umami-url", {
       method: "DELETE",
     });
     expect(res.status).toBe(204);
@@ -214,11 +225,11 @@ describe("DELETE /api/v1/site-settings/:key", () => {
 
   it("returns 404 when setting not found", async () => {
     mockRepo.deleteByKey.mockResolvedValue({ numDeletedRows: 0n });
-    const res = await app.request("/api/v1/site-settings/nonexistent", {
+    const res = await app.request("/api/admin/v1/site-settings/nonexistent", {
       method: "DELETE",
     });
     expect(res.status).toBe(404);
     const json = await res.json();
-    expect(json.error).toContain("not found");
+    expect(json.message).toContain("not found");
   });
 });

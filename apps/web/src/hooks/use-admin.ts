@@ -1,25 +1,27 @@
+import { adminCoreContract } from "@openrift/shared/contracts";
+import { ORPCError } from "@orpc/client";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchIsAdmin = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(async ({ context }): Promise<boolean> => {
-    // 401/403 are expected for non-admins — accept without logging/throwing.
-    // Other non-ok statuses (500 etc.) still throw and surface as errors.
-    const res = await callApi(
-      serverApiClient(context.cookie).api.admin.v1.me.$get(),
-      "Couldn't check admin access",
-      [401, 403],
-    );
-    if (!res.ok) {
-      return false;
+    try {
+      const { isAdmin } = await apiOrpcClient(adminCoreContract, context.cookie).me();
+      return isAdmin;
+    } catch (error) {
+      // 401/403 are expected for non-admins — treat as "not admin" without
+      // throwing. The requireAdmin gate replies before the handler, so oRPC
+      // surfaces those as an ORPCError carrying the original HTTP status.
+      if (error instanceof ORPCError && (error.status === 401 || error.status === 403)) {
+        return false;
+      }
+      throw error;
     }
-    const data = await res.json();
-    return data.isAdmin;
   });
 
 export const isAdminQueryOptions = queryOptions({

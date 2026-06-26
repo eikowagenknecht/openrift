@@ -1,24 +1,19 @@
 import type { DistributionChannelKind, DistributionChannelResponse } from "@openrift/shared";
+import type { AdminDistributionChannelsResponse } from "@openrift/shared/contracts";
+import { adminDistributionChannelsContract } from "@openrift/shared/contracts";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
-
-interface AdminDistributionChannelsResponse {
-  distributionChannels: DistributionChannelResponse[];
-}
 
 const fetchChannels = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminDistributionChannelsResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["distribution-channels"].$get(),
-        "Couldn't load distribution channels",
-      ),
+      apiOrpcClient(adminDistributionChannelsContract, context.cookie).list(),
   );
 
 export const adminDistributionChannelsQueryOptions = queryOptions({
@@ -45,13 +40,12 @@ const createChannelFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }): Promise<DistributionChannelResponse> => {
     // The 201 returns `{ distributionChannel }`; unwrap to the bare response the
-    // callers expect. (The old fetchApiJson<DistributionChannelResponse> cast
-    // lied about this shape — the typed client surfaced it.)
-    const body = await callApiJson(
-      serverApiClient(context.cookie).api.admin.v1["distribution-channels"].$post({ json: data }),
-      "Couldn't create distribution channel",
-    );
-    return body.distributionChannel;
+    // callers expect.
+    const { distributionChannel } = await apiOrpcClient(
+      adminDistributionChannelsContract,
+      context.cookie,
+    ).create(data);
+    return distributionChannel;
   });
 
 export function useCreateDistributionChannel() {
@@ -75,14 +69,7 @@ const updateChannelFn = createServerFn({ method: "POST" })
   .validator((input: UpdateChannelInput) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const { id, ...patch } = data;
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["distribution-channels"][":id"].$patch({
-        param: encodeParams({ id }),
-        json: patch,
-      }),
-      "Couldn't update distribution channel",
-    );
+    await apiOrpcClient(adminDistributionChannelsContract, context.cookie).update(data);
   });
 
 export function useUpdateDistributionChannel() {
@@ -96,16 +83,10 @@ const deleteChannelFn = createServerFn({ method: "POST" })
   .validator((input: { id: string; force?: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["distribution-channels"][":id"].$delete({
-        param: encodeParams({ id: data.id }),
-        // The route declares a query schema, so hc requires the `query` arg even
-        // when empty; `{}` means "no force" → API default (refuse if in use). An
-        // empty `{}` adds a harmless trailing `?` to the URL (unavoidable here).
-        query: data.force ? { force: "true" } : {},
-      }),
-      "Couldn't delete distribution channel",
-    );
+    await apiOrpcClient(adminDistributionChannelsContract, context.cookie).remove({
+      params: { id: data.id },
+      query: { force: data.force ? "true" : undefined },
+    });
   });
 
 export function useDeleteDistributionChannel() {
@@ -119,12 +100,9 @@ const reorderChannelsFn = createServerFn({ method: "POST" })
   .validator((input: { ids: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["distribution-channels"].reorder.$put({
-        json: { ids: data.ids },
-      }),
-      "Couldn't reorder distribution channels",
-    );
+    await apiOrpcClient(adminDistributionChannelsContract, context.cookie).reorder({
+      ids: data.ids,
+    });
   });
 
 export function useReorderDistributionChannels() {

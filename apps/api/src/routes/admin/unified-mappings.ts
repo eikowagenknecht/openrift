@@ -1,144 +1,63 @@
-import { createRoute } from "@hono/zod-openapi";
-import {
-  unifiedMappingsCardResponseSchema,
-  unifiedMappingsResponseSchema,
-} from "@openrift/shared/response-schemas";
-import { z } from "zod";
+import { adminUnifiedMappingsContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 import { saveMappings, unmapPrinting } from "../../services/marketplace-mapping.js";
 import {
   buildUnifiedMappingsCardResponse,
   buildUnifiedMappingsResponse,
 } from "../../services/unified-mapping-merge.js";
 import { createMarketplaceConfigs } from "./marketplace-configs.js";
-import { marketplaceSchema, saveMappingsSchema, unmapQuerySchema } from "./schemas.js";
 
-// ── Route definitions ───────────────────────────────────────────────────────
+const os = implement(adminUnifiedMappingsContract).$context<ApiContext>().use(requireUser);
 
-const listMappings = createRoute({
-  method: "get",
-  path: "/marketplace-mappings",
-  tags: ["Admin - Mappings"],
-  responses: {
-    200: {
-      content: {
-        "application/json": { schema: unifiedMappingsResponseSchema },
-      },
-      description: "Unified mappings",
-    },
-  },
-});
-
-const cardMappings = createRoute({
-  method: "get",
-  path: "/marketplace-mappings/card/{cardId}",
-  tags: ["Admin - Mappings"],
-  request: {
-    params: z.object({ cardId: z.string() }),
-  },
-  responses: {
-    200: {
-      content: {
-        "application/json": { schema: unifiedMappingsCardResponseSchema },
-      },
-      description: "Unified mappings for a single card",
-    },
-  },
-});
-
-const saveMappingsRoute = createRoute({
-  method: "post",
-  path: "/marketplace-mappings",
-  tags: ["Admin - Mappings"],
-  request: {
-    query: marketplaceSchema,
-    body: { content: { "application/json": { schema: saveMappingsSchema } } },
-  },
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            saved: z.number().openapi({ example: 312 }),
-            skipped: z.array(
-              z.object({
-                externalId: z.number().openapi({ example: 748_215 }),
-                reason: z.string().openapi({ example: "Already mapped to a different printing" }),
-              }),
-            ),
-          }),
-        },
-      },
-      description: "Mappings saved",
-    },
-  },
-});
-
-const unmapPrintingRoute = createRoute({
-  method: "delete",
-  path: "/marketplace-mappings",
-  tags: ["Admin - Mappings"],
-  request: {
-    query: unmapQuerySchema,
-  },
-  responses: {
-    204: { description: "Printing unmapped" },
-  },
-});
-
-// ── Route ───────────────────────────────────────────────────────────────────
-
-export const unifiedMappingsRoute = createApiApp()
-  .openapi(listMappings, async (c) => {
-    const repos = c.get("repos");
-    const { getMappingOverview } = c.get("services");
+/**
+ * oRPC implementation of the admin unified marketplace-mappings. Logic
+ * unchanged from the previous `@hono/zod-openapi` handlers; `save` (query +
+ * body) and `unmap` (query) use detailed input structure. Any thrown
+ * `AppError` is mapped by the handler's {@link appErrorInterceptor}.
+ */
+export const adminUnifiedMappingsRouter = {
+  list: os.list.handler(async ({ context }) => {
+    const repos = context.repos;
+    const { getMappingOverview } = context.services;
     const { tcgplayer, cardmarket, cardtrader } = createMarketplaceConfigs(repos);
-
-    const result = await buildUnifiedMappingsResponse(
+    return await buildUnifiedMappingsResponse(
       repos,
       tcgplayer,
       cardmarket,
       cardtrader,
       getMappingOverview,
     );
+  }),
 
-    return c.json(result);
-  })
-
-  .openapi(cardMappings, async (c) => {
-    const repos = c.get("repos");
+  card: os.card.handler(async ({ input, context }) => {
+    const repos = context.repos;
     const { tcgplayer, cardmarket, cardtrader } = createMarketplaceConfigs(repos);
-    const { cardId } = c.req.valid("param");
-
-    const result = await buildUnifiedMappingsCardResponse(
+    return await buildUnifiedMappingsCardResponse(
       repos,
       tcgplayer,
       cardmarket,
       cardtrader,
-      cardId,
+      input.cardId,
     );
+  }),
 
-    return c.json(result);
-  })
-
-  .openapi(saveMappingsRoute, async (c) => {
-    const repos = c.get("repos");
-    const transact = c.get("transact");
-    const { marketplace } = c.req.valid("query");
+  save: os.save.handler(async ({ input, context }) => {
+    const repos = context.repos;
+    const transact = context.transact;
     const configs = createMarketplaceConfigs(repos);
-    const config = configs[marketplace];
-    const { mappings } = c.req.valid("json");
-    const result = await saveMappings(transact, config, mappings);
-    return c.json(result);
-  })
+    const config = configs[input.query.marketplace];
+    return await saveMappings(transact, config, input.body.mappings);
+  }),
 
-  .openapi(unmapPrintingRoute, async (c) => {
-    const repos = c.get("repos");
-    const transact = c.get("transact");
-    const { marketplace, printingId, externalId, finish, language } = c.req.valid("query");
+  unmap: os.unmap.handler(async ({ input, context }): Promise<void> => {
+    const repos = context.repos;
+    const transact = context.transact;
+    const { marketplace, printingId, externalId, finish, language } = input.query;
     const configs = createMarketplaceConfigs(repos);
     const config = configs[marketplace];
     await unmapPrinting(transact, config, printingId, externalId, finish, language ?? null);
-    return c.body(null, 204);
-  });
+  }),
+};

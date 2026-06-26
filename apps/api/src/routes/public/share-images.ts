@@ -1,4 +1,5 @@
-import { createApiApp } from "../../openapi.js";
+import { Hono } from "hono";
+
 import {
   buildCards,
   renderListImage,
@@ -7,6 +8,7 @@ import {
 } from "../../services/list-image.js";
 import type { ShareImageCard } from "../../services/share-image.js";
 import { renderShareImage } from "../../services/share-image.js";
+import type { Variables } from "../../types.js";
 import { assertFound } from "../../utils/assertions.js";
 
 /**
@@ -49,7 +51,7 @@ function dedupeCards(cards: readonly ShareImageCard[]): ShareImageCard[] {
   return [...byKey.values()];
 }
 
-export const publicShareImagesRoute = createApiApp()
+export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
   // ── GET /lists/share/:token/image.png ─────────────────────────────────────
   .get("/lists/share/:token/image.png", async (c) => {
     const { lists, canonicalPrintings } = c.get("repos");

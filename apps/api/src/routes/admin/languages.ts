@@ -1,111 +1,26 @@
-import { createRoute } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
 import type { LanguageResponse } from "@openrift/shared";
-import { z } from "zod";
+import { adminLanguagesContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 import { assertFound } from "../../utils/assertions.js";
-import {
-  codeParamSchema,
-  createLanguageSchema,
-  reorderLanguagesSchema,
-  updateLanguageSchema,
-} from "./schemas.js";
 
-// ── Schemas ─────────────────────────────────────────────────────────────────
+const os = implement(adminLanguagesContract).$context<ApiContext>().use(requireUser);
 
-const languageSchema = z.object({
-  code: z.string().openapi({ example: "EN" }),
-  name: z.string().openapi({ example: "English" }),
-  sortOrder: z.number().openapi({ example: 1 }),
-  createdAt: z.string().openapi({ example: "2026-03-31T19:56:40.945Z" }),
-  updatedAt: z.string().openapi({ example: "2026-03-31T19:56:40.945Z" }),
-});
-
-// ── Route definitions ───────────────────────────────────────────────────────
-
-const listLanguages = createRoute({
-  method: "get",
-  path: "/languages",
-  tags: ["Admin - Languages"],
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({ languages: z.array(languageSchema) }),
-        },
-      },
-      description: "List languages",
-    },
-  },
-});
-
-const reorderLanguages = createRoute({
-  method: "put",
-  path: "/languages/reorder",
-  tags: ["Admin - Languages"],
-  request: {
-    body: { content: { "application/json": { schema: reorderLanguagesSchema } } },
-  },
-  responses: {
-    204: { description: "Languages reordered" },
-  },
-});
-
-const createLanguage = createRoute({
-  method: "post",
-  path: "/languages",
-  tags: ["Admin - Languages"],
-  request: {
-    body: { content: { "application/json": { schema: createLanguageSchema } } },
-  },
-  responses: {
-    201: {
-      content: {
-        "application/json": {
-          schema: z.object({ language: languageSchema }),
-        },
-      },
-      description: "Language created",
-    },
-  },
-});
-
-const updateLanguage = createRoute({
-  method: "patch",
-  path: "/languages/{code}",
-  tags: ["Admin - Languages"],
-  request: {
-    params: codeParamSchema,
-    body: { content: { "application/json": { schema: updateLanguageSchema } } },
-  },
-  responses: {
-    204: { description: "Language updated" },
-  },
-});
-
-const deleteLanguage = createRoute({
-  method: "delete",
-  path: "/languages/{code}",
-  tags: ["Admin - Languages"],
-  request: {
-    params: codeParamSchema,
-  },
-  responses: {
-    204: { description: "Language deleted" },
-  },
-});
-
-// ── Route ───────────────────────────────────────────────────────────────────
-
-export const adminLanguagesRoute = createApiApp()
-  // ── GET /admin/languages ──────────────────────────────────────────────
-
-  .openapi(listLanguages, async (c) => {
-    const { languages: repo } = c.get("repos");
+/**
+ * oRPC implementation of the admin languages taxonomy CRUD. Languages are keyed
+ * by their `code`. Logic unchanged from the previous `@hono/zod-openapi`
+ * handlers; conflict / not-found / in-use states are thrown as `AppError` and
+ * mapped by the handler's {@link appErrorInterceptor}.
+ */
+export const adminLanguagesRouter = {
+  list: os.list.handler(async ({ context }) => {
+    const { languages: repo } = context.repos;
     const rows = await repo.listAll();
-    return c.json({
+    return {
       languages: rows.map(
         (r): LanguageResponse => ({
           code: r.code,
@@ -115,14 +30,12 @@ export const adminLanguagesRoute = createApiApp()
           updatedAt: r.updatedAt.toISOString(),
         }),
       ),
-    });
-  })
+    };
+  }),
 
-  // ── PUT /admin/languages/reorder ──────────────────────────────────────
-
-  .openapi(reorderLanguages, async (c) => {
-    const { languages: repo } = c.get("repos");
-    const { codes } = c.req.valid("json");
+  reorder: os.reorder.handler(async ({ input, context }): Promise<void> => {
+    const { languages: repo } = context.repos;
+    const { codes } = input;
 
     const uniqueCodes = new Set(codes);
     if (uniqueCodes.size !== codes.length) {
@@ -149,14 +62,11 @@ export const adminLanguagesRoute = createApiApp()
     }
 
     await repo.reorder(codes);
-    return c.body(null, 204);
-  })
+  }),
 
-  // ── POST /admin/languages ─────────────────────────────────────────────
-
-  .openapi(createLanguage, async (c) => {
-    const { languages: repo } = c.get("repos");
-    const { code, name, sortOrder } = c.req.valid("json");
+  create: os.create.handler(async ({ input, context }) => {
+    const { languages: repo } = context.repos;
+    const { code, name, sortOrder } = input;
 
     const existing = await repo.getByCode(code);
     if (existing) {
@@ -164,29 +74,29 @@ export const adminLanguagesRoute = createApiApp()
     }
 
     const created = await repo.create({ code, name, sortOrder });
-    return c.json({ language: created }, 201);
-  })
+    const language: LanguageResponse = {
+      code: created.code,
+      name: created.name,
+      sortOrder: created.sortOrder,
+      createdAt: created.createdAt.toISOString(),
+      updatedAt: created.updatedAt.toISOString(),
+    };
+    return { language };
+  }),
 
-  // ── PATCH /admin/languages/:code ───────────────────────────────────────
-
-  .openapi(updateLanguage, async (c) => {
-    const { languages: repo } = c.get("repos");
-    const { code } = c.req.valid("param");
-    const body = c.req.valid("json");
+  update: os.update.handler(async ({ input, context }): Promise<void> => {
+    const { languages: repo } = context.repos;
+    const { code, name, sortOrder } = input;
 
     const existing = await repo.getByCode(code);
     assertFound(existing, `Language not found`);
 
-    await repo.update(code, body);
+    await repo.update(code, { name, sortOrder });
+  }),
 
-    return c.body(null, 204);
-  })
-
-  // ── DELETE /admin/languages/:code ──────────────────────────────────────
-
-  .openapi(deleteLanguage, async (c) => {
-    const { languages: repo } = c.get("repos");
-    const { code } = c.req.valid("param");
+  remove: os.remove.handler(async ({ input, context }): Promise<void> => {
+    const { languages: repo } = context.repos;
+    const { code } = input;
 
     const existing = await repo.getByCode(code);
     assertFound(existing, `Language not found`);
@@ -201,5 +111,5 @@ export const adminLanguagesRoute = createApiApp()
     }
 
     await repo.deleteByCode(code);
-    return c.body(null, 204);
-  });
+  }),
+};

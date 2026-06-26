@@ -1,143 +1,133 @@
-import { createRoute } from "@hono/zod-openapi";
 import type {
   CatalogCardResponse,
   CatalogPrintingResponse,
   DistributionChannelWithCount,
   PromosListResponse,
 } from "@openrift/shared";
-import { promosListResponseSchema } from "@openrift/shared/response-schemas";
-import { etag } from "hono/etag";
+import { promosContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-response.js";
 
-const getPromos = createRoute({
-  method: "get",
-  path: "/promos",
-  tags: ["Promos"],
-  responses: {
-    200: {
-      content: { "application/json": { schema: promosListResponseSchema } },
-      description:
-        "All distribution channels (event + product) with their printings and cards (the public 'promos' page)",
-    },
-  },
-});
+const os = implement(promosContract).$context<ApiContext>().use(requireUser);
 
-const promosApp = createApiApp();
-promosApp.use("/promos", etag());
-export const promosRoute = promosApp.openapi(getPromos, async (c) => {
-  const repos = c.get("repos");
-  const { catalog, distributionChannels } = repos;
+/**
+ * oRPC implementation of the public promos contract. Logic unchanged from the
+ * previous handler; only the routing layer moved.
+ */
+export const promosRouter = {
+  list: os.list.handler(async ({ context }): Promise<PromosListResponse> => {
+    const repos = context.repos;
+    const { catalog, distributionChannels } = repos;
 
-  const [allChannels, printingRows] = await Promise.all([
-    distributionChannels.listAll(),
-    catalog.channelDistributedPrintings(),
-  ]);
+    const [allChannels, printingRows] = await Promise.all([
+      distributionChannels.listAll(),
+      catalog.channelDistributedPrintings(),
+    ]);
 
-  const cardIds = [...new Set(printingRows.map((p) => p.cardId))];
-  const printingIds = printingRows.map((p) => p.id);
+    const cardIds = [...new Set(printingRows.map((p) => p.cardId))];
+    const printingIds = printingRows.map((p) => p.id);
 
-  const [cardRows, banRows, errataRows, imageRows, markerChannelMaps] = await Promise.all([
-    catalog.cardsByIds(cardIds),
-    catalog.cardBansByCardIds(cardIds),
-    catalog.cardErrataByCardIds(cardIds),
-    catalog.printingImagesByPrintingIds(printingIds),
-    loadMarkerAndChannelMaps(repos, printingIds),
-  ]);
-  const { markerBySlug, channelsByPrinting } = markerChannelMaps;
+    const [cardRows, banRows, errataRows, imageRows, markerChannelMaps] = await Promise.all([
+      catalog.cardsByIds(cardIds),
+      catalog.cardBansByCardIds(cardIds),
+      catalog.cardErrataByCardIds(cardIds),
+      catalog.printingImagesByPrintingIds(printingIds),
+      loadMarkerAndChannelMaps(repos, printingIds),
+    ]);
+    const { markerBySlug, channelsByPrinting } = markerChannelMaps;
 
-  const bansByCard = Map.groupBy(banRows, (r) => r.cardId);
-  const errataByCard = new Map(
-    errataRows.map((r) => [
-      r.cardId,
-      {
-        correctedRulesText: r.correctedRulesText,
-        correctedEffectText: r.correctedEffectText,
-        source: r.source,
-        sourceUrl: r.sourceUrl,
-        effectiveDate: r.effectiveDate ? String(r.effectiveDate) : null,
-      },
-    ]),
-  );
+    const bansByCard = Map.groupBy(banRows, (r) => r.cardId);
+    const errataByCard = new Map(
+      errataRows.map((r) => [
+        r.cardId,
+        {
+          correctedRulesText: r.correctedRulesText,
+          correctedEffectText: r.correctedEffectText,
+          source: r.source,
+          sourceUrl: r.sourceUrl,
+          effectiveDate: r.effectiveDate ? String(r.effectiveDate) : null,
+        },
+      ]),
+    );
 
-  const cards: Record<string, CatalogCardResponse> = Object.fromEntries(
-    cardRows.map((r) => [
-      r.id,
-      {
-        ...r,
-        errata: errataByCard.get(r.id) ?? null,
-        bans: (bansByCard.get(r.id) ?? []).map((b) => ({
-          formatId: b.formatId,
-          formatName: b.formatName,
-          bannedAt: b.bannedAt,
-          reason: b.reason,
-        })),
-      },
-    ]),
-  );
+    const cards: Record<string, CatalogCardResponse> = Object.fromEntries(
+      cardRows.map((r) => [
+        r.id,
+        {
+          ...r,
+          errata: errataByCard.get(r.id) ?? null,
+          bans: (bansByCard.get(r.id) ?? []).map((b) => ({
+            formatId: b.formatId,
+            formatName: b.formatName,
+            bannedAt: b.bannedAt,
+            reason: b.reason,
+          })),
+        },
+      ]),
+    );
 
-  const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
+    const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
 
-  const printings: CatalogPrintingResponse[] = printingRows.map(({ markerSlugs, ...rest }) => ({
-    ...rest,
-    markers: resolveMarkers(markerSlugs, markerBySlug),
-    distributionChannels: channelsByPrinting.get(rest.id) ?? [],
-    images: (imagesByPrinting.get(rest.id) ?? []).map((i) => ({
-      face: i.face,
-      imageId: i.imageId,
-    })),
-  }));
+    const printings: CatalogPrintingResponse[] = printingRows.map(({ markerSlugs, ...rest }) => ({
+      ...rest,
+      markers: resolveMarkers(markerSlugs, markerBySlug),
+      distributionChannels: channelsByPrinting.get(rest.id) ?? [],
+      images: (imagesByPrinting.get(rest.id) ?? []).map((i) => ({
+        face: i.face,
+        imageId: i.imageId,
+      })),
+    }));
 
-  // Count cards + printings per channel by walking the resolved links.
-  const channelCounts = new Map<string, { cards: Set<string>; printings: number }>();
-  for (const printing of printings) {
-    for (const link of printing.distributionChannels) {
-      let entry = channelCounts.get(link.channel.id);
-      if (!entry) {
-        entry = { cards: new Set(), printings: 0 };
-        channelCounts.set(link.channel.id, entry);
+    // Count cards + printings per channel by walking the resolved links.
+    const channelCounts = new Map<string, { cards: Set<string>; printings: number }>();
+    for (const printing of printings) {
+      for (const link of printing.distributionChannels) {
+        let entry = channelCounts.get(link.channel.id);
+        if (!entry) {
+          entry = { cards: new Set(), printings: 0 };
+          channelCounts.set(link.channel.id, entry);
+        }
+        entry.cards.add(printing.cardId);
+        entry.printings += 1;
       }
-      entry.cards.add(printing.cardId);
-      entry.printings += 1;
     }
-  }
 
-  // Roll printing counts from each channel up to its ancestors so a parent
-  // header can display the aggregate without each page having to re-walk the
-  // tree. Cards roll up too, deduplicated by union of child sets.
-  const rollupCards = new Map<string, Set<string>>();
-  const rollupPrintings = new Map<string, number>();
-  const channelById = new Map(allChannels.map((ch) => [ch.id, ch]));
-  for (const [leafId, leafCounts] of channelCounts) {
-    let cursorId: string | null = leafId;
-    while (cursorId !== null) {
-      let cardSet = rollupCards.get(cursorId);
-      if (!cardSet) {
-        cardSet = new Set();
-        rollupCards.set(cursorId, cardSet);
+    // Roll printing counts from each channel up to its ancestors so a parent
+    // header can display the aggregate without each page re-walking the tree.
+    const rollupCards = new Map<string, Set<string>>();
+    const rollupPrintings = new Map<string, number>();
+    const channelById = new Map(allChannels.map((ch) => [ch.id, ch]));
+    for (const [leafId, leafCounts] of channelCounts) {
+      let cursorId: string | null = leafId;
+      while (cursorId !== null) {
+        let cardSet = rollupCards.get(cursorId);
+        if (!cardSet) {
+          cardSet = new Set();
+          rollupCards.set(cursorId, cardSet);
+        }
+        for (const cardId of leafCounts.cards) {
+          cardSet.add(cardId);
+        }
+        rollupPrintings.set(cursorId, (rollupPrintings.get(cursorId) ?? 0) + leafCounts.printings);
+        cursorId = channelById.get(cursorId)?.parentId ?? null;
       }
-      for (const cardId of leafCounts.cards) {
-        cardSet.add(cardId);
-      }
-      rollupPrintings.set(cursorId, (rollupPrintings.get(cursorId) ?? 0) + leafCounts.printings);
-      cursorId = channelById.get(cursorId)?.parentId ?? null;
     }
-  }
 
-  const channels: DistributionChannelWithCount[] = allChannels.map((ch) => ({
-    id: ch.id,
-    slug: ch.slug,
-    label: ch.label,
-    description: ch.description,
-    kind: ch.kind,
-    parentId: ch.parentId,
-    childrenLabel: ch.childrenLabel,
-    cardCount: rollupCards.get(ch.id)?.size ?? 0,
-    printingCount: rollupPrintings.get(ch.id) ?? 0,
-  }));
+    const channels: DistributionChannelWithCount[] = allChannels.map((ch) => ({
+      id: ch.id,
+      slug: ch.slug,
+      label: ch.label,
+      description: ch.description,
+      kind: ch.kind,
+      parentId: ch.parentId,
+      childrenLabel: ch.childrenLabel,
+      cardCount: rollupCards.get(ch.id)?.size ?? 0,
+      printingCount: rollupPrintings.get(ch.id) ?? 0,
+    }));
 
-  const content: PromosListResponse = { channels, cards, printings };
-  c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
-  return c.json(content);
-});
+    return { channels, cards, printings };
+  }),
+};

@@ -1,38 +1,25 @@
+import { adminCardBansContract } from "@openrift/shared/contracts";
+import type { CardBanResponse } from "@openrift/shared/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
-
-interface BanResponse {
-  id: string;
-  cardId: string;
-  formatId: string;
-  formatName: string;
-  bannedAt: string;
-  reason: string | null;
-  createdAt: string;
-}
 
 const fetchCardBansFn = createServerFn({ method: "GET" })
   .validator((input: { cardId: string }) => input)
   .middleware([withCookies])
   .handler(
-    ({ context, data }): Promise<{ bans: BanResponse[] }> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1.cards[":id"].bans.$get({
-          param: encodeParams({ id: data.cardId }),
-        }),
-        "Couldn't load card bans",
-      ),
+    ({ context, data }): Promise<{ bans: CardBanResponse[] }> =>
+      apiOrpcClient(adminCardBansContract, context.cookie).list({ id: data.cardId }),
   );
 
 export function useCardBans(cardId: string) {
   return useQuery({
     queryKey: queryKeys.admin.cardBans(cardId),
-    queryFn: async (): Promise<BanResponse[]> => {
+    queryFn: async (): Promise<CardBanResponse[]> => {
       const data = await fetchCardBansFn({ data: { cardId } });
       return data.bans;
     },
@@ -47,17 +34,12 @@ const createCardBanFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards[":id"].bans.$post({
-        param: encodeParams({ id: data.cardId }),
-        json: {
-          formatId: data.formatId,
-          bannedAt: data.bannedAt,
-          reason: data.reason,
-        },
-      }),
-      "Couldn't create card ban",
-    );
+    await apiOrpcClient(adminCardBansContract, context.cookie).create({
+      id: data.cardId,
+      formatId: data.formatId,
+      bannedAt: data.bannedAt,
+      reason: data.reason,
+    });
   });
 
 export function useCreateCardBan() {
@@ -86,17 +68,12 @@ const updateCardBanFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards[":id"].bans.$patch({
-        param: encodeParams({ id: data.cardId }),
-        json: {
-          formatId: data.formatId,
-          bannedAt: data.bannedAt,
-          reason: data.reason,
-        },
-      }),
-      "Couldn't update card ban",
-    );
+    await apiOrpcClient(adminCardBansContract, context.cookie).update({
+      id: data.cardId,
+      formatId: data.formatId,
+      bannedAt: data.bannedAt,
+      reason: data.reason,
+    });
   });
 
 export function useUpdateCardBan() {
@@ -122,13 +99,10 @@ const removeCardBanFn = createServerFn({ method: "POST" })
   .validator((input: { cardId: string; formatId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards[":id"].bans.$delete({
-        param: encodeParams({ id: data.cardId }),
-        json: { formatId: data.formatId },
-      }),
-      "Couldn't remove card ban",
-    );
+    await apiOrpcClient(adminCardBansContract, context.cookie).remove({
+      id: data.cardId,
+      formatId: data.formatId,
+    });
   });
 
 export function useRemoveCardBan() {

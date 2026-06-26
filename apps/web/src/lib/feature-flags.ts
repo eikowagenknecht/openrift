@@ -1,13 +1,14 @@
 // Feature flags fetched via server function — resolved server-side during SSR
 // to avoid proxy hops and ensure data is embedded in the initial HTML.
 
+import { featureFlagsContract } from "@openrift/shared/contracts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "./query-keys";
 import { serverCache } from "./server-cache";
-import { callApiJson, serverApiClient } from "./server-fns/api-client";
 import { withCookies } from "./server-fns/middleware";
+import { apiOrpcClient } from "./server-fns/orpc-client";
 
 export type FeatureFlags = Record<string, boolean>;
 
@@ -17,10 +18,11 @@ function hasSessionCookie(cookie: string): boolean {
 }
 
 async function fetchFlagsFromApi(cookie?: string): Promise<FeatureFlags> {
-  const data = await callApiJson(
-    serverApiClient(cookie).api.v1["feature-flags"].$get(),
-    "Couldn't load feature flags",
-  );
+  // Migrated to oRPC: feature-flags left the Hono AppType graph, so the caller
+  // uses the contract-typed oRPC client instead of the hc client. The oRPC
+  // client throws an ORPCError on a non-2xx response (the toast wrapper from
+  // callApiJson no longer applies here); SSR's error boundary surfaces it.
+  const data = await apiOrpcClient(featureFlagsContract, cookie).get();
   return data.flags;
 }
 

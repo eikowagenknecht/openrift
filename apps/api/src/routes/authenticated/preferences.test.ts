@@ -3,7 +3,9 @@ import { Hono } from "hono";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
-import { preferencesRoute } from "./preferences";
+import { registerRouterForTest } from "../../test/mount-router.js";
+import type { Variables } from "../../types.js";
+import { preferencesRouter } from "./preferences";
 
 // ---------------------------------------------------------------------------
 // Mock repo
@@ -15,24 +17,29 @@ const mockRepo = {
 };
 
 // ---------------------------------------------------------------------------
-// Test app
+// Test app — mounts the router the way production does (catch-all). A pre-set
+// `user` satisfies the fail-closed `requireUser` gate (resolveSession is
+// idempotent). The local onError is a belt-and-suspenders for the unexercised
+// 401 path; AppErrors are mapped to the envelope by the handler's interceptor.
 // ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("user", { id: USER_ID });
-    c.set("repos", { userPreferences: mockRepo } as never);
-    await next();
-  })
-  .route("/api/v1", preferencesRoute)
-  .onError((err, c) => {
-    if (err instanceof AppError) {
-      return c.json({ error: err.message, code: err.code }, err.status as 400);
-    }
-    throw err;
-  });
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  // oxlint-disable-next-line no-explicit-any -- test stub doesn't match full types
+  c.set("user", { id: USER_ID } as any);
+  // oxlint-disable-next-line no-explicit-any -- test mock doesn't match full Repos type
+  c.set("repos", { userPreferences: mockRepo } as any);
+  await next();
+});
+registerRouterForTest(app, preferencesRouter);
+app.onError((err, c) => {
+  if (err instanceof AppError) {
+    return c.json({ error: err.message, code: err.code }, err.status as 400);
+  }
+  throw err;
+});
 
 // ---------------------------------------------------------------------------
 // Tests

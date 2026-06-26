@@ -1,7 +1,9 @@
+import { Hono } from "hono";
+
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
-import { createApiApp } from "../../openapi.js";
 import { renderListImage, siteHostFromOrigin } from "../../services/list-image.js";
+import type { Variables } from "../../types.js";
 import { assertFound } from "../../utils/assertions.js";
 
 /**
@@ -11,7 +13,7 @@ import { assertFound } from "../../utils/assertions.js";
  * resolves the caller's own list by id. Owner-only, served `no-store` (the
  * list is mutable and this is an on-demand, low-traffic download).
  */
-export const listImageRoute = createApiApp()
+export const listImageRoute = new Hono<{ Variables: Variables }>()
   .basePath("/lists")
   .use(requireAuth)
   .get("/:id/image.png", async (c) => {

@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.base.json",
+  "include": ["consumer-hono.ts", "app-hono.ts", "routes-hono/**/*.ts"]
+}

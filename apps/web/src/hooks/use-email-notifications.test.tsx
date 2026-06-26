@@ -32,12 +32,20 @@ interface FetchCall {
   body: unknown;
 }
 
-// Stubs global fetch: GET returns `prefs`, PATCH/other returns 200. Records calls.
+// Stubs global fetch: GET returns `prefs`, PATCH/other returns 200. Records
+// calls. oRPC's OpenAPI link sends a body-bearing request as a `Request` object
+// (first arg) rather than `(url, init)`, so read the method/body from whichever
+// shape the call used.
 function stubFetch(prefs: UserPreferencesResponse) {
   const calls: FetchCall[] = [];
-  const fetchMock = vi.fn(async (_input: unknown, init?: { method?: string; body?: string }) => {
-    const method = init?.method ?? "GET";
-    calls.push({ method, body: init?.body ? JSON.parse(init.body) : undefined });
+  const fetchMock = vi.fn(async (input: unknown, init?: { method?: string; body?: string }) => {
+    let method = init?.method ?? "GET";
+    let bodyText = init?.body;
+    if (input instanceof Request) {
+      method = input.method;
+      bodyText = await input.clone().text();
+    }
+    calls.push({ method, body: bodyText ? JSON.parse(bodyText) : undefined });
     if (method === "GET") {
       return Response.json(prefs);
     }

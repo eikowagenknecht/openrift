@@ -1,4 +1,5 @@
 import type { Card, CatalogResponse, Printing } from "@openrift/shared";
+import { context, propagation } from "@opentelemetry/api";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -6,13 +7,47 @@ import type { SetInfo } from "@/components/cards/card-grid";
 import { consumeSeededCatalogVersion, versionFromEtag } from "@/lib/catalog-version";
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
-import {
-  browserApiClient,
-  callApi,
-  callApiJson,
-  okJson,
-  serverApiClient,
-} from "@/lib/server-fns/api-client";
+import { apiErrorFromResponse } from "@/lib/server-fns/api-error";
+import { API_URL } from "@/lib/server-fns/api-url";
+import { activeClientIp } from "@/lib/server-fns/client-ip-context";
+
+// The catalog is the LCP-critical, edge-cached payload. It is fetched with a
+// plain `fetch` (not the oRPC client) because the SSR cache needs the response
+// ETag — its content version token — read off the same Response as the body, so
+// the token can never drift from the body it describes.
+
+/**
+ * Server-side internal-fetch headers: forward the active W3C trace and the real
+ * visitor IP exactly as the old `serverApiClient` did. No cookie — the catalog
+ * is public.
+ * @returns A plain header record for the internal catalog fetch.
+ */
+function serverCatalogFetchHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {};
+  propagation.inject(context.active(), headers);
+  const clientIp = activeClientIp();
+  if (clientIp !== undefined) {
+    headers["x-real-ip"] = clientIp;
+  }
+  return headers;
+}
+
+/**
+ * Fetches the catalog URL and enforces the API error contract (a non-ok status
+ * throws an {@link import("./server-fns/api-error").ApiError} carrying the
+ * server message), matching the old `callApi` behavior.
+ * @returns The raw ok Response (caller reads body + ETag).
+ */
+async function fetchCatalogResponse(
+  url: string,
+  headers?: Record<string, string>,
+): Promise<Response> {
+  const res = await fetch(url, headers ? { headers } : undefined);
+  if (!res.ok) {
+    throw await apiErrorFromResponse(res, "Couldn't load catalog", { method: "GET", url });
+  }
+  return res;
+}
 
 export interface UseCardsResult {
   allPrintings: Printing[];
@@ -35,11 +70,14 @@ function fetchCatalogWithVersion(): Promise<{
   return serverCache.fetchQuery({
     queryKey: ["server-cache", "catalog"],
     queryFn: async () => {
-      const res = await callApi(
-        serverApiClient().api.v1.catalog.$get({ query: {} }),
-        "Couldn't load catalog",
+      const res = await fetchCatalogResponse(
+        `${API_URL}/api/v1/catalog`,
+        serverCatalogFetchHeaders(),
       );
-      return { catalog: await okJson(res), version: versionFromEtag(res.headers.get("etag")) };
+      return {
+        catalog: (await res.json()) as CatalogResponse,
+        version: versionFromEtag(res.headers.get("etag")),
+      };
     },
   });
 }
@@ -87,8 +125,8 @@ const fetchCatalogVersion = createServerFn({ method: "GET" }).handler(
 // Client-side catalog fetch goes directly to /api/v1/catalog so Cloudflare
 // can serve it from the edge cache. Routing through the Start server function
 // would re-enter origin for every VU, which is exactly what we're avoiding.
-// Typed via the browser hc client (route + response shape checked against the
-// API contract; a non-2xx surfaces the server's message).
+// A plain same-origin fetch (the session cookie is sent automatically); a
+// non-2xx surfaces the server's message via the shared error parser.
 //
 // The fetch is versioned: `?v=<ETag>` rolls the edge cache key whenever the
 // catalog content changes, so a long max-age + stale-while-revalidate can
@@ -101,10 +139,10 @@ async function fetchCatalogFromEdge(): Promise<CatalogResponse> {
   // A failed token lookup must not fail the catalog fetch itself — degrade to
   // the unversioned URL instead.
   const version = consumeSeededCatalogVersion() ?? (await fetchCatalogVersion().catch(() => null));
-  return callApiJson(
-    browserApiClient().api.v1.catalog.$get({ query: version === null ? {} : { v: version } }),
-    "Couldn't load catalog",
-  );
+  const base = `${globalThis.location.origin}/api/v1/catalog`;
+  const url = version === null ? base : `${base}?v=${encodeURIComponent(version)}`;
+  const res = await fetchCatalogResponse(url);
+  return (await res.json()) as CatalogResponse;
 }
 
 // Memoize by input identity. React Query's structural sharing can't preserve

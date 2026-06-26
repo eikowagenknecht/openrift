@@ -2,7 +2,9 @@ import { Hono } from "hono";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
-import { copiesRoute } from "./copies";
+import { registerRouterForTest } from "../../test/mount-router.js";
+import type { Variables } from "../../types.js";
+import { copiesRouter } from "./copies";
 
 // ---------------------------------------------------------------------------
 // Mock repo and services
@@ -17,30 +19,35 @@ const mockMoveCopies = vi.fn(() => Promise.resolve());
 const mockDisposeCopies = vi.fn(() => Promise.resolve());
 
 // ---------------------------------------------------------------------------
-// Test app
+// Test app — mounts the oRPC handler as production does; a pre-set user
+// satisfies requireAuth (resolveSession is idempotent).
 // ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("user", { id: USER_ID });
-    c.set("repos", { copies: mockRepo } as never);
-    c.set("transact", (() => {}) as never);
-    c.set("services", {
-      addCopies: mockAddCopies,
-      moveCopies: mockMoveCopies,
-      disposeCopies: mockDisposeCopies,
-    } as never);
-    await next();
-  })
-  .route("/api/v1", copiesRoute)
-  .onError((err, c) => {
-    if (err instanceof AppError) {
-      return c.json({ error: err.message, code: err.code }, err.status as 400);
-    }
-    throw err;
-  });
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  // oxlint-disable-next-line no-explicit-any -- test stubs don't match full types
+  c.set("user", { id: USER_ID } as any);
+  // oxlint-disable-next-line no-explicit-any -- test mock doesn't match full Repos type
+  c.set("repos", { copies: mockRepo } as any);
+  // oxlint-disable-next-line no-explicit-any -- test stub
+  c.set("transact", (() => {}) as any);
+  c.set("services", {
+    addCopies: mockAddCopies,
+    moveCopies: mockMoveCopies,
+    disposeCopies: mockDisposeCopies,
+    // oxlint-disable-next-line no-explicit-any -- test mock doesn't match full Services type
+  } as any);
+  await next();
+});
+registerRouterForTest(app, copiesRouter);
+app.onError((err, c) => {
+  if (err instanceof AppError) {
+    return c.json({ error: err.message, code: err.code }, err.status as 400);
+  }
+  throw err;
+});
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -135,6 +142,7 @@ describe("POST /api/v1/copies", () => {
         id: COPY_ID,
         printingId: PRINTING_ID,
         collectionId: COLLECTION_ID,
+        groupId: null,
       },
     ];
     mockAddCopies.mockResolvedValue(created);

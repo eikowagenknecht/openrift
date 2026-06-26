@@ -40,7 +40,7 @@ const {
   useUpdateListEntry,
 } = await import("./use-lists");
 
-// The hooks now call the API via the typed hc client, which hits global fetch.
+// The hooks call the API via the oRPC contract client, which hits global fetch.
 function stubFetchJson(payload: unknown) {
   const fetchMock = vi.fn().mockResolvedValueOnce(Response.json(payload));
   vi.stubGlobal("fetch", fetchMock);
@@ -185,10 +185,17 @@ describe("useUpdateListEntry", () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    const [url, init] = fetchMock.mock.calls[0] as [string, { method: string; body: string }];
-    expect(url).toBe("http://localhost:3000/api/v1/lists/lst-1/entries/le-1");
-    expect(init.method).toBe("PATCH");
-    expect(init.body).toBe(JSON.stringify({ quantity: 3 }));
+    // oRPC sends a body-bearing PATCH as a Request object (path params land in
+    // the URL, the rest in the JSON body).
+    const [first] = fetchMock.mock.calls[0] as [
+      Request | string,
+      { method: string; body: string }?,
+    ];
+    const request = first instanceof Request ? first : null;
+    expect(request).not.toBeNull();
+    expect(request!.url).toBe("http://localhost:3000/api/v1/lists/lst-1/entries/le-1");
+    expect(request!.method).toBe("PATCH");
+    expect(await request!.json()).toEqual({ quantity: 3 });
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: ["lists", "test-user-id"],
     });

@@ -1,11 +1,10 @@
-import { createRoute } from "@hono/zod-openapi";
-import type { JobRunStartedResponse } from "@openrift/shared";
+import { adminPrintingEventsContract } from "@openrift/shared/contracts";
 import { createLogger } from "@openrift/shared/logger";
-import { diffValueSchema } from "@openrift/shared/response-schemas";
 import type { DiffValue } from "@openrift/shared/response-schemas";
-import { z } from "zod";
+import { implement } from "@orpc/server";
 
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 import { flushPendingPrintingEvents } from "../../services/flush-printing-events.js";
 import { runJobAsync } from "../../services/run-job.js";
 
@@ -13,103 +12,19 @@ const log = createLogger("admin");
 
 const FLUSH_KIND = "discord.flush_printing_events";
 
-// ── Schemas ─────────────────────────────────────────────────────────────────
+const os = implement(adminPrintingEventsContract).$context<ApiContext>().use(requireUser);
 
-const flushStartedResponseSchema = z.object({
-  runId: z.string().uuid(),
-  status: z.enum(["running", "already_running"]),
-});
+/**
+ * oRPC implementation of the admin printing-events Discord queue. Logic
+ * unchanged from the previous `@hono/zod-openapi` handlers; any thrown
+ * `AppError` is mapped by the handler's {@link appErrorInterceptor}.
+ */
+export const adminPrintingEventsRouter = {
+  flush: os.flush.handler(async ({ context }) => {
+    const repos = context.repos;
+    const config = context.config;
 
-const fieldChangeSchema = z.object({
-  field: z.string(),
-  // Heterogeneous field values (scalars / scalar arrays); serializable, typed.
-  from: diffValueSchema,
-  to: diffValueSchema,
-});
-
-const printingEventViewSchema = z.object({
-  id: z.string().uuid(),
-  eventType: z.enum(["new", "changed"]),
-  status: z.enum(["pending", "sent", "failed"]),
-  retryCount: z.number(),
-  printingId: z.string(),
-  cardName: z.string().nullable(),
-  cardSlug: z.string().nullable(),
-  setName: z.string().nullable(),
-  shortCode: z.string().nullable(),
-  rarity: z.string().nullable(),
-  finish: z.string().nullable(),
-  finishLabel: z.string().nullable(),
-  artist: z.string().nullable(),
-  language: z.string().nullable(),
-  languageName: z.string().nullable(),
-  frontImageId: z.string().nullable(),
-  changes: z.array(fieldChangeSchema).nullable(),
-  createdAt: z.string(),
-});
-
-const printingEventsListResponseSchema = z.object({
-  events: z.array(printingEventViewSchema),
-});
-
-const retryRequestSchema = z.object({
-  ids: z.array(z.string().uuid()).min(1),
-});
-
-const retryResponseSchema = z.object({
-  retried: z.number(),
-});
-
-// ── Route definitions ───────────────────────────────────────────────────────
-
-const flushRoute = createRoute({
-  method: "post",
-  path: "/printing-events/flush",
-  tags: ["Admin - Operations"],
-  responses: {
-    202: {
-      content: { "application/json": { schema: flushStartedResponseSchema } },
-      description:
-        "Flush started in the background. Poll GET /admin/job-runs?kind=discord.flush_printing_events for completion.",
-    },
-  },
-});
-
-const listRoute = createRoute({
-  method: "get",
-  path: "/printing-events",
-  tags: ["Admin - Operations"],
-  responses: {
-    200: {
-      content: { "application/json": { schema: printingEventsListResponseSchema } },
-      description: "Pending and failed printing events in the Discord queue",
-    },
-  },
-});
-
-const retryRoute = createRoute({
-  method: "post",
-  path: "/printing-events/retry",
-  tags: ["Admin - Operations"],
-  request: {
-    body: { content: { "application/json": { schema: retryRequestSchema } } },
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: retryResponseSchema } },
-      description: "Failed events reset to pending so the next flush picks them up",
-    },
-  },
-});
-
-// ── Route ───────────────────────────────────────────────────────────────────
-
-export const adminPrintingEventsRoute = createApiApp()
-  .openapi(flushRoute, async (c) => {
-    const repos = c.get("repos");
-    const config = c.get("config");
-
-    const started = await runJobAsync(
+    return await runJobAsync(
       { repos, log },
       FLUSH_KIND,
       "admin",
@@ -125,13 +40,12 @@ export const adminPrintingEventsRoute = createApiApp()
         ),
       { summarize: (result) => result },
     );
+  }),
 
-    return c.json(started satisfies JobRunStartedResponse, 202);
-  })
-  .openapi(listRoute, async (c) => {
-    const { printingEvents } = c.get("repos");
+  list: os.list.handler(async ({ context }) => {
+    const { printingEvents } = context.repos;
     const events = await printingEvents.listByStatus(["pending", "failed"]);
-    return c.json({
+    return {
       events: events.map((e) => ({
         id: e.id,
         eventType: e.eventType,
@@ -154,11 +68,13 @@ export const adminPrintingEventsRoute = createApiApp()
         changes: e.changes as { field: string; from: DiffValue; to: DiffValue }[] | null,
         createdAt: e.createdAt.toISOString(),
       })),
-    });
-  })
-  .openapi(retryRoute, async (c) => {
-    const { printingEvents } = c.get("repos");
-    const { ids } = c.req.valid("json");
+    };
+  }),
+
+  retry: os.retry.handler(async ({ input, context }) => {
+    const { printingEvents } = context.repos;
+    const { ids } = input;
     await printingEvents.retryFailed(ids);
-    return c.json({ retried: ids.length });
-  });
+    return { retried: ids.length };
+  }),
+};

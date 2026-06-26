@@ -1,7 +1,12 @@
+import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ignoredCandidatesRoute } from "./ignored-candidates";
+import { appErrorInterceptor } from "../../orpc/app-error-interceptor.js";
+import { buildApiContext } from "../../orpc/context.js";
+import type { Variables } from "../../types.js";
+import { adminIgnoredCandidatesRouter } from "./ignored-candidates";
 
 // ---------------------------------------------------------------------------
 // Mock repo
@@ -17,18 +22,36 @@ const mockRepo = {
 };
 
 // ---------------------------------------------------------------------------
-// Test app
+// Test app — mount the oRPC router directly (without the requireAdmin gate).
 // ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("user", { id: USER_ID });
-    c.set("repos", { ignoredCandidates: mockRepo } as never);
-    await next();
-  })
-  .route("/api/v1", ignoredCandidatesRoute);
+const handler = new OpenAPIHandler(adminIgnoredCandidatesRouter, {
+  interceptors: [appErrorInterceptor],
+});
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  c.set("user", { id: USER_ID } as never);
+  c.set("repos", { ignoredCandidates: mockRepo } as never);
+  await next();
+});
+const handle = async (c: Context<{ Variables: Variables }>) => {
+  const { matched, response } = await handler.handle(c.req.raw, {
+    context: buildApiContext(c),
+  });
+  if (matched && response) {
+    return response;
+  }
+  return c.notFound();
+};
+for (const path of [
+  "/api/admin/v1/ignored-candidates",
+  "/api/admin/v1/ignored-candidates/cards",
+  "/api/admin/v1/ignored-candidates/printings",
+]) {
+  app.all(path, handle);
+}
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -70,7 +93,7 @@ const dbIgnoredPrintingNullFinish = {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("GET /api/v1/ignored-candidates", () => {
+describe("GET /api/admin/v1/ignored-candidates", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -81,7 +104,7 @@ describe("GET /api/v1/ignored-candidates", () => {
       dbIgnoredPrinting,
       dbIgnoredPrintingNullFinish,
     ]);
-    const res = await app.request("/api/v1/ignored-candidates");
+    const res = await app.request("/api/admin/v1/ignored-candidates");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.cards).toHaveLength(2);
@@ -117,7 +140,7 @@ describe("GET /api/v1/ignored-candidates", () => {
   it("returns empty arrays when nothing is ignored", async () => {
     mockRepo.listIgnoredCards.mockResolvedValue([]);
     mockRepo.listIgnoredPrintings.mockResolvedValue([]);
-    const res = await app.request("/api/v1/ignored-candidates");
+    const res = await app.request("/api/admin/v1/ignored-candidates");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.cards).toEqual([]);
@@ -125,14 +148,14 @@ describe("GET /api/v1/ignored-candidates", () => {
   });
 });
 
-describe("POST /api/v1/ignored-candidates/cards", () => {
+describe("POST /api/admin/v1/ignored-candidates/cards", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   it("returns 204 when card is ignored", async () => {
     mockRepo.ignoreCard.mockResolvedValue(undefined);
-    const res = await app.request("/api/v1/ignored-candidates/cards", {
+    const res = await app.request("/api/admin/v1/ignored-candidates/cards", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ provider: "tcgplayer", externalId: "12345" }),
@@ -145,14 +168,14 @@ describe("POST /api/v1/ignored-candidates/cards", () => {
   });
 });
 
-describe("DELETE /api/v1/ignored-candidates/cards", () => {
+describe("DELETE /api/admin/v1/ignored-candidates/cards", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   it("returns 204 when card is unignored", async () => {
     mockRepo.unignoreCard.mockResolvedValue(undefined);
-    const res = await app.request("/api/v1/ignored-candidates/cards", {
+    const res = await app.request("/api/admin/v1/ignored-candidates/cards", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ provider: "tcgplayer", externalId: "12345" }),
@@ -162,14 +185,14 @@ describe("DELETE /api/v1/ignored-candidates/cards", () => {
   });
 });
 
-describe("POST /api/v1/ignored-candidates/printings", () => {
+describe("POST /api/admin/v1/ignored-candidates/printings", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   it("returns 204 when printing is ignored with finish", async () => {
     mockRepo.ignorePrinting.mockResolvedValue(undefined);
-    const res = await app.request("/api/v1/ignored-candidates/printings", {
+    const res = await app.request("/api/admin/v1/ignored-candidates/printings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ provider: "tcgplayer", externalId: "54321", finish: "foil" }),
@@ -184,7 +207,7 @@ describe("POST /api/v1/ignored-candidates/printings", () => {
 
   it("returns 204 when printing is ignored with null finish", async () => {
     mockRepo.ignorePrinting.mockResolvedValue(undefined);
-    const res = await app.request("/api/v1/ignored-candidates/printings", {
+    const res = await app.request("/api/admin/v1/ignored-candidates/printings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ provider: "tcgplayer", externalId: "54321", finish: null }),
@@ -199,7 +222,7 @@ describe("POST /api/v1/ignored-candidates/printings", () => {
 
   it("defaults finish to null when omitted", async () => {
     mockRepo.ignorePrinting.mockResolvedValue(undefined);
-    const res = await app.request("/api/v1/ignored-candidates/printings", {
+    const res = await app.request("/api/admin/v1/ignored-candidates/printings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ provider: "tcgplayer", externalId: "54321" }),
@@ -213,14 +236,14 @@ describe("POST /api/v1/ignored-candidates/printings", () => {
   });
 });
 
-describe("DELETE /api/v1/ignored-candidates/printings", () => {
+describe("DELETE /api/admin/v1/ignored-candidates/printings", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   it("returns 204 when printing is unignored with finish", async () => {
     mockRepo.unignorePrinting.mockResolvedValue(undefined);
-    const res = await app.request("/api/v1/ignored-candidates/printings", {
+    const res = await app.request("/api/admin/v1/ignored-candidates/printings", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ provider: "tcgplayer", externalId: "54321", finish: "foil" }),
@@ -231,7 +254,7 @@ describe("DELETE /api/v1/ignored-candidates/printings", () => {
 
   it("returns 204 when printing is unignored with null finish", async () => {
     mockRepo.unignorePrinting.mockResolvedValue(undefined);
-    const res = await app.request("/api/v1/ignored-candidates/printings", {
+    const res = await app.request("/api/admin/v1/ignored-candidates/printings", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ provider: "tcgplayer", externalId: "54321", finish: null }),

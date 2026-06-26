@@ -1,7 +1,10 @@
+import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AppError } from "../../errors.js";
+import { appErrorInterceptor } from "../../orpc/app-error-interceptor.js";
+import { buildApiContext } from "../../orpc/context.js";
 import {
   REGENERATE_IMAGES_KIND,
   cleanupOrphanedFiles,
@@ -13,7 +16,12 @@ import {
   runRegenerateImagesJob,
   unrehostImages,
 } from "../../services/image-rehost.js";
-import { imagesRoute } from "./images";
+import type { Variables } from "../../types.js";
+import { adminImagesRouter } from "./images";
+
+const RUN_TEST = "019d4999-4219-72f6-b7bb-640000000001";
+const EARLIER_RUN = "019d4999-4219-72f6-b7bb-640000000002";
+const RUN_X = "019d4999-4219-72f6-b7bb-640000000003";
 
 // ---------------------------------------------------------------------------
 // Mock service module — vitest hoists vi.mock() automatically
@@ -54,7 +62,7 @@ const mockCandidateCards = {
 };
 
 const mockJobRuns = {
-  start: vi.fn(async () => ({ id: "run-test" })),
+  start: vi.fn(async () => ({ id: RUN_TEST })),
   succeed: vi.fn(),
   fail: vi.fn(),
   findRunning: vi.fn(async () => null),
@@ -74,32 +82,50 @@ const mockJobRuns = {
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const mockIo = { fetch: vi.fn() };
 
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("user", { id: USER_ID });
-    c.set("io", mockIo as never);
-    c.set("repos", {
-      printingImages: mockPrintingImages,
-      candidateCards: mockCandidateCards,
-      jobRuns: mockJobRuns,
-    } as never);
-    await next();
-  })
-  // Mirror the production onError so thrown AppErrors map to their status
-  // (the real app.onError handles this; the bare test harness must too).
-  .onError((err, c) => {
-    if (err instanceof AppError) {
-      return c.json({ error: err.message, code: err.code }, err.status as 400);
-    }
-    throw err;
-  })
-  .route("/api/v1", imagesRoute);
+// Mount the oRPC router directly (without the requireAdmin gate). AppErrors
+// thrown by handlers are bridged to ORPCErrors inside the router.
+const handler = new OpenAPIHandler(adminImagesRouter, { interceptors: [appErrorInterceptor] });
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  c.set("user", { id: USER_ID } as never);
+  c.set("io", mockIo as never);
+  c.set("repos", {
+    printingImages: mockPrintingImages,
+    candidateCards: mockCandidateCards,
+    jobRuns: mockJobRuns,
+  } as never);
+  await next();
+});
+const handle = async (c: Context<{ Variables: Variables }>) => {
+  const { matched, response } = await handler.handle(c.req.raw, {
+    context: buildApiContext(c),
+  });
+  if (matched && response) {
+    return response;
+  }
+  return c.notFound();
+};
+for (const path of [
+  "/api/admin/v1/rehost-images",
+  "/api/admin/v1/regenerate-images",
+  "/api/admin/v1/regenerate-images/cancel",
+  "/api/admin/v1/cleanup-orphaned",
+  "/api/admin/v1/unrehost-images",
+  "/api/admin/v1/clear-rehosted",
+  "/api/admin/v1/rehost-status",
+  "/api/admin/v1/broken-images",
+  "/api/admin/v1/low-res-images",
+  "/api/admin/v1/missing-images",
+  "/api/admin/v1/migrate-directories",
+]) {
+  app.all(path, handle);
+}
 
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("POST /api/v1/rehost-images", () => {
+describe("POST /api/admin/v1/rehost-images", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -108,7 +134,7 @@ describe("POST /api/v1/rehost-images", () => {
     const result = { total: 10, rehosted: 8, skipped: 1, failed: 1, errors: ["err1"] };
     mockRehostImages.mockResolvedValue(result);
 
-    const res = await app.request("/api/v1/rehost-images", { method: "POST" });
+    const res = await app.request("/api/admin/v1/rehost-images", { method: "POST" });
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual(result);
@@ -119,16 +145,16 @@ describe("POST /api/v1/rehost-images", () => {
     const result = { total: 5, rehosted: 5, skipped: 0, failed: 0, errors: [] };
     mockRehostImages.mockResolvedValue(result);
 
-    const res = await app.request("/api/v1/rehost-images?limit=25", { method: "POST" });
+    const res = await app.request("/api/admin/v1/rehost-images?limit=25", { method: "POST" });
     expect(res.status).toBe(200);
     expect(mockRehostImages).toHaveBeenCalledWith(mockIo, mockPrintingImages, 25);
   });
 });
 
-describe("POST /api/v1/regenerate-images", () => {
+describe("POST /api/admin/v1/regenerate-images", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    mockJobRuns.start.mockResolvedValue({ id: "run-test" });
+    mockJobRuns.start.mockResolvedValue({ id: RUN_TEST });
     mockJobRuns.findRunning.mockResolvedValue(null);
     mockJobRuns.findLatestForResume.mockResolvedValue(null);
     mockRunRegenerateImagesJob.mockResolvedValue({
@@ -146,10 +172,10 @@ describe("POST /api/v1/regenerate-images", () => {
   });
 
   it("kicks off a fresh job and returns runId immediately", async () => {
-    const res = await app.request("/api/v1/regenerate-images", { method: "POST" });
+    const res = await app.request("/api/admin/v1/regenerate-images", { method: "POST" });
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json).toEqual({ runId: "run-test", status: "running" });
+    expect(json).toEqual({ runId: RUN_TEST, status: "running" });
     expect(mockJobRuns.start).toHaveBeenCalledWith({
       kind: REGENERATE_IMAGES_KIND,
       trigger: "admin",
@@ -158,11 +184,11 @@ describe("POST /api/v1/regenerate-images", () => {
   });
 
   it("returns already_running when a regenerate job is already in flight", async () => {
-    mockJobRuns.findRunning.mockResolvedValue({ id: "earlier-run" });
-    const res = await app.request("/api/v1/regenerate-images", { method: "POST" });
+    mockJobRuns.findRunning.mockResolvedValue({ id: EARLIER_RUN });
+    const res = await app.request("/api/admin/v1/regenerate-images", { method: "POST" });
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json).toEqual({ runId: "earlier-run", status: "already_running" });
+    expect(json).toEqual({ runId: EARLIER_RUN, status: "already_running" });
     expect(mockJobRuns.start).not.toHaveBeenCalled();
   });
 
@@ -190,19 +216,19 @@ describe("POST /api/v1/regenerate-images", () => {
       },
     });
 
-    const res = await app.request("/api/v1/regenerate-images?reset=true", { method: "POST" });
+    const res = await app.request("/api/admin/v1/regenerate-images?reset=true", { method: "POST" });
     expect(res.status).toBe(200);
     expect(mockJobRuns.findLatestForResume).not.toHaveBeenCalled();
   });
 });
 
-describe("POST /api/v1/regenerate-images/cancel", () => {
+describe("POST /api/admin/v1/regenerate-images/cancel", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   it("flips cancelRequested on the running row's checkpoint", async () => {
-    mockJobRuns.findRunning.mockResolvedValue({ id: "run-x" });
+    mockJobRuns.findRunning.mockResolvedValue({ id: RUN_X });
     mockJobRuns.getResult.mockResolvedValue({
       snapshot: [],
       totalFiles: 5,
@@ -216,24 +242,24 @@ describe("POST /api/v1/regenerate-images/cancel", () => {
       skipExisting: false,
     });
 
-    const res = await app.request("/api/v1/regenerate-images/cancel", { method: "POST" });
+    const res = await app.request("/api/admin/v1/regenerate-images/cancel", { method: "POST" });
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json).toEqual({ runId: "run-x", cancelRequested: true });
+    expect(json).toEqual({ runId: RUN_X, cancelRequested: true });
     expect(mockJobRuns.updateResult).toHaveBeenCalledWith(
-      "run-x",
+      RUN_X,
       expect.objectContaining({ cancelRequested: true }),
     );
   });
 
   it("404s when no regenerate job is running", async () => {
     mockJobRuns.findRunning.mockResolvedValue(null);
-    const res = await app.request("/api/v1/regenerate-images/cancel", { method: "POST" });
+    const res = await app.request("/api/admin/v1/regenerate-images/cancel", { method: "POST" });
     expect(res.status).toBe(404);
   });
 });
 
-describe("POST /api/v1/cleanup-orphaned", () => {
+describe("POST /api/admin/v1/cleanup-orphaned", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -242,7 +268,7 @@ describe("POST /api/v1/cleanup-orphaned", () => {
     const result = { scanned: 200, deleted: 5, errors: [] };
     mockCleanupOrphanedFiles.mockResolvedValue(result);
 
-    const res = await app.request("/api/v1/cleanup-orphaned", { method: "POST" });
+    const res = await app.request("/api/admin/v1/cleanup-orphaned", { method: "POST" });
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual(result);
@@ -250,7 +276,7 @@ describe("POST /api/v1/cleanup-orphaned", () => {
   });
 });
 
-describe("POST /api/v1/clear-rehosted", () => {
+describe("POST /api/admin/v1/clear-rehosted", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -258,7 +284,7 @@ describe("POST /api/v1/clear-rehosted", () => {
   it("returns 200 with cleared count", async () => {
     mockClearAllRehosted.mockResolvedValue({ cleared: 42 });
 
-    const res = await app.request("/api/v1/clear-rehosted", { method: "POST" });
+    const res = await app.request("/api/admin/v1/clear-rehosted", { method: "POST" });
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual({ cleared: 42 });
@@ -266,7 +292,7 @@ describe("POST /api/v1/clear-rehosted", () => {
   });
 });
 
-describe("POST /api/v1/unrehost-images", () => {
+describe("POST /api/admin/v1/unrehost-images", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -278,7 +304,7 @@ describe("POST /api/v1/unrehost-images", () => {
     const result = { total: 2, unrehosted: 2, failed: 0, errors: [] };
     mockUnrehostImages.mockResolvedValue(result);
 
-    const res = await app.request("/api/v1/unrehost-images", {
+    const res = await app.request("/api/admin/v1/unrehost-images", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imageIds: [validUuid1, validUuid2] }),
@@ -293,7 +319,7 @@ describe("POST /api/v1/unrehost-images", () => {
   });
 
   it("rejects an empty imageIds array", async () => {
-    const res = await app.request("/api/v1/unrehost-images", {
+    const res = await app.request("/api/admin/v1/unrehost-images", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imageIds: [] }),
@@ -303,7 +329,7 @@ describe("POST /api/v1/unrehost-images", () => {
   });
 
   it("rejects non-uuid ids", async () => {
-    const res = await app.request("/api/v1/unrehost-images", {
+    const res = await app.request("/api/admin/v1/unrehost-images", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imageIds: ["not-a-uuid"] }),
@@ -316,7 +342,7 @@ describe("POST /api/v1/unrehost-images", () => {
     const result = { total: 2, unrehosted: 1, failed: 1, errors: [`${validUuid2}: not rehosted`] };
     mockUnrehostImages.mockResolvedValue(result);
 
-    const res = await app.request("/api/v1/unrehost-images", {
+    const res = await app.request("/api/admin/v1/unrehost-images", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imageIds: [validUuid1, validUuid2] }),
@@ -327,7 +353,7 @@ describe("POST /api/v1/unrehost-images", () => {
   });
 });
 
-describe("GET /api/v1/rehost-status", () => {
+describe("GET /api/admin/v1/rehost-status", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -355,7 +381,7 @@ describe("GET /api/v1/rehost-status", () => {
     };
     mockGetRehostStatus.mockResolvedValue(result);
 
-    const res = await app.request("/api/v1/rehost-status");
+    const res = await app.request("/api/admin/v1/rehost-status");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual(result);
@@ -363,7 +389,7 @@ describe("GET /api/v1/rehost-status", () => {
   });
 });
 
-describe("GET /api/v1/broken-images", () => {
+describe("GET /api/admin/v1/broken-images", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -385,7 +411,7 @@ describe("GET /api/v1/broken-images", () => {
     };
     mockFindBrokenImages.mockResolvedValue(result);
 
-    const res = await app.request("/api/v1/broken-images");
+    const res = await app.request("/api/admin/v1/broken-images");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual(result);
@@ -393,7 +419,7 @@ describe("GET /api/v1/broken-images", () => {
   });
 });
 
-describe("GET /api/v1/low-res-images", () => {
+describe("GET /api/admin/v1/low-res-images", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -417,7 +443,7 @@ describe("GET /api/v1/low-res-images", () => {
     };
     mockFindLowResImages.mockResolvedValue(result);
 
-    const res = await app.request("/api/v1/low-res-images");
+    const res = await app.request("/api/admin/v1/low-res-images");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual(result);
@@ -425,7 +451,7 @@ describe("GET /api/v1/low-res-images", () => {
   });
 });
 
-describe("GET /api/v1/missing-images", () => {
+describe("GET /api/admin/v1/missing-images", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -437,7 +463,7 @@ describe("GET /api/v1/missing-images", () => {
     ];
     mockCandidateCards.listCardsWithMissingImages.mockResolvedValue(cards);
 
-    const res = await app.request("/api/v1/missing-images");
+    const res = await app.request("/api/admin/v1/missing-images");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual(cards);
@@ -446,7 +472,7 @@ describe("GET /api/v1/missing-images", () => {
   it("returns empty array when all cards have images", async () => {
     mockCandidateCards.listCardsWithMissingImages.mockResolvedValue([]);
 
-    const res = await app.request("/api/v1/missing-images");
+    const res = await app.request("/api/admin/v1/missing-images");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual([]);

@@ -1,4 +1,5 @@
 import type { ProviderSettingResponse, ProviderStatsResponse } from "@openrift/shared";
+import { adminCardQueriesContract } from "@openrift/shared/contracts";
 import { createServerFn } from "@tanstack/react-start";
 import {
   CheckIcon,
@@ -39,9 +40,8 @@ import {
   useProviderSettings,
   useUpdateProviderSetting,
 } from "@/hooks/use-provider-settings";
-import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
-import { isApiError } from "@/lib/server-fns/api-error";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { cn } from "@/lib/utils";
 
 type ParseResult =
@@ -75,10 +75,7 @@ const exportCardsFn = createServerFn({ method: "GET" })
     // The export is a loose passthrough JSON array; serialize it server-side to
     // a string (trivially serializable across the server-fn boundary) — the
     // client just writes it to a download blob.
-    const data = await callApiJson(
-      serverApiClient(context.cookie).api.admin.v1.cards.export.$get(),
-      "Couldn't export cards",
-    );
+    const data = await apiOrpcClient(adminCardQueriesContract, context.cookie).exportCandidates();
     return JSON.stringify(data, null, 2);
   });
 
@@ -542,12 +539,14 @@ function ExportCardsCard() {
       URL.revokeObjectURL(url);
       setExporting(false);
     } catch (error_) {
-      // isApiError handles the ApiError after it crosses the server-fn boundary
-      // (prototype dropped); fall back to a plain Error message, else generic.
-      const message = isApiError(error_)
-        ? error_.message
-        : error_ instanceof Error
-          ? error_.message
+      // The export server fn surfaces an ORPCError (or any Error) whose
+      // prototype is dropped crossing the server-fn boundary, so read `.message`
+      // structurally rather than via `instanceof`.
+      const message =
+        typeof error_ === "object" &&
+        error_ !== null &&
+        typeof (error_ as { message?: unknown }).message === "string"
+          ? (error_ as { message: string }).message
           : "Export failed";
       setError(message);
       setExporting(false);

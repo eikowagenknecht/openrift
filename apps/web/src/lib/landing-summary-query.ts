@@ -1,31 +1,28 @@
 import type { LandingSummaryResponse } from "@openrift/shared";
+import { landingSummaryContract } from "@openrift/shared/contracts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
-import { browserApiClient, callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchLandingSummary = createServerFn({ method: "GET" }).handler(
   (): Promise<LandingSummaryResponse> =>
     serverCache.fetchQuery({
       queryKey: ["server-cache", "landing-summary"],
-      queryFn: () =>
-        callApiJson(
-          serverApiClient().api.v1["landing-summary"].$get(),
-          "Couldn't load landing summary",
-        ),
+      // Migrated to oRPC: contract-typed client instead of the hc client. The
+      // request URL is unchanged, so the SSR origin call is identical.
+      queryFn: () => apiOrpcClient(landingSummaryContract).get(),
     }),
 );
 
 // Client-side fetch goes directly at /api/v1/landing-summary so Cloudflare
 // can serve it from the edge cache. Routing through the Start server function
-// would re-enter origin for every visitor, defeating the whole point.
+// would re-enter origin for every visitor, defeating the whole point. No
+// cookie is passed: the browser sends the same-origin cookie automatically.
 function fetchLandingSummaryFromEdge(): Promise<LandingSummaryResponse> {
-  return callApiJson(
-    browserApiClient().api.v1["landing-summary"].$get(),
-    "Couldn't load landing summary",
-  );
+  return apiOrpcClient(landingSummaryContract).get();
 }
 
 export const landingSummaryQueryOptions = queryOptions({

@@ -8,6 +8,7 @@
     "./schemas": "./src/schemas.ts",
     "./db-field-rules": "./src/db-field-rules.ts",
     "./contribute-schema": "./src/contribute-schema.ts",
+    "./contracts": "./src/contracts/index.ts",
     "./response-schemas": "./src/response-schemas.ts",
     "./utils": "./src/utils.ts",
     "./keywords": "./src/keywords.ts",
@@ -29,6 +30,7 @@
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "8.5.0",
     "@opentelemetry/api": "1.9.1",
+    "@orpc/contract": "1.14.6",
     "pino": "10.3.1",
     "zod": "4.4.3"
   },

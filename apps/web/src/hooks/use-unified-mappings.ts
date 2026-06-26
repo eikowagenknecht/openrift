@@ -1,23 +1,25 @@
+import {
+  adminIgnoredProductsContract,
+  adminStagingCardOverridesContract,
+  adminUnifiedMappingsContract,
+} from "@openrift/shared/contracts";
 import { queryOptions, useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import type {
   UnifiedMappingsCardResponse,
   UnifiedMappingsResponse,
 } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchUnifiedMappings = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<UnifiedMappingsResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["marketplace-mappings"].$get(),
-        "Couldn't load unified mappings",
-      ),
+      apiOrpcClient(adminUnifiedMappingsContract, context.cookie).list(),
   );
 
 export function unifiedMappingsQueryOptions() {
@@ -36,12 +38,7 @@ const fetchUnifiedMappingsForCard = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<UnifiedMappingsCardResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["marketplace-mappings"].card[":cardId"].$get({
-          param: encodeParams({ cardId: data.cardId }),
-        }),
-        "Couldn't load marketplace mappings for card",
-      ),
+      apiOrpcClient(adminUnifiedMappingsContract, context.cookie).card({ cardId: data.cardId }),
   );
 
 export function unifiedMappingsForCardQueryOptions(cardId: string) {
@@ -102,13 +99,10 @@ const saveMappingsFn = createServerFn({ method: "POST" })
       context,
       data,
     }): Promise<{ saved: number; skipped?: { externalId: number; reason: string }[] }> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["marketplace-mappings"].$post({
-          query: { marketplace: data.marketplace },
-          json: { mappings: data.mappings },
-        }),
-        "Couldn't save mappings",
-      ),
+      apiOrpcClient(adminUnifiedMappingsContract, context.cookie).save({
+        query: { marketplace: data.marketplace },
+        body: { mappings: data.mappings },
+      }),
   );
 
 export function useUnifiedSaveMappings(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
@@ -135,16 +129,11 @@ const ignoreVariantsFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["ignored-products"].$post({
-        json: {
-          level: "variant",
-          marketplace: data.marketplace,
-          products: data.products,
-        },
-      }),
-      "Couldn't ignore variants",
-    );
+    await apiOrpcClient(adminIgnoredProductsContract, context.cookie).ignore({
+      level: "variant",
+      marketplace: data.marketplace,
+      products: data.products,
+    });
   });
 
 const ignoreProductsFn = createServerFn({ method: "POST" })
@@ -156,16 +145,11 @@ const ignoreProductsFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["ignored-products"].$post({
-        json: {
-          level: "product",
-          marketplace: data.marketplace,
-          products: data.products,
-        },
-      }),
-      "Couldn't ignore products",
-    );
+    await apiOrpcClient(adminIgnoredProductsContract, context.cookie).ignore({
+      level: "product",
+      marketplace: data.marketplace,
+      products: data.products,
+    });
   });
 
 /**
@@ -203,12 +187,7 @@ const assignToCardFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["staging-card-overrides"].$post({
-        json: data,
-      }),
-      "Couldn't assign to card",
-    );
+    await apiOrpcClient(adminStagingCardOverridesContract, context.cookie).create(data);
   });
 
 export function useUnifiedAssignToCard(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
@@ -236,18 +215,15 @@ const unassignFromCardFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["staging-card-overrides"].$delete({
-        // query-addressed; omit language when null (no SKU language axis).
-        query: {
-          marketplace: data.marketplace,
-          externalId: String(data.externalId),
-          finish: data.finish,
-          ...(data.language === null ? {} : { language: data.language }),
-        },
-      }),
-      "Couldn't unassign from card",
-    );
+    // query-addressed (detailed input); omit language when null (no SKU language axis).
+    await apiOrpcClient(adminStagingCardOverridesContract, context.cookie).remove({
+      query: {
+        marketplace: data.marketplace,
+        externalId: data.externalId,
+        finish: data.finish,
+        ...(data.language === null ? {} : { language: data.language }),
+      },
+    });
   });
 
 export function useUnifiedUnassignFromCard(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {

@@ -1,58 +1,31 @@
-import { createRoute } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
+import { adminCacheContract } from "@openrift/shared/contracts";
 import { createLogger } from "@openrift/shared/logger";
-import { z } from "zod";
+import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 
 const log = createLogger("admin-cache");
 
-// ── Route definitions ───────────────────────────────────────────────────────
+const os = implement(adminCacheContract).$context<ApiContext>().use(requireUser);
 
-const getCacheStatus = createRoute({
-  method: "get",
-  path: "/cache/status",
-  tags: ["Admin - Cache"],
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            configured: z.boolean().openapi({ example: true }),
-          }),
-        },
-      },
-      description: "Whether Cloudflare cache purging is configured",
-    },
-  },
-});
+/**
+ * oRPC implementation of the admin Cloudflare cache controls. Logic unchanged
+ * from the previous `@hono/zod-openapi` handlers; not-configured (503) /
+ * upstream-failure (502) states are thrown as `AppError` and mapped by the
+ * handler's appErrorInterceptor.
+ */
+export const adminCacheRouter = {
+  status: os.status.handler(({ context }) => {
+    const config = context.config;
+    return { configured: config.cloudflare !== undefined };
+  }),
 
-const purgeCache = createRoute({
-  method: "post",
-  path: "/cache/purge",
-  tags: ["Admin - Cache"],
-  responses: {
-    204: { description: "Cache purged" },
-    503: { description: "Cloudflare credentials not configured" },
-  },
-});
-
-// ── Route ───────────────────────────────────────────────────────────────────
-
-export const adminCacheRoute = createApiApp()
-  // ── GET /cache/status ────────────────────────────────────────────────────
-
-  .openapi(getCacheStatus, (c) => {
-    const config = c.get("config");
-    return c.json({ configured: config.cloudflare !== undefined });
-  })
-
-  // ── POST /cache/purge ────────────────────────────────────────────────────
-
-  .openapi(purgeCache, async (c) => {
-    const config = c.get("config");
-    const { fetch } = c.get("io");
+  purge: os.purge.handler(async ({ context }): Promise<void> => {
+    const config = context.config;
+    const { fetch } = context.io;
 
     if (!config.cloudflare) {
       throw new AppError(
@@ -86,6 +59,5 @@ export const adminCacheRoute = createApiApp()
         `Cloudflare purge failed (${res.status})`,
       );
     }
-
-    return c.body(null, 204);
-  });
+  }),
+};

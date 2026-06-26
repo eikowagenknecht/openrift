@@ -2,7 +2,9 @@ import { Hono } from "hono";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
-import { decksRoute } from "./decks";
+import { registerRouterForTest } from "../../test/mount-router.js";
+import type { Variables } from "../../types.js";
+import { decksRouter } from "./decks";
 
 // ---------------------------------------------------------------------------
 // Mock repo
@@ -89,26 +91,26 @@ const mockEnums = {
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("user", { id: USER_ID });
-    c.set("repos", {
-      decks: mockRepo,
-      marketplace: mockMarketplace,
-      userPreferences: mockUserPreferences,
-      enums: mockEnums,
-      deckFormats: mockDeckFormats,
-      customTags: mockCustomTags,
-    } as never);
-    await next();
-  })
-  .route("/api/v1", decksRoute)
-  .onError((err, c) => {
-    if (err instanceof AppError) {
-      return c.json({ error: err.message, code: err.code }, err.status as 400);
-    }
-    throw err;
-  });
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  c.set("user", { id: USER_ID } as never);
+  c.set("repos", {
+    decks: mockRepo,
+    marketplace: mockMarketplace,
+    userPreferences: mockUserPreferences,
+    enums: mockEnums,
+    deckFormats: mockDeckFormats,
+    customTags: mockCustomTags,
+  } as never);
+  await next();
+});
+registerRouterForTest(app, decksRouter);
+app.onError((err, c) => {
+  if (err instanceof AppError) {
+    return c.json({ error: err.message, code: err.code }, err.status as 400);
+  }
+  throw err;
+});
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -128,6 +130,8 @@ const dbDeck = {
   isWanted: false,
   isPublic: false,
   shareToken: null,
+  isPinned: false,
+  archivedAt: null,
   createdAt: now,
   updatedAt: now,
 };
@@ -137,6 +141,7 @@ const dbDeckCard = {
   cardId: "c0000000-0001-4000-a000-000000000001",
   zone: "main",
   quantity: 4,
+  preferredPrintingId: null,
 };
 
 /** Full deck card row (for cardsWithDetails — export, allCardsForUser — list). */
@@ -342,7 +347,12 @@ describe("PUT /api/v1/decks/:id/cards", () => {
   it("saves incomplete constructed deck without validation error", async () => {
     mockRepo.getIdAndFormat.mockResolvedValue({ id: DECK_ID, format: "constructed" });
     mockRepo.cardsForDeck.mockResolvedValue([
-      { cardId: "c0000000-0001-4000-a000-000000000001", zone: "main", quantity: 10 },
+      {
+        cardId: "c0000000-0001-4000-a000-000000000001",
+        zone: "main",
+        quantity: 10,
+        preferredPrintingId: null,
+      },
     ]);
     const res = await app.request(`/api/v1/decks/${DECK_ID}/cards`, {
       method: "PUT",
@@ -357,7 +367,12 @@ describe("PUT /api/v1/decks/:id/cards", () => {
   it("allows freeform deck without validation", async () => {
     mockRepo.getIdAndFormat.mockResolvedValue({ id: DECK_ID, format: "freeform" });
     mockRepo.cardsForDeck.mockResolvedValue([
-      { cardId: "c0000000-0001-4000-a000-000000000001", zone: "main", quantity: 4 },
+      {
+        cardId: "c0000000-0001-4000-a000-000000000001",
+        zone: "main",
+        quantity: 4,
+        preferredPrintingId: null,
+      },
     ]);
     const res = await app.request(`/api/v1/decks/${DECK_ID}/cards`, {
       method: "PUT",

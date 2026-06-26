@@ -2,7 +2,9 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
-import { listsRoute } from "./lists";
+import { registerRouterForTest } from "../../test/mount-router.js";
+import type { Variables } from "../../types.js";
+import { listsRouter } from "./lists";
 
 // ---------------------------------------------------------------------------
 // Mock repos
@@ -52,23 +54,23 @@ const CARD_ID = "c0000000-0001-4000-a000-000000000001";
 const PRINTING_ID = "d0000000-0001-4000-a000-000000000001";
 const COPY_ID = "550e8400-e29b-41d4-a716-446655440000";
 
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("user", { id: USER_ID });
-    c.set("repos", {
-      lists: mockListsRepo,
-      copies: mockCopiesRepo,
-      friendGroups: mockFriendGroupsRepo,
-    } as never);
-    await next();
-  })
-  .route("/api/v1", listsRoute)
-  .onError((err, c) => {
-    if (err instanceof AppError) {
-      return c.json({ error: err.message, code: err.code }, err.status as 400);
-    }
-    throw err;
-  });
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  c.set("user", { id: USER_ID } as never);
+  c.set("repos", {
+    lists: mockListsRepo,
+    copies: mockCopiesRepo,
+    friendGroups: mockFriendGroupsRepo,
+  } as never);
+  await next();
+});
+registerRouterForTest(app, listsRouter);
+app.onError((err, c) => {
+  if (err instanceof AppError) {
+    return c.json({ error: err.message, code: err.code }, err.status as 400);
+  }
+  throw err;
+});
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -84,6 +86,10 @@ const dbList = {
   kind: "card" as const,
   isPublic: false,
   shareToken: null,
+  defaultPricePref: null,
+  defaultPriceAbsoluteCents: null,
+  defaultTradeType: null,
+  currency: null,
   createdAt: now,
   updatedAt: now,
 };
@@ -97,6 +103,9 @@ const dbEntry = {
   printingId: null,
   copyId: null,
   quantity: 1,
+  pricePref: null,
+  priceAbsoluteCents: null,
+  tradeType: null,
   createdAt: now,
   updatedAt: now,
 };
@@ -230,6 +239,7 @@ describe("GET /api/v1/lists/:id", () => {
         printingId: null,
         copyId: null,
         quantity: 2,
+        tradeOverride: { pricePref: null, priceAbsoluteCents: null, tradeType: null },
         cardName: "Fire Dragon",
         cardType: "unit",
         setId: null,

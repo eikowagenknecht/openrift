@@ -1,12 +1,15 @@
 import type { CardTradeResponse, CardTradeRole, CardTradeStatus } from "@openrift/shared";
+import { cardTradesContract } from "@openrift/shared/contracts";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId, useUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
-import { callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
+
+// Migrated to oRPC: contract-typed client instead of the hc client.
 
 // ── Server functions: queries ───────────────────────────────────────────────
 
@@ -21,20 +24,12 @@ const fetchUserTrades = createServerFn({ method: "GET" })
     if (data.status !== undefined) {
       query.status = data.status;
     }
-    return callApiJson(
-      serverApiClient(context.cookie).api.v1.trades.$get({ query }),
-      "Couldn't load trades",
-    );
+    return apiOrpcClient(cardTradesContract, context.cookie).list(query);
   });
 
 const fetchTradeActionCounts = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(({ context }) =>
-    callApiJson(
-      serverApiClient(context.cookie).api.v1.trades["action-counts"].$get(),
-      "Couldn't load trade activity",
-    ),
-  );
+  .handler(({ context }) => apiOrpcClient(cardTradesContract, context.cookie).actionCounts());
 
 // ── Server functions: mutations ───────────────────────────────────────────────
 
@@ -49,25 +44,17 @@ const createTradeFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
-  .handler(({ context, data }) =>
-    callApiJson(
-      serverApiClient(context.cookie).api.v1.trades.$post({ json: data }),
-      "Couldn't send the trade",
-    ),
-  );
+  .handler(({ context, data }) => apiOrpcClient(cardTradesContract, context.cookie).create(data));
 
 const setTradeQuantityFn = createServerFn({ method: "POST" })
   .validator((input: { tradeId: string; quantity: number }) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<CardTradeResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.trades[":id"].quantity.$post({
-          param: encodeParams({ id: data.tradeId }),
-          json: { quantity: data.quantity },
-        }),
-        "Couldn't update the request",
-      ),
+      apiOrpcClient(cardTradesContract, context.cookie).setQuantity({
+        id: data.tradeId,
+        quantity: data.quantity,
+      }),
   );
 
 const tradeActionFn = createServerFn({ method: "POST" })
@@ -75,49 +62,28 @@ const tradeActionFn = createServerFn({ method: "POST" })
     (input: { tradeId: string; action: "accept" | "decline" | "cancel" | "complete" }) => input,
   )
   .middleware([withCookies])
-  .handler(({ context, data }): Promise<CardTradeResponse> => {
-    const trade = serverApiClient(context.cookie).api.v1.trades[":id"];
-    const param = encodeParams({ id: data.tradeId });
-    const errorTitle = "Couldn't update the trade";
-    switch (data.action) {
-      case "accept": {
-        return callApiJson(trade.accept.$post({ param }), errorTitle);
-      }
-      case "decline": {
-        return callApiJson(trade.decline.$post({ param }), errorTitle);
-      }
-      case "cancel": {
-        return callApiJson(trade.cancel.$post({ param }), errorTitle);
-      }
-      case "complete": {
-        return callApiJson(trade.complete.$post({ param }), errorTitle);
-      }
-    }
-  });
+  .handler(
+    ({ context, data }): Promise<CardTradeResponse> =>
+      // accept/decline/cancel/complete share the same { id } → CardTradeResponse
+      // shape, so index the client by the action name.
+      apiOrpcClient(cardTradesContract, context.cookie)[data.action]({ id: data.tradeId }),
+  );
 
 const applyTradeSyncFn = createServerFn({ method: "POST" })
   .validator((input: { tradeId: string; targetCollectionId?: string }) => input)
   .middleware([withCookies])
   .handler(({ context, data }) =>
-    callApiJson(
-      serverApiClient(context.cookie).api.v1.trades[":id"].sync.$post({
-        param: encodeParams({ id: data.tradeId }),
-        json: { targetCollectionId: data.targetCollectionId },
-      }),
-      "Couldn't apply your changes",
-    ),
+    apiOrpcClient(cardTradesContract, context.cookie).sync({
+      id: data.tradeId,
+      targetCollectionId: data.targetCollectionId,
+    }),
   );
 
 const skipTradeSyncFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(({ context, data: tradeId }) =>
-    callApiJson(
-      serverApiClient(context.cookie).api.v1.trades[":id"].sync.skip.$post({
-        param: encodeParams({ id: tradeId }),
-      }),
-      "Couldn't skip your changes",
-    ),
+    apiOrpcClient(cardTradesContract, context.cookie).skipSync({ id: tradeId }),
   );
 
 // ── Query hooks ───────────────────────────────────────────────────────────────

@@ -1,4 +1,3 @@
-import { createRoute } from "@hono/zod-openapi";
 import { MARKETPLACE_CURRENCY, TIME_RANGE_DAYS, formatDateUTC } from "@openrift/shared";
 import type {
   Marketplace,
@@ -8,59 +7,13 @@ import type {
   PriceMap,
   PricesResponse,
 } from "@openrift/shared";
-import {
-  marketplaceInfoResponseSchema,
-  priceHistoryResponseSchema,
-  pricesResponseSchema,
-} from "@openrift/shared/response-schemas";
-import { etag } from "hono/etag";
+import { pricesContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
-import { errorResponses } from "../../openapi-helpers.js";
-import { createApiApp } from "../../openapi.js";
-import { marketplaceInfoQuerySchema, printingIdParamSchema, rangeQuerySchema } from "./schemas.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 
-const getPrices = createRoute({
-  method: "get",
-  path: "/prices",
-  tags: ["Prices"],
-  responses: {
-    200: {
-      content: { "application/json": { schema: pricesResponseSchema } },
-      description: "Latest prices for all printings",
-    },
-  },
-});
-
-const getPriceHistory = createRoute({
-  method: "get",
-  path: "/prices/{printingId}/history",
-  tags: ["Prices"],
-  request: {
-    params: printingIdParamSchema,
-    query: rangeQuerySchema,
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: priceHistoryResponseSchema } },
-      description: "Price history for a printing",
-    },
-    ...errorResponses(400, 404),
-  },
-});
-
-const getMarketplaceInfo = createRoute({
-  method: "get",
-  path: "/prices/marketplace-info",
-  tags: ["Prices"],
-  request: { query: marketplaceInfoQuerySchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: marketplaceInfoResponseSchema } },
-      description: "Marketplace source metadata (productId, availability) for printings",
-    },
-    ...errorResponses(400),
-  },
-});
+const os = implement(pricesContract).$context<ApiContext>().use(requireUser);
 
 function emptyMarketplaceInfo(): MarketplaceInfo {
   return {
@@ -69,22 +22,20 @@ function emptyMarketplaceInfo(): MarketplaceInfo {
   };
 }
 
-const pricesApp = createApiApp();
-pricesApp.use("/prices", etag());
-pricesApp.use("/prices/:printingId/history", etag());
-pricesApp.use("/prices/marketplace-info", etag());
-export const pricesRoute = pricesApp
+/**
+ * oRPC implementation of the public price reads. Logic unchanged from the
+ * previous `@hono/zod-openapi` handlers; an unknown printing in `history`
+ * still resolves to an `available: false` payload (200) rather than a 404.
+ * The short-TTL `Cache-Control` is applied uniformly in the mount.
+ */
+export const pricesRouter = {
   /**
-   * `GET /prices` — Returns the latest market price per marketplace for every printing.
-   *
-   * Uses `DISTINCT ON` to efficiently pick only the most recent price row per
-   * marketplace source without scanning the full `marketplace_product_prices` table.
-   * Returned as `{ [printingId]: { tcgplayer?, cardmarket?, cardtrader? } }`,
-   * with each value an integer-cents amount in that marketplace's currency
-   * (SCH-2; the web converts at the display boundary).
+   * `GET /prices` — latest market price per marketplace for every printing.
+   * Returned as `{ [printingId]: { tcgplayer?, cardmarket?, cardtrader? } }`
+   * with integer-cents amounts; the web converts at the display boundary.
    */
-  .openapi(getPrices, async (c) => {
-    const { marketplace } = c.get("repos");
+  prices: os.prices.handler(async ({ context }): Promise<PricesResponse> => {
+    const { marketplace } = context.repos;
 
     const rows = await marketplace.latestPrices();
 
@@ -95,34 +46,58 @@ export const pricesRoute = pricesApp
         entry = {};
         prices[row.printingId] = entry;
       }
-      // emit integer cents; the web converts at the display boundary.
       entry[row.marketplace as Marketplace] = row.marketCents;
     }
 
-    c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-    return c.json({ prices, currencies: MARKETPLACE_CURRENCY } satisfies PricesResponse, 200);
-  })
-  /**
-   * `GET /prices/:printingId/history` — Returns price history for a single printing.
-   *
-   * Accepts a printing UUID. Returns snapshots for TCGPlayer (USD), Cardmarket
-   * (EUR), and CardTrader (EUR) when available. CardTrader snapshots carry
-   * `zeroLow` (cheapest among CT Zero / hub-eligible sellers — the headline
-   * price) and `low` (cheapest across all sellers — a secondary figure).
-   * Either may be null; the snapshot is emitted when at least one is known.
-   * The `range` query param controls the lookback window (`7d`, `30d`, `90d`,
-   * `all`); defaults to `30d`.
-   *
-   * Returns `available: false` (not a 404) when the printing or marketplace
-   * source doesn't exist, so the frontend can render an empty state without
-   * special error handling.
-   */
-  .openapi(getPriceHistory, async (c) => {
-    const { catalog, marketplace } = c.get("repos");
+    return { prices, currencies: MARKETPLACE_CURRENCY };
+  }),
 
-    const { printingId } = c.req.valid("param");
-    const rangeParam = c.req.valid("query").range;
-    const days = TIME_RANGE_DAYS[rangeParam];
+  /**
+   * `GET /prices/marketplace-info?printings=uuid1,uuid2,...` — batch source
+   * metadata (productId / available) so the frontend can craft deep-link
+   * marketplace URLs for an arbitrary set of printings in one request.
+   */
+  marketplaceInfo: os.marketplaceInfo.handler(
+    async ({ input, context }): Promise<MarketplaceInfoResponse> => {
+      const { marketplace } = context.repos;
+      const { printings } = input;
+
+      const rows = await marketplace.sourcesForPrintings(printings);
+
+      const infos: MarketplaceInfoResponse["infos"] = {};
+      for (const printingId of printings) {
+        infos[printingId] = {
+          tcgplayer: emptyMarketplaceInfo(),
+          cardmarket: emptyMarketplaceInfo(),
+          cardtrader: emptyMarketplaceInfo(),
+        };
+      }
+      for (const row of rows) {
+        const entry = infos[row.printingId];
+        if (!entry) {
+          continue;
+        }
+        entry[row.marketplace as Marketplace] = {
+          available: true,
+          productId: row.externalId,
+        };
+      }
+
+      return { infos };
+    },
+  ),
+
+  /**
+   * `GET /prices/:printingId/history` — price history for a single printing.
+   * Returns snapshots for TCGPlayer (USD), Cardmarket (EUR), and CardTrader
+   * (EUR) when available; `range` (`7d`/`30d`/`90d`/`all`) controls the window.
+   * An unknown printing / source returns `available: false` (not a 404).
+   */
+  history: os.history.handler(async ({ input, context }): Promise<PriceHistoryResponse> => {
+    const { catalog, marketplace } = context.repos;
+
+    const { printingId, range } = input;
+    const days = TIME_RANGE_DAYS[range];
     const cutoff = days ? new Date(Date.now() - days * 86_400_000) : null;
 
     const [printing, sources] = await Promise.all([
@@ -131,29 +106,26 @@ export const pricesRoute = pricesApp
     ]);
 
     if (!printing) {
-      return c.json(
-        {
-          tcgplayer: {
-            available: false,
-            productId: null,
-            currency: MARKETPLACE_CURRENCY.tcgplayer,
-            snapshots: [],
-          },
-          cardmarket: {
-            available: false,
-            productId: null,
-            currency: MARKETPLACE_CURRENCY.cardmarket,
-            snapshots: [],
-          },
-          cardtrader: {
-            available: false,
-            productId: null,
-            currency: MARKETPLACE_CURRENCY.cardtrader,
-            snapshots: [],
-          },
-        } satisfies PriceHistoryResponse,
-        200,
-      );
+      return {
+        tcgplayer: {
+          available: false,
+          productId: null,
+          currency: MARKETPLACE_CURRENCY.tcgplayer,
+          snapshots: [],
+        },
+        cardmarket: {
+          available: false,
+          productId: null,
+          currency: MARKETPLACE_CURRENCY.cardmarket,
+          snapshots: [],
+        },
+        cardtrader: {
+          available: false,
+          productId: null,
+          currency: MARKETPLACE_CURRENCY.cardtrader,
+          snapshots: [],
+        },
+      };
     }
 
     const tcgSource = sources.find((s) => s.marketplace === ("tcgplayer" satisfies Marketplace));
@@ -203,7 +175,7 @@ export const pricesRoute = pricesApp
       });
     }
 
-    const response: PriceHistoryResponse = {
+    return {
       tcgplayer: {
         available: Boolean(tcgSource),
         productId: tcgSource?.externalId ?? null,
@@ -223,44 +195,5 @@ export const pricesRoute = pricesApp
         snapshots: ctSnapshots,
       },
     };
-
-    c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-    return c.json(response, 200);
-  })
-  /**
-   * `GET /prices/marketplace-info?printings=uuid1,uuid2,...` — Batch variant of
-   * the `productId` / `available` fields from the history endpoint.
-   *
-   * Returns source metadata only (no snapshots) so the frontend can craft
-   * deep-link marketplace URLs for an arbitrary set of printings (e.g. every
-   * missing card in a deck) with a single request. Unmapped printings and
-   * unmapped marketplaces get `available: false` and `productId: null`.
-   */
-  .openapi(getMarketplaceInfo, async (c) => {
-    const { marketplace } = c.get("repos");
-    const { printings } = c.req.valid("query");
-
-    const rows = await marketplace.sourcesForPrintings(printings);
-
-    const infos: MarketplaceInfoResponse["infos"] = {};
-    for (const printingId of printings) {
-      infos[printingId] = {
-        tcgplayer: emptyMarketplaceInfo(),
-        cardmarket: emptyMarketplaceInfo(),
-        cardtrader: emptyMarketplaceInfo(),
-      };
-    }
-    for (const row of rows) {
-      const entry = infos[row.printingId];
-      if (!entry) {
-        continue;
-      }
-      entry[row.marketplace as Marketplace] = {
-        available: true,
-        productId: row.externalId,
-      };
-    }
-
-    c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-    return c.json({ infos } satisfies MarketplaceInfoResponse, 200);
-  });
+  }),
+};

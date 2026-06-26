@@ -37,10 +37,13 @@ describe("useMarketplaceInfo", () => {
     renderHook(() => useMarketplaceInfo(["b", "a", "a"]), { wrapper: Wrapper });
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    // The browser hc client builds an absolute same-origin URL; the deduped,
-    // sorted printings still land as a comma list (comma percent-encoded).
-    const url = fetchMock.mock.calls[0]?.[0] as string;
-    expect(url).toContain("/api/v1/prices/marketplace-info?printings=a%2Cb");
+    // The browser oRPC link calls fetch with a Request object (not a URL
+    // string); the deduped, sorted printings land as a comma list on the
+    // `printings` query param.
+    const request = fetchMock.mock.calls[0]?.[0] as Request;
+    const requestUrl = new URL(request.url);
+    expect(requestUrl.pathname).toBe("/api/v1/prices/marketplace-info");
+    expect(requestUrl.searchParams.get("printings")).toBe("a,b");
   });
 
   it("throws when the server returns a non-ok status", async () => {

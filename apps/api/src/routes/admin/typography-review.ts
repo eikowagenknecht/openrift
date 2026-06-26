@@ -1,37 +1,21 @@
-import { createRoute } from "@hono/zod-openapi";
-import { fixTypography } from "@openrift/shared";
-import { z } from "zod";
+import { ERROR_CODES, fixTypography } from "@openrift/shared";
+import { adminTypographyReviewContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
-import { createApiApp } from "../../openapi.js";
-import { acceptTypographyFixSchema, typographyDiffItemSchema } from "./schemas.js";
+import { AppError } from "../../errors.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 
-// ── Route definitions ───────────────────────────────────────────────────────
+const os = implement(adminTypographyReviewContract).$context<ApiContext>().use(requireUser);
 
-const getTypographyDiffs = createRoute({
-  method: "get",
-  path: "/typography-review",
-  tags: ["Admin - Operations"],
-  responses: {
-    200: {
-      content: {
-        "application/json": { schema: z.object({ diffs: z.array(typographyDiffItemSchema) }) },
-      },
-      description: "Typography mismatches",
-    },
-  },
-});
-
-const acceptTypographyFix = createRoute({
-  method: "post",
-  path: "/typography-review/accept",
-  tags: ["Admin - Operations"],
-  request: {
-    body: { content: { "application/json": { schema: acceptTypographyFixSchema } } },
-  },
-  responses: {
-    204: { description: "Fix accepted" },
-  },
-});
+interface TypographyDiff {
+  entity: "card" | "printing";
+  id: string;
+  name: string;
+  field: string;
+  current: string;
+  proposed: string;
+}
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -59,12 +43,16 @@ function fixTagList(tags: string[]): string[] {
   return tags.map((tag) => fixTypography(tag, labelTypographyOptions));
 }
 
-// ── Route ───────────────────────────────────────────────────────────────────
-
-export const typographyReviewRoute = createApiApp()
-  .openapi(getTypographyDiffs, async (c) => {
-    const { catalog } = c.get("repos");
-    const diffs: z.infer<typeof typographyDiffItemSchema>[] = [];
+/**
+ * oRPC implementation of the admin typography-review. Logic unchanged from the
+ * previous `@hono/zod-openapi` handlers; not-found targets are thrown as
+ * `AppError` (previously bare 404 responses) and mapped by the handler's
+ * {@link appErrorInterceptor}.
+ */
+export const adminTypographyReviewRouter = {
+  list: os.list.handler(async ({ context }) => {
+    const { catalog } = context.repos;
+    const diffs: TypographyDiff[] = [];
 
     const cards = await catalog.cards();
     const cardNameById = new Map(cards.map((card) => [card.id, card.name]));
@@ -140,12 +128,12 @@ export const typographyReviewRoute = createApiApp()
       }
     }
 
-    return c.json({ diffs });
-  })
+    return { diffs };
+  }),
 
-  .openapi(acceptTypographyFix, async (c) => {
-    const { catalog, candidateMutations: mut } = c.get("repos");
-    const { entity, id, field, proposed } = c.req.valid("json");
+  accept: os.accept.handler(async ({ input, context }): Promise<void> => {
+    const { catalog, candidateMutations: mut } = context.repos;
+    const { entity, id, field, proposed } = input;
 
     if (entity === "card") {
       // Card-level fields (name, tags) live on the card row itself; for tags we
@@ -153,22 +141,22 @@ export const typographyReviewRoute = createApiApp()
       // display string sent by the client.
       if (field === "name") {
         await mut.updateCardById(id, { name: proposed });
-        return c.body(null, 204);
+        return;
       }
       if (field === "tags") {
         const allCards = await catalog.cards();
         const target = allCards.find((card) => card.id === id);
         if (!target) {
-          return c.body(null, 404);
+          throw new AppError(404, ERROR_CODES.NOT_FOUND, "Card not found");
         }
         await mut.updateCardById(id, { tags: fixTagList(target.tags) });
-        return c.body(null, 204);
+        return;
       }
 
       // Otherwise treat as errata text (correctedRulesText / correctedEffectText)
       const errata = await mut.getCardErrata(id);
       if (!errata) {
-        return c.body(null, 404);
+        throw new AppError(404, ERROR_CODES.NOT_FOUND, "Card errata not found");
       }
       await mut.upsertCardErrata(id, {
         ...errata,
@@ -177,13 +165,13 @@ export const typographyReviewRoute = createApiApp()
           : null,
         [field]: proposed,
       });
-    } else {
-      const printing = await catalog.printingById(id);
-      if (!printing) {
-        return c.body(null, 404);
-      }
-      await mut.updatePrintingFieldById(id, field, proposed);
+      return;
     }
 
-    return c.body(null, 204);
-  });
+    const printing = await catalog.printingById(id);
+    if (!printing) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Printing not found");
+    }
+    await mut.updatePrintingFieldById(id, field, proposed);
+  }),
+};

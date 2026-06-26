@@ -1,58 +1,45 @@
-import { createRoute } from "@hono/zod-openapi";
+import { adminChangelogContract } from "@openrift/shared/contracts";
 import { createLogger } from "@openrift/shared/logger";
-import { z } from "zod";
+import { implement } from "@orpc/server";
 
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 import { extractWatermark, postChangelogToDiscord } from "../../services/changelog-discord.js";
 import { runJob } from "../../services/run-job.js";
 
 const log = createLogger("admin");
 
-// ── Route definitions ───────────────────────────────────────────────────────
+const os = implement(adminChangelogContract).$context<ApiContext>().use(requireUser);
 
-const postChangelog = createRoute({
-  method: "post",
-  path: "/changelog/post",
-  tags: ["Admin - Operations"],
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            posted: z.boolean().openapi({ example: true }),
-            count: z.number().openapi({ example: 3 }),
-          }),
-        },
-      },
-      description: "Pending changelog entries posted to Discord (oldest first)",
-    },
-  },
-});
+/**
+ * oRPC implementation of the admin changelog Discord post action. Logic
+ * unchanged from the previous `@hono/zod-openapi` handler; any thrown
+ * `AppError` is mapped by the handler's appErrorInterceptor.
+ */
+export const adminChangelogRouter = {
+  post: os.post.handler(async ({ context }) => {
+    const config = context.config;
+    const repos = context.repos;
+    const prior = await repos.jobRuns.findLatestForResume("discord.post_changelog");
+    const fromDate = extractWatermark(prior?.result);
 
-// ── Route ───────────────────────────────────────────────────────────────────
+    const result = await runJob(
+      { repos, log },
+      "discord.post_changelog",
+      "admin",
+      (runId) =>
+        postChangelogToDiscord({
+          webhookUrl: config.discordWebhooks.changelog,
+          changelogPath: config.changelogPath,
+          jobRuns: repos.jobRuns,
+          runId,
+          fromDate,
+          log,
+        }),
+      { summarize: (jobResult) => jobResult },
+    );
 
-export const adminChangelogRoute = createApiApp().openapi(postChangelog, async (c) => {
-  const config = c.get("config");
-  const repos = c.get("repos");
-  const prior = await repos.jobRuns.findLatestForResume("discord.post_changelog");
-  const fromDate = extractWatermark(prior?.result);
-
-  const result = await runJob(
-    { repos, log },
-    "discord.post_changelog",
-    "admin",
-    (runId) =>
-      postChangelogToDiscord({
-        webhookUrl: config.discordWebhooks.changelog,
-        changelogPath: config.changelogPath,
-        jobRuns: repos.jobRuns,
-        runId,
-        fromDate,
-        log,
-      }),
-    { summarize: (jobResult) => jobResult },
-  );
-
-  const count = result?.posted ?? 0;
-  return c.json({ posted: count > 0, count });
-});
+    const count = result?.posted ?? 0;
+    return { posted: count > 0, count };
+  }),
+};

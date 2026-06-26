@@ -1,20 +1,18 @@
+import type { AdminDomainsResponse } from "@openrift/shared/contracts";
+import { adminDomainsContract } from "@openrift/shared/contracts";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
-import type { AdminDomainsResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchDomains = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminDomainsResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1.domains.$get(),
-        "Couldn't load domains",
-      ),
+      apiOrpcClient(adminDomainsContract, context.cookie).list(),
   );
 
 export const adminDomainsQueryOptions = queryOptions({
@@ -30,12 +28,7 @@ const createDomainFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; label: string; color?: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.domains.$post({
-        json: data,
-      }),
-      "Couldn't create domain",
-    );
+    await apiOrpcClient(adminDomainsContract, context.cookie).create(data);
   });
 
 export function useCreateDomain() {
@@ -50,13 +43,7 @@ const updateDomainFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; label?: string; color?: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.domains[":slug"].$patch({
-        param: encodeParams({ slug: data.slug }),
-        json: { label: data.label, color: data.color },
-      }),
-      "Couldn't update domain",
-    );
+    await apiOrpcClient(adminDomainsContract, context.cookie).update(data);
   });
 
 export function useUpdateDomain() {
@@ -71,12 +58,7 @@ const reorderDomainsFn = createServerFn({ method: "POST" })
   .validator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.domains.reorder.$put({
-        json: { slugs: data.slugs },
-      }),
-      "Couldn't reorder domains",
-    );
+    await apiOrpcClient(adminDomainsContract, context.cookie).reorder({ slugs: data.slugs });
   });
 
 export function useReorderDomains() {
@@ -90,12 +72,7 @@ const deleteDomainFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.domains[":slug"].$delete({
-        param: encodeParams({ slug: data.slug }),
-      }),
-      "Couldn't delete domain",
-    );
+    await apiOrpcClient(adminDomainsContract, context.cookie).remove({ slug: data.slug });
   });
 
 export function useDeleteDomain() {

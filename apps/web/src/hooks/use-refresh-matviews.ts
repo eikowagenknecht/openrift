@@ -1,16 +1,14 @@
+import { adminOperationsContract } from "@openrift/shared/contracts";
 import { useMutation } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { callApi, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const refreshMatviewsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["refresh-materialized-views"].$post(),
-      "Couldn't refresh materialized views",
-    );
+    await apiOrpcClient(adminOperationsContract, context.cookie).refreshMatviews();
   });
 
 /**

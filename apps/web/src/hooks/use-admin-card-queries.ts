@@ -1,8 +1,8 @@
+import { adminCardQueriesContract } from "@openrift/shared/contracts";
 import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import type {
   AdminCardDetailResponse,
   AdminCardListResponse,
@@ -12,15 +12,13 @@ import type {
   UnmatchedCardDetailResponse,
 } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchAdminCardList = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminCardListResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1.cards.$get(),
-        "Couldn't load admin card list",
-      ),
+      apiOrpcClient(adminCardQueriesContract, context.cookie).listCandidates(),
   );
 
 export const adminCardListQueryOptions = queryOptions({
@@ -66,10 +64,7 @@ const fetchAllCards = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AllCardsResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1.cards["all-cards"].$get(),
-        "Couldn't load all cards",
-      ),
+      apiOrpcClient(adminCardQueriesContract, context.cookie).allCards(),
   );
 
 export const allCardsQueryOptions = queryOptions({
@@ -85,15 +80,14 @@ export function useAllCards() {
 const fetchAdminCardDetail = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: cardSlug }): Promise<AdminCardDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1.cards[":cardSlug"].$get({
-          param: encodeParams({ cardSlug }),
-        }),
-        "Couldn't load admin card detail",
-      ),
-  );
+  .handler(async ({ context, data: cardSlug }): Promise<AdminCardDetailResponse> => {
+    // The contract output is intentionally loose (`z.unknown()`); the service
+    // returns the rich detail shape, so cast to its hand-written interface.
+    const result = await apiOrpcClient(adminCardQueriesContract, context.cookie).getCandidateCard({
+      cardSlug,
+    });
+    return result as AdminCardDetailResponse;
+  });
 
 export function adminCardDetailQueryOptions(cardSlug: string) {
   return queryOptions({
@@ -113,15 +107,12 @@ export function useAdminCardDetail(cardSlug: string) {
 const fetchUnmatchedCardDetail = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
-  .handler(
-    ({ context, data: name }): Promise<UnmatchedCardDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1.cards.new[":name"].$get({
-          param: encodeParams({ name }),
-        }),
-        "Couldn't load unmatched card detail",
-      ),
-  );
+  .handler(async ({ context, data: name }): Promise<UnmatchedCardDetailResponse> => {
+    const result = await apiOrpcClient(adminCardQueriesContract, context.cookie).getUnmatchedDetail(
+      { name },
+    );
+    return result as UnmatchedCardDetailResponse;
+  });
 
 export function unmatchedCardDetailQueryOptions(name: string) {
   return queryOptions({
@@ -141,10 +132,7 @@ const fetchProviderStats = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<ProviderStatsResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1.cards["provider-stats"].$get(),
-        "Couldn't load provider stats",
-      ),
+      apiOrpcClient(adminCardQueriesContract, context.cookie).providerStats(),
   );
 
 export const providerStatsQueryOptions = queryOptions({
@@ -160,10 +148,7 @@ const fetchProviderNames = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<ProviderNamesResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1.cards["provider-names"].$get(),
-        "Couldn't load provider names",
-      ),
+      apiOrpcClient(adminCardQueriesContract, context.cookie).providerNames(),
   );
 
 const providerNamesQueryOptions = queryOptions({

@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
-import { friendGroupsRoute } from "./friend-groups.js";
+import { registerRouterForTest } from "../../test/mount-router.js";
+import { friendGroupsRouter } from "./friend-groups.js";
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const OTHER_ID = "a0000000-0002-4000-a000-000000000001";
@@ -120,31 +121,31 @@ function makeApp(overrides: {
     ...overrides.users,
   };
 
-  const app = new Hono()
-    .use("*", async (c, next) => {
-      const repos = {
-        friendGroups,
-        friendGroupMatches,
-        lists,
-        collections,
-        copies,
-        marketplace,
-        userPreferences,
-        users,
-      };
-      c.set("user", overrides.user ?? { id: USER_ID });
-      c.set("repos", repos as never);
-      // Test transact just runs the callback against the same mock repos.
-      c.set("transact", (async (fn: (r: typeof repos) => unknown) => fn(repos)) as never);
-      await next();
-    })
-    .route("/api/v1", friendGroupsRoute)
-    .onError((err, c) => {
-      if (err instanceof AppError) {
-        return c.json({ error: err.message, code: err.code }, err.status as 400);
-      }
-      throw err;
-    });
+  const app = new Hono();
+  app.use("*", async (c, next) => {
+    const repos = {
+      friendGroups,
+      friendGroupMatches,
+      lists,
+      collections,
+      copies,
+      marketplace,
+      userPreferences,
+      users,
+    };
+    c.set("user", overrides.user ?? { id: USER_ID });
+    c.set("repos", repos as never);
+    // Test transact just runs the callback against the same mock repos.
+    c.set("transact", (async (fn: (r: typeof repos) => unknown) => fn(repos)) as never);
+    await next();
+  });
+  registerRouterForTest(app as never, friendGroupsRouter);
+  app.onError((err, c) => {
+    if (err instanceof AppError) {
+      return c.json({ error: err.message, code: err.code }, err.status as 400);
+    }
+    throw err;
+  });
 
   return {
     app,

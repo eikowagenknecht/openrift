@@ -1,23 +1,19 @@
 import type { CollectionGroupSharesResponse } from "@openrift/shared";
+import { collectionsContract } from "@openrift/shared/contracts";
 import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
-import { callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchShares = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(
     ({ context, data: collectionId }): Promise<CollectionGroupSharesResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.collections[":id"]["group-shares"].$get({
-          param: encodeParams({ id: collectionId }),
-        }),
-        "Couldn't load group shares",
-      ),
+      apiOrpcClient(collectionsContract, context.cookie).groupShares({ id: collectionId }),
   );
 
 /**

@@ -32,10 +32,22 @@ interface FetchCall {
 
 function stubFetch(items: ContactMethod[]) {
   const calls: FetchCall[] = [];
+  // oRPC's OpenAPI client sends body-bearing requests as a Request object (not
+  // (url, init)); read method/body/url from whichever shape the call used.
   const fetchMock = vi.fn(async (input: unknown, init?: { method?: string; body?: string }) => {
-    const url = typeof input === "string" ? input : (input as Request).url;
-    const method = init?.method ?? "GET";
-    calls.push({ url, method, body: init?.body ? JSON.parse(init.body) : undefined });
+    let url: string;
+    let method: string;
+    let bodyText: string | undefined;
+    if (input instanceof Request) {
+      url = input.url;
+      method = input.method;
+      bodyText = await input.clone().text();
+    } else {
+      url = String(input);
+      method = init?.method ?? "GET";
+      bodyText = init?.body;
+    }
+    calls.push({ url, method, body: bodyText ? JSON.parse(bodyText) : undefined });
     return Response.json({ items });
   });
   vi.stubGlobal("fetch", fetchMock);

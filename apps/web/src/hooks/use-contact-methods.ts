@@ -3,24 +3,23 @@ import type {
   ContactMethodType,
   UserContactMethodsResponse,
 } from "@openrift/shared";
+import { contactMethodsContract } from "@openrift/shared/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
-import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
+// Migrated to oRPC: contract-typed client instead of the hc client.
 const listContactMethodsFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<UserContactMethodsResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["contact-methods"].$get(),
-        "Couldn't load contact methods",
-      ),
+      apiOrpcClient(contactMethodsContract, context.cookie).list(),
   );
 
 const createContactMethodFn = createServerFn({ method: "POST" })
@@ -28,10 +27,7 @@ const createContactMethodFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<UserContactMethodsResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["contact-methods"].$post({ json: data }),
-        "Couldn't add contact method",
-      ),
+      apiOrpcClient(contactMethodsContract, context.cookie).create(data),
   );
 
 const updateContactMethodFn = createServerFn({ method: "POST" })
@@ -39,13 +35,7 @@ const updateContactMethodFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<UserContactMethodsResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["contact-methods"][":id"].$patch({
-          param: { id: data.id },
-          json: { type: data.type, value: data.value },
-        }),
-        "Couldn't update contact method",
-      ),
+      apiOrpcClient(contactMethodsContract, context.cookie).update(data),
   );
 
 const deleteContactMethodFn = createServerFn({ method: "POST" })
@@ -53,12 +43,7 @@ const deleteContactMethodFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<UserContactMethodsResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["contact-methods"][":id"].$delete({
-          param: { id: data.id },
-        }),
-        "Couldn't remove contact method",
-      ),
+      apiOrpcClient(contactMethodsContract, context.cookie).remove(data),
   );
 
 /** @returns The signed-in user's account-level contact methods (empty until loaded). */

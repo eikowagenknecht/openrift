@@ -1,16 +1,19 @@
 import type { Printing, SetDetailResponse, SetListResponse } from "@openrift/shared";
+import { setsContract } from "@openrift/shared/contracts";
+import { ORPCError } from "@orpc/client";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchSetList = createServerFn({ method: "GET" }).handler(
   (): Promise<SetListResponse> =>
     serverCache.fetchQuery({
       queryKey: ["server-cache", "sets"],
-      queryFn: () => callApiJson(serverApiClient().api.v1.sets.$get(), "Couldn't load sets"),
+      // Migrated to oRPC: contract-typed client instead of the hc client.
+      queryFn: () => apiOrpcClient(setsContract).list(),
     }),
 );
 
@@ -21,21 +24,17 @@ const fetchSetDetail = createServerFn({ method: "GET" })
       serverCache.fetchQuery({
         queryKey: ["server-cache", "set-detail", data],
         queryFn: async () => {
-          // 404 is legitimate (unknown slug) — map to NOT_FOUND without logging.
-          const res = await callApi(
-            serverApiClient().api.v1.sets[":setSlug"].$get({
-              param: encodeParams({ setSlug: data }),
-            }),
-            "Couldn't load set",
-            [404],
-          );
-          // hc types `status` as the declared 200 only (the 404 goes through the
-          // API's global error handler, not the route's OpenAPI responses), so
-          // widen for the accepted-status check.
-          if ((res.status as number) === 404) {
-            throw new Error("NOT_FOUND");
+          try {
+            return await apiOrpcClient(setsContract).detail({ setSlug: data });
+          } catch (error) {
+            // 404 is legitimate (unknown slug) — the contract declares it as a
+            // typed NOT_FOUND error; map it to the sentinel the caller expects
+            // without logging. oRPC also reports a bare 404 as code NOT_FOUND.
+            if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+              throw new Error("NOT_FOUND");
+            }
+            throw error;
           }
-          return res.json() as Promise<SetDetailResponse>;
         },
       }),
   );

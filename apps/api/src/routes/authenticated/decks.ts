@@ -1,4 +1,3 @@
-import { createRoute } from "@hono/zod-openapi";
 import type {
   CardType,
   DeckAvailabilityItemResponse,
@@ -14,35 +13,17 @@ import type {
   SuperType,
 } from "@openrift/shared";
 import { WellKnown, validateDeck, ERROR_CODES } from "@openrift/shared";
-import {
-  deckAvailabilityResponseSchema,
-  deckCardsResponseSchema,
-  deckCloneResponseSchema,
-  deckDetailResponseSchema,
-  deckExportResponseSchema,
-  deckListResponseSchema,
-  deckPlanDetailResponseSchema,
-  deckResponseSchema,
-  deckShareResponseSchema,
-} from "@openrift/shared/response-schemas";
-import {
-  createDeckSchema,
-  deckExportQuerySchema,
-  decksQuerySchema,
-  idParamSchema,
-  updateDeckCardsSchema,
-  updateDeckPlanSchema,
-  updateDeckSchema,
-} from "@openrift/shared/schemas";
+import { decksContract } from "@openrift/shared/contracts";
+import type { updateDeckPlanSchema } from "@openrift/shared/schemas";
 import { PREFERENCE_DEFAULTS } from "@openrift/shared/types";
-import { z } from "zod";
+import { implement } from "@orpc/server";
+import type { z } from "zod";
 
 import type { Repos } from "../../deps.js";
 import { AppError } from "../../errors.js";
-import { getUserId } from "../../middleware/get-user-id.js";
-import { requireAuth } from "../../middleware/require-auth.js";
-import { cookieAuth, errorResponses } from "../../openapi-helpers.js";
-import { createApiApp } from "../../openapi.js";
+import { requireUserId } from "../../middleware/get-user-id.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
 import type { DeckUpdateInput } from "../../repositories/decks.js";
@@ -206,316 +187,25 @@ const patchFields: FieldMapping<DeckUpdateInput> = {
   isWanted: "isWanted",
 };
 
-const listDecks = createRoute({
-  method: "get",
-  path: "/",
-  tags: ["Decks"],
-  security: cookieAuth,
-  request: { query: decksQuerySchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: deckListResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(400, 401),
-  },
-});
+const os = implement(decksContract).$context<ApiContext>().use(requireUser);
 
-const createDeck = createRoute({
-  method: "post",
-  path: "/",
-  tags: ["Decks"],
-  security: cookieAuth,
-  request: {
-    body: { content: { "application/json": { schema: createDeckSchema } } },
-  },
-  responses: {
-    201: {
-      headers: z.object({
-        Location: z.string().openapi({ description: "URL of the created deck" }),
-      }),
-      content: { "application/json": { schema: deckResponseSchema } },
-      description: "Created",
-    },
-    ...errorResponses(400, 401),
-  },
-});
-
-const getDeck = createRoute({
-  method: "get",
-  path: "/{id}",
-  tags: ["Decks"],
-  security: cookieAuth,
-  request: { params: idParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: deckDetailResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(401, 404),
-  },
-});
-
-const updateDeck = createRoute({
-  method: "patch",
-  path: "/{id}",
-  tags: ["Decks"],
-  security: cookieAuth,
-  request: {
-    params: idParamSchema,
-    body: { content: { "application/json": { schema: updateDeckSchema } } },
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: deckResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(400, 401, 404),
-  },
-});
-
-const deleteDeck = createRoute({
-  method: "delete",
-  path: "/{id}",
-  tags: ["Decks"],
-  security: cookieAuth,
-  request: { params: idParamSchema },
-  responses: {
-    204: { description: "No Content" },
-    ...errorResponses(401, 404),
-  },
-});
-
-const replaceDeckCards = createRoute({
-  method: "put",
-  path: "/{id}/cards",
-  tags: ["Decks"],
-  security: cookieAuth,
-  request: {
-    params: idParamSchema,
-    body: { content: { "application/json": { schema: updateDeckCardsSchema } } },
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: deckCardsResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(400, 401, 404),
-  },
-});
-
-const getDeckPlan = createRoute({
-  method: "get",
-  path: "/{id}/plan",
-  tags: ["Decks"],
-  security: cookieAuth,
-  request: { params: idParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: deckPlanDetailResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(401, 404),
-  },
-});
-
-const replaceDeckPlan = createRoute({
-  method: "put",
-  path: "/{id}/plan",
-  tags: ["Decks"],
-  security: cookieAuth,
-  request: {
-    params: idParamSchema,
-    body: { content: { "application/json": { schema: updateDeckPlanSchema } } },
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: deckPlanDetailResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(400, 401, 404),
-  },
-});
-
-const cloneDeck = createRoute({
-  method: "post",
-  path: "/{id}/clone",
-  tags: ["Decks"],
-  security: cookieAuth,
-  request: { params: idParamSchema },
-  responses: {
-    201: {
-      headers: z.object({
-        Location: z.string().openapi({ description: "URL of the cloned deck" }),
-      }),
-      content: { "application/json": { schema: deckResponseSchema } },
-      description: "Created",
-    },
-    ...errorResponses(401, 404),
-  },
-});
-
-const getDeckAvailability = createRoute({
-  method: "get",
-  path: "/{id}/availability",
-  tags: ["Decks"],
-  security: cookieAuth,
-  request: { params: idParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: deckAvailabilityResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(401, 404),
-  },
-});
-
-const exportDeck = createRoute({
-  method: "get",
-  path: "/{id}/export",
-  tags: ["Decks"],
-  security: cookieAuth,
-  request: { params: idParamSchema, query: deckExportQuerySchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: deckExportResponseSchema } },
-      description: "Deck code",
-    },
-    ...errorResponses(400, 401, 404),
-  },
-});
-
-const shareTokenParamSchema = z.object({
-  token: z.string().min(1),
-});
-
-const pinDeckBodySchema = z.object({ isPinned: z.boolean() });
-const archiveDeckBodySchema = z.object({ archived: z.boolean() });
-
-const setDeckPinned = createRoute({
-  method: "patch",
-  path: "/{id}/pin",
-  tags: ["Decks"],
-  security: cookieAuth,
-  request: {
-    params: idParamSchema,
-    body: { content: { "application/json": { schema: pinDeckBodySchema } } },
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: deckResponseSchema } },
-      description: "Updated",
-    },
-    ...errorResponses(400, 401, 404),
-  },
-});
-
-const setDeckArchived = createRoute({
-  method: "patch",
-  path: "/{id}/archive",
-  tags: ["Decks"],
-  security: cookieAuth,
-  request: {
-    params: idParamSchema,
-    body: { content: { "application/json": { schema: archiveDeckBodySchema } } },
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: deckResponseSchema } },
-      description: "Updated",
-    },
-    ...errorResponses(400, 401, 404),
-  },
-});
-
-const getDeckShare = createRoute({
-  method: "get",
-  path: "/{id}/share",
-  tags: ["Decks"],
-  security: cookieAuth,
-  request: { params: idParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: deckShareResponseSchema } },
-      description: "Current share state (shareToken is null when not shared)",
-    },
-    ...errorResponses(401, 404),
-  },
-});
-
-const shareDeck = createRoute({
-  method: "post",
-  path: "/{id}/share",
-  tags: ["Decks"],
-  security: cookieAuth,
-  request: { params: idParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: deckShareResponseSchema } },
-      description: "Shared (idempotent — returns the existing token if already shared)",
-    },
-    ...errorResponses(401, 404),
-  },
-});
-
-const rotateDeckShare = createRoute({
-  method: "post",
-  path: "/{id}/share/rotate",
-  tags: ["Decks"],
-  security: cookieAuth,
-  request: { params: idParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: deckShareResponseSchema } },
-      description: "Share token rotated (old token stops resolving)",
-    },
-    ...errorResponses(401, 404),
-  },
-});
-
-const unshareDeck = createRoute({
-  method: "delete",
-  path: "/{id}/share",
-  tags: ["Decks"],
-  security: cookieAuth,
-  request: { params: idParamSchema },
-  responses: {
-    204: { description: "No Content" },
-    ...errorResponses(401, 404),
-  },
-});
-
-const cloneSharedDeck = createRoute({
-  method: "post",
-  path: "/share/{token}/clone",
-  tags: ["Decks"],
-  security: cookieAuth,
-  request: { params: shareTokenParamSchema },
-  responses: {
-    201: {
-      headers: z.object({
-        Location: z.string().openapi({ description: "URL of the cloned deck" }),
-      }),
-      content: { "application/json": { schema: deckCloneResponseSchema } },
-      description: "Cloned",
-    },
-    ...errorResponses(401, 404),
-  },
-});
-
-const decksApp = createApiApp().basePath("/decks");
-decksApp.use(requireAuth);
-export const decksRoute = decksApp
+/**
+ * oRPC implementation of the authenticated decks contract (mounted at
+ * `/api/v1/decks`). Logic unchanged from the previous `@hono/zod-openapi`
+ * handlers; bad-request and not-found states are thrown as `AppError` and
+ * mapped to ORPCErrors by the handler's appErrorInterceptor. The `201`
+ * `Location` headers on create / clone are dropped — no consumer read them.
+ */
+export const decksRouter = {
   // ── LIST ────────────────────────────────────────────────────────────────────
-  .openapi(listDecks, async (c) => {
-    const { decks, marketplace, userPreferences, enums } = c.get("repos");
-    const userId = getUserId(c);
-    const { wanted, includeArchived } = c.req.valid("query");
+  list: os.list.handler(async ({ input, context }): Promise<DeckListResponse> => {
+    const { decks, marketplace, userPreferences, enums } = context.repos;
+    const userId = requireUserId(context.user);
 
     const [deckRows, allCards, prefs, enumRows] = await Promise.all([
       decks.listForUser(userId, {
-        wantedOnly: wanted === "true",
-        includeArchived: includeArchived === "true",
+        wantedOnly: input.wanted === "true",
+        includeArchived: input.includeArchived === "true",
       }),
       decks.allCardsForUser(userId),
       userPreferences.getByUserId(userId),
@@ -619,63 +309,57 @@ export const decksRoute = decksApp
       };
     });
 
-    return c.json({ items } satisfies DeckListResponse, 200);
-  })
+    return { items };
+  }),
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
-  .openapi(createDeck, async (c) => {
-    const { decks, deckFormats, customTags } = c.get("repos");
-    const userId = getUserId(c);
-    const body = c.req.valid("json");
-    await assertKnownFormat(deckFormats, body.format);
-    const formatConfig = await validateFormatConfig(customTags, body.format, body.formatConfig);
+  create: os.create.handler(async ({ input, context }) => {
+    const { decks, deckFormats, customTags } = context.repos;
+    const userId = requireUserId(context.user);
+    await assertKnownFormat(deckFormats, input.format);
+    const formatConfig = await validateFormatConfig(customTags, input.format, input.formatConfig);
     const row = await decks.create({
       userId,
-      name: body.name,
-      description: body.description ?? null,
-      format: body.format,
+      name: input.name,
+      description: input.description ?? null,
+      format: input.format,
       formatConfig,
-      isWanted: body.isWanted ?? false,
-      isPublic: body.isPublic ?? false,
+      isWanted: input.isWanted ?? false,
+      isPublic: input.isPublic ?? false,
     });
-    c.header("Location", `/api/v1/decks/${row.id}`);
-    return c.json(toDeck(row), 201);
-  })
+    return toDeck(row);
+  }),
 
   // ── GET ONE ────────────────────────────────────────────────────────────────
-  .openapi(getDeck, async (c) => {
-    const { decks } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
+  get: os.get.handler(async ({ input, context }): Promise<DeckDetailResponse> => {
+    const { decks } = context.repos;
+    const userId = requireUserId(context.user);
 
     const [deck, cardRows] = await Promise.all([
-      decks.getByIdForUser(id, userId),
-      decks.cardsForDeck(id, userId),
+      decks.getByIdForUser(input.id, userId),
+      decks.cardsForDeck(input.id, userId),
     ]);
     assertFound(deck, "Not found");
 
-    const detail: DeckDetailResponse = {
+    return {
       deck: toDeck(deck),
       cards: cardRows.map((r) => toDeckCard(r)),
     };
-    return c.json(detail, 200);
-  })
+  }),
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
-  .openapi(updateDeck, async (c) => {
-    const { decks, deckFormats, customTags } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
-    const body = c.req.valid("json");
-    if (body.format !== undefined) {
-      await assertKnownFormat(deckFormats, body.format);
+  update: os.update.handler(async ({ input, context }) => {
+    const { decks, deckFormats, customTags } = context.repos;
+    const userId = requireUserId(context.user);
+    if (input.format !== undefined) {
+      await assertKnownFormat(deckFormats, input.format);
     }
     // Decide which format the resulting deck will be under, so format_config
-    // is validated against the right shape — body.format wins, falling back
+    // is validated against the right shape — input.format wins, falling back
     // to the deck's current format when only the config is being patched.
-    let effectiveFormat = body.format;
-    if (effectiveFormat === undefined && body.formatConfig !== undefined) {
-      const current = await decks.getIdAndFormat(id, userId);
+    let effectiveFormat = input.format;
+    if (effectiveFormat === undefined && input.formatConfig !== undefined) {
+      const current = await decks.getIdAndFormat(input.id, userId);
       assertFound(current, "Not found");
       effectiveFormat = current.format;
     }
@@ -686,46 +370,42 @@ export const decksRoute = decksApp
     //      old config so a Custom-Region deck switched to constructed
     //      doesn't keep a stale tagSlugs, and a deck switched INTO
     //      Custom-Region lands in the "pick a region" banner state.
-    const normalized: Record<string, unknown> = { ...body };
-    if (body.formatConfig !== undefined && effectiveFormat !== undefined) {
+    const normalized: Record<string, unknown> = { ...input };
+    if (input.formatConfig !== undefined && effectiveFormat !== undefined) {
       normalized.formatConfig = await validateFormatConfig(
         customTags,
         effectiveFormat,
-        body.formatConfig,
+        input.formatConfig,
       );
-    } else if (body.format !== undefined && body.formatConfig === undefined) {
+    } else if (input.format !== undefined && input.formatConfig === undefined) {
       normalized.formatConfig = null;
     }
     const updates = buildPatchUpdates<DeckUpdateInput>(normalized, patchFields);
-    const row = await decks.update(id, userId, updates);
+    const row = await decks.update(input.id, userId, updates);
     assertFound(row, "Not found");
-    return c.json(toDeck(row), 200);
-  })
+    return toDeck(row);
+  }),
 
   // ── DELETE ──────────────────────────────────────────────────────────────────
-  .openapi(deleteDeck, async (c) => {
-    const { decks } = c.get("repos");
-    const { id } = c.req.valid("param");
-    const result = await decks.deleteByIdForUser(id, getUserId(c));
+  remove: os.remove.handler(async ({ input, context }): Promise<void> => {
+    const { decks } = context.repos;
+    const result = await decks.deleteByIdForUser(input.id, requireUserId(context.user));
     assertDeleted(result, "Not found");
-    return c.body(null, 204);
-  })
+  }),
 
   // ── PUT /decks/:id/cards ──────────────────────────────────────────────────
   // Full replace of deck cards
-  .openapi(replaceDeckCards, async (c) => {
-    const { decks } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
-    const body = c.req.valid("json");
+  replaceCards: os.replaceCards.handler(async ({ input, context }) => {
+    const { decks } = context.repos;
+    const userId = requireUserId(context.user);
 
     // Verify deck belongs to user
-    const deck = await decks.getIdAndFormat(id, userId);
+    const deck = await decks.getIdAndFormat(input.id, userId);
     assertFound(deck, "Not found");
 
     await decks.replaceCards(
-      id,
-      body.cards.map((card) => ({
+      input.id,
+      input.cards.map((card) => ({
         cardId: card.cardId,
         zone: card.zone as DeckZone,
         quantity: card.quantity,
@@ -733,51 +413,47 @@ export const decksRoute = decksApp
       })),
     );
 
-    const cardRows = await decks.cardsForDeck(id, userId);
-
-    return c.json({ cards: cardRows.map((r) => toDeckCard(r)) }, 200);
-  })
+    const cardRows = await decks.cardsForDeck(input.id, userId);
+    return { cards: cardRows.map((r) => toDeckCard(r)) };
+  }),
 
   // ── GET /decks/:id/plan ───────────────────────────────────────────────────
   // The deck's plan (ADR-029). Always returns an object; deck-level fields are
   // empty and matchups [] when the deck has no plan yet.
-  .openapi(getDeckPlan, async (c) => {
-    const { decks, deckPlans } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
+  getPlan: os.getPlan.handler(async ({ input, context }) => {
+    const { decks, deckPlans } = context.repos;
+    const userId = requireUserId(context.user);
 
-    const deck = await decks.getIdAndFormat(id, userId);
+    const deck = await decks.getIdAndFormat(input.id, userId);
     assertFound(deck, "Not found");
 
-    const data = await deckPlans.getForDeck(id);
-    return c.json({ plan: toDeckPlan(data) }, 200);
-  })
+    const data = await deckPlans.getForDeck(input.id);
+    return { plan: toDeckPlan(data) };
+  }),
 
   // ── PUT /decks/:id/plan ───────────────────────────────────────────────────
   // Full replace of the deck's plan, saved as a unit by the editor.
-  .openapi(replaceDeckPlan, async (c) => {
-    const { decks, deckPlans, catalog } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
-    const body = c.req.valid("json");
+  replacePlan: os.replacePlan.handler(async ({ input, context }) => {
+    const { decks, deckPlans, catalog } = context.repos;
+    const userId = requireUserId(context.user);
 
-    const deck = await decks.getIdAndFormat(id, userId);
+    const deck = await decks.getIdAndFormat(input.id, userId);
     assertFound(deck, "Not found");
 
-    await validateDeckPlan(catalog, body);
+    await validateDeckPlan(catalog, input);
 
-    await deckPlans.replaceForDeck(id, {
-      generalStrategy: body.generalStrategy,
-      mulliganSplit: body.mulliganSplit,
-      mulliganGeneral: body.mulliganGeneral,
-      mulliganFirst: body.mulliganFirst,
-      mulliganSecond: body.mulliganSecond,
-      battlefieldG1CardId: body.battlefieldGame1CardId,
-      battlefieldFirstCardId: body.battlefieldFirstCardId,
-      battlefieldSecondCardId: body.battlefieldSecondCardId,
-      battlefieldCustom: body.battlefieldCustom,
-      battlefieldNote: body.battlefieldNote,
-      matchups: body.matchups.map((matchup) => ({
+    await deckPlans.replaceForDeck(input.id, {
+      generalStrategy: input.generalStrategy,
+      mulliganSplit: input.mulliganSplit,
+      mulliganGeneral: input.mulliganGeneral,
+      mulliganFirst: input.mulliganFirst,
+      mulliganSecond: input.mulliganSecond,
+      battlefieldG1CardId: input.battlefieldGame1CardId,
+      battlefieldFirstCardId: input.battlefieldFirstCardId,
+      battlefieldSecondCardId: input.battlefieldSecondCardId,
+      battlefieldCustom: input.battlefieldCustom,
+      battlefieldNote: input.battlefieldNote,
+      matchups: input.matchups.map((matchup) => ({
         opponentCardId: matchup.opponentCardId,
         opponentLabel: matchup.opponentLabel,
         notes: matchup.notes,
@@ -789,67 +465,63 @@ export const decksRoute = decksApp
       })),
     });
 
-    const data = await deckPlans.getForDeck(id);
-    return c.json({ plan: toDeckPlan(data) }, 200);
-  })
+    const data = await deckPlans.getForDeck(input.id);
+    return { plan: toDeckPlan(data) };
+  }),
 
   // ── POST /decks/:id/clone ─────────────────────────────────────────────────
-  .openapi(cloneDeck, async (c) => {
-    const { decks } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
+  clone: os.clone.handler(async ({ input, context }) => {
+    const { decks } = context.repos;
+    const userId = requireUserId(context.user);
 
-    const newDeck = await decks.cloneDeck(id, userId);
+    const newDeck = await decks.cloneDeck(input.id, userId);
     assertFound(newDeck, "Not found");
-
-    c.header("Location", `/api/v1/decks/${newDeck.id}`);
-    return c.json(toDeck(newDeck), 201);
-  })
+    return toDeck(newDeck);
+  }),
 
   // ── GET /decks/:id/availability ───────────────────────────────────────────
   // For a wanted deck, returns per-card availability from deckbuilding collections
-  .openapi(getDeckAvailability, async (c) => {
-    const { decks } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
+  availability: os.availability.handler(
+    async ({ input, context }): Promise<DeckAvailabilityResponse> => {
+      const { decks } = context.repos;
+      const userId = requireUserId(context.user);
 
-    const deck = await decks.exists(id, userId);
-    assertFound(deck, "Not found");
+      const deck = await decks.exists(input.id, userId);
+      assertFound(deck, "Not found");
 
-    const deckCards = await decks.cardRequirements(id);
-    const cardIds = deckCards.map((dc) => dc.cardId);
-    const availableCopies =
-      cardIds.length > 0 ? await decks.availableCopiesByCard(userId, cardIds) : [];
+      const deckCards = await decks.cardRequirements(input.id);
+      const cardIds = deckCards.map((dc) => dc.cardId);
+      const availableCopies =
+        cardIds.length > 0 ? await decks.availableCopiesByCard(userId, cardIds) : [];
 
-    const ownedByCard = new Map<string, number>();
-    for (const row of availableCopies) {
-      ownedByCard.set(row.cardId, row.count);
-    }
+      const ownedByCard = new Map<string, number>();
+      for (const row of availableCopies) {
+        ownedByCard.set(row.cardId, row.count);
+      }
 
-    const availability: DeckAvailabilityItemResponse[] = deckCards.map((dc) =>
-      toDeckAvailabilityItem({
-        cardId: dc.cardId,
-        zone: dc.zone,
-        needed: dc.quantity,
-        owned: ownedByCard.get(dc.cardId) ?? 0,
-        shortfall: Math.max(0, dc.quantity - (ownedByCard.get(dc.cardId) ?? 0)),
-      }),
-    );
+      const availability: DeckAvailabilityItemResponse[] = deckCards.map((dc) =>
+        toDeckAvailabilityItem({
+          cardId: dc.cardId,
+          zone: dc.zone,
+          needed: dc.quantity,
+          owned: ownedByCard.get(dc.cardId) ?? 0,
+          shortfall: Math.max(0, dc.quantity - (ownedByCard.get(dc.cardId) ?? 0)),
+        }),
+      );
 
-    return c.json({ items: availability } satisfies DeckAvailabilityResponse, 200);
-  })
+      return { items: availability };
+    },
+  ),
 
   // ── GET /decks/:id/export ────────────────────────────────────────────────
   // Encode a deck as a shareable deck code
-  .openapi(exportDeck, async (c) => {
-    const { decks, canonicalPrintings } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
-    const { format } = c.req.valid("query");
+  export: os.export.handler(async ({ input, context }): Promise<DeckExportResponse> => {
+    const { decks, canonicalPrintings } = context.repos;
+    const userId = requireUserId(context.user);
 
     const [deck, cardRows] = await Promise.all([
-      decks.getByIdForUser(id, userId),
-      decks.cardsWithDetails(id, userId),
+      decks.getByIdForUser(input.id, userId),
+      decks.cardsWithDetails(input.id, userId),
     ]);
     assertFound(deck, "Not found");
 
@@ -882,97 +554,71 @@ export const decksRoute = decksApp
     }
 
     let result;
-    if (format === "text") {
+    if (input.format === "text") {
       result = encodeText(codecCards);
-    } else if (format === "tts") {
+    } else if (input.format === "tts") {
       result = encodeTTS(codecCards);
     } else {
       result = piltoverCodec.encode(codecCards);
     }
 
-    return c.json(
-      {
-        code: result.code,
-        warnings: [...warnings, ...result.warnings],
-      } satisfies DeckExportResponse,
-      200,
-    );
-  })
+    return { code: result.code, warnings: [...warnings, ...result.warnings] };
+  }),
 
   // ── PATCH /decks/:id/pin ──────────────────────────────────────────────────
-  .openapi(setDeckPinned, async (c) => {
-    const { decks } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
-    const { isPinned } = c.req.valid("json");
+  setPinned: os.setPinned.handler(async ({ input, context }) => {
+    const { decks } = context.repos;
+    const userId = requireUserId(context.user);
 
-    const updated = await decks.setPinned(id, userId, isPinned);
+    const updated = await decks.setPinned(input.id, userId, input.isPinned);
     assertFound(updated, "Not found");
-
-    return c.json(toDeck(updated), 200);
-  })
+    return toDeck(updated);
+  }),
 
   // ── PATCH /decks/:id/archive ──────────────────────────────────────────────
-  .openapi(setDeckArchived, async (c) => {
-    const { decks } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
-    const { archived } = c.req.valid("json");
+  setArchived: os.setArchived.handler(async ({ input, context }) => {
+    const { decks } = context.repos;
+    const userId = requireUserId(context.user);
 
-    const updated = await decks.setArchived(id, userId, archived);
+    const updated = await decks.setArchived(input.id, userId, input.archived);
     assertFound(updated, "Not found");
-
-    return c.json(toDeck(updated), 200);
-  })
+    return toDeck(updated);
+  }),
 
   // ── GET /decks/:id/share ──────────────────────────────────────────────────
   // Reports the deck's current share state. Owner-only. An owned-but-unshared
   // deck returns { shareToken: null, isPublic: false } rather than 404ing;
   // only a missing or foreign deck 404s.
-  .openapi(getDeckShare, async (c) => {
-    const { decks } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
+  getShare: os.getShare.handler(async ({ input, context }): Promise<DeckShareResponse> => {
+    const { decks } = context.repos;
+    const userId = requireUserId(context.user);
 
-    const state = await decks.getShareState(id, userId);
+    const state = await decks.getShareState(input.id, userId);
     assertFound(state, "Not found");
 
-    return c.json(
-      {
-        shareToken: state.shareToken,
-        isPublic: state.isPublic,
-      } satisfies DeckShareResponse,
-      200,
-    );
-  })
+    return { shareToken: state.shareToken, isPublic: state.isPublic };
+  }),
 
   // ── POST /decks/:id/share ─────────────────────────────────────────────────
   // Idempotent enable: if the deck already has a token, return the existing
   // share state unchanged; otherwise mint one and flip is_public=true.
   // Rotation lives at POST /decks/:id/share/rotate to avoid surprise churn.
-  .openapi(shareDeck, async (c) => {
-    const { decks } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
+  share: os.share.handler(async ({ input, context }): Promise<DeckShareResponse> => {
+    const { decks } = context.repos;
+    const userId = requireUserId(context.user);
 
-    const existing = await decks.getShareState(id, userId);
+    const existing = await decks.getShareState(input.id, userId);
     assertFound(existing, "Not found");
     if (existing.shareToken !== null && existing.isPublic) {
-      return c.json(
-        {
-          shareToken: existing.shareToken,
-          isPublic: existing.isPublic,
-        } satisfies DeckShareResponse,
-        200,
-      );
+      return { shareToken: existing.shareToken, isPublic: existing.isPublic };
     }
 
     const token = generateShareToken();
-    const updated = await decks.setShareToken(id, userId, token, true);
+    const updated = await decks.setShareToken(input.id, userId, token, true);
     assertFound(updated, "Not found");
 
-    return c.json({ shareToken: token, isPublic: true } satisfies DeckShareResponse, 200);
-  })
+    return { shareToken: token, isPublic: true };
+  }),
 
   // ── POST /decks/:id/share/rotate ──────────────────────────────────────────
   // Overwrites the existing token with a fresh one; the previous URL stops
@@ -980,41 +626,35 @@ export const decksRoute = decksApp
   // acts as "share now" (mints a token and flips is_public=true) — chosen over
   // 409 since setShareToken already supports the create-from-unshared path
   // cleanly and it matches the user-share rotate precedent.
-  .openapi(rotateDeckShare, async (c) => {
-    const { decks } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
+  rotateShare: os.rotateShare.handler(async ({ input, context }): Promise<DeckShareResponse> => {
+    const { decks } = context.repos;
+    const userId = requireUserId(context.user);
 
     const token = generateShareToken();
-    const updated = await decks.setShareToken(id, userId, token, true);
+    const updated = await decks.setShareToken(input.id, userId, token, true);
     assertFound(updated, "Not found");
 
-    return c.json({ shareToken: token, isPublic: true } satisfies DeckShareResponse, 200);
-  })
+    return { shareToken: token, isPublic: true };
+  }),
 
   // ── DELETE /decks/:id/share ───────────────────────────────────────────────
   // Nulls the share token and flips is_public=false. Old links 404 forever.
-  .openapi(unshareDeck, async (c) => {
-    const { decks } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
+  unshare: os.unshare.handler(async ({ input, context }): Promise<void> => {
+    const { decks } = context.repos;
+    const userId = requireUserId(context.user);
 
-    const updated = await decks.setShareToken(id, userId, null, false);
+    const updated = await decks.setShareToken(input.id, userId, null, false);
     assertFound(updated, "Not found");
-
-    return c.body(null, 204);
-  })
+  }),
 
   // ── POST /decks/share/:token/clone ────────────────────────────────────────
   // Any logged-in user can clone a publicly shared deck into their account.
-  .openapi(cloneSharedDeck, async (c) => {
-    const { decks } = c.get("repos");
-    const userId = getUserId(c);
-    const { token } = c.req.valid("param");
+  cloneShared: os.cloneShared.handler(async ({ input, context }) => {
+    const { decks } = context.repos;
+    const userId = requireUserId(context.user);
 
-    const newDeck = await decks.cloneFromShareToken(token, userId);
+    const newDeck = await decks.cloneFromShareToken(input.token, userId);
     assertFound(newDeck, "Not found");
-
-    c.header("Location", `/api/v1/decks/${newDeck.id}`);
-    return c.json({ deckId: newDeck.id }, 201);
-  });
+    return { deckId: newDeck.id };
+  }),
+};

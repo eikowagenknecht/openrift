@@ -1,11 +1,12 @@
 import type { MarketplaceGroupKind } from "@openrift/shared";
+import type { MarketplaceGroupsResponse } from "@openrift/shared/contracts";
+import { adminMarketplaceGroupsContract } from "@openrift/shared/contracts";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
-import type { MarketplaceGroupsResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 export type { MarketplaceGroup } from "@/lib/server-fns/api-types";
@@ -14,10 +15,7 @@ const fetchMarketplaceGroups = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<MarketplaceGroupsResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["marketplace-groups"].$get(),
-        "Couldn't load marketplace groups",
-      ),
+      apiOrpcClient(adminMarketplaceGroupsContract, context.cookie).list(),
   );
 
 export const marketplaceGroupsQueryOptions = queryOptions({
@@ -42,15 +40,11 @@ const updateMarketplaceGroupFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     const { marketplace, groupId, ...patch } = data;
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["marketplace-groups"][":marketplace"][
-        ":id"
-      ].$patch({
-        param: encodeParams({ marketplace, id: String(groupId) }),
-        json: patch,
-      }),
-      "Couldn't update marketplace group",
-    );
+    await apiOrpcClient(adminMarketplaceGroupsContract, context.cookie).update({
+      marketplace,
+      id: groupId,
+      ...patch,
+    });
   });
 
 export function useUpdateMarketplaceGroup() {

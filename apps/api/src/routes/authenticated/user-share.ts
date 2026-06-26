@@ -1,127 +1,59 @@
-import { createRoute } from "@hono/zod-openapi";
 import type { UserShareStateResponse } from "@openrift/shared";
-import { userShareStateResponseSchema } from "@openrift/shared/response-schemas";
+import { userShareContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
-import { getUserId } from "../../middleware/get-user-id.js";
-import { requireAuth } from "../../middleware/require-auth.js";
-import { cookieAuth, errorResponses } from "../../openapi-helpers.js";
-import { createApiApp } from "../../openapi.js";
-import { assertFound } from "../../utils/assertions.js";
+import { requireUserId } from "../../middleware/get-user-id.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 import { generateShareToken } from "../../utils/share-token.js";
 
-const getShareState = createRoute({
-  method: "get",
-  path: "/",
-  tags: ["User Share"],
-  security: cookieAuth,
-  responses: {
-    200: {
-      content: { "application/json": { schema: userShareStateResponseSchema } },
-      description: "Current bundle share state for the signed-in user",
-    },
-    ...errorResponses(401),
-  },
-});
-
-const enableShare = createRoute({
-  method: "post",
-  path: "/",
-  tags: ["User Share"],
-  security: cookieAuth,
-  responses: {
-    200: {
-      content: { "application/json": { schema: userShareStateResponseSchema } },
-      description: "Bundle share enabled (idempotent — returns the existing token if already on)",
-    },
-    ...errorResponses(401, 404),
-  },
-});
-
-const disableShare = createRoute({
-  method: "delete",
-  path: "/",
-  tags: ["User Share"],
-  security: cookieAuth,
-  responses: {
-    204: { description: "No Content" },
-    ...errorResponses(401, 404),
-  },
-});
-
-const rotateShare = createRoute({
-  method: "post",
-  path: "/rotate",
-  tags: ["User Share"],
-  security: cookieAuth,
-  responses: {
-    200: {
-      content: { "application/json": { schema: userShareStateResponseSchema } },
-      description: "Bundle share token rotated",
-    },
-    ...errorResponses(401, 404),
-  },
-});
-
-const userShareApp = createApiApp().basePath("/users/me/share");
-userShareApp.use(requireAuth);
+const os = implement(userShareContract).$context<ApiContext>().use(requireUser);
 
 /**
- * Endpoints for the signed-in user to manage their bundle share token
- * (see ADR-018). The token gates `/users/share/:token` and resolves to the
- * user's wish + trade lists.
+ * oRPC implementation of the signed-in user's bundle-share management
+ * (ADR-018). Logic unchanged from the previous handlers; the "user not found"
+ * cases are typed NOT_FOUND errors instead of assertFound's thrown AppError.
  */
-export const userShareRoute = userShareApp
-  // ── GET /users/me/share ─────────────────────────────────────────────────
-  .openapi(getShareState, async (c) => {
-    const { userShares } = c.get("repos");
-    const row = await userShares.getShareToken(getUserId(c));
-    return c.json(
-      {
-        shareToken: row?.shareToken ?? null,
-        isPublic: Boolean(row?.shareToken),
-      } satisfies UserShareStateResponse,
-      200,
-    );
-  })
+export const userShareRouter = {
+  get: os.get.handler(async ({ context }): Promise<UserShareStateResponse> => {
+    const { userShares } = context.repos;
+    const row = await userShares.getShareToken(requireUserId(context.user));
+    return { shareToken: row?.shareToken ?? null, isPublic: Boolean(row?.shareToken) };
+  }),
 
-  // ── POST /users/me/share ────────────────────────────────────────────────
-  // Idempotent enable: if a token already exists, return it; otherwise mint
-  // one. Rotation is a separate endpoint to avoid surprise token churn.
-  .openapi(enableShare, async (c) => {
-    const { userShares } = c.get("repos");
-    const userId = getUserId(c);
+  // Idempotent enable: return the existing token if present, else mint one.
+  enable: os.enable.handler(async ({ context, errors }): Promise<UserShareStateResponse> => {
+    const { userShares } = context.repos;
+    const userId = requireUserId(context.user);
     const current = await userShares.getShareToken(userId);
     if (current?.shareToken) {
-      return c.json(
-        { shareToken: current.shareToken, isPublic: true } satisfies UserShareStateResponse,
-        200,
-      );
+      return { shareToken: current.shareToken, isPublic: true };
     }
     const updated = await userShares.setShareToken(userId, generateShareToken());
-    assertFound(updated, "User not found");
-    return c.json(
-      { shareToken: updated.shareToken, isPublic: true } satisfies UserShareStateResponse,
-      200,
-    );
-  })
+    if (!updated) {
+      throw errors.NOT_FOUND({ message: "User not found" });
+    }
+    return { shareToken: updated.shareToken, isPublic: true };
+  }),
 
-  // ── DELETE /users/me/share ──────────────────────────────────────────────
-  .openapi(disableShare, async (c) => {
-    const { userShares } = c.get("repos");
-    const updated = await userShares.setShareToken(getUserId(c), null);
-    assertFound(updated, "User not found");
-    return c.body(null, 204);
-  })
+  disable: os.disable.handler(async ({ context, errors }): Promise<void> => {
+    const { userShares } = context.repos;
+    const updated = await userShares.setShareToken(requireUserId(context.user), null);
+    if (!updated) {
+      throw errors.NOT_FOUND({ message: "User not found" });
+    }
+  }),
 
-  // ── POST /users/me/share/rotate ─────────────────────────────────────────
-  // Overwrites the existing token. The previous URL stops resolving
-  // immediately; the new URL is returned.
-  .openapi(rotateShare, async (c) => {
-    const { userShares } = c.get("repos");
-    const updated = await userShares.setShareToken(getUserId(c), generateShareToken());
-    assertFound(updated, "User not found");
-    return c.json(
-      { shareToken: updated.shareToken, isPublic: true } satisfies UserShareStateResponse,
-      200,
+  // Overwrites the existing token; the previous URL stops resolving at once.
+  rotate: os.rotate.handler(async ({ context, errors }): Promise<UserShareStateResponse> => {
+    const { userShares } = context.repos;
+    const updated = await userShares.setShareToken(
+      requireUserId(context.user),
+      generateShareToken(),
     );
-  });
+    if (!updated) {
+      throw errors.NOT_FOUND({ message: "User not found" });
+    }
+    return { shareToken: updated.shareToken, isPublic: true };
+  }),
+};

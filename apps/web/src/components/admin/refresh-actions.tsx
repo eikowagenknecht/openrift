@@ -1,9 +1,10 @@
 import type { JobRunStartedResponse } from "@openrift/shared";
+import { adminJobRunsContract, adminOperationsContract } from "@openrift/shared/contracts";
+import type { JobRunsListResponse } from "@openrift/shared/contracts";
 import { createServerFn } from "@tanstack/react-start";
 
-import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
-import type { JobRunsListResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -34,30 +35,21 @@ const refreshTcgplayerPricesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<JobRunStartedResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["refresh-tcgplayer-prices"].$post(),
-        "Couldn't start TCGPlayer price refresh",
-      ),
+      apiOrpcClient(adminOperationsContract, context.cookie).refreshTcgplayer(),
   );
 
 const refreshCardmarketPricesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<JobRunStartedResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["refresh-cardmarket-prices"].$post(),
-        "Couldn't start Cardmarket price refresh",
-      ),
+      apiOrpcClient(adminOperationsContract, context.cookie).refreshCardmarket(),
   );
 
 const refreshCardtraderPricesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<JobRunStartedResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["refresh-cardtrader-prices"].$post(),
-        "Couldn't start CardTrader price refresh",
-      ),
+      apiOrpcClient(adminOperationsContract, context.cookie).refreshCardtrader(),
   );
 
 // ── Server function for polling latest job run for a kind ─────────────────
@@ -67,12 +59,7 @@ export const getLatestJobRunFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<JobRunsListResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["job-runs"].$get({
-          query: { kind: data.kind, limit: "1" },
-        }),
-        "Couldn't fetch job runs",
-      ),
+      apiOrpcClient(adminJobRunsContract, context.cookie).list({ kind: data.kind, limit: 1 }),
   );
 
 // ── Action configs ──────────────────────────────────────────────────────────

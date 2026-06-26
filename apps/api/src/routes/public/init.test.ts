@@ -1,21 +1,28 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { initRoute } from "./init";
+import { registerRouterForTest } from "../../test/mount-router.js";
+import type { Variables } from "../../types.js";
+import { initRouter } from "./init";
+
+// Must include every enum key the response schema declares (languages +
+// markers included) — oRPC validates the handler output, so an incomplete
+// fixture 500s where the old unvalidated Hono response let it slide.
+const emptyEnums = {
+  cardTypes: [],
+  rarities: [],
+  domains: [],
+  superTypes: [],
+  finishes: [],
+  artVariants: [],
+  deckFormats: [],
+  deckZones: [],
+  languages: [],
+  markers: [],
+};
 
 const mockEnumsRepo = {
-  all: vi.fn(() =>
-    Promise.resolve({
-      cardTypes: [],
-      rarities: [],
-      domains: [],
-      superTypes: [],
-      finishes: [],
-      artVariants: [],
-      deckFormats: [],
-      deckZones: [],
-    }),
-  ),
+  all: vi.fn(() => Promise.resolve(emptyEnums)),
 };
 
 const mockKeywordsRepo = {
@@ -37,18 +44,19 @@ const mockCatalogRepo = {
   championIdentifierTags: vi.fn(() => Promise.resolve([] as string[])),
 };
 
-const app = new Hono()
-  .use("*", async (c, next) => {
-    c.set("repos", {
-      enums: mockEnumsRepo,
-      keywords: mockKeywordsRepo,
-      distributionChannels: mockDistributionChannelsRepo,
-      customTags: mockCustomTagsRepo,
-      catalog: mockCatalogRepo,
-    } as never);
-    await next();
-  })
-  .route("/api/v1", initRoute);
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  c.set("repos", {
+    enums: mockEnumsRepo,
+    keywords: mockKeywordsRepo,
+    distributionChannels: mockDistributionChannelsRepo,
+    customTags: mockCustomTagsRepo,
+    catalog: mockCatalogRepo,
+    // oxlint-disable-next-line no-explicit-any -- test mock doesn't match full Repos type
+  } as any);
+  await next();
+});
+registerRouterForTest(app, initRouter);
 
 describe("GET /api/v1/init", () => {
   beforeEach(() => {
@@ -58,16 +66,7 @@ describe("GET /api/v1/init", () => {
     mockDistributionChannelsRepo.listAll.mockReset();
     mockCustomTagsRepo.listAll.mockReset();
     mockCatalogRepo.championIdentifierTags.mockReset();
-    mockEnumsRepo.all.mockResolvedValue({
-      cardTypes: [],
-      rarities: [],
-      domains: [],
-      superTypes: [],
-      finishes: [],
-      artVariants: [],
-      deckFormats: [],
-      deckZones: [],
-    });
+    mockEnumsRepo.all.mockResolvedValue(emptyEnums);
     mockKeywordsRepo.listAll.mockResolvedValue([]);
     mockKeywordsRepo.listAllTranslations.mockResolvedValue([]);
     mockDistributionChannelsRepo.listAll.mockResolvedValue([]);
@@ -85,14 +84,8 @@ describe("GET /api/v1/init", () => {
 
   it("returns enum data with isWellKnown stripped", async () => {
     mockEnumsRepo.all.mockResolvedValue({
+      ...emptyEnums,
       cardTypes: [{ slug: "creature", label: "Creature", sortOrder: 1, isWellKnown: true }],
-      rarities: [],
-      domains: [],
-      superTypes: [],
-      finishes: [],
-      artVariants: [],
-      deckFormats: [],
-      deckZones: [],
     });
     const res = await app.request("/api/v1/init");
     const json = await res.json();
@@ -131,13 +124,6 @@ describe("GET /api/v1/init", () => {
     const res = await app.request("/api/v1/init");
     const json = await res.json();
     expect(json.keywords.Shield.translations).toBeUndefined();
-  });
-
-  it("sets Cache-Control with public caching", async () => {
-    const res = await app.request("/api/v1/init");
-    expect(res.headers.get("Cache-Control")).toBe(
-      "public, max-age=3600, stale-while-revalidate=86400",
-    );
   });
 
   it("fetches all data in parallel", async () => {

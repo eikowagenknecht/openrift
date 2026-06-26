@@ -1,7 +1,10 @@
+import {
+  adminCardMutationsContract,
+  adminUnifiedMappingsContract,
+} from "@openrift/shared/contracts";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import type {
   AcceptCardFieldBody,
   AcceptNewCardBody,
@@ -12,6 +15,7 @@ import type {
   PatchCandidatePrintingBody,
 } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 // Request bodies derived from the route schemas (api-types). Re-exported for the
@@ -31,87 +35,65 @@ const checkCandidateCardFn = createServerFn({ method: "POST" })
   .validator((input: { candidateCardId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards[":candidateCardId"].check.$post({
-        param: encodeParams({ candidateCardId: data.candidateCardId }),
-      }),
-      "Couldn't check candidate card",
-    );
+    await apiOrpcClient(adminCardMutationsContract, context.cookie).checkCandidateCard({
+      candidateCardId: data.candidateCardId,
+    });
   });
 
 const uncheckCandidateCardFn = createServerFn({ method: "POST" })
   .validator((input: { candidateCardId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards[":candidateCardId"].uncheck.$post({
-        param: encodeParams({ candidateCardId: data.candidateCardId }),
-      }),
-      "Couldn't uncheck candidate card",
-    );
+    await apiOrpcClient(adminCardMutationsContract, context.cookie).uncheckCandidateCard({
+      candidateCardId: data.candidateCardId,
+    });
   });
 
 const checkAllCandidateCardsFn = createServerFn({ method: "POST" })
   .validator((input: { cardId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards[":cardId"]["check-all"].$post({
-        param: encodeParams({ cardId: data.cardId }),
-      }),
-      "Couldn't check all candidate cards",
-    );
+    await apiOrpcClient(adminCardMutationsContract, context.cookie).checkAllForCard({
+      cardId: data.cardId,
+    });
   });
 
 const checkCandidatePrintingFn = createServerFn({ method: "POST" })
   .validator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards["candidate-printings"][":id"].check.$post({
-        param: encodeParams({ id: data.id }),
-      }),
-      "Couldn't check candidate printing",
-    );
+    await apiOrpcClient(adminCardMutationsContract, context.cookie).checkCandidatePrinting({
+      id: data.id,
+    });
   });
 
 const uncheckCandidatePrintingFn = createServerFn({ method: "POST" })
   .validator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards["candidate-printings"][
-        ":id"
-      ].uncheck.$post({
-        param: encodeParams({ id: data.id }),
-      }),
-      "Couldn't uncheck candidate printing",
-    );
+    await apiOrpcClient(adminCardMutationsContract, context.cookie).uncheckCandidatePrinting({
+      id: data.id,
+    });
   });
 
 const checkAllCandidatePrintingsFn = createServerFn({ method: "POST" })
   .validator((input: { printingId?: string; extraIds?: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards["candidate-printings"]["check-all"].$post({
-        json: { printingId: data.printingId, extraIds: data.extraIds },
-      }),
-      "Couldn't check all candidate printings",
-    );
+    await apiOrpcClient(adminCardMutationsContract, context.cookie).checkAllCandidatePrintings({
+      printingId: data.printingId,
+      extraIds: data.extraIds,
+    });
   });
 
 const renameCardFn = createServerFn({ method: "POST" })
   .validator((input: { cardId: string; newId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards[":cardId"].rename.$post({
-        param: encodeParams({ cardId: data.cardId }),
-        json: { newId: data.newId },
-      }),
-      "Couldn't rename card",
-    );
+    await apiOrpcClient(adminCardMutationsContract, context.cookie).renameCard({
+      cardId: data.cardId,
+      newId: data.newId,
+    });
   });
 
 const acceptCardFieldFn = createServerFn({ method: "POST" })
@@ -121,19 +103,14 @@ const acceptCardFieldFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards[":cardId"]["accept-field"].$post({
-        param: encodeParams({ cardId: data.cardId }),
-        // The field-editor passes a dynamic string key; the enum is validated
-        // server-side, so cast at the boundary (matches api-types convention).
-        json: {
-          field: data.field as AcceptCardFieldBody["field"],
-          value: data.value,
-          source: data.source,
-        },
-      }),
-      "Couldn't accept card field",
-    );
+    // The field-editor passes a dynamic string key; the enum is validated
+    // server-side, so cast at the boundary (matches api-types convention).
+    await apiOrpcClient(adminCardMutationsContract, context.cookie).acceptField({
+      cardId: data.cardId,
+      field: data.field as AcceptCardFieldBody["field"],
+      value: data.value,
+      source: data.source,
+    });
   });
 
 const acceptPrintingFieldFn = createServerFn({ method: "POST" })
@@ -147,119 +124,89 @@ const acceptPrintingFieldFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards.printing[":printingId"][
-        "accept-field"
-      ].$post({
-        param: encodeParams({ printingId: data.printingId }),
-        json: {
-          field: data.field as AcceptPrintingFieldBody["field"],
-          value: data.value,
-          source: data.source,
-        },
-      }),
-      "Couldn't accept printing field",
-    );
+    await apiOrpcClient(adminCardMutationsContract, context.cookie).acceptPrintingField({
+      printingId: data.printingId,
+      field: data.field as AcceptPrintingFieldBody["field"],
+      value: data.value,
+      source: data.source,
+    });
   });
 
 const acceptNewCardFn = createServerFn({ method: "POST" })
   .validator((input: { name: string; cardFields: AcceptNewCardBody["cardFields"] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards.new[":name"].accept.$post({
-        param: encodeParams({ name: data.name }),
-        json: { cardFields: data.cardFields },
-      }),
-      "Couldn't accept new card",
-    );
+    await apiOrpcClient(adminCardMutationsContract, context.cookie).acceptNewCard({
+      name: data.name,
+      cardFields: data.cardFields,
+    });
   });
 
 export const acceptFavoritesFn = createServerFn({ method: "POST" })
   .validator((input: { name: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards.new[":name"]["accept-favorites"].$post({
-        param: encodeParams({ name: data.name }),
-      }),
-      "Couldn't accept favorites",
-    );
+    await apiOrpcClient(adminCardMutationsContract, context.cookie).acceptFavoriteNewCard({
+      name: data.name,
+    });
   });
 
 const linkCardFn = createServerFn({ method: "POST" })
   .validator((input: { name: string; cardId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards.new[":name"].link.$post({
-        param: encodeParams({ name: data.name }),
-        json: { cardId: data.cardId },
-      }),
-      "Couldn't link card",
-    );
+    await apiOrpcClient(adminCardMutationsContract, context.cookie).linkUnmatched({
+      name: data.name,
+      cardId: data.cardId,
+    });
   });
 
 const reassignCandidatePrintingFn = createServerFn({ method: "POST" })
   .validator((input: { id: string; fields: PatchCandidatePrintingBody }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards["candidate-printings"][":id"].$patch({
-        param: encodeParams({ id: data.id }),
-        json: data.fields,
-      }),
-      "Couldn't reassign candidate printing",
-    );
+    await apiOrpcClient(adminCardMutationsContract, context.cookie).patchCandidatePrinting({
+      id: data.id,
+      ...data.fields,
+    });
   });
 
 const deleteCandidatePrintingFn = createServerFn({ method: "POST" })
   .validator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards["candidate-printings"][":id"].$delete({
-        param: encodeParams({ id: data.id }),
-      }),
-      "Couldn't delete candidate printing",
-    );
+    await apiOrpcClient(adminCardMutationsContract, context.cookie).deleteCandidatePrinting({
+      id: data.id,
+    });
   });
 
 const copyCandidatePrintingFn = createServerFn({ method: "POST" })
   .validator((input: { id: string; printingId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards["candidate-printings"][":id"].copy.$post({
-        param: encodeParams({ id: data.id }),
-        json: { printingId: data.printingId },
-      }),
-      "Couldn't copy candidate printing",
-    );
+    await apiOrpcClient(adminCardMutationsContract, context.cookie).copyCandidatePrinting({
+      id: data.id,
+      printingId: data.printingId,
+    });
   });
 
 const linkCandidatePrintingsFn = createServerFn({ method: "POST" })
   .validator((input: { candidatePrintingIds: string[]; printingId: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards["candidate-printings"].link.$post({
-        json: data,
-      }),
-      "Couldn't link candidate printings",
-    );
+    await apiOrpcClient(adminCardMutationsContract, context.cookie).linkCandidatePrintings({
+      candidatePrintingIds: data.candidatePrintingIds,
+      printingId: data.printingId,
+    });
   });
 
 const deletePrintingFn = createServerFn({ method: "POST" })
   .validator((input: { printingId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards.printing[":printingId"].$delete({
-        param: encodeParams({ printingId: data.printingId }),
-      }),
-      "Couldn't delete printing",
-    );
+    await apiOrpcClient(adminCardMutationsContract, context.cookie).deletePrinting({
+      printingId: data.printingId,
+    });
   });
 
 const acceptPrintingGroupFn = createServerFn({ method: "POST" })
@@ -272,16 +219,11 @@ const acceptPrintingGroupFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(({ context, data }) =>
-    callApiJson(
-      serverApiClient(context.cookie).api.admin.v1.cards[":cardId"]["accept-printing"].$post({
-        param: encodeParams({ cardId: data.cardId }),
-        json: {
-          printingFields: data.printingFields,
-          candidatePrintingIds: data.candidatePrintingIds,
-        },
-      }),
-      "Couldn't accept printing group",
-    ),
+    apiOrpcClient(adminCardMutationsContract, context.cookie).acceptPrinting({
+      cardId: data.cardId,
+      printingFields: data.printingFields,
+      candidatePrintingIds: data.candidatePrintingIds,
+    }),
   );
 
 const checkProviderFn = createServerFn({ method: "POST" })
@@ -289,12 +231,9 @@ const checkProviderFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<{ cardsChecked: number; printingsChecked: number }> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1.cards["by-provider"][":provider"].check.$post({
-          param: encodeParams({ provider: data.provider }),
-        }),
-        "Couldn't check provider",
-      ),
+      apiOrpcClient(adminCardMutationsContract, context.cookie).checkByProvider({
+        provider: data.provider,
+      }),
   );
 
 const deleteProviderFn = createServerFn({ method: "POST" })
@@ -302,12 +241,9 @@ const deleteProviderFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<{ deleted: number; provider: string }> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1.cards["by-provider"][":provider"].$delete({
-          param: encodeParams({ provider: data.provider }),
-        }),
-        "Couldn't delete provider",
-      ),
+      apiOrpcClient(adminCardMutationsContract, context.cookie).deleteByProvider({
+        provider: data.provider,
+      }),
   );
 
 // ── Hook exports ─────────────────────────────────────────────────────────────
@@ -449,12 +385,7 @@ const createCardFn = createServerFn({ method: "POST" })
   .validator((input: { cardFields: CreateCardBody }) => input)
   .middleware([withCookies])
   .handler(({ context, data }) =>
-    callApiJson(
-      serverApiClient(context.cookie).api.admin.v1.cards.create.$post({
-        json: data.cardFields,
-      }),
-      "Couldn't create card",
-    ),
+    apiOrpcClient(adminCardMutationsContract, context.cookie).createCard(data.cardFields),
   );
 
 export function useCreateCard() {
@@ -472,13 +403,10 @@ const createPrintingFn = createServerFn({ method: "POST" })
   .validator((input: { cardId: string; printingFields: CreatePrintingBody }) => input)
   .middleware([withCookies])
   .handler(({ context, data }) =>
-    callApiJson(
-      serverApiClient(context.cookie).api.admin.v1.cards[":cardId"].printings.$post({
-        param: encodeParams({ cardId: data.cardId }),
-        json: data.printingFields,
-      }),
-      "Couldn't create printing",
-    ),
+    apiOrpcClient(adminCardMutationsContract, context.cookie).createPrinting({
+      cardId: data.cardId,
+      ...data.printingFields,
+    }),
   );
 
 export function useCreatePrinting() {
@@ -612,14 +540,9 @@ export const acceptFavoritePrintingsFn = createServerFn({ method: "POST" })
       printingsCreated: number;
       skipped: { shortCode: string; reason: string }[];
     }> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1.cards[":cardSlug"][
-          "accept-favorite-printings"
-        ].$post({
-          param: encodeParams({ cardSlug }),
-        }),
-        "Couldn't accept favorite printings",
-      ),
+      apiOrpcClient(adminCardMutationsContract, context.cookie).acceptFavoritePrintings({
+        cardSlug,
+      }),
   );
 
 export function useAcceptFavoritePrintings() {
@@ -650,19 +573,16 @@ const unmapMarketplacePrintingFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["marketplace-mappings"].$delete({
-        // fully query-addressed; omit language when null (CM/TCG).
-        query: {
-          marketplace: data.marketplace,
-          printingId: data.printingId,
-          externalId: String(data.externalId),
-          finish: data.finish,
-          ...(data.language === null ? {} : { language: data.language }),
-        },
-      }),
-      "Couldn't unmap marketplace printing",
-    );
+    // fully query-addressed (detailed input); omit language when null (CM/TCG).
+    await apiOrpcClient(adminUnifiedMappingsContract, context.cookie).unmap({
+      query: {
+        marketplace: data.marketplace,
+        printingId: data.printingId,
+        externalId: data.externalId,
+        finish: data.finish,
+        ...(data.language === null ? {} : { language: data.language }),
+      },
+    });
   });
 
 const defaultMarketplaceScope: Scope = [

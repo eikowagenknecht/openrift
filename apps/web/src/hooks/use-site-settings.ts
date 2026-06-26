@@ -1,10 +1,11 @@
+import type { AdminSiteSettingsResponse } from "@openrift/shared/contracts";
+import { adminSiteSettingsContract } from "@openrift/shared/contracts";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
-import type { AdminSiteSettingsResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import type { SiteSettings } from "@/lib/site-settings";
 import { siteSettingsQueryOptions } from "@/lib/site-settings";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -26,10 +27,7 @@ const fetchAdminSiteSettings = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminSiteSettingsResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["site-settings"].$get(),
-        "Couldn't load site settings",
-      ),
+      apiOrpcClient(adminSiteSettingsContract, context.cookie).list(),
   );
 
 export const adminSiteSettingsQueryOptions = queryOptions({
@@ -45,13 +43,7 @@ const updateSiteSettingFn = createServerFn({ method: "POST" })
   .validator((input: { key: string; value?: string; scope?: SettingScope }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["site-settings"][":key"].$patch({
-        param: encodeParams({ key: data.key }),
-        json: { value: data.value, scope: data.scope },
-      }),
-      "Couldn't update site setting",
-    );
+    await apiOrpcClient(adminSiteSettingsContract, context.cookie).update(data);
   });
 
 export function useUpdateSiteSetting() {
@@ -67,12 +59,7 @@ const createSiteSettingFn = createServerFn({ method: "POST" })
   .validator((input: { key: string; value: string; scope?: SettingScope }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["site-settings"].$post({
-        json: { key: data.key, value: data.value, scope: data.scope },
-      }),
-      "Couldn't create site setting",
-    );
+    await apiOrpcClient(adminSiteSettingsContract, context.cookie).create(data);
   });
 
 export function useCreateSiteSetting() {
@@ -88,12 +75,7 @@ const deleteSiteSettingFn = createServerFn({ method: "POST" })
   .validator((input: { key: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["site-settings"][":key"].$delete({
-        param: encodeParams({ key: data.key }),
-      }),
-      "Couldn't delete site setting",
-    );
+    await apiOrpcClient(adminSiteSettingsContract, context.cookie).remove({ key: data.key });
   });
 
 export function useDeleteSiteSetting() {

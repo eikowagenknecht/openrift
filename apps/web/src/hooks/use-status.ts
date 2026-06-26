@@ -1,30 +1,25 @@
+import type { AdminStatusResponse } from "@openrift/shared/contracts";
+import { adminStatusContract } from "@openrift/shared/contracts";
 import { queryOptions, useMutation, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
-import { callApi, callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
-import type { AdminStatusResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchStatus = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminStatusResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1.status.$get(),
-        "Couldn't load admin status",
-      ),
+      apiOrpcClient(adminStatusContract, context.cookie).get(),
   );
 
 const clearSsrCache = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context }) => {
     // Verify admin auth by hitting the status endpoint (reuses existing auth check)
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.status.$get(),
-      "Couldn't clear SSR cache",
-    );
+    await apiOrpcClient(adminStatusContract, context.cookie).get();
     serverCache.clear();
   });
 

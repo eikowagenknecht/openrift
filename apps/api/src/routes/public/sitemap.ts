@@ -1,39 +1,24 @@
-import { createRoute } from "@hono/zod-openapi";
 import type { SitemapDataResponse } from "@openrift/shared";
-import { sitemapDataResponseSchema } from "@openrift/shared/response-schemas";
-import { etag } from "hono/etag";
+import { sitemapContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 
-const getSitemapData = createRoute({
-  method: "get",
-  path: "/sitemap-data",
-  tags: ["Sitemap"],
-  responses: {
-    200: {
-      content: { "application/json": { schema: sitemapDataResponseSchema } },
-      description: "All cards and sets with updatedAt for sitemap generation",
-    },
-  },
-});
+const os = implement(sitemapContract).$context<ApiContext>().use(requireUser);
 
-const sitemapApp = createApiApp();
-sitemapApp.use("/sitemap-data", etag());
-export const sitemapDataRoute = sitemapApp
-  /**
-   * `GET /sitemap-data` — Returns all card and set entries (slug + updatedAt) for sitemap generation.
-   *
-   * @returns The sitemap data response with card and set entries.
-   */
-  .openapi(getSitemapData, async (c) => {
-    const { catalog } = c.get("repos");
-
+/**
+ * oRPC implementation of the public sitemap-data contract.
+ * `GET /api/v1/sitemap-data` — all card and set entries (slug + updatedAt) for
+ * sitemap generation. Logic unchanged; only the routing layer moved.
+ */
+export const sitemapRouter = {
+  get: os.get.handler(async ({ context }): Promise<SitemapDataResponse> => {
+    const { catalog } = context.repos;
     const [cards, sets] = await Promise.all([
       catalog.allCardSitemapEntries(),
       catalog.allSetSitemapEntries(),
     ]);
-
-    const content: SitemapDataResponse = { cards, sets };
-    c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=7200");
-    return c.json(content);
-  });
+    return { cards, sets };
+  }),
+};

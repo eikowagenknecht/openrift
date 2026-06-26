@@ -1,37 +1,20 @@
-import { createRoute } from "@hono/zod-openapi";
-import { z } from "zod";
+import { adminFormatsContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 
-// ── Route definitions ───────────────────────────────────────────────────────
+const os = implement(adminFormatsContract).$context<ApiContext>().use(requireUser);
 
-const listFormats = createRoute({
-  method: "get",
-  path: "/formats",
-  tags: ["Admin - Formats"],
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            formats: z.array(
-              z.object({
-                id: z.string().openapi({ example: "standard" }),
-                name: z.string().openapi({ example: "Standard" }),
-              }),
-            ),
-          }),
-        },
-      },
-      description: "List all formats",
-    },
-  },
-});
-
-// ── Router ──────────────────────────────────────────────────────────────────
-
-export const adminFormatsRoute = createApiApp().openapi(listFormats, async (c) => {
-  const { cardBans } = c.get("repos");
-  const formats = await cardBans.listFormats();
-  return c.json({ formats });
-});
+/**
+ * oRPC implementation of the admin formats list. Logic unchanged from the
+ * previous `@hono/zod-openapi` handler; any thrown `AppError` is mapped by the
+ * handler's appErrorInterceptor.
+ */
+export const adminFormatsRouter = {
+  list: os.list.handler(async ({ context }) => {
+    const { cardBans } = context.repos;
+    const formats = await cardBans.listFormats();
+    return { formats };
+  }),
+};

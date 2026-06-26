@@ -1,131 +1,29 @@
-import { createRoute } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
-import { z } from "zod";
+import { adminArtVariantsContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 
-const artVariantSchema = z.object({
-  slug: z.string().openapi({ example: "alternate" }),
-  label: z.string().openapi({ example: "Alternate Art" }),
-  sortOrder: z.number().openapi({ example: 2 }),
-  isWellKnown: z.boolean().openapi({ example: true }),
-});
+const os = implement(adminArtVariantsContract).$context<ApiContext>().use(requireUser);
 
-const slugParamSchema = z.object({ slug: z.string().min(1) });
-
-// ── Route definitions ───────────────────────────────────────────────────────
-
-const listArtVariants = createRoute({
-  method: "get",
-  path: "/art-variants",
-  tags: ["Admin - Art Variants"],
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({ artVariants: z.array(artVariantSchema) }),
-        },
-      },
-      description: "List art variants",
-    },
-  },
-});
-
-const reorderArtVariants = createRoute({
-  method: "put",
-  path: "/art-variants/reorder",
-  tags: ["Admin - Art Variants"],
-  request: {
-    body: {
-      content: {
-        "application/json": {
-          schema: z.object({ slugs: z.array(z.string().min(1)).min(1) }),
-        },
-      },
-    },
-  },
-  responses: {
-    204: { description: "Art variants reordered" },
-  },
-});
-
-const createArtVariant = createRoute({
-  method: "post",
-  path: "/art-variants",
-  tags: ["Admin - Art Variants"],
-  request: {
-    body: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            slug: z
-              .string()
-              .min(1)
-              .regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u, "Slug must be kebab-case"),
-            label: z.string().min(1),
-          }),
-        },
-      },
-    },
-  },
-  responses: {
-    201: {
-      content: {
-        "application/json": {
-          schema: z.object({ artVariant: artVariantSchema }),
-        },
-      },
-      description: "Art variant created",
-    },
-  },
-});
-
-const updateArtVariant = createRoute({
-  method: "patch",
-  path: "/art-variants/{slug}",
-  tags: ["Admin - Art Variants"],
-  request: {
-    params: slugParamSchema,
-    body: {
-      content: {
-        "application/json": {
-          schema: z.object({ label: z.string().min(1).optional() }),
-        },
-      },
-    },
-  },
-  responses: {
-    204: { description: "Art variant updated" },
-  },
-});
-
-const deleteArtVariant = createRoute({
-  method: "delete",
-  path: "/art-variants/{slug}",
-  tags: ["Admin - Art Variants"],
-  request: {
-    params: slugParamSchema,
-  },
-  responses: {
-    204: { description: "Art variant deleted" },
-  },
-});
-
-// ── Route ───────────────────────────────────────────────────────────────────
-
-export const adminArtVariantsRoute = createApiApp()
-  // ── GET /admin/art-variants ──────────────────────────────────────────
-  .openapi(listArtVariants, async (c) => {
-    const { artVariants: repo } = c.get("repos");
+/**
+ * oRPC implementation of the admin art-variants taxonomy CRUD. Logic unchanged
+ * from the previous `@hono/zod-openapi` handlers; conflict / not-found /
+ * bad-request states are thrown as `AppError` and mapped by the handler's
+ * appErrorInterceptor.
+ */
+export const adminArtVariantsRouter = {
+  list: os.list.handler(async ({ context }) => {
+    const { artVariants: repo } = context.repos;
     const rows = await repo.listAll();
-    return c.json({ artVariants: rows });
-  })
+    return { artVariants: rows };
+  }),
 
-  // ── PUT /admin/art-variants/reorder ──────────────────────────────────
-  .openapi(reorderArtVariants, async (c) => {
-    const { artVariants: repo } = c.get("repos");
-    const { slugs } = c.req.valid("json");
+  reorder: os.reorder.handler(async ({ input, context }): Promise<void> => {
+    const { artVariants: repo } = context.repos;
+    const { slugs } = input;
 
     const uniqueSlugs = new Set(slugs);
     if (uniqueSlugs.size !== slugs.length) {
@@ -152,13 +50,11 @@ export const adminArtVariantsRoute = createApiApp()
     }
 
     await repo.reorder(slugs);
-    return c.body(null, 204);
-  })
+  }),
 
-  // ── POST /admin/art-variants ─────────────────────────────────────────
-  .openapi(createArtVariant, async (c) => {
-    const { artVariants: repo } = c.get("repos");
-    const { slug, label } = c.req.valid("json");
+  create: os.create.handler(async ({ input, context }) => {
+    const { artVariants: repo } = context.repos;
+    const { slug, label } = input;
 
     const existing = await repo.getBySlug(slug);
     if (existing) {
@@ -166,42 +62,35 @@ export const adminArtVariantsRoute = createApiApp()
     }
 
     const created = await repo.create({ slug, label });
-    return c.json({ artVariant: created }, 201);
-  })
+    return { artVariant: created };
+  }),
 
-  // ── PATCH /admin/art-variants/:slug ──────────────────────────────────
-  .openapi(updateArtVariant, async (c) => {
-    const { artVariants: repo } = c.get("repos");
-    const { slug } = c.req.valid("param");
-    const body = c.req.valid("json");
+  update: os.update.handler(async ({ input, context }): Promise<void> => {
+    const { artVariants: repo } = context.repos;
 
-    const existing = await repo.getBySlug(slug);
+    const existing = await repo.getBySlug(input.slug);
     if (!existing) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Art variant "${slug}" not found`);
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Art variant "${input.slug}" not found`);
     }
 
-    if (body.label) {
-      await repo.update(slug, { label: body.label });
+    if (input.label) {
+      await repo.update(input.slug, { label: input.label });
     }
+  }),
 
-    return c.body(null, 204);
-  })
+  remove: os.remove.handler(async ({ input, context }): Promise<void> => {
+    const { artVariants: repo } = context.repos;
 
-  // ── DELETE /admin/art-variants/:slug ─────────────────────────────────
-  .openapi(deleteArtVariant, async (c) => {
-    const { artVariants: repo } = c.get("repos");
-    const { slug } = c.req.valid("param");
-
-    const existing = await repo.getBySlug(slug);
+    const existing = await repo.getBySlug(input.slug);
     if (!existing) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Art variant "${slug}" not found`);
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Art variant "${input.slug}" not found`);
     }
 
     if (existing.isWellKnown) {
       throw new AppError(409, ERROR_CODES.CONFLICT, "Cannot delete a well-known art variant");
     }
 
-    const inUse = await repo.isInUse(slug);
+    const inUse = await repo.isInUse(input.slug);
     if (inUse) {
       throw new AppError(
         409,
@@ -210,6 +99,6 @@ export const adminArtVariantsRoute = createApiApp()
       );
     }
 
-    await repo.deleteBySlug(slug);
-    return c.body(null, 204);
-  });
+    await repo.deleteBySlug(input.slug);
+  }),
+};

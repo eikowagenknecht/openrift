@@ -1,27 +1,12 @@
-import { createRoute } from "@hono/zod-openapi";
-import { healthResponseSchema } from "@openrift/shared/response-schemas";
+import { Hono } from "hono";
 
-import { createApiApp } from "../../openapi.js";
+import type { Variables } from "../../types.js";
 
 const HEALTH_TIMEOUT_MS = 5000;
 
-const getHealth = createRoute({
-  method: "get",
-  path: "/health",
-  tags: ["Health"],
-  responses: {
-    200: {
-      content: { "application/json": { schema: healthResponseSchema } },
-      description: "Service is healthy",
-    },
-    503: {
-      content: { "application/json": { schema: healthResponseSchema } },
-      description: "Service is unhealthy",
-    },
-  },
-});
-
-export const healthRoute = createApiApp().openapi(getHealth, async (c) => {
+// Infra/monitoring endpoint — a plain Hono route (not in the OpenAPI doc). The
+// liveness probe reads the status code; the JSON body mirrors `healthResponseSchema`.
+export const healthRoute = new Hono<{ Variables: Variables }>().get("/health", async (c) => {
   const { health } = c.get("repos");
   const status = await health.healthCheck(HEALTH_TIMEOUT_MS);
 

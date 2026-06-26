@@ -42,13 +42,12 @@ describe.skipIf(!ownerCtx || !otherCtx)("Pod tournament routes (integration)", (
     await owner.db.deleteFrom("users").where("id", "in", [OWNER_ID, OTHER_ID]).execute();
   });
 
-  it("creates a tournament identified by its uuid, with a Location header", async () => {
+  it("creates a tournament identified by its uuid", async () => {
     const res = await owner.app.fetch(req("POST", "/pod-tournaments", { name: "Main Event" }));
     expect(res.status).toBe(201);
     const body = (await res.json()) as { id: string };
     id = body.id;
     expect(id).toBeTruthy();
-    expect(res.headers.get("Location")).toBe(`/api/v1/pod-tournaments/${id}`);
   });
 
   it("returns the detail to the owner", async () => {

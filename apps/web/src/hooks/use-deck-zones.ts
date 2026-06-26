@@ -1,20 +1,18 @@
+import type { AdminDeckZonesResponse } from "@openrift/shared/contracts";
+import { adminDeckZonesContract } from "@openrift/shared/contracts";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
-import type { AdminDeckZonesResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchDeckZones = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<AdminDeckZonesResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["deck-zones"].$get(),
-        "Couldn't load deck zones",
-      ),
+      apiOrpcClient(adminDeckZonesContract, context.cookie).list(),
   );
 
 export const adminDeckZonesQueryOptions = queryOptions({
@@ -30,12 +28,7 @@ const reorderDeckZonesFn = createServerFn({ method: "POST" })
   .validator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["deck-zones"].reorder.$put({
-        json: { slugs: data.slugs },
-      }),
-      "Couldn't reorder deck zones",
-    );
+    await apiOrpcClient(adminDeckZonesContract, context.cookie).reorder({ slugs: data.slugs });
   });
 
 export function useReorderDeckZones() {
@@ -49,13 +42,7 @@ const updateDeckZoneFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; label?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["deck-zones"][":slug"].$patch({
-        param: encodeParams({ slug: data.slug }),
-        json: { label: data.label },
-      }),
-      "Couldn't update deck zone",
-    );
+    await apiOrpcClient(adminDeckZonesContract, context.cookie).update(data);
   });
 
 export function useUpdateDeckZone() {

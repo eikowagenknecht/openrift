@@ -1,66 +1,22 @@
-import { createRoute } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
 import type { MarketplaceGroupResponse } from "@openrift/shared";
-import { marketplaceGroupParamSchema } from "@openrift/shared/schemas";
-import { z } from "zod";
+import { adminMarketplaceGroupsContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { createApiApp } from "../../openapi.js";
-import { marketplaceGroupKindEnum, updateGroupSchema } from "./schemas.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 
-// ── Route definitions ───────────────────────────────────────────────────────
+const os = implement(adminMarketplaceGroupsContract).$context<ApiContext>().use(requireUser);
 
-const listGroups = createRoute({
-  method: "get",
-  path: "/marketplace-groups",
-  tags: ["Admin - Marketplace Groups"],
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            groups: z.array(
-              z.object({
-                marketplace: z.string().openapi({ example: "cardmarket" }),
-                groupId: z.number().openapi({ example: 6286 }),
-                name: z.string().nullable().openapi({ example: "Origins" }),
-                abbreviation: z.string().nullable().openapi({ example: "OGN" }),
-                groupKind: marketplaceGroupKindEnum.openapi({ example: "basic" }),
-                setId: z
-                  .string()
-                  .uuid()
-                  .nullable()
-                  .openapi({ example: "019cfc3b-0389-744b-837c-792fd586300e" }),
-                stagedCount: z.number().openapi({ example: 0 }),
-                assignedCount: z.number().openapi({ example: 312 }),
-              }),
-            ),
-          }),
-        },
-      },
-      description: "List marketplace groups",
-    },
-  },
-});
-
-const updateGroup = createRoute({
-  method: "patch",
-  path: "/marketplace-groups/{marketplace}/{id}",
-  tags: ["Admin - Marketplace Groups"],
-  request: {
-    params: marketplaceGroupParamSchema,
-    body: { content: { "application/json": { schema: updateGroupSchema } } },
-  },
-  responses: {
-    204: { description: "Group updated" },
-  },
-});
-
-// ── Route ───────────────────────────────────────────────────────────────────
-
-export const marketplaceGroupsRoute = createApiApp()
-  .openapi(listGroups, async (c) => {
-    const { marketplaceAdmin: mktAdmin } = c.get("repos");
+/**
+ * oRPC implementation of the admin marketplace-groups. Logic unchanged from the
+ * previous `@hono/zod-openapi` handlers; not-found is thrown as `AppError` and
+ * mapped by the handler's {@link appErrorInterceptor}.
+ */
+export const adminMarketplaceGroupsRouter = {
+  list: os.list.handler(async ({ context }) => {
+    const { marketplaceAdmin: mktAdmin } = context.repos;
 
     const [groups, stagingCounts, assignedCounts] = await Promise.all([
       mktAdmin.listAllGroups(),
@@ -71,12 +27,11 @@ export const marketplaceGroupsRoute = createApiApp()
     const stagingMap = new Map(
       stagingCounts.map((r) => [`${r.marketplace}:${r.groupId}`, r.count]),
     );
-
     const assignedMap = new Map(
       assignedCounts.map((r) => [`${r.marketplace}:${r.groupId}`, r.count]),
     );
 
-    return c.json({
+    return {
       groups: groups.map((g): MarketplaceGroupResponse => {
         const key = `${g.marketplace}:${g.groupId}`;
         return {
@@ -90,13 +45,12 @@ export const marketplaceGroupsRoute = createApiApp()
           assignedCount: assignedMap.get(key) ?? 0,
         };
       }),
-    });
-  })
+    };
+  }),
 
-  .openapi(updateGroup, async (c) => {
-    const { marketplaceAdmin: mktAdmin } = c.get("repos");
-    const { marketplace, id: groupId } = c.req.valid("param");
-    const patch = c.req.valid("json");
+  update: os.update.handler(async ({ input, context }): Promise<void> => {
+    const { marketplaceAdmin: mktAdmin } = context.repos;
+    const { marketplace, id: groupId, ...patch } = input;
 
     const updated = await mktAdmin.updateGroup(marketplace, groupId, patch);
     if (!updated) {
@@ -106,6 +60,5 @@ export const marketplaceGroupsRoute = createApiApp()
         `Marketplace group ${marketplace}/${groupId} not found`,
       );
     }
-
-    return c.body(null, 204);
-  });
+  }),
+};

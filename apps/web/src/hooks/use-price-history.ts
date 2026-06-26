@@ -1,10 +1,11 @@
 import type { PriceHistoryResponse, TimeRange } from "@openrift/shared";
+import { pricesContract } from "@openrift/shared/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchPriceHistoryFn = createServerFn({ method: "GET" })
   // range is the TimeRange enum on the route (was loose `string` under fetchApi).
@@ -12,13 +13,10 @@ const fetchPriceHistoryFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<PriceHistoryResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1.prices[":printingId"].history.$get({
-          param: encodeParams({ printingId: data.printingId }),
-          query: { range: data.range },
-        }),
-        "Couldn't load price history",
-      ),
+      apiOrpcClient(pricesContract, context.cookie).history({
+        printingId: data.printingId,
+        range: data.range,
+      }),
   );
 
 export function usePriceHistory(printingId: string | null, range: TimeRange = "30d") {

@@ -1,88 +1,30 @@
-import { createRoute } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
 import type { FeatureFlagResponse } from "@openrift/shared";
-import { keyParamSchema } from "@openrift/shared/schemas";
-import { z } from "zod";
+import { adminFeatureFlagsContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 import { assertDeleted, assertFound } from "../../utils/assertions.js";
-import { createFlagSchema, updateFlagSchema } from "./schemas.js";
 
-// ── Route definitions ───────────────────────────────────────────────────────
+const os = implement(adminFeatureFlagsContract).$context<ApiContext>().use(requireUser);
 
-const listFlags = createRoute({
-  method: "get",
-  path: "/feature-flags",
-  tags: ["Admin - Feature Flags"],
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            flags: z.array(
-              z.object({
-                key: z.string().openapi({ example: "collection" }),
-                enabled: z.boolean().openapi({ example: true }),
-                description: z.string().nullable().openapi({ example: "Enable Collections" }),
-                createdAt: z.string().openapi({ example: "2026-03-11T18:04:22.059Z" }),
-                updatedAt: z.string().openapi({ example: "2026-03-28T23:04:44.749Z" }),
-              }),
-            ),
-          }),
-        },
-      },
-      description: "List feature flags",
-    },
-  },
-});
-
-const createFlag = createRoute({
-  method: "post",
-  path: "/feature-flags",
-  tags: ["Admin - Feature Flags"],
-  request: {
-    body: { content: { "application/json": { schema: createFlagSchema } } },
-  },
-  responses: {
-    201: { description: "Flag created" },
-  },
-});
-
-const updateFlag = createRoute({
-  method: "patch",
-  path: "/feature-flags/{key}",
-  tags: ["Admin - Feature Flags"],
-  request: {
-    params: keyParamSchema,
-    body: { content: { "application/json": { schema: updateFlagSchema } } },
-  },
-  responses: {
-    204: { description: "Flag updated" },
-  },
-});
-
-const deleteFlag = createRoute({
-  method: "delete",
-  path: "/feature-flags/{key}",
-  tags: ["Admin - Feature Flags"],
-  request: {
-    params: keyParamSchema,
-  },
-  responses: {
-    204: { description: "Flag deleted" },
-  },
-});
-
-// ── Route ───────────────────────────────────────────────────────────────────
-
-export const adminFeatureFlagsRoute = createApiApp()
-  // ── GET /feature-flags ───────────────────────────────────────────────────
-
-  .openapi(listFlags, async (c) => {
-    const { featureFlags: flagsRepo } = c.get("repos");
+/**
+ * oRPC implementation of the admin feature-flags tooling: global flag CRUD plus
+ * per-user overrides (previously split across `feature-flags` and
+ * `user-feature-flags` hono routers, merged here so the static
+ * `feature-flags/overrides` path and the `feature-flags/{key}` param path
+ * resolve within one oRPC handler). Logic unchanged; conflict / not-found
+ * states are thrown as `AppError` and mapped by the handler's
+ * appErrorInterceptor.
+ */
+export const adminFeatureFlagsRouter = {
+  // ── Global flags ──────────────────────────────────────────────────────────
+  list: os.list.handler(async ({ context }) => {
+    const { featureFlags: flagsRepo } = context.repos;
     const rows = await flagsRepo.listAll();
-    return c.json({
+    return {
       flags: rows.map(
         (r): FeatureFlagResponse => ({
           key: r.key,
@@ -92,15 +34,12 @@ export const adminFeatureFlagsRoute = createApiApp()
           updatedAt: r.updatedAt.toISOString(),
         }),
       ),
-    });
-  })
+    };
+  }),
 
-  // ── POST /feature-flags ──────────────────────────────────────────────────
-
-  .openapi(createFlag, async (c) => {
-    const { featureFlags: flagsRepo } = c.get("repos");
-    const { key, description, enabled } = c.req.valid("json");
-
+  create: os.create.handler(async ({ input, context }): Promise<void> => {
+    const { featureFlags: flagsRepo } = context.repos;
+    const { key, description, enabled } = input;
     const created = await flagsRepo.create({
       key,
       enabled: enabled ?? false,
@@ -109,31 +48,42 @@ export const adminFeatureFlagsRoute = createApiApp()
     if (!created) {
       throw new AppError(409, ERROR_CODES.CONFLICT, `Flag "${key}" already exists`);
     }
+  }),
 
-    return c.body(null, 201);
-  })
-
-  // ── PATCH /feature-flags/:key ─────────────────────────────────────────────
-
-  .openapi(updateFlag, async (c) => {
-    const { featureFlags: flagsRepo } = c.get("repos");
-    const { key } = c.req.valid("param");
-    const body = c.req.valid("json");
-
+  update: os.update.handler(async ({ input, context }): Promise<void> => {
+    const { featureFlags: flagsRepo } = context.repos;
+    const { key, ...body } = input;
     const updated = await flagsRepo.update(key, body);
     assertFound(updated, `Flag "${key}" not found`);
+  }),
 
-    return c.body(null, 204);
-  })
+  remove: os.remove.handler(async ({ input, context }): Promise<void> => {
+    const { featureFlags: flagsRepo } = context.repos;
+    const result = await flagsRepo.deleteByKey(input.key);
+    assertDeleted(result, `Flag "${input.key}" not found`);
+  }),
 
-  // ── DELETE /feature-flags/:key ────────────────────────────────────────────
+  // ── Per-user overrides ────────────────────────────────────────────────────
+  listOverrides: os.listOverrides.handler(async ({ context }) => {
+    const { userFeatureFlags } = context.repos;
+    const rows = await userFeatureFlags.listAllWithUsers();
+    return { overrides: rows };
+  }),
 
-  .openapi(deleteFlag, async (c) => {
-    const { featureFlags: flagsRepo } = c.get("repos");
-    const { key } = c.req.valid("param");
+  upsertOverride: os.upsertOverride.handler(async ({ input, context }) => {
+    const { userFeatureFlags } = context.repos;
+    const { id, key, enabled } = input;
+    const result = await userFeatureFlags.upsert(id, key, enabled);
+    if (!result) {
+      throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, "Failed to set override");
+    }
+    return { flagKey: key, enabled };
+  }),
 
-    const result = await flagsRepo.deleteByKey(key);
-    assertDeleted(result, `Flag "${key}" not found`);
-
-    return c.body(null, 204);
-  });
+  removeOverride: os.removeOverride.handler(async ({ input, context }): Promise<void> => {
+    const { userFeatureFlags } = context.repos;
+    const { id, key } = input;
+    const result = await userFeatureFlags.delete(id, key);
+    assertDeleted(result, `Override for flag "${key}" not found for this user`);
+  }),
+};

@@ -1,10 +1,11 @@
+import { adminCardImagesContract, adminCardMutationsContract } from "@openrift/shared/contracts";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import type { UploadCandidatesBody, UploadCandidatesResponse } from "@/lib/server-fns/api-types";
 import { API_URL } from "@/lib/server-fns/api-url";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 // Request body derived from the route (api-types); response is the shared API
@@ -17,55 +18,37 @@ const deletePrintingImageFn = createServerFn({ method: "POST" })
   .validator((input: { imageId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards["printing-images"][":imageId"].$delete({
-        param: encodeParams({ imageId: data.imageId }),
-      }),
-      "Couldn't delete printing image",
-    );
+    await apiOrpcClient(adminCardImagesContract, context.cookie).deleteImage({
+      imageId: data.imageId,
+    });
   });
 
 const activatePrintingImageFn = createServerFn({ method: "POST" })
   .validator((input: { imageId: string; active: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards["printing-images"][
-        ":imageId"
-      ].activate.$post({
-        param: encodeParams({ imageId: data.imageId }),
-        json: { active: data.active },
-      }),
-      "Couldn't activate printing image",
-    );
+    await apiOrpcClient(adminCardImagesContract, context.cookie).activateImage({
+      imageId: data.imageId,
+      active: data.active,
+    });
   });
 
 const rehostPrintingImageFn = createServerFn({ method: "POST" })
   .validator((input: { imageId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards["printing-images"][
-        ":imageId"
-      ].rehost.$post({
-        param: encodeParams({ imageId: data.imageId }),
-      }),
-      "Couldn't rehost printing image",
-    );
+    await apiOrpcClient(adminCardImagesContract, context.cookie).rehostImage({
+      imageId: data.imageId,
+    });
   });
 
 const unrehostPrintingImageFn = createServerFn({ method: "POST" })
   .validator((input: { imageId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards["printing-images"][
-        ":imageId"
-      ].unrehost.$post({
-        param: encodeParams({ imageId: data.imageId }),
-      }),
-      "Couldn't unrehost printing image",
-    );
+    await apiOrpcClient(adminCardImagesContract, context.cookie).unrehostImage({
+      imageId: data.imageId,
+    });
   });
 
 type Rotation = 0 | 90 | 180 | 270;
@@ -74,60 +57,41 @@ const rotatePrintingImageFn = createServerFn({ method: "POST" })
   .validator((input: { imageId: string; rotation: Rotation }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards["printing-images"][
-        ":imageId"
-      ].rotate.$post({
-        param: encodeParams({ imageId: data.imageId }),
-        json: { rotation: data.rotation },
-      }),
-      "Couldn't rotate printing image",
-    );
+    await apiOrpcClient(adminCardImagesContract, context.cookie).rotateImage({
+      imageId: data.imageId,
+      rotation: data.rotation,
+    });
   });
 
 const setNeedsTrimFn = createServerFn({ method: "POST" })
   .validator((input: { imageId: string; needsTrim: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards["printing-images"][":imageId"][
-        "set-needs-trim"
-      ].$post({
-        param: encodeParams({ imageId: data.imageId }),
-        json: { needsTrim: data.needsTrim },
-      }),
-      "Couldn't update needs-trim",
-    );
+    await apiOrpcClient(adminCardImagesContract, context.cookie).setNeedsTrim({
+      imageId: data.imageId,
+      needsTrim: data.needsTrim,
+    });
   });
 
 const addImageFromUrlFn = createServerFn({ method: "POST" })
   .validator((input: { printingId: string; url: string; mode?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards.printing[":printingId"][
-        "add-image-url"
-      ].$post({
-        param: encodeParams({ printingId: data.printingId }),
-        json: { url: data.url, mode: data.mode as "main" | "additional" | undefined },
-      }),
-      "Couldn't add image from URL",
-    );
+    await apiOrpcClient(adminCardImagesContract, context.cookie).addImageUrl({
+      printingId: data.printingId,
+      url: data.url,
+      mode: data.mode as "main" | "additional" | undefined,
+    });
   });
 
 const setCandidatePrintingImageFn = createServerFn({ method: "POST" })
   .validator((input: { candidatePrintingId: string; mode: "main" | "additional" }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards["candidate-printings"][":id"][
-        "set-image"
-      ].$post({
-        param: encodeParams({ id: data.candidatePrintingId }),
-        json: { mode: data.mode },
-      }),
-      "Couldn't set candidate printing image",
-    );
+    await apiOrpcClient(adminCardImagesContract, context.cookie).setImage({
+      id: data.candidatePrintingId,
+      mode: data.mode,
+    });
   });
 
 const uploadCandidatesFn = createServerFn({ method: "POST" })
@@ -135,10 +99,7 @@ const uploadCandidatesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<UploadCandidatesResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1.cards.upload.$post({ json: data }),
-        "Couldn't upload candidates",
-      ),
+      apiOrpcClient(adminCardMutationsContract, context.cookie).upload(data),
   );
 
 // ── Hook exports ─────────────────────────────────────────────────────────────

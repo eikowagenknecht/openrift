@@ -13,17 +13,25 @@ const { serverCache } = (await import("./server-cache")) as { serverCache: Query
 const SESSION_COOKIE = "better-auth.session_token=abc123; theme=dark";
 const NO_SESSION_COOKIE = "theme=dark";
 
-// The hc client calls global fetch with (url, { headers: Headers, ... }); mock at
-// that boundary so the test exercises serverApiClient's real cookie forwarding.
+// The oRPC OpenAPI client reads the response content-type and streams the body,
+// so the mock must be a real Response (not a hand-rolled stub). Mock at the
+// global fetch boundary so the test still exercises the client's real cookie
+// forwarding and URL composition.
 function mockFlagsResponse(flags: Record<string, boolean>) {
-  return {
-    ok: true,
-    status: 200,
-    statusText: "OK",
-    url: "http://localhost:3000/api/v1/feature-flags",
-    json: async () => ({ flags }),
-    text: async () => JSON.stringify({ flags }),
-  } as Response;
+  // Response.json sets `content-type: application/json`, which the oRPC OpenAPI
+  // codec requires to parse the body.
+  return Response.json({ flags });
+}
+
+// oRPC's fetch link may call fetch as `fetch(url, init)` or `fetch(request)`.
+// Normalize both into { url, headers } so assertions don't depend on the shape.
+function readFetchCall(call: unknown[]): { url: string; headers: Headers } {
+  const [first, second] = call;
+  if (first instanceof Request) {
+    return { url: first.url, headers: first.headers };
+  }
+  const init = (second ?? {}) as { headers?: HeadersInit };
+  return { url: String(first), headers: new Headers(init.headers) };
 }
 
 describe("loadFeatureFlags", () => {
@@ -43,9 +51,9 @@ describe("loadFeatureFlags", () => {
 
     expect(flags).toEqual({ "beta-flag": true });
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0] as [string, { headers: Headers }];
+    const { url, headers } = readFetchCall(fetchMock.mock.calls[0]);
     expect(url).toBe("http://localhost:3000/api/v1/feature-flags");
-    expect(init.headers.get("cookie")).toBe(SESSION_COOKIE);
+    expect(headers.get("cookie")).toBe(SESSION_COOKIE);
   });
 
   it("bypasses the shared serverCache for authenticated users", async () => {
@@ -73,8 +81,8 @@ describe("loadFeatureFlags", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     // Anonymous path calls the API with no cookie at all (not the non-session cookie).
-    const [, init] = fetchMock.mock.calls[0] as [string, { headers: Headers }];
-    expect(init.headers.get("cookie")).toBeNull();
+    const { headers } = readFetchCall(fetchMock.mock.calls[0]);
+    expect(headers.get("cookie")).toBeNull();
   });
 
   it("coalesces concurrent anonymous requests via serverCache", async () => {

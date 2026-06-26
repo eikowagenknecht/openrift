@@ -1,8 +1,9 @@
+import { adminCardMutationsContract } from "@openrift/shared/contracts";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const upsertCardErrataFn = createServerFn({ method: "POST" })
@@ -18,19 +19,14 @@ const upsertCardErrataFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards[":cardId"].errata.$post({
-        param: encodeParams({ cardId: data.cardId }),
-        json: {
-          correctedRulesText: data.correctedRulesText,
-          correctedEffectText: data.correctedEffectText,
-          source: data.source,
-          sourceUrl: data.sourceUrl ?? null,
-          effectiveDate: data.effectiveDate ?? null,
-        },
-      }),
-      "Couldn't upsert card errata",
-    );
+    await apiOrpcClient(adminCardMutationsContract, context.cookie).upsertErrata({
+      cardId: data.cardId,
+      correctedRulesText: data.correctedRulesText,
+      correctedEffectText: data.correctedEffectText,
+      source: data.source,
+      sourceUrl: data.sourceUrl ?? null,
+      effectiveDate: data.effectiveDate ?? null,
+    });
   });
 
 /**
@@ -66,12 +62,9 @@ const deleteCardErrataFn = createServerFn({ method: "POST" })
   .validator((input: { cardId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1.cards[":cardId"].errata.$delete({
-        param: encodeParams({ cardId: data.cardId }),
-      }),
-      "Couldn't delete card errata",
-    );
+    await apiOrpcClient(adminCardMutationsContract, context.cookie).deleteErrata({
+      cardId: data.cardId,
+    });
   });
 
 /**
@@ -127,10 +120,7 @@ const uploadErrataFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<BulkErrataUploadResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1.cards.errata.upload.$post({ json: data }),
-        "Couldn't upload errata",
-      ),
+      apiOrpcClient(adminCardMutationsContract, context.cookie).uploadErrata(data),
   );
 
 /**

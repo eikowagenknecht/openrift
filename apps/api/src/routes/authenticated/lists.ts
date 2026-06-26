@@ -1,403 +1,95 @@
-import { createRoute, z } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
 import type {
   ListBulkAddResponse,
   ListDetailResponse,
+  ListEntryResponse,
+  ListGroupSharesResponse,
   ListKind,
   ListListResponse,
+  ListMoveResponse,
+  ListResponse,
   ListShareResponse,
 } from "@openrift/shared";
-import {
-  listBulkAddResponseSchema,
-  listDetailResponseSchema,
-  listEntryResponseSchema,
-  listGroupSharesResponseSchema,
-  listListResponseSchema,
-  listMoveResponseSchema,
-  listResponseSchema,
-  listShareResponseSchema,
-} from "@openrift/shared/response-schemas";
-import {
-  bulkAddCopiesToListSchema,
-  bulkCreateListEntriesSchema,
-  bulkDeleteListEntriesSchema,
-  createListEntrySchema,
-  createListSchema,
-  idAndItemIdParamSchema,
-  idParamSchema,
-  listIntentQuerySchema,
-  moveListEntriesSchema,
-  reorderListsSchema,
-  updateListEntrySchema,
-  updateListSchema,
-} from "@openrift/shared/schemas";
+import { listsContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { getUserId } from "../../middleware/get-user-id.js";
-import { requireAuth } from "../../middleware/require-auth.js";
-import { cookieAuth, errorResponses } from "../../openapi-helpers.js";
-import { createApiApp } from "../../openapi.js";
+import { requireUserId } from "../../middleware/get-user-id.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 import type { ListEntryUpdate, ListUpdate, NewEntryValues } from "../../repositories/lists.js";
 import { assertDeleted, assertFound } from "../../utils/assertions.js";
 import { toList, toListEntry, toListEntryDetail } from "../../utils/mappers.js";
 import { generateShareToken } from "../../utils/share-token.js";
 
-const listLists = createRoute({
-  method: "get",
-  path: "/",
-  tags: ["Lists"],
-  security: cookieAuth,
-  request: { query: listIntentQuerySchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: listListResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(400, 401),
-  },
-});
+const os = implement(listsContract).$context<ApiContext>().use(requireUser);
 
-const createList = createRoute({
-  method: "post",
-  path: "/",
-  tags: ["Lists"],
-  security: cookieAuth,
-  request: {
-    body: { content: { "application/json": { schema: createListSchema } } },
-  },
-  responses: {
-    201: {
-      headers: z.object({
-        Location: z.string().openapi({ description: "URL of the created list" }),
-      }),
-      content: { "application/json": { schema: listResponseSchema } },
-      description: "Created",
-    },
-    ...errorResponses(400, 401),
-  },
-});
-
-const getList = createRoute({
-  method: "get",
-  path: "/{id}",
-  tags: ["Lists"],
-  security: cookieAuth,
-  request: { params: idParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: listDetailResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(401, 404),
-  },
-});
-
-const updateList = createRoute({
-  method: "patch",
-  path: "/{id}",
-  tags: ["Lists"],
-  security: cookieAuth,
-  request: {
-    params: idParamSchema,
-    body: { content: { "application/json": { schema: updateListSchema } } },
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: listResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(400, 401, 404),
-  },
-});
-
-const deleteList = createRoute({
-  method: "delete",
-  path: "/{id}",
-  tags: ["Lists"],
-  security: cookieAuth,
-  request: { params: idParamSchema },
-  responses: {
-    204: { description: "No Content" },
-    ...errorResponses(401, 404),
-  },
-});
-
-const createListEntryRoute = createRoute({
-  method: "post",
-  path: "/{id}/entries",
-  tags: ["Lists"],
-  security: cookieAuth,
-  request: {
-    params: idParamSchema,
-    body: { content: { "application/json": { schema: createListEntrySchema } } },
-  },
-  responses: {
-    201: {
-      headers: z.object({
-        Location: z.string().openapi({ description: "URL of the list with the created entry" }),
-      }),
-      content: { "application/json": { schema: listEntryResponseSchema } },
-      description: "Created",
-    },
-    ...errorResponses(400, 401, 404, 409),
-  },
-});
-
-const bulkCreateListEntriesRoute = createRoute({
-  method: "post",
-  path: "/{id}/entries/bulk",
-  tags: ["Lists"],
-  security: cookieAuth,
-  request: {
-    params: idParamSchema,
-    body: { content: { "application/json": { schema: bulkCreateListEntriesSchema } } },
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: listBulkAddResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(400, 401, 404),
-  },
-});
-
-const bulkAddCopiesToListRoute = createRoute({
-  method: "post",
-  path: "/{id}/entries/from-copies",
-  tags: ["Lists"],
-  security: cookieAuth,
-  request: {
-    params: idParamSchema,
-    body: { content: { "application/json": { schema: bulkAddCopiesToListSchema } } },
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: listBulkAddResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(400, 401, 404),
-  },
-});
-
-const moveListEntriesRoute = createRoute({
-  method: "post",
-  path: "/{id}/entries/move",
-  tags: ["Lists"],
-  security: cookieAuth,
-  request: {
-    params: idParamSchema,
-    body: { content: { "application/json": { schema: moveListEntriesSchema } } },
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: listMoveResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(400, 401, 404),
-  },
-});
-
-const updateListEntryRoute = createRoute({
-  method: "patch",
-  path: "/{id}/entries/{itemId}",
-  tags: ["Lists"],
-  security: cookieAuth,
-  request: {
-    params: idAndItemIdParamSchema,
-    body: { content: { "application/json": { schema: updateListEntrySchema } } },
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: listEntryResponseSchema } },
-      description: "Success",
-    },
-    ...errorResponses(400, 401, 404),
-  },
-});
-
-const deleteListEntry = createRoute({
-  method: "delete",
-  path: "/{id}/entries/{itemId}",
-  tags: ["Lists"],
-  security: cookieAuth,
-  request: { params: idAndItemIdParamSchema },
-  responses: {
-    204: { description: "No Content" },
-    ...errorResponses(401, 404),
-  },
-});
-
-const getShareState = createRoute({
-  method: "get",
-  path: "/{id}/share",
-  tags: ["Lists"],
-  security: cookieAuth,
-  request: { params: idParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: listShareResponseSchema } },
-      description: "Current share state (shareToken null + isPublic false if unshared)",
-    },
-    ...errorResponses(401, 404),
-  },
-});
-
-const bulkDeleteListEntriesRoute = createRoute({
-  method: "post",
-  path: "/{id}/entries/bulk-delete",
-  tags: ["Lists"],
-  request: {
-    params: idParamSchema,
-    body: { content: { "application/json": { schema: bulkDeleteListEntriesSchema } } },
-  },
-  responses: {
-    204: { description: "No Content" },
-  },
-});
-
-const shareList = createRoute({
-  method: "post",
-  path: "/{id}/share",
-  tags: ["Lists"],
-  security: cookieAuth,
-  request: { params: idParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: listShareResponseSchema } },
-      description: "Shared (idempotent — returns the existing token if already shared)",
-    },
-    ...errorResponses(401, 404),
-  },
-});
-
-const rotateShareList = createRoute({
-  method: "post",
-  path: "/{id}/share/rotate",
-  tags: ["Lists"],
-  security: cookieAuth,
-  request: { params: idParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: listShareResponseSchema } },
-      description: "Share token rotated (old token stops resolving)",
-    },
-    ...errorResponses(401, 404),
-  },
-});
-
-const unshareList = createRoute({
-  method: "delete",
-  path: "/{id}/share",
-  tags: ["Lists"],
-  security: cookieAuth,
-  request: { params: idParamSchema },
-  responses: {
-    204: { description: "No Content" },
-    ...errorResponses(401, 404),
-  },
-});
-
-const reorderLists = createRoute({
-  method: "post",
-  path: "/reorder",
-  tags: ["Lists"],
-  security: cookieAuth,
-  request: {
-    body: { content: { "application/json": { schema: reorderListsSchema } } },
-  },
-  responses: {
-    204: { description: "No Content" },
-    ...errorResponses(400, 401),
-  },
-});
-
-const listGroupShares = createRoute({
-  method: "get",
-  path: "/{id}/group-shares",
-  tags: ["Lists"],
-  security: cookieAuth,
-  request: { params: idParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: listGroupSharesResponseSchema } },
-      description: "Groups this list is shared with (ADR-013)",
-    },
-    ...errorResponses(401, 404),
-  },
-});
-
-const listsApp = createApiApp().basePath("/lists");
-listsApp.use(requireAuth);
-export const listsRoute = listsApp
+/**
+ * oRPC implementation of the authenticated unified-lists contract (ADR-017),
+ * mounted at `/api/v1/lists`. Logic unchanged from the previous
+ * `@hono/zod-openapi` handlers; bad-request / not-found / conflict states are
+ * thrown as `AppError` and mapped by the handler's appErrorInterceptor.
+ * The `201` `Location` headers on create / create-entry are dropped — no
+ * consumer read them.
+ */
+export const listsRouter = {
   // ── LIST ────────────────────────────────────────────────────────────────────
-  .openapi(listLists, async (c) => {
-    const { lists } = c.get("repos");
-    const { intent } = c.req.valid("query");
-    const rows = await lists.listForUser(getUserId(c), intent);
-    return c.json(
-      {
-        items: rows.map((row) => toList(row)),
-      } satisfies ListListResponse,
-      200,
-    );
-  })
+  list: os.list.handler(async ({ input, context }): Promise<ListListResponse> => {
+    const { lists } = context.repos;
+    const rows = await lists.listForUser(requireUserId(context.user), input.intent);
+    return { items: rows.map((row) => toList(row)) };
+  }),
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
-  .openapi(createList, async (c) => {
-    const { lists } = c.get("repos");
-    const userId = getUserId(c);
-    const body = c.req.valid("json");
+  create: os.create.handler(async ({ input, context }): Promise<ListResponse> => {
+    const { lists } = context.repos;
+    const userId = requireUserId(context.user);
     // ADR-017: trade defaults only apply to wish/trade lists. The DB CHECK
     // constraint rejects non-null prefs on organize lists; we strip here so
     // the API never round-trips a 500.
-    const supportsPrefs = body.intent !== "organize";
-    const tradeDefaults = supportsPrefs ? body.tradeDefaults : undefined;
+    const supportsPrefs = input.intent !== "organize";
+    const tradeDefaults = supportsPrefs ? input.tradeDefaults : undefined;
     const row = await lists.create({
       userId,
-      name: body.name,
-      intent: body.intent,
-      kind: body.kind,
+      name: input.name,
+      intent: input.intent,
+      kind: input.kind,
       defaultPricePref: tradeDefaults?.pricePref ?? null,
       defaultPriceAbsoluteCents: tradeDefaults?.priceAbsoluteCents ?? null,
       defaultTradeType: tradeDefaults?.tradeType ?? null,
-      currency: supportsPrefs ? (body.currency ?? null) : null,
+      currency: supportsPrefs ? (input.currency ?? null) : null,
     });
     // Group visibility is opt-in (ADR-013): a new list is private and the owner
     // shares it with specific groups from the create dialog or the manage page.
-    c.header("Location", `/api/v1/lists/${row.id}`);
-    return c.json(toList(row), 201);
-  })
+    return toList(row);
+  }),
 
   // ── GET ONE (with enriched entries) ─────────────────────────────────────────
-  .openapi(getList, async (c) => {
-    const { lists } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
+  get: os.get.handler(async ({ input, context }): Promise<ListDetailResponse> => {
+    const { lists } = context.repos;
+    const userId = requireUserId(context.user);
 
-    const list = await lists.getByIdForUser(id, userId);
+    const list = await lists.getByIdForUser(input.id, userId);
     assertFound(list, "Not found");
 
-    const entries = await lists.entriesWithDetails(id, list.kind, userId);
+    const entries = await lists.entriesWithDetails(input.id, list.kind, userId);
 
-    const detail: ListDetailResponse = {
+    return {
       list: toList(list),
       entries: entries.map((row) => toListEntryDetail(row)),
     };
-    return c.json(detail, 200);
-  })
+  }),
 
   // ── UPDATE (name + trade prefs; intent/kind immutable post-creation) ───────
-  .openapi(updateList, async (c) => {
-    const { lists } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
-    const body = c.req.valid("json");
+  update: os.update.handler(async ({ input, context }): Promise<ListResponse> => {
+    const { lists } = context.repos;
+    const userId = requireUserId(context.user);
 
     // ADR-017: trade defaults/currency only apply to wish/trade lists — the DB
     // CHECK rejects non-null prefs on organize lists. Look up the list's intent
-    // and strip those fields for organize lists (mirroring createList), so a
-    // PATCH that carries them is a no-op for those fields instead of a 500.
-    const existing = await lists.getByIdForUser(id, userId);
+    // and strip those fields for organize lists (mirroring create), so a PATCH
+    // that carries them is a no-op for those fields instead of a 500.
+    const existing = await lists.getByIdForUser(input.id, userId);
     assertFound(existing, "Not found");
     const supportsPrefs = existing.intent !== "organize";
 
@@ -405,40 +97,37 @@ export const listsRoute = listsApp
     // doesn't trip the generic patch helper's "no fields" guard. (Same
     // pattern as the entry PATCH handler.)
     const updates: ListUpdate = {};
-    if (body.name !== undefined) {
-      updates.name = body.name;
+    if (input.name !== undefined) {
+      updates.name = input.name;
     }
-    if (supportsPrefs && body.tradeDefaults !== undefined) {
-      updates.defaultPricePref = body.tradeDefaults.pricePref;
-      updates.defaultPriceAbsoluteCents = body.tradeDefaults.priceAbsoluteCents;
-      updates.defaultTradeType = body.tradeDefaults.tradeType;
+    if (supportsPrefs && input.tradeDefaults !== undefined) {
+      updates.defaultPricePref = input.tradeDefaults.pricePref;
+      updates.defaultPriceAbsoluteCents = input.tradeDefaults.priceAbsoluteCents;
+      updates.defaultTradeType = input.tradeDefaults.tradeType;
     }
-    if (supportsPrefs && body.currency !== undefined) {
-      updates.currency = body.currency;
+    if (supportsPrefs && input.currency !== undefined) {
+      updates.currency = input.currency;
     }
     if (Object.keys(updates).length === 0) {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "No fields to update");
     }
-    const row = await lists.update(id, userId, updates);
+    const row = await lists.update(input.id, userId, updates);
     assertFound(row, "Not found");
-    return c.json(toList(row), 200);
-  })
+    return toList(row);
+  }),
 
   // ── DELETE ──────────────────────────────────────────────────────────────────
-  .openapi(deleteList, async (c) => {
-    const { lists } = c.get("repos");
-    const { id } = c.req.valid("param");
-    const result = await lists.deleteByIdForUser(id, getUserId(c));
+  remove: os.remove.handler(async ({ input, context }): Promise<void> => {
+    const { lists } = context.repos;
+    const result = await lists.deleteByIdForUser(input.id, requireUserId(context.user));
     assertDeleted(result, "Not found");
-    return c.body(null, 204);
-  })
+  }),
 
   // ── POST /lists/:id/entries ───────────────────────────────────────────────
-  .openapi(createListEntryRoute, async (c) => {
-    const { lists, copies } = c.get("repos");
-    const userId = getUserId(c);
-    const { id: listId } = c.req.valid("param");
-    const body = c.req.valid("json");
+  createEntry: os.createEntry.handler(async ({ input, context }): Promise<ListEntryResponse> => {
+    const { lists, copies } = context.repos;
+    const userId = requireUserId(context.user);
+    const listId = input.id;
 
     const list = await lists.getIdKindIntent(listId, userId);
     assertFound(list, "List not found");
@@ -447,7 +136,7 @@ export const listsRoute = listsApp
     // card you merely have group access to isn't yours to trade away or wish
     // for. Organize lists may reference shared group copies too.
     const personalOnly = list.intent !== "organize";
-    const target = await resolveEntryTarget(list.kind, body, userId, copies, personalOnly);
+    const target = await resolveEntryTarget(list.kind, input, userId, copies, personalOnly);
 
     let row;
     try {
@@ -458,10 +147,10 @@ export const listsRoute = listsApp
         cardId: target.cardId,
         printingId: target.printingId,
         copyId: target.copyId,
-        quantity: body.quantity,
-        pricePref: body.tradeOverride.pricePref,
-        priceAbsoluteCents: body.tradeOverride.priceAbsoluteCents,
-        tradeType: body.tradeOverride.tradeType,
+        quantity: input.quantity,
+        pricePref: input.tradeOverride.pricePref,
+        priceAbsoluteCents: input.tradeOverride.priceAbsoluteCents,
+        tradeType: input.tradeOverride.tradeType,
       });
     } catch (error) {
       // 23505 = unique_violation: this exact target is already in the list. The
@@ -473,82 +162,81 @@ export const listsRoute = listsApp
       throw error;
     }
 
-    // List entries have no standalone GET; point at the owning list.
-    c.header("Location", `/api/v1/lists/${listId}`);
-    return c.json(toListEntry(row), 201);
-  })
+    return toListEntry(row);
+  }),
 
   // ── POST /lists/:id/entries/bulk ──────────────────────────────────────────
-  .openapi(bulkCreateListEntriesRoute, async (c) => {
-    const { lists, copies } = c.get("repos");
-    const userId = getUserId(c);
-    const { id: listId } = c.req.valid("param");
-    const { entries } = c.req.valid("json");
+  bulkCreateEntries: os.bulkCreateEntries.handler(
+    async ({ input, context }): Promise<ListBulkAddResponse> => {
+      const { lists, copies } = context.repos;
+      const userId = requireUserId(context.user);
+      const listId = input.id;
+      const { entries } = input;
 
-    const list = await lists.getIdKindIntent(listId, userId);
-    assertFound(list, "List not found");
+      const list = await lists.getIdKindIntent(listId, userId);
+      assertFound(list, "List not found");
 
-    // Reject the whole batch if any entry's target column doesn't match the
-    // list's kind — the partial-index ON CONFLICT (and the FK) would fail on
-    // a mismatch anyway. A clean 400 here avoids a confusing DB-level error.
-    for (const entry of entries) {
-      if (!targetMatchesKind(list.kind, entry)) {
-        throw new AppError(
-          400,
-          ERROR_CODES.BAD_REQUEST,
-          `Every entry must target the list's kind (${list.kind})`,
+      // Reject the whole batch if any entry's target column doesn't match the
+      // list's kind — the partial-index ON CONFLICT (and the FK) would fail on
+      // a mismatch anyway. A clean 400 here avoids a confusing DB-level error.
+      for (const entry of entries) {
+        if (!targetMatchesKind(list.kind, entry)) {
+          throw new AppError(
+            400,
+            ERROR_CODES.BAD_REQUEST,
+            `Every entry must target the list's kind (${list.kind})`,
+          );
+        }
+      }
+
+      // Copy-kind lists: filter to copies the user may reference; drop the rest
+      // silently rather than 400-ing the whole batch. Trade lists are restricted
+      // to the user's own collections (a copy you merely have group access to
+      // isn't yours to trade away); organize-copy lists may reference shared
+      // group collections too. Card/printing kinds pass through (FK enforces
+      // target row existence).
+      const personalOnly = list.intent !== "organize";
+      let usableEntries = entries;
+      if (list.kind === "copy") {
+        const copyIdsRequested = entries
+          .map((entry) => entry.copyId)
+          .filter((id): id is string => id !== undefined);
+        const accessibleCopyIds = new Set(
+          copyIdsRequested.length > 0
+            ? await copies.filterAccessibleByViewer(copyIdsRequested, userId, personalOnly)
+            : [],
+        );
+        usableEntries = entries.filter(
+          (entry) => entry.copyId !== undefined && accessibleCopyIds.has(entry.copyId),
         );
       }
-    }
 
-    // Copy-kind lists: filter to copies the user may reference; drop the rest
-    // silently rather than 400-ing the whole batch. Trade lists are restricted
-    // to the user's own collections (a copy you merely have group access to
-    // isn't yours to trade away); organize-copy lists may reference shared
-    // group collections too. Card/printing kinds pass through (FK enforces
-    // target row existence).
-    const personalOnly = list.intent !== "organize";
-    let usableEntries = entries;
-    if (list.kind === "copy") {
-      const copyIdsRequested = entries
-        .map((entry) => entry.copyId)
-        .filter((id): id is string => id !== undefined);
-      const accessibleCopyIds = new Set(
-        copyIdsRequested.length > 0
-          ? await copies.filterAccessibleByViewer(copyIdsRequested, userId, personalOnly)
-          : [],
-      );
-      usableEntries = entries.filter(
-        (entry) => entry.copyId !== undefined && accessibleCopyIds.has(entry.copyId),
-      );
-    }
+      const usable: NewEntryValues[] = usableEntries.map((entry) => ({
+        listId,
+        userId,
+        kind: list.kind,
+        cardId: entry.cardId ?? null,
+        printingId: entry.printingId ?? null,
+        copyId: entry.copyId ?? null,
+        quantity: entry.quantity,
+        pricePref: entry.tradeOverride.pricePref,
+        priceAbsoluteCents: entry.tradeOverride.priceAbsoluteCents,
+        tradeType: entry.tradeOverride.tradeType,
+      }));
 
-    const usable: NewEntryValues[] = usableEntries.map((entry) => ({
-      listId,
-      userId,
-      kind: list.kind,
-      cardId: entry.cardId ?? null,
-      printingId: entry.printingId ?? null,
-      copyId: entry.copyId ?? null,
-      quantity: entry.quantity,
-      pricePref: entry.tradeOverride.pricePref,
-      priceAbsoluteCents: entry.tradeOverride.priceAbsoluteCents,
-      tradeType: entry.tradeOverride.tradeType,
-    }));
+      const result = await lists.bulkCreateEntries(list.kind, usable);
 
-    const result = await lists.bulkCreateEntries(list.kind, usable);
-
-    // `skipped` captures both the ownership filter (copy-kind only) and any
-    // copy-kind dupes that took the DO NOTHING branch. Card/printing-kind
-    // dupes merge into existing rows via quantity bump and surface as
-    // `updated`, not `skipped`.
-    const response: ListBulkAddResponse = {
-      added: result.inserted,
-      updated: result.updated,
-      skipped: entries.length - result.inserted - result.updated,
-    };
-    return c.json(response, 200);
-  })
+      // `skipped` captures both the ownership filter (copy-kind only) and any
+      // copy-kind dupes that took the DO NOTHING branch. Card/printing-kind
+      // dupes merge into existing rows via quantity bump and surface as
+      // `updated`, not `skipped`.
+      return {
+        added: result.inserted,
+        updated: result.updated,
+        skipped: entries.length - result.inserted - result.updated,
+      };
+    },
+  ),
 
   // ── POST /lists/:id/entries/from-copies ──────────────────────────────────
   // Drag-from-collections sugar. Front-end passes copy IDs from a drag; the
@@ -558,202 +246,177 @@ export const listsRoute = listsApp
   //   kind = card     → one entry per distinct card across the copies
   // Non-owned copies and existing duplicates are skipped silently and
   // reflected in `skipped`.
-  .openapi(bulkAddCopiesToListRoute, async (c) => {
-    const { lists } = c.get("repos");
-    const userId = getUserId(c);
-    const { id: listId } = c.req.valid("param");
-    const { copyIds } = c.req.valid("json");
+  bulkAddFromCopies: os.bulkAddFromCopies.handler(
+    async ({ input, context }): Promise<ListBulkAddResponse> => {
+      const { lists } = context.repos;
+      const userId = requireUserId(context.user);
+      const listId = input.id;
 
-    const list = await lists.getIdKindIntent(listId, userId);
-    assertFound(list, "List not found");
+      const list = await lists.getIdKindIntent(listId, userId);
+      assertFound(list, "List not found");
 
-    // Trade/wish lists derive entries only from the user's own copies; organize
-    // lists may derive from shared group copies too.
-    const personalOnly = list.intent !== "organize";
-    const result = await lists.bulkCreateEntriesFromCopies(
-      listId,
-      list.kind,
-      userId,
-      copyIds,
-      personalOnly,
-    );
-
-    return c.json(result satisfies ListBulkAddResponse, 200);
-  })
+      // Trade/wish lists derive entries only from the user's own copies;
+      // organize lists may derive from shared group copies too.
+      const personalOnly = list.intent !== "organize";
+      return lists.bulkCreateEntriesFromCopies(
+        listId,
+        list.kind,
+        userId,
+        input.copyIds,
+        personalOnly,
+      );
+    },
+  ),
 
   // ── POST /lists/:id/entries/move ─────────────────────────────────────────
   // Move entries from this list (the {id} in the path) to another list owned
   // by the same user. The destination must match the source on kind + intent
   // — different kind would reshape every entry, different intent would
   // silently re-purpose them (turning a wishlist into a tradelist row).
-  .openapi(moveListEntriesRoute, async (c) => {
-    const { moveListEntries } = c.get("services");
-    const repos = c.get("repos");
-    const transact = c.get("transact");
-    const userId = getUserId(c);
-    const { id: fromListId } = c.req.valid("param");
-    const body = c.req.valid("json");
+  moveEntries: os.moveEntries.handler(async ({ input, context }): Promise<ListMoveResponse> => {
+    const { moveListEntries } = context.services;
+    const repos = context.repos;
+    const transact = context.transact;
+    const userId = requireUserId(context.user);
 
-    const result = await moveListEntries(
-      repos,
-      transact,
-      userId,
-      fromListId,
-      body.toListId,
-      body.entryIds,
-    );
-    return c.json(result, 200);
-  })
+    return await moveListEntries(repos, transact, userId, input.id, input.toListId, input.entryIds);
+  }),
 
   // ── PATCH /lists/:id/entries/:itemId ──────────────────────────────────────
-  .openapi(updateListEntryRoute, async (c) => {
-    const { lists } = c.get("repos");
-    const userId = getUserId(c);
-    const { id: listId, itemId } = c.req.valid("param");
-    const body = c.req.valid("json");
+  updateEntry: os.updateEntry.handler(async ({ input, context }): Promise<ListEntryResponse> => {
+    const { lists } = context.repos;
+    const userId = requireUserId(context.user);
     // Build the updates manually so we can mix two field categories
     // (scalar `quantity` and the nested `tradeOverride` triple) without the
     // generic patch helper rejecting a tradeOverride-only patch as empty.
     const updates: ListEntryUpdate = {};
-    if (body.quantity !== undefined) {
-      updates.quantity = body.quantity;
+    if (input.quantity !== undefined) {
+      updates.quantity = input.quantity;
     }
-    if (body.tradeOverride !== undefined) {
-      updates.pricePref = body.tradeOverride.pricePref;
-      updates.priceAbsoluteCents = body.tradeOverride.priceAbsoluteCents;
-      updates.tradeType = body.tradeOverride.tradeType;
+    if (input.tradeOverride !== undefined) {
+      updates.pricePref = input.tradeOverride.pricePref;
+      updates.priceAbsoluteCents = input.tradeOverride.priceAbsoluteCents;
+      updates.tradeType = input.tradeOverride.tradeType;
     }
     if (Object.keys(updates).length === 0) {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "No fields to update");
     }
-    const row = await lists.updateEntry(itemId, listId, userId, updates);
+    const row = await lists.updateEntry(input.itemId, input.id, userId, updates);
     assertFound(row, "Not found");
-    return c.json(toListEntry(row), 200);
-  })
+    return toListEntry(row);
+  }),
 
   // ── DELETE /lists/:id/entries/:itemId ─────────────────────────────────────
-  .openapi(deleteListEntry, async (c) => {
-    const { lists } = c.get("repos");
-    const userId = getUserId(c);
-    const { id: listId, itemId } = c.req.valid("param");
+  removeEntry: os.removeEntry.handler(async ({ input, context }): Promise<void> => {
+    const { lists } = context.repos;
+    const userId = requireUserId(context.user);
 
-    const result = await lists.deleteEntry(itemId, listId, userId);
+    const result = await lists.deleteEntry(input.itemId, input.id, userId);
     assertDeleted(result, "Not found");
-
-    return c.body(null, 204);
-  })
+  }),
 
   // ── GET /lists/:id/share ──────────────────────────────────────────────────
   // Owner-only. Reports the current share state. An owned-but-unshared list
   // resolves to { shareToken: null, isPublic: false } rather than 404 — 404 is
   // reserved for lists the caller doesn't own.
-  .openapi(getShareState, async (c) => {
-    const { lists } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
+  getShare: os.getShare.handler(async ({ input, context }): Promise<ListShareResponse> => {
+    const { lists } = context.repos;
+    const userId = requireUserId(context.user);
 
-    const state = await lists.getShareState(id, userId);
+    const state = await lists.getShareState(input.id, userId);
     assertFound(state, "Not found");
 
-    return c.json(state satisfies ListShareResponse, 200);
-  })
+    return state;
+  }),
 
   // ── POST /lists/:id/entries/bulk-delete ───────────────────────────────────
   // Bulk-remove from select mode. deleteEntriesByIds is scoped to the list +
   // owner, so entry ids from another list (or another user) are filtered out
   // rather than erroring. We still 404 a missing list so a stale URL is loud.
-  .openapi(bulkDeleteListEntriesRoute, async (c) => {
-    const { lists } = c.get("repos");
-    const userId = getUserId(c);
-    const { id: listId } = c.req.valid("param");
-    const { entryIds } = c.req.valid("json");
+  bulkDeleteEntries: os.bulkDeleteEntries.handler(async ({ input, context }): Promise<void> => {
+    const { lists } = context.repos;
+    const userId = requireUserId(context.user);
+    const listId = input.id;
 
     const list = await lists.getIdKindIntent(listId, userId);
     assertFound(list, "List not found");
 
-    await lists.deleteEntriesByIds(entryIds, listId, userId);
-
-    return c.body(null, 204);
-  })
+    await lists.deleteEntriesByIds(input.entryIds, listId, userId);
+  }),
 
   // ── POST /lists/:id/share ─────────────────────────────────────────────────
   // Idempotent enable: if the list already has a token, return the existing
   // share state unchanged (no token churn). Otherwise mint a token and flip
   // is_public=true. Token rotation lives in the dedicated /share/rotate route.
-  .openapi(shareList, async (c) => {
-    const { lists } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
+  share: os.share.handler(async ({ input, context }): Promise<ListShareResponse> => {
+    const { lists } = context.repos;
+    const userId = requireUserId(context.user);
 
-    const current = await lists.getShareState(id, userId);
+    const current = await lists.getShareState(input.id, userId);
     assertFound(current, "Not found");
     if (current.shareToken !== null) {
-      return c.json(current satisfies ListShareResponse, 200);
+      return current;
     }
 
     const token = generateShareToken();
-    const updated = await lists.setShareToken(id, userId, token, true);
+    const updated = await lists.setShareToken(input.id, userId, token, true);
     assertFound(updated, "Not found");
 
-    return c.json({ shareToken: token, isPublic: true } satisfies ListShareResponse, 200);
-  })
+    return { shareToken: token, isPublic: true };
+  }),
 
   // ── POST /lists/:id/share/rotate ──────────────────────────────────────────
   // Owner-only. Mints a NEW token (the previous URL stops resolving) and
   // ensures is_public=true. Treats rotate-while-unshared as "share now" rather
   // than 409 — setShareToken supports it cleanly, so a client that rotates
   // before sharing just ends up shared, matching the bundle-share precedent.
-  .openapi(rotateShareList, async (c) => {
-    const { lists } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
+  rotateShare: os.rotateShare.handler(async ({ input, context }): Promise<ListShareResponse> => {
+    const { lists } = context.repos;
+    const userId = requireUserId(context.user);
 
     const token = generateShareToken();
-    const updated = await lists.setShareToken(id, userId, token, true);
+    const updated = await lists.setShareToken(input.id, userId, token, true);
     assertFound(updated, "Not found");
 
-    return c.json({ shareToken: token, isPublic: true } satisfies ListShareResponse, 200);
-  })
+    return { shareToken: token, isPublic: true };
+  }),
 
   // ── DELETE /lists/:id/share ───────────────────────────────────────────────
   // Nulls the share token and sets is_public=false. Old links 404 forever.
-  .openapi(unshareList, async (c) => {
-    const { lists } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
+  unshare: os.unshare.handler(async ({ input, context }): Promise<void> => {
+    const { lists } = context.repos;
+    const userId = requireUserId(context.user);
 
-    const updated = await lists.setShareToken(id, userId, null, false);
+    const updated = await lists.setShareToken(input.id, userId, null, false);
     assertFound(updated, "Not found");
-
-    return c.body(null, 204);
-  })
-
-  // ── GET /lists/:id/group-shares (ADR-013) ─────────────────────────────────
-  // The "shared with N groups" badge on the list page. Scoped to lists the
-  // viewer owns; non-owned lists 404.
-  .openapi(listGroupShares, async (c) => {
-    const { lists, friendGroups } = c.get("repos");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
-
-    const list = await lists.getByIdForUser(id, userId);
-    assertFound(list, "List not found");
-
-    const items = await friendGroups.listGroupsSharingList(id);
-    return c.json({ items }, 200);
-  })
+  }),
 
   // ── POST /lists/reorder ───────────────────────────────────────────────────
   // Bulk reorder for the user's lists in a single intent bucket. Lists in
   // other intents are silently ignored so the client only needs to send the
   // current bucket's view.
-  .openapi(reorderLists, async (c) => {
-    const { lists } = c.get("repos");
-    const userId = getUserId(c);
-    const { intent, orderedIds } = c.req.valid("json");
-    await lists.reorder(userId, intent, orderedIds);
-    return c.body(null, 204);
-  });
+  reorder: os.reorder.handler(async ({ input, context }): Promise<void> => {
+    const { lists } = context.repos;
+    const userId = requireUserId(context.user);
+    await lists.reorder(userId, input.intent, input.orderedIds);
+  }),
+
+  // ── GET /lists/:id/group-shares (ADR-013) ─────────────────────────────────
+  // The "shared with N groups" badge on the list page. Scoped to lists the
+  // viewer owns; non-owned lists 404.
+  groupShares: os.groupShares.handler(
+    async ({ input, context }): Promise<ListGroupSharesResponse> => {
+      const { lists, friendGroups } = context.repos;
+      const userId = requireUserId(context.user);
+
+      const list = await lists.getByIdForUser(input.id, userId);
+      assertFound(list, "List not found");
+
+      const items = await friendGroups.listGroupsSharingList(input.id);
+      return { items };
+    },
+  ),
+};
 
 /**
  * Validates that the body's target matches the list's kind, and pre-checks

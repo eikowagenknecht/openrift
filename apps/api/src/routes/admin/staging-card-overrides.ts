@@ -1,43 +1,21 @@
-import { createRoute } from "@hono/zod-openapi";
+import { adminStagingCardOverridesContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
-import { createApiApp } from "../../openapi.js";
-import { deleteOverrideQuerySchema, stagingCardOverrideSchema } from "./schemas.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 
-// ── Route definitions ───────────────────────────────────────────────────────
+const os = implement(adminStagingCardOverridesContract).$context<ApiContext>().use(requireUser);
 
-const createOverride = createRoute({
-  method: "post",
-  path: "/staging-card-overrides",
-  tags: ["Admin - Staging"],
-  request: {
-    body: { content: { "application/json": { schema: stagingCardOverrideSchema } } },
-  },
-  responses: {
-    204: { description: "Override created" },
-  },
-});
-
-const deleteOverride = createRoute({
-  method: "delete",
-  path: "/staging-card-overrides",
-  tags: ["Admin - Staging"],
-  request: {
-    query: deleteOverrideQuerySchema,
-  },
-  responses: {
-    204: { description: "Override deleted" },
-  },
-});
-
-// ── Route ───────────────────────────────────────────────────────────────────
-
-export const stagingCardOverridesRoute = createApiApp()
-  // ── POST /admin/staging-card-overrides ────────────────────────────────────
-
-  .openapi(createOverride, async (c) => {
-    const { marketplaceAdmin: mktAdmin } = c.get("repos");
-    const { marketplace, externalId, finish, language, cardId } = c.req.valid("json");
-
+/**
+ * oRPC implementation of the admin staging-card-overrides. Logic unchanged from
+ * the previous `@hono/zod-openapi` handlers; any thrown `AppError` is mapped by
+ * the handler's {@link appErrorInterceptor}. The DELETE reads its SKU key from
+ * detailed `query` input (compact mode drops DELETE query params).
+ */
+export const adminStagingCardOverridesRouter = {
+  create: os.create.handler(async ({ input, context }): Promise<void> => {
+    const { marketplaceAdmin: mktAdmin } = context.repos;
+    const { marketplace, externalId, finish, language, cardId } = input;
     await mktAdmin.upsertStagingCardOverride({
       marketplace,
       externalId,
@@ -45,17 +23,11 @@ export const stagingCardOverridesRoute = createApiApp()
       language,
       cardId,
     });
+  }),
 
-    return c.body(null, 204);
-  })
-
-  // ── DELETE /admin/staging-card-overrides ──────────────────────────────────
-
-  .openapi(deleteOverride, async (c) => {
-    const { marketplaceAdmin: mktAdmin } = c.get("repos");
-    const { marketplace, externalId, finish, language } = c.req.valid("query");
-
+  remove: os.remove.handler(async ({ input, context }): Promise<void> => {
+    const { marketplaceAdmin: mktAdmin } = context.repos;
+    const { marketplace, externalId, finish, language } = input.query;
     await mktAdmin.deleteStagingCardOverride(marketplace, externalId, finish, language ?? null);
-
-    return c.body(null, 204);
-  });
+  }),
+};

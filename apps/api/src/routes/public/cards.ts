@@ -1,54 +1,30 @@
-import { createRoute } from "@hono/zod-openapi";
-import { ERROR_CODES } from "@openrift/shared";
 import type {
+  CardDetailResponse,
   CatalogCardResponse,
   CatalogPrintingResponse,
-  CardDetailResponse,
 } from "@openrift/shared";
-import { cardDetailResponseSchema } from "@openrift/shared/response-schemas";
-import { etag } from "hono/etag";
-import { z } from "zod";
+import { cardsContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
-import { AppError } from "../../errors.js";
-import { errorResponses } from "../../openapi-helpers.js";
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-response.js";
 
-const cardSlugParamSchema = z.object({ cardSlug: z.string().min(1) });
+const os = implement(cardsContract).$context<ApiContext>().use(requireUser);
 
-const getCardDetail = createRoute({
-  method: "get",
-  path: "/cards/{cardSlug}",
-  tags: ["Cards"],
-  request: { params: cardSlugParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: cardDetailResponseSchema } },
-      description: "Card detail with all printings",
-    },
-    ...errorResponses(404),
-  },
-});
-
-const cardsApp = createApiApp();
-cardsApp.use("/cards/:cardSlug", etag());
-export const cardsRoute = cardsApp
-  /**
-   * `GET /cards/:cardSlug` — Returns a single card with all its printings.
-   *
-   * Lightweight alternative to the full catalog endpoint, designed for SSR
-   * card detail pages. Includes card data, all printings with images, and the
-   * sets those printings belong to. Prices are NOT inlined — they are served
-   * separately by `/prices` (CACHE-1).
-   */
-  .openapi(getCardDetail, async (c) => {
-    const { cardSlug } = c.req.valid("param");
-    const repos = c.get("repos");
+/**
+ * oRPC implementation of the public card-detail contract. Logic unchanged from
+ * the previous handler; the unknown-slug 404 is a typed NOT_FOUND. Prices are
+ * NOT inlined — they are served separately by `/prices` (CACHE-1).
+ */
+export const cardsRouter = {
+  detail: os.detail.handler(async ({ input, context, errors }): Promise<CardDetailResponse> => {
+    const repos = context.repos;
     const { catalog } = repos;
 
-    const card = await catalog.cardBySlug(cardSlug);
+    const card = await catalog.cardBySlug(input.cardSlug);
     if (!card) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Card not found: ${cardSlug}`);
+      throw errors.NOT_FOUND({ message: `Card not found: ${input.cardSlug}` });
     }
 
     const [printingRows, imageRows, banRows, errataRow] = await Promise.all([
@@ -58,7 +34,6 @@ export const cardsRoute = cardsApp
       catalog.cardErrataByCardId(card.id),
     ]);
 
-    // Collect unique set IDs from printings
     const setIds = [...new Set(printingRows.map((p) => p.setId))];
     const printingIds = printingRows.map((p) => p.id);
     const [sets, markerChannelMaps] = await Promise.all([
@@ -67,10 +42,8 @@ export const cardsRoute = cardsApp
     ]);
     const { markerBySlug, channelsByPrinting } = markerChannelMaps;
 
-    // Build images lookup
     const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
 
-    // Build errata
     const errata = errataRow
       ? {
           correctedRulesText: errataRow.correctedRulesText,
@@ -102,12 +75,6 @@ export const cardsRoute = cardsApp
       })),
     }));
 
-    const content: CardDetailResponse = {
-      card: cardResponse,
-      printings,
-      sets,
-    };
-
-    c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-    return c.json(content, 200);
-  });
+    return { card: cardResponse, printings, sets };
+  }),
+};

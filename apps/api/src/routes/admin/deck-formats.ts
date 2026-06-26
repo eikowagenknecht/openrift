@@ -1,147 +1,45 @@
-import { createRoute } from "@hono/zod-openapi";
 import { ERROR_CODES } from "@openrift/shared";
-import { z } from "zod";
+import { adminDeckFormatsContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 
-const deckFormatSchema = z.object({
-  slug: z.string().openapi({ example: "constructed" }),
-  label: z.string().openapi({ example: "Constructed" }),
-  sortOrder: z.number().openapi({ example: 1 }),
-  isWellKnown: z.boolean().openapi({ example: true }),
-});
+const os = implement(adminDeckFormatsContract).$context<ApiContext>().use(requireUser);
 
-const slugParamSchema = z.object({ slug: z.string().min(1) });
-
-// ── Route definitions ───────────────────────────────────────────────────────
-
-const listDeckFormats = createRoute({
-  method: "get",
-  path: "/deck-formats",
-  tags: ["Admin - Deck Formats"],
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({ deckFormats: z.array(deckFormatSchema) }),
-        },
-      },
-      description: "List deck formats",
-    },
-  },
-});
-
-const reorderDeckFormats = createRoute({
-  method: "put",
-  path: "/deck-formats/reorder",
-  tags: ["Admin - Deck Formats"],
-  request: {
-    body: {
-      content: {
-        "application/json": {
-          schema: z.object({ slugs: z.array(z.string().min(1)).min(1) }),
-        },
-      },
-    },
-  },
-  responses: {
-    204: { description: "Deck formats reordered" },
-  },
-});
-
-const createDeckFormat = createRoute({
-  method: "post",
-  path: "/deck-formats",
-  tags: ["Admin - Deck Formats"],
-  request: {
-    body: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            slug: z
-              .string()
-              .min(1)
-              .regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u, "Slug must be kebab-case"),
-            label: z.string().min(1),
-          }),
-        },
-      },
-    },
-  },
-  responses: {
-    201: {
-      content: {
-        "application/json": {
-          schema: z.object({ deckFormat: deckFormatSchema }),
-        },
-      },
-      description: "Deck format created",
-    },
-  },
-});
-
-const updateDeckFormat = createRoute({
-  method: "patch",
-  path: "/deck-formats/{slug}",
-  tags: ["Admin - Deck Formats"],
-  request: {
-    params: slugParamSchema,
-    body: {
-      content: {
-        "application/json": {
-          schema: z.object({ label: z.string().min(1).optional() }),
-        },
-      },
-    },
-  },
-  responses: {
-    204: { description: "Deck format updated" },
-  },
-});
-
-const deleteDeckFormat = createRoute({
-  method: "delete",
-  path: "/deck-formats/{slug}",
-  tags: ["Admin - Deck Formats"],
-  request: {
-    params: slugParamSchema,
-  },
-  responses: {
-    204: { description: "Deck format deleted" },
-  },
-});
-
-// ── Route ───────────────────────────────────────────────────────────────────
-
-export const adminDeckFormatsRoute = createApiApp()
-  // ── GET /admin/deck-formats ──────────────────────────────────────────
-  .openapi(listDeckFormats, async (c) => {
-    const { deckFormats: repo } = c.get("repos");
+/**
+ * oRPC implementation of the admin deck format taxonomy CRUD. Logic unchanged
+ * from the previous `@hono/zod-openapi` handlers; conflict / not-found /
+ * bad-request states are thrown as `AppError` and mapped by the handler's
+ * appErrorInterceptor.
+ */
+export const adminDeckFormatsRouter = {
+  list: os.list.handler(async ({ context }) => {
+    const { deckFormats: repo } = context.repos;
     const rows = await repo.listAll();
-    return c.json({ deckFormats: rows });
-  })
+    return { deckFormats: rows };
+  }),
 
-  // ── PUT /admin/deck-formats/reorder ──────────────────────────────────
-  .openapi(reorderDeckFormats, async (c) => {
-    const { deckFormats: repo } = c.get("repos");
-    const { slugs } = c.req.valid("json");
+  reorder: os.reorder.handler(async ({ input, context }): Promise<void> => {
+    const { deckFormats: repo } = context.repos;
+    const { slugs } = input;
 
     const uniqueSlugs = new Set(slugs);
     if (uniqueSlugs.size !== slugs.length) {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Duplicate slugs in reorder list.");
     }
 
-    const allDeckFormats = await repo.listAll();
-    if (slugs.length !== allDeckFormats.length) {
+    const all = await repo.listAll();
+    if (slugs.length !== all.length) {
       throw new AppError(
         400,
         ERROR_CODES.BAD_REQUEST,
-        `Expected ${allDeckFormats.length} slugs, got ${slugs.length}.`,
+        `Expected ${all.length} slugs, got ${slugs.length}.`,
       );
     }
 
-    const knownSlugs = new Set(allDeckFormats.map((deckFormat) => deckFormat.slug));
+    const knownSlugs = new Set(all.map((row) => row.slug));
     const unknown = slugs.filter((slug) => !knownSlugs.has(slug));
     if (unknown.length > 0) {
       throw new AppError(
@@ -152,13 +50,11 @@ export const adminDeckFormatsRoute = createApiApp()
     }
 
     await repo.reorder(slugs);
-    return c.body(null, 204);
-  })
+  }),
 
-  // ── POST /admin/deck-formats ─────────────────────────────────────────
-  .openapi(createDeckFormat, async (c) => {
-    const { deckFormats: repo } = c.get("repos");
-    const { slug, label } = c.req.valid("json");
+  create: os.create.handler(async ({ input, context }) => {
+    const { deckFormats: repo } = context.repos;
+    const { slug, label } = input;
 
     const existing = await repo.getBySlug(slug);
     if (existing) {
@@ -166,42 +62,35 @@ export const adminDeckFormatsRoute = createApiApp()
     }
 
     const created = await repo.create({ slug, label });
-    return c.json({ deckFormat: created }, 201);
-  })
+    return { deckFormat: created };
+  }),
 
-  // ── PATCH /admin/deck-formats/:slug ──────────────────────────────────
-  .openapi(updateDeckFormat, async (c) => {
-    const { deckFormats: repo } = c.get("repos");
-    const { slug } = c.req.valid("param");
-    const body = c.req.valid("json");
+  update: os.update.handler(async ({ input, context }): Promise<void> => {
+    const { deckFormats: repo } = context.repos;
 
-    const existing = await repo.getBySlug(slug);
+    const existing = await repo.getBySlug(input.slug);
     if (!existing) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Deck format "${slug}" not found`);
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Deck format "${input.slug}" not found`);
     }
 
-    if (body.label) {
-      await repo.update(slug, { label: body.label });
+    if (input.label) {
+      await repo.update(input.slug, { label: input.label });
     }
+  }),
 
-    return c.body(null, 204);
-  })
+  remove: os.remove.handler(async ({ input, context }): Promise<void> => {
+    const { deckFormats: repo } = context.repos;
 
-  // ── DELETE /admin/deck-formats/:slug ─────────────────────────────────
-  .openapi(deleteDeckFormat, async (c) => {
-    const { deckFormats: repo } = c.get("repos");
-    const { slug } = c.req.valid("param");
-
-    const existing = await repo.getBySlug(slug);
+    const existing = await repo.getBySlug(input.slug);
     if (!existing) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Deck format "${slug}" not found`);
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Deck format "${input.slug}" not found`);
     }
 
     if (existing.isWellKnown) {
       throw new AppError(409, ERROR_CODES.CONFLICT, "Cannot delete a well-known deck format");
     }
 
-    const inUse = await repo.isInUse(slug);
+    const inUse = await repo.isInUse(input.slug);
     if (inUse) {
       throw new AppError(
         409,
@@ -210,6 +99,6 @@ export const adminDeckFormatsRoute = createApiApp()
       );
     }
 
-    await repo.deleteBySlug(slug);
-    return c.body(null, 204);
-  });
+    await repo.deleteBySlug(input.slug);
+  }),
+};

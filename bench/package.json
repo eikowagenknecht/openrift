@@ -1,0 +1,17 @@
+{
+  "name": "bench-rpc-typecost",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@hono/zod-openapi": "1.4.0",
+    "@orpc/client": "1.14.6",
+    "@orpc/contract": "1.14.6",
+    "@orpc/server": "1.14.6",
+    "hono": "4.12.26",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@typescript/native-preview": "7.0.0-dev.20260617.2",
+    "typescript": "6.0.3"
+  }
+}

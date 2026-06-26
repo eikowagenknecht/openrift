@@ -5,13 +5,15 @@ import type {
   PodTournamentListResponse,
   PodTournamentResponse,
 } from "@openrift/shared";
+import { podTournamentsContract, publicPodTournamentsContract } from "@openrift/shared/contracts";
+import { ORPCError } from "@orpc/client";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 interface PodResultEntry {
@@ -30,43 +32,38 @@ const fetchTournaments = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<PodTournamentListResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["pod-tournaments"].$get(),
-        "Couldn't load tournaments",
-      ),
+      apiOrpcClient(podTournamentsContract, context.cookie).list(),
   );
 
 const fetchTournamentDetail = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: id }): Promise<PodTournamentDetailResponse> => {
-    const res = await callApi(
-      serverApiClient(context.cookie).api.v1["pod-tournaments"][":id"].$get({
-        param: encodeParams({ id }),
-      }),
-      "Couldn't load tournament",
-      [404],
-    );
-    if ((res.status as number) === 404) {
-      throw new Error("NOT_FOUND");
+    // 404 (unknown tournament) is a typed NOT_FOUND mapped to the sentinel the
+    // route boundary expects; 403 (non-owner) propagates as a normal error.
+    try {
+      return await apiOrpcClient(podTournamentsContract, context.cookie).get({ id });
+    } catch (error) {
+      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+        throw new Error("NOT_FOUND");
+      }
+      throw error;
     }
-    return res.json() as Promise<PodTournamentDetailResponse>;
   });
 
 const fetchReport = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .handler(async ({ data: token }): Promise<PodReportResponse> => {
-    const res = await callApi(
-      serverApiClient().api.v1["pod-tournaments"].report[":token"].$get({
-        param: encodeParams({ token }),
-      }),
-      "Couldn't load tournament",
-      [404],
-    );
-    if ((res.status as number) === 404) {
-      throw new Error("NOT_FOUND");
+    // Migrated to oRPC: 404 (disabled/rotated token) is a typed NOT_FOUND error
+    // mapped to the sentinel the route boundary expects.
+    try {
+      return await apiOrpcClient(publicPodTournamentsContract).report({ token });
+    } catch (error) {
+      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+        throw new Error("NOT_FOUND");
+      }
+      throw error;
     }
-    return res.json() as Promise<PodReportResponse>;
   });
 
 // ── Query options + hooks ────────────────────────────────────────────────────
@@ -113,10 +110,7 @@ const createTournamentFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<PodTournamentResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["pod-tournaments"].$post({ json: data }),
-        "Couldn't create tournament",
-      ),
+      apiOrpcClient(podTournamentsContract, context.cookie).create(data),
   );
 
 const updateTournamentFn = createServerFn({ method: "POST" })
@@ -130,27 +124,16 @@ const updateTournamentFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
-  .handler(({ context, data }): Promise<PodTournamentDetailResponse> => {
-    const { id, ...fields } = data;
-    return callApiJson(
-      serverApiClient(context.cookie).api.v1["pod-tournaments"][":id"].$patch({
-        param: encodeParams({ id }),
-        json: fields,
-      }),
-      "Couldn't update tournament",
-    );
-  });
+  .handler(
+    ({ context, data }): Promise<PodTournamentDetailResponse> =>
+      apiOrpcClient(podTournamentsContract, context.cookie).update(data),
+  );
 
 const deleteTournamentFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: id }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.v1["pod-tournaments"][":id"].$delete({
-        param: encodeParams({ id }),
-      }),
-      "Couldn't delete tournament",
-    );
+    await apiOrpcClient(podTournamentsContract, context.cookie).remove({ id });
   });
 
 const addPlayerFn = createServerFn({ method: "POST" })
@@ -158,13 +141,7 @@ const addPlayerFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<PodTournamentDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["pod-tournaments"][":id"].players.$post({
-          param: encodeParams({ id: data.id }),
-          json: { displayName: data.displayName },
-        }),
-        "Couldn't add player",
-      ),
+      apiOrpcClient(podTournamentsContract, context.cookie).addPlayer(data),
   );
 
 const renamePlayerFn = createServerFn({ method: "POST" })
@@ -172,15 +149,7 @@ const renamePlayerFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<PodTournamentDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["pod-tournaments"][":id"].players[
-          ":playerId"
-        ].$patch({
-          param: encodeParams({ id: data.id, playerId: data.playerId }),
-          json: { displayName: data.displayName },
-        }),
-        "Couldn't rename player",
-      ),
+      apiOrpcClient(podTournamentsContract, context.cookie).renamePlayer(data),
   );
 
 const dropPlayerFn = createServerFn({ method: "POST" })
@@ -188,14 +157,7 @@ const dropPlayerFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<PodTournamentDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["pod-tournaments"][":id"].players[
-          ":playerId"
-        ].drop.$post({
-          param: encodeParams({ id: data.id, playerId: data.playerId }),
-        }),
-        "Couldn't drop player",
-      ),
+      apiOrpcClient(podTournamentsContract, context.cookie).dropPlayer(data),
   );
 
 const reactivatePlayerFn = createServerFn({ method: "POST" })
@@ -203,14 +165,7 @@ const reactivatePlayerFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<PodTournamentDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["pod-tournaments"][":id"].players[
-          ":playerId"
-        ].reactivate.$post({
-          param: encodeParams({ id: data.id, playerId: data.playerId }),
-        }),
-        "Couldn't reactivate player",
-      ),
+      apiOrpcClient(podTournamentsContract, context.cookie).reactivatePlayer(data),
   );
 
 const removePlayerFn = createServerFn({ method: "POST" })
@@ -218,14 +173,7 @@ const removePlayerFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<PodTournamentDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["pod-tournaments"][":id"].players[
-          ":playerId"
-        ].$delete({
-          param: encodeParams({ id: data.id, playerId: data.playerId }),
-        }),
-        "Couldn't remove player",
-      ),
+      apiOrpcClient(podTournamentsContract, context.cookie).removePlayer(data),
   );
 
 const generateRoundFn = createServerFn({ method: "POST" })
@@ -233,13 +181,7 @@ const generateRoundFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<PodTournamentDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["pod-tournaments"][":id"].rounds.$post({
-          param: encodeParams({ id: data.id }),
-          json: { byes: data.byes },
-        }),
-        "Couldn't generate round",
-      ),
+      apiOrpcClient(podTournamentsContract, context.cookie).generateRound(data),
   );
 
 const replacePairingFn = createServerFn({ method: "POST" })
@@ -249,15 +191,7 @@ const replacePairingFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<PodTournamentDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["pod-tournaments"][":id"].rounds[
-          ":roundNumber"
-        ].pairing.$put({
-          param: encodeParams({ id: data.id, roundNumber: String(data.roundNumber) }),
-          json: { pods: data.pods, byes: data.byes },
-        }),
-        "Couldn't save pairing",
-      ),
+      apiOrpcClient(podTournamentsContract, context.cookie).replacePairing(data),
   );
 
 const rerollRoundFn = createServerFn({ method: "POST" })
@@ -265,14 +199,7 @@ const rerollRoundFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<PodTournamentDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["pod-tournaments"][":id"].rounds[
-          ":roundNumber"
-        ].reroll.$post({
-          param: encodeParams({ id: data.id, roundNumber: String(data.roundNumber) }),
-        }),
-        "Couldn't re-roll round",
-      ),
+      apiOrpcClient(podTournamentsContract, context.cookie).rerollRound(data),
   );
 
 const finalizeRoundFn = createServerFn({ method: "POST" })
@@ -280,14 +207,7 @@ const finalizeRoundFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<PodTournamentDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["pod-tournaments"][":id"].rounds[
-          ":roundNumber"
-        ].finalize.$post({
-          param: encodeParams({ id: data.id, roundNumber: String(data.roundNumber) }),
-        }),
-        "Couldn't finalize round",
-      ),
+      apiOrpcClient(podTournamentsContract, context.cookie).finalizeRound(data),
   );
 
 const submitResultFn = createServerFn({ method: "POST" })
@@ -295,42 +215,29 @@ const submitResultFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<PodTournamentDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["pod-tournaments"][":id"].pods[":podId"].result.$put(
-          {
-            param: encodeParams({ id: data.id, podId: data.podId }),
-            json: { results: data.results },
-          },
-        ),
-        "Couldn't save result",
-      ),
+      apiOrpcClient(podTournamentsContract, context.cookie).submitResult(data),
   );
 
 const setReportTokenFn = createServerFn({ method: "POST" })
   .validator((input: { id: string; enabled: boolean }) => input)
   .middleware([withCookies])
   .handler(({ context, data }): Promise<PodTournamentDetailResponse> => {
-    const endpoint = serverApiClient(context.cookie).api.v1["pod-tournaments"][":id"][
-      "report-token"
-    ];
-    const param = encodeParams({ id: data.id });
-    return callApiJson(
-      data.enabled ? endpoint.$post({ param }) : endpoint.$delete({ param }),
-      "Couldn't update report link",
-    );
+    const client = apiOrpcClient(podTournamentsContract, context.cookie);
+    return data.enabled
+      ? client.enableReportToken({ id: data.id })
+      : client.disableReportToken({ id: data.id });
   });
 
 const submitReportResultFn = createServerFn({ method: "POST" })
   .validator((input: { token: string; podId: string; results: PodResultEntry[] }) => input)
   .handler(
+    // Migrated to oRPC: token + podId become path params, results the body.
     ({ data }): Promise<PodReportResponse> =>
-      callApiJson(
-        serverApiClient().api.v1["pod-tournaments"].report[":token"].pods[":podId"].result.$put({
-          param: encodeParams({ token: data.token, podId: data.podId }),
-          json: { results: data.results },
-        }),
-        "Couldn't save result",
-      ),
+      apiOrpcClient(publicPodTournamentsContract).submitResult({
+        token: data.token,
+        podId: data.podId,
+        results: data.results,
+      }),
   );
 
 // ── Mutation hooks ───────────────────────────────────────────────────────────

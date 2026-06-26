@@ -1,10 +1,11 @@
+import type { JobRunsListResponse, JobRunView } from "@openrift/shared/contracts";
+import { adminJobRunsContract } from "@openrift/shared/contracts";
 import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
-import type { JobRunsListResponse, JobRunView } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 /** Rows per page on the admin job-runs table. */
 export const JOB_RUNS_PAGE_SIZE = 50;
@@ -22,28 +23,17 @@ export interface JobRunsQueryParams {
 const fetchJobRuns = createServerFn({ method: "GET" })
   .validator((input: JobRunsQueryParams) => input)
   .middleware([withCookies])
-  .handler(({ context, data }): Promise<JobRunsListResponse> => {
-    const query: Record<string, string> = {
-      page: String(data.page),
-      limit: String(JOB_RUNS_PAGE_SIZE),
-    };
-    if (data.kind !== undefined) {
-      query.kind = data.kind;
-    }
-    if (data.trigger !== undefined) {
-      query.trigger = data.trigger;
-    }
-    if (data.status !== undefined) {
-      query.status = data.status;
-    }
-    if (data.activity !== undefined) {
-      query.activity = data.activity;
-    }
-    return callApiJson(
-      serverApiClient(context.cookie).api.admin.v1["job-runs"].$get({ query }),
-      "Couldn't load job runs",
-    );
-  });
+  .handler(
+    ({ context, data }): Promise<JobRunsListResponse> =>
+      apiOrpcClient(adminJobRunsContract, context.cookie).list({
+        page: data.page,
+        limit: JOB_RUNS_PAGE_SIZE,
+        kind: data.kind,
+        trigger: data.trigger as "cron" | "admin" | "api" | undefined,
+        status: data.status as "running" | "succeeded" | "failed" | undefined,
+        activity: data.activity as "did-work" | "noop" | undefined,
+      }),
+  );
 
 export function adminJobRunsQueryOptions(params: JobRunsQueryParams) {
   return queryOptions({
@@ -70,12 +60,10 @@ const fetchLatestJobRunByKind = createServerFn({ method: "GET" })
   .validator((input: { kind: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }): Promise<JobRunView | null> => {
-    const res = await callApiJson(
-      serverApiClient(context.cookie).api.admin.v1["job-runs"].$get({
-        query: { kind: data.kind, limit: "1" },
-      }),
-      "Couldn't load job run",
-    );
+    const res = await apiOrpcClient(adminJobRunsContract, context.cookie).list({
+      kind: data.kind,
+      limit: 1,
+    });
     return res.runs[0] ?? null;
   });
 

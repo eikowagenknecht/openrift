@@ -1,57 +1,27 @@
-import { createRoute } from "@hono/zod-openapi";
-import { ERROR_CODES } from "@openrift/shared";
 import type {
   CatalogCardResponse,
   CatalogPrintingResponse,
   SetDetailResponse,
   SetListResponse,
 } from "@openrift/shared";
-import { setDetailResponseSchema, setListResponseSchema } from "@openrift/shared/response-schemas";
-import { etag } from "hono/etag";
-import { z } from "zod";
+import { setsContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
-import { AppError } from "../../errors.js";
-import { errorResponses } from "../../openapi-helpers.js";
-import { createApiApp } from "../../openapi.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-response.js";
 
-const setSlugParamSchema = z.object({ setSlug: z.string().min(1) });
+const os = implement(setsContract).$context<ApiContext>().use(requireUser);
 
-const getSetList = createRoute({
-  method: "get",
-  path: "/sets",
-  tags: ["Sets"],
-  responses: {
-    200: {
-      content: { "application/json": { schema: setListResponseSchema } },
-      description: "List of all card sets",
-    },
-  },
-});
-
-const getSetDetail = createRoute({
-  method: "get",
-  path: "/sets/{setSlug}",
-  tags: ["Sets"],
-  request: { params: setSlugParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: setDetailResponseSchema } },
-      description: "Set detail with all cards and printings",
-    },
-    ...errorResponses(400, 404),
-  },
-});
-
-const setsApp = createApiApp();
-setsApp.use("/sets", etag());
-setsApp.use("/sets/:setSlug", etag());
-export const setsRoute = setsApp
-  /**
-   * `GET /sets` — Returns all card sets with card and printing counts.
-   */
-  .openapi(getSetList, async (c) => {
-    const { catalog } = c.get("repos");
+/**
+ * oRPC implementation of the public sets contract. Logic is unchanged from the
+ * previous `@hono/zod-openapi` handlers; the 404 for an unknown slug is now a
+ * typed `errors.NOT_FOUND()` (declared on the contract) rather than a thrown
+ * `AppError`, so the web client sees it as a statically-known error.
+ */
+export const setsRouter = {
+  list: os.list.handler(async ({ context }): Promise<SetListResponse> => {
+    const { catalog } = context.repos;
 
     const [allSets, coverImageIds, counts] = await Promise.all([
       catalog.sets(),
@@ -67,22 +37,16 @@ export const setsRoute = setsApp
         coverImageId: coverImageIds.get(set.id) ?? null,
       };
     });
+    return { sets: entries };
+  }),
 
-    const content: SetListResponse = { sets: entries };
-    c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-    return c.json(content, 200);
-  })
-  /**
-   * `GET /sets/:setSlug` — Returns a set with all its cards and printings.
-   */
-  .openapi(getSetDetail, async (c) => {
-    const { setSlug } = c.req.valid("param");
-    const repos = c.get("repos");
+  detail: os.detail.handler(async ({ input, context, errors }): Promise<SetDetailResponse> => {
+    const repos = context.repos;
     const { catalog } = repos;
 
-    const set = await catalog.setBySlug(setSlug);
+    const set = await catalog.setBySlug(input.setSlug);
     if (!set) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Set not found: ${setSlug}`);
+      throw errors.NOT_FOUND({ message: `Set not found: ${input.setSlug}` });
     }
 
     const [printingRows, imageRows] = await Promise.all([
@@ -144,7 +108,6 @@ export const setsRoute = setsApp
       })),
     }));
 
-    const content: SetDetailResponse = { set, cards, printings };
-    c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-    return c.json(content, 200);
-  });
+    return { set, cards, printings };
+  }),
+};

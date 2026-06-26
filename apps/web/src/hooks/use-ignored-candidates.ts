@@ -1,19 +1,17 @@
+import { adminIgnoredCandidatesContract } from "@openrift/shared/contracts";
 import { queryOptions, useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { callApi, callApiJson, serverApiClient } from "@/lib/server-fns/api-client";
 import type { IgnoredCandidatesResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchIgnoredCandidates = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<IgnoredCandidatesResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.admin.v1["ignored-candidates"].$get(),
-        "Couldn't load ignored candidates",
-      ),
+      apiOrpcClient(adminIgnoredCandidatesContract, context.cookie).list(),
   );
 
 export const ignoredCandidatesQueryOptions = queryOptions({
@@ -29,12 +27,7 @@ const ignoreCandidateCardFn = createServerFn({ method: "POST" })
   .validator((input: { provider: string; externalId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["ignored-candidates"].cards.$post({
-        json: data,
-      }),
-      "Couldn't ignore candidate card",
-    );
+    await apiOrpcClient(adminIgnoredCandidatesContract, context.cookie).ignoreCard(data);
   });
 
 export function useIgnoreCandidateCard() {
@@ -53,12 +46,7 @@ const unignoreCandidateCardFn = createServerFn({ method: "POST" })
   .validator((input: { provider: string; externalId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["ignored-candidates"].cards.$delete({
-        json: data,
-      }),
-      "Couldn't unignore candidate card",
-    );
+    await apiOrpcClient(adminIgnoredCandidatesContract, context.cookie).unignoreCard(data);
   });
 
 export function useUnignoreCandidateCard() {
@@ -77,12 +65,7 @@ const ignoreCandidatePrintingFn = createServerFn({ method: "POST" })
   .validator((input: { provider: string; externalId: string; finish?: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["ignored-candidates"].printings.$post({
-        json: data,
-      }),
-      "Couldn't ignore candidate printing",
-    );
+    await apiOrpcClient(adminIgnoredCandidatesContract, context.cookie).ignorePrinting(data);
   });
 
 export function useIgnoreCandidatePrinting() {
@@ -101,12 +84,7 @@ const unignoreCandidatePrintingFn = createServerFn({ method: "POST" })
   .validator((input: { provider: string; externalId: string; finish: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await callApi(
-      serverApiClient(context.cookie).api.admin.v1["ignored-candidates"].printings.$delete({
-        json: data,
-      }),
-      "Couldn't unignore candidate printing",
-    );
+    await apiOrpcClient(adminIgnoredCandidatesContract, context.cookie).unignorePrinting(data);
   });
 
 export function useUnignoreCandidatePrinting() {

@@ -1,5 +1,5 @@
 // oxlint-disable-next-line import/no-unassigned-import -- registers z.openapi() extension before schemas.ts evaluates
-import "@hono/zod-openapi";
+import "@openrift/shared/response-schemas";
 import { describe, expect, it } from "vitest";
 
 import { userKeyParamSchema } from "./schemas.js";

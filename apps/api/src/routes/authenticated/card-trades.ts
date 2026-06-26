@@ -1,264 +1,96 @@
-import { createRoute } from "@hono/zod-openapi";
-import type { CardTradeActionCountsResponse, CardTradeListResponse } from "@openrift/shared";
-import {
-  cardTradeActionCountsResponseSchema,
-  cardTradeListResponseSchema,
-  cardTradeResponseSchema,
-} from "@openrift/shared/response-schemas";
-import {
-  cardTradeSyncSchema,
-  cardTradesQuerySchema,
-  createCardTradeSchema,
-  idParamSchema,
-  setCardTradeQuantitySchema,
-} from "@openrift/shared/schemas";
+import type {
+  CardTradeActionCountsResponse,
+  CardTradeListResponse,
+  CardTradeResponse,
+} from "@openrift/shared";
+import { cardTradesContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
 
-import { getUserId } from "../../middleware/get-user-id.js";
-import { requireAuth } from "../../middleware/require-auth.js";
-import { createApiApp } from "../../openapi.js";
+import { requireUserId } from "../../middleware/get-user-id.js";
+import { requireUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
 
-const TAG = "CardTrades";
+const os = implement(cardTradesContract).$context<ApiContext>().use(requireUser);
 
-const createTradeRoute = createRoute({
-  method: "post",
-  path: "/",
-  tags: [TAG],
-  request: {
-    body: { content: { "application/json": { schema: createCardTradeSchema } }, required: true },
-  },
-  responses: {
-    201: {
-      content: { "application/json": { schema: cardTradeResponseSchema } },
-      description: "Created",
-    },
-  },
-});
-
-const listTradesRoute = createRoute({
-  method: "get",
-  path: "/",
-  tags: [TAG],
-  request: { query: cardTradesQuerySchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: cardTradeListResponseSchema } },
-      description: "Success",
-    },
-  },
-});
-
-const actionCountsRoute = createRoute({
-  method: "get",
-  path: "/action-counts",
-  tags: [TAG],
-  responses: {
-    200: {
-      content: { "application/json": { schema: cardTradeActionCountsResponseSchema } },
-      description: "Success",
-    },
-  },
-});
-
-const acceptTradeRoute = createRoute({
-  method: "post",
-  path: "/{id}/accept",
-  tags: [TAG],
-  request: { params: idParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: cardTradeResponseSchema } },
-      description: "Reserved",
-    },
-  },
-});
-
-const declineTradeRoute = createRoute({
-  method: "post",
-  path: "/{id}/decline",
-  tags: [TAG],
-  request: { params: idParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: cardTradeResponseSchema } },
-      description: "Declined",
-    },
-  },
-});
-
-const cancelTradeRoute = createRoute({
-  method: "post",
-  path: "/{id}/cancel",
-  tags: [TAG],
-  request: { params: idParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: cardTradeResponseSchema } },
-      description: "Cancelled",
-    },
-  },
-});
-
-const completeTradeRoute = createRoute({
-  method: "post",
-  path: "/{id}/complete",
-  tags: [TAG],
-  request: { params: idParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: cardTradeResponseSchema } },
-      description: "Completed",
-    },
-  },
-});
-
-const setQuantityTradeRoute = createRoute({
-  method: "post",
-  path: "/{id}/quantity",
-  tags: [TAG],
-  request: {
-    params: idParamSchema,
-    body: {
-      content: { "application/json": { schema: setCardTradeQuantitySchema } },
-      required: true,
-    },
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: cardTradeResponseSchema } },
-      description: "Resized",
-    },
-  },
-});
-
-const syncTradeRoute = createRoute({
-  method: "post",
-  path: "/{id}/sync",
-  tags: [TAG],
-  request: {
-    params: idParamSchema,
-    body: { content: { "application/json": { schema: cardTradeSyncSchema } }, required: false },
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: cardTradeResponseSchema } },
-      description: "Synced",
-    },
-  },
-});
-
-const skipSyncTradeRoute = createRoute({
-  method: "post",
-  path: "/{id}/sync/skip",
-  tags: [TAG],
-  request: { params: idParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: cardTradeResponseSchema } },
-      description: "Skipped",
-    },
-  },
-});
-
-const cardTradesApp = createApiApp().basePath("/trades");
-cardTradesApp.use(requireAuth);
-
-export const cardTradesRoute = cardTradesApp
-  // ── POST /trades ──────────────────────────────────────────────────────────
-  .openapi(createTradeRoute, async (c) => {
-    const repos = c.get("repos");
-    const { createTrade } = c.get("services");
-    const userId = getUserId(c);
-    const body = c.req.valid("json");
-    const trade = await createTrade(repos, {
-      callerUserId: userId,
-      groupSlug: body.groupSlug,
-      counterpartyUserId: body.counterpartyUserId,
-      role: body.role,
-      printingId: body.printingId,
-      quantity: body.quantity,
+/**
+ * oRPC implementation of the authenticated card-trades contract (mounted at
+ * `/api/v1/trades`). Logic unchanged from the previous handlers; the trade
+ * services throw `AppError` for state failures, which are mapped by the
+ * handler's appErrorInterceptor.
+ */
+export const cardTradesRouter = {
+  create: os.create.handler(({ input, context }): Promise<CardTradeResponse> => {
+    const { createTrade } = context.services;
+    return createTrade(context.repos, {
+      callerUserId: requireUserId(context.user),
+      groupSlug: input.groupSlug,
+      counterpartyUserId: input.counterpartyUserId,
+      role: input.role,
+      printingId: input.printingId,
+      quantity: input.quantity,
     });
-    return c.json(trade, 201);
-  })
+  }),
 
-  // ── GET /trades ───────────────────────────────────────────────────────────
-  .openapi(listTradesRoute, async (c) => {
-    const { cardTrades } = c.get("repos");
-    const userId = getUserId(c);
-    const { groupId, status } = c.req.valid("query");
-    const items = await cardTrades.listForUser(userId, { groupId, status });
-    return c.json({ items } satisfies CardTradeListResponse);
-  })
+  list: os.list.handler(async ({ input, context }): Promise<CardTradeListResponse> => {
+    const { cardTrades } = context.repos;
+    const items = await cardTrades.listForUser(requireUserId(context.user), {
+      groupId: input.groupId,
+      status: input.status,
+    });
+    return { items };
+  }),
 
-  // ── GET /trades/action-counts ───────────────────────────────────────────────
-  .openapi(actionCountsRoute, async (c) => {
-    const { cardTrades } = c.get("repos");
-    const userId = getUserId(c);
-    const byGroup = await cardTrades.actionNeededCountsForUser(userId);
-    const total = byGroup.reduce((sum, entry) => sum + entry.count, 0);
-    return c.json({ total, byGroup } satisfies CardTradeActionCountsResponse);
-  })
+  actionCounts: os.actionCounts.handler(
+    async ({ context }): Promise<CardTradeActionCountsResponse> => {
+      const { cardTrades } = context.repos;
+      const byGroup = await cardTrades.actionNeededCountsForUser(requireUserId(context.user));
+      const total = byGroup.reduce((sum, entry) => sum + entry.count, 0);
+      return { total, byGroup };
+    },
+  ),
 
-  // ── POST /trades/:id/accept ──────────────────────────────────────────────────
-  .openapi(acceptTradeRoute, async (c) => {
-    const { acceptTrade } = c.get("services");
-    const transact = c.get("transact");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
-    return c.json(await acceptTrade(transact, id, userId));
-  })
+  accept: os.accept.handler(({ input, context }): Promise<CardTradeResponse> => {
+    const { acceptTrade } = context.services;
+    return acceptTrade(context.transact, input.id, requireUserId(context.user));
+  }),
 
-  // ── POST /trades/:id/decline ─────────────────────────────────────────────────
-  .openapi(declineTradeRoute, async (c) => {
-    const { declineTrade } = c.get("services");
-    const transact = c.get("transact");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
-    return c.json(await declineTrade(transact, id, userId));
-  })
+  decline: os.decline.handler(({ input, context }): Promise<CardTradeResponse> => {
+    const { declineTrade } = context.services;
+    return declineTrade(context.transact, input.id, requireUserId(context.user));
+  }),
 
-  // ── POST /trades/:id/cancel ──────────────────────────────────────────────────
-  .openapi(cancelTradeRoute, async (c) => {
-    const { cancelTrade } = c.get("services");
-    const transact = c.get("transact");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
-    return c.json(await cancelTrade(transact, id, userId));
-  })
+  cancel: os.cancel.handler(({ input, context }): Promise<CardTradeResponse> => {
+    const { cancelTrade } = context.services;
+    return cancelTrade(context.transact, input.id, requireUserId(context.user));
+  }),
 
-  // ── POST /trades/:id/complete ────────────────────────────────────────────────
-  .openapi(completeTradeRoute, async (c) => {
-    const { completeTrade } = c.get("services");
-    const transact = c.get("transact");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
-    return c.json(await completeTrade(transact, id, userId));
-  })
+  complete: os.complete.handler(({ input, context }): Promise<CardTradeResponse> => {
+    const { completeTrade } = context.services;
+    return completeTrade(context.transact, input.id, requireUserId(context.user));
+  }),
 
-  // ── POST /trades/:id/quantity ────────────────────────────────────────────────
-  .openapi(setQuantityTradeRoute, async (c) => {
-    const { setTradeQuantity } = c.get("services");
-    const transact = c.get("transact");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
-    const { quantity } = c.req.valid("json");
-    return c.json(await setTradeQuantity(transact, id, userId, quantity));
-  })
+  setQuantity: os.setQuantity.handler(({ input, context }): Promise<CardTradeResponse> => {
+    const { setTradeQuantity } = context.services;
+    return setTradeQuantity(
+      context.transact,
+      input.id,
+      requireUserId(context.user),
+      input.quantity,
+    );
+  }),
 
-  // ── POST /trades/:id/sync ────────────────────────────────────────────────────
-  .openapi(syncTradeRoute, async (c) => {
-    const { applyTradeSync } = c.get("services");
-    const transact = c.get("transact");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
-    const body = c.req.valid("json");
-    return c.json(await applyTradeSync(transact, id, userId, body?.targetCollectionId));
-  })
+  sync: os.sync.handler(({ input, context }): Promise<CardTradeResponse> => {
+    const { applyTradeSync } = context.services;
+    return applyTradeSync(
+      context.transact,
+      input.id,
+      requireUserId(context.user),
+      input.targetCollectionId,
+    );
+  }),
 
-  // ── POST /trades/:id/sync/skip ───────────────────────────────────────────────
-  .openapi(skipSyncTradeRoute, async (c) => {
-    const { skipTradeSync } = c.get("services");
-    const transact = c.get("transact");
-    const userId = getUserId(c);
-    const { id } = c.req.valid("param");
-    return c.json(await skipTradeSync(transact, id, userId));
-  });
+  skipSync: os.skipSync.handler(({ input, context }): Promise<CardTradeResponse> => {
+    const { skipTradeSync } = context.services;
+    return skipTradeSync(context.transact, input.id, requireUserId(context.user));
+  }),
+};

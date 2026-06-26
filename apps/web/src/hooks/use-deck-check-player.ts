@@ -6,13 +6,14 @@ import type {
   PlayerDeckCheckEntriesResponse,
   PlayerDeckCheckEntryDetailResponse,
 } from "@openrift/shared";
+import { deckCheckClaimContract, deckCheckPlayerContract } from "@openrift/shared/contracts";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
-import { callApiJson, encodeParams, serverApiClient } from "@/lib/server-fns/api-client";
 import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 /**
@@ -38,10 +39,7 @@ const fetchMyTournamentDecks = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context }): Promise<PlayerDeckCheckEntriesResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["deck-check"].mine.$get(),
-        "Couldn't load your tournament decks",
-      ),
+      apiOrpcClient(deckCheckPlayerContract, context.cookie).listMine(),
   );
 
 const fetchMyTournamentDeck = createServerFn({ method: "GET" })
@@ -49,12 +47,7 @@ const fetchMyTournamentDeck = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data: entryId }): Promise<PlayerDeckCheckEntryDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["deck-check"].mine[":entryId"].$get({
-          param: encodeParams({ entryId }),
-        }),
-        "Couldn't load the deck",
-      ),
+      apiOrpcClient(deckCheckPlayerContract, context.cookie).getMine({ entryId }),
   );
 
 const editMyTournamentDeckFn = createServerFn({ method: "POST" })
@@ -62,21 +55,7 @@ const editMyTournamentDeckFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckCheckSubmissionResultResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["deck-check"].mine[":entryId"].list.$put({
-          param: encodeParams({ entryId: data.entryId }),
-          json: {
-            deckId: data.deckId,
-            deckCode: data.deckCode,
-            cards: data.cards,
-            allowDeckPublishing: data.allowDeckPublishing,
-            allowNameSharing: data.allowNameSharing,
-            allowRiotIdSharing: data.allowRiotIdSharing,
-            dryRun: data.dryRun,
-          },
-        }),
-        "Couldn't update the deck",
-      ),
+      apiOrpcClient(deckCheckPlayerContract, context.cookie).editList(data),
   );
 
 const submitMyTournamentDeckFn = createServerFn({ method: "POST" })
@@ -84,12 +63,7 @@ const submitMyTournamentDeckFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data: entryId }): Promise<PlayerDeckCheckEntryDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["deck-check"].mine[":entryId"].submit.$post({
-          param: encodeParams({ entryId }),
-        }),
-        "Couldn't submit the deck",
-      ),
+      apiOrpcClient(deckCheckPlayerContract, context.cookie).submit({ entryId }),
   );
 
 const unlockMyTournamentDeckFn = createServerFn({ method: "POST" })
@@ -97,12 +71,7 @@ const unlockMyTournamentDeckFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data: entryId }): Promise<PlayerDeckCheckEntryDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["deck-check"].mine[":entryId"].unlock.$post({
-          param: encodeParams({ entryId }),
-        }),
-        "Couldn't unlock the deck",
-      ),
+      apiOrpcClient(deckCheckPlayerContract, context.cookie).unlock({ entryId }),
   );
 
 const cancelUnlockRequestFn = createServerFn({ method: "POST" })
@@ -110,12 +79,7 @@ const cancelUnlockRequestFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data: entryId }): Promise<PlayerDeckCheckEntryDetailResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["deck-check"].mine[":entryId"].unlock.$delete({
-          param: encodeParams({ entryId }),
-        }),
-        "Couldn't cancel the request",
-      ),
+      apiOrpcClient(deckCheckPlayerContract, context.cookie).cancelUnlock({ entryId }),
   );
 
 const fetchSubmissionPage = createServerFn({ method: "GET" })
@@ -123,12 +87,7 @@ const fetchSubmissionPage = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(
     ({ context, data: token }): Promise<DeckCheckSubmissionPageResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["deck-check"].submissions[":token"].$get({
-          param: encodeParams({ token }),
-        }),
-        "Couldn't load the submission page",
-      ),
+      apiOrpcClient(deckCheckPlayerContract, context.cookie).submissionPage({ token }),
   );
 
 const submitTournamentDeckFn = createServerFn({ method: "POST" })
@@ -136,34 +95,16 @@ const submitTournamentDeckFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data }): Promise<DeckCheckSubmissionResultResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["deck-check"].submissions[":token"].$post({
-          param: encodeParams({ token: data.token }),
-          json: {
-            deckId: data.deckId,
-            deckCode: data.deckCode,
-            cards: data.cards,
-            allowDeckPublishing: data.allowDeckPublishing,
-            allowNameSharing: data.allowNameSharing,
-            allowRiotIdSharing: data.allowRiotIdSharing,
-            dryRun: data.dryRun,
-          },
-        }),
-        "Couldn't submit the deck",
-      ),
+      apiOrpcClient(deckCheckPlayerContract, context.cookie).submitToToken(data),
   );
 
 const fetchClaimLanding = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(
+    // Migrated to oRPC: contract-typed client instead of the hc client.
     ({ context, data: token }): Promise<DeckCheckClaimLandingResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["deck-check"].claim[":token"].$get({
-          param: encodeParams({ token }),
-        }),
-        "Couldn't load the claim page",
-      ),
+      apiOrpcClient(deckCheckClaimContract, context.cookie).landing({ token }),
   );
 
 const claimTournamentDeckFn = createServerFn({ method: "POST" })
@@ -171,12 +112,7 @@ const claimTournamentDeckFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(
     ({ context, data: token }): Promise<DeckCheckClaimResultResponse> =>
-      callApiJson(
-        serverApiClient(context.cookie).api.v1["deck-check"].claim[":token"].$post({
-          param: encodeParams({ token }),
-        }),
-        "Couldn't claim the deck",
-      ),
+      apiOrpcClient(deckCheckPlayerContract, context.cookie).claim({ token }),
   );
 
 // ── Query hooks ─────────────────────────────────────────────────────────────
