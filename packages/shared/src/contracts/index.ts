@@ -70,4 +70,5 @@ export * from "./rules.js";
 export * from "./sets.js";
 export * from "./site-settings.js";
 export * from "./sitemap.js";
+export * from "./unsubscribe.js";
 export * from "./user-share.js";

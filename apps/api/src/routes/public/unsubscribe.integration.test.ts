@@ -10,7 +10,7 @@ const USER_ID = "a0000000-0063-4000-a000-000000000001";
 
 const ctx = createUnauthenticatedTestContext();
 
-describe.skipIf(!ctx)("GET /unsubscribe (integration)", () => {
+describe.skipIf(!ctx)("unsubscribe (integration)", () => {
   const { app, db } = ctx!;
   const repos = createRepos(db);
 
@@ -45,31 +45,95 @@ describe.skipIf(!ctx)("GET /unsubscribe (integration)", () => {
     return row?.data.emailNotifications ?? {};
   }
 
-  it("flips exactly the named channel and preserves the sibling", async () => {
-    const token = signUnsubscribeToken(SECRET, USER_ID, "tradeMatches");
-    const response = await app.request(`/api/v1/unsubscribe?token=${encodeURIComponent(token)}`);
-    expect(response.status).toBe(200);
-    expect(await readChannels()).toEqual({ tradeMatches: false, tradeRequests: true });
+  function oneClick(token: string) {
+    // Mimics the mail-client one-click POST: form body, token in the query.
+    return app.request(`/api/v1/unsubscribe/one-click?token=${encodeURIComponent(token)}`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: "List-Unsubscribe=One-Click",
+    });
+  }
+
+  describe("POST /unsubscribe/one-click (RFC 8058)", () => {
+    it("flips exactly the named channel and preserves the sibling", async () => {
+      const token = signUnsubscribeToken(SECRET, USER_ID, "tradeMatches");
+      const response = await oneClick(token);
+      expect(response.status).toBe(204);
+      expect(await readChannels()).toEqual({ tradeMatches: false, tradeRequests: true });
+    });
+
+    it("flips the request channel without touching the digest channel", async () => {
+      const token = signUnsubscribeToken(SECRET, USER_ID, "tradeRequests");
+      const response = await oneClick(token);
+      expect(response.status).toBe(204);
+      expect(await readChannels()).toEqual({ tradeMatches: true, tradeRequests: false });
+    });
+
+    it("rejects a tampered token and changes nothing", async () => {
+      const token = signUnsubscribeToken(SECRET, USER_ID, "tradeMatches");
+      const response = await oneClick(`${token}tampered`);
+      expect(response.status).toBe(400);
+      expect(await readChannels()).toEqual({ tradeMatches: true, tradeRequests: true });
+    });
+
+    it("rejects a missing token", async () => {
+      const response = await app.request("/api/v1/unsubscribe/one-click", { method: "POST" });
+      expect(response.status).toBe(400);
+      expect(await readChannels()).toEqual({ tradeMatches: true, tradeRequests: true });
+    });
   });
 
-  it("flips the request channel without touching the digest channel", async () => {
-    const token = signUnsubscribeToken(SECRET, USER_ID, "tradeRequests");
-    const response = await app.request(`/api/v1/unsubscribe?token=${encodeURIComponent(token)}`);
-    expect(response.status).toBe(200);
-    expect(await readChannels()).toEqual({ tradeMatches: true, tradeRequests: false });
+  describe("GET /unsubscribe/preview (read-only)", () => {
+    it("reports the channel + state and mutates nothing", async () => {
+      const token = signUnsubscribeToken(SECRET, USER_ID, "tradeMatches");
+      const response = await app.request(
+        `/api/v1/unsubscribe/preview?token=${encodeURIComponent(token)}`,
+      );
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        valid: true,
+        channel: "tradeMatches",
+        alreadyUnsubscribed: false,
+      });
+      // The critical guarantee: a GET never changes state.
+      expect(await readChannels()).toEqual({ tradeMatches: true, tradeRequests: true });
+    });
+
+    it("returns valid=false for a tampered token", async () => {
+      const token = signUnsubscribeToken(SECRET, USER_ID, "tradeMatches");
+      const response = await app.request(
+        `/api/v1/unsubscribe/preview?token=${encodeURIComponent(`${token}x`)}`,
+      );
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ valid: false });
+    });
   });
 
-  it("rejects a tampered token and changes nothing", async () => {
-    const token = signUnsubscribeToken(SECRET, USER_ID, "tradeMatches");
-    const tampered = `${token}tampered`;
-    const response = await app.request(`/api/v1/unsubscribe?token=${encodeURIComponent(tampered)}`);
-    expect(response.status).toBe(400);
-    expect(await readChannels()).toEqual({ tradeMatches: true, tradeRequests: true });
-  });
+  describe("POST /unsubscribe (confirm)", () => {
+    function confirm(token: string) {
+      return app.request("/api/v1/unsubscribe", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+    }
 
-  it("rejects a missing token", async () => {
-    const response = await app.request("/api/v1/unsubscribe");
-    expect(response.status).toBe(400);
-    expect(await readChannels()).toEqual({ tradeMatches: true, tradeRequests: true });
+    it("flips the channel and returns its label", async () => {
+      const token = signUnsubscribeToken(SECRET, USER_ID, "tradeRequests");
+      const response = await confirm(token);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        channel: "tradeRequests",
+        channelLabel: "trade-request emails",
+      });
+      expect(await readChannels()).toEqual({ tradeMatches: true, tradeRequests: false });
+    });
+
+    it("rejects a tampered token with 400 and changes nothing", async () => {
+      const token = signUnsubscribeToken(SECRET, USER_ID, "tradeRequests");
+      const response = await confirm(`${token}x`);
+      expect(response.status).toBe(400);
+      expect(await readChannels()).toEqual({ tradeMatches: true, tradeRequests: true });
+    });
   });
 });

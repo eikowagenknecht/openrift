@@ -14,7 +14,7 @@ import {
   buildCoalescedTradeRequestsEmail,
   buildTradeRequestEmail,
 } from "../emails/trade-emails.js";
-import { signUnsubscribeToken } from "../emails/unsubscribe-token.js";
+import { buildUnsubscribeUrls } from "../emails/unsubscribe-token.js";
 import type { CardTrade } from "../repositories/card-trades.js";
 import type { EmailNotificationContext } from "../repositories/user-preferences.js";
 
@@ -131,8 +131,12 @@ export async function sendTradeRequestEmail(
     const cardName = cards[0]?.name ?? "a card";
 
     const tradesUrl = `${deps.appBaseUrl}/groups/${dto.groupSlug}/trades`;
-    const token = signUnsubscribeToken(deps.unsubscribeSecret, recipientUserId, "tradeRequests");
-    const unsubscribeUrl = `${deps.appBaseUrl}/api/v1/unsubscribe?token=${encodeURIComponent(token)}`;
+    const { pageUrl, oneClickUrl } = buildUnsubscribeUrls(
+      deps.appBaseUrl,
+      deps.unsubscribeSecret,
+      recipientUserId,
+      "tradeRequests",
+    );
 
     const { subject, html } = buildTradeRequestEmail({
       recipientName: context.name,
@@ -143,10 +147,10 @@ export async function sendTradeRequestEmail(
       kind: trade.initiator === "receiver" ? "wants" : "offers",
       initiatorContact,
       tradesUrl,
-      unsubscribeUrl,
+      unsubscribeUrl: pageUrl,
     });
 
-    await deps.sendEmail({ to: context.email, subject, html });
+    await deps.sendEmail({ to: context.email, subject, html, listUnsubscribeUrl: oneClickUrl });
   } catch (error) {
     deps.log.error({ err: error, tradeId: trade.id }, "Failed to send trade-request email");
   }
@@ -304,17 +308,21 @@ export async function flushCoalescedTradeRequests(
       });
     }
 
-    const token = signUnsubscribeToken(unsubscribeSecret, recipientUserId, "tradeRequests");
-    const unsubscribeUrl = `${appBaseUrl}/api/v1/unsubscribe?token=${encodeURIComponent(token)}`;
+    const { pageUrl, oneClickUrl } = buildUnsubscribeUrls(
+      appBaseUrl,
+      unsubscribeSecret,
+      recipientUserId,
+      "tradeRequests",
+    );
     const { subject, html } = buildCoalescedTradeRequestsEmail({
       recipientName: context.name,
       senderName: senderLabel,
       groups: sections,
-      unsubscribeUrl,
+      unsubscribeUrl: pageUrl,
     });
 
     try {
-      await sendEmail({ to: context.email, subject, html });
+      await sendEmail({ to: context.email, subject, html, listUnsubscribeUrl: oneClickUrl });
       emailsSent += 1;
       requests += claimedRows.length;
     } catch (error) {

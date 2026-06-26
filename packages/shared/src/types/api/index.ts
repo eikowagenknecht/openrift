@@ -13,6 +13,7 @@ export type {
 } from "./preferences.js";
 export {
   DEFAULT_TRADE_REQUEST_EMAIL_CADENCE,
+  EMAIL_NOTIFICATION_CHANNEL_LABELS,
   getTradeRequestEmailCadence,
   isTradeMatchDigestEnabled,
   isTradeRequestEmailEnabled,

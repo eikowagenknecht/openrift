@@ -102,6 +102,16 @@ export interface EmailNotificationPreference {
  */
 export type EmailNotificationChannel = "tradeMatches" | "tradeRequests";
 
+/**
+ * Human-readable label per channel, phrased to slot into "You'll no longer
+ * receive {label}." / "Unsubscribe from {label}?". Shared so the unsubscribe
+ * page, the API, and email copy never drift.
+ */
+export const EMAIL_NOTIFICATION_CHANNEL_LABELS: Record<EmailNotificationChannel, string> = {
+  tradeMatches: "the daily match digest",
+  tradeRequests: "trade-request emails",
+};
+
 /** @returns Whether the daily match digest is enabled (opt-in: default off). */
 export function isTradeMatchDigestEnabled(prefs: EmailNotificationPreference | undefined): boolean {
   return prefs?.tradeMatches === true;

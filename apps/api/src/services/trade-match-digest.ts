@@ -4,7 +4,7 @@ import type { Repos } from "../deps.js";
 import type { createEmailSender } from "../email.js";
 import type { DigestGroupSection } from "../emails/trade-emails.js";
 import { buildTradeMatchDigestEmail } from "../emails/trade-emails.js";
-import { signUnsubscribeToken } from "../emails/unsubscribe-token.js";
+import { buildUnsubscribeUrls } from "../emails/unsubscribe-token.js";
 import type { IncomingMatchFeedRow } from "../repositories/friend-group-matches.js";
 
 type SendEmail = ReturnType<typeof createEmailSender>;
@@ -152,17 +152,21 @@ export async function sendTradeMatchDigest(
     }));
 
     const totalMatches = sections.reduce((sum, section) => sum + section.matches.length, 0);
-    const token = signUnsubscribeToken(unsubscribeSecret, recipient.userId, "tradeMatches");
-    const unsubscribeUrl = `${appBaseUrl}/api/v1/unsubscribe?token=${encodeURIComponent(token)}`;
+    const { pageUrl, oneClickUrl } = buildUnsubscribeUrls(
+      appBaseUrl,
+      unsubscribeSecret,
+      recipient.userId,
+      "tradeMatches",
+    );
 
     const { subject, html } = buildTradeMatchDigestEmail({
       recipientName: recipient.name,
       groups: sections,
-      unsubscribeUrl,
+      unsubscribeUrl: pageUrl,
     });
 
     try {
-      await sendEmail({ to: recipient.email, subject, html });
+      await sendEmail({ to: recipient.email, subject, html, listUnsubscribeUrl: oneClickUrl });
       emailsSent += 1;
       matchesSent += totalMatches;
     } catch (error) {

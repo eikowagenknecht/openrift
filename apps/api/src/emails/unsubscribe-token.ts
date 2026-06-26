@@ -34,6 +34,28 @@ export function signUnsubscribeToken(
 }
 
 /**
+ * Builds the two unsubscribe URLs an email needs (ADR-030, RFC 8058): the
+ * human-facing confirmation page on the web app (the in-body footer link, which
+ * never mutates on GET) and the RFC 8058 one-click endpoint on the API (the
+ * `List-Unsubscribe` header target the mail client POSTs). Both carry the same
+ * single-channel token. `appBaseUrl` is the web origin; `/api/v1` is proxied to
+ * the API on that same origin.
+ * @returns `{ pageUrl, oneClickUrl }`.
+ */
+export function buildUnsubscribeUrls(
+  appBaseUrl: string,
+  secret: string,
+  userId: string,
+  channel: EmailNotificationChannel,
+): { pageUrl: string; oneClickUrl: string } {
+  const token = encodeURIComponent(signUnsubscribeToken(secret, userId, channel));
+  return {
+    pageUrl: `${appBaseUrl}/unsubscribe?token=${token}`,
+    oneClickUrl: `${appBaseUrl}/api/v1/unsubscribe/one-click?token=${token}`,
+  };
+}
+
+/**
  * Verifies an unsubscribe token and recovers its `(userId, channel)`.
  * @returns The decoded fields, or `null` if the token is malformed, names an
  *   unknown channel, or the signature does not match.

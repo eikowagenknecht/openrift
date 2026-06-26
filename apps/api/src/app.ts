@@ -34,7 +34,7 @@ import { mountDeckCheckIngestMiddleware } from "./routes/public/deck-check-inges
 import { healthRoute } from "./routes/public/health.js";
 import { sentryTunnelRoute } from "./routes/public/sentry-tunnel.js";
 import { publicShareImagesRoute } from "./routes/public/share-images.js";
-import { unsubscribeRoute } from "./routes/public/unsubscribe.js";
+import { unsubscribeOneClickRoute } from "./routes/public/unsubscribe-one-click.js";
 import type { Auth, Config, Variables } from "./types.js";
 
 export interface AppDeps {
@@ -407,7 +407,7 @@ export function createApp(deps: AppDeps) {
     .route("/api", healthRoute)
     .route("/api/v1", publicShareImagesRoute)
     .route("/api/v1", sentryTunnelRoute)
-    .route("/api/v1", unsubscribeRoute)
+    .route("/api/v1", unsubscribeOneClickRoute)
     .route("/api/v1", listImageRoute);
 
   // ── Auth + caching middleware for the oRPC routes ─────────────────────────

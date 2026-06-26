@@ -40,11 +40,28 @@ export function createEmailSender(smtp: Config["smtp"], isDev: boolean) {
     to,
     subject,
     html,
+    listUnsubscribeUrl,
   }: {
     to: string;
     subject: string;
     html: string;
+    /**
+     * RFC 8058 one-click endpoint. When set, the message carries
+     * `List-Unsubscribe` + `List-Unsubscribe-Post: List-Unsubscribe=One-Click`,
+     * so Gmail/Apple Mail render a native "Unsubscribe" chip whose tap POSTs
+     * this URL. Only set it for opt-out bulk/transactional mail.
+     */
+    listUnsubscribeUrl?: string;
   }) {
+    // RFC 8058 requires both headers together; without the Post header the URL
+    // is treated as a legacy (often GET) link rather than one-click.
+    const headers = listUnsubscribeUrl
+      ? {
+          "List-Unsubscribe": `<${listUnsubscribeUrl}>`,
+          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        }
+      : undefined;
+
     if (!transporter) {
       log.info({ to, subject }, "Email (not sent):\n%s", html);
       return;
@@ -56,6 +73,7 @@ export function createEmailSender(smtp: Config["smtp"], isDev: boolean) {
         to,
         subject,
         html,
+        headers,
       });
     } catch (error) {
       log.error({ to, err: error }, "Failed to send email");

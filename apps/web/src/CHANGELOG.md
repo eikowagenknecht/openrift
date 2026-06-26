@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-06-27
+
+### Highlights
+
+- feat(Account): **One-click email unsubscribe** — the native Unsubscribe button in Gmail and Apple Mail now works, and the in-email link opens an on-brand confirmation page.
+
 ## 2026-06-26
 
 ### Highlights

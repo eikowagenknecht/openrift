@@ -75,6 +75,7 @@ import { rulesRouter } from "../routes/public/rules.js";
 import { setsRouter } from "../routes/public/sets.js";
 import { siteSettingsRouter } from "../routes/public/site-settings.js";
 import { sitemapRouter } from "../routes/public/sitemap.js";
+import { unsubscribeRouter } from "../routes/public/unsubscribe.js";
 import { publicUserShareRouter } from "../routes/public/user-share.js";
 import { makeReportingErrorInterceptor } from "./error-reporting-interceptor.js";
 
@@ -153,6 +154,7 @@ export const apiRouter = {
   setsRouter,
   siteSettingsRouter,
   sitemapRouter,
+  unsubscribeRouter,
   publicUserShareRouter,
 };
 
