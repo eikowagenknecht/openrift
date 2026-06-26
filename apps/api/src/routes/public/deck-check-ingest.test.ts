@@ -1,15 +1,13 @@
 import { ERROR_CODES } from "@openrift/shared";
 import { Hono } from "hono";
-import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { z } from "zod";
 
-import { AppError } from "../../errors.js";
+import { registerRouterForTest } from "../../test/mount-router.js";
 import type { Variables } from "../../types.js";
-import { mountDeckCheckIngest } from "./deck-check-ingest";
+import { deckCheckIngestRouter } from "./deck-check-ingest";
 
-// Mock the ingest service so the route logic (auth + validation + result wiring)
-// is exercised without a database.
+// Mock the ingest service so the handler (auth + validation + result wiring) is
+// exercised without a database.
 const mockIngest = vi.fn();
 vi.mock("../../services/deck-check-ingest.js", () => ({
   ingestDeckCheckPush: (...args: unknown[]) => mockIngest(...args),
@@ -20,8 +18,11 @@ const mockDeckCheckRepo = {
   touchKeyUsage: vi.fn(),
 };
 
-// Replicate the app's global onError so the external `{ error, code }` envelope
-// (the reason this route stays plain Hono, not oRPC) is asserted end to end.
+// Mount the oRPC router the way production does (single catch-all +
+// appErrorInterceptor + buildApiContext), so the native `{ code, message }`
+// error envelope and the `context.reqHeader` Bearer-key auth are exercised end
+// to end. The rate limit / body limit are app-level Hono middleware (app.ts),
+// not part of the router, so they're out of scope here.
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("repos", { deckCheck: mockDeckCheckRepo } as never);
@@ -30,19 +31,22 @@ app.use("*", async (c, next) => {
     run({ deckCheck: mockDeckCheckRepo })) as never);
   await next();
 });
-// oxlint-disable-next-line promise/prefer-await-to-callbacks -- Hono's onError API takes a callback
-app.onError((err, c) => {
-  if (err instanceof AppError) {
-    return c.json({ error: err.message, code: err.code }, err.status as ContentfulStatusCode);
-  }
-  if (err instanceof z.ZodError) {
-    return c.json({ error: "Invalid request body", code: ERROR_CODES.VALIDATION_ERROR }, 400);
-  }
-  throw err;
-});
-mountDeckCheckIngest(app);
+registerRouterForTest(app, deckCheckIngestRouter);
 
 const EVENT_ID = "a0000000-0001-4000-a000-000000000001";
+
+// A full, schema-valid result — oRPC now validates the handler's output, so the
+// mocked service must return the real `DeckCheckIngestResultResponse` shape.
+const RESULT = {
+  eventId: EVENT_ID,
+  entriesCreated: 0,
+  entriesUpdated: 0,
+  entriesUnchanged: 0,
+  entriesWithdrawn: 0,
+  checksInvalidated: 0,
+  entriesIgnored: 0,
+  entries: [],
+};
 
 function push(body: unknown, headers: Record<string, string> = {}) {
   return app.request("/api/v1/ingest/deck-check", {
@@ -52,18 +56,18 @@ function push(body: unknown, headers: Record<string, string> = {}) {
   });
 }
 
-describe("POST /api/v1/ingest/deck-check", () => {
+describe("POST /api/v1/ingest/deck-check (oRPC)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("returns 200 with the ingest result for a valid key + payload", async () => {
     mockDeckCheckRepo.findActiveKeyByHash.mockResolvedValue({ id: "key-1", groupId: "grp-1" });
-    mockIngest.mockResolvedValue({ applied: 0, withdrawn: 0, unmatched: [] });
+    mockIngest.mockResolvedValue(RESULT);
 
     const res = await push({ eventId: EVENT_ID, entries: [] }, { Authorization: "Bearer secret" });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ applied: 0, withdrawn: 0, unmatched: [] });
+    expect(await res.json()).toEqual(RESULT);
     expect(mockIngest).toHaveBeenCalledWith(
       expect.anything(),
       "grp-1",
@@ -73,31 +77,31 @@ describe("POST /api/v1/ingest/deck-check", () => {
     expect(mockDeckCheckRepo.touchKeyUsage).toHaveBeenCalledWith("key-1");
   });
 
-  it("returns 401 { error, code } when the Authorization header is missing", async () => {
+  it("returns 401 { code, message } when the Authorization header is missing", async () => {
     const res = await push({ eventId: EVENT_ID, entries: [] });
     expect(res.status).toBe(401);
-    expect(await res.json()).toEqual({ error: "Missing push key", code: ERROR_CODES.UNAUTHORIZED });
+    expect(await res.json()).toMatchObject({
+      code: ERROR_CODES.UNAUTHORIZED,
+      message: "Missing push key",
+    });
     expect(mockDeckCheckRepo.findActiveKeyByHash).not.toHaveBeenCalled();
   });
 
-  it("returns 401 { error, code } when the key is unknown or revoked", async () => {
+  it("returns 401 { code, message } when the key is unknown or revoked", async () => {
     mockDeckCheckRepo.findActiveKeyByHash.mockResolvedValue(undefined);
     const res = await push({ eventId: EVENT_ID, entries: [] }, { Authorization: "Bearer nope" });
     expect(res.status).toBe(401);
-    expect(await res.json()).toEqual({
-      error: "Unknown or revoked push key",
+    expect(await res.json()).toMatchObject({
       code: ERROR_CODES.UNAUTHORIZED,
+      message: "Unknown or revoked push key",
     });
   });
 
-  it("returns 400 { error, code } with the VALIDATION_ERROR envelope on a bad body", async () => {
+  it("returns 400 on a bad body, before the auth check (oRPC input validation)", async () => {
     const res = await push({ eventId: "not-a-uuid" }, { Authorization: "Bearer secret" });
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({
-      error: "Invalid request body",
-      code: ERROR_CODES.VALIDATION_ERROR,
-    });
-    // Validation runs before the auth check, matching the prior middleware order.
+    // Validation runs before the handler, so the key is never looked up — this
+    // preserves the previous validation-first ordering.
     expect(mockDeckCheckRepo.findActiveKeyByHash).not.toHaveBeenCalled();
   });
 });

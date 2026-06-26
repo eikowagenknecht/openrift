@@ -30,7 +30,7 @@ import { buildApiContext } from "./orpc/context.js";
 import { createApiHandler } from "./orpc/router.js";
 import { mountAdminSentryTest } from "./routes/admin/sentry-test.js";
 import { listImageRoute } from "./routes/authenticated/list-image.js";
-import { mountDeckCheckIngest } from "./routes/public/deck-check-ingest.js";
+import { mountDeckCheckIngestMiddleware } from "./routes/public/deck-check-ingest.js";
 import { healthRoute } from "./routes/public/health.js";
 import { sentryTunnelRoute } from "./routes/public/sentry-tunnel.js";
 import { publicShareImagesRoute } from "./routes/public/share-images.js";
@@ -401,7 +401,6 @@ export function createApp(deps: AppDeps) {
   // throw (sentry-test) — these don't fit the oRPC JSON model, so they stay
   // Hono. Registered before the oRPC catch-all so they win the path match.
   mountAdminSentryTest(app);
-  mountDeckCheckIngest(app);
   app
     .route("/api", healthRoute)
     .route("/api/v1", publicShareImagesRoute)
@@ -416,10 +415,13 @@ export function createApp(deps: AppDeps) {
   //  - admin uses the clean `/api/admin/v1/*` prefix (no ambiguity);
   //  - the two optional-auth public routes run `loadSession` so they can read
   //    the viewer AND set `Vary: Cookie` for the edge cache (ADR-016);
-  //  - `etag()` provides the catalog/prices content version + conditional GETs.
+  //  - `etag()` provides the catalog/prices content version + conditional GETs;
+  //  - the deck-check provider push carries a per-key rate limit + 1 MB body
+  //    limit (the push itself is a public oRPC procedure with Bearer-key auth).
   app.use("/api/admin/v1/*", requireAdmin);
   app.use("/api/v1/feature-flags", loadSession);
   app.use("/api/v1/users/share/*", loadSession);
+  mountDeckCheckIngestMiddleware(app);
   for (const path of ETAG_PATHS) {
     app.use(path, etag());
   }

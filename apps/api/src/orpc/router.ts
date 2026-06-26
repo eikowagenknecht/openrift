@@ -62,6 +62,7 @@ import { cardsRouter } from "../routes/public/cards.js";
 import { catalogRouter } from "../routes/public/catalog.js";
 import { publicCollectionsRouter } from "../routes/public/collections.js";
 import { deckCheckClaimRouter } from "../routes/public/deck-check-claim.js";
+import { deckCheckIngestRouter } from "../routes/public/deck-check-ingest.js";
 import { publicDecksRouter } from "../routes/public/decks.js";
 import { featureFlagsRouter } from "../routes/public/feature-flags.js";
 import { initRouter } from "../routes/public/init.js";
@@ -139,6 +140,7 @@ export const apiRouter = {
   catalogRouter,
   publicCollectionsRouter,
   deckCheckClaimRouter,
+  deckCheckIngestRouter,
   publicDecksRouter,
   featureFlagsRouter,
   initRouter,

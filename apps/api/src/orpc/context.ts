@@ -33,6 +33,13 @@ export interface ApiContext {
    * issue no session lookup.
    */
   loadUser: () => Promise<SessionUser | null>;
+  /**
+   * Reads a request header (case-insensitive). For the rare handler that
+   * authenticates off something other than the session cookie — e.g. the
+   * deck-check provider push, gated by an `Authorization: Bearer <api-key>`.
+   * @returns The header value, or undefined when absent.
+   */
+  reqHeader: (name: string) => string | undefined;
 }
 
 /**
@@ -54,5 +61,6 @@ export function buildApiContext(c: Context<{ Variables: Variables }>): ApiContex
       await resolveSession(c);
       return c.get("user") ?? null;
     },
+    reqHeader: (name) => c.req.header(name),
   };
 }

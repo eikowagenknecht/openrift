@@ -58,9 +58,9 @@ items are done:
    is now GONE: the root app is a plain `Hono`, and the last routes on the
    stack are converted — health / sentry-tunnel / unsubscribe / list-image /
    share-images → plain Hono, `sentry-test` → a plain admin-gated throw (so the
-   global `onError` still reports it to Sentry), `deck-check-ingest` → plain Hono
-   keeping its `{ error, code }` envelope via `onError` (its OpenAPI entry comes
-   from a doc-only `deckCheckIngestContract`). `openapi.ts` (`createApiApp`),
+   global `onError` still reports it to Sentry). `deck-check-ingest` is now a
+   `meta: "public"` oRPC procedure too (Bearer-key auth via `context.reqHeader`;
+   rate limit + 1 MB body limit stay as Hono path middleware). `openapi.ts` (`createApiApp`),
    `openapi.test.ts`, and `openapi-helpers.ts` are deleted; the dependency is off
    `apps/api/package.json`. `server-fns/api-types.ts` stays — it is now just a
    contract/shared type re-export hub, no `hc` dependency.
@@ -110,11 +110,11 @@ and `apps/api/src/rpc-types.ts` (`AppType`, plus the `./rpc` package export) are
 deleted. This collapses the `hc<AppType>` type instantiation that drove the
 typecheck OOM — the whole point of the migration.
 
-**`@hono/zod-openapi` is GONE.** The root app is a plain `Hono`; the last routes
-on the stack are now plain Hono — health, sentry-tunnel, unsubscribe, list-image,
-share-images, the `sentry-test` admin throw (kept plain so the global `onError`
-still reports it to Sentry), and `deck-check-ingest` (kept plain to preserve its
-external `{ error, code }` envelope; documented via a doc-only contract). The
+**`@hono/zod-openapi` is GONE.** The root app is a plain `Hono`; the only
+non-oRPC routes left are plain Hono — health, sentry-tunnel, unsubscribe,
+list-image, share-images, and the `sentry-test` admin throw (kept plain so the
+global `onError` still reports it to Sentry). `deck-check-ingest` is a public
+oRPC procedure (its external error body is the native `{ code, message }`). The
 OpenAPI docs are generated entirely from the contracts (#3 above). `openapi.ts`,
 `openapi.test.ts`, and `openapi-helpers.ts` are deleted and the dependency is
 removed from `apps/api/package.json`.

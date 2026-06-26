@@ -50,7 +50,7 @@ describe("OpenAPI doc split", () => {
     expect(paths.some((p) => p.startsWith("/api/admin/"))).toBe(false);
     // A migrated oRPC endpoint (from the contract-derived spec) is present...
     expect(paths).toContain("/api/v1/catalog");
-    // ...alongside a plain-Hono route whose doc entry comes from a doc-only contract.
+    // ...alongside a second migrated endpoint (the deck-check provider push).
     expect(paths).toContain("/api/v1/ingest/deck-check");
   });
 

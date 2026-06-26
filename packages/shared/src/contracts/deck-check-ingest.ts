@@ -4,13 +4,11 @@ import { deckCheckIngestResultResponseSchema } from "../response-schemas.js";
 import { deckCheckIngestSchema } from "../schemas.js";
 
 /**
- * oRPC contract for the deck-check provider push (ADR-025). This contract
- * exists for the OpenAPI documentation only: the endpoint is **implemented as a
- * plain Hono route** (see `apps/api/src/routes/public/deck-check-ingest.ts`),
- * not an oRPC handler, because external providers depend on the exact
- * `{ error, code }` error envelope produced by the global Hono `onError` — oRPC
- * would emit `{ message, code }` instead. Keep the schemas here in sync with
- * that route's manual validation.
+ * oRPC contract for the deck-check provider push (ADR-025). The handler
+ * (`apps/api/src/routes/public/deck-check-ingest.ts`) is a `meta: "public"`
+ * procedure: it authenticates off a per-group `Authorization: Bearer <key>`
+ * header (read via `context.reqHeader`), not the session cookie. Its rate limit
+ * and 1 MB body limit stay as Hono middleware on the path (see `app.ts`).
  */
 export const deckCheckIngestContract = {
   push: oc
@@ -25,6 +23,7 @@ export const deckCheckIngestContract = {
         "Partial semantics: entries absent from a push are untouched; withdrawal " +
         "is the explicit per-entry flag.",
     })
+    .meta({ auth: "public" })
     .input(deckCheckIngestSchema)
     .output(deckCheckIngestResultResponseSchema),
 };

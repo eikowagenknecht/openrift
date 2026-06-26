@@ -249,8 +249,8 @@ describe.skipIf(!ownerCtx)("deck-check routes (integration, ADR-025)", () => {
         }),
       ]);
       expect(res.status).toBe(422);
-      const body = (await res.json()) as { error: string };
-      expect(body.error).toContain("commander");
+      const body = (await res.json()) as { message: string };
+      expect(body.message).toContain("commander");
 
       const entry = await repos.deckCheck.getEntryByExternalId(eventId, "entry-bad-section");
       expect(entry).toBeUndefined();
