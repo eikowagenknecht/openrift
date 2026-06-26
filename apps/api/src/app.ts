@@ -328,8 +328,9 @@ export function createApp(deps: AppDeps) {
   // /api/admin/ path prefix) so the ~140 admin operations don't pollute the
   // public spec. The spec is generated entirely from the shared oRPC contracts
   // (`generateContractOpenAPIDocument`). A few routes are plain Hono and not in
-  // the doc on purpose (health, the sentry smoke test); the external deck-check
-  // ingest carries a doc-only contract so it stays documented.
+  // the doc on purpose (health, the sentry smoke test). Per-operation `security`
+  // is derived from each contract's auth meta (cookie session / bearer key /
+  // public) so Swagger UI shows the credential each endpoint needs.
   const ADMIN_DOC_PREFIX = "/api/admin/";
   const filterPaths = <TDoc extends { paths?: Record<string, unknown> }>(
     doc: TDoc,
@@ -371,6 +372,7 @@ export function createApp(deps: AppDeps) {
         securitySchemes: {
           ...contractDoc.components?.securitySchemes,
           cookieAuth: { type: "apiKey", in: "cookie", name: "better-auth.session_token" },
+          bearerAuth: { type: "http", scheme: "bearer" },
         },
       },
     };

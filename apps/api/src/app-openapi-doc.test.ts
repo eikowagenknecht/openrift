@@ -33,12 +33,17 @@ const app = createApp({
   log: createLogger("test", "silent"),
 });
 
-async function fetchDoc(
-  path: string,
-): Promise<{ paths: Record<string, unknown>; info: { title: string } }> {
+interface DocShape {
+  paths: Record<string, Record<string, { security?: unknown } | undefined>>;
+  info: { title: string };
+  security?: unknown;
+  components?: { securitySchemes?: Record<string, unknown> };
+}
+
+async function fetchDoc(path: string): Promise<DocShape> {
   const res = await app.fetch(new Request(`http://localhost${path}`));
   expect(res.status).toBe(200);
-  return res.json() as Promise<{ paths: Record<string, unknown>; info: { title: string } }>;
+  return res.json() as Promise<DocShape>;
 }
 
 describe("OpenAPI doc split", () => {
@@ -52,6 +57,15 @@ describe("OpenAPI doc split", () => {
     expect(paths).toContain("/api/v1/catalog");
     // ...alongside a second migrated endpoint (the deck-check provider push).
     expect(paths).toContain("/api/v1/ingest/deck-check");
+
+    // Per-operation security is derived from each contract's auth meta: the doc
+    // defaults to the session cookie, public reads opt out, and the provider
+    // push declares its bearer key.
+    expect(doc.security).toEqual([{ cookieAuth: [] }]);
+    expect(doc.components?.securitySchemes).toHaveProperty("cookieAuth");
+    expect(doc.components?.securitySchemes).toHaveProperty("bearerAuth");
+    expect(doc.paths["/api/v1/catalog"]?.get?.security).toEqual([]);
+    expect(doc.paths["/api/v1/ingest/deck-check"]?.post?.security).toEqual([{ bearerAuth: [] }]);
   });
 
   it("admin /api/admin/doc contains only the admin surface", async () => {
@@ -63,5 +77,11 @@ describe("OpenAPI doc split", () => {
     // A representative migrated oRPC admin endpoint (from the contract spec).
     // The sentry smoke test is a plain Hono route and intentionally not documented.
     expect(paths).toContain("/api/admin/v1/users");
+
+    // Admin ops carry no per-operation override — they inherit the document's
+    // cookieAuth default (a session is required; the admin role is enforced by
+    // middleware, which OpenAPI security schemes can't express).
+    expect(doc.security).toEqual([{ cookieAuth: [] }]);
+    expect(doc.paths["/api/admin/v1/users"]?.get?.security).toBeUndefined();
   });
 });

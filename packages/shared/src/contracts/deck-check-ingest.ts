@@ -5,10 +5,11 @@ import { deckCheckIngestSchema } from "../schemas.js";
 
 /**
  * oRPC contract for the deck-check provider push (ADR-025). The handler
- * (`apps/api/src/routes/public/deck-check-ingest.ts`) is a `meta: "public"`
+ * (`apps/api/src/routes/public/deck-check-ingest.ts`) is a `meta: "bearer"`
  * procedure: it authenticates off a per-group `Authorization: Bearer <key>`
- * header (read via `context.reqHeader`), not the session cookie. Its rate limit
- * and 1 MB body limit stay as Hono middleware on the path (see `app.ts`).
+ * header (read via `context.reqHeader`), not the session cookie — so it skips
+ * session resolution and carries the `bearerAuth` OpenAPI security marker. Its
+ * rate limit and 1 MB body limit stay as Hono middleware on the path (`app.ts`).
  */
 export const deckCheckIngestContract = {
   push: oc
@@ -23,7 +24,7 @@ export const deckCheckIngestContract = {
         "Partial semantics: entries absent from a push are untouched; withdrawal " +
         "is the explicit per-entry flag.",
     })
-    .meta({ auth: "public" })
+    .meta({ auth: "bearer" })
     .input(deckCheckIngestSchema)
     .output(deckCheckIngestResultResponseSchema),
 };

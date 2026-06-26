@@ -33,6 +33,64 @@ function buildContractRouter(): AnyContractRouter {
   return router as AnyContractRouter;
 }
 
+type AuthLevel = "public" | "bearer" | undefined;
+
+interface ContractDef {
+  route?: { method?: string; path?: string };
+  meta?: { auth?: AuthLevel };
+}
+
+const HTTP_METHODS = ["get", "post", "put", "patch", "delete", "head", "options"] as const;
+
+/**
+ * Walks the assembled contract router and records each operation's auth level
+ * (from its `meta`) keyed by `"METHOD /path"`, so the generated document can
+ * carry an accurate per-operation `security` marker.
+ * @returns Nothing; fills `out`.
+ */
+function collectAuthByOperation(node: unknown, out: Map<string, AuthLevel>): void {
+  if (!node || typeof node !== "object") {
+    return;
+  }
+  const def = (node as { "~orpc"?: ContractDef })["~orpc"];
+  if (def?.route?.method && def.route.path) {
+    out.set(`${def.route.method} ${def.route.path}`, def.meta?.auth);
+    return;
+  }
+  for (const value of Object.values(node)) {
+    collectAuthByOperation(value, out);
+  }
+}
+
+/**
+ * Sets the OpenAPI `security` from each contract's auth level — the same `meta`
+ * the runtime `requireUser` middleware reads — so Swagger UI shows which
+ * endpoints need credentials: the document defaults to the session `cookieAuth`
+ * (matching the fail-closed model), public reads opt out with `security: []`,
+ * and the provider push declares its `bearerAuth` key.
+ * @returns Nothing; mutates `doc` in place.
+ */
+function applySecurity(doc: OpenAPI.Document, router: AnyContractRouter): void {
+  const authByOperation = new Map<string, AuthLevel>();
+  collectAuthByOperation(router, authByOperation);
+  doc.security = [{ cookieAuth: [] }];
+  for (const [path, item] of Object.entries(doc.paths ?? {})) {
+    for (const method of HTTP_METHODS) {
+      const operation = (item as Record<string, { security?: unknown } | undefined>)[method];
+      if (!operation) {
+        continue;
+      }
+      const auth = authByOperation.get(`${method.toUpperCase()} ${path}`);
+      if (auth === "public") {
+        operation.security = [];
+      } else if (auth === "bearer") {
+        operation.security = [{ bearerAuth: [] }];
+      }
+      // Otherwise the operation inherits the document-level cookieAuth default.
+    }
+  }
+}
+
 // The contract spec is static for a given build, so generate it once and reuse
 // the promise across requests to /api/doc and /api/admin/doc.
 let cachedContractDoc: Promise<OpenAPI.Document> | null = null;
@@ -43,6 +101,11 @@ let cachedContractDoc: Promise<OpenAPI.Document> | null = null;
  * @returns The contract-derived OpenAPI document.
  */
 export function generateContractOpenAPIDocument(): Promise<OpenAPI.Document> {
-  cachedContractDoc ??= generator.generate(buildContractRouter());
+  cachedContractDoc ??= (async () => {
+    const router = buildContractRouter();
+    const doc = await generator.generate(router);
+    applySecurity(doc, router);
+    return doc;
+  })();
   return cachedContractDoc;
 }
