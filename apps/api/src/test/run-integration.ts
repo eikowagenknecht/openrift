@@ -108,6 +108,9 @@ const TEST_USERS: TestUser[] = [
   { id: "a0000000-0061-4000-a000-000000000001", email: "digest-0061@test.com", isAdmin: false },
   { id: "a0000000-0062-4000-a000-000000000001", email: "digest-0062@test.com", isAdmin: false },
   { id: "a0000000-0063-4000-a000-000000000001", email: "unsub-0063@test.com", isAdmin: false },
+  // IDs 0064-0067 are RESERVED (not pre-seeded): the trade-request-coalesce and
+  // trade-status-email tests self-insert their own users so they can toggle
+  // emailVerified per-case. Do not add them here or reuse these IDs elsewhere.
 ];
 
 // ---------------------------------------------------------------------------
@@ -138,6 +141,7 @@ const PARALLEL_FILES = [
   "src/routes/authenticated/deck-check-player.integration.test.ts",
   "src/routes/authenticated/decks.integration.test.ts",
   "src/routes/authenticated/preferences.integration.test.ts",
+  "src/routes/authenticated/pod-tournaments.integration.test.ts",
   // Public routes
   "src/routes/public/health.integration.test.ts",
   "src/routes/public/init.integration.test.ts",
@@ -145,6 +149,7 @@ const PARALLEL_FILES = [
   "src/routes/public/prices.integration.test.ts",
   "src/routes/public/catalog.integration.test.ts",
   "src/routes/public/landing-summary.integration.test.ts",
+  "src/routes/public/optional-auth-caching.integration.test.ts",
   // Admin routes
   "src/routes/admin/admin-core.integration.test.ts",
   "src/routes/admin/catalog.integration.test.ts",
@@ -192,10 +197,15 @@ const PARALLEL_FILES = [
   "src/repositories/site-settings.integration.test.ts",
   "src/repositories/user-preferences.integration.test.ts",
   "src/repositories/user-shares.integration.test.ts",
+  "src/repositories/user-contact-methods.integration.test.ts",
+  "src/repositories/deck-plans.integration.test.ts",
+  "src/repositories/pod-tournaments.integration.test.ts",
   // Card trades (ADR-019)
   "src/repositories/card-trades.integration.test.ts",
   // Trade email notifications (ADR-030)
   "src/services/trade-request-email.integration.test.ts",
+  "src/services/trade-request-coalesce.integration.test.ts",
+  "src/services/trade-status-email.integration.test.ts",
   "src/services/trade-match-digest.integration.test.ts",
   "src/routes/public/unsubscribe.integration.test.ts",
 ];
@@ -228,6 +238,27 @@ if (!DATABASE_URL) {
     console.error(
       `Integration runner: ${missing.length} listed test file(s) do not exist:\n  ${missing.join("\n  ")}\n` +
         "Update PARALLEL_FILES in run-integration.ts to match the real files.",
+    );
+    process.exit(1);
+  }
+}
+
+// The reverse guard: fail loudly if any integration test file on disk is NOT
+// registered above. Without this, simply forgetting to add a new file to
+// PARALLEL_FILES silently drops it from every run (that is how the trade-request
+// -coalesce and trade-status-email tests went dark). Together with the existence
+// check above, the registered set must be exactly the files on disk.
+{
+  const repoRoot = resolve(import.meta.dirname!, "../..");
+  const registered = new Set([...PARALLEL_FILES, ...MOCK_MODULE_FILES, MIGRATIONS_FILE]);
+  const onDisk = [...new Bun.Glob("src/**/*.integration.test.ts").scanSync({ cwd: repoRoot })].map(
+    (file) => file.replaceAll("\\", "/"),
+  );
+  const unregistered = onDisk.filter((file) => !registered.has(file)).sort();
+  if (unregistered.length > 0) {
+    console.error(
+      `Integration runner: ${unregistered.length} integration test file(s) exist but are not registered:\n  ${unregistered.join("\n  ")}\n` +
+        "Add each to PARALLEL_FILES (or MOCK_MODULE_FILES / MIGRATIONS_FILE) in run-integration.ts.",
     );
     process.exit(1);
   }

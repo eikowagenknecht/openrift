@@ -10,11 +10,13 @@ import { createTrade } from "./card-trades.js";
 import { flushCoalescedTradeRequests } from "./trade-notifications.js";
 import type { TradeEmailDeps } from "./trade-notifications.js";
 
-const GIVER_ID = "a0000000-0059-4000-a000-000000000001";
-const RECEIVER_ID = "a0000000-0060-4000-a000-000000000001";
+// Own user IDs (0064/0065), self-inserted below — NOT the digest test's 0059/0060,
+// which the TEST_USERS registry pre-seeds with `digest-*` emails.
+const GIVER_ID = "a0000000-0064-4000-a000-000000000001";
+const RECEIVER_ID = "a0000000-0065-4000-a000-000000000001";
 const ALL_USER_IDS = [GIVER_ID, RECEIVER_ID];
-const GIVER_EMAIL = "coalesce-0059@test.com";
-const RECEIVER_EMAIL = "coalesce-0060@test.com";
+const GIVER_EMAIL = "coalesce-0064@test.com";
+const RECEIVER_EMAIL = "coalesce-0065@test.com";
 
 const ctx = createDbContext(GIVER_ID);
 
