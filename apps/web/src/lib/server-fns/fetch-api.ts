@@ -1,7 +1,7 @@
 import { context, propagation } from "@opentelemetry/api";
 
 import { apiErrorFromResponse } from "./api-error";
-import { API_URL } from "./api-url";
+import { getApiUrl } from "./api-url";
 import { activeClientIp } from "./client-ip-context";
 
 interface FetchApiOptions {
@@ -40,7 +40,7 @@ export async function fetchApi(options: FetchApiOptions): Promise<Response> {
     headers: extraHeaders,
     acceptStatuses,
   } = options;
-  const url = `${API_URL}${path}`;
+  const url = `${getApiUrl()}${path}`;
   const headers: Record<string, string> = { ...extraHeaders };
   if (cookie !== undefined) {
     headers.cookie = cookie;

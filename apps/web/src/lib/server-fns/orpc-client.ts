@@ -3,7 +3,7 @@ import { createORPCClient } from "@orpc/client";
 import type { AnyContractRouter, ContractRouterClient } from "@orpc/contract";
 import { OpenAPILink } from "@orpc/openapi-client/fetch";
 
-import { API_URL } from "./api-url";
+import { getApiUrl } from "./api-url";
 import { activeClientIp } from "./client-ip-context";
 
 /**
@@ -29,7 +29,7 @@ function requestHeaders(cookie?: string): Record<string, string> {
 /**
  * Builds a contract-typed oRPC client for an endpoint migrated off the Hono
  * `AppType` graph. The OpenAPI link resolves each call's HTTP method + path
- * from the contract value and composes `API_URL + path`, so the request URL
+ * from the contract value and composes `getApiUrl() + path`, so the request URL
  * is byte-identical to the old `hc` call.
  *
  * This is the migration counterpart to `serverApiClient(...).api.v1[...]`:
@@ -43,7 +43,7 @@ export function apiOrpcClient<TContract extends AnyContractRouter>(
   cookie?: string,
 ): ContractRouterClient<TContract> {
   const link = new OpenAPILink(contract, {
-    url: API_URL,
+    url: getApiUrl(),
     headers: () => requestHeaders(cookie),
   });
   return createORPCClient(link);

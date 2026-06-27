@@ -8,6 +8,10 @@
 - feat(Trades): **Trade update emails** — you now get an email when the other person accepts, declines, or cancels a trade, batched so a whole basket of cards arrives as one message, with its own toggle under email settings.
 - feat(Account): **One-click email unsubscribe** — the native Unsubscribe button in Gmail and Apple Mail now works, and the in-email link opens an on-brand confirmation page.
 
+### Other
+
+- fix(App): **Landing page stats load again** — the home page hero counts and card previews were blocked on the live site because the browser requested them from the wrong address, and now load correctly.
+
 ## 2026-06-26
 
 ### Highlights

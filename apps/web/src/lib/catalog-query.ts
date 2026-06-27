@@ -8,7 +8,7 @@ import { consumeSeededCatalogVersion, versionFromEtag } from "@/lib/catalog-vers
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
 import { apiErrorFromResponse } from "@/lib/server-fns/api-error";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { getApiUrl } from "@/lib/server-fns/api-url";
 import { activeClientIp } from "@/lib/server-fns/client-ip-context";
 
 // The catalog is the LCP-critical, edge-cached payload. It is fetched with a
@@ -71,7 +71,7 @@ function fetchCatalogWithVersion(): Promise<{
     queryKey: ["server-cache", "catalog"],
     queryFn: async () => {
       const res = await fetchCatalogResponse(
-        `${API_URL}/api/v1/catalog`,
+        `${getApiUrl()}/api/v1/catalog`,
         serverCatalogFetchHeaders(),
       );
       return {

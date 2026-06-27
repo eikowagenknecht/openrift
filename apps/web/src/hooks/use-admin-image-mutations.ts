@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import type { UploadCandidatesBody, UploadCandidatesResponse } from "@/lib/server-fns/api-types";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { getApiUrl } from "@/lib/server-fns/api-url";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -200,7 +200,7 @@ const uploadPrintingImageFn = createServerFn({ method: "POST" })
     }
     // FormData body — can't use fetchApi helper (it JSON.stringify's bodies).
     const res = await fetch(
-      `${API_URL}/api/admin/v1/cards/printing/${encodeURIComponent(data.printingId)}/upload-image`,
+      `${getApiUrl()}/api/admin/v1/cards/printing/${encodeURIComponent(data.printingId)}/upload-image`,
       {
         method: "POST",
         headers: { cookie: context.cookie },

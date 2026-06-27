@@ -16,7 +16,7 @@ vi.mock("@orpc/openapi-client/fetch", () => ({
   },
 }));
 vi.mock("@orpc/client", () => ({ createORPCClient: vi.fn(() => ({})) }));
-vi.mock("./api-url", () => ({ API_URL: "https://api.test" }));
+vi.mock("./api-url", () => ({ getApiUrl: () => "https://api.test" }));
 
 const mockActiveClientIp = vi.fn<() => string | undefined>(() => undefined);
 vi.mock("./client-ip-context", () => ({ activeClientIp: () => mockActiveClientIp() }));
@@ -44,7 +44,7 @@ beforeEach(() => {
 });
 
 describe("apiOrpcClient", () => {
-  it("targets API_URL and forwards the SSR cookie", () => {
+  it("targets getApiUrl() and forwards the SSR cookie", () => {
     apiOrpcClient(dummyContract, "session=abc");
     expect(linkOptions).toHaveLength(1);
     expect(linkOptions[0].url).toBe("https://api.test");
