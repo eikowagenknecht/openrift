@@ -6,7 +6,7 @@ import { implement } from "@orpc/server";
 import { AppError } from "../../errors.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { assertFound } from "../../utils/assertions.js";
+import { assertFound, assertSlugAvailable, assertValidReorder } from "../../utils/assertions.js";
 
 const os = implement(adminMarkersContract).$context<ApiContext>().use(requireAuthedUser);
 
@@ -45,24 +45,12 @@ export const adminMarkersRouter = {
   reorder: os.reorder.handler(async ({ input, context }): Promise<void> => {
     const { markers: repo } = context.repos;
     const { ids } = input;
-
-    const uniqueIds = new Set(ids);
-    if (uniqueIds.size !== ids.length) {
-      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Duplicate ids in reorder list.");
-    }
     const all = await repo.listAll();
-    if (ids.length !== all.length) {
-      throw new AppError(
-        400,
-        ERROR_CODES.BAD_REQUEST,
-        `Expected ${all.length} ids, got ${ids.length}.`,
-      );
-    }
-    const knownIds = new Set(all.map((m) => m.id));
-    const unknown = ids.filter((id) => !knownIds.has(id));
-    if (unknown.length > 0) {
-      throw new AppError(400, ERROR_CODES.BAD_REQUEST, `Unknown marker ids: ${unknown.join(", ")}`);
-    }
+    assertValidReorder(ids, all, {
+      keyOf: (row) => row.id,
+      keyNoun: "ids",
+      unknownLabel: "marker ids",
+    });
     await repo.reorder(ids);
   }),
 
@@ -70,9 +58,7 @@ export const adminMarkersRouter = {
     const { markers: repo } = context.repos;
     const { slug, label, description } = input;
     const existing = await repo.getBySlug(slug);
-    if (existing) {
-      throw new AppError(409, ERROR_CODES.CONFLICT, `Marker "${slug}" already exists`);
-    }
+    assertSlugAvailable(existing, slug, "Marker");
     const maxSortOrder = await repo.getMaxSortOrder();
     const created = await repo.create({ slug, label, description, sortOrder: maxSortOrder + 1 });
     return { marker: toMarkerResponse(created) };

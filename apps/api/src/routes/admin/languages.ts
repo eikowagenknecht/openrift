@@ -6,7 +6,7 @@ import { implement } from "@orpc/server";
 import { AppError } from "../../errors.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { assertFound } from "../../utils/assertions.js";
+import { assertFound, assertSlugAvailable, assertValidReorder } from "../../utils/assertions.js";
 
 const os = implement(adminLanguagesContract).$context<ApiContext>().use(requireAuthedUser);
 
@@ -35,31 +35,12 @@ export const adminLanguagesRouter = {
   reorder: os.reorder.handler(async ({ input, context }): Promise<void> => {
     const { languages: repo } = context.repos;
     const { codes } = input;
-
-    const uniqueCodes = new Set(codes);
-    if (uniqueCodes.size !== codes.length) {
-      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Duplicate language codes in reorder list.");
-    }
-
     const allLangs = await repo.listAll();
-    if (codes.length !== allLangs.length) {
-      throw new AppError(
-        400,
-        ERROR_CODES.BAD_REQUEST,
-        `Expected ${allLangs.length} language codes, got ${codes.length}.`,
-      );
-    }
-
-    const knownCodes = new Set(allLangs.map((lang) => lang.code));
-    const unknown = codes.filter((code) => !knownCodes.has(code));
-    if (unknown.length > 0) {
-      throw new AppError(
-        400,
-        ERROR_CODES.BAD_REQUEST,
-        `Unknown language codes: ${unknown.join(", ")}`,
-      );
-    }
-
+    assertValidReorder(codes, allLangs, {
+      keyOf: (lang) => lang.code,
+      keyNoun: "language codes",
+      unknownLabel: "language codes",
+    });
     await repo.reorder(codes);
   }),
 
@@ -68,9 +49,7 @@ export const adminLanguagesRouter = {
     const { code, name, sortOrder } = input;
 
     const existing = await repo.getByCode(code);
-    if (existing) {
-      throw new AppError(409, ERROR_CODES.CONFLICT, `Language "${code}" already exists`);
-    }
+    assertSlugAvailable(existing, code, "Language");
 
     const created = await repo.create({ code, name, sortOrder });
     const language: LanguageResponse = {

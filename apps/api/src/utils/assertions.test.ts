@@ -2,7 +2,13 @@ import { ERROR_CODES } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import { AppError } from "../errors.js";
-import { assertDeleted, assertFound, assertUpdated } from "./assertions.js";
+import {
+  assertDeleted,
+  assertFound,
+  assertSlugAvailable,
+  assertUpdated,
+  assertValidReorder,
+} from "./assertions.js";
 
 // ---------------------------------------------------------------------------
 // assertFound
@@ -68,6 +74,105 @@ describe("assertUpdated", () => {
 
   it("throws a 404 when result is undefined", () => {
     expect(() => assertUpdated(undefined, "Not found")).toThrow(AppError);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// assertSlugAvailable
+// ---------------------------------------------------------------------------
+
+describe("assertSlugAvailable", () => {
+  it("does nothing when no existing row was found (null / undefined)", () => {
+    expect(() => assertSlugAvailable(null, "foil", "Finish")).not.toThrow();
+    expect(() => assertSlugAvailable(undefined, "foil", "Finish")).not.toThrow();
+  });
+
+  it("throws a 409 CONFLICT with the entity name and identifier when a row exists", () => {
+    expect(() => assertSlugAvailable({ slug: "foil" }, "foil", "Finish")).toThrow(AppError);
+    try {
+      assertSlugAvailable({ slug: "foil" }, "foil", "Finish");
+    } catch (error) {
+      expect(error).toBeInstanceOf(AppError);
+      expect((error as AppError).status).toBe(409);
+      expect((error as AppError).code).toBe(ERROR_CODES.CONFLICT);
+      expect((error as AppError).message).toBe(`Finish "foil" already exists`);
+    }
+  });
+
+  it("uses the supplied entity name and identifier verbatim (e.g. language codes)", () => {
+    try {
+      assertSlugAvailable({ code: "en" }, "en", "Language");
+    } catch (error) {
+      expect((error as AppError).message).toBe(`Language "en" already exists`);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// assertValidReorder
+// ---------------------------------------------------------------------------
+
+describe("assertValidReorder", () => {
+  const rows = [{ slug: "a" }, { slug: "b" }, { slug: "c" }];
+  const options = {
+    keyOf: (row: { slug: string }) => row.slug,
+    keyNoun: "slugs",
+    unknownLabel: "rarity slugs",
+  };
+
+  it("does nothing when the keys are a complete, unique, known permutation", () => {
+    expect(() => assertValidReorder(["c", "a", "b"], rows, options)).not.toThrow();
+  });
+
+  it("throws a 400 naming the keyNoun on duplicate keys", () => {
+    try {
+      assertValidReorder(["a", "a", "b"], rows, options);
+      expect.unreachable();
+    } catch (error) {
+      expect((error as AppError).status).toBe(400);
+      expect((error as AppError).code).toBe(ERROR_CODES.BAD_REQUEST);
+      expect((error as AppError).message).toBe("Duplicate slugs in reorder list.");
+    }
+  });
+
+  it("throws a 400 with both counts on a length mismatch", () => {
+    try {
+      assertValidReorder(["a", "b"], rows, options);
+      expect.unreachable();
+    } catch (error) {
+      expect((error as AppError).status).toBe(400);
+      expect((error as AppError).message).toBe("Expected 3 slugs, got 2.");
+    }
+  });
+
+  it("throws a 400 naming the unknownLabel and the offending keys", () => {
+    try {
+      assertValidReorder(["a", "b", "z"], rows, options);
+      expect.unreachable();
+    } catch (error) {
+      expect((error as AppError).status).toBe(400);
+      expect((error as AppError).message).toBe("Unknown rarity slugs: z");
+    }
+  });
+
+  it("checks duplicates before length (duplicate of correct length still fails as duplicate)", () => {
+    try {
+      assertValidReorder(["a", "a", "b"], rows, options);
+      expect.unreachable();
+    } catch (error) {
+      expect((error as AppError).message).toBe("Duplicate slugs in reorder list.");
+    }
+  });
+
+  it("supports id-keyed taxonomies via keyOf", () => {
+    const idRows = [{ id: "x" }, { id: "y" }];
+    expect(() =>
+      assertValidReorder(["y", "x"], idRows, {
+        keyOf: (row) => row.id,
+        keyNoun: "ids",
+        unknownLabel: "marker ids",
+      }),
+    ).not.toThrow();
   });
 });
 

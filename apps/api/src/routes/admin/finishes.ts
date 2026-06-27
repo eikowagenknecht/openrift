@@ -5,6 +5,7 @@ import { implement } from "@orpc/server";
 import { AppError } from "../../errors.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
+import { assertSlugAvailable, assertValidReorder } from "../../utils/assertions.js";
 
 const os = implement(adminFinishesContract).$context<ApiContext>().use(requireAuthedUser);
 
@@ -22,31 +23,12 @@ export const adminFinishesRouter = {
   reorder: os.reorder.handler(async ({ input, context }): Promise<void> => {
     const { finishes: repo } = context.repos;
     const { slugs } = input;
-
-    const uniqueSlugs = new Set(slugs);
-    if (uniqueSlugs.size !== slugs.length) {
-      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Duplicate slugs in reorder list.");
-    }
-
     const all = await repo.listAll();
-    if (slugs.length !== all.length) {
-      throw new AppError(
-        400,
-        ERROR_CODES.BAD_REQUEST,
-        `Expected ${all.length} slugs, got ${slugs.length}.`,
-      );
-    }
-
-    const knownSlugs = new Set(all.map((row) => row.slug));
-    const unknown = slugs.filter((slug) => !knownSlugs.has(slug));
-    if (unknown.length > 0) {
-      throw new AppError(
-        400,
-        ERROR_CODES.BAD_REQUEST,
-        `Unknown finish slugs: ${unknown.join(", ")}`,
-      );
-    }
-
+    assertValidReorder(slugs, all, {
+      keyOf: (row) => row.slug,
+      keyNoun: "slugs",
+      unknownLabel: "finish slugs",
+    });
     await repo.reorder(slugs);
   }),
 
@@ -55,9 +37,7 @@ export const adminFinishesRouter = {
     const { slug, label } = input;
 
     const existing = await repo.getBySlug(slug);
-    if (existing) {
-      throw new AppError(409, ERROR_CODES.CONFLICT, `Finish "${slug}" already exists`);
-    }
+    assertSlugAvailable(existing, slug, "Finish");
 
     const created = await repo.create({ slug, label });
     return { finish: created };

@@ -15,6 +15,71 @@ export function assertFound<T>(value: T | null | undefined, message: string): as
 }
 
 /**
+ * Assert that a slug/code is free before creating a taxonomy row, throwing a
+ * 409 CONFLICT otherwise. Pass the result of the repo's `getBySlug` /
+ * `getByCode` lookup as `existing`; any non-nullish value is treated as a
+ * collision. `entityName` is the display noun (e.g. `"Marker"`, `"Language"`)
+ * and `identifier` the conflicting slug/code, producing
+ * `` `${entityName} "${identifier}" already exists` ``.
+ *
+ * @returns void
+ */
+export function assertSlugAvailable(
+  existing: unknown,
+  identifier: string,
+  entityName: string,
+): void {
+  if (existing !== null && existing !== undefined) {
+    throw new AppError(409, ERROR_CODES.CONFLICT, `${entityName} "${identifier}" already exists`);
+  }
+}
+
+/**
+ * Validate a taxonomy reorder request against the current rows: the submitted
+ * `keys` must contain no duplicates, must match the row count exactly, and must
+ * reference only known keys. Each failure throws a 400 BAD_REQUEST.
+ *
+ * `keyOf` extracts the comparison key from each row (e.g. `(row) => row.id` for
+ * id-keyed taxonomies, `(row) => row.slug` for slug-keyed ones). The two nouns
+ * are kept separate because the wording diverges across taxonomies:
+ * `keyNoun` fills the duplicate/count messages (e.g. `"ids"`, `"slugs"`,
+ * `"language codes"`) and `unknownLabel` fills the unknown-keys message (e.g.
+ * `"marker ids"`, `"finish slugs"`, `"language codes"`).
+ *
+ * @returns void
+ */
+export function assertValidReorder<Row>(
+  keys: readonly string[],
+  rows: readonly Row[],
+  options: { keyOf: (row: Row) => string; keyNoun: string; unknownLabel: string },
+): void {
+  const { keyOf, keyNoun, unknownLabel } = options;
+
+  const uniqueKeys = new Set(keys);
+  if (uniqueKeys.size !== keys.length) {
+    throw new AppError(400, ERROR_CODES.BAD_REQUEST, `Duplicate ${keyNoun} in reorder list.`);
+  }
+
+  if (keys.length !== rows.length) {
+    throw new AppError(
+      400,
+      ERROR_CODES.BAD_REQUEST,
+      `Expected ${rows.length} ${keyNoun}, got ${keys.length}.`,
+    );
+  }
+
+  const knownKeys = new Set(rows.map((row) => keyOf(row)));
+  const unknown = keys.filter((key) => !knownKeys.has(key));
+  if (unknown.length > 0) {
+    throw new AppError(
+      400,
+      ERROR_CODES.BAD_REQUEST,
+      `Unknown ${unknownLabel}: ${unknown.join(", ")}`,
+    );
+  }
+}
+
+/**
  * Assert that an update operation affected at least one row, throwing a 404 otherwise.
  *
  * @returns void

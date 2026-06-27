@@ -6,7 +6,7 @@ import { implement } from "@orpc/server";
 import { AppError } from "../../errors.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { assertFound } from "../../utils/assertions.js";
+import { assertFound, assertSlugAvailable, assertValidReorder } from "../../utils/assertions.js";
 
 const os = implement(adminDistributionChannelsContract)
   .$context<ApiContext>()
@@ -45,27 +45,12 @@ export const adminDistributionChannelsRouter = {
   reorder: os.reorder.handler(async ({ input, context }): Promise<void> => {
     const { distributionChannels: repo } = context.repos;
     const { ids } = input;
-    const uniqueIds = new Set(ids);
-    if (uniqueIds.size !== ids.length) {
-      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Duplicate ids in reorder list.");
-    }
     const all = await repo.listAll();
-    if (ids.length !== all.length) {
-      throw new AppError(
-        400,
-        ERROR_CODES.BAD_REQUEST,
-        `Expected ${all.length} ids, got ${ids.length}.`,
-      );
-    }
-    const knownIds = new Set(all.map((row) => row.id));
-    const unknown = ids.filter((id) => !knownIds.has(id));
-    if (unknown.length > 0) {
-      throw new AppError(
-        400,
-        ERROR_CODES.BAD_REQUEST,
-        `Unknown distribution channel ids: ${unknown.join(", ")}`,
-      );
-    }
+    assertValidReorder(ids, all, {
+      keyOf: (row) => row.id,
+      keyNoun: "ids",
+      unknownLabel: "distribution channel ids",
+    });
     await repo.reorder(ids);
   }),
 
@@ -73,13 +58,7 @@ export const adminDistributionChannelsRouter = {
     const { distributionChannels: repo } = context.repos;
     const { slug, label, description, kind, parentId, childrenLabel } = input;
     const existing = await repo.getBySlug(slug);
-    if (existing) {
-      throw new AppError(
-        409,
-        ERROR_CODES.CONFLICT,
-        `Distribution channel "${slug}" already exists`,
-      );
-    }
+    assertSlugAvailable(existing, slug, "Distribution channel");
     const resolvedParentId = parentId ?? null;
     const maxSortOrder = await repo.getMaxSortOrderForParent(resolvedParentId);
     const created = await repo.create({
