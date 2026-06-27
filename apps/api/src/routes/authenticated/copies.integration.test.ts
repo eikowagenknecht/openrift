@@ -30,10 +30,14 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
     // Trigger inbox creation
     await app.fetch(req("GET", "/collections"));
 
-    const res1 = await app.fetch(req("POST", "/collections", { name: "Main Collection" }));
+    const res1 = await app.fetch(
+      req("POST", "/collections", { id: crypto.randomUUID(), name: "Main Collection" }),
+    );
     collectionId = ((await res1.json()) as { id: string }).id;
 
-    const res2 = await app.fetch(req("POST", "/collections", { name: "Second Collection" }));
+    const res2 = await app.fetch(
+      req("POST", "/collections", { id: crypto.randomUUID(), name: "Second Collection" }),
+    );
     secondCollectionId = ((await res2.json()) as { id: string }).id;
   });
 
@@ -44,9 +48,9 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       const res = await app.fetch(
         req("POST", "/copies", {
           copies: [
-            { printingId: PRINTING_1.id, collectionId },
-            { printingId: PRINTING_1.id, collectionId },
-            { printingId: PRINTING_2.id, collectionId },
+            { id: crypto.randomUUID(), printingId: PRINTING_1.id, collectionId },
+            { id: crypto.randomUUID(), printingId: PRINTING_1.id, collectionId },
+            { id: crypto.randomUUID(), printingId: PRINTING_2.id, collectionId },
           ],
         }),
       );
@@ -73,7 +77,9 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
 
     it("defaults to inbox when collectionId is omitted", async () => {
       const res = await app.fetch(
-        req("POST", "/copies", { copies: [{ printingId: PRINTING_2.id }] }),
+        req("POST", "/copies", {
+          copies: [{ id: crypto.randomUUID(), printingId: PRINTING_2.id }],
+        }),
       );
       expect(res.status).toBe(201);
 
@@ -129,7 +135,9 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
 
         const res = await app.fetch(
           req("POST", "/copies", {
-            copies: [{ printingId: PRINTING_1.id, collectionId: pooled.id }],
+            copies: [
+              { id: crypto.randomUUID(), printingId: PRINTING_1.id, collectionId: pooled.id },
+            ],
           }),
         );
         expect(res.status).toBe(201);
@@ -160,7 +168,9 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
 
     it("rejects invalid printingId format", async () => {
       const res = await app.fetch(
-        req("POST", "/copies", { copies: [{ printingId: "not-a-uuid" }] }),
+        req("POST", "/copies", {
+          copies: [{ id: crypto.randomUUID(), printingId: "not-a-uuid" }],
+        }),
       );
       expect(res.status).toBe(400);
     });
@@ -168,7 +178,7 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
     it("returns 400 (not 500) for a valid-format printingId that does not exist (F8)", async () => {
       const res = await app.fetch(
         req("POST", "/copies", {
-          copies: [{ printingId: "00000000-0000-4000-8000-000000000000" }],
+          copies: [{ id: crypto.randomUUID(), printingId: "00000000-0000-4000-8000-000000000000" }],
         }),
       );
       expect(res.status).toBe(400);

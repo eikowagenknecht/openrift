@@ -231,6 +231,11 @@ try {
   const seedSql = readFileSync(resolve(import.meta.dirname!, "fixtures/seed.sql"), "utf-8");
   const sql = postgres(testUrl, { onnotice: noop });
   await sql.unsafe(seedSql);
+  // Populate the denormalized `printings.canonical_rank` (migration 166) the
+  // same way production write-paths do; the static seed leaves it NULL, which
+  // the catalog contract (`canonicalRank: number`) would reject. See
+  // run-integration.ts for the full rationale.
+  await sql`SELECT recompute_printing_canonical_ranks()`;
   await sql.end();
 
   console.log("Inserting test users...");

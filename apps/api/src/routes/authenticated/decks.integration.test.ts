@@ -366,9 +366,22 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
 
   describe("GET /decks/:id/availability", () => {
     it("returns per-card availability with owned/needed/shortfall", async () => {
+      // Establish a known deck state — earlier describe blocks (PUT /cards,
+      // apply) leave the deck in whatever state their last assertion needed, so
+      // set it explicitly here to keep this test order-independent.
+      await app.fetch(
+        req("PUT", `/decks/${deckId}/cards`, {
+          cards: [{ cardId: CARD_FURY_UNIT.id, zone: "main", quantity: 40 }],
+        }),
+      );
+
       // Add a copy so availability isn't all zeros
       await app.fetch(req("GET", "/collections")); // ensure inbox
-      await app.fetch(req("POST", "/copies", { copies: [{ printingId: PRINTING_1.id }] }));
+      await app.fetch(
+        req("POST", "/copies", {
+          copies: [{ id: crypto.randomUUID(), printingId: PRINTING_1.id }],
+        }),
+      );
 
       const res = await app.fetch(req("GET", `/decks/${deckId}/availability`));
       expect(res.status).toBe(200);

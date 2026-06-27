@@ -563,7 +563,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
       .executeTakeFirstOrThrow();
     await expect(
       moveCopies(repos, transact, GIVER_ID, [copyIds[0]], otherCollection.id),
-    ).resolves.toBeUndefined();
+    ).resolves.toMatchObject({ txid: expect.any(Number) });
 
     // Sync (which releases first) disposes successfully.
     await completeTrade(transact, trade.id, GIVER_ID);

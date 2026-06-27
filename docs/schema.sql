@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict lfhZzrphPvXRj7xalyJLm8rYsw11l39M6GiNyG7byFv1IIpRHcR1x6fFzYHxNBw
+\restrict ghzYoic0S0CH6mcjstWShs5AEYf9WflKA9zbSRJewCpg38mKkCET0mhVH4MQV1Q
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -3826,13 +3826,6 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.custom_tags FOR EACH R
 
 
 --
--- Name: deck_cards trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.deck_cards FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
-
---
 -- Name: deck_check_entries trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -4987,5 +4980,5 @@ CREATE PUBLICATION electric_publication_default WITH (publish = 'insert, update,
 -- PostgreSQL database dump complete
 --
 
-\unrestrict lfhZzrphPvXRj7xalyJLm8rYsw11l39M6GiNyG7byFv1IIpRHcR1x6fFzYHxNBw
+\unrestrict ghzYoic0S0CH6mcjstWShs5AEYf9WflKA9zbSRJewCpg38mKkCET0mhVH4MQV1Q
 

@@ -257,6 +257,14 @@ try {
   const sql = postgres(testUrl, { onnotice: noop });
   await sql.unsafe(seedSql);
 
+  // `printings.canonical_rank` is a denormalized column (migration 166) that
+  // production write-paths repopulate via `recompute_printing_canonical_ranks()`
+  // at the end of every ordering-mutating transaction. The static seed inserts
+  // printings directly, so the column stays NULL until we run the same recompute
+  // here — otherwise the catalog contract (`canonicalRank: number`) rejects the
+  // NULL rows with a 500.
+  await sql`SELECT recompute_printing_canonical_ranks()`;
+
   // 4. Refresh materialized views + maintain the latest_printing_prices table
   // (migrations create them before seed data). The latest_printing_prices table
   // (migration 159) replaced the mv_latest_printing_prices MV, so it is

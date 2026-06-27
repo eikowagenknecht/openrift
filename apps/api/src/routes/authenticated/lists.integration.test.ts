@@ -42,7 +42,9 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
     intent: "wish" | "trade" | "organize",
     kind: "card" | "printing" | "copy",
   ): Promise<string> {
-    const res = await app.fetch(req("POST", "/lists", { name, intent, kind }));
+    const res = await app.fetch(
+      req("POST", "/lists", { id: crypto.randomUUID(), name, intent, kind }),
+    );
     expect(res.status).toBe(201);
     const json = (await res.json()) as { id: string };
     return json.id;
@@ -84,7 +86,12 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       ] as const;
       for (const { intent, kind } of combos) {
         const res = await app.fetch(
-          req("POST", "/lists", { name: `New ${intent}/${kind}`, intent, kind }),
+          req("POST", "/lists", {
+            id: crypto.randomUUID(),
+            name: `New ${intent}/${kind}`,
+            intent,
+            kind,
+          }),
         );
         expect(res.status).toBe(201);
         const json = (await res.json()) as { intent: string; kind: string; isPublic: boolean };
@@ -96,26 +103,43 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
 
     it("rejects wish + copy (disallowed combo)", async () => {
       const res = await app.fetch(
-        req("POST", "/lists", { name: "Bad", intent: "wish", kind: "copy" }),
+        req("POST", "/lists", {
+          id: crypto.randomUUID(),
+          name: "Bad",
+          intent: "wish",
+          kind: "copy",
+        }),
       );
       expect(res.status).toBe(400);
     });
 
     it("rejects trade + card (disallowed combo)", async () => {
       const res = await app.fetch(
-        req("POST", "/lists", { name: "Bad", intent: "trade", kind: "card" }),
+        req("POST", "/lists", {
+          id: crypto.randomUUID(),
+          name: "Bad",
+          intent: "trade",
+          kind: "card",
+        }),
       );
       expect(res.status).toBe(400);
     });
 
     it("returns 400 on missing kind", async () => {
-      const res = await app.fetch(req("POST", "/lists", { name: "No kind", intent: "wish" }));
+      const res = await app.fetch(
+        req("POST", "/lists", { id: crypto.randomUUID(), name: "No kind", intent: "wish" }),
+      );
       expect(res.status).toBe(400);
     });
 
     it("returns 400 on unknown intent", async () => {
       const res = await app.fetch(
-        req("POST", "/lists", { name: "Bad", intent: "barter", kind: "card" }),
+        req("POST", "/lists", {
+          id: crypto.randomUUID(),
+          name: "Bad",
+          intent: "barter",
+          kind: "card",
+        }),
       );
       expect(res.status).toBe(400);
     });
@@ -268,7 +292,10 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       const id = await createList("Bulk copy", "trade", "copy");
       const res = await app.fetch(
         req("POST", `/lists/${id}/entries/bulk`, {
-          entries: [{ copyId }, { copyId: "550e8400-e29b-41d4-a716-446655440099" }],
+          entries: [
+            { id: crypto.randomUUID(), copyId },
+            { id: crypto.randomUUID(), copyId: "550e8400-e29b-41d4-a716-446655440099" },
+          ],
         }),
       );
       expect(res.status).toBe(200);
@@ -281,7 +308,10 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       const id = await createList("Mixed", "wish", "card");
       const res = await app.fetch(
         req("POST", `/lists/${id}/entries/bulk`, {
-          entries: [{ cardId: CARD_FURY_UNIT.id }, { printingId: PRINTING_1.id }],
+          entries: [
+            { id: crypto.randomUUID(), cardId: CARD_FURY_UNIT.id },
+            { id: crypto.randomUUID(), printingId: PRINTING_1.id },
+          ],
         }),
       );
       expect(res.status).toBe(400);

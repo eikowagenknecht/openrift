@@ -113,6 +113,7 @@ import * as m164 from "./164-job-run-noop.js";
 import * as m165 from "./165-trade-status-email.js";
 import * as m166 from "./166-denormalize-canonical-rank.js";
 import * as m167 from "./167-latest-prices-table.js";
+import * as m168 from "./168-drop-deck-cards-updated-at-trigger.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -285,4 +286,5 @@ export const migrations: Record<string, Migration> = {
   "165-trade-status-email": m165,
   "166-denormalize-canonical-rank": m166,
   "167-latest-prices-table": m167,
+  "168-drop-deck-cards-updated-at-trigger": m168,
 };

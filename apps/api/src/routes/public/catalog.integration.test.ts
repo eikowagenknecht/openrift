@@ -1,4 +1,5 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { sql } from "kysely";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { CARD_FURY_UNIT, OGS_SET, PRINTING_1 } from "../../test/fixtures/constants.js";
 import { createTestContext, req } from "../../test/integration-context.js";
@@ -158,6 +159,17 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
   });
 
   describe("GET /catalog", () => {
+    // The catalog contract requires a numeric `canonicalRank` on every printing.
+    // That column is denormalized (migration 166) and only repopulated by write
+    // paths via `recompute_printing_canonical_ranks()`. This test (and sibling
+    // files sharing the DB) insert printings directly, leaving their rank NULL,
+    // which fails the route's output validation with a 500. Recompute before
+    // each read so every printing the route returns has a rank, matching the
+    // production invariant.
+    beforeEach(async () => {
+      await sql`SELECT recompute_printing_canonical_ranks()`.execute(db);
+    });
+
     it("returns 200 with sets, cards, and printings", async () => {
       const res = await app.fetch(req("GET", "/catalog"));
       expect(res.status).toBe(200);
