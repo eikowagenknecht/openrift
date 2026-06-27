@@ -70,7 +70,10 @@ function makeAvailable(overrides: Partial<AvailableFilters> = {}): AvailableFilt
   };
 }
 
-function makeFilterCounts(rangeOverrides: Partial<FilterCounts["ranges"]> = {}): FilterCounts {
+function makeFilterCounts(
+  rangeOverrides: Partial<FilterCounts["ranges"]> = {},
+  dimensionOverrides: Partial<Pick<FilterCounts, "markers" | "channels">> = {},
+): FilterCounts {
   return {
     sets: new Map(),
     languages: new Map(),
@@ -80,6 +83,8 @@ function makeFilterCounts(rangeOverrides: Partial<FilterCounts["ranges"]> = {}):
     rarities: new Map(),
     artVariants: new Map(),
     finishes: new Map(),
+    markers: dimensionOverrides.markers ?? new Map(),
+    channels: dimensionOverrides.channels ?? new Map(),
     flags: { signed: 0, promo: 0, banned: 0, errata: 0 },
     ranges: {
       energy: { min: 1, max: 7, hasNullStat: false },

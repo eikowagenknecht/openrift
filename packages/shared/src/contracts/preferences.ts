@@ -57,6 +57,7 @@ export const updatePreferencesSchema = z.object({
     .refine((arr) => new Set(arr).size === arr.length, { message: "Duplicate filter sections" })
     .nullable()
     .optional(),
+  compactFilterView: z.boolean().nullable().optional(),
   // ADR-030 email notifications. The shallow server merge replaces this whole
   // key, so the web always sends both channels (preserving the unchanged one);
   // `null` resets the object, restoring both defaults (digest off, request on).
@@ -103,6 +104,7 @@ export const userPreferencesResponseSchema = z
     defaultCardView: z.enum(["cards", "printings"]).optional(),
     defaultCurrency: z.enum(["EUR", "USD"]).optional(),
     hiddenFilterSections: z.array(z.string()).optional(),
+    compactFilterView: z.boolean().optional(),
     // ADR-030: round-trips so the profile toggles read the stored state.
     emailNotifications: z
       .object({

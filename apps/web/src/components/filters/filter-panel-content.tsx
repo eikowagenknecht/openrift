@@ -7,12 +7,13 @@ import { useEffect, useRef, useState } from "react";
 import { CardIcon } from "@/components/card-icon";
 import { MultiSelectCombobox } from "@/components/filters/multi-select-combobox";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCustomTagList, useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
 import { buildChannelBreadcrumbs } from "@/lib/channel-breadcrumbs";
 import { formatDomainFilterLabel } from "@/lib/domain";
-import { formatPriceIntegerForMarketplace } from "@/lib/format";
+import { compactFormatterForMarketplace } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
 import type { OwnedBucket } from "@/lib/search-schemas";
 import { cn } from "@/lib/utils";
@@ -61,7 +62,7 @@ const STAT_RANGE_SECTIONS: RangeSection[] = [
   { key: "might", label: "Might" },
 ];
 
-const OWNED_BUCKETS: readonly { value: OwnedBucket; label: string }[] = [
+export const OWNED_BUCKETS: readonly { value: OwnedBucket; label: string }[] = [
   { value: "none", label: "None" },
   { value: "partial", label: "Partial Playset" },
   { value: "full", label: "Full Playset" },
@@ -138,29 +139,14 @@ export function FilterBadgeSections({
 }: FilterPanelContentProps) {
   const { labels } = useEnumOrders();
   const { filterState } = useFilterValues();
-  const {
-    toggleArrayFilter,
-    setArrayFilter,
-    toggleSigned,
-    togglePromo,
-    toggleBanned,
-    toggleErrata,
-  } = useFilterActions();
+  const { toggleArrayFilter, toggleSigned } = useFilterActions();
   const languageLabels = useLanguageLabels();
-  // Pre-build channel breadcrumbs once so the More section can render full
-  // paths (e.g. "Tournament › Regionals › Top 8") and the cmdk filter can
-  // search them.
-  const channelBreadcrumbs = buildChannelBreadcrumbs(availableFilters.distributionChannels);
-  // Custom tags come from /init (admin-curated, not derived from the printing
-  // set), so they're sourced directly here rather than threaded through
-  // AvailableFilters like markers/channels.
-  const { byCategory: customTagsByCategory } = useCustomTagList();
-  // Effective set of categories after applying the visibility prop. Used
-  // both to gate the "More" section's appearance and to filter the
-  // per-category iteration below — keep them in sync via this single source.
-  const visibleCategories = [...customTagsByCategory.entries()].filter(([category]) =>
-    visibleCustomTagCategories === undefined ? true : visibleCustomTagCategories.has(category),
-  );
+  // Signed rides inside the Art Variant section (a signed card is, in effect, a
+  // variant) when both are shown; otherwise it stays in the More group.
+  const signedApplicable = availableFilters.hasSigned && !hiddenSections?.has("signed");
+  const artVariantShown =
+    availableFilters.artVariants.length > 1 && !hiddenSections?.has("artVariants");
+  const signedInArtVariant = signedApplicable && artVariantShown;
   // Use overrides when URL state is empty (zone presets that aren't in the URL)
   const selected = (key: keyof typeof filterState) => {
     const urlValue = filterState[key];
@@ -169,6 +155,16 @@ export function FilterBadgeSections({
   };
   return (
     <>
+      {availableLanguages && availableLanguages.length > 1 && !hiddenSections?.has("languages") && (
+        <FilterSection
+          label="Language"
+          options={availableLanguages}
+          selected={filterState.languages}
+          onToggle={(v) => toggleArrayFilter("languages", v)}
+          displayLabel={(code) => languageLabels[code] ?? code}
+          counts={filterCounts?.languages}
+        />
+      )}
       {!hiddenSections?.has("sets") && (
         <FilterSection
           label="Set"
@@ -214,7 +210,7 @@ export function FilterBadgeSections({
       )}
       {availableFilters.superTypes.length > 0 && !hiddenSections?.has("superTypes") && (
         <FilterSection
-          label="Super Type"
+          label="Supertype"
           options={availableFilters.superTypes}
           selected={selected("superTypes")}
           onToggle={(v) => toggleArrayFilter("superTypes", v)}
@@ -223,7 +219,7 @@ export function FilterBadgeSections({
           counts={filterCounts?.superTypes}
         />
       )}
-      {!hiddenSections?.has("artVariants") && availableFilters.artVariants.length > 1 && (
+      {artVariantShown && (
         <FilterSection
           label="Art Variant"
           options={availableFilters.artVariants}
@@ -231,6 +227,16 @@ export function FilterBadgeSections({
           onToggle={(v) => toggleArrayFilter("artVariants", v)}
           displayLabel={(v) => labels.artVariants[v] ?? v}
           counts={filterCounts?.artVariants}
+          trailing={
+            signedInArtVariant ? (
+              <FlagBadge
+                label={filterState.signed === false ? "Not Signed" : "Signed"}
+                isActive={filterState.signed !== null}
+                count={filterCounts?.flags.signed}
+                onClick={toggleSigned}
+              />
+            ) : undefined
+          }
         />
       )}
       {availableFilters.finishes.length > 1 && !hiddenSections?.has("finishes") && (
@@ -243,129 +249,238 @@ export function FilterBadgeSections({
           counts={filterCounts?.finishes}
         />
       )}
-      {availableLanguages && availableLanguages.length > 1 && !hiddenSections?.has("languages") && (
-        <FilterSection
-          label="Language"
-          options={availableLanguages}
-          selected={filterState.languages}
-          onToggle={(v) => toggleArrayFilter("languages", v)}
-          displayLabel={(code) => languageLabels[code] ?? code}
-          counts={filterCounts?.languages}
+      <FilterMoreSection
+        availableFilters={availableFilters}
+        hiddenSections={hiddenSections}
+        visibleCustomTagCategories={visibleCustomTagCategories}
+        filterOverrides={filterOverrides}
+        filterCounts={filterCounts}
+        hideSigned={signedInArtVariant}
+      />
+    </>
+  );
+}
+
+/**
+ * Whether the "More" group has any content to show on this surface, mirroring
+ * the render guards in {@link FilterMoreSection}. Lets a host (e.g. the compact
+ * filter bar) decide whether to offer the "More" entry point at all without
+ * rendering an empty popover.
+ * @returns True when at least one More control applies here.
+ */
+export function useHasMoreSectionContent({
+  availableFilters,
+  hiddenSections,
+  visibleCustomTagCategories,
+  hideSigned = false,
+}: Pick<
+  FilterPanelContentProps,
+  "availableFilters" | "hiddenSections" | "visibleCustomTagCategories"
+> & {
+  /** Suppress the Signed flag (when it's surfaced elsewhere, e.g. in Art Variant). */
+  hideSigned?: boolean;
+}): boolean {
+  const { byCategory } = useCustomTagList();
+  const visibleCategoryCount = [...byCategory.keys()].filter((category) =>
+    visibleCustomTagCategories === undefined ? true : visibleCustomTagCategories.has(category),
+  ).length;
+  return (
+    !hiddenSections?.has("owned") ||
+    (!hideSigned && availableFilters.hasSigned && !hiddenSections?.has("signed")) ||
+    (availableFilters.hasAnyMarker && !hiddenSections?.has("promo")) ||
+    (availableFilters.hasBanned && !hiddenSections?.has("banned")) ||
+    (availableFilters.hasErrata && !hiddenSections?.has("errata")) ||
+    (!hiddenSections?.has("markers") && availableFilters.markers.length > 0) ||
+    (!hiddenSections?.has("channels") && availableFilters.distributionChannels.length > 0) ||
+    (!hiddenSections?.has("customTags") && visibleCategoryCount > 0)
+  );
+}
+
+/**
+ * The filter panel's "More" group: promo/signed/banned/errata flag toggles,
+ * the markers / distribution-channels / custom-tag comboboxes, and the owned
+ * bucket combobox. Self-contained (sources its own enum/tag data) so both the
+ * expanded panel and the compact filter bar render the identical controls.
+ *
+ * Returns null when no More content applies on this surface. `variant`
+ * controls the wrapper: "section" keeps the panel's labelled row; "bare"
+ * drops the label gutter for hosting inside the compact bar's "More" popover.
+ * @returns The More group, or null when empty.
+ */
+function FilterMoreSection({
+  availableFilters,
+  hiddenSections,
+  visibleCustomTagCategories,
+  filterOverrides,
+  filterCounts,
+  variant = "section",
+  triggerStyle = "chip",
+  hideSigned = false,
+}: Pick<
+  FilterPanelContentProps,
+  | "availableFilters"
+  | "hiddenSections"
+  | "visibleCustomTagCategories"
+  | "filterOverrides"
+  | "filterCounts"
+> & {
+  /** "section" = labelled panel row; "bare" = unlabelled, for the compact popover. */
+  variant?: "section" | "bare";
+  /** Trigger appearance forwarded to the flag toggles and comboboxes. */
+  triggerStyle?: "chip" | "button";
+  /** Suppress the Signed flag here (when it's surfaced in Art Variant instead). */
+  hideSigned?: boolean;
+}) {
+  const { filterState } = useFilterValues();
+  const { setArrayFilter, toggleSigned, togglePromo, toggleBanned, toggleErrata } =
+    useFilterActions();
+  // Pre-build channel breadcrumbs once so the section can render full paths
+  // (e.g. "Tournament › Regionals › Top 8") and the cmdk filter can search them.
+  const channelBreadcrumbs = buildChannelBreadcrumbs(availableFilters.distributionChannels);
+  // Custom tags come from /init (admin-curated, not derived from the printing
+  // set), so they're sourced directly here rather than threaded through
+  // AvailableFilters like markers/channels.
+  const { byCategory: customTagsByCategory } = useCustomTagList();
+  // Effective set of categories after applying the visibility prop. Used both to
+  // gate the section's appearance and to filter the per-category iteration —
+  // keep them in sync via this single source.
+  const visibleCategories = [...customTagsByCategory.entries()].filter(([category]) =>
+    visibleCustomTagCategories === undefined ? true : visibleCustomTagCategories.has(category),
+  );
+  // Use overrides when URL state is empty (zone presets that aren't in the URL).
+  const selected = (key: keyof typeof filterState) => {
+    const urlValue = filterState[key];
+    const arr = Array.isArray(urlValue) ? urlValue : [];
+    return arr.length > 0 ? arr : (filterOverrides?.[key] ?? []);
+  };
+
+  const hasContent = useHasMoreSectionContent({
+    availableFilters,
+    hiddenSections,
+    visibleCustomTagCategories,
+    hideSigned,
+  });
+
+  if (!hasContent) {
+    return null;
+  }
+
+  const items = (
+    <>
+      {availableFilters.hasAnyMarker && !hiddenSections?.has("promo") && (
+        <FlagBadge
+          label={filterState.promo === false ? "Not Promo" : "Promo"}
+          isActive={filterState.promo !== null}
+          count={filterCounts?.flags.promo}
+          onClick={togglePromo}
+          triggerStyle={triggerStyle}
         />
       )}
-      {(!hiddenSections?.has("owned") ||
-        (availableFilters.hasSigned && !hiddenSections?.has("signed")) ||
-        (availableFilters.hasAnyMarker && !hiddenSections?.has("promo")) ||
-        (availableFilters.hasBanned && !hiddenSections?.has("banned")) ||
-        (availableFilters.hasErrata && !hiddenSections?.has("errata")) ||
-        (!hiddenSections?.has("markers") && availableFilters.markers.length > 0) ||
-        (!hiddenSections?.has("channels") && availableFilters.distributionChannels.length > 0) ||
-        (!hiddenSections?.has("customTags") && visibleCategories.length > 0)) && (
-        <FilterSection label="More">
-          {availableFilters.hasAnyMarker && !hiddenSections?.has("promo") && (
-            <FlagBadge
-              label={filterState.promo === false ? "Not Promo" : "Promo"}
-              isActive={filterState.promo !== null}
-              count={filterCounts?.flags.promo}
-              onClick={togglePromo}
-            />
-          )}
-          {!hiddenSections?.has("markers") && availableFilters.markers.length > 0 && (
+      {!hiddenSections?.has("markers") && availableFilters.markers.length > 0 && (
+        <MultiSelectCombobox
+          label="Markers"
+          searchPlaceholder="Search markers…"
+          emptyText="No markers match."
+          options={availableFilters.markers.map((m) => ({ value: m.slug, label: m.label }))}
+          selected={filterState.markers}
+          onChange={(values) => setArrayFilter("markers", values)}
+          counts={filterCounts?.markers}
+          triggerStyle={triggerStyle}
+        />
+      )}
+      {!hiddenSections?.has("channels") && availableFilters.distributionChannels.length > 0 && (
+        <MultiSelectCombobox
+          label="Distribution Channels"
+          searchPlaceholder="Search distribution channels…"
+          emptyText="No distribution channels match."
+          options={availableFilters.distributionChannels.map((c) => ({
+            value: c.slug,
+            label: channelBreadcrumbs.get(c.id) ?? c.label,
+          }))}
+          selected={filterState.channels}
+          onChange={(values) => setArrayFilter("channels", values)}
+          counts={filterCounts?.channels}
+          triggerStyle={triggerStyle}
+        />
+      )}
+      {!hiddenSections?.has("customTags") &&
+        visibleCategories.map(([category, tagsInCategory]) => {
+          // Each category gets its own dropdown, but they all write to the same
+          // `customTags` URL key — so when toggling within one category we merge
+          // with whatever the other categories already hold. `selected("customTags")`
+          // is the union (URL or override fallback); we slice it down to this
+          // category's slugs for the dropdown's `selected` prop.
+          const allSelected = selected("customTags");
+          const categorySlugs = new Set(tagsInCategory.map((t) => t.slug));
+          const selectedInCategory = allSelected.filter((slug) => categorySlugs.has(slug));
+          const selectedOutsideCategory = allSelected.filter((slug) => !categorySlugs.has(slug));
+          // `byCategory` is grouped from non-empty arrays, so the first tag
+          // always exists and carries the joined category label from /init. The
+          // `?? category` is a defensive fallback only.
+          const label = tagsInCategory[0]?.categoryLabel ?? category;
+          return (
             <MultiSelectCombobox
-              label="Markers"
-              searchPlaceholder="Search markers…"
-              emptyText="No markers match."
-              options={availableFilters.markers.map((m) => ({ value: m.slug, label: m.label }))}
-              selected={filterState.markers}
-              onChange={(values) => setArrayFilter("markers", values)}
+              key={category}
+              label={label}
+              searchPlaceholder={`Search ${label.toLowerCase()}…`}
+              emptyText={`No ${label.toLowerCase()} match.`}
+              options={tagsInCategory.map((t) => ({ value: t.slug, label: t.label }))}
+              selected={selectedInCategory}
+              onChange={(values) =>
+                setArrayFilter("customTags", [...selectedOutsideCategory, ...values])
+              }
+              triggerStyle={triggerStyle}
             />
-          )}
-          {!hiddenSections?.has("channels") && availableFilters.distributionChannels.length > 0 && (
-            <MultiSelectCombobox
-              label="Distribution Channels"
-              searchPlaceholder="Search distribution channels…"
-              emptyText="No distribution channels match."
-              options={availableFilters.distributionChannels.map((c) => ({
-                value: c.slug,
-                label: channelBreadcrumbs.get(c.id) ?? c.label,
-              }))}
-              selected={filterState.channels}
-              onChange={(values) => setArrayFilter("channels", values)}
-            />
-          )}
-          {!hiddenSections?.has("customTags") &&
-            visibleCategories.map(([category, tagsInCategory]) => {
-              // Each category gets its own dropdown, but they all write to the
-              // same `customTags` URL key — so when toggling within one
-              // category we merge with whatever the other categories already
-              // hold. `selected("customTags")` is the union (URL or override
-              // fallback); we slice it down to this category's slugs for the
-              // dropdown's `selected` prop.
-              const allSelected = selected("customTags");
-              const categorySlugs = new Set(tagsInCategory.map((t) => t.slug));
-              const selectedInCategory = allSelected.filter((slug) => categorySlugs.has(slug));
-              const selectedOutsideCategory = allSelected.filter(
-                (slug) => !categorySlugs.has(slug),
-              );
-              // `byCategory` is grouped from non-empty arrays, so the first
-              // tag always exists and carries the joined category label from
-              // /init. The `?? category` is a defensive fallback only.
-              const label = tagsInCategory[0]?.categoryLabel ?? category;
-              return (
-                <MultiSelectCombobox
-                  key={category}
-                  label={label}
-                  searchPlaceholder={`Search ${label.toLowerCase()}…`}
-                  emptyText={`No ${label.toLowerCase()} match.`}
-                  options={tagsInCategory.map((t) => ({ value: t.slug, label: t.label }))}
-                  selected={selectedInCategory}
-                  onChange={(values) =>
-                    setArrayFilter("customTags", [...selectedOutsideCategory, ...values])
-                  }
-                />
-              );
-            })}
-          {availableFilters.hasSigned && !hiddenSections?.has("signed") && (
-            <FlagBadge
-              label={filterState.signed === false ? "Not Signed" : "Signed"}
-              isActive={filterState.signed !== null}
-              count={filterCounts?.flags.signed}
-              onClick={toggleSigned}
-            />
-          )}
-          {availableFilters.hasBanned && !hiddenSections?.has("banned") && (
-            <FlagBadge
-              label={filterState.banned === false ? "Not Banned" : "Banned"}
-              isActive={filterState.banned !== null}
-              count={filterCounts?.flags.banned}
-              onClick={toggleBanned}
-            />
-          )}
-          {availableFilters.hasErrata && !hiddenSections?.has("errata") && (
-            <FlagBadge
-              label={filterState.errata === false ? "No Errata" : "Errata"}
-              isActive={filterState.errata !== null}
-              count={filterCounts?.flags.errata}
-              onClick={toggleErrata}
-            />
-          )}
-          {!hiddenSections?.has("owned") && (
-            <MultiSelectCombobox
-              label="Owned"
-              searchPlaceholder="Search owned…"
-              emptyText="No options match."
-              options={OWNED_BUCKETS.map((bucket) => ({
-                value: bucket.value,
-                label: bucket.label,
-              }))}
-              selected={filterState.owned}
-              onChange={(values) => setArrayFilter("owned", values)}
-            />
-          )}
-        </FilterSection>
+          );
+        })}
+      {!hideSigned && availableFilters.hasSigned && !hiddenSections?.has("signed") && (
+        <FlagBadge
+          label={filterState.signed === false ? "Not Signed" : "Signed"}
+          isActive={filterState.signed !== null}
+          count={filterCounts?.flags.signed}
+          onClick={toggleSigned}
+          triggerStyle={triggerStyle}
+        />
+      )}
+      {availableFilters.hasBanned && !hiddenSections?.has("banned") && (
+        <FlagBadge
+          label={filterState.banned === false ? "Not Banned" : "Banned"}
+          isActive={filterState.banned !== null}
+          count={filterCounts?.flags.banned}
+          onClick={toggleBanned}
+          triggerStyle={triggerStyle}
+        />
+      )}
+      {availableFilters.hasErrata && !hiddenSections?.has("errata") && (
+        <FlagBadge
+          label={filterState.errata === false ? "No Errata" : "Errata"}
+          isActive={filterState.errata !== null}
+          count={filterCounts?.flags.errata}
+          onClick={toggleErrata}
+          triggerStyle={triggerStyle}
+        />
+      )}
+      {!hiddenSections?.has("owned") && (
+        <MultiSelectCombobox
+          label="Owned"
+          searchPlaceholder="Search owned…"
+          emptyText="No options match."
+          options={OWNED_BUCKETS.map((bucket) => ({
+            value: bucket.value,
+            label: bucket.label,
+          }))}
+          selected={filterState.owned}
+          onChange={(values) => setArrayFilter("owned", values)}
+          triggerStyle={triggerStyle}
+        />
       )}
     </>
   );
+
+  if (variant === "bare") {
+    return <div className="flex flex-col items-start gap-1.5">{items}</div>;
+  }
+  return <FilterSection label="More">{items}</FilterSection>;
 }
 
 function FlagBadge({
@@ -373,13 +488,32 @@ function FlagBadge({
   isActive,
   count,
   onClick,
+  triggerStyle = "chip",
 }: {
   label: string;
   isActive: boolean;
   count?: number;
   onClick: () => void;
+  /** "chip" = panel badge; "button" = outline button matching the compact bar. */
+  triggerStyle?: "chip" | "button";
 }) {
   const isZero = count !== undefined && count === 0;
+  if (triggerStyle === "button") {
+    // Tri-state: outline = no filter, filled primary = active (the label itself
+    // distinguishes include "Promo" from exclude "Not Promo"). A muted fill here
+    // reads as off, so use the primary variant for an unmistakable on-state.
+    return (
+      <Button
+        variant={isActive ? "default" : "outline"}
+        size="sm"
+        className={cn("font-medium", isZero && !isActive && "opacity-40")}
+        onClick={onClick}
+      >
+        {label}
+        {count !== undefined && <span className="tabular-nums opacity-60">{count}</span>}
+      </Button>
+    );
+  }
   return (
     <Badge
       variant={isActive ? "default" : "outline"}
@@ -403,23 +537,56 @@ export function FilterRangeSections({
   filterCounts,
   hiddenSections,
   ownedCountMax,
-}: Omit<FilterPanelContentProps, "setDisplayLabel">) {
+  scope = "all",
+  labelClassName,
+}: Omit<FilterPanelContentProps, "setDisplayLabel"> & {
+  /**
+   * Which range rows to render. "stats" = the printed gameplay numbers
+   * (Energy/Power/Might) only; "market" = the value/collection ranges (Price,
+   * Copies) together; "price" / "copies" = just that one row (the More menu
+   * places them in separate themed blocks); "all" (default) = every range, as
+   * the expanded panel shows them. The compact bar splits them so its "Stats"
+   * chip stays honest.
+   */
+  scope?: "all" | "stats" | "market" | "price" | "copies";
+  /**
+   * Overrides the row label's typography. Defaults to the filter panel's
+   * muted `text-xs` gutter style; the More menu passes a `text-sm` override so
+   * the slider labels match the menu's other entries.
+   */
+  labelClassName?: string;
+}) {
   const { ranges, filterState } = useFilterValues();
   const { setRange, setOwnedCountRange } = useFilterActions();
   const favoriteMarketplace = useDisplayStore((s) => s.marketplaceOrder[0] ?? "cardtrader");
 
-  // The price section uses a marketplace-aware currency formatter so EUR
-  // users see "5 €" instead of "$5". The available range itself already
-  // reflects the favourite marketplace via getAvailableFilters' getPrice.
-  const sections: RangeSection[] = [
-    ...STAT_RANGE_SECTIONS,
-    {
-      key: "price",
-      label: "Price",
-      logarithmic: true,
-      formatValue: formatPriceIntegerForMarketplace(favoriteMarketplace),
-    },
-  ];
+  // The price section uses the marketplace-aware compact currency formatter so
+  // EUR users see "5 €" / "20k €" instead of "$5" / "$20000". The "k" shortening
+  // keeps the slider's value column narrow enough for every thumb to line up.
+  // The available range itself already reflects the favourite marketplace via
+  // getAvailableFilters' getPrice.
+  const priceSection: RangeSection = {
+    key: "price",
+    label: "Price",
+    logarithmic: true,
+    formatValue: compactFormatterForMarketplace(favoriteMarketplace),
+  };
+  const sections: RangeSection[] =
+    scope === "stats"
+      ? STAT_RANGE_SECTIONS
+      : scope === "market" || scope === "price"
+        ? [priceSection]
+        : scope === "copies"
+          ? []
+          : [...STAT_RANGE_SECTIONS, priceSection];
+  // Copies is a collection range, so it rides with the market/copies scope (and
+  // the full panel), never with the gameplay stats or the price-only scope.
+  const showCopies = scope === "all" || scope === "market" || scope === "copies";
+
+  // Stat values (Energy/Power/Might) never exceed two digits, so the compact
+  // Stats menu narrows the value columns to a single-digit-ish gutter; the
+  // text-right min / text-left max keep the digits tight to the slider.
+  const valueClassName = scope === "stats" ? "w-4" : undefined;
 
   return (
     <>
@@ -460,22 +627,28 @@ export function FilterRangeSections({
             step={rest.step}
             logarithmic={rest.logarithmic}
             formatValue={rest.formatValue}
+            labelClassName={labelClassName}
+            valueClassName={valueClassName}
           />
         );
       })}
       {/* Copies owned — a web-app-only range gated the same as the Owned bucket
           dropdown. The bound is the user's actual maximum, so it only renders
           for logged-in users who own something on this surface. */}
-      {!hiddenSections?.has("owned") && ownedCountMax !== undefined && ownedCountMax > 0 && (
-        <RangeFilterSection
-          label="Copies"
-          availableMin={0}
-          availableMax={ownedCountMax}
-          selectedMin={filterState.ownedCountMin}
-          selectedMax={filterState.ownedCountMax}
-          onChange={(min, max) => setOwnedCountRange(min, max)}
-        />
-      )}
+      {showCopies &&
+        !hiddenSections?.has("owned") &&
+        ownedCountMax !== undefined &&
+        ownedCountMax > 0 && (
+          <RangeFilterSection
+            label="Copies"
+            availableMin={0}
+            availableMax={ownedCountMax}
+            selectedMin={filterState.ownedCountMin}
+            selectedMax={filterState.ownedCountMax}
+            onChange={(min, max) => setOwnedCountRange(min, max)}
+            labelClassName={labelClassName}
+          />
+        )}
     </>
   );
 }
@@ -491,6 +664,8 @@ function RangeFilterSection({
   step = 1,
   logarithmic = false,
   formatValue,
+  labelClassName,
+  valueClassName = "w-10",
 }: {
   label: string;
   availableMin: number;
@@ -502,6 +677,13 @@ function RangeFilterSection({
   step?: number;
   logarithmic?: boolean;
   formatValue?: (value: number) => string;
+  labelClassName?: string;
+  /**
+   * Width of the min/max value columns. Defaults to `w-10` (fits "20k €" /
+   * "None"); the compact Stats menu narrows it since its values never exceed
+   * two digits.
+   */
+  valueClassName?: string;
 }) {
   const sliderMin = hasNone ? NONE : availableMin;
   const defaultMin = hasNone ? NONE : availableMin;
@@ -606,11 +788,18 @@ function RangeFilterSection({
   return (
     <div className="flex items-center gap-2">
       {/* Label */}
-      <p className="text-muted-foreground w-18 text-xs font-medium">{label}</p>
+      <p className={cn("text-muted-foreground w-18 text-xs font-medium", labelClassName)}>
+        {label}
+      </p>
       {/* Slider with values */}
       <div className="flex flex-1 items-center gap-1">
-        {/* Min value */}
-        <span className="text-2xs text-muted-foreground shrink-0 text-right tabular-nums">
+        {/* Min value — fixed width so every slider's left thumb lines up. */}
+        <span
+          className={cn(
+            "text-2xs text-muted-foreground shrink-0 text-right tabular-nums",
+            valueClassName,
+          )}
+        >
           {renderValue(displayMin)}
         </span>
         {/* Slider */}
@@ -634,8 +823,10 @@ function RangeFilterSection({
           }}
           className="flex-1"
         />
-        {/* Max value */}
-        <span className="text-2xs text-muted-foreground shrink-0 tabular-nums">
+        {/* Max value — fixed width so every slider's right thumb lines up. */}
+        <span
+          className={cn("text-2xs text-muted-foreground shrink-0 tabular-nums", valueClassName)}
+        >
           {renderValue(displayMax)}
         </span>
       </div>
@@ -654,6 +845,7 @@ function FilterSection({
   counts,
   wide,
   children,
+  trailing,
 }: {
   label: string;
   children?: ReactNode;
@@ -666,50 +858,97 @@ function FilterSection({
   counts?: Map<string, number>;
   /** Span the full row in any multi-column parent grid. */
   wide?: boolean;
+  /** Extra control(s) appended after the badges (e.g. the Signed flag in Art Variant). */
+  trailing?: ReactNode;
 }) {
-  if (!children && (!options || options.length === 0)) {
+  if (!children && !trailing && (!options || options.length === 0)) {
     return null;
   }
 
   return (
     <div className={cn("flex min-w-0 gap-2", wide && "lg:col-span-2")}>
       <p className="text-muted-foreground w-18 text-xs font-medium">{label}</p>
-      <div className="flex flex-1 flex-wrap gap-1">
-        {children ??
-          options?.map((option) => {
-            const icon = iconPath?.(option);
-            const isSelected = selected?.includes(option);
-            const isSecondary = secondaryOptions?.has(option);
-            const count = counts?.get(option);
-            const isZero = counts !== undefined && (count ?? 0) === 0;
-            return (
-              <Badge
-                key={option}
-                variant={!icon && isSelected ? "default" : "outline"}
-                className={cn(
-                  "cursor-pointer",
-                  icon && "pr-0",
-                  isSecondary && !isSelected && "opacity-65",
-                  isZero && !isSelected && "opacity-40",
-                )}
-                onClick={() => onToggle?.(option)}
-              >
-                {icon && <CardIcon src={icon} />}
-                <span
-                  className={cn(
-                    icon && "-my-0.5 inline-flex h-5 items-center rounded-full px-2",
-                    icon && isSelected && "bg-primary text-primary-foreground",
-                  )}
-                >
-                  {displayLabel ? displayLabel(option) : option}
-                  {count !== undefined && (
-                    <span className="ml-1 tabular-nums opacity-60">{count}</span>
-                  )}
-                </span>
-              </Badge>
-            );
-          })}
-      </div>
+      {children ? (
+        <div className="flex flex-1 flex-wrap gap-1">{children}</div>
+      ) : (
+        <FilterBadgeGrid
+          options={options ?? []}
+          selected={selected}
+          onToggle={onToggle}
+          iconPath={iconPath}
+          displayLabel={displayLabel}
+          secondaryOptions={secondaryOptions}
+          counts={counts}
+          trailing={trailing}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * The wrapping row of toggleable filter badges for one dimension — icon +
+ * label + faceted count, with selected/secondary/zero-count styling. Shared by
+ * the expanded `FilterSection` and the compact bar's dropdown-chip popovers so
+ * both render identical badges.
+ * @returns The badge row.
+ */
+function FilterBadgeGrid({
+  options,
+  selected,
+  onToggle,
+  iconPath,
+  displayLabel,
+  secondaryOptions,
+  counts,
+  className,
+  trailing,
+}: {
+  options: string[];
+  selected?: string[];
+  onToggle?: (value: string) => void;
+  iconPath?: (value: string) => string | undefined;
+  displayLabel?: (value: string) => string;
+  secondaryOptions?: ReadonlySet<string>;
+  counts?: Map<string, number>;
+  className?: string;
+  /** Extra control(s) rendered inline after the badges (e.g. the Signed flag in Art Variant). */
+  trailing?: ReactNode;
+}) {
+  return (
+    <div className={cn("flex flex-1 flex-wrap gap-1", className)}>
+      {options.map((option) => {
+        const icon = iconPath?.(option);
+        const isSelected = selected?.includes(option);
+        const isSecondary = secondaryOptions?.has(option);
+        const count = counts?.get(option);
+        const isZero = counts !== undefined && (count ?? 0) === 0;
+        return (
+          <Badge
+            key={option}
+            variant={!icon && isSelected ? "default" : "outline"}
+            className={cn(
+              "cursor-pointer",
+              icon && "pr-0",
+              isSecondary && !isSelected && "opacity-65",
+              isZero && !isSelected && "opacity-40",
+            )}
+            onClick={() => onToggle?.(option)}
+          >
+            {icon && <CardIcon src={icon} />}
+            <span
+              className={cn(
+                icon && "-my-0.5 inline-flex h-5 items-center rounded-full px-2",
+                icon && isSelected && "bg-primary text-primary-foreground",
+              )}
+            >
+              {displayLabel ? displayLabel(option) : option}
+              {count !== undefined && <span className="ml-1 tabular-nums opacity-60">{count}</span>}
+            </span>
+          </Badge>
+        );
+      })}
+      {trailing}
     </div>
   );
 }

@@ -27,7 +27,7 @@ export const adminSuperTypesRouter = {
     assertValidReorder(slugs, all, {
       keyOf: (row) => row.slug,
       keyNoun: "slugs",
-      unknownLabel: "super type slugs",
+      unknownLabel: "supertype slugs",
     });
     await repo.reorder(slugs);
   }),
@@ -37,7 +37,7 @@ export const adminSuperTypesRouter = {
     const { slug, label } = input;
 
     const existing = await repo.getBySlug(slug);
-    assertSlugAvailable(existing, slug, "Super type");
+    assertSlugAvailable(existing, slug, "Supertype");
 
     const created = await repo.create({ slug, label });
     return { superType: created };
@@ -48,7 +48,7 @@ export const adminSuperTypesRouter = {
 
     const existing = await repo.getBySlug(input.slug);
     if (!existing) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Super type "${input.slug}" not found`);
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Supertype "${input.slug}" not found`);
     }
 
     if (input.label) {
@@ -61,11 +61,11 @@ export const adminSuperTypesRouter = {
 
     const existing = await repo.getBySlug(input.slug);
     if (!existing) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Super type "${input.slug}" not found`);
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Supertype "${input.slug}" not found`);
     }
 
     if (existing.isWellKnown) {
-      throw new AppError(409, ERROR_CODES.CONFLICT, "Cannot delete a well-known super type");
+      throw new AppError(409, ERROR_CODES.CONFLICT, "Cannot delete a well-known supertype");
     }
 
     const inUse = await repo.isInUse(input.slug);
@@ -73,7 +73,7 @@ export const adminSuperTypesRouter = {
       throw new AppError(
         409,
         ERROR_CODES.CONFLICT,
-        "Cannot delete: super type is in use by one or more cards",
+        "Cannot delete: supertype is in use by one or more cards",
       );
     }
 

@@ -211,6 +211,8 @@ export interface FilterCountsWire {
   rarities: CountMapWire;
   artVariants: CountMapWire;
   finishes: CountMapWire;
+  markers: CountMapWire;
+  channels: CountMapWire;
   flags: {
     signed: number;
     promo: number;
@@ -233,6 +235,8 @@ function toWireFilterCounts(counts: FilterCounts): FilterCountsWire {
     rarities: Object.fromEntries(counts.rarities),
     artVariants: Object.fromEntries(counts.artVariants),
     finishes: Object.fromEntries(counts.finishes),
+    markers: Object.fromEntries(counts.markers),
+    channels: Object.fromEntries(counts.channels),
     flags: {
       signed: counts.flags.signed,
       promo: counts.flags.promo,
@@ -253,6 +257,8 @@ export function fromWireFilterCounts(wire: FilterCountsWire): FilterCounts {
     rarities: new Map(Object.entries(wire.rarities)),
     artVariants: new Map(Object.entries(wire.artVariants)),
     finishes: new Map(Object.entries(wire.finishes)),
+    markers: new Map(Object.entries(wire.markers)),
+    channels: new Map(Object.entries(wire.channels)),
     flags: { ...wire.flags },
     ranges: wire.ranges,
   };

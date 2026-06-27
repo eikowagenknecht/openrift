@@ -57,7 +57,7 @@ const taxonomyPages = [
   { to: "/admin/distribution-channels" as const, icon: MapIcon, title: "Distribution Channels" },
   { to: "/admin/domains" as const, icon: PaletteIcon, title: "Domains" },
   { to: "/admin/card-types" as const, icon: ShapesIcon, title: "Card Types" },
-  { to: "/admin/super-types" as const, icon: CrownIcon, title: "Super Types" },
+  { to: "/admin/super-types" as const, icon: CrownIcon, title: "Supertypes" },
   { to: "/admin/deck-zones" as const, icon: LayoutListIcon, title: "Deck Zones" },
   { to: "/admin/deck-formats" as const, icon: SwordsIcon, title: "Deck Formats" },
   { to: "/admin/rarities" as const, icon: SparklesIcon, title: "Rarities" },

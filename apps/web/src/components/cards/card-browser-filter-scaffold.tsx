@@ -7,6 +7,7 @@ import {
   CollapsibleFilterPanel,
   FilterToggleButton,
 } from "@/components/filters/collapsible-filter-panel";
+import { CompactFilterBar } from "@/components/filters/compact-filter-bar";
 import { FilterCustomizeControl } from "@/components/filters/filter-customize-control";
 import { FilterPanelContent } from "@/components/filters/filter-panel-content";
 import {
@@ -152,6 +153,27 @@ function BrowserCollapsibleFilters() {
 }
 
 /**
+ * Compact mid-width filter bar — the opt-in alternative to
+ * {@link BrowserCollapsibleFilters}. Reads meta from
+ * {@link CardBrowserFilterProvider}.
+ * @returns The compact filter bar.
+ */
+function BrowserCompactFilters() {
+  const meta = useFilterMeta();
+  return (
+    <CompactFilterBar
+      availableFilters={meta.availableFilters}
+      availableLanguages={meta.availableLanguages}
+      filterCounts={meta.filterCounts}
+      setDisplayLabel={meta.setDisplayLabel}
+      hiddenSections={meta.effectiveHiddenSections}
+      visibleCustomTagCategories={meta.visibleCustomTagCategories}
+      ownedCountMax={meta.ownedCountMax}
+    />
+  );
+}
+
+/**
  * Mobile drawer's filter pane. Reads meta from {@link CardBrowserFilterProvider}.
  *
  * @returns The mobile filter content.
@@ -241,6 +263,10 @@ export function BrowserToolbar({
   // instead of three evenly-spaced bands. With no filters the search row is the
   // last tier, so it keeps the full gap to stay balanced.
   const { hasActiveFilters } = useFilterValues();
+  // Compact view replaces the collapsible mid-width panel with an always-visible
+  // chip/icon bar, so the panel's expand/collapse toggle is dropped there. Only
+  // affects the sm–@wide band; the wide sidebar and mobile drawer are unchanged.
+  const compactFilterView = useDisplayStore((state) => state.compactFilterView);
   return (
     <>
       <div className={cn("flex items-start gap-3", hasActiveFilters ? "mb-2" : "mb-3")}>
@@ -253,7 +279,7 @@ export function BrowserToolbar({
           groupByValue={groupByValue}
         />
         {extras}
-        <FilterToggleButton className="@wide:hidden hidden sm:flex" />
+        {!compactFilterView && <FilterToggleButton className="@wide:hidden hidden sm:flex" />}
         <MobileOptionsDrawer doneLabel={mobileDoneLabel} className="sm:hidden">
           <MobileOptionsContent
             showCopies={showCopies}
@@ -264,7 +290,7 @@ export function BrowserToolbar({
           <BrowserMobileFilters />
         </MobileOptionsDrawer>
       </div>
-      <BrowserCollapsibleFilters />
+      {compactFilterView ? <BrowserCompactFilters /> : <BrowserCollapsibleFilters />}
     </>
   );
 }

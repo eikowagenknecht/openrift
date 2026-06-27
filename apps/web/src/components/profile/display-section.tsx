@@ -23,6 +23,8 @@ export function DisplaySection() {
   const setCardTilt = useDisplayStore((s) => s.setCardTilt);
   const defaultCardView = useDisplayStore((s) => s.defaultCardView);
   const setDefaultCardView = useDisplayStore((s) => s.setDefaultCardView);
+  const compactFilterView = useDisplayStore((s) => s.compactFilterView);
+  const setCompactFilterView = useDisplayStore((s) => s.setCompactFilterView);
   const overrides = useDisplayStore((s) => s.overrides);
   const resetPreference = useDisplayStore((s) => s.resetPreference);
   const themePreference = useThemeStore((s) => s.preference);
@@ -132,6 +134,23 @@ export function DisplaySection() {
             />
             {overrides.cardTilt !== null && (
               <ResetButton onClick={() => resetPreference("cardTilt")} label="Reset card tilt" />
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-4">
+          <Label htmlFor="pref-compact-filters">Compact filters</Label>
+          <div className="flex items-center gap-1.5">
+            <Switch
+              id="pref-compact-filters"
+              checked={compactFilterView}
+              onCheckedChange={(checked: boolean) => setCompactFilterView(checked)}
+            />
+            {overrides.compactFilterView !== null && (
+              <ResetButton
+                onClick={() => resetPreference("compactFilterView")}
+                label="Reset compact filters"
+              />
             )}
           </div>
         </div>

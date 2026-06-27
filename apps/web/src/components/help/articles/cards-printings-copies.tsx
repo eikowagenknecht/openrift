@@ -144,7 +144,7 @@ export default function CardsPrintingsCopiesArticle() {
               <strong key="master-yi">Master Yi, Unstoppable</strong>,
             ],
             ["Type", "Rune", "Gear", "Unit"],
-            ["Super Types", "Basic", null, "Champion"],
+            ["Supertypes", "Basic", null, "Champion"],
             ["Domains", "Fury", "Mind", "Calm"],
             ["Might", null, null, "12"],
             ["Energy", null, "3", "12"],

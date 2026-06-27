@@ -8,7 +8,7 @@ import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCustomTagList, useEnumOrders } from "@/hooks/use-enums";
 import { buildChannelBreadcrumbsBySlug } from "@/lib/channel-breadcrumbs";
 import { formatDomainFilterLabel } from "@/lib/domain";
-import { formatPriceIntegerForMarketplace } from "@/lib/format";
+import { compactFormatterForMarketplace } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
 import { rangeBadgeLabel } from "@/lib/range-label";
 import { useDisplayStore } from "@/stores/display-store";
@@ -66,7 +66,7 @@ export function ActiveFilters({
     {
       key: "price",
       label: "Price",
-      formatValue: formatPriceIntegerForMarketplace(favoriteMarketplace),
+      formatValue: compactFormatterForMarketplace(favoriteMarketplace),
     },
   ];
   type FilterKey =
@@ -129,7 +129,7 @@ export function ActiveFilters({
     },
     {
       key: "superTypes",
-      label: "Super Type",
+      label: "Supertype",
       values: filterState.superTypes,
       displayLabel: (v: string) => labels.superTypes[v] ?? v,
     },

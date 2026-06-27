@@ -2187,6 +2187,90 @@ describe("computeFilterCounts", () => {
     expect(counts.domains.get("body")).toBe(1);
   });
 
+  describe("markers and channels", () => {
+    const channelStore = {
+      id: "ch1",
+      slug: "store",
+      label: "Store",
+      description: null,
+      kind: "event" as const,
+      parentId: null,
+      childrenLabel: null,
+    };
+    const channelEvent = {
+      id: "ch2",
+      slug: "event",
+      label: "Event",
+      description: null,
+      kind: "event" as const,
+      parentId: null,
+      childrenLabel: null,
+    };
+    const markerChannelSample = [
+      makePrinting({
+        id: "p1",
+        cardId: "c1",
+        rarity: "common",
+        markers: [{ id: "m1", slug: "promo", label: "Promo", description: null }],
+        distributionChannels: [
+          { channel: channelStore, distributionNote: null, ancestorLabels: [] },
+        ],
+      }),
+      makePrinting({
+        id: "p2",
+        cardId: "c2",
+        rarity: "rare",
+        markers: [
+          { id: "m1", slug: "promo", label: "Promo", description: null },
+          { id: "m2", slug: "top-8", label: "Top 8", description: null },
+        ],
+        distributionChannels: [
+          { channel: channelEvent, distributionNote: null, ancestorLabels: [] },
+        ],
+      }),
+      makePrinting({
+        id: "p3",
+        cardId: "c3",
+        rarity: "rare",
+        markers: [],
+        distributionChannels: [],
+      }),
+    ];
+
+    it("counts printings per marker and per channel", () => {
+      const counts = computeFilterCounts(markerChannelSample, emptyFilters(), {
+        countBy: "printing",
+      });
+      expect(counts.markers.get("promo")).toBe(2);
+      expect(counts.markers.get("top-8")).toBe(1);
+      expect(counts.channels.get("store")).toBe(1);
+      expect(counts.channels.get("event")).toBe(1);
+    });
+
+    it("excludes the marker dim's own filter so multi-select still widens", () => {
+      const counts = computeFilterCounts(
+        markerChannelSample,
+        emptyFilters({ markerSlugs: ["top-8"] }),
+        { countBy: "printing" },
+      );
+      // promo stays at 2 even though top-8 is selected — picking another marker
+      // must still widen results.
+      expect(counts.markers.get("promo")).toBe(2);
+      expect(counts.markers.get("top-8")).toBe(1);
+    });
+
+    it("narrows channels based on an active marker filter", () => {
+      const counts = computeFilterCounts(
+        markerChannelSample,
+        emptyFilters({ markerSlugs: ["top-8"] }),
+        { countBy: "printing" },
+      );
+      // Only p2 (event) carries the top-8 marker.
+      expect(counts.channels.get("event")).toBe(1);
+      expect(counts.channels.get("store") ?? 0).toBe(0);
+    });
+  });
+
   describe("flags", () => {
     const flagSample = [
       makePrinting({

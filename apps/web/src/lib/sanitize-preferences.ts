@@ -109,6 +109,10 @@ export function sanitizeServerResponse(data: unknown): Partial<DisplayOverrides>
   if ("hiddenFilterSections" in record) {
     result.hiddenFilterSections = sanitizeHiddenFilterSections(record.hiddenFilterSections);
   }
+  if ("compactFilterView" in record) {
+    result.compactFilterView =
+      typeof record.compactFilterView === "boolean" ? record.compactFilterView : null;
+  }
   return result;
 }
 
@@ -148,6 +152,7 @@ function nullOverrides(): DisplayOverrides {
     defaultCardView: null,
     defaultCurrency: null,
     hiddenFilterSections: null,
+    compactFilterView: null,
   };
 }
 
@@ -228,6 +233,9 @@ function sanitizeOverrideFields(record: Record<string, unknown>): DisplayOverrid
 
   const safeHiddenFilterSections = sanitizeHiddenFilterSections(record.hiddenFilterSections);
 
+  const safeCompactFilterView =
+    typeof record.compactFilterView === "boolean" ? record.compactFilterView : null;
+
   return {
     showImages,
     fancyFan,
@@ -239,6 +247,7 @@ function sanitizeOverrideFields(record: Record<string, unknown>): DisplayOverrid
     defaultCardView: safeDefaultCardView,
     defaultCurrency: safeDefaultCurrency,
     hiddenFilterSections: safeHiddenFilterSections,
+    compactFilterView: safeCompactFilterView,
   };
 }
 

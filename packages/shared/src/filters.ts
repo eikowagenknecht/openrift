@@ -512,6 +512,8 @@ export interface FilterCounts {
   rarities: Map<string, number>;
   artVariants: Map<string, number>;
   finishes: Map<string, number>;
+  markers: Map<string, number>;
+  channels: Map<string, number>;
   /**
    * Counts for the single-chip "More"-section flags. Each value reflects the
    * count *if the chip's currently-displayed state were applied*, combined
@@ -561,6 +563,12 @@ const COUNTABLE_DIMENSIONS: readonly CountableDimension[] = [
   { key: "rarities", filterField: "rarities", values: (p) => [p.rarity] },
   { key: "artVariants", filterField: "artVariants", values: (p) => [p.artVariant || "normal"] },
   { key: "finishes", filterField: "finishes", values: (p) => [p.finish] },
+  { key: "markers", filterField: "markerSlugs", values: (p) => p.markers.map((m) => m.slug) },
+  {
+    key: "channels",
+    filterField: "distributionChannelSlugs",
+    values: (p) => p.distributionChannels.map((dc) => dc.channel.slug),
+  },
 ];
 
 interface FlagDimension {

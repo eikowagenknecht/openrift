@@ -57,6 +57,13 @@ export interface UserPreferencesResponse {
    */
   hiddenFilterSections?: string[];
   /**
+   * Use the compact card-browser filter bar (icon toggles + dropdown chips)
+   * instead of the expanded filter panel, on the above-the-grid area at mid
+   * widths. Off by default; the wide-screen sidebar and the mobile drawer are
+   * unaffected.
+   */
+  compactFilterView?: boolean;
+  /**
    * Transactional email opt-ins (ADR-030). The two channels carry *different*
    * defaults, encoded in the read-side gate, not the stored data:
    * - `tradeMatches` (daily match digest) is OFF unless explicitly `true`.
@@ -160,6 +167,7 @@ export interface ResolvedPreferences {
   defaultCardView: DefaultCardView;
   defaultCurrency: Currency;
   hiddenFilterSections: string[];
+  compactFilterView: boolean;
 }
 
 /** Default values for every preference. Used to resolve missing/null fields. */
@@ -176,4 +184,5 @@ export const PREFERENCE_DEFAULTS: ResolvedPreferences = {
   defaultCardView: "cards",
   defaultCurrency: "EUR",
   hiddenFilterSections: [],
+  compactFilterView: true,
 };

@@ -101,7 +101,7 @@ export function CardDesignerForm() {
           </ToggleGroup>
         </FieldRow>
 
-        <FieldRow label="Super types">
+        <FieldRow label="Supertypes">
           <ToggleGroup
             multiple
             variant="outline"

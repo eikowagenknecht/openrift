@@ -23,6 +23,7 @@ export interface DisplayOverrides {
   defaultCardView: DefaultCardView | null;
   defaultCurrency: Currency | null;
   hiddenFilterSections: string[] | null;
+  compactFilterView: boolean | null;
 }
 
 const NULL_OVERRIDES: DisplayOverrides = {
@@ -36,6 +37,7 @@ const NULL_OVERRIDES: DisplayOverrides = {
   defaultCardView: null,
   defaultCurrency: null,
   hiddenFilterSections: null,
+  compactFilterView: null,
 };
 
 // ── Resolve helpers ─────────────────────────────────────────────────────────
@@ -54,6 +56,7 @@ function resolveAll(overrides: DisplayOverrides) {
     hiddenFilterSections: overrides.hiddenFilterSections ?? [
       ...PREFERENCE_DEFAULTS.hiddenFilterSections,
     ],
+    compactFilterView: overrides.compactFilterView ?? PREFERENCE_DEFAULTS.compactFilterView,
   };
 }
 
@@ -71,6 +74,7 @@ interface DisplayState {
   defaultCardView: DefaultCardView;
   defaultCurrency: Currency;
   hiddenFilterSections: string[];
+  compactFilterView: boolean;
 
   // Nullable overrides — persisted to localStorage and synced to DB
   overrides: DisplayOverrides;
@@ -92,6 +96,7 @@ interface DisplayState {
   setDefaultCardView: (value: DefaultCardView) => void;
   setDefaultCurrency: (value: Currency) => void;
   setHiddenFilterSections: (value: string[]) => void;
+  setCompactFilterView: (value: boolean) => void;
 
   // Reset a top-level preference to its default
   resetPreference: (
@@ -105,7 +110,8 @@ interface DisplayState {
       | "completionScope"
       | "defaultCardView"
       | "defaultCurrency"
-      | "hiddenFilterSections",
+      | "hiddenFilterSections"
+      | "compactFilterView",
   ) => void;
 
   // Clear all account-scoped overrides (used on sign-out so the next visitor
@@ -194,6 +200,11 @@ export const useDisplayStore = create<DisplayState>()(
           hiddenFilterSections: value,
           overrides: { ...state.overrides, hiddenFilterSections: value },
         })),
+      setCompactFilterView: (value) =>
+        set((state) => ({
+          compactFilterView: value,
+          overrides: { ...state.overrides, compactFilterView: value },
+        })),
 
       resetPreference: (key) =>
         set((state) => {
@@ -242,6 +253,10 @@ export const useDisplayStore = create<DisplayState>()(
               incoming.hiddenFilterSections === undefined
                 ? state.overrides.hiddenFilterSections
                 : incoming.hiddenFilterSections,
+            compactFilterView:
+              incoming.compactFilterView === undefined
+                ? state.overrides.compactFilterView
+                : incoming.compactFilterView,
           };
           return { overrides: merged, ...resolveAll(merged), prefsHydrated: true };
         }),

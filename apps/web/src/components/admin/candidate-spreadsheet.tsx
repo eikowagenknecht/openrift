@@ -79,7 +79,7 @@ export function buildCandidateCardFields(orders: EnumOrders, labels: EnumLabels)
     { key: "might", label: "Might" },
     {
       key: "superTypes",
-      label: "Super Types",
+      label: "Supertypes",
       labeledOptions: toLabeledOptions(orders.superTypes, labels.superTypes),
       array: true,
     },

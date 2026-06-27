@@ -186,7 +186,7 @@ export function CreateCardPage() {
             </Field>
 
             <Field>
-              <FieldLabel>Super types</FieldLabel>
+              <FieldLabel>Supertypes</FieldLabel>
               <ToggleGroup
                 multiple
                 variant="outline"

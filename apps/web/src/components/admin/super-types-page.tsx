@@ -133,11 +133,10 @@ export function SuperTypesPage() {
       columns={columns}
       data={superTypes}
       getRowKey={(superType) => superType.slug}
-      emptyText="No super types yet."
+      emptyText="No supertypes yet."
       toolbar={
         <p className="text-muted-foreground text-sm">
-          Super types are qualifiers applied on top of a card&apos;s type (e.g. Champion,
-          Signature).
+          Supertypes are qualifiers applied on top of a card&apos;s type (e.g. Champion, Signature).
         </p>
       }
       add={{
@@ -158,7 +157,7 @@ export function SuperTypesPage() {
           }
           return null;
         },
-        label: "Add Super Type",
+        label: "Add Supertype",
       }}
       edit={{
         toDraft: (superType) => ({

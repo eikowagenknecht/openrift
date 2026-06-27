@@ -20,7 +20,7 @@ export interface ToggleableFilterSection {
  * `hiddenSections` in `filter-panel-content.tsx`.
  */
 export const TOGGLEABLE_FILTER_SECTIONS: readonly ToggleableFilterSection[] = [
-  { key: "superTypes", label: "Super Type" },
+  { key: "superTypes", label: "Supertype" },
   { key: "artVariants", label: "Art Variant" },
   { key: "finishes", label: "Finish" },
   { key: "languages", label: "Language" },

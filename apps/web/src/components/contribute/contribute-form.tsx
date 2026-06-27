@@ -199,7 +199,7 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
                 placeholder="Pick a type"
               />
             </FieldRow>
-            <FieldRow label="Super types">
+            <FieldRow label="Supertypes">
               <ToggleGroup
                 multiple
                 variant="outline"
@@ -333,7 +333,7 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
 
 const LAYOUT_LEGEND: { label: string; region: string }[] = [
   { label: "Card name", region: "Centre band" },
-  { label: "Type, super types", region: "Italic stripe above the name" },
+  { label: "Type, supertypes", region: "Italic stripe above the name" },
   { label: "Tags", region: "Italic stripes next to the type" },
   { label: "Energy", region: "Top-left circle" },
   { label: "Might", region: "Top-right shield" },

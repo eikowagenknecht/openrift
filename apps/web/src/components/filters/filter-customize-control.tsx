@@ -3,6 +3,7 @@ import { SlidersHorizontalIcon } from "lucide-react";
 import { useFilterMetaOptional } from "@/components/cards/card-browser-filter-scaffold";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
@@ -10,6 +11,7 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
 import { useCustomTagList } from "@/hooks/use-enums";
 import { getApplicableToggleableSections } from "@/lib/filter-sections";
 import { cn } from "@/lib/utils";
@@ -42,6 +44,8 @@ export function FilterCustomizeControl({
   const meta = useFilterMetaOptional();
   const hiddenFilterSections = useDisplayStore((state) => state.hiddenFilterSections);
   const setHiddenFilterSections = useDisplayStore((state) => state.setHiddenFilterSections);
+  const compactFilterView = useDisplayStore((state) => state.compactFilterView);
+  const setCompactFilterView = useDisplayStore((state) => state.setCompactFilterView);
   const { byCategory } = useCustomTagList();
 
   if (!meta) {
@@ -115,7 +119,17 @@ export function FilterCustomizeControl({
         )}
       </PopoverTrigger>
       <PopoverContent align="end" className="w-64">
-        <PopoverHeader>
+        <div className="flex items-center justify-between gap-2 pb-1">
+          <Label htmlFor="compact-filters-toggle" className="cursor-pointer">
+            Compact filters
+          </Label>
+          <Switch
+            id="compact-filters-toggle"
+            checked={compactFilterView}
+            onCheckedChange={(checked: boolean) => setCompactFilterView(checked)}
+          />
+        </div>
+        <PopoverHeader className="border-t pt-2">
           <PopoverTitle>Show filters</PopoverTitle>
         </PopoverHeader>
         <div className="flex flex-col">

@@ -66,6 +66,18 @@ describe("useDisplayStore", () => {
       expect(state.overrides.hiddenFilterSections).toEqual(["price", "owned"]);
     });
 
+    it("setCompactFilterView updates both resolved value and override", () => {
+      expect(useDisplayStore.getState().compactFilterView).toBe(
+        PREFERENCE_DEFAULTS.compactFilterView,
+      );
+
+      useDisplayStore.getState().setCompactFilterView(true);
+
+      const state = useDisplayStore.getState();
+      expect(state.compactFilterView).toBe(true);
+      expect(state.overrides.compactFilterView).toBe(true);
+    });
+
     it("setFoilEffect updates both resolved value and override", () => {
       useDisplayStore.getState().setFoilEffect(false);
 
@@ -149,6 +161,16 @@ describe("useDisplayStore", () => {
       );
       expect(useDisplayStore.getState().overrides.hiddenFilterSections).toBeNull();
     });
+
+    it("resets compactFilterView to default", () => {
+      useDisplayStore.getState().setCompactFilterView(true);
+      useDisplayStore.getState().resetPreference("compactFilterView");
+
+      expect(useDisplayStore.getState().compactFilterView).toBe(
+        PREFERENCE_DEFAULTS.compactFilterView,
+      );
+      expect(useDisplayStore.getState().overrides.compactFilterView).toBeNull();
+    });
   });
 
   describe("reset", () => {
@@ -176,6 +198,7 @@ describe("useDisplayStore", () => {
         defaultCardView: null,
         defaultCurrency: null,
         hiddenFilterSections: null,
+        compactFilterView: null,
       });
       expect(state.showImages).toBe(PREFERENCE_DEFAULTS.showImages);
       expect(state.fancyFan).toBe(PREFERENCE_DEFAULTS.fancyFan);
@@ -231,6 +254,14 @@ describe("useDisplayStore", () => {
       // A later hydrate that omits the field must not clobber the stored value.
       useDisplayStore.getState().hydrateOverrides({ showImages: false });
       expect(useDisplayStore.getState().hiddenFilterSections).toEqual(["price", "markers"]);
+    });
+
+    it("hydrates compactFilterView and preserves it when the field is absent", () => {
+      useDisplayStore.getState().hydrateOverrides({ compactFilterView: true });
+      expect(useDisplayStore.getState().compactFilterView).toBe(true);
+
+      useDisplayStore.getState().hydrateOverrides({ showImages: false });
+      expect(useDisplayStore.getState().compactFilterView).toBe(true);
     });
   });
 
