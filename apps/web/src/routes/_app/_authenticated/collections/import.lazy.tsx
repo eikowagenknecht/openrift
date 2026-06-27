@@ -43,7 +43,7 @@ import { useCollections } from "@/hooks/use-collections";
 import { useImportFlow } from "@/hooks/use-import-flow";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { copiesQueryOptions } from "@/lib/copies-query";
-import { downloadCSV, generateExportCSV } from "@/lib/csv-export";
+import { downloadCSV, generateExportCSV, generatePiltoverArchiveCSV } from "@/lib/csv-export";
 import type { MatchedEntry } from "@/lib/import-matcher";
 import { SOCIAL_LINKS } from "@/lib/social-links";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
@@ -124,6 +124,7 @@ function ExportSection() {
   const { data: collections } = useCollections();
   const { allPrintings } = useCards();
   const [exportCollectionId, setExportCollectionId] = useState<string>("__all__");
+  const [exportFormat, setExportFormat] = useState<"openrift" | "piltover">("openrift");
 
   const queryCollectionId = exportCollectionId === "__all__" ? undefined : exportCollectionId;
   const { data: copies, isLoading } = useQuery(copiesQueryOptions(userId, queryCollectionId));
@@ -174,7 +175,10 @@ function ExportSection() {
           stack !== undefined,
       );
 
-    const csv = generateExportCSV(sortedStacks);
+    const csv =
+      exportFormat === "piltover"
+        ? generatePiltoverArchiveCSV(sortedStacks)
+        : generateExportCSV(sortedStacks);
 
     const collectionName =
       exportCollectionId === "__all__"
@@ -185,7 +189,8 @@ function ExportSection() {
             .replaceAll(/^-|-$/gu, "");
 
     const date = new Date().toISOString().slice(0, 10);
-    downloadCSV(csv, `openrift-${collectionName}-${date}.csv`);
+    const prefix = exportFormat === "piltover" ? "piltover" : "openrift";
+    downloadCSV(csv, `${prefix}-${collectionName}-${date}.csv`);
     toast.success("Collection exported.");
   };
 
@@ -195,7 +200,10 @@ function ExportSection() {
     <div className="mx-auto max-w-2xl space-y-6 pt-3">
       <div>
         <Heading level={2}>Export Collection</Heading>
-        <p className="text-muted-foreground text-sm">Download your collection as a CSV file.</p>
+        <p className="text-muted-foreground text-sm">
+          Download your collection as a CSV file, in OpenRift&apos;s own format or Piltover
+          Archive&apos;s.
+        </p>
       </div>
 
       <div className="space-y-1.5">
@@ -222,6 +230,22 @@ function ExportSection() {
                   {col.name}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={exportFormat}
+            onValueChange={(value) =>
+              setExportFormat((value as "openrift" | "piltover") ?? "openrift")
+            }
+            items={{ openrift: "OpenRift CSV", piltover: "Piltover Archive CSV" }}
+          >
+            <SelectTrigger className="w-[200px]" id="export-format">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="openrift">OpenRift CSV</SelectItem>
+              <SelectItem value="piltover">Piltover Archive CSV</SelectItem>
             </SelectContent>
           </Select>
 

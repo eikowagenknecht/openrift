@@ -212,8 +212,13 @@ export default function ImportExportArticle() {
       <section>
         <h2 className="mb-2 text-lg font-semibold">Exporting cards</h2>
         <p className="text-muted-foreground">
-          Export downloads your collection as a CSV file. Pick a collection from the dropdown and
-          click <strong className="text-foreground">Export</strong>.
+          Export downloads your collection as a CSV file. Pick a collection and a format from the
+          dropdowns, then click <strong className="text-foreground">Export</strong>. Choose{" "}
+          <strong className="text-foreground">OpenRift CSV</strong> for the columns shown below, or{" "}
+          <strong className="text-foreground">Piltover Archive CSV</strong> to produce a file in
+          Piltover Archive&apos;s own layout (finish, art variant, and promos are encoded into the{" "}
+          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">Variant Number</code>). Either
+          format re-imports cleanly into OpenRift.
         </p>
 
         <div className="border-border mt-3 overflow-x-auto rounded-lg border text-sm">
@@ -289,9 +294,10 @@ export default function ImportExportArticle() {
           The file is named{" "}
           <code className="bg-muted rounded px-1.5 py-0.5 text-xs">
             openrift-<em>collection</em>-<em>date</em>.csv
-          </code>
-          . The exported CSV uses the same short code format as import, so you can re-import an
-          OpenRift export into another account or after a reset.
+          </code>{" "}
+          (or <code className="bg-muted rounded px-1.5 py-0.5 text-xs">piltover-…</code> for the
+          Piltover Archive format). The exported CSV uses the same short code format as import, so
+          you can re-import an OpenRift export into another account or after a reset.
         </p>
       </section>
 

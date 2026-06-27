@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Collection): **Export to Piltover Archive** — the collection export now offers a Piltover Archive CSV format alongside OpenRift's own, so you can move your collection straight into Piltover Archive.
 - feat(Account): **One-click email unsubscribe** — the native Unsubscribe button in Gmail and Apple Mail now works, and the in-email link opens an on-brand confirmation page.
 
 ## 2026-06-26
