@@ -204,7 +204,10 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
           toCollectionId: secondCollectionId,
         }),
       );
-      expect(res.status).toBe(204);
+      // Mutations carry the Postgres txid for Electric stream matching.
+      expect(res.status).toBe(200);
+      const moveBody = (await res.json()) as { txid: number };
+      expect(moveBody.txid).toEqual(expect.any(Number));
 
       // Verify the copy is now in the second collection
       const listRes = await app.fetch(req("GET", "/copies"));
@@ -234,7 +237,9 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
   describe("POST /copies/dispose", () => {
     it("disposes (hard-deletes) copies", async () => {
       const res = await app.fetch(req("POST", "/copies/dispose", { copyIds: [copyIds[2]] }));
-      expect(res.status).toBe(204);
+      expect(res.status).toBe(200);
+      const disposed = (await res.json()) as { txid: number };
+      expect(disposed.txid).toEqual(expect.any(Number));
 
       // Verify the copy is gone
       const listRes = await app.fetch(req("GET", "/copies"));

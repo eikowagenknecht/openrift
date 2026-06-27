@@ -5,6 +5,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { useSyncedPrices } from "@/lib/prices-collection";
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
 import { apiOrpcClient, browserApiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -35,13 +36,29 @@ export const pricesQueryOptions = queryOptions({
 });
 
 /**
- * Suspense hook returning a {@link PriceLookup} backed by the latest /api/v1/prices payload.
+ * Hook returning a {@link PriceLookup} for the latest marketplace prices.
  * Components that filter, sort, or display by price compose this with `useCards()`.
- * @returns A lookup wired to the cached `/api/v1/prices` response.
+ *
+ * Two price sources, evaluated in a fixed hook order:
+ *  - the synced on-device prices (ADR-027): present once the public
+ *    latest-prices shape has finished its initial sync, then served instantly
+ *    on every return visit and updated in the background as prices change.
+ *    Null on the server, pre-hydration, while persistence/sync settle, and in
+ *    OPFS-less browsers.
+ *  - the edge `/api/v1/prices` fetch: the SSR path prefetches it, so it is the
+ *    byte-equivalent fallback that keeps first paint and crawlers unchanged.
+ *
+ * The suspense query is always subscribed (stable hooks, and it is what the
+ * shell suspends on for the very first load). When the synced lookup is ready
+ * it wins; both resolve to the same `PriceLookup` (cents → major units).
+ *
+ * @returns A lookup wired to the synced prices when ready, else the cached
+ *   `/api/v1/prices` response.
  */
 export function usePrices(): PriceLookup {
+  const synced = useSyncedPrices();
   const { data } = useSuspenseQuery(pricesQueryOptions);
-  return data;
+  return synced ?? data;
 }
 
 /**

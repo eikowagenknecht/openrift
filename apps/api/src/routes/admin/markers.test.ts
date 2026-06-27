@@ -22,7 +22,7 @@ const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
-  c.set("repos", { markers: mockRepo } as never);
+  c.set("repos", { markers: mockRepo, catalog: { recomputeCanonicalRanks: vi.fn() } } as never);
   await next();
 });
 registerRouterForTest(app, adminMarkersRouter);

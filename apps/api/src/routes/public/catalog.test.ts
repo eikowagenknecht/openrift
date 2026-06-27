@@ -26,7 +26,7 @@ const mockDistributionChannelsRepo = {
 };
 
 const mockCustomTagsRepo = {
-  assignmentsByCard: vi.fn(() => Promise.resolve(new Map<string, string[]>())),
+  assignmentRows: vi.fn(() => Promise.resolve([] as { cardId: string; slug: string }[])),
 };
 
 // Mount the catalog router the way production does (one OpenAPIHandler behind a
@@ -120,7 +120,8 @@ function seedDefaults(overrides?: {
   mockCatalogRepo.totalCopies.mockResolvedValue(overrides?.totalCopies ?? 42);
   mockCatalogRepo.markersList.mockResolvedValue([]);
   mockDistributionChannelsRepo.listForPrintingIds.mockResolvedValue([]);
-  mockCustomTagsRepo.assignmentsByCard.mockResolvedValue(new Map());
+  mockDistributionChannelsRepo.listAll.mockResolvedValue([]);
+  mockCustomTagsRepo.assignmentRows.mockResolvedValue([]);
 }
 
 // ---------------------------------------------------------------------------

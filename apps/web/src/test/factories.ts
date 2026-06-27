@@ -16,6 +16,7 @@ import type {
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import type { DeckCardShapeRow } from "@/lib/decks-offline";
 
 /** Empty trade preference (ADR-017). Useful for list/entry fixtures that don't exercise prefs. */
 export const EMPTY_TRADE_PREFERENCE: TradePreference = {
@@ -134,6 +135,22 @@ export function stubPriceLookup(
  * Creates a DeckBuilderCard stub for deck builder store tests.
  * @returns A DeckBuilderCard with overrides applied.
  */
+/**
+ * Creates a stub synced deck-card shape row (ADR-027 decks vertical).
+ * @returns A complete DeckCardShapeRow with overrides applied.
+ */
+export function stubDeckCardShapeRow(overrides: Partial<DeckCardShapeRow> = {}): DeckCardShapeRow {
+  return {
+    id: overrides.id ?? nextId(),
+    deck_id: "deck-1",
+    card_id: overrides.card_id ?? nextId(),
+    zone: "main" as DeckZone,
+    quantity: 1,
+    preferred_printing_id: null,
+    ...overrides,
+  };
+}
+
 export function stubDeckBuilderCard(overrides: Partial<DeckBuilderCard> = {}): DeckBuilderCard {
   return {
     cardId: overrides.cardId ?? nextId(),

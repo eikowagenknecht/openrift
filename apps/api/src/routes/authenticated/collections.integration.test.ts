@@ -300,7 +300,10 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const addedIds = new Set(added.items.map((c) => c.id));
 
       const res = await app.fetch(req("DELETE", `/collections/${secondCollectionId}`));
-      expect(res.status).toBe(204);
+      expect(res.status).toBe(200);
+      // Mutations carry the Postgres txid for Electric stream matching.
+      const deleted = (await res.json()) as { txid: number };
+      expect(deleted.txid).toEqual(expect.any(Number));
 
       // Both copies should now live in the inbox.
       const inboxCopiesRes = await app.fetch(req("GET", `/collections/${inboxId}/copies`));
@@ -336,11 +339,11 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const [copy] = ((await addRes.json()) as { items: { id: string }[] }).items;
 
       const disposeRes = await app.fetch(req("POST", "/copies/dispose", { copyIds: [copy.id] }));
-      expect(disposeRes.status).toBe(204);
+      expect(disposeRes.status).toBe(200);
 
       // Collection is now empty but has a 'removed' event referencing it.
       const res = await app.fetch(req("DELETE", `/collections/${historyCollectionId}`));
-      expect(res.status).toBe(204);
+      expect(res.status).toBe(200);
     });
 
     it("deletes a collection that has prior 'moved' events in its history", async () => {
@@ -364,13 +367,13 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const moveRes = await app.fetch(
         req("POST", "/copies/move", { copyIds: [copy.id], toCollectionId: dstId }),
       );
-      expect(moveRes.status).toBe(204);
+      expect(moveRes.status).toBe(200);
 
       // Deleting either endpoint of the historical 'moved' event should work.
       const delSrcRes = await app.fetch(req("DELETE", `/collections/${srcId}`));
-      expect(delSrcRes.status).toBe(204);
+      expect(delSrcRes.status).toBe(200);
       const delDstRes = await app.fetch(req("DELETE", `/collections/${dstId}`));
-      expect(delDstRes.status).toBe(204);
+      expect(delDstRes.status).toBe(200);
     });
 
     it("returns 404 when deleting non-existent collection", async () => {

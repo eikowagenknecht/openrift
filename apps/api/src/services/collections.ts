@@ -12,14 +12,17 @@ interface DeleteCollectionOpts {
 /**
  * Deletes a collection, atomically relocating its copies to the target
  * collection and logging move events.
+ *
+ * @returns The deletion's Postgres transaction id for Electric stream
+ *   matching (ADR-027 step 2).
  */
-export async function deleteCollection(
+export function deleteCollection(
   transact: Transact,
   opts: DeleteCollectionOpts,
-): Promise<void> {
+): Promise<{ txid: number }> {
   const { collectionId, collectionName, moveCopiesTo, targetName, userId } = opts;
 
-  await transact(async (trxRepos) => {
+  return transact(async (trxRepos) => {
     const copies = await trxRepos.collections.listCopiesInCollection(collectionId);
 
     if (copies.length > 0) {
@@ -44,5 +47,7 @@ export async function deleteCollection(
     // constraint allows rows with a name snapshot but no collection id, so
     // historical events stay readable as "moved from <deleted collection>".
     await trxRepos.collections.deleteByIdForUser(collectionId, userId);
+
+    return { txid: await trxRepos.sync.currentTransactionId() };
   });
 }

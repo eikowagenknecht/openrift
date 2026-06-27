@@ -117,6 +117,22 @@ export function customTagsRepo(db: Kysely<Database>) {
       await db.deleteFrom("customTags").where("id", "=", id).execute();
     },
 
+    /**
+     * Flat assignment rows (`{ cardId, slug }`) for every card-custom-tag link.
+     * The catalog route hands these straight to the shared assembly's
+     * `buildCustomTagAssignments`, which does the per-card grouping + sorting —
+     * one grouping implementation shared with the synced client.
+     *
+     * @returns One row per (card, custom-tag) assignment.
+     */
+    assignmentRows(): Promise<{ cardId: string; slug: string }[]> {
+      return db
+        .selectFrom("cardCustomTags as cct")
+        .innerJoin("customTags as ct", "ct.id", "cct.customTagId")
+        .select(["cct.cardId", "ct.slug"])
+        .execute();
+    },
+
     /** @returns Map of card id → array of custom-tag slugs (sorted). */
     async assignmentsByCard(): Promise<Map<string, string[]>> {
       const rows = await db

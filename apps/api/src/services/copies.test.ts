@@ -70,6 +70,11 @@ function createMockRepos(overrides: {
       filterReservedCopyIds: (copyIds: readonly string[]) =>
         Promise.resolve((overrides.reservedCopies ?? []).filter((id) => copyIds.includes(id))),
     },
+    // Every mutation captures the transaction id for Electric stream
+    // matching (ADR-027 step 2); a fixed value keeps assertions simple.
+    sync: {
+      currentTransactionId: () => Promise.resolve(4242),
+    },
   } as unknown as Repos;
 
   return repos;
@@ -89,11 +94,12 @@ describe("addCopies", () => {
 
     const result = await addCopies(repos, transact, "user-1", [{ printingId: "p-1" }]);
 
-    expect(result).toHaveLength(1);
-    expect(result[0].id).toBe("copy-1");
-    expect(result[0].collectionId).toBe("inbox-id");
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].id).toBe("copy-1");
+    expect(result.items[0].collectionId).toBe("inbox-id");
     // Personal collection (inbox) → groupId null
-    expect(result[0].groupId).toBeNull();
+    expect(result.items[0].groupId).toBeNull();
+    expect(result.txid).toBe(4242);
   });
 
   it("populates groupId from a group-owned collection", async () => {
@@ -108,7 +114,7 @@ describe("addCopies", () => {
       { printingId: "p-1", collectionId: "group-col" },
     ]);
 
-    expect(result[0].groupId).toBe("grp-9");
+    expect(result.items[0].groupId).toBe("grp-9");
   });
 
   it("validates that explicit collections belong to the user", async () => {
@@ -138,7 +144,7 @@ describe("addCopies", () => {
       { printingId: "p-1", collectionId: "col-1" },
     ]);
 
-    expect(result[0].collectionId).toBe("col-1");
+    expect(result.items[0].collectionId).toBe("col-1");
   });
 
   it("completes the full flow including event logging", async () => {
@@ -149,7 +155,7 @@ describe("addCopies", () => {
     const transact = mockTransact(repos);
 
     const result = await addCopies(repos, transact, "user-1", [{ printingId: "p-1" }]);
-    expect(result).toHaveLength(1);
+    expect(result.items).toHaveLength(1);
   });
 });
 
@@ -190,7 +196,8 @@ describe("moveCopies", () => {
     });
     const transact = mockTransact(repos);
 
-    await moveCopies(repos, transact, "user-1", ["copy-1"], "col-2");
+    const result = await moveCopies(repos, transact, "user-1", ["copy-1"], "col-2");
+    expect(result.txid).toBe(4242);
   });
 });
 
@@ -228,7 +235,8 @@ describe("disposeCopies", () => {
     });
     const transact = mockTransact(repos);
 
-    await disposeCopies(transact, "user-1", ["copy-1"]);
+    const result = await disposeCopies(transact, "user-1", ["copy-1"]);
+    expect(result.txid).toBe(4242);
   });
 
   it("disposes multiple copies at once", async () => {
@@ -287,7 +295,7 @@ describe("addCopies — additional branches", () => {
       { printingId: "p-2", collectionId: "col-1" },
     ]);
 
-    expect(result).toHaveLength(2);
+    expect(result.items).toHaveLength(2);
   });
 
   it("uses inbox when no collectionId provided", async () => {
@@ -299,7 +307,7 @@ describe("addCopies — additional branches", () => {
 
     const result = await addCopies(repos, transact, "user-1", [{ printingId: "p-1" }]);
 
-    expect(result[0].collectionId).toBe("inbox-id");
+    expect(result.items[0].collectionId).toBe("inbox-id");
   });
 });
 

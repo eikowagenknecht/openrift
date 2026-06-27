@@ -22,6 +22,26 @@ export interface CollectionListResponse {
   items: CollectionResponse[];
 }
 
+/**
+ * Response body for collection create/update: the collection plus the
+ * Postgres transaction id (32-bit xid) of the write, as tagged on the
+ * Electric replication stream. The client awaits this txid on its synced
+ * collections shape to know when the optimistic row has round-tripped
+ * (ADR-027 step 2).
+ */
+export interface CollectionWriteResponse extends CollectionResponse {
+  txid: number;
+}
+
+/**
+ * Response body for collection mutations that previously returned 204
+ * (delete, reorder): just the Postgres transaction id of the change, so the
+ * client can await it on the Electric stream (ADR-027 step 2).
+ */
+export interface CollectionMutationResponse {
+  txid: number;
+}
+
 export interface PublicCollectionResponse {
   id: string;
   name: string;
@@ -88,6 +108,22 @@ export interface CopyResponse {
  */
 export interface CopyAddResponse {
   items: CopyResponse[];
+  /**
+   * Postgres transaction id (32-bit xid) of the insert, as tagged on the
+   * Electric replication stream. The client awaits this txid on its synced
+   * copies collection to know when the optimistic rows have round-tripped
+   * (ADR-027 step 2).
+   */
+  txid: number;
+}
+
+/**
+ * Response body for copy mutations that previously returned 204 (move,
+ * dispose): just the Postgres transaction id of the change, so the client can
+ * await it on the Electric stream (ADR-027 step 2).
+ */
+export interface CopyMutationResponse {
+  txid: number;
 }
 
 export interface CopyListMembershipEntry {

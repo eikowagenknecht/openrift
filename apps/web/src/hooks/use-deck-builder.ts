@@ -6,12 +6,13 @@ import type {
   Domain,
 } from "@openrift/shared";
 import { WellKnown, validateDeck } from "@openrift/shared";
-import { useLiveQuery } from "@tanstack/react-db";
-import type { Collection } from "@tanstack/react-db";
+import { eq, useLiveQuery } from "@tanstack/react-db";
 
+import { useCards } from "@/hooks/use-cards";
 import { useCustomTagAssignments } from "@/hooks/use-custom-tag-assignments";
 import { useDeckDetail } from "@/hooks/use-decks";
 import { useChampionIdentifierTags } from "@/hooks/use-enums";
+import { useDecksWriter, useSyncedDeckCards } from "@/lib/copies-collection";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import {
   COPY_LIMIT_ZONES,
@@ -20,12 +21,15 @@ import {
   RUNE_TARGET,
   toRuleEngineCard,
 } from "@/lib/deck-builder-card";
-import { useDeckDraftCollection } from "@/lib/deck-builder-collection";
+import { createDeckDraft, deckCardsFromShapeRows } from "@/lib/deck-builder-collection";
+import type { DeckDraft } from "@/lib/deck-builder-collection";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 
 const EMPTY_CARDS: DeckBuilderCard[] = [];
 
-type DeckCollection = Collection<DeckBuilderCard, string | number>;
+// The actions' read/write surface — the synced draft facade in app code, a
+// plain DeckBuilderCard collection in the unit tests (structurally identical).
+type DeckCollection = DeckDraft;
 
 function allCards(collection: DeckCollection): DeckBuilderCard[] {
   return [...collection.values()];
@@ -599,15 +603,30 @@ interface DeckBuilderActions {
 }
 
 export function useDeckBuilderActions(deckId: string): DeckBuilderActions {
-  const collection = useDeckDraftCollection(deckId);
+  const writer = useDecksWriter();
+  const { cardsById } = useCards();
   const runesByDomain = useDeckBuilderUiStore((state) => state.runesByDomain);
   const activeZone = useDeckBuilderUiStore((state) => state.activeZone);
   const { data: deckDetail } = useDeckDetail(deckId);
   const format = deckDetail.deck.format;
 
-  // Mid-sign-out the collection briefly goes null while React commits the
-  // unmount of this route. Make all actions no-ops in that window — by the
-  // next paint the user is on a public route and this hook is gone.
+  // The facade is stateless and cheap; the open debounce window it routes
+  // into lives module-level keyed by the executor, so recreating it per
+  // render never splits a save batch.
+  const collection = writer
+    ? createDeckDraft({
+        collection: writer.deckCards,
+        executor: writer.executor,
+        userId: writer.userId,
+        deckId,
+        cardsById,
+      })
+    : null;
+
+  // Mid-sign-out (and during the sub-100ms persistence init right after
+  // hydration) the writer is briefly null while React commits the unmount of
+  // this route. Make all actions no-ops in that window — by the next paint
+  // the user is on a public route and this hook is gone.
   if (!collection) {
     // oxlint-disable-next-line typescript/no-empty-function -- intentional no-op stand-ins while the collection is null
     const noop = (): void => {};
@@ -652,13 +671,33 @@ export function useDeckBuilderActions(deckId: string): DeckBuilderActions {
   };
 }
 
-export function useDeckCards(deckId: string): DeckBuilderCard[] {
-  const collection = useDeckDraftCollection(deckId);
-  const { data } = useLiveQuery(
-    (q) => (collection ? q.from({ card: collection }) : null),
-    [deckId, collection],
+function useDeckCardRows(deckId: string): {
+  cards: DeckBuilderCard[];
+  isReady: boolean;
+} {
+  const shape = useSyncedDeckCards();
+  const { cardsById } = useCards();
+  const { data, isReady } = useLiveQuery(
+    (q) => (shape ? q.from({ row: shape }).where(({ row }) => eq(row.deck_id, deckId)) : null),
+    [deckId, shape],
   );
-  return data ?? EMPTY_CARDS;
+  const cards = data && data.length > 0 ? deckCardsFromShapeRows(data, cardsById) : EMPTY_CARDS;
+  return { cards, isReady: shape !== null && isReady };
+}
+
+export function useDeckCards(deckId: string): DeckBuilderCard[] {
+  return useDeckCardRows(deckId).cards;
+}
+
+/**
+ * Whether the synced deck-cards shape has delivered its data for this
+ * session — the deck editor's mount gate, replacing the old
+ * hydrate-from-server-detail step.
+ *
+ * @returns true once the deck's synced cards are readable.
+ */
+export function useDeckCardsReady(deckId: string): boolean {
+  return useDeckCardRows(deckId).isReady;
 }
 
 export function useDeckViolations(

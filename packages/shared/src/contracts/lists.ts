@@ -11,7 +11,7 @@ import {
   currencySchema,
   idParamSchema,
   listEntryFieldRules,
-  listEntryInputShape,
+  listEntryTargetShape,
   oneListEntryTarget,
   tradePreferenceInputSchema,
   withParams,
@@ -57,6 +57,11 @@ export const listIntentQuerySchema = z.object({
  */
 export const createListSchema = z
   .object({
+    // Client-generated list id (ADR-027 step 2): the synced client mints the
+    // row's uuid so the optimistic row and the replicated row are the same row.
+    // Required — letting the server assign a fallback id would silently diverge
+    // the optimistic overlay from the row that comes back on the Electric stream.
+    id: z.uuid(),
     name: z.string().min(1).max(200),
     intent: listIntentSchema,
     kind: listKindSchema,
@@ -100,7 +105,11 @@ export const updateListEntrySchema = z.object({
 export const bulkCreateListEntriesSchema = z.object({
   entries: z
     .array(
-      z.object(listEntryInputShape).refine(oneListEntryTarget, {
+      // Bulk-add requires the entry id: the synced client mints it so the
+      // optimistic row and the replicated row are the same row, and a replayed
+      // insert is a no-op (the upsert skips a conflict row already carrying the
+      // same id).
+      z.object({ id: z.uuid(), ...listEntryTargetShape }).refine(oneListEntryTarget, {
         message: "Exactly one of cardId, printingId, or copyId must be provided",
       }),
     )
@@ -152,6 +161,25 @@ export const listListResponseSchema = z
   .object({ items: z.array(listResponseSchema) })
   .openapi("ListListResponse");
 
+/**
+ * Response body for list create/update: the list plus the Postgres transaction
+ * id of the write, so the client can await the change on the Electric stream
+ * (ADR-027 step 2). Additive — older clients read the list fields and ignore
+ * `txid`.
+ */
+export const listWriteResponseSchema = listResponseSchema
+  .extend({ txid: z.number().int() })
+  .openapi("ListWriteResponse");
+
+/**
+ * Response body for list mutations that previously returned 204 (delete,
+ * reorder, entry delete, bulk entry delete): the Postgres transaction id of the
+ * change, so the client can await it on the Electric stream (ADR-027 step 2).
+ */
+export const listMutationResponseSchema = z
+  .object({ txid: z.number().int() })
+  .openapi("ListMutationResponse");
+
 export const listEntryResponseSchema = z
   .discriminatedUnion("kind", [
     z.object({ ...listEntryBaseShape, kind: z.literal("card"), cardId: z.string() }),
@@ -159,6 +187,34 @@ export const listEntryResponseSchema = z
     z.object({ ...listEntryBaseShape, kind: z.literal("copy"), copyId: z.string() }),
   ])
   .openapi("ListEntryResponse");
+
+/**
+ * Entry create/update response: the entry plus the Postgres transaction id of
+ * the write (ADR-027 step 2). A separate union (rather than `.extend`) because
+ * zod discriminated unions cannot be extended in place.
+ */
+export const listEntryWriteResponseSchema = z
+  .discriminatedUnion("kind", [
+    z.object({
+      ...listEntryBaseShape,
+      kind: z.literal("card"),
+      cardId: z.string(),
+      txid: z.number().int(),
+    }),
+    z.object({
+      ...listEntryBaseShape,
+      kind: z.literal("printing"),
+      printingId: z.string(),
+      txid: z.number().int(),
+    }),
+    z.object({
+      ...listEntryBaseShape,
+      kind: z.literal("copy"),
+      copyId: z.string(),
+      txid: z.number().int(),
+    }),
+  ])
+  .openapi("ListEntryWriteResponse");
 
 export const listDetailResponseSchema = z
   .object({
@@ -181,6 +237,14 @@ export const listBulkAddResponseSchema = z
     skipped: z.number().int().nonnegative(),
   })
   .openapi("ListBulkAddResponse");
+
+/**
+ * Bulk-add response with the Postgres transaction id of the upsert, so the
+ * synced client can await the change on the Electric stream (ADR-027 step 2).
+ */
+export const listBulkAddWriteResponseSchema = listBulkAddResponseSchema
+  .extend({ txid: z.number().int() })
+  .openapi("ListBulkAddWriteResponse");
 
 export const listMoveResponseSchema = z
   .object({
@@ -224,7 +288,8 @@ export const listsContract = {
   create: authedRoute
     .route({ method: "POST", path: "/api/v1/lists", tags: [TAG], successStatus: 201 })
     .input(createListSchema)
-    .output(listResponseSchema),
+    .errors({ CONFLICT: { message: "List already exists" } })
+    .output(listWriteResponseSchema),
   get: authedRoute
     .route({ method: "GET", path: "/api/v1/lists/{id}", tags: [TAG] })
     .input(idParamSchema)
@@ -237,20 +302,25 @@ export const listsContract = {
       NOT_FOUND: { message: "List not found" },
       BAD_REQUEST: { message: "No fields to update" },
     })
-    .output(listResponseSchema),
+    .output(listWriteResponseSchema),
   remove: authedRoute
-    .route({ method: "DELETE", path: "/api/v1/lists/{id}", tags: [TAG], successStatus: 204 })
+    .route({ method: "DELETE", path: "/api/v1/lists/{id}", tags: [TAG] })
     .errors({ NOT_FOUND: { message: "List not found" } })
-    .input(idParamSchema),
+    .input(idParamSchema)
+    .output(listMutationResponseSchema),
+  // Single-add: `{id}` is the list (path param); the entry id is generated
+  // server-side. The body carries only the shared target fields — no entry id,
+  // so it can't collide with the list path param. The synced client adds via
+  // `bulkCreateEntries`, which requires a client-minted per-entry id.
   createEntry: authedRoute
     .route({ method: "POST", path: "/api/v1/lists/{id}/entries", tags: [TAG], successStatus: 201 })
-    .input(withParams(idParamSchema, listEntryInputShape))
+    .input(withParams(idParamSchema, listEntryTargetShape))
     .errors({
       NOT_FOUND: { message: "List or copy not found" },
       BAD_REQUEST: { message: "Entry target does not match list kind" },
       CONFLICT: { message: "That item is already in the list" },
     })
-    .output(listEntryResponseSchema),
+    .output(listEntryWriteResponseSchema),
   bulkCreateEntries: authedRoute
     .route({ method: "POST", path: "/api/v1/lists/{id}/entries/bulk", tags: [TAG] })
     .input(withParams(idParamSchema, bulkCreateListEntriesSchema))
@@ -258,7 +328,7 @@ export const listsContract = {
       NOT_FOUND: { message: "List not found" },
       BAD_REQUEST: { message: "Entry target does not match list kind" },
     })
-    .output(listBulkAddResponseSchema),
+    .output(listBulkAddWriteResponseSchema),
   bulkAddFromCopies: authedRoute
     .route({ method: "POST", path: "/api/v1/lists/{id}/entries/from-copies", tags: [TAG] })
     .input(withParams(idParamSchema, bulkAddCopiesToListSchema))
@@ -279,25 +349,25 @@ export const listsContract = {
       NOT_FOUND: { message: "Entry not found" },
       BAD_REQUEST: { message: "No fields to update" },
     })
-    .output(listEntryResponseSchema),
+    .output(listEntryWriteResponseSchema),
   removeEntry: authedRoute
     .route({
       method: "DELETE",
       path: "/api/v1/lists/{id}/entries/{itemId}",
       tags: [TAG],
-      successStatus: 204,
     })
     .errors({ NOT_FOUND: { message: "Entry not found" } })
-    .input(idAndItemIdParamSchema),
+    .input(idAndItemIdParamSchema)
+    .output(listMutationResponseSchema),
   bulkDeleteEntries: authedRoute
     .route({
       method: "POST",
       path: "/api/v1/lists/{id}/entries/bulk-delete",
       tags: [TAG],
-      successStatus: 204,
     })
     .errors({ NOT_FOUND: { message: "List not found" } })
-    .input(withParams(idParamSchema, bulkDeleteListEntriesSchema)),
+    .input(withParams(idParamSchema, bulkDeleteListEntriesSchema))
+    .output(listMutationResponseSchema),
   getShare: authedRoute
     .route({ method: "GET", path: "/api/v1/lists/{id}/share", tags: [TAG] })
     .input(idParamSchema)
@@ -318,8 +388,9 @@ export const listsContract = {
     .errors({ NOT_FOUND: { message: "List not found" } })
     .input(idParamSchema),
   reorder: authedRoute
-    .route({ method: "POST", path: "/api/v1/lists/reorder", tags: [TAG], successStatus: 204 })
-    .input(reorderListsSchema),
+    .route({ method: "POST", path: "/api/v1/lists/reorder", tags: [TAG] })
+    .input(reorderListsSchema)
+    .output(listMutationResponseSchema),
   groupShares: authedRoute
     .route({ method: "GET", path: "/api/v1/lists/{id}/group-shares", tags: [TAG] })
     .input(idParamSchema)

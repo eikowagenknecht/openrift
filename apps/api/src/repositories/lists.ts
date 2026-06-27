@@ -74,6 +74,7 @@ export type ListEntryRow =
  */
 export type NewEntryValues = Pick<
   Insertable<ListEntriesTable>,
+  | "id"
   | "listId"
   | "userId"
   | "kind"
@@ -90,6 +91,7 @@ export type NewEntryValues = Pick<
 /** Insert payload for `create`. `kind` is required and immutable post-creation. */
 export type NewListValues = Pick<
   Insertable<ListsTable>,
+  | "id"
   | "userId"
   | "name"
   | "intent"
@@ -459,9 +461,18 @@ export function listsRepo(db: Kysely<Database>) {
             .where(targetColumn, "is not", null);
           return kind === "copy"
             ? conflictTarget.doNothing()
-            : conflictTarget.doUpdateSet({
-                quantity: sql<number>`list_entries.quantity + excluded.quantity`,
-              });
+            : conflictTarget
+                .doUpdateSet({
+                  quantity: sql<number>`list_entries.quantity + excluded.quantity`,
+                })
+                // Replay guard (ADR-027): when the client supplies entry ids,
+                // a retried insert whose first attempt landed conflicts with
+                // its OWN row — same id — and must not double-bump the
+                // quantity. A genuine merge conflicts with a row that has a
+                // different id, so the bump still applies. Rows without a
+                // client id get a fresh default uuid that never matches, so
+                // legacy callers keep the old merge semantics.
+                .where(sql<boolean>`list_entries.id is distinct from excluded.id`);
         })
         .returning(sql<boolean>`(xmax = 0)`.as("inserted"))
         .execute();

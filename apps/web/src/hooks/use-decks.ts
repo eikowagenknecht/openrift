@@ -1,5 +1,5 @@
 import type {
-  DeckCardResponse,
+  DeckCardsWriteResponse,
   DeckCloneResponse,
   DeckDetailResponse,
   DeckExportResponse,
@@ -133,7 +133,7 @@ export function useDeleteDeck() {
   });
 }
 
-export const saveDeckCardsFn = createServerFn({ method: "POST" })
+const saveDeckCardsFn = createServerFn({ method: "POST" })
   .validator(
     (input: {
       deckId: string;
@@ -147,7 +147,7 @@ export const saveDeckCardsFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(
-    ({ context, data }): Promise<{ cards: DeckCardResponse[] }> =>
+    ({ context, data }): Promise<DeckCardsWriteResponse> =>
       apiOrpcClient(decksContract, context.cookie).replaceCards({
         id: data.deckId,
         cards: data.cards,
@@ -170,7 +170,7 @@ export function useSaveDeckCards() {
         quantity: number;
         preferredPrintingId: string | null;
       }[];
-    }): Promise<{ cards: DeckCardResponse[] }> => saveDeckCardsFn({ data: { deckId, cards } }),
+    }): Promise<DeckCardsWriteResponse> => saveDeckCardsFn({ data: { deckId, cards } }),
     onSuccess: (data, variables) => {
       // Update deck detail cache with the returned cards
       queryClient.setQueryData<DeckDetailResponse>(

@@ -1,6 +1,6 @@
 import type { DeckZone } from "@openrift/shared";
 import { imageUrl, WellKnown } from "@openrift/shared";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
   ClipboardListIcon,
@@ -69,7 +69,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useFilterActions } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
-import { useDeckCards } from "@/hooks/use-deck-builder";
+import { useDeckCards, useDeckCardsReady } from "@/hooks/use-deck-builder";
 import { useDeckItems } from "@/hooks/use-deck-items";
 import { useDeckOwnership } from "@/hooks/use-deck-ownership";
 import { deckPlanQueryOptions } from "@/hooks/use-deck-plan";
@@ -80,8 +80,7 @@ import { useDeckBuildingCounts } from "@/hooks/use-owned-count";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useRequiredUserId, useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
-import { toDeckBuilderCard } from "@/lib/deck-builder-card";
-import { hydrateDeckDraft, useDeckSaveStatus } from "@/lib/deck-builder-collection";
+import { useDeckSaveStatus } from "@/lib/deck-builder-collection";
 import { isPlanDraftEmpty, planResponseToDraft } from "@/lib/deck-plan";
 import { ZONE_LABELS } from "@/lib/deck-zone-labels";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
@@ -134,15 +133,14 @@ function DeckEditorContent({
   deckId: string;
   topBarSlot: HTMLDivElement | null;
 }) {
-  const queryClient = useQueryClient();
-  const userId = useRequiredUserId();
   const navigate = useNavigate();
+  const userId = useRequiredUserId();
   const { data } = useDeckDetail(deckId);
-  const { cardsById, allPrintings } = useCards();
+  const { allPrintings } = useCards();
   const { getPreferredPrinting } = usePreferredPrinting();
-  const [hydratedId, setHydratedId] = useState<string | null>(null);
+  const deckCardsReady = useDeckCardsReady(deckId);
   const deckCards = useDeckCards(deckId);
-  const saveStatus = useDeckSaveStatus(queryClient, userId, deckId);
+  const saveStatus = useDeckSaveStatus(deckId);
   const { isMobile, setOpenMobile, toggleSidebar } = useSidebar();
   const activeZone = useDeckBuilderUiStore((state) => state.activeZone);
   const setActiveZone = useDeckBuilderUiStore((state) => state.setActiveZone);
@@ -216,26 +214,15 @@ function DeckEditorContent({
     setRunesByDomain(buildRunesByDomain(allPrintings));
   }, [allPrintings, setRunesByDomain]);
 
-  // Seed the draft from the server's deck detail when the deck id changes or
-  // when a fresh load arrives. The collection's save handler is auto-wired —
-  // any user edit after this debounces a PUT back to the server.
-  useEffect(() => {
-    if (data && hydratedId !== deckId) {
-      const builderCards = data.cards
-        .map((card) => toDeckBuilderCard(card, cardsById))
-        .filter((card): card is DeckBuilderCard => card !== null);
-      hydrateDeckDraft(queryClient, userId, deckId, builderCards);
-      setHydratedId(deckId);
-    }
-  }, [data, deckId, hydratedId, queryClient, userId, cardsById]);
+  // No hydrate step: the deck's cards come from the synced deck-cards shape
+  // (ADR-027), which is its own source of truth — the editor below just
+  // waits for `deckCardsReady` before mounting.
 
   // On unmount, reset UI scalars (active zone, runes catalog) so the next
-  // deck load starts clean. The draft collection itself is intentionally
-  // left alone: it stays cached per user so re-entering the same deck after
-  // a brief navigation away skips re-hydration. On a user change the cache
-  // is evicted and `cleanupWhenIdle` tears it down reactively. Any
-  // debounced / in-flight save also keeps running so edits made right
-  // before navigating away still persist.
+  // deck load starts clean. The synced collection itself is left alone —
+  // it stays current via the Electric stream. Any debounced / in-flight
+  // save also keeps running (the window lives module-level) so edits made
+  // right before navigating away still persist.
   useEffect(
     () => () => {
       resetUi();
@@ -437,7 +424,7 @@ function DeckEditorContent({
     .reduce((sum, card) => sum + card.quantity, 0);
   const totalCards = deckCards.reduce((sum, card) => sum + card.quantity, 0);
 
-  if (hydratedId !== deckId) {
+  if (!deckCardsReady) {
     return null;
   }
 
@@ -470,7 +457,7 @@ function DeckEditorContent({
                 <DeckExportDialog
                   deckId={deckId}
                   deckName={data.deck.name}
-                  isDirty={saveStatus.isDirty}
+                  isDirty={saveStatus.isDirty || saveStatus.isSaving}
                 />
                 <ProxyExportDialog deckId={deckId} deckName={data.deck.name} />
               </div>
@@ -565,7 +552,7 @@ function DeckEditorContent({
       <DeckExportDialog
         deckId={deckId}
         deckName={data.deck.name}
-        isDirty={saveStatus.isDirty}
+        isDirty={saveStatus.isDirty || saveStatus.isSaving}
         open={exportOpen}
         onOpenChange={setExportOpen}
       />

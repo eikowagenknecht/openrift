@@ -1,10 +1,11 @@
-import type { CopyResponse } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
+
+import type { CopyViewRow } from "@/lib/copies-collection";
 
 import { decideRemoval, pickNewestCopy } from "./use-quick-add-actions-helpers";
 
-function copy(id: string, printingId: string, collectionId: string): CopyResponse {
-  return { id, printingId, collectionId, groupId: null };
+function copy(id: string, printingId: string, collectionId: string, synced = true): CopyViewRow {
+  return { id, printingId, collectionId, groupId: null, synced };
 }
 
 describe("pickNewestCopy", () => {
@@ -88,14 +89,14 @@ describe("decideRemoval", () => {
     });
   });
 
-  // Regression: an optimistic temp row (id `temp-<uuid>`) for an in-flight
-  // add must not be picked by the minus button — dispose would 400 on the
-  // API (invalid uuid) or race the add-success swap. See Sentry
-  // OPENRIFT-SSR-R.
-  it("excludes optimistic temp rows when picking the newest", () => {
+  // Regression: an optimistic row whose add hasn't round-tripped yet
+  // (synced: false) must not be picked by the minus button — dispose would
+  // 404 on the API (the server doesn't know the id yet) or race the
+  // in-flight add. Successor of the old temp-id guard (Sentry OPENRIFT-SSR-R).
+  it("excludes unsynced optimistic rows when picking the newest", () => {
     const copies = [
       copy("01900000-0000-7000-8000-000000000001", "pr-1", "col-1"),
-      copy("temp-99999999-0000-0000-0000-000000000099", "pr-1", "col-1"),
+      copy("01900000-0000-7000-8000-000000000099", "pr-1", "col-1", false),
     ];
     expect(decideRemoval(copies, "pr-1")).toEqual({
       kind: "dispose",
@@ -103,17 +104,18 @@ describe("decideRemoval", () => {
     });
   });
 
-  it("returns 'none' when only a temp row matches the printing", () => {
-    const copies = [copy("temp-99999999-0000-0000-0000-000000000099", "pr-1", "col-1")];
+  it("returns 'none' when only an unsynced row matches the printing", () => {
+    const copies = [copy("01900000-0000-7000-8000-000000000099", "pr-1", "col-1", false)];
     expect(decideRemoval(copies, "pr-1")).toEqual({ kind: "none" });
   });
 
-  it("does not open the picker on a multi-collection spread that's only real on one side", () => {
-    // Real copy in col-A, temp-only in col-B → after filtering, only col-A
-    // is in play, so this disposes from col-A rather than opening the picker.
+  it("does not open the picker on a multi-collection spread that's only synced on one side", () => {
+    // Synced copy in col-A, unsynced-only in col-B → after filtering, only
+    // col-A is in play, so this disposes from col-A rather than opening the
+    // picker.
     const copies = [
       copy("01900000-0000-7000-8000-000000000010", "pr-1", "col-A"),
-      copy("temp-22222222-0000-0000-0000-000000000022", "pr-1", "col-B"),
+      copy("01900000-0000-7000-8000-000000000022", "pr-1", "col-B", false),
     ];
     expect(decideRemoval(copies, "pr-1")).toEqual({
       kind: "dispose",

@@ -67,6 +67,8 @@ import {
 } from "@/hooks/use-friend-groups";
 import { signOut } from "@/lib/auth-client";
 import { sessionQueryOptions, useSession } from "@/lib/auth-session";
+import { releaseCopiesCollection } from "@/lib/copies-collection";
+import { wipePersistedData } from "@/lib/db-persistence";
 import { useGravatarHash } from "@/lib/gravatar";
 import { SOCIAL_LINKS } from "@/lib/social-links";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
@@ -312,6 +314,11 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
     // once those components are gone.
     await router.navigate({ to: "/cards", search: {} });
     void queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
+    // The locally persisted copies belong to the account that just signed
+    // out — stop the collection's machinery and delete the rows from the
+    // on-device SQLite cache so they don't stay readable on a shared machine.
+    releaseCopiesCollection(queryClient);
+    void wipePersistedData();
   };
 
   return (

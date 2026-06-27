@@ -4,11 +4,33 @@ import { createMockDb } from "../test/mock-db.js";
 import { marketplaceRepo } from "./marketplace.js";
 
 describe("marketplaceRepo", () => {
-  it("latestPrices returns price rows", async () => {
+  it("latestPrices returns price rows from latest_printing_prices", async () => {
     const rows = [{ printingId: "p1", marketplace: "tcgplayer", marketCents: 1500 }];
     const db = createMockDb(rows);
     const repo = marketplaceRepo(db);
     expect(await repo.latestPrices()).toEqual(rows);
+  });
+
+  it("latestPricesForPrintings short-circuits on empty input", async () => {
+    const db = createMockDb([]);
+    const repo = marketplaceRepo(db);
+    expect(await repo.latestPricesForPrintings([])).toEqual([]);
+  });
+
+  it("latestPricesForPrintings returns filtered rows", async () => {
+    const rows = [{ printingId: "p1", marketplace: "cardmarket", marketCents: 900 }];
+    const db = createMockDb(rows);
+    const repo = marketplaceRepo(db);
+    expect(await repo.latestPricesForPrintings(["p1"])).toEqual(rows);
+  });
+
+  it("refreshLatestPrices runs the upsert + delete maintenance transaction", async () => {
+    // The maintain-table op replaced the old MV refresh; it runs an upsert and a
+    // stale-key delete inside one transaction. The mock resolves both raw SQL
+    // statements, so this exercises the code path end to end without a database.
+    const db = createMockDb([]);
+    const repo = marketplaceRepo(db);
+    await expect(repo.refreshLatestPrices()).resolves.toBeUndefined();
   });
 
   it("sourcesForPrinting returns product sources", async () => {

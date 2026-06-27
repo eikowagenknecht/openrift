@@ -1,14 +1,16 @@
 import { ERROR_CODES } from "@openrift/shared";
 import type {
   ListBulkAddResponse,
+  ListBulkAddWriteResponse,
   ListDetailResponse,
-  ListEntryResponse,
+  ListEntryWriteResponse,
   ListGroupSharesResponse,
   ListKind,
   ListListResponse,
   ListMoveResponse,
-  ListResponse,
+  ListMutationResponse,
   ListShareResponse,
+  ListWriteResponse,
 } from "@openrift/shared";
 import { listsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
@@ -37,27 +39,44 @@ export const listsRouter = {
   }),
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
-  create: os.create.handler(async ({ input, context }): Promise<ListResponse> => {
-    const { lists } = context.repos;
+  create: os.create.handler(async ({ input, context, errors }): Promise<ListWriteResponse> => {
+    const { transact } = context;
     const userId = context.userId;
     // ADR-017: trade defaults only apply to wish/trade lists. The DB CHECK
     // constraint rejects non-null prefs on organize lists; we strip here so
     // the API never round-trips a 500.
     const supportsPrefs = input.intent !== "organize";
     const tradeDefaults = supportsPrefs ? input.tradeDefaults : undefined;
-    const row = await lists.create({
-      userId,
-      name: input.name,
-      intent: input.intent,
-      kind: input.kind,
-      defaultPricePref: tradeDefaults?.pricePref ?? null,
-      defaultPriceAbsoluteCents: tradeDefaults?.priceAbsoluteCents ?? null,
-      defaultTradeType: tradeDefaults?.tradeType ?? null,
-      currency: supportsPrefs ? (input.currency ?? null) : null,
-    });
-    // Group visibility is opt-in (ADR-013): a new list is private and the owner
-    // shares it with specific groups from the create dialog or the manage page.
-    return toList(row);
+    // One transaction so the insert carries the txid the client awaits on the
+    // Electric stream (ADR-027 step 2). Group visibility is opt-in (ADR-013): a
+    // new list is private and the owner shares it with specific groups from the
+    // create dialog or the manage page.
+    let created;
+    try {
+      created = await transact(async (trxRepos) => {
+        const row = await trxRepos.lists.create({
+          id: input.id,
+          userId,
+          name: input.name,
+          intent: input.intent,
+          kind: input.kind,
+          defaultPricePref: tradeDefaults?.pricePref ?? null,
+          defaultPriceAbsoluteCents: tradeDefaults?.priceAbsoluteCents ?? null,
+          defaultTradeType: tradeDefaults?.tradeType ?? null,
+          currency: supportsPrefs ? (input.currency ?? null) : null,
+        });
+        return { row, txid: await trxRepos.sync.currentTransactionId() };
+      });
+    } catch (error) {
+      // 23505 = unique_violation: a client-supplied list id already exists
+      // (e.g. a retried request whose first attempt did land). Report a clean
+      // conflict the client can treat as "already applied".
+      if (error instanceof Error && "code" in error && error.code === "23505") {
+        throw errors.CONFLICT({ message: "List already exists" });
+      }
+      throw error;
+    }
+    return { ...toList(created.row), txid: created.txid };
   }),
 
   // ── GET ONE (with enriched entries) ─────────────────────────────────────────
@@ -77,7 +96,7 @@ export const listsRouter = {
   }),
 
   // ── UPDATE (name + trade prefs; intent/kind immutable post-creation) ───────
-  update: os.update.handler(async ({ input, context }): Promise<ListResponse> => {
+  update: os.update.handler(async ({ input, context }): Promise<ListWriteResponse> => {
     const { lists } = context.repos;
     const userId = context.userId;
 
@@ -107,63 +126,85 @@ export const listsRouter = {
     if (Object.keys(updates).length === 0) {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "No fields to update");
     }
-    const row = await lists.update(input.id, userId, updates);
+    // Transaction-bound so the txid the client awaits on the Electric stream
+    // is the update's own transaction (ADR-027 step 2).
+    const { row, txid } = await context.transact(async (trxRepos) => ({
+      row: await trxRepos.lists.update(input.id, userId, updates),
+      txid: await trxRepos.sync.currentTransactionId(),
+    }));
     assertFound(row, "Not found");
-    return toList(row);
+    return { ...toList(row), txid };
   }),
 
   // ── DELETE ──────────────────────────────────────────────────────────────────
-  remove: os.remove.handler(async ({ input, context }): Promise<void> => {
-    const { lists } = context.repos;
-    const result = await lists.deleteByIdForUser(input.id, context.userId);
+  remove: os.remove.handler(async ({ input, context }): Promise<ListMutationResponse> => {
+    const userId = context.userId;
+    // Transaction-bound so the txid the client awaits on the Electric stream
+    // is the deletion's own transaction (ADR-027 step 2).
+    const { result, txid } = await context.transact(async (trxRepos) => ({
+      result: await trxRepos.lists.deleteByIdForUser(input.id, userId),
+      txid: await trxRepos.sync.currentTransactionId(),
+    }));
     assertDeleted(result, "Not found");
+    return { txid };
   }),
 
   // ── POST /lists/:id/entries ───────────────────────────────────────────────
-  createEntry: os.createEntry.handler(async ({ input, context }): Promise<ListEntryResponse> => {
-    const { lists, copies } = context.repos;
-    const userId = context.userId;
-    const listId = input.id;
+  // Single-add path: the entry id is server-generated (the synced client adds
+  // through `bulkCreateEntries`), so the contract input drops the optional
+  // client-supplied entry id, which would otherwise collide with the `{id}`
+  // list path param.
+  createEntry: os.createEntry.handler(
+    async ({ input, context, errors }): Promise<ListEntryWriteResponse> => {
+      const { lists, copies } = context.repos;
+      const userId = context.userId;
+      const listId = input.id;
 
-    const list = await lists.getIdKindIntent(listId, userId);
-    assertFound(list, "List not found");
+      const list = await lists.getIdKindIntent(listId, userId);
+      assertFound(list, "List not found");
 
-    // Trade/wish lists may only reference copies the user personally owns — a
-    // card you merely have group access to isn't yours to trade away or wish
-    // for. Organize lists may reference shared group copies too.
-    const personalOnly = list.intent !== "organize";
-    const target = await resolveEntryTarget(list.kind, input, userId, copies, personalOnly);
+      // Trade/wish lists may only reference copies the user personally owns — a
+      // card you merely have group access to isn't yours to trade away or wish
+      // for. Organize lists may reference shared group copies too.
+      const personalOnly = list.intent !== "organize";
+      const target = await resolveEntryTarget(list.kind, input, userId, copies, personalOnly);
 
-    let row;
-    try {
-      row = await lists.createEntry({
-        listId,
-        userId,
-        kind: list.kind,
-        cardId: target.cardId,
-        printingId: target.printingId,
-        copyId: target.copyId,
-        quantity: input.quantity,
-        pricePref: input.tradeOverride.pricePref,
-        priceAbsoluteCents: input.tradeOverride.priceAbsoluteCents,
-        tradeType: input.tradeOverride.tradeType,
-      });
-    } catch (error) {
-      // 23505 = unique_violation: this exact target is already in the list. The
-      // bulk endpoint merges duplicates; the single-add path reports a clean 409
-      // instead of letting the partial unique index throw a 500.
-      if (error instanceof Error && "code" in error && error.code === "23505") {
-        throw new AppError(409, ERROR_CODES.CONFLICT, "That item is already in the list");
+      // Transaction-bound so the txid the client awaits on the Electric stream
+      // is the insert's own transaction (ADR-027 step 2).
+      let created;
+      try {
+        created = await context.transact(async (trxRepos) => ({
+          row: await trxRepos.lists.createEntry({
+            listId,
+            userId,
+            kind: list.kind,
+            cardId: target.cardId,
+            printingId: target.printingId,
+            copyId: target.copyId,
+            quantity: input.quantity,
+            pricePref: input.tradeOverride.pricePref,
+            priceAbsoluteCents: input.tradeOverride.priceAbsoluteCents,
+            tradeType: input.tradeOverride.tradeType,
+          }),
+          txid: await trxRepos.sync.currentTransactionId(),
+        }));
+      } catch (error) {
+        // 23505 = unique_violation: this exact target is already in the list.
+        // The bulk endpoint merges duplicates; the single-add path reports a
+        // clean 409 instead of letting the partial unique index throw a 500.
+        if (error instanceof Error && "code" in error && error.code === "23505") {
+          throw errors.CONFLICT({ message: "That item is already in the list" });
+        }
+        throw error;
       }
-      throw error;
-    }
 
-    return toListEntry(row);
-  }),
+      return { ...toListEntry(created.row), txid: created.txid };
+    },
+  ),
 
   // ── POST /lists/:id/entries/bulk ──────────────────────────────────────────
   bulkCreateEntries: os.bulkCreateEntries.handler(
-    async ({ input, context }): Promise<ListBulkAddResponse> => {
+    async ({ input, context }): Promise<ListBulkAddWriteResponse> => {
       const { lists, copies } = context.repos;
       const userId = context.userId;
       const listId = input.id;
@@ -208,6 +249,7 @@ export const listsRouter = {
       }
 
       const usable: NewEntryValues[] = usableEntries.map((entry) => ({
+        id: entry.id,
         listId,
         userId,
         kind: list.kind,
@@ -220,16 +262,23 @@ export const listsRouter = {
         tradeType: entry.tradeOverride.tradeType,
       }));
 
-      const result = await lists.bulkCreateEntries(list.kind, usable);
+      // Transaction-bound so the txid the client awaits on the Electric stream
+      // is the upsert's own transaction (ADR-027 step 2).
+      const { result, txid } = await context.transact(async (trxRepos) => ({
+        result: await trxRepos.lists.bulkCreateEntries(list.kind, usable),
+        txid: await trxRepos.sync.currentTransactionId(),
+      }));
 
-      // `skipped` captures both the ownership filter (copy-kind only) and any
-      // copy-kind dupes that took the DO NOTHING branch. Card/printing-kind
-      // dupes merge into existing rows via quantity bump and surface as
-      // `updated`, not `skipped`.
+      // `skipped` captures the ownership filter (copy-kind only), any copy-kind
+      // dupes that took the DO NOTHING branch, and replayed inserts the id
+      // guard in bulkCreateEntries turned into no-ops. Card/printing-kind dupes
+      // merge into existing rows via quantity bump and surface as `updated`,
+      // not `skipped`.
       return {
         added: result.inserted,
         updated: result.updated,
         skipped: entries.length - result.inserted - result.updated,
+        txid,
       };
     },
   ),
@@ -279,36 +328,46 @@ export const listsRouter = {
   }),
 
   // ── PATCH /lists/:id/entries/:itemId ──────────────────────────────────────
-  updateEntry: os.updateEntry.handler(async ({ input, context }): Promise<ListEntryResponse> => {
-    const { lists } = context.repos;
-    const userId = context.userId;
-    // Build the updates manually so we can mix two field categories
-    // (scalar `quantity` and the nested `tradeOverride` triple) without the
-    // generic patch helper rejecting a tradeOverride-only patch as empty.
-    const updates: ListEntryUpdate = {};
-    if (input.quantity !== undefined) {
-      updates.quantity = input.quantity;
-    }
-    if (input.tradeOverride !== undefined) {
-      updates.pricePref = input.tradeOverride.pricePref;
-      updates.priceAbsoluteCents = input.tradeOverride.priceAbsoluteCents;
-      updates.tradeType = input.tradeOverride.tradeType;
-    }
-    if (Object.keys(updates).length === 0) {
-      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "No fields to update");
-    }
-    const row = await lists.updateEntry(input.itemId, input.id, userId, updates);
-    assertFound(row, "Not found");
-    return toListEntry(row);
-  }),
+  updateEntry: os.updateEntry.handler(
+    async ({ input, context }): Promise<ListEntryWriteResponse> => {
+      const userId = context.userId;
+      // Build the updates manually so we can mix two field categories
+      // (scalar `quantity` and the nested `tradeOverride` triple) without the
+      // generic patch helper rejecting a tradeOverride-only patch as empty.
+      const updates: ListEntryUpdate = {};
+      if (input.quantity !== undefined) {
+        updates.quantity = input.quantity;
+      }
+      if (input.tradeOverride !== undefined) {
+        updates.pricePref = input.tradeOverride.pricePref;
+        updates.priceAbsoluteCents = input.tradeOverride.priceAbsoluteCents;
+        updates.tradeType = input.tradeOverride.tradeType;
+      }
+      if (Object.keys(updates).length === 0) {
+        throw new AppError(400, ERROR_CODES.BAD_REQUEST, "No fields to update");
+      }
+      // Transaction-bound so the txid the client awaits on the Electric stream
+      // is the update's own transaction (ADR-027 step 2).
+      const { row, txid } = await context.transact(async (trxRepos) => ({
+        row: await trxRepos.lists.updateEntry(input.itemId, input.id, userId, updates),
+        txid: await trxRepos.sync.currentTransactionId(),
+      }));
+      assertFound(row, "Not found");
+      return { ...toListEntry(row), txid };
+    },
+  ),
 
   // ── DELETE /lists/:id/entries/:itemId ─────────────────────────────────────
-  removeEntry: os.removeEntry.handler(async ({ input, context }): Promise<void> => {
-    const { lists } = context.repos;
+  removeEntry: os.removeEntry.handler(async ({ input, context }): Promise<ListMutationResponse> => {
     const userId = context.userId;
-
-    const result = await lists.deleteEntry(input.itemId, input.id, userId);
+    // Transaction-bound so the txid the client awaits on the Electric stream
+    // is the deletion's own transaction (ADR-027 step 2).
+    const { result, txid } = await context.transact(async (trxRepos) => ({
+      result: await trxRepos.lists.deleteEntry(input.itemId, input.id, userId),
+      txid: await trxRepos.sync.currentTransactionId(),
+    }));
     assertDeleted(result, "Not found");
+    return { txid };
   }),
 
   // ── GET /lists/:id/share ──────────────────────────────────────────────────
@@ -329,16 +388,25 @@ export const listsRouter = {
   // Bulk-remove from select mode. deleteEntriesByIds is scoped to the list +
   // owner, so entry ids from another list (or another user) are filtered out
   // rather than erroring. We still 404 a missing list so a stale URL is loud.
-  bulkDeleteEntries: os.bulkDeleteEntries.handler(async ({ input, context }): Promise<void> => {
-    const { lists } = context.repos;
-    const userId = context.userId;
-    const listId = input.id;
+  bulkDeleteEntries: os.bulkDeleteEntries.handler(
+    async ({ input, context }): Promise<ListMutationResponse> => {
+      const { lists } = context.repos;
+      const userId = context.userId;
+      const listId = input.id;
 
-    const list = await lists.getIdKindIntent(listId, userId);
-    assertFound(list, "List not found");
+      const list = await lists.getIdKindIntent(listId, userId);
+      assertFound(list, "List not found");
 
-    await lists.deleteEntriesByIds(input.entryIds, listId, userId);
-  }),
+      // Transaction-bound so the txid the client awaits on the Electric stream
+      // is the deletion's own transaction (ADR-027 step 2).
+      const { txid } = await context.transact(async (trxRepos) => {
+        await trxRepos.lists.deleteEntriesByIds(input.entryIds, listId, userId);
+        return { txid: await trxRepos.sync.currentTransactionId() };
+      });
+
+      return { txid };
+    },
+  ),
 
   // ── POST /lists/:id/share ─────────────────────────────────────────────────
   // Idempotent enable: if the list already has a token, return the existing
@@ -391,10 +459,15 @@ export const listsRouter = {
   // Bulk reorder for the user's lists in a single intent bucket. Lists in
   // other intents are silently ignored so the client only needs to send the
   // current bucket's view.
-  reorder: os.reorder.handler(async ({ input, context }): Promise<void> => {
-    const { lists } = context.repos;
+  reorder: os.reorder.handler(async ({ input, context }): Promise<ListMutationResponse> => {
     const userId = context.userId;
-    await lists.reorder(userId, input.intent, input.orderedIds);
+    // Transaction-bound so the txid the client awaits on the Electric stream
+    // is the reorder's own transaction (ADR-027 step 2).
+    const { txid } = await context.transact(async (trxRepos) => {
+      await trxRepos.lists.reorder(userId, input.intent, input.orderedIds);
+      return { txid: await trxRepos.sync.currentTransactionId() };
+    });
+    return { txid };
   }),
 
   // ── GET /lists/:id/group-shares (ADR-013) ─────────────────────────────────

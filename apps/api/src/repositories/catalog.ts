@@ -636,5 +636,22 @@ export function catalogRepo(db: Kysely<Database>) {
     async refreshCardAggregates(): Promise<void> {
       await sql`REFRESH MATERIALIZED VIEW CONCURRENTLY mv_card_aggregates`.execute(db);
     },
+
+    /**
+     * Recompute the denormalized `printings.canonical_rank` column (migration
+     * 158). The SQL function reruns the canonical ordering window over every
+     * printing and only updates the rows whose rank changed.
+     *
+     * Call this once at the end of any transaction that mutates an ordering
+     * input — a printing insert/update/delete, or a reorder of markers / sets /
+     * finishes / languages. Run it through the transaction's repos so the new
+     * ranks commit atomically with the change (and the Electric catalog shape
+     * never replicates a half-updated ordering).
+     *
+     * @returns void
+     */
+    async recomputeCanonicalRanks(): Promise<void> {
+      await sql`SELECT recompute_printing_canonical_ranks()`.execute(db);
+    },
   };
 }

@@ -32,6 +32,9 @@ function createMockRepos(
     collectionEvents: {
       insert: vi.fn(async () => {}),
     },
+    sync: {
+      currentTransactionId: vi.fn(async () => 4242),
+    },
   } as unknown as Repos;
 
   return {
@@ -49,13 +52,13 @@ describe("deleteCollection", () => {
     vi.resetAllMocks();
   });
 
-  it("deletes an empty collection without moving copies", async () => {
+  it("deletes an empty collection without moving copies and returns the txid", async () => {
     const { repos, moveCopiesBetweenCollections, deleteByIdForUser } = createMockRepos({
       copies: [],
     });
     const transact = mockTransact(repos);
 
-    await deleteCollection(transact, {
+    const result = await deleteCollection(transact, {
       collectionId: "col-1",
       collectionName: "Old Collection",
       moveCopiesTo: "col-2",
@@ -65,6 +68,7 @@ describe("deleteCollection", () => {
 
     expect(moveCopiesBetweenCollections).not.toHaveBeenCalled();
     expect(deleteByIdForUser).toHaveBeenCalledWith("col-1", "user-1");
+    expect(result).toEqual({ txid: 4242 });
   });
 
   it("moves copies to target collection before deleting", async () => {

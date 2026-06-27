@@ -337,7 +337,10 @@ if (config.cron.tradeStatusFlushSchedule) {
 
 const app = createApp({ db, auth, config, log, sendEmail });
 
-Bun.serve({ fetch: app.fetch, port: config.port });
+// idleTimeout: Electric live long-polls (proxied via /api/v1/shapes/*) hold
+// the connection open for ~20s waiting for changes; Bun's 10s default would
+// kill every poll halfway and force a reconnect loop.
+Bun.serve({ fetch: app.fetch, port: config.port, idleTimeout: 30 });
 log.info(`API server listening on http://localhost:${config.port}`);
 
 export { app };

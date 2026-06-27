@@ -31,6 +31,24 @@ export interface ListListResponse {
   items: ListResponse[];
 }
 
+/**
+ * List create/update response (ADR-027 step 2): the list plus the Postgres
+ * transaction id of the write, so the client can await the change on the
+ * Electric stream.
+ */
+export interface ListWriteResponse extends ListResponse {
+  txid: number;
+}
+
+/**
+ * Response for list mutations that previously returned 204 (delete, reorder,
+ * entry delete, bulk entry delete): the Postgres transaction id of the change
+ * (ADR-027 step 2).
+ */
+export interface ListMutationResponse {
+  txid: number;
+}
+
 interface ListEntryBase {
   id: string;
   listId: string;
@@ -51,6 +69,12 @@ export type ListEntryResponse =
   | (ListEntryBase & { kind: "card"; cardId: string })
   | (ListEntryBase & { kind: "printing"; printingId: string })
   | (ListEntryBase & { kind: "copy"; copyId: string });
+
+/**
+ * Entry create/update response (ADR-027 step 2): the entry plus the Postgres
+ * transaction id of the write.
+ */
+export type ListEntryWriteResponse = ListEntryResponse & { txid: number };
 
 interface ListEntryDetailBase extends ListEntryBase {
   cardName: string;
@@ -131,6 +155,14 @@ export interface ListBulkAddResponse {
   updated: number;
   /** Inputs that produced neither — non-owned copies, etc. */
   skipped: number;
+}
+
+/**
+ * Bulk-add response for the synced-list write path (ADR-027 step 2): the
+ * upsert counters plus the Postgres transaction id of the insert.
+ */
+export interface ListBulkAddWriteResponse extends ListBulkAddResponse {
+  txid: number;
 }
 
 export interface ListMoveResponse {

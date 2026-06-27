@@ -16,7 +16,14 @@ vi.mock("./image-rehost.js", () => ({
 import { deleteRehostFiles } from "./image-rehost.js";
 
 function mockTransact(trxRepos: unknown): Transact {
-  return (fn) => fn(trxRepos as any) as any;
+  // Every ordering-mutating service recomputes the printing canonical ranks
+  // inside its transaction (migration 158). Inject a catalog stub so each test's
+  // hand-rolled trxRepos doesn't need to declare it.
+  const repos = trxRepos as Record<string, unknown>;
+  if (repos && typeof repos === "object" && !("catalog" in repos)) {
+    repos.catalog = { recomputeCanonicalRanks: vi.fn(async () => {}) };
+  }
+  return (fn) => fn(repos as any) as any;
 }
 
 // ── updatePrintingMarkers ───────────────────────────────────────────────

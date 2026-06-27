@@ -239,6 +239,127 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       );
       expect(res.status).toBe(404);
     });
+
+    it("carries the Postgres txid in the response (ADR-027)", async () => {
+      const res = await app.fetch(
+        req("PUT", `/decks/${deckId}/cards`, {
+          cards: [{ cardId: CARD_FURY_UNIT.id, zone: "main", quantity: 40 }],
+        }),
+      );
+      expect(res.status).toBe(200);
+      const json = (await res.json()) as { txid: number };
+      expect(json.txid).toBeTypeOf("number");
+    });
+  });
+
+  // ── POST /decks/:id/cards/apply ─────────────────────────────────────────────
+
+  describe("POST /decks/:id/cards/apply", () => {
+    const rowId = "b0000000-0001-4000-a000-000000000001";
+
+    async function deckCards(): Promise<{ cardId: string; zone: string; quantity: number }[]> {
+      const res = await app.fetch(req("GET", `/decks/${deckId}`));
+      const json = (await res.json()) as {
+        cards: { cardId: string; zone: string; quantity: number }[];
+      };
+      return json.cards;
+    }
+
+    it("inserts a row with a client-supplied id and returns the txid", async () => {
+      // Reset to a known single-card state first.
+      await app.fetch(
+        req("PUT", `/decks/${deckId}/cards`, {
+          cards: [{ cardId: CARD_FURY_UNIT.id, zone: "main", quantity: 2 }],
+        }),
+      );
+      const res = await app.fetch(
+        req("POST", `/decks/${deckId}/cards/apply`, {
+          upserts: [
+            {
+              id: rowId,
+              cardId: CARD_CALM_UNIT.id,
+              zone: "sideboard",
+              quantity: 3,
+              preferredPrintingId: null,
+            },
+          ],
+          deletes: [],
+        }),
+      );
+      expect(res.status).toBe(200);
+      const json = (await res.json()) as { txid: number };
+      expect(json.txid).toBeTypeOf("number");
+
+      const cards = await deckCards();
+      expect(cards).toHaveLength(2);
+      expect(cards.find((card) => card.zone === "sideboard")?.quantity).toBe(3);
+    });
+
+    it("converges on replay — re-applying the same upsert is a no-op", async () => {
+      const res = await app.fetch(
+        req("POST", `/decks/${deckId}/cards/apply`, {
+          upserts: [
+            {
+              id: rowId,
+              cardId: CARD_CALM_UNIT.id,
+              zone: "sideboard",
+              quantity: 3,
+              preferredPrintingId: null,
+            },
+          ],
+          deletes: [],
+        }),
+      );
+      expect(res.status).toBe(200);
+      const cards = await deckCards();
+      expect(cards.filter((card) => card.zone === "sideboard")).toHaveLength(1);
+      expect(cards.find((card) => card.zone === "sideboard")?.quantity).toBe(3);
+    });
+
+    it("updates quantity in place when the content key already exists under another id", async () => {
+      const res = await app.fetch(
+        req("POST", `/decks/${deckId}/cards/apply`, {
+          upserts: [
+            {
+              // Fresh id, same (card, zone, printing) content key: the server
+              // converges on the existing row instead of duplicating it.
+              id: "b0000000-0002-4000-a000-000000000001",
+              cardId: CARD_CALM_UNIT.id,
+              zone: "sideboard",
+              quantity: 5,
+              preferredPrintingId: null,
+            },
+          ],
+          deletes: [],
+        }),
+      );
+      expect(res.status).toBe(200);
+      const cards = await deckCards();
+      expect(cards.filter((card) => card.zone === "sideboard")).toHaveLength(1);
+      expect(cards.find((card) => card.zone === "sideboard")?.quantity).toBe(5);
+    });
+
+    it("deletes rows by id and tolerates already-deleted ids on replay", async () => {
+      const first = await app.fetch(
+        req("POST", `/decks/${deckId}/cards/apply`, { upserts: [], deletes: [rowId] }),
+      );
+      expect(first.status).toBe(200);
+      // Replay of the same delete: the row is gone — still 200.
+      const replay = await app.fetch(
+        req("POST", `/decks/${deckId}/cards/apply`, { upserts: [], deletes: [rowId] }),
+      );
+      expect(replay.status).toBe(200);
+      const cards = await deckCards();
+      expect(cards.filter((card) => card.zone === "sideboard")).toHaveLength(0);
+    });
+
+    it("returns 404 for non-existent deck", async () => {
+      const fakeId = "00000000-0000-4000-a000-000000000000";
+      const res = await app.fetch(
+        req("POST", `/decks/${fakeId}/cards/apply`, { upserts: [], deletes: [rowId] }),
+      );
+      expect(res.status).toBe(404);
+    });
   });
 
   // ── GET /decks/:id/availability ────────────────────────────────────────────

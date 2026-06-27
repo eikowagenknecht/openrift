@@ -69,6 +69,7 @@ export function SharedCollectionAction({ slug }: { slug: string }) {
         open={createOpen}
         onOpenChange={setCreateOpen}
         groupSlug={data.group.slug}
+        groupId={data.group.id}
         groupName={data.group.name}
       />
     </>

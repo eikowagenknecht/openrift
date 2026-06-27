@@ -35,6 +35,9 @@
 ### Highlights
 
 - feat(Tournaments): **Enter game points, not places** — score each pod by typing every player's game points (8 wins, more when a turn overshoots), and the finishing order and standings points are worked out for you. Total game points now break ties in the standings.
+- feat(App): **Instant loads from on-device storage** — your card catalog, prices, and collection are now stored on your device, so they show up instantly on return visits instead of being downloaded again, and refresh quietly in the background when they change. Signing out clears the stored data, and browsers without the needed storage keep working as before.
+- feat(Collection): **Offline-first collection and lists** — adding, moving, and removing cards, and creating or editing your lists and collections, apply instantly and sync in the background. Changes made offline are saved and sent once you're back online, survive a reload, and show up live in your other open tabs.
+- feat(Decks): **Offline-first deck editing** — adding, moving, and removing cards in the deck builder saves instantly and syncs in the background, keeps edits made while offline, and shows changes live across your open tabs.
 - feat(Groups): **Take cards from a group bulk box** — browse a group collection and move copies into your inbox with the Take button on each card. A confirmation lets you choose how many copies to take. Cards on your wishlist show a red heart with how many you still want. Click it to jump to that wishlist, and after taking one you wanted, you're asked whether to drop it from the list.
 
 ### Other

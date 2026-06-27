@@ -81,6 +81,24 @@ export interface DeckDetailResponse {
   cards: DeckCardResponse[];
 }
 
+/**
+ * Deck-cards full-replace response (ADR-027 step 2): the saved cards plus the
+ * Postgres transaction id of the write, so the client can await the change on
+ * the Electric stream.
+ */
+export interface DeckCardsWriteResponse {
+  cards: DeckCardResponse[];
+  txid: number;
+}
+
+/**
+ * Response for the row-level deck-card apply endpoint: the Postgres
+ * transaction id of the change (ADR-027 step 2).
+ */
+export interface DeckMutationResponse {
+  txid: number;
+}
+
 /** Deck fields exposed on the public share page — excludes owner-only fields (shareToken, isPublic). */
 export interface PublicDeckResponse {
   id: string;

@@ -1,7 +1,5 @@
 import { create } from "zustand";
 
-import { isTempCopyId } from "@/lib/temp-copy-id";
-
 interface GridSelectionState {
   /** Selected copy IDs. */
   selected: Set<string>;
@@ -20,18 +18,13 @@ interface GridSelectionState {
  * stored the set in `useState`, which forced every cell in the grid to
  * re-render whenever the selection changed.
  *
- * Optimistic rows inserted by `useBatchedAddCopies` live in the grid with a
- * `temp-` prefixed id until the add API returns a server-assigned uuid. Those
- * rows must not enter the selection set: dispose/move would 400 on the API
- * (invalid uuid) or race with the in-flight add. Filtering at the store level
- * makes every callsite safe without sprinkling the same guard everywhere.
+ * Copy ids are client-generated and final (ADR-027 step 2), so optimistic
+ * rows are selectable like any other: a move/dispose that races a still
+ * in-flight add merely fails with a toast instead of corrupting anything.
  */
 export const useGridSelectionStore = create<GridSelectionState>()((set) => ({
   selected: new Set(),
   toggleSelect: (copyId) => {
-    if (isTempCopyId(copyId)) {
-      return;
-    }
     set((state) => {
       const next = new Set(state.selected);
       if (next.has(copyId)) {
@@ -43,14 +36,13 @@ export const useGridSelectionStore = create<GridSelectionState>()((set) => ({
     });
   },
   toggleStack: (copyIds) => {
-    const realIds = copyIds.filter((id) => !isTempCopyId(id));
-    if (realIds.length === 0) {
+    if (copyIds.length === 0) {
       return;
     }
     set((state) => {
       const next = new Set(state.selected);
-      const allSelected = realIds.every((id) => next.has(id));
-      for (const id of realIds) {
+      const allSelected = copyIds.every((id) => next.has(id));
+      for (const id of copyIds) {
         if (allSelected) {
           next.delete(id);
         } else {
@@ -61,22 +53,20 @@ export const useGridSelectionStore = create<GridSelectionState>()((set) => ({
     });
   },
   toggleSelectAll: (allCopyIds) => {
-    const realIds = allCopyIds.filter((id) => !isTempCopyId(id));
     set((state) => {
-      if (state.selected.size === realIds.length) {
+      if (state.selected.size === allCopyIds.length) {
         return { selected: new Set() };
       }
-      return { selected: new Set(realIds) };
+      return { selected: new Set(allCopyIds) };
     });
   },
   addToSelection: (ids) => {
-    const realIds = ids.filter((id) => !isTempCopyId(id));
-    if (realIds.length === 0) {
+    if (ids.length === 0) {
       return;
     }
     set((state) => {
       const next = new Set(state.selected);
-      for (const id of realIds) {
+      for (const id of ids) {
         next.add(id);
       }
       return { selected: next };

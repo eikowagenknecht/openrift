@@ -378,7 +378,11 @@ export function CollectionSidebar() {
   }, [currentPath, collectionId, listId, isMobile, setOpenMobile]);
 
   const [createCollectionOpen, setCreateCollectionOpen] = useState(false);
-  const [createInGroup, setCreateInGroup] = useState<{ slug: string; name: string } | null>(null);
+  const [createInGroup, setCreateInGroup] = useState<{
+    slug: string;
+    id: string;
+    name: string;
+  } | null>(null);
 
   const { active } = useDndContext();
   const activeType = active?.data.current?.type;
@@ -550,7 +554,11 @@ export function CollectionSidebar() {
               <SidebarMenuButton
                 className="text-muted-foreground"
                 onClick={() => {
-                  setCreateInGroup({ slug: section.groupSlug, name: section.groupName });
+                  setCreateInGroup({
+                    slug: section.groupSlug,
+                    id: section.groupId,
+                    name: section.groupName,
+                  });
                   setCreateCollectionOpen(true);
                 }}
               >
@@ -598,6 +606,7 @@ export function CollectionSidebar() {
         open={createCollectionOpen}
         onOpenChange={setCreateCollectionOpen}
         groupSlug={createInGroup?.slug}
+        groupId={createInGroup?.id}
         groupName={createInGroup?.name}
       />
       <SidebarReorderMonitor

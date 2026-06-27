@@ -171,6 +171,11 @@ export function collectionsRepo(db: Kysely<Database>) {
 
     /** @returns The newly created collection row. */
     create(values: {
+      /**
+       * Client-generated collection id (ADR-027 step 2). Falls back to the
+       * column default (`uuidv7()`) when absent.
+       */
+      id?: string;
       userId: string | null;
       groupId: string | null;
       name: string;
