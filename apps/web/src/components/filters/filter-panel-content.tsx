@@ -1,5 +1,6 @@
 import type { AvailableFilters, FilterCounts, RangeKey } from "@openrift/shared";
 import { NONE } from "@openrift/shared";
+import { CircleSlashIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 
@@ -507,7 +508,18 @@ function RangeFilterSection({
   const resolvedMin = selectedMin ?? defaultMin;
   const resolvedMax = selectedMax ?? availableMax;
   const fmt = formatValue ?? String;
-  const fmtNone = (value: number) => (value === NONE ? "None" : fmt(value));
+  // "None" is the slider's bottom edge for fields that allow a no-value bucket.
+  // Render it as a compact icon so the row doesn't widen to fit the 4-char word.
+  const renderValue = (value: number): ReactNode =>
+    value === NONE ? (
+      <CircleSlashIcon
+        className="inline-block size-3 align-[-0.1875em]"
+        role="img"
+        aria-label="None"
+      />
+    ) : (
+      fmt(value)
+    );
 
   // In logarithmic mode the slider operates on a linear 0–LOG_STEPS scale and
   // we convert between slider positions and real values with log/exp.
@@ -599,7 +611,7 @@ function RangeFilterSection({
       <div className="flex flex-1 items-center gap-1">
         {/* Min value */}
         <span className="text-2xs text-muted-foreground shrink-0 text-right tabular-nums">
-          {fmtNone(displayMin)}
+          {renderValue(displayMin)}
         </span>
         {/* Slider */}
         <Slider
@@ -624,7 +636,7 @@ function RangeFilterSection({
         />
         {/* Max value */}
         <span className="text-2xs text-muted-foreground shrink-0 tabular-nums">
-          {fmtNone(displayMax)}
+          {renderValue(displayMax)}
         </span>
       </div>
     </div>

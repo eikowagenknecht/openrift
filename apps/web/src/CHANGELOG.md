@@ -10,6 +10,7 @@
 
 ### Other
 
+- fix(Cards): **Compact "None" on range sliders** — the filter sliders now show a small no-value icon instead of the word "None", so the value labels no longer widen the row.
 - fix(App): **Landing page stats load again** — the home page hero counts and card previews were blocked on the live site because the browser requested them from the wrong address, and now load correctly.
 
 ## 2026-06-26
