@@ -1,7 +1,33 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import {
+  catalogCardResponseSchema,
+  catalogPrintingResponseSchema,
+  catalogSetResponseSchema,
+  imageIdSchema,
+} from "@openrift/shared/response-schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
-import { setDetailResponseSchema, setListResponseSchema } from "../response-schemas.js";
+extendZodWithOpenApi(z);
+
+const setListEntrySchema = catalogSetResponseSchema.extend({
+  cardCount: z.number().openapi({ example: 312 }),
+  printingCount: z.number().openapi({ example: 468 }),
+  coverImageId: imageIdSchema.nullable(),
+});
+
+export const setListResponseSchema = z
+  .object({ sets: z.array(setListEntrySchema) })
+  .openapi("SetListResponse");
+
+export const setDetailResponseSchema = z
+  .object({
+    set: catalogSetResponseSchema,
+    cards: z.record(z.string(), catalogCardResponseSchema),
+    printings: z.array(catalogPrintingResponseSchema),
+    // prices are NOT inlined — read them from the /prices resource.
+  })
+  .openapi("SetDetailResponse");
 
 const setSlugParamSchema = z.object({ setSlug: z.string().min(1) });
 

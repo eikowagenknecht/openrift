@@ -1,8 +1,43 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import { copiesQuerySchema } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
-import { publicCollectionDetailResponseSchema } from "../response-schemas.js";
-import { copiesQuerySchema } from "../schemas.js";
+extendZodWithOpenApi(z);
+
+export const publicCollectionResponseSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    description: z.string().nullable(),
+    copyCount: z.number(),
+    totalValueCents: z.number().int().nullable(),
+    unpricedCopyCount: z.number().nullable(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  })
+  .openapi("PublicCollectionResponse");
+
+/**
+ * Copy projection for anonymous share viewers — deliberately narrower than
+ * {@link copyResponseSchema}: `groupId`/`collectionId` are owner-internal and
+ * are withheld from unauthenticated viewers.
+ */
+export const publicCopyResponseSchema = z
+  .object({
+    id: z.string(),
+    printingId: z.string(),
+  })
+  .openapi("PublicCopyResponse");
+
+export const publicCollectionDetailResponseSchema = z
+  .object({
+    collection: publicCollectionResponseSchema,
+    items: z.array(publicCopyResponseSchema),
+    nextCursor: z.string().nullable(),
+    owner: z.object({ displayName: z.string(), gravatarHash: z.string().nullable() }),
+  })
+  .openapi("PublicCollectionDetailResponse");
 
 /**
  * oRPC contract for the public (share-token) collection view.

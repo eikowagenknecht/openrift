@@ -1,6 +1,19 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { oc } from "@orpc/contract";
+import { z } from "zod";
 
-import { landingSummaryResponseSchema } from "../response-schemas.js";
+extendZodWithOpenApi(z);
+
+export const landingSummaryResponseSchema = z
+  .object({
+    cardCount: z.number().openapi({ example: 312 }),
+    printingCount: z.number().openapi({ example: 468 }),
+    copyCount: z.number().openapi({ example: 142 }),
+    thumbnailIds: z.array(z.string()).openapi({
+      example: ["019d02f1-d14f-769f-9295-9852db692dbe"],
+    }),
+  })
+  .openapi("LandingSummaryResponse");
 
 /**
  * oRPC contract for the public landing-summary endpoint.

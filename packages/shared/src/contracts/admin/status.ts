@@ -1,7 +1,75 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { oc } from "@orpc/contract";
-import type { z } from "zod";
+import { z } from "zod";
 
-import { adminStatusResponseSchema } from "../../response-schemas.js";
+extendZodWithOpenApi(z);
+
+const lastJobRunSchema = z.object({
+  startedAt: z.string(),
+  finishedAt: z.string().nullable(),
+  durationMs: z.number().nullable(),
+  status: z.enum(["running", "succeeded", "failed"]),
+  errorMessage: z.string().nullable(),
+});
+
+const cronJobStatusSchema = z.object({
+  enabled: z.boolean(),
+  nextRun: z.string().nullable(),
+  lastRun: lastJobRunSchema.nullable(),
+});
+
+export const adminStatusResponseSchema = z
+  .object({
+    server: z.object({
+      uptimeSeconds: z.number(),
+      memoryMb: z.object({
+        rss: z.number(),
+        heapUsed: z.number(),
+        heapTotal: z.number(),
+      }),
+      bunVersion: z.string(),
+      environment: z.string(),
+    }),
+    database: z.object({
+      status: z.string(),
+      sizeMb: z.number().nullable(),
+      activeConnections: z.number().nullable(),
+      latestMigration: z.string().nullable(),
+      totalMigrations: z.number(),
+    }),
+    cron: z.object({
+      jobs: z.object({
+        tcgplayer: cronJobStatusSchema,
+        cardmarket: cronJobStatusSchema,
+        cardtrader: cronJobStatusSchema,
+        printingEvents: cronJobStatusSchema,
+        changelog: cronJobStatusSchema,
+        jobRunsCleanup: cronJobStatusSchema,
+      }),
+    }),
+    app: z.object({
+      totalUsers: z.number(),
+      recentSignups7d: z.number(),
+      totalCards: z.number(),
+      totalPrintings: z.number(),
+      totalSets: z.number(),
+      totalCollections: z.number(),
+      totalDecks: z.number(),
+      totalCopies: z.number(),
+    }),
+    pricing: z.object({
+      totalPrices: z.number(),
+      sources: z.array(
+        z.object({
+          marketplace: z.string(),
+          products: z.number(),
+          prices: z.number(),
+          latestPrice: z.string().nullable(),
+        }),
+      ),
+    }),
+  })
+  .openapi("AdminStatusResponse");
 
 const TAG = "Admin";
 

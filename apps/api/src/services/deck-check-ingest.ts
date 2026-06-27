@@ -10,7 +10,8 @@ import {
   SELF_SUBMIT_EXTERNAL_ID_PREFIX,
 } from "@openrift/shared";
 import type { DeckCheckCardLine, DeckCheckIngestResultResponse } from "@openrift/shared";
-import type { createDeckCheckEntrySchema, deckCheckIngestSchema } from "@openrift/shared/schemas";
+import type { createDeckCheckEntrySchema } from "@openrift/shared/contracts/deck-check";
+import type { deckCheckIngestSchema } from "@openrift/shared/contracts/deck-check-ingest";
 import type { z } from "zod";
 
 import type { Repos } from "../deps.js";

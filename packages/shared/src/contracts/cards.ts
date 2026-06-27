@@ -1,7 +1,22 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import {
+  catalogCardResponseSchema,
+  catalogPrintingResponseSchema,
+  catalogSetResponseSchema,
+} from "@openrift/shared/response-schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
-import { cardDetailResponseSchema } from "../response-schemas.js";
+extendZodWithOpenApi(z);
+
+export const cardDetailResponseSchema = z
+  .object({
+    card: catalogCardResponseSchema,
+    printings: z.array(catalogPrintingResponseSchema),
+    sets: z.array(catalogSetResponseSchema),
+    // prices are NOT inlined — read them from the /prices resource.
+  })
+  .openapi("CardDetailResponse");
 
 /**
  * oRPC contract for the public card-detail endpoint.

@@ -1,19 +1,115 @@
-import { oc } from "@orpc/contract";
-
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
-  deckCheckClaimResultResponseSchema,
-  deckCheckSubmissionPageResponseSchema,
-  deckCheckSubmissionResultResponseSchema,
-  playerDeckCheckEntriesResponseSchema,
-  playerDeckCheckEntryDetailResponseSchema,
-} from "../response-schemas.js";
+  deckCheckEntryCardResponseSchema,
+  deckCheckEntryStateSchema,
+  deckCheckReviewOutcomeSchema,
+  deckViolationSchema,
+} from "@openrift/shared/response-schemas";
 import {
   deckCheckClaimTokenParamSchema,
-  deckCheckSubmissionTokenParamSchema,
   exactlyOneDeckCheckSubmissionSource,
-  playerDeckCheckEntryParamSchema,
   playerDeckCheckSubmissionShape,
-} from "../schemas.js";
+} from "@openrift/shared/schemas";
+import { oc } from "@orpc/contract";
+import { z } from "zod";
+
+extendZodWithOpenApi(z);
+
+export const deckCheckSubmissionTokenParamSchema = z.object({
+  token: z.string().min(1).max(64),
+});
+
+export const playerDeckCheckEntryParamSchema = z.object({
+  entryId: z.uuid(),
+});
+
+const playerDeckCheckEntrySummaryResponseSchema = z.object({
+  id: z.string(),
+  eventName: z.string(),
+  eventDate: z.string().nullable(),
+  groupName: z.string(),
+  groupSlug: z.string(),
+  state: deckCheckEntryStateSchema,
+  reviewOutcome: deckCheckReviewOutcomeSchema.nullable(),
+  unlockRequested: z.boolean(),
+  playerMessage: z.string().nullable(),
+  submittedAt: z.string().nullable(),
+  updatedAt: z.string(),
+});
+
+export const playerDeckCheckEntriesResponseSchema = z
+  .object({ items: z.array(playerDeckCheckEntrySummaryResponseSchema) })
+  .openapi("PlayerDeckCheckEntriesResponse");
+
+export const playerDeckCheckEntryDetailResponseSchema = z
+  .object({
+    entry: z.object({
+      id: z.string(),
+      eventName: z.string(),
+      eventDate: z.string().nullable(),
+      groupName: z.string(),
+      format: z.string().nullable(),
+      allowedSets: z.array(z.string()).nullable(),
+      state: deckCheckEntryStateSchema,
+      reviewOutcome: deckCheckReviewOutcomeSchema.nullable(),
+      unlockRequested: z.boolean(),
+      playerMessage: z.string().nullable(),
+      allowDeckPublishing: z.boolean(),
+      allowNameSharing: z.boolean(),
+      allowRiotIdSharing: z.boolean(),
+      submittedAt: z.string().nullable(),
+      submissionsCloseAt: z.string().nullable(),
+      updatedAt: z.string(),
+      windowOpen: z.boolean(),
+      canEdit: z.boolean(),
+      canUnlock: z.boolean(),
+      canRequestUnlock: z.boolean(),
+    }),
+    cards: z.array(deckCheckEntryCardResponseSchema),
+    violations: z.array(deckViolationSchema),
+    typeCounts: z.array(z.object({ cardType: z.string(), count: z.number().int().nonnegative() })),
+    domainDistribution: z.array(
+      z.object({ domain: z.string(), count: z.number().int().nonnegative() }),
+    ),
+  })
+  .openapi("PlayerDeckCheckEntryDetailResponse");
+
+export const deckCheckSubmissionPageResponseSchema = z
+  .object({
+    eventName: z.string(),
+    eventDate: z.string().nullable(),
+    groupName: z.string(),
+    format: z.string().nullable(),
+    allowedSets: z.array(z.string()).nullable(),
+    submissionsCloseAt: z.string().nullable(),
+    submissionsOpen: z.boolean(),
+    linkedEntry: z
+      .object({
+        id: z.string(),
+        state: deckCheckEntryStateSchema,
+        canReplace: z.boolean(),
+        allowDeckPublishing: z.boolean(),
+        allowNameSharing: z.boolean(),
+        allowRiotIdSharing: z.boolean(),
+      })
+      .nullable(),
+  })
+  .openapi("DeckCheckSubmissionPageResponse");
+
+export const deckCheckSubmissionResultResponseSchema = z
+  .object({
+    entryId: z.string().nullable(),
+    cards: z.array(deckCheckEntryCardResponseSchema),
+    violations: z.array(deckViolationSchema),
+  })
+  .openapi("DeckCheckSubmissionResultResponse");
+
+export const deckCheckClaimResultResponseSchema = z
+  .object({
+    status: z.enum(["claimed", "already", "conflict", "blocked"]),
+    entryId: z.string().nullable(),
+  })
+  .openapi("DeckCheckClaimResultResponse");
 
 const TAG = "Deck Check";
 

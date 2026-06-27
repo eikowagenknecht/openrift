@@ -1,6 +1,12 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { oc } from "@orpc/contract";
+import { z } from "zod";
 
-import { userShareStateResponseSchema } from "../response-schemas.js";
+extendZodWithOpenApi(z);
+
+export const userShareStateResponseSchema = z
+  .object({ shareToken: z.string().nullable(), isPublic: z.boolean() })
+  .openapi("UserShareStateResponse");
 
 /**
  * oRPC contract for the signed-in user's bundle-share management (ADR-018).

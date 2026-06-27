@@ -1,32 +1,33 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import { collectionEventsQuerySchema } from "./contracts/collection-events.js";
+import { collectionValueHistoryQuerySchema } from "./contracts/collection-value-history.js";
+import { createCollectionSchema, updateCollectionSchema } from "./contracts/collections.js";
+import { addCopiesSchema, disposeCopiesSchema, moveCopiesSchema } from "./contracts/copies.js";
+import {
+  createDeckSchema,
+  decksQuerySchema,
+  updateDeckCardsSchema,
+  updateDeckPlanSchema,
+  updateDeckSchema,
+} from "./contracts/decks.js";
 import {
   bulkCreateListEntriesSchema,
   bulkDeleteListEntriesSchema,
-  collectionEventsQuerySchema,
-  collectionValueHistoryQuerySchema,
-  addCopiesSchema,
-  copiesQuerySchema,
-  createCollectionSchema,
-  createDeckSchema,
-  createListEntrySchema,
   createListSchema,
-  decksQuerySchema,
-  disposeCopiesSchema,
   idAndItemIdParamSchema,
+  listIntentQuerySchema,
+  updateListEntrySchema,
+  updateListSchema,
+} from "./contracts/lists.js";
+import {
+  copiesQuerySchema,
+  createListEntrySchema,
   idParamSchema,
   isoDate,
   isoDateTime,
   keyParamSchema,
-  listIntentQuerySchema,
-  moveCopiesSchema,
-  updateCollectionSchema,
-  updateDeckCardsSchema,
-  updateDeckPlanSchema,
-  updateDeckSchema,
-  updateListEntrySchema,
-  updateListSchema,
   withParams,
 } from "./schemas";
 

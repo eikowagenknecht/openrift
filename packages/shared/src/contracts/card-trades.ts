@@ -1,18 +1,104 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import { contactMethodSchema } from "@openrift/shared/response-schemas";
+import { friendGroupSlugSchema, idParamSchema, withParams } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
+import { z } from "zod";
 
-import {
-  cardTradeActionCountsResponseSchema,
-  cardTradeListResponseSchema,
-  cardTradeResponseSchema,
-} from "../response-schemas.js";
-import {
-  cardTradeSyncSchema,
-  cardTradesQuerySchema,
-  createCardTradeSchema,
-  idParamSchema,
-  setCardTradeQuantitySchema,
-  withParams,
-} from "../schemas.js";
+extendZodWithOpenApi(z);
+
+export const CARD_TRADE_STATUSES = [
+  "pending",
+  "reserved",
+  "completed",
+  "declined",
+  "cancelled",
+  "expired",
+] as const;
+
+const cardTradeStatusSchema = z.enum(CARD_TRADE_STATUSES);
+
+/**
+ * Create a trade from a match row. `role` is the *caller's* side: `receiver`
+ * is the "I want this card" request (giver = counterparty), `giver` is the
+ * "I have this, want it?" offer (receiver = counterparty).
+ */
+export const createCardTradeSchema = z.object({
+  groupSlug: friendGroupSlugSchema,
+  counterpartyUserId: z.string().min(1),
+  role: z.enum(["giver", "receiver"]),
+  printingId: z.uuid(),
+  quantity: z.number().int().min(1),
+});
+
+export const cardTradesQuerySchema = z.object({
+  groupId: z.uuid().optional(),
+  status: cardTradeStatusSchema.optional(),
+});
+
+/** Resize a pending request to a new total quantity (initiator only). */
+export const setCardTradeQuantitySchema = z.object({
+  quantity: z.number().int().min(1),
+});
+
+/** Receiver-sync target collection; omitted defaults to the receiver's inbox. */
+export const cardTradeSyncSchema = z.object({
+  targetCollectionId: z.uuid().optional(),
+});
+
+const cardTradeStatusResponseSchema = z
+  .enum(["pending", "reserved", "completed", "declined", "cancelled", "expired"])
+  .openapi("CardTradeStatus");
+
+const cardTradeCounterpartySchema = z
+  .object({
+    userId: z.string(),
+    name: z.string().nullable(),
+    image: z.string().nullable(),
+    gravatarHash: z.string(),
+    contactMethods: z.array(contactMethodSchema),
+  })
+  .openapi("CardTradeCounterparty");
+
+export const cardTradeResponseSchema = z
+  .object({
+    id: z.string(),
+    groupId: z.string(),
+    groupSlug: z.string(),
+    role: z.enum(["giver", "receiver"]),
+    initiator: z.enum(["giver", "receiver"]),
+    counterparty: cardTradeCounterpartySchema,
+    printingId: z.string(),
+    cardId: z.string(),
+    quantity: z.number().int().positive(),
+    status: cardTradeStatusResponseSchema,
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    acceptedAt: z.string().nullable(),
+    completedAt: z.string().nullable(),
+    closedAt: z.string().nullable(),
+    expiresAt: z.string().nullable(),
+    viewerSyncAppliedAt: z.string().nullable(),
+    counterpartySyncAppliedAt: z.string().nullable(),
+    actionNeeded: z.enum(["accept-or-decline", "cancel", "complete", "apply-sync"]).nullable(),
+  })
+  .openapi("CardTradeResponse");
+
+export const cardTradeListResponseSchema = z
+  .object({ items: z.array(cardTradeResponseSchema) })
+  .openapi("CardTradeListResponse");
+
+export const cardTradeActionCountsResponseSchema = z
+  .object({
+    total: z.number().int().nonnegative(),
+    byGroup: z.array(
+      z.object({
+        groupId: z.string(),
+        groupSlug: z.string(),
+        count: z.number().int().nonnegative(),
+      }),
+    ),
+  })
+  .openapi("CardTradeActionCountsResponse");
 
 const TAG = "CardTrades";
 

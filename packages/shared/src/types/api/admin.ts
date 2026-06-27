@@ -1,12 +1,12 @@
 import type { z } from "zod";
 
 import type {
-  DiffValue,
   stagedProductResponseSchema,
   unifiedMappingGroupResponseSchema,
   unifiedMappingsCardResponseSchema,
   unifiedMappingsResponseSchema,
-} from "../../response-schemas.js";
+} from "../../contracts/admin/unified-mappings.js";
+import type { DiffValue } from "../../response-schemas.js";
 import type { CardErrata, DistributionChannelKind } from "../catalog.js";
 import type { CardFace, SetType } from "../enums.js";
 

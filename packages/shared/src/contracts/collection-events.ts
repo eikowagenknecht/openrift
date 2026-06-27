@@ -1,7 +1,44 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import { cardTypeSchema, imageIdSchema, raritySchema } from "@openrift/shared/response-schemas";
 import { oc } from "@orpc/contract";
+import { z } from "zod";
 
-import { collectionEventListResponseSchema } from "../response-schemas.js";
-import { collectionEventsQuerySchema } from "../schemas.js";
+extendZodWithOpenApi(z);
+
+export const collectionEventsQuerySchema = z.object({
+  cursor: z.string().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});
+
+const activityActionSchema = z.enum(["added", "removed", "moved"]);
+
+const collectionEventResponseSchema = z
+  .object({
+    id: z.string(),
+    action: activityActionSchema,
+    copyId: z.string().nullable(),
+    printingId: z.string(),
+    fromCollectionId: z.string().nullable(),
+    fromCollectionName: z.string().nullable(),
+    toCollectionId: z.string().nullable(),
+    toCollectionName: z.string().nullable(),
+    createdAt: z.string(),
+    shortCode: z.string(),
+    rarity: raritySchema,
+    imageId: imageIdSchema.nullable(),
+    cardName: z.string(),
+    cardType: cardTypeSchema,
+    cardSuperTypes: z.array(z.string()),
+    tags: z.array(z.string()),
+  })
+  .openapi("CollectionEventResponse");
+
+export const collectionEventListResponseSchema = z
+  .object({
+    items: z.array(collectionEventResponseSchema),
+    nextCursor: z.string().nullable(),
+  })
+  .openapi("CollectionEventListResponse");
 
 /**
  * oRPC contract for the authenticated collection-events feed.

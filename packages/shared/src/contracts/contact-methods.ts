@@ -1,11 +1,36 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import { contactMethodSchema } from "@openrift/shared/response-schemas";
+import { idParamSchema } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
+import { z } from "zod";
 
-import { userContactMethodsResponseSchema } from "../response-schemas.js";
-import {
-  createContactMethodSchema,
-  idParamSchema,
-  reorderContactMethodsSchema,
-} from "../schemas.js";
+extendZodWithOpenApi(z);
+
+export const contactMethodTypeSchema = z.enum([
+  "discord",
+  "signal",
+  "telegram",
+  "whatsapp",
+  "phone",
+  "email",
+  "in_person",
+  "other",
+]);
+
+export const createContactMethodSchema = z.object({
+  type: contactMethodTypeSchema,
+  value: z.string().trim().min(1).max(200),
+});
+
+export const reorderContactMethodsSchema = z.object({
+  ids: z.array(z.uuid()),
+});
+
+export const userContactMethodsResponseSchema = z
+  .object({
+    items: z.array(contactMethodSchema),
+  })
+  .openapi("UserContactMethodsResponse");
 
 /**
  * oRPC contract for the authenticated contact-methods CRUD. Every mutation

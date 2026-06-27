@@ -1,7 +1,50 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
-import { rulesListResponseSchema, ruleVersionsListResponseSchema } from "../response-schemas.js";
+extendZodWithOpenApi(z);
+
+export const ruleKindSchema = z.enum(["core", "tournament"]);
+
+const ruleResponseSchema = z.object({
+  id: z.string().openapi({ example: "019cfc3b-0369-7000-8000-000000000100" }),
+  kind: ruleKindSchema,
+  version: z.string().openapi({ example: "1.2.0" }),
+  ruleNumber: z.string().openapi({ example: "3.4.1" }),
+  sortOrder: z.number().openapi({ example: 120 }),
+  depth: z.number().openapi({ example: 2 }),
+  ruleType: z.enum(["title", "subtitle", "text"]),
+  content: z.string().openapi({
+    example: "A player loses the game if they would draw a card from an empty deck.",
+  }),
+  changeType: z.enum(["added", "modified", "removed"]),
+});
+
+const ruleVersionResponseSchema = z.object({
+  kind: ruleKindSchema,
+  version: z.string().openapi({ example: "1.2.0" }),
+  comments: z.string().nullable().openapi({ example: "First public release." }),
+  importedAt: z.string().openapi({ example: "2026-02-16T08:30:00Z" }),
+});
+
+const ruleChangesResponseSchema = z.object({
+  added: z.array(z.string()),
+  modifiedPrev: z.record(z.string(), z.string()),
+  removed: z.array(ruleResponseSchema),
+});
+
+export const rulesListResponseSchema = z
+  .object({
+    kind: ruleKindSchema,
+    rules: z.array(ruleResponseSchema),
+    version: z.string(),
+    changes: ruleChangesResponseSchema.optional(),
+  })
+  .openapi("RulesListResponse");
+
+export const ruleVersionsListResponseSchema = z
+  .object({ versions: z.array(ruleVersionResponseSchema) })
+  .openapi("RuleVersionsListResponse");
 
 const ruleKindEnum = z.enum(["core", "tournament"]);
 

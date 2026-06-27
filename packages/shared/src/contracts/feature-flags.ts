@@ -1,6 +1,16 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { oc } from "@orpc/contract";
+import { z } from "zod";
 
-import { featureFlagsResponseSchema } from "../response-schemas.js";
+extendZodWithOpenApi(z);
+
+export const featureFlagsResponseSchema = z
+  .object({
+    flags: z.record(z.string(), z.boolean()).openapi({
+      example: { collection: true, decks: true },
+    }),
+  })
+  .openapi("FeatureFlagsResponse");
 
 /**
  * oRPC contract for the public feature-flags endpoint.

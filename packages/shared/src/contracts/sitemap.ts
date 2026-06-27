@@ -1,6 +1,20 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { oc } from "@orpc/contract";
+import { z } from "zod";
 
-import { sitemapDataResponseSchema } from "../response-schemas.js";
+extendZodWithOpenApi(z);
+
+const sitemapEntrySchema = z.object({
+  slug: z.string().openapi({ example: "jinx-rebel" }),
+  updatedAt: z.string().openapi({ example: "2026-04-01T12:00:00.000Z" }),
+});
+
+export const sitemapDataResponseSchema = z
+  .object({
+    cards: z.array(sitemapEntrySchema),
+    sets: z.array(sitemapEntrySchema),
+  })
+  .openapi("SitemapDataResponse");
 
 /**
  * oRPC contract for the public sitemap-data endpoint.

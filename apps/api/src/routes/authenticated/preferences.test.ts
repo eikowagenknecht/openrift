@@ -241,12 +241,12 @@ describe("PATCH /api/v1/preferences", () => {
 // wiring the read side, for any field, automatically.
 describe("preferences read/write schema parity", () => {
   it("declares every PATCH (write) field in the GET response (read) schema", async () => {
-    // Imported dynamically: response-schemas calls `.openapi()` at module load,
-    // which only exists after @hono/zod-openapi (pulled in by the statically
-    // imported route above) has extended Zod. A static top-level import here
-    // would evaluate response-schemas before that extension runs and throw.
-    const { updatePreferencesSchema } = await import("@openrift/shared/schemas");
-    const { userPreferencesResponseSchema } = await import("@openrift/shared/response-schemas");
+    // Imported dynamically: the preferences contract calls `.openapi()` at
+    // module load, which only exists after @hono/zod-openapi (pulled in by the
+    // statically imported route above) has extended Zod. A static top-level
+    // import here would evaluate the contract before that extension runs and throw.
+    const { updatePreferencesSchema, userPreferencesResponseSchema } =
+      await import("@openrift/shared/contracts/preferences");
 
     const writeKeys = Object.keys(updatePreferencesSchema.shape);
     const readKeys = new Set(Object.keys(userPreferencesResponseSchema.shape));

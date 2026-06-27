@@ -1,8 +1,27 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import {
+  podRoundResponseSchema,
+  podScoringSchemeSchema,
+  podStandingRowSchema,
+  podTournamentStatusSchema,
+} from "@openrift/shared/response-schemas";
+import { podResultSchema } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
-import { podReportResponseSchema } from "../response-schemas.js";
-import { podResultSchema } from "../schemas.js";
+extendZodWithOpenApi(z);
+
+export const podReportResponseSchema = z
+  .object({
+    tournamentName: z.string(),
+    status: podTournamentStatusSchema,
+    currentRound: z.number().int().nonnegative(),
+    scoringScheme: podScoringSchemeSchema,
+    byePoints: z.number().int().nonnegative(),
+    standings: z.array(podStandingRowSchema),
+    rounds: z.array(podRoundResponseSchema),
+  })
+  .openapi("PodReportResponse");
 
 /**
  * oRPC contract for the public, token-gated pod-tournament participant surface

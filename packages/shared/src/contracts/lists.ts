@@ -1,30 +1,204 @@
-import { oc } from "@orpc/contract";
-
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
-  listBulkAddResponseSchema,
-  listDetailResponseSchema,
-  listEntryResponseSchema,
-  listGroupSharesResponseSchema,
-  listListResponseSchema,
-  listMoveResponseSchema,
-  listResponseSchema,
-  listShareResponseSchema,
-} from "../response-schemas.js";
+  currencyResponseSchema,
+  listEntryBaseShape,
+  listEntryDetailResponseSchema,
+  listIntentResponseSchema,
+  listKindResponseSchema,
+  tradePreferenceSchema,
+} from "@openrift/shared/response-schemas";
 import {
-  bulkAddCopiesToListSchema,
-  bulkCreateListEntriesSchema,
-  bulkDeleteListEntriesSchema,
-  createListSchema,
-  idAndItemIdParamSchema,
+  currencySchema,
   idParamSchema,
+  listEntryFieldRules,
   listEntryInputShape,
-  listIntentQuerySchema,
-  moveListEntriesSchema,
-  reorderListsSchema,
-  updateListEntrySchema,
-  updateListSchema,
+  oneListEntryTarget,
+  tradePreferenceInputSchema,
   withParams,
-} from "../schemas.js";
+} from "@openrift/shared/schemas";
+import { oc } from "@orpc/contract";
+import { z } from "zod";
+
+extendZodWithOpenApi(z);
+
+const listIntentSchema = z.enum(["wish", "trade", "organize"]);
+
+const listKindSchema = z.enum(["card", "printing", "copy"]);
+
+/**
+ * Allowed intent × kind combos. Mirrors the chk_lists_intent_kind DB
+ * constraint (migration 133, renamed in 135).
+ * @returns true if the combo is allowed.
+ */
+const isAllowedIntentKind = (
+  intent: "wish" | "trade" | "organize",
+  kind: "card" | "printing" | "copy",
+): boolean => {
+  if (intent === "wish") {
+    return kind === "card" || kind === "printing";
+  }
+  if (intent === "trade") {
+    return kind === "copy";
+  }
+  return true;
+};
+
+export const idAndItemIdParamSchema = z.object({ id: z.uuid(), itemId: z.uuid() });
+
+export const listIntentQuerySchema = z.object({
+  intent: listIntentSchema.optional(),
+});
+
+/**
+ * `organize` lists never carry trade defaults. The route layer drops these
+ * fields when intent === 'organize'; the schema lets clients pass them but the
+ * CHECK constraint on the DB also rejects non-null values there.
+ */
+export const createListSchema = z
+  .object({
+    name: z.string().min(1).max(200),
+    intent: listIntentSchema,
+    kind: listKindSchema,
+    tradeDefaults: tradePreferenceInputSchema.optional(),
+    currency: currencySchema.nullable().optional(),
+  })
+  .refine((data) => isAllowedIntentKind(data.intent, data.kind), {
+    message:
+      "Disallowed intent/kind combo. Wish: card|printing. Trade: copy. Organize: card|printing|copy.",
+  })
+  .refine(
+    (data) =>
+      data.intent !== "organize" ||
+      ((data.tradeDefaults === undefined ||
+        (data.tradeDefaults.pricePref === null && data.tradeDefaults.tradeType === null)) &&
+        (data.currency === undefined || data.currency === null)),
+    { message: "organize lists cannot carry trade defaults or a currency" },
+  );
+
+export const updateListSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  tradeDefaults: tradePreferenceInputSchema.optional(),
+  currency: currencySchema.nullable().optional(),
+});
+
+/**
+ * Bulk reorder for the user's lists in a single intent bucket. The server
+ * re-numbers `sort_order` so the rows appear in the order given on the next
+ * fetch. Sidebar groups lists by intent, so reorder is bucket-scoped.
+ */
+export const reorderListsSchema = z.object({
+  intent: listIntentSchema,
+  orderedIds: z.array(z.uuid()).min(1).max(500),
+});
+
+export const updateListEntrySchema = z.object({
+  quantity: listEntryFieldRules.quantity.optional(),
+  tradeOverride: tradePreferenceInputSchema.optional(),
+});
+
+export const bulkCreateListEntriesSchema = z.object({
+  entries: z
+    .array(
+      z.object(listEntryInputShape).refine(oneListEntryTarget, {
+        message: "Exactly one of cardId, printingId, or copyId must be provided",
+      }),
+    )
+    .min(1)
+    .max(500),
+});
+
+/**
+ * Drag-from-collections sugar. The user picks copies and drops them on a list
+ * in the sidebar; the server derives the right entry shape based on the
+ * list's kind (card / printing / copy) and bulk-inserts the deduped result.
+ */
+export const bulkAddCopiesToListSchema = z.object({
+  copyIds: z.array(z.uuid()).min(1).max(500),
+});
+
+/**
+ * Move entries from one list to another. The destination must have the same
+ * `kind` and `intent` as the source — different `kind` would reshape every
+ * entry, different `intent` would silently re-purpose them.
+ */
+export const moveListEntriesSchema = z.object({
+  toListId: z.uuid(),
+  entryIds: z.array(z.uuid()).min(1).max(500),
+});
+
+/** Bulk-remove entries from a list. Scoped to the list + owner server-side. */
+export const bulkDeleteListEntriesSchema = z.object({
+  entryIds: z.array(z.uuid()).min(1).max(500),
+});
+
+export const listResponseSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    intent: listIntentResponseSchema,
+    kind: listKindResponseSchema,
+    entryCount: z.number().int().nonnegative(),
+    isPublic: z.boolean(),
+    shareToken: z.string().nullable(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    tradeDefaults: tradePreferenceSchema,
+    currency: currencyResponseSchema.nullable(),
+  })
+  .openapi("ListResponse");
+
+export const listListResponseSchema = z
+  .object({ items: z.array(listResponseSchema) })
+  .openapi("ListListResponse");
+
+export const listEntryResponseSchema = z
+  .discriminatedUnion("kind", [
+    z.object({ ...listEntryBaseShape, kind: z.literal("card"), cardId: z.string() }),
+    z.object({ ...listEntryBaseShape, kind: z.literal("printing"), printingId: z.string() }),
+    z.object({ ...listEntryBaseShape, kind: z.literal("copy"), copyId: z.string() }),
+  ])
+  .openapi("ListEntryResponse");
+
+export const listDetailResponseSchema = z
+  .object({
+    list: listResponseSchema,
+    entries: z.array(listEntryDetailResponseSchema),
+  })
+  .openapi("ListDetailResponse");
+
+export const listShareResponseSchema = z
+  // shareToken is nullable so GET /lists/{id}/share can report an owned-but-
+  // unshared list (shareToken: null, isPublic: false) without 404-ing. Share /
+  // rotate always return a non-null token.
+  .object({ shareToken: z.string().nullable(), isPublic: z.boolean() })
+  .openapi("ListShareResponse");
+
+export const listBulkAddResponseSchema = z
+  .object({
+    added: z.number().int().nonnegative(),
+    updated: z.number().int().nonnegative(),
+    skipped: z.number().int().nonnegative(),
+  })
+  .openapi("ListBulkAddResponse");
+
+export const listMoveResponseSchema = z
+  .object({
+    moved: z.number().int().nonnegative(),
+    merged: z.number().int().nonnegative(),
+  })
+  .openapi("ListMoveResponse");
+
+export const listGroupSharesResponseSchema = z
+  .object({
+    items: z.array(
+      z.object({
+        groupId: z.string(),
+        groupSlug: z.string(),
+        groupName: z.string(),
+      }),
+    ),
+  })
+  .openapi("ListGroupSharesResponse");
 
 const TAG = "Lists";
 

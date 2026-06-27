@@ -1,7 +1,16 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import { deckCheckClaimTokenParamSchema } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
+import { z } from "zod";
 
-import { deckCheckClaimLandingResponseSchema } from "../response-schemas.js";
-import { deckCheckClaimTokenParamSchema } from "../schemas.js";
+extendZodWithOpenApi(z);
+
+export const deckCheckClaimLandingResponseSchema = z
+  .object({
+    eventName: z.string(),
+    groupName: z.string(),
+  })
+  .openapi("DeckCheckClaimLandingResponse");
 
 /**
  * oRPC contract for the public deck-check claim landing (ADR-026).

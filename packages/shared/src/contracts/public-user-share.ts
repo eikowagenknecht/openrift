@@ -1,10 +1,59 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import {
+  listIntentResponseSchema,
+  listKindResponseSchema,
+  publicListDetailResponseSchema,
+} from "@openrift/shared/response-schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
-import {
-  publicListDetailResponseSchema,
-  publicUserBundleResponseSchema,
-} from "../response-schemas.js";
+extendZodWithOpenApi(z);
+
+const publicUserBundleListResponseSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    intent: listIntentResponseSchema,
+    kind: listKindResponseSchema,
+    entryCount: z.number().int().nonnegative(),
+    isPublic: z.boolean(),
+    viaGroups: z.array(
+      z.object({
+        id: z.string(),
+        slug: z.string(),
+        name: z.string(),
+      }),
+    ),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  })
+  .openapi("PublicUserBundleListResponse");
+
+const publicUserBundleCollectionResponseSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    description: z.string().nullable(),
+    viaGroups: z.array(
+      z.object({
+        id: z.string(),
+        slug: z.string(),
+        name: z.string(),
+      }),
+    ),
+  })
+  .openapi("PublicUserBundleCollectionResponse");
+
+export const publicUserBundleResponseSchema = z
+  .object({
+    owner: z.object({
+      displayName: z.string(),
+      gravatarHash: z.string(),
+    }),
+    lists: z.array(publicUserBundleListResponseSchema),
+    collections: z.array(publicUserBundleCollectionResponseSchema),
+  })
+  .openapi("PublicUserBundleResponse");
 
 /**
  * oRPC contract for the public user-share bundle reads (ADR-018). The bundle

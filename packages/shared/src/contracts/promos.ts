@@ -1,6 +1,27 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import {
+  catalogCardResponseSchema,
+  catalogPrintingResponseSchema,
+  distributionChannelSchema,
+} from "@openrift/shared/response-schemas";
 import { oc } from "@orpc/contract";
+import { z } from "zod";
 
-import { promosListResponseSchema } from "../response-schemas.js";
+extendZodWithOpenApi(z);
+
+const distributionChannelWithCountSchema = distributionChannelSchema.extend({
+  cardCount: z.number().openapi({ example: 12 }),
+  printingCount: z.number().openapi({ example: 24 }),
+});
+
+export const promosListResponseSchema = z
+  .object({
+    channels: z.array(distributionChannelWithCountSchema),
+    cards: z.record(z.string(), catalogCardResponseSchema),
+    printings: z.array(catalogPrintingResponseSchema),
+    // prices are NOT inlined — read them from the /prices resource.
+  })
+  .openapi("PromosListResponse");
 
 /**
  * oRPC contract for the public promos page.

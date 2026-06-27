@@ -1,23 +1,123 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import {
+  podPlayerStatusSchema,
+  podRoundResponseSchema,
+  podScoringSchemeSchema,
+  podStandingRowSchema,
+  podTournamentStatusSchema,
+} from "@openrift/shared/response-schemas";
+import { podResultSchema, withParams } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
-import {
-  podTournamentDetailResponseSchema,
-  podTournamentListResponseSchema,
-  podTournamentResponseSchema,
-} from "../response-schemas.js";
-import {
-  addPodPlayerSchema,
-  createPodTournamentSchema,
-  generatePodRoundSchema,
-  podResultSchema,
-  podRoundNumberParamSchema,
-  podTournamentIdParamSchema,
-  replacePodPairingSchema,
-  updatePodPlayerSchema,
-  updatePodTournamentSchema,
-  withParams,
-} from "../schemas.js";
+extendZodWithOpenApi(z);
+
+export const createPodTournamentSchema = z.object({
+  name: z.string().min(1).max(120),
+});
+
+export const updatePodTournamentSchema = z.object({
+  name: z.string().min(1).max(120).optional(),
+  status: z.enum(["running", "completed"]).optional(),
+  scoringScheme: z.enum(["standard", "three_pod_reduced"]).optional(),
+  byePoints: z.number().int().min(0).max(99).optional(),
+});
+
+export const podTournamentIdParamSchema = z.object({ id: z.uuid() });
+
+export const podRoundNumberParamSchema = z.object({
+  id: z.uuid(),
+  roundNumber: z.coerce.number().int().positive(),
+});
+
+/**
+ * Pair the next round. `byes` lists active players the organizer is sitting out
+ * this round (manual byes); the rest are paired. Used to resolve an otherwise
+ * unrepresentable field (1, 2, or 5 active players) or to sit a leaver out.
+ */
+export const generatePodRoundSchema = z.object({
+  byes: z.array(z.uuid()).default([]),
+});
+
+/**
+ * A manual whole-round pairing edit: the new pods plus the players sitting out.
+ * The server validates pod sizes (3 or 4), full coverage of the round's players,
+ * and that byes are active, then recomputes the penalty.
+ */
+export const replacePodPairingSchema = z.object({
+  pods: z
+    .array(
+      z.object({
+        size: z.union([z.literal(3), z.literal(4)]),
+        playerIds: z.array(z.uuid()),
+      }),
+    )
+    .min(0),
+  byes: z.array(z.uuid()),
+});
+
+export const addPodPlayerSchema = z.object({
+  displayName: z.string().min(1).max(80),
+});
+
+export const updatePodPlayerSchema = z.object({
+  displayName: z.string().min(1).max(80),
+});
+
+export const podTournamentResponseSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    status: podTournamentStatusSchema,
+    currentRound: z.number().int().nonnegative(),
+    scoringScheme: podScoringSchemeSchema,
+    byePoints: z.number().int().nonnegative(),
+    reportToken: z.string().nullable(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  })
+  .openapi("PodTournamentResponse");
+
+export const podTournamentSummaryResponseSchema = podTournamentResponseSchema
+  .extend({
+    playerCount: z.number().int().nonnegative(),
+    activePlayerCount: z.number().int().nonnegative(),
+    roundCount: z.number().int().nonnegative(),
+  })
+  .openapi("PodTournamentSummaryResponse");
+
+export const podTournamentListResponseSchema = z
+  .object({ items: z.array(podTournamentSummaryResponseSchema) })
+  .openapi("PodTournamentListResponse");
+
+export const podPlayerResponseSchema = z
+  .object({
+    id: z.string(),
+    displayName: z.string(),
+    status: podPlayerStatusSchema,
+    droppedAfterRound: z.number().int().nullable(),
+    createdAt: z.string(),
+  })
+  .openapi("PodPlayerResponse");
+
+const podSnapshotPlayerSchema = z.object({
+  playerId: z.string(),
+  score: z.number(),
+  pods3: z.number().int().nonnegative(),
+  pods4: z.number().int().nonnegative(),
+  byes: z.number().int().nonnegative(),
+  opponents: z.record(z.string(), z.number().int().nonnegative()),
+});
+
+export const podTournamentDetailResponseSchema = z
+  .object({
+    tournament: podTournamentResponseSchema,
+    players: z.array(podPlayerResponseSchema),
+    standings: z.array(podStandingRowSchema),
+    rounds: z.array(podRoundResponseSchema),
+    openRoundSnapshot: z.array(podSnapshotPlayerSchema).nullable(),
+  })
+  .openapi("PodTournamentDetailResponse");
 
 const TAG = "Pod Tournaments";
 
