@@ -1,6 +1,6 @@
 import type { CardDetailResponse, Printing } from "@openrift/shared";
 import { cardsContract } from "@openrift/shared/contracts";
-import { ORPCError } from "@orpc/client";
+import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -15,16 +15,19 @@ const fetchCardDetail = createServerFn({ method: "GET" })
       serverCache.fetchQuery({
         queryKey: ["server-cache", "card-detail", data],
         queryFn: async () => {
-          // Migrated to oRPC: 404 (unknown slug) is a typed NOT_FOUND error
+          // 404 (unknown slug) is a typed NOT_FOUND error on the contract;
+          // `safe` + `isDefinedError` narrows `error.code` to the declared set,
           // mapped to the sentinel the route boundary expects.
-          try {
-            return await apiOrpcClient(cardsContract).detail({ cardSlug: data });
-          } catch (error) {
-            if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+          const { error, data: detail } = await safe(
+            apiOrpcClient(cardsContract).detail({ cardSlug: data }),
+          );
+          if (error) {
+            if (isDefinedError(error) && error.code === "NOT_FOUND") {
               throw new Error("NOT_FOUND");
             }
             throw error;
           }
+          return detail;
         },
       }),
   );

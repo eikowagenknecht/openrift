@@ -1,7 +1,7 @@
 import { idParamSchema, isoDateTime, withParams } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
 
+import { authedRoute } from "../_base.js";
 import { slugRegex } from "./shared.js";
 
 const TAG = "Admin - Custom Tags";
@@ -64,60 +64,88 @@ const updateCustomTagInput = z.object({
 /**
  * oRPC contract for the admin custom-tags taxonomy (mounted under
  * `/api/admin/v1`, admin-gated by the mount). Covers three groups: tag
- * categories, the tags themselves, and per-card assignment. Conflict /
- * not-found / bad-request states are thrown as `AppError` and bridged to
- * ORPCErrors in the implementation. The static `custom-tags/assignments` path
- * precedes `custom-tags/{id}` internally.
+ * categories, the tags themselves, and per-card assignment. Domain codes per
+ * route: `createCategory` → CONFLICT; `updateCategory` → NOT_FOUND + CONFLICT;
+ * `removeCategory` → NOT_FOUND + CONFLICT (has tags); `createTag` → BAD_REQUEST
+ * (unknown category) + CONFLICT; `updateTag` → NOT_FOUND + CONFLICT + BAD_REQUEST;
+ * `removeTag` / `addCards` / `getCardTags` → NOT_FOUND; `setCardTags` →
+ * NOT_FOUND + BAD_REQUEST. The static `custom-tags/assignments` path precedes
+ * `custom-tags/{id}` internally.
  */
 export const adminCustomTagsContract = {
   // ── Categories ────────────────────────────────────────────────────────────
-  listCategories: oc
+  listCategories: authedRoute
     .route({ method: "GET", path: CATEGORIES, tags: [TAG] })
     .output(z.object({ categories: z.array(customTagCategorySchema) })),
-  createCategory: oc
+  createCategory: authedRoute
     .route({ method: "POST", path: CATEGORIES, tags: [TAG], successStatus: 201 })
+    .errors({ CONFLICT: { message: "Category already exists" } })
     .input(createCustomTagCategoryInput)
     .output(z.object({ category: customTagCategorySchema })),
-  updateCategory: oc
+  updateCategory: authedRoute
     .route({ method: "PATCH", path: `${CATEGORIES}/{id}`, tags: [TAG], successStatus: 204 })
+    .errors({
+      NOT_FOUND: { message: "Category not found" },
+      CONFLICT: { message: "Slug already in use" },
+    })
     .input(withParams(idParamSchema, updateCustomTagCategoryInput)),
-  removeCategory: oc
+  removeCategory: authedRoute
     .route({ method: "DELETE", path: `${CATEGORIES}/{id}`, tags: [TAG], successStatus: 204 })
+    .errors({
+      NOT_FOUND: { message: "Category not found" },
+      CONFLICT: { message: "Category is in use by one or more tags" },
+    })
     .input(idParamSchema),
 
   // ── Tags ──────────────────────────────────────────────────────────────────
-  listTags: oc
+  listTags: authedRoute
     .route({ method: "GET", path: TAGS, tags: [TAG] })
     .output(z.object({ tags: z.array(customTagSchema) })),
-  listAssignments: oc
+  listAssignments: authedRoute
     .route({ method: "GET", path: `${TAGS}/assignments`, tags: [TAG] })
     .output(z.object({ assignments: z.record(z.string(), z.array(z.string())) })),
-  createTag: oc
+  createTag: authedRoute
     .route({ method: "POST", path: TAGS, tags: [TAG], successStatus: 201 })
+    .errors({
+      BAD_REQUEST: { message: "Unknown category" },
+      CONFLICT: { message: "Custom tag already exists" },
+    })
     .input(createCustomTagInput)
     .output(z.object({ tag: customTagSchema })),
-  updateTag: oc
+  updateTag: authedRoute
     .route({ method: "PATCH", path: `${TAGS}/{id}`, tags: [TAG], successStatus: 204 })
+    .errors({
+      NOT_FOUND: { message: "Custom tag not found" },
+      CONFLICT: { message: "Slug already in use" },
+      BAD_REQUEST: { message: "Unknown category" },
+    })
     .input(withParams(idParamSchema, updateCustomTagInput)),
-  removeTag: oc
+  removeTag: authedRoute
     .route({ method: "DELETE", path: `${TAGS}/{id}`, tags: [TAG], successStatus: 204 })
+    .errors({ NOT_FOUND: { message: "Custom tag not found" } })
     .input(idParamSchema),
-  addCards: oc
+  addCards: authedRoute
     .route({ method: "POST", path: `${TAGS}/{id}/cards`, tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Custom tag not found" } })
     .input(withParams(idParamSchema, { cardIds: z.array(z.uuid()) }))
     .output(z.object({ added: z.number(), requested: z.number() })),
 
   // ── Per-card assignment ─────────────────────────────────────────────────
-  getCardTags: oc
+  getCardTags: authedRoute
     .route({ method: "GET", path: `${BASE}/cards/{id}/custom-tags`, tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Card not found" } })
     .input(idParamSchema)
     .output(z.object({ customTagIds: z.array(z.string()) })),
-  setCardTags: oc
+  setCardTags: authedRoute
     .route({
       method: "PUT",
       path: `${BASE}/cards/{id}/custom-tags`,
       tags: [TAG],
       successStatus: 204,
+    })
+    .errors({
+      NOT_FOUND: { message: "Card not found" },
+      BAD_REQUEST: { message: "Unknown custom tag" },
     })
     .input(withParams(idParamSchema, { customTagIds: z.array(z.uuid()) })),
 };

@@ -5,8 +5,9 @@ import {
   printingFieldRules,
 } from "@openrift/shared/db-field-rules";
 import { diffValueSchema } from "@openrift/shared/response-schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "../_base.js";
 
 const TAG = "Admin - Cards";
 
@@ -263,27 +264,33 @@ export interface AcceptPrintingBody {
  * `/api/admin/v1/cards`, admin-gated by the mount). Migrated incrementally off
  * the chained `@hono/zod-openapi` `mutationsRoute`; this first slice covers the
  * candidate check/uncheck verbs and the candidate-printing operations. Body
- * fields ride alongside any `{...}` path param (oRPC compact input). Not-found /
- * bad-request states are thrown as `AppError` and bridged to ORPCErrors.
+ * fields ride alongside any `{...}` path param (oRPC compact input). Domain
+ * codes per route: check/uncheck/delete verbs → NOT_FOUND; patch/copy/link/
+ * rename/checkByProvider/deleteByProvider/deletePrinting verbs → BAD_REQUEST
+ * (and NOT_FOUND for entity lookups); `acceptPrinting` / `createPrinting` →
+ * BAD_REQUEST + NOT_FOUND + CONFLICT; `acceptPrintingField` → NOT_FOUND;
+ * `acceptFavoritePrintings` → NOT_FOUND.
  */
 export const adminCardMutationsContract = {
-  checkCandidateCard: oc
+  checkCandidateCard: authedRoute
     .route({
       method: "POST",
       path: `${CARDS}/{candidateCardId}/check`,
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({ NOT_FOUND: { message: "Candidate card not found" } })
     .input(candidateCardIdParam),
-  uncheckCandidateCard: oc
+  uncheckCandidateCard: authedRoute
     .route({
       method: "POST",
       path: `${CARDS}/{candidateCardId}/uncheck`,
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({ NOT_FOUND: { message: "Candidate card not found" } })
     .input(candidateCardIdParam),
-  checkAllCandidatePrintings: oc
+  checkAllCandidatePrintings: authedRoute
     .route({ method: "POST", path: `${CARDS}/candidate-printings/check-all`, tags: [TAG] })
     .input(
       z.object({
@@ -292,83 +299,106 @@ export const adminCardMutationsContract = {
       }),
     )
     .output(updatedCountOutput),
-  checkCandidatePrinting: oc
+  checkCandidatePrinting: authedRoute
     .route({
       method: "POST",
       path: `${CARDS}/candidate-printings/{id}/check`,
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({ NOT_FOUND: { message: "Candidate printing not found" } })
     .input(cpIdParam),
-  uncheckCandidatePrinting: oc
+  uncheckCandidatePrinting: authedRoute
     .route({
       method: "POST",
       path: `${CARDS}/candidate-printings/{id}/uncheck`,
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({ NOT_FOUND: { message: "Candidate printing not found" } })
     .input(cpIdParam),
-  checkAllForCard: oc
+  checkAllForCard: authedRoute
     .route({ method: "POST", path: `${CARDS}/{cardId}/check-all`, tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Card not found" } })
     .input(cardIdParam)
     .output(updatedCountOutput),
-  patchCandidatePrinting: oc
+  patchCandidatePrinting: authedRoute
     .route({
       method: "PATCH",
       path: `${CARDS}/candidate-printings/{id}`,
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({
+      NOT_FOUND: { message: "Candidate printing not found" },
+      BAD_REQUEST: { message: "No valid fields to update" },
+    })
     .input(cpIdParam.extend(patchCandidatePrintingFields)),
-  deleteCandidatePrinting: oc
+  deleteCandidatePrinting: authedRoute
     .route({
       method: "DELETE",
       path: `${CARDS}/candidate-printings/{id}`,
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({ NOT_FOUND: { message: "Candidate printing not found" } })
     .input(cpIdParam),
-  copyCandidatePrinting: oc
+  copyCandidatePrinting: authedRoute
     .route({
       method: "POST",
       path: `${CARDS}/candidate-printings/{id}/copy`,
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({
+      NOT_FOUND: { message: "Candidate printing or target printing not found" },
+      BAD_REQUEST: { message: "Target printing ID is required" },
+    })
     .input(cpIdParam.extend({ printingId: z.string() })),
-  linkCandidatePrintings: oc
+  linkCandidatePrintings: authedRoute
     .route({
       method: "POST",
       path: `${CARDS}/candidate-printings/link`,
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({ BAD_REQUEST: { message: "At least one candidate printing ID is required" } })
     .input(
       z.object({
         candidatePrintingIds: z.array(z.string()),
         printingId: z.string().nullable(),
       }),
     ),
-  renameCard: oc
+  renameCard: authedRoute
     .route({ method: "POST", path: `${CARDS}/{cardId}/rename`, tags: [TAG], successStatus: 204 })
+    .errors({
+      NOT_FOUND: { message: "Card not found" },
+      BAD_REQUEST: { message: "New card ID is required" },
+    })
     .input(cardIdParam.extend({ newId: z.string() })),
-  deletePrinting: oc
+  deletePrinting: authedRoute
     .route({
       method: "DELETE",
       path: `${CARDS}/printing/{printingId}`,
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({
+      NOT_FOUND: { message: "Printing not found" },
+      BAD_REQUEST: { message: "Printing cannot be deleted" },
+    })
     .input(printingIdParam),
-  checkByProvider: oc
+  checkByProvider: authedRoute
     .route({ method: "POST", path: `${CARDS}/by-provider/{provider}/check`, tags: [TAG] })
+    .errors({ BAD_REQUEST: { message: "Provider name is required" } })
     .input(providerParam)
     .output(z.object({ cardsChecked: z.number(), printingsChecked: z.number() })),
-  deleteByProvider: oc
+  deleteByProvider: authedRoute
     .route({ method: "DELETE", path: `${CARDS}/by-provider/{provider}`, tags: [TAG] })
+    .errors({ BAD_REQUEST: { message: "Provider name is required" } })
     .input(providerParam)
     .output(z.object({ provider: z.string(), deleted: z.number() })),
-  upsertErrata: oc
+  upsertErrata: authedRoute
     .route({ method: "POST", path: `${CARDS}/{cardId}/errata`, tags: [TAG], successStatus: 204 })
     .input(
       cardIdParam.extend({
@@ -379,10 +409,10 @@ export const adminCardMutationsContract = {
         effectiveDate: cardErrataFieldRules.effectiveDate.optional().default(null),
       }),
     ),
-  deleteErrata: oc
+  deleteErrata: authedRoute
     .route({ method: "DELETE", path: `${CARDS}/{cardId}/errata`, tags: [TAG], successStatus: 204 })
     .input(cardIdParam),
-  acceptField: oc
+  acceptField: authedRoute
     .route({
       method: "POST",
       path: `${CARDS}/{cardId}/accept-field`,
@@ -390,15 +420,16 @@ export const adminCardMutationsContract = {
       successStatus: 204,
     })
     .input(cardIdParam.extend(acceptCardFieldBodySchema.shape)),
-  acceptPrintingField: oc
+  acceptPrintingField: authedRoute
     .route({
       method: "POST",
       path: `${CARDS}/printing/{printingId}/accept-field`,
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({ NOT_FOUND: { message: "Printing or set not found" } })
     .input(printingIdParam.extend(acceptPrintingFieldBodySchema.shape)),
-  uploadErrata: oc
+  uploadErrata: authedRoute
     .route({ method: "POST", path: `${CARDS}/errata/upload`, tags: [TAG] })
     .input(
       z.object({
@@ -419,22 +450,32 @@ export const adminCardMutationsContract = {
         skippedMatchesPrinted: z.array(entryRefSchema),
       }),
     ),
-  acceptNewCard: oc
+  acceptNewCard: authedRoute
     .route({ method: "POST", path: `${CARDS}/new/{name}/accept`, tags: [TAG], successStatus: 204 })
     .input(z.object({ name: z.string(), cardFields: cardFieldsSchema })),
-  acceptFavoriteNewCard: oc
+  acceptFavoriteNewCard: authedRoute
     .route({ method: "POST", path: `${CARDS}/new/{name}/accept-favorites`, tags: [TAG] })
     .input(z.object({ name: z.string() }))
     .output(z.object({ cardSlug: z.string(), printingsCreated: z.number() })),
-  acceptFavoritePrintings: oc
+  acceptFavoritePrintings: authedRoute
     .route({ method: "POST", path: `${CARDS}/{cardSlug}/accept-favorite-printings`, tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Card not found" } })
     .input(z.object({ cardSlug: z.string() }))
     .output(z.object({ printingsCreated: z.number(), skipped: z.array(skippedPrintingSchema) })),
-  linkUnmatched: oc
+  linkUnmatched: authedRoute
     .route({ method: "POST", path: `${CARDS}/new/{name}/link`, tags: [TAG], successStatus: 204 })
+    .errors({
+      NOT_FOUND: { message: "Target card not found" },
+      BAD_REQUEST: { message: "Card ID is required" },
+    })
     .input(z.object({ name: z.string(), cardId: z.string() })),
-  acceptPrinting: oc
+  acceptPrinting: authedRoute
     .route({ method: "POST", path: `${CARDS}/{cardId}/accept-printing`, tags: [TAG] })
+    .errors({
+      NOT_FOUND: { message: "Card or printing not found" },
+      BAD_REQUEST: { message: "Invalid printing fields" },
+      CONFLICT: { message: "Printing already exists" },
+    })
     .input(
       cardIdParam.extend({
         printingFields: acceptPrintingFieldsSchema,
@@ -442,15 +483,20 @@ export const adminCardMutationsContract = {
       }),
     )
     .output(z.object({ printingId: z.string() })),
-  createCard: oc
+  createCard: authedRoute
     .route({ method: "POST", path: `${CARDS}/create`, tags: [TAG] })
     .input(cardFieldsSchema)
     .output(z.object({ cardSlug: z.string() })),
-  createPrinting: oc
+  createPrinting: authedRoute
     .route({ method: "POST", path: `${CARDS}/{cardId}/printings`, tags: [TAG] })
+    .errors({
+      NOT_FOUND: { message: "Card or set not found" },
+      BAD_REQUEST: { message: "Invalid printing fields" },
+      CONFLICT: { message: "Printing already exists" },
+    })
     .input(cardIdParam.extend(createPrintingFieldsSchema.shape))
     .output(z.object({ printingId: z.string() })),
-  upload: oc
+  upload: authedRoute
     .route({ method: "POST", path: `${CARDS}/upload`, tags: [TAG] })
     .input(uploadCandidatesSchema)
     .output(uploadCandidatesResponseSchema),

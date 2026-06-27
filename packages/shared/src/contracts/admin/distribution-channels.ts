@@ -1,7 +1,7 @@
 import { idParamSchema, isoDateTime, withParams } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
 
+import { authedRoute } from "../_base.js";
 import { slugRegex } from "./shared.js";
 
 const TAG = "Admin - Distribution Channels";
@@ -26,22 +26,25 @@ const channelSchema = z.object({
 
 /**
  * oRPC contract for the admin distribution-channels taxonomy CRUD (mounted at
- * `/api/admin/v1/distribution-channels`, admin-gated by the mount). Channels
- * are keyed by their UUID `id` and may nest via `parentId`. Conflict /
- * not-found / has-children / in-use states are thrown as `AppError` and bridged
- * to ORPCErrors in the implementation. `remove` takes an optional `force` query
- * flag that also unlinks the channel from all printings. The static `reorder`
- * path precedes `{id}`.
+ * `/api/admin/v1/distribution-channels`, admin-gated by the mount). All
+ * procedures share the `authedRoute` base (UNAUTHORIZED + FORBIDDEN). Channels
+ * are keyed by their UUID `id` and may nest via `parentId`. Domain codes per
+ * route: `reorder` → BAD_REQUEST (invalid ids); `create` → CONFLICT (slug
+ * taken); `update` → NOT_FOUND + CONFLICT (id not found, slug taken); `remove`
+ * → NOT_FOUND + CONFLICT (id not found, has children or in use). The static
+ * `reorder` path precedes `{id}`.
  */
 export const adminDistributionChannelsContract = {
-  list: oc
+  list: authedRoute
     .route({ method: "GET", path: DC, tags: [TAG] })
     .output(z.object({ distributionChannels: z.array(channelSchema) })),
-  reorder: oc
+  reorder: authedRoute
     .route({ method: "PUT", path: `${DC}/reorder`, tags: [TAG], successStatus: 204 })
+    .errors({ BAD_REQUEST: { message: "Invalid or incomplete list of channel ids" } })
     .input(z.object({ ids: z.array(z.string().min(1)).min(1) })),
-  create: oc
+  create: authedRoute
     .route({ method: "POST", path: DC, tags: [TAG], successStatus: 201 })
+    .errors({ CONFLICT: { message: "A distribution channel with that slug already exists" } })
     .input(
       z.object({
         slug: z.string().min(1).regex(slugRegex, "Slug must be kebab-case (e.g. nexus-night-2025)"),
@@ -53,25 +56,35 @@ export const adminDistributionChannelsContract = {
       }),
     )
     .output(z.object({ distributionChannel: channelSchema })),
-  update: oc.route({ method: "PATCH", path: `${DC}/{id}`, tags: [TAG], successStatus: 204 }).input(
-    withParams(idParamSchema, {
-      slug: z.string().min(1).regex(slugRegex, "Slug must be kebab-case").optional(),
-      label: z.string().min(1).optional(),
-      description: z.string().min(1).nullable().optional(),
-      kind: channelKindEnum.optional(),
-      parentId: z.uuid().nullable().optional(),
-      childrenLabel: z.string().min(1).nullable().optional(),
-    }),
-  ),
+  update: authedRoute
+    .route({ method: "PATCH", path: `${DC}/{id}`, tags: [TAG], successStatus: 204 })
+    .errors({
+      NOT_FOUND: { message: "Distribution channel not found" },
+      CONFLICT: { message: "A distribution channel with that slug already exists" },
+    })
+    .input(
+      withParams(idParamSchema, {
+        slug: z.string().min(1).regex(slugRegex, "Slug must be kebab-case").optional(),
+        label: z.string().min(1).optional(),
+        description: z.string().min(1).nullable().optional(),
+        kind: channelKindEnum.optional(),
+        parentId: z.uuid().nullable().optional(),
+        childrenLabel: z.string().min(1).nullable().optional(),
+      }),
+    ),
   // Detailed input structure: a DELETE's query params aren't read in compact
   // mode, so `force` must come through `query`. `id` stays a path param.
-  remove: oc
+  remove: authedRoute
     .route({
       method: "DELETE",
       path: `${DC}/{id}`,
       tags: [TAG],
       successStatus: 204,
       inputStructure: "detailed",
+    })
+    .errors({
+      NOT_FOUND: { message: "Distribution channel not found" },
+      CONFLICT: { message: "Distribution channel has children or is in use by printings" },
     })
     .input(
       z.object({

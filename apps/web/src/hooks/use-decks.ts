@@ -12,7 +12,7 @@ import type {
   PublicDeckDetailResponse,
 } from "@openrift/shared";
 import { decksContract, publicDecksContract } from "@openrift/shared/contracts";
-import { ORPCError } from "@orpc/client";
+import { isDefinedError, safe } from "@orpc/client";
 import { useMutation, useQueryClient, queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -36,14 +36,14 @@ async function fetchDeckDetailImpl(
   // 404 is legitimate (unknown/deleted deck id, or one belonging to another
   // user) — map to NOT_FOUND so the route can render a not-found page
   // without logging the response as an error.
-  try {
-    return await apiOrpcClient(decksContract, cookie).get({ id: deckId });
-  } catch (error) {
-    if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+  const { error, data } = await safe(apiOrpcClient(decksContract, cookie).get({ id: deckId }));
+  if (error) {
+    if (isDefinedError(error) && error.code === "NOT_FOUND") {
       throw new Error("NOT_FOUND");
     }
     throw error;
   }
+  return data;
 }
 
 const fetchDeckDetail = createServerFn({ method: "GET" })
@@ -114,10 +114,11 @@ export const deleteDeckFn = createServerFn({ method: "POST" })
     // A 404 means the deck is already gone (double-click on the delete confirm,
     // a second tab, a retried request) — the outcome the user asked for, so
     // accept it as success instead of surfacing a "Not found" error toast.
-    try {
-      await apiOrpcClient(decksContract, context.cookie).remove({ id: deckId });
-    } catch (error) {
-      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+    const { error } = await safe(
+      apiOrpcClient(decksContract, context.cookie).remove({ id: deckId }),
+    );
+    if (error) {
+      if (isDefinedError(error) && error.code === "NOT_FOUND") {
         return;
       }
       throw error;
@@ -410,14 +411,14 @@ const fetchPublicDeckFn = createServerFn({ method: "GET" })
   .handler(async ({ data: token }): Promise<PublicDeckDetailResponse> => {
     // Migrated to oRPC: contract-typed client. 404 (unknown/expired token) is a
     // typed NOT_FOUND error mapped to the sentinel the route boundary expects.
-    try {
-      return await apiOrpcClient(publicDecksContract).share({ token });
-    } catch (error) {
-      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+    const { error, data } = await safe(apiOrpcClient(publicDecksContract).share({ token }));
+    if (error) {
+      if (isDefinedError(error) && error.code === "NOT_FOUND") {
         throw new Error("NOT_FOUND");
       }
       throw error;
     }
+    return data;
   });
 
 export function publicDeckQueryOptions(token: string) {

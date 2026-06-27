@@ -1,6 +1,7 @@
 import { isoDateTime, withParams } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "../_base.js";
 
 const TAG = "Admin - Languages";
 
@@ -18,20 +19,23 @@ const codeParamSchema = z.object({ code: z.string().min(1) });
 
 /**
  * oRPC contract for the admin languages taxonomy CRUD (mounted at
- * `/api/admin/v1/languages`, admin-gated by the mount). Languages are keyed by
- * their `code`. Conflict / not-found / in-use states are thrown as `AppError`
- * and bridged to ORPCErrors in the implementation. The static `reorder` path
- * precedes `{code}`.
+ * `/api/admin/v1/languages`, admin-gated by the mount). All procedures share
+ * the `authedRoute` base (UNAUTHORIZED + FORBIDDEN). Languages are keyed by
+ * their `code`. Domain codes per route: `reorder` → BAD_REQUEST (invalid
+ * codes); `create` → CONFLICT (code taken); `update` → NOT_FOUND; `remove` →
+ * NOT_FOUND + CONFLICT (in use). The static `reorder` path precedes `{code}`.
  */
 export const adminLanguagesContract = {
-  list: oc
+  list: authedRoute
     .route({ method: "GET", path: LANG, tags: [TAG] })
     .output(z.object({ languages: z.array(languageSchema) })),
-  reorder: oc
+  reorder: authedRoute
     .route({ method: "PUT", path: `${LANG}/reorder`, tags: [TAG], successStatus: 204 })
+    .errors({ BAD_REQUEST: { message: "Invalid or incomplete list of language codes" } })
     .input(z.object({ codes: z.array(z.string().min(1)).min(1) })),
-  create: oc
+  create: authedRoute
     .route({ method: "POST", path: LANG, tags: [TAG], successStatus: 201 })
+    .errors({ CONFLICT: { message: "A language with that code already exists" } })
     .input(
       z.object({
         code: z.string().min(1).max(5),
@@ -40,16 +44,21 @@ export const adminLanguagesContract = {
       }),
     )
     .output(z.object({ language: languageSchema })),
-  update: oc
+  update: authedRoute
     .route({ method: "PATCH", path: `${LANG}/{code}`, tags: [TAG], successStatus: 204 })
+    .errors({ NOT_FOUND: { message: "Language not found" } })
     .input(
       withParams(codeParamSchema, {
         name: z.string().min(1).optional(),
         sortOrder: z.number().int().optional(),
       }),
     ),
-  remove: oc
+  remove: authedRoute
     .route({ method: "DELETE", path: `${LANG}/{code}`, tags: [TAG], successStatus: 204 })
+    .errors({
+      NOT_FOUND: { message: "Language not found" },
+      CONFLICT: { message: "Language is in use by one or more printings" },
+    })
     .input(codeParamSchema),
 };
 

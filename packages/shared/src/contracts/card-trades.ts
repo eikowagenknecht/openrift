@@ -1,8 +1,9 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { contactMethodSchema } from "@openrift/shared/response-schemas";
 import { friendGroupSlugSchema, idParamSchema, withParams } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "./_base.js";
 
 extendZodWithOpenApi(z);
 
@@ -104,50 +105,88 @@ const TAG = "CardTrades";
 
 /**
  * oRPC contract for the authenticated card-trades endpoints (mounted at
- * `/api/v1/trades`). All require a session (the mount applies `requireAuth`).
- * The lifecycle mutations (accept/decline/cancel/complete/quantity/sync) take
- * the trade id as a path param; state errors thrown by the trade services are
- * bridged to ORPCErrors in the implementation.
+ * `/api/v1/trades`). All require a session, so they share the `authedRoute`
+ * base (UNAUTHORIZED + FORBIDDEN). Domain codes per route: `create` →
+ * NOT_FOUND (group or counterparty) + BAD_REQUEST (self-trade or over-demand)
+ * + CONFLICT (no match, insufficient supply, or duplicate live trade);
+ * `accept`, `decline`, `cancel`, `complete`, `sync`, `skipSync` → NOT_FOUND
+ * (trade) + CONFLICT (wrong state or already resolved); `setQuantity` → also
+ * adds BAD_REQUEST (quantity below minimum). The lifecycle mutations take the
+ * trade id as a path param.
  */
 export const cardTradesContract = {
-  create: oc
+  create: authedRoute
     .route({ method: "POST", path: "/api/v1/trades", tags: [TAG], successStatus: 201 })
     .input(createCardTradeSchema)
+    .errors({
+      NOT_FOUND: { message: "Group or counterparty not found" },
+      BAD_REQUEST: { message: "Invalid trade request" },
+      CONFLICT: { message: "Trade cannot be created" },
+    })
     .output(cardTradeResponseSchema),
-  list: oc
+  list: authedRoute
     .route({ method: "GET", path: "/api/v1/trades", tags: [TAG] })
     .input(cardTradesQuerySchema)
     .output(cardTradeListResponseSchema),
-  actionCounts: oc
+  actionCounts: authedRoute
     .route({ method: "GET", path: "/api/v1/trades/action-counts", tags: [TAG] })
     .output(cardTradeActionCountsResponseSchema),
-  accept: oc
+  accept: authedRoute
     .route({ method: "POST", path: "/api/v1/trades/{id}/accept", tags: [TAG] })
     .input(idParamSchema)
+    .errors({
+      NOT_FOUND: { message: "Trade not found" },
+      CONFLICT: { message: "Trade state has changed" },
+    })
     .output(cardTradeResponseSchema),
-  decline: oc
+  decline: authedRoute
     .route({ method: "POST", path: "/api/v1/trades/{id}/decline", tags: [TAG] })
     .input(idParamSchema)
+    .errors({
+      NOT_FOUND: { message: "Trade not found" },
+      CONFLICT: { message: "Trade state has changed" },
+    })
     .output(cardTradeResponseSchema),
-  cancel: oc
+  cancel: authedRoute
     .route({ method: "POST", path: "/api/v1/trades/{id}/cancel", tags: [TAG] })
     .input(idParamSchema)
+    .errors({
+      NOT_FOUND: { message: "Trade not found" },
+      CONFLICT: { message: "Trade cannot be cancelled" },
+    })
     .output(cardTradeResponseSchema),
-  complete: oc
+  complete: authedRoute
     .route({ method: "POST", path: "/api/v1/trades/{id}/complete", tags: [TAG] })
     .input(idParamSchema)
+    .errors({
+      NOT_FOUND: { message: "Trade not found" },
+      CONFLICT: { message: "Trade is not reserved" },
+    })
     .output(cardTradeResponseSchema),
-  setQuantity: oc
+  setQuantity: authedRoute
     .route({ method: "POST", path: "/api/v1/trades/{id}/quantity", tags: [TAG] })
     .input(withParams(idParamSchema, setCardTradeQuantitySchema))
+    .errors({
+      NOT_FOUND: { message: "Trade not found" },
+      BAD_REQUEST: { message: "Invalid quantity" },
+      CONFLICT: { message: "Trade state has changed" },
+    })
     .output(cardTradeResponseSchema),
-  sync: oc
+  sync: authedRoute
     .route({ method: "POST", path: "/api/v1/trades/{id}/sync", tags: [TAG] })
     .input(withParams(idParamSchema, cardTradeSyncSchema))
+    .errors({
+      NOT_FOUND: { message: "Trade not found" },
+      CONFLICT: { message: "Sync not available" },
+    })
     .output(cardTradeResponseSchema),
-  skipSync: oc
+  skipSync: authedRoute
     .route({ method: "POST", path: "/api/v1/trades/{id}/sync/skip", tags: [TAG] })
     .input(idParamSchema)
+    .errors({
+      NOT_FOUND: { message: "Trade not found" },
+      CONFLICT: { message: "Sync not available" },
+    })
     .output(cardTradeResponseSchema),
 };
 

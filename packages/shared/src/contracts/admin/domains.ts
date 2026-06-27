@@ -1,6 +1,7 @@
 import { withParams } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "../_base.js";
 
 const TAG = "Admin - Domains";
 
@@ -23,20 +24,24 @@ const hexColorSchema = z
 
 /**
  * oRPC contract for the admin domain taxonomy CRUD (mounted at
- * `/api/admin/v1/domains`, admin-gated by the mount). Like the other enum
- * taxonomies but each row also carries an optional hex `color`. Conflict /
- * not-found / bad-request states are thrown as `AppError` and bridged to
- * ORPCErrors in the implementation. The static `reorder` path precedes `{slug}`.
+ * `/api/admin/v1/domains`, admin-gated by the mount). All procedures share the
+ * `authedRoute` base (UNAUTHORIZED + FORBIDDEN). Each row carries an optional
+ * hex `color`. Domain codes per route: `reorder` → BAD_REQUEST (invalid slugs);
+ * `create` → CONFLICT (slug taken); `update` → NOT_FOUND; `remove` → NOT_FOUND
+ * + CONFLICT (well-known or in use). The static `reorder` path precedes
+ * `{slug}`.
  */
 export const adminDomainsContract = {
-  list: oc
+  list: authedRoute
     .route({ method: "GET", path: BASE, tags: [TAG] })
     .output(z.object({ domains: z.array(entitySchema) })),
-  reorder: oc
+  reorder: authedRoute
     .route({ method: "PUT", path: `${BASE}/reorder`, tags: [TAG], successStatus: 204 })
+    .errors({ BAD_REQUEST: { message: "Invalid or incomplete list of domain slugs" } })
     .input(z.object({ slugs: z.array(z.string().min(1)).min(1) })),
-  create: oc
+  create: authedRoute
     .route({ method: "POST", path: BASE, tags: [TAG], successStatus: 201 })
+    .errors({ CONFLICT: { message: "A domain with that slug already exists" } })
     .input(
       z.object({
         slug: z.string().min(1),
@@ -45,16 +50,21 @@ export const adminDomainsContract = {
       }),
     )
     .output(z.object({ domain: entitySchema })),
-  update: oc
+  update: authedRoute
     .route({ method: "PATCH", path: `${BASE}/{slug}`, tags: [TAG], successStatus: 204 })
+    .errors({ NOT_FOUND: { message: "Domain not found" } })
     .input(
       withParams(slugParamSchema, {
         label: z.string().min(1).optional(),
         color: hexColorSchema.optional(),
       }),
     ),
-  remove: oc
+  remove: authedRoute
     .route({ method: "DELETE", path: `${BASE}/{slug}`, tags: [TAG], successStatus: 204 })
+    .errors({
+      NOT_FOUND: { message: "Domain not found" },
+      CONFLICT: { message: "Domain is well-known or in use by one or more cards" },
+    })
     .input(slugParamSchema),
 };
 

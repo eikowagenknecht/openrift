@@ -1,6 +1,7 @@
 import { idParamSchema, isoDate, isoDateTime, withParams } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "../_base.js";
 
 const TAG = "Admin - Cards";
 
@@ -23,16 +24,21 @@ const reasonSchema = z.string().min(1).nullable().optional();
  * oRPC contract for the admin card-ban management (mounted under
  * `/api/admin/v1/cards/{id}/bans`, admin-gated by the mount). All four verbs
  * share the same path; create/update/remove carry their fields in the body
- * alongside the `{id}` path param (oRPC compact input). Conflict / not-found
- * states are thrown as `AppError` and bridged to ORPCErrors.
+ * alongside the `{id}` path param (oRPC compact input). Domain codes per
+ * route: `create` → NOT_FOUND (card not found) + CONFLICT (duplicate ban);
+ * `update` → NOT_FOUND (ban not found); `remove` → NOT_FOUND (ban not found).
  */
 export const adminCardBansContract = {
-  list: oc
+  list: authedRoute
     .route({ method: "GET", path: BANS, tags: [TAG] })
     .input(idParamSchema)
     .output(z.object({ bans: z.array(banResponseSchema) })),
-  create: oc
+  create: authedRoute
     .route({ method: "POST", path: BANS, tags: [TAG], successStatus: 201 })
+    .errors({
+      NOT_FOUND: { message: "Card not found" },
+      CONFLICT: { message: "Card is already banned in this format" },
+    })
     .input(
       withParams(idParamSchema, {
         formatId: formatIdSchema,
@@ -41,8 +47,9 @@ export const adminCardBansContract = {
       }),
     )
     .output(z.object({ ban: banResponseSchema })),
-  update: oc
+  update: authedRoute
     .route({ method: "PATCH", path: BANS, tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Ban not found" } })
     .input(
       withParams(idParamSchema, {
         formatId: formatIdSchema,
@@ -51,8 +58,9 @@ export const adminCardBansContract = {
       }),
     )
     .output(z.object({ ban: banResponseSchema })),
-  remove: oc
+  remove: authedRoute
     .route({ method: "DELETE", path: BANS, tags: [TAG], successStatus: 204 })
+    .errors({ NOT_FOUND: { message: "Ban not found" } })
     .input(withParams(idParamSchema, { formatId: formatIdSchema })),
 };
 

@@ -4,7 +4,7 @@ import type {
   UserShareStateResponse,
 } from "@openrift/shared";
 import { publicUserShareContract, userShareContract } from "@openrift/shared/contracts";
-import { ORPCError } from "@orpc/client";
+import { isDefinedError, safe } from "@orpc/client";
 import {
   queryOptions,
   useMutation,
@@ -113,16 +113,18 @@ const fetchPublicUserBundleFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .validator((input: string) => input)
   .handler(async ({ context, data: token }): Promise<PublicUserBundleResponse> => {
-    try {
-      return await apiOrpcClient(publicUserShareContract, context.cookie).bundle({ token });
-    } catch (error) {
-      // Unknown / non-public token is a typed NOT_FOUND — map to the sentinel
-      // the route boundary expects without logging it as a failure.
-      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+    // Unknown / non-public token is a typed NOT_FOUND — map to the sentinel
+    // the route boundary expects without logging it as a failure.
+    const { error, data } = await safe(
+      apiOrpcClient(publicUserShareContract, context.cookie).bundle({ token }),
+    );
+    if (error) {
+      if (isDefinedError(error) && error.code === "NOT_FOUND") {
         throw new Error("NOT_FOUND");
       }
       throw error;
     }
+    return data;
   });
 
 export function publicUserBundleQueryOptions(token: string) {
@@ -140,20 +142,22 @@ const fetchPublicUserBundleListFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .validator((input: { token: string; listId: string }) => input)
   .handler(async ({ context, data }): Promise<PublicListDetailResponse> => {
-    try {
-      return await apiOrpcClient(publicUserShareContract, context.cookie).bundleList({
+    // Unknown token/list is a typed NOT_FOUND — map to the sentinel the route
+    // boundary expects. A malformed listId (400) still surfaces as an error,
+    // matching the previous hc behavior.
+    const { error, data: result } = await safe(
+      apiOrpcClient(publicUserShareContract, context.cookie).bundleList({
         token: data.token,
         listId: data.listId,
-      });
-    } catch (error) {
-      // Unknown token/list is a typed NOT_FOUND — map to the sentinel the route
-      // boundary expects. A malformed listId (400) still surfaces as an error,
-      // matching the previous hc behavior.
-      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+      }),
+    );
+    if (error) {
+      if (isDefinedError(error) && error.code === "NOT_FOUND") {
         throw new Error("NOT_FOUND");
       }
       throw error;
     }
+    return result;
   });
 
 export function publicUserBundleListQueryOptions(token: string, listId: string) {

@@ -1,6 +1,7 @@
 import { isoDateTime } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "../_base.js";
 
 const TAG = "Admin - Ignored Candidates";
 
@@ -40,27 +41,28 @@ const unignorePrintingInput = z.object({
 
 /**
  * oRPC contract for the admin ignored-candidates controls (mounted under
- * `/api/admin/v1/ignored-candidates`, admin-gated by the mount). Cards and
- * printings each have an ignore (POST) and unignore (DELETE); the DELETEs carry
- * a body (compact mode reads it).
+ * `/api/admin/v1/ignored-candidates`, admin-gated by the mount). All
+ * procedures share the `authedRoute` base (UNAUTHORIZED + FORBIDDEN). Cards
+ * and printings each have an ignore (POST) and unignore (DELETE); the DELETEs
+ * carry a body (compact mode reads it).
  */
 export const adminIgnoredCandidatesContract = {
-  list: oc.route({ method: "GET", path: IC, tags: [TAG] }).output(
+  list: authedRoute.route({ method: "GET", path: IC, tags: [TAG] }).output(
     z.object({
       cards: z.array(ignoredCardSchema),
       printings: z.array(ignoredPrintingSchema),
     }),
   ),
-  ignoreCard: oc
+  ignoreCard: authedRoute
     .route({ method: "POST", path: `${IC}/cards`, tags: [TAG], successStatus: 204 })
     .input(cardInput),
-  unignoreCard: oc
+  unignoreCard: authedRoute
     .route({ method: "DELETE", path: `${IC}/cards`, tags: [TAG], successStatus: 204 })
     .input(cardInput),
-  ignorePrinting: oc
+  ignorePrinting: authedRoute
     .route({ method: "POST", path: `${IC}/printings`, tags: [TAG], successStatus: 204 })
     .input(ignorePrintingInput),
-  unignorePrinting: oc
+  unignorePrinting: authedRoute
     .route({ method: "DELETE", path: `${IC}/printings`, tags: [TAG], successStatus: 204 })
     .input(unignorePrintingInput),
 };

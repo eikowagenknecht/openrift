@@ -1,5 +1,6 @@
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "../_base.js";
 
 const TAG = "Admin - Cards";
 
@@ -15,83 +16,108 @@ const rehostedUrlOutput = z.object({ rehostedUrl: z.string() });
  * `/api/admin/v1/cards`, admin-gated by the mount). Each verb carries its body
  * fields alongside its `{id}` / `{imageId}` / `{printingId}` path param (oRPC
  * compact input); `uploadImage` takes a `multipart/form-data` body with the
- * uploaded `File`. Not-found / bad-request / payload-too-large states are
- * thrown as `AppError` and bridged to ORPCErrors.
+ * uploaded `File`. Domain codes per route: most image verbs → NOT_FOUND;
+ * `setImage` / `unrehostImage` / `rehostImage` / `addImageUrl` → BAD_REQUEST;
+ * `uploadImage` → PAYLOAD_TOO_LARGE (file over 50 MB).
  */
 export const adminCardImagesContract = {
-  setImage: oc
+  setImage: authedRoute
     .route({
       method: "POST",
       path: "/api/admin/v1/cards/candidate-printings/{id}/set-image",
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({
+      NOT_FOUND: { message: "Candidate printing not found" },
+      BAD_REQUEST: { message: "Candidate printing is not ready for image assignment" },
+    })
     .input(idParam.extend({ mode: modeSchema })),
-  deleteImage: oc
+  deleteImage: authedRoute
     .route({
       method: "DELETE",
       path: "/api/admin/v1/cards/printing-images/{imageId}",
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({ NOT_FOUND: { message: "Printing image not found" } })
     .input(imageIdParam),
-  activateImage: oc
+  activateImage: authedRoute
     .route({
       method: "POST",
       path: "/api/admin/v1/cards/printing-images/{imageId}/activate",
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({ NOT_FOUND: { message: "Printing image not found" } })
     .input(imageIdParam.extend({ active: z.boolean() })),
-  unrehostImage: oc
+  unrehostImage: authedRoute
     .route({
       method: "POST",
       path: "/api/admin/v1/cards/printing-images/{imageId}/unrehost",
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({
+      NOT_FOUND: { message: "Printing image not found" },
+      BAD_REQUEST: { message: "Image cannot be un-rehosted" },
+    })
     .input(imageIdParam),
-  rehostImage: oc
+  rehostImage: authedRoute
     .route({
       method: "POST",
       path: "/api/admin/v1/cards/printing-images/{imageId}/rehost",
       tags: [TAG],
     })
+    .errors({
+      NOT_FOUND: { message: "Printing image not found" },
+      BAD_REQUEST: { message: "Image has no original URL to rehost" },
+    })
     .input(imageIdParam)
     .output(rehostedUrlOutput),
-  rotateImage: oc
+  rotateImage: authedRoute
     .route({
       method: "POST",
       path: "/api/admin/v1/cards/printing-images/{imageId}/rotate",
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({ NOT_FOUND: { message: "Printing image not found" } })
     .input(
       imageIdParam.extend({
         rotation: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]),
       }),
     ),
-  setNeedsTrim: oc
+  setNeedsTrim: authedRoute
     .route({
       method: "POST",
       path: "/api/admin/v1/cards/printing-images/{imageId}/set-needs-trim",
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({ NOT_FOUND: { message: "Printing image not found" } })
     .input(imageIdParam.extend({ needsTrim: z.boolean() })),
-  addImageUrl: oc
+  addImageUrl: authedRoute
     .route({
       method: "POST",
       path: "/api/admin/v1/cards/printing/{printingId}/add-image-url",
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({
+      NOT_FOUND: { message: "Printing not found" },
+      BAD_REQUEST: { message: "Image URL is required" },
+    })
     .input(printingIdParam.extend({ url: z.string(), mode: modeSchema.optional() })),
-  uploadImage: oc
+  uploadImage: authedRoute
     .route({
       method: "POST",
       path: "/api/admin/v1/cards/printing/{printingId}/upload-image",
       tags: [TAG],
+    })
+    .errors({
+      NOT_FOUND: { message: "Printing not found" },
+      PAYLOAD_TOO_LARGE: { message: "File exceeds 50 MB limit" },
     })
     .input(printingIdParam.extend({ file: z.instanceof(File), mode: modeSchema.optional() }))
     .output(rehostedUrlOutput),

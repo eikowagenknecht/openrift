@@ -1,8 +1,9 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { copyListResponseSchema } from "@openrift/shared/response-schemas";
 import { copiesQuerySchema, idParamSchema, withParams } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "./_base.js";
 
 extendZodWithOpenApi(z);
 
@@ -99,67 +100,84 @@ const TAG = "Collections";
 /**
  * oRPC contract for the authenticated collections endpoints (mounted at
  * `/api/v1/collections`). All require a session (the mount applies
- * `requireAuth`). Not-found / forbidden / conflict states thrown by the
- * handlers (`AppError`) are bridged to ORPCErrors in the implementation, so the
- * contract declares no per-code typed errors.
+ * `requireAuth`), so they share the `authedRoute` base (UNAUTHORIZED +
+ * FORBIDDEN). Domain codes per route: `create` → NOT_FOUND (unknown group
+ * slug); `get`, `update`, `copies`, `share`, `shareState`, `rotateShare`,
+ * `unshare`, `groupShares`, `setDeckbuilding` → NOT_FOUND (inaccessible
+ * collection); `remove` → NOT_FOUND + CONFLICT (inbox guard, non-empty
+ * shared collection).
  */
 export const collectionsContract = {
-  list: oc
+  list: authedRoute
     .route({ method: "GET", path: "/api/v1/collections", tags: [TAG] })
     .output(collectionListResponseSchema),
-  create: oc
+  create: authedRoute
     .route({ method: "POST", path: "/api/v1/collections", tags: [TAG], successStatus: 201 })
     .input(createCollectionSchema)
+    .errors({ NOT_FOUND: { message: "Group not found" } })
     .output(collectionResponseSchema),
-  reorder: oc
+  reorder: authedRoute
     .route({ method: "POST", path: "/api/v1/collections/reorder", tags: [TAG], successStatus: 204 })
     .input(reorderCollectionsSchema),
-  get: oc
+  get: authedRoute
     .route({ method: "GET", path: "/api/v1/collections/{id}", tags: [TAG] })
     .input(idParamSchema)
+    .errors({ NOT_FOUND: { message: "Collection not found" } })
     .output(collectionResponseSchema),
-  update: oc
+  update: authedRoute
     .route({ method: "PATCH", path: "/api/v1/collections/{id}", tags: [TAG] })
     .input(withParams(idParamSchema, updateCollectionSchema))
+    .errors({ NOT_FOUND: { message: "Collection not found" } })
     .output(collectionResponseSchema),
-  remove: oc
+  remove: authedRoute
     .route({ method: "DELETE", path: "/api/v1/collections/{id}", tags: [TAG], successStatus: 204 })
+    .errors({
+      NOT_FOUND: { message: "Collection not found" },
+      CONFLICT: { message: "Collection cannot be deleted" },
+    })
     .input(idParamSchema),
-  copies: oc
+  copies: authedRoute
     .route({ method: "GET", path: "/api/v1/collections/{id}/copies", tags: [TAG] })
     .input(withParams(idParamSchema, copiesQuerySchema))
+    .errors({ NOT_FOUND: { message: "Collection not found" } })
     .output(copyListResponseSchema),
-  share: oc
+  share: authedRoute
     .route({ method: "POST", path: "/api/v1/collections/{id}/share", tags: [TAG] })
     .input(idParamSchema)
+    .errors({ NOT_FOUND: { message: "Collection not found" } })
     .output(collectionShareResponseSchema),
-  shareState: oc
+  shareState: authedRoute
     .route({ method: "GET", path: "/api/v1/collections/{id}/share", tags: [TAG] })
     .input(idParamSchema)
+    .errors({ NOT_FOUND: { message: "Collection not found" } })
     .output(collectionShareResponseSchema),
-  rotateShare: oc
+  rotateShare: authedRoute
     .route({ method: "POST", path: "/api/v1/collections/{id}/share/rotate", tags: [TAG] })
     .input(idParamSchema)
+    .errors({ NOT_FOUND: { message: "Collection not found" } })
     .output(collectionShareResponseSchema),
-  unshare: oc
+  unshare: authedRoute
     .route({
       method: "DELETE",
       path: "/api/v1/collections/{id}/share",
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({ NOT_FOUND: { message: "Collection not found" } })
     .input(idParamSchema),
-  groupShares: oc
+  groupShares: authedRoute
     .route({ method: "GET", path: "/api/v1/collections/{id}/group-shares", tags: [TAG] })
     .input(idParamSchema)
+    .errors({ NOT_FOUND: { message: "Collection not found" } })
     .output(collectionGroupSharesResponseSchema),
-  setDeckbuilding: oc
+  setDeckbuilding: authedRoute
     .route({
       method: "PUT",
       path: "/api/v1/collections/{id}/deckbuilding",
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({ NOT_FOUND: { message: "Collection not found" } })
     .input(withParams(idParamSchema, setCollectionDeckbuildingSchema)),
 };
 

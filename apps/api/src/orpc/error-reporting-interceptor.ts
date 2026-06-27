@@ -7,19 +7,21 @@ import { appErrorInterceptor } from "./app-error-interceptor.js";
 
 /**
  * Whether a thrown error is a server fault worth reporting to Sentry. Expected
- * client outcomes are NOT faults: an {@link AppError} below 500 (404/409/422)
- * and any typed oRPC {@link ORPCError} a handler throws (`errors.NOT_FOUND()`,
- * an input-validation `BAD_REQUEST`, `UNAUTHORIZED`, …) are routine. Everything
- * else — a 5xx `AppError`, a raw DB/runtime error, an output-validation failure
- * — is a genuine fault.
+ * client outcomes are NOT faults: a sub-500 error (404/409/422) — whether a raw
+ * {@link AppError} or the {@link ORPCError} it is converted into inside the
+ * procedure pipeline (`errors.NOT_FOUND()`, an input-validation `BAD_REQUEST`,
+ * `UNAUTHORIZED`, …) — is routine. Everything else — a 5xx error (e.g. the
+ * `INTERNAL_ERROR` / `MISSING_ALIAS` AppErrors, which now reach here already
+ * mapped to a 500 `ORPCError`), a raw DB/runtime error, an output-validation
+ * failure — is a genuine fault. The status check is the same for both error
+ * types because the base auth middleware converts AppError → ORPCError before
+ * this interceptor runs (see `convertingAppErrors` in `base.ts`); keying off
+ * status (not the class) keeps capture identical across that boundary.
  * @returns Whether the error should be captured.
  */
 function isServerFault(error: unknown): boolean {
-  if (error instanceof AppError) {
+  if (error instanceof AppError || error instanceof ORPCError) {
     return error.status >= 500;
-  }
-  if (error instanceof ORPCError) {
-    return false;
   }
   return true;
 }

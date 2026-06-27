@@ -1,8 +1,8 @@
 import { isoDateTime } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
 
 import { diffValueSchema } from "../../response-schemas.js";
+import { authedRoute } from "../_base.js";
 import { jobStartedResponseSchema } from "./shared.js";
 
 const TAG = "Admin - Operations";
@@ -42,16 +42,17 @@ const printingEventViewSchema = z.object({
  * `/api/admin/v1/printing-events`, admin-gated by the mount): start a flush job
  * (202 + run handle), list the pending/failed queue, and reset failed events to
  * pending for the next flush. The static `flush` / `retry` paths sit alongside
- * the bare list in one handler.
+ * the bare list in one handler. All procedures are session-gated (UNAUTHORIZED +
+ * FORBIDDEN from `authedRoute`); no domain error codes are declared.
  */
 export const adminPrintingEventsContract = {
-  flush: oc
+  flush: authedRoute
     .route({ method: "POST", path: `${PE}/flush`, tags: [TAG], successStatus: 202 })
     .output(jobStartedResponseSchema),
-  list: oc
+  list: authedRoute
     .route({ method: "GET", path: PE, tags: [TAG] })
     .output(z.object({ events: z.array(printingEventViewSchema) })),
-  retry: oc
+  retry: authedRoute
     .route({ method: "POST", path: `${PE}/retry`, tags: [TAG] })
     .input(z.object({ ids: z.array(z.uuid()).min(1) }))
     .output(z.object({ retried: z.number() })),

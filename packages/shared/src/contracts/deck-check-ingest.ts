@@ -68,9 +68,12 @@ export const deckCheckIngestResultResponseSchema = z
  * oRPC contract for the deck-check provider push (ADR-025). The handler
  * (`apps/api/src/routes/public/deck-check-ingest.ts`) is a `meta: "bearer"`
  * procedure: it authenticates off a per-group `Authorization: Bearer <key>`
- * header (read via `context.reqHeader`), not the session cookie — so it skips
+ * header (read via `context.reqHeader`), not the session cookie, so it skips
  * session resolution and carries the `bearerAuth` OpenAPI security marker. Its
  * rate limit and 1 MB body limit stay as Hono middleware on the path (`app.ts`).
+ * Domain codes for `push`: NOT_FOUND (unknown event id), CONFLICT (event
+ * archived), VALIDATION_ERROR (reserved external id prefix or unknown deck
+ * section).
  */
 export const deckCheckIngestContract = {
   push: oc
@@ -87,6 +90,11 @@ export const deckCheckIngestContract = {
     })
     .meta({ auth: "bearer" })
     .input(deckCheckIngestSchema)
+    .errors({
+      NOT_FOUND: { message: "Event not found" },
+      CONFLICT: { message: "Event is archived" },
+      VALIDATION_ERROR: { status: 422, message: "Push contains invalid data" },
+    })
     .output(deckCheckIngestResultResponseSchema),
 };
 

@@ -1,5 +1,6 @@
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "../_base.js";
 
 const TAG = "Admin - Marketplace Groups";
 
@@ -20,17 +21,19 @@ const marketplaceGroupSchema = z.object({
 
 /**
  * oRPC contract for the admin marketplace-groups (mounted under
- * `/api/admin/v1/marketplace-groups`, admin-gated by the mount). Groups are
- * keyed by the `{marketplace}/{id}` pair (`id` is the numeric upstream group
- * id). `update` is a partial patch (at least one field). Not-found is thrown as
- * `AppError` and bridged to an ORPCError in the implementation.
+ * `/api/admin/v1/marketplace-groups`, admin-gated by the mount). All
+ * procedures share the `authedRoute` base (UNAUTHORIZED + FORBIDDEN). Groups
+ * are keyed by the `{marketplace}/{id}` pair (`id` is the numeric upstream
+ * group id). `update` is a partial patch (at least one field). Domain codes
+ * per route: `update` → NOT_FOUND.
  */
 export const adminMarketplaceGroupsContract = {
-  list: oc
+  list: authedRoute
     .route({ method: "GET", path: MG, tags: [TAG] })
     .output(z.object({ groups: z.array(marketplaceGroupSchema) })),
-  update: oc
+  update: authedRoute
     .route({ method: "PATCH", path: `${MG}/{marketplace}/{id}`, tags: [TAG], successStatus: 204 })
+    .errors({ NOT_FOUND: { message: "Marketplace group not found" } })
     .input(
       z
         .object({

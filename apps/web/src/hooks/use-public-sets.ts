@@ -1,6 +1,6 @@
 import type { Printing, SetDetailResponse, SetListResponse } from "@openrift/shared";
 import { setsContract } from "@openrift/shared/contracts";
-import { ORPCError } from "@orpc/client";
+import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -24,17 +24,19 @@ const fetchSetDetail = createServerFn({ method: "GET" })
       serverCache.fetchQuery({
         queryKey: ["server-cache", "set-detail", data],
         queryFn: async () => {
-          try {
-            return await apiOrpcClient(setsContract).detail({ setSlug: data });
-          } catch (error) {
-            // 404 is legitimate (unknown slug) — the contract declares it as a
-            // typed NOT_FOUND error; map it to the sentinel the caller expects
-            // without logging. oRPC also reports a bare 404 as code NOT_FOUND.
-            if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+          // 404 is legitimate (unknown slug) — the contract declares it as a
+          // typed NOT_FOUND error; map it to the sentinel the caller expects
+          // without logging. oRPC also reports a bare 404 as code NOT_FOUND.
+          const { error, data: detail } = await safe(
+            apiOrpcClient(setsContract).detail({ setSlug: data }),
+          );
+          if (error) {
+            if (isDefinedError(error) && error.code === "NOT_FOUND") {
               throw new Error("NOT_FOUND");
             }
             throw error;
           }
+          return detail;
         },
       }),
   );

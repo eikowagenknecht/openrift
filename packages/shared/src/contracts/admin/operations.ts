@@ -1,7 +1,7 @@
-import { oc } from "@orpc/contract";
 import { z } from "zod";
 
 import { marketplaceEnum } from "../../schemas.js";
+import { authedRoute } from "../_base.js";
 import { jobStartedResponseSchema } from "./shared.js";
 
 const TAG = "Admin - Operations";
@@ -21,14 +21,15 @@ const clearPricesResponseSchema = z.object({
  * oRPC contract for the admin operations (mounted under `/api/admin/v1`,
  * admin-gated by the mount): clear a marketplace's price data, fire-and-forget
  * price refreshes (202 + run handle, polled via job-runs), and a
- * materialized-view refresh.
+ * materialized-view refresh. All procedures are session-gated (UNAUTHORIZED +
+ * FORBIDDEN from `authedRoute`); no domain error codes are declared.
  */
 export const adminOperationsContract = {
-  clearPrices: oc
+  clearPrices: authedRoute
     .route({ method: "POST", path: `${BASE}/clear-prices`, tags: [TAG] })
     .input(z.object({ marketplace: marketplaceEnum }))
     .output(clearPricesResponseSchema),
-  refreshTcgplayer: oc
+  refreshTcgplayer: authedRoute
     .route({
       method: "POST",
       path: `${BASE}/refresh-tcgplayer-prices`,
@@ -36,7 +37,7 @@ export const adminOperationsContract = {
       successStatus: 202,
     })
     .output(jobStartedResponseSchema),
-  refreshCardmarket: oc
+  refreshCardmarket: authedRoute
     .route({
       method: "POST",
       path: `${BASE}/refresh-cardmarket-prices`,
@@ -44,7 +45,7 @@ export const adminOperationsContract = {
       successStatus: 202,
     })
     .output(jobStartedResponseSchema),
-  refreshCardtrader: oc
+  refreshCardtrader: authedRoute
     .route({
       method: "POST",
       path: `${BASE}/refresh-cardtrader-prices`,
@@ -52,7 +53,7 @@ export const adminOperationsContract = {
       successStatus: 202,
     })
     .output(jobStartedResponseSchema),
-  refreshMatviews: oc.route({
+  refreshMatviews: authedRoute.route({
     method: "POST",
     path: `${BASE}/refresh-materialized-views`,
     tags: [TAG],

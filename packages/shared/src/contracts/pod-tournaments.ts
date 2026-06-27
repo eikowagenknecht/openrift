@@ -7,8 +7,9 @@ import {
   podTournamentStatusSchema,
 } from "@openrift/shared/response-schemas";
 import { podResultSchema, withParams } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "./_base.js";
 
 extendZodWithOpenApi(z);
 
@@ -126,118 +127,153 @@ const podParamSchema = z.object({ id: z.uuid(), podId: z.uuid() });
 
 /**
  * oRPC contract for the authenticated pod-tournament organizer surface (ADR-022),
- * mounted at `/api/v1/pod-tournaments`. Every endpoint is owner-only; the
- * handlers throw `AppError` (404 missing / 403 not-owner / 409 conflict) which
- * is bridged to ORPCErrors, so the contract declares no per-code typed errors.
- * Most mutations return the full refreshed detail payload.
+ * mounted at `/api/v1/pod-tournaments`. Every endpoint is owner-only; the base
+ * carries UNAUTHORIZED + FORBIDDEN. Domain codes per route: most carry NOT_FOUND
+ * (missing tournament, player, round, or pod); pairing and scoring routes also
+ * declare CONFLICT and BAD_REQUEST.
  */
 export const podTournamentsContract = {
-  list: oc
+  list: authedRoute
     .route({ method: "GET", path: "/api/v1/pod-tournaments", tags: [TAG] })
     .output(podTournamentListResponseSchema),
-  create: oc
+  create: authedRoute
     .route({ method: "POST", path: "/api/v1/pod-tournaments", tags: [TAG], successStatus: 201 })
     .input(createPodTournamentSchema)
     .output(podTournamentResponseSchema),
-  get: oc
+  get: authedRoute
     .route({ method: "GET", path: "/api/v1/pod-tournaments/{id}", tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Tournament not found" } })
     .input(podTournamentIdParamSchema)
     .output(podTournamentDetailResponseSchema),
-  update: oc
+  update: authedRoute
     .route({ method: "PATCH", path: "/api/v1/pod-tournaments/{id}", tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Tournament not found" } })
     .input(withParams(podTournamentIdParamSchema, updatePodTournamentSchema))
     .output(podTournamentDetailResponseSchema),
-  remove: oc
+  remove: authedRoute
     .route({
       method: "DELETE",
       path: "/api/v1/pod-tournaments/{id}",
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({ NOT_FOUND: { message: "Tournament not found" } })
     .input(podTournamentIdParamSchema),
-  addPlayer: oc
+  addPlayer: authedRoute
     .route({ method: "POST", path: "/api/v1/pod-tournaments/{id}/players", tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Tournament not found" } })
     .input(withParams(podTournamentIdParamSchema, addPodPlayerSchema))
     .output(podTournamentDetailResponseSchema),
-  renamePlayer: oc
+  renamePlayer: authedRoute
     .route({
       method: "PATCH",
       path: "/api/v1/pod-tournaments/{id}/players/{playerId}",
       tags: [TAG],
     })
+    .errors({ NOT_FOUND: { message: "Tournament or player not found" } })
     .input(withParams(playerParamSchema, updatePodPlayerSchema))
     .output(podTournamentDetailResponseSchema),
-  dropPlayer: oc
+  dropPlayer: authedRoute
     .route({
       method: "POST",
       path: "/api/v1/pod-tournaments/{id}/players/{playerId}/drop",
       tags: [TAG],
     })
+    .errors({ NOT_FOUND: { message: "Tournament or player not found" } })
     .input(playerParamSchema)
     .output(podTournamentDetailResponseSchema),
-  reactivatePlayer: oc
+  reactivatePlayer: authedRoute
     .route({
       method: "POST",
       path: "/api/v1/pod-tournaments/{id}/players/{playerId}/reactivate",
       tags: [TAG],
     })
+    .errors({ NOT_FOUND: { message: "Tournament or player not found" } })
     .input(playerParamSchema)
     .output(podTournamentDetailResponseSchema),
-  removePlayer: oc
+  removePlayer: authedRoute
     .route({
       method: "DELETE",
       path: "/api/v1/pod-tournaments/{id}/players/{playerId}",
       tags: [TAG],
     })
+    .errors({
+      NOT_FOUND: { message: "Tournament or player not found" },
+      CONFLICT: { message: "Player is in a paired round and cannot be removed" },
+    })
     .input(playerParamSchema)
     .output(podTournamentDetailResponseSchema),
-  generateRound: oc
+  generateRound: authedRoute
     .route({ method: "POST", path: "/api/v1/pod-tournaments/{id}/rounds", tags: [TAG] })
+    .errors({
+      NOT_FOUND: { message: "Tournament not found" },
+      CONFLICT: { message: "A round is already open" },
+      BAD_REQUEST: { message: "Invalid player count or bye selection" },
+    })
     .input(withParams(podTournamentIdParamSchema, generatePodRoundSchema))
     .output(podTournamentDetailResponseSchema),
-  replacePairing: oc
+  replacePairing: authedRoute
     .route({
       method: "PUT",
       path: "/api/v1/pod-tournaments/{id}/rounds/{roundNumber}/pairing",
       tags: [TAG],
     })
+    .errors({
+      NOT_FOUND: { message: "Tournament or round not found" },
+      BAD_REQUEST: { message: "Invalid pod sizes or player assignment" },
+    })
     .input(withParams(podRoundNumberParamSchema, replacePodPairingSchema))
     .output(podTournamentDetailResponseSchema),
-  rerollRound: oc
+  rerollRound: authedRoute
     .route({
       method: "POST",
       path: "/api/v1/pod-tournaments/{id}/rounds/{roundNumber}/reroll",
       tags: [TAG],
     })
+    .errors({
+      NOT_FOUND: { message: "Tournament or round not found" },
+      BAD_REQUEST: { message: "Round is finalized or has results entered" },
+    })
     .input(podRoundNumberParamSchema)
     .output(podTournamentDetailResponseSchema),
-  finalizeRound: oc
+  finalizeRound: authedRoute
     .route({
       method: "POST",
       path: "/api/v1/pod-tournaments/{id}/rounds/{roundNumber}/finalize",
       tags: [TAG],
     })
+    .errors({
+      NOT_FOUND: { message: "Tournament or round not found" },
+      CONFLICT: { message: "Round is already finalized" },
+      BAD_REQUEST: { message: "Not all pods have results" },
+    })
     .input(podRoundNumberParamSchema)
     .output(podTournamentDetailResponseSchema),
-  submitResult: oc
+  submitResult: authedRoute
     .route({
       method: "PUT",
       path: "/api/v1/pod-tournaments/{id}/pods/{podId}/result",
       tags: [TAG],
     })
+    .errors({
+      NOT_FOUND: { message: "Tournament or pod not found" },
+      BAD_REQUEST: { message: "Invalid result set for this pod" },
+    })
     .input(withParams(podParamSchema, podResultSchema))
     .output(podTournamentDetailResponseSchema),
-  enableReportToken: oc
+  enableReportToken: authedRoute
     .route({ method: "POST", path: "/api/v1/pod-tournaments/{id}/report-token", tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Tournament not found" } })
     .input(podTournamentIdParamSchema)
     .output(podTournamentDetailResponseSchema),
-  disableReportToken: oc
+  disableReportToken: authedRoute
     .route({
       method: "DELETE",
       path: "/api/v1/pod-tournaments/{id}/report-token",
       tags: [TAG],
       successStatus: 200,
     })
+    .errors({ NOT_FOUND: { message: "Tournament not found" } })
     .input(podTournamentIdParamSchema)
     .output(podTournamentDetailResponseSchema),
 };

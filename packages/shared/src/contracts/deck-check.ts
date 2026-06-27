@@ -13,8 +13,9 @@ import {
   friendGroupSlugSchema,
   withParams,
 } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "./_base.js";
 
 extendZodWithOpenApi(z);
 
@@ -331,150 +332,204 @@ const CHECKS = "/api/v1/friend-groups/{slug}/checks";
  * oRPC contract for the judge-facing deck-check surface (ADR-026/027), mounted
  * under `/api/v1/friend-groups/{slug}/checks` and `/deck-check-keys` /
  * `/deck-check-account-search`. Every endpoint is role-gated (judge or admin)
- * inside the group; the access checks and not-found / conflict / validation
- * states are thrown as `AppError` and bridged to ORPCErrors in the
- * implementation, so the contract declares no per-code typed errors.
+ * inside the group; the base carries UNAUTHORIZED + FORBIDDEN. Domain codes
+ * per route: most carry NOT_FOUND (missing group, event, entry, card, or key);
+ * card-mutation and state-transition routes also declare CONFLICT and, where a
+ * section or outcome value is rejected, VALIDATION_ERROR (422).
  */
 export const deckCheckContract = {
-  listEvents: oc
+  listEvents: authedRoute
     .route({ method: "GET", path: CHECKS, tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Group or event not found" } })
     .input(friendGroupSlugParamSchema)
     .output(deckCheckEventListResponseSchema),
-  createEvent: oc
+  createEvent: authedRoute
     .route({ method: "POST", path: CHECKS, tags: [TAG], successStatus: 201 })
+    .errors({ NOT_FOUND: { message: "Group not found" } })
     .input(withParams(friendGroupSlugParamSchema, createDeckCheckEventSchema))
     .output(deckCheckEventSummaryResponseSchema),
-  getEventDetail: oc
+  getEventDetail: authedRoute
     .route({ method: "GET", path: `${CHECKS}/{eventId}`, tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Group or event not found" } })
     .input(deckCheckEventParamSchema)
     .output(deckCheckEventDetailResponseSchema),
-  updateEvent: oc
+  updateEvent: authedRoute
     .route({ method: "PATCH", path: `${CHECKS}/{eventId}`, tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Group or event not found" } })
     .input(withParams(deckCheckEventParamSchema, updateDeckCheckEventSchema))
     .output(deckCheckEventSummaryResponseSchema),
-  deleteEvent: oc
+  deleteEvent: authedRoute
     .route({ method: "DELETE", path: `${CHECKS}/{eventId}`, tags: [TAG], successStatus: 204 })
+    .errors({ NOT_FOUND: { message: "Group or event not found" } })
     .input(deckCheckEventParamSchema),
-  reResolveEvent: oc
+  reResolveEvent: authedRoute
     .route({ method: "POST", path: `${CHECKS}/{eventId}/re-resolve`, tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Group or event not found" } })
     .input(deckCheckEventParamSchema)
     .output(deckCheckReResolveResponseSchema),
-  createManualEntry: oc
+  createManualEntry: authedRoute
     .route({ method: "POST", path: `${CHECKS}/{eventId}/entries`, tags: [TAG], successStatus: 201 })
+    .errors({
+      NOT_FOUND: { message: "Group or event not found" },
+      CONFLICT: { message: "Event is archived" },
+      VALIDATION_ERROR: { status: 422, message: "Unknown deck section" },
+    })
     .input(withParams(deckCheckEventParamSchema, createDeckCheckEntrySchema))
     .output(deckCheckEntryDetailResponseSchema),
-  getEntryDetail: oc
+  getEntryDetail: authedRoute
     .route({ method: "GET", path: `${CHECKS}/{eventId}/entries/{entryId}`, tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Group, event, or entry not found" } })
     .input(deckCheckEntryParamSchema)
     .output(deckCheckEntryDetailResponseSchema),
-  setEntryState: oc
+  setEntryState: authedRoute
     .route({ method: "PUT", path: `${CHECKS}/{eventId}/entries/{entryId}/state`, tags: [TAG] })
+    .errors({
+      NOT_FOUND: { message: "Group, event, or entry not found" },
+      CONFLICT: { message: "Transition not allowed in the current state" },
+      VALIDATION_ERROR: { status: 422, message: "Review outcome required for this transition" },
+    })
     .input(withParams(deckCheckEntryParamSchema, deckCheckEntryStateChangeSchema))
     .output(deckCheckEntryDetailResponseSchema),
-  denyUnlockRequest: oc
+  denyUnlockRequest: authedRoute
     .route({
       method: "DELETE",
       path: `${CHECKS}/{eventId}/entries/{entryId}/unlock-request`,
       tags: [TAG],
     })
+    .errors({ NOT_FOUND: { message: "Group, event, or entry not found" } })
     .input(deckCheckEntryParamSchema)
     .output(deckCheckEntryDetailResponseSchema),
-  updateEntry: oc
+  updateEntry: authedRoute
     .route({ method: "PATCH", path: `${CHECKS}/{eventId}/entries/{entryId}`, tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Group, event, or entry not found" } })
     .input(withParams(deckCheckEntryParamSchema, updateDeckCheckEntrySchema))
     .output(deckCheckEntryDetailResponseSchema),
-  deleteEntry: oc
+  deleteEntry: authedRoute
     .route({
       method: "DELETE",
       path: `${CHECKS}/{eventId}/entries/{entryId}`,
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({ NOT_FOUND: { message: "Group, event, or entry not found" } })
     .input(deckCheckEntryParamSchema),
-  addCard: oc
+  addCard: authedRoute
     .route({ method: "POST", path: `${CHECKS}/{eventId}/entries/{entryId}/cards`, tags: [TAG] })
+    .errors({
+      NOT_FOUND: { message: "Group, event, or entry not found" },
+      CONFLICT: { message: "Entry list is not yet submitted" },
+      VALIDATION_ERROR: { status: 422, message: "Unknown deck section" },
+    })
     .input(withParams(deckCheckEntryParamSchema, addDeckCheckCardSchema))
     .output(deckCheckEntryDetailResponseSchema),
-  renameCard: oc
+  renameCard: authedRoute
     .route({
       method: "PATCH",
       path: `${CHECKS}/{eventId}/entries/{entryId}/cards/{cardId}`,
       tags: [TAG],
     })
+    .errors({
+      NOT_FOUND: { message: "Group, event, entry, or card not found" },
+      CONFLICT: { message: "Entry list is not yet submitted" },
+      VALIDATION_ERROR: { status: 422, message: "Unknown deck section" },
+    })
     .input(withParams(deckCheckEntryCardParamSchema, updateDeckCheckCardSchema))
     .output(deckCheckEntryDetailResponseSchema),
-  applyZoneFixes: oc
+  applyZoneFixes: authedRoute
     .route({
       method: "POST",
       path: `${CHECKS}/{eventId}/entries/{entryId}/zone-fixes`,
       tags: [TAG],
     })
+    .errors({
+      NOT_FOUND: { message: "Group, event, or entry not found" },
+      CONFLICT: { message: "Entry list is not yet submitted" },
+    })
     .input(withParams(deckCheckEntryParamSchema, applyDeckCheckZoneFixesSchema))
     .output(deckCheckEntryDetailResponseSchema),
-  removeCardCopy: oc
+  removeCardCopy: authedRoute
     .route({
       method: "DELETE",
       path: `${CHECKS}/{eventId}/entries/{entryId}/cards/{cardId}/copies/{copyIndex}`,
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({
+      NOT_FOUND: { message: "Group, event, entry, or card not found" },
+      CONFLICT: { message: "Entry list is not yet submitted" },
+    })
     .input(deckCheckCardCopyParamSchema),
-  tickCard: oc
+  tickCard: authedRoute
     .route({
       method: "PUT",
       path: `${CHECKS}/{eventId}/entries/{entryId}/cards/{cardId}`,
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({
+      NOT_FOUND: { message: "Group, event, or entry not found" },
+      CONFLICT: { message: "Entry list changed or not yet submitted" },
+    })
     .input(withParams(deckCheckEntryCardParamSchema, deckCheckTickSchema)),
-  linkEntry: oc
+  linkEntry: authedRoute
     .route({ method: "PUT", path: `${CHECKS}/{eventId}/entries/{entryId}/link`, tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Group, event, entry, or account not found" } })
     .input(withParams(deckCheckEntryParamSchema, deckCheckLinkSchema))
     .output(deckCheckEntryDetailResponseSchema),
-  unlinkEntry: oc
+  unlinkEntry: authedRoute
     .route({ method: "DELETE", path: `${CHECKS}/{eventId}/entries/{entryId}/link`, tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Group, event, or entry not found" } })
     .input(deckCheckEntryParamSchema)
     .output(deckCheckEntryDetailResponseSchema),
-  searchAccounts: oc
+  searchAccounts: authedRoute
     .route({
       method: "GET",
       path: "/api/v1/friend-groups/{slug}/deck-check-account-search",
       tags: [TAG],
     })
+    .errors({ NOT_FOUND: { message: "Group not found" } })
     .input(withParams(friendGroupSlugParamSchema, deckCheckAccountSearchSchema))
     .output(deckCheckAccountSearchResponseSchema),
-  regenerateSubmissionToken: oc
+  regenerateSubmissionToken: authedRoute
     .route({ method: "POST", path: `${CHECKS}/{eventId}/submission-token`, tags: [TAG] })
+    .errors({
+      NOT_FOUND: { message: "Group or event not found" },
+      CONFLICT: { message: "Self-submission is not enabled" },
+    })
     .input(deckCheckEventParamSchema)
     .output(deckCheckEventSummaryResponseSchema),
-  listKeys: oc
+  listKeys: authedRoute
     .route({ method: "GET", path: "/api/v1/friend-groups/{slug}/deck-check-keys", tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Group not found" } })
     .input(friendGroupSlugParamSchema)
     .output(deckCheckKeysResponseSchema),
-  mintKey: oc
+  mintKey: authedRoute
     .route({
       method: "POST",
       path: "/api/v1/friend-groups/{slug}/deck-check-keys",
       tags: [TAG],
       successStatus: 201,
     })
+    .errors({ NOT_FOUND: { message: "Group not found" } })
     .input(withParams(friendGroupSlugParamSchema, mintDeckCheckKeySchema))
     .output(deckCheckKeyMintedResponseSchema),
-  renameKey: oc
+  renameKey: authedRoute
     .route({
       method: "PATCH",
       path: "/api/v1/friend-groups/{slug}/deck-check-keys/{keyId}",
       tags: [TAG],
     })
+    .errors({ NOT_FOUND: { message: "Group or key not found" } })
     .input(withParams(deckCheckKeyParamSchema, updateDeckCheckKeySchema))
     .output(deckCheckKeyResponseSchema),
-  revokeKey: oc
+  revokeKey: authedRoute
     .route({
       method: "DELETE",
       path: "/api/v1/friend-groups/{slug}/deck-check-keys/{keyId}",
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({ NOT_FOUND: { message: "Group or key not found" } })
     .input(deckCheckKeyParamSchema),
 };
 

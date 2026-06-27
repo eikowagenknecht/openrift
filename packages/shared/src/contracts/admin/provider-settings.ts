@@ -1,6 +1,7 @@
 import { withParams } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "../_base.js";
 
 const TAG = "Admin - Provider Settings";
 
@@ -18,18 +19,19 @@ const providerParamSchema = z.object({ provider: z.string().min(1) });
 /**
  * oRPC contract for the admin provider-settings (mounted at
  * `/api/admin/v1/provider-settings`, admin-gated by the mount). Provider
- * settings are keyed by `provider`; update upserts. Bad-request states are
- * thrown as `AppError` and bridged to ORPCErrors in the implementation. The
- * static `reorder` path precedes `{provider}`.
+ * settings are keyed by `provider`; update upserts. All procedures are
+ * session-gated (UNAUTHORIZED + FORBIDDEN from `authedRoute`). Domain codes per
+ * route: `reorder` → BAD_REQUEST (duplicate providers in the submitted list).
  */
 export const adminProviderSettingsContract = {
-  list: oc
+  list: authedRoute
     .route({ method: "GET", path: PS, tags: [TAG] })
     .output(z.object({ providerSettings: z.array(providerSettingSchema) })),
-  reorder: oc
+  reorder: authedRoute
     .route({ method: "PUT", path: `${PS}/reorder`, tags: [TAG], successStatus: 204 })
+    .errors({ BAD_REQUEST: { message: "Duplicate providers in reorder list" } })
     .input(z.object({ providers: z.array(z.string().min(1)).min(1) })),
-  update: oc
+  update: authedRoute
     .route({ method: "PATCH", path: `${PS}/{provider}`, tags: [TAG], successStatus: 204 })
     .input(
       withParams(providerParamSchema, {

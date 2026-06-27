@@ -8,8 +8,9 @@ import {
   formatConfigResponseSchema,
 } from "@openrift/shared/response-schemas";
 import { idParamSchema, withParams } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "./_base.js";
 
 extendZodWithOpenApi(z);
 
@@ -224,79 +225,105 @@ const archiveDeckBodySchema = z.object({ archived: z.boolean() });
 
 /**
  * oRPC contract for the authenticated decks endpoints (mounted at
- * `/api/v1/decks`). All require a session. Bad-request (unknown format /
- * malformed plan or format-config) and not-found states are thrown as
- * `AppError` and bridged to ORPCErrors in the implementation, so the contract
- * declares no per-code typed errors.
+ * `/api/v1/decks`). All require a session, so they share the `authedRoute`
+ * base (UNAUTHORIZED + FORBIDDEN). Domain codes per route: `create` →
+ * BAD_REQUEST (unknown format or invalid format config); `get`, `remove`,
+ * `replaceCards`, `getPlan`, `clone`, `availability`, `export`, `setPinned`,
+ * `setArchived`, `getShare`, `share`, `rotateShare`, `unshare` →
+ * NOT_FOUND; `update` → NOT_FOUND + BAD_REQUEST; `replacePlan` → NOT_FOUND +
+ * BAD_REQUEST (invalid plan content); `cloneShared` → NOT_FOUND (unknown
+ * share token).
  */
 export const decksContract = {
-  list: oc
+  list: authedRoute
     .route({ method: "GET", path: "/api/v1/decks", tags: [TAG] })
     .input(decksQuerySchema)
     .output(deckListResponseSchema),
-  create: oc
+  create: authedRoute
     .route({ method: "POST", path: "/api/v1/decks", tags: [TAG], successStatus: 201 })
     .input(createDeckSchema)
+    .errors({ BAD_REQUEST: { message: "Unknown format or invalid format config" } })
     .output(deckResponseSchema),
-  get: oc
+  get: authedRoute
     .route({ method: "GET", path: "/api/v1/decks/{id}", tags: [TAG] })
     .input(idParamSchema)
+    .errors({ NOT_FOUND: { message: "Deck not found" } })
     .output(deckDetailResponseSchema),
-  update: oc
+  update: authedRoute
     .route({ method: "PATCH", path: "/api/v1/decks/{id}", tags: [TAG] })
     .input(withParams(idParamSchema, updateDeckSchema))
+    .errors({
+      NOT_FOUND: { message: "Deck not found" },
+      BAD_REQUEST: { message: "Unknown format or invalid format config" },
+    })
     .output(deckResponseSchema),
-  remove: oc
+  remove: authedRoute
     .route({ method: "DELETE", path: "/api/v1/decks/{id}", tags: [TAG], successStatus: 204 })
+    .errors({ NOT_FOUND: { message: "Deck not found" } })
     .input(idParamSchema),
-  replaceCards: oc
+  replaceCards: authedRoute
     .route({ method: "PUT", path: "/api/v1/decks/{id}/cards", tags: [TAG] })
     .input(withParams(idParamSchema, updateDeckCardsSchema))
+    .errors({ NOT_FOUND: { message: "Deck not found" } })
     .output(deckCardsResponseSchema),
-  getPlan: oc
+  getPlan: authedRoute
     .route({ method: "GET", path: "/api/v1/decks/{id}/plan", tags: [TAG] })
     .input(idParamSchema)
+    .errors({ NOT_FOUND: { message: "Deck not found" } })
     .output(deckPlanDetailResponseSchema),
-  replacePlan: oc
+  replacePlan: authedRoute
     .route({ method: "PUT", path: "/api/v1/decks/{id}/plan", tags: [TAG] })
     .input(withParams(idParamSchema, updateDeckPlanSchema))
+    .errors({
+      NOT_FOUND: { message: "Deck not found" },
+      BAD_REQUEST: { message: "Invalid plan content" },
+    })
     .output(deckPlanDetailResponseSchema),
-  clone: oc
+  clone: authedRoute
     .route({ method: "POST", path: "/api/v1/decks/{id}/clone", tags: [TAG], successStatus: 201 })
     .input(idParamSchema)
+    .errors({ NOT_FOUND: { message: "Deck not found" } })
     .output(deckResponseSchema),
-  availability: oc
+  availability: authedRoute
     .route({ method: "GET", path: "/api/v1/decks/{id}/availability", tags: [TAG] })
     .input(idParamSchema)
+    .errors({ NOT_FOUND: { message: "Deck not found" } })
     .output(deckAvailabilityResponseSchema),
-  export: oc
+  export: authedRoute
     .route({ method: "GET", path: "/api/v1/decks/{id}/export", tags: [TAG] })
     .input(withParams(idParamSchema, deckExportQuerySchema))
+    .errors({ NOT_FOUND: { message: "Deck not found" } })
     .output(deckExportResponseSchema),
-  setPinned: oc
+  setPinned: authedRoute
     .route({ method: "PATCH", path: "/api/v1/decks/{id}/pin", tags: [TAG] })
     .input(withParams(idParamSchema, pinDeckBodySchema))
+    .errors({ NOT_FOUND: { message: "Deck not found" } })
     .output(deckResponseSchema),
-  setArchived: oc
+  setArchived: authedRoute
     .route({ method: "PATCH", path: "/api/v1/decks/{id}/archive", tags: [TAG] })
     .input(withParams(idParamSchema, archiveDeckBodySchema))
+    .errors({ NOT_FOUND: { message: "Deck not found" } })
     .output(deckResponseSchema),
-  getShare: oc
+  getShare: authedRoute
     .route({ method: "GET", path: "/api/v1/decks/{id}/share", tags: [TAG] })
     .input(idParamSchema)
+    .errors({ NOT_FOUND: { message: "Deck not found" } })
     .output(deckShareResponseSchema),
-  share: oc
+  share: authedRoute
     .route({ method: "POST", path: "/api/v1/decks/{id}/share", tags: [TAG] })
     .input(idParamSchema)
+    .errors({ NOT_FOUND: { message: "Deck not found" } })
     .output(deckShareResponseSchema),
-  rotateShare: oc
+  rotateShare: authedRoute
     .route({ method: "POST", path: "/api/v1/decks/{id}/share/rotate", tags: [TAG] })
     .input(idParamSchema)
+    .errors({ NOT_FOUND: { message: "Deck not found" } })
     .output(deckShareResponseSchema),
-  unshare: oc
+  unshare: authedRoute
     .route({ method: "DELETE", path: "/api/v1/decks/{id}/share", tags: [TAG], successStatus: 204 })
+    .errors({ NOT_FOUND: { message: "Deck not found" } })
     .input(idParamSchema),
-  cloneShared: oc
+  cloneShared: authedRoute
     .route({
       method: "POST",
       path: "/api/v1/decks/share/{token}/clone",
@@ -304,6 +331,7 @@ export const decksContract = {
       successStatus: 201,
     })
     .input(shareTokenParamSchema)
+    .errors({ NOT_FOUND: { message: "Shared deck not found" } })
     .output(deckCloneResponseSchema),
 };
 

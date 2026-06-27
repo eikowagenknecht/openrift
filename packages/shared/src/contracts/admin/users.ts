@@ -1,6 +1,7 @@
 import { isoDateTime } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "../_base.js";
 
 const TAG = "Admin - Users";
 
@@ -21,9 +22,11 @@ const adminUserSchema = z.object({
 /**
  * oRPC contract for the admin users list (mounted at `/api/admin/v1/users`,
  * admin-gated by the mount). Read-only: every user with aggregate counts.
+ * Session-gated (UNAUTHORIZED + FORBIDDEN from `authedRoute`); no domain error
+ * codes are declared.
  */
 export const adminUsersContract = {
-  list: oc
+  list: authedRoute
     .route({ method: "GET", path: "/api/admin/v1/users", tags: [TAG] })
     .output(z.object({ users: z.array(adminUserSchema) })),
 };

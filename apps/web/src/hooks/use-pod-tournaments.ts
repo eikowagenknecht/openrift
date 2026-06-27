@@ -6,7 +6,7 @@ import type {
   PodTournamentResponse,
 } from "@openrift/shared";
 import { podTournamentsContract, publicPodTournamentsContract } from "@openrift/shared/contracts";
-import { ORPCError } from "@orpc/client";
+import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -41,29 +41,33 @@ const fetchTournamentDetail = createServerFn({ method: "GET" })
   .handler(async ({ context, data: id }): Promise<PodTournamentDetailResponse> => {
     // 404 (unknown tournament) is a typed NOT_FOUND mapped to the sentinel the
     // route boundary expects; 403 (non-owner) propagates as a normal error.
-    try {
-      return await apiOrpcClient(podTournamentsContract, context.cookie).get({ id });
-    } catch (error) {
-      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+    const { error, data } = await safe(
+      apiOrpcClient(podTournamentsContract, context.cookie).get({ id }),
+    );
+    if (error) {
+      if (isDefinedError(error) && error.code === "NOT_FOUND") {
         throw new Error("NOT_FOUND");
       }
       throw error;
     }
+    return data;
   });
 
 const fetchReport = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .handler(async ({ data: token }): Promise<PodReportResponse> => {
-    // Migrated to oRPC: 404 (disabled/rotated token) is a typed NOT_FOUND error
-    // mapped to the sentinel the route boundary expects.
-    try {
-      return await apiOrpcClient(publicPodTournamentsContract).report({ token });
-    } catch (error) {
-      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+    // 404 (disabled/rotated token) is a typed NOT_FOUND error mapped to the
+    // sentinel the route boundary expects.
+    const { error, data } = await safe(
+      apiOrpcClient(publicPodTournamentsContract).report({ token }),
+    );
+    if (error) {
+      if (isDefinedError(error) && error.code === "NOT_FOUND") {
         throw new Error("NOT_FOUND");
       }
       throw error;
     }
+    return data;
   });
 
 // ── Query options + hooks ────────────────────────────────────────────────────

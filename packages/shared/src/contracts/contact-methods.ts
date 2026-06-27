@@ -1,8 +1,9 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { contactMethodSchema } from "@openrift/shared/response-schemas";
 import { idParamSchema } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "./_base.js";
 
 extendZodWithOpenApi(z);
 
@@ -34,29 +35,30 @@ export const userContactMethodsResponseSchema = z
 
 /**
  * oRPC contract for the authenticated contact-methods CRUD. Every mutation
- * returns the full refreshed list. Requires a session (mount applies
- * `requireAuth`). For update/delete the `{id}` path segment is merged into the
- * input alongside the body fields; update/delete report a typed NOT_FOUND.
+ * returns the full refreshed list. Requires a session; the base carries
+ * UNAUTHORIZED + FORBIDDEN. For update/delete the `{id}` path segment is
+ * merged into the input alongside the body fields; update/delete carry a typed
+ * NOT_FOUND.
  */
 export const contactMethodsContract = {
-  list: oc
+  list: authedRoute
     .route({ method: "GET", path: "/api/v1/contact-methods", tags: ["Contact Methods"] })
     .output(userContactMethodsResponseSchema),
-  create: oc
+  create: authedRoute
     .route({ method: "POST", path: "/api/v1/contact-methods", tags: ["Contact Methods"] })
     .input(createContactMethodSchema)
     .output(userContactMethodsResponseSchema),
-  update: oc
+  update: authedRoute
     .route({ method: "PATCH", path: "/api/v1/contact-methods/{id}", tags: ["Contact Methods"] })
     .input(createContactMethodSchema.extend(idParamSchema.shape))
     .errors({ NOT_FOUND: { message: "Contact method not found" } })
     .output(userContactMethodsResponseSchema),
-  remove: oc
+  remove: authedRoute
     .route({ method: "DELETE", path: "/api/v1/contact-methods/{id}", tags: ["Contact Methods"] })
     .input(idParamSchema)
     .errors({ NOT_FOUND: { message: "Contact method not found" } })
     .output(userContactMethodsResponseSchema),
-  reorder: oc
+  reorder: authedRoute
     .route({ method: "POST", path: "/api/v1/contact-methods/reorder", tags: ["Contact Methods"] })
     .input(reorderContactMethodsSchema)
     .output(userContactMethodsResponseSchema),

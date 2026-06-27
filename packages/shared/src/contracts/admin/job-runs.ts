@@ -1,6 +1,7 @@
 import { isoDateTime } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "../_base.js";
 
 const TAG = "Admin";
 
@@ -42,11 +43,12 @@ const jobRunsQuerySchema = z.object({
 
 /**
  * oRPC contract for the admin job-runs table (mounted at
- * `/api/admin/v1/job-runs`, admin-gated by the mount). Read-only, paginated +
+ * `/api/admin/v1/job-runs`, admin-gated by the mount). All procedures share
+ * the `authedRoute` base (UNAUTHORIZED + FORBIDDEN). Read-only, paginated +
  * filterable.
  */
 export const adminJobRunsContract = {
-  list: oc
+  list: authedRoute
     .route({ method: "GET", path: "/api/admin/v1/job-runs", tags: [TAG] })
     .input(jobRunsQuerySchema)
     .output(jobRunsListResponseSchema),

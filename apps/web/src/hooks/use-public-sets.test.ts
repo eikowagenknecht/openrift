@@ -29,10 +29,17 @@ describe("publicSetDetailQueryOptions", () => {
   });
 
   it("throws Error('NOT_FOUND') when the API returns 404", async () => {
-    // The oRPC client surfaces a 404 as an ORPCError with code NOT_FOUND; the
-    // handler maps it to the sentinel. Mock global fetch — the boundary the
-    // oRPC OpenAPI link calls.
-    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(null, { status: 404 }));
+    // The server sends a typed (defined) NOT_FOUND error body; the client
+    // narrows it with isDefinedError and the handler maps it to the sentinel.
+    // Mock global fetch — the boundary the oRPC OpenAPI link calls.
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json(
+          { defined: true, code: "NOT_FOUND", status: 404, message: "Not Found" },
+          { status: 404 },
+        ),
+      );
     vi.stubGlobal("fetch", fetchMock);
 
     const { queryFn } = publicSetDetailQueryOptions("missing");

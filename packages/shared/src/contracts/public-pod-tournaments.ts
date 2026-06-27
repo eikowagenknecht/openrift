@@ -27,6 +27,8 @@ export const podReportResponseSchema = z
  * oRPC contract for the public, token-gated pod-tournament participant surface
  * (ADR-022). `GET .../report/{token}` is a read-only follow-along; the PUT
  * submits one pod's result. A disabled/rotated token is a typed NOT_FOUND.
+ * `submitResult` additionally produces CONFLICT when the round is already
+ * finalized and BAD_REQUEST when the submitted results are invalid.
  */
 export const publicPodTournamentsContract = {
   report: oc
@@ -47,7 +49,11 @@ export const publicPodTournamentsContract = {
     })
     .meta({ auth: "public" })
     .input(z.object({ token: z.string().min(1), podId: z.uuid() }).extend(podResultSchema.shape))
-    .errors({ NOT_FOUND: { message: "Not found" } })
+    .errors({
+      NOT_FOUND: { message: "Not found" },
+      CONFLICT: { message: "Round already finalized" },
+      BAD_REQUEST: { message: "Invalid result data" },
+    })
     .output(podReportResponseSchema),
 };
 

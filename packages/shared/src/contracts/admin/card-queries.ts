@@ -1,5 +1,6 @@
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "../_base.js";
 
 const TAG = "Admin - Cards";
 
@@ -42,32 +43,33 @@ const candidateCardSummarySchema = z.object({
  * `/api/admin/v1/cards`, admin-gated by the mount). The two detail endpoints
  * and the export return loosely-typed payloads (`z.unknown()`) — the API maps
  * them to the rich hand-written response interfaces, which the web client
- * re-points to directly.
+ * re-points to directly. No domain control-flow errors are declared; the only
+ * `AppError` that can emerge (`MISSING_ALIAS`, a server fault) stays undefined.
  */
 export const adminCardQueriesContract = {
-  allCards: oc
+  allCards: authedRoute
     .route({ method: "GET", path: `${CARDS}/all-cards`, tags: [TAG] })
     .output(z.array(allCardsItemSchema)),
-  providerNames: oc
+  providerNames: authedRoute
     .route({ method: "GET", path: `${CARDS}/provider-names`, tags: [TAG] })
     .output(z.array(z.string())),
-  distinctArtists: oc
+  distinctArtists: authedRoute
     .route({ method: "GET", path: `${CARDS}/distinct-artists`, tags: [TAG] })
     .output(z.array(z.string())),
-  providerStats: oc
+  providerStats: authedRoute
     .route({ method: "GET", path: `${CARDS}/provider-stats`, tags: [TAG] })
     .output(z.array(providerStatsItemSchema)),
-  listCandidates: oc
+  listCandidates: authedRoute
     .route({ method: "GET", path: CARDS, tags: [TAG] })
     .output(z.array(candidateCardSummarySchema)),
-  exportCandidates: oc
+  exportCandidates: authedRoute
     .route({ method: "GET", path: `${CARDS}/export`, tags: [TAG] })
     .output(z.array(z.unknown())),
-  getCandidateCard: oc
+  getCandidateCard: authedRoute
     .route({ method: "GET", path: `${CARDS}/{cardSlug}`, tags: [TAG] })
     .input(z.object({ cardSlug: z.string() }))
     .output(z.unknown()),
-  getUnmatchedDetail: oc
+  getUnmatchedDetail: authedRoute
     .route({ method: "GET", path: `${CARDS}/new/{name}`, tags: [TAG] })
     .input(z.object({ name: z.string() }))
     .output(z.unknown()),

@@ -1,6 +1,7 @@
 import { isoDateTime, withParams } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "../_base.js";
 
 const TAG = "Admin - Feature Flags";
 
@@ -27,56 +28,64 @@ const userKeyParamSchema = z.object({ id: z.string().min(1), key: z.string().min
 
 /**
  * oRPC contract for the admin feature-flags tooling (mounted under
- * `/api/admin/v1`, admin-gated by the mount). Covers global flag CRUD plus
- * per-user overrides. The static `feature-flags/overrides` path precedes
- * `feature-flags/{key}` internally, so both groups live in one handler.
- * Conflict / not-found states are thrown as `AppError` and bridged to
- * ORPCErrors in the implementation.
+ * `/api/admin/v1`, admin-gated by the mount). All procedures share the
+ * `authedRoute` base (UNAUTHORIZED + FORBIDDEN). Covers global flag CRUD plus
+ * per-user overrides. Domain codes per route: `create` → CONFLICT (key taken);
+ * `update` → NOT_FOUND; `remove` → NOT_FOUND; `removeOverride` → NOT_FOUND.
+ * The static `feature-flags/overrides` path precedes `feature-flags/{key}`.
  */
 export const adminFeatureFlagsContract = {
   // ── Global flags ──────────────────────────────────────────────────────────
-  list: oc
+  list: authedRoute
     .route({ method: "GET", path: FF, tags: [TAG] })
     .output(z.object({ flags: z.array(flagSchema) })),
-  create: oc.route({ method: "POST", path: FF, tags: [TAG], successStatus: 201 }).input(
-    z.object({
-      key: z
-        .string()
-        .regex(/^[a-z][a-z0-9]+(?:-[a-z0-9]+)*$/u, "Key must be kebab-case (e.g. deck-builder)"),
-      description: z.string().nullable().optional(),
-      enabled: z.boolean().optional(),
-    }),
-  ),
-  update: oc.route({ method: "PATCH", path: `${FF}/{key}`, tags: [TAG], successStatus: 204 }).input(
-    z
-      .object({
-        key: z.string().min(1),
-        enabled: z.boolean().optional(),
+  create: authedRoute
+    .route({ method: "POST", path: FF, tags: [TAG], successStatus: 201 })
+    .errors({ CONFLICT: { message: "A flag with that key already exists" } })
+    .input(
+      z.object({
+        key: z
+          .string()
+          .regex(/^[a-z][a-z0-9]+(?:-[a-z0-9]+)*$/u, "Key must be kebab-case (e.g. deck-builder)"),
         description: z.string().nullable().optional(),
-      })
-      .refine((o) => o.enabled !== undefined || o.description !== undefined, {
-        message: "At least one field (enabled, description) must be provided",
+        enabled: z.boolean().optional(),
       }),
-  ),
-  remove: oc
+    ),
+  update: authedRoute
+    .route({ method: "PATCH", path: `${FF}/{key}`, tags: [TAG], successStatus: 204 })
+    .errors({ NOT_FOUND: { message: "Flag not found" } })
+    .input(
+      z
+        .object({
+          key: z.string().min(1),
+          enabled: z.boolean().optional(),
+          description: z.string().nullable().optional(),
+        })
+        .refine((o) => o.enabled !== undefined || o.description !== undefined, {
+          message: "At least one field (enabled, description) must be provided",
+        }),
+    ),
+  remove: authedRoute
     .route({ method: "DELETE", path: `${FF}/{key}`, tags: [TAG], successStatus: 204 })
+    .errors({ NOT_FOUND: { message: "Flag not found" } })
     .input(z.object({ key: z.string().min(1) })),
 
   // ── Per-user overrides ────────────────────────────────────────────────────
-  listOverrides: oc
+  listOverrides: authedRoute
     .route({ method: "GET", path: `${FF}/overrides`, tags: [TAG] })
     .output(z.object({ overrides: z.array(overrideSchema) })),
-  upsertOverride: oc
+  upsertOverride: authedRoute
     .route({ method: "PUT", path: `${BASE}/users/{id}/feature-flags/{key}`, tags: [TAG] })
     .input(withParams(userKeyParamSchema, { enabled: z.boolean() }))
     .output(z.object({ flagKey: z.string(), enabled: z.boolean() })),
-  removeOverride: oc
+  removeOverride: authedRoute
     .route({
       method: "DELETE",
       path: `${BASE}/users/{id}/feature-flags/{key}`,
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({ NOT_FOUND: { message: "Override not found for this user and flag" } })
     .input(userKeyParamSchema),
 };
 

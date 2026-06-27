@@ -4,7 +4,7 @@ import type {
   PublicCollectionDetailResponse,
 } from "@openrift/shared";
 import { collectionsContract, publicCollectionsContract } from "@openrift/shared/contracts";
-import { ORPCError } from "@orpc/client";
+import { isDefinedError, safe } from "@orpc/client";
 import { useLiveQuery } from "@tanstack/react-db";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
@@ -264,11 +264,9 @@ const fetchPublicCollectionFn = createServerFn({ method: "GET" })
     // Migrated to oRPC: contract-typed client. 404 (unknown/expired token) is a
     // typed NOT_FOUND error mapped to the sentinel the route boundary expects.
     const client = apiOrpcClient(publicCollectionsContract);
-    let firstPage: PublicCollectionDetailResponse;
-    try {
-      firstPage = await client.share({ token });
-    } catch (error) {
-      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+    const { error, data: firstPage } = await safe(client.share({ token }));
+    if (error) {
+      if (isDefinedError(error) && error.code === "NOT_FOUND") {
         throw new Error("NOT_FOUND");
       }
       throw error;

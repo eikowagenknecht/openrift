@@ -1,6 +1,6 @@
-import { oc } from "@orpc/contract";
 import { z } from "zod";
 
+import { authedRoute } from "../_base.js";
 import { jobStartedResponseSchema } from "./shared.js";
 
 const TAG = "Admin - Images";
@@ -73,15 +73,16 @@ const migrateResultSchema = z.object({
 
 /**
  * oRPC contract for the admin image tooling (mounted under `/api/admin/v1`,
- * admin-gated by the mount): rehosting, the resumable regenerate job + cancel,
- * cleanup/migration utilities, and read-only health reports (status, broken,
- * low-res, missing). `rehost-images` / `regenerate-images` carry query params,
- * so they use detailed input structure (oRPC compact mode does not read POST
- * query params). Not-found / conflict states are thrown as `AppError` and
- * bridged to ORPCErrors in the implementation.
+ * admin-gated by the mount). All procedures share the `authedRoute` base
+ * (UNAUTHORIZED + FORBIDDEN). Covers rehosting, the resumable regenerate job +
+ * cancel, cleanup/migration utilities, and read-only health reports (status,
+ * broken, low-res, missing). `rehost-images` / `regenerate-images` carry query
+ * params, so they use detailed input structure. Domain codes per route:
+ * `cancelRegenerate` → NOT_FOUND (no job running) + CONFLICT (job still
+ * initializing).
  */
 export const adminImagesContract = {
-  rehost: oc
+  rehost: authedRoute
     .route({
       method: "POST",
       path: `${BASE}/rehost-images`,
@@ -90,7 +91,7 @@ export const adminImagesContract = {
     })
     .input(z.object({ query: z.object({ limit: z.coerce.number().int().min(1).optional() }) }))
     .output(rehostResultSchema),
-  regenerate: oc
+  regenerate: authedRoute
     .route({
       method: "POST",
       path: `${BASE}/regenerate-images`,
@@ -112,35 +113,41 @@ export const adminImagesContract = {
       }),
     )
     .output(jobStartedResponseSchema),
-  cancelRegenerate: oc
+  cancelRegenerate: authedRoute
     .route({ method: "POST", path: `${BASE}/regenerate-images/cancel`, tags: [TAG] })
+    .errors({
+      NOT_FOUND: { message: "No regenerate-images job is currently running" },
+      CONFLICT: { message: "Job is still initializing; try again shortly" },
+    })
     .output(z.object({ runId: z.uuid(), cancelRequested: z.literal(true) })),
-  cleanupOrphaned: oc
+  cleanupOrphaned: authedRoute
     .route({ method: "POST", path: `${BASE}/cleanup-orphaned`, tags: [TAG] })
     .output(cleanupResultSchema),
-  unrehost: oc
+  unrehost: authedRoute
     .route({ method: "POST", path: `${BASE}/unrehost-images`, tags: [TAG] })
     .input(z.object({ imageIds: z.array(z.uuid()).min(1).max(1000) }))
     .output(unrehostResultSchema),
-  clearRehosted: oc
+  clearRehosted: authedRoute
     .route({ method: "POST", path: `${BASE}/clear-rehosted`, tags: [TAG] })
     .output(z.object({ cleared: z.number() })),
-  rehostStatus: oc
+  rehostStatus: authedRoute
     .route({ method: "GET", path: `${BASE}/rehost-status`, tags: [TAG] })
     .output(rehostStatusSchema),
-  brokenImages: oc
+  brokenImages: authedRoute
     .route({ method: "GET", path: `${BASE}/broken-images`, tags: [TAG] })
     .output(z.object({ total: z.number(), broken: z.array(brokenImageSchema) })),
-  lowResImages: oc.route({ method: "GET", path: `${BASE}/low-res-images`, tags: [TAG] }).output(
-    z.object({
-      total: z.number(),
-      lowRes: z.array(brokenImageSchema.extend({ width: z.number(), height: z.number() })),
-    }),
-  ),
-  missingImages: oc
+  lowResImages: authedRoute
+    .route({ method: "GET", path: `${BASE}/low-res-images`, tags: [TAG] })
+    .output(
+      z.object({
+        total: z.number(),
+        lowRes: z.array(brokenImageSchema.extend({ width: z.number(), height: z.number() })),
+      }),
+    ),
+  missingImages: authedRoute
     .route({ method: "GET", path: `${BASE}/missing-images`, tags: [TAG] })
     .output(z.array(z.object({ cardId: z.string(), slug: z.string(), name: z.string() }))),
-  migrateDirectories: oc
+  migrateDirectories: authedRoute
     .route({ method: "POST", path: `${BASE}/migrate-directories`, tags: [TAG] })
     .output(migrateResultSchema),
 };

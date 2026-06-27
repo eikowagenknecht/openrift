@@ -16,8 +16,9 @@ import {
   tradePreferenceInputSchema,
   withParams,
 } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "./_base.js";
 
 extendZodWithOpenApi(z);
 
@@ -205,87 +206,124 @@ const TAG = "Lists";
 /**
  * oRPC contract for the authenticated unified-lists endpoints (wishlist /
  * tradelist / organize; ADR-017), mounted at `/api/v1/lists`. All require a
- * session. Bad-request / not-found / conflict states are thrown as `AppError`
- * and bridged to ORPCErrors in the implementation, so the contract declares no
- * per-code typed errors.
+ * session, so they share the `authedRoute` base (UNAUTHORIZED + FORBIDDEN).
+ * Domain codes per route: `get`, `remove`, `bulkAddFromCopies`,
+ * `bulkDeleteEntries`, `getShare`, `share`, `rotateShare`, `unshare`,
+ * `groupShares` → NOT_FOUND; `update` → NOT_FOUND + BAD_REQUEST (no fields);
+ * `createEntry` → NOT_FOUND + BAD_REQUEST (kind mismatch) + CONFLICT
+ * (duplicate); `bulkCreateEntries` → NOT_FOUND + BAD_REQUEST (kind mismatch);
+ * `moveEntries` → NOT_FOUND + BAD_REQUEST (incompatible lists);
+ * `updateEntry` → NOT_FOUND + BAD_REQUEST (no fields); `removeEntry` →
+ * NOT_FOUND.
  */
 export const listsContract = {
-  list: oc
+  list: authedRoute
     .route({ method: "GET", path: "/api/v1/lists", tags: [TAG] })
     .input(listIntentQuerySchema)
     .output(listListResponseSchema),
-  create: oc
+  create: authedRoute
     .route({ method: "POST", path: "/api/v1/lists", tags: [TAG], successStatus: 201 })
     .input(createListSchema)
     .output(listResponseSchema),
-  get: oc
+  get: authedRoute
     .route({ method: "GET", path: "/api/v1/lists/{id}", tags: [TAG] })
     .input(idParamSchema)
+    .errors({ NOT_FOUND: { message: "List not found" } })
     .output(listDetailResponseSchema),
-  update: oc
+  update: authedRoute
     .route({ method: "PATCH", path: "/api/v1/lists/{id}", tags: [TAG] })
     .input(withParams(idParamSchema, updateListSchema))
+    .errors({
+      NOT_FOUND: { message: "List not found" },
+      BAD_REQUEST: { message: "No fields to update" },
+    })
     .output(listResponseSchema),
-  remove: oc
+  remove: authedRoute
     .route({ method: "DELETE", path: "/api/v1/lists/{id}", tags: [TAG], successStatus: 204 })
+    .errors({ NOT_FOUND: { message: "List not found" } })
     .input(idParamSchema),
-  createEntry: oc
+  createEntry: authedRoute
     .route({ method: "POST", path: "/api/v1/lists/{id}/entries", tags: [TAG], successStatus: 201 })
     .input(withParams(idParamSchema, listEntryInputShape))
+    .errors({
+      NOT_FOUND: { message: "List or copy not found" },
+      BAD_REQUEST: { message: "Entry target does not match list kind" },
+      CONFLICT: { message: "That item is already in the list" },
+    })
     .output(listEntryResponseSchema),
-  bulkCreateEntries: oc
+  bulkCreateEntries: authedRoute
     .route({ method: "POST", path: "/api/v1/lists/{id}/entries/bulk", tags: [TAG] })
     .input(withParams(idParamSchema, bulkCreateListEntriesSchema))
+    .errors({
+      NOT_FOUND: { message: "List not found" },
+      BAD_REQUEST: { message: "Entry target does not match list kind" },
+    })
     .output(listBulkAddResponseSchema),
-  bulkAddFromCopies: oc
+  bulkAddFromCopies: authedRoute
     .route({ method: "POST", path: "/api/v1/lists/{id}/entries/from-copies", tags: [TAG] })
     .input(withParams(idParamSchema, bulkAddCopiesToListSchema))
+    .errors({ NOT_FOUND: { message: "List not found" } })
     .output(listBulkAddResponseSchema),
-  moveEntries: oc
+  moveEntries: authedRoute
     .route({ method: "POST", path: "/api/v1/lists/{id}/entries/move", tags: [TAG] })
     .input(withParams(idParamSchema, moveListEntriesSchema))
+    .errors({
+      NOT_FOUND: { message: "List not found" },
+      BAD_REQUEST: { message: "Source and destination lists are incompatible" },
+    })
     .output(listMoveResponseSchema),
-  updateEntry: oc
+  updateEntry: authedRoute
     .route({ method: "PATCH", path: "/api/v1/lists/{id}/entries/{itemId}", tags: [TAG] })
     .input(withParams(idAndItemIdParamSchema, updateListEntrySchema))
+    .errors({
+      NOT_FOUND: { message: "Entry not found" },
+      BAD_REQUEST: { message: "No fields to update" },
+    })
     .output(listEntryResponseSchema),
-  removeEntry: oc
+  removeEntry: authedRoute
     .route({
       method: "DELETE",
       path: "/api/v1/lists/{id}/entries/{itemId}",
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({ NOT_FOUND: { message: "Entry not found" } })
     .input(idAndItemIdParamSchema),
-  bulkDeleteEntries: oc
+  bulkDeleteEntries: authedRoute
     .route({
       method: "POST",
       path: "/api/v1/lists/{id}/entries/bulk-delete",
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({ NOT_FOUND: { message: "List not found" } })
     .input(withParams(idParamSchema, bulkDeleteListEntriesSchema)),
-  getShare: oc
+  getShare: authedRoute
     .route({ method: "GET", path: "/api/v1/lists/{id}/share", tags: [TAG] })
     .input(idParamSchema)
+    .errors({ NOT_FOUND: { message: "List not found" } })
     .output(listShareResponseSchema),
-  share: oc
+  share: authedRoute
     .route({ method: "POST", path: "/api/v1/lists/{id}/share", tags: [TAG] })
     .input(idParamSchema)
+    .errors({ NOT_FOUND: { message: "List not found" } })
     .output(listShareResponseSchema),
-  rotateShare: oc
+  rotateShare: authedRoute
     .route({ method: "POST", path: "/api/v1/lists/{id}/share/rotate", tags: [TAG] })
     .input(idParamSchema)
+    .errors({ NOT_FOUND: { message: "List not found" } })
     .output(listShareResponseSchema),
-  unshare: oc
+  unshare: authedRoute
     .route({ method: "DELETE", path: "/api/v1/lists/{id}/share", tags: [TAG], successStatus: 204 })
+    .errors({ NOT_FOUND: { message: "List not found" } })
     .input(idParamSchema),
-  reorder: oc
+  reorder: authedRoute
     .route({ method: "POST", path: "/api/v1/lists/reorder", tags: [TAG], successStatus: 204 })
     .input(reorderListsSchema),
-  groupShares: oc
+  groupShares: authedRoute
     .route({ method: "GET", path: "/api/v1/lists/{id}/group-shares", tags: [TAG] })
     .input(idParamSchema)
+    .errors({ NOT_FOUND: { message: "List not found" } })
     .output(listGroupSharesResponseSchema),
 };
 

@@ -1,6 +1,7 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "./_base.js";
 
 extendZodWithOpenApi(z);
 
@@ -66,10 +67,10 @@ export const collectionValueHistoryResponseSchema = z
 /**
  * oRPC contract for the authenticated collection value-over-time series.
  * `GET /api/v1/collection-value-history?marketplace&range&...scope` — a time
- * series of collection value. Requires a session (mount applies `requireAuth`).
+ * series of collection value. Requires a session (UNAUTHORIZED on missing session).
  */
 export const collectionValueHistoryContract = {
-  get: oc
+  get: authedRoute
     .route({
       method: "GET",
       path: "/api/v1/collection-value-history",

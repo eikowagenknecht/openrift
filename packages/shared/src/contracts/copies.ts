@@ -1,8 +1,9 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { copyListResponseSchema, copyResponseSchema } from "@openrift/shared/response-schemas";
 import { copiesQuerySchema } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "./_base.js";
 
 extendZodWithOpenApi(z);
 
@@ -67,27 +68,34 @@ export const copyListMembershipsResponseSchema = z
 
 /**
  * oRPC contract for the authenticated copies endpoints. All require a session
- * (the mount applies `requireAuth`). `add` returns 201; `move` and `dispose`
- * return 204 with no body; `add` can return a typed BAD_REQUEST when a copy
- * references a non-existent printing.
+ * (the mount applies `requireAuth`), so they share the `authedRoute` base
+ * (UNAUTHORIZED + FORBIDDEN). `add` returns 201; `move` and `dispose` return
+ * 204 with no body. Domain codes per route: `add` → BAD_REQUEST (a copy
+ * references a non-existent printing); `move` → NOT_FOUND (target collection or
+ * copies missing); `dispose` → NOT_FOUND + CONFLICT.
  */
 export const copiesContract = {
-  list: oc
+  list: authedRoute
     .route({ method: "GET", path: "/api/v1/copies", tags: ["Copies"] })
     .input(copiesQuerySchema)
     .output(copyListResponseSchema),
-  add: oc
+  add: authedRoute
     .route({ method: "POST", path: "/api/v1/copies", tags: ["Copies"], successStatus: 201 })
     .input(addCopiesSchema)
     .errors({ BAD_REQUEST: { message: "One or more printings do not exist" } })
     .output(copyAddResponseSchema),
-  move: oc
+  move: authedRoute
     .route({ method: "POST", path: "/api/v1/copies/move", tags: ["Copies"], successStatus: 204 })
+    .errors({ NOT_FOUND: { message: "Target collection or copies not found" } })
     .input(moveCopiesSchema),
-  dispose: oc
+  dispose: authedRoute
     .route({ method: "POST", path: "/api/v1/copies/dispose", tags: ["Copies"], successStatus: 204 })
+    .errors({
+      NOT_FOUND: { message: "One or more copies not found" },
+      CONFLICT: { message: "One or more copies could not be disposed" },
+    })
     .input(disposeCopiesSchema),
-  listMemberships: oc
+  listMemberships: authedRoute
     .route({ method: "POST", path: "/api/v1/copies/list-memberships", tags: ["Copies"] })
     .input(copyListMembershipsSchema)
     .output(copyListMembershipsResponseSchema),

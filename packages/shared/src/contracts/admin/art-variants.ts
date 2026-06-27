@@ -1,7 +1,7 @@
 import { withParams } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
 
+import { authedRoute } from "../_base.js";
 import { slugRegex } from "./shared.js";
 
 const TAG = "Admin - Art Variants";
@@ -19,19 +19,22 @@ const slugParamSchema = z.object({ slug: z.string().min(1) });
 
 /**
  * oRPC contract for the admin art-variants taxonomy CRUD (mounted at
- * `/api/admin/v1/art-variants`, admin-gated by the mount). Conflict / not-found
- * / bad-request states are thrown as `AppError` and bridged to ORPCErrors in
- * the implementation. The static `reorder` path precedes `{slug}`.
+ * `/api/admin/v1/art-variants`, admin-gated by the mount). Domain codes per
+ * route: `reorder` → BAD_REQUEST (invalid slug list); `create` → CONFLICT
+ * (slug taken); `update` → NOT_FOUND; `remove` → NOT_FOUND + CONFLICT
+ * (well-known or in use). The static `reorder` path precedes `{slug}`.
  */
 export const adminArtVariantsContract = {
-  list: oc
+  list: authedRoute
     .route({ method: "GET", path: AV, tags: [TAG] })
     .output(z.object({ artVariants: z.array(artVariantSchema) })),
-  reorder: oc
+  reorder: authedRoute
     .route({ method: "PUT", path: `${AV}/reorder`, tags: [TAG], successStatus: 204 })
+    .errors({ BAD_REQUEST: { message: "Invalid reorder request" } })
     .input(z.object({ slugs: z.array(z.string().min(1)).min(1) })),
-  create: oc
+  create: authedRoute
     .route({ method: "POST", path: AV, tags: [TAG], successStatus: 201 })
+    .errors({ CONFLICT: { message: "Art variant already exists" } })
     .input(
       z.object({
         slug: z.string().min(1).regex(slugRegex, "Slug must be kebab-case"),
@@ -39,11 +42,16 @@ export const adminArtVariantsContract = {
       }),
     )
     .output(z.object({ artVariant: artVariantSchema })),
-  update: oc
+  update: authedRoute
     .route({ method: "PATCH", path: `${AV}/{slug}`, tags: [TAG], successStatus: 204 })
+    .errors({ NOT_FOUND: { message: "Art variant not found" } })
     .input(withParams(slugParamSchema, { label: z.string().min(1).optional() })),
-  remove: oc
+  remove: authedRoute
     .route({ method: "DELETE", path: `${AV}/{slug}`, tags: [TAG], successStatus: 204 })
+    .errors({
+      NOT_FOUND: { message: "Art variant not found" },
+      CONFLICT: { message: "Art variant cannot be deleted" },
+    })
     .input(slugParamSchema),
 };
 

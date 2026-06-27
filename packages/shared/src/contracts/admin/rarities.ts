@@ -1,6 +1,7 @@
 import { withParams } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "../_base.js";
 
 const TAG = "Admin - Rarities";
 
@@ -24,19 +25,23 @@ const hexColorSchema = z
 /**
  * oRPC contract for the admin rarity taxonomy CRUD (mounted at
  * `/api/admin/v1/rarities`, admin-gated by the mount). Like the other enum
- * taxonomies but each row also carries an optional hex `color`. Conflict /
- * not-found / bad-request states are thrown as `AppError` and bridged to
- * ORPCErrors in the implementation. The static `reorder` path precedes `{slug}`.
+ * taxonomies but each row also carries an optional hex `color`. All procedures
+ * are session-gated (UNAUTHORIZED + FORBIDDEN from `authedRoute`). Domain codes
+ * per route: `reorder` → BAD_REQUEST (invalid reorder request); `create` →
+ * CONFLICT (slug already in use); `update` → NOT_FOUND; `remove` → NOT_FOUND +
+ * CONFLICT (well-known or in use).
  */
 export const adminRaritiesContract = {
-  list: oc
+  list: authedRoute
     .route({ method: "GET", path: BASE, tags: [TAG] })
     .output(z.object({ rarities: z.array(entitySchema) })),
-  reorder: oc
+  reorder: authedRoute
     .route({ method: "PUT", path: `${BASE}/reorder`, tags: [TAG], successStatus: 204 })
+    .errors({ BAD_REQUEST: { message: "Invalid reorder request" } })
     .input(z.object({ slugs: z.array(z.string().min(1)).min(1) })),
-  create: oc
+  create: authedRoute
     .route({ method: "POST", path: BASE, tags: [TAG], successStatus: 201 })
+    .errors({ CONFLICT: { message: "Rarity already exists" } })
     .input(
       z.object({
         slug: z.string().min(1),
@@ -45,16 +50,21 @@ export const adminRaritiesContract = {
       }),
     )
     .output(z.object({ rarity: entitySchema })),
-  update: oc
+  update: authedRoute
     .route({ method: "PATCH", path: `${BASE}/{slug}`, tags: [TAG], successStatus: 204 })
+    .errors({ NOT_FOUND: { message: "Rarity not found" } })
     .input(
       withParams(slugParamSchema, {
         label: z.string().min(1).optional(),
         color: hexColorSchema.optional(),
       }),
     ),
-  remove: oc
+  remove: authedRoute
     .route({ method: "DELETE", path: `${BASE}/{slug}`, tags: [TAG], successStatus: 204 })
+    .errors({
+      NOT_FOUND: { message: "Rarity not found" },
+      CONFLICT: { message: "Rarity cannot be deleted" },
+    })
     .input(slugParamSchema),
 };
 

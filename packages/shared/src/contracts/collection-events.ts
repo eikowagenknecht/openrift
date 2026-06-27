@@ -1,7 +1,8 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { cardTypeSchema, imageIdSchema, raritySchema } from "@openrift/shared/response-schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "./_base.js";
 
 extendZodWithOpenApi(z);
 
@@ -43,10 +44,10 @@ export const collectionEventListResponseSchema = z
 /**
  * oRPC contract for the authenticated collection-events feed.
  * `GET /api/v1/collection-events?cursor&limit` — cursor-paginated activity.
- * Requires a session (the mount applies `requireAuth`).
+ * Requires a session (UNAUTHORIZED on missing session).
  */
 export const collectionEventsContract = {
-  list: oc
+  list: authedRoute
     .route({ method: "GET", path: "/api/v1/collection-events", tags: ["Collection Events"] })
     .input(collectionEventsQuerySchema)
     .output(collectionEventListResponseSchema),

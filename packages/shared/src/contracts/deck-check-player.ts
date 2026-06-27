@@ -10,8 +10,9 @@ import {
   exactlyOneDeckCheckSubmissionSource,
   playerDeckCheckSubmissionShape,
 } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "./_base.js";
 
 extendZodWithOpenApi(z);
 
@@ -117,54 +118,77 @@ const ONE_SOURCE_MESSAGE = "Provide exactly one of deckId, deckCode, or cards";
 
 /**
  * oRPC contract for the player-facing deck-check surface (ADR-026/027),
- * mounted at `/api/v1/deck-check`. All require a session. Not-found / conflict /
- * validation states are thrown as `AppError` and bridged to ORPCErrors in the
- * implementation, so the contract declares no per-code typed errors. The
- * submission inputs merge the path token/entry id with the submission body and
- * re-apply the "exactly one deck source" rule.
+ * mounted at `/api/v1/deck-check`. All require a session; the base carries
+ * UNAUTHORIZED + FORBIDDEN. Domain codes per route: most carry NOT_FOUND
+ * (missing entry, event, submission link, or account); mutation routes also
+ * declare CONFLICT (locked or withdrawn state) and, where input is rejected,
+ * VALIDATION_ERROR (422). The submission inputs merge the path token/entry id
+ * with the submission body and re-apply the "exactly one deck source" rule.
  */
 export const deckCheckPlayerContract = {
-  listMine: oc
+  listMine: authedRoute
     .route({ method: "GET", path: "/api/v1/deck-check/mine", tags: [TAG] })
     .output(playerDeckCheckEntriesResponseSchema),
-  getMine: oc
+  getMine: authedRoute
     .route({ method: "GET", path: "/api/v1/deck-check/mine/{entryId}", tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Entry not found" } })
     .input(playerDeckCheckEntryParamSchema)
     .output(playerDeckCheckEntryDetailResponseSchema),
-  editList: oc
+  editList: authedRoute
     .route({ method: "PUT", path: "/api/v1/deck-check/mine/{entryId}/list", tags: [TAG] })
+    .errors({
+      NOT_FOUND: { message: "Entry or deck not found" },
+      CONFLICT: { message: "Submissions are closed or the deck is locked" },
+      VALIDATION_ERROR: { status: 422, message: "Invalid deck section or deck code" },
+    })
     .input(
       playerDeckCheckEntryParamSchema
         .extend(playerDeckCheckSubmissionShape)
         .refine(exactlyOneDeckCheckSubmissionSource, { message: ONE_SOURCE_MESSAGE }),
     )
     .output(deckCheckSubmissionResultResponseSchema),
-  submit: oc
+  submit: authedRoute
     .route({ method: "POST", path: "/api/v1/deck-check/mine/{entryId}/submit", tags: [TAG] })
+    .errors({
+      NOT_FOUND: { message: "Entry not found" },
+      CONFLICT: { message: "Submissions are closed or the deck is not editable" },
+    })
     .input(playerDeckCheckEntryParamSchema)
     .output(playerDeckCheckEntryDetailResponseSchema),
-  unlock: oc
+  unlock: authedRoute
     .route({ method: "POST", path: "/api/v1/deck-check/mine/{entryId}/unlock", tags: [TAG] })
+    .errors({
+      NOT_FOUND: { message: "Entry not found" },
+      CONFLICT: { message: "Submissions are closed or the deck cannot be unlocked" },
+    })
     .input(playerDeckCheckEntryParamSchema)
     .output(playerDeckCheckEntryDetailResponseSchema),
-  cancelUnlock: oc
+  cancelUnlock: authedRoute
     .route({ method: "DELETE", path: "/api/v1/deck-check/mine/{entryId}/unlock", tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Entry not found" } })
     .input(playerDeckCheckEntryParamSchema)
     .output(playerDeckCheckEntryDetailResponseSchema),
-  submissionPage: oc
+  submissionPage: authedRoute
     .route({ method: "GET", path: "/api/v1/deck-check/submissions/{token}", tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Submission link not found" } })
     .input(deckCheckSubmissionTokenParamSchema)
     .output(deckCheckSubmissionPageResponseSchema),
-  submitToToken: oc
+  submitToToken: authedRoute
     .route({ method: "POST", path: "/api/v1/deck-check/submissions/{token}", tags: [TAG] })
+    .errors({
+      NOT_FOUND: { message: "Submission link or account not found" },
+      CONFLICT: { message: "Submissions are closed or the entry is locked" },
+      VALIDATION_ERROR: { status: 422, message: "Invalid deck section or deck code" },
+    })
     .input(
       deckCheckSubmissionTokenParamSchema
         .extend(playerDeckCheckSubmissionShape)
         .refine(exactlyOneDeckCheckSubmissionSource, { message: ONE_SOURCE_MESSAGE }),
     )
     .output(deckCheckSubmissionResultResponseSchema),
-  claim: oc
+  claim: authedRoute
     .route({ method: "POST", path: "/api/v1/deck-check/claim/{token}", tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Claim link not found" } })
     .input(deckCheckClaimTokenParamSchema)
     .output(deckCheckClaimResultResponseSchema),
 };

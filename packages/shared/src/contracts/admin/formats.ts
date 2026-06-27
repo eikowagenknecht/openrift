@@ -1,5 +1,6 @@
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "../_base.js";
 
 const TAG = "Admin - Formats";
 
@@ -9,11 +10,12 @@ const formatSchema = z.object({ id: z.string(), name: z.string() });
 
 /**
  * oRPC contract for the admin formats list (mounted at `/api/admin/v1/formats`,
- * admin-gated by the mount). Read-only: the formats are derived from the
+ * admin-gated by the mount). All procedures share the `authedRoute` base
+ * (UNAUTHORIZED + FORBIDDEN). Read-only: the formats are derived from the
  * card-bans repository.
  */
 export const adminFormatsContract = {
-  list: oc
+  list: authedRoute
     .route({ method: "GET", path: FORMATS, tags: [TAG] })
     .output(z.object({ formats: z.array(formatSchema) })),
 };

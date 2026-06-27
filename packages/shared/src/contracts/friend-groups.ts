@@ -17,8 +17,9 @@ import {
   friendGroupSlugSchema,
   withParams,
 } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "./_base.js";
 
 extendZodWithOpenApi(z);
 
@@ -409,153 +410,217 @@ const FG = "/api/v1/friend-groups";
 
 /**
  * oRPC contract for the friend-groups endpoints (mounted at
- * `/api/v1/friend-groups`). All require a session. Role checks, not-found,
- * conflict, and bad-request states are thrown as `AppError` and bridged to
- * ORPCErrors in the implementation, so the contract declares no per-code typed
- * errors. The static single-segment paths (pending-*-count, preview, join)
- * take precedence over `{slug}`.
+ * `/api/v1/friend-groups`). All require a session, so they share the
+ * `authedRoute` base (UNAUTHORIZED + FORBIDDEN). Domain codes per route:
+ * `create` → CONFLICT (slug taken); `preview`, `join`, `get`, `update`,
+ * `remove`, `rotateCode`, `disableCode`, `enableCode`, `shareableLists`,
+ * `shareableCollections`, `matches`, `activity` → NOT_FOUND (group); `join`
+ * also adds CONFLICT (already a member); `update` also adds CONFLICT (slug
+ * taken); `inviteByEmail` → NOT_FOUND + CONFLICT (member exists);
+ * `acceptInvite`, `declineInvite` → NOT_FOUND (group or invite); `leave` →
+ * NOT_FOUND + CONFLICT (owner must transfer first); `transferOwnership` →
+ * NOT_FOUND + BAD_REQUEST (invalid target); `updateRole` → NOT_FOUND +
+ * CONFLICT (cannot change owner's role); `setRevealedContacts`,
+ * `getMemberDetail` → NOT_FOUND (member); `kickMember` → NOT_FOUND +
+ * BAD_REQUEST (self-kick) + CONFLICT (cannot kick owner); `shareList`,
+ * `unshareList`, `getSharedList` → NOT_FOUND (group or list);
+ * `shareCollection`, `unshareCollection`, `getSharedCollection` → NOT_FOUND
+ * (group or collection). The static single-segment paths
+ * (pending-*-count, preview, join) take precedence over `{slug}`.
  *
- * `updateGroup` uses the detailed input structure because the path `slug`
+ * `update` uses the detailed input structure because the path `slug`
  * (current) and the optional body `slug` (rename target) would otherwise
  * collide under the compact merge.
  */
 export const friendGroupsContract = {
-  list: oc.route({ method: "GET", path: FG, tags: [TAG] }).output(friendGroupListResponseSchema),
-  pendingInvitesCount: oc
+  list: authedRoute
+    .route({ method: "GET", path: FG, tags: [TAG] })
+    .output(friendGroupListResponseSchema),
+  pendingInvitesCount: authedRoute
     .route({ method: "GET", path: `${FG}/pending-invites-count`, tags: [TAG] })
     .output(friendGroupPendingInvitesCountResponseSchema),
-  pendingRequestsCount: oc
+  pendingRequestsCount: authedRoute
     .route({ method: "GET", path: `${FG}/pending-requests-count`, tags: [TAG] })
     .output(friendGroupPendingRequestsCountResponseSchema),
-  create: oc
+  create: authedRoute
     .route({ method: "POST", path: FG, tags: [TAG], successStatus: 201 })
     .input(createFriendGroupSchema)
+    .errors({ CONFLICT: { message: "Slug already in use" } })
     .output(friendGroupResponseSchema),
-  preview: oc
+  preview: authedRoute
     .route({ method: "GET", path: `${FG}/preview`, tags: [TAG] })
     .input(friendGroupCodeQuerySchema)
+    .errors({ NOT_FOUND: { message: "Group not found" } })
     .output(friendGroupJoinPreviewResponseSchema),
-  join: oc
+  join: authedRoute
     .route({ method: "POST", path: `${FG}/join`, tags: [TAG], successStatus: 202 })
+    .errors({
+      NOT_FOUND: { message: "Group not found" },
+      CONFLICT: { message: "Already a member of that group" },
+    })
     .input(friendGroupJoinByCodeSchema),
-  get: oc
+  get: authedRoute
     .route({ method: "GET", path: `${FG}/{slug}`, tags: [TAG] })
     .input(friendGroupSlugParamSchema)
+    .errors({ NOT_FOUND: { message: "Group not found" } })
     .output(friendGroupDetailResponseSchema),
-  update: oc
+  update: authedRoute
     .route({ method: "PATCH", path: `${FG}/{slug}`, tags: [TAG], inputStructure: "detailed" })
     .input(z.object({ params: friendGroupSlugParamSchema, body: updateFriendGroupSchema }))
+    .errors({
+      NOT_FOUND: { message: "Group not found" },
+      CONFLICT: { message: "Slug already in use" },
+    })
     .output(friendGroupResponseSchema),
-  remove: oc
+  remove: authedRoute
     .route({ method: "DELETE", path: `${FG}/{slug}`, tags: [TAG], successStatus: 204 })
+    .errors({ NOT_FOUND: { message: "Group not found" } })
     .input(friendGroupSlugParamSchema),
-  rotateCode: oc
+  rotateCode: authedRoute
     .route({ method: "POST", path: `${FG}/{slug}/code/rotate`, tags: [TAG] })
     .input(friendGroupSlugParamSchema)
+    .errors({ NOT_FOUND: { message: "Group not found" } })
     .output(friendGroupResponseSchema),
-  disableCode: oc
+  disableCode: authedRoute
     .route({ method: "DELETE", path: `${FG}/{slug}/code`, tags: [TAG] })
     .input(friendGroupSlugParamSchema)
+    .errors({ NOT_FOUND: { message: "Group not found" } })
     .output(friendGroupResponseSchema),
-  enableCode: oc
+  enableCode: authedRoute
     .route({ method: "POST", path: `${FG}/{slug}/code`, tags: [TAG] })
     .input(friendGroupSlugParamSchema)
+    .errors({ NOT_FOUND: { message: "Group not found" } })
     .output(friendGroupResponseSchema),
-  inviteByEmail: oc
+  inviteByEmail: authedRoute
     .route({ method: "POST", path: `${FG}/{slug}/invites`, tags: [TAG], successStatus: 201 })
+    .errors({
+      NOT_FOUND: { message: "User or group not found" },
+      CONFLICT: { message: "User is already a member" },
+    })
     .input(withParams(friendGroupSlugParamSchema, friendGroupInviteByEmailSchema)),
-  acceptInvite: oc
+  acceptInvite: authedRoute
     .route({
       method: "POST",
       path: `${FG}/{slug}/invites/{userId}/accept`,
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({ NOT_FOUND: { message: "Group or invite not found" } })
     .input(friendGroupSlugAndUserParamSchema),
-  declineInvite: oc
+  declineInvite: authedRoute
     .route({
       method: "DELETE",
       path: `${FG}/{slug}/invites/{userId}`,
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({ NOT_FOUND: { message: "Group or invite not found" } })
     .input(friendGroupSlugAndUserParamSchema),
-  leave: oc
+  leave: authedRoute
     .route({ method: "POST", path: `${FG}/{slug}/leave`, tags: [TAG], successStatus: 204 })
+    .errors({
+      NOT_FOUND: { message: "Group not found" },
+      CONFLICT: { message: "Transfer ownership before leaving" },
+    })
     .input(friendGroupSlugParamSchema),
-  transferOwnership: oc
+  transferOwnership: authedRoute
     .route({
       method: "POST",
       path: `${FG}/{slug}/transfer-ownership`,
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({
+      NOT_FOUND: { message: "Group not found" },
+      BAD_REQUEST: { message: "Invalid transfer target" },
+    })
     .input(withParams(friendGroupSlugParamSchema, friendGroupTransferOwnershipSchema)),
-  updateRole: oc
+  updateRole: authedRoute
     .route({ method: "PATCH", path: `${FG}/{slug}/members/{userId}/role`, tags: [TAG] })
     .input(withParams(friendGroupSlugAndUserParamSchema, friendGroupUpdateRoleSchema))
+    .errors({
+      NOT_FOUND: { message: "Member not found" },
+      CONFLICT: { message: "Cannot change that member's role" },
+    })
     .output(friendGroupMemberResponseSchema),
-  setRevealedContacts: oc
+  setRevealedContacts: authedRoute
     .route({ method: "PUT", path: `${FG}/{slug}/members/{userId}/contacts`, tags: [TAG] })
     .input(withParams(friendGroupSlugAndUserParamSchema, setRevealedContactsSchema))
+    .errors({ NOT_FOUND: { message: "Member not found" } })
     .output(friendGroupMemberResponseSchema),
-  kickMember: oc
+  kickMember: authedRoute
     .route({
       method: "DELETE",
       path: `${FG}/{slug}/members/{userId}`,
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({
+      NOT_FOUND: { message: "Member not found" },
+      BAD_REQUEST: { message: "Cannot kick yourself" },
+      CONFLICT: { message: "Cannot kick the owner" },
+    })
     .input(friendGroupSlugAndUserParamSchema),
-  shareableLists: oc
+  shareableLists: authedRoute
     .route({ method: "GET", path: `${FG}/{slug}/shareable-lists`, tags: [TAG] })
     .input(friendGroupSlugParamSchema)
+    .errors({ NOT_FOUND: { message: "Group not found" } })
     .output(friendGroupShareableListsResponseSchema),
-  shareList: oc
+  shareList: authedRoute
     .route({ method: "POST", path: `${FG}/{slug}/lists`, tags: [TAG], successStatus: 204 })
+    .errors({ NOT_FOUND: { message: "Group or list not found" } })
     .input(withParams(friendGroupSlugParamSchema, friendGroupShareListSchema)),
-  unshareList: oc
+  unshareList: authedRoute
     .route({
       method: "DELETE",
       path: `${FG}/{slug}/lists/{listId}`,
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({ NOT_FOUND: { message: "Group or list not found" } })
     .input(friendGroupSlugAndListIdParamSchema),
-  shareableCollections: oc
+  shareableCollections: authedRoute
     .route({ method: "GET", path: `${FG}/{slug}/shareable-collections`, tags: [TAG] })
     .input(friendGroupSlugParamSchema)
+    .errors({ NOT_FOUND: { message: "Group not found" } })
     .output(friendGroupShareableCollectionsResponseSchema),
-  shareCollection: oc
+  shareCollection: authedRoute
     .route({ method: "POST", path: `${FG}/{slug}/collections`, tags: [TAG], successStatus: 204 })
+    .errors({ NOT_FOUND: { message: "Group or collection not found" } })
     .input(withParams(friendGroupSlugParamSchema, friendGroupShareCollectionSchema)),
-  unshareCollection: oc
+  unshareCollection: authedRoute
     .route({
       method: "DELETE",
       path: `${FG}/{slug}/collections/{collectionId}`,
       tags: [TAG],
       successStatus: 204,
     })
+    .errors({ NOT_FOUND: { message: "Group or collection not found" } })
     .input(friendGroupSlugAndCollectionIdParamSchema),
-  getSharedCollection: oc
+  getSharedCollection: authedRoute
     .route({ method: "GET", path: `${FG}/{slug}/collections/{collectionId}`, tags: [TAG] })
     .input(friendGroupSlugAndCollectionIdParamSchema)
+    .errors({ NOT_FOUND: { message: "Group or collection not found" } })
     .output(friendGroupSharedCollectionDetailResponseSchema),
-  matches: oc
+  matches: authedRoute
     .route({ method: "GET", path: `${FG}/{slug}/matches`, tags: [TAG] })
     .input(friendGroupSlugParamSchema)
+    .errors({ NOT_FOUND: { message: "Group not found" } })
     .output(friendGroupMatchesResponseSchema),
-  getSharedList: oc
+  getSharedList: authedRoute
     .route({ method: "GET", path: `${FG}/{slug}/lists/{listId}`, tags: [TAG] })
     .input(friendGroupSlugAndListIdParamSchema)
+    .errors({ NOT_FOUND: { message: "Group or list not found" } })
     .output(friendGroupSharedListDetailResponseSchema),
-  getMemberDetail: oc
+  getMemberDetail: authedRoute
     .route({ method: "GET", path: `${FG}/{slug}/members/{userId}`, tags: [TAG] })
     .input(friendGroupSlugAndUserParamSchema)
+    .errors({ NOT_FOUND: { message: "Member not found" } })
     .output(friendGroupMemberDetailResponseSchema),
-  activity: oc
+  activity: authedRoute
     .route({ method: "GET", path: `${FG}/{slug}/activity`, tags: [TAG] })
     .input(friendGroupSlugParamSchema)
+    .errors({ NOT_FOUND: { message: "Group not found" } })
     .output(friendGroupActivityResponseSchema),
 };
 

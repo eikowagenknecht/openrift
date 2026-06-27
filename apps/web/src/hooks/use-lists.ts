@@ -13,7 +13,7 @@ import type {
   TradePreference,
 } from "@openrift/shared";
 import { listsContract, publicListsContract } from "@openrift/shared/contracts";
-import { ORPCError } from "@orpc/client";
+import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -42,14 +42,16 @@ const fetchListDetail = createServerFn({ method: "GET" })
   .handler(async ({ context, data: listId }): Promise<ListDetailResponse> => {
     // 404 (unknown list, or one belonging to another user) maps to the
     // NOT_FOUND sentinel the route boundary expects.
-    try {
-      return await apiOrpcClient(listsContract, context.cookie).get({ id: listId });
-    } catch (error) {
-      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+    const { error, data } = await safe(
+      apiOrpcClient(listsContract, context.cookie).get({ id: listId }),
+    );
+    if (error) {
+      if (isDefinedError(error) && error.code === "NOT_FOUND") {
         throw new Error("NOT_FOUND");
       }
       throw error;
     }
+    return data;
   });
 
 export function listsQueryOptions(userId: string, intent?: ListIntent) {
@@ -513,14 +515,14 @@ export function useUnshareList() {
 const fetchPublicListFn = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .handler(async ({ data: token }): Promise<PublicListDetailResponse> => {
-    try {
-      return await apiOrpcClient(publicListsContract).share({ token });
-    } catch (error) {
-      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+    const { error, data } = await safe(apiOrpcClient(publicListsContract).share({ token }));
+    if (error) {
+      if (isDefinedError(error) && error.code === "NOT_FOUND") {
         throw new Error("NOT_FOUND");
       }
       throw error;
     }
+    return data;
   });
 
 export function publicListQueryOptions(token: string) {

@@ -1,6 +1,7 @@
 import { withParams } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "../_base.js";
 
 const TAG = "Admin - Keywords";
 
@@ -32,30 +33,31 @@ const translationParamSchema = z.object({ keywordName: z.string(), language: z.s
 
 /**
  * oRPC contract for the admin keyword tooling (mounted under `/api/admin/v1`,
- * admin-gated by the mount): keyword usage stats, per-keyword display styles,
- * a recompute job, and keyword translations (auto-discovery + manual
+ * admin-gated by the mount). All procedures share the `authedRoute` base
+ * (UNAUTHORIZED + FORBIDDEN). Covers keyword usage stats, per-keyword display
+ * styles, a recompute job, and keyword translations (auto-discovery + manual
  * upsert/delete, keyed by `{keywordName}/{language}`).
  */
 export const adminKeywordsContract = {
-  stats: oc
+  stats: authedRoute
     .route({ method: "GET", path: `${BASE}/keyword-stats`, tags: [TAG] })
     .output(keywordStatsSchema),
-  createStyle: oc
+  createStyle: authedRoute
     .route({ method: "POST", path: `${BASE}/keywords`, tags: [TAG], successStatus: 204 })
     .input(z.object({ name: z.string().min(1), color: hexColor, darkText: z.boolean() })),
-  updateStyle: oc
+  updateStyle: authedRoute
     .route({ method: "PUT", path: `${BASE}/keywords/{name}`, tags: [TAG], successStatus: 204 })
     .input(withParams(nameParamSchema, { color: hexColor, darkText: z.boolean() })),
-  removeStyle: oc
+  removeStyle: authedRoute
     .route({ method: "DELETE", path: `${BASE}/keywords/{name}`, tags: [TAG], successStatus: 204 })
     .input(nameParamSchema),
-  recompute: oc
+  recompute: authedRoute
     .route({ method: "POST", path: `${BASE}/recompute-keywords`, tags: [TAG] })
     .output(recomputeResultSchema),
-  discoverTranslations: oc
+  discoverTranslations: authedRoute
     .route({ method: "POST", path: `${BASE}/discover-keyword-translations`, tags: [TAG] })
     .output(discoverResultSchema),
-  upsertTranslation: oc
+  upsertTranslation: authedRoute
     .route({
       method: "PUT",
       path: `${BASE}/keyword-translations/{keywordName}/{language}`,
@@ -63,7 +65,7 @@ export const adminKeywordsContract = {
       successStatus: 204,
     })
     .input(withParams(translationParamSchema, { label: z.string().min(1) })),
-  removeTranslation: oc
+  removeTranslation: authedRoute
     .route({
       method: "DELETE",
       path: `${BASE}/keyword-translations/{keywordName}/{language}`,

@@ -1,6 +1,37 @@
 import { ORPCError, os } from "@orpc/server";
 
+import { AppError } from "../errors.js";
 import type { ApiContext } from "./context.js";
+
+/**
+ * Runs a procedure continuation, converting a thrown {@link AppError} into the
+ * equivalent {@link ORPCError} *inside the procedure pipeline*.
+ *
+ * This placement is load-bearing for typed errors. oRPC only upgrades a thrown
+ * error to a "defined" error — the thing the client narrows on with
+ * `isDefinedError()` — when it is already an `ORPCError` by the time
+ * `createProcedureClient` validates it against the contract's `errorMap`. The
+ * transport-level {@link appErrorInterceptor} converts too late (after that
+ * validation has run and skipped the still-`AppError` throw), so it can only
+ * ever yield `defined: false`. Converting here — in the auth middleware every
+ * oRPC procedure already passes through — lets a contract's `.errors()`
+ * declarations actually reach the client typed, without touching the ~360
+ * `throw new AppError` sites. The transport interceptor stays as a safety net
+ * for AppErrors thrown outside any procedure. The status carried by the AppError
+ * must equal oRPC's expected status for its code, or the upgrade is skipped (see
+ * the base contract builders for the codes that need an explicit status).
+ * @returns The continuation's result.
+ */
+async function convertingAppErrors<TResult>(run: () => TResult): Promise<Awaited<TResult>> {
+  try {
+    return await run();
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw new ORPCError(error.code, { status: error.status, message: error.message });
+    }
+    throw error;
+  }
+}
 
 /**
  * Per-procedure auth classification, read from the contract's `.meta()`.
@@ -47,13 +78,13 @@ export const requireUser = os
     // "public" (no auth) and "bearer" (own API-key auth in the handler) both
     // skip session resolution — only the fail-closed default resolves a session.
     if (meta.auth === "public" || meta.auth === "bearer") {
-      return next();
+      return convertingAppErrors(() => next());
     }
     const user = await context.loadUser();
     if (!user) {
       throw new ORPCError("UNAUTHORIZED", { message: "Unauthorized" });
     }
-    return next({ context: { user } });
+    return convertingAppErrors(() => next({ context: { user } }));
   });
 
 /**
@@ -74,5 +105,5 @@ export const requireAuthedUser = os.$context<ApiContext>().middleware(async ({ c
   if (!user) {
     throw new ORPCError("UNAUTHORIZED", { message: "Unauthorized" });
   }
-  return next({ context: { user, userId: user.id } });
+  return convertingAppErrors(() => next({ context: { user, userId: user.id } }));
 });

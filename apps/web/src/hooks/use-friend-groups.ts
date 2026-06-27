@@ -15,7 +15,7 @@ import type {
   FriendGroupSharedListDetailResponse,
 } from "@openrift/shared";
 import { friendGroupsContract } from "@openrift/shared/contracts";
-import { ORPCError } from "@orpc/client";
+import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -54,14 +54,16 @@ const fetchGroupDetail = createServerFn({ method: "GET" })
   .handler(async ({ context, data: slug }): Promise<FriendGroupDetailResponse> => {
     // 404 (unknown group, or one the viewer can't see) maps to the NOT_FOUND
     // sentinel the route boundary expects.
-    try {
-      return await apiOrpcClient(friendGroupsContract, context.cookie).get({ slug });
-    } catch (error) {
-      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+    const { error, data } = await safe(
+      apiOrpcClient(friendGroupsContract, context.cookie).get({ slug }),
+    );
+    if (error) {
+      if (isDefinedError(error) && error.code === "NOT_FOUND") {
         throw new Error("NOT_FOUND");
       }
       throw error;
     }
+    return data;
   });
 
 const fetchGroupMatches = createServerFn({ method: "GET" })
@@ -101,28 +103,32 @@ const fetchJoinPreview = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(async ({ context, data: code }): Promise<FriendGroupJoinPreviewResponse> => {
     // 404 (no group matches the code) maps to the NOT_FOUND sentinel.
-    try {
-      return await apiOrpcClient(friendGroupsContract, context.cookie).preview({ code });
-    } catch (error) {
-      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+    const { error, data } = await safe(
+      apiOrpcClient(friendGroupsContract, context.cookie).preview({ code }),
+    );
+    if (error) {
+      if (isDefinedError(error) && error.code === "NOT_FOUND") {
         throw new Error("NOT_FOUND");
       }
       throw error;
     }
+    return data;
   });
 
 const fetchSharedList = createServerFn({ method: "GET" })
   .validator((input: { slug: string; listId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }): Promise<FriendGroupSharedListDetailResponse> => {
-    try {
-      return await apiOrpcClient(friendGroupsContract, context.cookie).getSharedList(data);
-    } catch (error) {
-      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+    const { error, data: result } = await safe(
+      apiOrpcClient(friendGroupsContract, context.cookie).getSharedList(data),
+    );
+    if (error) {
+      if (isDefinedError(error) && error.code === "NOT_FOUND") {
         throw new Error("NOT_FOUND");
       }
       throw error;
     }
+    return result;
   });
 
 const fetchShareableCollections = createServerFn({ method: "GET" })
@@ -137,14 +143,16 @@ const fetchSharedCollection = createServerFn({ method: "GET" })
   .validator((input: { slug: string; collectionId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }): Promise<FriendGroupSharedCollectionDetailResponse> => {
-    try {
-      return await apiOrpcClient(friendGroupsContract, context.cookie).getSharedCollection(data);
-    } catch (error) {
-      if (error instanceof ORPCError && error.code === "NOT_FOUND") {
+    const { error, data: result } = await safe(
+      apiOrpcClient(friendGroupsContract, context.cookie).getSharedCollection(data),
+    );
+    if (error) {
+      if (isDefinedError(error) && error.code === "NOT_FOUND") {
         throw new Error("NOT_FOUND");
       }
       throw error;
     }
+    return result;
   });
 
 // ── Hooks ───────────────────────────────────────────────────────────────────

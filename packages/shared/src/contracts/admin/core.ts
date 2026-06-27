@@ -1,5 +1,6 @@
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "../_base.js";
 
 const TAG = "Admin";
 
@@ -15,14 +16,14 @@ const cronStatusResponseSchema = z.object({
 /**
  * oRPC contract for the admin "core" endpoints (mounted under `/api/admin/v1`,
  * admin-gated by the mount): the `me` admin-status probe and the `cron-status`
- * dashboard read. Both are read-only.
+ * dashboard read. Both are read-only and produce no domain control-flow errors.
  */
 export const adminCoreContract = {
-  me: oc
+  me: authedRoute
     .route({ method: "GET", path: "/api/admin/v1/me", tags: [TAG] })
     .output(z.object({ isAdmin: z.boolean() })),
 
-  cronStatus: oc
+  cronStatus: authedRoute
     .route({ method: "GET", path: "/api/admin/v1/cron-status", tags: [TAG] })
     .output(cronStatusResponseSchema),
 };

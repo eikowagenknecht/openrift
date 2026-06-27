@@ -36,10 +36,17 @@ describe("deckDetailQueryOptions", () => {
   });
 
   it("throws Error('NOT_FOUND') when the deck API returns 404", async () => {
-    // The oRPC client surfaces a 404 as an ORPCError with code NOT_FOUND; the
-    // handler maps it to the sentinel. Mock global fetch — the boundary the
-    // oRPC OpenAPI link calls.
-    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(null, { status: 404 }));
+    // The server sends a typed (defined) NOT_FOUND error body; the client
+    // narrows it with isDefinedError and the handler maps it to the sentinel.
+    // Mock global fetch — the boundary the oRPC OpenAPI link calls.
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json(
+          { defined: true, code: "NOT_FOUND", status: 404, message: "Not Found" },
+          { status: 404 },
+        ),
+      );
     vi.stubGlobal("fetch", fetchMock);
 
     const { queryFn } = deckDetailQueryOptions("user-1", "does-not-exist");
@@ -73,8 +80,16 @@ describe("deleteDeckFn", () => {
   it("treats a 404 as success — the deck is already gone", async () => {
     // Regression: a second delete of the same deck (double-click on the
     // confirm, second tab) used to throw ApiError "Not found" and surface an
-    // error toast for an outcome the user asked for.
-    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(null, { status: 404 }));
+    // error toast for an outcome the user asked for. The server sends a typed
+    // (defined) NOT_FOUND that isDefinedError narrows and the handler swallows.
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json(
+          { defined: true, code: "NOT_FOUND", status: 404, message: "Not Found" },
+          { status: 404 },
+        ),
+      );
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(deleteDeckFn({ data: "already-deleted" })).resolves.toBeUndefined();

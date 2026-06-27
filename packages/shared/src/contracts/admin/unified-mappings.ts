@@ -8,8 +8,9 @@ import {
   superTypeSchema,
 } from "@openrift/shared/response-schemas";
 import { marketplaceEnum } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "../_base.js";
 
 extendZodWithOpenApi(z);
 
@@ -172,18 +173,22 @@ const saveMappingsResult = z.object({
  * shared response schemas. `save` carries a `marketplace` query alongside its
  * body, and `unmap` addresses the SKU via query params — both use detailed
  * input structure since oRPC compact mode does not read query params on these.
+ * All procedures are session-gated (UNAUTHORIZED + FORBIDDEN from `authedRoute`);
+ * no domain error codes are declared.
  */
 export const adminUnifiedMappingsContract = {
-  list: oc.route({ method: "GET", path: MM, tags: [TAG] }).output(unifiedMappingsResponseSchema),
-  card: oc
+  list: authedRoute
+    .route({ method: "GET", path: MM, tags: [TAG] })
+    .output(unifiedMappingsResponseSchema),
+  card: authedRoute
     .route({ method: "GET", path: `${MM}/card/{cardId}`, tags: [TAG] })
     .input(z.object({ cardId: z.string() }))
     .output(unifiedMappingsCardResponseSchema),
-  save: oc
+  save: authedRoute
     .route({ method: "POST", path: MM, tags: [TAG], inputStructure: "detailed" })
     .input(z.object({ query: z.object({ marketplace: marketplaceEnum }), body: saveMappingsBody }))
     .output(saveMappingsResult),
-  unmap: oc
+  unmap: authedRoute
     .route({
       method: "DELETE",
       path: MM,

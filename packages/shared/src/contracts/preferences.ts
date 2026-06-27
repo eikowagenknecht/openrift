@@ -1,9 +1,9 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { currencySchema, marketplaceEnum } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
 
 import { TRADE_REQUEST_EMAIL_CADENCES } from "../types/api/preferences.js";
+import { authedRoute } from "./_base.js";
 
 extendZodWithOpenApi(z);
 
@@ -119,15 +119,14 @@ export const userPreferencesResponseSchema = z
  *
  * `GET /api/v1/preferences` — the caller's stored preferences.
  * `PATCH /api/v1/preferences` — partial update (all fields optional; `null`
- * resets a key to its default). Both require a session; the auth gate is the
- * shared Hono `requireAuth` middleware applied at mount, so a 401 is the
- * uniform app envelope. Input-validation failures are oRPC-native 400s.
+ * resets a key to its default). Both require a session (UNAUTHORIZED on missing
+ * session). Input-validation failures are oRPC-native 400s.
  */
 export const preferencesContract = {
-  get: oc
+  get: authedRoute
     .route({ method: "GET", path: "/api/v1/preferences", tags: ["Preferences"] })
     .output(userPreferencesResponseSchema),
-  update: oc
+  update: authedRoute
     .route({ method: "PATCH", path: "/api/v1/preferences", tags: ["Preferences"] })
     .input(updatePreferencesSchema)
     .output(userPreferencesResponseSchema),

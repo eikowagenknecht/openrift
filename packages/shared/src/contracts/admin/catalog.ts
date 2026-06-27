@@ -1,6 +1,7 @@
 import { idParamSchema, isoDate, withParams } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
+
+import { authedRoute } from "../_base.js";
 
 const TAG = "Admin - Catalog";
 
@@ -31,15 +32,17 @@ const adminSetSchema = z.object({
 /**
  * oRPC contract for the admin set (catalog) management (mounted under
  * `/api/admin/v1/sets`, admin-gated by the mount): list / create / update /
- * delete sets and reorder them. Conflict / not-found / bad-request states are
- * thrown as `AppError` and bridged to ORPCErrors.
+ * delete sets and reorder them. Domain codes per route: `updateSet` → NOT_FOUND;
+ * `createSet` → CONFLICT (slug already exists); `deleteSet` → CONFLICT (set
+ * still has printings); `reorderSets` → BAD_REQUEST (invalid id list).
  */
 export const adminCatalogContract = {
-  listSets: oc
+  listSets: authedRoute
     .route({ method: "GET", path: SETS, tags: [TAG] })
     .output(z.object({ sets: z.array(adminSetSchema) })),
-  updateSet: oc
+  updateSet: authedRoute
     .route({ method: "PATCH", path: `${SETS}/{id}`, tags: [TAG], successStatus: 204 })
+    .errors({ NOT_FOUND: { message: "Set not found" } })
     .input(
       withParams(idParamSchema, {
         name: setFieldRules.name,
@@ -49,8 +52,9 @@ export const adminCatalogContract = {
         setType: setFieldRules.setType,
       }),
     ),
-  createSet: oc
+  createSet: authedRoute
     .route({ method: "POST", path: SETS, tags: [TAG], successStatus: 201 })
+    .errors({ CONFLICT: { message: "Set already exists" } })
     .input(
       z.object({
         id: setFieldRules.slug,
@@ -60,11 +64,13 @@ export const adminCatalogContract = {
       }),
     )
     .output(z.object({ id: z.string() })),
-  deleteSet: oc
+  deleteSet: authedRoute
     .route({ method: "DELETE", path: `${SETS}/{id}`, tags: [TAG], successStatus: 204 })
+    .errors({ CONFLICT: { message: "Set still has printings and cannot be deleted" } })
     .input(idParamSchema),
-  reorderSets: oc
+  reorderSets: authedRoute
     .route({ method: "PUT", path: `${SETS}/reorder`, tags: [TAG], successStatus: 204 })
+    .errors({ BAD_REQUEST: { message: "Invalid reorder request" } })
     .input(z.object({ ids: z.array(z.uuid()).min(1) })),
 };
 

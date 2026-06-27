@@ -1,8 +1,8 @@
 import { isoDateTime } from "@openrift/shared/schemas";
-import { oc } from "@orpc/contract";
 import { z } from "zod";
 
 import { marketplaceEnum } from "../../schemas.js";
+import { authedRoute } from "../_base.js";
 
 const TAG = "Admin - Ignored Products";
 
@@ -52,20 +52,21 @@ const ignoreProductsInput = z.discriminatedUnion("level", [
 
 /**
  * oRPC contract for the admin ignored-products controls (mounted at
- * `/api/admin/v1/ignored-products`, admin-gated by the mount). The list is a
+ * `/api/admin/v1/ignored-products`, admin-gated by the mount). All procedures
+ * share the `authedRoute` base (UNAUTHORIZED + FORBIDDEN). The list is a
  * `level`-discriminated union; ignore (POST) and unignore (DELETE) share the
  * same batch body. The DELETE carries a body (compact mode reads it; only
  * DELETE query params are dropped).
  */
 export const adminIgnoredProductsContract = {
-  list: oc
+  list: authedRoute
     .route({ method: "GET", path: IP, tags: [TAG] })
     .output(z.object({ products: z.array(ignoredProductSchema) })),
-  ignore: oc
+  ignore: authedRoute
     .route({ method: "POST", path: IP, tags: [TAG] })
     .input(ignoreProductsInput)
     .output(z.object({ ignored: z.number() })),
-  unignore: oc
+  unignore: authedRoute
     .route({ method: "DELETE", path: IP, tags: [TAG] })
     .input(ignoreProductsInput)
     .output(z.object({ unignored: z.number() })),
