@@ -64,12 +64,22 @@ function collectAuthByOperation(node: unknown, out: Map<string, AuthLevel>): voi
   }
 }
 
+// Admin operations are not gated by contract `meta` — they're gated by the
+// `requireAdmin` Hono middleware mounted on the `/api/admin/v1/*` URL prefix
+// (see `app.ts`). The contract and OpenAPI layers can't see that, so stamp the
+// admin `security` marker by path instead, mirroring the mount. Every
+// documented admin path starts with this prefix (the same one the admin/public
+// doc split filters on).
+const ADMIN_PATH_PREFIX = "/api/admin/";
+
 /**
  * Sets the OpenAPI `security` from each contract's auth level — the same `meta`
  * the runtime `requireUser` middleware reads — so Swagger UI shows which
  * endpoints need credentials: the document defaults to the session `cookieAuth`
  * (matching the fail-closed model), public reads opt out with `security: []`,
- * and the provider push declares its `bearerAuth` key.
+ * the provider push declares its `bearerAuth` key, and admin operations declare
+ * `adminAuth` — the session cookie of an admin-role user, enforced by the
+ * `requireAdmin` middleware rather than by contract meta.
  * @returns Nothing; mutates `doc` in place.
  */
 function applySecurity(doc: OpenAPI.Document, router: AnyContractRouter): void {
@@ -83,7 +93,9 @@ function applySecurity(doc: OpenAPI.Document, router: AnyContractRouter): void {
         continue;
       }
       const auth = authByOperation.get(`${method.toUpperCase()} ${path}`);
-      if (auth === "public") {
+      if (path.startsWith(ADMIN_PATH_PREFIX)) {
+        operation.security = [{ adminAuth: [] }];
+      } else if (auth === "public") {
         operation.security = [];
       } else if (auth === "bearer") {
         operation.security = [{ bearerAuth: [] }];

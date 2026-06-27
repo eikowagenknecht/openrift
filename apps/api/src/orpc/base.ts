@@ -16,8 +16,10 @@ import type { ApiContext } from "./context.js";
  *
  * Admin authorization is NOT expressed here — it stays a Hono `requireAdmin`
  * middleware on the clean `/api/admin/v1/*` prefix (see `app.ts`), which has no
- * ambiguity to get wrong. The auth level also drives the per-operation OpenAPI
- * `security` markers (see `openapi-doc.ts`).
+ * ambiguity to get wrong. The OpenAPI doc still reflects it: `applySecurity`
+ * stamps the `adminAuth` marker onto admin operations by path, mirroring the
+ * mount (see `openapi-doc.ts`). The auth level here drives the per-operation
+ * OpenAPI `security` markers for the non-admin surface.
  */
 interface ApiMeta extends Record<string, unknown> {
   auth?: "public" | "bearer";

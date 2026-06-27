@@ -78,10 +78,12 @@ describe("OpenAPI doc split", () => {
     // The sentry smoke test is a plain Hono route and intentionally not documented.
     expect(paths).toContain("/api/admin/v1/users");
 
-    // Admin ops carry no per-operation override — they inherit the document's
-    // cookieAuth default (a session is required; the admin role is enforced by
-    // middleware, which OpenAPI security schemes can't express).
+    // The document defaults to cookieAuth, but admin ops are stamped with the
+    // adminAuth marker by path — the requireAdmin middleware gates the whole
+    // /api/admin/v1/* prefix, so the spec reflects that role requirement
+    // instead of advertising a bare session cookie.
     expect(doc.security).toEqual([{ cookieAuth: [] }]);
-    expect(doc.paths["/api/admin/v1/users"]?.get?.security).toBeUndefined();
+    expect(doc.components?.securitySchemes).toHaveProperty("adminAuth");
+    expect(doc.paths["/api/admin/v1/users"]?.get?.security).toEqual([{ adminAuth: [] }]);
   });
 });

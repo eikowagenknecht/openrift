@@ -373,6 +373,14 @@ export function createApp(deps: AppDeps) {
           ...contractDoc.components?.securitySchemes,
           cookieAuth: { type: "apiKey", in: "cookie", name: "better-auth.session_token" },
           bearerAuth: { type: "http", scheme: "bearer" },
+          // Same session cookie as cookieAuth, but the user must hold the admin
+          // role — enforced by the requireAdmin middleware on /api/admin/v1/*.
+          adminAuth: {
+            type: "apiKey",
+            in: "cookie",
+            name: "better-auth.session_token",
+            description: "Session cookie of a user with the admin role.",
+          },
         },
       },
     };
