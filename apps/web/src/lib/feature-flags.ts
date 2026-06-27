@@ -47,6 +47,10 @@ export const featureFlagsQueryOptions = queryOptions({
   queryKey: queryKeys.featureFlags.all,
   queryFn: () => fetchFeatureFlags(),
   staleTime: 5 * 60 * 1000, // 5 minutes
+  // Flags rarely change within a session and the 5-min staleTime already
+  // refreshes them; refetching on every window/tab focus just spams the API
+  // (matches sessionQueryOptions / catalogQueryOptions).
+  refetchOnWindowFocus: false,
 });
 
 export function featureEnabled(flags: FeatureFlags, key: string): boolean {

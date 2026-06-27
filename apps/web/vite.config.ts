@@ -29,10 +29,18 @@ const MEDIA_MIME_TYPES: Record<string, string> = {
 const serveMediaPlugin: Plugin = {
   name: "serve-media",
   configureServer(server) {
-    server.middlewares.use("/media", (req, res, next) => {
+    server.middlewares.use("/media", (req, res, _next) => {
       const filePath = path.join(mediaDir, req.url?.split("?")[0] ?? "");
       if (!existsSync(filePath)) {
-        return next();
+        // Missing media must 404 here, NOT `next()`. Falling through hands the
+        // request to the TanStack SSR router, which runs __root.beforeLoad
+        // (a feature-flags fetch) and renders the notFound page through the
+        // full SSR pipeline (~1s each) for every missing thumbnail — a storm of
+        // SSR renders + API hits when the dev media dir is incompletely synced.
+        // Prod never hits this: nginx serves /media and 404s missing files.
+        res.statusCode = 404;
+        res.end();
+        return;
       }
       const ext = path.extname(filePath).toLowerCase();
       res.setHeader("Content-Type", MEDIA_MIME_TYPES[ext] ?? "application/octet-stream");
