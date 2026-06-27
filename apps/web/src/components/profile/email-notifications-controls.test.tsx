@@ -18,8 +18,13 @@ beforeEach(() => {
   setChannel.mockReset();
   setCadence.mockReset();
   hookValue = {
-    // Defaults for an absent preference: request on, digest off, default cadence.
-    gates: { tradeMatches: false, tradeRequests: true, tradeRequestCadence: "5min" },
+    // Defaults for an absent preference: request + status on, digest off, default cadence.
+    gates: {
+      tradeMatches: false,
+      tradeRequests: true,
+      tradeStatus: true,
+      tradeRequestCadence: "5min",
+    },
     isLoading: false,
     isSaving: false,
     setChannel,
@@ -50,6 +55,14 @@ describe("EmailNotificationsControls", () => {
     render(<EmailNotificationsControls />);
     await userEvent.click(screen.getByRole("switch", { name: "Trade requests" }));
     expect(setChannel).toHaveBeenCalledWith("tradeRequests", false);
+  });
+
+  it("renders the trade-updates switch on by default and toggles tradeStatus", async () => {
+    render(<EmailNotificationsControls />);
+    const toggle = screen.getByRole("switch", { name: "Trade updates" });
+    expect(toggle).toHaveAttribute("aria-checked", "true");
+    await userEvent.click(toggle);
+    expect(setChannel).toHaveBeenCalledWith("tradeStatus", false);
   });
 
   it("shows the current cadence and picking a new one calls setCadence", async () => {

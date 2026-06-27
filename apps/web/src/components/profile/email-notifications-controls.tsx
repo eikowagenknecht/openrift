@@ -98,6 +98,24 @@ export function EmailNotificationsControls() {
 
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-0.5">
+          <Label htmlFor="pref-email-trade-status" className="font-normal">
+            Trade updates
+          </Label>
+          <p className="text-muted-foreground">
+            Get notified when the other person accepts, declines, or cancels a trade you&apos;re
+            part of. Uses the same frequency as trade requests.
+          </p>
+        </div>
+        <Switch
+          id="pref-email-trade-status"
+          checked={gates.tradeStatus}
+          disabled={disabled}
+          onCheckedChange={(checked: boolean) => setChannel("tradeStatus", checked)}
+        />
+      </div>
+
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-0.5">
           <Label htmlFor="pref-email-trade-matches" className="font-normal">
             Daily match digest
           </Label>

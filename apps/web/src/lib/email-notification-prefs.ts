@@ -7,6 +7,7 @@ import {
   getTradeRequestEmailCadence,
   isTradeMatchDigestEnabled,
   isTradeRequestEmailEnabled,
+  isTradeStatusEmailEnabled,
 } from "@openrift/shared";
 
 /** Resolved state of the email-notification settings (ADR-030). */
@@ -15,7 +16,9 @@ export interface EmailNotificationGates {
   tradeMatches: boolean;
   /** Trade-request email — opt-out, so on unless explicitly disabled. */
   tradeRequests: boolean;
-  /** Delivery cadence for trade-request emails (default when unset). */
+  /** Trade status emails (accepted / declined / cancelled) — opt-out, default on. */
+  tradeStatus: boolean;
+  /** Delivery cadence shared by trade-request and trade-status emails. */
   tradeRequestCadence: TradeRequestEmailCadence;
 }
 
@@ -31,6 +34,7 @@ export function resolveEmailNotificationGates(
   return {
     tradeMatches: isTradeMatchDigestEnabled(prefs),
     tradeRequests: isTradeRequestEmailEnabled(prefs),
+    tradeStatus: isTradeStatusEmailEnabled(prefs),
     tradeRequestCadence: getTradeRequestEmailCadence(prefs),
   };
 }

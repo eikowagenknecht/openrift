@@ -11,11 +11,13 @@ describe("resolveEmailNotificationGates", () => {
     expect(resolveEmailNotificationGates(undefined)).toEqual({
       tradeMatches: false, // digest is opt-in
       tradeRequests: true, // request email is opt-out
+      tradeStatus: true, // status email is opt-out
       tradeRequestCadence: "5min", // default cadence
     });
     expect(resolveEmailNotificationGates({})).toEqual({
       tradeMatches: false,
       tradeRequests: true,
+      tradeStatus: true,
       tradeRequestCadence: "5min",
     });
   });
@@ -28,6 +30,11 @@ describe("resolveEmailNotificationGates", () => {
   it("request email is on unless explicitly false", () => {
     expect(resolveEmailNotificationGates({ tradeRequests: false }).tradeRequests).toBe(false);
     expect(resolveEmailNotificationGates({ tradeRequests: true }).tradeRequests).toBe(true);
+  });
+
+  it("status email is on unless explicitly false", () => {
+    expect(resolveEmailNotificationGates({ tradeStatus: false }).tradeStatus).toBe(false);
+    expect(resolveEmailNotificationGates({ tradeStatus: true }).tradeStatus).toBe(true);
   });
 
   it("reflects the stored cadence when set", () => {

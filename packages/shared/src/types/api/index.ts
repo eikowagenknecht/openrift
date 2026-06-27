@@ -17,6 +17,7 @@ export {
   getTradeRequestEmailCadence,
   isTradeMatchDigestEnabled,
   isTradeRequestEmailEnabled,
+  isTradeStatusEmailEnabled,
   PALETTES,
   PREFERENCE_DEFAULTS,
   TRADE_REQUEST_EMAIL_CADENCE_MINUTES,

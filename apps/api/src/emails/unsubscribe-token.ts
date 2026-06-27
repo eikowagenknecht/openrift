@@ -10,7 +10,11 @@ import type { EmailNotificationChannel } from "@openrift/shared/types";
  * by us. The token is opaque to the recipient and tamper-evident.
  */
 
-const VALID_CHANNELS: readonly EmailNotificationChannel[] = ["tradeMatches", "tradeRequests"];
+const VALID_CHANNELS: readonly EmailNotificationChannel[] = [
+  "tradeMatches",
+  "tradeRequests",
+  "tradeStatus",
+];
 
 function base64url(input: Buffer | string): string {
   return Buffer.from(input).toString("base64url");

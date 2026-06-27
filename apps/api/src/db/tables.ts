@@ -844,6 +844,18 @@ export interface CardTradesTable {
    * NULL = still queued, awaiting the flush cron.
    */
   requestEmailSentAt: Date | null;
+  /**
+   * ADR-030 status-email marker: when the initiator was emailed that the trade
+   * was accepted (reserved), or when it was suppressed. NULL while `status =
+   * 'reserved'` = still queued for the trade-status flush.
+   */
+  reservedEmailSentAt: Date | null;
+  /**
+   * ADR-030 status-email marker: when the non-actor was emailed that the trade
+   * was declined or cancelled, or when it was suppressed. NULL while `status IN
+   * ('declined','cancelled')` = still queued for the trade-status flush.
+   */
+  closedEmailSentAt: Date | null;
 }
 
 interface CardTradeCopiesTable {

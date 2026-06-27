@@ -91,7 +91,16 @@ export const DEFAULT_TRADE_REQUEST_EMAIL_CADENCE: TradeRequestEmailCadence = "5m
 export interface EmailNotificationPreference {
   tradeMatches?: boolean;
   tradeRequests?: boolean;
-  /** Delivery cadence for trade-request emails; absent = {@link DEFAULT_TRADE_REQUEST_EMAIL_CADENCE}. */
+  /**
+   * Trade status-change emails (accepted / declined / cancelled), sent to the
+   * party who didn't take the action. Opt-out: on unless explicitly `false`.
+   * Shares the trade-request cadence ({@link tradeRequestCadence}).
+   */
+  tradeStatus?: boolean;
+  /**
+   * Delivery cadence for trade-request *and* trade-status emails; absent =
+   * {@link DEFAULT_TRADE_REQUEST_EMAIL_CADENCE}.
+   */
   tradeRequestCadence?: TradeRequestEmailCadence;
 }
 
@@ -100,7 +109,7 @@ export interface EmailNotificationPreference {
  * to the boolean opt-in keys (not `keyof EmailNotificationPreference`) so the
  * non-boolean cadence field stays out of the on/off toggle path.
  */
-export type EmailNotificationChannel = "tradeMatches" | "tradeRequests";
+export type EmailNotificationChannel = "tradeMatches" | "tradeRequests" | "tradeStatus";
 
 /**
  * Human-readable label per channel, phrased to slot into "You'll no longer
@@ -110,6 +119,7 @@ export type EmailNotificationChannel = "tradeMatches" | "tradeRequests";
 export const EMAIL_NOTIFICATION_CHANNEL_LABELS: Record<EmailNotificationChannel, string> = {
   tradeMatches: "the daily match digest",
   tradeRequests: "trade-request emails",
+  tradeStatus: "trade status updates",
 };
 
 /** @returns Whether the daily match digest is enabled (opt-in: default off). */
@@ -122,6 +132,11 @@ export function isTradeRequestEmailEnabled(
   prefs: EmailNotificationPreference | undefined,
 ): boolean {
   return prefs?.tradeRequests !== false;
+}
+
+/** @returns Whether trade status-change emails are enabled (opt-out: default on). */
+export function isTradeStatusEmailEnabled(prefs: EmailNotificationPreference | undefined): boolean {
+  return prefs?.tradeStatus !== false;
 }
 
 /** @returns The recipient's trade-request email cadence (default when unset). */

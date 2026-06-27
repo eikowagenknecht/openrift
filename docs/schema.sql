@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict pUT2EjQKZPFIVKotpcM3Zr13OgE6glSRHRIa4tSKs0mVc3xDwjHZ86sqK2xAgGu
+\restrict lfhZzrphPvXRj7xalyJLm8rYsw11l39M6GiNyG7byFv1IIpRHcR1x6fFzYHxNBw
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -665,6 +665,8 @@ CREATE TABLE public.card_trades (
     closed_at timestamp with time zone,
     expires_at timestamp with time zone,
     request_email_sent_at timestamp with time zone,
+    reserved_email_sent_at timestamp with time zone,
+    closed_email_sent_at timestamp with time zone,
     CONSTRAINT chk_card_trades_distinct_parties CHECK ((giver_user_id <> receiver_user_id)),
     CONSTRAINT chk_card_trades_initiator CHECK ((initiator = ANY (ARRAY['giver'::text, 'receiver'::text]))),
     CONSTRAINT chk_card_trades_quantity CHECK ((quantity > 0)),
@@ -765,8 +767,6 @@ CREATE TABLE public.collections (
     CONSTRAINT chk_collections_ownership CHECK (((((user_id IS NOT NULL))::integer + ((group_id IS NOT NULL))::integer) = 1))
 );
 
-ALTER TABLE ONLY public.collections REPLICA IDENTITY FULL;
-
 
 --
 -- Name: copies; Type: TABLE; Schema: public; Owner: -
@@ -779,8 +779,6 @@ CREATE TABLE public.copies (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     printing_id uuid CONSTRAINT copies_new_printing_id_not_null NOT NULL
 );
-
-ALTER TABLE ONLY public.copies REPLICA IDENTITY FULL;
 
 
 --
@@ -1188,8 +1186,6 @@ CREATE TABLE public.friend_group_members (
     joined_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT chk_friend_group_members_role CHECK ((role = ANY (ARRAY['owner'::text, 'admin'::text, 'judge'::text, 'member'::text])))
 );
-
-ALTER TABLE ONLY public.friend_group_members REPLICA IDENTITY FULL;
 
 
 --
@@ -3041,6 +3037,13 @@ CREATE INDEX idx_card_domains_domain_slug ON public.card_domains USING btree (do
 
 
 --
+-- Name: idx_card_trades_closed_email_pending; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_card_trades_closed_email_pending ON public.card_trades USING btree (updated_at) WHERE ((closed_email_sent_at IS NULL) AND (status = ANY (ARRAY['declined'::text, 'cancelled'::text])));
+
+
+--
 -- Name: idx_card_trades_expiry; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3073,6 +3076,13 @@ CREATE INDEX idx_card_trades_receiver ON public.card_trades USING btree (receive
 --
 
 CREATE INDEX idx_card_trades_request_email_pending ON public.card_trades USING btree (created_at) WHERE ((request_email_sent_at IS NULL) AND (status = 'pending'::text));
+
+
+--
+-- Name: idx_card_trades_reserved_email_pending; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_card_trades_reserved_email_pending ON public.card_trades USING btree (updated_at) WHERE ((reserved_email_sent_at IS NULL) AND (status = 'reserved'::text));
 
 
 --
@@ -4948,15 +4958,8 @@ CREATE PUBLICATION electric_publication_default WITH (publish = 'insert, update,
 
 
 --
--- Name: electric_publication_default copies; Type: PUBLICATION TABLE; Schema: public; Owner: -
---
-
-ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.copies;
-
-
---
 -- PostgreSQL database dump complete
 --
 
-\unrestrict pUT2EjQKZPFIVKotpcM3Zr13OgE6glSRHRIa4tSKs0mVc3xDwjHZ86sqK2xAgGu
+\unrestrict lfhZzrphPvXRj7xalyJLm8rYsw11l39M6GiNyG7byFv1IIpRHcR1x6fFzYHxNBw
 

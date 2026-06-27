@@ -78,6 +78,12 @@ const KNOWN_FLAGS: KnownFlag[] = [
     description: "Daily trade match digest (ADR-030). On by default — turn OFF to stop sending",
     enabled: true,
   },
+  {
+    key: "trade-status-email",
+    description:
+      "Trade status emails: accepted / declined / cancelled (ADR-030). On by default — turn OFF to stop sending",
+    enabled: true,
+  },
 ];
 
 function FlagKeyCell({ row }: AdminCellSlotProps<FeatureFlagResponse>) {

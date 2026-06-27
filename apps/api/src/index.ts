@@ -37,6 +37,10 @@ import {
   flushCoalescedTradeRequests,
   isTradeRequestFlushNoop,
 } from "./services/trade-notifications.js";
+import {
+  flushTradeStatusEmails,
+  isTradeStatusFlushNoop,
+} from "./services/trade-status-notifications.js";
 import { validateWellKnownSlugs } from "./services/validate-well-known.js";
 
 const JOB_RUNS_RETENTION_DAYS = 30;
@@ -304,6 +308,29 @@ if (config.cron.tradeRequestFlushSchedule) {
     );
   });
   trfLog.info(`Cron registered (${trfSchedule})`);
+}
+
+if (config.cron.tradeStatusFlushSchedule) {
+  const tsfLog = log.child({ service: "trade-status-flush" });
+  const tsfSchedule = config.cron.tradeStatusFlushSchedule;
+
+  cronJobs.tradeStatusFlush = new Cron(tsfSchedule, { protect: true }, async () => {
+    await runJob(
+      { repos, log: tsfLog },
+      "email.flush_trade_status",
+      "cron",
+      () =>
+        flushTradeStatusEmails({
+          repos,
+          log: tsfLog,
+          sendEmail,
+          appBaseUrl: config.appBaseUrl,
+          unsubscribeSecret: config.auth.secret,
+        }),
+      { summarize: (result) => result, classifyNoop: isTradeStatusFlushNoop },
+    );
+  });
+  tsfLog.info(`Cron registered (${tsfSchedule})`);
 }
 
 // ── 4. Start server ─────────────────────────────────────────────────────────

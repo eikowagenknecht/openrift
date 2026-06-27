@@ -1,4 +1,5 @@
 import { unsubscribeContract } from "@openrift/shared/contracts";
+import type { EmailNotificationChannel } from "@openrift/shared/types";
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -9,7 +10,7 @@ import { getSiteUrl } from "@/lib/site-config";
 /** Read-only view of one channel, used to render the confirmation page. */
 export interface UnsubscribePreview {
   valid: boolean;
-  channel: "tradeMatches" | "tradeRequests" | null;
+  channel: EmailNotificationChannel | null;
   channelLabel: string | null;
   alreadyUnsubscribed: boolean;
 }

@@ -67,6 +67,30 @@ export interface QueuedRequestEmailRow {
   createdAt: Date;
 }
 
+/** The kind of transition a queued status email covers. */
+export type TradeStatusEmailEvent = "reserved" | "declined" | "cancelled";
+
+/** A queued trade status-change awaiting a coalesced email (ADR-030). */
+export interface QueuedStatusEmailRow {
+  id: string;
+  groupId: string;
+  groupSlug: string;
+  groupName: string;
+  cardId: string;
+  quantity: number;
+  /** Which transition fired — drives the per-line copy and the marker to claim. */
+  event: TradeStatusEmailEvent;
+  /** Who caused the transition — whose burst is coalesced (the email's subject). */
+  actorUserId: string;
+  /** The other party — who didn't act, and receives the email. */
+  recipientUserId: string;
+  /** When the transition happened — drives the recipient's debounce window. */
+  eventAt: Date;
+}
+
+/** The per-trade marker column a queued status email stamps once sent/suppressed. */
+export type TradeStatusEmailMarker = "reservedEmailSentAt" | "closedEmailSentAt";
+
 function isoOrNull(value: Date | null): string | null {
   return value === null ? null : value.toISOString();
 }
@@ -487,6 +511,67 @@ export function cardTradesRepo(db: Kysely<Database>) {
         .set({ requestEmailSentAt: sql`now()` })
         .where("id", "in", [...tradeIds])
         .where("requestEmailSentAt", "is", null)
+        .returning("id")
+        .execute();
+      return result.map((row) => row.id);
+    },
+
+    /**
+     * Queued (un-notified) status transitions awaiting a coalesced email
+     * (ADR-030): the still-`reserved` rows whose reserve email hasn't been sent,
+     * plus the `declined`/`cancelled` rows whose close email hasn't been sent.
+     * System transitions (`last_actor_user_id IS NULL` — auto-cancel, expiry) are
+     * excluded: nobody to attribute, and expiry is intentionally silent. The
+     * recipient is always the party who didn't act. Ordered so the flush can
+     * group consecutive rows by (recipient, actor); due-ness is decided per
+     * recipient in {@link flushTradeStatusEmails}.
+     * @returns The queued status rows awaiting an email.
+     */
+    async listPendingStatusEmails(): Promise<QueuedStatusEmailRow[]> {
+      const result = await sql<QueuedStatusEmailRow>`
+        SELECT
+          t.id,
+          t.group_id,
+          g.slug AS group_slug,
+          g.name AS group_name,
+          t.card_id,
+          t.quantity,
+          (CASE WHEN t.status = 'reserved' THEN 'reserved' ELSE t.status END) AS event,
+          t.last_actor_user_id AS actor_user_id,
+          (CASE WHEN t.last_actor_user_id = t.giver_user_id
+                THEN t.receiver_user_id ELSE t.giver_user_id END) AS recipient_user_id,
+          t.updated_at AS event_at
+        FROM card_trades t
+        JOIN friend_groups g ON g.id = t.group_id
+        WHERE t.last_actor_user_id IS NOT NULL
+          AND (
+            (t.status = 'reserved' AND t.reserved_email_sent_at IS NULL)
+            OR (t.status IN ('declined', 'cancelled') AND t.closed_email_sent_at IS NULL)
+          )
+        ORDER BY recipient_user_id, actor_user_id, t.updated_at
+      `.execute(db);
+      return result.rows;
+    },
+
+    /**
+     * Stamps the given trades' status-email marker, but only those still
+     * un-notified (NULL) — so a concurrent flush tick never double-sends. The
+     * reserve and close events use separate marker columns because one trade can
+     * fire both across its life (reserved, then cancelled-from-reserved).
+     * @returns The ids actually claimed by this call.
+     */
+    async claimStatusEmails(
+      marker: TradeStatusEmailMarker,
+      tradeIds: readonly string[],
+    ): Promise<string[]> {
+      if (tradeIds.length === 0) {
+        return [];
+      }
+      const result = await db
+        .updateTable("cardTrades")
+        .set({ [marker]: sql`now()` })
+        .where("id", "in", [...tradeIds])
+        .where(marker, "is", null)
         .returning("id")
         .execute();
       return result.map((row) => row.id);

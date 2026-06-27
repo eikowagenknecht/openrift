@@ -94,6 +94,7 @@ describe("useEmailNotifications", () => {
     expect(result.current.gates).toEqual({
       tradeMatches: true,
       tradeRequests: false,
+      tradeStatus: true,
       tradeRequestCadence: "30min",
     });
   });
@@ -106,6 +107,7 @@ describe("useEmailNotifications", () => {
     expect(result.current.gates).toEqual({
       tradeMatches: false,
       tradeRequests: true,
+      tradeStatus: true,
       tradeRequestCadence: "5min",
     });
   });

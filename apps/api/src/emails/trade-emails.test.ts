@@ -4,6 +4,7 @@ import {
   buildCoalescedTradeRequestsEmail,
   buildTradeMatchDigestEmail,
   buildTradeRequestEmail,
+  buildTradeStatusUpdateEmail,
 } from "./trade-emails.js";
 
 const REQUEST_BASE = {
@@ -112,6 +113,65 @@ describe("buildCoalescedTradeRequestsEmail", () => {
     const { html } = buildCoalescedTradeRequestsEmail({
       ...BASE,
       senderName: "<script>alert(1)</script>",
+    });
+    expect(html).not.toContain("<script>alert(1)</script>");
+    expect(html).toContain("&lt;script&gt;");
+  });
+});
+
+describe("buildTradeStatusUpdateEmail", () => {
+  const BASE = {
+    recipientName: "Riven",
+    actorName: "Garen",
+    unsubscribeUrl: "https://openrift.app/api/v1/unsubscribe?token=abc",
+    groups: [
+      {
+        groupName: "Playgroup",
+        tradesUrl: "https://openrift.app/groups/playgroup/trades",
+        updates: [
+          { cardName: "Azir", quantity: 2, event: "reserved" as const },
+          { cardName: "Lux", quantity: 1, event: "declined" as const },
+          { cardName: "Jinx", quantity: 1, event: "cancelled" as const },
+        ],
+      },
+    ],
+  };
+
+  it("names the actor and counts the updates in the subject", () => {
+    const { subject, html } = buildTradeStatusUpdateEmail(BASE);
+    expect(subject).toBe("Garen updated 3 of your trades — OpenRift");
+    expect(html).toContain("Playgroup");
+    expect(html).toContain("accepted your request for <strong>2× Azir</strong>");
+    expect(html).toContain("declined your request for <strong>Lux</strong>");
+    expect(html).toContain("cancelled the trade for <strong>Jinx</strong>");
+    expect(html).toContain(BASE.groups[0].tradesUrl);
+    expect(html).toContain(BASE.unsubscribeUrl);
+  });
+
+  it("uses singular wording for a single update", () => {
+    const { subject, html } = buildTradeStatusUpdateEmail({
+      ...BASE,
+      groups: [
+        {
+          groupName: "G",
+          tradesUrl: "t",
+          updates: [{ cardName: "C", quantity: 1, event: "reserved" }],
+        },
+      ],
+    });
+    expect(subject).toBe("Garen updated a trade — OpenRift");
+    expect(html).toContain("updated one of your trades");
+  });
+
+  it("falls back to a generic actor label when the name is null", () => {
+    const { subject } = buildTradeStatusUpdateEmail({ ...BASE, actorName: null });
+    expect(subject).toBe("A group member updated 3 of your trades — OpenRift");
+  });
+
+  it("escapes HTML in user-controlled fields", () => {
+    const { html } = buildTradeStatusUpdateEmail({
+      ...BASE,
+      actorName: "<script>alert(1)</script>",
     });
     expect(html).not.toContain("<script>alert(1)</script>");
     expect(html).toContain("&lt;script&gt;");

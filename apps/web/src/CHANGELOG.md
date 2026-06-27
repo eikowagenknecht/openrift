@@ -5,6 +5,7 @@
 ### Highlights
 
 - feat(Collection): **Export to Piltover Archive** — the collection export now offers a Piltover Archive CSV format alongside OpenRift's own, so you can move your collection straight into Piltover Archive.
+- feat(Trades): **Trade update emails** — you now get an email when the other person accepts, declines, or cancels a trade, batched so a whole basket of cards arrives as one message, with its own toggle under email settings.
 - feat(Account): **One-click email unsubscribe** — the native Unsubscribe button in Gmail and Apple Mail now works, and the in-email link opens an on-brand confirmation page.
 
 ## 2026-06-26

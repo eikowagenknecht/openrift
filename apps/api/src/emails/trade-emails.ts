@@ -151,6 +151,98 @@ export function buildCoalescedTradeRequestsEmail(input: CoalescedTradeRequestsEm
   };
 }
 
+/** A single status change folded into the coalesced status-update email. */
+interface TradeStatusUpdate {
+  cardName: string;
+  quantity: number;
+  /** `reserved` = accepted, `declined`, or `cancelled`. */
+  event: "reserved" | "declined" | "cancelled";
+}
+
+export interface TradeStatusUpdateGroup {
+  groupName: string;
+  /** Deep link to this group's Trades tab. */
+  tradesUrl: string;
+  updates: TradeStatusUpdate[];
+}
+
+export interface TradeStatusUpdateEmailInput {
+  /** Display name of the recipient (the party who didn't act); may be null. */
+  recipientName: string | null;
+  /** Display name of the member who made the change(s). */
+  actorName: string | null;
+  groups: TradeStatusUpdateGroup[];
+  /** One-click unsubscribe link for the `tradeStatus` channel. */
+  unsubscribeUrl: string;
+}
+
+/**
+ * Phrase for one status line, e.g. "accepted your request for 2× Card".
+ * @returns The HTML phrase for the update's event.
+ */
+function statusUpdatePhrase(update: TradeStatusUpdate): string {
+  const card = `<strong>${escapeHtml(quantityLabel(update.quantity, update.cardName))}</strong>`;
+  switch (update.event) {
+    case "reserved": {
+      return `accepted your request for ${card}`;
+    }
+    case "declined": {
+      return `declined your request for ${card}`;
+    }
+    case "cancelled": {
+      return `cancelled the trade for ${card}`;
+    }
+  }
+}
+
+/**
+ * Builds the coalesced "{actor} updated your trades" email (ADR-030): folds one
+ * member's accept/decline/cancel actions toward this recipient into a single
+ * message, so accepting a basket of cards sends one email, not one per card.
+ * @returns The subject line and full HTML body.
+ */
+export function buildTradeStatusUpdateEmail(input: TradeStatusUpdateEmailInput): {
+  subject: string;
+  html: string;
+} {
+  const actor = input.actorName ?? "A group member";
+  const greeting = input.recipientName ? `Hi ${escapeHtml(input.recipientName)},` : "Hi,";
+  const total = input.groups.reduce((sum, group) => sum + group.updates.length, 0);
+
+  const groupBlocks = input.groups
+    .map((group) => {
+      const rows = group.updates
+        .map((update) => `<li style="margin:0 0 4px;">${statusUpdatePhrase(update)}</li>`)
+        .join("");
+      return `
+        <div style="margin:0 0 20px;">
+          <p style="margin:0 0 8px;font-weight:600;">${escapeHtml(group.groupName)}</p>
+          <ul style="margin:0 0 10px;padding-left:18px;">${rows}</ul>
+          <p style="margin:0;">${emailButton("View the trades", group.tradesUrl)}</p>
+        </div>
+      `;
+    })
+    .join("");
+
+  const countLabel = total === 1 ? "a trade" : `${total} of your trades`;
+  const subject = `${actor} updated ${countLabel} — OpenRift`;
+
+  const bodyHtml = `
+    <p style="margin:0 0 12px;">${greeting}</p>
+    <p style="margin:0 0 20px;"><strong>${escapeHtml(actor)}</strong> updated ${total === 1 ? "one of your trades" : "some of your trades"}:</p>
+    ${groupBlocks}
+  `;
+
+  return {
+    subject,
+    html: renderEmailLayout({
+      heading: "Trade updates",
+      bodyHtml,
+      unsubscribe: { url: input.unsubscribeUrl, label: "Trade-status emails" },
+    }),
+  };
+}
+
 interface DigestMatch {
   cardName: string;
   /** Who has the card — the counterparty's display name, or a fallback. */

@@ -10,4 +10,5 @@ export const cronJobs = {
   cardTradesExpire: null as Cron | null,
   tradeMatchDigest: null as Cron | null,
   tradeRequestFlush: null as Cron | null,
+  tradeStatusFlush: null as Cron | null,
 };

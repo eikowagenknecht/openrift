@@ -63,6 +63,11 @@ export function createConfig(env: Record<string, string | undefined>) {
       // sends the follow-up once a sender→recipient burst has settled; set
       // CRON_TRADE_REQUEST_FLUSH to an empty string to disable.
       tradeRequestFlushSchedule: env.CRON_TRADE_REQUEST_FLUSH ?? "* * * * *",
+      // ADR-030 coalesced trade-status flush (accepted / declined / cancelled).
+      // Runs every minute by default and emails the party who didn't act once an
+      // actor→recipient burst has settled; set CRON_TRADE_STATUS_FLUSH to an
+      // empty string to disable.
+      tradeStatusFlushSchedule: env.CRON_TRADE_STATUS_FLUSH ?? "* * * * *",
     },
 
     discordWebhooks: {
