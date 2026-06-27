@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./app-env": "./src/app-env.ts",
     "./schemas": "./src/schemas.ts",
     "./db-field-rules": "./src/db-field-rules.ts",
     "./contribute-schema": "./src/contribute-schema.ts",

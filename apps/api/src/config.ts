@@ -1,7 +1,13 @@
+import { parseAppEnv } from "@openrift/shared/app-env";
+
 export function createConfig(env: Record<string, string | undefined>) {
-  const appEnv = env.APP_ENV ?? "development";
+  const appEnv = parseAppEnv(env.APP_ENV);
   return {
-    isDev: appEnv !== "production" && appEnv !== "preview",
+    // The deployment environment, reported verbatim to Sentry (see index.ts)
+    // so preview errors land in their own environment instead of polluting
+    // production.
+    appEnv,
+    isDev: appEnv === "development",
     port: Number(env.PORT ?? 3000),
     databaseUrl: env.DATABASE_URL ?? "",
 
@@ -84,7 +90,7 @@ export function validateConfig(env: Record<string, string | undefined>): void {
   const required = ["DATABASE_URL", "BETTER_AUTH_SECRET"] as const;
   // Preview is a prod-style build on a non-canonical domain — enforce the
   // same required vars as production.
-  const isProd = env.APP_ENV === "production" || env.APP_ENV === "preview";
+  const isProd = parseAppEnv(env.APP_ENV) !== "development";
   const requiredInProd = ["CORS_ORIGIN", "BETTER_AUTH_URL"] as const;
 
   const missing = [

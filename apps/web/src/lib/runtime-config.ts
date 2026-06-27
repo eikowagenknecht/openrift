@@ -1,5 +1,8 @@
+import type { AppEnv } from "@openrift/shared/app-env";
+
 interface RuntimeConfig {
   sentryDsn: string;
+  appEnv: AppEnv;
 }
 
 // Build the regex from fromCodePoint so the source stays pure ASCII. Typing
@@ -12,7 +15,8 @@ const OPEN_BRACKET = /</gu;
 
 /**
  * Serialize runtime config as a `<script>` body. Inlined by the SSR shell so
- * the Sentry DSN (sourced from `SENTRY_DSN_SSR` server-side) is available on
+ * the Sentry DSN (sourced from `SENTRY_DSN_SSR` server-side) and the
+ * deployment environment (from `APP_ENV`) are available on
  * `globalThis.__OPENRIFT_CONFIG__` before hydration (needed by `initSentry()`).
  *
  * Escapes sequences that could break out of a `<script>` block: `</` (any
@@ -21,8 +25,7 @@ const OPEN_BRACKET = /</gu;
  *
  * @returns A JS statement assigning the config to `globalThis.__OPENRIFT_CONFIG__`.
  */
-export function runtimeConfigScript(dsn: string): string {
-  const config: RuntimeConfig = { sentryDsn: dsn };
+export function runtimeConfigScript(config: RuntimeConfig): string {
   // oxlint-disable unicorn/prefer-string-raw -- the suggested String.raw rewrite interprets \uXXXX as literal code points, defeating the escape.
   const json = JSON.stringify(config)
     .replace(OPEN_BRACKET, "\\u003c")

@@ -172,4 +172,30 @@ describe("initClientSentry", () => {
 
     expect(initMock).not.toHaveBeenCalled();
   });
+
+  test("reports the deployment environment from the inlined config", () => {
+    // Regression: environment was derived from PROD, which is true for both
+    // preview and production builds, so preview errors polluted the production
+    // environment. It must come from the inlined APP_ENV instead.
+    globalThis.__OPENRIFT_CONFIG__ = {
+      sentryDsn: "https://key@example.ingest.sentry.io/1",
+      appEnv: "preview",
+    };
+
+    initClientSentry({} as Parameters<typeof initClientSentry>[0]);
+
+    const options = initMock.mock.calls[0]?.[0] as { environment: string };
+    expect(options.environment).toBe("preview");
+  });
+
+  test("falls back to development when no environment is inlined", () => {
+    globalThis.__OPENRIFT_CONFIG__ = {
+      sentryDsn: "https://key@example.ingest.sentry.io/1",
+    };
+
+    initClientSentry({} as Parameters<typeof initClientSentry>[0]);
+
+    const options = initMock.mock.calls[0]?.[0] as { environment: string };
+    expect(options.environment).toBe("development");
+  });
 });

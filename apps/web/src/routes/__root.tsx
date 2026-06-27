@@ -1,5 +1,7 @@
 import interLatinWoff2 from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
 import type { Palette } from "@openrift/shared";
+import type { AppEnv } from "@openrift/shared/app-env";
+import { parseAppEnv } from "@openrift/shared/app-env";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import { pacerDevtoolsPlugin } from "@tanstack/react-pacer-devtools";
 import type { QueryClient } from "@tanstack/react-query";
@@ -62,6 +64,13 @@ const getServerPalette = createServerFn({ method: "GET" }).handler(
 // browser SDK before hydration.
 const getServerSentryDsn = createServerFn({ method: "GET" }).handler(
   (): string => process.env.SENTRY_DSN_SSR ?? "",
+);
+
+// Reads the deployment environment from the server so it can be inlined into
+// the SSR shell alongside the DSN. The browser SDK reports this verbatim to
+// Sentry, keeping preview errors out of the production environment.
+const getServerAppEnv = createServerFn({ method: "GET" }).handler(
+  (): AppEnv => parseAppEnv(process.env.APP_ENV),
 );
 
 function safeOrigin(url: string | undefined): string | null {
@@ -189,17 +198,19 @@ export const Route = createRootRouteWithContext<{
       const resolvedTheme = resolveThemeFromCookie(readClientCookie("theme"));
       const resolvedPalette = resolvePaletteFromCookie(readClientCookie("palette"));
       const sentryDsn = globalThis.__OPENRIFT_CONFIG__?.sentryDsn ?? "";
+      const appEnv = parseAppEnv(globalThis.__OPENRIFT_CONFIG__?.appEnv);
       await Promise.all([flagsReady, settingsReady]);
-      return { resolvedTheme, resolvedPalette, sentryDsn };
+      return { resolvedTheme, resolvedPalette, sentryDsn, appEnv };
     }
-    const [resolvedTheme, resolvedPalette, sentryDsn] = await Promise.all([
+    const [resolvedTheme, resolvedPalette, sentryDsn, appEnv] = await Promise.all([
       getServerTheme(),
       getServerPalette(),
       getServerSentryDsn(),
+      getServerAppEnv(),
       flagsReady,
       settingsReady,
     ]);
-    return { resolvedTheme, resolvedPalette, sentryDsn };
+    return { resolvedTheme, resolvedPalette, sentryDsn, appEnv };
   },
   component: RootComponent,
   notFoundComponent: RouteNotFoundFallback,
@@ -207,7 +218,7 @@ export const Route = createRootRouteWithContext<{
 });
 
 function RootDocument({ children }: { children: React.ReactNode }) {
-  const { resolvedTheme, resolvedPalette, sentryDsn } = Route.useRouteContext();
+  const { resolvedTheme, resolvedPalette, sentryDsn, appEnv } = Route.useRouteContext();
   const { data: siteSettings } = useSuspenseQuery(siteSettingsQueryOptions);
   const umamiOrigin = safeOrigin(siteSettings["umami-url"]);
 
@@ -225,7 +236,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         {/* No crossOrigin: Umami's script.js loads as a non-CORS <script>. */}
         {umamiOrigin && <link rel="preconnect" href={umamiOrigin} />}
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
-        <script dangerouslySetInnerHTML={{ __html: runtimeConfigScript(sentryDsn) }} />
+        <script dangerouslySetInnerHTML={{ __html: runtimeConfigScript({ sentryDsn, appEnv }) }} />
         <HeadContent />
       </head>
       <body className="overflow-x-clip">

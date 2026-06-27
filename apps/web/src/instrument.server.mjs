@@ -14,17 +14,18 @@
 // lib/sentry-client.ts); the `service` tag distinguishes the two inside
 // that project.
 
+import { parseAppEnv } from "@openrift/shared/app-env";
 import { trace } from "@opentelemetry/api";
 import * as Sentry from "@sentry/tanstackstart-react";
 
 // Skip in local dev — keeps stray dev events out of the shared openrift-ssr
 // project. Preview deployments still report (APP_ENV === "preview").
-const appEnv = process.env.APP_ENV;
+const appEnv = parseAppEnv(process.env.APP_ENV);
 const dsn = process.env.SENTRY_DSN_SSR;
-if (dsn && (appEnv === "production" || appEnv === "preview")) {
+if (dsn && appEnv !== "development") {
   Sentry.init({
     dsn,
-    environment: process.env.APP_ENV === "production" ? "production" : "development",
+    environment: appEnv,
     release: process.env.COMMIT_HASH,
     tracesSampleRate: 0.1,
     // NOT_FOUND: sentinel errors thrown by server functions (e.g. use-card-detail,

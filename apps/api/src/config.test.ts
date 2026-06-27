@@ -10,6 +10,24 @@ describe("createConfig", () => {
     expect(typeof config.auth.secret).toBe("string");
   });
 
+  it("defaults appEnv to development and marks it as dev", () => {
+    const config = createConfig({});
+    expect(config.appEnv).toBe("development");
+    expect(config.isDev).toBe(true);
+  });
+
+  it("treats preview as a non-dev environment but keeps it distinct from production", () => {
+    const config = createConfig({ APP_ENV: "preview" });
+    expect(config.appEnv).toBe("preview");
+    expect(config.isDev).toBe(false);
+  });
+
+  it("normalizes unknown APP_ENV values to development", () => {
+    const config = createConfig({ APP_ENV: "staging" });
+    expect(config.appEnv).toBe("development");
+    expect(config.isDev).toBe(true);
+  });
+
   it("builds discord provider config when env vars are present", () => {
     const config = createConfig({
       DISCORD_CLIENT_ID: "discord-id",

@@ -65,7 +65,7 @@ const config = createConfig(env);
 if (config.sentryDsn) {
   Sentry.init({
     dsn: config.sentryDsn,
-    environment: config.isDev ? "development" : "production",
+    environment: config.appEnv,
     // Tracing is owned by our own OTel SDK (see ./tracing.ts) which exports to
     // Tempo. skipOpenTelemetrySetup keeps Sentry from registering a competing
     // TracerProvider; tracesSampleRate: 0 keeps Sentry from sending any

@@ -1,3 +1,4 @@
+import { parseAppEnv } from "@openrift/shared/app-env";
 import * as Sentry from "@sentry/tanstackstart-react";
 import type { ErrorInfo } from "react";
 
@@ -61,7 +62,10 @@ export function initClientSentry(router: TanstackRouter): void {
   Sentry.init({
     dsn,
     release: COMMIT_HASH,
-    environment: PROD ? "production" : "development",
+    // Sourced from the SSR-inlined runtime config (APP_ENV) so preview builds
+    // report under "preview" instead of being lumped into "production". PROD is
+    // true for both preview and production builds, so it can't distinguish them.
+    environment: parseAppEnv(globalThis.__OPENRIFT_CONFIG__?.appEnv),
     integrations: [Sentry.tanstackRouterBrowserTracingIntegration(router)],
     tracesSampleRate: 0.1,
     // Synthesize a stacktrace from the capture site for events that don't carry
