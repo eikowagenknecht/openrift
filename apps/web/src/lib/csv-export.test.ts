@@ -100,10 +100,16 @@ describe("generatePiltoverArchiveCSV", () => {
     expect(lines[1]).toBe("OGN-001,Regular Card,Origins,OGN,Common,Standard,,3,EN,NM");
   });
 
-  it("encodes foil with a -Foil suffix and Foil label", () => {
-    const stack = makeStack({ shortCode: "OGN-004", finish: "foil", rarity: "rare" });
+  it("encodes a foil common with a -Foil suffix and Foil label", () => {
+    const stack = makeStack({ shortCode: "OGN-004", finish: "foil", rarity: "common" });
     const lines = generatePiltoverArchiveCSV([stack]).split("\n");
-    expect(lines[1]).toBe("OGN-004-Foil,Test Card,Origins,OGN,Rare,Standard,Foil,1,EN,NM");
+    expect(lines[1]).toBe("OGN-004-Foil,Test Card,Origins,OGN,Common,Standard,Foil,1,EN,NM");
+  });
+
+  it("omits the -Foil suffix when the rarity is always foil", () => {
+    const stack = makeStack({ shortCode: "OGN-025", finish: "foil", rarity: "rare" });
+    const lines = generatePiltoverArchiveCSV([stack]).split("\n");
+    expect(lines[1]).toBe("OGN-025,Test Card,Origins,OGN,Rare,Standard,,1,EN,NM");
   });
 
   it("encodes alt art via the short code modifier and Variant Type", () => {
@@ -137,7 +143,8 @@ describe("generatePiltoverArchiveCSV", () => {
   it("round-trips through the Piltover Archive import parser", () => {
     const stacks = [
       makeStack({ shortCode: "OGN-001", name: "Plain", copyCount: 2 }),
-      makeStack({ shortCode: "OGN-004", name: "Foiled", finish: "foil", rarity: "rare" }),
+      makeStack({ shortCode: "OGN-004", name: "Foil common", finish: "foil", rarity: "common" }),
+      makeStack({ shortCode: "OGN-025", name: "Always foil", finish: "foil", rarity: "rare" }),
       makeStack({ shortCode: "OGN-079a", name: "Alt", artVariant: "altart" }),
       makeStack({ shortCode: "OGN-123*", name: "Over", artVariant: "overnumbered" }),
       makeStack({
@@ -151,7 +158,7 @@ describe("generatePiltoverArchiveCSV", () => {
 
     expect(result.source).toBe("piltover-archive");
     expect(result.errors).toEqual([]);
-    expect(result.entries).toHaveLength(5);
+    expect(result.entries).toHaveLength(6);
 
     const byCode = new Map(result.entries.map((entry) => [entry.sourceCode, entry]));
     expect(byCode.get("OGN-001")).toMatchObject({
@@ -160,6 +167,8 @@ describe("generatePiltoverArchiveCSV", () => {
       quantity: 2,
     });
     expect(byCode.get("OGN-004")).toMatchObject({ finish: "foil" });
+    // Always-foil rarity has no -Foil suffix, but the importer still infers foil.
+    expect(byCode.get("OGN-025")).toMatchObject({ finish: "foil" });
     expect(byCode.get("OGN-079a")).toMatchObject({ artVariant: "altart" });
     expect(byCode.get("OGN-123*")).toMatchObject({ artVariant: "overnumbered" });
     expect(byCode.get("OGN-010")).toMatchObject({ isPromo: true, language: "ZH" });

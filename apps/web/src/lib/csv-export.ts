@@ -1,4 +1,4 @@
-import { straightenApostrophes, WellKnown } from "@openrift/shared";
+import { isAlwaysFoilRarity, straightenApostrophes, WellKnown } from "@openrift/shared";
 
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 
@@ -106,6 +106,11 @@ function promoSuffixToken(label: string): string {
  * entries. The output round-trips through {@link parseImportData}: finish is
  * encoded as a `-Foil` suffix on the Variant Number, art variant as the short
  * code's letter/`*` modifier, and promos as an extra `-Label` suffix.
+ *
+ * Cards whose rarity is always foil (rare/epic/showcase) get no `-Foil` suffix
+ * or label — Piltover Archive implies the finish from the rarity and rejects
+ * the redundant marker. The importer infers foil the same way, so the round
+ * trip is preserved.
  * @returns CSV text with Piltover Archive headers and one row per printing.
  */
 export function generatePiltoverArchiveCSV(stacks: StackedEntry[]): string {
@@ -113,19 +118,21 @@ export function generatePiltoverArchiveCSV(stacks: StackedEntry[]): string {
 
   for (const stack of stacks) {
     const { printing } = stack;
-    const isFoil = printing.finish === WellKnown.finish.FOIL;
+    // Only mark foil explicitly when the rarity doesn't already imply it.
+    const markFoil =
+      printing.finish === WellKnown.finish.FOIL && !isAlwaysFoilRarity(printing.rarity);
     const [primaryMarker] = printing.markers;
 
     let variantNumber = printing.shortCode;
     if (primaryMarker) {
       variantNumber += `-${promoSuffixToken(primaryMarker.label)}`;
     }
-    if (isFoil) {
+    if (markFoil) {
       variantNumber += "-Foil";
     }
 
     const labelParts = printing.markers.map((marker) => marker.label);
-    if (isFoil) {
+    if (markFoil) {
       labelParts.push("Foil");
     }
 
