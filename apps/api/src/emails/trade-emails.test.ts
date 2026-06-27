@@ -82,12 +82,47 @@ describe("buildCoalescedTradeRequestsEmail", () => {
 
   it("names the sender and counts the requests in the subject", () => {
     const { subject, html } = buildCoalescedTradeRequestsEmail(BASE);
-    expect(subject).toBe("Garen sent you 2 more trade requests — OpenRift");
-    expect(html).toContain("Playgroup");
-    expect(html).toContain("wants your <strong>Azir</strong>");
-    expect(html).toContain("offers you <strong>2× Lux</strong>");
+    expect(subject).toBe("Garen sent you 2 trade requests — OpenRift");
+    expect(html).toContain("New trade requests");
+    expect(html).toContain("Garen</strong> sent you some trade requests");
+    expect(html).not.toContain("more trade requests");
+    expect(html).not.toContain("waiting for you");
+    // The sender is named on every card line so each reads as the player's action.
+    expect(html).toContain("Garen wants your <strong>Azir</strong>");
+    expect(html).toContain("Garen offers you <strong>2× Lux</strong>");
     expect(html).toContain(BASE.groups[0].tradesUrl);
     expect(html).toContain(BASE.unsubscribeUrl);
+  });
+
+  it("keeps the sender the subject: a single shared group rides on the button, not a header", () => {
+    const { html } = buildCoalescedTradeRequestsEmail(BASE);
+    // The group lives on the CTA so the player stays the actor of each line; it
+    // is never rendered as a standalone "In {group}" location line.
+    expect(html).toContain("View the trades in Playgroup");
+    expect(html).not.toContain("In Playgroup");
+  });
+
+  it("labels each block with a muted location line when several groups are involved", () => {
+    const { html } = buildCoalescedTradeRequestsEmail({
+      ...BASE,
+      groups: [
+        {
+          groupName: "Playgroup",
+          tradesUrl: "https://openrift.app/groups/playgroup/trades",
+          requests: [{ cardName: "Azir", quantity: 1, kind: "wants" }],
+        },
+        {
+          groupName: "LGS Night",
+          tradesUrl: "https://openrift.app/groups/lgs-night/trades",
+          requests: [{ cardName: "Jinx", quantity: 1, kind: "offers" }],
+        },
+      ],
+    });
+    expect(html).toContain("In Playgroup");
+    expect(html).toContain("In LGS Night");
+    // The group name moves into the location line, so the button stays generic.
+    expect(html).toContain("View the trades<");
+    expect(html).not.toContain("View the trades in");
   });
 
   it("uses singular wording for a single request", () => {
@@ -101,12 +136,12 @@ describe("buildCoalescedTradeRequestsEmail", () => {
         },
       ],
     });
-    expect(subject).toBe("Garen sent you 1 more trade request — OpenRift");
+    expect(subject).toBe("Garen sent you 1 trade request — OpenRift");
   });
 
   it("falls back to a generic sender label when the name is null", () => {
     const { subject } = buildCoalescedTradeRequestsEmail({ ...BASE, senderName: null });
-    expect(subject).toBe("A group member sent you 2 more trade requests — OpenRift");
+    expect(subject).toBe("A group member sent you 2 trade requests — OpenRift");
   });
 
   it("escapes HTML in user-controlled fields", () => {
@@ -140,12 +175,37 @@ describe("buildTradeStatusUpdateEmail", () => {
   it("names the actor and counts the updates in the subject", () => {
     const { subject, html } = buildTradeStatusUpdateEmail(BASE);
     expect(subject).toBe("Garen updated 3 of your trades — OpenRift");
-    expect(html).toContain("Playgroup");
-    expect(html).toContain("accepted your request for <strong>2× Azir</strong>");
-    expect(html).toContain("declined your request for <strong>Lux</strong>");
-    expect(html).toContain("cancelled the trade for <strong>Jinx</strong>");
+    // Single shared group: rides on the button, not a standalone header.
+    expect(html).toContain("View the trades in Playgroup");
+    expect(html).not.toContain("In Playgroup");
+    // The actor is named on every line so each update is clearly the player's.
+    expect(html).toContain("Garen accepted your request for <strong>2× Azir</strong>");
+    expect(html).toContain("Garen declined your request for <strong>Lux</strong>");
+    expect(html).toContain("Garen cancelled the trade for <strong>Jinx</strong>");
     expect(html).toContain(BASE.groups[0].tradesUrl);
     expect(html).toContain(BASE.unsubscribeUrl);
+  });
+
+  it("labels each block with a muted location line when several groups are involved", () => {
+    const { html } = buildTradeStatusUpdateEmail({
+      ...BASE,
+      groups: [
+        {
+          groupName: "Playgroup",
+          tradesUrl: "https://openrift.app/groups/playgroup/trades",
+          updates: [{ cardName: "Azir", quantity: 1, event: "reserved" }],
+        },
+        {
+          groupName: "LGS Night",
+          tradesUrl: "https://openrift.app/groups/lgs-night/trades",
+          updates: [{ cardName: "Jinx", quantity: 1, event: "cancelled" }],
+        },
+      ],
+    });
+    expect(html).toContain("In Playgroup");
+    expect(html).toContain("In LGS Night");
+    expect(html).toContain("View the trades<");
+    expect(html).not.toContain("View the trades in");
   });
 
   it("uses singular wording for a single update", () => {

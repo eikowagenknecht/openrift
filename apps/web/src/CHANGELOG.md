@@ -11,6 +11,7 @@
 
 ### Other
 
+- fix(Trades): **Clearer batched trade emails** — batched trade-request and update emails now name the sender on every line, so the trading group is never mistaken for who's trading, and a first batch no longer reads as "N more requests waiting".
 - fix(Cards): **Compact "None" on range sliders** — the filter sliders now show a small no-value icon instead of the word "None", so the value labels no longer widen the row.
 - fix(App): **Landing page stats load again** — the home page hero counts and card previews were blocked on the live site because the browser requested them from the wrong address, and now load correctly.
 

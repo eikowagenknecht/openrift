@@ -1,4 +1,4 @@
-import { emailButton, escapeHtml, renderEmailLayout } from "./layout.js";
+import { emailButton, escapeHtml, MUTED_TEXT, renderEmailLayout } from "./layout.js";
 
 /*
  * Builders for the two ADR-030 transactional emails. Pure: they take
@@ -97,9 +97,15 @@ export interface CoalescedTradeRequestsEmailInput {
 }
 
 /**
- * Builds the coalesced "{sender} sent you several more trade requests" email —
- * the trailing follow-up after the instant one, folding a burst from a single
- * member into one message (ADR-030).
+ * Builds the coalesced "{sender} sent you N trade requests" email, folding a
+ * burst from a single member into one message (ADR-030).
+ *
+ * For any non-instant cadence (including the default `5min`) this is the
+ * recipient's *first and only* notification of the burst — no instant email
+ * precedes it — so the copy reads as a fresh first-contact notice, not a "you
+ * have more waiting" follow-up. It stays accurate whether the burst is one
+ * request or several, and whether or not an instant email happened to precede
+ * it.
  * @returns The subject line and full HTML body.
  */
 export function buildCoalescedTradeRequestsEmail(input: CoalescedTradeRequestsEmailInput): {
@@ -107,8 +113,16 @@ export function buildCoalescedTradeRequestsEmail(input: CoalescedTradeRequestsEm
   html: string;
 } {
   const sender = input.senderName ?? "A group member";
+  const senderHtml = escapeHtml(sender);
   const greeting = input.recipientName ? `Hi ${escapeHtml(input.recipientName)},` : "Hi,";
   const total = input.groups.reduce((sum, group) => sum + group.requests.length, 0);
+
+  // The sender is the actor; the group is only *where* the trade lives (it scopes
+  // the deep link). Every line names the sender so each one stands on its own as
+  // the player's action, never the group's. With a single shared group the group
+  // name rides on the button; with several, a muted "In {group}" location line
+  // separates the blocks.
+  const multiGroup = input.groups.length > 1;
 
   const groupBlocks = input.groups
     .map((group) => {
@@ -117,34 +131,38 @@ export function buildCoalescedTradeRequestsEmail(input: CoalescedTradeRequestsEm
           const card = quantityLabel(request.quantity, request.cardName);
           const phrase =
             request.kind === "wants"
-              ? `wants your <strong>${escapeHtml(card)}</strong>`
-              : `offers you <strong>${escapeHtml(card)}</strong>`;
+              ? `${senderHtml} wants your <strong>${escapeHtml(card)}</strong>`
+              : `${senderHtml} offers you <strong>${escapeHtml(card)}</strong>`;
           return `<li style="margin:0 0 4px;">${phrase}</li>`;
         })
         .join("");
+      const locationLine = multiGroup
+        ? `<p style="margin:0 0 6px;color:${MUTED_TEXT};font-size:13px;">In ${escapeHtml(group.groupName)}</p>`
+        : "";
+      const buttonLabel = multiGroup ? "View the trades" : `View the trades in ${group.groupName}`;
       return `
         <div style="margin:0 0 20px;">
-          <p style="margin:0 0 8px;font-weight:600;">${escapeHtml(group.groupName)}</p>
+          ${locationLine}
           <ul style="margin:0 0 10px;padding-left:18px;">${rows}</ul>
-          <p style="margin:0;">${emailButton("View the trades", group.tradesUrl)}</p>
+          <p style="margin:0;">${emailButton(buttonLabel, group.tradesUrl)}</p>
         </div>
       `;
     })
     .join("");
 
-  const countLabel = total === 1 ? "1 more trade request" : `${total} more trade requests`;
+  const countLabel = total === 1 ? "1 trade request" : `${total} trade requests`;
   const subject = `${sender} sent you ${countLabel} — OpenRift`;
 
   const bodyHtml = `
     <p style="margin:0 0 12px;">${greeting}</p>
-    <p style="margin:0 0 20px;"><strong>${escapeHtml(sender)}</strong> has more trade requests waiting for you. Heads up: trade requests expire 7 days after they're sent.</p>
+    <p style="margin:0 0 20px;"><strong>${senderHtml}</strong> sent you some trade requests. Heads up: trade requests expire 7 days after they're sent.</p>
     ${groupBlocks}
   `;
 
   return {
     subject,
     html: renderEmailLayout({
-      heading: "More trade requests",
+      heading: "New trade requests",
       bodyHtml,
       unsubscribe: { url: input.unsubscribeUrl, label: "Trade-request emails" },
     }),
@@ -177,20 +195,22 @@ export interface TradeStatusUpdateEmailInput {
 }
 
 /**
- * Phrase for one status line, e.g. "accepted your request for 2× Card".
+ * Phrase for one status line, e.g. "Garen accepted your request for 2× Card".
+ * The actor is named on every line so each update reads as the player's action,
+ * not the group's.
  * @returns The HTML phrase for the update's event.
  */
-function statusUpdatePhrase(update: TradeStatusUpdate): string {
+function statusUpdatePhrase(update: TradeStatusUpdate, actorHtml: string): string {
   const card = `<strong>${escapeHtml(quantityLabel(update.quantity, update.cardName))}</strong>`;
   switch (update.event) {
     case "reserved": {
-      return `accepted your request for ${card}`;
+      return `${actorHtml} accepted your request for ${card}`;
     }
     case "declined": {
-      return `declined your request for ${card}`;
+      return `${actorHtml} declined your request for ${card}`;
     }
     case "cancelled": {
-      return `cancelled the trade for ${card}`;
+      return `${actorHtml} cancelled the trade for ${card}`;
     }
   }
 }
@@ -206,19 +226,31 @@ export function buildTradeStatusUpdateEmail(input: TradeStatusUpdateEmailInput):
   html: string;
 } {
   const actor = input.actorName ?? "A group member";
+  const actorHtml = escapeHtml(actor);
   const greeting = input.recipientName ? `Hi ${escapeHtml(input.recipientName)},` : "Hi,";
   const total = input.groups.reduce((sum, group) => sum + group.updates.length, 0);
+
+  // Same hierarchy as the request email: the actor leads every line, the group is
+  // only the deep-link location — on the button for a single group, on a muted
+  // "In {group}" line when several are involved.
+  const multiGroup = input.groups.length > 1;
 
   const groupBlocks = input.groups
     .map((group) => {
       const rows = group.updates
-        .map((update) => `<li style="margin:0 0 4px;">${statusUpdatePhrase(update)}</li>`)
+        .map(
+          (update) => `<li style="margin:0 0 4px;">${statusUpdatePhrase(update, actorHtml)}</li>`,
+        )
         .join("");
+      const locationLine = multiGroup
+        ? `<p style="margin:0 0 6px;color:${MUTED_TEXT};font-size:13px;">In ${escapeHtml(group.groupName)}</p>`
+        : "";
+      const buttonLabel = multiGroup ? "View the trades" : `View the trades in ${group.groupName}`;
       return `
         <div style="margin:0 0 20px;">
-          <p style="margin:0 0 8px;font-weight:600;">${escapeHtml(group.groupName)}</p>
+          ${locationLine}
           <ul style="margin:0 0 10px;padding-left:18px;">${rows}</ul>
-          <p style="margin:0;">${emailButton("View the trades", group.tradesUrl)}</p>
+          <p style="margin:0;">${emailButton(buttonLabel, group.tradesUrl)}</p>
         </div>
       `;
     })
@@ -229,7 +261,7 @@ export function buildTradeStatusUpdateEmail(input: TradeStatusUpdateEmailInput):
 
   const bodyHtml = `
     <p style="margin:0 0 12px;">${greeting}</p>
-    <p style="margin:0 0 20px;"><strong>${escapeHtml(actor)}</strong> updated ${total === 1 ? "one of your trades" : "some of your trades"}:</p>
+    <p style="margin:0 0 20px;"><strong>${actorHtml}</strong> ${total === 1 ? "updated one of your trades:" : "updated some of your trades:"}</p>
     ${groupBlocks}
   `;
 

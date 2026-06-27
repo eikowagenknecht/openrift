@@ -8,7 +8,9 @@
 
 const BRAND = "#24705f";
 const TEXT = "#18181b";
-const MUTED = "#71717a";
+/** Muted grey for secondary copy (footer, location lines). Shared with builders. */
+export const MUTED_TEXT = "#71717a";
+const MUTED = MUTED_TEXT;
 const BORDER = "#e4e4e7";
 const BACKGROUND = "#f4f4f5";
 
