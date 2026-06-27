@@ -276,6 +276,14 @@ export async function bootstrapSeededTestDb(
     const seedSql = readFileSync(new URL("fixtures/seed.sql", import.meta.url), "utf-8");
     const sql = postgres(testUrl, { onnotice: noop });
     await sql.unsafe(seedSql);
+    // `printings.canonical_rank` is a denormalized column (migration 193) that
+    // production write-paths repopulate via
+    // `recompute_printing_canonical_ranks()` at the end of every
+    // ordering-mutating transaction. The static seed inserts printings
+    // directly, so the column stays NULL until the same recompute runs here —
+    // otherwise the catalog contract (`canonicalRank: number`) rejects the
+    // NULL rows with a 500.
+    await sql`SELECT recompute_printing_canonical_ranks()`;
     if (options?.refreshMaterializedViews) {
       // Migrations create the views before the seed data exists. The
       // latest_printing_prices table (migration 194) replaced the

@@ -13,14 +13,16 @@ describe.skipIf(!ctx)("Collection events routes (integration)", () => {
 
   it("setup: creates a collection and adds copies", async () => {
     await app.fetch(req("GET", "/collections"));
-    const colRes = await app.fetch(req("POST", "/collections", { name: "Events Test" }));
+    const colRes = await app.fetch(
+      req("POST", "/collections", { id: crypto.randomUUID(), name: "Events Test" }),
+    );
     collectionId = ((await colRes.json()) as { id: string }).id;
 
     await app.fetch(
       req("POST", "/copies", {
         copies: [
-          { printingId: PRINTING_1.id, collectionId },
-          { printingId: PRINTING_1.id, collectionId },
+          { id: crypto.randomUUID(), printingId: PRINTING_1.id, collectionId },
+          { id: crypto.randomUUID(), printingId: PRINTING_1.id, collectionId },
         ],
       }),
     );

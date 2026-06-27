@@ -43,7 +43,9 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
 
   describe("POST /collections", () => {
     it("creates a collection and returns full DTO shape", async () => {
-      const res = await app.fetch(req("POST", "/collections", { name: "Test Collection" }));
+      const res = await app.fetch(
+        req("POST", "/collections", { id: crypto.randomUUID(), name: "Test Collection" }),
+      );
       expect(res.status).toBe(201);
 
       const json = (await res.json()) as CollectionResponse;
@@ -62,7 +64,11 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
 
     it("creates a collection with name and description", async () => {
       const res = await app.fetch(
-        req("POST", "/collections", { name: "Described", description: "A fine collection" }),
+        req("POST", "/collections", {
+          id: crypto.randomUUID(),
+          name: "Described",
+          description: "A fine collection",
+        }),
       );
       expect(res.status).toBe(201);
 
@@ -74,7 +80,11 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
 
     it("creates a collection with availableForDeckbuilding=false", async () => {
       const res = await app.fetch(
-        req("POST", "/collections", { name: "Non-deck", availableForDeckbuilding: false }),
+        req("POST", "/collections", {
+          id: crypto.randomUUID(),
+          name: "Non-deck",
+          availableForDeckbuilding: false,
+        }),
       );
       expect(res.status).toBe(201);
 
@@ -290,8 +300,16 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const addRes = await app.fetch(
         req("POST", "/copies", {
           copies: [
-            { printingId: PRINTING_1.id, collectionId: secondCollectionId },
-            { printingId: PRINTING_2.id, collectionId: secondCollectionId },
+            {
+              id: crypto.randomUUID(),
+              printingId: PRINTING_1.id,
+              collectionId: secondCollectionId,
+            },
+            {
+              id: crypto.randomUUID(),
+              printingId: PRINTING_2.id,
+              collectionId: secondCollectionId,
+            },
           ],
         }),
       );
@@ -324,7 +342,9 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       // the FK ON DELETE SET NULL on collection_events.from_collection_id
       // violates chk_collection_events_collection_presence (which requires
       // 'removed' events to keep from_collection_id NOT NULL).
-      const createRes = await app.fetch(req("POST", "/collections", { name: "Has History" }));
+      const createRes = await app.fetch(
+        req("POST", "/collections", { id: crypto.randomUUID(), name: "Has History" }),
+      );
       expect(createRes.status).toBe(201);
       const { id: historyCollectionId } = (await createRes.json()) as { id: string };
 
@@ -332,7 +352,13 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       // from_collection_id = historyCollectionId.
       const addRes = await app.fetch(
         req("POST", "/copies", {
-          copies: [{ printingId: PRINTING_1.id, collectionId: historyCollectionId }],
+          copies: [
+            {
+              id: crypto.randomUUID(),
+              printingId: PRINTING_1.id,
+              collectionId: historyCollectionId,
+            },
+          ],
         }),
       );
       expect(addRes.status).toBe(201);
@@ -350,16 +376,18 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       // Same root cause as above but for the 'moved' branch of the check
       // constraint, which requires both from_collection_id and to_collection_id
       // to remain NOT NULL.
-      const createSrcRes = await app.fetch(req("POST", "/collections", { name: "Move Source" }));
+      const createSrcRes = await app.fetch(
+        req("POST", "/collections", { id: crypto.randomUUID(), name: "Move Source" }),
+      );
       const { id: srcId } = (await createSrcRes.json()) as { id: string };
       const createDstRes = await app.fetch(
-        req("POST", "/collections", { name: "Move Destination" }),
+        req("POST", "/collections", { id: crypto.randomUUID(), name: "Move Destination" }),
       );
       const { id: dstId } = (await createDstRes.json()) as { id: string };
 
       const addRes = await app.fetch(
         req("POST", "/copies", {
-          copies: [{ printingId: PRINTING_2.id, collectionId: srcId }],
+          copies: [{ id: crypto.randomUUID(), printingId: PRINTING_2.id, collectionId: srcId }],
         }),
       );
       const [copy] = ((await addRes.json()) as { items: { id: string }[] }).items;
@@ -389,7 +417,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
     let shareCollectionId: string;
 
     async function createShareCollection(name: string): Promise<string> {
-      const res = await app.fetch(req("POST", "/collections", { name }));
+      const res = await app.fetch(req("POST", "/collections", { id: crypto.randomUUID(), name }));
       expect(res.status).toBe(201);
       const json = (await res.json()) as CollectionResponse;
       return json.id;

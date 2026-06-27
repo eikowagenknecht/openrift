@@ -140,10 +140,12 @@ import * as m191 from "./191-keyword-cost-flag.js";
 import * as m192 from "./192-multi-type-cards.js";
 import * as m193 from "./193-card-type-junction-triggers.js";
 import * as m194 from "./194-copy-metadata.js";
-// Electric (ADR-027) migrations — renamed to 195/196 in the renumber commit at
-// the end of the rebase; identifiers already reflect the final numbers.
+// Electric (ADR-027) migrations — renamed to 195/196/197 in the renumber
+// commit at the end of the rebase; identifiers already reflect the final
+// numbers.
 import * as m195 from "./193-denormalize-canonical-rank.js";
 import * as m196 from "./194-latest-prices-table.js";
+import * as m197 from "./195-drop-deck-cards-updated-at-trigger.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -345,4 +347,5 @@ export const migrations: Record<string, Migration> = {
   "194-copy-metadata": m194,
   "193-denormalize-canonical-rank": m195,
   "194-latest-prices-table": m196,
+  "195-drop-deck-cards-updated-at-trigger": m197,
 };
