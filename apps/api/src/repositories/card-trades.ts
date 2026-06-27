@@ -68,7 +68,7 @@ export interface QueuedRequestEmailRow {
 }
 
 /** The kind of transition a queued status email covers. */
-export type TradeStatusEmailEvent = "reserved" | "declined" | "cancelled";
+type TradeStatusEmailEvent = "reserved" | "declined" | "cancelled";
 
 /** A queued trade status-change awaiting a coalesced email (ADR-030). */
 export interface QueuedStatusEmailRow {

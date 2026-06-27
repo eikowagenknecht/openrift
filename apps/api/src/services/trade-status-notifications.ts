@@ -17,7 +17,7 @@ type SendEmail = ReturnType<typeof createEmailSender>;
  * send; toggle the flag off to stop the trade-status emails if a bug shows up.
  * Seeded `enabled=true` in KNOWN_FLAGS so creating it doesn't change behaviour.
  */
-export const TRADE_STATUS_EMAIL_FLAG = "trade-status-email";
+const TRADE_STATUS_EMAIL_FLAG = "trade-status-email";
 
 /** Dependencies for the coalesced trade-status flush cron (ADR-030). */
 export interface TradeStatusFlushDeps {

@@ -11,7 +11,7 @@ import type { Variables } from "../types.js";
  * `requireAuth`.
  * @returns The authenticated user's ID.
  */
-export function requireUserId(user: Variables["user"]): string {
+function requireUserId(user: Variables["user"]): string {
   if (!user) {
     throw new AppError(401, ERROR_CODES.UNAUTHORIZED, "Unauthorized");
   }
