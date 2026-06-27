@@ -263,6 +263,13 @@ function ExportSection() {
             )}
           </Button>
         </div>
+
+        {exportFormat === "piltover" && (
+          <p className="text-muted-foreground text-sm">
+            OpenRift tracks some printings Piltover Archive doesn&apos;t, so a few cards may not be
+            recognized when you import this file there.
+          </p>
+        )}
       </div>
     </div>
   );
