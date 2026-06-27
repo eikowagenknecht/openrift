@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-06-27
 ---
 
@@ -159,6 +159,7 @@ CREATE TABLE tournaments (
   submissions_close_at timestamptz,
   list_lock_mode text NOT NULL DEFAULT 'on_submit'
                    CHECK (list_lock_mode IN ('on_submit', 'at_deadline')),
+  deck_format    text REFERENCES deck_formats(slug),         -- deck-legality format (NOT the pairing `format`)
   allowed_sets   jsonb,
   self_registration boolean NOT NULL DEFAULT false,          -- open the request-to-join link
 
@@ -215,9 +216,10 @@ CREATE UNIQUE INDEX uq_tournament_participants_user
 ALTER TABLE deck_check_entries
   ADD COLUMN tournament_id uuid REFERENCES tournaments(id) ON DELETE CASCADE,
   ADD COLUMN participant_id uuid REFERENCES tournament_participants(id) ON DELETE SET NULL;
--- The entry keeps its decklist, state machine, content_hash, list_owner, and
--- per-card found_copies. Identity columns (player_name/email/riot_id/claim_*) move
--- to tournament_participants; the entry references the participant.
+-- The entry keeps its decklist, state machine, content_hash, and per-card
+-- found_copies. Identity columns (player_name/email/riot_id/claim_*) move to
+-- tournament_participants; the entry references the participant. See
+-- "Implementation notes" for the exact column-by-column split.
 
 -- Integration keys re-parented to the host (was group_id).
 ALTER TABLE deck_check_keys
@@ -275,7 +277,7 @@ Format generalization (Swiss, Top-N cut, 1v1 `versus` pairing with match points 
 ### Confirmation
 
 - Schema invariants (integration tests, temp DB): the host CHECK rejects a row with neither or both host FKs; the format/pairing CHECK rejects `format='none'` with `pairing_style='pod'`; the deck-check CHECK rejects `deck_check_enabled` with `deck_submission='none'`; the non-empty CHECK rejects a `format='none'` tournament that also takes no decks; the one-per-account unique index rejects a second linked participant for the same user; deleting a host (user/org) cascades its hosted tournaments; deleting a `tournaments` row cascades staff, participants, pod rounds/pods/members, and deck-check entries.
-- Migration tests: Phase 1 leaves every existing pod tournament playable (owner → `host_user_id` + `organizer` staff, modules off); Phase 2 produces byte-identical pairings against the renamed participant table on a fixture; Phase 3 turns a seeded `deck_check_event` + entries into a `format='none'` group-linked tournament + participants + entries with decklist, content_hash, list_owner, claim state, and group judges (→ `tournament_staff`) all preserved, the event uuid reused as the tournament id, and `friend_group_members` no longer accepting `judge`.
+- Migration tests: Phase 1 leaves every existing pod tournament playable (owner → `host_user_id` + `organizer` staff, modules off); Phase 2 produces byte-identical pairings against the renamed participant table on a fixture; Phase 3 turns a seeded `deck_check_event` + entries into a `format='none'` group-linked tournament + participants + entries with decklist, content_hash, claim state, and group judges (→ `tournament_staff`) all preserved, the event uuid reused as the tournament id, and `friend_group_members` no longer accepting `judge`.
 - Behavioral: a `deck_submission='required'` + `deck_check_enabled` tournament shows the deck-check surface to `judge` staff and to the participant via their claim/submission token; a pure pod tournament shows no deck surfaces; a `format='none'` tournament hides Pairings/Standings; a self-service registration lands `requested` and the host approves it to `active`; a provider push lands `active` with no approval; the group "Events" tab lists exactly the tournaments whose `group_id` matches.
 
 ## Design Decisions
@@ -332,6 +334,41 @@ Everything. The pure engine in `packages/shared/src/pairing/`, the `PairingStrat
 - Friend-group roster import.
 - Player-initiated withdrawal, in-app notifications on link/verdict/approval (inherited deferrals from ADR-026).
 - Prize structure, registration fees/payments, check-in / QR, multi-day scheduling.
+
+## Implementation notes
+
+These close the gaps an implementer would otherwise have to guess. Read `docs/schema.sql` for the authoritative current columns before writing any migration (it is the source of truth, not the ADR-025/026 sketches — some proposed columns were never built).
+
+### `deck_check_entries` column split (Phase 3)
+
+The current table is the authority; as of this writing its columns are: `id, event_id, external_id, player_name, player_email, riot_id, submitted_at, content_hash, checked_by, checked_at, notes, change_summary, withdrawn_at, created_at, updated_at, claimed_user_id, claim_source, claimed_at, claim_blocked_at, player_message, allow_name_sharing, allow_riot_id_sharing, state, review_outcome, approved_by, approved_at, unlock_requested_at, pre_edit_lines, allow_deck_publishing, claim_token`. The ADR-026 columns `list_owner` and `provider_push_ignored_at` were **never built** (no edit-takeover state exists in the schema); do not migrate them.
+
+- **Move to `tournament_participants`** (per-person identity + claim): `player_name → display_name`, `player_email → email`, `riot_id`, `claimed_user_id → user_id`, `claim_source`, `claim_token`, `claimed_at`, `claim_blocked_at`, and the identity-consent flags `allow_name_sharing`, `allow_riot_id_sharing`.
+- **Stays on `deck_check_entries`** (per-submission decklist + verification): `external_id`, `content_hash`, `submitted_at`, `state`, `review_outcome`, `checked_by`, `checked_at`, `approved_by`, `approved_at`, `notes`, `player_message`, `change_summary`, `pre_edit_lines`, `unlock_requested_at`, `withdrawn_at`, `allow_deck_publishing` (a deck-publishing consent, not identity), `created_at`, `updated_at`, plus the new `tournament_id` / `participant_id`. Drop `event_id` after backfill.
+
+### `format` naming collision — add `deck_format`
+
+`tournaments.format` in this ADR means the **pairing structure** (`none` / `pod_rounds`). But `deck_check_events.format` is the **deck-legality format** (a `deck_formats` slug, e.g. the game format used for legality + `allowed_sets` checks). These are different concepts. Add a nullable `deck_format text REFERENCES deck_formats(slug)` column to `tournaments`; migrate `deck_check_events.format → tournaments.deck_format` (never into `format`). The deck-check legality validation reads `deck_format` + `allowed_sets`.
+
+### `deck_check_events → tournaments` field mapping (Phase 3)
+
+Reuse the event uuid as the tournament id. `group_id → group_id`; host is the group's owner (`friend_group_members.role='owner'` → `host_type='user'`, `host_user_id`); `name → name`; `event_date → starts_at`; `format → deck_format`; `allowed_sets → allowed_sets`; `status`: `active → 'running'`, `archived → 'completed'`; `format='none'`, `pairing_style='none'`, `deck_check_enabled=true`, `deck_submission='optional'` (every migrated event has decks, satisfying the deck-check CHECK); `self_registration = allow_self_submission`; `submission_token`, `submissions_close_at`, `list_lock_mode` map across verbatim; derive `deck_phase` (archived → `locked`; past `submissions_close_at` → `closed`; else `open`). `deck_check_keys`: host is the same group owner (`host_type='user'`, `host_user_id`), `group_id` dropped after backfill.
+
+### Duplicate-participant resolution (Phase 3)
+
+ADR-026 permits one person to hold two entries in one event (a provider entry plus their `openrift:` self-submission). The new `UNIQUE (tournament_id, user_id)` would reject both linking to the same account. Resolution, lossless and constraint-safe: group an event's entries by `claimed_user_id`; for each non-null group create **one** participant and attach **all** that user's entries to it (a participant may transiently own more than one decklist entry — exactly today's pre-reconciliation state, which a host resolves as before); entries with null `claimed_user_id` each become their own walk-in participant (the unique index does not apply when `user_id IS NULL`). Nothing is dropped or merged automatically.
+
+### Reversibility
+
+Each phase ships a paired down migration (`bun db:rollback` exists). Do destructive steps (dropping `deck_check_events`, removing `judge` from the `friend_group_members` CHECK, dropping `group_id` columns) as the **last** migration of their phase, after the additive backfill is verified, so an earlier rollback never loses data. "Reversible before the next phase lands" means: keep the old structures one release, cut over, then drop.
+
+### One submission token, two behaviors
+
+There is a single `submission_token` per tournament; `self_registration` gates whether the open link accepts anyone at all. Opening the link as a logged-in user: when `deck_submission <> 'none'`, it shows the submit-a-deck form and creates a `requested` participant **plus** a deck entry; when `deck_submission = 'none'` (a pairing-only event that still wants open sign-ups), it shows a plain "request to join" button and creates a `requested` participant with no deck. Either way the participant lands `requested` for host approval (self-service gate). `report_token` is unrelated (spectator follow-along + pod result entry) and exists only for pairing formats.
+
+### Feature flag and admin provisioning
+
+The `pod-tournaments` flag is renamed to `tournaments` and registered in `KNOWN_FLAGS` (`apps/web/src/components/admin/feature-flags-page.tsx`). Flags are admin-managed, not migrated, so renaming loses existing enablement — re-enable `tournaments` in the admin UI after deploy. Organization provisioning is an admin-only surface under the existing admin area (per ADR-032's prefix-gated admin model); follow the feature-flags / admin-page pattern for the create-organization form.
 
 ## More Information
 
