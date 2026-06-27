@@ -19,7 +19,7 @@ import type { ApiContext } from "./context.js";
  * ambiguity to get wrong. The auth level also drives the per-operation OpenAPI
  * `security` markers (see `openapi-doc.ts`).
  */
-export interface ApiMeta extends Record<string, unknown> {
+interface ApiMeta extends Record<string, unknown> {
   auth?: "public" | "bearer";
 }
 

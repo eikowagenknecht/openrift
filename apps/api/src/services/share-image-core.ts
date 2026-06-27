@@ -29,7 +29,7 @@ export const COLORS = {
 } as const;
 
 /** Largest self-hosted variant (short edge ~800px); the tiles are big, so use it. */
-export const CARD_ART_VARIANT = "full";
+const CARD_ART_VARIANT = "full";
 
 /** Corner radius for card tiles (the art is masked to it so corners never bleed). */
 export const CARD_RADIUS = 14;
@@ -72,7 +72,7 @@ let cachedFonts: SatoriFont[] | null = null;
  * source); satori cannot read the WOFF2 the web app uses, hence the static TTFs.
  * @returns The satori `fonts` array.
  */
-export async function loadFonts(io: Io): Promise<SatoriFont[]> {
+async function loadFonts(io: Io): Promise<SatoriFont[]> {
   if (cachedFonts) {
     return cachedFonts;
   }

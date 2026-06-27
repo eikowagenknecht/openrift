@@ -21,7 +21,6 @@
     "@opentelemetry/resources": "2.8.0",
     "@opentelemetry/sdk-node": "0.219.0",
     "@opentelemetry/semantic-conventions": "1.41.1",
-    "@orpc/client": "1.14.6",
     "@orpc/contract": "1.14.6",
     "@orpc/openapi": "1.14.6",
     "@orpc/server": "1.14.6",

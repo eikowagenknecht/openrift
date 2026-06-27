@@ -84,7 +84,7 @@ import { makeReportingErrorInterceptor } from "./error-reporting-interceptor.js"
  * each procedure's contract `.route({ path })`, so the nesting is only for
  * traversal).
  */
-export const apiRouter = {
+const apiRouter = {
   adminArtVariantsRouter,
   adminCacheRouter,
   adminCardTypesRouter,

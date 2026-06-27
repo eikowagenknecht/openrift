@@ -50,7 +50,7 @@ export type UnmatchedCardDetailResponse = Record<string, any>;
 // users migrated to oRPC; its response type now lives on the contract.
 export type { AdminUsersResponse } from "@openrift/shared/contracts";
 // job-runs migrated to oRPC; its response types now live on the contract.
-export type { JobRunsListResponse, JobRunView } from "@openrift/shared/contracts";
+export type { JobRunView } from "@openrift/shared/contracts";
 // ignored-candidates / ignored-products migrated to oRPC; response types now
 // live on their contracts.
 export type {
@@ -59,23 +59,10 @@ export type {
 } from "@openrift/shared/contracts";
 // marketplace-groups migrated to oRPC; its response + row types live on the
 // contract (re-exported below near the other contract types).
-// typography-review migrated to oRPC; its response type lives on the contract.
-export type { TypographyReviewResponse } from "@openrift/shared/contracts";
 // printing-events migrated to oRPC; its response types now live on the contract.
 export type { PrintingEventsListResponse, PrintingEventView } from "@openrift/shared/contracts";
 // admin sets (catalog) migrated to oRPC; its response type lives on the contract.
 export type { AdminSetsResponse } from "@openrift/shared/contracts";
-// art-variants / card-types / deck-formats / domains / finishes / rarities /
-// super-types migrated to oRPC; their response types now live on their contracts.
-export type {
-  AdminArtVariantsResponse,
-  AdminCardTypesResponse,
-  AdminDeckFormatsResponse,
-  AdminDomainsResponse,
-  AdminRaritiesResponse,
-  AdminFinishesResponse,
-  AdminSuperTypesResponse,
-} from "@openrift/shared/contracts";
 // Unified marketplace mappings migrated to oRPC; response types live on the
 // contract (derived from the shared unifiedMappings*ResponseSchema).
 export type {
@@ -90,4 +77,4 @@ export type {
 // so existing consumers (query-cache typings) keep the same shape.
 export type CollectionsResponse = CollectionListResponse;
 // ── MarketplaceGroup types (from the oRPC contract) ─────────────────────────
-export type { MarketplaceGroup, MarketplaceGroupsResponse } from "@openrift/shared/contracts";
+export type { MarketplaceGroup } from "@openrift/shared/contracts";
