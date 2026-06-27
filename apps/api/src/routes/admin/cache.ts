@@ -4,12 +4,12 @@ import { createLogger } from "@openrift/shared/logger";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
 const log = createLogger("admin-cache");
 
-const os = implement(adminCacheContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminCacheContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Admin Cloudflare cache controls. Not-configured (503) / upstream-failure

@@ -10,11 +10,11 @@ import { adminCustomTagsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { assertFound } from "../../utils/assertions.js";
 
-const os = implement(adminCustomTagsContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminCustomTagsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Admin custom-tags taxonomy: tag categories, tags, and per-card assignment.

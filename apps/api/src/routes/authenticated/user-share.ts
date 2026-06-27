@@ -2,12 +2,11 @@ import type { UserShareStateResponse } from "@openrift/shared";
 import { userShareContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
-import { requireUserId } from "../../middleware/get-user-id.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { generateShareToken } from "../../utils/share-token.js";
 
-const os = implement(userShareContract).$context<ApiContext>().use(requireUser);
+const os = implement(userShareContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * The signed-in user's bundle-share management (ADR-018). The "user not found"
@@ -16,14 +15,14 @@ const os = implement(userShareContract).$context<ApiContext>().use(requireUser);
 export const userShareRouter = {
   get: os.get.handler(async ({ context }): Promise<UserShareStateResponse> => {
     const { userShares } = context.repos;
-    const row = await userShares.getShareToken(requireUserId(context.user));
+    const row = await userShares.getShareToken(context.userId);
     return { shareToken: row?.shareToken ?? null, isPublic: Boolean(row?.shareToken) };
   }),
 
   // Idempotent enable: return the existing token if present, else mint one.
   enable: os.enable.handler(async ({ context, errors }): Promise<UserShareStateResponse> => {
     const { userShares } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     const current = await userShares.getShareToken(userId);
     if (current?.shareToken) {
       return { shareToken: current.shareToken, isPublic: true };
@@ -37,7 +36,7 @@ export const userShareRouter = {
 
   disable: os.disable.handler(async ({ context, errors }): Promise<void> => {
     const { userShares } = context.repos;
-    const updated = await userShares.setShareToken(requireUserId(context.user), null);
+    const updated = await userShares.setShareToken(context.userId, null);
     if (!updated) {
       throw errors.NOT_FOUND({ message: "User not found" });
     }
@@ -46,10 +45,7 @@ export const userShareRouter = {
   // Overwrites the existing token; the previous URL stops resolving at once.
   rotate: os.rotate.handler(async ({ context, errors }): Promise<UserShareStateResponse> => {
     const { userShares } = context.repos;
-    const updated = await userShares.setShareToken(
-      requireUserId(context.user),
-      generateShareToken(),
-    );
+    const updated = await userShares.setShareToken(context.userId, generateShareToken());
     if (!updated) {
       throw errors.NOT_FOUND({ message: "User not found" });
     }

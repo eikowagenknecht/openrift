@@ -2,10 +2,10 @@ import { adminCoreContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import { cronJobs } from "../../cron-jobs.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
-const os = implement(adminCoreContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminCoreContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Admin "core" endpoints. Both are pure reads that never throw `AppError` (no

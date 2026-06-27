@@ -30,8 +30,7 @@ import { implement } from "@orpc/server";
 import { AppError } from "../../errors.js";
 import { gravatarHashForEmail } from "../../lib/gravatar.js";
 import { hasRole, loadGroupForMember, requireRole } from "../../lib/group-access.js";
-import { requireUserId } from "../../middleware/get-user-id.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type { Group, MemberWithUser } from "../../repositories/friend-groups.js";
 import { toListEntryDetail } from "../../utils/mappers.js";
@@ -137,7 +136,7 @@ function canSeeCode(role: FriendGroupRole): boolean {
   return hasRole(role, "admin");
 }
 
-const os = implement(friendGroupsContract).$context<ApiContext>().use(requireUser);
+const os = implement(friendGroupsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * The friend-groups contract, mounted at `/api/v1/friend-groups`. Role checks /
@@ -147,7 +146,7 @@ const os = implement(friendGroupsContract).$context<ApiContext>().use(requireUse
 export const friendGroupsRouter = {
   // ── LIST ────────────────────────────────────────────────────────────────
   list: os.list.handler(async ({ context }): Promise<FriendGroupListResponse> => {
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     const { friendGroups } = context.repos;
     const [groups, invites, requests] = await Promise.all([
       friendGroups.listGroupsForUser(userId),
@@ -178,7 +177,7 @@ export const friendGroupsRouter = {
   // ── BADGE COUNT ─────────────────────────────────────────────────────────
   pendingInvitesCount: os.pendingInvitesCount.handler(
     async ({ context }): Promise<FriendGroupPendingInvitesCountResponse> => {
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
       const { friendGroups } = context.repos;
       const count = await friendGroups.pendingInvitesCountForUser(userId);
       return { count };
@@ -187,7 +186,7 @@ export const friendGroupsRouter = {
 
   pendingRequestsCount: os.pendingRequestsCount.handler(
     async ({ context }): Promise<FriendGroupPendingRequestsCountResponse> => {
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
       const { friendGroups } = context.repos;
       const count = await friendGroups.pendingRequestsCountForUser(userId);
       return { count };
@@ -196,7 +195,7 @@ export const friendGroupsRouter = {
 
   // ── CREATE ──────────────────────────────────────────────────────────────
   create: os.create.handler(async ({ input, context }): Promise<FriendGroupResponse> => {
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     const { friendGroups } = context.repos;
 
     if (await friendGroups.getBySlug(input.slug)) {
@@ -218,7 +217,7 @@ export const friendGroupsRouter = {
   // ── JOIN PREVIEW ────────────────────────────────────────────────────────
   preview: os.preview.handler(
     async ({ input, context }): Promise<FriendGroupJoinPreviewResponse> => {
-      const viewerId = requireUserId(context.user);
+      const viewerId = context.userId;
       const { friendGroups } = context.repos;
 
       const group = await friendGroups.getByCode(input.code);
@@ -247,7 +246,7 @@ export const friendGroupsRouter = {
 
   // ── JOIN (submits a request) ────────────────────────────────────────────
   join: os.join.handler(async ({ input, context }): Promise<void> => {
-    const viewerId = requireUserId(context.user);
+    const viewerId = context.userId;
     const { friendGroups } = context.repos;
 
     const group = await friendGroups.getByCode(input.code);
@@ -265,7 +264,7 @@ export const friendGroupsRouter = {
 
   // ── DETAIL ──────────────────────────────────────────────────────────────
   get: os.get.handler(async ({ input, context }): Promise<FriendGroupDetailResponse> => {
-    const viewerId = requireUserId(context.user);
+    const viewerId = context.userId;
     const { friendGroups } = context.repos;
 
     const group = await friendGroups.getBySlug(input.slug);
@@ -318,7 +317,7 @@ export const friendGroupsRouter = {
   // Detailed input: path `slug` (current) and body `slug` (rename target) are
   // distinct, so they're kept in separate `params` / `body` envelopes.
   update: os.update.handler(async ({ input, context }): Promise<FriendGroupResponse> => {
-    const viewerId = requireUserId(context.user);
+    const viewerId = context.userId;
     const { friendGroups } = context.repos;
     const { slug } = input.params;
     const body = input.body;
@@ -347,7 +346,7 @@ export const friendGroupsRouter = {
 
   // ── DELETE (owner only) ─────────────────────────────────────────────────
   remove: os.remove.handler(async ({ input, context }): Promise<void> => {
-    const viewerId = requireUserId(context.user);
+    const viewerId = context.userId;
     const { friendGroups } = context.repos;
 
     const ctx = await loadGroupForMember(context.repos, input.slug, viewerId);
@@ -358,7 +357,7 @@ export const friendGroupsRouter = {
 
   // ── ROTATE CODE (admin+) ────────────────────────────────────────────────
   rotateCode: os.rotateCode.handler(async ({ input, context }): Promise<FriendGroupResponse> => {
-    const viewerId = requireUserId(context.user);
+    const viewerId = context.userId;
     const { friendGroups } = context.repos;
 
     const ctx = await loadGroupForMember(context.repos, input.slug, viewerId);
@@ -373,7 +372,7 @@ export const friendGroupsRouter = {
 
   // ── DISABLE CODE (admin+) ───────────────────────────────────────────────
   disableCode: os.disableCode.handler(async ({ input, context }): Promise<FriendGroupResponse> => {
-    const viewerId = requireUserId(context.user);
+    const viewerId = context.userId;
     const { friendGroups } = context.repos;
 
     const ctx = await loadGroupForMember(context.repos, input.slug, viewerId);
@@ -388,7 +387,7 @@ export const friendGroupsRouter = {
 
   // ── RE-ENABLE CODE (admin+) ─────────────────────────────────────────────
   enableCode: os.enableCode.handler(async ({ input, context }): Promise<FriendGroupResponse> => {
-    const viewerId = requireUserId(context.user);
+    const viewerId = context.userId;
     const { friendGroups } = context.repos;
 
     const ctx = await loadGroupForMember(context.repos, input.slug, viewerId);
@@ -403,7 +402,7 @@ export const friendGroupsRouter = {
 
   // ── INVITE BY EMAIL (admin+) ────────────────────────────────────────────
   inviteByEmail: os.inviteByEmail.handler(async ({ input, context }): Promise<void> => {
-    const viewerId = requireUserId(context.user);
+    const viewerId = context.userId;
     const { friendGroups, users } = context.repos;
 
     const ctx = await loadGroupForMember(context.repos, input.slug, viewerId);
@@ -424,7 +423,7 @@ export const friendGroupsRouter = {
 
   // ── ACCEPT (invite or request) ──────────────────────────────────────────
   acceptInvite: os.acceptInvite.handler(async ({ input, context }): Promise<void> => {
-    const viewerId = requireUserId(context.user);
+    const viewerId = context.userId;
     const { friendGroups } = context.repos;
     const targetUserId = input.userId;
 
@@ -461,7 +460,7 @@ export const friendGroupsRouter = {
 
   // ── DECLINE (invite or request) ─────────────────────────────────────────
   declineInvite: os.declineInvite.handler(async ({ input, context }): Promise<void> => {
-    const viewerId = requireUserId(context.user);
+    const viewerId = context.userId;
     const { friendGroups } = context.repos;
     const targetUserId = input.userId;
 
@@ -488,7 +487,7 @@ export const friendGroupsRouter = {
 
   // ── LEAVE ───────────────────────────────────────────────────────────────
   leave: os.leave.handler(async ({ input, context }): Promise<void> => {
-    const viewerId = requireUserId(context.user);
+    const viewerId = context.userId;
 
     const ctx = await loadGroupForMember(context.repos, input.slug, viewerId);
     if (ctx.membership.role === "owner") {
@@ -509,7 +508,7 @@ export const friendGroupsRouter = {
 
   // ── TRANSFER OWNERSHIP (owner only) ─────────────────────────────────────
   transferOwnership: os.transferOwnership.handler(async ({ input, context }): Promise<void> => {
-    const viewerId = requireUserId(context.user);
+    const viewerId = context.userId;
     const { friendGroups } = context.repos;
     const targetUserId = input.userId;
 
@@ -530,7 +529,7 @@ export const friendGroupsRouter = {
   // ── UPDATE ROLE (admin+) ────────────────────────────────────────────────
   updateRole: os.updateRole.handler(
     async ({ input, context }): Promise<FriendGroupMemberResponse> => {
-      const viewerId = requireUserId(context.user);
+      const viewerId = context.userId;
       const { friendGroups } = context.repos;
       const targetUserId = input.userId;
 
@@ -569,7 +568,7 @@ export const friendGroupsRouter = {
   // ── SET REVEALED CONTACTS (self only) ───────────────────────────────────
   setRevealedContacts: os.setRevealedContacts.handler(
     async ({ input, context }): Promise<FriendGroupMemberResponse> => {
-      const viewerId = requireUserId(context.user);
+      const viewerId = context.userId;
       const { friendGroups } = context.repos;
       const targetUserId = input.userId;
 
@@ -594,7 +593,7 @@ export const friendGroupsRouter = {
 
   // ── KICK MEMBER (admin+) ────────────────────────────────────────────────
   kickMember: os.kickMember.handler(async ({ input, context }): Promise<void> => {
-    const viewerId = requireUserId(context.user);
+    const viewerId = context.userId;
     const { friendGroups } = context.repos;
     const targetUserId = input.userId;
 
@@ -626,7 +625,7 @@ export const friendGroupsRouter = {
   // ── SHAREABLE LISTS (viewer's own) ──────────────────────────────────────
   shareableLists: os.shareableLists.handler(
     async ({ input, context }): Promise<FriendGroupShareableListsResponse> => {
-      const viewerId = requireUserId(context.user);
+      const viewerId = context.userId;
       const { friendGroups } = context.repos;
 
       const ctx = await loadGroupForMember(context.repos, input.slug, viewerId);
@@ -656,7 +655,7 @@ export const friendGroupsRouter = {
 
   // ── SHARE A LIST (self only) ────────────────────────────────────────────
   shareList: os.shareList.handler(async ({ input, context }): Promise<void> => {
-    const viewerId = requireUserId(context.user);
+    const viewerId = context.userId;
     const { friendGroups, lists } = context.repos;
 
     const ctx = await loadGroupForMember(context.repos, input.slug, viewerId);
@@ -671,7 +670,7 @@ export const friendGroupsRouter = {
 
   // ── UNSHARE A LIST (self only) ──────────────────────────────────────────
   unshareList: os.unshareList.handler(async ({ input, context }): Promise<void> => {
-    const viewerId = requireUserId(context.user);
+    const viewerId = context.userId;
     const { friendGroups, lists } = context.repos;
 
     const ctx = await loadGroupForMember(context.repos, input.slug, viewerId);
@@ -686,7 +685,7 @@ export const friendGroupsRouter = {
 
   // ── MATCH VIEW ──────────────────────────────────────────────────────────
   matches: os.matches.handler(async ({ input, context }): Promise<FriendGroupMatchesResponse> => {
-    const viewerId = requireUserId(context.user);
+    const viewerId = context.userId;
 
     const ctx = await loadGroupForMember(context.repos, input.slug, viewerId);
 
@@ -702,7 +701,7 @@ export const friendGroupsRouter = {
   // ── SHARED LIST DETAIL (browsable by any group member) ──────────────────
   getSharedList: os.getSharedList.handler(
     async ({ input, context }): Promise<FriendGroupSharedListDetailResponse> => {
-      const viewerId = requireUserId(context.user);
+      const viewerId = context.userId;
       const { friendGroups, lists } = context.repos;
 
       const group = await friendGroups.getBySlug(input.slug);
@@ -743,7 +742,7 @@ export const friendGroupsRouter = {
   // ── MEMBER DETAIL ───────────────────────────────────────────────────────
   getMemberDetail: os.getMemberDetail.handler(
     async ({ input, context }): Promise<FriendGroupMemberDetailResponse> => {
-      const viewerId = requireUserId(context.user);
+      const viewerId = context.userId;
       const { friendGroups, friendGroupMatches } = context.repos;
       const counterpartyUserId = input.userId;
 
@@ -793,7 +792,7 @@ export const friendGroupsRouter = {
   // ── SHAREABLE COLLECTIONS (viewer's own) ────────────────────────────────
   shareableCollections: os.shareableCollections.handler(
     async ({ input, context }): Promise<FriendGroupShareableCollectionsResponse> => {
-      const viewerId = requireUserId(context.user);
+      const viewerId = context.userId;
       const { friendGroups } = context.repos;
 
       const ctx = await loadGroupForMember(context.repos, input.slug, viewerId);
@@ -811,7 +810,7 @@ export const friendGroupsRouter = {
 
   // ── SHARE A COLLECTION (self only) ──────────────────────────────────────
   shareCollection: os.shareCollection.handler(async ({ input, context }): Promise<void> => {
-    const viewerId = requireUserId(context.user);
+    const viewerId = context.userId;
     const { friendGroups, collections } = context.repos;
 
     const ctx = await loadGroupForMember(context.repos, input.slug, viewerId);
@@ -829,7 +828,7 @@ export const friendGroupsRouter = {
 
   // ── UNSHARE A COLLECTION (self only) ────────────────────────────────────
   unshareCollection: os.unshareCollection.handler(async ({ input, context }): Promise<void> => {
-    const viewerId = requireUserId(context.user);
+    const viewerId = context.userId;
     const { friendGroups, collections } = context.repos;
 
     const ctx = await loadGroupForMember(context.repos, input.slug, viewerId);
@@ -845,7 +844,7 @@ export const friendGroupsRouter = {
   // ── SHARED COLLECTION DETAIL (browsable by any group member) ────────────
   getSharedCollection: os.getSharedCollection.handler(
     async ({ input, context }): Promise<FriendGroupSharedCollectionDetailResponse> => {
-      const viewerId = requireUserId(context.user);
+      const viewerId = context.userId;
       const repos = context.repos;
       const { friendGroups, copies, marketplace } = repos;
 
@@ -892,7 +891,7 @@ export const friendGroupsRouter = {
   // ── ACTIVITY FEED ───────────────────────────────────────────────────────
   activity: os.activity.handler(
     async ({ input, context }): Promise<FriendGroupActivityResponse> => {
-      const viewerId = requireUserId(context.user);
+      const viewerId = context.userId;
 
       const ctx = await loadGroupForMember(context.repos, input.slug, viewerId);
       const { friendGroups, cardTrades, friendGroupMatches } = context.repos;

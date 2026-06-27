@@ -3,10 +3,10 @@ import { adminSuperTypesContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
-const os = implement(adminSuperTypesContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminSuperTypesContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Admin super type taxonomy CRUD. Conflict / not-found / bad-request states are

@@ -7,7 +7,7 @@ import { normalizeNameForMatching } from "@openrift/shared/utils";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../../errors.js";
-import { requireUser } from "../../../orpc/base.js";
+import { requireAuthedUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
 import { acceptFavoritePrintingsForCard } from "../../../services/accept-favorite-printings.js";
 import { acceptFavoriteNewCard } from "../../../services/accept-gallery.js";
@@ -20,7 +20,7 @@ import {
 import { recordPrintingChangeEvent } from "../../../services/record-printing-event.js";
 import { assertDeleted, assertFound, assertUpdated } from "../../../utils/assertions.js";
 
-const os = implement(adminCardMutationsContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminCardMutationsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Bespoke admin card mutations: the candidate check/uncheck verbs and the

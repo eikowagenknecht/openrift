@@ -6,13 +6,12 @@ import type {
 import { copiesContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
-import { requireUserId } from "../../middleware/get-user-id.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { buildCopiesCursor, clampCopiesLimit } from "../../repositories/copies.js";
 import { toCopy } from "../../utils/mappers.js";
 
-const os = implement(copiesContract).$context<ApiContext>().use(requireUser);
+const os = implement(copiesContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Authenticated copies contract. The FK-violation 400 on `add` is a typed
@@ -27,7 +26,7 @@ export const copiesRouter = {
     const effectiveLimit = clampCopiesLimit(input.limit);
 
     const rows = await copies.listForAccessibleCollections(
-      requireUserId(context.user),
+      context.userId,
       effectiveLimit,
       input.cursor,
     );
@@ -45,7 +44,7 @@ export const copiesRouter = {
     const { addCopies: addCopiesService } = context.services;
     const repos = context.repos;
     const transact = context.transact;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     let created;
     try {
       created = await addCopiesService(repos, transact, userId, input.copies);
@@ -66,7 +65,7 @@ export const copiesRouter = {
     await moveCopiesService(
       context.repos,
       context.transact,
-      requireUserId(context.user),
+      context.userId,
       input.copyIds,
       input.toCollectionId,
     );
@@ -75,7 +74,7 @@ export const copiesRouter = {
   // Dispose copies (disposal) — hard-deletes with metadata snapshot.
   dispose: os.dispose.handler(async ({ input, context }): Promise<void> => {
     const { disposeCopies: disposeCopiesService } = context.services;
-    await disposeCopiesService(context.transact, requireUserId(context.user), input.copyIds);
+    await disposeCopiesService(context.transact, context.userId, input.copyIds);
   }),
 
   // Read-only: which of the viewer's own lists reference these copies.
@@ -84,7 +83,7 @@ export const copiesRouter = {
       const { lists } = context.repos;
       return await lists.listMembershipsForCopies(
         input.copyIds,
-        requireUserId(context.user),
+        context.userId,
         input.excludeListId,
       );
     },

@@ -1,7 +1,7 @@
 import { adminUnifiedMappingsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { saveMappings, unmapPrinting } from "../../services/marketplace-mapping.js";
 import {
@@ -10,7 +10,7 @@ import {
 } from "../../services/unified-mapping-merge.js";
 import { createMarketplaceConfigs } from "./marketplace-configs.js";
 
-const os = implement(adminUnifiedMappingsContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminUnifiedMappingsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Admin unified marketplace-mappings. `save` (query + body) and `unmap` (query)

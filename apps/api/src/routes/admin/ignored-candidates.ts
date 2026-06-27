@@ -1,10 +1,10 @@
 import { adminIgnoredCandidatesContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
-const os = implement(adminIgnoredCandidatesContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminIgnoredCandidatesContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Admin ignored-candidates controls. Any thrown `AppError` is mapped by the

@@ -14,15 +14,14 @@ import { listsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { requireUserId } from "../../middleware/get-user-id.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type { ListEntryUpdate, ListUpdate, NewEntryValues } from "../../repositories/lists.js";
 import { assertDeleted, assertFound } from "../../utils/assertions.js";
 import { toList, toListEntry, toListEntryDetail } from "../../utils/mappers.js";
 import { generateShareToken } from "../../utils/share-token.js";
 
-const os = implement(listsContract).$context<ApiContext>().use(requireUser);
+const os = implement(listsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * The authenticated unified-lists contract (ADR-017), mounted at
@@ -33,14 +32,14 @@ export const listsRouter = {
   // ── LIST ────────────────────────────────────────────────────────────────────
   list: os.list.handler(async ({ input, context }): Promise<ListListResponse> => {
     const { lists } = context.repos;
-    const rows = await lists.listForUser(requireUserId(context.user), input.intent);
+    const rows = await lists.listForUser(context.userId, input.intent);
     return { items: rows.map((row) => toList(row)) };
   }),
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
   create: os.create.handler(async ({ input, context }): Promise<ListResponse> => {
     const { lists } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     // ADR-017: trade defaults only apply to wish/trade lists. The DB CHECK
     // constraint rejects non-null prefs on organize lists; we strip here so
     // the API never round-trips a 500.
@@ -64,7 +63,7 @@ export const listsRouter = {
   // ── GET ONE (with enriched entries) ─────────────────────────────────────────
   get: os.get.handler(async ({ input, context }): Promise<ListDetailResponse> => {
     const { lists } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const list = await lists.getByIdForUser(input.id, userId);
     assertFound(list, "Not found");
@@ -80,7 +79,7 @@ export const listsRouter = {
   // ── UPDATE (name + trade prefs; intent/kind immutable post-creation) ───────
   update: os.update.handler(async ({ input, context }): Promise<ListResponse> => {
     const { lists } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     // ADR-017: trade defaults/currency only apply to wish/trade lists — the DB
     // CHECK rejects non-null prefs on organize lists. Look up the list's intent
@@ -116,14 +115,14 @@ export const listsRouter = {
   // ── DELETE ──────────────────────────────────────────────────────────────────
   remove: os.remove.handler(async ({ input, context }): Promise<void> => {
     const { lists } = context.repos;
-    const result = await lists.deleteByIdForUser(input.id, requireUserId(context.user));
+    const result = await lists.deleteByIdForUser(input.id, context.userId);
     assertDeleted(result, "Not found");
   }),
 
   // ── POST /lists/:id/entries ───────────────────────────────────────────────
   createEntry: os.createEntry.handler(async ({ input, context }): Promise<ListEntryResponse> => {
     const { lists, copies } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     const listId = input.id;
 
     const list = await lists.getIdKindIntent(listId, userId);
@@ -166,7 +165,7 @@ export const listsRouter = {
   bulkCreateEntries: os.bulkCreateEntries.handler(
     async ({ input, context }): Promise<ListBulkAddResponse> => {
       const { lists, copies } = context.repos;
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
       const listId = input.id;
       const { entries } = input;
 
@@ -246,7 +245,7 @@ export const listsRouter = {
   bulkAddFromCopies: os.bulkAddFromCopies.handler(
     async ({ input, context }): Promise<ListBulkAddResponse> => {
       const { lists } = context.repos;
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
       const listId = input.id;
 
       const list = await lists.getIdKindIntent(listId, userId);
@@ -274,7 +273,7 @@ export const listsRouter = {
     const { moveListEntries } = context.services;
     const repos = context.repos;
     const transact = context.transact;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     return await moveListEntries(repos, transact, userId, input.id, input.toListId, input.entryIds);
   }),
@@ -282,7 +281,7 @@ export const listsRouter = {
   // ── PATCH /lists/:id/entries/:itemId ──────────────────────────────────────
   updateEntry: os.updateEntry.handler(async ({ input, context }): Promise<ListEntryResponse> => {
     const { lists } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     // Build the updates manually so we can mix two field categories
     // (scalar `quantity` and the nested `tradeOverride` triple) without the
     // generic patch helper rejecting a tradeOverride-only patch as empty.
@@ -306,7 +305,7 @@ export const listsRouter = {
   // ── DELETE /lists/:id/entries/:itemId ─────────────────────────────────────
   removeEntry: os.removeEntry.handler(async ({ input, context }): Promise<void> => {
     const { lists } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const result = await lists.deleteEntry(input.itemId, input.id, userId);
     assertDeleted(result, "Not found");
@@ -318,7 +317,7 @@ export const listsRouter = {
   // reserved for lists the caller doesn't own.
   getShare: os.getShare.handler(async ({ input, context }): Promise<ListShareResponse> => {
     const { lists } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const state = await lists.getShareState(input.id, userId);
     assertFound(state, "Not found");
@@ -332,7 +331,7 @@ export const listsRouter = {
   // rather than erroring. We still 404 a missing list so a stale URL is loud.
   bulkDeleteEntries: os.bulkDeleteEntries.handler(async ({ input, context }): Promise<void> => {
     const { lists } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     const listId = input.id;
 
     const list = await lists.getIdKindIntent(listId, userId);
@@ -347,7 +346,7 @@ export const listsRouter = {
   // is_public=true. Token rotation lives in the dedicated /share/rotate route.
   share: os.share.handler(async ({ input, context }): Promise<ListShareResponse> => {
     const { lists } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const current = await lists.getShareState(input.id, userId);
     assertFound(current, "Not found");
@@ -369,7 +368,7 @@ export const listsRouter = {
   // before sharing just ends up shared, matching the bundle-share precedent.
   rotateShare: os.rotateShare.handler(async ({ input, context }): Promise<ListShareResponse> => {
     const { lists } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const token = generateShareToken();
     const updated = await lists.setShareToken(input.id, userId, token, true);
@@ -382,7 +381,7 @@ export const listsRouter = {
   // Nulls the share token and sets is_public=false. Old links 404 forever.
   unshare: os.unshare.handler(async ({ input, context }): Promise<void> => {
     const { lists } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const updated = await lists.setShareToken(input.id, userId, null, false);
     assertFound(updated, "Not found");
@@ -394,7 +393,7 @@ export const listsRouter = {
   // current bucket's view.
   reorder: os.reorder.handler(async ({ input, context }): Promise<void> => {
     const { lists } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     await lists.reorder(userId, input.intent, input.orderedIds);
   }),
 
@@ -404,7 +403,7 @@ export const listsRouter = {
   groupShares: os.groupShares.handler(
     async ({ input, context }): Promise<ListGroupSharesResponse> => {
       const { lists, friendGroups } = context.repos;
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
 
       const list = await lists.getByIdForUser(input.id, userId);
       assertFound(list, "List not found");

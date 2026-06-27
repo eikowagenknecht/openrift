@@ -13,8 +13,7 @@ import { implement } from "@orpc/server";
 
 import type { Repos } from "../../deps.js";
 import { AppError } from "../../errors.js";
-import { requireUserId } from "../../middleware/get-user-id.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type {
   DeckCheckEntry,
@@ -248,7 +247,7 @@ async function persistSubmission(
   return createSelfSubmittedEntry(repos, event, account, lines, cardRows, consent);
 }
 
-const os = implement(deckCheckPlayerContract).$context<ApiContext>().use(requireUser);
+const os = implement(deckCheckPlayerContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Player-facing deck-check contract (ADR-026/027), mounted at
@@ -258,7 +257,7 @@ const os = implement(deckCheckPlayerContract).$context<ApiContext>().use(require
 export const deckCheckPlayerRouter = {
   listMine: os.listMine.handler(async ({ context }): Promise<PlayerDeckCheckEntriesResponse> => {
     const repos = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     await lazyMatchEntriesForUser(repos, userId);
     const rows = await repos.deckCheck.listEntriesForPlayer(userId);
     return { items: rows.map((row) => toPlayerSummary(row)) };
@@ -267,7 +266,7 @@ export const deckCheckPlayerRouter = {
   getMine: os.getMine.handler(
     async ({ input, context }): Promise<PlayerDeckCheckEntryDetailResponse> => {
       const repos = context.repos;
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
       const { row, event } = await loadOwnEntry(repos, userId, input.entryId);
       return buildPlayerDetail(repos, row, event);
     },
@@ -276,7 +275,7 @@ export const deckCheckPlayerRouter = {
   editList: os.editList.handler(
     async ({ input, context }): Promise<DeckCheckSubmissionResultResponse> => {
       const repos = context.repos;
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
 
       const { row, event } = await loadOwnEntry(repos, userId, input.entryId);
       if (!submissionWindowOpen(event)) {
@@ -322,7 +321,7 @@ export const deckCheckPlayerRouter = {
   submit: os.submit.handler(
     async ({ input, context }): Promise<PlayerDeckCheckEntryDetailResponse> => {
       const repos = context.repos;
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
       const { row, event } = await loadOwnEntry(repos, userId, input.entryId);
       if (!submissionWindowOpen(event)) {
         throw new AppError(409, ERROR_CODES.CONFLICT, "Submissions closed; contact a judge");
@@ -338,7 +337,7 @@ export const deckCheckPlayerRouter = {
   unlock: os.unlock.handler(
     async ({ input, context }): Promise<PlayerDeckCheckEntryDetailResponse> => {
       const repos = context.repos;
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
       const { row, event } = await loadOwnEntry(repos, userId, input.entryId);
       if (!submissionWindowOpen(event)) {
         throw new AppError(409, ERROR_CODES.CONFLICT, "Submissions closed; contact a judge");
@@ -372,7 +371,7 @@ export const deckCheckPlayerRouter = {
   cancelUnlock: os.cancelUnlock.handler(
     async ({ input, context }): Promise<PlayerDeckCheckEntryDetailResponse> => {
       const repos = context.repos;
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
       const { row, event } = await loadOwnEntry(repos, userId, input.entryId);
       const cleared = row.unlockRequestedAt
         ? await repos.deckCheck.updateEntry(row.id, { unlockRequestedAt: null })
@@ -384,7 +383,7 @@ export const deckCheckPlayerRouter = {
   submissionPage: os.submissionPage.handler(
     async ({ input, context }): Promise<DeckCheckSubmissionPageResponse> => {
       const repos = context.repos;
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
       const event = await loadOpenSubmissionEvent(repos, input.token);
       await lazyMatchEntriesForUser(repos, userId);
       const linked = await repos.deckCheck.getLinkedEntryForUser(event.id, userId);
@@ -425,7 +424,7 @@ export const deckCheckPlayerRouter = {
   submitToToken: os.submitToToken.handler(
     async ({ input, context }): Promise<DeckCheckSubmissionResultResponse> => {
       const repos = context.repos;
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
       const event = await loadOpenSubmissionEvent(repos, input.token);
       await lazyMatchEntriesForUser(repos, userId);
 
@@ -460,7 +459,7 @@ export const deckCheckPlayerRouter = {
   ),
 
   claim: os.claim.handler(async ({ input, context }): Promise<DeckCheckClaimResultResponse> => {
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     const result = await context.transact((txRepos) =>
       claimDeckCheckEntryByToken(txRepos, input.token, userId),
     );

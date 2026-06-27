@@ -7,7 +7,7 @@ import { implement } from "@orpc/server";
 import { v7 as uuidv7 } from "uuid";
 
 import { AppError } from "../../../errors.js";
-import { requireUser } from "../../../orpc/base.js";
+import { requireAuthedUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
 import {
   CARD_MEDIA_DIR,
@@ -20,7 +20,7 @@ import {
 } from "../../../services/image-rehost.js";
 import { assertFound } from "../../../utils/assertions.js";
 
-const os = implement(adminCardImagesContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminCardImagesContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Admin card-image tooling. Not-found / bad-request / payload-too-large states

@@ -2,10 +2,10 @@ import type { JobRunsListResponse, JobRunView } from "@openrift/shared";
 import { adminJobRunsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
-const os = implement(adminJobRunsContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminJobRunsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Admin job-runs table. Any thrown `AppError` is mapped by the handler's

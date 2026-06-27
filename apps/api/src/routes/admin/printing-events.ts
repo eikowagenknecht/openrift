@@ -3,7 +3,7 @@ import { createLogger } from "@openrift/shared/logger";
 import type { DiffValue } from "@openrift/shared/response-schemas";
 import { implement } from "@orpc/server";
 
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { flushPendingPrintingEvents } from "../../services/flush-printing-events.js";
 import { runJobAsync } from "../../services/run-job.js";
@@ -12,7 +12,7 @@ const log = createLogger("admin");
 
 const FLUSH_KIND = "discord.flush_printing_events";
 
-const os = implement(adminPrintingEventsContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminPrintingEventsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Admin printing-events Discord queue. Any thrown `AppError` is mapped by the

@@ -2,8 +2,7 @@ import type { UserPreferencesResponse } from "@openrift/shared";
 import { preferencesContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
-import { requireUserId } from "../../middleware/get-user-id.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type { PartialPreferences } from "../../repositories/user-preferences.js";
 
@@ -34,27 +33,24 @@ function toUserPreferences(data: UserPreferencesResponse): UserPreferencesRespon
   };
 }
 
-const os = implement(preferencesContract).$context<ApiContext>().use(requireUser);
+const os = implement(preferencesContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * oRPC implementation of the authenticated preferences contract. The
- * fail-closed `requireUser` middleware gates every procedure (this contract
- * carries no `auth: "public"` meta), so `requireUserId(context.user)` always
+ * fail-closed `requireAuthedUser` middleware gates every procedure (this contract
+ * carries no `auth: "public"` meta), so `context.userId` always
  * resolves a viewer.
  */
 export const preferencesRouter = {
   get: os.get.handler(async ({ context }): Promise<UserPreferencesResponse> => {
     const { userPreferences } = context.repos;
-    const row = await userPreferences.getByUserId(requireUserId(context.user));
+    const row = await userPreferences.getByUserId(context.userId);
     return toUserPreferences(row?.data ?? {});
   }),
 
   update: os.update.handler(async ({ input, context }): Promise<UserPreferencesResponse> => {
     const { userPreferences } = context.repos;
-    const result = await userPreferences.upsert(
-      requireUserId(context.user),
-      input as PartialPreferences,
-    );
+    const result = await userPreferences.upsert(context.userId, input as PartialPreferences);
     return toUserPreferences(result);
   }),
 };

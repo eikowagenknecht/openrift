@@ -3,10 +3,10 @@ import { adminArtVariantsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
-const os = implement(adminArtVariantsContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminArtVariantsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Admin art-variants taxonomy CRUD. Conflict / not-found / bad-request states

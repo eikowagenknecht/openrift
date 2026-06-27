@@ -4,11 +4,11 @@ import { adminFeatureFlagsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { assertDeleted, assertFound } from "../../utils/assertions.js";
 
-const os = implement(adminFeatureFlagsContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminFeatureFlagsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Admin feature-flags tooling: global flag CRUD plus per-user overrides. The

@@ -18,7 +18,7 @@ const mockRepo = {
 
 // ---------------------------------------------------------------------------
 // Test app — mounts the router the way production does (catch-all). A pre-set
-// `user` satisfies the fail-closed `requireUser` gate (resolveSession is
+// `user` satisfies the `requireAuthedUser` gate (resolveSession is
 // idempotent). The local onError is a belt-and-suspenders for the unexercised
 // 401 path; AppErrors are mapped to the envelope by the handler's interceptor.
 // ---------------------------------------------------------------------------

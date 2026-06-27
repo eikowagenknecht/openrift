@@ -3,10 +3,10 @@ import { adminRaritiesContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
-const os = implement(adminRaritiesContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminRaritiesContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Admin rarity taxonomy CRUD. Conflict / not-found / bad-request states are

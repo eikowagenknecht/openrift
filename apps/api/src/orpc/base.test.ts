@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import type { Variables } from "../types.js";
-import { requireUser } from "./base";
+import { requireAuthedUser, requireUser } from "./base";
 import type { ApiContext } from "./context";
 import { buildApiContext } from "./context";
 
@@ -17,12 +17,16 @@ const contract = {
     .meta({ auth: "public" })
     .output(z.object({ ok: z.boolean() })),
   priv: oc.route({ method: "GET", path: "/_t/priv" }).output(z.object({ hasUser: z.boolean() })),
+  authed: oc.route({ method: "GET", path: "/_t/authed" }).output(z.object({ userId: z.string() })),
 };
 
 const os = implement(contract).$context<ApiContext>().use(requireUser);
+const authedOs = implement(contract).$context<ApiContext>().use(requireAuthedUser);
 const router = {
   pub: os.pub.handler(() => ({ ok: true })),
   priv: os.priv.handler(({ context }) => ({ hasUser: context.user !== null })),
+  // requireAuthedUser narrows context.user to non-null and injects context.userId.
+  authed: authedOs.authed.handler(({ context }) => ({ userId: context.userId })),
 };
 const handler = new OpenAPIHandler(router);
 
@@ -61,5 +65,18 @@ describe("apiImplement fail-closed auth middleware", () => {
     const res = await app.request("/_t/priv");
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ hasUser: true });
+  });
+
+  it("requireAuthedUser: 401 for anonymous", async () => {
+    currentUser = null;
+    const res = await app.request("/_t/authed");
+    expect(res.status).toBe(401);
+  });
+
+  it("requireAuthedUser: injects userId when a user is present", async () => {
+    currentUser = { id: "u1" };
+    const res = await app.request("/_t/authed");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ userId: "u1" });
   });
 });

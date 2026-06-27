@@ -1,10 +1,10 @@
 import { adminUsersContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
-const os = implement(adminUsersContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminUsersContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Admin users list. `createdAt` / `lastActiveAt` are mapped from `Date` to ISO

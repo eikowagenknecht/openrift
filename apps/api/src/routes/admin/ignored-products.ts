@@ -2,10 +2,10 @@ import type { IgnoredProductResponse } from "@openrift/shared";
 import { adminIgnoredProductsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
-const os = implement(adminIgnoredProductsContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminIgnoredProductsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Admin ignored-products controls. Any thrown `AppError` is mapped by the

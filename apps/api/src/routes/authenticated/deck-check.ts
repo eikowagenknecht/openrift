@@ -20,8 +20,7 @@ import { implement } from "@orpc/server";
 import type { Repos } from "../../deps.js";
 import { AppError } from "../../errors.js";
 import { loadGroupForMember, requireRole } from "../../lib/group-access.js";
-import { requireUserId } from "../../middleware/get-user-id.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { cardResolutionKey } from "../../repositories/deck-check.js";
 import type {
@@ -228,7 +227,7 @@ function requireListVisible(entry: DeckCheckEntry): void {
   }
 }
 
-const os = implement(deckCheckContract).$context<ApiContext>().use(requireUser);
+const os = implement(deckCheckContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * The judge-facing deck-check contract (ADR-026/027), mounted under
@@ -241,7 +240,7 @@ export const deckCheckRouter = {
   listEvents: os.listEvents.handler(
     async ({ input, context }): Promise<DeckCheckEventListResponse> => {
       const repos = context.repos;
-      const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+      const ctx = await loadGroupForMember(repos, input.slug, context.userId);
       requireRole(ctx.membership, "judge");
       const events = await repos.deckCheck.listEventsForGroup(ctx.group.id);
       return { items: events.map((event) => toEventSummary(event)) };
@@ -251,7 +250,7 @@ export const deckCheckRouter = {
   createEvent: os.createEvent.handler(
     async ({ input, context }): Promise<DeckCheckEventSummaryResponse> => {
       const repos = context.repos;
-      const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+      const ctx = await loadGroupForMember(repos, input.slug, context.userId);
       requireRole(ctx.membership, "admin");
       const event = await repos.deckCheck.createEvent({
         groupId: ctx.group.id,
@@ -267,7 +266,7 @@ export const deckCheckRouter = {
   getEventDetail: os.getEventDetail.handler(
     async ({ input, context }): Promise<DeckCheckEventDetailResponse> => {
       const repos = context.repos;
-      const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+      const ctx = await loadGroupForMember(repos, input.slug, context.userId);
       requireRole(ctx.membership, "judge");
       const event = await loadEvent(repos, ctx.group.id, input.eventId);
       let entries = await repos.deckCheck.listEntriesForEvent(event.id);
@@ -292,7 +291,7 @@ export const deckCheckRouter = {
   updateEvent: os.updateEvent.handler(
     async ({ input, context }): Promise<DeckCheckEventSummaryResponse> => {
       const repos = context.repos;
-      const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+      const ctx = await loadGroupForMember(repos, input.slug, context.userId);
       requireRole(ctx.membership, "admin");
       // Only run the base update when a base field is present: a submission-only
       // patch (e.g. flipping the toggle) would otherwise produce an empty SET.
@@ -337,7 +336,7 @@ export const deckCheckRouter = {
 
   deleteEvent: os.deleteEvent.handler(async ({ input, context }): Promise<void> => {
     const repos = context.repos;
-    const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+    const ctx = await loadGroupForMember(repos, input.slug, context.userId);
     requireRole(ctx.membership, "admin");
     const deleted = await repos.deckCheck.deleteEvent(ctx.group.id, input.eventId);
     if (!deleted) {
@@ -348,7 +347,7 @@ export const deckCheckRouter = {
   reResolveEvent: os.reResolveEvent.handler(
     async ({ input, context }): Promise<{ updatedLines: number }> => {
       const repos = context.repos;
-      const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+      const ctx = await loadGroupForMember(repos, input.slug, context.userId);
       requireRole(ctx.membership, "judge");
       const event = await loadEvent(repos, ctx.group.id, input.eventId);
 
@@ -373,7 +372,7 @@ export const deckCheckRouter = {
   createManualEntry: os.createManualEntry.handler(
     async ({ input, context }): Promise<DeckCheckEntryDetailResponse> => {
       const repos = context.repos;
-      const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+      const ctx = await loadGroupForMember(repos, input.slug, context.userId);
       requireRole(ctx.membership, "judge");
       const event = await loadEvent(repos, ctx.group.id, input.eventId);
       if (event.status === "archived") {
@@ -396,7 +395,7 @@ export const deckCheckRouter = {
   getEntryDetail: os.getEntryDetail.handler(
     async ({ input, context }): Promise<DeckCheckEntryDetailResponse> => {
       const repos = context.repos;
-      const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+      const ctx = await loadGroupForMember(repos, input.slug, context.userId);
       requireRole(ctx.membership, "judge");
       const event = await loadEvent(repos, ctx.group.id, input.eventId);
       const entry = await loadEntry(repos, event, input.entryId);
@@ -407,13 +406,13 @@ export const deckCheckRouter = {
   setEntryState: os.setEntryState.handler(
     async ({ input, context }): Promise<DeckCheckEntryDetailResponse> => {
       const repos = context.repos;
-      const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+      const ctx = await loadGroupForMember(repos, input.slug, context.userId);
       requireRole(ctx.membership, "judge");
       const event = await loadEvent(repos, ctx.group.id, input.eventId);
       const entry = await loadEntry(repos, event, input.entryId);
 
       const updated = await context.transact((txRepos) =>
-        applyJudgeTransition(txRepos, requireUserId(context.user), entry, {
+        applyJudgeTransition(txRepos, context.userId, entry, {
           state: input.state,
           reviewOutcome: input.reviewOutcome,
           notes: input.notes,
@@ -427,7 +426,7 @@ export const deckCheckRouter = {
   denyUnlockRequest: os.denyUnlockRequest.handler(
     async ({ input, context }): Promise<DeckCheckEntryDetailResponse> => {
       const repos = context.repos;
-      const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+      const ctx = await loadGroupForMember(repos, input.slug, context.userId);
       requireRole(ctx.membership, "judge");
       const event = await loadEvent(repos, ctx.group.id, input.eventId);
       const entry = await loadEntry(repos, event, input.entryId);
@@ -442,7 +441,7 @@ export const deckCheckRouter = {
   updateEntry: os.updateEntry.handler(
     async ({ input, context }): Promise<DeckCheckEntryDetailResponse> => {
       const repos = context.repos;
-      const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+      const ctx = await loadGroupForMember(repos, input.slug, context.userId);
       requireRole(ctx.membership, "judge");
       const event = await loadEvent(repos, ctx.group.id, input.eventId);
       await loadEntry(repos, event, input.entryId);
@@ -471,7 +470,7 @@ export const deckCheckRouter = {
 
   deleteEntry: os.deleteEntry.handler(async ({ input, context }): Promise<void> => {
     const repos = context.repos;
-    const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+    const ctx = await loadGroupForMember(repos, input.slug, context.userId);
     requireRole(ctx.membership, "admin");
     const event = await loadEvent(repos, ctx.group.id, input.eventId);
 
@@ -483,7 +482,7 @@ export const deckCheckRouter = {
 
   addCard: os.addCard.handler(async ({ input, context }): Promise<DeckCheckEntryDetailResponse> => {
     const repos = context.repos;
-    const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+    const ctx = await loadGroupForMember(repos, input.slug, context.userId);
     requireRole(ctx.membership, "judge");
     const event = await loadEvent(repos, ctx.group.id, input.eventId);
     const entry = await loadEntry(repos, event, input.entryId);
@@ -520,7 +519,7 @@ export const deckCheckRouter = {
   renameCard: os.renameCard.handler(
     async ({ input, context }): Promise<DeckCheckEntryDetailResponse> => {
       const repos = context.repos;
-      const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+      const ctx = await loadGroupForMember(repos, input.slug, context.userId);
       requireRole(ctx.membership, "judge");
       const event = await loadEvent(repos, ctx.group.id, input.eventId);
       const entry = await loadEntry(repos, event, input.entryId);
@@ -564,7 +563,7 @@ export const deckCheckRouter = {
   applyZoneFixes: os.applyZoneFixes.handler(
     async ({ input, context }): Promise<DeckCheckEntryDetailResponse> => {
       const repos = context.repos;
-      const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+      const ctx = await loadGroupForMember(repos, input.slug, context.userId);
       requireRole(ctx.membership, "judge");
       const event = await loadEvent(repos, ctx.group.id, input.eventId);
       const entry = await loadEntry(repos, event, input.entryId);
@@ -610,7 +609,7 @@ export const deckCheckRouter = {
 
   removeCardCopy: os.removeCardCopy.handler(async ({ input, context }): Promise<void> => {
     const repos = context.repos;
-    const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+    const ctx = await loadGroupForMember(repos, input.slug, context.userId);
     requireRole(ctx.membership, "judge");
     const event = await loadEvent(repos, ctx.group.id, input.eventId);
     requireListVisible(await loadEntry(repos, event, input.entryId));
@@ -628,7 +627,7 @@ export const deckCheckRouter = {
 
   tickCard: os.tickCard.handler(async ({ input, context }): Promise<void> => {
     const repos = context.repos;
-    const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+    const ctx = await loadGroupForMember(repos, input.slug, context.userId);
     requireRole(ctx.membership, "judge");
     const event = await loadEvent(repos, ctx.group.id, input.eventId);
     requireListVisible(await loadEntry(repos, event, input.entryId));
@@ -650,7 +649,7 @@ export const deckCheckRouter = {
   linkEntry: os.linkEntry.handler(
     async ({ input, context }): Promise<DeckCheckEntryDetailResponse> => {
       const repos = context.repos;
-      const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+      const ctx = await loadGroupForMember(repos, input.slug, context.userId);
       requireRole(ctx.membership, "judge");
       const event = await loadEvent(repos, ctx.group.id, input.eventId);
       await loadEntry(repos, event, input.entryId);
@@ -670,7 +669,7 @@ export const deckCheckRouter = {
   unlinkEntry: os.unlinkEntry.handler(
     async ({ input, context }): Promise<DeckCheckEntryDetailResponse> => {
       const repos = context.repos;
-      const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+      const ctx = await loadGroupForMember(repos, input.slug, context.userId);
       requireRole(ctx.membership, "judge");
       const event = await loadEvent(repos, ctx.group.id, input.eventId);
       await loadEntry(repos, event, input.entryId);
@@ -686,7 +685,7 @@ export const deckCheckRouter = {
   searchAccounts: os.searchAccounts.handler(
     async ({ input, context }): Promise<DeckCheckAccountSearchResponse> => {
       const repos = context.repos;
-      const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+      const ctx = await loadGroupForMember(repos, input.slug, context.userId);
       requireRole(ctx.membership, "judge");
       const items = await repos.deckCheck.listAccountsForLinkSearch(input.q);
       return { items };
@@ -696,7 +695,7 @@ export const deckCheckRouter = {
   regenerateSubmissionToken: os.regenerateSubmissionToken.handler(
     async ({ input, context }): Promise<DeckCheckEventSummaryResponse> => {
       const repos = context.repos;
-      const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+      const ctx = await loadGroupForMember(repos, input.slug, context.userId);
       requireRole(ctx.membership, "admin");
       const event = await loadEvent(repos, ctx.group.id, input.eventId);
       if (!event.allowSelfSubmission) {
@@ -715,7 +714,7 @@ export const deckCheckRouter = {
   // ── PUSH KEYS ───────────────────────────────────────────────────────────
   listKeys: os.listKeys.handler(async ({ input, context }): Promise<DeckCheckKeysResponse> => {
     const repos = context.repos;
-    const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+    const ctx = await loadGroupForMember(repos, input.slug, context.userId);
     requireRole(ctx.membership, "admin");
     const keys = await repos.deckCheck.listKeysForGroup(ctx.group.id);
     return { items: keys.map((key) => toKey(key)) };
@@ -723,7 +722,7 @@ export const deckCheckRouter = {
 
   mintKey: os.mintKey.handler(async ({ input, context }): Promise<DeckCheckKeyMintedResponse> => {
     const repos = context.repos;
-    const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+    const ctx = await loadGroupForMember(repos, input.slug, context.userId);
     requireRole(ctx.membership, "admin");
 
     const token = `orpk_${randomBytes(24).toString("base64url")}`;
@@ -732,14 +731,14 @@ export const deckCheckRouter = {
       tokenHash: createHash("sha256").update(token).digest("hex"),
       tokenPrefix: token.slice(0, 10),
       label: input.label,
-      createdBy: requireUserId(context.user),
+      createdBy: context.userId,
     });
     return { key: toKey(key), token };
   }),
 
   renameKey: os.renameKey.handler(async ({ input, context }): Promise<DeckCheckKeyResponse> => {
     const repos = context.repos;
-    const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+    const ctx = await loadGroupForMember(repos, input.slug, context.userId);
     requireRole(ctx.membership, "admin");
     const key = await repos.deckCheck.updateKeyLabel(ctx.group.id, input.keyId, input.label);
     if (!key) {
@@ -750,7 +749,7 @@ export const deckCheckRouter = {
 
   revokeKey: os.revokeKey.handler(async ({ input, context }): Promise<void> => {
     const repos = context.repos;
-    const ctx = await loadGroupForMember(repos, input.slug, requireUserId(context.user));
+    const ctx = await loadGroupForMember(repos, input.slug, context.userId);
     requireRole(ctx.membership, "admin");
     const revoked = await repos.deckCheck.revokeKey(ctx.group.id, input.keyId);
     if (!revoked) {

@@ -21,8 +21,7 @@ import type { z } from "zod";
 
 import type { Repos } from "../../deps.js";
 import { AppError } from "../../errors.js";
-import { requireUserId } from "../../middleware/get-user-id.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
@@ -187,7 +186,7 @@ const patchFields: FieldMapping<DeckUpdateInput> = {
   isWanted: "isWanted",
 };
 
-const os = implement(decksContract).$context<ApiContext>().use(requireUser);
+const os = implement(decksContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * The authenticated decks contract, mounted at `/api/v1/decks`. Bad-request and
@@ -198,7 +197,7 @@ export const decksRouter = {
   // ── LIST ────────────────────────────────────────────────────────────────────
   list: os.list.handler(async ({ input, context }): Promise<DeckListResponse> => {
     const { decks, marketplace, userPreferences, enums } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const [deckRows, allCards, prefs, enumRows] = await Promise.all([
       decks.listForUser(userId, {
@@ -313,7 +312,7 @@ export const decksRouter = {
   // ── CREATE ──────────────────────────────────────────────────────────────────
   create: os.create.handler(async ({ input, context }) => {
     const { decks, deckFormats, customTags } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     await assertKnownFormat(deckFormats, input.format);
     const formatConfig = await validateFormatConfig(customTags, input.format, input.formatConfig);
     const row = await decks.create({
@@ -331,7 +330,7 @@ export const decksRouter = {
   // ── GET ONE ────────────────────────────────────────────────────────────────
   get: os.get.handler(async ({ input, context }): Promise<DeckDetailResponse> => {
     const { decks } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const [deck, cardRows] = await Promise.all([
       decks.getByIdForUser(input.id, userId),
@@ -348,7 +347,7 @@ export const decksRouter = {
   // ── UPDATE ──────────────────────────────────────────────────────────────────
   update: os.update.handler(async ({ input, context }) => {
     const { decks, deckFormats, customTags } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     if (input.format !== undefined) {
       await assertKnownFormat(deckFormats, input.format);
     }
@@ -387,7 +386,7 @@ export const decksRouter = {
   // ── DELETE ──────────────────────────────────────────────────────────────────
   remove: os.remove.handler(async ({ input, context }): Promise<void> => {
     const { decks } = context.repos;
-    const result = await decks.deleteByIdForUser(input.id, requireUserId(context.user));
+    const result = await decks.deleteByIdForUser(input.id, context.userId);
     assertDeleted(result, "Not found");
   }),
 
@@ -395,7 +394,7 @@ export const decksRouter = {
   // Full replace of deck cards
   replaceCards: os.replaceCards.handler(async ({ input, context }) => {
     const { decks } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     // Verify deck belongs to user
     const deck = await decks.getIdAndFormat(input.id, userId);
@@ -420,7 +419,7 @@ export const decksRouter = {
   // empty and matchups [] when the deck has no plan yet.
   getPlan: os.getPlan.handler(async ({ input, context }) => {
     const { decks, deckPlans } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const deck = await decks.getIdAndFormat(input.id, userId);
     assertFound(deck, "Not found");
@@ -433,7 +432,7 @@ export const decksRouter = {
   // Full replace of the deck's plan, saved as a unit by the editor.
   replacePlan: os.replacePlan.handler(async ({ input, context }) => {
     const { decks, deckPlans, catalog } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const deck = await decks.getIdAndFormat(input.id, userId);
     assertFound(deck, "Not found");
@@ -470,7 +469,7 @@ export const decksRouter = {
   // ── POST /decks/:id/clone ─────────────────────────────────────────────────
   clone: os.clone.handler(async ({ input, context }) => {
     const { decks } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const newDeck = await decks.cloneDeck(input.id, userId);
     assertFound(newDeck, "Not found");
@@ -482,7 +481,7 @@ export const decksRouter = {
   availability: os.availability.handler(
     async ({ input, context }): Promise<DeckAvailabilityResponse> => {
       const { decks } = context.repos;
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
 
       const deck = await decks.exists(input.id, userId);
       assertFound(deck, "Not found");
@@ -515,7 +514,7 @@ export const decksRouter = {
   // Encode a deck as a shareable deck code
   export: os.export.handler(async ({ input, context }): Promise<DeckExportResponse> => {
     const { decks, canonicalPrintings } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const [deck, cardRows] = await Promise.all([
       decks.getByIdForUser(input.id, userId),
@@ -566,7 +565,7 @@ export const decksRouter = {
   // ── PATCH /decks/:id/pin ──────────────────────────────────────────────────
   setPinned: os.setPinned.handler(async ({ input, context }) => {
     const { decks } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const updated = await decks.setPinned(input.id, userId, input.isPinned);
     assertFound(updated, "Not found");
@@ -576,7 +575,7 @@ export const decksRouter = {
   // ── PATCH /decks/:id/archive ──────────────────────────────────────────────
   setArchived: os.setArchived.handler(async ({ input, context }) => {
     const { decks } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const updated = await decks.setArchived(input.id, userId, input.archived);
     assertFound(updated, "Not found");
@@ -589,7 +588,7 @@ export const decksRouter = {
   // only a missing or foreign deck 404s.
   getShare: os.getShare.handler(async ({ input, context }): Promise<DeckShareResponse> => {
     const { decks } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const state = await decks.getShareState(input.id, userId);
     assertFound(state, "Not found");
@@ -603,7 +602,7 @@ export const decksRouter = {
   // Rotation lives at POST /decks/:id/share/rotate to avoid surprise churn.
   share: os.share.handler(async ({ input, context }): Promise<DeckShareResponse> => {
     const { decks } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const existing = await decks.getShareState(input.id, userId);
     assertFound(existing, "Not found");
@@ -626,7 +625,7 @@ export const decksRouter = {
   // cleanly and it matches the user-share rotate precedent.
   rotateShare: os.rotateShare.handler(async ({ input, context }): Promise<DeckShareResponse> => {
     const { decks } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const token = generateShareToken();
     const updated = await decks.setShareToken(input.id, userId, token, true);
@@ -639,7 +638,7 @@ export const decksRouter = {
   // Nulls the share token and flips is_public=false. Old links 404 forever.
   unshare: os.unshare.handler(async ({ input, context }): Promise<void> => {
     const { decks } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const updated = await decks.setShareToken(input.id, userId, null, false);
     assertFound(updated, "Not found");
@@ -649,7 +648,7 @@ export const decksRouter = {
   // Any logged-in user can clone a publicly shared deck into their account.
   cloneShared: os.cloneShared.handler(async ({ input, context }) => {
     const { decks } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const newDeck = await decks.cloneFromShareToken(input.token, userId);
     assertFound(newDeck, "Not found");

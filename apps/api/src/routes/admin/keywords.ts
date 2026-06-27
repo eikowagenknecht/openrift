@@ -1,11 +1,11 @@
 import { adminKeywordsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { discoverKeywordTranslations } from "../../services/keyword-translation-discovery.js";
 
-const os = implement(adminKeywordsContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminKeywordsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Admin keyword tooling: usage stats, per-keyword display styles, a recompute

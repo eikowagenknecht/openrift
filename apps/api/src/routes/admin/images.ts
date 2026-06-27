@@ -5,7 +5,7 @@ import { createLogger } from "@openrift/shared/logger";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import {
   REGENERATE_IMAGES_KIND,
@@ -24,7 +24,7 @@ import { runJobAsync } from "../../services/run-job.js";
 
 const log = createLogger("admin");
 
-const os = implement(adminImagesContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminImagesContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Admin image tooling. `rehost` / `regenerate` read their options from the

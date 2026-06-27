@@ -3,10 +3,10 @@ import { adminTypographyReviewContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
-const os = implement(adminTypographyReviewContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminTypographyReviewContract).$context<ApiContext>().use(requireAuthedUser);
 
 interface TypographyDiff {
   entity: "card" | "printing";

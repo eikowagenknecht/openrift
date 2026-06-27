@@ -2,11 +2,10 @@ import type { UserContactMethodsResponse } from "@openrift/shared";
 import { contactMethodsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
-import { requireUserId } from "../../middleware/get-user-id.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
-const os = implement(contactMethodsContract).$context<ApiContext>().use(requireUser);
+const os = implement(contactMethodsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Authenticated contact-methods contract. Every mutation returns the refreshed
@@ -16,13 +15,13 @@ const os = implement(contactMethodsContract).$context<ApiContext>().use(requireU
 export const contactMethodsRouter = {
   list: os.list.handler(async ({ context }): Promise<UserContactMethodsResponse> => {
     const { userContactMethods } = context.repos;
-    const items = await userContactMethods.listForUser(requireUserId(context.user));
+    const items = await userContactMethods.listForUser(context.userId);
     return { items };
   }),
 
   create: os.create.handler(async ({ input, context }): Promise<UserContactMethodsResponse> => {
     const { userContactMethods } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     await userContactMethods.create(userId, input.type, input.value);
     return { items: await userContactMethods.listForUser(userId) };
   }),
@@ -30,7 +29,7 @@ export const contactMethodsRouter = {
   update: os.update.handler(
     async ({ input, context, errors }): Promise<UserContactMethodsResponse> => {
       const { userContactMethods } = context.repos;
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
       const updated = await userContactMethods.update(input.id, userId, input.type, input.value);
       if (updated === undefined) {
         throw errors.NOT_FOUND({ message: "Contact method not found" });
@@ -42,7 +41,7 @@ export const contactMethodsRouter = {
   remove: os.remove.handler(
     async ({ input, context, errors }): Promise<UserContactMethodsResponse> => {
       const { userContactMethods } = context.repos;
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
       const deleted = await userContactMethods.delete(input.id, userId);
       if (!deleted) {
         throw errors.NOT_FOUND({ message: "Contact method not found" });
@@ -53,7 +52,7 @@ export const contactMethodsRouter = {
 
   reorder: os.reorder.handler(async ({ input, context }): Promise<UserContactMethodsResponse> => {
     const { userContactMethods } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     await userContactMethods.reorder(userId, input.ids);
     return { items: await userContactMethods.listForUser(userId) };
   }),

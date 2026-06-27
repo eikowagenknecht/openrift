@@ -3,10 +3,10 @@ import { adminDeckZonesContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
-const os = implement(adminDeckZonesContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminDeckZonesContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Admin deck-zones taxonomy. Deck zones are a fixed set, so only list /

@@ -2,18 +2,17 @@ import type { CollectionEventListResponse } from "@openrift/shared";
 import { collectionEventsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
-import { requireUserId } from "../../middleware/get-user-id.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { buildEventsCursor } from "../../repositories/collection-events.js";
 import { toCollectionEvent } from "../../utils/mappers.js";
 
-const os = implement(collectionEventsContract).$context<ApiContext>().use(requireUser);
+const os = implement(collectionEventsContract).$context<ApiContext>().use(requireAuthedUser);
 
 export const collectionEventsRouter = {
   list: os.list.handler(async ({ input, context }): Promise<CollectionEventListResponse> => {
     const { collectionEvents } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     const limit = input.limit ?? 100;
 
     const rows = await collectionEvents.listForUser(userId, limit, input.cursor);

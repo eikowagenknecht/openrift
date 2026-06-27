@@ -3,16 +3,15 @@ import type { TimeRange } from "@openrift/shared";
 import { collectionValueHistoryContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
-import { requireUserId } from "../../middleware/get-user-id.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
-const os = implement(collectionValueHistoryContract).$context<ApiContext>().use(requireUser);
+const os = implement(collectionValueHistoryContract).$context<ApiContext>().use(requireAuthedUser);
 
 export const collectionValueHistoryRouter = {
   get: os.get.handler(async ({ input: query, context }) => {
     const { marketplace: repos } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const days = TIME_RANGE_DAYS[query.range as TimeRange];
     const cutoff = days ? new Date(Date.now() - days * 86_400_000) : null;

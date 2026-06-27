@@ -2,7 +2,7 @@ import { adminOperationsContract } from "@openrift/shared/contracts";
 import { createLogger } from "@openrift/shared/logger";
 import { implement } from "@orpc/server";
 
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import {
   refreshCardmarketPrices,
@@ -13,7 +13,7 @@ import { runJobAsync } from "../../services/run-job.js";
 
 const log = createLogger("admin");
 
-const os = implement(adminOperationsContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminOperationsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Admin operations. The refresh actions return a run handle (202) immediately

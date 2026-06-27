@@ -3,10 +3,10 @@ import { adminCatalogContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
-const os = implement(adminCatalogContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminCatalogContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Admin set (catalog) management. Conflict / not-found / bad-request states are

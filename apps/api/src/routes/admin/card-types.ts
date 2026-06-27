@@ -3,10 +3,10 @@ import { adminCardTypesContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
-const os = implement(adminCardTypesContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminCardTypesContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Admin card type taxonomy CRUD. Conflict / not-found / bad-request states are

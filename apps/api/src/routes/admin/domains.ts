@@ -3,10 +3,10 @@ import { adminDomainsContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
-const os = implement(adminDomainsContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminDomainsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Admin domain taxonomy CRUD. Conflict / not-found / bad-request states are

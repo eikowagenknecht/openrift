@@ -1,7 +1,7 @@
 import { adminCardQueriesContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
 
-import { requireUser } from "../../../orpc/base.js";
+import { requireAuthedUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
 import {
   buildCandidateCardList,
@@ -10,7 +10,7 @@ import {
   buildUnmatchedDetail,
 } from "../../../services/candidate-queries.js";
 
-const os = implement(adminCardQueriesContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminCardQueriesContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Read-only admin card queries. `providerStats` coerces the `lastUpdated`

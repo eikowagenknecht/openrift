@@ -3,11 +3,11 @@ import { implement } from "@orpc/server";
 import type { Cron } from "croner";
 
 import { cronJobs } from "../../cron-jobs.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type { JobRun } from "../../repositories/job-runs.js";
 
-const os = implement(adminStatusContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminStatusContract).$context<ApiContext>().use(requireAuthedUser);
 
 function toLastRun(run: JobRun | undefined) {
   if (run === undefined) {

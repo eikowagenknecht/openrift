@@ -2,14 +2,14 @@ import { adminChangelogContract } from "@openrift/shared/contracts";
 import { createLogger } from "@openrift/shared/logger";
 import { implement } from "@orpc/server";
 
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { extractWatermark, postChangelogToDiscord } from "../../services/changelog-discord.js";
 import { runJob } from "../../services/run-job.js";
 
 const log = createLogger("admin");
 
-const os = implement(adminChangelogContract).$context<ApiContext>().use(requireUser);
+const os = implement(adminChangelogContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Admin changelog Discord post action. Any thrown `AppError` is mapped by the

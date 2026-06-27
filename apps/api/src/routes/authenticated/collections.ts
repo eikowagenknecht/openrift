@@ -12,8 +12,7 @@ import type { Updateable } from "kysely";
 
 import type { CollectionsTable } from "../../db/index.js";
 import { AppError } from "../../errors.js";
-import { requireUserId } from "../../middleware/get-user-id.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
@@ -29,7 +28,7 @@ const patchFields: FieldMapping<Updateable<CollectionsTable>> = {
   sortOrder: "sortOrder",
 };
 
-const os = implement(collectionsContract).$context<ApiContext>().use(requireUser);
+const os = implement(collectionsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * Authenticated collections contract (mounted at `/api/v1/collections`).
@@ -40,7 +39,7 @@ export const collectionsRouter = {
   // ── LIST ────────────────────────────────────────────────────────────────────
   list: os.list.handler(async ({ context }): Promise<CollectionListResponse> => {
     const repos = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     const favMarketplace = await getFavoriteMarketplace(repos, userId);
     const rows = await repos.collections.listAccessibleForUser(userId);
     const values = await repos.marketplace.collectionValues(
@@ -53,7 +52,7 @@ export const collectionsRouter = {
   // ── CREATE ──────────────────────────────────────────────────────────────────
   create: os.create.handler(async ({ input, context }): Promise<CollectionResponse> => {
     const { collections, collectionDeckbuildingPrefs, friendGroups } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     let groupId: string | null = null;
     let groupSlug: string | null = null;
@@ -107,7 +106,7 @@ export const collectionsRouter = {
   // ── GET ONE ─────────────────────────────────────────────────────────────────
   get: os.get.handler(async ({ input, context }): Promise<CollectionResponse> => {
     const repos = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     const access = await repos.collections.getAccessForUser(input.id, userId);
     assertFound(access, "Not found");
     const favMarketplace = await getFavoriteMarketplace(repos, userId);
@@ -118,7 +117,7 @@ export const collectionsRouter = {
   // ── UPDATE ──────────────────────────────────────────────────────────────────
   update: os.update.handler(async ({ input, context }): Promise<CollectionResponse> => {
     const { collections } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     const access = await collections.getAccessForUser(input.id, userId);
     assertFound(access, "Not found");
     if (!access.viewerCanAdmin) {
@@ -146,7 +145,7 @@ export const collectionsRouter = {
     const repos = context.repos;
     const transact = context.transact;
     const { ensureInbox, deleteCollection: deleteCollectionService } = context.services;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const access = await repos.collections.getAccessForUser(input.id, userId);
     assertFound(access, "Not found");
@@ -185,7 +184,7 @@ export const collectionsRouter = {
   // ── GET /collections/:id/copies ─────────────────────────────────────────────
   copies: os.copies.handler(async ({ input, context }): Promise<CopyListResponse> => {
     const { collections, copies } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const access = await collections.getAccessForUser(input.id, userId);
     assertFound(access, "Not found");
@@ -209,7 +208,7 @@ export const collectionsRouter = {
   // the token. Personal owners or group admins only.
   share: os.share.handler(async ({ input, context }): Promise<CollectionShareResponse> => {
     const { collections } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const access = await collections.getAccessForUser(input.id, userId);
     assertFound(access, "Not found");
@@ -236,7 +235,7 @@ export const collectionsRouter = {
   shareState: os.shareState.handler(
     async ({ input, context }): Promise<CollectionShareResponse> => {
       const { collections } = context.repos;
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
 
       const access = await collections.getAccessForUser(input.id, userId);
       assertFound(access, "Not found");
@@ -263,7 +262,7 @@ export const collectionsRouter = {
   rotateShare: os.rotateShare.handler(
     async ({ input, context }): Promise<CollectionShareResponse> => {
       const { collections } = context.repos;
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
 
       const access = await collections.getAccessForUser(input.id, userId);
       assertFound(access, "Not found");
@@ -283,7 +282,7 @@ export const collectionsRouter = {
   // Nulls the share token and flips is_public=false. Old links 404 forever.
   unshare: os.unshare.handler(async ({ input, context }): Promise<void> => {
     const { collections } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const access = await collections.getAccessForUser(input.id, userId);
     assertFound(access, "Not found");
@@ -301,7 +300,7 @@ export const collectionsRouter = {
   groupShares: os.groupShares.handler(
     async ({ input, context }): Promise<CollectionGroupSharesResponse> => {
       const { collections, friendGroups } = context.repos;
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
 
       const access = await collections.getAccessForUser(input.id, userId);
       assertFound(access, "Not found");
@@ -320,7 +319,7 @@ export const collectionsRouter = {
   // visible-order subset without filtering first.
   reorder: os.reorder.handler(async ({ input, context }): Promise<void> => {
     const { collections } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     await collections.reorderPersonal(userId, input.orderedIds);
   }),
 
@@ -330,7 +329,7 @@ export const collectionsRouter = {
   // themselves — including for shared group collections (not admin-gated).
   setDeckbuilding: os.setDeckbuilding.handler(async ({ input, context }): Promise<void> => {
     const { collections, collectionDeckbuildingPrefs } = context.repos;
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
 
     const access = await collections.getAccessForUser(input.id, userId);
     assertFound(access, "Not found");

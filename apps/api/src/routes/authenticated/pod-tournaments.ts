@@ -10,8 +10,7 @@ import { implement } from "@orpc/server";
 
 import type { Repos } from "../../deps.js";
 import { AppError } from "../../errors.js";
-import { requireUserId } from "../../middleware/get-user-id.js";
-import { requireUser } from "../../orpc/base.js";
+import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type { PodPlayer, PodTournament } from "../../repositories/pod-tournaments.js";
 import {
@@ -129,7 +128,7 @@ async function ensurePlayerInTournament(
   }
 }
 
-const os = implement(podTournamentsContract).$context<ApiContext>().use(requireUser);
+const os = implement(podTournamentsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
  * The authenticated pod-tournament contract (ADR-022), mounted at
@@ -138,7 +137,7 @@ const os = implement(podTournamentsContract).$context<ApiContext>().use(requireU
  */
 export const podTournamentsRouter = {
   list: os.list.handler(async ({ context }): Promise<PodTournamentListResponse> => {
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     const { podTournaments } = context.repos;
     const items = await podTournaments.listForOwner(userId);
     return {
@@ -152,7 +151,7 @@ export const podTournamentsRouter = {
   }),
 
   create: os.create.handler(async ({ input, context }): Promise<PodTournamentResponse> => {
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     const repos = context.repos;
     const tournament = await repos.podTournaments.create({
       ownerUserId: userId,
@@ -162,14 +161,14 @@ export const podTournamentsRouter = {
   }),
 
   get: os.get.handler(async ({ input, context }): Promise<PodTournamentDetailResponse> => {
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     const repos = context.repos;
     const tournament = await loadOwnedTournament(repos, input.id, userId);
     return buildDetail(repos, tournament);
   }),
 
   update: os.update.handler(async ({ input, context }): Promise<PodTournamentDetailResponse> => {
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     const repos = context.repos;
     const tournament = await loadOwnedTournament(repos, input.id, userId);
     await repos.podTournaments.update(tournament.id, {
@@ -182,7 +181,7 @@ export const podTournamentsRouter = {
   }),
 
   remove: os.remove.handler(async ({ input, context }): Promise<void> => {
-    const userId = requireUserId(context.user);
+    const userId = context.userId;
     const repos = context.repos;
     const tournament = await loadOwnedTournament(repos, input.id, userId);
     await repos.podTournaments.deleteById(tournament.id);
@@ -190,7 +189,7 @@ export const podTournamentsRouter = {
 
   addPlayer: os.addPlayer.handler(
     async ({ input, context }): Promise<PodTournamentDetailResponse> => {
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
       const repos = context.repos;
       const tournament = await loadOwnedTournament(repos, input.id, userId);
       await repos.podTournaments.addPlayer(tournament.id, input.displayName);
@@ -200,7 +199,7 @@ export const podTournamentsRouter = {
 
   renamePlayer: os.renamePlayer.handler(
     async ({ input, context }): Promise<PodTournamentDetailResponse> => {
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
       const repos = context.repos;
       const tournament = await loadOwnedTournament(repos, input.id, userId);
       await ensurePlayerInTournament(repos, tournament.id, input.playerId);
@@ -211,7 +210,7 @@ export const podTournamentsRouter = {
 
   dropPlayer: os.dropPlayer.handler(
     async ({ input, context }): Promise<PodTournamentDetailResponse> => {
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
       const repos = context.repos;
       const tournament = await loadOwnedTournament(repos, input.id, userId);
       await ensurePlayerInTournament(repos, tournament.id, input.playerId);
@@ -222,7 +221,7 @@ export const podTournamentsRouter = {
 
   reactivatePlayer: os.reactivatePlayer.handler(
     async ({ input, context }): Promise<PodTournamentDetailResponse> => {
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
       const repos = context.repos;
       const tournament = await loadOwnedTournament(repos, input.id, userId);
       await ensurePlayerInTournament(repos, tournament.id, input.playerId);
@@ -233,7 +232,7 @@ export const podTournamentsRouter = {
 
   removePlayer: os.removePlayer.handler(
     async ({ input, context }): Promise<PodTournamentDetailResponse> => {
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
       const repos = context.repos;
       const tournament = await loadOwnedTournament(repos, input.id, userId);
       await ensurePlayerInTournament(repos, tournament.id, input.playerId);
@@ -251,7 +250,7 @@ export const podTournamentsRouter = {
 
   generateRound: os.generateRound.handler(
     async ({ input, context }): Promise<PodTournamentDetailResponse> => {
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
       const repos = context.repos;
       const tournament = await loadOwnedTournament(repos, input.id, userId);
       await pairNextRound(repos, tournament, input.byes);
@@ -261,7 +260,7 @@ export const podTournamentsRouter = {
 
   replacePairing: os.replacePairing.handler(
     async ({ input, context }): Promise<PodTournamentDetailResponse> => {
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
       const repos = context.repos;
       const tournament = await loadOwnedTournament(repos, input.id, userId);
       await replaceRoundPairing(repos, tournament, input.roundNumber, input.pods, input.byes);
@@ -271,7 +270,7 @@ export const podTournamentsRouter = {
 
   rerollRound: os.rerollRound.handler(
     async ({ input, context }): Promise<PodTournamentDetailResponse> => {
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
       const repos = context.repos;
       const tournament = await loadOwnedTournament(repos, input.id, userId);
       await rerollRound(repos, tournament, input.roundNumber);
@@ -281,7 +280,7 @@ export const podTournamentsRouter = {
 
   finalizeRound: os.finalizeRound.handler(
     async ({ input, context }): Promise<PodTournamentDetailResponse> => {
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
       const repos = context.repos;
       const tournament = await loadOwnedTournament(repos, input.id, userId);
       await finalizeRound(repos, tournament, input.roundNumber);
@@ -291,7 +290,7 @@ export const podTournamentsRouter = {
 
   submitResult: os.submitResult.handler(
     async ({ input, context }): Promise<PodTournamentDetailResponse> => {
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
       const repos = context.repos;
       const tournament = await loadOwnedTournament(repos, input.id, userId);
       await submitPodResult(repos, tournament.id, input.podId, input.results, {
@@ -303,7 +302,7 @@ export const podTournamentsRouter = {
 
   enableReportToken: os.enableReportToken.handler(
     async ({ input, context }): Promise<PodTournamentDetailResponse> => {
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
       const repos = context.repos;
       const tournament = await loadOwnedTournament(repos, input.id, userId);
       await repos.podTournaments.setReportToken(tournament.id, generateShareToken());
@@ -313,7 +312,7 @@ export const podTournamentsRouter = {
 
   disableReportToken: os.disableReportToken.handler(
     async ({ input, context }): Promise<PodTournamentDetailResponse> => {
-      const userId = requireUserId(context.user);
+      const userId = context.userId;
       const repos = context.repos;
       const tournament = await loadOwnedTournament(repos, input.id, userId);
       await repos.podTournaments.setReportToken(tournament.id, null);

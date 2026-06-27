@@ -24,11 +24,19 @@ interface ApiMeta extends Record<string, unknown> {
 }
 
 /**
- * Global auth middleware: enforces the fail-closed rule above by reading the
- * matched procedure's meta. Public procedures pass through without resolving a
- * session (so the hot public routes issue no `getSession`); everything else
- * lazily resolves the session and 401s when absent, injecting the non-null
- * `user` into the downstream context.
+ * Meta-driven auth middleware for the **public** routers (everything under
+ * `routes/public/`). Enforces the fail-closed rule above by reading the matched
+ * procedure's meta: `public`/`bearer` procedures pass through without resolving
+ * a session (so the hot public routes issue no `getSession`); a procedure that
+ * forgets to classify falls through to the gated default and 401s when no
+ * session is present.
+ *
+ * Authenticated and admin routers do not use this — they use
+ * {@link requireAuthedUser}, which unconditionally injects a non-null `user`
+ * (and `userId`) so handlers don't re-derive it. Both middlewares fail closed:
+ * a public router that mistakenly used `requireAuthedUser` would 401 every
+ * caller (loud, harmless), and an authed router that mistakenly used
+ * `requireUser` still gates (no meta = gated).
  */
 export const requireUser = os
   .$context<ApiContext>()
@@ -45,3 +53,24 @@ export const requireUser = os
     }
     return next({ context: { user } });
   });
+
+/**
+ * Auth middleware for the **authenticated + admin** routers. Always resolves the
+ * session, 401s when absent, and injects a non-null `user` plus its `userId`
+ * into the downstream context. Because there is a single code path (no
+ * meta-driven skip), oRPC narrows `context.user` to non-null and exposes
+ * `context.userId` in every handler built on it — so handlers read
+ * `context.userId` directly instead of re-validating with a `requireUserId`
+ * helper.
+ *
+ * Admin routers are additionally gated by the Hono `requireAdmin` middleware on
+ * the `/api/admin/v1/*` prefix (see `app.ts`); this only adds the user/userId
+ * injection on top.
+ */
+export const requireAuthedUser = os.$context<ApiContext>().middleware(async ({ context, next }) => {
+  const user = await context.loadUser();
+  if (!user) {
+    throw new ORPCError("UNAUTHORIZED", { message: "Unauthorized" });
+  }
+  return next({ context: { user, userId: user.id } });
+});
