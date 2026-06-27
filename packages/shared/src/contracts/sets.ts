@@ -43,11 +43,11 @@ const setSlugParamSchema = z.object({ setSlug: z.string().min(1) });
 export const setsContract = {
   list: oc
     .route({ method: "GET", path: "/api/v1/sets", tags: ["Sets"] })
-    .meta({ auth: "public" })
+    .meta({ auth: "public", cache: "long", etag: true })
     .output(setListResponseSchema),
   detail: oc
     .route({ method: "GET", path: "/api/v1/sets/{setSlug}", tags: ["Sets"] })
-    .meta({ auth: "public" })
+    .meta({ auth: "public", cache: "long", etag: true })
     .input(setSlugParamSchema)
     .errors({ NOT_FOUND: { message: "Set not found" } })
     .output(setDetailResponseSchema),

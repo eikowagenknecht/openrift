@@ -15,7 +15,7 @@ const siteSettingsResponseSchema = z.object({
 export const siteSettingsContract = {
   get: oc
     .route({ method: "GET", path: "/api/v1/site-settings", tags: ["Site Settings"] })
-    .meta({ auth: "public" })
+    .meta({ auth: "public", cache: "short" })
     .output(siteSettingsResponseSchema),
 };
 

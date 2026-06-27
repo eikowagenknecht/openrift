@@ -40,6 +40,13 @@ export interface ApiContext {
    * @returns The header value, or undefined when absent.
    */
   reqHeader: (name: string) => string | undefined;
+  /**
+   * Output slot: the `Cache-Control` header the cache-control client interceptor
+   * resolved from the matched procedure's contract meta. The catch-all mount
+   * reads it back after `handle()` and sets it on a successful public GET.
+   * Undefined for procedures that declare no `cache` meta.
+   */
+  cacheControl?: string;
 }
 
 /**

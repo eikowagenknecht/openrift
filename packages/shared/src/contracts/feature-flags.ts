@@ -25,7 +25,7 @@ export const featureFlagsResponseSchema = z
 export const featureFlagsContract = {
   get: oc
     .route({ method: "GET", path: "/api/v1/feature-flags", tags: ["Feature Flags"] })
-    .meta({ auth: "public" })
+    .meta({ auth: "public", cache: "short", cacheVary: "viewer" })
     .output(featureFlagsResponseSchema),
 };
 

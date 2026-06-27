@@ -31,7 +31,7 @@ export const promosListResponseSchema = z
 export const promosContract = {
   list: oc
     .route({ method: "GET", path: "/api/v1/promos", tags: ["Promos"] })
-    .meta({ auth: "public" })
+    .meta({ auth: "public", cache: "medium", etag: true })
     .output(promosListResponseSchema),
 };
 

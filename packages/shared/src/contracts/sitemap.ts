@@ -24,7 +24,7 @@ export const sitemapDataResponseSchema = z
 export const sitemapContract = {
   get: oc
     .route({ method: "GET", path: "/api/v1/sitemap-data", tags: ["Sitemap"] })
-    .meta({ auth: "public" })
+    .meta({ auth: "public", cache: "sitemap", etag: true })
     .output(sitemapDataResponseSchema),
 };
 

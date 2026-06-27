@@ -68,7 +68,7 @@ export const publicUserBundleResponseSchema = z
 export const publicUserShareContract = {
   bundle: oc
     .route({ method: "GET", path: "/api/v1/users/share/{token}", tags: ["User Share"] })
-    .meta({ auth: "public" })
+    .meta({ auth: "public", cache: "short", cacheVary: "viewer" })
     .input(z.object({ token: z.string().min(1) }))
     .errors({ NOT_FOUND: { message: "Not found" } })
     .output(publicUserBundleResponseSchema),
@@ -79,7 +79,7 @@ export const publicUserShareContract = {
       path: "/api/v1/users/share/{token}/lists/{listId}",
       tags: ["User Share"],
     })
-    .meta({ auth: "public" })
+    .meta({ auth: "public", cache: "short", cacheVary: "viewer" })
     .input(z.object({ token: z.string().min(1), listId: z.uuid() }))
     .errors({ NOT_FOUND: { message: "Not found" } })
     .output(publicListDetailResponseSchema),

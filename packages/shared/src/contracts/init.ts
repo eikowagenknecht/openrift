@@ -67,7 +67,7 @@ export const initResponseSchema = z
 export const initContract = {
   get: oc
     .route({ method: "GET", path: "/api/v1/init", tags: ["Init"] })
-    .meta({ auth: "public" })
+    .meta({ auth: "public", cache: "long", etag: true })
     .output(initResponseSchema),
 };
 

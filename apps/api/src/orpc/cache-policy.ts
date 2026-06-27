@@ -1,86 +1,102 @@
-// Edge/browser caching policy for the public oRPC reads, centralised so the
-// single catch-all mount (app.ts) can apply it without per-route mounts. Keep
-// this in sync with the contracts: a public GET that should be cacheable needs
-// an entry here, and one whose response varies by viewer also needs `etag()`
-// only if conditional GETs are wanted. (ADR-016: viewer-dependent routes run
-// `loadSession`, which appends `Vary: Cookie`; hot URL-cacheable routes must
-// not.)
+// Edge/browser caching policy for the public oRPC reads, derived from the
+// contracts themselves so there is no second copy of the route table to keep in
+// sync. A public GET opts into caching by declaring `cache` on its contract
+// `.meta()` (`long` / `medium` / `short` / `sitemap`), into conditional GETs
+// with `etag: true`, and into the viewer-dependent `private` variant with
+// `cacheVary: "viewer"`.
+//
+// The `Cache-Control` value is resolved per request straight from the matched
+// procedure's meta (see `cache-control-interceptor.ts`), so there is no path
+// matching here at all. The only thing that needs the paths up front is the
+// `etag()` Hono middleware, which is registered before oRPC runs — `ETAG_PATHS`
+// is walked out of the contracts for it.
+//
+// (ADR-016: viewer-dependent routes run `loadSession`, which appends
+// `Vary: Cookie`; hot URL-cacheable routes must not.)
 
-/** Long-lived, fully-public catalog data (cards, sets, rules, prices, init). */
-const LONG = "public, max-age=3600, stale-while-revalidate=86400";
-/** Sitemap data: long max-age but a shorter SWR window. */
-const SITEMAP = "public, max-age=3600, stale-while-revalidate=7200";
-/** Promos: a few minutes, refreshed in the background. */
-const MEDIUM = "public, max-age=300, stale-while-revalidate=600";
-/** Short-lived public shares + site settings. */
-const SHORT_PUBLIC = "public, max-age=60, stale-while-revalidate=300";
-/** Same TTL, but private when a viewer is attached (optional-auth routes). */
-const SHORT_PRIVATE = "private, max-age=60, stale-while-revalidate=300";
+import * as contracts from "@openrift/shared/contracts";
+
+/** The cache lifetime tiers a contract can declare via `meta.cache`. */
+type CacheLevel = "long" | "medium" | "short" | "sitemap";
+
+/** Cache-relevant fields a public read declares on its contract `.meta()`. */
+export interface CacheMeta {
+  cache?: CacheLevel;
+  cacheVary?: "viewer";
+  etag?: boolean;
+}
+
+/** `Cache-Control` header value per tier (public, viewer-independent). */
+const CACHE_HEADERS: Record<CacheLevel, string> = {
+  /** Long-lived, fully-public catalog data (cards, sets, rules, prices, init). */
+  long: "public, max-age=3600, stale-while-revalidate=86400",
+  /** Sitemap data: long max-age but a shorter SWR window. */
+  sitemap: "public, max-age=3600, stale-while-revalidate=7200",
+  /** Promos: a few minutes, refreshed in the background. */
+  medium: "public, max-age=300, stale-while-revalidate=600",
+  /** Short-lived public shares + site settings. */
+  short: "public, max-age=60, stale-while-revalidate=300",
+};
+
+interface ContractDef {
+  route?: { method?: string; path?: string };
+  meta?: CacheMeta;
+}
 
 /**
- * Concrete request paths (after Hono's pattern match) that get an `etag()`
- * middleware for content-version tokens + conditional GETs. Wildcards cover the
- * parameterised routes (`/api/v1/cards/:cardSlug`, `/api/v1/prices/...`, etc.).
+ * Walks the assembled contracts and yields every GET that opts into `etag` — the
+ * same traversal `openapi-doc.ts` uses for auth meta. Only GET routes carry an
+ * etag; the param segments are returned verbatim and converted to Hono form by
+ * the caller.
+ * @returns Each etag-enabled GET route's OpenAPI path.
  */
-export const ETAG_PATHS = [
-  "/api/v1/catalog",
-  "/api/v1/prices",
-  "/api/v1/prices/*",
-  "/api/v1/promos",
-  "/api/v1/cards/*",
-  "/api/v1/landing-summary",
-  "/api/v1/sets",
-  "/api/v1/sets/*",
-  "/api/v1/rules",
-  "/api/v1/rules/versions",
-  "/api/v1/init",
-  "/api/v1/sitemap-data",
-] as const;
+function collectEtagPaths(): string[] {
+  const paths: string[] = [];
+  const visit = (node: unknown): void => {
+    if (!node || typeof node !== "object") {
+      return;
+    }
+    const def = (node as { "~orpc"?: ContractDef })["~orpc"];
+    if (def?.route?.method && def.route.path) {
+      if (def.route.method === "GET" && def.meta?.etag) {
+        paths.push(def.route.path);
+      }
+      return;
+    }
+    for (const value of Object.values(node)) {
+      visit(value);
+    }
+  };
+  for (const [key, value] of Object.entries(contracts)) {
+    if (key.endsWith("Contract")) {
+      visit(value);
+    }
+  }
+  return paths;
+}
 
 /**
- * Resolves the `Cache-Control` value for a successful public read, or
- * `undefined` when the path should not advertise caching. `hasUser` selects the
- * `private`/`public` variant for the two optional-auth routes.
- * @returns The header value, or undefined when the path is uncacheable.
+ * Concrete request paths that get an `etag()` middleware for content-version
+ * tokens + conditional GETs, in Hono's `:param` form (e.g.
+ * `/api/v1/cards/:cardSlug`). Derived from the contracts that declare
+ * `etag: true`.
  */
-export function cacheControlFor(path: string, hasUser: boolean): string | undefined {
-  // Optional-auth reads: the response body varies by viewer, so a signed-in
-  // request is `private`. `loadSession` has already set `Vary: Cookie`.
-  if (path === "/api/v1/feature-flags" || path.startsWith("/api/v1/users/share/")) {
-    return hasUser ? SHORT_PRIVATE : SHORT_PUBLIC;
-  }
+export const ETAG_PATHS: string[] = collectEtagPaths().map((path) =>
+  path.replaceAll(/\{(?<param>[^}]+)\}/gu, ":$<param>"),
+);
 
-  if (
-    path === "/api/v1/catalog" ||
-    path === "/api/v1/prices" ||
-    path.startsWith("/api/v1/prices/") ||
-    path === "/api/v1/init" ||
-    path === "/api/v1/landing-summary" ||
-    path === "/api/v1/sets" ||
-    path.startsWith("/api/v1/sets/") ||
-    path === "/api/v1/rules" ||
-    path === "/api/v1/rules/versions" ||
-    path.startsWith("/api/v1/cards/")
-  ) {
-    return LONG;
+/**
+ * Resolves the `Cache-Control` value for a successful public read from its
+ * contract meta, or `undefined` when the procedure declares no `cache`. `hasUser`
+ * selects the `private`/`public` variant for the viewer-dependent (optional-auth)
+ * routes: their response body varies by viewer, and `loadSession` has already set
+ * `Vary: Cookie`.
+ * @returns The header value, or undefined when the procedure is uncacheable.
+ */
+export function resolveCacheControl(meta: CacheMeta, hasUser: boolean): string | undefined {
+  if (!meta.cache) {
+    return undefined;
   }
-
-  if (path === "/api/v1/sitemap-data") {
-    return SITEMAP;
-  }
-
-  if (path === "/api/v1/promos") {
-    return MEDIUM;
-  }
-
-  if (
-    path === "/api/v1/site-settings" ||
-    path.startsWith("/api/v1/lists/share/") ||
-    path.startsWith("/api/v1/decks/share/") ||
-    path.startsWith("/api/v1/collections/share/")
-  ) {
-    return SHORT_PUBLIC;
-  }
-
-  return undefined;
+  const header = CACHE_HEADERS[meta.cache];
+  return meta.cacheVary === "viewer" && hasUser ? header.replace("public,", "private,") : header;
 }

@@ -25,7 +25,7 @@ export const landingSummaryResponseSchema = z
 export const landingSummaryContract = {
   get: oc
     .route({ method: "GET", path: "/api/v1/landing-summary", tags: ["Catalog"] })
-    .meta({ auth: "public" })
+    .meta({ auth: "public", cache: "long", etag: true })
     .output(landingSummaryResponseSchema),
 };
 

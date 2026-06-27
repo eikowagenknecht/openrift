@@ -74,7 +74,7 @@ export const publicDeckDetailResponseSchema = z
 export const publicDecksContract = {
   share: oc
     .route({ method: "GET", path: "/api/v1/decks/share/{token}", tags: ["Decks"] })
-    .meta({ auth: "public" })
+    .meta({ auth: "public", cache: "short" })
     .input(z.object({ token: z.string().min(1) }))
     .errors({ NOT_FOUND: { message: "Not found" } })
     .output(publicDeckDetailResponseSchema),

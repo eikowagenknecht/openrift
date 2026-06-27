@@ -48,7 +48,7 @@ export const publicCollectionDetailResponseSchema = z
 export const publicCollectionsContract = {
   share: oc
     .route({ method: "GET", path: "/api/v1/collections/share/{token}", tags: ["Collections"] })
-    .meta({ auth: "public" })
+    .meta({ auth: "public", cache: "short" })
     .input(z.object({ token: z.string().min(1) }).extend(copiesQuerySchema.shape))
     .errors({ NOT_FOUND: { message: "Not found" } })
     .output(publicCollectionDetailResponseSchema),

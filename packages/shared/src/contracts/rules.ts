@@ -60,12 +60,12 @@ const ruleKindEnum = z.enum(["core", "tournament"]);
 export const rulesContract = {
   list: oc
     .route({ method: "GET", path: "/api/v1/rules", tags: ["Rules"] })
-    .meta({ auth: "public" })
+    .meta({ auth: "public", cache: "long", etag: true })
     .input(z.object({ kind: ruleKindEnum, version: z.string().optional() }))
     .output(rulesListResponseSchema),
   versions: oc
     .route({ method: "GET", path: "/api/v1/rules/versions", tags: ["Rules"] })
-    .meta({ auth: "public" })
+    .meta({ auth: "public", cache: "long", etag: true })
     .input(z.object({ kind: ruleKindEnum.optional() }))
     .output(ruleVersionsListResponseSchema),
 };

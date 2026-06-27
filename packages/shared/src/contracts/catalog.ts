@@ -39,7 +39,7 @@ export const catalogResponseSchema = z
 export const catalogContract = {
   catalog: oc
     .route({ method: "GET", path: "/api/v1/catalog", tags: ["Catalog"] })
-    .meta({ auth: "public" })
+    .meta({ auth: "public", cache: "long", etag: true })
     .input(z.object({ v: z.string().optional() }))
     .output(catalogResponseSchema),
 };

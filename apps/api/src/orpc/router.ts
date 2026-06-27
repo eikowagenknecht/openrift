@@ -77,6 +77,7 @@ import { siteSettingsRouter } from "../routes/public/site-settings.js";
 import { sitemapRouter } from "../routes/public/sitemap.js";
 import { unsubscribeRouter } from "../routes/public/unsubscribe.js";
 import { publicUserShareRouter } from "../routes/public/user-share.js";
+import { cacheControlInterceptor } from "./cache-control-interceptor.js";
 import { makeReportingErrorInterceptor } from "./error-reporting-interceptor.js";
 
 /**
@@ -163,10 +164,15 @@ const apiRouter = {
  * interceptor can capture 5xx faults to Sentry + the structured error log that
  * Hono's `onError` can no longer see (oRPC encodes handler throws into a
  * Response). The interceptor also performs the AppError -> ORPCError mapping.
+ *
+ * The client interceptor runs per matched procedure (the procedure, and so its
+ * contract cache meta, in scope) to resolve the public read's `Cache-Control`
+ * onto the context for the catch-all to apply.
  * @returns The oRPC handler for the assembled router.
  */
 export function createApiHandler(log: Logger) {
   return new OpenAPIHandler(apiRouter, {
     interceptors: [makeReportingErrorInterceptor(log)],
+    clientInterceptors: [cacheControlInterceptor],
   });
 }

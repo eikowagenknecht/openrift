@@ -164,28 +164,29 @@ const marketplaceInfoQuerySchema = z.object({
 });
 
 /**
- * oRPC contract for the public price reads. All three are public GETs with a
- * short-TTL edge cache (the mount keeps the Hono `etag()` middleware). The
- * history endpoint reports an unknown printing as `available: false` (200), not
- * a 404, so the frontend renders an empty state without error handling.
+ * oRPC contract for the public price reads. All three are public GETs with the
+ * long-lived catalog cache + conditional GETs (`cache: "long", etag: true`,
+ * applied centrally from this meta). The history endpoint reports an unknown
+ * printing as `available: false` (200), not a 404, so the frontend renders an
+ * empty state without error handling.
  */
 export const pricesContract = {
   prices: oc
     .route({ method: "GET", path: "/api/v1/prices", tags: [TAG] })
-    .meta({ auth: "public" })
+    .meta({ auth: "public", cache: "long", etag: true })
     .output(pricesResponseSchema),
 
   // The static `marketplace-info` is declared before `:printingId/history` so
   // the oRPC router resolves it ahead of the param route.
   marketplaceInfo: oc
     .route({ method: "GET", path: "/api/v1/prices/marketplace-info", tags: [TAG] })
-    .meta({ auth: "public" })
+    .meta({ auth: "public", cache: "long", etag: true })
     .input(marketplaceInfoQuerySchema)
     .output(marketplaceInfoResponseSchema),
 
   history: oc
     .route({ method: "GET", path: "/api/v1/prices/{printingId}/history", tags: [TAG] })
-    .meta({ auth: "public" })
+    .meta({ auth: "public", cache: "long", etag: true })
     .input(rangeQuerySchema.extend({ printingId: z.uuid() }))
     .output(priceHistoryResponseSchema),
 };

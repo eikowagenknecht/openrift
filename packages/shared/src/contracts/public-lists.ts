@@ -11,7 +11,7 @@ import { publicListDetailResponseSchema } from "../response-schemas.js";
 export const publicListsContract = {
   share: oc
     .route({ method: "GET", path: "/api/v1/lists/share/{token}", tags: ["Lists"] })
-    .meta({ auth: "public" })
+    .meta({ auth: "public", cache: "short" })
     .input(z.object({ token: z.string().min(1) }))
     .errors({ NOT_FOUND: { message: "Not found" } })
     .output(publicListDetailResponseSchema),

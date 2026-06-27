@@ -25,7 +25,7 @@ import { createMetricsMiddleware } from "./middleware/metrics.js";
 import { otelRequestMiddleware } from "./middleware/otel-request.js";
 import { requireAdmin } from "./middleware/require-admin.js";
 import { generateContractOpenAPIDocument } from "./openapi-doc.js";
-import { cacheControlFor, ETAG_PATHS } from "./orpc/cache-policy.js";
+import { ETAG_PATHS } from "./orpc/cache-policy.js";
 import { buildApiContext } from "./orpc/context.js";
 import { createApiHandler } from "./orpc/router.js";
 import { mountAdminSentryTest } from "./routes/admin/sentry-test.js";
@@ -440,23 +440,20 @@ export function createApp(deps: AppDeps) {
   // One OpenAPIHandler serves every migrated endpoint. When oRPC has no route
   // for the path we call next() rather than answering here, so later-registered
   // routes still match and the app's JSON-404 notFound handler owns the miss.
-  // Cache-Control for the few cacheable public reads is applied here (the
-  // per-route mounts that used to set it are gone).
+  // Cache-Control for the few cacheable public reads is applied here from the
+  // directive the cache-control client interceptor resolved off the matched
+  // procedure's meta (the per-route mounts that used to set it are gone).
   app.all("/api/*", async (c, next) => {
-    const { matched, response } = await apiHandler.handle(c.req.raw, {
-      context: buildApiContext(c),
-    });
+    const apiContext = buildApiContext(c);
+    const { matched, response } = await apiHandler.handle(c.req.raw, { context: apiContext });
     if (!matched || !response) {
       return next();
     }
     // Only successful GET reads are cacheable. The method guard keeps a private
     // mutation that shares a cacheable prefix (e.g. POST /decks/share/{token}/clone
     // under the public /decks/share/ read) from ever being labelled `public`.
-    if (response.ok && c.req.method === "GET") {
-      const cacheControl = cacheControlFor(c.req.path, Boolean(c.get("user")));
-      if (cacheControl) {
-        response.headers.set("Cache-Control", cacheControl);
-      }
+    if (response.ok && c.req.method === "GET" && apiContext.cacheControl) {
+      response.headers.set("Cache-Control", apiContext.cacheControl);
     }
     return response;
   });
