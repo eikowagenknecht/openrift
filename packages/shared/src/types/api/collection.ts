@@ -1,12 +1,15 @@
 import type {
   collectionListResponseSchema,
+  collectionMutationResponseSchema,
   collectionResponseSchema,
   collectionShareResponseSchema,
+  collectionWriteResponseSchema,
 } from "@openrift/shared/contracts/collections";
 import type {
   copyAddResponseSchema,
   copyListMembershipsResponseSchema,
   copyMetadataPatchSchema,
+  copyMutationResponseSchema,
 } from "@openrift/shared/contracts/copies";
 import type {
   publicCollectionDetailResponseSchema,
@@ -19,6 +22,22 @@ import type { z } from "zod";
 export type CollectionResponse = z.infer<typeof collectionResponseSchema>;
 
 export type CollectionListResponse = z.infer<typeof collectionListResponseSchema>;
+
+/**
+ * Response body for collection create/update: the collection plus the
+ * Postgres transaction id (32-bit xid) of the write, as tagged on the
+ * Electric replication stream. The client awaits this txid on its synced
+ * collections shape to know when the optimistic row has round-tripped
+ * (ADR-027 step 2).
+ */
+export type CollectionWriteResponse = z.infer<typeof collectionWriteResponseSchema>;
+
+/**
+ * Response body for collection mutations that previously returned 204
+ * (delete, reorder): just the Postgres transaction id of the change, so the
+ * client can await it on the Electric stream (ADR-027 step 2).
+ */
+export type CollectionMutationResponse = z.infer<typeof collectionMutationResponseSchema>;
 
 export type PublicCollectionResponse = z.infer<typeof publicCollectionResponseSchema>;
 
@@ -66,6 +85,13 @@ export type CopyResponse = z.infer<typeof copyAddResponseSchema>["items"][number
  * collection, so clients no longer have to synthesize it).
  */
 export type CopyAddResponse = z.infer<typeof copyAddResponseSchema>;
+
+/**
+ * Response body for copy mutations that previously returned 204 (move,
+ * dispose): just the Postgres transaction id of the change, so the client can
+ * await it on the Electric stream (ADR-027 step 2).
+ */
+export type CopyMutationResponse = z.infer<typeof copyMutationResponseSchema>;
 
 export type CopyListMembershipEntry = z.infer<
   typeof copyListMembershipsResponseSchema

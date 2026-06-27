@@ -191,10 +191,12 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
   // ── DELETE /lists/:id ──────────────────────────────────────────────────────
 
   describe("DELETE /lists/:id", () => {
-    it("deletes a list", async () => {
+    it("deletes a list and returns the txid", async () => {
       const id = await createList("Doomed", "organize", "card");
       const res = await app.fetch(req("DELETE", `/lists/${id}`));
-      expect(res.status).toBe(204);
+      expect(res.status).toBe(200);
+      const json = (await res.json()) as { txid: number };
+      expect(json.txid).toBeGreaterThan(0);
     });
 
     it("returns 404 when deleting a missing list", async () => {
@@ -483,7 +485,9 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       expect(patched.quantity).toBe(4);
 
       const deleteRes = await app.fetch(req("DELETE", `/lists/${id}/entries/${created.id}`));
-      expect(deleteRes.status).toBe(204);
+      expect(deleteRes.status).toBe(200);
+      const deleted = (await deleteRes.json()) as { txid: number };
+      expect(deleted.txid).toBeGreaterThan(0);
     });
   });
 

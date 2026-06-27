@@ -10,6 +10,7 @@ services:
       -c shared_preload_libraries=pg_stat_statements
       -c pg_stat_statements.track=all
       -c pg_stat_statements.max=5000
+      -c wal_level=logical
     ports:
       - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
@@ -21,6 +22,34 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "10"
+    restart: unless-stopped
+
+  # ElectricSQL sync service (ADR-027 step 2). Consumes Postgres logical
+  # replication (wal_level=logical above) and serves per-user "shapes" over
+  # HTTP. Internal only — clients reach it exclusively through the API's
+  # authenticated shape proxy (/api/v1/shapes/*), which appends
+  # ELECTRIC_SECRET server-side. The prod/preview .env must set
+  # ELECTRIC_URL=http://electric:3000 (read by the api service via env_file)
+  # plus ELECTRIC_SECRET. The feature flags enable subqueries in shape where
+  # clauses (preview feature; the copies shape's authorization needs them).
+  electric:
+    image: electricsql/electric:1.7.0
+    user: "${UID:-1000}:${GID:-1000}"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable"
+      ELECTRIC_SECRET: "${ELECTRIC_SECRET}"
+      ELECTRIC_STORAGE_DIR: /app/persistent
+      ELECTRIC_FEATURE_FLAGS: allow_subqueries,tagged_subqueries
+    volumes:
+      - ./data/electric:/app/persistent
     logging:
       driver: json-file
       options:

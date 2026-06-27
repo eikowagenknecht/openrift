@@ -40,6 +40,9 @@ export async function updatePrintingMarkers(
 
     if (newSlugs.length === 0) {
       await trxRepos.markers.setForPrinting(printingId, []);
+      // A printing's markers feed its canonical rank (the trigger keeps
+      // marker_slugs in sync) — recompute inside the same transaction.
+      await trxRepos.catalog.recomputeCanonicalRanks();
       return;
     }
 
@@ -58,6 +61,9 @@ export async function updatePrintingMarkers(
       printingId,
       markerRows.map((m) => m.id),
     );
+    // A printing's markers feed its canonical rank (the trigger keeps
+    // marker_slugs in sync) — recompute inside the same transaction.
+    await trxRepos.catalog.recomputeCanonicalRanks();
   });
 }
 
@@ -120,6 +126,10 @@ export async function deletePrinting(
     const images = await trxMut.deletePrintingImagesByPrintingId(printing.id);
     await trxMut.deletePrintingLinkOverridesById(printing.id);
     await trxMut.deletePrintingById(printing.id);
+
+    // Removing a printing shifts every higher rank down — recompute in the
+    // same transaction (migration 158).
+    await trxRepos.catalog.recomputeCanonicalRanks();
 
     return images.map((img) => img.imageFileId);
   });
@@ -315,6 +325,10 @@ export async function acceptPrinting(
         insertedId,
       );
     }
+
+    // A new printing changes the global canonical ordering — recompute once,
+    // inside this transaction, so the new rank commits atomically (migration 158).
+    await trxRepos.catalog.recomputeCanonicalRanks();
   });
 
   if (repos.printingEvents) {

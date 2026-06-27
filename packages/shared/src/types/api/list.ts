@@ -1,11 +1,15 @@
 import type {
   listBulkAddResponseSchema,
+  listBulkAddWriteResponseSchema,
   listDetailResponseSchema,
   listEntryResponseSchema,
+  listEntryWriteResponseSchema,
   listListResponseSchema,
   listMoveResponseSchema,
+  listMutationResponseSchema,
   listResponseSchema,
   listShareResponseSchema,
+  listWriteResponseSchema,
 } from "@openrift/shared/contracts/lists";
 import type {
   listEntryDetailResponseSchema,
@@ -30,7 +34,27 @@ export type ListResponse = z.infer<typeof listResponseSchema>;
 
 export type ListListResponse = z.infer<typeof listListResponseSchema>;
 
+/**
+ * List create/update response (ADR-027 step 2): the list plus the Postgres
+ * transaction id of the write, so the client can await the change on the
+ * Electric stream.
+ */
+export type ListWriteResponse = z.infer<typeof listWriteResponseSchema>;
+
+/**
+ * Response for list mutations that previously returned 204 (delete, reorder,
+ * entry delete, bulk entry delete): the Postgres transaction id of the change
+ * (ADR-027 step 2).
+ */
+export type ListMutationResponse = z.infer<typeof listMutationResponseSchema>;
+
 export type ListEntryResponse = z.infer<typeof listEntryResponseSchema>;
+
+/**
+ * Entry create/update response (ADR-027 step 2): the entry plus the Postgres
+ * transaction id of the write.
+ */
+export type ListEntryWriteResponse = z.infer<typeof listEntryWriteResponseSchema>;
 
 /**
  * Enriched entry row. Joined with card/printing/copy details on the server.
@@ -53,5 +77,11 @@ export type PublicListDetailResponse = z.infer<typeof publicListDetailResponseSc
 export type ListShareResponse = z.infer<typeof listShareResponseSchema>;
 
 export type ListBulkAddResponse = z.infer<typeof listBulkAddResponseSchema>;
+
+/**
+ * Bulk-add response for the synced-list write path (ADR-027 step 2): the
+ * upsert counters plus the Postgres transaction id of the insert.
+ */
+export type ListBulkAddWriteResponse = z.infer<typeof listBulkAddWriteResponseSchema>;
 
 export type ListMoveResponse = z.infer<typeof listMoveResponseSchema>;

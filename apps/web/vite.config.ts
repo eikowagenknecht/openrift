@@ -182,6 +182,13 @@ export default defineConfig(({ mode, command }) => {
     resolve: {
       tsconfigPaths: true,
     },
+    optimizeDeps: {
+      // The OPFS persistence package resolves its SQLite worker (and the
+      // wa-sqlite WASM inlined in it) via `new URL(..., import.meta.url)`.
+      // Dep pre-bundling rewrites module paths and breaks that resolution in
+      // dev, so the package must be served unbundled.
+      exclude: ["@tanstack/browser-db-sqlite-persistence"],
+    },
     plugins: [
       // Needs to be first. Skipped under e2e — the console-pipe SSE channel
       // keeps the network "busy" forever, which breaks Playwright's
@@ -260,6 +267,13 @@ export default defineConfig(({ mode, command }) => {
               {
                 test: /node_modules\/@tanstack\/(?:db|react-db|query-db-collection)/u,
                 name: "tanstack-db",
+              },
+              // The Electric sync adapter and its protocol client (ADR-027
+              // step 2) — separate from tanstack-db so public pages that pull
+              // tanstack-db utilities don't also carry the sync engine.
+              {
+                test: /node_modules\/(?:@tanstack\/electric-db-collection|@electric-sql)/u,
+                name: "electric",
               },
               {
                 test: /node_modules\/(?:better-auth|@better-auth)/u,

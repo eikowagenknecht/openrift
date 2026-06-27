@@ -99,11 +99,37 @@ export default async function globalSetup(_config: FullConfig) {
   const sql = connectToDb(tempDbUrl);
   await sql.unsafe(seedSql);
 
-  // Refresh materialized views so the catalog query returns data.
-  // Migrations create the views before seed data is loaded, so they're empty.
+  // Refresh materialized views + maintain the latest_printing_prices table so
+  // the catalog query returns data. Migrations create the views/table before
+  // seed data is loaded, so they're empty. Migration 159 replaced the
+  // mv_latest_printing_prices MV with the latest_printing_prices table, which is
+  // populated by the same DISTINCT-ON upsert refreshLatestPrices() runs.
   console.log("[e2e] Refreshing materialized views...");
   await sql`REFRESH MATERIALIZED VIEW mv_card_aggregates`;
-  await sql`REFRESH MATERIALIZED VIEW mv_latest_printing_prices`;
+  await sql`
+    INSERT INTO latest_printing_prices (printing_id, marketplace, headline_cents)
+    SELECT DISTINCT ON (mpv.printing_id, mp.marketplace)
+      mpv.printing_id,
+      mp.marketplace,
+      CASE WHEN mp.marketplace = 'cardtrader'
+           THEN COALESCE(pp.zero_low_cents, pp.low_cents)
+           WHEN mp.marketplace = 'cardmarket'
+           THEN COALESCE(pp.low_cents, pp.market_cents)
+           ELSE COALESCE(pp.market_cents, pp.low_cents)
+      END
+    FROM marketplace_product_variants mpv
+    JOIN marketplace_products       mp ON mp.id = mpv.marketplace_product_id
+    JOIN marketplace_product_prices pp ON pp.marketplace_product_id = mp.id
+    WHERE CASE WHEN mp.marketplace = 'cardtrader'
+               THEN COALESCE(pp.zero_low_cents, pp.low_cents)
+               WHEN mp.marketplace = 'cardmarket'
+               THEN COALESCE(pp.low_cents, pp.market_cents)
+               ELSE COALESCE(pp.market_cents, pp.low_cents)
+          END IS NOT NULL
+    ORDER BY mpv.printing_id, mp.marketplace, (pp.zero_low_cents IS NULL), pp.recorded_at DESC
+    ON CONFLICT (printing_id, marketplace) DO UPDATE
+      SET headline_cents = EXCLUDED.headline_cents, updated_at = now()
+  `;
   await sql.end();
 
   // ── 2. Start API server ─────────────────────────────────────────────────

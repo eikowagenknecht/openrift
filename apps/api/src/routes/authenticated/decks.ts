@@ -2,11 +2,13 @@ import type {
   CardType,
   DeckAvailabilityItemResponse,
   DeckAvailabilityResponse,
+  DeckCardsWriteResponse,
   DeckDetailResponse,
   DeckExportResponse,
   DeckFormatConfig,
   DeckListItemResponse,
   DeckListResponse,
+  DeckMutationResponse,
   DeckShareResponse,
   DeckZone,
   Domain,
@@ -392,26 +394,69 @@ export const decksRouter = {
 
   // ── PUT /decks/:id/cards ──────────────────────────────────────────────────
   // Full replace of deck cards
-  replaceCards: os.replaceCards.handler(async ({ input, context }) => {
+  replaceCards: os.replaceCards.handler(
+    async ({ input, context }): Promise<DeckCardsWriteResponse> => {
+      const { decks } = context.repos;
+      const transact = context.transact;
+      const userId = context.userId;
+
+      // Verify deck belongs to user
+      const deck = await decks.getIdAndFormat(input.id, userId);
+      assertFound(deck, "Not found");
+
+      // Transaction-bound so the replace is atomic and the txid the client
+      // awaits on the Electric stream is the write's own transaction
+      // (ADR-027 step 2).
+      const { txid } = await transact(async (trxRepos) => {
+        await trxRepos.decks.replaceCards(
+          input.id,
+          input.cards.map((card) => ({
+            cardId: card.cardId,
+            zone: card.zone as DeckZone,
+            quantity: card.quantity,
+            preferredPrintingId: card.preferredPrintingId ?? null,
+          })),
+        );
+        return { txid: await trxRepos.sync.currentTransactionId() };
+      });
+
+      const cardRows = await decks.cardsForDeck(input.id, userId);
+      return { cards: cardRows.map((r) => toDeckCard(r)), txid };
+    },
+  ),
+
+  // ── POST /decks/:id/cards/apply ────────────────────────────────────────────
+  // Row-level deck-card writes for the synced deck builder (ADR-027): bulk
+  // upserts (client-generated row ids, absolute quantities) plus deletes in
+  // one transaction. Replay-tolerant: upserts converge on the content unique
+  // index, deletes of already-gone rows are no-ops.
+  applyCards: os.applyCards.handler(async ({ input, context }): Promise<DeckMutationResponse> => {
     const { decks } = context.repos;
+    const transact = context.transact;
     const userId = context.userId;
 
     // Verify deck belongs to user
-    const deck = await decks.getIdAndFormat(input.id, userId);
+    const deck = await decks.exists(input.id, userId);
     assertFound(deck, "Not found");
 
-    await decks.replaceCards(
-      input.id,
-      input.cards.map((card) => ({
-        cardId: card.cardId,
-        zone: card.zone as DeckZone,
-        quantity: card.quantity,
-        preferredPrintingId: card.preferredPrintingId ?? null,
-      })),
-    );
+    // Transaction-bound so the txid the client awaits on the Electric stream
+    // is the write's own transaction (ADR-027 step 2).
+    const { txid } = await transact(async (trxRepos) => {
+      await trxRepos.decks.applyCards(
+        input.id,
+        input.upserts.map((card) => ({
+          id: card.id,
+          cardId: card.cardId,
+          zone: card.zone as DeckZone,
+          quantity: card.quantity,
+          preferredPrintingId: card.preferredPrintingId,
+        })),
+        input.deletes,
+      );
+      return { txid: await trxRepos.sync.currentTransactionId() };
+    });
 
-    const cardRows = await decks.cardsForDeck(input.id, userId);
-    return { cards: cardRows.map((r) => toDeckCard(r)) };
+    return { txid };
   }),
 
   // ── GET /decks/:id/plan ───────────────────────────────────────────────────

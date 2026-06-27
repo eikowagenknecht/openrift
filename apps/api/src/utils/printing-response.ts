@@ -1,10 +1,15 @@
-import type {
-  DistributionChannelKind,
-  Marker,
-  PrintingDistributionChannel,
-} from "@openrift/shared";
+import type { Marker, PrintingDistributionChannel } from "@openrift/shared";
+import { buildChannelsByPrinting, indexMarkersBySlug } from "@openrift/shared/catalog-assembly";
 
 import type { Repos } from "../deps.js";
+
+// The pure transform (marker indexing, channel ancestor-label resolution) lives
+// in `@openrift/shared/catalog-assembly` so the same code runs server-side here
+// and client-side over Electric-synced rows (ADR-027 catalog vertical). This
+// module is the thin server-side adapter: it fetches the rows and hands them to
+// the shared builders. `resolveMarkers` is re-exported unchanged for the route
+// layer that decorates printing rows one at a time.
+export { resolveMarkers } from "@openrift/shared/catalog-assembly";
 
 interface MarkerChannelMaps {
   markerBySlug: Map<string, Marker>;
@@ -13,8 +18,9 @@ interface MarkerChannelMaps {
 
 /**
  * Loads marker metadata + per-printing distribution channel links and indexes
- * them so route handlers can decorate raw printing rows with the resolved
- * `markers[]` and `distributionChannels[]` arrays expected on the wire.
+ * them (via the shared pure builders) so route handlers can decorate raw
+ * printing rows with the resolved `markers[]` and `distributionChannels[]`
+ * arrays expected on the wire.
  *
  * @returns Indexed maps keyed by marker slug and printing id.
  */
@@ -28,64 +34,8 @@ export async function loadMarkerAndChannelMaps(
     repos.distributionChannels.listAll(),
   ]);
 
-  const markerBySlug = new Map<string, Marker>(markerRows.map((m) => [m.slug, m]));
-
-  // Resolve each channel's ancestor label chain (root → direct parent). The
-  // full channel list is small, so an in-memory walk beats a recursive query.
-  const channelById = new Map(allChannels.map((c) => [c.id, c]));
-  function ancestorLabelsFor(startId: string | null): string[] {
-    const labels: string[] = [];
-    let cursor = startId;
-    let depth = 0;
-    while (cursor !== null && depth < 32) {
-      const parent = channelById.get(cursor);
-      if (!parent) {
-        break;
-      }
-      labels.unshift(parent.label);
-      cursor = parent.parentId;
-      depth += 1;
-    }
-    return labels;
-  }
-
-  const channelsByPrinting = new Map<string, PrintingDistributionChannel[]>();
-  for (const row of channelRows) {
-    const link: PrintingDistributionChannel = {
-      channel: {
-        id: row.channelId,
-        slug: row.channelSlug,
-        label: row.channelLabel,
-        description: row.channelDescription,
-        kind: row.channelKind as DistributionChannelKind,
-        parentId: row.channelParentId,
-        childrenLabel: row.channelChildrenLabel,
-      },
-      distributionNote: row.distributionNote,
-      ancestorLabels: ancestorLabelsFor(row.channelParentId),
-    };
-    const list = channelsByPrinting.get(row.printingId);
-    if (list) {
-      list.push(link);
-    } else {
-      channelsByPrinting.set(row.printingId, [link]);
-    }
-  }
-
-  return { markerBySlug, channelsByPrinting };
-}
-
-/**
- * Resolves a printing's marker slug array against a slug→Marker map.
- * Skips slugs missing from the map (defensive for stale denormalized data).
- *
- * @returns A list of full Marker objects.
- */
-export function resolveMarkers(
-  markerSlugs: readonly string[],
-  markerBySlug: ReadonlyMap<string, Marker>,
-): Marker[] {
-  return markerSlugs
-    .map((slug) => markerBySlug.get(slug))
-    .filter((m): m is Marker => m !== undefined);
+  return {
+    markerBySlug: indexMarkersBySlug(markerRows),
+    channelsByPrinting: buildChannelsByPrinting(channelRows, allChannels),
+  };
 }

@@ -1,6 +1,6 @@
 import type {
   CardType,
-  DeckCardResponse,
+  DeckCardsWriteResponse,
   DeckCloneResponse,
   DeckDetailResponse,
   DeckExportResponse,
@@ -211,7 +211,7 @@ export const saveDeckCardsFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(
-    ({ context, data }): Promise<{ cards: DeckCardResponse[] }> =>
+    ({ context, data }): Promise<DeckCardsWriteResponse> =>
       apiOrpcClient(decksContract, context.cookie).replaceCards({
         id: data.deckId,
         cards: data.cards,
@@ -237,7 +237,7 @@ export function useSaveDeckCards() {
         quantity: number;
         preferredPrintingId: string | null;
       }[];
-    }): Promise<{ cards: DeckCardResponse[] }> => saveDeckCardsFn({ data: { deckId, cards } }),
+    }): Promise<DeckCardsWriteResponse> => saveDeckCardsFn({ data: { deckId, cards } }),
     onSuccess: (data, variables) => {
       if (!userId) {
         return;

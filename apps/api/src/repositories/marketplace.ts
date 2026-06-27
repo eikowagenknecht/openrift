@@ -32,9 +32,13 @@ export interface CollectionValue {
 /**
  * Read-only queries for marketplace prices and snapshots.
  *
- * Price queries read from the `mv_latest_printing_prices` materialized view,
- * which must be refreshed after each price-refresh pipeline run (see
- * {@link refreshLatestPrices}).
+ * Current-price queries read from the `latest_printing_prices` table, which
+ * holds the latest headline price per `(printing_id, marketplace)`. Migration
+ * 159 replaced the old `mv_latest_printing_prices` materialized view with this
+ * real table so Electric can sync current prices to the client — a materialized
+ * view emits no logical-replication events, so it can't be a shape. The table is
+ * maintained by {@link refreshLatestPrices}, called after each price-refresh
+ * pipeline run.
  *
  * @returns An object with marketplace query methods bound to the given `db`.
  */
@@ -43,14 +47,15 @@ export function marketplaceRepo(db: Kysely<Database>) {
     /**
      * Latest headline price per marketplace for every printing.
      *
-     * Reads from the `mv_latest_printing_prices` materialized view, which
-     * pre-computes the sibling self-join + DISTINCT ON from raw snapshot data.
+     * Reads from the `latest_printing_prices` table, which holds one
+     * pre-computed headline row per `(printing_id, marketplace)` (maintained by
+     * {@link refreshLatestPrices}).
      *
      * @returns Rows with `printingId`, `marketplace`, and the headline price as `marketCents`.
      */
     latestPrices(): Promise<{ printingId: string; marketplace: string; marketCents: number }[]> {
       return db
-        .selectFrom("mvLatestPrintingPrices")
+        .selectFrom("latestPrintingPrices")
         .select(["printingId", "marketplace", "headlineCents as marketCents"])
         .execute();
     },
@@ -69,7 +74,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
         return Promise.resolve([]);
       }
       return db
-        .selectFrom("mvLatestPrintingPrices")
+        .selectFrom("latestPrintingPrices")
         .select(["printingId", "marketplace", "headlineCents as marketCents"])
         .where("printingId", "in", printingIds)
         .execute();
@@ -174,7 +179,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
     /**
      * Total market value per deck for a user.
      *
-     * Uses the cheapest printing of each card (from the materialized view)
+     * Uses the cheapest printing of each card (from `latest_printing_prices`)
      * to estimate what it would cost to buy the deck on a given marketplace.
      *
      * @returns A map from deck ID to total value in cents.
@@ -187,10 +192,10 @@ export function marketplaceRepo(db: Kysely<Database>) {
         FROM deck_cards dc
         INNER JOIN decks d ON d.id = dc.deck_id AND d.user_id = ${userId}
         LEFT JOIN LATERAL (
-          SELECT MIN(mvp.headline_cents) AS headline_cents
+          SELECT MIN(lpp.headline_cents) AS headline_cents
           FROM printings p
-          INNER JOIN mv_latest_printing_prices mvp
-            ON mvp.printing_id = p.id AND mvp.marketplace = ${marketplace}
+          INNER JOIN latest_printing_prices lpp
+            ON lpp.printing_id = p.id AND lpp.marketplace = ${marketplace}
           WHERE p.card_id = dc.card_id
         ) cheapest ON true
         GROUP BY dc.deck_id
@@ -218,11 +223,11 @@ export function marketplaceRepo(db: Kysely<Database>) {
       const rows = await sql<CollectionValue>`
         SELECT
           cp.collection_id AS "collectionId",
-          COALESCE(SUM(mvp.headline_cents), 0)::int AS "totalValueCents",
-          (COUNT(cp.id) - COUNT(mvp.headline_cents))::int AS "unpricedCopyCount"
+          COALESCE(SUM(lpp.headline_cents), 0)::int AS "totalValueCents",
+          (COUNT(cp.id) - COUNT(lpp.headline_cents))::int AS "unpricedCopyCount"
         FROM copies cp
-        LEFT JOIN mv_latest_printing_prices mvp
-          ON mvp.printing_id = cp.printing_id AND mvp.marketplace = ${marketplace}
+        LEFT JOIN latest_printing_prices lpp
+          ON lpp.printing_id = cp.printing_id AND lpp.marketplace = ${marketplace}
         WHERE cp.collection_id IN (${sql.join(ids)})
         GROUP BY cp.collection_id
       `.execute(db);
@@ -242,11 +247,11 @@ export function marketplaceRepo(db: Kysely<Database>) {
       const rows = await sql<CollectionValue>`
         SELECT
           cp.collection_id AS "collectionId",
-          COALESCE(SUM(mvp.headline_cents), 0)::int AS "totalValueCents",
-          (COUNT(cp.id) - COUNT(mvp.headline_cents))::int AS "unpricedCopyCount"
+          COALESCE(SUM(lpp.headline_cents), 0)::int AS "totalValueCents",
+          (COUNT(cp.id) - COUNT(lpp.headline_cents))::int AS "unpricedCopyCount"
         FROM copies cp
-        LEFT JOIN mv_latest_printing_prices mvp
-          ON mvp.printing_id = cp.printing_id AND mvp.marketplace = ${marketplace}
+        LEFT JOIN latest_printing_prices lpp
+          ON lpp.printing_id = cp.printing_id AND lpp.marketplace = ${marketplace}
         WHERE cp.collection_id = ${collectionId}
         GROUP BY cp.collection_id
       `.execute(db);
@@ -370,7 +375,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
       const printingIds = [...new Set(events.rows.map((e) => e.printingId))];
 
       // ── Query B: daily prices for those printings ──────────────────────
-      // Mirrors mv_latest_printing_prices' headline rule per marketplace but
+      // Mirrors latest_printing_prices' headline rule per marketplace but
       // grouped by day instead of "latest overall". CardTrader prefers
       // Zero-eligible pricing then overall-low; CardMarket prefers low then
       // market (matches user-facing "buy from cheapest" intent); TCGplayer
@@ -415,7 +420,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
       // enters composition. Without this, a printing whose only snapshots
       // are older than the user's first `added` event for it contributes 0
       // to the chart forever, even though the Stats card sees those prices
-      // via the materialized view.
+      // via latest_printing_prices.
       const sortedPriceDays = new Map<string, string[]>();
       for (const [printingId, dayMap] of priceMap) {
         sortedPriceDays.set(printingId, [...dayMap.keys()].toSorted());
@@ -586,13 +591,71 @@ export function marketplaceRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Refresh the `mv_latest_printing_prices` materialized view.
-     * Uses CONCURRENTLY so reads aren't blocked during refresh.
+     * Maintain the `latest_printing_prices` table after a price import.
+     *
+     * Recomputes the latest headline price per `(printing_id, marketplace)` with
+     * the same DISTINCT-ON query the old `mv_latest_printing_prices` materialized
+     * view used (migration 159 replaced the MV with this table so Electric can
+     * sync current prices to the client). In one transaction it upserts every
+     * current key and deletes keys that no longer have a price. The
+     * `IS DISTINCT FROM` upsert guard touches only rows whose headline actually
+     * changed, minimizing replication churn into the Electric shape.
      *
      * @returns void
      */
     async refreshLatestPrices(): Promise<void> {
-      await sql`REFRESH MATERIALIZED VIEW CONCURRENTLY mv_latest_printing_prices`.execute(db);
+      await db.transaction().execute(async (trx) => {
+        // Upsert the latest headline per (printing, marketplace). The CTE is the
+        // verbatim DISTINCT-ON the MV used.
+        await sql`
+          WITH latest AS (
+            SELECT DISTINCT ON (mpv.printing_id, mp.marketplace)
+              mpv.printing_id AS printing_id,
+              mp.marketplace  AS marketplace,
+              CASE WHEN mp.marketplace = 'cardtrader'
+                   THEN COALESCE(pp.zero_low_cents, pp.low_cents)
+                   WHEN mp.marketplace = 'cardmarket'
+                   THEN COALESCE(pp.low_cents, pp.market_cents)
+                   ELSE COALESCE(pp.market_cents, pp.low_cents)
+              END             AS headline_cents
+            FROM marketplace_product_variants mpv
+            JOIN marketplace_products       mp ON mp.id = mpv.marketplace_product_id
+            JOIN marketplace_product_prices pp ON pp.marketplace_product_id = mp.id
+            WHERE CASE WHEN mp.marketplace = 'cardtrader'
+                       THEN COALESCE(pp.zero_low_cents, pp.low_cents)
+                       WHEN mp.marketplace = 'cardmarket'
+                       THEN COALESCE(pp.low_cents, pp.market_cents)
+                       ELSE COALESCE(pp.market_cents, pp.low_cents)
+                  END IS NOT NULL
+            ORDER BY mpv.printing_id, mp.marketplace, (pp.zero_low_cents IS NULL), pp.recorded_at DESC
+          )
+          INSERT INTO latest_printing_prices (printing_id, marketplace, headline_cents)
+          SELECT printing_id, marketplace, headline_cents FROM latest
+          ON CONFLICT (printing_id, marketplace) DO UPDATE
+            SET headline_cents = EXCLUDED.headline_cents,
+                updated_at = now()
+            WHERE latest_printing_prices.headline_cents IS DISTINCT FROM EXCLUDED.headline_cents
+        `.execute(trx);
+
+        // Drop keys that no longer have a current price.
+        await sql`
+          DELETE FROM latest_printing_prices lpp
+          WHERE NOT EXISTS (
+            SELECT 1
+            FROM marketplace_product_variants mpv
+            JOIN marketplace_products       mp ON mp.id = mpv.marketplace_product_id
+            JOIN marketplace_product_prices pp ON pp.marketplace_product_id = mp.id
+            WHERE mpv.printing_id = lpp.printing_id
+              AND mp.marketplace = lpp.marketplace
+              AND CASE WHEN mp.marketplace = 'cardtrader'
+                       THEN COALESCE(pp.zero_low_cents, pp.low_cents)
+                       WHEN mp.marketplace = 'cardmarket'
+                       THEN COALESCE(pp.low_cents, pp.market_cents)
+                       ELSE COALESCE(pp.market_cents, pp.low_cents)
+                  END IS NOT NULL
+          )
+        `.execute(trx);
+      });
     },
   };
 }

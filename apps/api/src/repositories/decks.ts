@@ -323,7 +323,12 @@ export function decksRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Replaces all cards in a deck within a transaction. Deletes existing cards, inserts new ones, and touches updatedAt. */
+    /**
+     * Replaces all cards in a deck: deletes existing cards, inserts new ones,
+     * and touches updatedAt. Runs plain statements on the given `db` — call it
+     * through `transact` so the steps are atomic and the route can capture the
+     * Postgres txid of the same transaction (ADR-027 step 2).
+     */
     async replaceCards(
       deckId: string,
       cards: {
@@ -333,23 +338,70 @@ export function decksRepo(db: Kysely<Database>) {
         preferredPrintingId: string | null;
       }[],
     ): Promise<void> {
-      await db.transaction().execute(async (trx) => {
-        await trx.deleteFrom("deckCards").where("deckId", "=", deckId).execute();
+      await db.deleteFrom("deckCards").where("deckId", "=", deckId).execute();
 
-        if (cards.length > 0) {
-          await trx
-            .insertInto("deckCards")
-            .values(cards.map((card) => ({ deckId, ...card })))
-            .execute();
-        }
-
-        // Touch the parent deck so its updated_at advances via trigger
-        await trx
-          .updateTable("decks")
-          .set({ updatedAt: sql`now()` })
-          .where("id", "=", deckId)
+      if (cards.length > 0) {
+        await db
+          .insertInto("deckCards")
+          .values(cards.map((card) => ({ deckId, ...card })))
           .execute();
-      });
+      }
+
+      // Touch the parent deck so its updated_at advances via trigger
+      await db
+        .updateTable("decks")
+        .set({ updatedAt: sql`now()` })
+        .where("id", "=", deckId)
+        .execute();
+    },
+
+    /**
+     * Row-level deck-card writes for the synced deck builder (ADR-027).
+     * Deletes run first so a moved card (delete old row + insert new row on
+     * the same content key within one batch) never collides; upserts then
+     * converge on the content unique index `uq_deck_cards`
+     * (deck_id, card_id, zone, preferred_printing_id) — a replayed batch
+     * updates quantity in place instead of duplicating rows. Runs plain
+     * statements on the given `db` — call it through `transact` so the route
+     * can capture the Postgres txid of the same transaction.
+     */
+    async applyCards(
+      deckId: string,
+      upserts: {
+        id: string;
+        cardId: string;
+        zone: DeckZone;
+        quantity: number;
+        preferredPrintingId: string | null;
+      }[],
+      deletes: string[],
+    ): Promise<void> {
+      if (deletes.length > 0) {
+        await db
+          .deleteFrom("deckCards")
+          .where("deckId", "=", deckId)
+          .where("id", "in", deletes)
+          .execute();
+      }
+
+      if (upserts.length > 0) {
+        await db
+          .insertInto("deckCards")
+          .values(upserts.map((card) => ({ deckId, ...card })))
+          .onConflict((oc) =>
+            oc
+              .columns(["deckId", "cardId", "zone", "preferredPrintingId"])
+              .doUpdateSet((eb) => ({ quantity: eb.ref("excluded.quantity") })),
+          )
+          .execute();
+      }
+
+      // Touch the parent deck so its updated_at advances via trigger
+      await db
+        .updateTable("decks")
+        .set({ updatedAt: sql`now()` })
+        .where("id", "=", deckId)
+        .execute();
     },
 
     /** @returns The new deck row, or `undefined` if the source deck was not found. */

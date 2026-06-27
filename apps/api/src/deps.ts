@@ -52,6 +52,7 @@ import { setsRepo } from "./repositories/sets.js";
 import { siteSettingsRepo } from "./repositories/site-settings.js";
 import { statusRepo } from "./repositories/status.js";
 import { superTypesRepo } from "./repositories/super-types.js";
+import { syncRepo } from "./repositories/sync.js";
 import { tournamentsRepo } from "./repositories/tournaments.js";
 import { userContactMethodsRepo } from "./repositories/user-contact-methods.js";
 import { userFeatureFlagsRepo } from "./repositories/user-feature-flags.js";
@@ -127,6 +128,7 @@ export interface Repos {
   sets: ReturnType<typeof setsRepo>;
   status: ReturnType<typeof statusRepo>;
   superTypes: ReturnType<typeof superTypesRepo>;
+  sync: ReturnType<typeof syncRepo>;
   providerSettings: ReturnType<typeof providerSettingsRepo>;
   siteSettings: ReturnType<typeof siteSettingsRepo>;
   userPreferences: ReturnType<typeof userPreferencesRepo>;
@@ -238,6 +240,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     sets: setsRepo(db),
     status: statusRepo(db),
     superTypes: superTypesRepo(db),
+    sync: syncRepo(db),
     providerSettings: providerSettingsRepo(db),
     siteSettings: siteSettingsRepo(db),
     userPreferences: userPreferencesRepo(db),

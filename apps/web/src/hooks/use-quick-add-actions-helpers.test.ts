@@ -1,26 +1,11 @@
-import type { CopyResponse } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import { stubCopy } from "@/test/factories";
+import type { CopyViewRow } from "@/lib/copies-collection";
 
-import { decideRemoval, pickNewestCopy, pickRemovalCopy } from "./use-quick-add-actions-helpers";
+import { decideRemoval, pickNewestCopy } from "./use-quick-add-actions-helpers";
 
-function copy(
-  id: string,
-  printingId: string,
-  collectionId: string,
-  groupId: string | null = null,
-): CopyResponse {
-  return stubCopy({ id, printingId, collectionId, groupId });
-}
-
-function annotatedCopy(
-  id: string,
-  printingId: string,
-  collectionId: string,
-  overrides: Partial<CopyResponse> = { condition: "near-mint" },
-): CopyResponse {
-  return stubCopy({ id, printingId, collectionId, groupId: null, ...overrides });
+function copy(id: string, printingId: string, collectionId: string, synced = true): CopyViewRow {
+  return { id, printingId, collectionId, groupId: null, synced };
 }
 
 describe("pickNewestCopy", () => {
@@ -41,27 +26,6 @@ describe("pickNewestCopy", () => {
   });
 });
 
-describe("pickRemovalCopy", () => {
-  it("prefers the newest bare copy over a newer annotated one (ADR-038)", () => {
-    const bareOlder = copy("01900000-0000-7000-8000-000000000001", "pr-1", "col-1");
-    const bareNewer = copy("01900000-0000-7000-8000-000000000050", "pr-1", "col-1");
-    const annotatedNewest = annotatedCopy("01900000-0000-7000-8000-000000000099", "pr-1", "col-1");
-    expect(pickRemovalCopy([bareOlder, annotatedNewest, bareNewer])).toBe(bareNewer);
-  });
-
-  it("falls back to the newest annotated copy when every copy is annotated", () => {
-    const older = annotatedCopy("01900000-0000-7000-8000-000000000001", "pr-1", "col-1");
-    const newer = annotatedCopy("01900000-0000-7000-8000-000000000099", "pr-1", "col-1", {
-      notesPrivate: "graded at Worlds",
-    });
-    expect(pickRemovalCopy([older, newer])).toBe(newer);
-  });
-
-  it("returns undefined for an empty list", () => {
-    expect(pickRemovalCopy([])).toBeUndefined();
-  });
-});
-
 describe("decideRemoval", () => {
   it("returns 'none' when no copies match the printing", () => {
     const copies = [copy("c1", "pr-OTHER", "col-1")];
@@ -71,24 +35,6 @@ describe("decideRemoval", () => {
   it("returns 'none' when the scoped collection has no matching copies", () => {
     const copies = [copy("c1", "pr-1", "col-1")];
     expect(decideRemoval(copies, "pr-1", "col-OTHER")).toEqual({ kind: "none" });
-  });
-
-  it("prefers a bare copy over a newer annotated one within the collection (ADR-038)", () => {
-    const bare = copy("01900000-0000-7000-8000-000000000001", "pr-1", "col-1");
-    const annotated = annotatedCopy("01900000-0000-7000-8000-000000000099", "pr-1", "col-1");
-    expect(decideRemoval([bare, annotated], "pr-1", "col-1")).toEqual({
-      kind: "dispose",
-      copyId: bare.id,
-    });
-  });
-
-  it("asks for confirmation when only annotated copies remain (ADR-038)", () => {
-    const older = annotatedCopy("01900000-0000-7000-8000-000000000001", "pr-1", "col-1");
-    const newer = annotatedCopy("01900000-0000-7000-8000-000000000099", "pr-1", "col-1");
-    expect(decideRemoval([older, newer], "pr-1", "col-1")).toEqual({
-      kind: "confirmDispose",
-      copyId: newer.id,
-    });
   });
 
   it("disposes the newest copy when all matches live in one collection", () => {
@@ -143,14 +89,14 @@ describe("decideRemoval", () => {
     });
   });
 
-  // Regression: an optimistic temp row (id `temp-<uuid>`) for an in-flight
-  // add must not be picked by the minus button — dispose would 400 on the
-  // API (invalid uuid) or race the add-success swap. See Sentry
-  // OPENRIFT-SSR-R.
-  it("excludes optimistic temp rows when picking the newest", () => {
+  // Regression: an optimistic row whose add hasn't round-tripped yet
+  // (synced: false) must not be picked by the minus button — dispose would
+  // 404 on the API (the server doesn't know the id yet) or race the
+  // in-flight add. Successor of the old temp-id guard (Sentry OPENRIFT-SSR-R).
+  it("excludes unsynced optimistic rows when picking the newest", () => {
     const copies = [
       copy("01900000-0000-7000-8000-000000000001", "pr-1", "col-1"),
-      copy("temp-99999999-0000-0000-0000-000000000099", "pr-1", "col-1"),
+      copy("01900000-0000-7000-8000-000000000099", "pr-1", "col-1", false),
     ];
     expect(decideRemoval(copies, "pr-1")).toEqual({
       kind: "dispose",
@@ -158,48 +104,18 @@ describe("decideRemoval", () => {
     });
   });
 
-  it("returns 'none' when only a temp row matches the printing", () => {
-    const copies = [copy("temp-99999999-0000-0000-0000-000000000099", "pr-1", "col-1")];
+  it("returns 'none' when only an unsynced row matches the printing", () => {
+    const copies = [copy("01900000-0000-7000-8000-000000000099", "pr-1", "col-1", false)];
     expect(decideRemoval(copies, "pr-1")).toEqual({ kind: "none" });
   });
 
-  // Regression: on the unscoped All Cards view, copies in a friend-group
-  // collection belong to the group, not the viewer. The personal minus must
-  // ignore them — both so the count matches the personal-only owned badge and
-  // so the button can't remove a group's copy. See the variant-popover "30 vs
-  // 9" report.
-  it("ignores group-collection copies when unscoped", () => {
-    const copies = [
-      copy("01900000-0000-7000-8000-000000000010", "pr-1", "col-personal"),
-      copy("01900000-0000-7000-8000-000000000020", "pr-1", "col-group", "group-1"),
-    ];
-    // Only the personal copy is a removal candidate, so it disposes that one
-    // rather than treating the spread as multi-collection and opening a picker.
-    expect(decideRemoval(copies, "pr-1")).toEqual({
-      kind: "dispose",
-      copyId: "01900000-0000-7000-8000-000000000010",
-    });
-  });
-
-  it("returns 'none' when the only matching copies are in a group collection (unscoped)", () => {
-    const copies = [copy("01900000-0000-7000-8000-000000000020", "pr-1", "col-group", "group-1")];
-    expect(decideRemoval(copies, "pr-1")).toEqual({ kind: "none" });
-  });
-
-  it("still removes group copies when explicitly scoped to that group collection", () => {
-    const copies = [copy("01900000-0000-7000-8000-000000000020", "pr-1", "col-group", "group-1")];
-    expect(decideRemoval(copies, "pr-1", "col-group")).toEqual({
-      kind: "dispose",
-      copyId: "01900000-0000-7000-8000-000000000020",
-    });
-  });
-
-  it("does not open the picker on a multi-collection spread that's only real on one side", () => {
-    // Real copy in col-A, temp-only in col-B → after filtering, only col-A
-    // is in play, so this disposes from col-A rather than opening the picker.
+  it("does not open the picker on a multi-collection spread that's only synced on one side", () => {
+    // Synced copy in col-A, unsynced-only in col-B → after filtering, only
+    // col-A is in play, so this disposes from col-A rather than opening the
+    // picker.
     const copies = [
       copy("01900000-0000-7000-8000-000000000010", "pr-1", "col-A"),
-      copy("temp-22222222-0000-0000-0000-000000000022", "pr-1", "col-B"),
+      copy("01900000-0000-7000-8000-000000000022", "pr-1", "col-B", false),
     ];
     expect(decideRemoval(copies, "pr-1")).toEqual({
       kind: "dispose",

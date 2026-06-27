@@ -27,9 +27,12 @@ vi.mock("@/lib/server-cache", async () => {
   return { serverCache: new QC({ defaultOptions: { queries: { retry: false } } }) };
 });
 
-// Must import after the mock so the mock is applied.
+// Must import after the mock so the mock is applied. `catalogQueryOptions`
+// comes straight from catalog-query (use-cards.ts just re-exports it) so this
+// test of the edge-fetch path stays decoupled from the synced-catalog hook
+// chain (db-persistence / auth-session) that use-cards.ts now also imports.
 const { serverCache } = await import("@/lib/server-cache");
-const { catalogQueryOptions } = await import("./use-cards");
+const { catalogQueryOptions } = await import("@/lib/catalog-query");
 
 const CARD_A_ID = "00000000-0000-0000-0000-000000000001";
 const CARD_B_ID = "00000000-0000-0000-0000-000000000002";

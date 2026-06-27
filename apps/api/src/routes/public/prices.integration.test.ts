@@ -1,6 +1,6 @@
-import { sql } from "kysely";
 import { describe, expect, it } from "vitest";
 
+import { marketplaceRepo } from "../../repositories/marketplace.js";
 import { createTestContext, req, syncCardCardTypes } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
@@ -245,10 +245,11 @@ if (ctx) {
     ])
     .execute();
 
-  // GET /prices reads headline prices from the mv_latest_printing_prices
-  // materialized view. The runner refreshes it during setup, before this
-  // file seeds its prices at import time — so refresh again to surface them.
-  await sql`REFRESH MATERIALIZED VIEW mv_latest_printing_prices`.execute(db);
+  // GET /prices reads headline prices from the latest_printing_prices table
+  // (migration 159 replaced the mv_latest_printing_prices MV with it). The
+  // runner maintains it during setup, before this file seeds its prices at
+  // import time — so re-run the maintenance to surface them.
+  await marketplaceRepo(db).refreshLatestPrices();
 }
 
 // ---------------------------------------------------------------------------
@@ -275,7 +276,7 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       const res = await app.fetch(req("GET", "/prices"));
       const json = await res.json();
 
-      // mv_latest_printing_prices picks the headline per marketplace; the wire
+      // latest_printing_prices picks the headline per marketplace; the wire
       // carries integer cents:
       //   tcgplayer  → COALESCE(market_cents, low_cents) = 250
       //   cardmarket → COALESCE(low_cents, market_cents) = 100

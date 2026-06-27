@@ -24,6 +24,7 @@ const mockRepo = {
   cardRequirements: vi.fn(() => Promise.resolve([] as object[])),
   availableCopiesByCard: vi.fn(() => Promise.resolve([] as object[])),
   replaceCards: vi.fn(() => Promise.resolve()),
+  applyCards: vi.fn(() => Promise.resolve()),
   cloneDeck: vi.fn(() => Promise.resolve(undefined as object | undefined)),
   getShareState: vi.fn(() => Promise.resolve(undefined as object | undefined)),
   setShareToken: vi.fn(() => Promise.resolve(undefined as object | undefined)),
@@ -51,6 +52,12 @@ const mockDeckFormats = {
 
 const mockCustomTags = {
   getBySlug: vi.fn(() => Promise.resolve(undefined as object | undefined)),
+};
+
+// Mutation routes capture the Postgres txid inside their transaction so the
+// client can await the change on the Electric stream (ADR-027 step 2).
+const mockSyncRepo = {
+  currentTransactionId: vi.fn(() => Promise.resolve(4242)),
 };
 
 const mockEnums = {
@@ -94,14 +101,18 @@ const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
-  c.set("repos", {
+  const repos = {
     decks: mockRepo,
     marketplace: mockMarketplace,
     userPreferences: mockUserPreferences,
     enums: mockEnums,
     deckFormats: mockDeckFormats,
     customTags: mockCustomTags,
-  } as never);
+    sync: mockSyncRepo,
+  };
+  c.set("repos", repos as never);
+  // Pass-through transact: runs the callback against the same mock repos.
+  c.set("transact", ((fn: (trxRepos: unknown) => unknown) => fn(repos)) as never);
   await next();
 });
 registerRouterForTest(app, decksRouter);
@@ -619,6 +630,8 @@ describe("PUT /api/v1/decks/:id/cards — returned cards", () => {
     expect(json.cards).toHaveLength(1);
     expect(json.cards[0].cardId).toBe("c0000000-0001-4000-a000-000000000001");
     expect(json.cards[0].quantity).toBe(4);
+    // ADR-027 step 2: the replace's own Postgres txid rides in the body.
+    expect(json.txid).toBe(4242);
   });
 
   it("calls replaceCards with the card data", async () => {
@@ -638,6 +651,87 @@ describe("PUT /api/v1/decks/:id/cards — returned cards", () => {
       DECK_ID,
       cards.map((card) => ({ ...card, preferredPrintingId: null })),
     );
+  });
+});
+
+describe("POST /api/v1/decks/:id/cards/apply", () => {
+  const ROW_ID = "b0000000-0001-4000-a000-000000000001";
+  const CARD_ID = "c0000000-0001-4000-a000-000000000001";
+
+  beforeEach(() => {
+    mockRepo.exists.mockReset();
+    mockRepo.applyCards.mockReset();
+    mockSyncRepo.currentTransactionId.mockClear();
+  });
+
+  it("applies upserts and deletes in one transaction and returns the txid", async () => {
+    mockRepo.exists.mockResolvedValue({ id: DECK_ID });
+    mockRepo.applyCards.mockResolvedValue(undefined);
+    const res = await app.request(`/api/v1/decks/${DECK_ID}/cards/apply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        upserts: [
+          { id: ROW_ID, cardId: CARD_ID, zone: "main", quantity: 3, preferredPrintingId: null },
+        ],
+        deletes: ["b0000000-0002-4000-a000-000000000001"],
+      }),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ txid: 4242 });
+    expect(mockRepo.applyCards).toHaveBeenCalledWith(
+      DECK_ID,
+      [{ id: ROW_ID, cardId: CARD_ID, zone: "main", quantity: 3, preferredPrintingId: null }],
+      ["b0000000-0002-4000-a000-000000000001"],
+    );
+  });
+
+  it("accepts an upsert-only payload", async () => {
+    mockRepo.exists.mockResolvedValue({ id: DECK_ID });
+    mockRepo.applyCards.mockResolvedValue(undefined);
+    const res = await app.request(`/api/v1/decks/${DECK_ID}/cards/apply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        upserts: [
+          { id: ROW_ID, cardId: CARD_ID, zone: "runes", quantity: 1, preferredPrintingId: null },
+        ],
+        deletes: [],
+      }),
+    });
+    expect(res.status).toBe(200);
+    expect(mockRepo.applyCards).toHaveBeenCalledWith(
+      DECK_ID,
+      [{ id: ROW_ID, cardId: CARD_ID, zone: "runes", quantity: 1, preferredPrintingId: null }],
+      [],
+    );
+  });
+
+  it("404s for a deck the user does not own — and never writes", async () => {
+    mockRepo.exists.mockResolvedValue(undefined);
+    const res = await app.request(`/api/v1/decks/${DECK_ID}/cards/apply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ upserts: [], deletes: [ROW_ID] }),
+    });
+    expect(res.status).toBe(404);
+    expect(mockRepo.applyCards).not.toHaveBeenCalled();
+  });
+
+  it("rejects non-positive quantities", async () => {
+    mockRepo.exists.mockResolvedValue({ id: DECK_ID });
+    const res = await app.request(`/api/v1/decks/${DECK_ID}/cards/apply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        upserts: [
+          { id: ROW_ID, cardId: CARD_ID, zone: "main", quantity: 0, preferredPrintingId: null },
+        ],
+        deletes: [],
+      }),
+    });
+    expect(res.status).toBe(400);
+    expect(mockRepo.applyCards).not.toHaveBeenCalled();
   });
 });
 

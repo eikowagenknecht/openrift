@@ -2,6 +2,7 @@ import type {
   CopyAddResponse,
   CopyListMembershipsResponse,
   CopyListResponse,
+  CopyMutationResponse,
 } from "@openrift/shared";
 import { copiesContract } from "@openrift/shared/contracts";
 import { implement } from "@orpc/server";
@@ -15,8 +16,10 @@ const os = implement(copiesContract).$context<ApiContext>().use(requireAuthedUse
 
 /**
  * Authenticated copies contract. The FK-violation 400 on `add` is a typed
- * `errors.BAD_REQUEST()` declared on the contract. `move`/`dispose` return 204
- * (no body) via the contract's `successStatus`.
+ * `errors.BAD_REQUEST()`; a unique-violation retry is a typed `errors.CONFLICT()`.
+ * `add`/`move`/`dispose` return the Postgres txid of the write (ADR-027) so the
+ * client's optimistic overlay holds until the change arrives back on the
+ * Electric stream.
  */
 export const copiesRouter = {
   // All copies the viewer can access: their personal collections plus the
@@ -54,28 +57,40 @@ export const copiesRouter = {
       if (error instanceof Error && "code" in error && error.code === "23503") {
         throw errors.BAD_REQUEST({ message: "One or more printings do not exist" });
       }
+      // 23505 = unique_violation: a client-supplied copy id already exists
+      // (e.g. a retried request whose first attempt did land). Report a clean
+      // conflict the client can treat as "already applied".
+      if (error instanceof Error && "code" in error && error.code === "23505") {
+        throw errors.CONFLICT({ message: "One or more copies already exist" });
+      }
       throw error;
     }
-    return { items: created };
+    return { items: created.items, txid: created.txid };
   }),
 
   // Move copies between collections (reorganization).
-  move: os.move.handler(async ({ input, context }): Promise<void> => {
+  move: os.move.handler(async ({ input, context }): Promise<CopyMutationResponse> => {
     const { moveCopies: moveCopiesService } = context.services;
-    await moveCopiesService(
+    const { txid } = await moveCopiesService(
       context.repos,
       context.transact,
       context.userId,
       input.copyIds,
       input.toCollectionId,
     );
+    return { txid };
   }),
 
   // Apply one metadata patch (condition, grading, notes, links) to copies.
-  update: os.update.handler(async ({ input, context, errors }): Promise<void> => {
+  update: os.update.handler(async ({ input, context, errors }): Promise<CopyMutationResponse> => {
     const { updateCopies: updateCopiesService } = context.services;
     try {
-      await updateCopiesService(context.transact, context.userId, input.copyIds, input.patch);
+      return await updateCopiesService(
+        context.transact,
+        context.userId,
+        input.copyIds,
+        input.patch,
+      );
     } catch (error) {
       // 23503 = foreign_key_violation (unknown condition/grader slug);
       // 23514 = check_violation (grader/grade pairing). Both are bad input.
@@ -91,9 +106,10 @@ export const copiesRouter = {
   }),
 
   // Dispose copies (disposal) — hard-deletes with metadata snapshot.
-  dispose: os.dispose.handler(async ({ input, context }): Promise<void> => {
+  dispose: os.dispose.handler(async ({ input, context }): Promise<CopyMutationResponse> => {
     const { disposeCopies: disposeCopiesService } = context.services;
-    await disposeCopiesService(context.transact, context.userId, input.copyIds);
+    const { txid } = await disposeCopiesService(context.transact, context.userId, input.copyIds);
+    return { txid };
   }),
 
   // Read-only: which of the viewer's own lists reference these copies.

@@ -86,7 +86,7 @@ export const adminCatalogRouter = {
   }),
 
   reorderSets: os.reorderSets.handler(async ({ input, context }): Promise<void> => {
-    const { sets: setsRepo } = context.repos;
+    const { sets: setsRepo, catalog } = context.repos;
     const { ids } = input;
 
     const uniqueIds = new Set(ids);
@@ -110,5 +110,7 @@ export const adminCatalogRouter = {
     }
 
     await setsRepo.reorder(ids);
+    // Set sort_order feeds the printing canonical rank (migration 158).
+    await catalog.recomputeCanonicalRanks();
   }),
 };

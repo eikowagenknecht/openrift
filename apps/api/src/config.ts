@@ -46,6 +46,17 @@ export function createConfig(env: Record<string, string | undefined>) {
 
     cardtraderApiToken: env.CARDTRADER_API_TOKEN ?? "",
 
+    // Electric sync service (ADR-027 step 2). `url` is where this API reaches
+    // Electric (dev: the manually-run container on localhost:3010; prod: the
+    // `electric` compose service). Unset disables the shape proxy with a 503,
+    // which the client treats like any other sync interruption. `secret` is
+    // appended server-side to every proxied shape request so Electric itself
+    // never has to be reachable without it.
+    electric: {
+      url: env.ELECTRIC_URL,
+      secret: env.ELECTRIC_SECRET,
+    },
+
     cloudflare:
       env.CLOUDFLARE_API_TOKEN && env.CLOUDFLARE_ZONE_ID
         ? { apiToken: env.CLOUDFLARE_API_TOKEN, zoneId: env.CLOUDFLARE_ZONE_ID }

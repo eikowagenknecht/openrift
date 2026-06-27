@@ -17,6 +17,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
 import { sessionQueryOptions } from "@/lib/auth-session";
+import { releaseCopiesCollection } from "@/lib/copies-collection";
+import { wipePersistedData } from "@/lib/db-persistence";
 
 export function DangerZoneSection() {
   const [open, setOpen] = useState(false);
@@ -48,6 +50,10 @@ export function DangerZoneSection() {
     // commit the unmount before observers see the new state.
     await router.navigate({ to: "/" });
     void queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
+    // The deleted account's locally persisted copies must not outlive it —
+    // stop the collection's machinery and wipe the on-device SQLite cache.
+    releaseCopiesCollection(queryClient);
+    void wipePersistedData();
   }
 
   return (

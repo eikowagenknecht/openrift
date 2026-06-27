@@ -7,7 +7,6 @@ import { useBatchedAddCopies, useDisposeCopies } from "@/hooks/use-copies";
 import { decideRemoval, pickRemovalCopy } from "@/hooks/use-quick-add-actions-helpers";
 import { useCopiesCollection } from "@/lib/copies-collection";
 import { summarizeBatchAdd } from "@/lib/summarize-batch-add";
-import { isTempCopyId } from "@/lib/temp-copy-id";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import type { VariantPopoverIntent } from "@/stores/add-mode-store";
 
@@ -183,9 +182,10 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
     if (!copiesCollection) {
       return;
     }
+    // `synced` guard: skip optimistic rows whose add is still in flight —
+    // the server doesn't know those ids yet, so dispose would 404.
     const copies = copiesCollection.toArray.filter(
-      (c) =>
-        c.printingId === printing.id && c.collectionId === fromCollectionId && !isTempCopyId(c.id),
+      (c) => c.printingId === printing.id && c.collectionId === fromCollectionId && c.synced,
     );
     const candidate = pickRemovalCopy(copies);
     if (!candidate) {

@@ -137,7 +137,14 @@ export const oneListEntryTarget = (data: {
   Number(Boolean(data.cardId)) + Number(Boolean(data.printingId)) + Number(Boolean(data.copyId)) ===
   1;
 
-const listEntryInputShape = {
+// The fields a list entry's two add paths genuinely share: the target (exactly
+// one of cardId / printingId / copyId), a quantity, and the trade override. The
+// entry id is deliberately NOT here — the paths differ on it, so each declares
+// it on its own terms: single-add (`createEntry`) omits it and the server
+// generates one (a body id would collide with the `{id}` list path param);
+// bulk-add (`bulkCreateEntries`) requires the synced client to mint it so the
+// optimistic row and the replicated row are the same row.
+const listEntryTargetShape = {
   cardId: z.uuid().optional(),
   printingId: z.uuid().optional(),
   copyId: z.uuid().optional(),
@@ -145,12 +152,12 @@ const listEntryInputShape = {
   tradeOverride: tradePreferenceInputSchema.default(emptyTradePreference),
 };
 
-// Exported so the oRPC lists contract can merge it with the `{id}` path param
-// (createListEntrySchema is `.refine()`d at the top level, so it has no
-// `.shape` to extend). The route handler re-validates the one-target rule.
-export { listEntryInputShape };
+// Exported so the oRPC lists contract can merge it with the `{id}` list path
+// param (single-add) and with a required entry id (bulk-add). The route handler
+// re-validates the one-target rule.
+export { listEntryTargetShape };
 
-export const createListEntrySchema = z.object(listEntryInputShape).refine(oneListEntryTarget, {
+export const createListEntrySchema = z.object(listEntryTargetShape).refine(oneListEntryTarget, {
   message: "Exactly one of cardId, printingId, or copyId must be provided",
 });
 

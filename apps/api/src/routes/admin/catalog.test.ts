@@ -20,6 +20,12 @@ const mockSetsRepo = {
   reorder: vi.fn(),
 };
 
+// Set reorder shifts the printing canonical ranks, so the route calls
+// catalog.recomputeCanonicalRanks() after reordering (migration 158).
+const mockCatalogRepo = {
+  recomputeCanonicalRanks: vi.fn(() => Promise.resolve()),
+};
+
 // ---------------------------------------------------------------------------
 // Test app — mount the oRPC router directly (without the requireAdmin gate).
 // AppErrors are bridged to ORPCErrors, so the error body is `{ message, code }`.
@@ -30,7 +36,7 @@ const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
-  c.set("repos", { sets: mockSetsRepo } as never);
+  c.set("repos", { sets: mockSetsRepo, catalog: mockCatalogRepo } as never);
   await next();
 });
 registerRouterForTest(app, adminCatalogRouter);

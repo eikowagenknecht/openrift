@@ -12,6 +12,7 @@
     "./contracts": "./src/contracts/index.ts",
     "./contracts/*": "./src/contracts/*.ts",
     "./response-schemas": "./src/response-schemas.ts",
+    "./catalog-assembly": "./src/catalog-assembly.ts",
     "./utils": "./src/utils.ts",
     "./keywords": "./src/keywords.ts",
     "./types": "./src/types/index.ts",

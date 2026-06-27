@@ -68,6 +68,27 @@ export const updateDeckCardsSchema = z.object({
     .max(500),
 });
 
+/**
+ * Row-level deck-card writes for the synced deck builder (ADR-027): client-id'd
+ * upserts (absolute quantities) plus deletes in one transaction. Replay-tolerant
+ * — upserts converge on the content unique index, deletes of already-gone rows
+ * are no-ops.
+ */
+export const applyDeckCardsSchema = z.object({
+  upserts: z
+    .array(
+      z.object({
+        id: z.uuid(),
+        cardId: z.uuid(),
+        zone: deckCardFieldRules.zone,
+        quantity: deckCardFieldRules.quantity,
+        preferredPrintingId: z.uuid().nullable(),
+      }),
+    )
+    .max(500),
+  deletes: z.array(z.uuid()).max(500),
+});
+
 const deckMatchupSwapSchema = z.object({
   cardId: z.uuid(),
   direction: z.enum(["in", "out"]),
@@ -210,6 +231,20 @@ export const deckCardsResponseSchema = z
   .object({ cards: z.array(deckCardResponseSchema) })
   .openapi("DeckCardsResponse");
 
+/**
+ * Full-replace (`PUT /decks/{id}/cards`) response: the deck's cards plus the
+ * Postgres transaction id of the write, so the client can await the change on
+ * the Electric stream (ADR-027 step 2).
+ */
+export const deckCardsWriteResponseSchema = z
+  .object({ cards: z.array(deckCardResponseSchema), txid: z.number().int() })
+  .openapi("DeckCardsWriteResponse");
+
+/** Row-level deck-card apply response: the Postgres txid of the change (ADR-027 step 2). */
+export const deckMutationResponseSchema = z
+  .object({ txid: z.number().int() })
+  .openapi("DeckMutationResponse");
+
 export const deckExportResponseSchema = z
   .object({
     code: z.string(),
@@ -265,7 +300,15 @@ export const decksContract = {
     .route({ method: "PUT", path: "/api/v1/decks/{id}/cards", tags: [TAG] })
     .input(withParams(idParamSchema, updateDeckCardsSchema))
     .errors({ NOT_FOUND: { message: "Deck not found" } })
-    .output(deckCardsResponseSchema),
+    .output(deckCardsWriteResponseSchema),
+  // Row-level deck-card writes for the synced deck builder (ADR-027): bulk
+  // upserts + deletes in one transaction; the body carries the Postgres txid
+  // so the client's optimistic overlay holds until it returns on the stream.
+  applyCards: authedRoute
+    .route({ method: "POST", path: "/api/v1/decks/{id}/cards/apply", tags: [TAG] })
+    .input(withParams(idParamSchema, applyDeckCardsSchema))
+    .errors({ NOT_FOUND: { message: "Deck not found" } })
+    .output(deckMutationResponseSchema),
   getPlan: authedRoute
     .route({ method: "GET", path: "/api/v1/decks/{id}/plan", tags: [TAG] })
     .input(idParamSchema)

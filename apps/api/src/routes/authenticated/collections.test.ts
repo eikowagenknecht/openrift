@@ -53,7 +53,17 @@ const mockMarketplaceRepo = {
 };
 
 const mockEnsureInbox = vi.fn(() => Promise.resolve("inbox-id"));
-const mockDeleteCollection = vi.fn(() => Promise.resolve());
+const mockDeleteCollection = vi.fn(() => Promise.resolve({ txid: 4242 }));
+
+// Mutation routes capture the Postgres txid inside their transaction so the
+// client can await the change on the Electric stream (ADR-027 step 2).
+const mockSyncRepo = {
+  currentTransactionId: vi.fn(() => Promise.resolve(4242)),
+};
+
+const mockDeckbuildingPrefsRepo = {
+  set: vi.fn(() => Promise.resolve()),
+};
 
 // ---------------------------------------------------------------------------
 // Test app
@@ -61,17 +71,22 @@ const mockDeleteCollection = vi.fn(() => Promise.resolve());
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
+const repos = {
+  collections: mockCollectionsRepo,
+  copies: mockCopiesRepo,
+  marketplace: mockMarketplaceRepo,
+  userPreferences: mockUserPreferencesRepo,
+  friendGroups: mockFriendGroupsRepo,
+  collectionDeckbuildingPrefs: mockDeckbuildingPrefsRepo,
+  sync: mockSyncRepo,
+};
+
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
-  c.set("transact", (() => {}) as never);
-  c.set("repos", {
-    collections: mockCollectionsRepo,
-    copies: mockCopiesRepo,
-    marketplace: mockMarketplaceRepo,
-    userPreferences: mockUserPreferencesRepo,
-    friendGroups: mockFriendGroupsRepo,
-  } as never);
+  // Pass-through transact: runs the callback against the same mock repos.
+  c.set("transact", ((fn: (trxRepos: unknown) => unknown) => fn(repos)) as never);
+  c.set("repos", repos as never);
   c.set("services", {
     ensureInbox: mockEnsureInbox,
     deleteCollection: mockDeleteCollection,
@@ -201,17 +216,19 @@ describe("POST /api/v1/collections", () => {
     mockFriendGroupsRepo.getMembership.mockReset();
   });
 
-  it("returns 201 with created personal collection", async () => {
+  it("returns 201 with created personal collection and the txid", async () => {
     mockCollectionsRepo.create.mockResolvedValue(dbCollection);
     const res = await app.request("/api/v1/collections", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Main Binder" }),
+      body: JSON.stringify({ id: dbCollection.id, name: "Main Binder" }),
     });
     expect(res.status).toBe(201);
     const json = await res.json();
     expect(json.name).toBe("Main Binder");
+    expect(json.txid).toBe(4242);
     expect(mockCollectionsRepo.create).toHaveBeenCalledWith({
+      id: dbCollection.id,
       userId: USER_ID,
       groupId: null,
       name: "Main Binder",
@@ -219,6 +236,32 @@ describe("POST /api/v1/collections", () => {
       isInbox: false,
       sortOrder: 0,
     });
+  });
+
+  it("passes a client-supplied id through to the insert (ADR-027)", async () => {
+    const clientId = "a0000000-0001-7000-a000-000000000099";
+    mockCollectionsRepo.create.mockResolvedValue({ ...dbCollection, id: clientId });
+    const res = await app.request("/api/v1/collections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: clientId, name: "Main Binder" }),
+    });
+    expect(res.status).toBe(201);
+    expect(mockCollectionsRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ id: clientId }),
+    );
+  });
+
+  it("returns 409 when a client-supplied id already exists (replayed create)", async () => {
+    mockCollectionsRepo.create.mockRejectedValue(
+      Object.assign(new Error("duplicate key value"), { code: "23505" }),
+    );
+    const res = await app.request("/api/v1/collections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: dbCollection.id, name: "Main Binder" }),
+    });
+    expect(res.status).toBe(409);
   });
 
   it("creates a shared collection when groupSlug is provided and the user is a member", async () => {
@@ -232,7 +275,7 @@ describe("POST /api/v1/collections", () => {
     const res = await app.request("/api/v1/collections", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Pool", groupSlug: "friday-night" }),
+      body: JSON.stringify({ id: dbSharedCollection.id, name: "Pool", groupSlug: "friday-night" }),
     });
     expect(res.status).toBe(201);
     const json = await res.json();
@@ -252,7 +295,7 @@ describe("POST /api/v1/collections", () => {
     const res = await app.request("/api/v1/collections", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Pool", groupSlug: "friday-night" }),
+      body: JSON.stringify({ id: dbCollection.id, name: "Pool", groupSlug: "friday-night" }),
     });
     expect(res.status).toBe(403);
   });
@@ -262,7 +305,7 @@ describe("POST /api/v1/collections", () => {
     const res = await app.request("/api/v1/collections", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Pool", groupSlug: "nope" }),
+      body: JSON.stringify({ id: dbCollection.id, name: "Pool", groupSlug: "nope" }),
     });
     expect(res.status).toBe(404);
   });
@@ -295,7 +338,7 @@ describe("PATCH /api/v1/collections/:id", () => {
     mockCollectionsRepo.updateById.mockReset();
   });
 
-  it("returns 200 with updated collection", async () => {
+  it("returns 200 with updated collection and the txid", async () => {
     mockCollectionsRepo.getAccessForUser.mockResolvedValue(access(dbCollection));
     const updated = { ...dbCollection, name: "Renamed" };
     mockCollectionsRepo.updateById.mockResolvedValue(updated);
@@ -307,6 +350,7 @@ describe("PATCH /api/v1/collections/:id", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.name).toBe("Renamed");
+    expect(json.txid).toBe(4242);
   });
 
   it("returns 403 when viewer is not an admin of a shared collection", async () => {
@@ -341,12 +385,14 @@ describe("DELETE /api/v1/collections/:id", () => {
     mockEnsureInbox.mockResolvedValue("inbox-id");
   });
 
-  it("returns 204 and auto-moves copies to inbox (personal)", async () => {
+  it("returns 200 with the txid and auto-moves copies to inbox (personal)", async () => {
     mockCollectionsRepo.getAccessForUser.mockResolvedValue(access(dbCollection));
+    mockDeleteCollection.mockResolvedValue({ txid: 4242 });
     const res = await app.request(`/api/v1/collections/${dbCollection.id}`, {
       method: "DELETE",
     });
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ txid: 4242 });
     expect(mockEnsureInbox).toHaveBeenCalled();
     expect(mockDeleteCollection).toHaveBeenCalledWith(
       expect.anything(),
@@ -365,7 +411,8 @@ describe("DELETE /api/v1/collections/:id", () => {
     const res = await app.request(`/api/v1/collections/${dbSharedCollection.id}`, {
       method: "DELETE",
     });
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ txid: 4242 });
     expect(mockCollectionsRepo.deleteById).toHaveBeenCalledWith(dbSharedCollection.id);
     expect(mockEnsureInbox).not.toHaveBeenCalled();
   });
@@ -531,7 +578,7 @@ describe("POST /api/v1/collections/reorder", () => {
     mockCollectionsRepo.reorderPersonal.mockResolvedValue(undefined);
   });
 
-  it("returns 204 and forwards orderedIds to the repo", async () => {
+  it("returns 200 with the txid and forwards orderedIds to the repo", async () => {
     const orderedIds = [
       "a0000000-0001-4000-a000-000000000010",
       "a0000000-0001-4000-a000-000000000011",
@@ -541,7 +588,8 @@ describe("POST /api/v1/collections/reorder", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ orderedIds }),
     });
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ txid: 4242 });
     expect(mockCollectionsRepo.reorderPersonal).toHaveBeenCalledWith(USER_ID, orderedIds);
   });
 

@@ -8,6 +8,12 @@ import { logEvents } from "./event-logger.js";
 import { ensureInbox } from "./inbox.js";
 
 interface AddCopyInput {
+  /**
+   * Client-generated copy id (ADR-027 step 2): with a synced collection the
+   * optimistic row and the replicated row must be the same row. Falls back to
+   * the column default (`uuidv7()`) when absent.
+   */
+  id?: string;
   printingId: string;
   collectionId?: string;
   /** Per-copy metadata (ADR-038), optional at insert time. */
@@ -44,14 +50,15 @@ interface AddCopyResult {
  * `filterWritableByViewer` — for personal collections the user must own them,
  * for shared collections they must be a group member.
  *
- * @returns The created copies with their IDs
+ * @returns The created copies with their IDs, plus the insert's Postgres
+ *   transaction id for Electric stream matching (ADR-027 step 2).
  */
 export async function addCopies(
   repos: Repos,
   transact: Transact,
   userId: string,
   copies: AddCopyInput[],
-): Promise<AddCopyResult[]> {
+): Promise<{ items: AddCopyResult[]; txid: number }> {
   const inboxId = await ensureInbox(repos, userId);
 
   // Verify every explicit collectionId is writable by this user
@@ -71,6 +78,7 @@ export async function addCopies(
     // Copies no longer carry an owner column — ownership derives from the
     // collection. The acting `userId` is still recorded as the event actor below.
     const copyValues = copies.map((item) => ({
+      ...(item.id ? { id: item.id } : {}),
       printingId: item.printingId,
       collectionId: item.collectionId ?? inboxId,
       condition: item.condition ?? null,
@@ -103,10 +111,15 @@ export async function addCopies(
       })),
     );
 
-    return copyRows.map((row) => ({
-      ...row,
-      groupId: collectionGroupIds.get(row.collectionId) ?? null,
-    }));
+    return {
+      // Full row spread so the ADR-038 metadata fields ride along; groupId is
+      // derived from the owning collection.
+      items: copyRows.map((row) => ({
+        ...row,
+        groupId: collectionGroupIds.get(row.collectionId) ?? null,
+      })),
+      txid: await trxRepos.sync.currentTransactionId(),
+    };
   });
 
   return created;
@@ -127,10 +140,10 @@ export async function updateCopies(
   userId: string,
   copyIds: string[],
   patch: CopyMetadataPatch,
-): Promise<void> {
+): Promise<{ txid: number }> {
   const normalized = normalizeCopyMetadataPatch(patch);
 
-  await transact(async (trxRepos) => {
+  return await transact(async (trxRepos) => {
     const copies = await trxRepos.copies.listWithCollectionContext(copyIds);
 
     if (copies.length !== copyIds.length) {
@@ -147,6 +160,8 @@ export async function updateCopies(
       ...normalized,
       links: normalized.links ? JSON.stringify(normalized.links) : undefined,
     });
+
+    return { txid: await trxRepos.sync.currentTransactionId() };
   });
 }
 
@@ -159,6 +174,8 @@ export async function updateCopies(
  *
  * Source access means the copy lives in one of the viewer's writable collections
  * (personal owner OR group member of a shared collection that contains it).
+ *
+ * @returns The move's Postgres transaction id for Electric stream matching.
  */
 export async function moveCopies(
   repos: Repos,
@@ -166,7 +183,7 @@ export async function moveCopies(
   userId: string,
   copyIds: string[],
   toCollectionId: string,
-): Promise<void> {
+): Promise<{ txid: number }> {
   const targetWritable = await repos.collections.filterWritableByViewer([toCollectionId], userId);
   if (targetWritable.length === 0) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "Target collection not found");
@@ -175,7 +192,7 @@ export async function moveCopies(
   const target = targetMeta[0];
   assertFound(target, "Target collection not found");
 
-  await transact(async (trxRepos) => {
+  return transact(async (trxRepos) => {
     const copies = await trxRepos.copies.listWithCollectionContext(copyIds);
 
     if (copies.length !== copyIds.length) {
@@ -206,6 +223,8 @@ export async function moveCopies(
         toCollectionName: target.name,
       })),
     );
+
+    return { txid: await trxRepos.sync.currentTransactionId() };
   });
 }
 
@@ -217,13 +236,18 @@ export async function moveCopies(
  * Rejects copies reserved by a live trade (ADR-019). Trade-sync's giver path
  * releases its reservation rows first and then disposes within the same
  * transaction via {@link disposeCopiesInTransaction} with the guard skipped.
+ *
+ * @returns The deletion's Postgres transaction id for Electric stream matching.
  */
-export async function disposeCopies(
+export function disposeCopies(
   transact: Transact,
   userId: string,
   copyIds: string[],
-): Promise<void> {
-  await transact((trxRepos) => disposeCopiesInTransaction(trxRepos, userId, copyIds));
+): Promise<{ txid: number }> {
+  return transact(async (trxRepos) => {
+    await disposeCopiesInTransaction(trxRepos, userId, copyIds);
+    return { txid: await trxRepos.sync.currentTransactionId() };
+  });
 }
 
 /**

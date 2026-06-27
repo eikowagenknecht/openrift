@@ -13,8 +13,15 @@ const os = implement(catalogContract).$context<ApiContext>().use(requireUser);
  *
  * Cards and printings are both returned as maps keyed by their own id; the id
  * is therefore omitted from each value (identity lives in the key). Sets stay
- * an array. Prices live on a separate `/api/v1/prices` endpoint with its own
- * cache lifetime, so the catalog ETag stays stable across daily price refreshes.
+ * an array.
+ *
+ * The static parts (sets, cards, printings, custom-tag assignments) are
+ * assembled by the shared `assembleCatalogStaticParts` (via
+ * `assembleCatalogResponse`) — the exact same pure transform the synced web
+ * client runs over Electric rows (ADR-027). `totalCopies` is the only dynamic
+ * field merged in; prices live on a separate `/api/v1/prices` endpoint with
+ * its own cache lifetime, so the catalog ETag stays stable across daily price
+ * refreshes.
  */
 export const catalogRouter = {
   catalog: os.catalog.handler(

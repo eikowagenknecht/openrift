@@ -14,9 +14,11 @@ const mockRepo = {
   listForAccessibleCollections: vi.fn(() => Promise.resolve([] as object[])),
 };
 
-const mockAddCopies = vi.fn(() => Promise.resolve([] as object[]));
-const mockMoveCopies = vi.fn(() => Promise.resolve());
-const mockDisposeCopies = vi.fn(() => Promise.resolve());
+// Every mutation returns the Postgres txid for Electric stream matching
+// (ADR-027 step 2); addCopies returns it alongside the created items.
+const mockAddCopies = vi.fn(() => Promise.resolve({ items: [] as object[], txid: 4242 }));
+const mockMoveCopies = vi.fn(() => Promise.resolve({ txid: 4242 }));
+const mockDisposeCopies = vi.fn(() => Promise.resolve({ txid: 4242 }));
 
 // ---------------------------------------------------------------------------
 // Test app — mounts the oRPC handler as production does; a pre-set user
@@ -143,31 +145,35 @@ describe("POST /api/v1/copies", () => {
     mockAddCopies.mockReset();
   });
 
-  it("returns 201 with created copies", async () => {
-    const created = [
-      {
-        id: COPY_ID,
-        printingId: PRINTING_ID,
-        collectionId: COLLECTION_ID,
-        groupId: null,
-        condition: null,
-        grader: null,
-        grade: null,
-        notesPublic: null,
-        notesPrivate: null,
-        isAltered: false,
-        links: [],
-      },
-    ];
+  it("returns 201 with created copies and the txid", async () => {
+    const created = {
+      items: [
+        {
+          id: COPY_ID,
+          printingId: PRINTING_ID,
+          collectionId: COLLECTION_ID,
+          groupId: null,
+          condition: null,
+          grader: null,
+          grade: null,
+          notesPublic: null,
+          notesPrivate: null,
+          isAltered: false,
+          links: [],
+        },
+      ],
+      txid: 4242,
+    };
     mockAddCopies.mockResolvedValue(created);
     const res = await app.request("/api/v1/copies", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ copies: [{ printingId: PRINTING_ID }] }),
+      body: JSON.stringify({ copies: [{ id: COPY_ID, printingId: PRINTING_ID }] }),
     });
     expect(res.status).toBe(201);
     const json = await res.json();
     expect(json.items).toHaveLength(1);
+    expect(json.txid).toBe(4242);
   });
 });
 
@@ -176,14 +182,15 @@ describe("POST /api/v1/copies/move", () => {
     mockMoveCopies.mockReset();
   });
 
-  it("returns 204 on successful move", async () => {
-    mockMoveCopies.mockResolvedValue();
+  it("returns 200 with the txid on successful move", async () => {
+    mockMoveCopies.mockResolvedValue({ txid: 4242 });
     const res = await app.request("/api/v1/copies/move", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ copyIds: [COPY_ID], toCollectionId: COLLECTION_ID }),
     });
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ txid: 4242 });
   });
 });
 
@@ -192,14 +199,15 @@ describe("POST /api/v1/copies/dispose", () => {
     mockDisposeCopies.mockReset();
   });
 
-  it("returns 204 on successful disposal", async () => {
-    mockDisposeCopies.mockResolvedValue();
+  it("returns 200 with the txid on successful disposal", async () => {
+    mockDisposeCopies.mockResolvedValue({ txid: 4242 });
     const res = await app.request("/api/v1/copies/dispose", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ copyIds: [COPY_ID] }),
     });
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ txid: 4242 });
   });
 });
 
@@ -209,8 +217,8 @@ describe("POST /api/v1/copies — service arguments", () => {
   });
 
   it("passes repos, transact, userId, and copies to addCopies service", async () => {
-    mockAddCopies.mockResolvedValue([]);
-    const copies = [{ printingId: PRINTING_ID, collectionId: COLLECTION_ID }];
+    mockAddCopies.mockResolvedValue({ items: [], txid: 4242 });
+    const copies = [{ id: COPY_ID, printingId: PRINTING_ID, collectionId: COLLECTION_ID }];
     await app.request("/api/v1/copies", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -231,7 +239,7 @@ describe("POST /api/v1/copies/move — service arguments", () => {
   });
 
   it("passes repos, transact, userId, copyIds, and toCollectionId to moveCopies service", async () => {
-    mockMoveCopies.mockResolvedValue(undefined);
+    mockMoveCopies.mockResolvedValue({ txid: 4242 });
     const copyIds = [COPY_ID];
     await app.request("/api/v1/copies/move", {
       method: "POST",
@@ -254,7 +262,7 @@ describe("POST /api/v1/copies/dispose — service arguments", () => {
   });
 
   it("passes transact, userId, and copyIds to disposeCopies service", async () => {
-    mockDisposeCopies.mockResolvedValue(undefined);
+    mockDisposeCopies.mockResolvedValue({ txid: 4242 });
     const copyIds = [COPY_ID];
     await app.request("/api/v1/copies/dispose", {
       method: "POST",

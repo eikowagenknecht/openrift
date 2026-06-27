@@ -21,6 +21,11 @@ interface CreateCollectionDialogProps {
    * is shared with that group instead of being personal.
    */
   groupSlug?: string;
+  /**
+   * The group's id, passed alongside the slug so the optimistic row lands in
+   * the right group section before the server round-trip.
+   */
+  groupId?: string;
   /** Display name for the group, used in the dialog title/description. */
   groupName?: string;
 }
@@ -35,6 +40,7 @@ export function CreateCollectionDialog({
   onOpenChange,
   onCreated,
   groupSlug,
+  groupId,
   groupName,
 }: CreateCollectionDialogProps) {
   const [name, setName] = useState("");
@@ -54,7 +60,7 @@ export function CreateCollectionDialog({
       return;
     }
     createCollection.mutate(
-      { name: trimmed, ...(groupSlug ? { groupSlug } : {}) },
+      { name: trimmed, ...(groupSlug ? { groupSlug, groupId } : {}) },
       {
         onSuccess: (collection) => {
           onCreated?.(collection.id);

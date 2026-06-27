@@ -16,6 +16,11 @@ const collectionFieldRules = {
 };
 
 export const createCollectionSchema = z.object({
+  // Client-generated collection id (ADR-027 step 2): the synced client mints the
+  // row's uuid so the optimistic row and the replicated row are the same row.
+  // Required — letting the server assign a fallback id would silently diverge
+  // the optimistic overlay from the row that comes back on the Electric stream.
+  id: z.uuid(),
   name: collectionFieldRules.name,
   description: z.string().max(1000).nullish(),
   availableForDeckbuilding: z.boolean().optional(),
@@ -73,6 +78,25 @@ export const collectionListResponseSchema = z
   .object({ items: z.array(collectionResponseSchema) })
   .openapi("CollectionListResponse");
 
+/**
+ * Response body for collection create/update: the collection plus the Postgres
+ * transaction id of the write, so the client can await the change on the
+ * Electric stream (ADR-027 step 2). Additive — older clients read the
+ * collection fields and ignore `txid`.
+ */
+export const collectionWriteResponseSchema = collectionResponseSchema
+  .extend({ txid: z.number().int() })
+  .openapi("CollectionWriteResponse");
+
+/**
+ * Response body for collection mutations that previously returned 204 (delete,
+ * reorder): the Postgres transaction id of the change, so the client can await
+ * it on the Electric stream (ADR-027 step 2).
+ */
+export const collectionMutationResponseSchema = z
+  .object({ txid: z.number().int() })
+  .openapi("CollectionMutationResponse");
+
 export const collectionShareResponseSchema = z
   .object({
     // Nullable so GET /{id}/share can report an owned-but-unshared collection
@@ -102,7 +126,8 @@ const TAG = "Collections";
  * `/api/v1/collections`). All require a session (the mount applies
  * `requireAuth`), so they share the `authedRoute` base (UNAUTHORIZED +
  * FORBIDDEN). Domain codes per route: `create` → NOT_FOUND (unknown group
- * slug); `get`, `update`, `copies`, `share`, `shareState`, `rotateShare`,
+ * slug) + CONFLICT (client-supplied id already exists); `get`, `update`,
+ * `copies`, `share`, `shareState`, `rotateShare`,
  * `unshare`, `groupShares`, `setDeckbuilding` → NOT_FOUND (inaccessible
  * collection); `remove` → NOT_FOUND + CONFLICT (inbox guard, non-empty
  * shared collection).
@@ -114,11 +139,15 @@ export const collectionsContract = {
   create: authedRoute
     .route({ method: "POST", path: "/api/v1/collections", tags: [TAG], successStatus: 201 })
     .input(createCollectionSchema)
-    .errors({ NOT_FOUND: { message: "Group not found" } })
-    .output(collectionResponseSchema),
+    .errors({
+      NOT_FOUND: { message: "Group not found" },
+      CONFLICT: { message: "Collection already exists" },
+    })
+    .output(collectionWriteResponseSchema),
   reorder: authedRoute
-    .route({ method: "POST", path: "/api/v1/collections/reorder", tags: [TAG], successStatus: 204 })
-    .input(reorderCollectionsSchema),
+    .route({ method: "POST", path: "/api/v1/collections/reorder", tags: [TAG] })
+    .input(reorderCollectionsSchema)
+    .output(collectionMutationResponseSchema),
   get: authedRoute
     .route({ method: "GET", path: "/api/v1/collections/{id}", tags: [TAG] })
     .input(idParamSchema)
@@ -128,14 +157,15 @@ export const collectionsContract = {
     .route({ method: "PATCH", path: "/api/v1/collections/{id}", tags: [TAG] })
     .input(withParams(idParamSchema, updateCollectionSchema))
     .errors({ NOT_FOUND: { message: "Collection not found" } })
-    .output(collectionResponseSchema),
+    .output(collectionWriteResponseSchema),
   remove: authedRoute
-    .route({ method: "DELETE", path: "/api/v1/collections/{id}", tags: [TAG], successStatus: 204 })
+    .route({ method: "DELETE", path: "/api/v1/collections/{id}", tags: [TAG] })
     .errors({
       NOT_FOUND: { message: "Collection not found" },
       CONFLICT: { message: "Collection cannot be deleted" },
     })
-    .input(idParamSchema),
+    .input(idParamSchema)
+    .output(collectionMutationResponseSchema),
   copies: authedRoute
     .route({ method: "GET", path: "/api/v1/collections/{id}/copies", tags: [TAG] })
     .input(withParams(idParamSchema, copiesQuerySchema))

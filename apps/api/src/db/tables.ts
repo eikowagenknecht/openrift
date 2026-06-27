@@ -155,6 +155,15 @@ export interface PrintingsTable {
   printedName: string | null;
   /** Year stamped on the physical card (e.g. 2025). Differs from set release for reprints. */
   printedYear: number | null;
+  /**
+   * Denormalized canonical sort rank (migration 193). Encodes
+   * (language.sort_order, set.sort_order, short_code, has_markers,
+   * primary_marker.sort_order, finish.sort_order) as a single global integer.
+   * Nullable in the DB, but `recompute_printing_canonical_ranks()` repopulates
+   * it in the same transaction as any ordering-input write, so reads always see
+   * a number — hence `Generated` (optional on insert, present on select).
+   */
+  canonicalRank: Generated<number>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -1474,13 +1483,22 @@ interface CardCardTypesTable {
   position: number;
 }
 
-// ─── Materialized views (migration 085) ─────────────────────────────────────
+// ─── Latest prices table (migration 194, replaced the MV from 085/111) ───────
 
-interface MvLatestPrintingPricesView {
+/**
+ * Latest headline price per `(printingId, marketplace)`, in cents. Migration 194
+ * replaced the `mv_latest_printing_prices` materialized view with this real
+ * table so Electric can sync current prices to the client (a materialized view
+ * emits no logical-replication events). Maintained by `refreshLatestPrices()`.
+ */
+interface LatestPrintingPricesTable {
   printingId: string;
   marketplace: string;
   headlineCents: number;
+  updatedAt: Generated<Date>;
 }
+
+// ─── Materialized views (migration 085) ─────────────────────────────────────
 
 interface MvCardAggregatesView {
   cardId: string;
@@ -1489,10 +1507,15 @@ interface MvCardAggregatesView {
   types: string[];
 }
 
-// ─── Views (migration 096) ───────────────────────────────────────────────────
+// ─── Views (migration 096, denormalized in 193) ──────────────────────────────
 
-/** Every column of `printings` plus a precomputed `canonical_rank` integer. */
-type PrintingsOrderedView = PrintingsTable & { canonicalRank: number };
+/**
+ * Since migration 193 `printings_ordered` is a plain passthrough
+ * (`SELECT * FROM printings`) — `canonical_rank` is now a stored column on
+ * `printings` rather than a window expression. The view stays so existing
+ * Kysely consumers keep selecting `canonicalRank` unchanged.
+ */
+type PrintingsOrderedView = PrintingsTable;
 
 // ─── Database ────────────────────────────────────────────────────────────────
 
@@ -1652,8 +1675,10 @@ export interface Database {
   // Job runs (migration 101)
   jobRuns: JobRunsTable;
 
+  // Latest prices table (migration 194, replaced the MV from 085/111)
+  latestPrintingPrices: LatestPrintingPricesTable;
+
   // Materialized views (migration 085)
-  mvLatestPrintingPrices: MvLatestPrintingPricesView;
   mvCardAggregates: MvCardAggregatesView;
 
   // Views (migration 096)

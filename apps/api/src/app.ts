@@ -32,9 +32,11 @@ import { mountAdminSentryTest } from "./routes/admin/sentry-test.js";
 import { mountCardSubmissionsMiddleware } from "./routes/authenticated/card-submissions.js";
 import { deckImageRoute } from "./routes/authenticated/deck-image.js";
 import { listImageRoute } from "./routes/authenticated/list-image.js";
+import { shapesRoute } from "./routes/authenticated/shapes.js";
 import { mountDeckCheckIngestMiddleware } from "./routes/public/deck-check-ingest.js";
 import { healthRoute } from "./routes/public/health.js";
 import { publicOembedRoute } from "./routes/public/oembed.js";
+import { publicShapesRoute } from "./routes/public/public-shapes.js";
 import { sentryTunnelRoute } from "./routes/public/sentry-tunnel.js";
 import { publicShareImagesRoute } from "./routes/public/share-images.js";
 import { unsubscribeOneClickRoute } from "./routes/public/unsubscribe-one-click.js";
@@ -421,7 +423,12 @@ export function createApp(deps: AppDeps) {
     .route("/api/v1", sentryTunnelRoute)
     .route("/api/v1", unsubscribeOneClickRoute)
     .route("/api/v1", listImageRoute)
-    .route("/api/v1", deckImageRoute);
+    .route("/api/v1", deckImageRoute)
+    // Electric shape proxies (ADR-027): sync-protocol streams, not oRPC JSON.
+    // The public catalog shapes carry no auth; the per-user shapes enforce
+    // `requireAuth` internally.
+    .route("/api/v1", publicShapesRoute)
+    .route("/api/v1", shapesRoute);
 
   // ── Auth + caching middleware for the oRPC routes ─────────────────────────
   // Auth is enforced per-procedure by the `requireUser` middleware on every

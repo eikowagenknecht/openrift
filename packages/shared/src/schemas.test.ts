@@ -33,17 +33,24 @@ import {
 import { EMPTY_CARD_FILTERS } from "./types/index.js";
 import type { ListRule } from "./types/index.js";
 
+// A valid uuid for the client-generated row ids the synced create paths require
+// (ADR-027 step 2).
+const VALID_UUID = "550e8400-e29b-41d4-a716-446655440010";
+
 // ---------------------------------------------------------------------------
 // Collection tracking schemas
 // ---------------------------------------------------------------------------
 
 describe("createCollectionSchema", () => {
   it("accepts valid input", () => {
-    expect(createCollectionSchema.safeParse({ name: "My Collection" }).success).toBe(true);
+    expect(
+      createCollectionSchema.safeParse({ id: VALID_UUID, name: "My Collection" }).success,
+    ).toBe(true);
   });
 
   it("accepts optional fields", () => {
     const result = createCollectionSchema.safeParse({
+      id: VALID_UUID,
       name: "My Collection",
       description: "A description",
       availableForDeckbuilding: true,
@@ -53,8 +60,13 @@ describe("createCollectionSchema", () => {
 
   it("accepts null description", () => {
     expect(
-      createCollectionSchema.safeParse({ name: "My Collection", description: null }).success,
+      createCollectionSchema.safeParse({ id: VALID_UUID, name: "My Collection", description: null })
+        .success,
     ).toBe(true);
+  });
+
+  it("rejects a missing id (the synced client must mint one)", () => {
+    expect(createCollectionSchema.safeParse({ name: "My Collection" }).success).toBe(false);
   });
 
   it("rejects empty name", () => {
@@ -93,7 +105,7 @@ describe("updateCollectionSchema", () => {
 describe("addCopiesSchema", () => {
   it("accepts valid copies", () => {
     const result = addCopiesSchema.safeParse({
-      copies: [{ printingId: "550e8400-e29b-41d4-a716-446655440000" }],
+      copies: [{ id: VALID_UUID, printingId: "550e8400-e29b-41d4-a716-446655440000" }],
     });
     expect(result.success).toBe(true);
   });
@@ -102,6 +114,7 @@ describe("addCopiesSchema", () => {
     const result = addCopiesSchema.safeParse({
       copies: [
         {
+          id: VALID_UUID,
           printingId: "550e8400-e29b-41d4-a716-446655440000",
           collectionId: "550e8400-e29b-41d4-a716-446655440001",
         },
@@ -247,26 +260,38 @@ const COPY_ID = "550e8400-e29b-41d4-a716-446655440000";
 describe("createListSchema", () => {
   it("accepts wish + card", () => {
     expect(
-      createListSchema.safeParse({ name: "Wants", intent: "wish", kind: "card" }).success,
+      createListSchema.safeParse({ id: VALID_UUID, name: "Wants", intent: "wish", kind: "card" })
+        .success,
     ).toBe(true);
   });
 
   it("accepts wish + printing", () => {
     expect(
-      createListSchema.safeParse({ name: "Foils", intent: "wish", kind: "printing" }).success,
+      createListSchema.safeParse({
+        id: VALID_UUID,
+        name: "Foils",
+        intent: "wish",
+        kind: "printing",
+      }).success,
     ).toBe(true);
   });
 
   it("accepts trade + copy", () => {
     expect(
-      createListSchema.safeParse({ name: "For trade", intent: "trade", kind: "copy" }).success,
+      createListSchema.safeParse({
+        id: VALID_UUID,
+        name: "For trade",
+        intent: "trade",
+        kind: "copy",
+      }).success,
     ).toBe(true);
   });
 
   it("accepts organize + each kind", () => {
     for (const kind of ["card", "printing", "copy"] as const) {
       expect(
-        createListSchema.safeParse({ name: "Demacia", intent: "organize", kind }).success,
+        createListSchema.safeParse({ id: VALID_UUID, name: "Demacia", intent: "organize", kind })
+          .success,
       ).toBe(true);
     }
   });
@@ -317,6 +342,7 @@ describe("createListSchema", () => {
 
   it("accepts trade preferences on a wish list", () => {
     const result = createListSchema.safeParse({
+      id: VALID_UUID,
       name: "Wants",
       intent: "wish",
       kind: "card",
@@ -551,14 +577,29 @@ describe("updateListEntrySchema", () => {
 describe("bulkCreateListEntriesSchema", () => {
   it("accepts a mixed batch", () => {
     const result = bulkCreateListEntriesSchema.safeParse({
-      entries: [{ cardId: CARD_ID }, { printingId: PRINTING_ID }, { copyId: COPY_ID }],
+      entries: [
+        { id: "550e8400-e29b-41d4-a716-446655440011", cardId: CARD_ID },
+        { id: "550e8400-e29b-41d4-a716-446655440012", printingId: PRINTING_ID },
+        { id: "550e8400-e29b-41d4-a716-446655440013", copyId: COPY_ID },
+      ],
     });
     expect(result.success).toBe(true);
   });
 
+  it("rejects a bulk entry with no id (the synced client must mint one)", () => {
+    expect(bulkCreateListEntriesSchema.safeParse({ entries: [{ cardId: CARD_ID }] }).success).toBe(
+      false,
+    );
+  });
+
   it("rejects an entry with no target inside the batch", () => {
     expect(
-      bulkCreateListEntriesSchema.safeParse({ entries: [{ cardId: CARD_ID }, {}] }).success,
+      bulkCreateListEntriesSchema.safeParse({
+        entries: [
+          { id: "550e8400-e29b-41d4-a716-446655440011", cardId: CARD_ID },
+          { id: "550e8400-e29b-41d4-a716-446655440012" },
+        ],
+      }).success,
     ).toBe(false);
   });
 
@@ -567,7 +608,7 @@ describe("bulkCreateListEntriesSchema", () => {
   });
 
   it("rejects a batch over 500", () => {
-    const entries = Array.from({ length: 501 }, () => ({ cardId: CARD_ID }));
+    const entries = Array.from({ length: 501 }, () => ({ id: VALID_UUID, cardId: CARD_ID }));
     expect(bulkCreateListEntriesSchema.safeParse({ entries }).success).toBe(false);
   });
 });

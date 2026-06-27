@@ -43,6 +43,12 @@ export const addCopiesSchema = z.object({
     .array(
       z
         .object({
+          // Client-generated copy id (ADR-027 step 2): the synced client mints the
+          // row's uuid so the optimistic row and the replicated row are the same
+          // row. Required — letting the server assign a fallback id would silently
+          // diverge the optimistic overlay from the row that comes back on the
+          // Electric stream.
+          id: z.uuid(),
           printingId: z.uuid(),
           collectionId: z.uuid().optional(),
           ...copyMetadataInputShape,
@@ -87,12 +93,22 @@ export const copyListMembershipsSchema = z.object({
 /**
  * Response body for `POST /copies`: the copies just created, each carrying the
  * full {@link copyResponseSchema} shape including `groupId` (derived from the
- * owning collection). Additive — older clients read a subset and ignore the
- * extra fields.
+ * owning collection), plus the Postgres transaction id of the insert so the
+ * client can await the change on the Electric stream (ADR-027 step 2). Additive
+ * — older clients read a subset and ignore the extra fields.
  */
 export const copyAddResponseSchema = z
-  .object({ items: z.array(copyResponseSchema) })
+  .object({ items: z.array(copyResponseSchema), txid: z.number().int() })
   .openapi("CopyAddResponse");
+
+/**
+ * Response body for copy mutations that previously returned 204 (`move`,
+ * `dispose`): the Postgres transaction id of the change, so the client can
+ * await it on the Electric stream (ADR-027 step 2).
+ */
+export const copyMutationResponseSchema = z
+  .object({ txid: z.number().int() })
+  .openapi("CopyMutationResponse");
 
 /**
  * Response body for `POST /copies/list-memberships`: which of the viewer's own
@@ -117,11 +133,16 @@ export const copyListMembershipsResponseSchema = z
 /**
  * oRPC contract for the authenticated copies endpoints. All require a session
  * (the mount applies `requireAuth`), so they share the `authedRoute` base
- * (UNAUTHORIZED + FORBIDDEN). `add` returns 201; `move`, `update` and `dispose`
- * return 204 with no body. Domain codes per route: `add` → BAD_REQUEST (a copy
- * references a non-existent printing); `move` → NOT_FOUND (target collection or
- * copies missing); `update` → NOT_FOUND + BAD_REQUEST (unknown condition or
- * grader slug); `dispose` → NOT_FOUND + CONFLICT.
+ * (UNAUTHORIZED + FORBIDDEN). `add` returns 201; `move` and `dispose` return the
+ * Postgres txid of the write (ADR-027) so the client's optimistic overlay holds
+ * until the change arrives back on the Electric stream. `update` (the ADR-038
+ * metadata patch) returns the txid as well: the metadata columns ride the
+ * copies shape, so the patch goes through the same durable outbox path as
+ * every other copy write. Domain codes per route: `add` → BAD_REQUEST (a copy
+ * references a non-existent printing) + CONFLICT (a client-supplied copy id
+ * already exists); `move` → NOT_FOUND (target collection or copies missing);
+ * `update` → NOT_FOUND + BAD_REQUEST (unknown condition or grader slug);
+ * `dispose` → NOT_FOUND + CONFLICT.
  */
 export const copiesContract = {
   list: authedRoute
@@ -131,26 +152,32 @@ export const copiesContract = {
   add: authedRoute
     .route({ method: "POST", path: "/api/v1/copies", tags: ["Copies"], successStatus: 201 })
     .input(addCopiesSchema)
-    .errors({ BAD_REQUEST: { message: "One or more printings do not exist" } })
+    .errors({
+      BAD_REQUEST: { message: "One or more printings do not exist" },
+      CONFLICT: { message: "One or more copies already exist" },
+    })
     .output(copyAddResponseSchema),
   move: authedRoute
-    .route({ method: "POST", path: "/api/v1/copies/move", tags: ["Copies"], successStatus: 204 })
+    .route({ method: "POST", path: "/api/v1/copies/move", tags: ["Copies"] })
     .errors({ NOT_FOUND: { message: "Target collection or copies not found" } })
-    .input(moveCopiesSchema),
+    .input(moveCopiesSchema)
+    .output(copyMutationResponseSchema),
   update: authedRoute
-    .route({ method: "POST", path: "/api/v1/copies/update", tags: ["Copies"], successStatus: 204 })
+    .route({ method: "POST", path: "/api/v1/copies/update", tags: ["Copies"] })
     .errors({
       NOT_FOUND: { message: "One or more copies not found" },
       BAD_REQUEST: { message: "Unknown condition or grader" },
     })
-    .input(updateCopiesSchema),
+    .input(updateCopiesSchema)
+    .output(copyMutationResponseSchema),
   dispose: authedRoute
-    .route({ method: "POST", path: "/api/v1/copies/dispose", tags: ["Copies"], successStatus: 204 })
+    .route({ method: "POST", path: "/api/v1/copies/dispose", tags: ["Copies"] })
     .errors({
       NOT_FOUND: { message: "One or more copies not found" },
       CONFLICT: { message: "One or more copies could not be disposed" },
     })
-    .input(disposeCopiesSchema),
+    .input(disposeCopiesSchema)
+    .output(copyMutationResponseSchema),
   listMemberships: authedRoute
     .route({ method: "POST", path: "/api/v1/copies/list-memberships", tags: ["Copies"] })
     .input(copyListMembershipsSchema)

@@ -2,8 +2,10 @@ import { ERROR_CODES } from "@openrift/shared";
 import type {
   CollectionGroupSharesResponse,
   CollectionListResponse,
+  CollectionMutationResponse,
   CollectionResponse,
   CollectionShareResponse,
+  CollectionWriteResponse,
   CopyListResponse,
 } from "@openrift/shared";
 import { collectionsContract } from "@openrift/shared/contracts";
@@ -50,58 +52,86 @@ export const collectionsRouter = {
   }),
 
   // ── CREATE ──────────────────────────────────────────────────────────────────
-  create: os.create.handler(async ({ input, context }): Promise<CollectionResponse> => {
-    const { collections, collectionDeckbuildingPrefs, friendGroups } = context.repos;
-    const userId = context.userId;
+  create: os.create.handler(
+    async ({ input, context, errors }): Promise<CollectionWriteResponse> => {
+      const { friendGroups } = context.repos;
+      const userId = context.userId;
 
-    let groupId: string | null = null;
-    let groupSlug: string | null = null;
-    let groupName: string | null = null;
-    if (input.groupSlug) {
-      const group = await friendGroups.getBySlugOrPrevious(input.groupSlug);
-      assertFound(group, "Group not found");
-      const membership = await friendGroups.getMembership(group.id, userId);
-      if (!membership) {
-        throw new AppError(403, ERROR_CODES.FORBIDDEN, "You are not a member of this group");
+      let groupId: string | null = null;
+      let groupSlug: string | null = null;
+      let groupName: string | null = null;
+      if (input.groupSlug) {
+        const group = await friendGroups.getBySlugOrPrevious(input.groupSlug);
+        assertFound(group, "Group not found");
+        const membership = await friendGroups.getMembership(group.id, userId);
+        if (!membership) {
+          throw new AppError(403, ERROR_CODES.FORBIDDEN, "You are not a member of this group");
+        }
+        groupId = group.id;
+        groupSlug = group.slug;
+        groupName = group.name;
       }
-      groupId = group.id;
-      groupSlug = group.slug;
-      groupName = group.name;
-    }
 
-    // Group collections stay alphabetical (`sort_order: 0` falls through to
-    // name ordering in `listAccessibleForUser`). Personal collections get
-    // appended to the user's list via max+1.
-    const sortOrder = groupId ? 0 : await collections.nextPersonalSortOrder(userId);
-    const row = await collections.create({
-      userId: groupId ? null : userId,
-      groupId,
-      name: input.name,
-      description: input.description ?? null,
-      isInbox: false,
-      sortOrder,
-    });
+      // One transaction so the insert (and the optional deck-building opt-out)
+      // share the txid the client awaits on the Electric stream (ADR-027 step 2).
+      let created;
+      try {
+        created = await context.transact(async (trxRepos) => {
+          // Group collections stay alphabetical (`sort_order: 0` falls through to
+          // name ordering in `listAccessibleForUser`). Personal collections get
+          // appended to the user's list via max+1.
+          const sortOrder = groupId ? 0 : await trxRepos.collections.nextPersonalSortOrder(userId);
+          const row = await trxRepos.collections.create({
+            id: input.id,
+            userId: groupId ? null : userId,
+            groupId,
+            name: input.name,
+            description: input.description ?? null,
+            isInbox: false,
+            sortOrder,
+          });
 
-    // Deck-building availability is now a per-viewer preference, not a column.
-    // The type default is "available if it's my own collection" (group_id IS
-    // NULL), so a personal collection only needs an explicit row when the
-    // creator opts it OUT. Group collections default off and are opted in via
-    // the per-member toggle, so we ignore an `available: true` hint here.
-    let availableForDeckbuilding = groupId === null;
-    if (groupId === null && input.availableForDeckbuilding === false) {
-      await collectionDeckbuildingPrefs.set(userId, row.id, false);
-      availableForDeckbuilding = false;
-    }
+          // Deck-building availability is now a per-viewer preference, not a
+          // column. The type default is "available if it's my own collection"
+          // (group_id IS NULL), so a personal collection only needs an explicit
+          // row when the creator opts it OUT. Group collections default off and
+          // are opted in via the per-member toggle, so we ignore an
+          // `available: true` hint here.
+          let availableForDeckbuilding = groupId === null;
+          if (groupId === null && input.availableForDeckbuilding === false) {
+            await trxRepos.collectionDeckbuildingPrefs.set(userId, row.id, false);
+            availableForDeckbuilding = false;
+          }
 
-    return toCollection({
-      ...row,
-      availableForDeckbuilding,
-      copyCount: 0,
-      groupSlug,
-      groupName,
-      viewerCanAdmin: true,
-    });
-  }),
+          return {
+            row,
+            availableForDeckbuilding,
+            txid: await trxRepos.sync.currentTransactionId(),
+          };
+        });
+      } catch (error) {
+        // 23505 = unique_violation: a client-supplied collection id already
+        // exists (e.g. a retried request whose first attempt did land). Report a
+        // clean conflict the client can treat as "already applied".
+        if (error instanceof Error && "code" in error && error.code === "23505") {
+          throw errors.CONFLICT({ message: "Collection already exists" });
+        }
+        throw error;
+      }
+
+      return {
+        ...toCollection({
+          ...created.row,
+          availableForDeckbuilding: created.availableForDeckbuilding,
+          copyCount: 0,
+          groupSlug,
+          groupName,
+          viewerCanAdmin: true,
+        }),
+        txid: created.txid,
+      };
+    },
+  ),
 
   // ── GET ONE ─────────────────────────────────────────────────────────────────
   get: os.get.handler(async ({ input, context }): Promise<CollectionResponse> => {
@@ -115,7 +145,7 @@ export const collectionsRouter = {
   }),
 
   // ── UPDATE ──────────────────────────────────────────────────────────────────
-  update: os.update.handler(async ({ input, context }): Promise<CollectionResponse> => {
+  update: os.update.handler(async ({ input, context }): Promise<CollectionWriteResponse> => {
     const { collections } = context.repos;
     const userId = context.userId;
     const access = await collections.getAccessForUser(input.id, userId);
@@ -124,24 +154,32 @@ export const collectionsRouter = {
       throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only admins can edit this collection");
     }
     const updates = buildPatchUpdates<Updateable<CollectionsTable>>(input, patchFields);
-    const row = await collections.updateById(input.id, updates);
+    // Transaction-bound so the txid the client awaits on the Electric stream
+    // is the update's own transaction (ADR-027 step 2).
+    const { row, txid } = await context.transact(async (trxRepos) => ({
+      row: await trxRepos.collections.updateById(input.id, updates),
+      txid: await trxRepos.sync.currentTransactionId(),
+    }));
     assertFound(row, "Not found");
-    return toCollection({
-      ...row,
-      // Deck-building availability is per-viewer and untouched by this
-      // admin-gated edit; carry over the value resolved during access check.
-      availableForDeckbuilding: access.collection.availableForDeckbuilding,
-      groupSlug: access.collection.groupSlug,
-      groupName: access.collection.groupName,
-      viewerCanAdmin: access.viewerCanAdmin,
-    });
+    return {
+      ...toCollection({
+        ...row,
+        // Deck-building availability is per-viewer and untouched by this
+        // admin-gated edit; carry over the value resolved during access check.
+        availableForDeckbuilding: access.collection.availableForDeckbuilding,
+        groupSlug: access.collection.groupSlug,
+        groupName: access.collection.groupName,
+        viewerCanAdmin: access.viewerCanAdmin,
+      }),
+      txid,
+    };
   }),
 
   // ── DELETE /collections/:id ─────────────────────────────────────────────────
   // Personal: blocks inbox, moves remaining copies to inbox, then deletes.
   // Shared: requires group admin. There's no group "inbox" — deletion fails if
   // the collection still has copies. The UI surfaces this.
-  remove: os.remove.handler(async ({ input, context }): Promise<void> => {
+  remove: os.remove.handler(async ({ input, context }): Promise<CollectionMutationResponse> => {
     const repos = context.repos;
     const transact = context.transact;
     const { ensureInbox, deleteCollection: deleteCollectionService } = context.services;
@@ -167,18 +205,25 @@ export const collectionsRouter = {
           "Empty the shared collection before deleting it",
         );
       }
-      await repos.collections.deleteById(input.id);
-      return;
+      // Transaction-bound so the txid the client awaits on the Electric
+      // stream is the deletion's own transaction (ADR-027 step 2).
+      const { txid } = await transact(async (trxRepos) => {
+        await trxRepos.collections.deleteById(input.id);
+        return { txid: await trxRepos.sync.currentTransactionId() };
+      });
+      return { txid };
     }
 
     const inboxId = await ensureInbox(repos, userId);
-    await deleteCollectionService(transact, {
+    const { txid } = await deleteCollectionService(transact, {
       collectionId: input.id,
       collectionName: collection.name,
       moveCopiesTo: inboxId,
       targetName: "Inbox",
       userId,
     });
+
+    return { txid };
   }),
 
   // ── GET /collections/:id/copies ─────────────────────────────────────────────
@@ -317,10 +362,15 @@ export const collectionsRouter = {
   // Bulk reorder for the user's personal collections. Group-owned rows are
   // silently ignored (they stay alphabetical) so the client can pass any
   // visible-order subset without filtering first.
-  reorder: os.reorder.handler(async ({ input, context }): Promise<void> => {
-    const { collections } = context.repos;
+  reorder: os.reorder.handler(async ({ input, context }): Promise<CollectionMutationResponse> => {
     const userId = context.userId;
-    await collections.reorderPersonal(userId, input.orderedIds);
+    // Transaction-bound so the txid the client awaits on the Electric stream
+    // is the reorder's own transaction (ADR-027 step 2).
+    const { txid } = await context.transact(async (trxRepos) => {
+      await trxRepos.collections.reorderPersonal(userId, input.orderedIds);
+      return { txid: await trxRepos.sync.currentTransactionId() };
+    });
+    return { txid };
   }),
 
   // ── PUT /collections/:id/deckbuilding ──────────────────────────────────────

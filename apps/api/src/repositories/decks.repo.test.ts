@@ -116,7 +116,7 @@ describe("decksRepo", () => {
     expect(await repo.availableCopiesByCard("u1", ["c-1"])).toEqual([{ cardId: "c-1", count: 3 }]);
   });
 
-  it("replaceCards deletes and re-inserts cards in a transaction", async () => {
+  it("replaceCards deletes and re-inserts cards", async () => {
     const db = createMockDb([]);
     const repo = decksRepo(db);
     await expect(
@@ -128,6 +128,24 @@ describe("decksRepo", () => {
     const db = createMockDb([]);
     const repo = decksRepo(db);
     await expect(repo.replaceCards("d-1", [])).resolves.toBeUndefined();
+  });
+
+  it("applyCards upserts and deletes rows", async () => {
+    const db = createMockDb([]);
+    const repo = decksRepo(db);
+    await expect(
+      repo.applyCards(
+        "d-1",
+        [{ id: "dc-1", cardId: "c-1", zone: "main", quantity: 4, preferredPrintingId: null }],
+        ["dc-2"],
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it("applyCards handles an empty payload", async () => {
+    const db = createMockDb([]);
+    const repo = decksRepo(db);
+    await expect(repo.applyCards("d-1", [], [])).resolves.toBeUndefined();
   });
 
   it("wantedCardRequirements returns requirements from wanted decks", async () => {

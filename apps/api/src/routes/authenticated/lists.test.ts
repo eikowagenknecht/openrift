@@ -31,6 +31,7 @@ const mockListsRepo = {
   bulkCreateEntriesFromCopies: vi.fn(() => Promise.resolve({ added: 0, updated: 0, skipped: 0 })),
   updateEntry: vi.fn(() => Promise.resolve(undefined as object | undefined)),
   deleteEntry: vi.fn(() => Promise.resolve({ numDeletedRows: 0n })),
+  deleteEntriesByIds: vi.fn(() => Promise.resolve({ numDeletedRows: 0n })),
   reorder: vi.fn(() => Promise.resolve()),
 };
 
@@ -41,6 +42,12 @@ const mockCopiesRepo = {
 
 const mockFriendGroupsRepo = {
   listGroupsSharingList: vi.fn(() => Promise.resolve([])),
+};
+
+// Mutation routes capture the Postgres txid inside their transaction so the
+// client can await the change on the Electric stream (ADR-027 step 2).
+const mockSyncRepo = {
+  currentTransactionId: vi.fn(() => Promise.resolve(4242)),
 };
 
 // ---------------------------------------------------------------------------
@@ -54,14 +61,19 @@ const CARD_ID = "c0000000-0001-4000-a000-000000000001";
 const PRINTING_ID = "d0000000-0001-4000-a000-000000000001";
 const COPY_ID = "550e8400-e29b-41d4-a716-446655440000";
 
+const repos = {
+  lists: mockListsRepo,
+  copies: mockCopiesRepo,
+  friendGroups: mockFriendGroupsRepo,
+  sync: mockSyncRepo,
+};
+
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
-  c.set("repos", {
-    lists: mockListsRepo,
-    copies: mockCopiesRepo,
-    friendGroups: mockFriendGroupsRepo,
-  } as never);
+  // Pass-through transact: runs the callback against the same mock repos.
+  c.set("transact", ((fn: (trxRepos: unknown) => unknown) => fn(repos)) as never);
+  c.set("repos", repos as never);
   await next();
 });
 registerRouterForTest(app, listsRouter);
@@ -160,15 +172,18 @@ describe("POST /api/v1/lists", () => {
     mockListsRepo.create.mockReset();
   });
 
-  it("returns 201 with the created list", async () => {
+  it("returns 201 with the created list and the txid", async () => {
     mockListsRepo.create.mockResolvedValue(dbList);
     const res = await app.request("/api/v1/lists", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: "Wants", intent: "wish", kind: "card" }),
+      body: JSON.stringify({ id: LIST_ID, name: "Wants", intent: "wish", kind: "card" }),
     });
     expect(res.status).toBe(201);
+    const created = await res.json();
+    expect(created.txid).toBe(4242);
     expect(mockListsRepo.create).toHaveBeenCalledWith({
+      id: LIST_ID,
       userId: USER_ID,
       name: "Wants",
       intent: "wish",
@@ -187,17 +202,40 @@ describe("POST /api/v1/lists", () => {
     const res = await app.request("/api/v1/lists", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: "Wants", intent: "wish", kind: "card" }),
+      body: JSON.stringify({ id: LIST_ID, name: "Wants", intent: "wish", kind: "card" }),
     });
     expect(res.status).toBe(201);
     expect(mockFriendGroupsRepo.listGroupsSharingList).not.toHaveBeenCalled();
+  });
+
+  it("inserts the client-generated id (ADR-027)", async () => {
+    mockListsRepo.create.mockResolvedValue(dbList);
+    const res = await app.request("/api/v1/lists", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: LIST_ID, name: "Wants", intent: "wish", kind: "card" }),
+    });
+    expect(res.status).toBe(201);
+    expect(mockListsRepo.create).toHaveBeenCalledWith(expect.objectContaining({ id: LIST_ID }));
+  });
+
+  it("returns 409 when a client-supplied id already exists (replayed create)", async () => {
+    mockListsRepo.create.mockRejectedValue(
+      Object.assign(new Error("duplicate key value"), { code: "23505" }),
+    );
+    const res = await app.request("/api/v1/lists", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: LIST_ID, name: "Wants", intent: "wish", kind: "card" }),
+    });
+    expect(res.status).toBe(409);
   });
 
   it("rejects a missing intent", async () => {
     const res = await app.request("/api/v1/lists", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: "Wants", kind: "card" }),
+      body: JSON.stringify({ id: LIST_ID, name: "Wants", kind: "card" }),
     });
     expect(res.status).toBe(400);
   });
@@ -206,7 +244,7 @@ describe("POST /api/v1/lists", () => {
     const res = await app.request("/api/v1/lists", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: "Wants", intent: "wish" }),
+      body: JSON.stringify({ id: LIST_ID, name: "Wants", intent: "wish" }),
     });
     expect(res.status).toBe(400);
   });
@@ -215,7 +253,7 @@ describe("POST /api/v1/lists", () => {
     const res = await app.request("/api/v1/lists", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: "Bad", intent: "wish", kind: "copy" }),
+      body: JSON.stringify({ id: LIST_ID, name: "Bad", intent: "wish", kind: "copy" }),
     });
     expect(res.status).toBe(400);
   });
@@ -427,10 +465,11 @@ describe("DELETE /api/v1/lists/:id", () => {
     mockListsRepo.deleteByIdForUser.mockReset();
   });
 
-  it("returns 204 on success", async () => {
+  it("returns 200 with the txid on success", async () => {
     mockListsRepo.deleteByIdForUser.mockResolvedValue({ numDeletedRows: 1n });
     const res = await app.request(`/api/v1/lists/${LIST_ID}`, { method: "DELETE" });
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ txid: 4242 });
   });
 
   it("returns 404 when not found", async () => {
@@ -460,6 +499,8 @@ describe("POST /api/v1/lists/:id/entries", () => {
       body: JSON.stringify({ cardId: CARD_ID }),
     });
     expect(res.status).toBe(201);
+    const createdEntry = await res.json();
+    expect(createdEntry.txid).toBe(4242);
     expect(mockListsRepo.createEntry).toHaveBeenCalledWith({
       listId: LIST_ID,
       userId: USER_ID,
@@ -472,6 +513,24 @@ describe("POST /api/v1/lists/:id/entries", () => {
       priceAbsoluteCents: null,
       tradeType: null,
     });
+  });
+
+  it("ignores a client-supplied entry id on the single-add path (ADR-027)", async () => {
+    // The single-add path generates the entry id server-side: a body `id` would
+    // collide with the `{id}` list path param in the oRPC merged input, so the
+    // contract drops it. Synced clients carry client-generated entry ids through
+    // the bulk-add path instead, where per-entry ids live nested under `entries`.
+    mockListsRepo.getIdKindIntent.mockResolvedValue({ id: LIST_ID, kind: "card", intent: "wish" });
+    mockListsRepo.createEntry.mockResolvedValue(dbEntry);
+    const res = await app.request(`/api/v1/lists/${LIST_ID}/entries`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: ENTRY_ID, cardId: CARD_ID }),
+    });
+    expect(res.status).toBe(201);
+    expect(mockListsRepo.createEntry).toHaveBeenCalledWith(
+      expect.not.objectContaining({ id: ENTRY_ID }),
+    );
   });
 
   it("rejects mismatched target (card-kind list, printing in body)", async () => {
@@ -563,14 +622,17 @@ describe("POST /api/v1/lists/:id/entries/bulk", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         entries: [
-          { copyId: COPY_ID },
-          { copyId: "550e8400-e29b-41d4-a716-446655440099" }, // not owned
+          { id: "a0000000-0001-4000-a000-000000000031", copyId: COPY_ID },
+          {
+            id: "a0000000-0001-4000-a000-000000000032",
+            copyId: "550e8400-e29b-41d4-a716-446655440099",
+          }, // not owned
         ],
       }),
     });
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json).toEqual({ added: 1, updated: 0, skipped: 1 });
+    expect(json).toEqual({ added: 1, updated: 0, skipped: 1, txid: 4242 });
     // bulkCreateEntries receives kind + only the owned entry.
     expect(mockListsRepo.bulkCreateEntries).toHaveBeenCalled();
     const args = mockListsRepo.bulkCreateEntries.mock.calls[0] ?? [];
@@ -596,7 +658,9 @@ describe("POST /api/v1/lists/:id/entries/bulk", () => {
     const res = await app.request(`/api/v1/lists/${LIST_ID}/entries/bulk`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ entries: [{ copyId: COPY_ID }] }),
+      body: JSON.stringify({
+        entries: [{ id: "a0000000-0001-4000-a000-000000000031", copyId: COPY_ID }],
+      }),
     });
     expect(res.status).toBe(200);
     expect(mockCopiesRepo.filterAccessibleByViewer).toHaveBeenCalledWith([COPY_ID], USER_ID, false);
@@ -610,11 +674,15 @@ describe("POST /api/v1/lists/:id/entries/bulk", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        entries: [{ cardId: CARD_ID }, { cardId: CARD_ID }, { cardId: CARD_ID }],
+        entries: [
+          { id: "a0000000-0001-4000-a000-000000000031", cardId: CARD_ID },
+          { id: "a0000000-0001-4000-a000-000000000032", cardId: CARD_ID },
+          { id: "a0000000-0001-4000-a000-000000000033", cardId: CARD_ID },
+        ],
       }),
     });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ added: 1, updated: 2, skipped: 0 });
+    expect(await res.json()).toEqual({ added: 1, updated: 2, skipped: 0, txid: 4242 });
   });
 
   it("rejects bulk add when any entry doesn't match the list's kind", async () => {
@@ -623,7 +691,10 @@ describe("POST /api/v1/lists/:id/entries/bulk", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        entries: [{ cardId: CARD_ID }, { copyId: COPY_ID }],
+        entries: [
+          { id: "a0000000-0001-4000-a000-000000000031", cardId: CARD_ID },
+          { id: "a0000000-0001-4000-a000-000000000032", copyId: COPY_ID },
+        ],
       }),
     });
     expect(res.status).toBe(400);
@@ -697,6 +768,7 @@ describe("PATCH /api/v1/lists/:id/entries/:itemId", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.quantity).toBe(5);
+    expect(json.txid).toBe(4242);
   });
 
   it("returns 404 when entry not found", async () => {
@@ -742,12 +814,13 @@ describe("DELETE /api/v1/lists/:id/entries/:itemId", () => {
     mockListsRepo.deleteEntry.mockReset();
   });
 
-  it("returns 204 on success", async () => {
+  it("returns 200 with the txid on success", async () => {
     mockListsRepo.deleteEntry.mockResolvedValue({ numDeletedRows: 1n });
     const res = await app.request(`/api/v1/lists/${LIST_ID}/entries/${ENTRY_ID}`, {
       method: "DELETE",
     });
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ txid: 4242 });
   });
 
   it("returns 404 when not found", async () => {
@@ -756,6 +829,37 @@ describe("DELETE /api/v1/lists/:id/entries/:itemId", () => {
       method: "DELETE",
     });
     expect(res.status).toBe(404);
+  });
+});
+
+describe("POST /api/v1/lists/:id/entries/bulk-delete", () => {
+  beforeEach(() => {
+    mockListsRepo.getIdKindIntent.mockReset();
+    mockListsRepo.deleteEntriesByIds.mockReset();
+  });
+
+  it("returns 200 with the txid and forwards the scoped delete to the repo", async () => {
+    mockListsRepo.getIdKindIntent.mockResolvedValue({ id: LIST_ID, kind: "card", intent: "wish" });
+    mockListsRepo.deleteEntriesByIds.mockResolvedValue({ numDeletedRows: 1n });
+    const res = await app.request(`/api/v1/lists/${LIST_ID}/entries/bulk-delete`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ entryIds: [ENTRY_ID] }),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ txid: 4242 });
+    expect(mockListsRepo.deleteEntriesByIds).toHaveBeenCalledWith([ENTRY_ID], LIST_ID, USER_ID);
+  });
+
+  it("returns 404 when the list does not exist for the user", async () => {
+    mockListsRepo.getIdKindIntent.mockResolvedValue(undefined);
+    const res = await app.request(`/api/v1/lists/${LIST_ID}/entries/bulk-delete`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ entryIds: [ENTRY_ID] }),
+    });
+    expect(res.status).toBe(404);
+    expect(mockListsRepo.deleteEntriesByIds).not.toHaveBeenCalled();
   });
 });
 
@@ -880,7 +984,7 @@ describe("POST /api/v1/lists/reorder", () => {
     mockListsRepo.reorder.mockResolvedValue(undefined);
   });
 
-  it("returns 204 and forwards (intent, orderedIds) to the repo", async () => {
+  it("returns 200 with the txid and forwards (intent, orderedIds) to the repo", async () => {
     const orderedIds = [
       "a0000000-0001-4000-a000-000000000010",
       "a0000000-0001-4000-a000-000000000011",
@@ -890,7 +994,8 @@ describe("POST /api/v1/lists/reorder", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ intent: "wish", orderedIds }),
     });
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ txid: 4242 });
     expect(mockListsRepo.reorder).toHaveBeenCalledWith(USER_ID, "wish", orderedIds);
   });
 
