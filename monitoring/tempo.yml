@@ -19,8 +19,6 @@ storage:
       path: /var/tempo/wal
 
 metrics_generator:
-  traces_storage:
-    path: /var/tempo/generator/traces
   registry:
     external_labels:
       source: tempo
