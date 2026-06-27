@@ -23,6 +23,7 @@ import {
   reorderListsSchema,
   updateListEntrySchema,
   updateListSchema,
+  withParams,
 } from "../schemas.js";
 
 const TAG = "Lists";
@@ -49,30 +50,30 @@ export const listsContract = {
     .output(listDetailResponseSchema),
   update: oc
     .route({ method: "PATCH", path: "/api/v1/lists/{id}", tags: [TAG] })
-    .input(idParamSchema.extend(updateListSchema.shape))
+    .input(withParams(idParamSchema, updateListSchema))
     .output(listResponseSchema),
   remove: oc
     .route({ method: "DELETE", path: "/api/v1/lists/{id}", tags: [TAG], successStatus: 204 })
     .input(idParamSchema),
   createEntry: oc
     .route({ method: "POST", path: "/api/v1/lists/{id}/entries", tags: [TAG], successStatus: 201 })
-    .input(idParamSchema.extend(listEntryInputShape))
+    .input(withParams(idParamSchema, listEntryInputShape))
     .output(listEntryResponseSchema),
   bulkCreateEntries: oc
     .route({ method: "POST", path: "/api/v1/lists/{id}/entries/bulk", tags: [TAG] })
-    .input(idParamSchema.extend(bulkCreateListEntriesSchema.shape))
+    .input(withParams(idParamSchema, bulkCreateListEntriesSchema))
     .output(listBulkAddResponseSchema),
   bulkAddFromCopies: oc
     .route({ method: "POST", path: "/api/v1/lists/{id}/entries/from-copies", tags: [TAG] })
-    .input(idParamSchema.extend(bulkAddCopiesToListSchema.shape))
+    .input(withParams(idParamSchema, bulkAddCopiesToListSchema))
     .output(listBulkAddResponseSchema),
   moveEntries: oc
     .route({ method: "POST", path: "/api/v1/lists/{id}/entries/move", tags: [TAG] })
-    .input(idParamSchema.extend(moveListEntriesSchema.shape))
+    .input(withParams(idParamSchema, moveListEntriesSchema))
     .output(listMoveResponseSchema),
   updateEntry: oc
     .route({ method: "PATCH", path: "/api/v1/lists/{id}/entries/{itemId}", tags: [TAG] })
-    .input(idAndItemIdParamSchema.extend(updateListEntrySchema.shape))
+    .input(withParams(idAndItemIdParamSchema, updateListEntrySchema))
     .output(listEntryResponseSchema),
   removeEntry: oc
     .route({
@@ -89,7 +90,7 @@ export const listsContract = {
       tags: [TAG],
       successStatus: 204,
     })
-    .input(idParamSchema.extend(bulkDeleteListEntriesSchema.shape)),
+    .input(withParams(idParamSchema, bulkDeleteListEntriesSchema)),
   getShare: oc
     .route({ method: "GET", path: "/api/v1/lists/{id}/share", tags: [TAG] })
     .input(idParamSchema)

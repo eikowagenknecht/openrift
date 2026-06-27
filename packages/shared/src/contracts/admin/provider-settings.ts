@@ -1,3 +1,4 @@
+import { withParams } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -31,7 +32,7 @@ export const adminProviderSettingsContract = {
   update: oc
     .route({ method: "PATCH", path: `${PS}/{provider}`, tags: [TAG], successStatus: 204 })
     .input(
-      providerParamSchema.extend({
+      withParams(providerParamSchema, {
         sortOrder: z.number().int().optional(),
         isHidden: z.boolean().optional(),
         isFavorite: z.boolean().optional(),

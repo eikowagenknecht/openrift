@@ -20,6 +20,7 @@ import {
   updateDeckCardsSchema,
   updateDeckPlanSchema,
   updateDeckSchema,
+  withParams,
 } from "../schemas.js";
 
 const TAG = "Decks";
@@ -50,14 +51,14 @@ export const decksContract = {
     .output(deckDetailResponseSchema),
   update: oc
     .route({ method: "PATCH", path: "/api/v1/decks/{id}", tags: [TAG] })
-    .input(idParamSchema.extend(updateDeckSchema.shape))
+    .input(withParams(idParamSchema, updateDeckSchema))
     .output(deckResponseSchema),
   remove: oc
     .route({ method: "DELETE", path: "/api/v1/decks/{id}", tags: [TAG], successStatus: 204 })
     .input(idParamSchema),
   replaceCards: oc
     .route({ method: "PUT", path: "/api/v1/decks/{id}/cards", tags: [TAG] })
-    .input(idParamSchema.extend(updateDeckCardsSchema.shape))
+    .input(withParams(idParamSchema, updateDeckCardsSchema))
     .output(deckCardsResponseSchema),
   getPlan: oc
     .route({ method: "GET", path: "/api/v1/decks/{id}/plan", tags: [TAG] })
@@ -65,7 +66,7 @@ export const decksContract = {
     .output(deckPlanDetailResponseSchema),
   replacePlan: oc
     .route({ method: "PUT", path: "/api/v1/decks/{id}/plan", tags: [TAG] })
-    .input(idParamSchema.extend(updateDeckPlanSchema.shape))
+    .input(withParams(idParamSchema, updateDeckPlanSchema))
     .output(deckPlanDetailResponseSchema),
   clone: oc
     .route({ method: "POST", path: "/api/v1/decks/{id}/clone", tags: [TAG], successStatus: 201 })
@@ -77,15 +78,15 @@ export const decksContract = {
     .output(deckAvailabilityResponseSchema),
   export: oc
     .route({ method: "GET", path: "/api/v1/decks/{id}/export", tags: [TAG] })
-    .input(idParamSchema.extend(deckExportQuerySchema.shape))
+    .input(withParams(idParamSchema, deckExportQuerySchema))
     .output(deckExportResponseSchema),
   setPinned: oc
     .route({ method: "PATCH", path: "/api/v1/decks/{id}/pin", tags: [TAG] })
-    .input(idParamSchema.extend(pinDeckBodySchema.shape))
+    .input(withParams(idParamSchema, pinDeckBodySchema))
     .output(deckResponseSchema),
   setArchived: oc
     .route({ method: "PATCH", path: "/api/v1/decks/{id}/archive", tags: [TAG] })
-    .input(idParamSchema.extend(archiveDeckBodySchema.shape))
+    .input(withParams(idParamSchema, archiveDeckBodySchema))
     .output(deckResponseSchema),
   getShare: oc
     .route({ method: "GET", path: "/api/v1/decks/{id}/share", tags: [TAG] })

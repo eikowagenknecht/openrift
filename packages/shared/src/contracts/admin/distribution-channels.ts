@@ -1,4 +1,4 @@
-import { isoDateTime } from "@openrift/shared/schemas";
+import { idParamSchema, isoDateTime, withParams } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -23,8 +23,6 @@ const channelSchema = z.object({
   updatedAt: isoDateTime,
   printingCount: z.number(),
 });
-
-const idParamSchema = z.object({ id: z.uuid() });
 
 /**
  * oRPC contract for the admin distribution-channels taxonomy CRUD (mounted at
@@ -56,7 +54,7 @@ export const adminDistributionChannelsContract = {
     )
     .output(z.object({ distributionChannel: channelSchema })),
   update: oc.route({ method: "PATCH", path: `${DC}/{id}`, tags: [TAG], successStatus: 204 }).input(
-    idParamSchema.extend({
+    withParams(idParamSchema, {
       slug: z.string().min(1).regex(slugRegex, "Slug must be kebab-case").optional(),
       label: z.string().min(1).optional(),
       description: z.string().min(1).nullable().optional(),

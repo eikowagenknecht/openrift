@@ -99,6 +99,21 @@ export const isoDate = z.iso.date();
 // Common param & query schemas (used by zValidator("param"//"query"))
 // ---------------------------------------------------------------------------
 
+/**
+ * Merge a base param schema (e.g. {@link idParamSchema}) with a route's body or
+ * query fields into a single object schema. The extra fields may be given as
+ * another object schema or as a raw shape.
+ *
+ * @returns An object schema combining the base params and the extra fields.
+ */
+export function withParams<Base extends z.ZodRawShape, Extra extends z.ZodRawShape>(
+  base: z.ZodObject<Base>,
+  extra: z.ZodObject<Extra> | Extra,
+) {
+  const extraShape = extra instanceof z.ZodObject ? extra.shape : extra;
+  return base.extend(extraShape);
+}
+
 export const idParamSchema = z.object({ id: z.uuid() });
 
 export const idAndItemIdParamSchema = z.object({ id: z.uuid(), itemId: z.uuid() });

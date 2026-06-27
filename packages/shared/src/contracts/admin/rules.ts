@@ -1,3 +1,4 @@
+import { withParams } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -48,7 +49,7 @@ export const adminRulesContract = {
     .input(versionParamSchema),
   updateVersion: oc
     .route({ method: "PATCH", path: `${RULES}/{kind}/versions/{version}`, tags: [TAG] })
-    .input(versionParamSchema.extend({ comments: z.string().nullable() }))
+    .input(withParams(versionParamSchema, { comments: z.string().nullable() }))
     .output(z.object({ kind: ruleKindEnum, version: z.string(), comments: z.string().nullable() })),
 };
 

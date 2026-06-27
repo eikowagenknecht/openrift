@@ -1,4 +1,4 @@
-import { isoDateTime } from "@openrift/shared/schemas";
+import { idParamSchema, isoDateTime, withParams } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -34,8 +34,6 @@ const customTagCategorySchema = z.object({
   createdAt: isoDateTime,
   updatedAt: isoDateTime,
 });
-
-const idParamSchema = z.object({ id: z.uuid() });
 
 const createCustomTagCategoryInput = z.object({
   slug: z.string().min(1).regex(slugRegex, "Slug must be kebab-case (e.g. region)"),
@@ -82,7 +80,7 @@ export const adminCustomTagsContract = {
     .output(z.object({ category: customTagCategorySchema })),
   updateCategory: oc
     .route({ method: "PATCH", path: `${CATEGORIES}/{id}`, tags: [TAG], successStatus: 204 })
-    .input(idParamSchema.extend(updateCustomTagCategoryInput.shape)),
+    .input(withParams(idParamSchema, updateCustomTagCategoryInput)),
   removeCategory: oc
     .route({ method: "DELETE", path: `${CATEGORIES}/{id}`, tags: [TAG], successStatus: 204 })
     .input(idParamSchema),
@@ -100,13 +98,13 @@ export const adminCustomTagsContract = {
     .output(z.object({ tag: customTagSchema })),
   updateTag: oc
     .route({ method: "PATCH", path: `${TAGS}/{id}`, tags: [TAG], successStatus: 204 })
-    .input(idParamSchema.extend(updateCustomTagInput.shape)),
+    .input(withParams(idParamSchema, updateCustomTagInput)),
   removeTag: oc
     .route({ method: "DELETE", path: `${TAGS}/{id}`, tags: [TAG], successStatus: 204 })
     .input(idParamSchema),
   addCards: oc
     .route({ method: "POST", path: `${TAGS}/{id}/cards`, tags: [TAG] })
-    .input(idParamSchema.extend({ cardIds: z.array(z.uuid()) }))
+    .input(withParams(idParamSchema, { cardIds: z.array(z.uuid()) }))
     .output(z.object({ added: z.number(), requested: z.number() })),
 
   // ── Per-card assignment ─────────────────────────────────────────────────
@@ -121,7 +119,7 @@ export const adminCustomTagsContract = {
       tags: [TAG],
       successStatus: 204,
     })
-    .input(idParamSchema.extend({ customTagIds: z.array(z.uuid()) })),
+    .input(withParams(idParamSchema, { customTagIds: z.array(z.uuid()) })),
 };
 
 export type AdminCustomTagsContract = typeof adminCustomTagsContract;

@@ -1,4 +1,4 @@
-import { idParamSchema, isoDate, isoDateTime } from "@openrift/shared/schemas";
+import { idParamSchema, isoDate, isoDateTime, withParams } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -34,7 +34,7 @@ export const adminCardBansContract = {
   create: oc
     .route({ method: "POST", path: BANS, tags: [TAG], successStatus: 201 })
     .input(
-      idParamSchema.extend({
+      withParams(idParamSchema, {
         formatId: formatIdSchema,
         bannedAt: isoDate,
         reason: reasonSchema,
@@ -44,7 +44,7 @@ export const adminCardBansContract = {
   update: oc
     .route({ method: "PATCH", path: BANS, tags: [TAG] })
     .input(
-      idParamSchema.extend({
+      withParams(idParamSchema, {
         formatId: formatIdSchema,
         bannedAt: isoDate.optional(),
         reason: reasonSchema,
@@ -53,7 +53,7 @@ export const adminCardBansContract = {
     .output(z.object({ ban: banResponseSchema })),
   remove: oc
     .route({ method: "DELETE", path: BANS, tags: [TAG], successStatus: 204 })
-    .input(idParamSchema.extend({ formatId: formatIdSchema })),
+    .input(withParams(idParamSchema, { formatId: formatIdSchema })),
 };
 
 export type AdminCardBansContract = typeof adminCardBansContract;

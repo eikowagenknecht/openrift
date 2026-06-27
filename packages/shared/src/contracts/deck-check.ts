@@ -31,6 +31,7 @@ import {
   updateDeckCheckEntrySchema,
   updateDeckCheckEventSchema,
   updateDeckCheckKeySchema,
+  withParams,
 } from "../schemas.js";
 
 const TAG = "Deck Check";
@@ -52,7 +53,7 @@ export const deckCheckContract = {
     .output(deckCheckEventListResponseSchema),
   createEvent: oc
     .route({ method: "POST", path: CHECKS, tags: [TAG], successStatus: 201 })
-    .input(friendGroupSlugParamSchema.extend(createDeckCheckEventSchema.shape))
+    .input(withParams(friendGroupSlugParamSchema, createDeckCheckEventSchema))
     .output(deckCheckEventSummaryResponseSchema),
   getEventDetail: oc
     .route({ method: "GET", path: `${CHECKS}/{eventId}`, tags: [TAG] })
@@ -60,7 +61,7 @@ export const deckCheckContract = {
     .output(deckCheckEventDetailResponseSchema),
   updateEvent: oc
     .route({ method: "PATCH", path: `${CHECKS}/{eventId}`, tags: [TAG] })
-    .input(deckCheckEventParamSchema.extend(updateDeckCheckEventSchema.shape))
+    .input(withParams(deckCheckEventParamSchema, updateDeckCheckEventSchema))
     .output(deckCheckEventSummaryResponseSchema),
   deleteEvent: oc
     .route({ method: "DELETE", path: `${CHECKS}/{eventId}`, tags: [TAG], successStatus: 204 })
@@ -71,7 +72,7 @@ export const deckCheckContract = {
     .output(deckCheckReResolveResponseSchema),
   createManualEntry: oc
     .route({ method: "POST", path: `${CHECKS}/{eventId}/entries`, tags: [TAG], successStatus: 201 })
-    .input(deckCheckEventParamSchema.extend(createDeckCheckEntrySchema.shape))
+    .input(withParams(deckCheckEventParamSchema, createDeckCheckEntrySchema))
     .output(deckCheckEntryDetailResponseSchema),
   getEntryDetail: oc
     .route({ method: "GET", path: `${CHECKS}/{eventId}/entries/{entryId}`, tags: [TAG] })
@@ -79,7 +80,7 @@ export const deckCheckContract = {
     .output(deckCheckEntryDetailResponseSchema),
   setEntryState: oc
     .route({ method: "PUT", path: `${CHECKS}/{eventId}/entries/{entryId}/state`, tags: [TAG] })
-    .input(deckCheckEntryParamSchema.extend(deckCheckEntryStateChangeSchema.shape))
+    .input(withParams(deckCheckEntryParamSchema, deckCheckEntryStateChangeSchema))
     .output(deckCheckEntryDetailResponseSchema),
   denyUnlockRequest: oc
     .route({
@@ -91,7 +92,7 @@ export const deckCheckContract = {
     .output(deckCheckEntryDetailResponseSchema),
   updateEntry: oc
     .route({ method: "PATCH", path: `${CHECKS}/{eventId}/entries/{entryId}`, tags: [TAG] })
-    .input(deckCheckEntryParamSchema.extend(updateDeckCheckEntrySchema.shape))
+    .input(withParams(deckCheckEntryParamSchema, updateDeckCheckEntrySchema))
     .output(deckCheckEntryDetailResponseSchema),
   deleteEntry: oc
     .route({
@@ -103,7 +104,7 @@ export const deckCheckContract = {
     .input(deckCheckEntryParamSchema),
   addCard: oc
     .route({ method: "POST", path: `${CHECKS}/{eventId}/entries/{entryId}/cards`, tags: [TAG] })
-    .input(deckCheckEntryParamSchema.extend(addDeckCheckCardSchema.shape))
+    .input(withParams(deckCheckEntryParamSchema, addDeckCheckCardSchema))
     .output(deckCheckEntryDetailResponseSchema),
   renameCard: oc
     .route({
@@ -111,7 +112,7 @@ export const deckCheckContract = {
       path: `${CHECKS}/{eventId}/entries/{entryId}/cards/{cardId}`,
       tags: [TAG],
     })
-    .input(deckCheckEntryCardParamSchema.extend(updateDeckCheckCardSchema.shape))
+    .input(withParams(deckCheckEntryCardParamSchema, updateDeckCheckCardSchema))
     .output(deckCheckEntryDetailResponseSchema),
   applyZoneFixes: oc
     .route({
@@ -119,7 +120,7 @@ export const deckCheckContract = {
       path: `${CHECKS}/{eventId}/entries/{entryId}/zone-fixes`,
       tags: [TAG],
     })
-    .input(deckCheckEntryParamSchema.extend(applyDeckCheckZoneFixesSchema.shape))
+    .input(withParams(deckCheckEntryParamSchema, applyDeckCheckZoneFixesSchema))
     .output(deckCheckEntryDetailResponseSchema),
   removeCardCopy: oc
     .route({
@@ -136,10 +137,10 @@ export const deckCheckContract = {
       tags: [TAG],
       successStatus: 204,
     })
-    .input(deckCheckEntryCardParamSchema.extend(deckCheckTickSchema.shape)),
+    .input(withParams(deckCheckEntryCardParamSchema, deckCheckTickSchema)),
   linkEntry: oc
     .route({ method: "PUT", path: `${CHECKS}/{eventId}/entries/{entryId}/link`, tags: [TAG] })
-    .input(deckCheckEntryParamSchema.extend(deckCheckLinkSchema.shape))
+    .input(withParams(deckCheckEntryParamSchema, deckCheckLinkSchema))
     .output(deckCheckEntryDetailResponseSchema),
   unlinkEntry: oc
     .route({ method: "DELETE", path: `${CHECKS}/{eventId}/entries/{entryId}/link`, tags: [TAG] })
@@ -151,7 +152,7 @@ export const deckCheckContract = {
       path: "/api/v1/friend-groups/{slug}/deck-check-account-search",
       tags: [TAG],
     })
-    .input(friendGroupSlugParamSchema.extend(deckCheckAccountSearchSchema.shape))
+    .input(withParams(friendGroupSlugParamSchema, deckCheckAccountSearchSchema))
     .output(deckCheckAccountSearchResponseSchema),
   regenerateSubmissionToken: oc
     .route({ method: "POST", path: `${CHECKS}/{eventId}/submission-token`, tags: [TAG] })
@@ -168,7 +169,7 @@ export const deckCheckContract = {
       tags: [TAG],
       successStatus: 201,
     })
-    .input(friendGroupSlugParamSchema.extend(mintDeckCheckKeySchema.shape))
+    .input(withParams(friendGroupSlugParamSchema, mintDeckCheckKeySchema))
     .output(deckCheckKeyMintedResponseSchema),
   renameKey: oc
     .route({
@@ -176,7 +177,7 @@ export const deckCheckContract = {
       path: "/api/v1/friend-groups/{slug}/deck-check-keys/{keyId}",
       tags: [TAG],
     })
-    .input(deckCheckKeyParamSchema.extend(updateDeckCheckKeySchema.shape))
+    .input(withParams(deckCheckKeyParamSchema, updateDeckCheckKeySchema))
     .output(deckCheckKeyResponseSchema),
   revokeKey: oc
     .route({

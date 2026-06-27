@@ -14,6 +14,7 @@ import {
   reorderCollectionsSchema,
   setCollectionDeckbuildingSchema,
   updateCollectionSchema,
+  withParams,
 } from "../schemas.js";
 
 const TAG = "Collections";
@@ -42,14 +43,14 @@ export const collectionsContract = {
     .output(collectionResponseSchema),
   update: oc
     .route({ method: "PATCH", path: "/api/v1/collections/{id}", tags: [TAG] })
-    .input(idParamSchema.extend(updateCollectionSchema.shape))
+    .input(withParams(idParamSchema, updateCollectionSchema))
     .output(collectionResponseSchema),
   remove: oc
     .route({ method: "DELETE", path: "/api/v1/collections/{id}", tags: [TAG], successStatus: 204 })
     .input(idParamSchema),
   copies: oc
     .route({ method: "GET", path: "/api/v1/collections/{id}/copies", tags: [TAG] })
-    .input(idParamSchema.extend(copiesQuerySchema.shape))
+    .input(withParams(idParamSchema, copiesQuerySchema))
     .output(copyListResponseSchema),
   share: oc
     .route({ method: "POST", path: "/api/v1/collections/{id}/share", tags: [TAG] })
@@ -82,7 +83,7 @@ export const collectionsContract = {
       tags: [TAG],
       successStatus: 204,
     })
-    .input(idParamSchema.extend(setCollectionDeckbuildingSchema.shape)),
+    .input(withParams(idParamSchema, setCollectionDeckbuildingSchema)),
 };
 
 export type CollectionsContract = typeof collectionsContract;

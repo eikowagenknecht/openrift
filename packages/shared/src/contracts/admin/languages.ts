@@ -1,4 +1,4 @@
-import { isoDateTime } from "@openrift/shared/schemas";
+import { isoDateTime, withParams } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -43,7 +43,7 @@ export const adminLanguagesContract = {
   update: oc
     .route({ method: "PATCH", path: `${LANG}/{code}`, tags: [TAG], successStatus: 204 })
     .input(
-      codeParamSchema.extend({
+      withParams(codeParamSchema, {
         name: z.string().min(1).optional(),
         sortOrder: z.number().int().optional(),
       }),

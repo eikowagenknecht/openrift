@@ -1,3 +1,4 @@
+import { withParams } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -40,7 +41,7 @@ export const adminArtVariantsContract = {
     .output(z.object({ artVariant: artVariantSchema })),
   update: oc
     .route({ method: "PATCH", path: `${AV}/{slug}`, tags: [TAG], successStatus: 204 })
-    .input(slugParamSchema.extend({ label: z.string().min(1).optional() })),
+    .input(withParams(slugParamSchema, { label: z.string().min(1).optional() })),
   remove: oc
     .route({ method: "DELETE", path: `${AV}/{slug}`, tags: [TAG], successStatus: 204 })
     .input(slugParamSchema),

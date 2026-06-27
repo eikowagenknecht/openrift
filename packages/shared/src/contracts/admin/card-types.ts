@@ -1,3 +1,4 @@
+import { withParams } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -40,7 +41,7 @@ export const adminCardTypesContract = {
     .output(z.object({ cardType: entitySchema })),
   update: oc
     .route({ method: "PATCH", path: `${BASE}/{slug}`, tags: [TAG], successStatus: 204 })
-    .input(slugParamSchema.extend({ label: z.string().min(1).optional() })),
+    .input(withParams(slugParamSchema, { label: z.string().min(1).optional() })),
   remove: oc
     .route({ method: "DELETE", path: `${BASE}/{slug}`, tags: [TAG], successStatus: 204 })
     .input(slugParamSchema),

@@ -1,3 +1,4 @@
+import { withParams } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -44,7 +45,7 @@ export const adminKeywordsContract = {
     .input(z.object({ name: z.string().min(1), color: hexColor, darkText: z.boolean() })),
   updateStyle: oc
     .route({ method: "PUT", path: `${BASE}/keywords/{name}`, tags: [TAG], successStatus: 204 })
-    .input(nameParamSchema.extend({ color: hexColor, darkText: z.boolean() })),
+    .input(withParams(nameParamSchema, { color: hexColor, darkText: z.boolean() })),
   removeStyle: oc
     .route({ method: "DELETE", path: `${BASE}/keywords/{name}`, tags: [TAG], successStatus: 204 })
     .input(nameParamSchema),
@@ -61,7 +62,7 @@ export const adminKeywordsContract = {
       tags: [TAG],
       successStatus: 204,
     })
-    .input(translationParamSchema.extend({ label: z.string().min(1) })),
+    .input(withParams(translationParamSchema, { label: z.string().min(1) })),
   removeTranslation: oc
     .route({
       method: "DELETE",

@@ -1,4 +1,4 @@
-import { idParamSchema, isoDate } from "@openrift/shared/schemas";
+import { idParamSchema, isoDate, withParams } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -41,7 +41,7 @@ export const adminCatalogContract = {
   updateSet: oc
     .route({ method: "PATCH", path: `${SETS}/{id}`, tags: [TAG], successStatus: 204 })
     .input(
-      idParamSchema.extend({
+      withParams(idParamSchema, {
         name: setFieldRules.name,
         printedTotal: setFieldRules.printedTotal,
         releasedAt: isoDate.nullable(),

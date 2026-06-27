@@ -1,10 +1,11 @@
 import { oc } from "@orpc/contract";
-import { z } from "zod";
 
 import { userContactMethodsResponseSchema } from "../response-schemas.js";
-import { createContactMethodSchema, reorderContactMethodsSchema } from "../schemas.js";
-
-const idParamSchema = z.object({ id: z.uuid() });
+import {
+  createContactMethodSchema,
+  idParamSchema,
+  reorderContactMethodsSchema,
+} from "../schemas.js";
 
 /**
  * oRPC contract for the authenticated contact-methods CRUD. Every mutation

@@ -16,6 +16,7 @@ import {
   replacePodPairingSchema,
   updatePodPlayerSchema,
   updatePodTournamentSchema,
+  withParams,
 } from "../schemas.js";
 
 const TAG = "Pod Tournaments";
@@ -44,7 +45,7 @@ export const podTournamentsContract = {
     .output(podTournamentDetailResponseSchema),
   update: oc
     .route({ method: "PATCH", path: "/api/v1/pod-tournaments/{id}", tags: [TAG] })
-    .input(podTournamentIdParamSchema.extend(updatePodTournamentSchema.shape))
+    .input(withParams(podTournamentIdParamSchema, updatePodTournamentSchema))
     .output(podTournamentDetailResponseSchema),
   remove: oc
     .route({
@@ -56,7 +57,7 @@ export const podTournamentsContract = {
     .input(podTournamentIdParamSchema),
   addPlayer: oc
     .route({ method: "POST", path: "/api/v1/pod-tournaments/{id}/players", tags: [TAG] })
-    .input(podTournamentIdParamSchema.extend(addPodPlayerSchema.shape))
+    .input(withParams(podTournamentIdParamSchema, addPodPlayerSchema))
     .output(podTournamentDetailResponseSchema),
   renamePlayer: oc
     .route({
@@ -64,7 +65,7 @@ export const podTournamentsContract = {
       path: "/api/v1/pod-tournaments/{id}/players/{playerId}",
       tags: [TAG],
     })
-    .input(playerParamSchema.extend(updatePodPlayerSchema.shape))
+    .input(withParams(playerParamSchema, updatePodPlayerSchema))
     .output(podTournamentDetailResponseSchema),
   dropPlayer: oc
     .route({
@@ -92,7 +93,7 @@ export const podTournamentsContract = {
     .output(podTournamentDetailResponseSchema),
   generateRound: oc
     .route({ method: "POST", path: "/api/v1/pod-tournaments/{id}/rounds", tags: [TAG] })
-    .input(podTournamentIdParamSchema.extend(generatePodRoundSchema.shape))
+    .input(withParams(podTournamentIdParamSchema, generatePodRoundSchema))
     .output(podTournamentDetailResponseSchema),
   replacePairing: oc
     .route({
@@ -100,7 +101,7 @@ export const podTournamentsContract = {
       path: "/api/v1/pod-tournaments/{id}/rounds/{roundNumber}/pairing",
       tags: [TAG],
     })
-    .input(podRoundNumberParamSchema.extend(replacePodPairingSchema.shape))
+    .input(withParams(podRoundNumberParamSchema, replacePodPairingSchema))
     .output(podTournamentDetailResponseSchema),
   rerollRound: oc
     .route({
@@ -124,7 +125,7 @@ export const podTournamentsContract = {
       path: "/api/v1/pod-tournaments/{id}/pods/{podId}/result",
       tags: [TAG],
     })
-    .input(podParamSchema.extend(podResultSchema.shape))
+    .input(withParams(podParamSchema, podResultSchema))
     .output(podTournamentDetailResponseSchema),
   enableReportToken: oc
     .route({ method: "POST", path: "/api/v1/pod-tournaments/{id}/report-token", tags: [TAG] })

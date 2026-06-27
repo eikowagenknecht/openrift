@@ -11,6 +11,7 @@ import {
   createCardTradeSchema,
   idParamSchema,
   setCardTradeQuantitySchema,
+  withParams,
 } from "../schemas.js";
 
 const TAG = "CardTrades";
@@ -52,11 +53,11 @@ export const cardTradesContract = {
     .output(cardTradeResponseSchema),
   setQuantity: oc
     .route({ method: "POST", path: "/api/v1/trades/{id}/quantity", tags: [TAG] })
-    .input(idParamSchema.extend(setCardTradeQuantitySchema.shape))
+    .input(withParams(idParamSchema, setCardTradeQuantitySchema))
     .output(cardTradeResponseSchema),
   sync: oc
     .route({ method: "POST", path: "/api/v1/trades/{id}/sync", tags: [TAG] })
-    .input(idParamSchema.extend(cardTradeSyncSchema.shape))
+    .input(withParams(idParamSchema, cardTradeSyncSchema))
     .output(cardTradeResponseSchema),
   skipSync: oc
     .route({ method: "POST", path: "/api/v1/trades/{id}/sync/skip", tags: [TAG] })

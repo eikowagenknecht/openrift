@@ -1,3 +1,4 @@
+import { withParams } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -31,7 +32,7 @@ export const adminDeckZonesContract = {
     .input(z.object({ slugs: z.array(z.string().min(1)).min(1) })),
   update: oc
     .route({ method: "PATCH", path: `${DZ}/{slug}`, tags: [TAG], successStatus: 204 })
-    .input(slugParamSchema.extend({ label: z.string().min(1).optional() })),
+    .input(withParams(slugParamSchema, { label: z.string().min(1).optional() })),
 };
 
 export type AdminDeckZonesContract = typeof adminDeckZonesContract;

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
 import {
   bulkCreateListEntriesSchema,
@@ -26,6 +27,7 @@ import {
   updateDeckSchema,
   updateListEntrySchema,
   updateListSchema,
+  withParams,
 } from "./schemas";
 
 // ---------------------------------------------------------------------------
@@ -503,6 +505,43 @@ describe("idParamSchema", () => {
 
   it("rejects non-uuid string", () => {
     expect(idParamSchema.safeParse({ id: "not-a-uuid" }).success).toBe(false);
+  });
+});
+
+describe("withParams", () => {
+  const uuid = "550e8400-e29b-41d4-a716-446655440000";
+
+  it("merges a base param schema with another object schema", () => {
+    const schema = withParams(idParamSchema, z.object({ name: z.string() }));
+    expect(schema.safeParse({ id: uuid, name: "deck" }).success).toBe(true);
+  });
+
+  it("merges a base param schema with a raw shape", () => {
+    const schema = withParams(idParamSchema, { count: z.number().int() });
+    expect(schema.safeParse({ id: uuid, count: 3 }).success).toBe(true);
+  });
+
+  it("still enforces the base param fields", () => {
+    const schema = withParams(idParamSchema, z.object({ name: z.string() }));
+    expect(schema.safeParse({ name: "deck" }).success).toBe(false);
+    expect(schema.safeParse({ id: "not-a-uuid", name: "deck" }).success).toBe(false);
+  });
+
+  it("enforces the extra fields", () => {
+    const schema = withParams(idParamSchema, { count: z.number().int() });
+    expect(schema.safeParse({ id: uuid }).success).toBe(false);
+    expect(schema.safeParse({ id: uuid, count: "nope" }).success).toBe(false);
+  });
+
+  it("lets extra fields override base fields when keys overlap", () => {
+    const schema = withParams(idParamSchema, { id: z.literal("fixed") });
+    expect(schema.safeParse({ id: "fixed" }).success).toBe(true);
+    expect(schema.safeParse({ id: uuid }).success).toBe(false);
+  });
+
+  it("accepts an empty extra shape", () => {
+    const schema = withParams(idParamSchema, {});
+    expect(schema.safeParse({ id: uuid }).success).toBe(true);
   });
 });
 

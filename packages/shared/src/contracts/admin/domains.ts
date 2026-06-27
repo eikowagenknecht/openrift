@@ -1,3 +1,4 @@
+import { withParams } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -47,7 +48,7 @@ export const adminDomainsContract = {
   update: oc
     .route({ method: "PATCH", path: `${BASE}/{slug}`, tags: [TAG], successStatus: 204 })
     .input(
-      slugParamSchema.extend({
+      withParams(slugParamSchema, {
         label: z.string().min(1).optional(),
         color: hexColorSchema.optional(),
       }),

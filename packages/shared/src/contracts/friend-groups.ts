@@ -32,6 +32,7 @@ import {
   friendGroupUpdateRoleSchema,
   setRevealedContactsSchema,
   updateFriendGroupSchema,
+  withParams,
 } from "../schemas.js";
 
 const TAG = "Friend Groups";
@@ -94,7 +95,7 @@ export const friendGroupsContract = {
     .output(friendGroupResponseSchema),
   inviteByEmail: oc
     .route({ method: "POST", path: `${FG}/{slug}/invites`, tags: [TAG], successStatus: 201 })
-    .input(friendGroupSlugParamSchema.extend(friendGroupInviteByEmailSchema.shape)),
+    .input(withParams(friendGroupSlugParamSchema, friendGroupInviteByEmailSchema)),
   acceptInvite: oc
     .route({
       method: "POST",
@@ -121,14 +122,14 @@ export const friendGroupsContract = {
       tags: [TAG],
       successStatus: 204,
     })
-    .input(friendGroupSlugParamSchema.extend(friendGroupTransferOwnershipSchema.shape)),
+    .input(withParams(friendGroupSlugParamSchema, friendGroupTransferOwnershipSchema)),
   updateRole: oc
     .route({ method: "PATCH", path: `${FG}/{slug}/members/{userId}/role`, tags: [TAG] })
-    .input(friendGroupSlugAndUserParamSchema.extend(friendGroupUpdateRoleSchema.shape))
+    .input(withParams(friendGroupSlugAndUserParamSchema, friendGroupUpdateRoleSchema))
     .output(friendGroupMemberResponseSchema),
   setRevealedContacts: oc
     .route({ method: "PUT", path: `${FG}/{slug}/members/{userId}/contacts`, tags: [TAG] })
-    .input(friendGroupSlugAndUserParamSchema.extend(setRevealedContactsSchema.shape))
+    .input(withParams(friendGroupSlugAndUserParamSchema, setRevealedContactsSchema))
     .output(friendGroupMemberResponseSchema),
   kickMember: oc
     .route({
@@ -144,7 +145,7 @@ export const friendGroupsContract = {
     .output(friendGroupShareableListsResponseSchema),
   shareList: oc
     .route({ method: "POST", path: `${FG}/{slug}/lists`, tags: [TAG], successStatus: 204 })
-    .input(friendGroupSlugParamSchema.extend(friendGroupShareListSchema.shape)),
+    .input(withParams(friendGroupSlugParamSchema, friendGroupShareListSchema)),
   unshareList: oc
     .route({
       method: "DELETE",
@@ -159,7 +160,7 @@ export const friendGroupsContract = {
     .output(friendGroupShareableCollectionsResponseSchema),
   shareCollection: oc
     .route({ method: "POST", path: `${FG}/{slug}/collections`, tags: [TAG], successStatus: 204 })
-    .input(friendGroupSlugParamSchema.extend(friendGroupShareCollectionSchema.shape)),
+    .input(withParams(friendGroupSlugParamSchema, friendGroupShareCollectionSchema)),
   unshareCollection: oc
     .route({
       method: "DELETE",

@@ -1,4 +1,4 @@
-import { isoDateTime } from "@openrift/shared/schemas";
+import { isoDateTime, withParams } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -68,7 +68,7 @@ export const adminFeatureFlagsContract = {
     .output(z.object({ overrides: z.array(overrideSchema) })),
   upsertOverride: oc
     .route({ method: "PUT", path: `${BASE}/users/{id}/feature-flags/{key}`, tags: [TAG] })
-    .input(userKeyParamSchema.extend({ enabled: z.boolean() }))
+    .input(withParams(userKeyParamSchema, { enabled: z.boolean() }))
     .output(z.object({ flagKey: z.string(), enabled: z.boolean() })),
   removeOverride: oc
     .route({
