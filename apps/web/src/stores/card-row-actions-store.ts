@@ -35,15 +35,6 @@ interface CardRowHandlers {
     intent: VariantPopoverIntent,
   ) => void;
   /**
-   * Remove a copy of an already-resolved printing directly, bypassing the
-   * variant disambiguation that {@link onDecrement} applies. Used by controls
-   * that have already picked a specific variant (e.g. a row inside the variants
-   * popover), where re-opening the variant picker would be redundant. Still
-   * forwards `anchorEl` so the downstream multi-collection "Remove from" picker
-   * can anchor when the chosen variant spans several of the viewer's lists.
-   */
-  onUndoAdd?: (printing: Printing, anchorEl?: HTMLElement) => void | Promise<void>;
-  /**
    * Cell-aware click: dispatched on the grid tile with modifier keys. The
    * handler resolves mode-specific behavior (browse → open detail, select →
    * toggle / shift-range, ctrl in browse → enter select mode + toggle).
@@ -126,10 +117,6 @@ export function dispatchOpenVariants(
   intent: VariantPopoverIntent,
 ): void {
   useCardRowActionsStore.getState().handlers.onOpenVariants?.(printing, anchorEl, intent);
-}
-
-export function dispatchUndoAdd(printing: Printing, anchorEl?: HTMLElement): void {
-  void useCardRowActionsStore.getState().handlers.onUndoAdd?.(printing, anchorEl);
 }
 
 export function dispatchItemClick(

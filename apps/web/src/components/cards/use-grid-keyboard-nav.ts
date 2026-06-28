@@ -45,11 +45,11 @@ export function useGridKeyboardNav({ items, siblingPrintings }: UseGridKeyboardN
       if (isAddRemoveKey(e.key) && (e.ctrlKey || e.metaKey || e.altKey)) {
         return;
       }
-      // While the variant or dispose picker popover is open it handles its
-      // own arrow / +/=/- / Enter keys; the grid handler steps back so we
-      // don't fight over the same keystrokes.
+      // While the variant×collection popover is open it handles its own arrow /
+      // +/=/- / Enter keys; the grid handler steps back so we don't fight over
+      // the same keystrokes.
       const addMode = useAddModeStore.getState();
-      if (addMode.variantPopover || addMode.disposePicker) {
+      if (addMode.variantPopover) {
         return;
       }
 
@@ -67,7 +67,7 @@ export function useGridKeyboardNav({ items, siblingPrintings }: UseGridKeyboardN
           return;
         }
         e.preventDefault();
-        // Anchor for popovers (variants or dispose picker). The tile's
+        // Anchor for the variant×collection popover. The tile's
         // data-printing-id is the *displayed* printing for that grid item,
         // which differs from selectedCard only when the user has Up/Down'd
         // to a sibling. Either way, the tile is a sensible visual anchor.

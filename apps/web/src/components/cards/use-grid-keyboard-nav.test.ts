@@ -109,23 +109,6 @@ describe("useGridKeyboardNav: +/-", () => {
     expect(onDecrement).not.toHaveBeenCalled();
   });
 
-  it("skips +/- while the dispose picker is open", () => {
-    // Regression: when the multi-collection picker was open, the grid handler
-    // would still fire arrows and +/-, fighting the picker's own keyboard nav.
-    const onIncrement = vi.fn();
-    const onDecrement = vi.fn();
-    useCardRowActionsStore.getState().setHandlers({ onIncrement, onDecrement });
-    useSelectionStore.getState().selectCard(p1, items, "printing");
-    useAddModeStore.getState().openDisposePicker(p1, document.createElement("div"));
-
-    renderHook(() => useGridKeyboardNav({ items }));
-    press("+");
-    press("-");
-
-    expect(onIncrement).not.toHaveBeenCalled();
-    expect(onDecrement).not.toHaveBeenCalled();
-  });
-
   it("does nothing when no card is selected", () => {
     const onIncrement = vi.fn();
     useCardRowActionsStore.getState().setHandlers({ onIncrement });

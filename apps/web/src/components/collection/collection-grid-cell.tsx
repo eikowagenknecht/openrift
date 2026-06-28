@@ -10,7 +10,6 @@ import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { OwnedCollectionsPopover } from "@/components/cards/card-detail/owned-collections-popover";
 import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { WishlistHeart } from "@/components/cards/wishlist-heart";
-import { BrowseLocationsPopover } from "@/components/collection/browse-locations-popover";
 import { CollectionCardContextMenu } from "@/components/collection/collection-card-context-menu";
 import { DraggableCard } from "@/components/collection/draggable-card";
 import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
@@ -26,7 +25,6 @@ import {
   dispatchOpenVariants,
   dispatchSiblingClick,
   dispatchTake,
-  dispatchUndoAdd,
 } from "@/stores/card-row-actions-store";
 import { useDragPreviewStore } from "@/stores/drag-preview-store";
 import { useGridFocusStore } from "@/stores/grid-focus-store";
@@ -169,8 +167,14 @@ export const CollectionGridCell = memo(function CollectionGridCell({
       mode === "select" && isStackSelected(stacked, itemId, effectiveCopyIds, state.selected),
   );
 
-  const variantTrigger =
-    inCardsView && (siblings?.length ?? 0) > 1
+  // The count pill opens the unified variant×collection popover. It's useful
+  // whenever there's something to manage there: owned copies (see where they
+  // live, add/remove per collection), or — in cards view — multiple variants to
+  // pick from even when unowned. A single unowned variant has nothing to show,
+  // so its pill stays inert. In printings view the grid scopes the popover to
+  // the displayed printing.
+  const openLocations =
+    ownedCount > 0 || (inCardsView && (siblings?.length ?? 0) > 1)
       ? (event: { currentTarget: HTMLElement }) =>
           dispatchOpenVariants(displayPrinting, event.currentTarget, "add")
       : undefined;
@@ -183,8 +187,7 @@ export const CollectionGridCell = memo(function CollectionGridCell({
   // stay below.
   //
   // Stacked strip variants:
-  //  - browse + owned: full +/-, BrowseLocationsPopover (variants + locations)
-  //  - browse + unowned (library): + only, no popover
+  //  - browse: full +/-, count pill opens the variant×collection popover
   //  - select + owned: read-only count, OwnedCollectionsPopover
   //  - select + unowned: no strip (nothing to display)
   // Group "bulk box" controls that live inside the count strip, next to the
@@ -220,21 +223,6 @@ export const CollectionGridCell = memo(function CollectionGridCell({
 
   let strip: ReactNode | undefined;
   if (stacked && mode === "browse") {
-    const pillOverride =
-      ownedCount > 0 ? (
-        <BrowseLocationsPopover
-          displayedPrinting={displayPrinting}
-          siblings={inCardsView ? siblings : undefined}
-          ownedCount={ownedCount}
-          totalCount={totalInCollection}
-          ownedCountByPrinting={counts?.allTotals}
-          onAdd={(p) => dispatchIncrement(p)}
-          // Rows in this popover have already picked a variant, so the minus
-          // must decrement that variant directly — not re-open the variant
-          // picker that dispatchDecrement routes to on ambiguous removal.
-          onUndoAdd={(p, anchorEl) => dispatchUndoAdd(p, anchorEl)}
-        />
-      ) : undefined;
     strip = (
       <CardCountStrip
         count={ownedCount}
@@ -251,11 +239,12 @@ export const CollectionGridCell = memo(function CollectionGridCell({
           onClick: () => dispatchIncrement(displayPrinting),
           ariaLabel: `Add ${legendDisplayName(displayPrinting.card)}`,
         }}
-        pillOverride={pillOverride}
-        onPillClick={!pillOverride && variantTrigger ? variantTrigger : undefined}
+        onPillClick={openLocations}
         pillAriaLabel={
-          !pillOverride && variantTrigger
-            ? `Choose variant for ${legendDisplayName(displayPrinting.card)}`
+          openLocations
+            ? ownedCount > 0
+              ? `Variants and collections for ${legendDisplayName(displayPrinting.card)}`
+              : `Choose variant for ${legendDisplayName(displayPrinting.card)}`
             : undefined
         }
         extras={boxExtras}

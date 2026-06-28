@@ -21,7 +21,8 @@ import type { VariantPopoverIntent } from "@/stores/add-mode-store";
  * the inbox id on All Cards). `viewCollectionId` scopes the minus button:
  * when set, minus only removes copies from that collection. When undefined
  * (All Cards view), minus looks across all of the user's collections and
- * opens a picker if the copies span multiple collections.
+ * reports "ambiguous" when the copies span multiple collections so the caller
+ * can escalate to the variant×collection popover.
  * @returns Quick-add actions, or undefined handlers when disabled.
  */
 export function useQuickAddActions(addTarget?: string, viewCollectionId?: string) {
@@ -51,27 +52,38 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
   const disposeCopies = useDisposeCopies();
   const copiesCollection = useCopiesCollection();
 
+  // Add one copy of `printing` to a specific collection, with optimistic
+  // session tracking for undo. Both the default-target quick-add and the
+  // variant×collection popover's per-collection `+` funnel through here.
+  const addToCollection = async (printing: Printing, collectionId: string) => {
+    pendingPrintingsRef.current.set(printing.id, printing);
+    useAddModeStore.getState().incrementPending(printing);
+    try {
+      const { result } = batchedAdd.add(printing.id, collectionId);
+      const real = await result;
+      useAddModeStore.getState().recordAdd(printing, real.id);
+    } catch {
+      // Error toast is fired by the global mutation onError handler;
+      // swallow the rejection here so it doesn't surface as an uncaught
+      // promise in the console.
+    }
+    useAddModeStore.getState().decrementPending(printing.id);
+  };
+
+  // Default-target quick-add (current collection, or the inbox on All Cards).
   const handleQuickAdd = addTarget
-    ? async (printing: Printing) => {
-        pendingPrintingsRef.current.set(printing.id, printing);
-        useAddModeStore.getState().incrementPending(printing);
-        try {
-          const { result } = batchedAdd.add(printing.id, addTarget);
-          const real = await result;
-          useAddModeStore.getState().recordAdd(printing, real.id);
-        } catch {
-          // Error toast is fired by the global mutation onError handler;
-          // swallow the rejection here so it doesn't surface as an uncaught
-          // promise in the console.
-        }
-        useAddModeStore.getState().decrementPending(printing.id);
-      }
+    ? (printing: Printing) => addToCollection(printing, addTarget)
     : undefined;
+
+  // Add to an explicitly chosen collection (the popover's per-collection `+`
+  // and its "add to another collection" picker).
+  const handleAddToCollection = (printing: Printing, collectionId: string) =>
+    addToCollection(printing, collectionId);
 
   // Silent half of undo-add: session undo + single-collection dispose only.
   // Returns "ambiguous" when copies span multiple collections so the caller
-  // can decide how to surface the picker (in-popover page swap vs. standalone
-  // popover anchored elsewhere). Returns "done" when no further action needed.
+  // can escalate to the variant×collection popover (where the user picks the
+  // exact row to remove). Returns "done" when no further action needed.
   const tryUndoAdd = addTarget
     ? async (printing: Printing): Promise<"done" | "ambiguous"> => {
         const entry = useAddModeStore.getState().addedItems.get(printing.id);
@@ -100,15 +112,9 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
       }
     : undefined;
 
-  const handleUndoAdd = tryUndoAdd
-    ? async (printing: Printing, anchorEl?: HTMLElement) => {
-        const result = await tryUndoAdd(printing);
-        if (result === "ambiguous" && anchorEl) {
-          useAddModeStore.getState().openDisposePicker(printing, anchorEl);
-        }
-      }
-    : undefined;
-
+  // Remove the newest copy of `printing` from a specific collection. The
+  // variant×collection popover's per-collection `-` calls this directly (the
+  // collection is already chosen, so no disambiguation is needed).
   const handleDisposeFromCollection = async (printing: Printing, fromCollectionId: string) => {
     if (!copiesCollection) {
       return;
@@ -118,7 +124,6 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
         c.printingId === printing.id && c.collectionId === fromCollectionId && !isTempCopyId(c.id),
     );
     const newest = pickNewestCopy(copies);
-    useAddModeStore.getState().closeDisposePicker();
     if (newest) {
       await disposeCopies.mutateAsync({ copyIds: [newest.id] });
     }
@@ -134,6 +139,7 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
         anchorEl: HTMLElement,
         intent: VariantPopoverIntent,
         scopeToSet = false,
+        scopeToPrinting = false,
       ) => {
         if (justClosedRef.current === printing.cardId) {
           justClosedRef.current = null;
@@ -147,7 +153,13 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
         }
         useAddModeStore
           .getState()
-          .openVariants(printing.cardId, anchorEl, intent, scopeToSet ? printing.setId : undefined);
+          .openVariants(
+            printing.cardId,
+            anchorEl,
+            intent,
+            scopeToSet ? printing.setId : undefined,
+            scopeToPrinting ? printing.id : undefined,
+          );
       }
     : undefined;
 
@@ -170,7 +182,7 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
 
   return {
     handleQuickAdd,
-    handleUndoAdd,
+    handleAddToCollection,
     tryUndoAdd,
     handleOpenVariants,
     handleDisposeFromCollection,

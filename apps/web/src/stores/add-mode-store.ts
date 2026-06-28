@@ -25,12 +25,14 @@ interface AddModeState {
     cardId: string;
     /** Optional setId — when present, the popover filters variants to this set. */
     setId?: string;
+    /** Optional printingId — when present, the popover shows only this printing
+     * (printings/copies view, where a tile stands for one variant). */
+    printingId?: string;
     intent: VariantPopoverIntent;
     anchorEl: HTMLElement;
     /** Positioning anchor that survives anchorEl unmounting (see createFrozenAnchor). */
     anchor: FrozenAnchor;
   } | null;
-  disposePicker: { printing: Printing; anchorEl: HTMLElement; anchor: FrozenAnchor } | null;
 
   incrementPending: (printing: Printing) => void;
   decrementPending: (printingId: string) => void;
@@ -41,17 +43,15 @@ interface AddModeState {
     anchorEl: HTMLElement,
     intent: VariantPopoverIntent,
     setId?: string,
+    printingId?: string,
   ) => void;
   closeVariants: () => void;
-  openDisposePicker: (printing: Printing, anchorEl: HTMLElement) => void;
-  closeDisposePicker: () => void;
   reset: () => void;
 }
 
 export const useAddModeStore = create<AddModeState>()((set) => ({
   addedItems: new Map(),
   variantPopover: null,
-  disposePicker: null,
 
   incrementPending: (printing) =>
     set((state) => {
@@ -120,18 +120,21 @@ export const useAddModeStore = create<AddModeState>()((set) => ({
       return { addedItems: next };
     }),
 
-  openVariants: (cardId, anchorEl, intent, setId) =>
+  openVariants: (cardId, anchorEl, intent, setId, printingId) =>
     set({
-      variantPopover: { cardId, setId, intent, anchorEl, anchor: createFrozenAnchor(anchorEl) },
+      variantPopover: {
+        cardId,
+        setId,
+        printingId,
+        intent,
+        anchorEl,
+        anchor: createFrozenAnchor(anchorEl),
+      },
     }),
   closeVariants: () => set({ variantPopover: null }),
-  openDisposePicker: (printing, anchorEl) =>
-    set({ disposePicker: { printing, anchorEl, anchor: createFrozenAnchor(anchorEl) } }),
-  closeDisposePicker: () => set({ disposePicker: null }),
   reset: () =>
     set({
       addedItems: new Map(),
       variantPopover: null,
-      disposePicker: null,
     }),
 }));

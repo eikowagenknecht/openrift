@@ -185,22 +185,14 @@ describe("useAddModeStore", () => {
       expect(useAddModeStore.getState().variantPopover).toBeNull();
     });
 
-    it("openDisposePicker stores printing and anchor", () => {
-      const printing = stubPrinting({ id: "p1" });
+    it("openVariants scopes to a single printing when printingId is given", () => {
       const anchor = document.createElement("button");
-      useAddModeStore.getState().openDisposePicker(printing, anchor);
+      useAddModeStore.getState().openVariants("card-1", anchor, "add", undefined, "printing-9");
 
-      const state = useAddModeStore.getState();
-      expect(state.disposePicker?.printing.id).toBe("p1");
-      expect(state.disposePicker?.anchorEl).toBe(anchor);
-      expect(state.disposePicker?.anchor.contextElement).toBe(anchor);
-    });
-
-    it("closeDisposePicker clears the picker", () => {
-      const printing = stubPrinting({ id: "p1" });
-      useAddModeStore.getState().openDisposePicker(printing, document.createElement("button"));
-      useAddModeStore.getState().closeDisposePicker();
-      expect(useAddModeStore.getState().disposePicker).toBeNull();
+      expect(useAddModeStore.getState().variantPopover).toMatchObject({
+        cardId: "card-1",
+        printingId: "printing-9",
+      });
     });
   });
 
@@ -209,14 +201,12 @@ describe("useAddModeStore", () => {
       const printing = stubPrinting({ id: "p1" });
       useAddModeStore.getState().recordAdd(printing, "copy-1");
       useAddModeStore.getState().openVariants("card-1", document.createElement("button"), "add");
-      useAddModeStore.getState().openDisposePicker(printing, document.createElement("button"));
 
       useAddModeStore.getState().reset();
 
       const state = useAddModeStore.getState();
       expect(state.addedItems.size).toBe(0);
       expect(state.variantPopover).toBeNull();
-      expect(state.disposePicker).toBeNull();
     });
   });
 });

@@ -35,8 +35,7 @@ import { CollectionTableActions } from "@/components/cards/collection-table-acti
 import { CollectionGridCell } from "@/components/collection/collection-grid-cell";
 import { FloatingActionBar } from "@/components/collection/floating-action-bar";
 import { buildOnDecrement } from "@/components/collection/route-decrement";
-import { VariantAddPopover } from "@/components/collection/variant-add-popover";
-import { buildVariantOwnedCounts } from "@/components/collection/variant-owned-counts";
+import { VariantLocationsPopover } from "@/components/collection/variant-locations-popover";
 import {
   PageTopBar,
   PageTopBarActions,
@@ -107,7 +106,6 @@ import { computeDragSelectionSummary, dragSelectionNoun } from "./collection-dra
 import { CollectionShareDialog } from "./collection-share-dialog";
 import { DeleteCollectionDialog } from "./delete-collection-dialog";
 import { DisposeDialog } from "./dispose-dialog";
-import { DisposePickerPopover } from "./dispose-picker-popover";
 import { DraggableCard } from "./draggable-card";
 import { EditCollectionDialog } from "./edit-collection-dialog";
 import { MoveDialog } from "./move-dialog";
@@ -514,26 +512,24 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const canTake = isGroupCollection && Boolean(inboxId);
   const wish = useWishEntries(isGroupCollection);
 
-  // ── Variant-popover state (used by the count-pill, locations popover, and
-  //    keyboard +/- on table rows) ─────────────────────────────────────
+  // ── Variant×collection popover state (used by the count-pill, the tile
+  //    minus, and keyboard +/- on table rows) ───────────────────────────
   const variantPopover = useAddModeStore((s) => s.variantPopover);
-  const disposePicker = useAddModeStore((s) => s.disposePicker);
-  const closeDisposePicker = useAddModeStore((s) => s.closeDisposePicker);
   const selectedCardId = useSelectionStore((s) => s.selectedCard?.id);
   const {
     handleQuickAdd,
-    handleUndoAdd,
+    handleAddToCollection,
     tryUndoAdd,
     handleOpenVariants,
     handleDisposeFromCollection,
     closeVariants,
   } = useQuickAddActions(addTarget, collectionId);
-  const [variantDisposeTarget, setVariantDisposeTarget] = useState<Printing | null>(null);
-  // Clear the in-popover dispose page whenever the variants popover closes or
-  // switches to a different card — otherwise the next time it opens, it would
-  // still be showing the stale "Remove from" sub-page.
+  const [addCollectionTarget, setAddCollectionTarget] = useState<Printing | null>(null);
+  // Clear the in-popover "add to another collection" page whenever the popover
+  // closes or switches to a different card — otherwise the next time it opens,
+  // it would still be showing the stale collection picker sub-page.
   useEffect(() => {
-    setVariantDisposeTarget(null);
+    setAddCollectionTarget(null);
   }, [variantPopover?.cardId]);
 
   const toggleShowLibrary = () => {
@@ -894,7 +890,10 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // tile's own set so it can't add or remove a printing from another set.
   const openVariantsForTile = handleOpenVariants
     ? (printing: Printing, anchorEl: HTMLElement, intent: VariantPopoverIntent) =>
-        handleOpenVariants(printing, anchorEl, intent, tileGroupBy === "set")
+        // Cards view shows every variant of the card (scoped to the tile's set
+        // when split by set); printings/copies view scopes to the one printing
+        // the tile stands for.
+        handleOpenVariants(printing, anchorEl, intent, tileGroupBy === "set", dataView !== "cards")
     : undefined;
 
   // oxlint-disable-next-line react-hooks/exhaustive-deps -- intentional: re-register every render
@@ -908,14 +907,9 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         groupBy: tileGroupBy,
         ownedPrintingIdsByTile: allPrintingIdsByTile,
         handleOpenVariants: openVariantsForTile,
-        handleUndoAdd,
+        tryUndoAdd,
       }),
       onOpenVariants: openVariantsForTile,
-      // Direct decrement for already-resolved variants (e.g. a row inside the
-      // variants popover). Skips buildOnDecrement's variant disambiguation —
-      // the variant is already chosen — but still opens the multi-collection
-      // "Remove from" picker when that variant spans several lists.
-      onUndoAdd: handleUndoAdd,
       onItemClick: (itemId, printing, modifiers) => {
         const stack = stackByItemId.get(itemId);
         // Browse mode: ctrl-click on an owned card flips into select mode and
@@ -1113,12 +1107,16 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     />
   );
 
-  // When the tile was split by set (variantPopover.setId set), offer only that
-  // set's printings so the popover matches the tile the user opened it from.
+  // Printings/copies view scopes to the single printing the tile stands for;
+  // cards view shows every variant (filtered to the tile's set when it was split
+  // by set) so the popover matches the tile the user opened it from.
   const variantPrintings = variantPopover
-    ? catalogPrintingsByCardId
-        .get(variantPopover.cardId)
-        ?.filter((printing) => !variantPopover.setId || printing.setId === variantPopover.setId)
+    ? catalogPrintingsByCardId.get(variantPopover.cardId)?.filter((printing) => {
+        if (variantPopover.printingId) {
+          return printing.id === variantPopover.printingId;
+        }
+        return !variantPopover.setId || printing.setId === variantPopover.setId;
+      })
     : undefined;
 
   // Mounted once at a stable position so React preserves these instances
@@ -1373,23 +1371,23 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           />
         </BrowserCardViewer>
 
-        {/* Variant add popover (add mode only) */}
-        {variantPopover && variantPrintings && handleQuickAdd && handleUndoAdd && tryUndoAdd && (
+        {/* Variant×collection popover (browse add mode only) */}
+        {variantPopover && variantPrintings && handleQuickAdd && (
           <Popover
             open
             onOpenChange={(open, details) => {
               if (open) {
                 return;
               }
-              // ESC inside the dispose sub-page goes back to the variants list,
-              // mirroring how cmdk "pages" work. The popover stays mounted
-              // because `open` is hard-coded true; clearing variantDisposeTarget
-              // swaps the content back.
-              if (details.reason === "escape-key" && variantDisposeTarget) {
-                setVariantDisposeTarget(null);
+              // ESC inside the "add to another collection" sub-page goes back to
+              // the main page, mirroring how cmdk "pages" work. The popover stays
+              // mounted because `open` is hard-coded true; clearing
+              // addCollectionTarget swaps the content back.
+              if (details.reason === "escape-key" && addCollectionTarget) {
+                setAddCollectionTarget(null);
                 return;
               }
-              setVariantDisposeTarget(null);
+              setAddCollectionTarget(null);
               closeVariants(details.reason === "outside-press" ? details.event.target : undefined);
             }}
           >
@@ -1399,52 +1397,15 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
               align="center"
               className="max-h-72 w-max max-w-[min(90vw,24rem)] min-w-56 gap-0 overflow-y-auto p-0"
             >
-              <VariantAddPopover
+              <VariantLocationsPopover
                 printings={variantPrintings}
-                ownedCounts={buildVariantOwnedCounts(
-                  variantPrintings,
-                  collectionId,
-                  ownedCountByPrinting ?? {},
-                  stackByPrintingId,
-                )}
-                onQuickAdd={handleQuickAdd}
-                onUndoAdd={async (printing) => {
-                  const result = await tryUndoAdd(printing);
-                  if (result === "ambiguous") {
-                    setVariantDisposeTarget(printing);
-                  }
-                }}
                 initialHighlightId={selectedCardId}
                 intent={variantPopover.intent}
-                disposeTarget={variantDisposeTarget}
-                onDisposePick={async (printing, fromCollectionId) => {
-                  await handleDisposeFromCollection(printing, fromCollectionId);
-                  setVariantDisposeTarget(null);
-                }}
-              />
-            </PopoverContent>
-          </Popover>
-        )}
-
-        {/* Dispose picker popover (All Cards view, multi-collection minus) */}
-        {disposePicker && (
-          <Popover
-            open
-            onOpenChange={(open) => {
-              if (!open) {
-                closeDisposePicker();
-              }
-            }}
-          >
-            <PopoverContent
-              anchor={disposePicker.anchor}
-              side="bottom"
-              align="center"
-              className="w-max max-w-[min(90vw,24rem)] min-w-56 gap-0 p-0"
-            >
-              <DisposePickerPopover
-                printing={disposePicker.printing}
-                onPick={handleDisposeFromCollection}
+                onQuickAdd={handleQuickAdd}
+                onAddToCollection={handleAddToCollection}
+                onRemoveFromCollection={handleDisposeFromCollection}
+                addCollectionTarget={addCollectionTarget}
+                setAddCollectionTarget={setAddCollectionTarget}
               />
             </PopoverContent>
           </Popover>

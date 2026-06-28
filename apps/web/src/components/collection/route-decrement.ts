@@ -13,16 +13,17 @@ interface RouteDecrementDeps {
     anchorEl: HTMLElement,
     intent: VariantPopoverIntent,
   ) => void;
-  handleUndoAdd?: (printing: Printing, anchorEl?: HTMLElement) => void | Promise<void>;
+  tryUndoAdd?: (printing: Printing) => Promise<"done" | "ambiguous">;
 }
 
 /**
- * Builds the registered onDecrement handler for the collection grid. In cards
- * view with multiple owned variants in the tile, `-` opens the variant popover
- * so the user can pick which variant to remove. Otherwise it forwards to
- * handleUndoAdd, which itself opens the "Remove from" picker when copies span
- * multiple collections — that downstream picker needs `anchorEl`, so callers
- * must forward it through.
+ * Builds the registered onDecrement handler for the collection grid. The tile
+ * `-` removes a copy only when there is exactly one place it could come from;
+ * otherwise it opens the variant×collection popover so the user picks the exact
+ * row to remove. It escalates in two cases: multiple owned variants in the tile
+ * (cards view), or a single variant whose copies span multiple collections
+ * (reported as "ambiguous" by tryUndoAdd). The popover needs `anchorEl`, so
+ * callers must forward it through.
  * @returns A function that routes a `-` click to the right action.
  */
 export function buildOnDecrement({
@@ -30,15 +31,23 @@ export function buildOnDecrement({
   groupBy,
   ownedPrintingIdsByTile,
   handleOpenVariants,
-  handleUndoAdd,
+  tryUndoAdd,
 }: RouteDecrementDeps): (printing: Printing, anchorEl?: HTMLElement) => void {
   return (printing, anchorEl) => {
     const ownedVariantIds = ownedPrintingIdsByTile.get(cardsViewTileKey(printing, groupBy));
-    const hasAmbiguousRemoval = dataView === "cards" && (ownedVariantIds?.length ?? 0) > 1;
-    if (hasAmbiguousRemoval && handleOpenVariants && anchorEl) {
+    const ambiguousVariant = dataView === "cards" && (ownedVariantIds?.length ?? 0) > 1;
+    if (ambiguousVariant && handleOpenVariants && anchorEl) {
       handleOpenVariants(printing, anchorEl, "remove");
       return;
     }
-    void handleUndoAdd?.(printing, anchorEl);
+    // Single owned variant: try the silent path (session undo / single-collection
+    // dispose). If the variant spans multiple collections, escalate to the
+    // popover so the user picks the exact collection row to remove from.
+    void (async () => {
+      const result = await tryUndoAdd?.(printing);
+      if (result === "ambiguous" && handleOpenVariants && anchorEl) {
+        handleOpenVariants(printing, anchorEl, "remove");
+      }
+    })();
   };
 }

@@ -2,6 +2,10 @@
 
 ## 2026-06-28
 
+### Highlights
+
+- feat(Collection): **One menu for variants and collections** — the count box on a card now opens a single menu listing each variant with the collections your copies live in, where you can add or remove copies per collection (or add to another collection) right there; removing a copy that could come from several places opens this menu instead of chaining through separate pickers.
+
 ### Other
 
 - feat(Cards): **Tidier compact filter bar** — the Stats button now reads its value (like "Energy 1–3") when one range is set, and the active-filters strip is hidden while the compact bar is up, since that bar already shows every active filter.
