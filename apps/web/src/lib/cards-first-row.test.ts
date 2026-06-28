@@ -10,8 +10,12 @@ import type { FilterSearch } from "@/lib/search-schemas";
 
 import { extractFirstRow } from "./cards-first-row";
 
-function makeSet(id: string, slug: string): CatalogSetResponse {
-  return { id, slug, name: slug, releasedAt: null, released: true, setType: "main" };
+function makeSet(
+  id: string,
+  slug: string,
+  setType: "main" | "supplemental" = "main",
+): CatalogSetResponse {
+  return { id, slug, name: slug, releasedAt: null, released: true, setType };
 }
 
 function makeCard(overrides: Partial<CatalogResponseCardValue> = {}): CatalogResponseCardValue {
@@ -81,6 +85,20 @@ describe("extractFirstRow", () => {
     const sets = [makeSet("set-ogn", "OGN"), makeSet("set-arc", "ARC")];
     const result = extractFirstRow(makeCatalog(cards, printings, sets), NO_FILTERS, 10);
     expect(result.map((r) => r.printingId)).toEqual(["p-ogn", "p-arc"]);
+  });
+
+  it("leads with main-set cards even when a supplemental set sorts earlier in catalog.sets", () => {
+    // Regression: the SSR first-row preview must match the hydrated grid's
+    // groupItemsBySet, which orders main sets before supplemental ones. A
+    // supplemental set placed first in catalog.sets must not lead the preview.
+    const cards = { "card-a": makeCard(), "card-b": makeCard() };
+    const printings = {
+      "p-supp": makePrinting({ cardId: "card-a", shortCode: "PROMO-001", setId: "set-supp" }),
+      "p-main": makePrinting({ cardId: "card-b", shortCode: "OGN-001", setId: "set-main" }),
+    };
+    const sets = [makeSet("set-supp", "PROMO", "supplemental"), makeSet("set-main", "OGN", "main")];
+    const result = extractFirstRow(makeCatalog(cards, printings, sets), NO_FILTERS, 10);
+    expect(result.map((r) => r.printingId)).toEqual(["p-main", "p-supp"]);
   });
 
   it("sorts by shortCode (locale-compare ascending) within a set", () => {

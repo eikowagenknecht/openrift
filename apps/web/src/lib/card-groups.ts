@@ -7,6 +7,7 @@ import { groupItemsByChannel } from "@/lib/group-by-channel";
 import { groupItemsByField } from "@/lib/group-by-field";
 import { groupItemsByMarker } from "@/lib/group-by-marker";
 import { groupItemsByYear } from "@/lib/group-by-year";
+import { orderSetsMainFirst } from "@/lib/set-order";
 
 /** A section of cards in a viewer: its header info plus the items it contains. */
 export interface CardGroup {
@@ -23,9 +24,7 @@ export interface CardGroup {
 export function groupItemsBySet(items: CardViewerItem[], setOrder: GroupInfo[]): CardGroup[] {
   const bySet = Map.groupBy(items, (item) => item.printing.setId);
   // Stable sort keeps the source (release) order within each set type.
-  const orderedSets = setOrder.toSorted((a, b) =>
-    a.setType === b.setType ? 0 : a.setType === "main" ? -1 : 1,
-  );
+  const orderedSets = orderSetsMainFirst(setOrder);
   return orderedSets.flatMap((info) => {
     const setItems = bySet.get(info.id);
     return setItems ? [{ group: info, items: setItems }] : [];

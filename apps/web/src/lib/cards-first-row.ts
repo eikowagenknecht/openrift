@@ -13,6 +13,7 @@ import { searchToFilters } from "@/lib/cards-facets";
 import { enrichCatalog, readCatalogFromServerCache } from "@/lib/catalog-query";
 import { needsCssRotation } from "@/lib/images";
 import type { FilterSearch } from "@/lib/search-schemas";
+import { orderSetsMainFirst } from "@/lib/set-order";
 
 export interface FirstRowCard {
   printingId: string;
@@ -53,8 +54,9 @@ const SSR_DEFAULT_SORT: SortOption = "id";
  *     (see dedupeToCardsViewTiles). Earliest in the (lang, canonicalRank) order
  *     wins.
  *  4. Sort by `sortBy` (default "id" → shortCode asc).
- *  5. When groupBy="set", reorder by set.sortOrder, preserving the within-set
- *     order from step 4 (stable sort).
+ *  5. When groupBy="set", reorder main sets before supplemental ones (via
+ *     orderSetsMainFirst, matching the live grid's groupItemsBySet), preserving
+ *     the within-set order from step 4 (stable sort).
  *  6. Slice to `limit` and project to the slim wire shape.
  *
  * Battlefields are kept (the live grid shows them too) and flagged `rotated` so
@@ -91,8 +93,12 @@ export function extractFirstRow(
   let sortedCards = sortCards(displayCards, sortBy, { sortDir });
 
   if (groupBy === "set") {
-    const setSortIndex = new Map(sets.map((set, index) => [set.id, index]));
-    const fallbackSetIndex = sets.length;
+    // Mirror the live grid's set order (groupItemsBySet): main sets lead,
+    // supplemental follow, release order preserved within each type. Without
+    // this the SSR shell leads with a different set than the hydrated grid.
+    const orderedSets = orderSetsMainFirst(sets);
+    const setSortIndex = new Map(orderedSets.map((set, index) => [set.id, index]));
+    const fallbackSetIndex = orderedSets.length;
     sortedCards = sortedCards.toSorted((a, b) => {
       const aIdx = setSortIndex.get(a.setId) ?? fallbackSetIndex;
       const bIdx = setSortIndex.get(b.setId) ?? fallbackSetIndex;
