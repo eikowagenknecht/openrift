@@ -11,7 +11,7 @@
 
 - feat(Decks): **Text deck format leads import and export** — the plain text list is now the default tab and comes first when importing or exporting a deck, ahead of the deck code.
 - feat(Decks): **Custom printings are clearer** — the deck overview now rings cards that use a pinned printing, and the card menu has a "Use default printing" option to drop the pin and fall back to the standard art.
-- feat(Cards): **Tidier compact filter bar** — the Stats button now reads its value (like "Energy 1–3") when one range is set, and the active-filters strip is hidden while the compact bar is up, since that bar already shows every active filter.
+- feat(Cards): **Tidier compact filter bar** — the Stats button now reads its value (like "Energy 1–3") when one range is set, the active-filters strip is hidden while the compact bar is up (that bar already shows every active filter), and a clear-all button next to the filter settings resets every filter in one click.
 - fix(Cards): **Group by set lists main sets first** — grouping the card grid (or table) by set now shows the main sets ahead of the supplemental ones, matching the filter sidebar order, including the cards shown on the very first page load before the grid finishes loading.
 - fix(Cards): **Clear a filter with no cards left** — a selected set or value that no longer matches any cards (say after moving them to another collection) vanished from its dropdown yet stayed active; it now stays listed so you can untick it.
 - fix(Collection): **Select all respects your filters** — in select mode, "select all" was grabbing every copy in the collection, even cards hidden by your active filters; it now selects only the cards currently shown.

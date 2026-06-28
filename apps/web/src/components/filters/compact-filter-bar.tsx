@@ -1,5 +1,5 @@
 import type { AvailableFilters, FilterCounts } from "@openrift/shared";
-import { ChevronDownIcon } from "lucide-react";
+import { ChevronDownIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { CardIcon } from "@/components/card-icon";
@@ -186,8 +186,8 @@ export function CompactFilterBar({
   ownedCountMax,
 }: CompactFilterBarProps) {
   const { labels } = useEnumOrders();
-  const { filterState } = useFilterValues();
-  const { setArrayFilter, toggleSigned } = useFilterActions();
+  const { filterState, hasActiveFilters } = useFilterValues();
+  const { setArrayFilter, toggleSigned, clearAllFilters } = useFilterActions();
   const languageLabels = useLanguageLabels();
 
   // Art Variant, Finish, and Signed are all printing-variant axes, so they share
@@ -466,7 +466,20 @@ export function CompactFilterBar({
           />
         )}
 
-        <FilterCustomizeControl className="text-muted-foreground ml-auto" />
+        <div className="ml-auto flex items-center">
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={clearAllFilters}
+              aria-label="Clear all filters"
+            >
+              <XIcon className="size-4" />
+            </Button>
+          )}
+          <FilterCustomizeControl className="text-muted-foreground" />
+        </div>
       </div>
     </TooltipProvider>
   );
