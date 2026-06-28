@@ -167,7 +167,7 @@ function DeckImportPage() {
 
   const [step, setStep] = useState<ImportStep>("input");
   const [rawText, setRawText] = useState("");
-  const [importFormat, setImportFormat] = useState<DeckImportFormat>("piltover");
+  const [importFormat, setImportFormat] = useState<DeckImportFormat>("text");
   const [deckName, setDeckName] = useState("Imported Deck");
   const [deckFormat, setDeckFormat] = useState<DeckFormat>(deckFormats[0]?.slug ?? "");
   const [matchedEntries, setMatchedEntries] = useState<DeckMatchedEntry[]>([]);
@@ -452,7 +452,7 @@ function InputStep({
         <p className="text-muted-foreground text-sm">
           {isReplaceMode ? (
             <>
-              Paste a deck code, text list, or TTS string to replace the cards in
+              Paste a text list, deck code, or TTS string to replace the cards in
               {replaceDeckName ? (
                 <>
                   {" "}
@@ -465,7 +465,7 @@ function InputStep({
             </>
           ) : (
             <>
-              Paste a deck code, text list, or TTS string to import a deck. Want another format
+              Paste a text list, deck code, or TTS string to import a deck. Want another format
               supported?{" "}
               <a
                 href={SOCIAL_LINKS.githubIssues}
@@ -486,8 +486,8 @@ function InputStep({
         onValueChange={(value) => onImportFormatChange(value as DeckImportFormat)}
       >
         <TabsList>
-          <TabsTrigger value="piltover">Deck Code</TabsTrigger>
           <TabsTrigger value="text">Text</TabsTrigger>
+          <TabsTrigger value="piltover">Deck Code</TabsTrigger>
           <TabsTrigger value="tts">TTS</TabsTrigger>
         </TabsList>
 

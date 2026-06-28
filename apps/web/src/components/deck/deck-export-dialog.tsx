@@ -126,7 +126,7 @@ export function DeckExportDialog({
   const { data: session } = useSession();
   const liveCards = useDeckCards(deckId);
   const [copied, setCopied] = useState(false);
-  const [tab, setTab] = useState<ExportTab>("piltover");
+  const [tab, setTab] = useState<ExportTab>("text");
   const [formats, setFormats] = useState<Partial<Record<ExportFormat, FormatState>>>({});
   const [registrationPageSize, setRegistrationPageSize] = useState<RegistrationPageSize>("a4");
   const [generating, setGenerating] = useState(false);
@@ -144,7 +144,7 @@ export function DeckExportDialog({
   useEffect(() => {
     if (!open) {
       exportDeck.reset();
-      setTab("piltover");
+      setTab("text");
       setFormats({});
       setCopied(false);
       return;
@@ -236,15 +236,15 @@ export function DeckExportDialog({
       )}
       <DialogContent>
         <Tabs
-          defaultValue="piltover"
+          defaultValue="text"
           value={tab}
           onValueChange={(value) => handleTabChange(value as ExportTab)}
         >
           <DialogHeader>
             <DialogTitle>Export deck</DialogTitle>
             <TabsList>
-              <TabsTrigger value="piltover">Deck Code</TabsTrigger>
               <TabsTrigger value="text">Text</TabsTrigger>
+              <TabsTrigger value="piltover">Deck Code</TabsTrigger>
               <TabsTrigger value="tts">TTS</TabsTrigger>
               <TabsTrigger value="registration">Registration</TabsTrigger>
             </TabsList>
