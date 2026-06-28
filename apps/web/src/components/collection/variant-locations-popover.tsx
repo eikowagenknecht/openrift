@@ -348,10 +348,10 @@ export function VariantLocationsPopover({
             ))}
             <PickerRow
               value={addRowValue(group.printing)}
-              className="text-muted-foreground py-0.5 pl-4"
+              className="text-muted-foreground text-2xs py-0.5 pl-4"
               onSelect={() => setAddCollectionTarget(group.printing)}
             >
-              <PlusIcon className="size-3.5 shrink-0" />
+              <PlusIcon className="size-3 shrink-0" />
               <span className="flex-1">Add to another collection</span>
             </PickerRow>
           </Fragment>
