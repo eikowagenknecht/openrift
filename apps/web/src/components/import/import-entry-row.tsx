@@ -209,7 +209,15 @@ function VariantPicker({
           </SelectItem>
         ))}
       </SelectContent>
-      {hoveredPrinting && <PrintingHoverPreview printing={hoveredPrinting} anchorRef={popupRef} />}
+      {hoveredPrinting && (
+        // Keyed so the preview remounts per variant; otherwise the position
+        // effect won't re-run after an imageless variant unmounts the preview.
+        <PrintingHoverPreview
+          key={hoveredPrinting.id}
+          printing={hoveredPrinting}
+          anchorRef={popupRef}
+        />
+      )}
     </Select>
   );
 }
