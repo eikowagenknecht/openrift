@@ -1,7 +1,14 @@
 import type { CollectionResponse, Printing } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpenIcon, InboxIcon, MinusIcon, PlusIcon } from "lucide-react";
+import {
+  BookOpenIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  InboxIcon,
+  MinusIcon,
+  PlusIcon,
+} from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -140,6 +147,11 @@ export function VariantLocationsPopover({
   const isRemoveIntent = intent === "remove";
   const visibleGroups = isRemoveIntent ? groups.filter((group) => group.total > 0) : groups;
 
+  // Add mode with several variants collapses each variant's collections behind an
+  // accordion so the resting menu is just the variant rows. A single variant (or
+  // the remove menu) stays fully expanded — collapsing one row would only add a click.
+  const collapsible = !isRemoveIntent && groups.length > 1;
+
   // Resolve a highlighted row id back to the action it performs. Built from the
   // same row values rendered below so we never parse composite ids by hand.
   const actionByValue = new Map<string, RowAction>();
@@ -182,6 +194,22 @@ export function VariantLocationsPopover({
   const [addHighlightedId, setAddHighlightedId] = useState("");
   const highlightedId = isAddPage ? addHighlightedId : mainHighlightedId;
   const setHighlightedId = isAddPage ? setAddHighlightedId : setMainHighlightedId;
+
+  // Start with the variant the user opened the menu on expanded, the rest collapsed.
+  const [expandedVariants, setExpandedVariants] = useState<Set<string>>(
+    () => new Set(preferredPrinting ? [preferredPrinting.id] : []),
+  );
+  const toggleVariant = (printingId: string) => {
+    setExpandedVariants((previous) => {
+      const next = new Set(previous);
+      if (next.has(printingId)) {
+        next.delete(printingId);
+      } else {
+        next.add(printingId);
+      }
+      return next;
+    });
+  };
 
   // Reset the sub-page highlight after leaving it so the next visit lands on the
   // first candidate rather than the previously-picked collection.
@@ -239,15 +267,6 @@ export function VariantLocationsPopover({
         if (!action) {
           return;
         }
-        // `=` is a no-shift alias for `+` (US layouts need Shift+=). Enter
-        // follows the entry intent; Shift+Enter is the inverse.
-        const enterAdds =
-          event.key === "Enter" && (intent === "add" ? !event.shiftKey : event.shiftKey);
-        const enterRemoves =
-          event.key === "Enter" && (intent === "remove" ? !event.shiftKey : event.shiftKey);
-        const isIncrement = event.key === "+" || event.key === "=" || enterAdds;
-        const isDecrement = event.key === "-" || enterRemoves;
-
         if (action.kind === "add") {
           if (event.key === "Enter") {
             event.preventDefault();
@@ -255,16 +274,28 @@ export function VariantLocationsPopover({
           }
           return;
         }
-        if (isIncrement) {
-          event.preventDefault();
-          if (action.kind === "variant") {
+        // `=` is a no-shift alias for `+` (US layouts need Shift+=).
+        if (action.kind === "variant") {
+          // +/= always quick-adds. Enter quick-adds too, except in a collapsible
+          // menu where Enter toggles the section via the row's onSelect.
+          const enterQuickAdds = !collapsible && !isRemoveIntent && event.key === "Enter";
+          if (event.key === "+" || event.key === "=" || enterQuickAdds) {
+            event.preventDefault();
             onQuickAdd(action.printing);
-          } else {
-            onAddToCollection(action.printing, action.collectionId);
           }
           return;
         }
-        if (isDecrement && action.kind === "location") {
+        // Enter on a collection row follows the entry intent; Shift+Enter is the inverse.
+        const enterAdds =
+          event.key === "Enter" && (intent === "add" ? !event.shiftKey : event.shiftKey);
+        const enterRemoves =
+          event.key === "Enter" && (intent === "remove" ? !event.shiftKey : event.shiftKey);
+        if (event.key === "+" || event.key === "=" || enterAdds) {
+          event.preventDefault();
+          onAddToCollection(action.printing, action.collectionId);
+          return;
+        }
+        if (event.key === "-" || enterRemoves) {
           event.preventDefault();
           onRemoveFromCollection(action.printing, action.collectionId);
         }
@@ -272,15 +303,30 @@ export function VariantLocationsPopover({
     >
       {visibleGroups.map((group, groupIndex) => {
         const rarityIcon = getFilterIconPath("rarities", group.printing.rarity);
+        const expanded = !collapsible || expandedVariants.has(group.printing.id);
+        // Collapsible headers toggle their section on click/Enter; non-collapsible
+        // headers have no click action (quick-add stays on the + button and +/Enter keys).
+        const onVariantSelect = collapsible ? () => toggleVariant(group.printing.id) : undefined;
         return (
           <Fragment key={group.printing.id}>
             {/* Each variant heads its own section: a subtle filled band at rest sets it apart
                 from its child rows; the gold data-selected highlight still overrides it on focus. */}
             <PickerRow
               value={variantRowValue(group.printing)}
-              className={cn("bg-muted/50 py-0.5", groupIndex > 0 && "mt-1.5")}
+              onSelect={onVariantSelect}
+              className={cn(
+                "bg-muted/50 py-0.5",
+                collapsible && "cursor-pointer",
+                groupIndex > 0 && "mt-1.5",
+              )}
             >
               <div className="flex flex-1 items-center gap-1.5 whitespace-nowrap">
+                {collapsible &&
+                  (expanded ? (
+                    <ChevronDownIcon className="text-muted-foreground size-3.5 shrink-0" />
+                  ) : (
+                    <ChevronRightIcon className="text-muted-foreground size-3.5 shrink-0" />
+                  ))}
                 {hasMixedRarities && rarityIcon && (
                   <img
                     src={rarityIcon}
@@ -312,7 +358,11 @@ export function VariantLocationsPopover({
                     size="icon-xs"
                     variant="ghost"
                     className="transition-none"
-                    onClick={() => onQuickAdd(group.printing)}
+                    onClick={(event) => {
+                      // Don't let the click bubble to the row and toggle the accordion.
+                      event.stopPropagation();
+                      onQuickAdd(group.printing);
+                    }}
                     aria-label={`Add ${legendDisplayName(group.printing.card)}`}
                   >
                     <PlusIcon />
@@ -320,45 +370,46 @@ export function VariantLocationsPopover({
                 )}
               </div>
             </PickerRow>
-            {group.locations.map((location) => (
-              <PickerRow
-                key={location.collectionId}
-                value={locationRowValue(group.printing, location.collectionId)}
-                className="py-0.5 pl-4"
-              >
-                <span className="flex-1 truncate">{location.collectionName}</span>
-                <div className="flex shrink-0 items-center gap-0.5">
-                  <Button
-                    type="button"
-                    tabIndex={-1}
-                    size="icon-xs"
-                    variant="ghost"
-                    className="transition-none"
-                    onClick={() => onRemoveFromCollection(group.printing, location.collectionId)}
-                    aria-label={`Remove ${legendDisplayName(group.printing.card)} from ${location.collectionName}`}
-                  >
-                    <MinusIcon />
-                  </Button>
-                  <span className="text-muted-foreground w-5 text-center tabular-nums">
-                    {location.count}
-                  </span>
-                  {!isRemoveIntent && (
+            {expanded &&
+              group.locations.map((location) => (
+                <PickerRow
+                  key={location.collectionId}
+                  value={locationRowValue(group.printing, location.collectionId)}
+                  className="py-0.5 pl-4"
+                >
+                  <span className="flex-1 truncate">{location.collectionName}</span>
+                  <div className="flex shrink-0 items-center gap-0.5">
                     <Button
                       type="button"
                       tabIndex={-1}
                       size="icon-xs"
                       variant="ghost"
                       className="transition-none"
-                      onClick={() => onAddToCollection(group.printing, location.collectionId)}
-                      aria-label={`Add ${legendDisplayName(group.printing.card)} to ${location.collectionName}`}
+                      onClick={() => onRemoveFromCollection(group.printing, location.collectionId)}
+                      aria-label={`Remove ${legendDisplayName(group.printing.card)} from ${location.collectionName}`}
                     >
-                      <PlusIcon />
+                      <MinusIcon />
                     </Button>
-                  )}
-                </div>
-              </PickerRow>
-            ))}
-            {!isRemoveIntent && (
+                    <span className="text-muted-foreground w-5 text-center tabular-nums">
+                      {location.count}
+                    </span>
+                    {!isRemoveIntent && (
+                      <Button
+                        type="button"
+                        tabIndex={-1}
+                        size="icon-xs"
+                        variant="ghost"
+                        className="transition-none"
+                        onClick={() => onAddToCollection(group.printing, location.collectionId)}
+                        aria-label={`Add ${legendDisplayName(group.printing.card)} to ${location.collectionName}`}
+                      >
+                        <PlusIcon />
+                      </Button>
+                    )}
+                  </div>
+                </PickerRow>
+              ))}
+            {expanded && !isRemoveIntent && (
               <PickerRow
                 value={addRowValue(group.printing)}
                 className="text-muted-foreground text-2xs py-0.5 pl-4"

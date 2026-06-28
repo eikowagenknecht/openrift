@@ -9,6 +9,7 @@
 
 ### Other
 
+- feat(Collection): **Collapsible variants in the card menu** — when a card has several variants, the menu lists just the variants and expands one to show its collections on click, opening on the variant you came in on.
 - feat(Collection): **Plain text lists on the import page** — the Import / Export page now accepts a plain text "quantity cardname" list, not just CSV exports, matching how list import already worked.
 - feat(Decks): **Text deck format leads import and export** — the plain text list is now the default tab and comes first when importing or exporting a deck, ahead of the deck code.
 - feat(Decks): **Custom printings are clearer** — the deck overview now rings cards that use a pinned printing, and the card menu has a "Use default printing" option to drop the pin and fall back to the standard art.
