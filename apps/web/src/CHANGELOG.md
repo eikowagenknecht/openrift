@@ -8,6 +8,7 @@
 
 ### Other
 
+- feat(Decks): **Custom printings are clearer** — the deck overview now rings cards that use a pinned printing, and the card menu has a "Use default printing" option to drop the pin and fall back to the standard art.
 - feat(Cards): **Tidier compact filter bar** — the Stats button now reads its value (like "Energy 1–3") when one range is set, and the active-filters strip is hidden while the compact bar is up, since that bar already shows every active filter.
 - fix(Cards): **Clear a filter with no cards left** — a selected set or value that no longer matches any cards (say after moving them to another collection) vanished from its dropdown yet stayed active; it now stays listed so you can untick it.
 - fix(Collection): **Select all respects your filters** — in select mode, "select all" was grabbing every copy in the collection, even cards hidden by your active filters; it now selects only the cards currently shown.

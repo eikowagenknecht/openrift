@@ -837,6 +837,10 @@ function ZoneThumb({
 }) {
   const isMobile = useIsMobile();
   const enableDrag = !readOnly && !isMobile && DRAG_SOURCE_ZONES.has(zone);
+  // A pinned (non-default) printing gets a primary inset ring on the image so
+  // it's obvious at a glance which cards use a custom art. Inset keeps it
+  // distinct from the outset selection ring on the wrapper below.
+  const hasCustomPrinting = card.preferredPrintingId !== null;
   // Per-thumb selector: only this thumb re-renders when its selected-state
   // flips. Match on (zone, cardId) so a card in multiple zones lights up
   // only at the instance the user actually clicked.
@@ -896,7 +900,11 @@ function ZoneThumb({
       <img
         src={thumbnail}
         alt={legendDisplayName({ name: card.cardName, type: card.cardType, tags: card.tags })}
-        className={cn("rounded-md object-cover shadow-sm", isLandscape ? "h-20 w-28" : "h-28 w-20")}
+        className={cn(
+          "rounded-md object-cover shadow-sm",
+          isLandscape ? "h-20 w-28" : "h-28 w-20",
+          hasCustomPrinting && "ring-primary ring-2 ring-inset",
+        )}
         draggable={false}
       />
       {card.quantity > 1 && (

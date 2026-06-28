@@ -64,6 +64,13 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
     changePreferredPrinting(card.cardId, card.zone, card.preferredPrintingId, printing.id, count);
   };
 
+  // Clears the pinned printing (toPrintingId: null) so the row falls back to the
+  // language/set default. Shift-click splits off a single copy like handleSelect.
+  const handleSelectDefault = (event: MouseEvent) => {
+    const count = event.shiftKey && card.quantity > 1 ? 1 : card.quantity;
+    changePreferredPrinting(card.cardId, card.zone, card.preferredPrintingId, null, count);
+  };
+
   const handleMove = (targetZone: (typeof moveTargets)[number], event: MouseEvent) => {
     const splitOne = event.shiftKey && card.quantity > 1;
     if (splitOne) {
@@ -121,6 +128,16 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
               )}
             </div>
             <div className="flex flex-col gap-0.5">
+              {card.preferredPrintingId && (
+                <ContextMenuItem
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleSelectDefault(event);
+                  }}
+                >
+                  Use default printing
+                </ContextMenuItem>
+              )}
               {printings.map((printing) => (
                 <PrintingMenuItem
                   key={printing.id}

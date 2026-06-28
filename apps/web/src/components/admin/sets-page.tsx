@@ -320,6 +320,13 @@ export function SetsPage() {
       data={sets}
       getRowKey={(s) => s.id}
       emptyText="No sets yet."
+      toolbar={
+        <p className="text-muted-foreground text-sm">
+          Set order controls which printing a card defaults to wherever no specific printing is
+          pinned (general display, and name-based deck imports). The default is the first printing
+          by language, then by set order, so moving a set higher makes its printings win.
+        </p>
+      }
       reorder={{
         onMove: moveSet,
         isPending: reorderMutation.isPending,
