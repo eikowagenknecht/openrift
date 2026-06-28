@@ -135,6 +135,11 @@ export function VariantLocationsPopover({
   );
   const groups = buildVariantGroups(printings, breakdown, personalCollections);
 
+  // Opened via `-`: the user is here to remove, so hide every add affordance and
+  // skip variants with nothing to remove (zero owned copies).
+  const isRemoveIntent = intent === "remove";
+  const visibleGroups = isRemoveIntent ? groups.filter((group) => group.total > 0) : groups;
+
   // Resolve a highlighted row id back to the action it performs. Built from the
   // same row values rendered below so we never parse composite ids by hand.
   const actionByValue = new Map<string, RowAction>();
@@ -265,11 +270,8 @@ export function VariantLocationsPopover({
         }
       }}
     >
-      {groups.map((group, groupIndex) => {
+      {visibleGroups.map((group, groupIndex) => {
         const rarityIcon = getFilterIconPath("rarities", group.printing.rarity);
-        // Opened via `-`: the user is here to remove, so hide every add affordance
-        // (the quick-add +, the per-collection +, and the "add to another collection" row).
-        const isRemoveIntent = intent === "remove";
         return (
           <Fragment key={group.printing.id}>
             {/* Each variant heads its own section: a subtle filled band at rest sets it apart
