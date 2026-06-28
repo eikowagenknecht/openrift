@@ -58,6 +58,8 @@ import type { DeckMatchStatus, DeckMatchedEntry, ResolvedCard } from "@/lib/deck
 import { matchDeckEntries } from "@/lib/deck-import-matcher";
 import type { DeckImportFormat } from "@/lib/deck-import-parsers";
 import { parseDeckImportData } from "@/lib/deck-import-parsers";
+import type { ImportBucket } from "@/lib/import-summary";
+import { classifyBucket } from "@/lib/import-summary";
 import { SOCIAL_LINKS } from "@/lib/social-links";
 import { cn } from "@/lib/utils";
 
@@ -247,14 +249,17 @@ function DeckImportPage() {
     });
   };
 
-  const readyEntries = matchedEntries.filter(
+  const importableEntries = matchedEntries.filter(
     (entry, index) => entry.resolvedCard && !skippedIndices.has(index),
   );
-  const needsAttention = matchedEntries.filter(
-    (entry, index) => !entry.resolvedCard && !skippedIndices.has(index),
-  );
+  const visibleBuckets = matchedEntries
+    .filter((_entry, index) => !skippedIndices.has(index))
+    .map((entry) => classifyBucket(entry.status, entry.resolvedCard !== null));
+  const readyCount = visibleBuckets.filter((bucket) => bucket === "ready").length;
+  const toVerifyCount = visibleBuckets.filter((bucket) => bucket === "to-verify").length;
+  const needsAttentionCount = visibleBuckets.filter((bucket) => bucket === "need-attention").length;
   const skippedCount = skippedIndices.size;
-  const totalCards = readyEntries.reduce((sum, entry) => sum + entry.entry.quantity, 0);
+  const totalCards = importableEntries.reduce((sum, entry) => sum + entry.entry.quantity, 0);
 
   const buildCards = () => {
     // Group by cardId + zone + preferredPrintingId, summing quantities.
@@ -264,7 +269,7 @@ function DeckImportPage() {
       string,
       { cardId: string; zone: DeckZone; quantity: number; preferredPrintingId: string | null }
     >();
-    for (const entry of readyEntries) {
+    for (const entry of importableEntries) {
       if (!entry.resolvedCard) {
         continue;
       }
@@ -379,8 +384,10 @@ function DeckImportPage() {
         deckFormatLabels={deckFormatLabels}
         zoneOrder={zoneOrder}
         zoneLabels={zoneLabels}
-        readyCount={readyEntries.length}
-        needsAttentionCount={needsAttention.length}
+        readyCount={readyCount}
+        toVerifyCount={toVerifyCount}
+        needsAttentionCount={needsAttentionCount}
+        importableCount={importableEntries.length}
         skippedCount={skippedCount}
         totalCards={totalCards}
         isImporting={isImporting}
@@ -544,7 +551,9 @@ function PreviewStep({
   zoneOrder,
   zoneLabels,
   readyCount,
+  toVerifyCount,
   needsAttentionCount,
+  importableCount,
   skippedCount,
   totalCards,
   isImporting,
@@ -571,7 +580,9 @@ function PreviewStep({
   zoneOrder: DeckZone[];
   zoneLabels: Record<DeckZone, string>;
   readyCount: number;
+  toVerifyCount: number;
   needsAttentionCount: number;
+  importableCount: number;
   skippedCount: number;
   totalCards: number;
   isImporting: boolean;
@@ -587,7 +598,7 @@ function PreviewStep({
   onBack: () => void;
 }) {
   const isReplaceMode = replaceDeckName !== undefined;
-  const canImport = readyCount > 0 && (isReplaceMode || deckName.trim().length > 0);
+  const canImport = importableCount > 0 && (isReplaceMode || deckName.trim().length > 0);
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 px-4 py-6">
@@ -655,12 +666,21 @@ function PreviewStep({
       {/* Summary + deck options + import button */}
       <div className="bg-muted/50 space-y-4 rounded-md border p-4">
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <Badge variant="secondary">{readyCount} ready</Badge>
+          <Badge variant="success">{readyCount} ready</Badge>
+          {toVerifyCount > 0 && <Badge variant="warning">{toVerifyCount} to verify</Badge>}
           {needsAttentionCount > 0 && (
-            <Badge variant="default">{needsAttentionCount} need attention</Badge>
+            <Badge variant="destructive">{needsAttentionCount} need attention</Badge>
           )}
           {skippedCount > 0 && <Badge variant="ghost">{skippedCount} skipped</Badge>}
         </div>
+
+        {toVerifyCount > 0 && (
+          <p className="text-muted-foreground text-sm">
+            We picked a best guess for {toVerifyCount} {toVerifyCount === 1 ? "card" : "cards"}{" "}
+            (marked <span className="text-amber-600 dark:text-amber-400">to verify</span>). They
+            will import as-is, so open each one to confirm the card if it matters.
+          </p>
+        )}
 
         {needsAttentionCount > 0 && (
           <p className="text-muted-foreground text-sm">
@@ -750,10 +770,10 @@ function PreviewStep({
 // Single entry row
 // ---------------------------------------------------------------------------
 
-const STATUS_CONFIG: Record<DeckMatchStatus, { icon: React.ElementType; className: string }> = {
-  exact: { icon: CheckCircle2Icon, className: "text-emerald-600 dark:text-emerald-400" },
-  "needs-review": { icon: AlertTriangleIcon, className: "text-amber-600 dark:text-amber-400" },
-  unresolved: { icon: XCircleIcon, className: "text-red-600 dark:text-red-400" },
+const BUCKET_CONFIG: Record<ImportBucket, { icon: React.ElementType; className: string }> = {
+  ready: { icon: CheckCircle2Icon, className: "text-emerald-600 dark:text-emerald-400" },
+  "to-verify": { icon: AlertTriangleIcon, className: "text-amber-600 dark:text-amber-400" },
+  "need-attention": { icon: XCircleIcon, className: "text-red-600 dark:text-red-400" },
 };
 
 function DeckImportEntryRow({
@@ -780,7 +800,8 @@ function DeckImportEntryRow({
   onUnskip: (index: number) => void;
 }) {
   const [showSearch, setShowSearch] = useState(false);
-  const { icon: StatusIcon, className: statusColor } = STATUS_CONFIG[entry.status];
+  const { icon: StatusIcon, className: statusColor } =
+    BUCKET_CONFIG[classifyBucket(entry.status, entry.resolvedCard !== null)];
   const rawFieldEntries = Object.entries(entry.entry.rawFields);
   const displayName =
     entry.resolvedCard?.cardName ?? entry.entry.cardName ?? entry.entry.shortCode ?? "Unknown";

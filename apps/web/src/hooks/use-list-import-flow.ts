@@ -6,6 +6,7 @@ import { useCards } from "@/hooks/use-cards";
 import { useBulkAddListEntries } from "@/hooks/use-lists";
 import type { MatchStatus, MatchedEntry } from "@/lib/import-matcher";
 import { matchEntries } from "@/lib/import-matcher";
+import { summarizeMatchedEntries } from "@/lib/import-summary";
 import { parseListImport } from "@/lib/list-import-parser";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -147,24 +148,21 @@ export function useListImportFlow(
     });
   };
 
-  const readyEntries = matchedEntries.filter(
+  const importableEntries = matchedEntries.filter(
     (entry, index) => entry.resolvedPrinting && !skippedIndices.has(index),
   );
-  const needsAttentionCount = matchedEntries.filter(
-    (entry, index) => !entry.resolvedPrinting && !skippedIndices.has(index),
-  ).length;
+  const summary = summarizeMatchedEntries(matchedEntries, skippedIndices);
   const skippedCount = skippedIndices.size;
-  const totalCards = readyEntries.reduce((sum, entry) => sum + entry.entry.quantity, 0);
 
   const handleImport = async () => {
-    if (readyEntries.length === 0) {
+    if (importableEntries.length === 0) {
       toast.error("Nothing to import.");
       return;
     }
 
     setIsImporting(true);
 
-    const payload = buildListImportPayload(readyEntries, listKind);
+    const payload = buildListImportPayload(importableEntries, listKind);
 
     const batches: (typeof payload)[] = [];
     for (let offset = 0; offset < payload.length; offset += BATCH_SIZE) {
@@ -177,11 +175,11 @@ export function useListImportFlow(
       }
     };
 
-    const cardLabel = totalCards === 1 ? "card" : "cards";
+    const cardLabel = summary.totalCards === 1 ? "card" : "cards";
 
     try {
       await sendAllBatches();
-      toast.success(`Added ${totalCards} ${cardLabel} to list.`);
+      toast.success(`Added ${summary.totalCards} ${cardLabel} to list.`);
       setIsImporting(false);
       reset();
       onClose();
@@ -203,10 +201,12 @@ export function useListImportFlow(
     fileRef,
     allPrintings,
 
-    readyCount: readyEntries.length,
-    needsAttentionCount,
+    readyCount: summary.readyCount,
+    toVerifyCount: summary.toVerifyCount,
+    needsAttentionCount: summary.needsAttentionCount,
+    importableCount: summary.importableCount,
     skippedCount,
-    totalCards,
+    totalCards: summary.totalCards,
 
     handleRawTextChange: setRawText,
     handleParse,

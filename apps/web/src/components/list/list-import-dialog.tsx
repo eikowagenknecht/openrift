@@ -81,7 +81,9 @@ export function ListImportDialog({ listId, listKind, open, onOpenChange }: ListI
             skippedIndices={flow.skippedIndices}
             expandedIndices={flow.expandedIndices}
             readyCount={flow.readyCount}
+            toVerifyCount={flow.toVerifyCount}
             needsAttentionCount={flow.needsAttentionCount}
+            importableCount={flow.importableCount}
             skippedCount={flow.skippedCount}
             totalCards={flow.totalCards}
             isImporting={flow.isImporting}
@@ -161,7 +163,9 @@ function PreviewStep({
   skippedIndices,
   expandedIndices,
   readyCount,
+  toVerifyCount,
   needsAttentionCount,
+  importableCount,
   skippedCount,
   totalCards,
   isImporting,
@@ -179,7 +183,9 @@ function PreviewStep({
   skippedIndices: Set<number>;
   expandedIndices: Set<number>;
   readyCount: number;
+  toVerifyCount: number;
   needsAttentionCount: number;
+  importableCount: number;
   skippedCount: number;
   totalCards: number;
   isImporting: boolean;
@@ -263,14 +269,15 @@ function PreviewStep({
 
       <div className="bg-muted/50 flex flex-wrap items-center justify-between gap-3 rounded-md border p-3">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="secondary">{readyCount} ready</Badge>
+          <Badge variant="success">{readyCount} ready</Badge>
+          {toVerifyCount > 0 && <Badge variant="warning">{toVerifyCount} to verify</Badge>}
           {needsAttentionCount > 0 && (
-            <Badge variant="default">{needsAttentionCount} need attention</Badge>
+            <Badge variant="destructive">{needsAttentionCount} need attention</Badge>
           )}
           {skippedCount > 0 && <Badge variant="ghost">{skippedCount} skipped</Badge>}
         </div>
 
-        <Button onClick={onImport} disabled={readyCount === 0 || isImporting}>
+        <Button onClick={onImport} disabled={importableCount === 0 || isImporting}>
           {isImporting ? (
             <>
               <Loader2Icon className="size-4 animate-spin" />

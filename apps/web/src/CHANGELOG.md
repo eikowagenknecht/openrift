@@ -9,9 +9,12 @@
 
 ### Other
 
+- feat(Collection): **Plain text lists on the import page** — the Import / Export page now accepts a plain text "quantity cardname" list, not just CSV exports, matching how list import already worked.
 - feat(Decks): **Text deck format leads import and export** — the plain text list is now the default tab and comes first when importing or exporting a deck, ahead of the deck code.
 - feat(Decks): **Custom printings are clearer** — the deck overview now rings cards that use a pinned printing, and the card menu has a "Use default printing" option to drop the pin and fall back to the standard art.
 - feat(Cards): **Tidier compact filter bar** — the Stats button now reads its value (like "Energy 1–3") when one range is set, the active-filters strip is hidden while the compact bar is up (that bar already shows every active filter), and a clear-all button next to the filter settings resets every filter in one click.
+- fix(Collection): **Tell printings apart while importing** — the importer's catalog search now tags non-English printings (like `[ZH]`) and shows a large card preview on hover, so two same-looking entries are no longer indistinguishable.
+- fix(Collection): **Clearer import review counts** — the collection and deck import summaries now split rows into ready, "to verify" (a best guess that still imports), and "need attention", and the per-row icons match those buckets, so the warning marks line up with the count.
 - fix(Cards): **Group by set lists main sets first** — grouping the card grid (or table) by set now shows the main sets ahead of the supplemental ones, matching the filter sidebar order, including the cards shown on the very first page load before the grid finishes loading.
 - fix(Cards): **Clear a filter with no cards left** — a selected set or value that no longer matches any cards (say after moving them to another collection) vanished from its dropdown yet stayed active; it now stays listed so you can untick it.
 - fix(Collection): **Select all respects your filters** — in select mode, "select all" was grabbing every copy in the collection, even cards hidden by your active filters; it now selects only the cards currently shown.

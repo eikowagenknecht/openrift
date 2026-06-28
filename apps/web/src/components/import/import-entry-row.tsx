@@ -14,7 +14,7 @@ import { PrintingHoverPreview } from "@/components/cards/printing-hover-preview"
 import { PrintingOptionContent } from "@/components/cards/printing-option-content";
 import { usePrintingHover } from "@/components/cards/use-printing-hover";
 import { ImportRowRawFields, ImportRowShell } from "@/components/import/import-row-shell";
-import { PrintingSearch, formatImportPrintingLabel } from "@/components/printing-search";
+import { PrintingSearch } from "@/components/printing-search";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -24,13 +24,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useEnumOrders } from "@/hooks/use-enums";
-import type { MatchStatus, MatchedEntry } from "@/lib/import-matcher";
+import { formatImportPrintingLabel } from "@/lib/format";
+import type { MatchedEntry } from "@/lib/import-matcher";
+import type { ImportBucket } from "@/lib/import-summary";
+import { getImportBucket } from "@/lib/import-summary";
 import { cn } from "@/lib/utils";
 
-const STATUS_CONFIG: Record<MatchStatus, { icon: React.ElementType; className: string }> = {
-  exact: { icon: CheckCircle2Icon, className: "text-emerald-600 dark:text-emerald-400" },
-  "needs-review": { icon: AlertTriangleIcon, className: "text-amber-600 dark:text-amber-400" },
-  unresolved: { icon: XCircleIcon, className: "text-red-600 dark:text-red-400" },
+const BUCKET_CONFIG: Record<ImportBucket, { icon: React.ElementType; className: string }> = {
+  ready: { icon: CheckCircle2Icon, className: "text-emerald-600 dark:text-emerald-400" },
+  "to-verify": { icon: AlertTriangleIcon, className: "text-amber-600 dark:text-amber-400" },
+  "need-attention": { icon: XCircleIcon, className: "text-red-600 dark:text-red-400" },
 };
 
 interface ImportEntryRowProps {
@@ -57,7 +60,7 @@ export function ImportEntryRow({
   onToggleExpand,
 }: ImportEntryRowProps) {
   const [showSearch, setShowSearch] = useState(false);
-  const { icon: StatusIcon, className: statusColor } = STATUS_CONFIG[entry.status];
+  const { icon: StatusIcon, className: statusColor } = BUCKET_CONFIG[getImportBucket(entry)];
   const ChevronIcon = isExpanded ? ChevronDownIcon : ChevronRightIcon;
   const rawFieldEntries = Object.entries(entry.entry.rawFields);
   const hasCandidates = entry.candidates.length > 0;

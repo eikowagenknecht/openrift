@@ -1,4 +1,5 @@
 import { useDebouncedValue } from "@tanstack/react-pacer";
+import type { RefObject } from "react";
 import { useId, useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,12 @@ interface ImportCatalogSearchProps<T> {
   getKey: (item: T) => string;
   renderItem: (item: T) => React.ReactNode;
   onSelect: (item: T) => void;
+  /**
+   * Renders a floating preview for the currently highlighted item (hover or
+   * keyboard). `anchorRef` points at the results list so the preview can
+   * position itself beside the dropdown. Omit when a surface has no preview.
+   */
+  renderActivePreview?: (item: T, anchorRef: RefObject<HTMLElement | null>) => React.ReactNode;
   /** Reports the raw typed text — for form-field usage where free text is also valid. */
   onQueryChange?: (query: string) => void;
   /** When set, selecting an item writes this string back into the input. */
@@ -41,6 +48,7 @@ export function ImportCatalogSearch<T>({
   getKey,
   renderItem,
   onSelect,
+  renderActivePreview,
   onQueryChange,
   fillOnSelect,
   inputClassName,
@@ -169,6 +177,10 @@ export function ImportCatalogSearch<T>({
           ))}
         </div>
       )}
+      {visible &&
+        activeIndex >= 0 &&
+        activeIndex < results.length &&
+        renderActivePreview?.(results[activeIndex], listRef)}
       {visible && results.length === 0 && (
         <div
           id={listboxId}

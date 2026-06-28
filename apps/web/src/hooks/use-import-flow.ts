@@ -11,7 +11,8 @@ import { buildListImportPayload } from "@/hooks/use-list-import-flow";
 import { useBulkAddListEntries, useLists } from "@/hooks/use-lists";
 import type { MatchStatus, MatchedEntry } from "@/lib/import-matcher";
 import { matchEntries } from "@/lib/import-matcher";
-import { parseImportData } from "@/lib/import-parsers";
+import { summarizeMatchedEntries } from "@/lib/import-summary";
+import { parseListImport } from "@/lib/list-import-parser";
 import { useDisplayStore } from "@/stores/display-store";
 
 const STATUS_SORT_ORDER: Record<MatchStatus, number> = {
@@ -78,7 +79,7 @@ export function useImportFlow() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleParse = (text: string) => {
-    const { entries, errors, rowCount: parsedRowCount } = parseImportData(text);
+    const { entries, errors, rowCount: parsedRowCount } = parseListImport(text);
     setRowCount(parsedRowCount);
     setParseErrors(errors);
 
@@ -157,14 +158,11 @@ export function useImportFlow() {
     });
   };
 
-  const readyEntries = matchedEntries.filter(
+  const importableEntries = matchedEntries.filter(
     (entry, index) => entry.resolvedPrinting && !skippedIndices.has(index),
   );
-  const needsAttentionCount = matchedEntries.filter(
-    (entry, index) => !entry.resolvedPrinting && !skippedIndices.has(index),
-  ).length;
+  const summary = summarizeMatchedEntries(matchedEntries, skippedIndices);
   const skippedCount = skippedIndices.size;
-  const totalCards = readyEntries.reduce((sum, entry) => sum + entry.entry.quantity, 0);
 
   const importIntoList = async (listId: string) => {
     const list = importableLists.find((option) => option.id === listId);
@@ -175,12 +173,12 @@ export function useImportFlow() {
 
     setIsImporting(true);
 
-    const payload = buildListImportPayload(readyEntries, list.kind);
+    const payload = buildListImportPayload(importableEntries, list.kind);
     const batches: (typeof payload)[] = [];
     for (let offset = 0; offset < payload.length; offset += BATCH_SIZE) {
       batches.push(payload.slice(offset, offset + BATCH_SIZE));
     }
-    const cardLabel = totalCards === 1 ? "card" : "cards";
+    const cardLabel = summary.totalCards === 1 ? "card" : "cards";
 
     const sendAllBatches = async () => {
       for (const batch of batches) {
@@ -190,7 +188,7 @@ export function useImportFlow() {
 
     try {
       await sendAllBatches();
-      toast.success(`Added ${totalCards} ${cardLabel} to ${list.name}.`);
+      toast.success(`Added ${summary.totalCards} ${cardLabel} to ${list.name}.`);
       navigate({ to: "/collections/lists/$listId", params: { listId } });
     } catch {
       toast.error("Import failed. Some cards may have been added.");
@@ -234,7 +232,7 @@ export function useImportFlow() {
 
     // Build copies payload — expand quantities into individual entries
     const copies: { printingId: string; collectionId: string }[] = [];
-    for (const entry of readyEntries) {
+    for (const entry of importableEntries) {
       for (let count = 0; count < entry.entry.quantity; count++) {
         copies.push({
           printingId: entry.resolvedPrinting?.id ?? "",
@@ -248,7 +246,7 @@ export function useImportFlow() {
     for (let offset = 0; offset < copies.length; offset += BATCH_SIZE) {
       batches.push(copies.slice(offset, offset + BATCH_SIZE));
     }
-    const copyLabel = totalCards === 1 ? "copy" : "copies";
+    const copyLabel = summary.totalCards === 1 ? "copy" : "copies";
 
     const sendAllBatches = async () => {
       for (const batch of batches) {
@@ -258,7 +256,7 @@ export function useImportFlow() {
 
     try {
       await sendAllBatches();
-      toast.success(`Imported ${totalCards} ${copyLabel}.`);
+      toast.success(`Imported ${summary.totalCards} ${copyLabel}.`);
       navigate({
         to: "/collections/$collectionId",
         params: { collectionId: targetCollectionId },
@@ -286,10 +284,12 @@ export function useImportFlow() {
     allPrintings,
 
     // Derived
-    readyCount: readyEntries.length,
-    needsAttentionCount,
+    readyCount: summary.readyCount,
+    toVerifyCount: summary.toVerifyCount,
+    needsAttentionCount: summary.needsAttentionCount,
+    importableCount: summary.importableCount,
     skippedCount,
-    totalCards,
+    totalCards: summary.totalCards,
 
     // Actions
     handleRawTextChange: setRawText,

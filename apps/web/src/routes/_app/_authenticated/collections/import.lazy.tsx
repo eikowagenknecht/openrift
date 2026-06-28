@@ -102,7 +102,9 @@ function ImportExportPage() {
         collectionId={flow.collectionId}
         newCollectionName={flow.newCollectionName}
         readyCount={flow.readyCount}
+        toVerifyCount={flow.toVerifyCount}
         needsAttentionCount={flow.needsAttentionCount}
+        importableCount={flow.importableCount}
         skippedCount={flow.skippedCount}
         totalCards={flow.totalCards}
         isImporting={flow.isImporting}
@@ -330,7 +332,9 @@ function InputStep({
           >
             RiftMana
           </a>
-          , or OpenRift itself. Having trouble or need support for another source? Let us know on{" "}
+          , or OpenRift itself. You can also paste a plain text list with one{" "}
+          <code className="text-foreground">quantity cardname</code> per line. Having trouble or
+          need support for another source? Let us know on{" "}
           <a
             href={SOCIAL_LINKS.discordInvite}
             target="_blank"
@@ -356,7 +360,7 @@ function InputStep({
         <Textarea
           value={rawText}
           onChange={(event) => onTextChange(event.target.value)}
-          placeholder="Paste your CSV data here..."
+          placeholder="Paste CSV data or a plain text list here..."
           className="min-h-[200px] font-mono text-xs"
         />
 
@@ -370,12 +374,12 @@ function InputStep({
 
           <Button variant="outline" onClick={() => fileRef.current?.click()}>
             <FileUpIcon className="mr-2 size-4" />
-            Upload CSV file
+            Upload file
           </Button>
           <Input
             ref={fileRef}
             type="file"
-            accept=".csv,text/csv"
+            accept=".csv,text/csv,.txt,text/plain"
             onChange={onFileUpload}
             className="hidden"
           />
@@ -417,7 +421,9 @@ function PreviewStep({
   collectionId,
   newCollectionName,
   readyCount,
+  toVerifyCount,
   needsAttentionCount,
+  importableCount,
   skippedCount,
   totalCards,
   isImporting,
@@ -441,7 +447,9 @@ function PreviewStep({
   collectionId: string;
   newCollectionName: string;
   readyCount: number;
+  toVerifyCount: number;
   needsAttentionCount: number;
+  importableCount: number;
   skippedCount: number;
   totalCards: number;
   isImporting: boolean;
@@ -456,7 +464,7 @@ function PreviewStep({
 }) {
   const isListTarget = collectionId.startsWith(LIST_TARGET_PREFIX);
   const canImport =
-    readyCount > 0 &&
+    importableCount > 0 &&
     collectionId !== "" &&
     (collectionId !== "__new__" || newCollectionName.trim().length > 0);
   const importVerb = isListTarget ? "Add" : "Import";
@@ -550,12 +558,21 @@ function PreviewStep({
       {/* Summary + target collection + import button */}
       <div className="bg-muted/50 space-y-4 rounded-md border p-4">
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <Badge variant="secondary">{readyCount} ready</Badge>
+          <Badge variant="success">{readyCount} ready</Badge>
+          {toVerifyCount > 0 && <Badge variant="warning">{toVerifyCount} to verify</Badge>}
           {needsAttentionCount > 0 && (
-            <Badge variant="default">{needsAttentionCount} need attention</Badge>
+            <Badge variant="destructive">{needsAttentionCount} need attention</Badge>
           )}
           {skippedCount > 0 && <Badge variant="ghost">{skippedCount} skipped</Badge>}
         </div>
+
+        {toVerifyCount > 0 && (
+          <p className="text-muted-foreground text-sm">
+            We picked a best guess for {toVerifyCount} {toVerifyCount === 1 ? "card" : "cards"}{" "}
+            (marked <span className="text-amber-600 dark:text-amber-400">to verify</span>). They
+            will import as-is, so open each one to confirm the printing if it matters.
+          </p>
+        )}
 
         {needsAttentionCount > 0 && (
           <p className="text-muted-foreground text-sm">

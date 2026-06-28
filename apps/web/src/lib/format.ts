@@ -44,6 +44,27 @@ export function formatCardId(printing: Printing): string {
 }
 
 /**
+ * Formats a printing label for import/search contexts where there is no sibling
+ * list to compare against (a flat catalog search). Shows the card ID, then a
+ * `[XX]` tag for any non-English language, then the variant label (omitted when
+ * "Standard"). The language tag is added explicitly here because
+ * `formatPrintingLabel` only emits it when siblings differ — without it, an
+ * English and a Chinese printing of the same code render identically.
+ * @returns A string like "OGS-021", "OGS-021 · [ZH]", or "OGS-021 · Foil · Promo".
+ */
+export function formatImportPrintingLabel(printing: Printing, labels: EnumLabels): string {
+  const variantLabel = formatPrintingLabel(printing, undefined, labels);
+  const parts = [formatCardId(printing)];
+  if (printing.language !== "EN") {
+    parts.push(`[${printing.language}]`);
+  }
+  if (variantLabel !== "Standard") {
+    parts.push(variantLabel);
+  }
+  return parts.join(" · ");
+}
+
+/**
  * Short card ID for compact layouts: `#001` instead of `OGS-001`.
  * @returns The numeric suffix prefixed with `#`.
  */

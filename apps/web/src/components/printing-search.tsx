@@ -1,29 +1,18 @@
 import type { Printing } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
 
+import { PrintingHoverPreview } from "@/components/cards/printing-hover-preview";
 import { ImportCatalogSearch } from "@/components/import/import-catalog-search";
-import type { EnumLabels } from "@/hooks/use-enums";
 import { useEnumOrders } from "@/hooks/use-enums";
-import { formatCardId, formatPrintingLabel } from "@/lib/format";
+import { formatImportPrintingLabel } from "@/lib/format";
 
 const MAX_RESULTS = 20;
 
 /**
- * Formats a printing label for import/search contexts. Shows the card ID plus
- * the variant label (unless it's "Standard", in which case just the ID).
- * @returns A formatted string like "RB1-042 · Foil" or just "RB1-042".
- */
-export function formatImportPrintingLabel(printing: Printing, labels: EnumLabels): string {
-  const label = formatPrintingLabel(printing, undefined, labels);
-  if (label === "Standard") {
-    return formatCardId(printing);
-  }
-  return `${formatCardId(printing)} · ${label}`;
-}
-
-/**
  * Searches the full printing catalog by card name or short code, returning a
  * Printing on selection (one entry per printing — variants are distinct).
+ * Hovering (or keyboard-highlighting) a result shows a large card preview so
+ * the user can tell near-identical printings apart.
  * @returns An inline combobox for picking a printing.
  */
 export function PrintingSearch({
@@ -57,6 +46,9 @@ export function PrintingSearch({
             {formatImportPrintingLabel(printing, labels)}
           </span>
         </>
+      )}
+      renderActivePreview={(printing, anchorRef) => (
+        <PrintingHoverPreview printing={printing} anchorRef={anchorRef} />
       )}
       onSelect={onSelect}
     />

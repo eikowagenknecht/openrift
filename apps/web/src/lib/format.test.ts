@@ -6,6 +6,7 @@ import type { EnumLabels } from "@/hooks/use-enums";
 import {
   formatCardId,
   formatCardIdCompact,
+  formatImportPrintingLabel,
   formatPrice,
   formatPriceCompact,
   formatPriceEur,
@@ -324,6 +325,45 @@ describe("formatPrintingLabel", () => {
 // ---------------------------------------------------------------------------
 // formatPriceEur
 // ---------------------------------------------------------------------------
+
+describe("formatImportPrintingLabel", () => {
+  it("returns just the card id for a standard English printing", () => {
+    expect(formatImportPrintingLabel(stub({ shortCode: "OGS-021" }), TEST_LABELS)).toBe("OGS-021");
+  });
+
+  it("tags a non-English standard printing with its language", () => {
+    expect(
+      formatImportPrintingLabel(stub({ shortCode: "OGS-021", language: "ZH" }), TEST_LABELS),
+    ).toBe("OGS-021 · [ZH]");
+  });
+
+  it("distinguishes English and Chinese printings that share a code", () => {
+    const en = formatImportPrintingLabel(
+      stub({ shortCode: "OGS-021", language: "EN" }),
+      TEST_LABELS,
+    );
+    const zh = formatImportPrintingLabel(
+      stub({ shortCode: "OGS-021", language: "ZH" }),
+      TEST_LABELS,
+    );
+    expect(en).not.toBe(zh);
+  });
+
+  it("appends the variant label after the language tag", () => {
+    expect(
+      formatImportPrintingLabel(
+        stub({ shortCode: "OGS-021", language: "ZH", finish: "foil" }),
+        TEST_LABELS,
+      ),
+    ).toBe("OGS-021 · [ZH] · Foil");
+  });
+
+  it("appends the variant label for an English printing without a language tag", () => {
+    expect(
+      formatImportPrintingLabel(stub({ shortCode: "OGS-021", finish: "foil" }), TEST_LABELS),
+    ).toBe("OGS-021 · Foil");
+  });
+});
 
 describe("formatPriceEur", () => {
   it('returns "--" for null', () => {
