@@ -269,10 +269,11 @@ export function VariantLocationsPopover({
         const rarityIcon = getFilterIconPath("rarities", group.printing.rarity);
         return (
           <Fragment key={group.printing.id}>
-            {/* Each variant heads its own section; spacing (not a line) sets groups apart. */}
+            {/* Each variant heads its own section: a subtle filled band at rest sets it apart
+                from its child rows; the gold data-selected highlight still overrides it on focus. */}
             <PickerRow
               value={variantRowValue(group.printing)}
-              className={cn("py-0.5", groupIndex > 0 && "mt-1.5")}
+              className={cn("bg-muted/50 py-0.5", groupIndex > 0 && "mt-1.5")}
             >
               <div className="flex flex-1 items-center gap-1.5 whitespace-nowrap">
                 {hasMixedRarities && rarityIcon && (
