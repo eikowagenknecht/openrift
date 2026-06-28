@@ -267,6 +267,9 @@ export function VariantLocationsPopover({
     >
       {groups.map((group, groupIndex) => {
         const rarityIcon = getFilterIconPath("rarities", group.printing.rarity);
+        // Opened via `-`: the user is here to remove, so hide every add affordance
+        // (the quick-add +, the per-collection +, and the "add to another collection" row).
+        const isRemoveIntent = intent === "remove";
         return (
           <Fragment key={group.printing.id}>
             {/* Each variant heads its own section: a subtle filled band at rest sets it apart
@@ -300,16 +303,19 @@ export function VariantLocationsPopover({
                 <span className="text-muted-foreground w-5 text-center font-medium tabular-nums">
                   {group.total}
                 </span>
-                <Button
-                  type="button"
-                  tabIndex={-1}
-                  size="icon-xs"
-                  variant="ghost"
-                  onClick={() => onQuickAdd(group.printing)}
-                  aria-label={`Add ${legendDisplayName(group.printing.card)}`}
-                >
-                  <PlusIcon />
-                </Button>
+                {!isRemoveIntent && (
+                  <Button
+                    type="button"
+                    tabIndex={-1}
+                    size="icon-xs"
+                    variant="ghost"
+                    className="transition-none"
+                    onClick={() => onQuickAdd(group.printing)}
+                    aria-label={`Add ${legendDisplayName(group.printing.card)}`}
+                  >
+                    <PlusIcon />
+                  </Button>
+                )}
               </div>
             </PickerRow>
             {group.locations.map((location) => (
@@ -325,6 +331,7 @@ export function VariantLocationsPopover({
                     tabIndex={-1}
                     size="icon-xs"
                     variant="ghost"
+                    className="transition-none"
                     onClick={() => onRemoveFromCollection(group.printing, location.collectionId)}
                     aria-label={`Remove ${legendDisplayName(group.printing.card)} from ${location.collectionName}`}
                   >
@@ -333,27 +340,32 @@ export function VariantLocationsPopover({
                   <span className="text-muted-foreground w-5 text-center tabular-nums">
                     {location.count}
                   </span>
-                  <Button
-                    type="button"
-                    tabIndex={-1}
-                    size="icon-xs"
-                    variant="ghost"
-                    onClick={() => onAddToCollection(group.printing, location.collectionId)}
-                    aria-label={`Add ${legendDisplayName(group.printing.card)} to ${location.collectionName}`}
-                  >
-                    <PlusIcon />
-                  </Button>
+                  {!isRemoveIntent && (
+                    <Button
+                      type="button"
+                      tabIndex={-1}
+                      size="icon-xs"
+                      variant="ghost"
+                      className="transition-none"
+                      onClick={() => onAddToCollection(group.printing, location.collectionId)}
+                      aria-label={`Add ${legendDisplayName(group.printing.card)} to ${location.collectionName}`}
+                    >
+                      <PlusIcon />
+                    </Button>
+                  )}
                 </div>
               </PickerRow>
             ))}
-            <PickerRow
-              value={addRowValue(group.printing)}
-              className="text-muted-foreground text-2xs py-0.5 pl-4"
-              onSelect={() => setAddCollectionTarget(group.printing)}
-            >
-              <PlusIcon className="size-3 shrink-0" />
-              <span className="flex-1">Add to another collection</span>
-            </PickerRow>
+            {!isRemoveIntent && (
+              <PickerRow
+                value={addRowValue(group.printing)}
+                className="text-muted-foreground text-2xs py-0.5 pl-4"
+                onSelect={() => setAddCollectionTarget(group.printing)}
+              >
+                <PlusIcon className="size-3 shrink-0" />
+                <span className="flex-1">Add to another collection</span>
+              </PickerRow>
+            )}
           </Fragment>
         );
       })}
