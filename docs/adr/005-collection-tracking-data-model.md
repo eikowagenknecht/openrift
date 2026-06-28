@@ -95,7 +95,7 @@ Three sources of "what do I need":
 
    **Manual items** are user-curated. Each targets either a specific printing ("I want this exact foil") or a card ("I want 4 copies of Fireball, any printing") with a `quantity_desired`. Items persist when fulfilled — the "still needed" count is computed at query time (`desired - owned`), so trading away a card automatically reflects the gap. When a wish item targets a specific printing, only copies of that exact printing count toward fulfillment.
 
-   **Dynamic rules** are a saved JSONB filter definition evaluated at query time (e.g., "4 copies of every common card", "1 of every foil printing from Spiritforged"). Results change as inventory changes. Rules are stored as JSONB with app-level Zod validation. The exact rule schema will be defined as Zod types in `packages/shared` at implementation time.
+   **Dynamic rules** _(superseded by [ADR-034](034-dynamic-list-rules.md) — see it for the rule schema and evaluation model)_ are a saved JSONB filter definition evaluated at query time (e.g., "4 copies of every common card", "1 of every foil printing from Spiritforged"). Results change as inventory changes. Rules are stored as JSONB with app-level Zod validation. The exact rule schema will be defined as Zod types in `packages/shared` at implementation time.
 
    A single list can combine both — e.g., a "Spiritforged" wish list with a dynamic rule for all commons plus manually pinned rares.
 
@@ -109,7 +109,7 @@ A trade list can have manual items, dynamic rules, or both.
 
 **Manual items** are specific copies the user wants to trade/sell. A copy can appear in multiple trade lists but cannot appear in any single list more times than the user owns it. Disposing a copy automatically removes it from all trade lists (the FK on `trade_list_items.copy_id` cascades the delete). _UI note:_ The app prompts confirmation ("This copy is on Trade List X. Dispose it? It will be removed from all trade lists. This can't be undone.").
 
-**Dynamic rules** are a saved JSONB filter definition evaluated at query time (e.g., "all copies beyond the 4th of each card, in Binder 1 or Deck Box 12, worth < 1 EUR on Cardmarket"). Results change as prices and inventory change. Rules are stored as JSONB with app-level Zod validation.
+**Dynamic rules** _(superseded by [ADR-034](034-dynamic-list-rules.md) — see it for the rule schema and evaluation model)_ are a saved JSONB filter definition evaluated at query time (e.g., "all copies beyond the 4th of each card, in Binder 1 or Deck Box 12, worth < 1 EUR on Cardmarket"). Results change as prices and inventory change. Rules are stored as JSONB with app-level Zod validation.
 
 A single list can combine both — e.g., manually pinned copies plus a dynamic rule for surplus commons.
 

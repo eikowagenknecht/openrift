@@ -41,6 +41,7 @@ The MADR documentation is available at <https://adr.github.io/madr/> while gener
 - **[ADR-028](028-user-profile-riot-id.md)**: Free-Text Riot ID on the User Profile
 - **[ADR-030](030-trade-email-notifications.md)**: Transactional Email Notifications for Trades
 - **[ADR-032](032-admin-authorization-model.md)**: Admin Authorization stays Prefix-Gated until a Cross-Cutting Role appears
+- **[ADR-034](034-dynamic-list-rules.md)**: Dynamic List Rules (supersedes ADR-005's dynamic-rules stance for wish and trade lists)
 
 ### Rejected
 
