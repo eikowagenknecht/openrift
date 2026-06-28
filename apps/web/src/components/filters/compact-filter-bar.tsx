@@ -23,6 +23,7 @@ import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
 import { formatDomainFilterLabel } from "@/lib/domain";
 import { getFilterIconPath } from "@/lib/icons";
+import { rangeBadgeLabel } from "@/lib/range-label";
 import { cn } from "@/lib/utils";
 
 interface CompactFilterBarProps {
@@ -108,16 +109,24 @@ export function FilterIconCluster({
  * A chip-styled popover trigger for one filter dimension. The trigger shows the
  * dimension label plus an active-selection count; the popover hosts the
  * dimension's controls (a badge grid, the stat sliders, or the More group).
+ *
+ * Pass `summary` to replace the "label (count)" trigger text with a readable
+ * value when exactly one entry is active — like the value dropdowns ("Type" →
+ * "Unit") and the More menu do — e.g. the Stats chip showing "Energy 1–3"
+ * instead of "Stats (1)". When omitted (or when several entries are active) the
+ * trigger falls back to the label plus the active count.
  * @returns The chip trigger and its popover.
  */
 export function FilterDropdownChip({
   label,
   activeCount,
+  summary,
   contentClassName,
   children,
 }: {
   label: string;
   activeCount: number;
+  summary?: string;
   contentClassName?: string;
   children: ReactNode;
 }) {
@@ -142,10 +151,10 @@ export function FilterDropdownChip({
             )}
           />
         }
-        aria-label={active ? `${label}, ${activeCount} selected` : label}
+        aria-label={summary ?? (active ? `${label}, ${activeCount} selected` : label)}
       >
-        {label}
-        {active && <span className="tabular-nums">({activeCount})</span>}
+        {summary ?? label}
+        {active && !summary && <span className="tabular-nums">({activeCount})</span>}
         <ChevronDownIcon />
       </PopoverTrigger>
       <PopoverContent
@@ -210,10 +219,44 @@ export function CompactFilterBar({
     !hiddenSections?.has("might") ||
     !hiddenSections?.has("power");
 
-  const statsActiveCount =
-    Number(filterState.energyMin !== null || filterState.energyMax !== null) +
-    Number(filterState.mightMin !== null || filterState.mightMax !== null) +
-    Number(filterState.powerMin !== null || filterState.powerMax !== null);
+  // The three printed-stat ranges, paired with their available bounds so a
+  // single active one can resolve open-ended sides into a readable label.
+  const statRanges = [
+    {
+      label: "Energy",
+      min: filterState.energyMin,
+      max: filterState.energyMax,
+      bounds: availableFilters.energy,
+    },
+    {
+      label: "Might",
+      min: filterState.mightMin,
+      max: filterState.mightMax,
+      bounds: availableFilters.might,
+    },
+    {
+      label: "Power",
+      min: filterState.powerMin,
+      max: filterState.powerMax,
+      bounds: availableFilters.power,
+    },
+  ];
+  const activeStatRanges = statRanges.filter((stat) => stat.min !== null || stat.max !== null);
+  const statsActiveCount = activeStatRanges.length;
+
+  // With exactly one stat slider in play, surface its value on the trigger
+  // ("Energy 1–3") instead of a bare "Stats (1)" — mirroring the value dropdowns
+  // and the More menu. Two or more fall back to the count, since one chip can't
+  // spell out several ranges.
+  const singleStatSummary =
+    activeStatRanges.length === 1
+      ? `${activeStatRanges[0].label} ${rangeBadgeLabel(
+          activeStatRanges[0].min,
+          activeStatRanges[0].max,
+          activeStatRanges[0].bounds.min,
+          activeStatRanges[0].bounds.max,
+        )}`
+      : undefined;
 
   // Price and Copies render as range sliders at the foot of the "More" menu,
   // below the flag/marker/channel/tag controls. Each only applies when its
@@ -388,7 +431,12 @@ export function CompactFilterBar({
             );
           })()}
         {showStats && (
-          <FilterDropdownChip label="Stats" activeCount={statsActiveCount} contentClassName="w-80">
+          <FilterDropdownChip
+            label="Stats"
+            activeCount={statsActiveCount}
+            summary={singleStatSummary}
+            contentClassName="w-80"
+          >
             {/* Each stat slider row (a direct child div) gets the same subtle
                 hover the More menu's rows have. bg-accent resolves to the neutral
                 muted set by the popover's NEUTRAL_HOVER_SCOPE. */}

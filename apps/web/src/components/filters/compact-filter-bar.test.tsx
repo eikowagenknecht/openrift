@@ -118,4 +118,16 @@ describe("FilterDropdownChip", () => {
     await user.click(screen.getByRole("button", { name: "Type" }));
     expect(await screen.findByText("panel body")).toBeInTheDocument();
   });
+
+  it("shows the value summary instead of the label and count when provided", () => {
+    render(
+      <FilterDropdownChip label="Stats" activeCount={1} summary="Energy 1–3">
+        <div>panel body</div>
+      </FilterDropdownChip>,
+    );
+    const trigger = screen.getByRole("button", { name: "Energy 1–3" });
+    expect(trigger).toHaveTextContent("Energy 1–3");
+    // The bare count is suppressed in favour of the readable value.
+    expect(trigger.textContent).not.toContain("(1)");
+  });
 });

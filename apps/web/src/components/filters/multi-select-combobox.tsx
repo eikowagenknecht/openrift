@@ -262,6 +262,19 @@ export function MultiSelectCombobox({
       items.push(id);
       idMeta.set(id, { section, option });
     }
+    // Keep selected values that have dropped out of `options` visible, appended
+    // right after their section's real options. `options` is derived from the
+    // currently-available data (e.g. a collection's printings), so a selection
+    // can outlive its option — move every OGN card out of a collection and OGN
+    // vanishes from availableFilters while still sitting in the filter state.
+    // Without this row the filter is stuck: the trigger shows it active, but the
+    // list has no checkbox to clear it. The orphan has no idMeta, so it renders
+    // as a plain (slug-labelled) untickable row via the fallbacks below.
+    for (const value of section.selected) {
+      if (!section.options.some((option) => option.value === value)) {
+        items.push(encodeId(section.index, value));
+      }
+    }
   }
   if (flag) {
     items.push(FLAG_VALUE);

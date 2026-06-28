@@ -4,6 +4,8 @@
 
 ### Other
 
+- feat(Cards): **Tidier compact filter bar** — the Stats button now reads its value (like "Energy 1–3") when one range is set, and the active-filters strip is hidden while the compact bar is up, since that bar already shows every active filter.
+- fix(Cards): **Clear a filter with no cards left** — a selected set or value that no longer matches any cards (say after moving them to another collection) vanished from its dropdown yet stayed active; it now stays listed so you can untick it.
 - fix(Collection): **Select all respects your filters** — in select mode, "select all" was grabbing every copy in the collection, even cards hidden by your active filters; it now selects only the cards currently shown.
 - fix(Collection): **Variant minus no longer reopens the menu** — removing a copy from the variants popover now decrements that variant directly, instead of opening a second, near-identical variants menu.
 - fix(Collection): **Friend-group copies no longer inflate your totals** — on the All Cards view, collection stats, and the variant remove popover, copies in your friend groups counted toward your owned numbers, filters, and value; they now count only when you're viewing that group's own collection.

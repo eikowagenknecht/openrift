@@ -201,7 +201,8 @@ function BrowserMobileFilters() {
  */
 export function BrowserActiveFilters() {
   const meta = useFilterMeta();
-  return (
+  const compactFilterView = useDisplayStore((state) => state.compactFilterView);
+  const strip = (
     <ActiveFilters
       availableFilters={meta.availableFilters}
       setDisplayLabel={meta.setDisplayLabel}
@@ -209,6 +210,20 @@ export function BrowserActiveFilters() {
       ownedCountMax={meta.ownedCountMax}
     />
   );
+  // The compact filter bar already surfaces every active filter inline — each
+  // dropdown shows its selection (count or single-value summary, including
+  // orphaned values you can still untick), so the chip strip is redundant in the
+  // band where that bar is visible. Hide it exactly there, mirroring the compact
+  // bar's own `hidden sm:flex @wide:hidden` visibility: a layout-neutral
+  // `display: contents` wrapper that collapses to `display: none` across the
+  // sm–@wide range. Below sm the bar gives way to the mobile drawer, and at
+  // @wide the sidebar takes over — the strip stays visible in both, so it's the
+  // only filter readout on the grid wherever the compact bar isn't. With compact
+  // view off (the collapsible panel), the strip always shows.
+  if (compactFilterView) {
+    return <div className="@wide:contents contents sm:hidden">{strip}</div>;
+  }
+  return strip;
 }
 
 interface BrowserToolbarProps {
