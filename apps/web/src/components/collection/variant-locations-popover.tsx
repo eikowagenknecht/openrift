@@ -12,6 +12,7 @@ import { useOwnedCollectionsByVariants } from "@/hooks/use-owned-count";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
+import { cn } from "@/lib/utils";
 import type { VariantPopoverIntent } from "@/stores/add-mode-store";
 
 interface VariantLocationsPopoverProps {
@@ -264,11 +265,15 @@ export function VariantLocationsPopover({
         }
       }}
     >
-      {groups.map((group) => {
+      {groups.map((group, groupIndex) => {
         const rarityIcon = getFilterIconPath("rarities", group.printing.rarity);
         return (
           <Fragment key={group.printing.id}>
-            <PickerRow value={variantRowValue(group.printing)} className="py-0.5">
+            {/* Each variant heads its own section; spacing (not a line) sets groups apart. */}
+            <PickerRow
+              value={variantRowValue(group.printing)}
+              className={cn("py-0.5", groupIndex > 0 && "mt-1.5")}
+            >
               <div className="flex flex-1 items-center gap-1.5 whitespace-nowrap">
                 {hasMixedRarities && rarityIcon && (
                   <img
@@ -283,12 +288,17 @@ export function VariantLocationsPopover({
                 <span className="text-muted-foreground text-2xs shrink-0 font-mono">
                   {formatCardId(group.printing)}
                 </span>
-                <span>
+                <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                   {formatPrintingLabel(group.printing, printings, labels) || group.printing.setSlug}
                 </span>
               </div>
-              <div className="flex shrink-0 items-center gap-1.5">
-                <span className="text-muted-foreground tabular-nums">&times;{group.total}</span>
+              <div className="flex shrink-0 items-center gap-0.5">
+                {/* Spacer reserves the child rows' minus-button column so the total and the +
+                    button land in the same grid as every child row's [- count +] cluster. */}
+                <span aria-hidden className="size-6 shrink-0" />
+                <span className="text-muted-foreground w-5 text-center font-medium tabular-nums">
+                  {group.total}
+                </span>
                 <Button
                   type="button"
                   tabIndex={-1}
