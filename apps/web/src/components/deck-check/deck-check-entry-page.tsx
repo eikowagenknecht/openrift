@@ -97,6 +97,7 @@ import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 import { canRequestChanges } from "@/lib/deck-check-actions";
 import { sortDeckCheckCards } from "@/lib/deck-check-sort";
 import { getDomainGradientStyle } from "@/lib/domain";
+import { matchesAllTokens, normalizedStartsWith, searchTokens } from "@/lib/search-match";
 import { getSiteUrl } from "@/lib/site-config";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 import { useDeckCheckViewStore } from "@/stores/deck-check-view-store";
@@ -1002,21 +1003,24 @@ function CardNameSearchField({
       placeholder="Search card name"
       initialQuery={initialName}
       getResults={(query) => {
-        const lower = query.toLowerCase();
+        const tokens = searchTokens(query);
+        if (tokens.length === 0) {
+          return [];
+        }
         const matches: Printing[] = [];
         for (const printings of printingsByCardId.values()) {
           const printing = printings[0];
           // Match the colloquial Legend name too, so "Azir" finds "Emperor of
           // the Sands" (displayed as "Azir, Emperor of the Sands").
-          if (printing && legendDisplayName(printing.card).toLowerCase().includes(lower)) {
+          if (printing && matchesAllTokens(tokens, legendDisplayName(printing.card))) {
             matches.push(printing);
           }
         }
         return matches
           .toSorted(
             (first, second) =>
-              Number(legendDisplayName(second.card).toLowerCase().startsWith(lower)) -
-                Number(legendDisplayName(first.card).toLowerCase().startsWith(lower)) ||
+              Number(normalizedStartsWith(legendDisplayName(second.card), query)) -
+                Number(normalizedStartsWith(legendDisplayName(first.card), query)) ||
               legendDisplayName(first.card).localeCompare(legendDisplayName(second.card)),
           )
           .slice(0, 8);

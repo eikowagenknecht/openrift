@@ -6,6 +6,7 @@ import { PrintingThumbnail } from "@/components/cards/printing-option-content";
 import { ImportCatalogSearch } from "@/components/import/import-catalog-search";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { formatImportPrintingLabel } from "@/lib/format";
+import { matchesAllTokens, searchTokens } from "@/lib/search-match";
 
 const MAX_RESULTS = 20;
 
@@ -30,12 +31,13 @@ export function PrintingSearch({
       ariaLabel="Search catalog"
       placeholder="Search catalog..."
       getResults={(query) => {
-        const lower = query.toLowerCase();
+        const tokens = searchTokens(query);
+        if (tokens.length === 0) {
+          return [];
+        }
         return allPrintings
-          .filter(
-            (printing) =>
-              legendDisplayName(printing.card).toLowerCase().includes(lower) ||
-              printing.shortCode.toLowerCase().includes(lower),
+          .filter((printing) =>
+            matchesAllTokens(tokens, legendDisplayName(printing.card), printing.shortCode),
           )
           .slice(0, MAX_RESULTS);
       }}

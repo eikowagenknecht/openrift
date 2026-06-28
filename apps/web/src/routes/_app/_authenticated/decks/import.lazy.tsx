@@ -60,6 +60,7 @@ import type { DeckImportFormat } from "@/lib/deck-import-parsers";
 import { parseDeckImportData } from "@/lib/deck-import-parsers";
 import type { ImportBucket } from "@/lib/import-summary";
 import { classifyBucket } from "@/lib/import-summary";
+import { matchesAllTokens, searchTokens } from "@/lib/search-match";
 import { SOCIAL_LINKS } from "@/lib/social-links";
 import { cn } from "@/lib/utils";
 
@@ -956,7 +957,10 @@ function CardSearch({
  * @returns ResolvedCard array with one entry per unique card.
  */
 function deduplicateToCards(allPrintings: Printing[], query: string): ResolvedCard[] {
-  const lower = query.toLowerCase();
+  const tokens = searchTokens(query);
+  if (tokens.length === 0) {
+    return [];
+  }
   const seen = new Set<string>();
   const results: ResolvedCard[] = [];
 
@@ -967,10 +971,7 @@ function deduplicateToCards(allPrintings: Printing[], query: string): ResolvedCa
     // Match the colloquial Legend name too ("Azir, Emperor of the Sands"), and
     // surface it as the display name so the dropdown reads like the rest of the app.
     const displayName = legendDisplayName(printing.card);
-    if (
-      displayName.toLowerCase().includes(lower) ||
-      printing.shortCode.toLowerCase().includes(lower)
-    ) {
+    if (matchesAllTokens(tokens, displayName, printing.shortCode)) {
       seen.add(printing.cardId);
       results.push({
         cardId: printing.cardId,
