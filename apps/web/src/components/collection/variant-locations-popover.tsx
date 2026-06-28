@@ -285,7 +285,7 @@ export function VariantLocationsPopover({
                     className="size-3.5 shrink-0"
                   />
                 )}
-                <span className="text-muted-foreground text-2xs shrink-0 font-mono">
+                <span className="text-muted-foreground text-2xs shrink-0">
                   {formatCardId(group.printing)}
                 </span>
                 <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
