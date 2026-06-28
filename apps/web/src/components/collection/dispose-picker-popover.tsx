@@ -1,4 +1,4 @@
-import type { CollectionResponse, Printing } from "@openrift/shared";
+import type { CollectionResponse, CopyResponse, Printing } from "@openrift/shared";
 import { useLiveQuery } from "@tanstack/react-db";
 import { useQuery } from "@tanstack/react-query";
 import { BookOpenIcon, InboxIcon } from "lucide-react";
@@ -20,6 +20,40 @@ interface Row {
 }
 
 /**
+ * Builds the per-collection "Remove from" rows: the viewer's personal
+ * collections holding at least one copy of `printingId`, in the given
+ * collection order. Group-collection copies are excluded — this picker only
+ * ever opens for the personal minus (a printing the viewer owns across several
+ * of their own lists), so a friend group's copy is never a removal target here.
+ * @returns Rows of `{ collection, count }`, one per personal collection that owns a copy.
+ */
+export function buildDisposeRows(
+  copies: readonly CopyResponse[],
+  collections: readonly CollectionResponse[],
+  printingId: string,
+): Row[] {
+  const countByCollection = new Map<string, number>();
+  for (const copy of copies) {
+    if (copy.printingId !== printingId) {
+      continue;
+    }
+    // Personal copies only (group copies aren't the viewer's).
+    if (copy.groupId !== null) {
+      continue;
+    }
+    countByCollection.set(copy.collectionId, (countByCollection.get(copy.collectionId) ?? 0) + 1);
+  }
+  const rows: Row[] = [];
+  for (const collection of collections) {
+    const count = countByCollection.get(collection.id) ?? 0;
+    if (count > 0) {
+      rows.push({ collection, count });
+    }
+  }
+  return rows;
+}
+
+/**
  * Computes the per-collection rows for a "Remove from" picker — collections
  * the user owns at least one copy of `printing` in, ordered server-canonical
  * (inbox first, then user-ordered).
@@ -34,23 +68,10 @@ function useDisposeRows(printing: Printing): Row[] {
     [copiesCollection],
   );
 
-  const rows: Row[] = [];
-  if (collections && copies) {
-    const countByCollection = new Map<string, number>();
-    for (const copy of copies) {
-      if (copy.printingId !== printing.id) {
-        continue;
-      }
-      countByCollection.set(copy.collectionId, (countByCollection.get(copy.collectionId) ?? 0) + 1);
-    }
-    for (const collection of collections) {
-      const count = countByCollection.get(collection.id) ?? 0;
-      if (count > 0) {
-        rows.push({ collection, count });
-      }
-    }
+  if (!collections || !copies) {
+    return [];
   }
-  return rows;
+  return buildDisposeRows(copies, collections, printing.id);
 }
 
 interface DisposeListBodyProps {

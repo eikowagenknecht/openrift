@@ -3,8 +3,13 @@ import { describe, expect, it } from "vitest";
 
 import { decideRemoval, pickNewestCopy } from "./use-quick-add-actions-helpers";
 
-function copy(id: string, printingId: string, collectionId: string): CopyResponse {
-  return { id, printingId, collectionId, groupId: null };
+function copy(
+  id: string,
+  printingId: string,
+  collectionId: string,
+  groupId: string | null = null,
+): CopyResponse {
+  return { id, printingId, collectionId, groupId };
 }
 
 describe("pickNewestCopy", () => {
@@ -106,6 +111,37 @@ describe("decideRemoval", () => {
   it("returns 'none' when only a temp row matches the printing", () => {
     const copies = [copy("temp-99999999-0000-0000-0000-000000000099", "pr-1", "col-1")];
     expect(decideRemoval(copies, "pr-1")).toEqual({ kind: "none" });
+  });
+
+  // Regression: on the unscoped All Cards view, copies in a friend-group
+  // collection belong to the group, not the viewer. The personal minus must
+  // ignore them — both so the count matches the personal-only owned badge and
+  // so the button can't remove a group's copy. See the variant-popover "30 vs
+  // 9" report.
+  it("ignores group-collection copies when unscoped", () => {
+    const copies = [
+      copy("01900000-0000-7000-8000-000000000010", "pr-1", "col-personal"),
+      copy("01900000-0000-7000-8000-000000000020", "pr-1", "col-group", "group-1"),
+    ];
+    // Only the personal copy is a removal candidate, so it disposes that one
+    // rather than treating the spread as multi-collection and opening a picker.
+    expect(decideRemoval(copies, "pr-1")).toEqual({
+      kind: "dispose",
+      copyId: "01900000-0000-7000-8000-000000000010",
+    });
+  });
+
+  it("returns 'none' when the only matching copies are in a group collection (unscoped)", () => {
+    const copies = [copy("01900000-0000-7000-8000-000000000020", "pr-1", "col-group", "group-1")];
+    expect(decideRemoval(copies, "pr-1")).toEqual({ kind: "none" });
+  });
+
+  it("still removes group copies when explicitly scoped to that group collection", () => {
+    const copies = [copy("01900000-0000-7000-8000-000000000020", "pr-1", "col-group", "group-1")];
+    expect(decideRemoval(copies, "pr-1", "col-group")).toEqual({
+      kind: "dispose",
+      copyId: "01900000-0000-7000-8000-000000000020",
+    });
   });
 
   it("does not open the picker on a multi-collection spread that's only real on one side", () => {

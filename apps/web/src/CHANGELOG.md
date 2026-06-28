@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-06-28
+
+### Other
+
+- fix(Collection): **Variant minus no longer reopens the menu** — removing a copy from the variants popover now decrements that variant directly, instead of opening a second, near-identical variants menu.
+- fix(Collection): **Friend-group copies no longer inflate your totals** — on the All Cards view, collection stats, and the variant remove popover, copies in your friend groups counted toward your owned numbers, filters, and value; they now count only when you're viewing that group's own collection.
+
 ## 2026-06-27
 
 ### Highlights

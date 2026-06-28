@@ -35,10 +35,10 @@ const collections: CollectionResponse[] = [
 ];
 
 const copies: CopyResponse[] = [
-  { id: "c-a", printingId: printing.id, collectionId: "col-inbox" } as CopyResponse,
-  { id: "c-b", printingId: printing.id, collectionId: "col-2" } as CopyResponse,
-  { id: "c-c", printingId: printing.id, collectionId: "col-2" } as CopyResponse,
-  { id: "c-d", printingId: printing.id, collectionId: "col-3" } as CopyResponse,
+  { id: "c-a", printingId: printing.id, collectionId: "col-inbox", groupId: null },
+  { id: "c-b", printingId: printing.id, collectionId: "col-2", groupId: null },
+  { id: "c-c", printingId: printing.id, collectionId: "col-2", groupId: null },
+  { id: "c-d", printingId: printing.id, collectionId: "col-3", groupId: null },
 ];
 
 vi.mock("@/hooks/use-collections", () => ({
@@ -62,7 +62,42 @@ vi.mock("@/lib/copies-collection", () => ({
 }));
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
-import { DisposePickerPopover } from "./dispose-picker-popover";
+import { buildDisposeRows, DisposePickerPopover } from "./dispose-picker-popover";
+
+describe("buildDisposeRows", () => {
+  it("lists each personal collection that owns a copy, with counts, in order", () => {
+    const rows = buildDisposeRows(copies, collections, printing.id);
+    expect(rows.map((row) => [row.collection.id, row.count])).toEqual([
+      ["col-inbox", 1],
+      ["col-2", 2],
+      ["col-3", 1],
+    ]);
+  });
+
+  // Regression: the "Remove from" picker only opens for the personal minus, so
+  // a friend group's copy must never appear as a removal target.
+  it("excludes group-collection copies", () => {
+    const withGroup: CopyResponse[] = [
+      ...copies,
+      { id: "c-g", printingId: printing.id, collectionId: "col-group", groupId: "group-1" },
+    ];
+    const withGroupCol: CollectionResponse[] = [
+      ...collections,
+      { ...stubCollection("col-group", "Group Bulk Box", false), groupId: "group-1" },
+    ];
+    const rows = buildDisposeRows(withGroup, withGroupCol, printing.id);
+    expect(rows.map((row) => row.collection.id)).toEqual(["col-inbox", "col-2", "col-3"]);
+  });
+
+  it("ignores copies of other printings", () => {
+    const mixed: CopyResponse[] = [
+      ...copies,
+      { id: "c-x", printingId: "other", collectionId: "col-2", groupId: null },
+    ];
+    const rows = buildDisposeRows(mixed, collections, printing.id);
+    expect(rows.find((row) => row.collection.id === "col-2")?.count).toBe(2);
+  });
+});
 
 function commandRoot(container: HTMLElement): HTMLElement {
   const root = container.querySelector<HTMLElement>('[data-slot="command"]');

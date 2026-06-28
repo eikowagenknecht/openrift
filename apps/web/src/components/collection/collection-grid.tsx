@@ -36,6 +36,7 @@ import { CollectionGridCell } from "@/components/collection/collection-grid-cell
 import { FloatingActionBar } from "@/components/collection/floating-action-bar";
 import { buildOnDecrement } from "@/components/collection/route-decrement";
 import { VariantAddPopover } from "@/components/collection/variant-add-popover";
+import { buildVariantOwnedCounts } from "@/components/collection/variant-owned-counts";
 import {
   PageTopBar,
   PageTopBarActions,
@@ -908,6 +909,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         handleUndoAdd,
       }),
       onOpenVariants: openVariantsForTile,
+      // Direct decrement for already-resolved variants (e.g. a row inside the
+      // variants popover). Skips buildOnDecrement's variant disambiguation —
+      // the variant is already chosen — but still opens the multi-collection
+      // "Remove from" picker when that variant spans several lists.
+      onUndoAdd: handleUndoAdd,
       onItemClick: (itemId, printing, modifiers) => {
         const stack = stackByItemId.get(itemId);
         // Browse mode: ctrl-click on an owned card flips into select mode and
@@ -1387,11 +1393,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             >
               <VariantAddPopover
                 printings={variantPrintings}
-                ownedCounts={Object.fromEntries(
-                  variantPrintings.map((p) => [
-                    p.id,
-                    stackByPrintingId.get(p.id)?.copyIds.length ?? 0,
-                  ]),
+                ownedCounts={buildVariantOwnedCounts(
+                  variantPrintings,
+                  collectionId,
+                  ownedCountByPrinting ?? {},
+                  stackByPrintingId,
                 )}
                 onQuickAdd={handleQuickAdd}
                 onUndoAdd={async (printing) => {

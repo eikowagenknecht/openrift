@@ -19,8 +19,11 @@ type RemovalDecision = { kind: "none" } | { kind: "dispose"; copyId: string } | 
 /**
  * Decides what the minus button should do given the user's copies of a
  * printing. When scoped to a single collection (viewCollectionId set), only
- * copies in that collection are considered. Single collection → silent
- * dispose of the newest. Multiple collections → open the picker.
+ * copies in that collection are considered. When unscoped (All Cards view),
+ * only the viewer's personal copies are considered — copies in a friend-group
+ * collection belong to the group, not the viewer, so the personal minus must
+ * not remove them (matching the personal-only owned badge). Single collection →
+ * silent dispose of the newest. Multiple collections → open the picker.
  * @returns The removal decision for the caller to act on.
  */
 export function decideRemoval(
@@ -39,7 +42,11 @@ export function decideRemoval(
     if (isTempCopyId(c.id)) {
       return false;
     }
-    return viewCollectionId ? c.collectionId === viewCollectionId : true;
+    if (viewCollectionId) {
+      return c.collectionId === viewCollectionId;
+    }
+    // Unscoped: personal copies only (group copies aren't the viewer's).
+    return c.groupId === null;
   });
   if (filtered.length === 0) {
     return { kind: "none" };

@@ -26,6 +26,7 @@ import {
   dispatchOpenVariants,
   dispatchSiblingClick,
   dispatchTake,
+  dispatchUndoAdd,
 } from "@/stores/card-row-actions-store";
 import { useDragPreviewStore } from "@/stores/drag-preview-store";
 import { useGridFocusStore } from "@/stores/grid-focus-store";
@@ -228,7 +229,10 @@ export const CollectionGridCell = memo(function CollectionGridCell({
           totalCount={totalInCollection}
           ownedCountByPrinting={counts?.allTotals}
           onAdd={(p) => dispatchIncrement(p)}
-          onUndoAdd={(p, anchorEl) => dispatchDecrement(p, anchorEl)}
+          // Rows in this popover have already picked a variant, so the minus
+          // must decrement that variant directly — not re-open the variant
+          // picker that dispatchDecrement routes to on ambiguous removal.
+          onUndoAdd={(p, anchorEl) => dispatchUndoAdd(p, anchorEl)}
         />
       ) : undefined;
     strip = (
