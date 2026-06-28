@@ -15,12 +15,18 @@ export interface CardGroup {
 }
 
 /**
- * Groups items by set, in the given set order (sets with no items are dropped).
- * @returns One CardGroup per non-empty set, ordered by `setOrder`.
+ * Groups items by set: main sets first, then supplemental ones (matching the
+ * filter sidebar order), preserving the source order within each group. Sets
+ * with no items are dropped.
+ * @returns One CardGroup per non-empty set, main sets before supplemental.
  */
 export function groupItemsBySet(items: CardViewerItem[], setOrder: GroupInfo[]): CardGroup[] {
   const bySet = Map.groupBy(items, (item) => item.printing.setId);
-  return setOrder.flatMap((info) => {
+  // Stable sort keeps the source (release) order within each set type.
+  const orderedSets = setOrder.toSorted((a, b) =>
+    a.setType === b.setType ? 0 : a.setType === "main" ? -1 : 1,
+  );
+  return orderedSets.flatMap((info) => {
     const setItems = bySet.get(info.id);
     return setItems ? [{ group: info, items: setItems }] : [];
   });

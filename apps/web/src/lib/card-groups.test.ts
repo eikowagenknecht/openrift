@@ -51,6 +51,20 @@ describe("groupItemsBySet", () => {
     const groups = groupItemsBySet([item("set-a")], setOrder);
     expect(groups.map((group) => group.group.id)).toEqual(["set-a"]);
   });
+
+  it("orders main sets before supplemental ones, keeping source order within each", () => {
+    const mixedOrder: GroupInfo[] = [
+      { id: "supp-1", slug: "S1", name: "Supp 1", setType: "supplemental" },
+      { id: "main-1", slug: "M1", name: "Main 1", setType: "main" },
+      { id: "supp-2", slug: "S2", name: "Supp 2", setType: "supplemental" },
+      { id: "main-2", slug: "M2", name: "Main 2", setType: "main" },
+    ];
+    const groups = groupItemsBySet(
+      [item("supp-1"), item("main-1"), item("supp-2"), item("main-2")],
+      mixedOrder,
+    );
+    expect(groups.map((group) => group.group.id)).toEqual(["main-1", "main-2", "supp-1", "supp-2"]);
+  });
 });
 
 describe("buildGroups", () => {
