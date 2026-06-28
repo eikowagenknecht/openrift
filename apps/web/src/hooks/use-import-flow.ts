@@ -182,10 +182,14 @@ export function useImportFlow() {
     }
     const cardLabel = totalCards === 1 ? "card" : "cards";
 
-    try {
+    const sendAllBatches = async () => {
       for (const batch of batches) {
         await bulkAddEntries.mutateAsync({ listId, entries: batch });
       }
+    };
+
+    try {
+      await sendAllBatches();
       toast.success(`Added ${totalCards} ${cardLabel} to ${list.name}.`);
       navigate({ to: "/collections/lists/$listId", params: { listId } });
     } catch {
