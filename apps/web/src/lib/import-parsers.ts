@@ -75,12 +75,43 @@ function normalizeLanguage(language: string | undefined): string | undefined {
   }
 }
 
+/** A recognized CSV export format. */
+export type ImportFormat = "openrift" | "piltover-archive" | "riftcore" | "riftmana";
+
 interface ParseResult {
   entries: ImportEntry[];
   errors: string[];
-  source: "openrift" | "piltover-archive" | "riftcore" | "riftmana";
+  source: ImportFormat;
   /** Number of data rows in the source CSV (before deduplication). */
   rowCount: number;
+}
+
+/**
+ * Sniffs the input for one of the known CSV export formats by inspecting the
+ * header row. Returns null when the text matches none of them (e.g. a
+ * plain-text `<quantity> <name>` deck list), so callers can fall back to a
+ * different parser.
+ * @returns The detected format, or null when unrecognized.
+ */
+export function detectImportFormat(text: string): ImportFormat | null {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+  if (trimmed.startsWith("RIFTCORE COLLECTION EXPORT")) {
+    return "riftcore";
+  }
+  const firstLine = trimmed.split("\n")[0];
+  if (firstLine.includes("Variant Number")) {
+    return "piltover-archive";
+  }
+  if (firstLine.includes("Normal Qty")) {
+    return "riftmana";
+  }
+  if (firstLine.includes("Art Variant")) {
+    return "openrift";
+  }
+  return null;
 }
 
 /**
@@ -93,31 +124,30 @@ export function parseImportData(text: string): ParseResult {
     return { entries: [], errors: ["No data provided."], source: "piltover-archive", rowCount: 0 };
   }
 
-  if (trimmed.startsWith("RIFTCORE COLLECTION EXPORT")) {
-    return parseRiftCore(trimmed);
+  switch (detectImportFormat(trimmed)) {
+    case "riftcore": {
+      return parseRiftCore(trimmed);
+    }
+    case "piltover-archive": {
+      return parsePiltoverArchive(trimmed);
+    }
+    case "riftmana": {
+      return parseRiftMana(trimmed);
+    }
+    case "openrift": {
+      return parseOpenRift(trimmed);
+    }
+    default: {
+      return {
+        entries: [],
+        errors: [
+          "Couldn't recognize this format. We currently support OpenRift, Piltover Archive, RiftCore, and RiftMana CSV exports.",
+        ],
+        source: "piltover-archive",
+        rowCount: 0,
+      };
+    }
   }
-
-  const firstLine = trimmed.split("\n")[0];
-  if (firstLine.includes("Variant Number")) {
-    return parsePiltoverArchive(trimmed);
-  }
-
-  if (firstLine.includes("Normal Qty")) {
-    return parseRiftMana(trimmed);
-  }
-
-  if (firstLine.includes("Art Variant")) {
-    return parseOpenRift(trimmed);
-  }
-
-  return {
-    entries: [],
-    errors: [
-      "Couldn't recognize this format. We currently support OpenRift, Piltover Archive, RiftCore, and RiftMana CSV exports.",
-    ],
-    source: "piltover-archive",
-    rowCount: 0,
-  };
 }
 
 // ---------------------------------------------------------------------------

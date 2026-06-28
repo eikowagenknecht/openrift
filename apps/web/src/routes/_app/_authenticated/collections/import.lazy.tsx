@@ -31,7 +31,9 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectSeparator,
   SelectTrigger,
   SelectValue,
@@ -40,7 +42,8 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { Textarea } from "@/components/ui/textarea";
 import { useCards } from "@/hooks/use-cards";
 import { useCollections } from "@/hooks/use-collections";
-import { useImportFlow } from "@/hooks/use-import-flow";
+import type { ImportableListOption } from "@/hooks/use-import-flow";
+import { LIST_TARGET_PREFIX, useImportFlow } from "@/hooks/use-import-flow";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { copiesQueryOptions } from "@/lib/copies-query";
 import { downloadCSV, generateExportCSV, generatePiltoverArchiveCSV } from "@/lib/csv-export";
@@ -95,6 +98,7 @@ function ImportExportPage() {
         skippedIndices={flow.skippedIndices}
         expandedIndices={flow.expandedIndices}
         collections={collections ?? []}
+        importableLists={flow.importableLists}
         collectionId={flow.collectionId}
         newCollectionName={flow.newCollectionName}
         readyCount={flow.readyCount}
@@ -297,7 +301,7 @@ function InputStep({
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <Heading level={2}>Import Collection</Heading>
+        <Heading level={2}>Import Cards</Heading>
         <p className="text-muted-foreground text-sm">
           Paste or upload a CSV export from{" "}
           <a
@@ -409,6 +413,7 @@ function PreviewStep({
   skippedIndices,
   expandedIndices,
   collections,
+  importableLists,
   collectionId,
   newCollectionName,
   readyCount,
@@ -432,6 +437,7 @@ function PreviewStep({
   skippedIndices: Set<number>;
   expandedIndices: Set<number>;
   collections: CollectionOption[];
+  importableLists: ImportableListOption[];
   collectionId: string;
   newCollectionName: string;
   readyCount: number;
@@ -448,10 +454,19 @@ function PreviewStep({
   onImport: () => void;
   onBack: () => void;
 }) {
+  const isListTarget = collectionId.startsWith(LIST_TARGET_PREFIX);
   const canImport =
     readyCount > 0 &&
     collectionId !== "" &&
     (collectionId !== "__new__" || newCollectionName.trim().length > 0);
+  const importVerb = isListTarget ? "Add" : "Import";
+  const importUnit = isListTarget
+    ? totalCards === 1
+      ? "card"
+      : "cards"
+    : totalCards === 1
+      ? "copy"
+      : "copies";
 
   const problematicEntries: { entry: MatchedEntry; index: number }[] = [];
   const exactEntries: { entry: MatchedEntry; index: number }[] = [];
@@ -564,19 +579,37 @@ function PreviewStep({
             items={{
               ...Object.fromEntries(collections.map((col) => [col.id, col.name])),
               __new__: "+ Create new collection",
+              ...Object.fromEntries(
+                importableLists.map((list) => [`${LIST_TARGET_PREFIX}${list.id}`, list.name]),
+              ),
             }}
           >
             <SelectTrigger className="mb-0 w-[240px]">
-              <SelectValue placeholder="Target collection..." />
+              <SelectValue placeholder="Choose a destination..." />
             </SelectTrigger>
             <SelectContent>
-              {collections.map((col) => (
-                <SelectItem key={col.id} value={col.id}>
-                  {col.name}
-                </SelectItem>
-              ))}
-              <SelectSeparator />
-              <SelectItem value="__new__">+ Create new collection</SelectItem>
+              <SelectGroup>
+                <SelectLabel>Collections</SelectLabel>
+                {collections.map((col) => (
+                  <SelectItem key={col.id} value={col.id}>
+                    {col.name}
+                  </SelectItem>
+                ))}
+                <SelectItem value="__new__">+ Create new collection</SelectItem>
+              </SelectGroup>
+              {importableLists.length > 0 && (
+                <>
+                  <SelectSeparator />
+                  <SelectGroup>
+                    <SelectLabel>Lists</SelectLabel>
+                    {importableLists.map((list) => (
+                      <SelectItem key={list.id} value={`${LIST_TARGET_PREFIX}${list.id}`}>
+                        {list.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </>
+              )}
             </SelectContent>
           </Select>
 
@@ -603,7 +636,7 @@ function PreviewStep({
               </>
             ) : (
               <>
-                Import {totalCards} {totalCards === 1 ? "copy" : "copies"}
+                {importVerb} {totalCards} {importUnit}
               </>
             )}
           </Button>
@@ -613,6 +646,12 @@ function PreviewStep({
             </span>
           )}
         </div>
+
+        <p className="text-muted-foreground text-sm">
+          {isListTarget
+            ? "Importing into a list just adds the cards to that list. It does not mark them as owned in your collection."
+            : "Importing into a collection marks these cards as owned. To add them to a list without owning them, pick a list instead."}
+        </p>
       </div>
     </div>
   );

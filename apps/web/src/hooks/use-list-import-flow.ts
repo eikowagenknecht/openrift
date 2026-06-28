@@ -6,8 +6,11 @@ import { useCards } from "@/hooks/use-cards";
 import { useBulkAddListEntries } from "@/hooks/use-lists";
 import type { MatchStatus, MatchedEntry } from "@/lib/import-matcher";
 import { matchEntries } from "@/lib/import-matcher";
-import { parseCardListText } from "@/lib/list-import-parser";
+import { parseListImport } from "@/lib/list-import-parser";
 import { useDisplayStore } from "@/stores/display-store";
+
+/** List kinds that support text/CSV import. Copy-kind has no source-file identity. */
+export type ImportableListKind = "card" | "printing";
 
 const STATUS_SORT_ORDER: Record<MatchStatus, number> = {
   unresolved: 0,
@@ -20,18 +23,23 @@ const BATCH_SIZE = 500;
 type ImportStep = "input" | "preview";
 
 /**
- * Import-flow plumbing for card-kind lists: parse a deck-text blob, match
- * names against the catalog, let the user resolve/skip ambiguous rows, then
- * bulk-add the resolved rows to the target list.
+ * Import-flow plumbing for card- and printing-kind lists: parse a deck-text or
+ * CSV blob, match it against the catalog, let the user resolve/skip ambiguous
+ * rows, then bulk-add the resolved rows to the target list.
  *
- * Card-kind lists store by `cardId` — a specific printing isn't part of the
- * entry — so any name-resolved match counts as exact even when multiple
- * printings of the same card exist. The matcher itself flags those as
- * `needs-review` because it doesn't know the surface's intent; we collapse
- * "single card, multiple printings" back down to `exact` here.
+ * The write target depends on `listKind`. Card-kind lists store by `cardId` —
+ * a specific printing isn't part of the entry — so any name-resolved match
+ * counts as exact even when multiple printings of the same card exist; we
+ * collapse "single card, multiple printings" back down to `exact` via
+ * `promoteToExact`. Printing-kind lists store by `printingId`, so the matcher's
+ * `needs-review` status is left intact — the user picks the exact printing.
  * @returns Import flow state and action handlers.
  */
-export function useListImportFlow(listId: string, onClose: () => void) {
+export function useListImportFlow(
+  listId: string,
+  listKind: ImportableListKind,
+  onClose: () => void,
+) {
   const { allPrintings } = useCards();
   const bulkAddEntries = useBulkAddListEntries();
   const preferredLanguages = useDisplayStore((state) => state.languages);
@@ -57,7 +65,7 @@ export function useListImportFlow(listId: string, onClose: () => void) {
   };
 
   const handleParse = (text: string) => {
-    const { entries, errors, rowCount: parsedRowCount } = parseCardListText(text);
+    const { entries, errors, rowCount: parsedRowCount } = parseListImport(text);
     setRowCount(parsedRowCount);
     setParseErrors(errors);
 
@@ -65,8 +73,11 @@ export function useListImportFlow(listId: string, onClose: () => void) {
       return;
     }
 
+    // Card-kind lists only need a cardId, so collapse "one card, several
+    // printings" ambiguity down to exact. Printing-kind lists need the user to
+    // pick the specific printing, so leave needs-review intact.
     const matched = matchEntries(entries, allPrintings, preferredLanguages[0]).map((entry) =>
-      promoteToExact(entry),
+      listKind === "card" ? promoteToExact(entry) : entry,
     );
     const sorted = matched.toSorted((entryA, entryB) => {
       const statusDiff = STATUS_SORT_ORDER[entryA.status] - STATUS_SORT_ORDER[entryB.status];
@@ -153,10 +164,7 @@ export function useListImportFlow(listId: string, onClose: () => void) {
 
     setIsImporting(true);
 
-    const payload = readyEntries.map((entry) => ({
-      cardId: entry.resolvedPrinting?.cardId ?? "",
-      quantity: entry.entry.quantity,
-    }));
+    const payload = buildListImportPayload(readyEntries, listKind);
 
     const batches: (typeof payload)[] = [];
     for (let offset = 0; offset < payload.length; offset += BATCH_SIZE) {
@@ -211,6 +219,32 @@ export function useListImportFlow(listId: string, onClose: () => void) {
     handleBack: () => setStep("input"),
     reset,
   };
+}
+
+/** A single bulk-add list entry: either a cardId (card-kind) or printingId (printing-kind). */
+export interface ListImportPayloadEntry {
+  cardId?: string;
+  printingId?: string;
+  quantity: number;
+}
+
+/**
+ * Builds the bulk-add payload from resolved entries, keyed by the list's kind:
+ * card-kind lists send `cardId` (the specific printing is irrelevant),
+ * printing-kind lists send `printingId` (the exact printing the user resolved).
+ * Each entry is expected to have a `resolvedPrinting`; callers filter to ready
+ * rows before calling this.
+ * @returns One payload entry per resolved row.
+ */
+export function buildListImportPayload(
+  readyEntries: MatchedEntry[],
+  listKind: ImportableListKind,
+): ListImportPayloadEntry[] {
+  return readyEntries.map((entry) =>
+    listKind === "printing"
+      ? { printingId: entry.resolvedPrinting?.id ?? "", quantity: entry.entry.quantity }
+      : { cardId: entry.resolvedPrinting?.cardId ?? "", quantity: entry.entry.quantity },
+  );
 }
 
 /**

@@ -241,17 +241,17 @@ export function ListPage({ listId }: ListPageProps) {
                 <PencilIcon className="size-4" />
                 Edit
               </DropdownMenuItem>
+              {(data.list.kind === "card" || data.list.kind === "printing") && (
+                <DropdownMenuItem onClick={() => setImportOpen(true)}>
+                  <UploadIcon className="size-4" />
+                  Import
+                </DropdownMenuItem>
+              )}
               {data.list.kind === "card" && (
-                <>
-                  <DropdownMenuItem onClick={() => setImportOpen(true)}>
-                    <UploadIcon className="size-4" />
-                    Import
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setExportOpen(true)}>
-                    <DownloadIcon className="size-4" />
-                    Export
-                  </DropdownMenuItem>
-                </>
+                <DropdownMenuItem onClick={() => setExportOpen(true)}>
+                  <DownloadIcon className="size-4" />
+                  Export
+                </DropdownMenuItem>
               )}
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
@@ -313,8 +313,13 @@ export function ListPage({ listId }: ListPageProps) {
     <ListExportDialog entries={data.entries} open={exportOpen} onOpenChange={setExportOpen} />
   );
 
-  const importDialog = data.list.kind === "card" && (
-    <ListImportDialog listId={listId} open={importOpen} onOpenChange={setImportOpen} />
+  const importDialog = (data.list.kind === "card" || data.list.kind === "printing") && (
+    <ListImportDialog
+      listId={listId}
+      listKind={data.list.kind}
+      open={importOpen}
+      onOpenChange={setImportOpen}
+    />
   );
 
   // When the library is shown we fall through to the browser even with zero

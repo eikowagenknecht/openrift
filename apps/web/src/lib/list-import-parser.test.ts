@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { EMPTY_TRADE_PREFERENCE } from "@/test/factories";
 
 import { formatCardListAsDeckText } from "./list-export";
-import { parseCardListText } from "./list-import-parser";
+import { parseCardListText, parseListImport } from "./list-import-parser";
 
 function cardEntry(
   id: string,
@@ -93,5 +93,51 @@ describe("parseCardListText", () => {
       "2 Kai'Sa, Survivor",
       "3 Jinx, Rebel",
     ]);
+  });
+});
+
+describe("parseListImport", () => {
+  it("falls back to plain-text parsing when no CSV format is detected", () => {
+    const result = parseListImport("1 Teemo, Scout\n3 Jinx, Rebel");
+    expect(result.errors).toEqual([]);
+    expect(result.entries).toHaveLength(2);
+    // Plain text carries no printing detail — no source code, default finish.
+    expect(result.entries[0]).toMatchObject({
+      cardName: "Teemo, Scout",
+      sourceCode: "",
+      finish: "normal",
+    });
+  });
+
+  it("routes a Piltover Archive CSV through the rich parser, preserving printing detail", () => {
+    const csv = [
+      "Variant Number,Card Name,Set Prefix,Rarity,Variant Label,Quantity,Language",
+      "OGN-001-Foil,Blazing Scorcher,OGN,common,Foil,2,EN",
+    ].join("\n");
+    const result = parseListImport(csv);
+    expect(result.errors).toEqual([]);
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0]).toMatchObject({
+      cardName: "Blazing Scorcher",
+      quantity: 2,
+      finish: "foil",
+      sourceCode: "OGN-001",
+    });
+  });
+
+  it("routes an OpenRift CSV through the rich parser", () => {
+    const csv = [
+      "Card ID,Card Name,Rarity,Type,Domain,Finish,Art Variant,Promo,Language,Quantity",
+      "OGN-007a,Fury Rune,common,rune,fury,normal,altart,,EN,3",
+    ].join("\n");
+    const result = parseListImport(csv);
+    expect(result.errors).toEqual([]);
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0]).toMatchObject({
+      cardName: "Fury Rune",
+      quantity: 3,
+      artVariant: "altart",
+      sourceCode: "OGN-007a",
+    });
   });
 });

@@ -21,17 +21,19 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import type { ImportableListKind } from "@/hooks/use-list-import-flow";
 import { useListImportFlow } from "@/hooks/use-list-import-flow";
 import type { MatchedEntry } from "@/lib/import-matcher";
 
 interface ListImportDialogProps {
   listId: string;
+  listKind: ImportableListKind;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function ListImportDialog({ listId, open, onOpenChange }: ListImportDialogProps) {
-  const flow = useListImportFlow(listId, () => onOpenChange(false));
+export function ListImportDialog({ listId, listKind, open, onOpenChange }: ListImportDialogProps) {
+  const flow = useListImportFlow(listId, listKind, () => onOpenChange(false));
 
   // Each open of the dialog is a fresh session — clear stale parse results
   // from a previous attempt so the user doesn't see them.
@@ -54,8 +56,10 @@ export function ListImportDialog({ listId, open, onOpenChange }: ListImportDialo
             <code className="bg-muted rounded px-1 py-0.5 text-xs">
               &lt;quantity&gt; &lt;card name&gt;
             </code>
-            . Matching cards are added to this list; quantities stack with what&apos;s already
-            there.
+            , or a CSV export from OpenRift, Piltover Archive, RiftCore, or RiftMana.{" "}
+            {listKind === "printing"
+              ? "CSV exports resolve to a specific printing (finish, art variant); rows without enough detail to pin one down are flagged for review."
+              : "Matching cards are added to this list; quantities stack with what's already there."}
           </DialogDescription>
         </DialogHeader>
 

@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Collection): **Import CSVs into lists** — both a list's own Import and the Import / Export page now accept any supported CSV (OpenRift, Piltover Archive, RiftCore, RiftMana) and can send the cards to a list instead of your owned collection, keeping each card's finish and art variant.
 - feat(Collection): **One menu for variants and collections** — the count box on a card now opens a single menu listing each variant with the collections your copies live in, where you can add or remove copies per collection (or add to another collection) right there; removing a copy that could come from several places opens this menu instead of chaining through separate pickers.
 
 ### Other

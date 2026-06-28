@@ -1,11 +1,29 @@
 import { normalizeNameForMatching, WellKnown } from "@openrift/shared";
 
 import type { ImportEntry } from "@/lib/import-parsers";
+import { detectImportFormat, parseImportData } from "@/lib/import-parsers";
 
 interface ListImportParseResult {
   entries: ImportEntry[];
   errors: string[];
   rowCount: number;
+}
+
+/**
+ * Parses list-import input, accepting either a known CSV export (OpenRift,
+ * Piltover Archive, RiftCore, RiftMana) or the plain-text `<quantity> <name>`
+ * deck format. CSV exports carry finish/variant/promo detail, which lets
+ * printing-kind lists resolve to a specific printing; plain text resolves by
+ * name only. The format is sniffed from the header so the user doesn't have to
+ * declare it.
+ * @returns Parsed entries, errors, and the count of source rows seen.
+ */
+export function parseListImport(text: string): ListImportParseResult {
+  if (detectImportFormat(text) !== null) {
+    const { entries, errors, rowCount } = parseImportData(text);
+    return { entries, errors, rowCount };
+  }
+  return parseCardListText(text);
 }
 
 /**

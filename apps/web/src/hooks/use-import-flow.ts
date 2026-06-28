@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { ListKind, Printing } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -6,6 +6,9 @@ import { toast } from "sonner";
 import { useCards } from "@/hooks/use-cards";
 import { useCreateCollection } from "@/hooks/use-collections";
 import { useAddCopies } from "@/hooks/use-copies";
+import type { ImportableListKind } from "@/hooks/use-list-import-flow";
+import { buildListImportPayload } from "@/hooks/use-list-import-flow";
+import { useBulkAddListEntries, useLists } from "@/hooks/use-lists";
 import type { MatchStatus, MatchedEntry } from "@/lib/import-matcher";
 import { matchEntries } from "@/lib/import-matcher";
 import { parseImportData } from "@/lib/import-parsers";
@@ -16,6 +19,32 @@ const STATUS_SORT_ORDER: Record<MatchStatus, number> = {
   "needs-review": 1,
   exact: 2,
 };
+
+const BATCH_SIZE = 500;
+
+/** Prefix marking a target-select value as a list (vs a collection id or `__new__`). */
+export const LIST_TARGET_PREFIX = "list:";
+
+/** A list the importer can target, narrowed to the kinds that accept imported cards. */
+export interface ImportableListOption {
+  id: string;
+  name: string;
+  kind: ImportableListKind;
+}
+
+/**
+ * Narrows the user's lists to those that can receive an import. Lists store
+ * cards (`cardId`) or printings (`printingId`); copy-kind lists track specific
+ * owned copies, which a CSV can't reference, so they're excluded.
+ * @returns The importable lists as target options.
+ */
+export function toImportableListOptions(
+  lists: readonly { id: string; name: string; kind: ListKind }[],
+): ImportableListOption[] {
+  return lists
+    .filter((list) => list.kind === "card" || list.kind === "printing")
+    .map((list) => ({ id: list.id, name: list.name, kind: list.kind as ImportableListKind }));
+}
 
 type ImportStep = "input" | "preview";
 
@@ -28,8 +57,12 @@ export function useImportFlow() {
   const { allPrintings } = useCards();
   const addCopies = useAddCopies();
   const createCollection = useCreateCollection();
+  const bulkAddEntries = useBulkAddListEntries();
   const navigate = useNavigate();
   const preferredLanguages = useDisplayStore((state) => state.languages);
+
+  const { data: lists } = useLists();
+  const importableLists = toImportableListOptions(lists);
 
   const [step, setStep] = useState<ImportStep>("input");
   const [rawText, setRawText] = useState("");
@@ -133,7 +166,40 @@ export function useImportFlow() {
   const skippedCount = skippedIndices.size;
   const totalCards = readyEntries.reduce((sum, entry) => sum + entry.entry.quantity, 0);
 
+  const importIntoList = async (listId: string) => {
+    const list = importableLists.find((option) => option.id === listId);
+    if (!list) {
+      toast.error("Please select a target.");
+      return;
+    }
+
+    setIsImporting(true);
+
+    const payload = buildListImportPayload(readyEntries, list.kind);
+    const batches: (typeof payload)[] = [];
+    for (let offset = 0; offset < payload.length; offset += BATCH_SIZE) {
+      batches.push(payload.slice(offset, offset + BATCH_SIZE));
+    }
+    const cardLabel = totalCards === 1 ? "card" : "cards";
+
+    try {
+      for (const batch of batches) {
+        await bulkAddEntries.mutateAsync({ listId, entries: batch });
+      }
+      toast.success(`Added ${totalCards} ${cardLabel} to ${list.name}.`);
+      navigate({ to: "/collections/lists/$listId", params: { listId } });
+    } catch {
+      toast.error("Import failed. Some cards may have been added.");
+      setIsImporting(false);
+    }
+  };
+
   const handleImport = async () => {
+    if (collectionId.startsWith(LIST_TARGET_PREFIX)) {
+      await importIntoList(collectionId.slice(LIST_TARGET_PREFIX.length));
+      return;
+    }
+
     let targetCollectionId = collectionId;
 
     // Create new collection if needed
@@ -174,10 +240,9 @@ export function useImportFlow() {
     }
 
     // Batch in groups of 500
-    const batchSize = 500;
     const batches: (typeof copies)[] = [];
-    for (let offset = 0; offset < copies.length; offset += batchSize) {
-      batches.push(copies.slice(offset, offset + batchSize));
+    for (let offset = 0; offset < copies.length; offset += BATCH_SIZE) {
+      batches.push(copies.slice(offset, offset + BATCH_SIZE));
     }
     const copyLabel = totalCards === 1 ? "copy" : "copies";
 
@@ -208,6 +273,7 @@ export function useImportFlow() {
     parseErrors,
     collectionId,
     newCollectionName,
+    importableLists,
     isImporting: isImporting || isCreatingCollection,
     skippedIndices,
     expandedIndices,
