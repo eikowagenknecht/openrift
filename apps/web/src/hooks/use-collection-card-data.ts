@@ -180,6 +180,14 @@ export function useCollectionCardData({
   // Build stack lookup for renderCard to find copyIds/counts
   const stackByPrintingId = new Map(stacks.map((stack) => [stack.printingId, stack]));
 
+  // Copy IDs of exactly the printings currently shown in the grid (after every
+  // filter, and after the cards-view tile dedup). "Select all" must operate on
+  // this set, not on `stacks` — otherwise it would select copies of cards the
+  // active filters have hidden.
+  const selectableCopyIds = sortedCards.flatMap(
+    (printing) => stackByPrintingId.get(printing.id)?.copyIds ?? [],
+  );
+
   const totalUniqueCards =
     view === "cards"
       ? new Set(collectionPrintings.map((p) => p.cardId)).size
@@ -189,6 +197,7 @@ export function useCollectionCardData({
     availableFilters,
     availableLanguages,
     sortedCards,
+    selectableCopyIds,
     printingsByCardId,
     priceRangeByCardId,
     stacks,

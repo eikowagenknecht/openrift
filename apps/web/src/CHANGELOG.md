@@ -4,6 +4,7 @@
 
 ### Other
 
+- fix(Collection): **Select all respects your filters** — in select mode, "select all" was grabbing every copy in the collection, even cards hidden by your active filters; it now selects only the cards currently shown.
 - fix(Collection): **Variant minus no longer reopens the menu** — removing a copy from the variants popover now decrements that variant directly, instead of opening a second, near-identical variants menu.
 - fix(Collection): **Friend-group copies no longer inflate your totals** — on the All Cards view, collection stats, and the variant remove popover, copies in your friend groups counted toward your owned numbers, filters, and value; they now count only when you're viewing that group's own collection.
 

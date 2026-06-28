@@ -92,6 +92,7 @@ import { collectionTableActionsColumn } from "@/lib/collection-table";
 import { formatterForMarketplace } from "@/lib/format";
 import { maxOwnedCount } from "@/lib/owned-bucket";
 import { isStackSelected, resolveContextActionTarget } from "@/lib/stack-selection";
+import { isTempCopyId } from "@/lib/temp-copy-id";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import type { VariantPopoverIntent } from "@/stores/add-mode-store";
@@ -309,6 +310,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     availableFilters: collectionAvailableFilters,
     availableLanguages: collectionAvailableLanguages,
     sortedCards: collectionSortedCards,
+    selectableCopyIds,
     printingsByCardId: collectionPrintingsByCardId,
     stacks,
     totalCopies,
@@ -1013,6 +1015,12 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     ? currentCollection.unpricedCopyCount
     : collections.reduce((sum, col) => sum + (col.unpricedCopyCount ?? 0), 0);
 
+  // Count of selectable copies in the filtered grid, mirroring the temp-id
+  // filtering `toggleSelectAll` applies, so "all selected" lines up with what a
+  // select-all click can actually select (optimistic temp copies never enter
+  // the selection).
+  const selectableRealCount = selectableCopyIds.filter((id) => !isTempCopyId(id)).length;
+
   const collectionTopBar = (
     <CollectionTopBar
       title={title}
@@ -1023,11 +1031,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       formatValue={formatValue}
       addTarget={addTarget}
       onQuickAdd={() => setQuickAddOpen(true)}
-      onSelectAll={() => toggleSelectAll(stacks.flatMap((stack) => stack.copyIds))}
+      onSelectAll={() => toggleSelectAll(selectableCopyIds)}
       onEnterSelect={enterSelectMode}
       onExitSelect={exitSelectMode}
       hasCards={stacks.length > 0}
-      isAllSelected={selected.size === totalCopies}
+      isAllSelected={selectableRealCount > 0 && selected.size === selectableRealCount}
       view={view}
       canEdit={Boolean(currentCollection) && canAdminCollection}
       canDelete={canDeleteCollection}

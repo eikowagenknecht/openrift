@@ -272,6 +272,46 @@ describe("useCollectionCardData", () => {
     expect(openEnded.result.current.sortedCards.map((p) => p.id)).toEqual([five.id]);
   });
 
+  it("exposes selectableCopyIds for only the filtered printings", () => {
+    // Regression: "select all" collected copy IDs from every stack, so it
+    // selected cards the active filters had hidden. selectableCopyIds must
+    // contain copies of the *filtered* printings only.
+    const en = stubPrinting({ language: "EN" });
+    const zh = stubPrinting({ language: "ZH" });
+    mockStacks.mockReturnValue({
+      stacks: [
+        { printingId: en.id, printing: en, copyIds: ["c-en-1", "c-en-2"] },
+        { printingId: zh.id, printing: zh, copyIds: ["c-zh-1"] },
+      ],
+      totalCopies: 3,
+      isReady: true,
+    });
+
+    const params = baseParams();
+    params.filters.languages = ["EN"];
+
+    const { result } = renderHook(() => useCollectionCardData(params));
+
+    expect(result.current.selectableCopyIds.toSorted()).toEqual(["c-en-1", "c-en-2"]);
+  });
+
+  it("includes every owned copy in selectableCopyIds when no filter is active", () => {
+    const en = stubPrinting({ language: "EN" });
+    const zh = stubPrinting({ language: "ZH" });
+    mockStacks.mockReturnValue({
+      stacks: [
+        { printingId: en.id, printing: en, copyIds: ["c-en-1", "c-en-2"] },
+        { printingId: zh.id, printing: zh, copyIds: ["c-zh-1"] },
+      ],
+      totalCopies: 3,
+      isReady: true,
+    });
+
+    const { result } = renderHook(() => useCollectionCardData(baseParams()));
+
+    expect(result.current.selectableCopyIds.toSorted()).toEqual(["c-en-1", "c-en-2", "c-zh-1"]);
+  });
+
   it("reports ownedCountMax as the largest per-collection owned count", () => {
     const one = stubPrinting({ card: { slug: "one-card" } });
     const five = stubPrinting({ card: { slug: "five-card" } });
