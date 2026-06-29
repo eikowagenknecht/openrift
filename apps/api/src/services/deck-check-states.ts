@@ -195,6 +195,12 @@ export async function applyJudgeTransition(
         preEditLines: null,
         unlockRequestedAt: null,
       });
+      // Concluding a clean check verifies the whole list, so fill the found
+      // ticks to match (ADR-033). A flagged check leaves them as the judge left
+      // them — the issue is the point, and they may not have counted every copy.
+      if (input.reviewOutcome === "ok") {
+        await repos.deckCheck.markAllCopiesFound(entry.id);
+      }
       return updated ?? entry;
     }
 
@@ -260,7 +266,8 @@ export async function applyJudgeTransition(
         return updated ?? entry;
       }
       if (entry.state === "checked") {
-        // Re-open the check.
+        // Re-open the check; clear the found ticks so the re-check starts clean
+        // and a prior auto-fill (ADR-033) can't read as a fresh physical count.
         const updated = await repos.deckCheck.updateEntry(entry.id, {
           ...annotations,
           state: "submitted",
@@ -268,6 +275,7 @@ export async function applyJudgeTransition(
           checkedBy: null,
           checkedAt: null,
         });
+        await repos.deckCheck.clearAllCopiesFound(entry.id);
         return updated ?? entry;
       }
       // submitted → submitted: record an outcome in place (the rejection

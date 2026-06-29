@@ -49,14 +49,14 @@ export function PlayerDecksPage() {
   );
 }
 
-export function PlayerDeckRow({ entry }: { entry: PlayerDeckCheckEntrySummaryResponse }) {
+function PlayerDeckRow({ entry }: { entry: PlayerDeckCheckEntrySummaryResponse }) {
   const eventDate = entry.eventDate
     ? formatAbsoluteDate(entry.eventDate, { year: "numeric", month: "short", day: "numeric" })
     : null;
   const withdrawn = entry.state === "withdrawn";
   return (
     <Link
-      to="/tournament-decks/$entryId"
+      to="/tournaments/my-decks/$entryId"
       params={{ entryId: entry.id }}
       className="bg-card hover:bg-muted hover:text-foreground flex items-center gap-3 rounded-md border p-3 transition-colors"
     >
@@ -65,8 +65,7 @@ export function PlayerDeckRow({ entry }: { entry: PlayerDeckCheckEntrySummaryRes
           {entry.eventName}
         </span>
         <span className="text-muted-foreground truncate text-sm">
-          {entry.groupName}
-          {eventDate ? ` · ${eventDate}` : ""}
+          {[entry.groupName, eventDate].filter(Boolean).join(" · ")}
         </span>
       </div>
       {entry.playerMessage ? (

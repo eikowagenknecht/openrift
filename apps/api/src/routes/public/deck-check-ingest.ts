@@ -54,7 +54,12 @@ export const deckCheckIngestRouter = {
     }
 
     const result = await context.transact((repos) =>
-      ingestDeckCheckPush(repos, key.groupId, input, context.config.appBaseUrl),
+      ingestDeckCheckPush(
+        repos,
+        { hostType: key.hostType, hostUserId: key.hostUserId, hostOrgId: key.hostOrgId },
+        input,
+        context.config.appBaseUrl,
+      ),
     );
     await context.repos.deckCheck.touchKeyUsage(key.id);
 

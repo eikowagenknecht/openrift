@@ -1,30 +1,22 @@
-import type {
-  DeckCheckEntrySummaryResponse,
-  DeckCheckEventSummaryResponse,
-  FriendGroupDetailResponse,
-} from "@openrift/shared";
+import type { DeckCheckEntrySummaryResponse } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
-  ArchiveIcon,
-  ArchiveRestoreIcon,
-  CopyIcon,
-  Link2Icon,
-  PencilIcon,
-  RefreshCwIcon,
+  BanIcon,
+  CheckIcon,
+  EllipsisVerticalIcon,
+  PlusIcon,
+  RotateCcwIcon,
   Trash2Icon,
-  UserPlusIcon,
-  XIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { DeckCheckListSkeleton } from "@/components/deck-check/deck-check-skeletons";
-import { isAdmin } from "@/components/friend-groups/friend-group-shell";
-import { TopBarBreadcrumbBar } from "@/components/layout/top-bar-breadcrumb";
+import { SearchInput } from "@/components/filters/search-input";
+import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -33,23 +25,33 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import {
-  useCreateDeckCheckEntry,
-  useDeckCheckEvent,
-  useDeleteDeckCheckEvent,
-  useRegenerateDeckCheckSubmissionToken,
-  useReResolveDeckCheckEvent,
-  useUpdateDeckCheckEvent,
-} from "@/hooks/use-deck-check";
-import { useDeckFormatList, useZoneOrder } from "@/hooks/use-enums";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { useZoneOrder } from "@/hooks/use-enums";
+import {
+  useCreateTournamentDeckCheckEntry,
+  useDeleteTournamentDeckCheckEntry,
+  useSetTournamentDeckCheckEntryState,
+  useTournamentDeckCheckEntries,
+} from "@/hooks/use-tournament-deck-check";
+import { useTournamentParticipants } from "@/hooks/use-tournaments";
 import { parseManualDecklist } from "@/lib/deck-check-manual-entry";
-import { getSiteUrl } from "@/lib/site-config";
-import { cn, PAGE_PADDING } from "@/lib/utils";
+import { compareParticipantsForList, PARTICIPANT_STATUS_LABEL } from "@/lib/tournament-display";
 
 /** Actionable entries first: submissions to review, then drafts, then done. */
 const STATE_ORDER: Record<DeckCheckEntrySummaryResponse["state"], number> = {
@@ -61,38 +63,27 @@ const STATE_ORDER: Record<DeckCheckEntrySummaryResponse["state"], number> = {
 };
 
 /**
- * One event's entrant list: search, unchecked-first sort, live progress, and
- * the re-resolve / archive / delete actions. Polls so all judges share state.
- * @returns The entrant-list page content.
+ * The tournament's deck-check entrant list (ADR-033): search, unchecked-first
+ * sort, live progress, and the add-player action. Polls so all judges share
+ * state. Rendered inside the tournament's Deck check tab; the tournament page
+ * owns the title, so this is just the working area. Re-resolving unmatched
+ * cards lives on each deck's detail page, not this overview.
+ * @returns The entrant-list content.
  */
-export function DeckCheckEventPage({
-  slug,
-  eventId,
-  data,
+export function TournamentDeckCheckEntries({
+  tournamentId,
+  canManage,
 }: {
-  slug: string;
-  eventId: string;
-  data: FriendGroupDetailResponse;
+  tournamentId: string;
+  /** Host / organizer: may add players by hand. */
+  canManage: boolean;
 }) {
-  const { data: detail } = useDeckCheckEvent(slug, eventId);
+  const { data: detail } = useTournamentDeckCheckEntries(tournamentId);
   const [search, setSearch] = useState("");
-  const reResolve = useReResolveDeckCheckEvent();
-  const updateEvent = useUpdateDeckCheckEvent();
-  const deleteEvent = useDeleteDeckCheckEvent();
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [renameOpen, setRenameOpen] = useState(false);
-  const [addOpen, setAddOpen] = useState(false);
-  const navigate = useNavigate();
-  const { labels: formatLabels } = useDeckFormatList();
-  const admin = isAdmin(data.viewerRole);
 
   if (!detail) {
     return (
-      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-4", PAGE_PADDING)}>
-        <div className="flex flex-col gap-2">
-          <Skeleton className="h-6 w-56" />
-          <Skeleton className="h-4 w-72" />
-        </div>
+      <div className="flex flex-col gap-4">
         <Skeleton className="h-9 w-full max-w-xs" />
         <DeckCheckListSkeleton count={5} />
       </div>
@@ -100,11 +91,6 @@ export function DeckCheckEventPage({
   }
 
   const { event, entries } = detail;
-  const crumbs = [
-    { label: data.group.name, link: <Link to="/groups/$slug" params={{ slug }} /> },
-    { label: "Events", link: <Link to="/groups/$slug/events" params={{ slug }} /> },
-    { label: event.name },
-  ];
   const needle = search.trim().toLowerCase();
   const visible = entries
     .filter((entry) => !needle || entry.playerName.toLowerCase().includes(needle))
@@ -114,473 +100,246 @@ export function DeckCheckEventPage({
         STATE_ORDER[a.state] - STATE_ORDER[b.state] ||
         a.playerName.localeCompare(b.playerName),
     );
-  const hasUnresolved = entries.some((entry) => entry.unmatchedLineCount > 0);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <SearchInput
+          value={search}
+          onValueChange={setSearch}
+          placeholder="Search players"
+          ariaLabel="Search players"
+          className="w-full max-w-xs"
+        />
+        <p className="text-muted-foreground text-sm">
+          {`${event.approvedCount} approved · ${event.checkedCount} checked of ${event.entryCount}`}
+        </p>
+      </div>
+
+      {visible.length === 0 ? (
+        <p className="text-muted-foreground">
+          {entries.length === 0
+            ? "No decks yet. Add one by hand with “Add deck”, or they appear as soon as players submit or your organizer system pushes lists."
+            : "No players match the search."}
+        </p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {visible.map((entry) => (
+            <EntryRow
+              key={entry.id}
+              tournamentId={tournamentId}
+              entry={entry}
+              canManage={canManage}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The "Add deck" top-bar action for the tournament Deck check section: opens the
+ * manual-entry dialog. Lifted out of the entrant list so it lives in the page's
+ * top bar. Derives the taken-participant set from the entries query (one deck
+ * per participant). Render only for hosts / organizers.
+ * @returns The top-bar button and its dialog.
+ */
+export function TournamentDeckCheckAddButton({ tournamentId }: { tournamentId: string }) {
+  const { data: detail } = useTournamentDeckCheckEntries(tournamentId);
+  const [addOpen, setAddOpen] = useState(false);
+  const takenParticipantIds = new Set(
+    (detail?.entries ?? [])
+      .map((entry) => entry.participantId)
+      .filter((id): id is string => id !== null),
+  );
 
   return (
     <>
-      <TopBarBreadcrumbBar segments={crumbs} />
-      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-4", PAGE_PADDING)}>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex min-w-0 flex-col">
-            <div className="flex items-center gap-1">
-              <h2 className="truncate text-lg font-semibold">{event.name}</h2>
-              {admin ? (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  aria-label="Rename event"
-                  onClick={() => setRenameOpen(true)}
-                >
-                  <PencilIcon className="size-4" />
-                </Button>
-              ) : null}
-            </div>
-            <p className="text-muted-foreground text-sm">
-              {event.eventDate ?? "No date"}
-              {event.format ? ` · ${formatLabels[event.format]}` : ""}
-              {` · ${event.checkedCount} of ${event.entryCount} checked`}
-            </p>
-            {admin ? (
-              <button
-                type="button"
-                className="text-muted-foreground hover:text-foreground flex w-fit items-center gap-1 text-sm"
-                title="The id API pushes use to address this event"
-                onClick={async () => {
-                  await navigator.clipboard.writeText(event.id);
-                  toast.success("Event id copied");
-                }}
-              >
-                <code>{event.id}</code>
-                <CopyIcon className="size-3.5" />
-              </button>
-            ) : null}
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              disabled={event.status === "archived"}
-              title={
-                event.status === "archived"
-                  ? "Un-archive the event to add entrants"
-                  : "Add a player and decklist by hand"
-              }
-              onClick={() => setAddOpen(true)}
-            >
-              <UserPlusIcon className="size-4" />
-              Add player
-            </Button>
-            {hasUnresolved ? (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={reResolve.isPending}
-                onClick={async () => {
-                  const result = await reResolve.mutateAsync({ slug, eventId });
-                  toast.info(
-                    result.updatedLines === 0
-                      ? "No new matches found"
-                      : `${result.updatedLines} ${result.updatedLines === 1 ? "line" : "lines"} now resolve`,
-                  );
-                }}
-              >
-                <RefreshCwIcon className="size-4" />
-                Re-resolve cards
-              </Button>
-            ) : null}
-            {admin ? (
-              <>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={updateEvent.isPending}
-                  onClick={() =>
-                    updateEvent.mutate({
-                      slug,
-                      eventId,
-                      status: event.status === "archived" ? "active" : "archived",
-                    })
-                  }
-                >
-                  {event.status === "archived" ? (
-                    <ArchiveRestoreIcon className="size-4" />
-                  ) : (
-                    <ArchiveIcon className="size-4" />
-                  )}
-                  {event.status === "archived" ? "Un-archive" : "Archive"}
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setDeleteOpen(true)}>
-                  <Trash2Icon className="text-destructive size-4" />
-                </Button>
-              </>
-            ) : null}
-          </div>
-        </div>
-
-        {event.status === "archived" ? (
-          <p className="text-muted-foreground bg-muted rounded-md p-2 text-sm">
-            This event is archived. Pushes from the organizer system are rejected until it is
-            un-archived.
-          </p>
-        ) : null}
-
-        {admin ? <SubmissionSettingsSection slug={slug} eventId={eventId} event={event} /> : null}
-
-        <Input
-          value={search}
-          onChange={(event_) => setSearch(event_.target.value)}
-          placeholder="Search players"
-          className="max-w-xs"
-        />
-
-        {visible.length === 0 ? (
-          <p className="text-muted-foreground">
-            {entries.length === 0
-              ? "No entrants yet. Add one by hand with “Add player”, or they appear as soon as your organizer system pushes lists."
-              : "No players match the search."}
-          </p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {visible.map((entry) => (
-              <EntryRow key={entry.id} slug={slug} eventId={eventId} entry={entry} />
-            ))}
-          </div>
-        )}
-
-        {admin ? (
-          <RenameEventDialog
-            slug={slug}
-            eventId={eventId}
-            currentName={event.name}
-            open={renameOpen}
-            onOpenChange={setRenameOpen}
-          />
-        ) : null}
-
-        <AddManualEntryDialog
-          slug={slug}
-          eventId={eventId}
-          open={addOpen}
-          onOpenChange={setAddOpen}
-        />
-
-        <ConfirmActionDialog
-          open={deleteOpen}
-          onOpenChange={setDeleteOpen}
-          title="Delete this event?"
-          description="All entrant lists and check results are removed. This cannot be undone."
-          confirmLabel="Delete"
-          pendingLabel="Deleting..."
-          isPending={deleteEvent.isPending}
-          onConfirm={async () => {
-            await deleteEvent.mutateAsync({ slug, eventId });
-            setDeleteOpen(false);
-            void navigate({ to: "/groups/$slug/events", params: { slug } });
-          }}
-        />
-      </div>
+      <PageTopBarPrimaryButton
+        title="Attach a decklist to a participant by hand"
+        onClick={() => setAddOpen(true)}
+      >
+        <PlusIcon />
+        Add deck
+      </PageTopBarPrimaryButton>
+      <AddDeckDialog
+        tournamentId={tournamentId}
+        takenParticipantIds={takenParticipantIds}
+        open={addOpen}
+        onOpenChange={setAddOpen}
+      />
     </>
   );
 }
 
 /**
- * Splits an ISO timestamp into the local date and time input values.
- * @returns The local `YYYY-MM-DD` date and `HH:mm` time, empty when unset.
+ * A compact physical-check progress chip for an entry row: the verified-over-total
+ * copy count, tinted by completeness — green once every copy is ticked, amber while
+ * a check is under way, muted before any copy is found. Hidden for an entry with no
+ * cards (nothing to check).
+ * @returns The progress chip, or null when there are no copies.
  */
-function toLocalDateTimeParts(iso: string | null): { date: string; time: string } {
-  if (!iso) {
-    return { date: "", time: "" };
+function CheckedProgressChip({ verified, total }: { verified: number; total: number }) {
+  if (total === 0) {
+    return null;
   }
-  const value = new Date(iso);
-  const pad = (part: number) => String(part).padStart(2, "0");
-  return {
-    date: `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`,
-    time: `${pad(value.getHours())}:${pad(value.getMinutes())}`,
-  };
-}
-
-/**
- * Current wall-clock time in the browser's timezone, trimmed to minutes and
- * tagged with the IANA zone, to sit beside the close-time input (which is also
- * local) for a direct, unambiguous compare.
- * @returns E.g. `2026-06-20 18:00 Europe/Berlin`.
- */
-function localNowMinutes(): string {
-  const parts = toLocalDateTimeParts(new Date().toISOString());
-  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return `${parts.date} ${parts.time} ${zone}`;
-}
-
-/**
- * Validates a typed 24h time. A plain text field instead of
- * `<input type="time">`, because the native control renders in the OS clock
- * format (12h with AM/PM on many machines) and the app is 24h everywhere.
- * @returns True for `H:mm` / `HH:mm` within 00:00-23:59.
- */
-function isValidTime(value: string): boolean {
-  const match = /^(?<hours>\d{1,2}):(?<minutes>\d{2})$/u.exec(value);
-  if (!match?.groups) {
-    return false;
-  }
-  return Number(match.groups.hours) <= 23 && Number(match.groups.minutes) <= 59;
-}
-
-/**
- * Zero-pads a valid time for ISO composition (`9:30` → `09:30`).
- * @returns The padded `HH:mm` string.
- */
-function padTime(value: string): string {
-  const [hours = "0", minutes = "00"] = value.split(":");
-  return `${hours.padStart(2, "0")}:${minutes}`;
-}
-
-/**
- * Per-event player-submission settings (admin+, ADR-026): the opt-in toggle,
- * the shareable submission link, and the optional close date. The link is a
- * capability; regenerating it cuts off the old one.
- * @returns The settings block.
- */
-function SubmissionSettingsSection({
-  slug,
-  eventId,
-  event,
-}: {
-  slug: string;
-  eventId: string;
-  event: DeckCheckEventSummaryResponse;
-}) {
-  const updateEvent = useUpdateDeckCheckEvent();
-  const regenerate = useRegenerateDeckCheckSubmissionToken();
-  const [regenerateOpen, setRegenerateOpen] = useState(false);
-  const stored = toLocalDateTimeParts(event.submissionsCloseAt);
-  const [closeDate, setCloseDate] = useState(stored.date);
-  const [closeTime, setCloseTime] = useState(stored.time);
-  const [closeAtDirty, setCloseAtDirty] = useState(false);
-
-  const submitUrl = event.submissionToken
-    ? `${getSiteUrl()}/tournament-submit/${event.submissionToken}`
-    : null;
-  const dateValue = closeAtDirty ? closeDate : stored.date;
-  const timeValue = closeAtDirty ? closeTime : stored.time;
-
+  const done = verified === total;
   return (
-    <section className="bg-card flex flex-col gap-3 rounded-md border p-3">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex flex-col">
-          <Label htmlFor="allow-self-submission">Player submissions</Label>
-          <p className="text-muted-foreground text-sm">
-            Allow players to submit their decks for this event via OpenRift.
-          </p>
-        </div>
-        <Switch
-          id="allow-self-submission"
-          checked={event.allowSelfSubmission}
-          disabled={updateEvent.isPending}
-          onCheckedChange={(checked) =>
-            updateEvent.mutate({ slug, eventId, allowSelfSubmission: checked })
-          }
-        />
-      </div>
-      {event.allowSelfSubmission && submitUrl ? (
-        <>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              className="text-muted-foreground hover:text-foreground flex min-w-0 items-center gap-1 text-sm"
-              title="Copy the submission link players use"
-              onClick={async () => {
-                await navigator.clipboard.writeText(submitUrl);
-                toast.success("Submission link copied");
-              }}
-            >
-              <code className="truncate">{submitUrl}</code>
-              <CopyIcon className="size-3.5 shrink-0" />
-            </button>
-            <Button size="sm" variant="destructive" onClick={() => setRegenerateOpen(true)}>
-              <RefreshCwIcon className="size-4" />
-              New link
-            </Button>
-            <ConfirmActionDialog
-              open={regenerateOpen}
-              onOpenChange={setRegenerateOpen}
-              title="Create a new submission link?"
-              description="The current link stops working immediately. Players holding the old link can no longer open it; share the new one with them."
-              confirmLabel="Create new link"
-              pendingLabel="Creating..."
-              isPending={regenerate.isPending}
-              onConfirm={async () => {
-                await regenerate.mutateAsync({ slug, eventId });
-                setRegenerateOpen(false);
-                toast.success("New link created; the old one no longer works");
-              }}
-            />
-          </div>
-          <div className="flex flex-wrap items-end gap-2">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="submissions-close-date">Submissions close (optional)</Label>
-              <div className="flex items-center gap-2">
-                <DatePicker
-                  value={dateValue || null}
-                  onChange={(iso) => {
-                    setCloseDate(iso);
-                    setCloseTime(timeValue || "23:59");
-                    setCloseAtDirty(true);
-                  }}
-                  onClear={() => {
-                    setCloseDate("");
-                    setCloseTime("");
-                    setCloseAtDirty(true);
-                  }}
-                  className="w-40"
-                />
-                <Input
-                  id="submissions-close-date"
-                  value={timeValue}
-                  disabled={!dateValue}
-                  placeholder="23:59"
-                  maxLength={5}
-                  aria-label="Close time (24h)"
-                  aria-invalid={Boolean(dateValue) && !isValidTime(timeValue || "23:59")}
-                  onChange={(inputEvent) => {
-                    setCloseTime(inputEvent.target.value);
-                    setCloseAtDirty(true);
-                  }}
-                  className="w-20"
-                />
-                {dateValue ? (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Reset close date"
-                    title="Clear the close date"
-                    disabled={updateEvent.isPending}
-                    onClick={() => {
-                      setCloseDate("");
-                      setCloseTime("");
-                      setCloseAtDirty(false);
-                      updateEvent.mutate({ slug, eventId, submissionsCloseAt: null });
-                    }}
-                  >
-                    <XIcon className="size-4" />
-                  </Button>
-                ) : null}
-                <span className="text-muted-foreground text-sm">
-                  Current time is <code>{localNowMinutes()}</code>
-                </span>
-              </div>
-            </div>
-            {closeAtDirty ? (
-              <Button
-                variant="outline"
-                disabled={
-                  updateEvent.isPending ||
-                  (Boolean(closeDate) && !isValidTime(closeTime || "23:59"))
-                }
-                onClick={() => {
-                  updateEvent.mutate(
-                    {
-                      slug,
-                      eventId,
-                      submissionsCloseAt: closeDate
-                        ? new Date(`${closeDate}T${padTime(closeTime || "23:59")}`).toISOString()
-                        : null,
-                    },
-                    { onSuccess: () => setCloseAtDirty(false) },
-                  );
-                }}
-              >
-                Save
-              </Button>
-            ) : null}
-          </div>
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex flex-col">
-              <Label htmlFor="list-lock-mode">Edits after submission</Label>
-              <p className="text-muted-foreground text-sm">
-                Allow players to edit their decks for this event after submitting them (not legal in
-                official Riot tournaments). If disabled, edits can only be made through judges.
-              </p>
-            </div>
-            <Switch
-              id="list-lock-mode"
-              checked={event.listLockMode === "at_deadline"}
-              disabled={updateEvent.isPending}
-              onCheckedChange={(checked) =>
-                updateEvent.mutate({
-                  slug,
-                  eventId,
-                  listLockMode: checked ? "at_deadline" : "on_submit",
-                })
-              }
-            />
-          </div>
-        </>
-      ) : null}
-    </section>
+    <Badge
+      variant={done ? "success" : verified > 0 ? "warning" : "muted"}
+      className="tabular-nums"
+      title={`${verified} of ${total} cards checked`}
+    >
+      {done ? <CheckIcon /> : null}
+      {verified} / {total}
+    </Badge>
   );
 }
 
 function EntryRow({
-  slug,
-  eventId,
+  tournamentId,
+  entry,
+  canManage,
+}: {
+  tournamentId: string;
+  entry: DeckCheckEntrySummaryResponse;
+  /** Host / organizer: gets the row's withdraw / restore / delete menu. */
+  canManage: boolean;
+}) {
+  // The owning participant has left the event: flag the deck so a judge isn't
+  // checking a list for someone who is out (ADR-033). The deck entry itself is
+  // untouched — drop and the entry's own withdrawn state stay independent.
+  const participantInactive =
+    entry.participantStatus === "dropped" || entry.participantStatus === "no_show";
+  return (
+    <div className="bg-card hover:bg-muted hover:text-foreground flex items-center gap-3 rounded-md border p-3 transition-colors">
+      <Link
+        to="/tournaments/$id/decks/$entryId"
+        params={{ id: tournamentId, entryId: entry.id }}
+        className={`flex min-w-0 flex-1 items-center gap-2 ${participantInactive ? "opacity-60" : ""}`}
+      >
+        <span className="flex min-w-0 flex-1 items-center gap-2">
+          <span
+            className={`min-w-0 truncate font-medium ${entry.state === "withdrawn" ? "line-through" : ""}`}
+          >
+            {entry.playerName}
+          </span>
+          {entry.source === "api" ? (
+            <Badge variant="outline" title="Submitted by the organizer system">
+              API
+            </Badge>
+          ) : null}
+          {entry.source === "self" ? (
+            <Badge variant="outline" title="Submitted by the player through OpenRift">
+              Self
+            </Badge>
+          ) : null}
+        </span>
+        {entry.state === "editable" ? null : (
+          <CheckedProgressChip verified={entry.verifiedCopyCount} total={entry.copyCount} />
+        )}
+        {entry.unlockRequestedAt ? (
+          <Badge variant="destructive" title="The player asked to unlock this approved deck">
+            Unlock requested
+          </Badge>
+        ) : null}
+        {entry.changedSinceReview ? (
+          <Badge variant="destructive">Changed since review</Badge>
+        ) : null}
+        {entry.unmatchedLineCount > 0 ? (
+          <Badge variant="secondary">{entry.unmatchedLineCount} unmatched</Badge>
+        ) : null}
+        {participantInactive && entry.participantStatus ? (
+          <Badge
+            variant="outline"
+            className="text-muted-foreground"
+            title="This player has left the tournament. Their deck is kept"
+          >
+            {PARTICIPANT_STATUS_LABEL[entry.participantStatus]}
+          </Badge>
+        ) : (
+          <EntryStateBadge state={entry.state} reviewOutcome={entry.reviewOutcome} />
+        )}
+      </Link>
+      {canManage ? <EntryRowMenu tournamentId={tournamentId} entry={entry} /> : null}
+    </div>
+  );
+}
+
+/**
+ * The per-row overflow menu: withdraw a live entry (or restore a withdrawn one)
+ * and delete it outright, mirroring the controls on the entry detail page so a
+ * host need not open each deck to manage it. Delete is confirmed because it
+ * destroys the list and check history; withdraw is reversible, so it fires
+ * directly. The list query is invalidated by the mutations, so the row updates
+ * or drops in place.
+ * @returns The entry's actions menu.
+ */
+function EntryRowMenu({
+  tournamentId,
   entry,
 }: {
-  slug: string;
-  eventId: string;
+  tournamentId: string;
   entry: DeckCheckEntrySummaryResponse;
 }) {
+  const setState = useSetTournamentDeckCheckEntryState();
+  const deleteEntry = useDeleteTournamentDeckCheckEntry();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
   return (
-    <Link
-      to="/groups/$slug/events/$eventId/$entryId"
-      params={{ slug, eventId, entryId: entry.id }}
-      className="bg-card hover:bg-muted hover:text-foreground flex items-center gap-3 rounded-md border p-3 transition-colors"
-    >
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span
-          className={`truncate font-medium ${entry.state === "withdrawn" ? "line-through" : ""}`}
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button size="sm" variant="ghost" aria-label={`Actions for ${entry.playerName}`} />
+          }
         >
-          {entry.playerName}
-        </span>
-        <span className="text-muted-foreground text-sm">
-          {entry.state === "editable"
-            ? "List hidden while the player edits"
-            : `${entry.verifiedCopyCount} / ${entry.copyCount} cards checked`}
-          {entry.state === "checked" && entry.checkedByName
-            ? ` · checked by ${entry.checkedByName}`
-            : entry.state === "approved" && entry.approvedByName
-              ? ` · approved by ${entry.approvedByName}`
-              : ""}
-        </span>
-      </div>
-      {entry.source === "api" ? (
-        <Badge variant="outline" title="Submitted by the organizer system">
-          API
-        </Badge>
-      ) : null}
-      {entry.source === "self" ? (
-        <Badge variant="outline" title="Submitted by the player through OpenRift">
-          Self
-        </Badge>
-      ) : null}
-      {entry.claimedUserName ? (
-        <Badge
-          variant="outline"
-          title={`Linked to the OpenRift account of ${entry.claimedUserName}`}
-        >
-          <Link2Icon className="size-3" />
-          Linked
-        </Badge>
-      ) : null}
-      {entry.unlockRequestedAt ? (
-        <Badge variant="destructive" title="The player asked to unlock this approved deck">
-          Unlock requested
-        </Badge>
-      ) : null}
-      {entry.changedSinceReview ? <Badge variant="destructive">Changed since review</Badge> : null}
-      {entry.unmatchedLineCount > 0 ? (
-        <Badge variant="secondary">{entry.unmatchedLineCount} unmatched</Badge>
-      ) : null}
-      <EntryStateBadge state={entry.state} reviewOutcome={entry.reviewOutcome} />
-    </Link>
+          <EllipsisVerticalIcon className="size-4" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {entry.state === "withdrawn" ? (
+            <DropdownMenuItem
+              disabled={setState.isPending}
+              onClick={() =>
+                setState.mutate({ tournamentId, entryId: entry.id, state: "submitted" })
+              }
+            >
+              <RotateCcwIcon className="size-4" />
+              Restore entry
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem
+              disabled={setState.isPending}
+              onClick={() =>
+                setState.mutate({ tournamentId, entryId: entry.id, state: "withdrawn" })
+              }
+            >
+              <BanIcon className="size-4" />
+              Withdraw
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
+            <Trash2Icon className="size-4" />
+            Delete entry
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <ConfirmActionDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete this entry?"
+        description="The player's list and check history are removed. This cannot be undone — withdraw the entry instead if they only dropped out."
+        confirmLabel="Delete"
+        pendingLabel="Deleting..."
+        isPending={deleteEntry.isPending}
+        onConfirm={async () => {
+          await deleteEntry.mutateAsync({ tournamentId, entryId: entry.id });
+          setDeleteOpen(false);
+        }}
+      />
+    </>
   );
 }
 
@@ -614,87 +373,38 @@ export function EntryStateBadge({
   );
 }
 
-function RenameEventDialog({
-  slug,
-  eventId,
-  currentName,
+function AddDeckDialog({
+  tournamentId,
+  takenParticipantIds,
   open,
   onOpenChange,
 }: {
-  slug: string;
-  eventId: string;
-  currentName: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const [name, setName] = useState(currentName);
-  const updateEvent = useUpdateDeckCheckEvent();
-
-  const handleRename = async () => {
-    const trimmed = name.trim();
-    if (!trimmed || trimmed === currentName) {
-      onOpenChange(false);
-      return;
-    }
-    await updateEvent.mutateAsync({ slug, eventId, name: trimmed });
-    onOpenChange(false);
-  };
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(nextOpen) => {
-        if (nextOpen) {
-          setName(currentName);
-        }
-        onOpenChange(nextOpen);
-      }}
-    >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Rename event</DialogTitle>
-        </DialogHeader>
-        <Input
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              void handleRename();
-            }
-          }}
-          maxLength={120}
-        />
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleRename} disabled={updateEvent.isPending || !name.trim()}>
-            {updateEvent.isPending ? "Saving..." : "Save"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function AddManualEntryDialog({
-  slug,
-  eventId,
-  open,
-  onOpenChange,
-}: {
-  slug: string;
-  eventId: string;
+  tournamentId: string;
+  takenParticipantIds: Set<string>;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   const { zoneLabels } = useZoneOrder();
   const navigate = useNavigate();
-  const createEntry = useCreateDeckCheckEntry();
-  const [playerName, setPlayerName] = useState("");
-  const [playerEmail, setPlayerEmail] = useState("");
-  const [riotId, setRiotId] = useState("");
+  const createEntry = useCreateTournamentDeckCheckEntry();
+  const { data: participants } = useTournamentParticipants(tournamentId);
+  const [participantId, setParticipantId] = useState("");
   const [decklist, setDecklist] = useState("");
+
+  // A deck attaches to someone already on the roster who is still playing and
+  // doesn't have a deck yet (one deck per participant). If they're not on the
+  // roster, add them on the Participants tab first.
+  const available = participants.items
+    .filter(
+      (participant) =>
+        (participant.status === "active" || participant.status === "invited") &&
+        !takenParticipantIds.has(participant.id),
+    )
+    .toSorted(compareParticipantsForList);
+  const rosterItems = available.map((participant) => ({
+    value: participant.id,
+    label: `${participant.displayName} (${PARTICIPANT_STATUS_LABEL[participant.status]})`,
+  }));
 
   const parsed = parseManualDecklist(decklist);
   const perZone = [...Map.groupBy(parsed.cards, (card) => card.section).entries()].map(
@@ -705,31 +415,26 @@ function AddManualEntryDialog({
   );
 
   const reset = () => {
-    setPlayerName("");
-    setPlayerEmail("");
-    setRiotId("");
+    setParticipantId("");
     setDecklist("");
   };
 
   const handleSubmit = async () => {
-    const trimmedName = playerName.trim();
-    if (!trimmedName) {
+    if (!participantId) {
       return;
     }
     const detail = await createEntry.mutateAsync({
-      slug,
-      eventId,
-      playerName: trimmedName,
-      playerEmail: playerEmail.trim() || null,
-      riotId: riotId.trim() || null,
+      tournamentId,
+      participantId,
       cards: parsed.cards,
     });
-    toast.success("Player added");
+    toast.success("Deck added");
     reset();
     onOpenChange(false);
     void navigate({
-      to: "/groups/$slug/events/$eventId/$entryId",
-      params: { slug, eventId, entryId: detail.entry.id },
+      to: "/tournaments/$id",
+      params: { id: tournamentId },
+      search: { tab: "decks", entry: detail.entry.id },
     });
   };
 
@@ -745,42 +450,37 @@ function AddManualEntryDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add player</DialogTitle>
+          <DialogTitle>Add a deck</DialogTitle>
           <DialogDescription>
-            Enter an entrant by hand when the organizer system cannot push their list.
+            Attach a decklist to someone on the roster. Add people on the Participants tab first.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="manual-entry-name">Player name</Label>
-            <Input
-              id="manual-entry-name"
-              value={playerName}
-              onChange={(event) => setPlayerName(event.target.value)}
-              maxLength={120}
-              placeholder="Jane Summoner"
-            />
-          </div>
-          <div className="flex gap-3">
-            <div className="flex flex-1 flex-col gap-1.5">
-              <Label htmlFor="manual-entry-email">Email (optional)</Label>
-              <Input
-                id="manual-entry-email"
-                value={playerEmail}
-                onChange={(event) => setPlayerEmail(event.target.value)}
-                maxLength={254}
-              />
-            </div>
-            <div className="flex flex-1 flex-col gap-1.5">
-              <Label htmlFor="manual-entry-riot-id">Riot ID (optional)</Label>
-              <Input
-                id="manual-entry-riot-id"
-                value={riotId}
-                onChange={(event) => setRiotId(event.target.value)}
-                maxLength={120}
-                placeholder="Player#EUW"
-              />
-            </div>
+            <Label>Participant</Label>
+            {rosterItems.length === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                No participants without a deck. Add them on the Participants tab, then attach a deck
+                here.
+              </p>
+            ) : (
+              <Select
+                items={rosterItems}
+                value={participantId}
+                onValueChange={(value) => value && setParticipantId(value)}
+              >
+                <SelectTrigger aria-label="Participant">
+                  <SelectValue placeholder="Choose a participant" />
+                </SelectTrigger>
+                <SelectContent>
+                  {rosterItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="manual-entry-decklist">Decklist</Label>
@@ -820,8 +520,8 @@ function AddManualEntryDialog({
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={createEntry.isPending || !playerName.trim()}>
-            {createEntry.isPending ? "Adding..." : "Add player"}
+          <Button onClick={handleSubmit} disabled={createEntry.isPending || !participantId}>
+            {createEntry.isPending ? "Adding..." : "Add deck"}
           </Button>
         </DialogFooter>
       </DialogContent>

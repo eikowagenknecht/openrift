@@ -33,6 +33,7 @@ import { adminLanguagesRouter } from "../routes/admin/languages.js";
 import { adminMarkersRouter } from "../routes/admin/markers.js";
 import { adminMarketplaceGroupsRouter } from "../routes/admin/marketplace-groups.js";
 import { adminOperationsRouter } from "../routes/admin/operations.js";
+import { adminOrganizationsRouter } from "../routes/admin/organizations.js";
 import { adminPrintingEventsRouter } from "../routes/admin/printing-events.js";
 import { adminProviderSettingsRouter } from "../routes/admin/provider-settings.js";
 import { adminRaritiesRouter } from "../routes/admin/rarities.js";
@@ -50,13 +51,15 @@ import { collectionValueHistoryRouter } from "../routes/authenticated/collection
 import { collectionsRouter } from "../routes/authenticated/collections.js";
 import { contactMethodsRouter } from "../routes/authenticated/contact-methods.js";
 import { copiesRouter } from "../routes/authenticated/copies.js";
+import { deckCheckKeysRouter } from "../routes/authenticated/deck-check-keys.js";
 import { deckCheckPlayerRouter } from "../routes/authenticated/deck-check-player.js";
-import { deckCheckRouter } from "../routes/authenticated/deck-check.js";
 import { decksRouter } from "../routes/authenticated/decks.js";
 import { friendGroupsRouter } from "../routes/authenticated/friend-groups.js";
 import { listsRouter } from "../routes/authenticated/lists.js";
-import { podTournamentsRouter } from "../routes/authenticated/pod-tournaments.js";
+import { organizationsRouter } from "../routes/authenticated/organizations.js";
 import { preferencesRouter } from "../routes/authenticated/preferences.js";
+import { tournamentDeckCheckRouter } from "../routes/authenticated/tournament-deck-check.js";
+import { tournamentsRouter } from "../routes/authenticated/tournaments.js";
 import { userShareRouter } from "../routes/authenticated/user-share.js";
 import { cardsRouter } from "../routes/public/cards.js";
 import { catalogRouter } from "../routes/public/catalog.js";
@@ -75,6 +78,7 @@ import { rulesRouter } from "../routes/public/rules.js";
 import { setsRouter } from "../routes/public/sets.js";
 import { siteSettingsRouter } from "../routes/public/site-settings.js";
 import { sitemapRouter } from "../routes/public/sitemap.js";
+import { publicTournamentsRouter } from "../routes/public/tournaments.js";
 import { unsubscribeRouter } from "../routes/public/unsubscribe.js";
 import { publicUserShareRouter } from "../routes/public/user-share.js";
 import { cacheControlInterceptor } from "./cache-control-interceptor.js";
@@ -113,6 +117,7 @@ const apiRouter = {
   adminMarkersRouter,
   adminMarketplaceGroupsRouter,
   adminOperationsRouter,
+  adminOrganizationsRouter,
   adminPrintingEventsRouter,
   adminProviderSettingsRouter,
   adminRaritiesRouter,
@@ -130,13 +135,15 @@ const apiRouter = {
   collectionsRouter,
   contactMethodsRouter,
   copiesRouter,
+  deckCheckKeysRouter,
   deckCheckPlayerRouter,
-  deckCheckRouter,
   decksRouter,
   friendGroupsRouter,
   listsRouter,
-  podTournamentsRouter,
+  organizationsRouter,
   preferencesRouter,
+  tournamentDeckCheckRouter,
+  tournamentsRouter,
   userShareRouter,
   cardsRouter,
   catalogRouter,
@@ -155,6 +162,7 @@ const apiRouter = {
   setsRouter,
   siteSettingsRouter,
   sitemapRouter,
+  publicTournamentsRouter,
   unsubscribeRouter,
   publicUserShareRouter,
 };

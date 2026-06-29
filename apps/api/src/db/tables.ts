@@ -1,10 +1,7 @@
 import type {
   DeckCheckCardLine,
   DeckCheckChangeSummary,
-  DeckCheckClaimSource,
   DeckCheckEntryState,
-  DeckCheckEventStatus,
-  DeckCheckListLockMode,
   DeckCheckMatchStatus,
   DeckCheckReviewOutcome,
   PodPenaltyBreakdown,
@@ -21,12 +18,20 @@ import type {
   Finish,
   ListIntent,
   ListKind,
+  OrganizationRole,
   PodPlayerStatus,
   PodResultStatus,
   PodRoundStatus,
   PodScoringScheme,
   PodTournamentStatus,
   Rarity,
+  TournamentClaimSource,
+  TournamentDeckPhase,
+  TournamentDeckSubmission,
+  TournamentHostType,
+  TournamentListLockMode,
+  TournamentPairingStyle,
+  TournamentStaffRole,
   UserPreferencesResponse,
 } from "@openrift/shared/types";
 import type { ColumnType, Generated } from "kysely";
@@ -540,7 +545,8 @@ export interface ListEntriesTable {
 
 // ─── Friend groups (migration 134, ADR-013) ──────────────────────────────────
 
-export type FriendGroupRole = "owner" | "admin" | "judge" | "member";
+// ADR-033 retired the `judge` role: judging now lives in tournament_staff.
+export type FriendGroupRole = "owner" | "admin" | "member";
 export type FriendGroupInviteDirection = "invite" | "request";
 
 export interface FriendGroupsTable {
@@ -607,36 +613,132 @@ export interface FriendGroupCollectionSharesTable {
   sharedAt: ColumnType<Date, Date | undefined, Date>;
 }
 
-// ─── Pod tournaments (migration 145, ADR-022) ────────────────────────────────
-// Lean model: pod_players carries no aggregate columns and there is no
-// pod_opponents table. Score, pod tallies, rounds played, and opponent counts
-// are derived on read from finalized rounds (the result rows are the single
-// source of truth). Stored: raw facts (placement) and write-once engine outputs.
+// ─── Organizations (migration 166, ADR-033) ──────────────────────────────────
+// A first-class tournament host alongside users (a local game store, a league).
+// Admin-provisioned. `organization_members` carries org-level authority; both
+// `owner` and `manager` are implicit organizers on every tournament the org hosts.
 
-export interface PodTournamentsTable {
+export interface OrganizationsTable {
   id: Generated<string>;
-  ownerUserId: string;
+  /** CHECK: ^[a-z0-9][a-z0-9-]{2,49}$; UNIQUE */
+  slug: string;
   /** CHECK: length 1..120 */
   name: string;
-  status: Generated<PodTournamentStatus>;
-  currentRound: Generated<number>;
-  scoringScheme: Generated<PodScoringScheme>;
-  /** Score points a sat-out (bye) game is worth; CHECK >= 0. Defaults to 3. */
-  byePoints: Generated<number>;
-  /** Nullable disables the participant report link; unique where not null. */
-  reportToken: string | null;
+  /** CHECK: NULL or length <= 4000 */
+  description: string | null;
+  ownerUserId: string;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
 
-export interface PodPlayersTable {
+export interface OrganizationMembersTable {
+  orgId: string;
+  userId: string;
+  /** CHECK: 'owner' | 'manager' (both inherit organizer authority). */
+  role: OrganizationRole;
+  joinedAt: CreatedAt;
+}
+
+// ─── Tournaments umbrella (migration 145 as pod_tournaments, renamed 167) ─────
+// ADR-033: one entity composing any subset of {pairing engine, deck submission,
+// deck check, judges} under a user or organization host, optionally linked to a
+// friend group. The pairing module keeps ADR-022's lean derive-on-read model:
+// pod_players carries no aggregate columns and there is no pod_opponents table;
+// score, pod tallies, rounds played, and opponent counts are derived on read
+// from finalized rounds. Stored: raw facts (placement) and write-once outputs.
+
+export interface TournamentsTable {
+  id: Generated<string>;
+
+  // Host: exactly one of user / organization (CHECK chk_tournaments_host).
+  hostType: TournamentHostType;
+  hostUserId: string | null;
+  hostOrgId: string | null;
+
+  /** Optional friend-group association — visibility only, NOT ownership. */
+  groupId: string | null;
+
+  /** CHECK: length 1..120 */
+  name: string;
+  // CHECK permits 'cancelled' too (ADR-033); the TS type widens to
+  // TournamentStatus in Phase 4 when the unified UI handles cancellation.
+  status: Generated<PodTournamentStatus>;
+  /** When the tournament takes place. Defaults to now() for non-wizard create paths. */
+  startsAt: Generated<Date>;
+  /** Optional end instant: a set value pins a multi-day close or an early finish. */
+  endsAt: Date | null;
+
+  // The pairing engine. 'none' = no rounds; 'pod' = pod rounds.
+  pairingStyle: Generated<TournamentPairingStyle>;
+  currentRound: Generated<number>;
+  scoringScheme: Generated<PodScoringScheme>;
+  /** Score points a sat-out (bye) game is worth; CHECK >= 0. Defaults to 3. */
+  byePoints: Generated<number>;
+
+  // Deck-submission module (submission always produces a full deck-check entry).
+  deckSubmission: Generated<TournamentDeckSubmission>;
+
+  // Deck phase, orthogonal to status; drives submissions, not pairing.
+  deckPhase: Generated<TournamentDeckPhase>;
+  submissionsCloseAt: Date | null;
+  listLockMode: Generated<TournamentListLockMode>;
+  /** Deck-legality format (a deck_formats slug) — NOT the pairing `format`. */
+  deckFormat: string | null;
+  /** Set codes for set-legality flagging; written pre-stringified, read defensively. */
+  allowedSets: ColumnType<string[] | null, string | null, string | null>;
+  selfRegistration: Generated<boolean>;
+
+  // Tokens (distinct capabilities).
+  /** Pod follow-along + result entry (ADR-022). Unique where not null. */
+  reportToken: string | null;
+  /** Open self-submission / registration link. Unique where not null. */
+  submissionToken: string | null;
+  /** Reusable staff-invite link that grants `organizer`. Unique where not null. */
+  organizerInviteToken: string | null;
+  /** Reusable staff-invite link that grants `judge`. Unique where not null. */
+  judgeInviteToken: string | null;
+
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+// Per-tournament staff, decoupled from friend-group roles. Not exported: only
+// the Database interface references it; no module derives a Selectable<> here.
+interface TournamentStaffTable {
+  tournamentId: string;
+  userId: string;
+  /** CHECK: 'organizer' | 'judge' */
+  role: TournamentStaffRole;
+  addedAt: CreatedAt;
+}
+
+// Unified participant (ADR-033): walk-in name → invited/claimable email →
+// linked account. Replaces pod_players and the identity half of
+// deck_check_entries. Pairing reads only id/status; the identity + claim columns
+// are dormant for a plain pod tournament.
+export interface TournamentParticipantsTable {
   id: Generated<string>;
   tournamentId: string;
-  /** CHECK: length 1..80 */
+  /** Nullable linked account; UNIQUE per (tournamentId, userId) where not null. */
+  userId: string | null;
+  /** CHECK: length 1..120 */
   displayName: string;
+  /** CHECK: NULL or length <= 120 */
+  riotId: string | null;
+  // CHECK permits the full participant lifecycle (requested/invited/active/
+  // dropped/no_show); the TS type widens to TournamentParticipantStatus in a
+  // later phase when those states are produced by the umbrella surfaces.
   status: Generated<PodPlayerStatus>;
   /** Round number after which the player was dropped; NULL while active. */
   droppedAfterRound: number | null;
+  seed: number | null;
+  /** Claim machinery, lifted from deck_check_entries. */
+  claimSource: TournamentClaimSource | null;
+  /** UNIQUE where not null; resolves a claim link to one participant. */
+  claimToken: string | null;
+  claimedAt: Date | null;
+  /** Unlink tombstone: blocks auto-match after a host unlink. */
+  claimBlockedAt: Date | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -687,40 +789,21 @@ interface PodByesTable {
   playerId: string;
 }
 
-// ─── Deck check (migration 149, ADR-025) ─────────────────────────────────────
-
-export interface DeckCheckEventsTable {
-  id: Generated<string>;
-  groupId: string;
-  /** CHECK: length 1..120 */
-  name: string;
-  eventDate: ColumnType<Date, string, string> | null;
-  format: string | null;
-  /** Set codes for set-legality flagging; written pre-stringified, read defensively. */
-  allowedSets: ColumnType<string[], string, string> | null;
-  status: Generated<DeckCheckEventStatus>;
-  /** When a submitted list locks against player changes (TR 401.3, ADR-027). */
-  listLockMode: Generated<DeckCheckListLockMode>;
-  /** Player self-submission opt-in (ADR-026). */
-  allowSelfSubmission: Generated<boolean>;
-  /** Shared submission capability (plaintext, like the group join code); UNIQUE. */
-  submissionToken: string | null;
-  submissionsCloseAt: Date | null;
-  createdAt: CreatedAt;
-  updatedAt: UpdatedAt;
-}
+// ─── Deck check (migration 149, ADR-025; re-parented to the tournaments
+// umbrella in migration 169/170, ADR-033) ────────────────────────────────────
+// The event is gone — a deck-check tournament is `tournaments` that collects
+// decklists (deck_submission <> 'none'). Per-person identity + claim columns live
+// on tournament_participants; the entry keeps the decklist + verification state
+// and references its tournament + participant.
 
 export interface DeckCheckEntriesTable {
   id: Generated<string>;
-  eventId: string;
-  /** Provider's upsert key; UNIQUE per (eventId, externalId). */
+  /** Owning tournament (was event_id; reuses the migrated event's uuid). */
+  tournamentId: string;
+  /** The participant this decklist belongs to; CASCADE — removing the participant deletes this entry (migration 174). */
+  participantId: string | null;
+  /** Provider's upsert key; UNIQUE per (tournamentId, externalId). */
   externalId: string;
-  /** CHECK: length 1..120 */
-  playerName: string;
-  /** CHECK: length <= 254 */
-  playerEmail: string | null;
-  /** Player's Riot ID. CHECK: length <= 120 */
-  riotId: string | null;
   submittedAt: Date | null;
   /** Consent for the organizer to publish the deck list publicly (default true, opt-out). */
   allowDeckPublishing: Generated<boolean>;
@@ -748,20 +831,8 @@ export interface DeckCheckEntriesTable {
   /** Diff vs the last judge-reviewed list; written pre-stringified, read defensively. */
   changeSummary: ColumnType<DeckCheckChangeSummary, string, string> | null;
   withdrawnAt: Date | null;
-  /** The account link ADR-025 reserved, filled in by ADR-026. */
-  claimedUserId: string | null;
-  claimSource: DeckCheckClaimSource | null;
-  claimedAt: Date | null;
-  /** Set on judge unlink; blocks every auto-match path from re-linking. */
-  claimBlockedAt: Date | null;
   /** CHECK: length <= 2000; judge-authored, shown to the linked player. */
   playerMessage: string | null;
-  /**
-   * Provider-issued claim capability (ADR-026 amendment), returned in the
-   * ingest response and embedded in the provider's email. Minted at create,
-   * backfilled for older rows, minted on any later push that finds it missing.
-   */
-  claimToken: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -790,7 +861,11 @@ export interface DeckCheckEntryCardsTable {
 
 export interface DeckCheckKeysTable {
   id: Generated<string>;
-  groupId: string;
+  // Re-parented to the host (was group_id): exactly one of user / organization
+  // (CHECK chk_deck_check_keys_host), so a host's keys span all its tournaments.
+  hostType: TournamentHostType;
+  hostUserId: string | null;
+  hostOrgId: string | null;
   /** SHA-256 of the plaintext token; the plaintext is never persisted. */
   tokenHash: string;
   /** First chars of the plaintext, display only. */
@@ -1412,9 +1487,14 @@ export interface Database {
   userContactMethods: UserContactMethodsTable;
   friendGroupMemberContacts: FriendGroupMemberContactsTable;
 
-  // Pod tournaments (migration 145, ADR-022)
-  podTournaments: PodTournamentsTable;
-  podPlayers: PodPlayersTable;
+  // Organizations (migration 166, ADR-033)
+  organizations: OrganizationsTable;
+  organizationMembers: OrganizationMembersTable;
+
+  // Tournaments umbrella (migration 145 as pod_tournaments, renamed 167, ADR-033)
+  tournaments: TournamentsTable;
+  tournamentStaff: TournamentStaffTable;
+  tournamentParticipants: TournamentParticipantsTable;
   podRounds: PodRoundsTable;
   pods: PodsTable;
   podMembers: PodMembersTable;
@@ -1424,8 +1504,7 @@ export interface Database {
   cardTrades: CardTradesTable;
   cardTradeCopies: CardTradeCopiesTable;
 
-  // Deck check (migration 149, ADR-025)
-  deckCheckEvents: DeckCheckEventsTable;
+  // Deck check (migration 149, ADR-025; re-parented to tournaments in 169/170)
   deckCheckEntries: DeckCheckEntriesTable;
   deckCheckEntryCards: DeckCheckEntryCardsTable;
   deckCheckKeys: DeckCheckKeysTable;

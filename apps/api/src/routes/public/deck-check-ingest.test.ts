@@ -38,7 +38,7 @@ const EVENT_ID = "a0000000-0001-4000-a000-000000000001";
 // A full, schema-valid result — oRPC now validates the handler's output, so the
 // mocked service must return the real `DeckCheckIngestResultResponse` shape.
 const RESULT = {
-  eventId: EVENT_ID,
+  tournamentId: EVENT_ID,
   entriesCreated: 0,
   entriesUpdated: 0,
   entriesUnchanged: 0,
@@ -62,23 +62,31 @@ describe("POST /api/v1/ingest/deck-check (oRPC)", () => {
   });
 
   it("returns 200 with the ingest result for a valid key + payload", async () => {
-    mockDeckCheckRepo.findActiveKeyByHash.mockResolvedValue({ id: "key-1", groupId: "grp-1" });
+    mockDeckCheckRepo.findActiveKeyByHash.mockResolvedValue({
+      id: "key-1",
+      hostType: "user",
+      hostUserId: "user-1",
+      hostOrgId: null,
+    });
     mockIngest.mockResolvedValue(RESULT);
 
-    const res = await push({ eventId: EVENT_ID, entries: [] }, { Authorization: "Bearer secret" });
+    const res = await push(
+      { tournamentId: EVENT_ID, entries: [] },
+      { Authorization: "Bearer secret" },
+    );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual(RESULT);
     expect(mockIngest).toHaveBeenCalledWith(
       expect.anything(),
-      "grp-1",
-      { eventId: EVENT_ID, entries: [] },
+      { hostType: "user", hostUserId: "user-1", hostOrgId: null },
+      { tournamentId: EVENT_ID, entries: [] },
       "https://openrift.test",
     );
     expect(mockDeckCheckRepo.touchKeyUsage).toHaveBeenCalledWith("key-1");
   });
 
   it("returns 401 { code, message } when the Authorization header is missing", async () => {
-    const res = await push({ eventId: EVENT_ID, entries: [] });
+    const res = await push({ tournamentId: EVENT_ID, entries: [] });
     expect(res.status).toBe(401);
     expect(await res.json()).toMatchObject({
       code: ERROR_CODES.UNAUTHORIZED,
@@ -89,7 +97,10 @@ describe("POST /api/v1/ingest/deck-check (oRPC)", () => {
 
   it("returns 401 { code, message } when the key is unknown or revoked", async () => {
     mockDeckCheckRepo.findActiveKeyByHash.mockResolvedValue(undefined);
-    const res = await push({ eventId: EVENT_ID, entries: [] }, { Authorization: "Bearer nope" });
+    const res = await push(
+      { tournamentId: EVENT_ID, entries: [] },
+      { Authorization: "Bearer nope" },
+    );
     expect(res.status).toBe(401);
     expect(await res.json()).toMatchObject({
       code: ERROR_CODES.UNAUTHORIZED,
@@ -98,7 +109,7 @@ describe("POST /api/v1/ingest/deck-check (oRPC)", () => {
   });
 
   it("returns 400 on a bad body, before the auth check (oRPC input validation)", async () => {
-    const res = await push({ eventId: "not-a-uuid" }, { Authorization: "Bearer secret" });
+    const res = await push({ tournamentId: "not-a-uuid" }, { Authorization: "Bearer secret" });
     expect(res.status).toBe(400);
     // Validation runs before the handler, so the key is never looked up — this
     // preserves the previous validation-first ordering.

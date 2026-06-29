@@ -33,20 +33,18 @@ export async function loadGroupForMember(
 /** Higher rank = more power; a check passes when the member's rank meets the minimum. */
 export const ROLE_RANK: Record<FriendGroupRole, number> = {
   member: 0,
-  judge: 1,
-  admin: 2,
-  owner: 3,
+  admin: 1,
+  owner: 2,
 };
 
 const ROLE_MINIMUM_MESSAGE: Record<FriendGroupRole, string> = {
   member: "Members only",
-  judge: "Judges only",
   admin: "Admins only",
   owner: "Owner only",
 };
 
 /**
- * Rank comparison for the linear role hierarchy (owner > admin > judge > member).
+ * Rank comparison for the linear role hierarchy (owner > admin > member).
  * @returns True when `role` meets or exceeds `minimum`.
  */
 export function hasRole(role: FriendGroupRole, minimum: FriendGroupRole): boolean {

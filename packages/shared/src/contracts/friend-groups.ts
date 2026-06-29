@@ -66,7 +66,7 @@ export const friendGroupInviteByEmailSchema = z.object({
 });
 
 export const friendGroupUpdateRoleSchema = z.object({
-  role: z.enum(["admin", "judge", "member"]),
+  role: z.enum(["admin", "member"]),
 });
 
 /** Which of the viewer's contact methods are revealed to a given group. */
@@ -110,9 +110,7 @@ const effectiveTradePreferenceSchema = z
   })
   .openapi("EffectiveTradePreference");
 
-const friendGroupRoleSchema = z
-  .enum(["owner", "admin", "judge", "member"])
-  .openapi("FriendGroupRole");
+const friendGroupRoleSchema = z.enum(["owner", "admin", "member"]).openapi("FriendGroupRole");
 
 export const friendGroupResponseSchema = z
   .object({

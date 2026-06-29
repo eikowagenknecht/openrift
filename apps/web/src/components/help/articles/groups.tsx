@@ -126,7 +126,7 @@ export default function GroupsArticle() {
           <FeatureCard
             icon={<KeyIcon className="size-4" />}
             title="Invite code"
-            description="Paste a code on /groups/join. The page previews the group before you commit; submitting sends a join request to its admins. You're a member once one of them approves."
+            description="Paste a code on /groups/join. The page previews the group before you commit. Submitting sends a join request to its admins. You're a member once one of them approves."
           />
           <FeatureCard
             icon={<MailIcon className="size-4" />}
@@ -143,7 +143,7 @@ export default function GroupsArticle() {
           Open the group, scroll to{" "}
           <strong className="text-foreground">Settings &rarr; Share your lists</strong>, and tick
           the lists you want to share. Untick to stop sharing. Wishlists and tradelists feed the
-          matches section; organize lists are visible to members but don&apos;t generate matches.
+          matches section. Organize lists are visible to members but don&apos;t generate matches.
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <FeatureCard
@@ -253,7 +253,7 @@ export default function GroupsArticle() {
         <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1">
           <li>
             <strong className="text-foreground">Leave:</strong> members and admins can leave at any
-            time from the group&apos;s Settings panel. Your shared lists detach automatically; the
+            time from the group&apos;s Settings panel. Your shared lists detach automatically. The
             lists themselves stay on your account.
           </li>
           <li>

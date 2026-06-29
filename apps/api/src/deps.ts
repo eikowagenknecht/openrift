@@ -40,6 +40,7 @@ import { markersRepo } from "./repositories/markers.js";
 import { marketplaceAdminRepo } from "./repositories/marketplace-admin.js";
 import { marketplaceMappingRepo } from "./repositories/marketplace-mapping.js";
 import { marketplaceRepo } from "./repositories/marketplace.js";
+import { organizationsRepo } from "./repositories/organizations.js";
 import { podTournamentsRepo } from "./repositories/pod-tournaments.js";
 import { priceRefreshRepo } from "./repositories/price-refresh.js";
 import { printingEventsRepo } from "./repositories/printing-events.js";
@@ -51,6 +52,7 @@ import { setsRepo } from "./repositories/sets.js";
 import { siteSettingsRepo } from "./repositories/site-settings.js";
 import { statusRepo } from "./repositories/status.js";
 import { superTypesRepo } from "./repositories/super-types.js";
+import { tournamentsRepo } from "./repositories/tournaments.js";
 import { userContactMethodsRepo } from "./repositories/user-contact-methods.js";
 import { userFeatureFlagsRepo } from "./repositories/user-feature-flags.js";
 import { userPreferencesRepo } from "./repositories/user-preferences.js";
@@ -104,7 +106,9 @@ export interface Repos {
   friendGroups: ReturnType<typeof friendGroupsRepo>;
   friendGroupMatches: ReturnType<typeof friendGroupMatchesRepo>;
   userContactMethods: ReturnType<typeof userContactMethodsRepo>;
+  organizations: ReturnType<typeof organizationsRepo>;
   podTournaments: ReturnType<typeof podTournamentsRepo>;
+  tournaments: ReturnType<typeof tournamentsRepo>;
   userFeatureFlags: ReturnType<typeof userFeatureFlagsRepo>;
   health: ReturnType<typeof healthRepo>;
   keywords: ReturnType<typeof keywordsRepo>;
@@ -186,7 +190,9 @@ export function createRepos(db: Kysely<Database>): Repos {
     friendGroups: friendGroupsRepo(db),
     friendGroupMatches: friendGroupMatchesRepo(db),
     userContactMethods: userContactMethodsRepo(db),
+    organizations: organizationsRepo(db),
     podTournaments: podTournamentsRepo(db),
+    tournaments: tournamentsRepo(db),
     userFeatureFlags: userFeatureFlagsRepo(db),
     health: healthRepo(db),
     keywords: keywordsRepo(db),

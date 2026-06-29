@@ -326,6 +326,7 @@ Everything. The pure engine in `packages/shared/src/pairing/`, the `PairingStrat
 - **Redirects from the old `/tournament-*` and `/tournaments/run` URLs.**
 - **The ADR-014 decks archive.** Untouched and unbuilt; this ADR only releases the `tournaments` name.
 - **Cross-tournament player profiles / "all events by player X".**
+- **The `scorekeeper` staff role.** Deferred: result entry stays host/organizer-only for now, so `tournament_staff` ships with just `organizer` and `judge`. Re-add `scorekeeper` (and widen the role CHECK) when result entry is delegated to non-organizer staff — this is a later additive change, paired with the format/standings generalization above.
 
 ## Deferred / Out of Scope
 

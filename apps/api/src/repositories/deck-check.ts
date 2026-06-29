@@ -7,6 +7,8 @@ import type {
   DeckCheckListLockMode,
   DeckCheckMatchStatus,
   DeckCheckReviewOutcome,
+  TournamentHostType,
+  TournamentParticipantStatus,
 } from "@openrift/shared";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
@@ -15,25 +17,72 @@ import type {
   Database,
   DeckCheckEntriesTable,
   DeckCheckEntryCardsTable,
-  DeckCheckEventsTable,
   DeckCheckKeysTable,
+  TournamentsTable,
 } from "../db/index.js";
-import { generateShareToken } from "../utils/share-token.js";
 
-export type DeckCheckEvent = Selectable<DeckCheckEventsTable>;
-export type DeckCheckEntry = Selectable<DeckCheckEntriesTable>;
-export type DeckCheckEntryCard = Selectable<DeckCheckEntryCardsTable>;
 export type DeckCheckKey = Selectable<DeckCheckKeysTable>;
+export type DeckCheckEntryCard = Selectable<DeckCheckEntryCardsTable>;
+
+/** The host a deck-check integration key (and its tournaments) belongs to. */
+export interface DeckCheckHost {
+  hostType: TournamentHostType;
+  hostUserId: string | null;
+  hostOrgId: string | null;
+}
+
+/**
+ * The deck-check "event" view of a deck-check tournament (ADR-033): a
+ * `tournaments` row that collects decklists (`deck_submission <> 'none'`). The
+ * event fields map onto tournament columns (status active/archived ↔ running/
+ * completed, format ↔ deck_format, allowSelfSubmission ↔ self_registration,
+ * eventDate ↔ starts_at).
+ */
+export interface DeckCheckEvent {
+  id: string;
+  groupId: string | null;
+  name: string;
+  eventDate: Date | null;
+  format: string | null;
+  allowedSets: string[] | null;
+  status: "active" | "archived";
+  listLockMode: DeckCheckListLockMode;
+  allowSelfSubmission: boolean;
+  submissionToken: string | null;
+  submissionsCloseAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export interface DeckCheckEventWithCounts extends DeckCheckEvent {
   entryCount: number;
+  approvedCount: number;
   checkedCount: number;
 }
+
+/**
+ * A deck-check entry plus the per-person identity it now sources from its
+ * `tournament_participants` row (ADR-033). The identity/claim columns moved off
+ * the entry; reads flatten them back onto the entry so the response mappers keep
+ * the same field names. The sharing-consent flags (`allowNameSharing` /
+ * `allowRiotIdSharing` / `allowDeckPublishing`) stay on the entry itself.
+ */
+export type DeckCheckEntry = Selectable<DeckCheckEntriesTable> & {
+  playerName: string;
+  riotId: string | null;
+  claimedUserId: string | null;
+  claimSource: DeckCheckClaimSource | null;
+  claimedAt: Date | null;
+  claimBlockedAt: Date | null;
+  claimToken: string | null;
+};
 
 export interface DeckCheckEntrySummary extends DeckCheckEntry {
   checkedByName: string | null;
   approvedByName: string | null;
   claimedUserName: string | null;
+  /** Owning participant's status, so the judge list can flag dropped players. */
+  participantStatus: TournamentParticipantStatus | null;
   copyCount: number;
   verifiedCopyCount: number;
   unmatchedLineCount: number;
@@ -57,24 +106,22 @@ export interface DeckCheckEventPatch {
 }
 
 export interface NewDeckCheckEntry {
-  eventId: string;
+  tournamentId: string;
+  /**
+   * The roster participant that owns this deck. Entries always attach to an
+   * existing participant (ADR-033) — resolve or create it (e.g. via
+   * `tournaments.resolveOrCreateParticipant`) before calling.
+   */
+  participantId: string;
   externalId: string;
-  playerName: string;
-  playerEmail: string | null;
-  riotId: string | null;
   submittedAt: Date | null;
-  /** Omitted on insert = the column default (true, opt-out model). */
+  /** Sharing-consent flags; omitted on insert = the column default (true, opt-out model). */
   allowDeckPublishing?: boolean;
   allowNameSharing?: boolean;
   allowRiotIdSharing?: boolean;
   contentHash: string;
   withdrawnAt: Date | null;
   state?: DeckCheckEntryState;
-  claimedUserId?: string | null;
-  claimSource?: DeckCheckClaimSource | null;
-  claimedAt?: Date | null;
-  /** Omitted = minted here (ADR-026 amendment); every entry is born with one. */
-  claimToken?: string;
 }
 
 /** One row of the player's "My tournament decks" list (ADR-026). */
@@ -83,8 +130,10 @@ export interface PlayerDeckCheckEntryRow extends DeckCheckEntry {
   eventDate: Date | string | null;
   eventStatus: string;
   submissionsCloseAt: Date | null;
-  groupName: string;
-  groupSlug: string;
+  /** Null for a personally-hosted tournament with no owning friend group (ADR-033). */
+  groupName: string | null;
+  /** Null for a personally-hosted tournament with no owning friend group (ADR-033). */
+  groupSlug: string | null;
 }
 
 export interface NewDeckCheckEntryCard {
@@ -153,13 +202,34 @@ function parseJsonb<T>(value: T | string | null): T | null {
 }
 
 /**
- * Normalizes the jsonb columns of an event row.
- * @returns The row with `allowedSets` guaranteed parsed.
+ * Maps a deck-check tournament row onto the event view used by the rest of the
+ * subsystem.
+ * @returns The event projection with `allowedSets` parsed.
  */
-function parseEventRow<T extends { allowedSets: unknown }>(
-  row: T,
-): T & { allowedSets: string[] | null } {
-  return { ...row, allowedSets: parseJsonb<string[]>(row.allowedSets as string[] | string | null) };
+function tournamentToEvent(row: Selectable<TournamentsTable>): DeckCheckEvent {
+  return {
+    id: row.id,
+    groupId: row.groupId,
+    name: row.name,
+    eventDate: row.startsAt,
+    format: row.deckFormat,
+    allowedSets: parseJsonb<string[]>(row.allowedSets as string[] | string | null),
+    status: row.status === "running" ? "active" : "archived",
+    listLockMode: row.listLockMode,
+    allowSelfSubmission: row.selfRegistration,
+    submissionToken: row.submissionToken,
+    submissionsCloseAt: row.submissionsCloseAt,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+/**
+ * The DB status a deck-check event maps to.
+ * @returns The tournament status.
+ */
+function eventStatusToTournament(status: "active" | "archived"): "running" | "completed" {
+  return status === "active" ? "running" : "completed";
 }
 
 /**
@@ -180,115 +250,259 @@ function parseEntryRow<T extends { changeSummary: unknown; preEditLines: unknown
   };
 }
 
+/** Identity fields a participant join contributes to a flattened entry. */
+interface JoinedIdentity {
+  playerName: string | null;
+  riotId: string | null;
+  claimedUserId: string | null;
+  claimSource: DeckCheckClaimSource | null;
+  claimedAt: Date | null;
+  claimBlockedAt: Date | null;
+  claimToken: string | null;
+}
+
 /**
- * Data access for the deck-check subsystem (ADR-025): group-owned events,
- * entrant entries with their card lines, push keys, and catalog resolution.
+ * Flattens an entry row joined to its participant onto the {@link DeckCheckEntry}
+ * shape, so downstream response mappers keep their field names.
+ * @returns The materialized entry.
+ */
+function materializeEntry<
+  T extends JoinedIdentity & { changeSummary: unknown; preEditLines: unknown },
+>(row: T): DeckCheckEntry {
+  const base = parseEntryRow(row);
+  return {
+    ...base,
+    playerName: row.playerName ?? "",
+    riotId: row.riotId ?? null,
+    claimedUserId: row.claimedUserId ?? null,
+    claimSource: row.claimSource ?? null,
+    claimedAt: row.claimedAt ?? null,
+    claimBlockedAt: row.claimBlockedAt ?? null,
+    claimToken: row.claimToken ?? null,
+  } as DeckCheckEntry;
+}
+
+/**
+ * Data access for the deck-check subsystem (ADR-025), re-parented onto the
+ * tournaments umbrella (ADR-033): deck-check tournaments, entries keyed off a
+ * unified `tournament_participants` identity, host-scoped push keys, and catalog
+ * resolution.
  * @param db The Kysely database handle (or transaction).
  * @returns The repository methods.
  */
 // oxlint-disable-next-line max-lines-per-function -- repository factory, one method per query
 export function deckCheckRepo(db: Kysely<Database>) {
+  /**
+   * Selects an entry with its participant identity flattened.
+   * @returns The base query, ready for `.where()` clauses.
+   */
+  function selectEntryWithParticipant() {
+    return db
+      .selectFrom("deckCheckEntries as en")
+      .leftJoin("tournamentParticipants as p", "p.id", "en.participantId")
+      .selectAll("en")
+      .select((eb) => [
+        eb.ref("p.displayName").as("playerName"),
+        eb.ref("p.riotId").as("riotId"),
+        eb.ref("p.userId").as("claimedUserId"),
+        eb.ref("p.claimSource").as("claimSource"),
+        eb.ref("p.claimedAt").as("claimedAt"),
+        eb.ref("p.claimBlockedAt").as("claimBlockedAt"),
+        eb.ref("p.claimToken").as("claimToken"),
+      ]);
+  }
+
+  /** @returns The flattened entry by id, or undefined. */
+  async function loadEntryById(entryId: string): Promise<DeckCheckEntry | undefined> {
+    const row = await selectEntryWithParticipant().where("en.id", "=", entryId).executeTakeFirst();
+    return row ? materializeEntry(row) : undefined;
+  }
+
+  /** @returns The participant id owning an entry, or undefined. */
+  async function participantIdForEntry(entryId: string): Promise<string | null | undefined> {
+    const row = await db
+      .selectFrom("deckCheckEntries")
+      .select("participantId")
+      .where("id", "=", entryId)
+      .executeTakeFirst();
+    return row?.participantId;
+  }
+
+  /**
+   * Resolves a friend group's owner — the host of its deck-check tournaments and
+   * integration keys (ADR-033).
+   * @returns The owner's user id.
+   */
+  async function groupOwnerId(groupId: string): Promise<string> {
+    const row = await db
+      .selectFrom("friendGroupMembers")
+      .select("userId")
+      .where("groupId", "=", groupId)
+      .where("role", "=", "owner")
+      .executeTakeFirst();
+    if (!row) {
+      throw new Error(`Group ${groupId} has no owner`);
+    }
+    return row.userId;
+  }
+
   return {
-    // ── Events ──────────────────────────────────────────────────────────────
-
-    async getEvent(groupId: string, eventId: string): Promise<DeckCheckEvent | undefined> {
-      const row = await db
-        .selectFrom("deckCheckEvents")
-        .selectAll()
-        .where("id", "=", eventId)
-        .where("groupId", "=", groupId)
-        .executeTakeFirst();
-      return row ? parseEventRow(row) : undefined;
-    },
-
-    async listEventsForGroup(groupId: string): Promise<DeckCheckEventWithCounts[]> {
-      const rows = await db
-        .selectFrom("deckCheckEvents as e")
-        .selectAll("e")
-        .select((eb) => [
-          eb
-            .selectFrom("deckCheckEntries as en")
-            .select(eb.fn.countAll<number>().as("count"))
-            .whereRef("en.eventId", "=", "e.id")
-            .where("en.state", "!=", "withdrawn")
-            .as("entryCount"),
-          eb
-            .selectFrom("deckCheckEntries as en")
-            .select(eb.fn.countAll<number>().as("count"))
-            .whereRef("en.eventId", "=", "e.id")
-            .where("en.state", "=", "checked")
-            .as("checkedCount"),
-        ])
-        .where("e.groupId", "=", groupId)
-        .orderBy("e.createdAt", "desc")
-        .execute();
-      return rows.map((row) =>
-        parseEventRow({
-          ...row,
-          entryCount: Number(row.entryCount ?? 0),
-          checkedCount: Number(row.checkedCount ?? 0),
-        }),
-      );
-    },
+    // ── Events (deck-check tournaments) ───────────────────────────────────────
 
     async createEvent(input: NewDeckCheckEvent): Promise<DeckCheckEvent> {
+      const ownerId = await groupOwnerId(input.groupId);
       const row = await db
-        .insertInto("deckCheckEvents")
+        .insertInto("tournaments")
         .values({
+          hostType: "user",
+          hostUserId: ownerId,
           groupId: input.groupId,
           name: input.name,
-          eventDate: input.eventDate,
-          format: input.format,
+          status: "running",
+          // starts_at is NOT NULL; omit when no date so the DB default (now()) applies.
+          startsAt: input.eventDate ? new Date(input.eventDate) : undefined,
+          pairingStyle: "none",
+          deckSubmission: "optional",
+          deckFormat: input.format ?? null,
           allowedSets: input.allowedSets ? JSON.stringify(input.allowedSets) : null,
         })
         .returningAll()
         .executeTakeFirstOrThrow();
-      return parseEventRow(row);
+      return tournamentToEvent(row);
     },
 
     async updateEvent(
       groupId: string,
-      eventId: string,
+      tournamentId: string,
       patch: DeckCheckEventPatch,
     ): Promise<DeckCheckEvent | undefined> {
       const row = await db
-        .updateTable("deckCheckEvents")
+        .updateTable("tournaments")
         .set({
           ...(patch.name === undefined ? {} : { name: patch.name }),
-          ...(patch.eventDate === undefined ? {} : { eventDate: patch.eventDate }),
-          ...(patch.format === undefined ? {} : { format: patch.format }),
+          ...(patch.eventDate ? { startsAt: new Date(patch.eventDate) } : {}),
+          ...(patch.format === undefined ? {} : { deckFormat: patch.format }),
           ...(patch.allowedSets === undefined
             ? {}
             : { allowedSets: patch.allowedSets ? JSON.stringify(patch.allowedSets) : null }),
-          ...(patch.status === undefined ? {} : { status: patch.status }),
+          ...(patch.status === undefined ? {} : { status: eventStatusToTournament(patch.status) }),
           ...(patch.listLockMode === undefined ? {} : { listLockMode: patch.listLockMode }),
         })
-        .where("id", "=", eventId)
+        .where("id", "=", tournamentId)
         .where("groupId", "=", groupId)
+        .where("deckSubmission", "!=", "none")
         .returningAll()
         .executeTakeFirst();
-      return row ? parseEventRow(row) : undefined;
+      return row ? tournamentToEvent(row) : undefined;
     },
 
-    async deleteEvent(groupId: string, eventId: string): Promise<boolean> {
-      const result = await db
-        .deleteFrom("deckCheckEvents")
-        .where("id", "=", eventId)
-        .where("groupId", "=", groupId)
+    /**
+     * Loads a deck-check tournament scoped to its host (the ingest path; the key
+     * resolves to a host, not a group).
+     * @returns The event, or undefined when it does not match the host.
+     */
+    async getEventForHost(
+      host: DeckCheckHost,
+      tournamentId: string,
+    ): Promise<DeckCheckEvent | undefined> {
+      let query = db
+        .selectFrom("tournaments")
+        .selectAll()
+        .where("id", "=", tournamentId)
+        .where("deckSubmission", "!=", "none");
+      query =
+        host.hostType === "user"
+          ? query.where("hostType", "=", "user").where("hostUserId", "=", host.hostUserId)
+          : query.where("hostType", "=", "organization").where("hostOrgId", "=", host.hostOrgId);
+      const row = await query.executeTakeFirst();
+      return row ? tournamentToEvent(row) : undefined;
+    },
+
+    /**
+     * Loads a deck-check tournament without group scoping (player paths).
+     * @returns The event, or undefined when it does not exist.
+     */
+    async getEventById(tournamentId: string): Promise<DeckCheckEvent | undefined> {
+      const row = await db
+        .selectFrom("tournaments")
+        .selectAll()
+        .where("id", "=", tournamentId)
+        .where("deckSubmission", "!=", "none")
         .executeTakeFirst();
-      return result.numDeletedRows > 0n;
+      return row ? tournamentToEvent(row) : undefined;
+    },
+
+    /**
+     * Resolves a submission link's token to its deck-check tournament.
+     * @returns The event with its group name, or undefined.
+     */
+    async getEventBySubmissionToken(
+      token: string,
+    ): Promise<(DeckCheckEvent & { groupName: string }) | undefined> {
+      // Left join: a host without a friend group (ADR-033) still resolves its
+      // submission token; the group name is only used as a label.
+      const row = await db
+        .selectFrom("tournaments as ev")
+        .leftJoin("friendGroups as g", "g.id", "ev.groupId")
+        .selectAll("ev")
+        .select((eb) => eb.ref("g.name").as("groupName"))
+        .where("ev.submissionToken", "=", token)
+        .where("ev.deckSubmission", "!=", "none")
+        .executeTakeFirst();
+      return row ? { ...tournamentToEvent(row), groupName: row.groupName ?? "" } : undefined;
+    },
+
+    /**
+     * Updates the self-submission settings (admin action).
+     * @returns The updated event, or undefined when it does not exist.
+     */
+    async updateEventSubmission(
+      tournamentId: string,
+      patch: Partial<{
+        allowSelfSubmission: boolean;
+        submissionToken: string | null;
+        submissionsCloseAt: Date | null;
+      }>,
+    ): Promise<DeckCheckEvent | undefined> {
+      const row = await db
+        .updateTable("tournaments")
+        .set({
+          ...(patch.allowSelfSubmission === undefined
+            ? {}
+            : { selfRegistration: patch.allowSelfSubmission }),
+          ...(patch.submissionToken === undefined
+            ? {}
+            : { submissionToken: patch.submissionToken }),
+          ...(patch.submissionsCloseAt === undefined
+            ? {}
+            : { submissionsCloseAt: patch.submissionsCloseAt }),
+        })
+        .where("id", "=", tournamentId)
+        .where("deckSubmission", "!=", "none")
+        .returningAll()
+        .executeTakeFirst();
+      return row ? tournamentToEvent(row) : undefined;
     },
 
     // ── Entries ─────────────────────────────────────────────────────────────
 
-    async listEntriesForEvent(eventId: string): Promise<DeckCheckEntrySummary[]> {
+    async listEntriesForEvent(tournamentId: string): Promise<DeckCheckEntrySummary[]> {
       const rows = await db
         .selectFrom("deckCheckEntries as en")
+        .leftJoin("tournamentParticipants as p", "p.id", "en.participantId")
         .leftJoin("users as u", "u.id", "en.checkedBy")
         .leftJoin("users as au", "au.id", "en.approvedBy")
-        .leftJoin("users as cu", "cu.id", "en.claimedUserId")
+        .leftJoin("users as cu", "cu.id", "p.userId")
         .selectAll("en")
         .select((eb) => [
+          eb.ref("p.displayName").as("playerName"),
+          eb.ref("p.status").as("participantStatus"),
+          eb.ref("p.riotId").as("riotId"),
+          eb.ref("p.userId").as("claimedUserId"),
+          eb.ref("p.claimSource").as("claimSource"),
+          eb.ref("p.claimedAt").as("claimedAt"),
+          eb.ref("p.claimBlockedAt").as("claimBlockedAt"),
+          eb.ref("p.claimToken").as("claimToken"),
           eb.ref("u.name").as("checkedByName"),
           eb.ref("au.name").as("approvedByName"),
           eb.ref("cu.name").as("claimedUserName"),
@@ -315,94 +529,76 @@ export function deckCheckRepo(db: Kysely<Database>) {
             .where("c.matchStatus", "!=", "matched")
             .as("unmatchedLineCount"),
         ])
-        .where("en.eventId", "=", eventId)
-        .orderBy("en.playerName", "asc")
+        .where("en.tournamentId", "=", tournamentId)
+        .orderBy("p.displayName", "asc")
         .execute();
-      return rows.map((row) =>
-        parseEntryRow({
-          ...row,
-          checkedByName: row.checkedByName ?? null,
-          approvedByName: row.approvedByName ?? null,
-          claimedUserName: row.claimedUserName ?? null,
-          copyCount: Number(row.copyCount ?? 0),
-          verifiedCopyCount: Number(row.verifiedCopyCount ?? 0),
-          unmatchedLineCount: Number(row.unmatchedLineCount ?? 0),
-        }),
-      );
+      return rows.map((row) => ({
+        ...materializeEntry(row),
+        checkedByName: row.checkedByName ?? null,
+        approvedByName: row.approvedByName ?? null,
+        claimedUserName: row.claimedUserName ?? null,
+        participantStatus: row.participantStatus ?? null,
+        copyCount: Number(row.copyCount ?? 0),
+        verifiedCopyCount: Number(row.verifiedCopyCount ?? 0),
+        unmatchedLineCount: Number(row.unmatchedLineCount ?? 0),
+      }));
     },
 
-    async getEntry(eventId: string, entryId: string): Promise<DeckCheckEntry | undefined> {
-      const row = await db
-        .selectFrom("deckCheckEntries")
-        .selectAll()
-        .where("id", "=", entryId)
-        .where("eventId", "=", eventId)
+    async getEntry(tournamentId: string, entryId: string): Promise<DeckCheckEntry | undefined> {
+      const row = await selectEntryWithParticipant()
+        .where("en.id", "=", entryId)
+        .where("en.tournamentId", "=", tournamentId)
         .executeTakeFirst();
-      return row ? parseEntryRow(row) : undefined;
+      return row ? materializeEntry(row) : undefined;
     },
 
     async getEntryByExternalId(
-      eventId: string,
+      tournamentId: string,
       externalId: string,
     ): Promise<DeckCheckEntry | undefined> {
+      const row = await selectEntryWithParticipant()
+        .where("en.tournamentId", "=", tournamentId)
+        .where("en.externalId", "=", externalId)
+        .executeTakeFirst();
+      return row ? materializeEntry(row) : undefined;
+    },
+
+    /**
+     * The deck entry attached to a participant, if any (one deck per
+     * participant). Used to route a just-claimed participant to their deck when
+     * the tournament runs deck check.
+     * @returns The entry id, or undefined when the participant has no deck.
+     */
+    async findEntryIdByParticipant(participantId: string): Promise<string | undefined> {
       const row = await db
         .selectFrom("deckCheckEntries")
-        .selectAll()
-        .where("eventId", "=", eventId)
-        .where("externalId", "=", externalId)
+        .select("id")
+        .where("participantId", "=", participantId)
         .executeTakeFirst();
-      return row ? parseEntryRow(row) : undefined;
+      return row?.id;
     },
 
     /**
-     * Resolves a claim token to its entry (ADR-026 amendment). The claim
-     * precedence runs in the player service against this row.
-     * @returns The entry, or undefined when the token matches nothing.
-     */
-    async getEntryByClaimToken(token: string): Promise<DeckCheckEntry | undefined> {
-      const row = await db
-        .selectFrom("deckCheckEntries")
-        .selectAll()
-        .where("claimToken", "=", token)
-        .executeTakeFirst();
-      return row ? parseEntryRow(row) : undefined;
-    },
-
-    /**
-     * The pre-claim landing data: only the event and owning group, never the
-     * entrant or the deck, since any holder of the link reaches it unauthenticated.
-     * @returns The event and group names, or undefined when the token is unknown.
-     */
-    async getClaimLandingByToken(
-      token: string,
-    ): Promise<{ eventName: string; groupName: string } | undefined> {
-      const row = await db
-        .selectFrom("deckCheckEntries as en")
-        .innerJoin("deckCheckEvents as ev", "ev.id", "en.eventId")
-        .innerJoin("friendGroups as g", "g.id", "ev.groupId")
-        .select((eb) => [eb.ref("ev.name").as("eventName"), eb.ref("g.name").as("groupName")])
-        .where("en.claimToken", "=", token)
-        .executeTakeFirst();
-      return row ?? undefined;
-    },
-
-    /**
-     * Mints a claim token for an entry that lacks one (an entry created before
-     * the amendment and not yet backfilled, defensively). No-op when set.
-     * @param entryId The entry to stamp.
+     * Mints a claim token for a participant that lacks one (defensively). No-op
+     * when set.
+     * @param entryId The entry whose participant to stamp.
      * @param token The token to write.
      */
     async setClaimTokenIfMissing(entryId: string, token: string): Promise<void> {
+      const participantId = await participantIdForEntry(entryId);
+      if (!participantId) {
+        return;
+      }
       await db
-        .updateTable("deckCheckEntries")
+        .updateTable("tournamentParticipants")
         .set({ claimToken: token })
-        .where("id", "=", entryId)
+        .where("id", "=", participantId)
         .where("claimToken", "is", null)
         .execute();
     },
 
     /**
-     * Looks up the display name of whoever checked an entry.
+     * Looks up the display name of an account.
      * @returns The user's display name, or null when unknown.
      */
     async getUserName(userId: string): Promise<string | null> {
@@ -414,20 +610,60 @@ export function deckCheckRepo(db: Kysely<Database>) {
       return row?.name ?? null;
     },
 
-    async createEntry(input: NewDeckCheckEntry): Promise<DeckCheckEntry> {
+    /** @returns Whether the participant already owns a deck-check entry. */
+    async participantHasDeck(participantId: string): Promise<boolean> {
       const row = await db
+        .selectFrom("deckCheckEntries")
+        .select("id")
+        .where("participantId", "=", participantId)
+        .executeTakeFirst();
+      return row !== undefined;
+    },
+
+    async createEntry(input: NewDeckCheckEntry): Promise<DeckCheckEntry> {
+      const participant = await db
+        .selectFrom("tournamentParticipants")
+        .selectAll()
+        .where("id", "=", input.participantId)
+        .executeTakeFirstOrThrow();
+      const entry = await db
         .insertInto("deckCheckEntries")
-        .values({ ...input, claimToken: input.claimToken ?? generateShareToken() })
+        .values({
+          tournamentId: input.tournamentId,
+          participantId: participant.id,
+          externalId: input.externalId,
+          submittedAt: input.submittedAt,
+          contentHash: input.contentHash,
+          withdrawnAt: input.withdrawnAt,
+          ...(input.state === undefined ? {} : { state: input.state }),
+          ...(input.allowDeckPublishing === undefined
+            ? {}
+            : { allowDeckPublishing: input.allowDeckPublishing }),
+          ...(input.allowNameSharing === undefined
+            ? {}
+            : { allowNameSharing: input.allowNameSharing }),
+          ...(input.allowRiotIdSharing === undefined
+            ? {}
+            : { allowRiotIdSharing: input.allowRiotIdSharing }),
+        })
         .returningAll()
         .executeTakeFirstOrThrow();
-      return parseEntryRow(row);
+      return {
+        ...parseEntryRow(entry),
+        playerName: participant.displayName,
+        riotId: participant.riotId,
+        claimedUserId: participant.userId,
+        claimSource: participant.claimSource,
+        claimedAt: participant.claimedAt,
+        claimBlockedAt: participant.claimBlockedAt,
+        claimToken: participant.claimToken,
+      } as DeckCheckEntry;
     },
 
     async updateEntry(
       entryId: string,
       patch: Partial<{
         playerName: string;
-        playerEmail: string | null;
         riotId: string | null;
         submittedAt: Date | null;
         allowDeckPublishing: boolean;
@@ -453,25 +689,95 @@ export function deckCheckRepo(db: Kysely<Database>) {
         playerMessage: string | null;
       }>,
     ): Promise<DeckCheckEntry | undefined> {
-      const row = await db
-        .updateTable("deckCheckEntries")
-        .set(patch)
-        .where("id", "=", entryId)
-        .returningAll()
-        .executeTakeFirst();
-      return row ? parseEntryRow(row) : undefined;
+      // Identity / claim columns moved to the participant (ADR-033); route them
+      // there. The sharing-consent flags stay on the entry (see entryPatch).
+      const participantPatch: Record<string, unknown> = {};
+      if (patch.playerName !== undefined) {
+        participantPatch.displayName = patch.playerName;
+      }
+      if (patch.riotId !== undefined) {
+        participantPatch.riotId = patch.riotId;
+      }
+      if (patch.claimedUserId !== undefined) {
+        participantPatch.userId = patch.claimedUserId;
+      }
+      if (patch.claimSource !== undefined) {
+        participantPatch.claimSource = patch.claimSource;
+      }
+      if (patch.claimedAt !== undefined) {
+        participantPatch.claimedAt = patch.claimedAt;
+      }
+      if (patch.claimBlockedAt !== undefined) {
+        participantPatch.claimBlockedAt = patch.claimBlockedAt;
+      }
+
+      const entryPatch = {
+        ...(patch.submittedAt === undefined ? {} : { submittedAt: patch.submittedAt }),
+        ...(patch.allowDeckPublishing === undefined
+          ? {}
+          : { allowDeckPublishing: patch.allowDeckPublishing }),
+        ...(patch.allowNameSharing === undefined
+          ? {}
+          : { allowNameSharing: patch.allowNameSharing }),
+        ...(patch.allowRiotIdSharing === undefined
+          ? {}
+          : { allowRiotIdSharing: patch.allowRiotIdSharing }),
+        ...(patch.contentHash === undefined ? {} : { contentHash: patch.contentHash }),
+        ...(patch.state === undefined ? {} : { state: patch.state }),
+        ...(patch.reviewOutcome === undefined ? {} : { reviewOutcome: patch.reviewOutcome }),
+        ...(patch.checkedBy === undefined ? {} : { checkedBy: patch.checkedBy }),
+        ...(patch.checkedAt === undefined ? {} : { checkedAt: patch.checkedAt }),
+        ...(patch.approvedBy === undefined ? {} : { approvedBy: patch.approvedBy }),
+        ...(patch.approvedAt === undefined ? {} : { approvedAt: patch.approvedAt }),
+        ...(patch.unlockRequestedAt === undefined
+          ? {}
+          : { unlockRequestedAt: patch.unlockRequestedAt }),
+        ...(patch.preEditLines === undefined ? {} : { preEditLines: patch.preEditLines }),
+        ...(patch.notes === undefined ? {} : { notes: patch.notes }),
+        ...(patch.changeSummary === undefined ? {} : { changeSummary: patch.changeSummary }),
+        ...(patch.withdrawnAt === undefined ? {} : { withdrawnAt: patch.withdrawnAt }),
+        ...(patch.playerMessage === undefined ? {} : { playerMessage: patch.playerMessage }),
+      };
+
+      if (Object.keys(participantPatch).length > 0) {
+        const participantId = await participantIdForEntry(entryId);
+        if (participantId === undefined) {
+          return undefined;
+        }
+        if (participantId) {
+          await db
+            .updateTable("tournamentParticipants")
+            .set(participantPatch)
+            .where("id", "=", participantId)
+            .execute();
+        }
+      }
+
+      if (Object.keys(entryPatch).length > 0) {
+        const updated = await db
+          .updateTable("deckCheckEntries")
+          .set(entryPatch)
+          .where("id", "=", entryId)
+          .returning("id")
+          .executeTakeFirst();
+        if (!updated) {
+          return undefined;
+        }
+      }
+
+      return loadEntryById(entryId);
     },
 
-    async deleteEntry(eventId: string, entryId: string): Promise<boolean> {
+    async deleteEntry(tournamentId: string, entryId: string): Promise<boolean> {
       const result = await db
         .deleteFrom("deckCheckEntries")
         .where("id", "=", entryId)
-        .where("eventId", "=", eventId)
+        .where("tournamentId", "=", tournamentId)
         .executeTakeFirst();
       return result.numDeletedRows > 0n;
     },
 
-    // ── Account links and player access (ADR-026) ───────────────────────────
+    // ── Account links and player access (ADR-026, on participants) ───────────
 
     /**
      * One account's identity fields, for existence checks and for populating
@@ -491,119 +797,26 @@ export function deckCheckRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Looks up a verified account by email for auto-match; the comparison is
-     * case-insensitive on both sides.
-     * @returns The user id, or undefined when no verified account matches.
-     */
-    async findVerifiedUserByEmail(email: string): Promise<string | undefined> {
-      const row = await db
-        .selectFrom("users")
-        .select("id")
-        .where(sql`lower(email)`, "=", email.trim().toLowerCase())
-        .where("emailVerified", "=", true)
-        .executeTakeFirst();
-      return row?.id;
-    },
-
-    /**
-     * Links one entry to an account unless it is already linked or a judge
-     * blocked it (the unlink tombstone). Used by the ingest-time auto-match.
-     * @returns True when the link was written.
-     */
-    async linkEntryIfUnclaimed(
-      entryId: string,
-      userId: string,
-      source: DeckCheckClaimSource,
-    ): Promise<boolean> {
-      const result = await db
-        .updateTable("deckCheckEntries")
-        .set({ claimedUserId: userId, claimSource: source, claimedAt: new Date() })
-        .where("id", "=", entryId)
-        .where("claimedUserId", "is", null)
-        .where("claimBlockedAt", "is", null)
-        .executeTakeFirst();
-      return result.numUpdatedRows > 0n;
-    },
-
-    /**
-     * The lazy auto-match: links every unclaimed, unblocked entry whose
-     * `player_email` matches the viewer's verified email. Runs when a player
-     * loads "My tournament decks" or opens a submission link, covering
-     * accounts created after the provider pushed.
-     * @returns The number of entries linked.
-     */
-    async autoMatchEntriesByEmail(userId: string, email: string): Promise<number> {
-      const result = await db
-        .updateTable("deckCheckEntries")
-        .set({ claimedUserId: userId, claimSource: "email_auto", claimedAt: new Date() })
-        .where(sql`lower(player_email)`, "=", email.trim().toLowerCase())
-        .where("claimedUserId", "is", null)
-        .where("claimBlockedAt", "is", null)
-        .executeTakeFirst();
-      return Number(result.numUpdatedRows);
-    },
-
-    /**
-     * Judge manual link; overrides and clears any unlink block.
-     * @returns The updated entry, or undefined when it does not exist.
-     */
-    async linkEntry(entryId: string, userId: string): Promise<DeckCheckEntry | undefined> {
-      const row = await db
-        .updateTable("deckCheckEntries")
-        .set({
-          claimedUserId: userId,
-          claimSource: "judge_manual",
-          claimedAt: new Date(),
-          claimBlockedAt: null,
-        })
-        .where("id", "=", entryId)
-        .returningAll()
-        .executeTakeFirst();
-      return row ? parseEntryRow(row) : undefined;
-    },
-
-    /**
-     * Judge unlink: clears the claim columns and sets the block so no
-     * auto-match path (ingest, lazy, backfill) ever restores the bad link.
+     * Judge unlink: clears the participant's claim columns and sets the block so
+     * no auto-match path (ingest, lazy, backfill) ever restores the bad link.
      * @returns The updated entry, or undefined when it does not exist.
      */
     async unlinkEntry(entryId: string): Promise<DeckCheckEntry | undefined> {
-      const row = await db
-        .updateTable("deckCheckEntries")
+      const participantId = await participantIdForEntry(entryId);
+      if (!participantId) {
+        return undefined;
+      }
+      await db
+        .updateTable("tournamentParticipants")
         .set({
-          claimedUserId: null,
+          userId: null,
           claimSource: null,
           claimedAt: null,
           claimBlockedAt: new Date(),
         })
-        .where("id", "=", entryId)
-        .returningAll()
-        .executeTakeFirst();
-      return row ? parseEntryRow(row) : undefined;
-    },
-
-    /**
-     * Account candidates for the judge link search: exact email match or
-     * name prefix, capped small. Judges already see entrant emails, so this
-     * exposes nothing beyond their existing view.
-     * @returns Up to ten matching accounts.
-     */
-    listAccountsForLinkSearch(
-      query: string,
-    ): Promise<{ id: string; name: string | null; email: string }[]> {
-      const trimmed = query.trim();
-      return db
-        .selectFrom("users")
-        .select(["id", "name", "email"])
-        .where((eb) =>
-          eb.or([
-            eb(sql`lower(email)`, "=", trimmed.toLowerCase()),
-            eb("name", "ilike", `${trimmed.replaceAll(/[%_]/gu, "")}%`),
-          ]),
-        )
-        .orderBy("name", "asc")
-        .limit(10)
+        .where("id", "=", participantId)
         .execute();
+      return loadEntryById(entryId);
     },
 
     /**
@@ -613,26 +826,45 @@ export function deckCheckRepo(db: Kysely<Database>) {
     async listEntriesForPlayer(userId: string): Promise<PlayerDeckCheckEntryRow[]> {
       const rows = await db
         .selectFrom("deckCheckEntries as en")
-        .innerJoin("deckCheckEvents as ev", "ev.id", "en.eventId")
-        .innerJoin("friendGroups as g", "g.id", "ev.groupId")
+        .innerJoin("tournamentParticipants as p", "p.id", "en.participantId")
+        .innerJoin("tournaments as ev", "ev.id", "en.tournamentId")
+        // Left join: a personally-hosted tournament with no friend group (ADR-033)
+        // still lists; the group name/slug are only labels and stay null.
+        .leftJoin("friendGroups as g", "g.id", "ev.groupId")
         .selectAll("en")
         .select((eb) => [
+          eb.ref("p.displayName").as("playerName"),
+          eb.ref("p.riotId").as("riotId"),
+          eb.ref("p.userId").as("claimedUserId"),
+          eb.ref("p.claimSource").as("claimSource"),
+          eb.ref("p.claimedAt").as("claimedAt"),
+          eb.ref("p.claimBlockedAt").as("claimBlockedAt"),
+          eb.ref("p.claimToken").as("claimToken"),
           eb.ref("ev.name").as("eventName"),
-          eb.ref("ev.eventDate").as("eventDate"),
-          eb.ref("ev.status").as("eventStatus"),
+          eb.ref("ev.startsAt").as("eventDate"),
+          eb.ref("ev.status").as("eventStatusRaw"),
           eb.ref("ev.submissionsCloseAt").as("submissionsCloseAt"),
           eb.ref("g.name").as("groupName"),
           eb.ref("g.slug").as("groupSlug"),
         ])
-        .where("en.claimedUserId", "=", userId)
+        .where("p.userId", "=", userId)
         .orderBy("en.updatedAt", "desc")
         .execute();
-      return rows.map((row) => parseEntryRow(row));
+      return rows.map((row) => ({
+        ...materializeEntry(row),
+        eventName: row.eventName,
+        eventDate: row.eventDate,
+        eventStatus: row.eventStatusRaw === "running" ? "active" : "archived",
+        submissionsCloseAt: row.submissionsCloseAt,
+        groupName: row.groupName,
+        groupSlug: row.groupSlug,
+      }));
     },
 
     /**
-     * One entry, guarded by ownership: returns nothing unless the entry is
-     * linked to the caller. The 404-vs-403 distinction happens in the route.
+     * One entry, guarded by ownership: returns nothing unless the entry's
+     * participant is linked to the caller. The 404-vs-403 distinction happens in
+     * the route.
      * @returns The entry with its event and group names, or undefined.
      */
     async getEntryForPlayer(
@@ -641,51 +873,42 @@ export function deckCheckRepo(db: Kysely<Database>) {
     ): Promise<PlayerDeckCheckEntryRow | undefined> {
       const row = await db
         .selectFrom("deckCheckEntries as en")
-        .innerJoin("deckCheckEvents as ev", "ev.id", "en.eventId")
-        .innerJoin("friendGroups as g", "g.id", "ev.groupId")
+        .innerJoin("tournamentParticipants as p", "p.id", "en.participantId")
+        .innerJoin("tournaments as ev", "ev.id", "en.tournamentId")
+        // Left join: a personally-hosted tournament with no friend group (ADR-033)
+        // still resolves; the group name/slug are only labels and stay null.
+        .leftJoin("friendGroups as g", "g.id", "ev.groupId")
         .selectAll("en")
         .select((eb) => [
+          eb.ref("p.displayName").as("playerName"),
+          eb.ref("p.riotId").as("riotId"),
+          eb.ref("p.userId").as("claimedUserId"),
+          eb.ref("p.claimSource").as("claimSource"),
+          eb.ref("p.claimedAt").as("claimedAt"),
+          eb.ref("p.claimBlockedAt").as("claimBlockedAt"),
+          eb.ref("p.claimToken").as("claimToken"),
           eb.ref("ev.name").as("eventName"),
-          eb.ref("ev.eventDate").as("eventDate"),
-          eb.ref("ev.status").as("eventStatus"),
+          eb.ref("ev.startsAt").as("eventDate"),
+          eb.ref("ev.status").as("eventStatusRaw"),
           eb.ref("ev.submissionsCloseAt").as("submissionsCloseAt"),
           eb.ref("g.name").as("groupName"),
           eb.ref("g.slug").as("groupSlug"),
         ])
         .where("en.id", "=", entryId)
-        .where("en.claimedUserId", "=", userId)
+        .where("p.userId", "=", userId)
         .executeTakeFirst();
-      return row ? parseEntryRow(row) : undefined;
-    },
-
-    /**
-     * Loads an event without group scoping (player paths know no group).
-     * @returns The event, or undefined when it does not exist.
-     */
-    async getEventById(eventId: string): Promise<DeckCheckEvent | undefined> {
-      const row = await db
-        .selectFrom("deckCheckEvents")
-        .selectAll()
-        .where("id", "=", eventId)
-        .executeTakeFirst();
-      return row ? parseEventRow(row) : undefined;
-    },
-
-    /**
-     * Resolves a submission link's token to its event.
-     * @returns The event with its group name, or undefined.
-     */
-    async getEventBySubmissionToken(
-      token: string,
-    ): Promise<(DeckCheckEvent & { groupName: string }) | undefined> {
-      const row = await db
-        .selectFrom("deckCheckEvents as ev")
-        .innerJoin("friendGroups as g", "g.id", "ev.groupId")
-        .selectAll("ev")
-        .select((eb) => eb.ref("g.name").as("groupName"))
-        .where("ev.submissionToken", "=", token)
-        .executeTakeFirst();
-      return row ? parseEventRow(row) : undefined;
+      if (!row) {
+        return undefined;
+      }
+      return {
+        ...materializeEntry(row),
+        eventName: row.eventName,
+        eventDate: row.eventDate,
+        eventStatus: row.eventStatusRaw === "running" ? "active" : "archived",
+        submissionsCloseAt: row.submissionsCloseAt,
+        groupName: row.groupName,
+        groupSlug: row.groupSlug,
+      };
     },
 
     /**
@@ -693,37 +916,14 @@ export function deckCheckRepo(db: Kysely<Database>) {
      * @returns The entry, or undefined when none is linked.
      */
     async getLinkedEntryForUser(
-      eventId: string,
+      tournamentId: string,
       userId: string,
     ): Promise<DeckCheckEntry | undefined> {
-      const row = await db
-        .selectFrom("deckCheckEntries")
-        .selectAll()
-        .where("eventId", "=", eventId)
-        .where("claimedUserId", "=", userId)
+      const row = await selectEntryWithParticipant()
+        .where("en.tournamentId", "=", tournamentId)
+        .where("p.userId", "=", userId)
         .executeTakeFirst();
-      return row ? parseEntryRow(row) : undefined;
-    },
-
-    /**
-     * Updates the per-event self-submission settings (admin action).
-     * @returns The updated event, or undefined when it does not exist.
-     */
-    async updateEventSubmission(
-      eventId: string,
-      patch: Partial<{
-        allowSelfSubmission: boolean;
-        submissionToken: string | null;
-        submissionsCloseAt: Date | null;
-      }>,
-    ): Promise<DeckCheckEvent | undefined> {
-      const row = await db
-        .updateTable("deckCheckEvents")
-        .set(patch)
-        .where("id", "=", eventId)
-        .returningAll()
-        .executeTakeFirst();
-      return row ? parseEventRow(row) : undefined;
+      return row ? materializeEntry(row) : undefined;
     },
 
     // ── Entry cards ─────────────────────────────────────────────────────────
@@ -1041,16 +1241,48 @@ export function deckCheckRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Marks every physical copy of every card line in an entry as found. Used
+     * when a judge marks the list checked (ADR-033): concluding the check
+     * implies the whole list was verified, so the found ticks are filled to
+     * match. Each line's array is rewritten dense to its own `quantity`.
+     * @returns Nothing; an entry with no card lines is a no-op.
+     */
+    async markAllCopiesFound(entryId: string): Promise<void> {
+      await sql`
+        UPDATE deck_check_entry_cards
+           SET found_copies = (
+             SELECT array_agg(true ORDER BY gs.i)
+             FROM generate_series(1, quantity) AS gs(i)
+           )
+         WHERE entry_id = ${entryId} AND quantity > 0
+      `.execute(db);
+    },
+
+    /**
+     * Clears every found tick across an entry's card lines, back to the empty
+     * default. Used when a judge re-opens a checked list (ADR-033): re-checking
+     * starts from a clean slate so a stale auto-fill can't read as a fresh count.
+     * @returns Nothing.
+     */
+    async clearAllCopiesFound(entryId: string): Promise<void> {
+      await db
+        .updateTable("deckCheckEntryCards")
+        .set({ foundCopies: [] })
+        .where("entryId", "=", entryId)
+        .execute();
+    },
+
+    /**
      * Card lines of an event still unmatched or ambiguous, for the re-resolve action.
      * @returns The unresolved card rows across all of the event's entries.
      */
-    listUnresolvedCardsForEvent(eventId: string): Promise<DeckCheckEntryCard[]> {
+    listUnresolvedCardsForEvent(tournamentId: string): Promise<DeckCheckEntryCard[]> {
       return (
         db
           .selectFrom("deckCheckEntryCards as c")
           .innerJoin("deckCheckEntries as en", "en.id", "c.entryId")
           .selectAll("c")
-          .where("en.eventId", "=", eventId)
+          .where("en.tournamentId", "=", tournamentId)
           // An editable entry's list is invisible to officials (ADR-027), so the
           // event-wide re-resolve leaves its lines alone too.
           .where("en.state", "!=", "editable")
@@ -1268,65 +1500,121 @@ export function deckCheckRepo(db: Kysely<Database>) {
       return bySets;
     },
 
-    // ── Push keys ───────────────────────────────────────────────────────────
+    // ── Push keys (host-scoped) ───────────────────────────────────────────────
 
-    async listKeysForGroup(
-      groupId: string,
+    /**
+     * Lists a host's integration keys directly (ADR-033): the host is the
+     * current user or an organization, not resolved through a friend group.
+     * @returns The host's keys with the creator name, newest first.
+     */
+    async listKeysForHost(
+      host: DeckCheckHost,
     ): Promise<(DeckCheckKey & { createdByName: string | null })[]> {
-      const rows = await db
+      let query = db
         .selectFrom("deckCheckKeys as k")
         .leftJoin("users as u", "u.id", "k.createdBy")
         .selectAll("k")
-        .select((eb) => eb.ref("u.name").as("createdByName"))
-        .where("k.groupId", "=", groupId)
-        .orderBy("k.createdAt", "desc")
-        .execute();
+        .select((eb) => eb.ref("u.name").as("createdByName"));
+      query =
+        host.hostType === "user"
+          ? query.where("k.hostType", "=", "user").where("k.hostUserId", "=", host.hostUserId)
+          : query
+              .where("k.hostType", "=", "organization")
+              .where("k.hostOrgId", "=", host.hostOrgId);
+      const rows = await query.orderBy("k.createdAt", "desc").execute();
       return rows.map((row) => ({ ...row, createdByName: row.createdByName ?? null }));
     },
 
-    createKey(input: {
-      groupId: string;
+    /**
+     * Mints an integration key owned by a host directly (ADR-033).
+     * @returns The created key row.
+     */
+    createKeyForHost(input: {
+      host: DeckCheckHost;
       tokenHash: string;
       tokenPrefix: string;
       label: string | null;
       createdBy: string;
     }): Promise<DeckCheckKey> {
-      return db.insertInto("deckCheckKeys").values(input).returningAll().executeTakeFirstOrThrow();
+      return db
+        .insertInto("deckCheckKeys")
+        .values({
+          hostType: input.host.hostType,
+          hostUserId: input.host.hostType === "user" ? input.host.hostUserId : null,
+          hostOrgId: input.host.hostType === "organization" ? input.host.hostOrgId : null,
+          tokenHash: input.tokenHash,
+          tokenPrefix: input.tokenPrefix,
+          label: input.label,
+          createdBy: input.createdBy,
+        })
+        .returningAll()
+        .executeTakeFirstOrThrow();
     },
 
-    updateKeyLabel(
-      groupId: string,
+    /**
+     * Renames a host's key, scoped to the host so a key id from another host
+     * cannot be relabelled.
+     * @returns The updated key, or undefined when the host does not own it.
+     */
+    updateKeyLabelForHost(
+      host: DeckCheckHost,
       keyId: string,
       label: string,
     ): Promise<DeckCheckKey | undefined> {
-      return db
-        .updateTable("deckCheckKeys")
-        .set({ label })
-        .where("id", "=", keyId)
-        .where("groupId", "=", groupId)
-        .returningAll()
-        .executeTakeFirst();
+      let query = db.updateTable("deckCheckKeys").set({ label }).where("id", "=", keyId);
+      query =
+        host.hostType === "user"
+          ? query.where("hostType", "=", "user").where("hostUserId", "=", host.hostUserId)
+          : query.where("hostType", "=", "organization").where("hostOrgId", "=", host.hostOrgId);
+      return query.returningAll().executeTakeFirst();
     },
 
-    async revokeKey(groupId: string, keyId: string): Promise<boolean> {
-      const result = await db
+    /**
+     * Revokes a host's key, scoped to the host.
+     * @returns True when an active key was revoked.
+     */
+    async revokeKeyForHost(host: DeckCheckHost, keyId: string): Promise<boolean> {
+      let query = db
         .updateTable("deckCheckKeys")
         .set({ revokedAt: new Date() })
         .where("id", "=", keyId)
-        .where("groupId", "=", groupId)
-        .where("revokedAt", "is", null)
-        .executeTakeFirst();
+        .where("revokedAt", "is", null);
+      query =
+        host.hostType === "user"
+          ? query.where("hostType", "=", "user").where("hostUserId", "=", host.hostUserId)
+          : query.where("hostType", "=", "organization").where("hostOrgId", "=", host.hostOrgId);
+      const result = await query.executeTakeFirst();
       return result.numUpdatedRows > 0n;
     },
 
     /**
-     * Resolves a presented token's hash to its group; revoked keys do not match.
-     * @returns The key id and group id, or undefined when no active key matches.
+     * Permanently removes a host's already-revoked key, scoped to the host. The
+     * `revoked_at IS NOT NULL` guard keeps an active key from being deleted out
+     * from under a provider — revoke first, then remove the dead row. Nothing
+     * references a key id, so the delete leaves no dangling rows.
+     * @returns True when a revoked key was deleted.
      */
-    findActiveKeyByHash(tokenHash: string): Promise<{ id: string; groupId: string } | undefined> {
+    async deleteRevokedKeyForHost(host: DeckCheckHost, keyId: string): Promise<boolean> {
+      let query = db
+        .deleteFrom("deckCheckKeys")
+        .where("id", "=", keyId)
+        .where("revokedAt", "is not", null);
+      query =
+        host.hostType === "user"
+          ? query.where("hostType", "=", "user").where("hostUserId", "=", host.hostUserId)
+          : query.where("hostType", "=", "organization").where("hostOrgId", "=", host.hostOrgId);
+      const result = await query.executeTakeFirst();
+      return result.numDeletedRows > 0n;
+    },
+
+    /**
+     * Resolves a presented token's hash to its host; revoked keys do not match.
+     * @returns The key id and host, or undefined when no active key matches.
+     */
+    findActiveKeyByHash(tokenHash: string): Promise<(DeckCheckHost & { id: string }) | undefined> {
       return db
         .selectFrom("deckCheckKeys")
-        .select(["id", "groupId"])
+        .select(["id", "hostType", "hostUserId", "hostOrgId"])
         .where("tokenHash", "=", tokenHash)
         .where("revokedAt", "is", null)
         .executeTakeFirst();

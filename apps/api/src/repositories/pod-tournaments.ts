@@ -15,14 +15,14 @@ import type { Kysely, Selectable } from "kysely";
 
 import type {
   Database,
-  PodPlayersTable,
   PodRoundsTable,
   PodsTable,
-  PodTournamentsTable,
+  TournamentParticipantsTable,
+  TournamentsTable,
 } from "../db/index.js";
 
-export type PodTournament = Selectable<PodTournamentsTable>;
-export type PodPlayer = Selectable<PodPlayersTable>;
+export type PodTournament = Selectable<TournamentsTable>;
+export type PodPlayer = Selectable<TournamentParticipantsTable>;
 export type PodRound = Selectable<PodRoundsTable>;
 export type Pod = Selectable<PodsTable>;
 
@@ -33,7 +33,7 @@ export interface PodTournamentSummary extends PodTournament {
 }
 
 export interface NewPodTournament {
-  ownerUserId: string;
+  hostUserId: string;
   name: string;
 }
 
@@ -323,18 +323,18 @@ export function podTournamentsRepo(db: Kysely<Database>) {
   return {
     // ── Tournaments ────────────────────────────────────────────────────────
     /** @returns Owner's tournaments, newest first, with derived counts. */
-    async listForOwner(ownerUserId: string): Promise<PodTournamentSummary[]> {
+    async listForOwner(hostUserId: string): Promise<PodTournamentSummary[]> {
       const rows = await db
-        .selectFrom("podTournaments as t")
+        .selectFrom("tournaments as t")
         .selectAll("t")
         .select((eb) => [
           eb
-            .selectFrom("podPlayers as p")
+            .selectFrom("tournamentParticipants as p")
             .select(eb.fn.countAll<number>().as("c"))
             .whereRef("p.tournamentId", "=", "t.id")
             .as("playerCount"),
           eb
-            .selectFrom("podPlayers as p")
+            .selectFrom("tournamentParticipants as p")
             .select(eb.fn.countAll<number>().as("c"))
             .whereRef("p.tournamentId", "=", "t.id")
             .where("p.status", "=", "active")
@@ -345,7 +345,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
             .whereRef("r.tournamentId", "=", "t.id")
             .as("roundCount"),
         ])
-        .where("t.ownerUserId", "=", ownerUserId)
+        .where("t.hostUserId", "=", hostUserId)
         .orderBy("t.createdAt", "desc")
         .execute();
       return rows.map((row) => ({
@@ -358,23 +358,23 @@ export function podTournamentsRepo(db: Kysely<Database>) {
 
     /** @returns The tournament, or `undefined` if no tournament has that id. */
     findById(id: string): Promise<PodTournament | undefined> {
-      return db.selectFrom("podTournaments").selectAll().where("id", "=", id).executeTakeFirst();
+      return db.selectFrom("tournaments").selectAll().where("id", "=", id).executeTakeFirst();
     },
 
     /** @returns The tournament whose report token matches, or `undefined`. */
     findByReportToken(token: string): Promise<PodTournament | undefined> {
       return db
-        .selectFrom("podTournaments")
+        .selectFrom("tournaments")
         .selectAll()
         .where("reportToken", "=", token)
         .executeTakeFirst();
     },
 
-    /** @returns The created tournament row. */
+    /** @returns The created tournament row (a user-hosted pod tournament). */
     create(values: NewPodTournament): Promise<PodTournament> {
       return db
-        .insertInto("podTournaments")
-        .values({ ownerUserId: values.ownerUserId, name: values.name })
+        .insertInto("tournaments")
+        .values({ hostType: "user", hostUserId: values.hostUserId, name: values.name })
         .returningAll()
         .executeTakeFirstOrThrow();
     },
@@ -391,7 +391,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       },
     ): Promise<PodTournament | undefined> {
       return db
-        .updateTable("podTournaments")
+        .updateTable("tournaments")
         .set(patch)
         .where("id", "=", id)
         .returningAll()
@@ -399,7 +399,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
     },
 
     async deleteById(id: string): Promise<void> {
-      await db.deleteFrom("podTournaments").where("id", "=", id).execute();
+      await db.deleteFrom("tournaments").where("id", "=", id).execute();
     },
 
     /**
@@ -408,7 +408,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
      */
     setReportToken(id: string, token: string | null): Promise<PodTournament | undefined> {
       return db
-        .updateTable("podTournaments")
+        .updateTable("tournaments")
         .set({ reportToken: token })
         .where("id", "=", id)
         .returningAll()
@@ -418,7 +418,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
     // ── Players ────────────────────────────────────────────────────────────
     listPlayers(tournamentId: string): Promise<PodPlayer[]> {
       return db
-        .selectFrom("podPlayers")
+        .selectFrom("tournamentParticipants")
         .selectAll()
         .where("tournamentId", "=", tournamentId)
         .orderBy("createdAt", "asc")
@@ -426,12 +426,16 @@ export function podTournamentsRepo(db: Kysely<Database>) {
     },
 
     findPlayer(playerId: string): Promise<PodPlayer | undefined> {
-      return db.selectFrom("podPlayers").selectAll().where("id", "=", playerId).executeTakeFirst();
+      return db
+        .selectFrom("tournamentParticipants")
+        .selectAll()
+        .where("id", "=", playerId)
+        .executeTakeFirst();
     },
 
     addPlayer(tournamentId: string, displayName: string): Promise<PodPlayer> {
       return db
-        .insertInto("podPlayers")
+        .insertInto("tournamentParticipants")
         .values({ tournamentId, displayName })
         .returningAll()
         .executeTakeFirstOrThrow();
@@ -439,7 +443,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
 
     renamePlayer(playerId: string, displayName: string): Promise<PodPlayer | undefined> {
       return db
-        .updateTable("podPlayers")
+        .updateTable("tournamentParticipants")
         .set({ displayName })
         .where("id", "=", playerId)
         .returningAll()
@@ -448,7 +452,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
 
     dropPlayer(playerId: string, droppedAfterRound: number): Promise<PodPlayer | undefined> {
       return db
-        .updateTable("podPlayers")
+        .updateTable("tournamentParticipants")
         .set({ status: "dropped", droppedAfterRound })
         .where("id", "=", playerId)
         .returningAll()
@@ -461,7 +465,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
      */
     reactivatePlayer(playerId: string): Promise<PodPlayer | undefined> {
       return db
-        .updateTable("podPlayers")
+        .updateTable("tournamentParticipants")
         .set({ status: "active", droppedAfterRound: null })
         .where("id", "=", playerId)
         .returningAll()
@@ -469,7 +473,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
     },
 
     async deletePlayer(playerId: string): Promise<void> {
-      await db.deleteFrom("podPlayers").where("id", "=", playerId).execute();
+      await db.deleteFrom("tournamentParticipants").where("id", "=", playerId).execute();
     },
 
     /** @returns True if the player is in any pod (so they cannot be hard-deleted). */
@@ -596,7 +600,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
         return undefined;
       }
       const tournament = await db
-        .selectFrom("podTournaments")
+        .selectFrom("tournaments")
         .selectAll()
         .where("id", "=", round.tournamentId)
         .executeTakeFirst();
@@ -668,7 +672,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
           .where("id", "=", roundId)
           .execute();
         await trx
-          .updateTable("podTournaments")
+          .updateTable("tournaments")
           .set({ currentRound: newCurrentRound })
           .where("id", "=", tournamentId)
           .execute();
@@ -684,7 +688,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
     ): Promise<PairingPlayer[]> {
       const [activePlayers, finalizedRows, finalizedByes] = await Promise.all([
         db
-          .selectFrom("podPlayers")
+          .selectFrom("tournamentParticipants")
           .select(["id"])
           .where("tournamentId", "=", tournamentId)
           .where("status", "=", "active")
@@ -721,7 +725,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
     ): Promise<PodSnapshotPlayer[]> {
       const [players, finalizedRows, finalizedByes] = await Promise.all([
         db
-          .selectFrom("podPlayers")
+          .selectFrom("tournamentParticipants")
           .select(["id"])
           .where("tournamentId", "=", tournamentId)
           .orderBy("createdAt", "asc")
@@ -755,7 +759,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
     ): Promise<PodStandingRow[]> {
       const [players, finalizedRows, finalizedByes] = await Promise.all([
         db
-          .selectFrom("podPlayers")
+          .selectFrom("tournamentParticipants")
           .selectAll()
           .where("tournamentId", "=", tournamentId)
           .orderBy("createdAt", "asc")
@@ -825,13 +829,13 @@ export function podTournamentsRepo(db: Kysely<Database>) {
           ? Promise.resolve([])
           : db
               .selectFrom("podMembers as m")
-              .innerJoin("podPlayers as pl", "pl.id", "m.playerId")
+              .innerJoin("tournamentParticipants as pl", "pl.id", "m.playerId")
               .select(["m.podId", "m.playerId", "pl.displayName", "m.placement", "m.gamePoints"])
               .where("m.podId", "in", podIds)
               .execute(),
         db
           .selectFrom("podByes as b")
-          .innerJoin("podPlayers as pl", "pl.id", "b.playerId")
+          .innerJoin("tournamentParticipants as pl", "pl.id", "b.playerId")
           .select(["b.roundId", "b.playerId", "pl.displayName"])
           .where("b.roundId", "in", roundIds)
           .execute(),

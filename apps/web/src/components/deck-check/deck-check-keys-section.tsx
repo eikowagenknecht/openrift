@@ -18,33 +18,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  useDeckCheckKeys,
-  useMintDeckCheckKey,
-  useRenameDeckCheckKey,
-  useRevokeDeckCheckKey,
-} from "@/hooks/use-deck-check";
-import { getSiteUrl } from "@/lib/site-config";
-
-const EXAMPLE_PAYLOAD = `{
-  "eventId": "<the event id, shown on the event page>",
-  "entries": [
-    {
-      "externalId": "1234",
-      "playerName": "A. Player",
-      "playerEmail": "player@example.com",
-      "riotId": "Player#EUW",
-      "submittedAt": "2026-06-18T20:00:00Z",
-      "allowDeckPublishing": true,
-      "allowNameSharing": true,
-      "allowRiotIdSharing": true,
-      "withdrawn": false,
-      "cards": [
-        { "name": "Darius, Trifarian", "quantity": 1, "section": "champion" },
-        { "name": "Blazing Scorcher", "quantity": 3, "section": "main" }
-      ]
-    }
-  ]
-}`;
+  useMintMyDeckCheckKey,
+  useMintOrgDeckCheckKey,
+  useMyDeckCheckKeys,
+  useOrgDeckCheckKeys,
+  useRemoveMyDeckCheckKey,
+  useRemoveOrgDeckCheckKey,
+  useRenameMyDeckCheckKey,
+  useRenameOrgDeckCheckKey,
+  useRevokeMyDeckCheckKey,
+  useRevokeOrgDeckCheckKey,
+} from "@/hooks/use-deck-check-keys";
 
 /**
  * ISO date (YYYY-MM-DD) from an ISO timestamp.
@@ -54,121 +38,135 @@ function isoDay(timestamp: string): string {
   return timestamp.slice(0, 10);
 }
 
+/** Bound key actions, supplied by the personal / org wrappers below. */
+interface KeyActions {
+  keys: DeckCheckKeyResponse[] | undefined;
+  mint: (label: string) => Promise<string>;
+  mintPending: boolean;
+  rename: (keyId: string, label: string) => Promise<void>;
+  revoke: (keyId: string) => Promise<void>;
+  revokePending: boolean;
+  remove: (keyId: string) => Promise<void>;
+  removePending: boolean;
+}
+
 /**
- * Admin-only API-key management plus the integration details an organizer
- * needs to send entrant decklists to this group. Lives on the group's Manage
- * page.
+ * Personal deck-check API keys (host = the current user). Keys here let a
+ * provider push entrant decklists into the tournaments this account hosts.
+ * @returns The personal API-keys card.
+ */
+export function MyDeckCheckKeysSection({ enabled = true }: { enabled?: boolean }) {
+  const { data } = useMyDeckCheckKeys(enabled);
+  const mintKey = useMintMyDeckCheckKey();
+  const renameKey = useRenameMyDeckCheckKey();
+  const revokeKey = useRevokeMyDeckCheckKey();
+  const removeKey = useRemoveMyDeckCheckKey();
+  return (
+    <DeckCheckKeysCard
+      keys={data?.items}
+      mint={async (label) => {
+        const result = await mintKey.mutateAsync({ label });
+        return result.token;
+      }}
+      mintPending={mintKey.isPending}
+      rename={async (keyId, label) => {
+        await renameKey.mutateAsync({ keyId, label });
+      }}
+      revoke={async (keyId) => {
+        await revokeKey.mutateAsync({ keyId });
+      }}
+      revokePending={revokeKey.isPending}
+      remove={async (keyId) => {
+        await removeKey.mutateAsync({ keyId });
+      }}
+      removePending={removeKey.isPending}
+    />
+  );
+}
+
+/**
+ * Organization-owned deck-check API keys (owner/manager only). Keys here let a
+ * provider push entrant decklists into the tournaments the org hosts.
+ * @returns The org API-keys card.
+ */
+export function OrgDeckCheckKeysSection({
+  orgId,
+  enabled = true,
+}: {
+  orgId: string;
+  enabled?: boolean;
+}) {
+  const { data } = useOrgDeckCheckKeys(orgId, enabled);
+  const mintKey = useMintOrgDeckCheckKey();
+  const renameKey = useRenameOrgDeckCheckKey();
+  const revokeKey = useRevokeOrgDeckCheckKey();
+  const removeKey = useRemoveOrgDeckCheckKey();
+  return (
+    <DeckCheckKeysCard
+      keys={data?.items}
+      mint={async (label) => {
+        const result = await mintKey.mutateAsync({ orgId, label });
+        return result.token;
+      }}
+      mintPending={mintKey.isPending}
+      rename={async (keyId, label) => {
+        await renameKey.mutateAsync({ orgId, keyId, label });
+      }}
+      revoke={async (keyId) => {
+        await revokeKey.mutateAsync({ orgId, keyId });
+      }}
+      revokePending={revokeKey.isPending}
+      remove={async (keyId) => {
+        await removeKey.mutateAsync({ orgId, keyId });
+      }}
+      removePending={removeKey.isPending}
+    />
+  );
+}
+
+/**
+ * The shared API-key management card plus the integration details an organizer
+ * needs to send entrant decklists. Host-agnostic: the personal and org wrappers
+ * supply the bound mutations.
  * @returns The API-keys settings card.
  */
-export function DeckCheckKeysSection({ slug }: { slug: string }) {
-  const { data } = useDeckCheckKeys(slug, true);
+function DeckCheckKeysCard(actions: KeyActions) {
+  const { keys } = actions;
   const [createOpen, setCreateOpen] = useState(false);
   const [mintedToken, setMintedToken] = useState<string | null>(null);
-
-  // The claim link is absolute, so it carries the live site origin.
-  const exampleResponse = `{
-  "eventId": "<the event id>",
-  "entriesCreated": 1,
-  "entriesUpdated": 0,
-  "entriesUnchanged": 0,
-  "entriesWithdrawn": 0,
-  "checksInvalidated": 0,
-  "entries": [
-    {
-      "externalId": "1234",
-      "entryId": "019eb565-3d55-7d21-8d86-e9b6939a2c2f",
-      "claimUrl": "${getSiteUrl()}/tournament-claim/8f3c2a…"
-    }
-  ]
-}`;
 
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-base">Deck-check API keys</CardTitle>
+          <CardTitle className="text-base">API keys</CardTitle>
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <PlusIcon className="size-4" />
             Create key
           </Button>
         </div>
         <CardDescription>
-          An API key lets another website or tool send entrant decklists to this group, for example
-          the site where players submit their lists. Lists it sends again are updated in place;
-          lists it leaves out stay untouched.
+          An API key acts on your behalf and is allowed to do anything that you can do, limited to
+          whatever the API exposes. For now the only available endpoint sends entrant decklists to
+          your hosted tournaments.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        {data && data.items.length > 0 ? (
+        {keys && keys.length > 0 ? (
           <div className="flex flex-col gap-2">
-            {data.items.map((key) => (
-              <KeyRow key={key.id} slug={slug} apiKey={key} />
+            {keys.map((key) => (
+              <KeyRow key={key.id} apiKey={key} actions={actions} />
             ))}
           </div>
         ) : (
           <p className="text-muted-foreground text-sm">No keys yet.</p>
         )}
 
-        <details>
-          <summary className="text-muted-foreground cursor-pointer text-sm">
-            How to send decklists
-          </summary>
-          <div className="mt-2 flex flex-col gap-2 text-sm">
-            <p>
-              Send a POST request to{" "}
-              <code className="break-all">{getSiteUrl()}/api/v1/ingest/deck-check</code> with the
-              header <code>Authorization: Bearer &lt;your key&gt;</code> and a JSON body like this:
-            </p>
-            <p>
-              Pushes can only fill events that already exist: create the event on the group&apos;s
-              Deck checks page first, then copy its id from the event page (next to the name) into{" "}
-              <code>eventId</code>. The <code>externalId</code> of an entry is your own id for that
-              player, so sending it again updates the same entry. <code>playerEmail</code>,{" "}
-              <code>riotId</code>, and <code>submittedAt</code> (when the player turned in the list)
-              are optional and shown to judges next to the name.
-            </p>
-            <p>
-              <code>allowDeckPublishing</code> records whether the player agreed to the organizer
-              publishing their deck list publicly after the event; <code>allowNameSharing</code> and{" "}
-              <code>allowRiotIdSharing</code> further record whether their name or Riot ID may be
-              shown with it. Send <code>false</code> when the player declined; leaving a flag out
-              keeps what is stored (new entries default to allowed). Leaving an entry out of a push
-              never withdraws it: to withdraw a player, send the entry with <code>withdrawn</code>{" "}
-              set to <code>true</code>; sending it again without the flag restores it.
-            </p>
-            <p>
-              Valid card sections are <code>legend</code>, <code>champion</code>, <code>main</code>,{" "}
-              <code>runes</code>, <code>battlefield</code>, <code>sideboard</code>, and{" "}
-              <code>overflow</code>. Common variants like <code>deck</code>, <code>maindeck</code>,{" "}
-              <code>side</code>, and plural forms work too; anything else rejects the push.
-            </p>
-            <pre className="bg-muted overflow-x-auto rounded-md p-3">{EXAMPLE_PAYLOAD}</pre>
-            <p>
-              A successful push returns <code>200</code> with a summary of the result and a
-              per-entry list keyed by your <code>externalId</code>:
-            </p>
-            <p>
-              The counts tell you how the push landed: <code>entriesCreated</code>,{" "}
-              <code>entriesUpdated</code>, <code>entriesUnchanged</code>, and{" "}
-              <code>entriesWithdrawn</code>. <code>checksInvalidated</code> counts entries whose
-              approval or check was reset because their list changed in this push. Each item in{" "}
-              <code>entries</code> echoes your <code>externalId</code> alongside OpenRift&apos;s
-              stable <code>entryId</code> and a <code>claimUrl</code>.
-            </p>
-            <p>
-              Put the <code>claimUrl</code> in your confirmation email to the player: opening it and
-              signing in (or creating an account) connects the entry to their OpenRift account, so
-              they can see its status any time. It works even if you never share the player&apos;s
-              email with OpenRift.
-            </p>
-            <pre className="bg-muted overflow-x-auto rounded-md p-3">{exampleResponse}</pre>
-          </div>
-        </details>
-
         <CreateKeyDialog
-          slug={slug}
           open={createOpen}
           onOpenChange={setCreateOpen}
+          onMint={(label) => actions.mint(label)}
+          mintPending={actions.mintPending}
           onMinted={setMintedToken}
         />
         <MintedKeyDialog token={mintedToken} onClose={() => setMintedToken(null)} />
@@ -178,28 +176,29 @@ export function DeckCheckKeysSection({ slug }: { slug: string }) {
 }
 
 function CreateKeyDialog({
-  slug,
   open,
   onOpenChange,
+  onMint,
+  mintPending,
   onMinted,
 }: {
-  slug: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onMint: (label: string) => Promise<string>;
+  mintPending: boolean;
   onMinted: (token: string) => void;
 }) {
   const [label, setLabel] = useState("");
-  const mintKey = useMintDeckCheckKey();
 
   const handleCreate = async () => {
     const trimmed = label.trim();
     if (!trimmed) {
       return;
     }
-    const result = await mintKey.mutateAsync({ slug, label: trimmed });
+    const token = await onMint(trimmed);
     setLabel("");
     onOpenChange(false);
-    onMinted(result.token);
+    onMinted(token);
   };
 
   return (
@@ -239,8 +238,8 @@ function CreateKeyDialog({
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleCreate} disabled={mintKey.isPending || !label.trim()}>
-            {mintKey.isPending ? "Creating..." : "Create"}
+          <Button onClick={handleCreate} disabled={mintPending || !label.trim()}>
+            {mintPending ? "Creating..." : "Create"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -248,9 +247,9 @@ function CreateKeyDialog({
   );
 }
 
-function KeyRow({ slug, apiKey }: { slug: string; apiKey: DeckCheckKeyResponse }) {
-  const revokeKey = useRevokeDeckCheckKey();
+function KeyRow({ apiKey, actions }: { apiKey: DeckCheckKeyResponse; actions: KeyActions }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [removeOpen, setRemoveOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const revoked = apiKey.revokedAt !== null;
 
@@ -268,7 +267,17 @@ function KeyRow({ slug, apiKey }: { slug: string; apiKey: DeckCheckKeyResponse }
         </span>
       </div>
       {revoked ? (
-        <Badge variant="secondary">Revoked</Badge>
+        <>
+          <Badge variant="secondary">Revoked</Badge>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-destructive"
+            onClick={() => setRemoveOpen(true)}
+          >
+            Remove
+          </Button>
+        </>
       ) : (
         <>
           <Button
@@ -284,7 +293,12 @@ function KeyRow({ slug, apiKey }: { slug: string; apiKey: DeckCheckKeyResponse }
           </Button>
         </>
       )}
-      <RenameKeyDialog slug={slug} apiKey={apiKey} open={renameOpen} onOpenChange={setRenameOpen} />
+      <RenameKeyDialog
+        apiKey={apiKey}
+        open={renameOpen}
+        onOpenChange={setRenameOpen}
+        onRename={(keyId, label) => actions.rename(keyId, label)}
+      />
       <ConfirmActionDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
@@ -292,11 +306,25 @@ function KeyRow({ slug, apiKey }: { slug: string; apiKey: DeckCheckKeyResponse }
         description="Anything still using it will no longer be able to send decklists."
         confirmLabel="Revoke"
         pendingLabel="Revoking..."
-        isPending={revokeKey.isPending}
+        isPending={actions.revokePending}
         onConfirm={async () => {
-          await revokeKey.mutateAsync({ slug, keyId: apiKey.id });
+          await actions.revoke(apiKey.id);
           setConfirmOpen(false);
           toast.success("Key revoked");
+        }}
+      />
+      <ConfirmActionDialog
+        open={removeOpen}
+        onOpenChange={setRemoveOpen}
+        title="Remove this key?"
+        description="It is already revoked, so this just clears it from the list. This cannot be undone."
+        confirmLabel="Remove"
+        pendingLabel="Removing..."
+        isPending={actions.removePending}
+        onConfirm={async () => {
+          await actions.remove(apiKey.id);
+          setRemoveOpen(false);
+          toast.success("Key removed");
         }}
       />
     </div>
@@ -304,18 +332,18 @@ function KeyRow({ slug, apiKey }: { slug: string; apiKey: DeckCheckKeyResponse }
 }
 
 function RenameKeyDialog({
-  slug,
   apiKey,
   open,
   onOpenChange,
+  onRename,
 }: {
-  slug: string;
   apiKey: DeckCheckKeyResponse;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onRename: (keyId: string, label: string) => Promise<void>;
 }) {
   const [label, setLabel] = useState(apiKey.label ?? "");
-  const renameKey = useRenameDeckCheckKey();
+  const [pending, setPending] = useState(false);
 
   const handleRename = async () => {
     const trimmed = label.trim();
@@ -323,8 +351,13 @@ function RenameKeyDialog({
       onOpenChange(false);
       return;
     }
-    await renameKey.mutateAsync({ slug, keyId: apiKey.id, label: trimmed });
-    onOpenChange(false);
+    setPending(true);
+    try {
+      await onRename(apiKey.id, trimmed);
+      onOpenChange(false);
+    } finally {
+      setPending(false);
+    }
   };
 
   return (
@@ -355,8 +388,8 @@ function RenameKeyDialog({
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleRename} disabled={renameKey.isPending || !label.trim()}>
-            {renameKey.isPending ? "Saving..." : "Save"}
+          <Button onClick={handleRename} disabled={pending || !label.trim()}>
+            {pending ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>

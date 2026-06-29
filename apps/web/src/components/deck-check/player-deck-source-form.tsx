@@ -270,7 +270,7 @@ function PreviewSummary({ preview }: { preview: DeckCheckSubmissionResultRespons
         <p className="text-muted-foreground">No legality warnings.</p>
       )}
       <p className="text-muted-foreground">
-        These findings are advisory; you can still submit and a judge decides.
+        These findings are advisory. You can still submit and a judge decides.
       </p>
     </div>
   );

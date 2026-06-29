@@ -20,7 +20,6 @@ import { QRCodeSVG } from "qrcode.react";
 import type { ComponentType, SVGProps } from "react";
 import { useState } from "react";
 
-import { DeckCheckKeysSection } from "@/components/deck-check/deck-check-keys-section";
 import { Heading } from "@/components/heading";
 import { TopBarBreadcrumbBar } from "@/components/layout/top-bar-breadcrumb";
 import { listKindIcon } from "@/components/list/create-list-dialog";
@@ -103,7 +102,6 @@ export function FriendGroupManagePage({ slug }: FriendGroupManagePageProps) {
         <Heading level={1}>Manage {data.group.name}</Heading>
 
         {isAdmin(viewerRole) ? <AdminSettings data={data} slug={slug} /> : null}
-        {isAdmin(viewerRole) ? <DeckCheckKeysSection slug={slug} /> : null}
         <ContactSharingPanel data={data} slug={slug} />
         <ShareableListsPanel slug={slug} />
         <ShareableCollectionsPanel slug={slug} />

@@ -1,0 +1,178 @@
+// oxlint-disable-next-line import/no-nodejs-modules -- server-side key minting, never reaches the browser
+import { createHash, randomBytes } from "node:crypto";
+
+import { ERROR_CODES } from "@openrift/shared";
+import type {
+  DeckCheckKeyMintedResponse,
+  DeckCheckKeyResponse,
+  DeckCheckKeysResponse,
+} from "@openrift/shared";
+import { deckCheckKeysContract } from "@openrift/shared/contracts";
+import { implement } from "@orpc/server";
+
+import type { Repos } from "../../deps.js";
+import { AppError } from "../../errors.js";
+import { toKey } from "../../lib/deck-check-presenters.js";
+import { requireAuthedUser } from "../../orpc/base.js";
+import type { ApiContext } from "../../orpc/context.js";
+import type { DeckCheckHost } from "../../repositories/deck-check.js";
+
+/**
+ * Mints a fresh push token and its sha256 hash.
+ * @returns The plaintext token, its hash, and its display prefix.
+ */
+function mintToken(): { token: string; tokenHash: string; tokenPrefix: string } {
+  const token = `orpk_${randomBytes(24).toString("base64url")}`;
+  return {
+    token,
+    tokenHash: createHash("sha256").update(token).digest("hex"),
+    tokenPrefix: token.slice(0, 10),
+  };
+}
+
+/**
+ * Resolves an organization host, asserting the caller is an owner/manager.
+ * 404s a missing org, 403s a non-member (both org roles inherit organizer
+ * authority, ADR-033).
+ * @param repos The repository bundle.
+ * @param orgId The hosting organization.
+ * @param userId The acting user.
+ * @returns The organization deck-check host.
+ */
+async function authorizeOrgHost(
+  repos: Repos,
+  orgId: string,
+  userId: string,
+): Promise<DeckCheckHost> {
+  const org = await repos.organizations.findById(orgId);
+  if (!org) {
+    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Organization not found");
+  }
+  const membership = await repos.organizations.getMembership(orgId, userId);
+  if (!membership || membership.role === "judge") {
+    throw new AppError(403, ERROR_CODES.FORBIDDEN, "Owner or manager only");
+  }
+  return { hostType: "organization", hostUserId: null, hostOrgId: orgId };
+}
+
+/** @returns The current user as a deck-check host. */
+function userHost(userId: string): DeckCheckHost {
+  return { hostType: "user", hostUserId: userId, hostOrgId: null };
+}
+
+const os = implement(deckCheckKeysContract).$context<ApiContext>().use(requireAuthedUser);
+
+/**
+ * Host-scoped deck-check integration keys (ADR-033), mounted at
+ * `/api/v1/me/deck-check-keys` and `/api/v1/organizations/{orgId}/deck-check-keys`.
+ * Keys belong to a host (the current user or an organization) rather than a
+ * friend group, so any host can mint provider push credentials. The plaintext
+ * token is returned only once at mint time.
+ */
+export const deckCheckKeysRouter = {
+  // ── Personal keys ──────────────────────────────────────────────────────────
+  listMine: os.listMine.handler(async ({ context }): Promise<DeckCheckKeysResponse> => {
+    const repos = context.repos;
+    const keys = await repos.deckCheck.listKeysForHost(userHost(context.userId));
+    return { items: keys.map((key) => toKey(key)) };
+  }),
+
+  mintMine: os.mintMine.handler(async ({ input, context }): Promise<DeckCheckKeyMintedResponse> => {
+    const repos = context.repos;
+    const { token, tokenHash, tokenPrefix } = mintToken();
+    const key = await repos.deckCheck.createKeyForHost({
+      host: userHost(context.userId),
+      tokenHash,
+      tokenPrefix,
+      label: input.label,
+      createdBy: context.userId,
+    });
+    return { key: toKey(key), token };
+  }),
+
+  renameMine: os.renameMine.handler(async ({ input, context }): Promise<DeckCheckKeyResponse> => {
+    const repos = context.repos;
+    const key = await repos.deckCheck.updateKeyLabelForHost(
+      userHost(context.userId),
+      input.keyId,
+      input.label,
+    );
+    if (!key) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Key not found");
+    }
+    return toKey(key);
+  }),
+
+  revokeMine: os.revokeMine.handler(async ({ input, context }): Promise<void> => {
+    const repos = context.repos;
+    const revoked = await repos.deckCheck.revokeKeyForHost(userHost(context.userId), input.keyId);
+    if (!revoked) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Key not found");
+    }
+  }),
+
+  removeMine: os.removeMine.handler(async ({ input, context }): Promise<void> => {
+    const repos = context.repos;
+    const removed = await repos.deckCheck.deleteRevokedKeyForHost(
+      userHost(context.userId),
+      input.keyId,
+    );
+    if (!removed) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Key not found");
+    }
+  }),
+
+  // ── Organization keys ──────────────────────────────────────────────────────
+  listForOrg: os.listForOrg.handler(async ({ input, context }): Promise<DeckCheckKeysResponse> => {
+    const repos = context.repos;
+    const host = await authorizeOrgHost(repos, input.orgId, context.userId);
+    const keys = await repos.deckCheck.listKeysForHost(host);
+    return { items: keys.map((key) => toKey(key)) };
+  }),
+
+  mintForOrg: os.mintForOrg.handler(
+    async ({ input, context }): Promise<DeckCheckKeyMintedResponse> => {
+      const repos = context.repos;
+      const host = await authorizeOrgHost(repos, input.orgId, context.userId);
+      const { token, tokenHash, tokenPrefix } = mintToken();
+      const key = await repos.deckCheck.createKeyForHost({
+        host,
+        tokenHash,
+        tokenPrefix,
+        label: input.label,
+        createdBy: context.userId,
+      });
+      return { key: toKey(key), token };
+    },
+  ),
+
+  renameForOrg: os.renameForOrg.handler(
+    async ({ input, context }): Promise<DeckCheckKeyResponse> => {
+      const repos = context.repos;
+      const host = await authorizeOrgHost(repos, input.orgId, context.userId);
+      const key = await repos.deckCheck.updateKeyLabelForHost(host, input.keyId, input.label);
+      if (!key) {
+        throw new AppError(404, ERROR_CODES.NOT_FOUND, "Key not found");
+      }
+      return toKey(key);
+    },
+  ),
+
+  revokeForOrg: os.revokeForOrg.handler(async ({ input, context }): Promise<void> => {
+    const repos = context.repos;
+    const host = await authorizeOrgHost(repos, input.orgId, context.userId);
+    const revoked = await repos.deckCheck.revokeKeyForHost(host, input.keyId);
+    if (!revoked) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Key not found");
+    }
+  }),
+
+  removeForOrg: os.removeForOrg.handler(async ({ input, context }): Promise<void> => {
+    const repos = context.repos;
+    const host = await authorizeOrgHost(repos, input.orgId, context.userId);
+    const removed = await repos.deckCheck.deleteRevokedKeyForHost(host, input.keyId);
+    if (!removed) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Key not found");
+    }
+  }),
+};

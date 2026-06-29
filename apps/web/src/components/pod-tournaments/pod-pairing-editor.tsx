@@ -17,7 +17,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useReplacePodPairing } from "@/hooks/use-pod-tournaments";
+import { useReplaceTournamentPairing } from "@/hooks/use-tournaments";
 import {
   movePlayer,
   participantIds,
@@ -63,7 +63,7 @@ export function PodPairingEditor({
 }) {
   const [state, setState] = useState<EditorState>(() => seedFromRound(round));
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const replace = useReplacePodPairing();
+  const replace = useReplaceTournamentPairing();
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 

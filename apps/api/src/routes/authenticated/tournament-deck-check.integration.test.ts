@@ -1,0 +1,737 @@
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import { createRepos } from "../../deps.js";
+import { CARD_FURY_RUNE, CARD_FURY_UNIT } from "../../test/fixtures/constants.js";
+import { createTestContext, req } from "../../test/integration-context.js";
+
+// Route-level integration tests for the ADR-033 additive deck-check surfaces:
+// the tournament-scoped judge API (host + staff authorization, with a 403 for an
+// unrelated user), the host-scoped integration keys (a user host and an org
+// host), and the group "Events" tournament lens.
+
+const HOST_ID = "a0000000-0220-4000-a000-000000000001";
+const JUDGE_ID = "a0000000-0221-4000-a000-000000000001";
+const STRANGER_ID = "a0000000-0222-4000-a000-000000000001";
+const ORG_OWNER_ID = "a0000000-0223-4000-a000-000000000001";
+const MEMBER_ID = "a0000000-0224-4000-a000-000000000001";
+
+const ORG_ID = "01900000-0220-7000-8000-000000000001";
+const GROUP_SLUG = "tdc-itest-group";
+
+const ALL_IDS = [HOST_ID, JUDGE_ID, STRANGER_ID, ORG_OWNER_ID, MEMBER_ID];
+
+const hostCtx = createTestContext(HOST_ID, "tdc-host@test.com");
+const judgeCtx = createTestContext(JUDGE_ID, "tdc-judge@test.com");
+const strangerCtx = createTestContext(STRANGER_ID, "tdc-stranger@test.com");
+const orgOwnerCtx = createTestContext(ORG_OWNER_ID, "tdc-org@test.com");
+const memberCtx = createTestContext(MEMBER_ID, "tdc-member@test.com");
+
+interface EntrySummary {
+  id: string;
+  playerName: string;
+  participantId: string | null;
+  participantStatus: string | null;
+}
+interface CardLine {
+  id: string;
+  foundCopies?: boolean[];
+}
+
+describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration, ADR-033)", () => {
+  // oxlint-disable typescript/no-non-null-assertion -- guarded by skipIf
+  const host = hostCtx!;
+  const judge = judgeCtx!;
+  const stranger = strangerCtx!;
+  const orgOwner = orgOwnerCtx!;
+  const member = memberCtx!;
+  // oxlint-enable typescript/no-non-null-assertion
+  const repos = createRepos(host.db);
+
+  let tournamentId = "";
+
+  beforeAll(async () => {
+    for (const userId of ALL_IDS) {
+      await host.db
+        .insertInto("users")
+        .values({
+          id: userId,
+          email: `tdc-${userId.slice(11, 15)}@test.com`,
+          name: "T",
+          emailVerified: true,
+          image: null,
+        })
+        .onConflict((oc) => oc.column("id").doNothing())
+        .execute();
+    }
+
+    // An organization owned by ORG_OWNER, for the org-scoped key tests.
+    await host.db
+      .insertInto("organizations")
+      .values({ id: ORG_ID, slug: "tdc-org", name: "TDC Org", ownerUserId: ORG_OWNER_ID })
+      .onConflict((oc) => oc.column("id").doNothing())
+      .execute();
+    await host.db
+      .insertInto("organizationMembers")
+      .values({ orgId: ORG_ID, userId: ORG_OWNER_ID, role: "owner" })
+      .onConflict((oc) => oc.columns(["orgId", "userId"]).doNothing())
+      .execute();
+
+    // A friend group owned by HOST with MEMBER as a plain member, for the lens.
+    const group = await repos.friendGroups.createWithOwner(
+      { slug: GROUP_SLUG, name: "TDC Group", description: null, code: null },
+      HOST_ID,
+    );
+    await repos.friendGroups.addMember(group.id, MEMBER_ID, "member");
+
+    // A deck-check tournament hosted by HOST inside the group; JUDGE is staff.
+    const created = await host.app.fetch(
+      req("POST", "/tournaments", {
+        name: "Deck Check Cup",
+        host: { type: "user" },
+        pairingStyle: "none",
+        deckSubmission: "required",
+        startsAt: "2026-06-01T12:00:00Z",
+        groupId: group.id,
+      }),
+    );
+    tournamentId = ((await created.json()) as { id: string }).id;
+    await repos.tournaments.addStaff(tournamentId, JUDGE_ID, "judge");
+    // The deck-check event view treats only a "running" tournament as active
+    // (tournamentToEvent maps status running -> active); judging happens once the
+    // tournament is under way, so move it out of "setup".
+    await repos.tournaments.updateSettings(tournamentId, { status: "running" });
+  });
+
+  afterAll(async () => {
+    await host.db.deleteFrom("tournaments").where("hostUserId", "in", ALL_IDS).execute();
+    await host.db.deleteFrom("deckCheckKeys").where("hostUserId", "in", ALL_IDS).execute();
+    await host.db.deleteFrom("deckCheckKeys").where("hostOrgId", "=", ORG_ID).execute();
+    await host.db.deleteFrom("friendGroups").where("slug", "=", GROUP_SLUG).execute();
+    await host.db.deleteFrom("organizations").where("id", "=", ORG_ID).execute();
+    await host.db.deleteFrom("users").where("id", "in", ALL_IDS).execute();
+  });
+
+  describe("tournament-scoped judge API", () => {
+    let entryId = "";
+
+    it("lists entries for the host and 403s an unrelated user", async () => {
+      const ok = await host.app.fetch(
+        req("GET", `/tournaments/${tournamentId}/deck-check/entries`),
+      );
+      expect(ok.status).toBe(200);
+      const body = (await ok.json()) as { event: { id: string }; entries: EntrySummary[] };
+      expect(body.event.id).toBe(tournamentId);
+
+      const denied = await stranger.app.fetch(
+        req("GET", `/tournaments/${tournamentId}/deck-check/entries`),
+      );
+      expect(denied.status).toBe(403);
+    });
+
+    it("lets a staff judge attach a deck to an existing participant", async () => {
+      const participant = await repos.tournaments.createParticipant({
+        tournamentId,
+        displayName: "Manual Maud",
+        status: "active",
+      });
+      const res = await judge.app.fetch(
+        req("POST", `/tournaments/${tournamentId}/deck-check/entries`, {
+          participantId: participant.id,
+          cards: [{ name: CARD_FURY_UNIT.name, quantity: 1, section: "main" }],
+        }),
+      );
+      expect(res.status).toBe(201);
+      const body = (await res.json()) as { entry: { id: string }; cards: CardLine[] };
+      entryId = body.entry.id;
+      expect(body.cards).toHaveLength(1);
+
+      // A second deck for the same participant is rejected (one deck per player).
+      const dup = await judge.app.fetch(
+        req("POST", `/tournaments/${tournamentId}/deck-check/entries`, {
+          participantId: participant.id,
+          cards: [{ name: CARD_FURY_UNIT.name, quantity: 1, section: "main" }],
+        }),
+      );
+      expect(dup.status).toBe(409);
+    });
+
+    it("transitions entry state and ticks a card copy", async () => {
+      const approve = await judge.app.fetch(
+        req("PUT", `/tournaments/${tournamentId}/deck-check/entries/${entryId}/state`, {
+          state: "approved",
+        }),
+      );
+      expect(approve.status).toBe(200);
+      expect(((await approve.json()) as { entry: { state: string } }).entry.state).toBe("approved");
+
+      const detail = await host.app.fetch(
+        req("GET", `/tournaments/${tournamentId}/deck-check/entries/${entryId}`),
+      );
+      const cardId = ((await detail.json()) as { cards: CardLine[] }).cards[0]!.id;
+
+      const tick = await judge.app.fetch(
+        req("PUT", `/tournaments/${tournamentId}/deck-check/entries/${entryId}/cards/${cardId}`, {
+          copyIndex: 0,
+          found: true,
+        }),
+      );
+      expect(tick.status).toBe(204);
+
+      // An unrelated user cannot tick.
+      const denied = await stranger.app.fetch(
+        req("PUT", `/tournaments/${tournamentId}/deck-check/entries/${entryId}/cards/${cardId}`, {
+          copyIndex: 0,
+          found: false,
+        }),
+      );
+      expect(denied.status).toBe(403);
+    });
+
+    it("counts approved and checked entries separately in the event summary", async () => {
+      interface Summary {
+        event: { approvedCount: number; checkedCount: number; entryCount: number };
+      }
+      const fetchSummary = async (): Promise<Summary["event"]> => {
+        const res = await host.app.fetch(
+          req("GET", `/tournaments/${tournamentId}/deck-check/entries`),
+        );
+        return ((await res.json()) as Summary).event;
+      };
+
+      // entryId was driven to "approved" by the prior test; it must show up in
+      // the approved bucket, not the checked one (the two stages are distinct).
+      const before = await fetchSummary();
+      expect(before.approvedCount).toBeGreaterThanOrEqual(1);
+
+      const checked = await judge.app.fetch(
+        req("PUT", `/tournaments/${tournamentId}/deck-check/entries/${entryId}/state`, {
+          state: "checked",
+          reviewOutcome: "ok",
+        }),
+      );
+      expect(checked.status).toBe(200);
+
+      // Moving one entry approved -> checked shifts it between buckets without
+      // changing the active total.
+      const after = await fetchSummary();
+      expect(after.checkedCount).toBe(before.checkedCount + 1);
+      expect(after.approvedCount).toBe(before.approvedCount - 1);
+      expect(after.entryCount).toBe(before.entryCount);
+    });
+
+    it("marking a clean check fills every found tick; a flagged check leaves them", async () => {
+      const fetchCards = async (entry: string): Promise<CardLine[]> => {
+        const res = await host.app.fetch(
+          req("GET", `/tournaments/${tournamentId}/deck-check/entries/${entry}`),
+        );
+        return ((await res.json()) as { cards: CardLine[] }).cards;
+      };
+      const setState = (entry: string, body: Record<string, unknown>): Promise<Response> =>
+        judge.app.fetch(
+          req("PUT", `/tournaments/${tournamentId}/deck-check/entries/${entry}/state`, body),
+        );
+      const driveToApproved = async (displayName: string): Promise<string> => {
+        const participant = await repos.tournaments.createParticipant({
+          tournamentId,
+          displayName,
+          status: "active",
+        });
+        const created = await judge.app.fetch(
+          req("POST", `/tournaments/${tournamentId}/deck-check/entries`, {
+            participantId: participant.id,
+            // A multi-copy line with no ticks set, so an auto-fill is observable.
+            cards: [{ name: CARD_FURY_UNIT.name, quantity: 3, section: "main" }],
+          }),
+        );
+        const entry = ((await created.json()) as { entry: { id: string } }).entry.id;
+        await setState(entry, { state: "approved" });
+        return entry;
+      };
+
+      // A clean "Mark checked" verifies the whole list, so all three copies tick.
+      const cleanEntry = await driveToApproved("Auto Aria");
+      await setState(cleanEntry, { state: "checked", reviewOutcome: "ok" });
+      const checkedCards = await fetchCards(cleanEntry);
+      expect(checkedCards[0]!.foundCopies).toEqual([true, true, true]);
+
+      // Re-opening that entry clears the auto-filled ticks back to a clean slate.
+      await setState(cleanEntry, { state: "submitted" });
+      const reopenedCards = await fetchCards(cleanEntry);
+      expect(reopenedCards[0]!.foundCopies ?? []).not.toContain(true);
+
+      // A flagged check leaves the ticks untouched (still all unfound here).
+      const flaggedEntry = await driveToApproved("Flagged Fae");
+      await setState(flaggedEntry, { state: "checked", reviewOutcome: "issue" });
+      const flaggedCards = await fetchCards(flaggedEntry);
+      expect(flaggedCards[0]!.foundCopies ?? []).not.toContain(true);
+    });
+
+    it("removing a participant also deletes their decklist (no orphaned entry)", async () => {
+      const participant = await repos.tournaments.createParticipant({
+        tournamentId,
+        displayName: "Cascade Cara",
+        status: "active",
+      });
+      const created = await judge.app.fetch(
+        req("POST", `/tournaments/${tournamentId}/deck-check/entries`, {
+          participantId: participant.id,
+          cards: [{ name: CARD_FURY_UNIT.name, quantity: 1, section: "main" }],
+        }),
+      );
+      expect(created.status).toBe(201);
+      const newEntryId = ((await created.json()) as { entry: { id: string } }).entry.id;
+
+      const removed = await host.app.fetch(
+        req("DELETE", `/tournaments/${tournamentId}/participants/${participant.id}`),
+      );
+      expect(removed.ok).toBe(true);
+
+      // The deck-check entry is deleted, not left orphaned with a null participant.
+      const gone = await host.app.fetch(
+        req("GET", `/tournaments/${tournamentId}/deck-check/entries/${newEntryId}`),
+      );
+      expect(gone.status).toBe(404);
+    });
+
+    it("surfaces the owning participant's dropped status on their deck entry", async () => {
+      const participant = await repos.tournaments.createParticipant({
+        tournamentId,
+        displayName: "Dropout Dale",
+        status: "active",
+      });
+      const created = await judge.app.fetch(
+        req("POST", `/tournaments/${tournamentId}/deck-check/entries`, {
+          participantId: participant.id,
+          cards: [{ name: CARD_FURY_UNIT.name, quantity: 1, section: "main" }],
+        }),
+      );
+      expect(created.status).toBe(201);
+
+      const findEntry = async (): Promise<EntrySummary | undefined> => {
+        const res = await host.app.fetch(
+          req("GET", `/tournaments/${tournamentId}/deck-check/entries`),
+        );
+        const body = (await res.json()) as { entries: EntrySummary[] };
+        return body.entries.find((entry) => entry.participantId === participant.id);
+      };
+
+      // While the player is active, the deck carries an active status (no flag).
+      const whileActive = await findEntry();
+      expect(whileActive?.participantStatus).toBe("active");
+
+      const dropped = await host.app.fetch(
+        req("POST", `/tournaments/${tournamentId}/participants/${participant.id}/drop`),
+      );
+      expect(dropped.ok).toBe(true);
+
+      // Dropping the participant leaves the deck in place but flips the status the
+      // judge list reads, so it can flag the deck without the entry being deleted.
+      const after = await findEntry();
+      expect(after).toBeDefined();
+      expect(after?.participantStatus).toBe("dropped");
+    });
+
+    it("404s a deck-check action on a tournament without deck check enabled", async () => {
+      const plain = await host.app.fetch(
+        req("POST", "/tournaments", {
+          name: "No Deck Check",
+          host: { type: "user" },
+          pairingStyle: "pod",
+          deckSubmission: "none",
+          startsAt: "2026-06-01T12:00:00Z",
+        }),
+      );
+      const plainId = ((await plain.json()) as { id: string }).id;
+      const res = await host.app.fetch(req("GET", `/tournaments/${plainId}/deck-check/entries`));
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe("host-scoped integration keys", () => {
+    it("mints, lists, and revokes a personal key", async () => {
+      const minted = await host.app.fetch(
+        req("POST", "/me/deck-check-keys", { label: "My laptop" }),
+      );
+      expect(minted.status).toBe(201);
+      const body = (await minted.json()) as { key: { id: string }; token: string };
+      expect(body.token.startsWith("orpk_")).toBe(true);
+      const keyId = body.key.id;
+
+      const list = await host.app.fetch(req("GET", "/me/deck-check-keys"));
+      const items = ((await list.json()) as { items: { id: string }[] }).items;
+      expect(items.some((item) => item.id === keyId)).toBe(true);
+
+      // A personal key is private to its host.
+      const otherList = await stranger.app.fetch(req("GET", "/me/deck-check-keys"));
+      const otherItems = ((await otherList.json()) as { items: { id: string }[] }).items;
+      expect(otherItems.some((item) => item.id === keyId)).toBe(false);
+
+      const revoke = await host.app.fetch(req("DELETE", `/me/deck-check-keys/${keyId}`));
+      expect(revoke.status).toBe(204);
+      const afterList = await host.app.fetch(req("GET", "/me/deck-check-keys"));
+      const after = (
+        (await afterList.json()) as { items: { id: string; revokedAt: string | null }[] }
+      ).items;
+      expect(after.find((item) => item.id === keyId)?.revokedAt).not.toBeNull();
+    });
+
+    it("mints an org key for an owner and 403s a non-member", async () => {
+      const minted = await orgOwner.app.fetch(
+        req("POST", `/organizations/${ORG_ID}/deck-check-keys`, { label: "Store register" }),
+      );
+      expect(minted.status).toBe(201);
+      const keyId = ((await minted.json()) as { key: { id: string } }).key.id;
+
+      const list = await orgOwner.app.fetch(req("GET", `/organizations/${ORG_ID}/deck-check-keys`));
+      expect(
+        ((await list.json()) as { items: { id: string }[] }).items.some((i) => i.id === keyId),
+      ).toBe(true);
+
+      const denied = await stranger.app.fetch(
+        req("GET", `/organizations/${ORG_ID}/deck-check-keys`),
+      );
+      expect(denied.status).toBe(403);
+
+      const deniedMint = await stranger.app.fetch(
+        req("POST", `/organizations/${ORG_ID}/deck-check-keys`, { label: "Nope" }),
+      );
+      expect(deniedMint.status).toBe(403);
+
+      const revoke = await orgOwner.app.fetch(
+        req("DELETE", `/organizations/${ORG_ID}/deck-check-keys/${keyId}`),
+      );
+      expect(revoke.status).toBe(204);
+    });
+  });
+
+  describe("resolveOrCreateParticipant (deck attach + match)", () => {
+    // Its own tournament so the roster starts empty — MEMBER/STRANGER already
+    // have participants in the shared tournament from the judge-API tests, which
+    // would collide with the one-per-account index here.
+    let rpId = "";
+    beforeAll(async () => {
+      const created = await host.app.fetch(
+        req("POST", "/tournaments", {
+          name: "Resolve Participant Cup",
+          host: { type: "user" },
+          pairingStyle: "none",
+          deckSubmission: "required",
+          startsAt: "2026-06-01T12:00:00Z",
+        }),
+      );
+      rpId = ((await created.json()) as { id: string }).id;
+    });
+
+    it("creates a participant when nothing matches", async () => {
+      const created = await repos.tournaments.resolveOrCreateParticipant({
+        tournamentId: rpId,
+        email: "fresh-walkin@test.com",
+        displayName: "Fresh Walkin",
+      });
+      expect(created.displayName).toBe("Fresh Walkin");
+      expect(created.userId).toBeNull();
+      // A second call with the same email returns the same row, not a duplicate.
+      const again = await repos.tournaments.resolveOrCreateParticipant({
+        tournamentId: rpId,
+        email: "FRESH-WALKIN@test.com",
+        displayName: "Fresh Walkin (dupe attempt)",
+      });
+      expect(again.id).toBe(created.id);
+    });
+
+    it("matches by account before email", async () => {
+      const seeded = await repos.tournaments.createParticipant({
+        tournamentId: rpId,
+        displayName: "Account Holder",
+        email: "acct-holder@test.com",
+        userId: MEMBER_ID,
+        status: "active",
+      });
+      const resolved = await repos.tournaments.resolveOrCreateParticipant({
+        tournamentId: rpId,
+        userId: MEMBER_ID,
+        email: "different@test.com",
+        displayName: "ignored",
+      });
+      expect(resolved.id).toBe(seeded.id);
+    });
+
+    it("links an unclaimed walk-in to the submitting account on an email match", async () => {
+      const walkin = await repos.tournaments.createParticipant({
+        tournamentId: rpId,
+        displayName: "Email Walkin",
+        email: "email-walkin@test.com",
+        status: "active",
+      });
+      expect(walkin.userId).toBeNull();
+      const resolved = await repos.tournaments.resolveOrCreateParticipant({
+        tournamentId: rpId,
+        userId: STRANGER_ID,
+        email: "email-walkin@test.com",
+        displayName: "Email Walkin",
+        claimSource: "self_submit",
+      });
+      expect(resolved.id).toBe(walkin.id);
+      expect(resolved.userId).toBe(STRANGER_ID);
+    });
+  });
+
+  describe("group tournament lens", () => {
+    it("lists the group's tournaments for a member and 404s a non-member", async () => {
+      const ok = await member.app.fetch(req("GET", `/friend-groups/${GROUP_SLUG}/tournaments`));
+      expect(ok.status).toBe(200);
+      const items = ((await ok.json()) as { items: { id: string }[] }).items;
+      expect(items.some((item) => item.id === tournamentId)).toBe(true);
+
+      const denied = await stranger.app.fetch(
+        req("GET", `/friend-groups/${GROUP_SLUG}/tournaments`),
+      );
+      expect(denied.status).toBe(404);
+    });
+  });
+
+  // ── applyJudgeTransition guard matrix (ADR-027/033) ───────────────────────
+  // The happy transitions live in "tournament-scoped judge API" above; these
+  // pin the rejections, the negative half of the state machine.
+  describe("lifecycle transition guards", () => {
+    // A fresh participant + submitted manual entry per case, so the transitions
+    // never bleed across tests sharing the one tournament.
+    const newSubmittedEntry = async (displayName: string): Promise<string> => {
+      const participant = await repos.tournaments.createParticipant({
+        tournamentId,
+        displayName,
+        status: "active",
+      });
+      const created = await judge.app.fetch(
+        req("POST", `/tournaments/${tournamentId}/deck-check/entries`, {
+          participantId: participant.id,
+          cards: [{ name: CARD_FURY_UNIT.name, quantity: 1, section: "main" }],
+        }),
+      );
+      return ((await created.json()) as { entry: { id: string } }).entry.id;
+    };
+    const expectState = async (
+      entry: string,
+      body: Record<string, unknown>,
+      status: number,
+    ): Promise<void> => {
+      const res = await judge.app.fetch(
+        req("PUT", `/tournaments/${tournamentId}/deck-check/entries/${entry}/state`, body),
+      );
+      expect(res.status).toBe(status);
+    };
+
+    it("rejects approving an entry that is not submitted", async () => {
+      const entry = await newSubmittedEntry("Guard Garen");
+      await expectState(entry, { state: "approved" }, 200);
+      // A second approve, now from "approved", violates the submitted-only guard.
+      await expectState(entry, { state: "approved" }, 409);
+    });
+
+    it("rejects checking an entry that has not been approved", async () => {
+      const entry = await newSubmittedEntry("Guard Lux");
+      // Still "submitted": the physical check needs an approved list first, so
+      // the state guard fires before the outcome is even considered.
+      await expectState(entry, { state: "checked", reviewOutcome: "ok" }, 409);
+    });
+
+    it("requires a review outcome to mark an approved entry checked", async () => {
+      const entry = await newSubmittedEntry("Guard Yi");
+      await expectState(entry, { state: "approved" }, 200);
+      // Approved but no outcome on the check -> 422 from the transition validator.
+      await expectState(entry, { state: "checked" }, 422);
+    });
+
+    it("locks a withdrawn entry to everything but the restore to submitted", async () => {
+      const entry = await newSubmittedEntry("Guard Annie");
+      await expectState(entry, { state: "withdrawn" }, 200);
+      // Any non-restore transition on a withdrawn entry is refused.
+      await expectState(entry, { state: "approved" }, 409);
+      // The restore back to submitted is the one move that is allowed.
+      await expectState(entry, { state: "submitted" }, 200);
+    });
+  });
+
+  // ── Manual createEntry validation ─────────────────────────────────────────
+  describe("manual entry validation", () => {
+    it("rejects an unknown deck section with 422", async () => {
+      const participant = await repos.tournaments.createParticipant({
+        tournamentId,
+        displayName: "Section Sona",
+        status: "active",
+      });
+      const res = await judge.app.fetch(
+        req("POST", `/tournaments/${tournamentId}/deck-check/entries`, {
+          participantId: participant.id,
+          cards: [{ name: CARD_FURY_UNIT.name, quantity: 1, section: "bogus-zone" }],
+        }),
+      );
+      expect(res.status).toBe(422);
+    });
+
+    it("rejects adding a deck to an archived tournament with 409", async () => {
+      // A throwaway archived deck-check tournament, so the shared one keeps
+      // running. Built while "setup", staffed, then completed (status completed
+      // maps to the event's "archived").
+      const created = await host.app.fetch(
+        req("POST", "/tournaments", {
+          name: "Archived Cup",
+          host: { type: "user" },
+          pairingStyle: "none",
+          deckSubmission: "required",
+          startsAt: "2026-06-01T12:00:00Z",
+        }),
+      );
+      const archivedId = ((await created.json()) as { id: string }).id;
+      await repos.tournaments.addStaff(archivedId, JUDGE_ID, "judge");
+      const participant = await repos.tournaments.createParticipant({
+        tournamentId: archivedId,
+        displayName: "Late Lee",
+        status: "active",
+      });
+      await repos.tournaments.updateSettings(archivedId, { status: "completed" });
+
+      const res = await judge.app.fetch(
+        req("POST", `/tournaments/${archivedId}/deck-check/entries`, {
+          participantId: participant.id,
+          cards: [{ name: CARD_FURY_UNIT.name, quantity: 1, section: "main" }],
+        }),
+      );
+      expect(res.status).toBe(409);
+    });
+  });
+
+  // ── On-site repair: the card-array mutation logic ─────────────────────────
+  // moveCardCopies (split + merge), removeCardCopy (tick splice), and the
+  // server-re-derived zone-fix apply — the trickiest array logic in the repo.
+  describe("on-site repair", () => {
+    const fetchCards = async (entry: string): Promise<CardLine[]> => {
+      const res = await host.app.fetch(
+        req("GET", `/tournaments/${tournamentId}/deck-check/entries/${entry}`),
+      );
+      return ((await res.json()) as { cards: CardLine[] }).cards;
+    };
+    const newEntry = async (
+      displayName: string,
+      cards: { name: string; quantity: number; section: string }[],
+    ): Promise<string> => {
+      const participant = await repos.tournaments.createParticipant({
+        tournamentId,
+        displayName,
+        status: "active",
+      });
+      const created = await judge.app.fetch(
+        req("POST", `/tournaments/${tournamentId}/deck-check/entries`, {
+          participantId: participant.id,
+          cards,
+        }),
+      );
+      return ((await created.json()) as { entry: { id: string } }).entry.id;
+    };
+
+    it("splits a multi-copy line on a partial move, merging into the target zone", async () => {
+      const entry = await newEntry("Repair Riven", [
+        { name: CARD_FURY_UNIT.name, quantity: 3, section: "main" },
+        { name: CARD_FURY_UNIT.name, quantity: 1, section: "sideboard" },
+      ]);
+      const created = await fetchCards(entry);
+      const mainLine = created.find((card) => card.zone === "main")!;
+      // Move 2 of the 3 main copies to the sideboard, where the same card already
+      // sits: the moved copies merge into that line, not a third one.
+      const res = await judge.app.fetch(
+        req(
+          "PATCH",
+          `/tournaments/${tournamentId}/deck-check/entries/${entry}/cards/${mainLine.id}`,
+          { name: CARD_FURY_UNIT.name, section: "sideboard", copies: 2 },
+        ),
+      );
+      expect(res.status).toBe(200);
+      const after = await fetchCards(entry);
+      expect(after).toHaveLength(2);
+      expect(after.find((card) => card.zone === "main")?.quantity).toBe(1);
+      expect(after.find((card) => card.zone === "sideboard")?.quantity).toBe(3);
+    });
+
+    it("splices the removed copy's tick, keeping the other cells", async () => {
+      const entry = await newEntry("Repair Sona", [
+        { name: CARD_FURY_UNIT.name, quantity: 3, section: "main" },
+      ]);
+      const initial = await fetchCards(entry);
+      const line = initial[0]!;
+      // Tick copies 0 and 2, leaving the middle copy (index 1) unfound.
+      for (const copyIndex of [0, 2]) {
+        await judge.app.fetch(
+          req("PUT", `/tournaments/${tournamentId}/deck-check/entries/${entry}/cards/${line.id}`, {
+            copyIndex,
+            found: true,
+          }),
+        );
+      }
+      // Remove the middle copy: its tick cell is spliced out, not the outer two.
+      const res = await judge.app.fetch(
+        req(
+          "DELETE",
+          `/tournaments/${tournamentId}/deck-check/entries/${entry}/cards/${line.id}/copies/1`,
+        ),
+      );
+      expect(res.status).toBe(204);
+      const afterRemoval = await fetchCards(entry);
+      expect(afterRemoval[0]!.foundCopies).toEqual([true, true]);
+    });
+
+    it("applies only a currently-suggested zone fix, ignoring forged ids", async () => {
+      // A Rune dumped in main is type-locked to the runes zone, so the server
+      // suggests the move; a forged id in the same request is silently ignored
+      // (the destination is re-derived server-side, never sent by the client).
+      const entry = await newEntry("Repair Ryze", [
+        { name: CARD_FURY_RUNE.name, quantity: 1, section: "main" },
+      ]);
+      const beforeFix = await fetchCards(entry);
+      const runeLine = beforeFix[0]!;
+      const res = await judge.app.fetch(
+        req("POST", `/tournaments/${tournamentId}/deck-check/entries/${entry}/zone-fixes`, {
+          cardIds: [runeLine.id, "00000000-0000-7000-8000-000000000000"],
+        }),
+      );
+      expect(res.status).toBe(200);
+      const afterFix = await fetchCards(entry);
+      expect(afterFix[0]!.zone).toBe("runes");
+    });
+  });
+
+  // ── Claim-token exposure gating ───────────────────────────────────────────
+  describe("claim token exposure", () => {
+    it("hides an entry's claim token once the spot is claimed", async () => {
+      const participant = await repos.tournaments.createParticipant({
+        tournamentId,
+        displayName: "Claim Caitlyn",
+        status: "active",
+      });
+      const created = await judge.app.fetch(
+        req("POST", `/tournaments/${tournamentId}/deck-check/entries`, {
+          participantId: participant.id,
+          cards: [{ name: CARD_FURY_UNIT.name, quantity: 1, section: "main" }],
+        }),
+      );
+      const entryId = ((await created.json()) as { entry: { id: string } }).entry.id;
+      const entryToken = async (): Promise<string | null> => {
+        const res = await host.app.fetch(
+          req("GET", `/tournaments/${tournamentId}/deck-check/entries/${entryId}`),
+        );
+        return ((await res.json()) as { entry: { claimToken: string | null } }).entry.claimToken;
+      };
+
+      // Unclaimed and unblocked: the judge detail exposes the token to share.
+      const token = await entryToken();
+      expect(token).toBeTruthy();
+
+      // The stranger claims the spot through that link.
+      const claim = await stranger.app.fetch(req("POST", `/deck-check/claim/${token}`));
+      expect(claim.status).toBe(200);
+
+      // Claimed: the token is suppressed (claimedUserId set -> hidden), so it
+      // can't be reused to hand the spot to someone else.
+      expect(await entryToken()).toBeNull();
+    });
+  });
+});

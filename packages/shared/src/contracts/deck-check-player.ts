@@ -28,8 +28,8 @@ const playerDeckCheckEntrySummaryResponseSchema = z.object({
   id: z.string(),
   eventName: z.string(),
   eventDate: z.string().nullable(),
-  groupName: z.string(),
-  groupSlug: z.string(),
+  groupName: z.string().nullable(),
+  groupSlug: z.string().nullable(),
   state: deckCheckEntryStateSchema,
   reviewOutcome: deckCheckReviewOutcomeSchema.nullable(),
   unlockRequested: z.boolean(),
@@ -48,7 +48,7 @@ export const playerDeckCheckEntryDetailResponseSchema = z
       id: z.string(),
       eventName: z.string(),
       eventDate: z.string().nullable(),
-      groupName: z.string(),
+      groupName: z.string().nullable(),
       format: z.string().nullable(),
       allowedSets: z.array(z.string()).nullable(),
       state: deckCheckEntryStateSchema,
@@ -107,7 +107,8 @@ export const deckCheckSubmissionResultResponseSchema = z
 
 export const deckCheckClaimResultResponseSchema = z
   .object({
-    status: z.enum(["claimed", "already", "conflict", "blocked"]),
+    status: z.enum(["claimed", "already", "conflict", "blocked", "duplicate"]),
+    tournamentId: z.string().nullable(),
     entryId: z.string().nullable(),
   })
   .openapi("DeckCheckClaimResultResponse");

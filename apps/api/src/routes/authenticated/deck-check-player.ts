@@ -29,9 +29,8 @@ import type { PlayerSharingConsent } from "../../services/deck-check-player.js";
 import {
   applyPlayerList,
   buildPlayerLines,
-  claimDeckCheckEntryByToken,
+  claimParticipantByToken,
   createSelfSubmittedEntry,
-  lazyMatchEntriesForUser,
   resolvePlayerCardRows,
 } from "../../services/deck-check-player.js";
 import {
@@ -158,7 +157,7 @@ async function loadOwnEntry(
   if (!row) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "Entry not found");
   }
-  const event = await repos.deckCheck.getEventById(row.eventId);
+  const event = await repos.deckCheck.getEventById(row.tournamentId);
   if (!event) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "Entry not found");
   }
@@ -171,10 +170,39 @@ async function loadOpenSubmissionEvent(
   token: string,
 ): Promise<DeckCheckEvent & { groupName: string }> {
   const event = await repos.deckCheck.getEventBySubmissionToken(token);
-  // A disabled flag makes the link dead, not just read-only: the flag is
-  // checked on every request, never the token alone (ADR-026).
-  if (!event || !event.allowSelfSubmission) {
+  // The submission token is the link's on/off switch (rotating or disabling it
+  // clears the token, so the lookup misses). Self-registration is a separate
+  // policy gate handled per-caller (ADR-033): turning it off keeps the link
+  // alive for already-claimed participants.
+  if (!event) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "Submission link not found");
+  }
+  return event;
+}
+
+/**
+ * Loads the submission event for a token and enforces the self-registration
+ * gate (ADR-033). When self-registration is open, anyone with the link may
+ * submit (creating their own spot). When it is closed, only a caller who
+ * already holds a spot may submit; a stranger must claim their spot via the
+ * personal claim link the organizer sent before the link will take a deck.
+ * @returns The open submission event.
+ */
+async function loadSubmissionEventForUser(
+  repos: Repos,
+  token: string,
+  userId: string,
+): Promise<DeckCheckEvent & { groupName: string }> {
+  const event = await loadOpenSubmissionEvent(repos, token);
+  if (!event.allowSelfSubmission) {
+    const participant = await repos.tournaments.findParticipantByUser(event.id, userId);
+    if (!participant) {
+      throw new AppError(
+        403,
+        ERROR_CODES.FORBIDDEN,
+        "Self-registration is closed for this event. Claim your spot with the link the organizer sent you, then submit your deck.",
+      );
+    }
   }
   return event;
 }
@@ -258,7 +286,6 @@ export const deckCheckPlayerRouter = {
   listMine: os.listMine.handler(async ({ context }): Promise<PlayerDeckCheckEntriesResponse> => {
     const repos = context.repos;
     const userId = context.userId;
-    await lazyMatchEntriesForUser(repos, userId);
     const rows = await repos.deckCheck.listEntriesForPlayer(userId);
     return { items: rows.map((row) => toPlayerSummary(row)) };
   }),
@@ -384,8 +411,7 @@ export const deckCheckPlayerRouter = {
     async ({ input, context }): Promise<DeckCheckSubmissionPageResponse> => {
       const repos = context.repos;
       const userId = context.userId;
-      const event = await loadOpenSubmissionEvent(repos, input.token);
-      await lazyMatchEntriesForUser(repos, userId);
+      const event = await loadSubmissionEventForUser(repos, input.token, userId);
       const linked = await repos.deckCheck.getLinkedEntryForUser(event.id, userId);
       return {
         eventName: event.name,
@@ -425,8 +451,7 @@ export const deckCheckPlayerRouter = {
     async ({ input, context }): Promise<DeckCheckSubmissionResultResponse> => {
       const repos = context.repos;
       const userId = context.userId;
-      const event = await loadOpenSubmissionEvent(repos, input.token);
-      await lazyMatchEntriesForUser(repos, userId);
+      const event = await loadSubmissionEventForUser(repos, input.token, userId);
 
       const lines = await buildPlayerLines(repos, userId, input);
       const cardRows = await resolvePlayerCardRows(repos, lines);
@@ -461,7 +486,7 @@ export const deckCheckPlayerRouter = {
   claim: os.claim.handler(async ({ input, context }): Promise<DeckCheckClaimResultResponse> => {
     const userId = context.userId;
     const result = await context.transact((txRepos) =>
-      claimDeckCheckEntryByToken(txRepos, input.token, userId),
+      claimParticipantByToken(txRepos, input.token, userId),
     );
     if (!result) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Claim link not found");

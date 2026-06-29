@@ -865,7 +865,7 @@ function NumberingSection({ query }: { query: string }) {
     {
       pattern: "SFD-T01",
       summary:
-        "T prefix indicates a token printed for the set. T and R prefixes were introduced with Spiritforged; Origins used standard numbering for tokens and runes.",
+        "T prefix indicates a token printed for the set. T and R prefixes were introduced with Spiritforged. Origins used standard numbering for tokens and runes.",
     },
     {
       pattern: "SFD-R01",

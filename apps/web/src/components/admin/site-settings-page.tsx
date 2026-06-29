@@ -197,7 +197,7 @@ export function SiteSettingsPage() {
         toolbar={
           <p className="text-muted-foreground text-sm">
             Site settings are key-value pairs loaded at runtime. Web-scoped settings are available
-            to the frontend; API-scoped settings are server-only.
+            to the frontend. API-scoped settings are server-only.
           </p>
         }
         add={{

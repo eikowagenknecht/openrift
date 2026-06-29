@@ -143,6 +143,35 @@ export const queryKeys = {
     detail: (userId: string, id: string) => ["pod-tournaments", userId, id] as const,
     report: (token: string) => ["pod-tournaments", "report", token] as const,
   },
+  tournaments: {
+    all: (userId: string) => ["tournaments", userId] as const,
+    detail: (userId: string, id: string) => ["tournaments", userId, id] as const,
+    participants: (userId: string, id: string) =>
+      ["tournaments", userId, id, "participants"] as const,
+    staffCandidates: (userId: string, id: string) =>
+      ["tournaments", userId, id, "staff-candidates"] as const,
+    submitLanding: (token: string) => ["tournaments", "submit", token] as const,
+    staffInviteLanding: (token: string) => ["tournaments", "staff-invite", token] as const,
+    forGroup: (userId: string, slug: string) => ["tournaments", userId, "group", slug] as const,
+  },
+  // Tournament-scoped judge deck-check (ADR-033): keyed by the tournament id,
+  // which is the deck-check "event" id.
+  tournamentDeckCheck: {
+    entries: (userId: string, tournamentId: string) =>
+      ["tournament-deck-check", userId, tournamentId] as const,
+    entry: (userId: string, tournamentId: string, entryId: string) =>
+      ["tournament-deck-check", userId, tournamentId, entryId] as const,
+  },
+  // Host-scoped deck-check integration keys (ADR-033): personal or org-owned.
+  deckCheckKeys: {
+    mine: (userId: string) => ["deck-check-keys", userId, "me"] as const,
+    org: (userId: string, orgId: string) => ["deck-check-keys", userId, "org", orgId] as const,
+  },
+  organizations: {
+    mine: (userId: string) => ["organizations", userId] as const,
+    detail: (userId: string, id: string) => ["organizations", userId, id] as const,
+    adminAll: ["admin", "organizations"] as const,
+  },
   trades: {
     // Broad prefix mutations invalidate to refresh any open tab and the badge
     // counts (invalidation is prefix-based, so this also clears byGroup/actionCounts).

@@ -543,7 +543,7 @@ export const friendGroupsRouter = {
       if (target.role === "owner") {
         throw new AppError(409, ERROR_CODES.CONFLICT, "Cannot demote the owner");
       }
-      // Admins manage member <-> judge; only the owner may promote to or demote from admin.
+      // Only the owner may promote to or demote from admin.
       if ((target.role === "admin" || input.role === "admin") && ctx.membership.role !== "owner") {
         throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only the owner can change admins");
       }

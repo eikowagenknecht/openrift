@@ -38,6 +38,7 @@ interface DatePickerProps {
   onClear?: () => void;
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 export function DatePicker({
@@ -46,6 +47,7 @@ export function DatePicker({
   onClear,
   placeholder = "YYYY-MM-DD",
   className,
+  disabled,
 }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState(value ?? "");
@@ -80,6 +82,7 @@ export function DatePicker({
       <InputGroupInput
         value={text}
         placeholder={placeholder}
+        disabled={disabled}
         onChange={(e) => handleTextChange(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "ArrowDown") {
@@ -91,7 +94,14 @@ export function DatePicker({
       <InputGroupAddon align="inline-end">
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger
-            render={<InputGroupButton variant="ghost" size="icon-xs" aria-label="Select date" />}
+            render={
+              <InputGroupButton
+                variant="ghost"
+                size="icon-xs"
+                aria-label="Select date"
+                disabled={disabled}
+              />
+            }
           >
             <CalendarIcon />
           </PopoverTrigger>

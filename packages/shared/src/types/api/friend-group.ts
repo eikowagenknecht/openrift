@@ -3,7 +3,8 @@ import type { ContactMethod } from "./contact-method.js";
 import type { ListEntryDetailResponse, ListIntent, ListKind } from "./list.js";
 import type { Currency, EffectiveTradePreference, TradePreference } from "./trade-preferences.js";
 
-export type FriendGroupRole = "owner" | "admin" | "judge" | "member";
+// ADR-033 retired the `judge` role: judging now lives in tournament_staff.
+export type FriendGroupRole = "owner" | "admin" | "member";
 export type FriendGroupInviteDirection = "invite" | "request";
 
 export interface FriendGroupResponse {

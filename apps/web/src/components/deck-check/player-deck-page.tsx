@@ -64,7 +64,7 @@ export function PlayerDeckPage({ entryId }: { entryId: string }) {
         <div className={PAGE_TOP_BAR_STICKY}>
           <div className="mx-auto w-full max-w-5xl">
             <PageTopBar>
-              <PageTopBarBack to="/tournament-decks" aria-label="Back to my tournament decks" />
+              <PageTopBarBack to="/tournaments/my-decks" aria-label="Back to my tournament decks" />
               <Skeleton className="h-5 w-44" />
             </PageTopBar>
           </div>
@@ -102,7 +102,7 @@ export function PlayerDeckPage({ entryId }: { entryId: string }) {
       <div className={PAGE_TOP_BAR_STICKY}>
         <div className="mx-auto w-full max-w-5xl">
           <PageTopBar>
-            <PageTopBarBack to="/tournament-decks" aria-label="Back to my tournament decks" />
+            <PageTopBarBack to="/tournaments/my-decks" aria-label="Back to my tournament decks" />
             <PageTopBarTitle>{entry.eventName}</PageTopBarTitle>
             <PageTopBarActions>
               <PlayerDeckActions entry={entry} />
@@ -114,8 +114,7 @@ export function PlayerDeckPage({ entryId }: { entryId: string }) {
         <div className="flex w-full max-w-5xl flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-muted-foreground text-sm">
-              {entry.groupName}
-              {eventDate ? ` · ${eventDate}` : ""}
+              {[entry.groupName, eventDate].filter(Boolean).join(" · ")}
             </span>
             <span className="flex-1" />
             {entry.reviewOutcome === "issue" && entry.state === "editable" ? (
@@ -161,7 +160,7 @@ export function PlayerDeckPage({ entryId }: { entryId: string }) {
           ) : null}
           {!entry.windowOpen && entry.state !== "withdrawn" && entry.state !== "checked" ? (
             <p className="text-muted-foreground text-sm">
-              Submissions are closed; contact a judge to change your list.
+              Submissions are closed. Contact a judge to change your list.
             </p>
           ) : null}
           <p className="text-muted-foreground text-sm">

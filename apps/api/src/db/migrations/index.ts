@@ -111,6 +111,20 @@ import * as m162 from "./162-contact-methods.js";
 import * as m163 from "./163-pod-game-points.js";
 import * as m164 from "./164-job-run-noop.js";
 import * as m165 from "./165-trade-status-email.js";
+import * as m166 from "./166-organizations.js";
+import * as m167 from "./167-tournaments-umbrella.js";
+import * as m168 from "./168-unified-participants.js";
+import * as m169 from "./169-deck-check-as-module.js";
+import * as m170 from "./170-deck-check-drop-legacy.js";
+import * as m171 from "./171-tournament-cancelled-status.js";
+import * as m172 from "./172-tournament-starts-at-required.js";
+import * as m173 from "./173-tournament-ends-at.js";
+import * as m174 from "./174-deck-check-entry-participant-cascade.js";
+import * as m175 from "./175-org-judge-role.js";
+import * as m176 from "./176-tournament-participants-drop-email.js";
+import * as m177 from "./177-tournament-staff-invite-tokens.js";
+import * as m178 from "./178-tournament-collapse-format.js";
+import * as m179 from "./179-tournament-drop-deck-check-toggle.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -281,4 +295,18 @@ export const migrations: Record<string, Migration> = {
   "163-pod-game-points": m163,
   "164-job-run-noop": m164,
   "165-trade-status-email": m165,
+  "166-organizations": m166,
+  "167-tournaments-umbrella": m167,
+  "168-unified-participants": m168,
+  "169-deck-check-as-module": m169,
+  "170-deck-check-drop-legacy": m170,
+  "171-tournament-cancelled-status": m171,
+  "172-tournament-starts-at-required": m172,
+  "173-tournament-ends-at": m173,
+  "174-deck-check-entry-participant-cascade": m174,
+  "175-org-judge-role": m175,
+  "176-tournament-participants-drop-email": m176,
+  "177-tournament-staff-invite-tokens": m177,
+  "178-tournament-collapse-format": m178,
+  "179-tournament-drop-deck-check-toggle": m179,
 };

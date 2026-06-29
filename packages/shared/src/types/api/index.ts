@@ -179,7 +179,6 @@ export type {
 } from "./friend-group.js";
 
 export type {
-  DeckCheckAccountSearchResponse,
   DeckCheckChangeLine,
   DeckCheckChangeSummary,
   DeckCheckClaimLandingResponse,
@@ -243,6 +242,38 @@ export type {
   PodTournamentStatus,
   PodTournamentSummaryResponse,
 } from "./pod-tournament.js";
+
+export type {
+  OrganizationDetailResponse,
+  OrganizationListResponse,
+  OrganizationMemberResponse,
+  OrganizationResponse,
+  OrganizationRole,
+  OrganizationSummaryResponse,
+  PublicTournamentJoinResponse,
+  PublicTournamentLandingResponse,
+  TournamentClaimSource,
+  TournamentDeckPhase,
+  TournamentDeckSubmission,
+  TournamentDetailResponse,
+  TournamentHostInfo,
+  TournamentHostType,
+  TournamentListLockMode,
+  TournamentListResponse,
+  TournamentModuleFlags,
+  TournamentPairingStyle,
+  TournamentParticipantListResponse,
+  TournamentParticipantResponse,
+  TournamentParticipantStatus,
+  TournamentStaffCandidateListResponse,
+  TournamentStaffCandidateResponse,
+  TournamentStaffInviteLandingResponse,
+  TournamentStaffMemberResponse,
+  TournamentStaffRole,
+  TournamentStatus,
+  TournamentSummaryResponse,
+  TournamentViewerRole,
+} from "./tournament.js";
 
 export type {
   AnySnapshot,

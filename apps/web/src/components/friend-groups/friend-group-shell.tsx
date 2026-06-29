@@ -24,7 +24,6 @@ import { cn, PAGE_PADDING, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 export const ROLE_LABEL: Record<FriendGroupRole, string> = {
   owner: "Owner",
   admin: "Admin",
-  judge: "Judge",
   member: "Member",
 };
 
@@ -35,11 +34,14 @@ export function isAdmin(role: FriendGroupRole | null): role is "admin" | "owner"
 }
 
 /**
- * Deck-check access: rank >= judge in the linear hierarchy (ADR-025).
- * @returns True for owner, admin, and judge.
+ * Group-level access to the group's tournaments surface. ADR-033 retired the
+ * `judge` group role and moved judging to tournament_staff; the group owner/admin
+ * still reach the group's tournaments, and per-action authority is enforced
+ * server-side against the tournament host/staff.
+ * @returns True for owner and admin.
  */
-export function isJudge(role: FriendGroupRole | null): role is "admin" | "owner" | "judge" {
-  return role === "admin" || role === "owner" || role === "judge";
+export function canManageGroupTournaments(role: FriendGroupRole | null): role is "admin" | "owner" {
+  return role === "admin" || role === "owner";
 }
 
 /**
@@ -131,27 +133,6 @@ export function FriendGroupSectionFrame({
       </div>
     </>
   );
-}
-
-/**
- * Frame for deeper drill-down pages (event, entrant, ...): loads the group,
- * shows the pending-approval stub, and otherwise renders the page without the
- * group header — those pages carry their own TopBarBreadcrumbBar (the app's
- * drill-down convention).
- * @returns The framed drill-down page, or the pending stub.
- */
-export function GroupDrilldownFrame({
-  slug,
-  render,
-}: {
-  slug: string;
-  render: (data: FriendGroupDetailResponse) => ReactNode;
-}) {
-  const { data } = useFriendGroupDetail(slug);
-  if (data.viewerStatus === "pending") {
-    return <PendingApprovalStub data={data} />;
-  }
-  return render(data);
 }
 
 function PendingApprovalStub({ data }: { data: FriendGroupDetailResponse }) {

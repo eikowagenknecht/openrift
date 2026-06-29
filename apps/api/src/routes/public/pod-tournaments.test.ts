@@ -40,6 +40,7 @@ const dbTournament = {
   currentRound: 2,
   scoringScheme: "standard" as const,
   byePoints: 3,
+  pairingStyle: "pod" as const,
 };
 
 const playerIds = [
@@ -139,6 +140,21 @@ describe("GET /api/v1/pod-tournaments/report/:token", () => {
     expect(json.message).toBe("Not found");
     expect(mockPodTournamentsRepo.computeStandings).not.toHaveBeenCalled();
   });
+
+  it("returns NOT_FOUND when the token resolves a non-pod tournament", async () => {
+    // A live report token on a tournament whose pairing engine is no longer pod
+    // must not render an (empty) pod report shell.
+    mockPodTournamentsRepo.findByReportToken.mockResolvedValue({
+      ...dbTournament,
+      pairingStyle: "none",
+    });
+
+    const res = await app.request(`/api/v1/pod-tournaments/report/${TOKEN}`);
+    expect(res.status).toBe(404);
+    const json = await res.json();
+    expect(json.message).toBe("Not found");
+    expect(mockPodTournamentsRepo.computeStandings).not.toHaveBeenCalled();
+  });
 });
 
 describe("PUT /api/v1/pod-tournaments/report/:token/pods/:podId/result", () => {
@@ -180,6 +196,19 @@ describe("PUT /api/v1/pod-tournaments/report/:token/pods/:podId/result", () => {
 
   it("returns NOT_FOUND when the token does not resolve", async () => {
     mockPodTournamentsRepo.findByReportToken.mockResolvedValue(undefined);
+
+    const res = await putRequest(TOKEN, POD_ID, validBody);
+    expect(res.status).toBe(404);
+    const json = await res.json();
+    expect(json.message).toBe("Not found");
+    expect(mockSubmitPodResult).not.toHaveBeenCalled();
+  });
+
+  it("returns NOT_FOUND when the token resolves a non-pod tournament", async () => {
+    mockPodTournamentsRepo.findByReportToken.mockResolvedValue({
+      ...dbTournament,
+      pairingStyle: "none",
+    });
 
     const res = await putRequest(TOKEN, POD_ID, validBody);
     expect(res.status).toBe(404);

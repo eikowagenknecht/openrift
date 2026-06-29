@@ -1,7 +1,9 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { PageToc } from "@/components/layout/page-toc";
+import { MyDeckCheckKeysSection } from "@/components/deck-check/deck-check-keys-section";
 import type { PageTocItem } from "@/components/layout/page-toc";
+import { SettingsGroup } from "@/components/layout/settings-group";
+import { SettingsLayout } from "@/components/layout/settings-layout";
 import { AccountInfoSection } from "@/components/profile/account-info-section";
 import { ConnectedAccountsSection } from "@/components/profile/connected-accounts-section";
 import { ContactMethodsSection } from "@/components/profile/contact-methods-section";
@@ -32,6 +34,7 @@ const NAV_SECTIONS: PageTocItem[] = [
   { id: "trading", label: "Trading", level: 1 },
   { id: "contacts", label: "Trade contacts", level: 1 },
   { id: "sharing", label: "Public sharing" },
+  { id: "integrations", label: "Integrations" },
   { id: "account", label: "Account" },
   { id: "security", label: "Security" },
   { id: "danger-zone", label: "Danger Zone" },
@@ -53,83 +56,68 @@ function ProfilePage() {
 
   return (
     <div className={`flex justify-center ${PAGE_PADDING}`}>
-      <div className="flex w-full max-w-4xl gap-6">
-        <PageToc items={NAV_SECTIONS} />
-
-        <div className="flex min-w-0 flex-1 flex-col gap-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center gap-4">
-              <UserAvatar
-                image={user.image}
-                name={user.name}
-                email={user.email}
-                gravatarHash={gravatarHash}
-                size="lg"
-              />
-              <div className="flex flex-col gap-0.5">
-                <CardTitle>{user.name || user.email}</CardTitle>
-                <CardDescription>{user.email}</CardDescription>
-                {createdAt && <p className="text-muted-foreground text-xs">Joined {createdAt}</p>}
-              </div>
-            </CardHeader>
-          </Card>
-
-          <section id="preferences" className="scroll-mt-16 space-y-6">
-            <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-              Preferences
-            </h2>
-            <div id="display" className="scroll-mt-16">
-              <DisplaySection />
-            </div>
-            <div id="marketplaces" className="scroll-mt-16">
-              <MarketplacesSection />
-            </div>
-            <div id="languages" className="scroll-mt-16">
-              <LanguagesSection availableLanguages={languages} />
-            </div>
-            <div id="trading" className="scroll-mt-16">
-              <TradingSection />
-            </div>
-            <div id="contacts" className="scroll-mt-16">
-              <ContactMethodsSection />
-            </div>
-          </section>
-
-          <section id="sharing" className="scroll-mt-16 space-y-6">
-            <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-              Public sharing
-            </h2>
-            <PublicSharingSection />
-          </section>
-
-          <section id="account" className="scroll-mt-16 space-y-6">
-            <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-              Account
-            </h2>
-            <AccountInfoSection
-              defaultName={user.name ?? ""}
-              defaultRiotId={user.riotId ?? ""}
-              userId={user.id}
-              currentEmail={user.email}
+      <SettingsLayout toc={NAV_SECTIONS} className="max-w-4xl">
+        <Card>
+          <CardHeader className="flex flex-row items-center gap-4">
+            <UserAvatar
+              image={user.image}
+              name={user.name}
+              email={user.email}
+              gravatarHash={gravatarHash}
+              size="lg"
             />
-            <ConnectedAccountsSection />
-          </section>
+            <div className="flex flex-col gap-0.5">
+              <CardTitle>{user.name || user.email}</CardTitle>
+              <CardDescription>{user.email}</CardDescription>
+              {createdAt && <p className="text-muted-foreground text-xs">Joined {createdAt}</p>}
+            </div>
+          </CardHeader>
+        </Card>
 
-          <section id="security" className="scroll-mt-16 space-y-6">
-            <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-              Security
-            </h2>
-            <PasswordSection />
-          </section>
+        <SettingsGroup id="preferences" title="Preferences">
+          <div id="display" className="scroll-mt-16">
+            <DisplaySection />
+          </div>
+          <div id="marketplaces" className="scroll-mt-16">
+            <MarketplacesSection />
+          </div>
+          <div id="languages" className="scroll-mt-16">
+            <LanguagesSection availableLanguages={languages} />
+          </div>
+          <div id="trading" className="scroll-mt-16">
+            <TradingSection />
+          </div>
+          <div id="contacts" className="scroll-mt-16">
+            <ContactMethodsSection />
+          </div>
+        </SettingsGroup>
 
-          <section id="danger-zone" className="scroll-mt-16 space-y-6">
-            <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-              Danger Zone
-            </h2>
-            <DangerZoneSection />
-          </section>
-        </div>
-      </div>
+        <SettingsGroup id="sharing" title="Public sharing">
+          <PublicSharingSection />
+        </SettingsGroup>
+
+        <SettingsGroup id="integrations" title="Integrations">
+          <MyDeckCheckKeysSection />
+        </SettingsGroup>
+
+        <SettingsGroup id="account" title="Account">
+          <AccountInfoSection
+            defaultName={user.name ?? ""}
+            defaultRiotId={user.riotId ?? ""}
+            userId={user.id}
+            currentEmail={user.email}
+          />
+          <ConnectedAccountsSection />
+        </SettingsGroup>
+
+        <SettingsGroup id="security" title="Security">
+          <PasswordSection />
+        </SettingsGroup>
+
+        <SettingsGroup id="danger-zone" title="Danger Zone">
+          <DangerZoneSection />
+        </SettingsGroup>
+      </SettingsLayout>
     </div>
   );
 }

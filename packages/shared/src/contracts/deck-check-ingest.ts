@@ -16,7 +16,6 @@ const deckCheckIngestCardSchema = z.object({
 const deckCheckIngestEntrySchema = z.object({
   externalId: z.string().min(1).max(200),
   playerName: z.string().min(1).max(120),
-  playerEmail: z.string().max(254).nullish(),
   riotId: z.string().max(120).nullish(),
   submittedAt: z.iso.datetime({ offset: true }).nullish(),
   /** Consent for the organizer to publish the deck list publicly; omitted = keep stored (true on first insert). */
@@ -31,13 +30,13 @@ const deckCheckIngestEntrySchema = z.object({
 });
 
 /**
- * The provider push payload. Pushes never create events: `eventId` must be an
- * existing event (created in OpenRift) inside the key's group. Partial
- * semantics: entries absent from a push are untouched; withdrawal is the
- * explicit per-entry flag, never an omission.
+ * The provider push payload. Pushes never create tournaments: `tournamentId`
+ * must be an existing deck-check tournament (created in OpenRift) hosted by the
+ * key's host. Partial semantics: entries absent from a push are untouched;
+ * withdrawal is the explicit per-entry flag, never an omission.
  */
 export const deckCheckIngestSchema = z.object({
-  eventId: z.uuid(),
+  tournamentId: z.uuid(),
   entries: z.array(deckCheckIngestEntrySchema).max(DECK_CHECK_MAX_ENTRIES_PER_PUSH).default([]),
 });
 
@@ -51,7 +50,7 @@ const deckCheckIngestEntryResultSchema = z
 
 export const deckCheckIngestResultResponseSchema = z
   .object({
-    eventId: z.string(),
+    tournamentId: z.string(),
     entriesCreated: z.number().int().nonnegative(),
     entriesUpdated: z.number().int().nonnegative(),
     entriesUnchanged: z.number().int().nonnegative(),
@@ -65,15 +64,16 @@ export const deckCheckIngestResultResponseSchema = z
   .openapi("DeckCheckIngestResultResponse");
 
 /**
- * oRPC contract for the deck-check provider push (ADR-025). The handler
- * (`apps/api/src/routes/public/deck-check-ingest.ts`) is a `meta: "bearer"`
- * procedure: it authenticates off a per-group `Authorization: Bearer <key>`
- * header (read via `context.reqHeader`), not the session cookie, so it skips
- * session resolution and carries the `bearerAuth` OpenAPI security marker. Its
- * rate limit and 1 MB body limit stay as Hono middleware on the path (`app.ts`).
- * Domain codes for `push`: NOT_FOUND (unknown event id), CONFLICT (event
- * archived), VALIDATION_ERROR (reserved external id prefix or unknown deck
- * section).
+ * oRPC contract for the deck-check provider push (ADR-025, re-parented to a host
+ * in ADR-033). The handler (`apps/api/src/routes/public/deck-check-ingest.ts`)
+ * is a `meta: "bearer"` procedure: it authenticates off the host's
+ * `Authorization: Bearer <key>` header (read via `context.reqHeader`), not the
+ * session cookie, so it skips session resolution and carries the `bearerAuth`
+ * OpenAPI security marker. Its rate limit and 1 MB body limit stay as Hono
+ * middleware on the path (`app.ts`). Domain codes for `push`: NOT_FOUND (unknown
+ * tournament id, or one not hosted by the key's host), CONFLICT (tournament not
+ * accepting submissions), VALIDATION_ERROR (reserved external id prefix or
+ * unknown deck section).
  */
 export const deckCheckIngestContract = {
   push: oc
@@ -82,17 +82,17 @@ export const deckCheckIngestContract = {
       path: "/api/v1/ingest/deck-check",
       tags: ["Deck Check"],
       description:
-        "Provider push for deck-check events (ADR-025). Authenticated by a " +
-        "per-group API key (`Authorization: Bearer <key>`). Pushes never create " +
-        "events: the event is created in OpenRift and addressed by its id. " +
-        "Partial semantics: entries absent from a push are untouched; withdrawal " +
-        "is the explicit per-entry flag.",
+        "Provider push for a tournament's deck check (ADR-025). Authenticated by " +
+        "the host's API key (`Authorization: Bearer <key>`). Pushes never create " +
+        "tournaments: the tournament is created in OpenRift and addressed by its " +
+        "`tournamentId`. Partial semantics: entries absent from a push are " +
+        "untouched; withdrawal is the explicit per-entry flag.",
     })
     .meta({ auth: "bearer" })
     .input(deckCheckIngestSchema)
     .errors({
-      NOT_FOUND: { message: "Event not found" },
-      CONFLICT: { message: "Event is archived" },
+      NOT_FOUND: { message: "Tournament not found" },
+      CONFLICT: { message: "Tournament is not accepting submissions" },
       VALIDATION_ERROR: { status: 422, message: "Push contains invalid data" },
     })
     .output(deckCheckIngestResultResponseSchema),

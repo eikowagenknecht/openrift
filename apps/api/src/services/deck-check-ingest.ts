@@ -16,7 +16,11 @@ import type { z } from "zod";
 
 import type { Repos } from "../deps.js";
 import { AppError } from "../errors.js";
-import type { DeckCheckEntry, NewDeckCheckEntryCard } from "../repositories/deck-check.js";
+import type {
+  DeckCheckEntry,
+  DeckCheckHost,
+  NewDeckCheckEntryCard,
+} from "../repositories/deck-check.js";
 import { cardResolutionKey } from "../repositories/deck-check.js";
 import { generateShareToken } from "../utils/share-token.js";
 import { storedCardLines } from "./deck-check-states.js";
@@ -82,23 +86,23 @@ export async function recomputeEntryHash(repos: Repos, entryId: string): Promise
  * uuid. Run inside a transaction so a failed push imports nothing.
  *
  * @param repos Transaction-bound repositories.
- * @param groupId The group the push key resolved to.
+ * @param host The host the push key resolved to.
  * @param payload The validated push payload.
  * @param appBaseUrl The web origin used to build each entry's claim link.
  * @returns Per-entry outcome counts plus a claim link per entry for the provider.
  */
 export async function ingestDeckCheckPush(
   repos: Repos,
-  groupId: string,
+  host: DeckCheckHost,
   payload: DeckCheckIngestPayload,
   appBaseUrl: string,
 ): Promise<DeckCheckIngestResultResponse> {
-  const event = await repos.deckCheck.getEvent(groupId, payload.eventId);
+  const event = await repos.deckCheck.getEventForHost(host, payload.tournamentId);
   if (!event) {
     throw new AppError(
       404,
       ERROR_CODES.NOT_FOUND,
-      "Unknown event id; create the event in OpenRift first",
+      "Unknown tournament id; create the deck-check tournament in OpenRift first",
     );
   }
   if (event.status === "archived") {
@@ -130,7 +134,7 @@ export async function ingestDeckCheckPush(
   );
 
   const result: DeckCheckIngestResultResponse = {
-    eventId: event.id,
+    tournamentId: event.id,
     entriesCreated: 0,
     entriesUpdated: 0,
     entriesUnchanged: 0,
@@ -154,7 +158,7 @@ export async function ingestDeckCheckPush(
     result.entries.push({
       externalId,
       entryId: entry.id,
-      claimUrl: `${appBaseUrl}/tournament-claim/${token}`,
+      claimUrl: `${appBaseUrl}/tournaments/claim/${token}`,
     });
   };
 
@@ -179,7 +183,6 @@ export async function ingestDeckCheckPush(
 
     const identity = {
       playerName: entry.playerName,
-      playerEmail: entry.playerEmail ?? null,
       riotId: entry.riotId ?? null,
       submittedAt: entry.submittedAt ? new Date(entry.submittedAt) : null,
     };
@@ -197,17 +200,25 @@ export async function ingestDeckCheckPush(
 
     const existing = await repos.deckCheck.getEntryByExternalId(event.id, entry.externalId);
     if (!existing) {
+      // Each pushed entry creates its own walk-in participant. Players link
+      // themselves later through the claim link (ADR-033); the push carries no
+      // identity that could auto-match an account.
+      const participant = await repos.tournaments.resolveOrCreateParticipant({
+        tournamentId: event.id,
+        riotId: identity.riotId,
+        displayName: identity.playerName,
+      });
       const created = await repos.deckCheck.createEntry({
-        eventId: event.id,
+        tournamentId: event.id,
+        participantId: participant.id,
         externalId: entry.externalId,
-        ...identity,
+        submittedAt: identity.submittedAt,
         ...consent,
         contentHash,
         state: entry.withdrawn ? "withdrawn" : "submitted",
         withdrawnAt: entry.withdrawn ? new Date() : null,
       });
       await repos.deckCheck.replaceEntryCards(created.id, cardRows);
-      await autoMatchEntry(repos, created.id, identity.playerEmail);
       await recordEntry(entry.externalId, created);
       result.entriesCreated += 1;
       continue;
@@ -241,7 +252,6 @@ export async function ingestDeckCheckPush(
         ...consent,
         ...withdrawalChange,
       });
-      await autoMatchEntry(repos, existing.id, identity.playerEmail);
       await recordEntry(entry.externalId, existing);
       result.entriesUnchanged += 1;
       continue;
@@ -271,7 +281,6 @@ export async function ingestDeckCheckPush(
         : null,
     });
     await repos.deckCheck.replaceEntryCards(existing.id, cardRows);
-    await autoMatchEntry(repos, existing.id, identity.playerEmail);
     await recordEntry(entry.externalId, existing);
     if (wasReviewed) {
       result.checksInvalidated += 1;
@@ -282,46 +291,25 @@ export async function ingestDeckCheckPush(
   return result;
 }
 
-/**
- * The ingest-time auto-match (ADR-026): links an entry to a verified account
- * sharing its email. No-op for absent emails; `linkEntryIfUnclaimed` skips
- * already-linked and judge-blocked entries.
- * @param repos Transaction-bound repositories.
- * @param entryId The just-upserted entry.
- * @param playerEmail The provider's email for the entry.
- */
-async function autoMatchEntry(
-  repos: Repos,
-  entryId: string,
-  playerEmail: string | null,
-): Promise<void> {
-  if (!playerEmail) {
-    return;
-  }
-  const userId = await repos.deckCheck.findVerifiedUserByEmail(playerEmail);
-  if (userId) {
-    await repos.deckCheck.linkEntryIfUnclaimed(entryId, userId, "email_auto");
-  }
-}
-
 export type CreateDeckCheckEntryPayload = z.infer<typeof createDeckCheckEntrySchema>;
 
 /**
- * Creates a single entrant by hand (judge+) for when the organizer push isn't
- * available. Resolves card names and computes the content hash exactly like a
- * push so a later provider push diffs correctly. The entry is stamped with a
- * `manual:`-prefixed external id, which never collides with a provider id —
- * note a later push for the same player (under the provider's own id) lands as
- * a separate entry rather than merging into this one.
+ * Creates a deck for an existing roster participant by hand (judge+) for when
+ * the organizer push isn't available. Resolves card names and computes the
+ * content hash exactly like a push so a later provider push diffs correctly. The
+ * entry is stamped with a `manual:`-prefixed external id, which never collides
+ * with a provider id — note a later push for the same player (under the
+ * provider's own id) lands as a separate entry rather than merging into this
+ * one. The caller owns the one-deck-per-participant check.
  *
  * @param repos The request repositories.
- * @param eventId The event to add the entrant to.
- * @param payload The validated player + card-line input.
+ * @param tournamentId The deck-check tournament to add the deck to.
+ * @param payload The validated participant id + card-line input.
  * @returns The created entry row.
  */
 export async function createManualDeckCheckEntry(
   repos: Repos,
-  eventId: string,
+  tournamentId: string,
   payload: CreateDeckCheckEntryPayload,
 ): Promise<DeckCheckEntry> {
   const lines: DeckCheckCardLine[] = payload.cards.map((card) => {
@@ -356,11 +344,9 @@ export async function createManualDeckCheckEntry(
   });
 
   const created = await repos.deckCheck.createEntry({
-    eventId,
+    tournamentId,
+    participantId: payload.participantId,
     externalId: `${MANUAL_ENTRY_EXTERNAL_ID_PREFIX}${randomUUID()}`,
-    playerName: payload.playerName,
-    playerEmail: payload.playerEmail ?? null,
-    riotId: payload.riotId ?? null,
     submittedAt: null,
     contentHash: sha256(buildContentHashInput(lines)),
     withdrawnAt: null,

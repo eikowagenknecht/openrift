@@ -465,6 +465,54 @@ export const podReportTokenResponseSchema = z
   .object({ reportToken: z.string().nullable() })
   .openapi("PodReportTokenResponse");
 
+// The pod-engine running payload (standings + rounds + open-round snapshot),
+// shared by the unified tournaments run-state and round-running endpoints
+// (ADR-033). The pod engine drives a `pod_rounds`-format tournament's pairings
+// and standings; these mirror the hand-written types in
+// `types/api/pod-tournament.ts`.
+export const podTournamentResponseSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    status: podTournamentStatusSchema,
+    currentRound: z.number().int().nonnegative(),
+    scoringScheme: podScoringSchemeSchema,
+    byePoints: z.number().int().nonnegative(),
+    reportToken: z.string().nullable(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  })
+  .openapi("PodTournamentResponse");
+
+export const podPlayerResponseSchema = z
+  .object({
+    id: z.string(),
+    displayName: z.string(),
+    status: podPlayerStatusSchema,
+    droppedAfterRound: z.number().int().nullable(),
+    createdAt: z.string(),
+  })
+  .openapi("PodPlayerResponse");
+
+const podSnapshotPlayerSchema = z.object({
+  playerId: z.string(),
+  score: z.number(),
+  pods3: z.number().int().nonnegative(),
+  pods4: z.number().int().nonnegative(),
+  byes: z.number().int().nonnegative(),
+  opponents: z.record(z.string(), z.number().int().nonnegative()),
+});
+
+export const podTournamentDetailResponseSchema = z
+  .object({
+    tournament: podTournamentResponseSchema,
+    players: z.array(podPlayerResponseSchema),
+    standings: z.array(podStandingRowSchema),
+    rounds: z.array(podRoundResponseSchema),
+    openRoundSnapshot: z.array(podSnapshotPlayerSchema).nullable(),
+  })
+  .openapi("PodTournamentDetailResponse");
+
 // ─── Deck check (ADR-025) ─────────────────────────────────────────────────────
 
 export const deckCheckEntryStateSchema = z.enum([

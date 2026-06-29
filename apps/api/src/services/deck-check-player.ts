@@ -32,70 +32,98 @@ function sha256(input: string): string {
 }
 
 /**
- * The lazy auto-match (ADR-026): links every unclaimed, unblocked entry whose
- * `player_email` matches the caller's verified email. Runs when a player loads
- * "My tournament decks" or opens a submission link, covering accounts created
- * after the provider pushed.
- * @param repos The request repositories.
- * @param userId The authenticated caller.
- */
-export async function lazyMatchEntriesForUser(repos: Repos, userId: string): Promise<void> {
-  const account = await repos.deckCheck.getUserAccount(userId);
-  if (!account) {
-    return;
-  }
-  const verifiedId = await repos.deckCheck.findVerifiedUserByEmail(account.email);
-  if (verifiedId !== userId) {
-    return;
-  }
-  await repos.deckCheck.autoMatchEntriesByEmail(userId, account.email);
-}
-
-/**
- * Claims one entry via a provider-issued claim token (ADR-026 amendment),
- * resolving against the entry's current state:
+ * Claims a participant (a tournament "spot") via its claim token (ADR-026
+ * amendment, ADR-033). Rooted on the participant, so it works with or without
+ * deck check. Resolves against the participant's current state:
  *
  * - unclaimed and not blocked: link it (`claim_link`);
  * - already the caller's: idempotent no-op, the caller still lands on it
  *   (a `judge_manual` link before the click stays `judge_manual`);
  * - linked to a different account: refuse, do not steal;
- * - `claim_blocked_at` set (a judge detached it): refuse.
+ * - `claim_blocked_at` set (a judge detached it): refuse;
+ * - the caller already holds a different spot in this tournament: refuse as
+ *   `duplicate` (one account per tournament), pointing at their existing spot.
  *
  * The token is the capability, so claiming never waits on email verification.
- * @returns The outcome, or null when the token matches no entry (a 404).
+ * `entryId` routes the caller to their deck when the tournament runs deck check,
+ * and is null otherwise.
+ * @returns The outcome, or null when the token matches no participant (a 404).
  */
-export async function claimDeckCheckEntryByToken(
+export async function claimParticipantByToken(
   repos: Repos,
   token: string,
   userId: string,
 ): Promise<DeckCheckClaimResultResponse | null> {
-  const entry = await repos.deckCheck.getEntryByClaimToken(token);
-  if (!entry) {
+  const participant = await repos.tournaments.findParticipantByClaimToken(token);
+  if (!participant) {
     return null;
   }
-  if (entry.claimedUserId === userId) {
-    return { status: "already", entryId: entry.id };
+  if (participant.userId === userId) {
+    const entryId = await repos.deckCheck.findEntryIdByParticipant(participant.id);
+    return { status: "already", tournamentId: participant.tournamentId, entryId: entryId ?? null };
   }
-  if (entry.claimedUserId !== null) {
-    return { status: "conflict", entryId: null };
+  if (participant.userId !== null) {
+    return { status: "conflict", tournamentId: null, entryId: null };
   }
-  if (entry.claimBlockedAt !== null) {
-    return { status: "blocked", entryId: null };
+  if (participant.claimBlockedAt !== null) {
+    return { status: "blocked", tournamentId: null, entryId: null };
   }
-  // `linkEntryIfUnclaimed` re-checks unclaimed + unblocked atomically, so a
-  // race between the read above and this write resolves to a refusal, not a steal.
-  const linked = await repos.deckCheck.linkEntryIfUnclaimed(entry.id, userId, "claim_link");
+  // One account per tournament (uq_tournament_participants_user): if the caller
+  // already holds a different spot here, linking this one too would violate that
+  // key. Catch it as a friendly outcome (pointing at the spot they already have)
+  // instead of letting the unique violation surface as a 500.
+  const existing = await repos.tournaments.findParticipantByUser(participant.tournamentId, userId);
+  if (existing) {
+    const entryId = await repos.deckCheck.findEntryIdByParticipant(existing.id);
+    return {
+      status: "duplicate",
+      tournamentId: participant.tournamentId,
+      entryId: entryId ?? null,
+    };
+  }
+  // The update re-checks unclaimed + unblocked atomically, so a race between the
+  // read above and this write resolves to a refusal, not a steal.
+  let linked: Awaited<ReturnType<typeof repos.tournaments.linkParticipantByClaimTokenIfUnclaimed>>;
+  try {
+    linked = await repos.tournaments.linkParticipantByClaimTokenIfUnclaimed(
+      token,
+      userId,
+      "claim_link",
+    );
+  } catch (error) {
+    // A concurrent claim of a *different* spot in this tournament can land
+    // between the duplicate pre-check above and this write, tripping
+    // uq_tournament_participants_user (23505). Convert that race to the same
+    // friendly duplicate outcome instead of letting it surface as a 500.
+    if (error instanceof Error && "code" in error && error.code === "23505") {
+      const existingSpot = await repos.tournaments.findParticipantByUser(
+        participant.tournamentId,
+        userId,
+      );
+      if (existingSpot) {
+        const entryId = await repos.deckCheck.findEntryIdByParticipant(existingSpot.id);
+        return {
+          status: "duplicate",
+          tournamentId: participant.tournamentId,
+          entryId: entryId ?? null,
+        };
+      }
+    }
+    throw error;
+  }
   if (linked) {
-    return { status: "claimed", entryId: entry.id };
+    const entryId = await repos.deckCheck.findEntryIdByParticipant(linked.id);
+    return { status: "claimed", tournamentId: linked.tournamentId, entryId: entryId ?? null };
   }
-  const fresh = await repos.deckCheck.getEntryByClaimToken(token);
-  if (fresh?.claimedUserId === userId) {
-    return { status: "already", entryId: fresh.id };
+  const fresh = await repos.tournaments.findParticipantByClaimToken(token);
+  if (fresh?.userId === userId) {
+    const entryId = await repos.deckCheck.findEntryIdByParticipant(fresh.id);
+    return { status: "already", tournamentId: fresh.tournamentId, entryId: entryId ?? null };
   }
-  if (fresh && fresh.claimedUserId === null && fresh.claimBlockedAt !== null) {
-    return { status: "blocked", entryId: null };
+  if (fresh && fresh.userId === null && fresh.claimBlockedAt !== null) {
+    return { status: "blocked", tournamentId: null, entryId: null };
   }
-  return { status: "conflict", entryId: null };
+  return { status: "conflict", tournamentId: null, entryId: null };
 }
 
 /**
@@ -361,21 +389,30 @@ export async function createSelfSubmittedEntry(
   cardRows: NewDeckCheckEntryCard[],
   consent: PlayerSharingConsent = {},
 ): Promise<DeckCheckEntry> {
-  const entry = await repos.deckCheck.createEntry({
-    eventId: event.id,
-    externalId: `${SELF_SUBMIT_EXTERNAL_ID_PREFIX}${account.id}`,
-    playerName: account.name?.trim() || account.email,
-    playerEmail: account.email,
+  // Attach to the account's existing entrant, or create one, born linked to the
+  // account either way (ADR-033).
+  const participant = await repos.tournaments.resolveOrCreateParticipant({
+    tournamentId: event.id,
+    userId: account.id,
     // The profile's free-text Riot ID (ADR-028), snapshotted at submission.
     riotId: account.riotId,
+    displayName: account.name?.trim() || account.email,
+    claimSource: "self_submit",
+    claimedAt: new Date(),
+    // A stranger submitting through the open link lands in the approval queue,
+    // not straight on the roster (ADR-033 decisions 18/19). An already-rostered
+    // caller is matched by account above and keeps their existing status.
+    status: "requested",
+  });
+  const entry = await repos.deckCheck.createEntry({
+    tournamentId: event.id,
+    participantId: participant.id,
+    externalId: `${SELF_SUBMIT_EXTERNAL_ID_PREFIX}${account.id}`,
     submittedAt: new Date(),
     ...consentPatch(consent),
     contentHash: sha256(buildContentHashInput(lines)),
     withdrawnAt: null,
     state: "submitted",
-    claimedUserId: account.id,
-    claimSource: "self_submit",
-    claimedAt: new Date(),
   });
   await repos.deckCheck.replaceEntryCards(entry.id, cardRows);
   return entry;

@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { useGeneratePodRound } from "@/hooks/use-pod-tournaments";
+import { useGenerateTournamentRound } from "@/hooks/use-tournaments";
 
 /**
  * The "generate next round" control plus an optional bye picker. The organizer
@@ -35,7 +35,7 @@ export function GenerateRoundControls({
   reachedSuggestion: boolean;
   suggested: number;
 }) {
-  const generateRound = useGeneratePodRound();
+  const generateRound = useGenerateTournamentRound();
   const [byeIds, setByeIds] = useState<string[]>([]);
 
   const activePlayers = players.filter((player) => player.status === "active");

@@ -48,7 +48,6 @@ import { ShareListsWithGroupDialog } from "./share-lists-with-group-dialog";
 const ROLE_BADGE: Record<FriendGroupRole, { label: string; className: string }> = {
   owner: { label: "Owner", className: "bg-primary text-primary-foreground" },
   admin: { label: "Admin", className: "bg-secondary text-secondary-foreground" },
-  judge: { label: "Judge", className: "bg-secondary text-secondary-foreground" },
   member: { label: "Member", className: "bg-muted text-muted-foreground" },
 };
 

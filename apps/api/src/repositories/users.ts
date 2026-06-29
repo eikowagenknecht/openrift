@@ -84,6 +84,15 @@ export function usersRepo(db: Kysely<Database>) {
       }));
     },
 
+    /** @returns The user's id, display name, and email matched by id, or `undefined`. */
+    findById(id: string): Promise<{ id: string; name: string | null; email: string } | undefined> {
+      return db
+        .selectFrom("users")
+        .select(["id", "name", "email"])
+        .where("id", "=", id)
+        .executeTakeFirst();
+    },
+
     /** @returns The user row matched by email (case-sensitive), or `undefined`. */
     getByEmail(
       email: string,
@@ -92,6 +101,19 @@ export function usersRepo(db: Kysely<Database>) {
         .selectFrom("users")
         .select(["id", "name", "image"])
         .where("email", "=", email)
+        .executeTakeFirst();
+    },
+
+    /**
+     * Resolve an exact account email to its id, case-insensitively. Used to add
+     * staff by the email the host already knows — not a name search.
+     * @returns The user id matched by email, or `undefined`.
+     */
+    findIdByEmail(email: string): Promise<{ id: string } | undefined> {
+      return db
+        .selectFrom("users")
+        .select(["id"])
+        .where((eb) => eb(eb.fn("lower", ["email"]), "=", email.toLowerCase()))
         .executeTakeFirst();
     },
   };

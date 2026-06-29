@@ -2,7 +2,6 @@ import type {
   DeckCheckChangeSummary,
   DeckCheckEntryCardResponse,
   DeckCheckEntryDetailResponse,
-  FriendGroupDetailResponse,
   Printing,
 } from "@openrift/shared";
 import { imageUrl, legendDisplayName } from "@openrift/shared";
@@ -10,7 +9,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import {
   BanIcon,
   CheckIcon,
-  CopyIcon,
+  EllipsisVerticalIcon,
   ExpandIcon,
   LayoutGridIcon,
   Link2Icon,
@@ -28,6 +27,7 @@ import {
   WandSparklesIcon,
   XIcon,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -47,9 +47,19 @@ import { HoveredCardPreview } from "@/components/deck/hovered-card-preview";
 import { ColumnControls } from "@/components/filters/column-controls";
 import { SortGroupControls } from "@/components/filters/sort-group-controls";
 import type { SortGroupOption } from "@/components/filters/sort-group-controls";
-import { isAdmin } from "@/components/friend-groups/friend-group-shell";
 import { ImportCatalogSearch } from "@/components/import/import-catalog-search";
-import { TopBarBreadcrumbBar } from "@/components/layout/top-bar-breadcrumb";
+import {
+  PageTopBar,
+  PageTopBarActions,
+  PageTopBarIconButton,
+  PageTopBarPrimaryButton,
+  PageTopBarSticky,
+  PageTopBarTitle,
+} from "@/components/layout/page-top-bar";
+import {
+  TopBarBreadcrumbSeparator,
+  TopBarBreadcrumbTrail,
+} from "@/components/layout/top-bar-breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -60,6 +70,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -73,35 +89,79 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useCards } from "@/hooks/use-cards";
-import {
-  useAddDeckCheckCard,
-  useApplyDeckCheckZoneFixes,
-  useDeckCheckAccountSearch,
-  useDeckCheckEntry,
-  useDeleteDeckCheckEntry,
-  useDenyDeckCheckUnlockRequest,
-  useFixDeckCheckCard,
-  useLinkDeckCheckEntry,
-  useRemoveDeckCheckCard,
-  useReResolveDeckCheckEvent,
-  useSetDeckCheckEntryState,
-  useTickDeckCheckCard,
-  useUnlinkDeckCheckEntry,
-  useUpdateDeckCheckEntry,
-} from "@/hooks/use-deck-check";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders, useZoneOrder } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
+import {
+  useAddTournamentDeckCheckCard,
+  useApplyTournamentDeckCheckZoneFixes,
+  useTournamentDeckCheckEntry,
+  useDeleteTournamentDeckCheckEntry,
+  useDenyTournamentDeckCheckUnlock,
+  useFixTournamentDeckCheckCard,
+  useRemoveTournamentDeckCheckCard,
+  useReResolveTournamentDeckCheck,
+  useSetTournamentDeckCheckEntryState,
+  useTickTournamentDeckCheckCard,
+  useUnlinkTournamentDeckCheckEntry,
+  useUpdateTournamentDeckCheckEntry,
+} from "@/hooks/use-tournament-deck-check";
+import { useTournamentDetail } from "@/hooks/use-tournaments";
 import { canRequestChanges } from "@/lib/deck-check-actions";
 import { sortDeckCheckCards } from "@/lib/deck-check-sort";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { matchesAllTokens, normalizedStartsWith, searchTokens } from "@/lib/search-match";
-import { getSiteUrl } from "@/lib/site-config";
-import { cn, PAGE_PADDING } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useDeckCheckViewStore } from "@/stores/deck-check-view-store";
 import type { DeckCheckDisplayMode, DeckCheckSort } from "@/stores/deck-check-view-store";
+
+/**
+ * The entry page's sticky top bar: the `Tournaments / {name} / Decks` trail
+ * (collapsing to a back arrow on phones), the entrant's name as the title with
+ * the state badge beside it, and the entry's actions. The trail's `Decks` crumb
+ * is the way back to the entrant list.
+ * @returns The breadcrumb top bar.
+ */
+function DeckEntryTopBar({
+  tournamentId,
+  entry,
+  actions,
+}: {
+  tournamentId: string;
+  entry?: DeckCheckEntryDetailResponse["entry"];
+  actions?: ReactNode;
+}) {
+  const { data: tournament } = useTournamentDetail(tournamentId);
+  return (
+    <PageTopBarSticky maxWidth="5xl">
+      <PageTopBar className="gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:items-baseline">
+          <TopBarBreadcrumbTrail
+            segments={[
+              { label: "Tournaments", link: <Link to="/tournaments" /> },
+              {
+                label: tournament.name,
+                link: <Link to="/tournaments/$id" params={{ id: tournamentId }} />,
+              },
+              {
+                label: "Decks",
+                link: <Link to="/tournaments/$id/decks" params={{ id: tournamentId }} />,
+              },
+            ]}
+          />
+          <TopBarBreadcrumbSeparator className="hidden sm:inline" />
+          <PageTopBarTitle>{entry?.playerName ?? "Entry"}</PageTopBarTitle>
+          {entry ? (
+            <EntryStateBadge state={entry.state} reviewOutcome={entry.reviewOutcome} />
+          ) : null}
+        </div>
+        {actions ? <PageTopBarActions>{actions}</PageTopBarActions> : null}
+      </PageTopBar>
+    </PageTopBarSticky>
+  );
+}
 
 /**
  * The checker: lifecycle controls, advisory legality findings, deck stats, and
@@ -109,18 +169,17 @@ import type { DeckCheckDisplayMode, DeckCheckSort } from "@/stores/deck-check-vi
  * Polls so concurrent judges reconcile.
  * @returns The checker page content.
  */
-export function DeckCheckEntryPage({
-  slug,
-  eventId,
+export function TournamentDeckCheckEntry({
+  tournamentId,
   entryId,
-  data,
+  canManage,
 }: {
-  slug: string;
-  eventId: string;
+  tournamentId: string;
   entryId: string;
-  data: FriendGroupDetailResponse;
+  /** Host / organizer: may delete entries (judges can review but not delete). */
+  canManage: boolean;
 }) {
-  const { data: detail, refetch } = useDeckCheckEntry(slug, eventId, entryId);
+  const { data: detail, refetch } = useTournamentDeckCheckEntry(tournamentId, entryId);
   const wide = useDeckCheckViewStore((state) => state.wide);
   const setWide = useDeckCheckViewStore((state) => state.setWide);
   const displayMode = useDeckCheckViewStore((state) => state.displayMode);
@@ -136,24 +195,50 @@ export function DeckCheckEntryPage({
   const [notes, setNotes] = useState("");
   const [notesDirty, setNotesDirty] = useState(false);
   const [addCardOpen, setAddCardOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const setState = useSetTournamentDeckCheckEntryState();
+  const deleteEntry = useDeleteTournamentDeckCheckEntry();
+  const navigate = useNavigate();
+
+  // A state transition, folding in any unsaved notes so a judge's notes survive
+  // when they advance the entry from the top bar or the action row.
+  const transition = (
+    state: "editable" | "submitted" | "approved" | "checked" | "withdrawn",
+    reviewOutcome?: "ok" | "issue",
+  ) => {
+    setState.mutate(
+      {
+        tournamentId,
+        entryId,
+        state,
+        reviewOutcome,
+        ...(notesDirty ? { notes: notes.trim() || null } : {}),
+      },
+      { onSuccess: () => setNotesDirty(false) },
+    );
+  };
 
   if (!detail) {
     return (
-      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-4", PAGE_PADDING)}>
-        <div className="flex flex-col gap-2">
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-4 w-64" />
-        </div>
-        <div className="flex flex-col gap-4 md:flex-row">
-          <Skeleton className="aspect-[4/3] w-full shrink-0 rounded-xl md:w-72" />
-          <div className="flex min-w-0 flex-1 flex-col gap-3">
-            <Skeleton className="h-4 w-40" />
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-16 w-full" />
+      <>
+        <DeckEntryTopBar tournamentId={tournamentId} />
+        <div className="px-safe mx-auto flex w-full max-w-5xl flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-64" />
           </div>
+          <div className="flex flex-col gap-4 md:flex-row">
+            <Skeleton className="aspect-[4/3] w-full shrink-0 rounded-xl md:w-72" />
+            <div className="flex min-w-0 flex-1 flex-col gap-3">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+          </div>
+          <DeckCheckCardZonesSkeleton cellWidth={CHECK_CELL_WIDTH} />
         </div>
-        <DeckCheckCardZonesSkeleton cellWidth={CHECK_CELL_WIDTH} />
-      </div>
+      </>
     );
   }
 
@@ -164,33 +249,33 @@ export function DeckCheckEntryPage({
       ? Math.floor((containerWidth - (columns - 1) * CHECK_GRID_GAP) / columns)
       : CHECK_CELL_WIDTH;
 
-  const crumbs = [
-    { label: data.group.name, link: <Link to="/groups/$slug" params={{ slug }} /> },
-    { label: "Events", link: <Link to="/groups/$slug/events" params={{ slug }} /> },
-    {
-      label: detail.event.name,
-      link: <Link to="/groups/$slug/events/$eventId" params={{ slug, eventId }} />,
-    },
-    { label: detail.entry.playerName },
-  ];
-
   // An editable list has not been delivered to an official (TR 401.3): the
   // server sends no cards, and the page shows a notice instead of the deck.
   const listHidden = detail.entry.state === "editable";
 
   return (
     <>
-      <TopBarBreadcrumbBar segments={crumbs} />
-      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-4", PAGE_PADDING)}>
+      <DeckEntryTopBar
+        tournamentId={tournamentId}
+        entry={detail.entry}
+        actions={
+          <EntryTopBarActions
+            entry={detail.entry}
+            transition={transition}
+            pending={setState.isPending}
+            canManage={canManage}
+            onEdit={() => setEditOpen(true)}
+            onDelete={() => setDeleteOpen(true)}
+          />
+        }
+      />
+      <div className="px-safe mx-auto flex w-full max-w-5xl flex-col gap-4">
         <EntryHeader
-          slug={slug}
-          eventId={eventId}
+          tournamentId={tournamentId}
           entryId={entryId}
           detail={detail}
-          admin={isAdmin(data.viewerRole)}
-          notes={notesDirty ? notes : (detail.entry.notes ?? "")}
-          notesDirty={notesDirty}
-          onNotesSaved={() => setNotesDirty(false)}
+          transition={transition}
+          pending={setState.isPending}
         />
         <div className="flex flex-col gap-4 md:flex-row">
           {listHidden ? null : <EntryPreview cards={detail.cards} />}
@@ -208,8 +293,7 @@ export function DeckCheckEntryPage({
               className="flex-1"
             />
             <PlayerMessageField
-              slug={slug}
-              eventId={eventId}
+              tournamentId={tournamentId}
               entryId={entryId}
               entry={detail.entry}
             />
@@ -217,8 +301,7 @@ export function DeckCheckEntryPage({
         </div>
         {detail.entry.changeSummary ? <ChangeBanner summary={detail.entry.changeSummary} /> : null}
         <FindingsBanner
-          slug={slug}
-          eventId={eventId}
+          tournamentId={tournamentId}
           detail={detail}
           onResolved={() => void refetch()}
         />
@@ -232,8 +315,7 @@ export function DeckCheckEntryPage({
       {listHidden ? null : (
         <div
           className={cn(
-            "w-full pb-4",
-            PAGE_PADDING,
+            "px-safe w-full pt-4 pb-4",
             (!wide || displayMode === "list") && "mx-auto max-w-5xl",
           )}
         >
@@ -274,16 +356,14 @@ export function DeckCheckEntryPage({
             ) : null}
           </div>
           <AddCardDialog
-            slug={slug}
-            eventId={eventId}
+            tournamentId={tournamentId}
             entryId={entryId}
             open={addCardOpen}
             onOpenChange={setAddCardOpen}
           />
           <div ref={containerRef}>
             <CardChecklist
-              slug={slug}
-              eventId={eventId}
+              tournamentId={tournamentId}
               entryId={entryId}
               cards={detail.cards}
               displayMode={displayMode}
@@ -300,8 +380,126 @@ export function DeckCheckEntryPage({
           </div>
         </div>
       )}
+      <EditPlayerDialog
+        tournamentId={tournamentId}
+        entryId={entryId}
+        entry={detail.entry}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
+      {canManage ? (
+        <ConfirmActionDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          title="Delete this entry?"
+          description="The player's list and check history are removed. This cannot be undone — withdraw the entry instead if they only dropped out."
+          confirmLabel="Delete"
+          pendingLabel="Deleting..."
+          isPending={deleteEntry.isPending}
+          onConfirm={async () => {
+            await deleteEntry.mutateAsync({ tournamentId, entryId });
+            setDeleteOpen(false);
+            void navigate({ to: "/tournaments/$id/decks", params: { id: tournamentId } });
+          }}
+        />
+      ) : null}
     </>
   );
+}
+
+/**
+ * The top-bar actions for an entry: the single contextual primary action for
+ * the current state (the filled CTA) plus an overflow menu with edit and, for
+ * hosts / organizers, delete. Secondary state actions stay in the body.
+ * @returns The entry's top-bar action cluster.
+ */
+function EntryTopBarActions({
+  entry,
+  transition,
+  pending,
+  canManage,
+  onEdit,
+  onDelete,
+}: {
+  entry: DeckCheckEntryDetailResponse["entry"];
+  transition: (
+    state: "editable" | "submitted" | "approved" | "checked" | "withdrawn",
+    reviewOutcome?: "ok" | "issue",
+  ) => void;
+  pending: boolean;
+  canManage: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const primary = primaryActionFor(entry.state);
+  return (
+    <>
+      {primary ? (
+        <PageTopBarPrimaryButton
+          disabled={pending}
+          onClick={() => transition(primary.state, primary.reviewOutcome)}
+        >
+          <primary.icon />
+          {primary.label}
+        </PageTopBarPrimaryButton>
+      ) : null}
+      <DropdownMenu>
+        <DropdownMenuTrigger render={<PageTopBarIconButton aria-label="Entry actions" />}>
+          <EllipsisVerticalIcon />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={onEdit}>
+            <PencilIcon className="size-4" />
+            Edit player details
+          </DropdownMenuItem>
+          {entry.state === "withdrawn" ? null : (
+            <DropdownMenuItem disabled={pending} onClick={() => transition("withdrawn")}>
+              <BanIcon className="size-4" />
+              Withdraw entry
+            </DropdownMenuItem>
+          )}
+          {canManage ? (
+            <DropdownMenuItem variant="destructive" onClick={onDelete}>
+              <Trash2Icon className="size-4" />
+              Delete entry
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
+  );
+}
+
+/**
+ * The single contextual primary action for a state.
+ * @returns The action descriptor, or null when the state has no primary action.
+ */
+function primaryActionFor(state: DeckCheckEntryDetailResponse["entry"]["state"]): {
+  label: string;
+  icon: typeof CheckIcon;
+  state: "editable" | "submitted" | "approved" | "checked" | "withdrawn";
+  reviewOutcome?: "ok" | "issue";
+} | null {
+  switch (state) {
+    case "editable": {
+      return { label: "Lock as submitted", icon: CheckIcon, state: "submitted" };
+    }
+    case "submitted": {
+      return { label: "Approve list", icon: ThumbsUpIcon, state: "approved" };
+    }
+    case "approved": {
+      return { label: "Mark checked", icon: CheckIcon, state: "checked", reviewOutcome: "ok" };
+    }
+    case "checked": {
+      return { label: "Re-open", icon: RotateCcwIcon, state: "submitted" };
+    }
+    case "withdrawn": {
+      return { label: "Restore entry", icon: RotateCcwIcon, state: "submitted" };
+    }
+    default: {
+      return null;
+    }
+  }
 }
 
 /**
@@ -337,128 +535,61 @@ function EntryPreview({ cards }: { cards: DeckCheckEntryCardResponse[] }) {
 }
 
 function EntryHeader({
-  slug,
-  eventId,
+  tournamentId,
   entryId,
   detail,
-  admin,
-  notes,
-  notesDirty,
-  onNotesSaved,
+  transition,
+  pending,
 }: {
-  slug: string;
-  eventId: string;
+  tournamentId: string;
   entryId: string;
   detail: DeckCheckEntryDetailResponse;
-  admin: boolean;
-  notes: string;
-  notesDirty: boolean;
-  onNotesSaved: () => void;
-}) {
-  const { entry } = detail;
-  const setState = useSetDeckCheckEntryState();
-  const denyUnlock = useDenyDeckCheckUnlockRequest();
-  const deleteEntry = useDeleteDeckCheckEntry();
-  const navigate = useNavigate();
-  const [editOpen, setEditOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-
-  const transition = (
+  transition: (
     state: "editable" | "submitted" | "approved" | "checked" | "withdrawn",
     reviewOutcome?: "ok" | "issue",
-  ) => {
-    setState.mutate(
-      {
-        slug,
-        eventId,
-        entryId,
-        state,
-        reviewOutcome,
-        ...(notesDirty ? { notes: notes.trim() || null } : {}),
-      },
-      { onSuccess: () => onNotesSaved() },
-    );
-  };
+  ) => void;
+  /** Whether a state transition is in flight (disables the action buttons). */
+  pending: boolean;
+}) {
+  const { entry } = detail;
+  const denyUnlock = useDenyTournamentDeckCheckUnlock();
 
   return (
     <header className="flex flex-col gap-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex min-w-0 flex-col">
-          <div className="flex items-center gap-2">
-            <h2 className="truncate text-lg font-semibold">{entry.playerName}</h2>
-            <Button
-              size="sm"
-              variant="ghost"
-              aria-label="Edit player details"
-              onClick={() => setEditOpen(true)}
-            >
-              <PencilIcon className="size-4" />
-            </Button>
-            <EntryStateBadge state={entry.state} reviewOutcome={entry.reviewOutcome} />
-          </div>
-          <p className="text-muted-foreground text-sm">
-            {[entry.riotId, entry.playerEmail].filter(Boolean).join(" · ") || "No contact details"}
-          </p>
-          <p className="text-muted-foreground text-sm">
-            Public sharing allowed:{" "}
-            {sharingAllowedSummary(
-              entry.allowDeckPublishing,
-              entry.allowNameSharing,
-              entry.allowRiotIdSharing,
-            )}
-          </p>
-          {entry.state === "checked" && entry.checkedByName ? (
-            <p className="text-muted-foreground text-sm">
-              {entry.reviewOutcome === "issue" ? "Flagged" : "Checked"} by {entry.checkedByName}
-            </p>
-          ) : null}
-          {entry.state === "approved" && entry.approvedByName ? (
-            <p className="text-muted-foreground text-sm">Approved by {entry.approvedByName}</p>
-          ) : null}
+          <EntryMetaGrid entry={entry} />
           {entry.state === "editable" ? (
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground mt-1.5 text-sm">
               The player is editing this list; it locks again when they submit it.
             </p>
           ) : null}
           {entry.state === "withdrawn" ? (
-            <p className="text-muted-foreground text-sm">
-              This entry is withdrawn from the event; restore it to review it again.
+            <p className="text-muted-foreground mt-1.5 text-sm">
+              This entry is withdrawn from the event; restore it from the top bar to review it
+              again.
             </p>
           ) : null}
-          <AccountLinkStatus entry={entry} />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <AccountLinkAction slug={slug} eventId={eventId} entryId={entryId} entry={entry} />
-          <ClaimLinkButton entry={entry} />
-          {entry.state === "submitted" ? (
-            <>
-              {canRequestChanges(entry) ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={setState.isPending}
-                  onClick={() => transition("editable", "issue")}
-                >
-                  <UndoIcon className="size-4" />
-                  Request changes
-                </Button>
-              ) : null}
-              <Button
-                size="sm"
-                disabled={setState.isPending}
-                onClick={() => transition("approved")}
-              >
-                <ThumbsUpIcon className="size-4" />
-                Approve list
-              </Button>
-            </>
+          <AccountLinkAction tournamentId={tournamentId} entryId={entryId} entry={entry} />
+          {entry.state === "submitted" && canRequestChanges(entry) ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={pending}
+              onClick={() => transition("editable", "issue")}
+            >
+              <UndoIcon className="size-4" />
+              Request changes
+            </Button>
           ) : null}
           {entry.state === "approved" ? (
             <>
               <Button
                 size="sm"
                 variant="outline"
-                disabled={setState.isPending}
+                disabled={pending}
                 onClick={() => transition("submitted")}
               >
                 <RotateCcwIcon className="size-4" />
@@ -467,70 +598,13 @@ function EntryHeader({
               <Button
                 size="sm"
                 variant="outline"
-                disabled={setState.isPending}
+                disabled={pending}
                 onClick={() => transition("checked", "issue")}
               >
                 <TriangleAlertIcon className="size-4" />
                 Mark issue
               </Button>
-              <Button
-                size="sm"
-                disabled={setState.isPending}
-                onClick={() => transition("checked", "ok")}
-              >
-                <CheckIcon className="size-4" />
-                Mark checked
-              </Button>
             </>
-          ) : null}
-          {entry.state === "checked" ? (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={setState.isPending}
-              onClick={() => transition("submitted")}
-            >
-              <RotateCcwIcon className="size-4" />
-              Re-open
-            </Button>
-          ) : null}
-          {entry.state === "editable" ? (
-            <Button size="sm" disabled={setState.isPending} onClick={() => transition("submitted")}>
-              <CheckIcon className="size-4" />
-              Lock as submitted
-            </Button>
-          ) : null}
-          {entry.state === "withdrawn" ? (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={setState.isPending}
-              onClick={() => transition("submitted")}
-            >
-              <RotateCcwIcon className="size-4" />
-              Restore entry
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              title="Pull this entry from the event; it can be restored later"
-              disabled={setState.isPending}
-              onClick={() => transition("withdrawn")}
-            >
-              <BanIcon className="size-4" />
-              Withdraw
-            </Button>
-          )}
-          {admin ? (
-            <Button
-              size="sm"
-              variant="ghost"
-              aria-label="Delete entry"
-              onClick={() => setDeleteOpen(true)}
-            >
-              <Trash2Icon className="text-destructive size-4" />
-            </Button>
           ) : null}
         </div>
       </div>
@@ -541,238 +615,139 @@ function EntryHeader({
             The player asked to unlock this {entry.state === "approved" ? "approved" : "submitted"}{" "}
             deck for changes.
           </span>
-          <Button size="sm" disabled={setState.isPending} onClick={() => transition("editable")}>
+          <Button size="sm" disabled={pending} onClick={() => transition("editable")}>
             Allow editing
           </Button>
           <Button
             size="sm"
             variant="outline"
             disabled={denyUnlock.isPending}
-            onClick={() => denyUnlock.mutate({ slug, eventId, entryId })}
+            onClick={() => denyUnlock.mutate({ tournamentId, entryId })}
           >
             Decline
           </Button>
         </div>
-      ) : null}
-      <EditPlayerDialog
-        slug={slug}
-        eventId={eventId}
-        entryId={entryId}
-        entry={entry}
-        open={editOpen}
-        onOpenChange={setEditOpen}
-      />
-      {admin ? (
-        <ConfirmActionDialog
-          open={deleteOpen}
-          onOpenChange={setDeleteOpen}
-          title="Delete this entry?"
-          description="The player's list and check history are removed. This cannot be undone — withdraw the entry instead if they only dropped out."
-          confirmLabel="Delete"
-          pendingLabel="Deleting..."
-          isPending={deleteEntry.isPending}
-          onConfirm={async () => {
-            await deleteEntry.mutateAsync({ slug, eventId, entryId });
-            setDeleteOpen(false);
-            void navigate({ to: "/groups/$slug/events/$eventId", params: { slug, eventId } });
-          }}
-        />
       ) : null}
     </header>
   );
 }
 
 /**
- * What the player allows public platforms to show, for the header status line.
- * @returns A short list like "deck list, name, Riot ID", or "nothing".
+ * The entry's secondary details as a compact label / value grid: contact,
+ * reviewer (only in the approved / checked states), the public-sharing flags,
+ * and the linked account. Rows whose fact is absent are omitted — an unlinked
+ * entry shows no Account row at all, since "not linked" is the default and
+ * needs no callout (the claim action lives in the header's button row).
+ * @returns The metadata grid.
  */
-function sharingAllowedSummary(
-  allowPublish: boolean,
-  allowName: boolean,
-  allowRiotId: boolean,
-): string {
-  if (!allowPublish) {
-    return "nothing (deck list not published)";
-  }
-  const allowed = ["deck list", allowName ? "name" : null, allowRiotId ? "Riot ID" : null].filter(
-    (part) => part !== null,
-  );
-  return allowed.join(", ");
-}
-
-/**
- * The entry's account-link status (ADR-026): who it is linked to and whether
- * a judge unlink blocked further auto-matching. The action lives in the
- * header's button row ({@link AccountLinkAction}).
- * @returns The status line.
- */
-function AccountLinkStatus({ entry }: { entry: DeckCheckEntryDetailResponse["entry"] }) {
+function EntryMetaGrid({ entry }: { entry: DeckCheckEntryDetailResponse["entry"] }) {
+  const contact = [entry.riotId].filter(Boolean).join(" · ");
+  const reviewer =
+    entry.state === "checked" && entry.checkedByName
+      ? `${entry.reviewOutcome === "issue" ? "Flagged" : "Checked"} by ${entry.checkedByName}`
+      : entry.state === "approved" && entry.approvedByName
+        ? `Approved by ${entry.approvedByName}`
+        : null;
   return (
-    <p className="text-muted-foreground flex items-center gap-1 text-sm">
+    <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+      <MetaRow label="Contact">
+        {contact || <span className="text-muted-foreground">No contact details</span>}
+      </MetaRow>
+      {reviewer ? <MetaRow label="Reviewer">{reviewer}</MetaRow> : null}
+      <MetaRow label="Sharing">
+        <SharingValue entry={entry} />
+      </MetaRow>
       {entry.claimedUserId ? (
-        <>
-          <Link2Icon className="size-3.5" />
-          Linked to {entry.claimedUserName ?? "an account"}
-          {entry.claimSource === "email_auto" ? " (matched by email)" : ""}
-          {entry.claimSource === "self_submit" ? " (self-submitted)" : ""}
-        </>
-      ) : (
-        <>
-          Not linked to an account
-          {entry.claimBlocked ? " (auto-match blocked after unlink)" : ""}
-        </>
-      )}
-    </p>
+        <MetaRow label="Account">
+          <span className="flex items-center gap-1">
+            <Link2Icon className="size-3.5 shrink-0" />
+            Linked to {entry.claimedUserName ?? "an account"}
+            {entry.claimSource === "self_submit" ? " (self-submitted)" : ""}
+          </span>
+        </MetaRow>
+      ) : null}
+    </dl>
   );
 }
 
 /**
- * The link / unlink action for the header's button row: the unlink remedy for
- * a bad auto-match (which also blocks re-matching), and the manual link for
- * entries the email match missed.
- * @returns The action button with its dialog.
+ * One label / value pair in {@link EntryMetaGrid}: a muted label in the fixed
+ * first column, the value in the normal text color in the second.
+ * @returns The grid row.
  */
-function AccountLinkAction({
-  slug,
-  eventId,
-  entryId,
-  entry,
-}: {
-  slug: string;
-  eventId: string;
-  entryId: string;
-  entry: DeckCheckEntryDetailResponse["entry"];
-}) {
-  const unlink = useUnlinkDeckCheckEntry();
-  const [linkOpen, setLinkOpen] = useState(false);
-
-  if (entry.claimedUserId) {
-    return (
-      <Button
-        size="sm"
-        variant="outline"
-        disabled={unlink.isPending}
-        title="Detach the account; the entry is never auto-matched again"
-        onClick={() => unlink.mutate({ slug, eventId, entryId })}
-      >
-        <Unlink2Icon className="size-4" />
-        Unlink
-      </Button>
-    );
-  }
+function MetaRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <>
-      <Button size="sm" variant="outline" onClick={() => setLinkOpen(true)}>
-        <Link2Icon className="size-4" />
-        Link account
-      </Button>
-      <LinkAccountDialog
-        slug={slug}
-        eventId={eventId}
-        entryId={entryId}
-        open={linkOpen}
-        onOpenChange={setLinkOpen}
-      />
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="min-w-0">{children}</dd>
     </>
   );
 }
 
 /**
- * Copies the player's claim link (ADR-026) so a judge can send it directly. The
- * server only sends `claimToken` while the entry can still be claimed (unlinked
- * and not blocked), so the button simply hides itself otherwise.
- * @returns The copy button, or null when there is no claimable token.
+ * The public-sharing flags as check / cross items. Withholding the deck list
+ * keeps everything private, so the name and Riot ID read as withheld too
+ * regardless of their own flags.
+ * @returns The sharing value cell.
  */
-function ClaimLinkButton({ entry }: { entry: DeckCheckEntryDetailResponse["entry"] }) {
-  if (!entry.claimToken) {
+function SharingValue({ entry }: { entry: DeckCheckEntryDetailResponse["entry"] }) {
+  const published = entry.allowDeckPublishing;
+  const items = [
+    { label: "Deck list", allowed: published },
+    { label: "Name", allowed: published && entry.allowNameSharing },
+    { label: "Riot ID", allowed: published && entry.allowRiotIdSharing },
+  ];
+  return (
+    <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+      {items.map((item) => (
+        <span
+          key={item.label}
+          className={cn("flex items-center gap-1", !item.allowed && "text-muted-foreground/50")}
+        >
+          {item.allowed ? (
+            <CheckIcon className="size-3.5 text-green-600 dark:text-green-500" />
+          ) : (
+            <XIcon className="size-3.5" />
+          )}
+          {item.label}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/**
+ * The unlink remedy for a bad auto-match, which also blocks re-matching. There
+ * is no manual link: an entry only attaches to an account when the player claims
+ * it themselves (auto email match or the claim link), so when an entry is not
+ * linked this action shows nothing.
+ * @returns The unlink button, or null when the entry is not linked.
+ */
+function AccountLinkAction({
+  tournamentId,
+  entryId,
+  entry,
+}: {
+  tournamentId: string;
+  entryId: string;
+  entry: DeckCheckEntryDetailResponse["entry"];
+}) {
+  const unlink = useUnlinkTournamentDeckCheckEntry();
+
+  if (!entry.claimedUserId) {
     return null;
   }
-  const claimUrl = `${getSiteUrl()}/tournament-claim/${entry.claimToken}`;
   return (
     <Button
       size="sm"
       variant="outline"
-      title="Copy a link the player opens to link this entry to their account"
-      onClick={async () => {
-        await navigator.clipboard.writeText(claimUrl);
-        toast.success("Claim link copied");
-      }}
+      disabled={unlink.isPending}
+      title="Detach the account; the entry is never auto-matched again"
+      onClick={() => unlink.mutate({ tournamentId, entryId })}
     >
-      <CopyIcon className="size-4" />
-      Copy claim link
+      <Unlink2Icon className="size-4" />
+      Unlink
     </Button>
-  );
-}
-
-function LinkAccountDialog({
-  slug,
-  eventId,
-  entryId,
-  open,
-  onOpenChange,
-}: {
-  slug: string;
-  eventId: string;
-  entryId: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const [query, setQuery] = useState("");
-  const { data: results, isFetching } = useDeckCheckAccountSearch(slug, open ? query : "");
-  const link = useLinkDeckCheckEntry();
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(nextOpen) => {
-        if (nextOpen) {
-          setQuery("");
-        }
-        onOpenChange(nextOpen);
-      }}
-    >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Link an account</DialogTitle>
-          <DialogDescription>
-            Search by the exact email or the start of a name. The player then sees this entry under
-            &quot;My tournament decks&quot;.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col gap-3">
-          <Input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="email@example.com or name"
-          />
-          {query.trim().length < 2 ? null : isFetching ? (
-            <p className="text-muted-foreground text-sm">Searching...</p>
-          ) : !results || results.items.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No accounts match.</p>
-          ) : (
-            <div className="flex flex-col gap-1">
-              {results.items.map((account) => (
-                <Button
-                  key={account.id}
-                  variant="ghost"
-                  className="justify-start"
-                  disabled={link.isPending}
-                  onClick={async () => {
-                    await link.mutateAsync({ slug, eventId, entryId, userId: account.id });
-                    onOpenChange(false);
-                  }}
-                >
-                  <span className="truncate">
-                    {account.name ?? "Unnamed"}
-                    <span className="text-muted-foreground"> · {account.email}</span>
-                  </span>
-                </Button>
-              ))}
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -782,17 +757,15 @@ function LinkAccountDialog({
  * @returns The message field with its save affordance.
  */
 function PlayerMessageField({
-  slug,
-  eventId,
+  tournamentId,
   entryId,
   entry,
 }: {
-  slug: string;
-  eventId: string;
+  tournamentId: string;
   entryId: string;
   entry: DeckCheckEntryDetailResponse["entry"];
 }) {
-  const updateEntry = useUpdateDeckCheckEntry();
+  const updateEntry = useUpdateTournamentDeckCheckEntry();
   const [message, setMessage] = useState("");
   const [dirty, setDirty] = useState(false);
   const value = dirty ? message : (entry.playerMessage ?? "");
@@ -817,7 +790,7 @@ function PlayerMessageField({
           disabled={updateEntry.isPending}
           onClick={() => {
             updateEntry.mutate(
-              { slug, eventId, entryId, playerMessage: value.trim() || null },
+              { tournamentId, entryId, playerMessage: value.trim() || null },
               { onSuccess: () => setDirty(false) },
             );
           }}
@@ -830,27 +803,24 @@ function PlayerMessageField({
 }
 
 function EditPlayerDialog({
-  slug,
-  eventId,
+  tournamentId,
   entryId,
   entry,
   open,
   onOpenChange,
 }: {
-  slug: string;
-  eventId: string;
+  tournamentId: string;
   entryId: string;
   entry: DeckCheckEntryDetailResponse["entry"];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   const [playerName, setPlayerName] = useState(entry.playerName);
-  const [playerEmail, setPlayerEmail] = useState(entry.playerEmail ?? "");
   const [riotId, setRiotId] = useState(entry.riotId ?? "");
   const [allowDeckPublishing, setAllowDeckPublishing] = useState(entry.allowDeckPublishing);
   const [allowNameSharing, setAllowNameSharing] = useState(entry.allowNameSharing);
   const [allowRiotIdSharing, setAllowRiotIdSharing] = useState(entry.allowRiotIdSharing);
-  const updateEntry = useUpdateDeckCheckEntry();
+  const updateEntry = useUpdateTournamentDeckCheckEntry();
 
   const handleSave = async () => {
     const name = playerName.trim();
@@ -858,11 +828,9 @@ function EditPlayerDialog({
       return;
     }
     await updateEntry.mutateAsync({
-      slug,
-      eventId,
+      tournamentId,
       entryId,
       playerName: name,
-      playerEmail: playerEmail.trim() || null,
       riotId: riotId.trim() || null,
       allowDeckPublishing,
       allowNameSharing,
@@ -877,7 +845,6 @@ function EditPlayerDialog({
       onOpenChange={(nextOpen) => {
         if (nextOpen) {
           setPlayerName(entry.playerName);
-          setPlayerEmail(entry.playerEmail ?? "");
           setRiotId(entry.riotId ?? "");
           setAllowDeckPublishing(entry.allowDeckPublishing);
           setAllowNameSharing(entry.allowNameSharing);
@@ -904,16 +871,6 @@ function EditPlayerDialog({
               value={playerName}
               onChange={(event) => setPlayerName(event.target.value)}
               maxLength={120}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="deck-check-player-email">Email (optional)</Label>
-            <Input
-              id="deck-check-player-email"
-              type="email"
-              value={playerEmail}
-              onChange={(event) => setPlayerEmail(event.target.value)}
-              maxLength={254}
             />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -1055,16 +1012,14 @@ function zoneFixAllowed(state: DeckCheckEntryDetailResponse["entry"]["state"]): 
 }
 
 function FixCardDialog({
-  slug,
-  eventId,
+  tournamentId,
   entryId,
   card,
   open,
   onOpenChange,
   zoneOnly = false,
 }: {
-  slug: string;
-  eventId: string;
+  tournamentId: string;
   entryId: string;
   card: DeckCheckEntryCardResponse;
   open: boolean;
@@ -1080,7 +1035,7 @@ function FixCardDialog({
   const [name, setName] = useState(card.rawName);
   const [section, setSection] = useState<string>(card.zone);
   const [copies, setCopies] = useState(String(card.quantity));
-  const fixCard = useFixDeckCheckCard();
+  const fixCard = useFixTournamentDeckCheckCard();
 
   const zoneChanged = section !== card.zone;
   // Only a multi-copy line moving to a different zone can be split.
@@ -1096,8 +1051,7 @@ function FixCardDialog({
       return;
     }
     await fixCard.mutateAsync({
-      slug,
-      eventId,
+      tournamentId,
       entryId,
       cardId: card.id,
       name: trimmed,
@@ -1211,14 +1165,12 @@ function FixCardDialog({
 }
 
 function AddCardDialog({
-  slug,
-  eventId,
+  tournamentId,
   entryId,
   open,
   onOpenChange,
 }: {
-  slug: string;
-  eventId: string;
+  tournamentId: string;
   entryId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -1227,7 +1179,7 @@ function AddCardDialog({
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [section, setSection] = useState("main");
-  const addCard = useAddDeckCheckCard();
+  const addCard = useAddTournamentDeckCheckCard();
 
   const handleAdd = async () => {
     const trimmed = name.trim();
@@ -1241,8 +1193,7 @@ function AddCardDialog({
       return;
     }
     await addCard.mutateAsync({
-      slug,
-      eventId,
+      tournamentId,
       entryId,
       name: trimmed,
       quantity: parsedQuantity,
@@ -1343,17 +1294,15 @@ function ChangeBanner({ summary }: { summary: DeckCheckChangeSummary }) {
 }
 
 function FindingsBanner({
-  slug,
-  eventId,
+  tournamentId,
   detail,
   onResolved,
 }: {
-  slug: string;
-  eventId: string;
+  tournamentId: string;
   detail: DeckCheckEntryDetailResponse;
   onResolved: () => void;
 }) {
-  const reResolve = useReResolveDeckCheckEvent();
+  const reResolve = useReResolveTournamentDeckCheck();
   const [fixZonesOpen, setFixZonesOpen] = useState(false);
   const unmatched = detail.cards.filter((card) => card.matchStatus !== "matched");
   const suggestions = detail.zoneSuggestions;
@@ -1393,7 +1342,7 @@ function FindingsBanner({
             disabled={reResolve.isPending}
             title="Try matching the unidentified cards against the catalog again, e.g. after a catalog fix"
             onClick={async () => {
-              const result = await reResolve.mutateAsync({ slug, eventId });
+              const result = await reResolve.mutateAsync({ tournamentId });
               toast.info(
                 result.updatedLines === 0
                   ? "No new matches found"
@@ -1415,8 +1364,7 @@ function FindingsBanner({
       </div>
       {canFixZones ? (
         <FixZonesDialog
-          slug={slug}
-          eventId={eventId}
+          tournamentId={tournamentId}
           entryId={detail.entry.id}
           suggestions={suggestions}
           open={fixZonesOpen}
@@ -1428,15 +1376,13 @@ function FindingsBanner({
 }
 
 function FixZonesDialog({
-  slug,
-  eventId,
+  tournamentId,
   entryId,
   suggestions,
   open,
   onOpenChange,
 }: {
-  slug: string;
-  eventId: string;
+  tournamentId: string;
   entryId: string;
   suggestions: DeckCheckEntryDetailResponse["zoneSuggestions"];
   open: boolean;
@@ -1444,7 +1390,7 @@ function FixZonesDialog({
 }) {
   const { zoneLabels } = useZoneOrder();
   const { printingsByCardId } = useCards();
-  const applyZoneFixes = useApplyDeckCheckZoneFixes();
+  const applyZoneFixes = useApplyTournamentDeckCheckZoneFixes();
   // Every suggestion starts selected; a judge unticks any move that is
   // deliberate (e.g. a custom format that parks a card in a non-standard zone).
   const [selected, setSelected] = useState<Set<string>>(
@@ -1465,7 +1411,7 @@ function FixZonesDialog({
     if (cardIds.length === 0) {
       return;
     }
-    await applyZoneFixes.mutateAsync({ slug, eventId, entryId, cardIds });
+    await applyZoneFixes.mutateAsync({ tournamentId, entryId, cardIds });
     onOpenChange(false);
   };
 
@@ -1570,8 +1516,7 @@ interface HoveredPreview {
 }
 
 function CardChecklist({
-  slug,
-  eventId,
+  tournamentId,
   entryId,
   cards,
   displayMode,
@@ -1585,8 +1530,7 @@ function CardChecklist({
   tickLocked,
   onStale,
 }: {
-  slug: string;
-  eventId: string;
+  tournamentId: string;
   entryId: string;
   cards: DeckCheckEntryCardResponse[];
   displayMode: DeckCheckDisplayMode;
@@ -1669,8 +1613,7 @@ function CardChecklist({
         {orderedZones.map((zone) => (
           <ZoneSection
             key={zone}
-            slug={slug}
-            eventId={eventId}
+            tournamentId={tournamentId}
             entryId={entryId}
             label={zoneLabels[zone]}
             cards={zoneCards(zone)}
@@ -1697,8 +1640,7 @@ function CardChecklist({
           {flowZones.map((zone) => (
             <ZoneSection
               key={zone}
-              slug={slug}
-              eventId={eventId}
+              tournamentId={tournamentId}
               entryId={entryId}
               label={zoneLabels[zone]}
               cards={zoneCards(zone)}
@@ -1718,8 +1660,7 @@ function CardChecklist({
       {stackedZones.map((zone) => (
         <ZoneSection
           key={zone}
-          slug={slug}
-          eventId={eventId}
+          tournamentId={tournamentId}
           entryId={entryId}
           label={zoneLabels[zone]}
           cards={zoneCards(zone)}
@@ -1794,8 +1735,7 @@ const CHECK_SORT_OPTIONS: SortGroupOption<DeckCheckSort>[] = [
 ];
 
 function ZoneSection({
-  slug,
-  eventId,
+  tournamentId,
   entryId,
   label,
   cards,
@@ -1811,8 +1751,7 @@ function ZoneSection({
   tickLocked,
   onStale,
 }: {
-  slug: string;
-  eventId: string;
+  tournamentId: string;
   entryId: string;
   label: string;
   cards: DeckCheckEntryCardResponse[];
@@ -1868,8 +1807,7 @@ function ZoneSection({
             Array.from({ length: card.quantity }, (_copy, copyIndex) => (
               <ChecklistRow
                 key={`${card.id}:${copyIndex}`}
-                slug={slug}
-                eventId={eventId}
+                tournamentId={tournamentId}
                 entryId={entryId}
                 card={card}
                 copyIndex={copyIndex}
@@ -1907,8 +1845,7 @@ function ZoneSection({
           Array.from({ length: card.quantity }, (_copy, copyIndex) => (
             <ChecklistCell
               key={`${card.id}:${copyIndex}`}
-              slug={slug}
-              eventId={eventId}
+              tournamentId={tournamentId}
               entryId={entryId}
               card={card}
               copyIndex={copyIndex}
@@ -1934,8 +1871,7 @@ function ZoneSection({
  * @returns The tappable copy row.
  */
 function ChecklistRow({
-  slug,
-  eventId,
+  tournamentId,
   entryId,
   card,
   copyIndex,
@@ -1947,8 +1883,7 @@ function ChecklistRow({
   tickLocked,
   onStale,
 }: {
-  slug: string;
-  eventId: string;
+  tournamentId: string;
   entryId: string;
   card: DeckCheckEntryCardResponse;
   copyIndex: number;
@@ -1964,8 +1899,8 @@ function ChecklistRow({
   tickLocked: boolean;
   onStale: () => void;
 }) {
-  const tickCard = useTickDeckCheckCard();
-  const removeCard = useRemoveDeckCheckCard();
+  const tickCard = useTickTournamentDeckCheckCard();
+  const removeCard = useRemoveTournamentDeckCheckCard();
   const [removeOpen, setRemoveOpen] = useState(false);
   const [fixOpen, setFixOpen] = useState(false);
   const found = card.foundCopies[copyIndex] === true;
@@ -1979,8 +1914,7 @@ function ChecklistRow({
     }
     try {
       await tickCard.mutateAsync({
-        slug,
-        eventId,
+        tournamentId,
         entryId,
         cardId: card.id,
         copyIndex,
@@ -2048,8 +1982,7 @@ function ChecklistRow({
                 <PencilIcon className="size-3.5" />
               </button>
               <FixCardDialog
-                slug={slug}
-                eventId={eventId}
+                tournamentId={tournamentId}
                 entryId={entryId}
                 card={card}
                 open={fixOpen}
@@ -2083,7 +2016,7 @@ function ChecklistRow({
         pendingLabel="Removing..."
         isPending={removeCard.isPending}
         onConfirm={async () => {
-          await removeCard.mutateAsync({ slug, eventId, entryId, cardId: card.id, copyIndex });
+          await removeCard.mutateAsync({ tournamentId, entryId, cardId: card.id, copyIndex });
           setRemoveOpen(false);
         }}
       />
@@ -2099,8 +2032,7 @@ function ChecklistRow({
  * @returns The tappable copy cell.
  */
 function ChecklistCell({
-  slug,
-  eventId,
+  tournamentId,
   entryId,
   card,
   copyIndex,
@@ -2111,8 +2043,7 @@ function ChecklistCell({
   tickLocked,
   onStale,
 }: {
-  slug: string;
-  eventId: string;
+  tournamentId: string;
   entryId: string;
   card: DeckCheckEntryCardResponse;
   copyIndex: number;
@@ -2129,8 +2060,8 @@ function ChecklistCell({
 }) {
   const { allPrintings } = useCards();
   const display = useCardThumbnailDisplay();
-  const tickCard = useTickDeckCheckCard();
-  const removeCard = useRemoveDeckCheckCard();
+  const tickCard = useTickTournamentDeckCheckCard();
+  const removeCard = useRemoveTournamentDeckCheckCard();
   const [removeOpen, setRemoveOpen] = useState(false);
   const [fixOpen, setFixOpen] = useState(false);
   const found = card.foundCopies[copyIndex] === true;
@@ -2142,8 +2073,7 @@ function ChecklistCell({
     }
     try {
       await tickCard.mutateAsync({
-        slug,
-        eventId,
+        tournamentId,
         entryId,
         cardId: card.id,
         copyIndex,
@@ -2204,8 +2134,7 @@ function ChecklistCell({
         </div>
         {fixLocked ? null : (
           <FixCardDialog
-            slug={slug}
-            eventId={eventId}
+            tournamentId={tournamentId}
             entryId={entryId}
             card={card}
             open={fixOpen}
@@ -2227,7 +2156,7 @@ function ChecklistCell({
             pendingLabel="Removing..."
             isPending={removeCard.isPending}
             onConfirm={async () => {
-              await removeCard.mutateAsync({ slug, eventId, entryId, cardId: card.id, copyIndex });
+              await removeCard.mutateAsync({ tournamentId, entryId, cardId: card.id, copyIndex });
               setRemoveOpen(false);
             }}
           />

@@ -8,16 +8,18 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(deckCheckClaimContract).$context<ApiContext>().use(requireUser);
 
 /**
- * The public deck-check claim landing. An unknown token returns a typed NOT_FOUND.
+ * The public tournament claim landing (ADR-033): resolves a participant claim
+ * token to the tournament, its owning group (if any), and the spot's name.
+ * Works with or without deck check. An unknown token returns a typed NOT_FOUND.
  */
 export const deckCheckClaimRouter = {
   landing: os.landing.handler(
     async ({ input, context, errors }): Promise<DeckCheckClaimLandingResponse> => {
-      const landing = await context.repos.deckCheck.getClaimLandingByToken(input.token);
+      const landing = await context.repos.tournaments.getClaimLandingByToken(input.token);
       if (!landing) {
         throw errors.NOT_FOUND({ message: "Claim link not found" });
       }
-      return landing;
+      return { ...landing, startsAt: landing.startsAt.toISOString() };
     },
   ),
 };

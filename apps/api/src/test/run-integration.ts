@@ -137,11 +137,16 @@ const PARALLEL_FILES = [
   "src/routes/authenticated/copies.integration.test.ts",
   "src/routes/authenticated/collection-events.integration.test.ts",
   "src/routes/authenticated/lists.integration.test.ts",
-  "src/routes/authenticated/deck-check.integration.test.ts",
   "src/routes/authenticated/deck-check-player.integration.test.ts",
+  "src/routes/authenticated/tournament-deck-check.integration.test.ts",
   "src/routes/authenticated/decks.integration.test.ts",
   "src/routes/authenticated/preferences.integration.test.ts",
-  "src/routes/authenticated/pod-tournaments.integration.test.ts",
+  // Unified tournaments umbrella (ADR-033)
+  "src/routes/authenticated/organizations.integration.test.ts",
+  "src/routes/authenticated/tournaments.integration.test.ts",
+  "src/routes/authenticated/tournaments-run.integration.test.ts",
+  "src/routes/public/tournaments.integration.test.ts",
+  "src/routes/public/deck-check-ingest.integration.test.ts",
   // Public routes
   "src/routes/public/health.integration.test.ts",
   "src/routes/public/init.integration.test.ts",
@@ -200,6 +205,8 @@ const PARALLEL_FILES = [
   "src/repositories/user-contact-methods.integration.test.ts",
   "src/repositories/deck-plans.integration.test.ts",
   "src/repositories/pod-tournaments.integration.test.ts",
+  // Unified tournaments umbrella (ADR-033)
+  "src/repositories/tournaments-schema.integration.test.ts",
   // Card trades (ADR-019)
   "src/repositories/card-trades.integration.test.ts",
   // Trade email notifications (ADR-030)

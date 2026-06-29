@@ -1,6 +1,11 @@
 import type { DeckCheckEntrySource } from "../../deck-check.js";
 import type { DeckViolation } from "../../deck-rules.js";
 import type { CardType, DeckZone, Domain } from "../enums.js";
+import type {
+  TournamentDeckSubmission,
+  TournamentHostType,
+  TournamentParticipantStatus,
+} from "./tournament.js";
 
 export type DeckCheckEventStatus = "active" | "archived";
 /**
@@ -19,7 +24,7 @@ export type DeckCheckReviewOutcome = "ok" | "issue";
 export type DeckCheckListLockMode = "on_submit" | "at_deadline";
 export type DeckCheckMatchStatus = "matched" | "ambiguous" | "unmatched";
 /** How an entry got linked to an OpenRift account (ADR-026). */
-export type DeckCheckClaimSource = "email_auto" | "judge_manual" | "self_submit" | "claim_link";
+export type DeckCheckClaimSource = "judge_manual" | "self_submit" | "claim_link";
 
 /** One normalized card line as it appears in a change summary. */
 export interface DeckCheckChangeLine {
@@ -46,6 +51,9 @@ export interface DeckCheckEventSummaryResponse {
   allowedSets: string[] | null;
   status: DeckCheckEventStatus;
   entryCount: number;
+  /** Entries whose list passed legality review but are not yet physically checked. */
+  approvedCount: number;
+  /** Entries whose physical deck check is complete. */
   checkedCount: number;
   /** When a submitted list locks against player changes (ADR-027). */
   listLockMode: DeckCheckListLockMode;
@@ -65,6 +73,14 @@ export interface DeckCheckEventListResponse {
 export interface DeckCheckEntrySummaryResponse {
   id: string;
   externalId: string;
+  /** The roster participant that owns this deck (null only if they were removed). */
+  participantId: string | null;
+  /**
+   * The owning participant's tournament status, so the judge list can flag a
+   * deck whose player has dropped (ADR-033). Null for entries with no linked
+   * participant.
+   */
+  participantStatus: TournamentParticipantStatus | null;
   /** Whether the entry came from an organizer push or was hand-entered. */
   source: DeckCheckEntrySource;
   playerName: string;
@@ -113,7 +129,6 @@ export interface DeckCheckEntryResponse {
   /** Whether the entry came from an organizer push or was hand-entered. */
   source: DeckCheckEntrySource;
   playerName: string;
-  playerEmail: string | null;
   riotId: string | null;
   /** Consent for the organizer to publish the deck list publicly (default true, opt-out). */
   allowDeckPublishing: boolean;
@@ -142,8 +157,8 @@ export interface DeckCheckEntryResponse {
   claimBlocked: boolean;
   /**
    * The provider-issued claim token (ADR-026), for the judge to hand a player a
-   * `/tournament-claim/<token>` link. Present only while the entry can still be
-   * claimed — null once it is linked or a judge unlink blocked it.
+   * `/tournaments/claim/<token>` link. Present only while the entry can still be
+   * claimed (null once it is linked or a judge unlink blocked it).
    */
   claimToken: string | null;
   /** Judge-authored message shown to the linked player, separate from `notes`. */
@@ -211,7 +226,7 @@ export interface DeckCheckIngestEntryResult {
 }
 
 export interface DeckCheckIngestResultResponse {
-  eventId: string;
+  tournamentId: string;
   entriesCreated: number;
   entriesUpdated: number;
   entriesUnchanged: number;
@@ -234,9 +249,13 @@ export interface PlayerDeckCheckEntrySummaryResponse {
   id: string;
   eventName: string;
   eventDate: string | null;
-  groupName: string;
-  /** The owning group's slug, so group pages can show the viewer's own entries. */
-  groupSlug: string;
+  /** Null for a personally-hosted tournament with no owning friend group (ADR-033). */
+  groupName: string | null;
+  /**
+   * The owning group's slug, so group pages can show the viewer's own entries.
+   * Null for a personally-hosted tournament with no owning friend group (ADR-033).
+   */
+  groupSlug: string | null;
   state: DeckCheckEntryState;
   reviewOutcome: DeckCheckReviewOutcome | null;
   /** True when the player asked to unlock an approved entry (ADR-027). */
@@ -259,7 +278,8 @@ export interface PlayerDeckCheckEntryDetailResponse {
     id: string;
     eventName: string;
     eventDate: string | null;
-    groupName: string;
+    /** Null for a personally-hosted tournament with no owning friend group (ADR-033). */
+    groupName: string | null;
     format: string | null;
     allowedSets: string[] | null;
     state: DeckCheckEntryState;
@@ -322,21 +342,28 @@ export interface DeckCheckSubmissionResultResponse {
   violations: DeckViolation[];
 }
 
-/** One account candidate for the judge link search. */
-export interface DeckCheckAccountSearchResponse {
-  items: { id: string; name: string | null; email: string }[];
-}
-
 // ─── Claim tokens (ADR-026 amendment) ────────────────────────────────────────
 
 /**
- * The pre-claim landing payload: only the event and owning group, never the
- * entrant or the deck, since any holder of the link reaches it before
- * authenticating.
+ * The pre-claim landing payload: the tournament (and owning group, if any) plus
+ * the spot's display name, never the deck, since any holder of the link reaches
+ * it before authenticating. Works for tournaments with or without deck check.
  */
 export interface DeckCheckClaimLandingResponse {
-  eventName: string;
-  groupName: string;
+  tournamentId: string;
+  tournamentName: string;
+  /** When the tournament starts, ISO 8601. */
+  startsAt: string;
+  /** The organizer's display name (the host org's or host user's name). */
+  hostName: string;
+  /** Whether the host is a user or an organization. */
+  hostType: TournamentHostType;
+  /** The owning friend group's name, or null for a personally-hosted tournament. */
+  groupName: string | null;
+  /** Whether players hand in a decklist (`none` means there is nothing to submit). */
+  deckSubmission: TournamentDeckSubmission;
+  /** The display name on the spot being claimed. */
+  participantName: string;
 }
 
 /**
@@ -346,11 +373,18 @@ export interface DeckCheckClaimLandingResponse {
  *   linked it first); the caller still lands on it.
  * - `conflict`: it is linked to a different account; refused, not stolen.
  * - `blocked`: a judge detached it (`claim_blocked_at`); refused.
+ * - `duplicate`: the caller already holds a different spot in this tournament,
+ *   so linking this one too would break one-account-per-tournament; refused.
  */
-export type DeckCheckClaimStatus = "claimed" | "already" | "conflict" | "blocked";
+export type DeckCheckClaimStatus = "claimed" | "already" | "conflict" | "blocked" | "duplicate";
 
 export interface DeckCheckClaimResultResponse {
   status: DeckCheckClaimStatus;
-  /** The entry to view; present for `claimed` and `already`, null otherwise. */
+  /**
+   * The tournament to land on; present for `claimed` and `already` (and
+   * `duplicate`, pointing at the spot the caller already holds), null otherwise.
+   */
+  tournamentId: string | null;
+  /** The deck entry to view, when the claimed spot has one; null without deck check. */
   entryId: string | null;
 }

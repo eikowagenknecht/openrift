@@ -6,15 +6,38 @@
 
 - fix(Collection): **Shared list links open again** — opening someone's shared wishlist or tradelist returned an authorization error for signed-out visitors, and the public share page now loads for everyone.
 
+### Other
+
+- feat(Tournaments): **Simpler tournament setup** — pairings and deck collection are now independent and each optional, and judges can check any lists you collect without a separate deck-check switch, so you can run pods, a deck-only check, a plain roster, or any mix.
+- feat(Tournaments): **Add staff from your group or a link** — pick organizers or judges from your group and roster, or share a per-role invite link anyone takes by confirming while signed in.
+- feat(Tournaments): **Jump to a player's deck** — once a participant has a submitted deck, their row gets a button straight to it, next to the actions menu.
+- feat(Tournaments): **Add players from the top bar** — the participants page moved its "Add player" button into the top bar, where it opens a dialog asking for the name, and the old field became a player search.
+- feat(Tournaments): **Manage decks from the list** — a per-row menu on the deck-check list lets you withdraw, restore, or delete a player's deck without opening it.
+- feat(Tournaments): **Dropped players flagged on decks** — a dropped player's deck now shows a status badge and dims in the deck-check list, so judges can see the list is kept but the player is out.
+- feat(Tournaments): **Tidier deck-check entry header** — a player's contact, reviewer, sharing, and linked account now sit in a compact labeled grid, and each sharing item is marked allowed or withheld with a check or cross.
+- feat(Tournaments): **Change a tournament's host** — the host is now editable in settings, so you can hand an event to an organization you belong to or take it back as a personal host instead of being locked to the choice made at creation.
+- feat(Tournaments): **Organization staff shown on events** — an org-hosted event's staff page now lists the organization's owners and managers as organizers, so it's clear who can manage it even without an explicit staff grant.
+- feat(Tournaments): **Claim a spot with a link** — every player you add gets a claim link (copy it from the participant menu) that ties their spot, and any deck, to their OpenRift account, now working for events without deck check too.
+- feat(Tournaments): **Mark checked fills the ticks** — marking a deck checked now ticks every card as found, and re-opening it clears them again so a re-check starts clean (flagging an issue leaves your ticks as they were).
+- fix(Tournaments): **Deck link works without self-registration** — with sign-ups closed, the shared deck link now accepts decks from anyone who claimed their spot and points everyone else to their claim link, instead of going dead.
+- fix(Tournaments): **Run org-hosted events** — pairings, standings, and round running now open for an organization's owners, managers, and staff, and participants can follow along, instead of failing to load for everyone including the host.
+- fix(Tournaments): **Clearer deck-check progress** — the overview tile and deck-check list now show the same numbers, how many decks are approved and how many are checked.
+- fix(Tournaments): **Overview and settings refresh after a round** — running, finalizing, or rerolling a round now updates the current-round tile and locks the pairing setup right away, instead of showing stale values until you reload.
+- fix(Tournaments): **Set a member to Judge** — changing an organization member's role to Judge now takes effect, instead of silently doing nothing.
+- fix(Tournaments): **No more stuck deck-check page** — opening a tournament's deck check without judge access now shows a short notice, instead of a loading spinner that never finishes.
+- fix(Tournaments): **Re-issue a claim link** — unlinking the wrong account from a player's spot used to leave it stuck, so you can now re-issue its claim link for the correct player to claim.
+
 ## 2026-06-28
 
 ### Highlights
 
+- feat(Tournaments): **One home for your events** — the new Tournaments area runs pod pairings and standings, collects player decklists, and lets judges check them, all on one event hosted by you or an organization, with times in your own timezone and multi-day scheduling.
 - feat(Collection): **Import CSVs into lists** — both a list's own Import and the Import / Export page now accept any supported CSV (OpenRift, Piltover Archive, RiftCore, RiftMana) and can send the cards to a list instead of your owned collection, keeping each card's finish and art variant.
 - feat(Collection): **One menu for variants and collections** — the count box on a card now opens a single menu listing each variant with the collections your copies live in, where you can add or remove copies per collection (or add to another collection) right there; removing a copy that could come from several places opens this menu instead of chaining through separate pickers.
 
 ### Other
 
+- feat(Tournaments): **Dashboard overview** — the event page now opens on a tile dashboard linking to participants, pairings, standings, decks, and staff instead of a tab bar, with a consistent look across those lists.
 - feat(Collection): **Collapsible variants in the card menu** — when a card has several variants, the menu lists just the variants and expands one to show its collections on click, opening on the variant you came in on.
 - feat(Collection): **Plain text lists on the import page** — the Import / Export page now accepts a plain text "quantity cardname" list, not just CSV exports, matching how list import already worked.
 - feat(Decks): **Text deck format leads import and export** — the plain text list is now the default tab and comes first when importing or exporting a deck, ahead of the deck code.

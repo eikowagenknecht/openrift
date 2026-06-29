@@ -39,14 +39,14 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
   });
 
   afterAll(async () => {
-    await db.deleteFrom("podTournaments").where("ownerUserId", "=", OWNER_ID).execute();
+    await db.deleteFrom("tournaments").where("hostUserId", "=", OWNER_ID).execute();
     await db.deleteFrom("users").where("id", "=", OWNER_ID).execute();
   });
 
   async function freshTournament(playerCount: number) {
     counter += 1;
     const tournament = await tournamentsRepo.create({
-      ownerUserId: OWNER_ID,
+      hostUserId: OWNER_ID,
       name: `Tournament ${counter}`,
     });
     const players = [];

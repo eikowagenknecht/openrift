@@ -49,7 +49,10 @@ export const publicPodTournamentsRouter = {
   report: os.report.handler(async ({ input, context, errors }): Promise<PodReportResponse> => {
     const repos = context.repos;
     const tournament = await repos.podTournaments.findByReportToken(input.token);
-    if (!tournament) {
+    // The follow-along report is a pod-engine surface. A non-pod tournament has no
+    // pairings or standings to show, so even with a live report token it is treated
+    // as not found rather than rendering an empty pod shell.
+    if (!tournament || tournament.pairingStyle !== "pod") {
       throw errors.NOT_FOUND({ message: "Not found" });
     }
     return buildReport(repos, tournament);
@@ -59,7 +62,7 @@ export const publicPodTournamentsRouter = {
     async ({ input, context, errors }): Promise<PodReportResponse> => {
       const repos = context.repos;
       const tournament = await repos.podTournaments.findByReportToken(input.token);
-      if (!tournament) {
+      if (!tournament || tournament.pairingStyle !== "pod") {
         throw errors.NOT_FOUND({ message: "Not found" });
       }
       // submitPodResult throws AppError on bad state (round not reporting,

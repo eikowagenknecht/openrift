@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict lfhZzrphPvXRj7xalyJLm8rYsw11l39M6GiNyG7byFv1IIpRHcR1x6fFzYHxNBw
+\restrict nhHU8aFaGoLYZAhdWl1PoPCK3FnyZpY9DVkd1hwbsCJm58tlMgriopMW8ITtB9p
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -566,6 +566,8 @@ CREATE TABLE public.card_bans (
     CONSTRAINT chk_card_bans_reason_not_empty CHECK ((reason <> ''::text))
 );
 
+ALTER TABLE ONLY public.card_bans REPLICA IDENTITY FULL;
+
 
 --
 -- Name: card_custom_tags; Type: TABLE; Schema: public; Owner: -
@@ -575,6 +577,8 @@ CREATE TABLE public.card_custom_tags (
     card_id uuid NOT NULL,
     custom_tag_id uuid NOT NULL
 );
+
+ALTER TABLE ONLY public.card_custom_tags REPLICA IDENTITY FULL;
 
 
 --
@@ -587,6 +591,8 @@ CREATE TABLE public.card_domains (
     ordinal smallint NOT NULL,
     CONSTRAINT card_domains_ordinal_check CHECK ((ordinal >= 0))
 );
+
+ALTER TABLE ONLY public.card_domains REPLICA IDENTITY FULL;
 
 
 --
@@ -609,6 +615,8 @@ CREATE TABLE public.card_errata (
     CONSTRAINT chk_card_errata_no_empty_source_url CHECK ((source_url <> ''::text))
 );
 
+ALTER TABLE ONLY public.card_errata REPLICA IDENTITY FULL;
+
 
 --
 -- Name: card_name_aliases; Type: TABLE; Schema: public; Owner: -
@@ -628,6 +636,8 @@ CREATE TABLE public.card_super_types (
     card_id uuid NOT NULL,
     super_type_slug text NOT NULL
 );
+
+ALTER TABLE ONLY public.card_super_types REPLICA IDENTITY FULL;
 
 
 --
@@ -714,6 +724,8 @@ CREATE TABLE public.cards (
     CONSTRAINT chk_cards_slug_not_empty CHECK ((slug <> ''::text))
 );
 
+ALTER TABLE ONLY public.cards REPLICA IDENTITY FULL;
+
 
 --
 -- Name: collection_deckbuilding_prefs; Type: TABLE; Schema: public; Owner: -
@@ -767,6 +779,8 @@ CREATE TABLE public.collections (
     CONSTRAINT chk_collections_ownership CHECK (((((user_id IS NOT NULL))::integer + ((group_id IS NOT NULL))::integer) = 1))
 );
 
+ALTER TABLE ONLY public.collections REPLICA IDENTITY FULL;
+
 
 --
 -- Name: copies; Type: TABLE; Schema: public; Owner: -
@@ -779,6 +793,8 @@ CREATE TABLE public.copies (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     printing_id uuid CONSTRAINT copies_new_printing_id_not_null NOT NULL
 );
+
+ALTER TABLE ONLY public.copies REPLICA IDENTITY FULL;
 
 
 --
@@ -817,6 +833,8 @@ CREATE TABLE public.custom_tags (
     CONSTRAINT custom_tags_slug_check CHECK ((slug <> ''::text))
 );
 
+ALTER TABLE ONLY public.custom_tags REPLICA IDENTITY FULL;
+
 
 --
 -- Name: deck_cards; Type: TABLE; Schema: public; Owner: -
@@ -839,11 +857,7 @@ CREATE TABLE public.deck_cards (
 
 CREATE TABLE public.deck_check_entries (
     id uuid DEFAULT uuidv7() NOT NULL,
-    event_id uuid NOT NULL,
     external_id text NOT NULL,
-    player_name text NOT NULL,
-    player_email text,
-    riot_id text,
     submitted_at timestamp with time zone,
     content_hash text NOT NULL,
     checked_by text,
@@ -853,13 +867,7 @@ CREATE TABLE public.deck_check_entries (
     withdrawn_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    claimed_user_id text,
-    claim_source text,
-    claimed_at timestamp with time zone,
-    claim_blocked_at timestamp with time zone,
     player_message text,
-    allow_name_sharing boolean DEFAULT true NOT NULL,
-    allow_riot_id_sharing boolean DEFAULT true NOT NULL,
     state text DEFAULT 'submitted'::text NOT NULL,
     review_outcome text,
     approved_by text,
@@ -867,14 +875,13 @@ CREATE TABLE public.deck_check_entries (
     unlock_requested_at timestamp with time zone,
     pre_edit_lines jsonb,
     allow_deck_publishing boolean DEFAULT true NOT NULL,
-    claim_token text,
-    CONSTRAINT chk_deck_check_entries_claim_source CHECK (((claim_source IS NULL) OR (claim_source = ANY (ARRAY['email_auto'::text, 'judge_manual'::text, 'self_submit'::text, 'claim_link'::text])))),
+    tournament_id uuid NOT NULL,
+    participant_id uuid,
+    allow_name_sharing boolean DEFAULT true NOT NULL,
+    allow_riot_id_sharing boolean DEFAULT true NOT NULL,
     CONSTRAINT chk_deck_check_entries_notes CHECK (((notes IS NULL) OR (length(notes) <= 4000))),
-    CONSTRAINT chk_deck_check_entries_player_email CHECK (((player_email IS NULL) OR (length(player_email) <= 254))),
     CONSTRAINT chk_deck_check_entries_player_message CHECK (((player_message IS NULL) OR (length(player_message) <= 2000))),
-    CONSTRAINT chk_deck_check_entries_player_name CHECK (((length(player_name) >= 1) AND (length(player_name) <= 120))),
     CONSTRAINT chk_deck_check_entries_review_outcome CHECK (((review_outcome IS NULL) OR (review_outcome = ANY (ARRAY['ok'::text, 'issue'::text])))),
-    CONSTRAINT chk_deck_check_entries_riot_id CHECK (((riot_id IS NULL) OR (length(riot_id) <= 120))),
     CONSTRAINT chk_deck_check_entries_state CHECK ((state = ANY (ARRAY['editable'::text, 'submitted'::text, 'approved'::text, 'checked'::text, 'withdrawn'::text])))
 );
 
@@ -902,36 +909,11 @@ CREATE TABLE public.deck_check_entry_cards (
 
 
 --
--- Name: deck_check_events; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.deck_check_events (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    group_id uuid NOT NULL,
-    name text NOT NULL,
-    event_date date,
-    format text,
-    allowed_sets jsonb,
-    status text DEFAULT 'active'::text NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    allow_self_submission boolean DEFAULT false NOT NULL,
-    submission_token text,
-    submissions_close_at timestamp with time zone,
-    list_lock_mode text DEFAULT 'on_submit'::text NOT NULL,
-    CONSTRAINT chk_deck_check_events_list_lock_mode CHECK ((list_lock_mode = ANY (ARRAY['on_submit'::text, 'at_deadline'::text]))),
-    CONSTRAINT chk_deck_check_events_name CHECK (((length(name) >= 1) AND (length(name) <= 120))),
-    CONSTRAINT chk_deck_check_events_status CHECK ((status = ANY (ARRAY['active'::text, 'archived'::text])))
-);
-
-
---
 -- Name: deck_check_keys; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.deck_check_keys (
     id uuid DEFAULT uuidv7() NOT NULL,
-    group_id uuid NOT NULL,
     token_hash text NOT NULL,
     token_prefix text NOT NULL,
     label text,
@@ -939,6 +921,10 @@ CREATE TABLE public.deck_check_keys (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     last_used_at timestamp with time zone,
     revoked_at timestamp with time zone,
+    host_type text NOT NULL,
+    host_user_id text,
+    host_org_id uuid,
+    CONSTRAINT chk_deck_check_keys_host CHECK ((((host_type = 'user'::text) AND (host_user_id IS NOT NULL) AND (host_org_id IS NULL)) OR ((host_type = 'organization'::text) AND (host_org_id IS NOT NULL) AND (host_user_id IS NULL)))),
     CONSTRAINT chk_deck_check_keys_label CHECK (((label IS NULL) OR (length(label) <= 120)))
 );
 
@@ -1073,6 +1059,8 @@ CREATE TABLE public.distribution_channels (
     CONSTRAINT distribution_channels_slug_check CHECK ((slug <> ''::text))
 );
 
+ALTER TABLE ONLY public.distribution_channels REPLICA IDENTITY FULL;
+
 
 --
 -- Name: domains; Type: TABLE; Schema: public; Owner: -
@@ -1124,6 +1112,8 @@ CREATE TABLE public.formats (
     CONSTRAINT chk_formats_id_not_empty CHECK ((id <> ''::text)),
     CONSTRAINT chk_formats_name_not_empty CHECK ((name <> ''::text))
 );
+
+ALTER TABLE ONLY public.formats REPLICA IDENTITY FULL;
 
 
 --
@@ -1184,8 +1174,10 @@ CREATE TABLE public.friend_group_members (
     user_id text NOT NULL,
     role text NOT NULL,
     joined_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT chk_friend_group_members_role CHECK ((role = ANY (ARRAY['owner'::text, 'admin'::text, 'judge'::text, 'member'::text])))
+    CONSTRAINT chk_friend_group_members_role CHECK ((role = ANY (ARRAY['owner'::text, 'admin'::text, 'member'::text])))
 );
+
+ALTER TABLE ONLY public.friend_group_members REPLICA IDENTITY FULL;
 
 
 --
@@ -1254,6 +1246,8 @@ CREATE TABLE public.image_files (
     CONSTRAINT chk_image_files_rehosted_url CHECK ((rehosted_url <> ''::text)),
     CONSTRAINT chk_image_files_rotation CHECK ((rotation = ANY (ARRAY[0, 90, 180, 270])))
 );
+
+ALTER TABLE ONLY public.image_files REPLICA IDENTITY FULL;
 
 
 --
@@ -1418,6 +1412,8 @@ CREATE TABLE public.markers (
     CONSTRAINT markers_slug_check CHECK ((slug <> ''::text))
 );
 
+ALTER TABLE ONLY public.markers REPLICA IDENTITY FULL;
+
 
 --
 -- Name: marketplace_groups; Type: TABLE; Schema: public; Owner: -
@@ -1577,6 +1573,37 @@ CREATE MATERIALIZED VIEW public.mv_latest_printing_prices AS
 
 
 --
+-- Name: organization_members; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.organization_members (
+    org_id uuid NOT NULL,
+    user_id text NOT NULL,
+    role text NOT NULL,
+    joined_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_organization_members_role CHECK ((role = ANY (ARRAY['owner'::text, 'manager'::text, 'judge'::text])))
+);
+
+
+--
+-- Name: organizations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.organizations (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    slug text NOT NULL,
+    name text NOT NULL,
+    description text,
+    owner_user_id text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_organizations_description CHECK (((description IS NULL) OR (length(description) <= 4000))),
+    CONSTRAINT chk_organizations_name CHECK (((length(name) >= 1) AND (length(name) <= 120))),
+    CONSTRAINT chk_organizations_slug CHECK ((slug ~ '^[a-z0-9][a-z0-9-]{2,49}$'::text))
+);
+
+
+--
 -- Name: pod_byes; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1601,23 +1628,6 @@ CREATE TABLE public.pod_members (
 
 
 --
--- Name: pod_players; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.pod_players (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    tournament_id uuid NOT NULL,
-    display_name text NOT NULL,
-    status text DEFAULT 'active'::text NOT NULL,
-    dropped_after_round integer,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT chk_pod_players_name CHECK (((length(display_name) >= 1) AND (length(display_name) <= 80))),
-    CONSTRAINT chk_pod_players_status CHECK ((status = ANY (ARRAY['active'::text, 'dropped'::text])))
-);
-
-
---
 -- Name: pod_rounds; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1632,28 +1642,6 @@ CREATE TABLE public.pod_rounds (
     finalized_at timestamp with time zone,
     CONSTRAINT chk_pod_rounds_number CHECK ((round_number > 0)),
     CONSTRAINT chk_pod_rounds_status CHECK ((status = ANY (ARRAY['reporting'::text, 'finalized'::text])))
-);
-
-
---
--- Name: pod_tournaments; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.pod_tournaments (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    owner_user_id text NOT NULL,
-    name text NOT NULL,
-    status text DEFAULT 'setup'::text NOT NULL,
-    current_round integer DEFAULT 0 NOT NULL,
-    scoring_scheme text DEFAULT 'standard'::text NOT NULL,
-    report_token text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    bye_points integer DEFAULT 3 NOT NULL,
-    CONSTRAINT chk_pod_tournaments_bye_points CHECK ((bye_points >= 0)),
-    CONSTRAINT chk_pod_tournaments_name CHECK (((length(name) >= 1) AND (length(name) <= 120))),
-    CONSTRAINT chk_pod_tournaments_scheme CHECK ((scoring_scheme = ANY (ARRAY['standard'::text, 'three_pod_reduced'::text]))),
-    CONSTRAINT chk_pod_tournaments_status CHECK ((status = ANY (ARRAY['setup'::text, 'running'::text, 'completed'::text])))
 );
 
 
@@ -1684,6 +1672,8 @@ CREATE TABLE public.printing_distribution_channels (
     distribution_note text,
     CONSTRAINT printing_distribution_channels_note_check CHECK ((distribution_note <> ''::text))
 );
+
+ALTER TABLE ONLY public.printing_distribution_channels REPLICA IDENTITY FULL;
 
 
 --
@@ -1718,6 +1708,8 @@ CREATE TABLE public.printing_images (
     image_file_id uuid CONSTRAINT printing_images_card_image_id_not_null NOT NULL,
     CONSTRAINT chk_printing_images_face CHECK ((face = ANY (ARRAY['front'::text, 'back'::text])))
 );
+
+ALTER TABLE ONLY public.printing_images REPLICA IDENTITY FULL;
 
 
 --
@@ -1778,6 +1770,8 @@ CREATE TABLE public.printings (
     CONSTRAINT chk_printings_short_code_not_empty CHECK ((short_code <> ''::text))
 );
 
+ALTER TABLE ONLY public.printings REPLICA IDENTITY FULL;
+
 
 --
 -- Name: sets; Type: TABLE; Schema: public; Owner: -
@@ -1798,6 +1792,8 @@ CREATE TABLE public.sets (
     CONSTRAINT chk_sets_printed_total_non_negative CHECK ((printed_total >= 0)),
     CONSTRAINT chk_sets_slug_not_empty CHECK ((slug <> ''::text))
 );
+
+ALTER TABLE ONLY public.sets REPLICA IDENTITY FULL;
 
 
 --
@@ -1939,6 +1935,88 @@ CREATE TABLE public.super_types (
     label text NOT NULL,
     sort_order smallint NOT NULL,
     is_well_known boolean DEFAULT false NOT NULL
+);
+
+
+--
+-- Name: tournament_participants; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.tournament_participants (
+    id uuid DEFAULT uuidv7() CONSTRAINT pod_players_id_not_null NOT NULL,
+    tournament_id uuid CONSTRAINT pod_players_tournament_id_not_null NOT NULL,
+    display_name text CONSTRAINT pod_players_display_name_not_null NOT NULL,
+    status text DEFAULT 'active'::text CONSTRAINT pod_players_status_not_null NOT NULL,
+    dropped_after_round integer,
+    created_at timestamp with time zone DEFAULT now() CONSTRAINT pod_players_created_at_not_null NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() CONSTRAINT pod_players_updated_at_not_null NOT NULL,
+    user_id text,
+    riot_id text,
+    seed integer,
+    claim_source text,
+    claim_token text,
+    claimed_at timestamp with time zone,
+    claim_blocked_at timestamp with time zone,
+    CONSTRAINT chk_tournament_participants_claim_source CHECK (((claim_source IS NULL) OR (claim_source = ANY (ARRAY['judge_manual'::text, 'self_submit'::text, 'claim_link'::text])))),
+    CONSTRAINT chk_tournament_participants_name CHECK (((length(display_name) >= 1) AND (length(display_name) <= 120))),
+    CONSTRAINT chk_tournament_participants_riot_id CHECK (((riot_id IS NULL) OR (length(riot_id) <= 120))),
+    CONSTRAINT chk_tournament_participants_status CHECK ((status = ANY (ARRAY['requested'::text, 'invited'::text, 'active'::text, 'dropped'::text, 'no_show'::text])))
+);
+
+
+--
+-- Name: tournament_staff; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.tournament_staff (
+    tournament_id uuid NOT NULL,
+    user_id text NOT NULL,
+    role text NOT NULL,
+    added_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_tournament_staff_role CHECK ((role = ANY (ARRAY['organizer'::text, 'judge'::text, 'scorekeeper'::text])))
+);
+
+
+--
+-- Name: tournaments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.tournaments (
+    id uuid DEFAULT uuidv7() CONSTRAINT pod_tournaments_id_not_null NOT NULL,
+    host_user_id text,
+    name text CONSTRAINT pod_tournaments_name_not_null NOT NULL,
+    status text DEFAULT 'setup'::text CONSTRAINT pod_tournaments_status_not_null NOT NULL,
+    current_round integer DEFAULT 0 CONSTRAINT pod_tournaments_current_round_not_null NOT NULL,
+    scoring_scheme text DEFAULT 'standard'::text CONSTRAINT pod_tournaments_scoring_scheme_not_null NOT NULL,
+    report_token text,
+    created_at timestamp with time zone DEFAULT now() CONSTRAINT pod_tournaments_created_at_not_null NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() CONSTRAINT pod_tournaments_updated_at_not_null NOT NULL,
+    bye_points integer DEFAULT 3 CONSTRAINT pod_tournaments_bye_points_not_null NOT NULL,
+    host_type text NOT NULL,
+    host_org_id uuid,
+    group_id uuid,
+    starts_at timestamp with time zone DEFAULT now() NOT NULL,
+    pairing_style text DEFAULT 'pod'::text NOT NULL,
+    deck_submission text DEFAULT 'none'::text NOT NULL,
+    deck_phase text DEFAULT 'open'::text NOT NULL,
+    submissions_close_at timestamp with time zone,
+    list_lock_mode text DEFAULT 'on_submit'::text NOT NULL,
+    deck_format text,
+    allowed_sets jsonb,
+    self_registration boolean DEFAULT false NOT NULL,
+    submission_token text,
+    ends_at timestamp with time zone,
+    organizer_invite_token text,
+    judge_invite_token text,
+    CONSTRAINT chk_tournaments_bye_points CHECK ((bye_points >= 0)),
+    CONSTRAINT chk_tournaments_deck_phase CHECK ((deck_phase = ANY (ARRAY['open'::text, 'closed'::text, 'locked'::text]))),
+    CONSTRAINT chk_tournaments_deck_submission CHECK ((deck_submission = ANY (ARRAY['none'::text, 'optional'::text, 'required'::text]))),
+    CONSTRAINT chk_tournaments_host CHECK ((((host_type = 'user'::text) AND (host_user_id IS NOT NULL) AND (host_org_id IS NULL)) OR ((host_type = 'organization'::text) AND (host_org_id IS NOT NULL) AND (host_user_id IS NULL)))),
+    CONSTRAINT chk_tournaments_list_lock_mode CHECK ((list_lock_mode = ANY (ARRAY['on_submit'::text, 'at_deadline'::text]))),
+    CONSTRAINT chk_tournaments_name CHECK (((length(name) >= 1) AND (length(name) <= 120))),
+    CONSTRAINT chk_tournaments_pairing_style CHECK ((pairing_style = ANY (ARRAY['none'::text, 'pod'::text]))),
+    CONSTRAINT chk_tournaments_scheme CHECK ((scoring_scheme = ANY (ARRAY['standard'::text, 'three_pod_reduced'::text]))),
+    CONSTRAINT chk_tournaments_status CHECK ((status = ANY (ARRAY['setup'::text, 'running'::text, 'completed'::text, 'cancelled'::text])))
 );
 
 
@@ -2239,14 +2317,6 @@ ALTER TABLE ONLY public.deck_cards
 
 
 --
--- Name: deck_check_entries deck_check_entries_claim_token_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.deck_check_entries
-    ADD CONSTRAINT deck_check_entries_claim_token_key UNIQUE (claim_token);
-
-
---
 -- Name: deck_check_entries deck_check_entries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2260,22 +2330,6 @@ ALTER TABLE ONLY public.deck_check_entries
 
 ALTER TABLE ONLY public.deck_check_entry_cards
     ADD CONSTRAINT deck_check_entry_cards_pkey PRIMARY KEY (id);
-
-
---
--- Name: deck_check_events deck_check_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.deck_check_events
-    ADD CONSTRAINT deck_check_events_pkey PRIMARY KEY (id);
-
-
---
--- Name: deck_check_events deck_check_events_submission_token_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.deck_check_events
-    ADD CONSTRAINT deck_check_events_submission_token_key UNIQUE (submission_token);
 
 
 --
@@ -2631,6 +2685,30 @@ ALTER TABLE ONLY public.marketplace_products
 
 
 --
+-- Name: organization_members organization_members_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.organization_members
+    ADD CONSTRAINT organization_members_pkey PRIMARY KEY (org_id, user_id);
+
+
+--
+-- Name: organizations organizations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.organizations
+    ADD CONSTRAINT organizations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: organizations organizations_slug_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.organizations
+    ADD CONSTRAINT organizations_slug_key UNIQUE (slug);
+
+
+--
 -- Name: pod_byes pod_byes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2647,27 +2725,11 @@ ALTER TABLE ONLY public.pod_members
 
 
 --
--- Name: pod_players pod_players_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.pod_players
-    ADD CONSTRAINT pod_players_pkey PRIMARY KEY (id);
-
-
---
 -- Name: pod_rounds pod_rounds_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.pod_rounds
     ADD CONSTRAINT pod_rounds_pkey PRIMARY KEY (id);
-
-
---
--- Name: pod_tournaments pod_tournaments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.pod_tournaments
-    ADD CONSTRAINT pod_tournaments_pkey PRIMARY KEY (id);
 
 
 --
@@ -2807,6 +2869,30 @@ ALTER TABLE ONLY public.super_types
 
 
 --
+-- Name: tournament_participants tournament_participants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tournament_participants
+    ADD CONSTRAINT tournament_participants_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: tournament_staff tournament_staff_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tournament_staff
+    ADD CONSTRAINT tournament_staff_pkey PRIMARY KEY (tournament_id, user_id, role);
+
+
+--
+-- Name: tournaments tournaments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tournaments
+    ADD CONSTRAINT tournaments_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: card_trade_copies uq_card_trade_copies_copy; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2823,11 +2909,11 @@ ALTER TABLE ONLY public.collections
 
 
 --
--- Name: deck_check_entries uq_deck_check_entries_event_external; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: deck_check_entries uq_deck_check_entries_tournament_external; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.deck_check_entries
-    ADD CONSTRAINT uq_deck_check_entries_event_external UNIQUE (event_id, external_id);
+    ADD CONSTRAINT uq_deck_check_entries_tournament_external UNIQUE (tournament_id, external_id);
 
 
 --
@@ -3156,45 +3242,10 @@ CREATE INDEX idx_deck_cards_deck ON public.deck_cards USING btree (deck_id);
 
 
 --
--- Name: idx_deck_check_entries_claimed_user; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_deck_check_entries_claimed_user ON public.deck_check_entries USING btree (claimed_user_id);
-
-
---
--- Name: idx_deck_check_entries_event; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_deck_check_entries_event ON public.deck_check_entries USING btree (event_id);
-
-
---
--- Name: idx_deck_check_entries_player_email; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_deck_check_entries_player_email ON public.deck_check_entries USING btree (lower(player_email));
-
-
---
 -- Name: idx_deck_check_entry_cards_entry; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_deck_check_entry_cards_entry ON public.deck_check_entry_cards USING btree (entry_id);
-
-
---
--- Name: idx_deck_check_events_group; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_deck_check_events_group ON public.deck_check_events USING btree (group_id);
-
-
---
--- Name: idx_deck_check_keys_group; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_deck_check_keys_group ON public.deck_check_keys USING btree (group_id);
 
 
 --
@@ -3359,6 +3410,13 @@ CREATE UNIQUE INDEX idx_mv_latest_printing_prices_pk ON public.mv_latest_printin
 
 
 --
+-- Name: idx_organization_members_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_organization_members_user ON public.organization_members USING btree (user_id);
+
+
+--
 -- Name: idx_pod_byes_player; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3373,24 +3431,10 @@ CREATE INDEX idx_pod_members_player ON public.pod_members USING btree (player_id
 
 
 --
--- Name: idx_pod_players_tournament; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_pod_players_tournament ON public.pod_players USING btree (tournament_id);
-
-
---
 -- Name: idx_pod_rounds_tournament; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_pod_rounds_tournament ON public.pod_rounds USING btree (tournament_id);
-
-
---
--- Name: idx_pod_tournaments_owner; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_pod_tournaments_owner ON public.pod_tournaments USING btree (owner_user_id);
 
 
 --
@@ -3499,6 +3543,41 @@ CREATE INDEX idx_sessions_user_id ON public.sessions USING btree (user_id);
 
 
 --
+-- Name: idx_tournament_participants_tournament; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tournament_participants_tournament ON public.tournament_participants USING btree (tournament_id);
+
+
+--
+-- Name: idx_tournament_staff_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tournament_staff_user ON public.tournament_staff USING btree (user_id);
+
+
+--
+-- Name: idx_tournaments_group; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tournaments_group ON public.tournaments USING btree (group_id) WHERE (group_id IS NOT NULL);
+
+
+--
+-- Name: idx_tournaments_host_org; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tournaments_host_org ON public.tournaments USING btree (host_org_id) WHERE (host_org_id IS NOT NULL);
+
+
+--
+-- Name: idx_tournaments_host_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tournaments_host_user ON public.tournaments USING btree (host_user_id) WHERE (host_user_id IS NOT NULL);
+
+
+--
 -- Name: idx_user_contact_methods_user; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3583,10 +3662,45 @@ CREATE UNIQUE INDEX uq_list_entries_printing ON public.list_entries USING btree 
 
 
 --
--- Name: uq_pod_tournaments_report_token; Type: INDEX; Schema: public; Owner: -
+-- Name: uq_tournament_participants_claim_token; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX uq_pod_tournaments_report_token ON public.pod_tournaments USING btree (report_token) WHERE (report_token IS NOT NULL);
+CREATE UNIQUE INDEX uq_tournament_participants_claim_token ON public.tournament_participants USING btree (claim_token) WHERE (claim_token IS NOT NULL);
+
+
+--
+-- Name: uq_tournament_participants_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_tournament_participants_user ON public.tournament_participants USING btree (tournament_id, user_id) WHERE (user_id IS NOT NULL);
+
+
+--
+-- Name: uq_tournaments_judge_invite_token; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_tournaments_judge_invite_token ON public.tournaments USING btree (judge_invite_token) WHERE (judge_invite_token IS NOT NULL);
+
+
+--
+-- Name: uq_tournaments_organizer_invite_token; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_tournaments_organizer_invite_token ON public.tournaments USING btree (organizer_invite_token) WHERE (organizer_invite_token IS NOT NULL);
+
+
+--
+-- Name: uq_tournaments_report_token; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_tournaments_report_token ON public.tournaments USING btree (report_token) WHERE (report_token IS NOT NULL);
+
+
+--
+-- Name: uq_tournaments_submission_token; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_tournaments_submission_token ON public.tournaments USING btree (submission_token) WHERE (submission_token IS NOT NULL);
 
 
 --
@@ -3814,13 +3928,6 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.deck_check_entries FOR
 
 
 --
--- Name: deck_check_events trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.deck_check_events FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
-
---
 -- Name: deck_matchup_plans trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -3940,17 +4047,10 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.marketplace_products F
 
 
 --
--- Name: pod_players trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+-- Name: organizations trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.pod_players FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
-
---
--- Name: pod_tournaments trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.pod_tournaments FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.organizations FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -3986,6 +4086,20 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.sessions FOR EACH ROW 
 --
 
 CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.sets FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: tournament_participants trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.tournament_participants FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: tournaments trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.tournaments FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -4287,19 +4401,19 @@ ALTER TABLE ONLY public.deck_check_entries
 
 
 --
--- Name: deck_check_entries deck_check_entries_claimed_user_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: deck_check_entries deck_check_entries_participant_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.deck_check_entries
-    ADD CONSTRAINT deck_check_entries_claimed_user_fkey FOREIGN KEY (claimed_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+    ADD CONSTRAINT deck_check_entries_participant_fkey FOREIGN KEY (participant_id) REFERENCES public.tournament_participants(id) ON DELETE CASCADE;
 
 
 --
--- Name: deck_check_entries deck_check_entries_event_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: deck_check_entries deck_check_entries_tournament_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.deck_check_entries
-    ADD CONSTRAINT deck_check_entries_event_fkey FOREIGN KEY (event_id) REFERENCES public.deck_check_events(id) ON DELETE CASCADE;
+    ADD CONSTRAINT deck_check_entries_tournament_fkey FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE;
 
 
 --
@@ -4335,22 +4449,6 @@ ALTER TABLE ONLY public.deck_check_entry_cards
 
 
 --
--- Name: deck_check_events deck_check_events_format_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.deck_check_events
-    ADD CONSTRAINT deck_check_events_format_fkey FOREIGN KEY (format) REFERENCES public.deck_formats(slug);
-
-
---
--- Name: deck_check_events deck_check_events_group_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.deck_check_events
-    ADD CONSTRAINT deck_check_events_group_fkey FOREIGN KEY (group_id) REFERENCES public.friend_groups(id) ON DELETE CASCADE;
-
-
---
 -- Name: deck_check_keys deck_check_keys_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4359,11 +4457,19 @@ ALTER TABLE ONLY public.deck_check_keys
 
 
 --
--- Name: deck_check_keys deck_check_keys_group_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: deck_check_keys deck_check_keys_host_org_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.deck_check_keys
-    ADD CONSTRAINT deck_check_keys_group_fkey FOREIGN KEY (group_id) REFERENCES public.friend_groups(id) ON DELETE CASCADE;
+    ADD CONSTRAINT deck_check_keys_host_org_fkey FOREIGN KEY (host_org_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
+
+
+--
+-- Name: deck_check_keys deck_check_keys_host_user_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_check_keys
+    ADD CONSTRAINT deck_check_keys_host_user_fkey FOREIGN KEY (host_user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --
@@ -4767,11 +4873,35 @@ ALTER TABLE ONLY public.marketplace_product_card_overrides
 
 
 --
+-- Name: organization_members organization_members_org_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.organization_members
+    ADD CONSTRAINT organization_members_org_fkey FOREIGN KEY (org_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
+
+
+--
+-- Name: organization_members organization_members_user_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.organization_members
+    ADD CONSTRAINT organization_members_user_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: organizations organizations_owner_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.organizations
+    ADD CONSTRAINT organizations_owner_fkey FOREIGN KEY (owner_user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: pod_byes pod_byes_player_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.pod_byes
-    ADD CONSTRAINT pod_byes_player_fkey FOREIGN KEY (player_id) REFERENCES public.pod_players(id) ON DELETE CASCADE;
+    ADD CONSTRAINT pod_byes_player_fkey FOREIGN KEY (player_id) REFERENCES public.tournament_participants(id) ON DELETE CASCADE;
 
 
 --
@@ -4787,7 +4917,7 @@ ALTER TABLE ONLY public.pod_byes
 --
 
 ALTER TABLE ONLY public.pod_members
-    ADD CONSTRAINT pod_members_player_fkey FOREIGN KEY (player_id) REFERENCES public.pod_players(id) ON DELETE CASCADE;
+    ADD CONSTRAINT pod_members_player_fkey FOREIGN KEY (player_id) REFERENCES public.tournament_participants(id) ON DELETE CASCADE;
 
 
 --
@@ -4799,27 +4929,11 @@ ALTER TABLE ONLY public.pod_members
 
 
 --
--- Name: pod_players pod_players_tournament_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.pod_players
-    ADD CONSTRAINT pod_players_tournament_fkey FOREIGN KEY (tournament_id) REFERENCES public.pod_tournaments(id) ON DELETE CASCADE;
-
-
---
 -- Name: pod_rounds pod_rounds_tournament_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.pod_rounds
-    ADD CONSTRAINT pod_rounds_tournament_fkey FOREIGN KEY (tournament_id) REFERENCES public.pod_tournaments(id) ON DELETE CASCADE;
-
-
---
--- Name: pod_tournaments pod_tournaments_owner_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.pod_tournaments
-    ADD CONSTRAINT pod_tournaments_owner_fkey FOREIGN KEY (owner_user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+    ADD CONSTRAINT pod_rounds_tournament_fkey FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE;
 
 
 --
@@ -4919,6 +5033,70 @@ ALTER TABLE ONLY public.sessions
 
 
 --
+-- Name: tournament_participants tournament_participants_tournament_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tournament_participants
+    ADD CONSTRAINT tournament_participants_tournament_fkey FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE;
+
+
+--
+-- Name: tournament_participants tournament_participants_user_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tournament_participants
+    ADD CONSTRAINT tournament_participants_user_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: tournament_staff tournament_staff_tournament_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tournament_staff
+    ADD CONSTRAINT tournament_staff_tournament_fkey FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE;
+
+
+--
+-- Name: tournament_staff tournament_staff_user_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tournament_staff
+    ADD CONSTRAINT tournament_staff_user_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: tournaments tournaments_deck_format_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tournaments
+    ADD CONSTRAINT tournaments_deck_format_fkey FOREIGN KEY (deck_format) REFERENCES public.deck_formats(slug);
+
+
+--
+-- Name: tournaments tournaments_group_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tournaments
+    ADD CONSTRAINT tournaments_group_fkey FOREIGN KEY (group_id) REFERENCES public.friend_groups(id) ON DELETE SET NULL;
+
+
+--
+-- Name: tournaments tournaments_host_org_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tournaments
+    ADD CONSTRAINT tournaments_host_org_fkey FOREIGN KEY (host_org_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
+
+
+--
+-- Name: tournaments tournaments_host_user_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tournaments
+    ADD CONSTRAINT tournaments_host_user_fkey FOREIGN KEY (host_user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: user_contact_methods user_contact_methods_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4958,8 +5136,127 @@ CREATE PUBLICATION electric_publication_default WITH (publish = 'insert, update,
 
 
 --
+-- Name: electric_publication_default card_bans; Type: PUBLICATION TABLE; Schema: public; Owner: -
+--
+
+ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.card_bans;
+
+
+--
+-- Name: electric_publication_default card_custom_tags; Type: PUBLICATION TABLE; Schema: public; Owner: -
+--
+
+ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.card_custom_tags;
+
+
+--
+-- Name: electric_publication_default card_domains; Type: PUBLICATION TABLE; Schema: public; Owner: -
+--
+
+ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.card_domains;
+
+
+--
+-- Name: electric_publication_default card_errata; Type: PUBLICATION TABLE; Schema: public; Owner: -
+--
+
+ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.card_errata;
+
+
+--
+-- Name: electric_publication_default card_super_types; Type: PUBLICATION TABLE; Schema: public; Owner: -
+--
+
+ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.card_super_types;
+
+
+--
+-- Name: electric_publication_default cards; Type: PUBLICATION TABLE; Schema: public; Owner: -
+--
+
+ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.cards;
+
+
+--
+-- Name: electric_publication_default collections; Type: PUBLICATION TABLE; Schema: public; Owner: -
+--
+
+ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.collections;
+
+
+--
+-- Name: electric_publication_default copies; Type: PUBLICATION TABLE; Schema: public; Owner: -
+--
+
+ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.copies;
+
+
+--
+-- Name: electric_publication_default custom_tags; Type: PUBLICATION TABLE; Schema: public; Owner: -
+--
+
+ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.custom_tags;
+
+
+--
+-- Name: electric_publication_default distribution_channels; Type: PUBLICATION TABLE; Schema: public; Owner: -
+--
+
+ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.distribution_channels;
+
+
+--
+-- Name: electric_publication_default formats; Type: PUBLICATION TABLE; Schema: public; Owner: -
+--
+
+ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.formats;
+
+
+--
+-- Name: electric_publication_default friend_group_members; Type: PUBLICATION TABLE; Schema: public; Owner: -
+--
+
+ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.friend_group_members;
+
+
+--
+-- Name: electric_publication_default image_files; Type: PUBLICATION TABLE; Schema: public; Owner: -
+--
+
+ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.image_files;
+
+
+--
+-- Name: electric_publication_default markers; Type: PUBLICATION TABLE; Schema: public; Owner: -
+--
+
+ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.markers;
+
+
+--
+-- Name: electric_publication_default printing_distribution_channels; Type: PUBLICATION TABLE; Schema: public; Owner: -
+--
+
+ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.printing_distribution_channels;
+
+
+--
+-- Name: electric_publication_default printing_images; Type: PUBLICATION TABLE; Schema: public; Owner: -
+--
+
+ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.printing_images;
+
+
+--
+-- Name: electric_publication_default sets; Type: PUBLICATION TABLE; Schema: public; Owner: -
+--
+
+ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.sets;
+
+
+--
 -- PostgreSQL database dump complete
 --
 
-\unrestrict lfhZzrphPvXRj7xalyJLm8rYsw11l39M6GiNyG7byFv1IIpRHcR1x6fFzYHxNBw
+\unrestrict nhHU8aFaGoLYZAhdWl1PoPCK3FnyZpY9DVkd1hwbsCJm58tlMgriopMW8ITtB9p
 

@@ -35,15 +35,16 @@ export type {
   FriendGroupMembersTable,
   FriendGroupRole,
   FriendGroupsTable,
-  // Pod tournaments (migration 145, ADR-022)
-  PodTournamentsTable,
-  PodPlayersTable,
+  // Organizations + tournaments umbrella (migration 166/167, ADR-033)
+  OrganizationsTable,
+  OrganizationMembersTable,
+  TournamentsTable,
+  TournamentParticipantsTable,
   PodRoundsTable,
   PodsTable,
   // Card trades (migration 143, ADR-019)
   CardTradesTable,
   // Deck check (migration 149, ADR-025)
-  DeckCheckEventsTable,
   DeckCheckEntriesTable,
   DeckCheckEntryCardsTable,
   DeckCheckKeysTable,

@@ -6,16 +6,15 @@ import type { ComponentType, ReactNode, SVGProps } from "react";
 import { UserAvatar } from "@/components/user-avatar";
 import { useGroupTrades, useTradeActionCounts } from "@/hooks/use-card-trades";
 import { useCollections } from "@/hooks/use-collections";
-import { useDeckCheckEvents } from "@/hooks/use-deck-check";
 import { useMyTournamentDecks } from "@/hooks/use-deck-check-player";
 import { useFriendGroupMatches } from "@/hooks/use-friend-groups";
+import { useGroupTournaments } from "@/hooks/use-tournaments";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { isPastOrArchivedEvent } from "@/lib/deck-check-events";
 import { countTradeSuggestions, withoutLiveTradeMatches } from "@/lib/trade-derivation";
 import { cn } from "@/lib/utils";
 
 import { FriendGroupActivityFeed } from "./friend-group-activity-feed";
-import { isJudge } from "./friend-group-shell";
+import { canManageGroupTournaments } from "./friend-group-shell";
 
 /**
  * The group overview / dashboard: an optional "trades need you" banner, a grid
@@ -42,8 +41,8 @@ function ActionCards({ slug, data }: { slug: string; data: FriendGroupDetailResp
   // group's events; the tile then counts only their own entries (ADR-026).
   const { data: ownDecks } = useMyTournamentDecks();
   const ownEntries = (ownDecks?.items ?? []).filter((entry) => entry.groupSlug === data.group.slug);
-  const judge = isJudge(data.viewerRole);
-  const showChecks = judge || ownEntries.length > 0;
+  const canManageTournaments = canManageGroupTournaments(data.viewerRole);
+  const showChecks = canManageTournaments || ownEntries.length > 0;
 
   const tradesActionCount =
     actionCounts?.byGroup.find((entry) => entry.groupId === data.group.id)?.count ?? 0;
@@ -115,14 +114,14 @@ function ActionCards({ slug, data }: { slug: string; data: FriendGroupDetailResp
           pendingRequestCount={pendingRequestCount}
         />
         {showChecks ? (
-          judge ? (
-            <JudgeEventsTile slug={slug} ownEntries={ownEntries.length} />
+          canManageTournaments ? (
+            <GroupTournamentsTile slug={slug} ownEntries={ownEntries.length} />
           ) : (
             <StatCard
               to="/groups/$slug/events"
               slug={slug}
               icon={TrophyIcon}
-              label="Events"
+              label="Tournaments"
               value={ownEntries.length}
               hint="your entries"
             />
@@ -176,33 +175,29 @@ function TradesActionBanner({
 }
 
 /**
- * The Events tile for judges (and admins/owners): the count of upcoming events,
- * with the viewer's own entries as the supporting hint (falling back to the past
- * count). Split out so the events query only runs for roles that can load it.
- * @returns The Events tile.
+ * The Tournaments tile for group admins/owners: the count of the group's
+ * tournaments, with the viewer's own entries as the supporting hint. Split out
+ * so the group-tournaments query only runs for roles that load this surface.
+ * @returns The Tournaments tile.
  */
-function JudgeEventsTile({ slug, ownEntries }: { slug: string; ownEntries: number }) {
-  const { data: events } = useDeckCheckEvents(slug);
-  const items = events.items;
-  // A dated event in the future (or an active one not yet dated) is "upcoming";
-  // everything else — past dates and archived events — counts as past.
-  const past = items.filter((event) => isPastOrArchivedEvent(event)).length;
-  const upcoming = items.length - past;
+function GroupTournamentsTile({ slug, ownEntries }: { slug: string; ownEntries: number }) {
+  const { data: tournaments } = useGroupTournaments(slug);
+  const open = tournaments.items.filter(
+    (tournament) => tournament.status === "setup" || tournament.status === "running",
+  ).length;
   const hint =
     ownEntries > 0
       ? `${ownEntries} of your ${ownEntries === 1 ? "entry" : "entries"}`
-      : items.length === 0
-        ? "no events yet"
-        : past > 0
-          ? `${past} past`
-          : undefined;
+      : tournaments.items.length === 0
+        ? "no tournaments yet"
+        : `${tournaments.items.length} total`;
   return (
     <StatCard
       to="/groups/$slug/events"
       slug={slug}
       icon={TrophyIcon}
-      label="Upcoming events"
-      value={upcoming}
+      label="Open tournaments"
+      value={open}
       hint={hint}
     />
   );
