@@ -172,14 +172,20 @@ export function useCreateTrade() {
  * @returns The set-quantity mutation.
  */
 export function useSetTradeQuantity() {
-  const userId = useRequiredUserId();
+  // The public `/lists/share/$token` route mounts this hook for anonymous
+  // viewers (the mutation only ever fires in authenticated friend-group
+  // request mode). It therefore must not require a session at render —
+  // `useRequiredUserId` would throw. `userId` is read only to build the
+  // success-time invalidation keys, where the mutation never runs without a
+  // real id, so the `?? ""` fallback is unreachable in practice.
+  const userId = useUserId();
   return useMutationWithInvalidation<
     CardTradeResponse,
     { tradeId: string; quantity: number; groupSlug?: string }
   >({
     mutationFn: (data) =>
       setTradeQuantityFn({ data: { tradeId: data.tradeId, quantity: data.quantity } }),
-    invalidates: (variables) => tradeInvalidationKeys(userId, variables.groupSlug),
+    invalidates: (variables) => tradeInvalidationKeys(userId ?? "", variables.groupSlug),
   });
 }
 
@@ -200,10 +206,12 @@ export function useDeclineTrade() {
 }
 
 export function useCancelTrade() {
-  const userId = useRequiredUserId();
+  // Mounted by the public shared-list route too (see useSetTradeQuantity): use
+  // the nullable session id so an anonymous render does not throw.
+  const userId = useUserId();
   return useMutationWithInvalidation<CardTradeResponse, { tradeId: string; groupSlug?: string }>({
     mutationFn: (data) => tradeActionFn({ data: { tradeId: data.tradeId, action: "cancel" } }),
-    invalidates: (variables) => tradeInvalidationKeys(userId, variables.groupSlug),
+    invalidates: (variables) => tradeInvalidationKeys(userId ?? "", variables.groupSlug),
   });
 }
 
