@@ -15,8 +15,12 @@ import { assertFound } from "../../utils/assertions.js";
  */
 export const listImageRoute = new Hono<{ Variables: Variables }>()
   .basePath("/lists")
-  .use(requireAuth)
-  .get("/:id/image.png", async (c) => {
+  // `requireAuth` is scoped to this one route, not mounted as `.use()` on the
+  // whole `/lists` sub-app: a bare `.use(requireAuth)` runs for every
+  // `/api/v1/lists/*` path this sub-app sees and 401s anonymous callers before
+  // they fall through to the oRPC catch-all — which silently gated the public
+  // `GET /api/v1/lists/share/{token}` share view (every shared-list link 401'd).
+  .get("/:id/image.png", requireAuth, async (c) => {
     const { lists, canonicalPrintings } = c.get("repos");
     const config = c.get("config");
     const io = c.get("io");

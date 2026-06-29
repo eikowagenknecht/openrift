@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-06-29
+
+### Highlights
+
+- fix(Collection): **Shared list links open again** — opening someone's shared wishlist or tradelist returned an authorization error for signed-out visitors, and the public share page now loads for everyone.
+
 ## 2026-06-28
 
 ### Highlights
