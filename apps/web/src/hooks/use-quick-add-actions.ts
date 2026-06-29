@@ -105,7 +105,15 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
           return "done";
         }
         if (decision.kind === "dispose") {
-          await disposeCopies.mutateAsync({ copyIds: [decision.copyId] });
+          try {
+            await disposeCopies.mutateAsync({ copyIds: [decision.copyId] });
+          } catch {
+            // The remove can fail for an expected reason (e.g. the copy is
+            // reserved in an active trade). The error toast is fired by the
+            // global mutation onError handler; swallow the rejection here so it
+            // doesn't surface as an uncaught promise. The caller (the
+            // fire-and-forget onDecrement IIFE) does not catch.
+          }
           return "done";
         }
         return "ambiguous";
@@ -125,7 +133,15 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
     );
     const newest = pickNewestCopy(copies);
     if (newest) {
-      await disposeCopies.mutateAsync({ copyIds: [newest.id] });
+      try {
+        await disposeCopies.mutateAsync({ copyIds: [newest.id] });
+      } catch {
+        // The remove can fail for an expected reason (e.g. the copy is reserved
+        // in an active trade). The error toast is fired by the global mutation
+        // onError handler; swallow the rejection here so it doesn't surface as
+        // an uncaught promise (this handler is wired straight into the popover's
+        // onRemoveFromCollection click prop, which does not catch).
+      }
     }
   };
 
