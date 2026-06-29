@@ -65,7 +65,7 @@ export function GroupTournamentsLens({
 
 function TournamentGrid({ tournaments }: { tournaments: TournamentSummaryResponse[] }) {
   return (
-    <ul className="grid gap-3 sm:grid-cols-2">
+    <ul className="grid gap-3">
       {tournaments.map((tournament) => (
         <li key={tournament.id}>
           <TournamentCard tournament={tournament} />
