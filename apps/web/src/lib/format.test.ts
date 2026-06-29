@@ -28,6 +28,7 @@ const TEST_LABELS: EnumLabels = {
     overnumbered: "Overnumbered",
     ultimate: "Ultimate",
   },
+  cardSizes: { standard: "Standard", oversized: "Oversized" },
 };
 
 function stub(overrides: Partial<Printing> = {}): Printing {
@@ -44,6 +45,7 @@ function stub(overrides: Partial<Printing> = {}): Printing {
     markers: [],
     distributionChannels: [],
     finish: "normal",
+    size: "standard",
     images: [],
     artist: "",
     publicCode: "ABCD",
@@ -77,6 +79,32 @@ function stub(overrides: Partial<Printing> = {}): Printing {
 // ---------------------------------------------------------------------------
 // formatCardId
 // ---------------------------------------------------------------------------
+
+describe("formatPrintingLabel", () => {
+  it('returns "Standard" when nothing distinguishes the printing', () => {
+    expect(formatPrintingLabel(stub(), undefined, TEST_LABELS)).toBe("Standard");
+  });
+
+  it("labels an oversized printing even without a standard sibling", () => {
+    expect(formatPrintingLabel(stub({ size: "oversized" }), undefined, TEST_LABELS)).toBe(
+      "Oversized",
+    );
+  });
+
+  it("distinguishes an oversized printing from its identical-art standard twin", () => {
+    const standard = stub({ size: "standard" });
+    const oversized = stub({ size: "oversized" });
+    const siblings = [standard, oversized];
+    expect(formatPrintingLabel(standard, siblings, TEST_LABELS)).toBe("Standard");
+    expect(formatPrintingLabel(oversized, siblings, TEST_LABELS)).toBe("Oversized");
+  });
+
+  it("combines size with other distinguishing attributes", () => {
+    const oversizedFoil = stub({ size: "oversized", finish: "foil" });
+    const siblings = [stub({ finish: "normal" }), oversizedFoil];
+    expect(formatPrintingLabel(oversizedFoil, siblings, TEST_LABELS)).toBe("Foil · Oversized");
+  });
+});
 
 describe("formatCardId", () => {
   it("returns the source id", () => {

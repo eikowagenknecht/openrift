@@ -160,6 +160,7 @@ const EMPTY_FILTER_COUNTS: FilterCounts = {
   rarities: new Map<string, number>(),
   artVariants: new Map<string, number>(),
   finishes: new Map<string, number>(),
+  cardSizes: new Map<string, number>(),
   markers: new Map<string, number>(),
   channels: new Map<string, number>(),
   flags: { signed: 0, promo: 0, banned: 0, errata: 0 },

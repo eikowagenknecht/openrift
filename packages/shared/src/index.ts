@@ -22,6 +22,7 @@ export type {
   CardErrata,
   CardFilters,
   CardFace,
+  CardSize,
   AnySnapshot,
   CandidateCardResponse,
   CandidateCardSummaryResponse,

@@ -73,6 +73,7 @@ const PRINTING_VIEW_COLUMNS = [
   "printingsOrdered.artVariant",
   "printingsOrdered.isSigned",
   "printingsOrdered.finish",
+  "printingsOrdered.size",
   "printingsOrdered.artist",
   "printingsOrdered.publicCode",
   "printingsOrdered.printedRulesText",
@@ -353,6 +354,7 @@ export function catalogRepo(db: Kysely<Database>) {
         .selectFrom("printings as p")
         .innerJoin("sets as s", "s.id", "p.setId")
         .innerJoin("finishes as f", "f.slug", "p.finish")
+        .innerJoin("cardSizes as cs", "cs.slug", "p.size")
         .innerJoin("languages as l", "l.code", "p.language")
         .select([
           "p.id",
@@ -363,6 +365,7 @@ export function catalogRepo(db: Kysely<Database>) {
           "p.artVariant",
           "p.isSigned",
           "p.finish",
+          "p.size",
           "p.artist",
           "p.publicCode",
           "p.printedRulesText",
@@ -384,7 +387,8 @@ export function catalogRepo(db: Kysely<Database>) {
                  WHERE m.slug = ANY(p.marker_slugs)),
                 0
               ),
-              f.sort_order
+              f.sort_order,
+              cs.sort_order
           ))::int`.as("canonicalRank"),
         ])
         .where("p.cardId", "=", cardId)

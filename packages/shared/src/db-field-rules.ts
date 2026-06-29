@@ -45,6 +45,7 @@ export const printingFieldRules = {
   rarity: z.string().min(1),
   artVariant: z.string().min(1),
   finish: z.string().min(1),
+  size: z.string().min(1),
   artist: z.string().min(1),
   publicCode: z.string().min(1),
   printedRulesText: z.string().min(1).nullable(),

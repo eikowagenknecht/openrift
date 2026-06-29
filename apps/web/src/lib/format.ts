@@ -30,6 +30,11 @@ export function formatPrintingLabel(
   if (printing.finish !== "normal" && !allSame((c) => c.finish)) {
     parts.push(labels.finishes[printing.finish] ?? printing.finish);
   }
+  // Oversized is always labeled when present (like art variant): the larger
+  // print carries meaning even without a standard counterpart in the list.
+  if (printing.size !== "standard") {
+    parts.push(labels.cardSizes[printing.size] ?? printing.size);
+  }
   if (printing.isSigned && !allSame((c) => c.isSigned)) {
     parts.push("Signed");
   }

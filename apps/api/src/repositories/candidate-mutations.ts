@@ -1,6 +1,7 @@
 import { extractKeywords } from "@openrift/shared/keywords";
 import type {
   ArtVariant,
+  CardSize,
   CardType,
   Domain,
   Finish,
@@ -610,6 +611,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       isSigned: boolean;
       markerSlugs: string[];
       finish: Finish;
+      size: CardSize;
       artist: string;
       publicCode: string;
       printedRulesText: string | null;
@@ -626,6 +628,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .where("cardId", "=", values.cardId)
         .where("shortCode", "=", values.shortCode)
         .where("finish", "=", values.finish)
+        .where("size", "=", values.size)
         .where("markerSlugs", "=", sql<string[]>`${sortedSlugs}::text[]`)
         .where("language", "=", values.language)
         .executeTakeFirst();

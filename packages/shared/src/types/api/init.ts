@@ -23,6 +23,7 @@ export interface InitResponse {
     superTypes: EnumRow[];
     finishes: EnumRow[];
     artVariants: EnumRow[];
+    cardSizes: EnumRow[];
     deckFormats: EnumRow[];
     deckZones: EnumRow[];
     languages: EnumRow[];

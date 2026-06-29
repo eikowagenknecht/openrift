@@ -5,7 +5,7 @@ import type {
   PrintingDistributionChannel,
   PrintingImage,
 } from "../catalog.js";
-import type { ArtVariant, Finish, Rarity, SetType } from "../enums.js";
+import type { ArtVariant, CardSize, Finish, Rarity, SetType } from "../enums.js";
 
 export interface CatalogSetResponse {
   id: string;
@@ -30,6 +30,8 @@ export interface CatalogPrintingResponse {
   markers: Marker[];
   distributionChannels: PrintingDistributionChannel[];
   finish: Finish;
+  /** Physical card size. `standard` for the normal print, `oversized` for the larger variety. */
+  size: CardSize;
   images: PrintingImage[];
   artist: string;
   publicCode: string;

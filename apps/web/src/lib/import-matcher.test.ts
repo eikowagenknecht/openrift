@@ -20,6 +20,7 @@ function makePrinting(overrides: Partial<Printing> & { id: string; shortCode: st
     markers: [],
     distributionChannels: [],
     finish: "normal",
+    size: "standard",
     images: [],
     artist: "Test",
     publicCode: overrides.shortCode,

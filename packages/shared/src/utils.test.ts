@@ -35,6 +35,7 @@ function makePrinting(overrides: Partial<Printing> & { language: string }): Prin
     markers: [],
     distributionChannels: [],
     finish: "normal",
+    size: "standard",
     images: [],
     artist: "Artist",
     publicCode: "001",

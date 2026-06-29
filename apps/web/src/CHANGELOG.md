@@ -34,6 +34,7 @@
 - feat(Tournaments): **One home for your events** — the new Tournaments area runs pod pairings and standings, collects player decklists, and lets judges check them, all on one event hosted by you or an organization, with times in your own timezone and multi-day scheduling.
 - feat(Collection): **Import CSVs into lists** — both a list's own Import and the Import / Export page now accept any supported CSV (OpenRift, Piltover Archive, RiftCore, RiftMana) and can send the cards to a list instead of your owned collection, keeping each card's finish and art variant.
 - feat(Collection): **One menu for variants and collections** — the count box on a card now opens a single menu listing each variant with the collections your copies live in, where you can add or remove copies per collection (or add to another collection) right there; removing a copy that could come from several places opens this menu instead of chaining through separate pickers.
+- feat(Cards): **Oversized cards** — cards that also come in a physically larger print are now tracked as their own variety, so you can filter by size and collect the oversized version separately from the standard one.
 
 ### Other
 

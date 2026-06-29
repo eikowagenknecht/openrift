@@ -65,6 +65,7 @@ function stubPrintingValue(
     markers: [],
     distributionChannels: [],
     finish: "normal",
+    size: "standard",
     images: [],
     artist: "Artist",
     publicCode: "rb1-001",

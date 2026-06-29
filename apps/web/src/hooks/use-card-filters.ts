@@ -1,5 +1,6 @@
 import type {
   ArtVariant,
+  CardSize,
   CardType,
   DefaultCardView,
   Domain,
@@ -30,6 +31,7 @@ type ArrayKey =
   | "domains"
   | "artVariants"
   | "finishes"
+  | "cardSizes"
   | "markers"
   | "channels"
   | "customTags"
@@ -52,6 +54,7 @@ function toFilterState(raw: FilterSearch, defaultView: DefaultCardView) {
     domains: raw.domains ?? [],
     artVariants: raw.artVariants ?? [],
     finishes: raw.finishes ?? [],
+    cardSizes: raw.cardSizes ?? [],
     markers: raw.markers ?? [],
     channels: raw.channels ?? [],
     customTags: raw.customTags ?? [],
@@ -102,6 +105,7 @@ export function useFilterValues() {
     domains: filterState.domains as Domain[],
     artVariants: filterState.artVariants as ArtVariant[],
     finishes: filterState.finishes as Finish[],
+    cardSizes: filterState.cardSizes as CardSize[],
     ownedFilter: filterState.owned as OwnedBucket[],
     // Copies-owned range — a web-app-only filter (live per-user data, not part
     // of the shared card catalog) applied alongside the `ownedFilter` buckets.
@@ -145,6 +149,7 @@ export function useFilterValues() {
     filterState.domains.length > 0 ||
     filterState.artVariants.length > 0 ||
     filterState.finishes.length > 0 ||
+    filterState.cardSizes.length > 0 ||
     filterState.markers.length > 0 ||
     filterState.channels.length > 0 ||
     filterState.customTags.length > 0 ||
@@ -217,6 +222,7 @@ export function useFilterActions() {
       domains: undefined,
       artVariants: undefined,
       finishes: undefined,
+      cardSizes: undefined,
       markers: undefined,
       channels: undefined,
       customTags: undefined,

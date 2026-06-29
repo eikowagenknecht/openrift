@@ -17,6 +17,7 @@ const TEST_ORDERS: EnumOrders = {
   cardTypes: ["legend", "unit", "rune", "spell", "gear", "battlefield", "other"],
   superTypes: ["basic", "champion", "signature", "token"],
   finishes: ["normal", "foil", "metal", "metal-deluxe"],
+  cardSizes: ["standard", "oversized"],
 };
 
 /**
@@ -63,6 +64,7 @@ function makePrinting(
     markers: [],
     distributionChannels: [],
     finish: "normal",
+    size: "standard",
     images: [{ face: "front", imageId: "019d6c25-b081-74b3-a901-64da4ae01dab" }],
     artist: "Jane Doe",
     publicCode: "ABCD",
@@ -110,6 +112,7 @@ function emptyFilters(overrides: Partial<CardFilters> = {}): CardFilters {
     price: { min: null, max: null },
     artVariants: [],
     finishes: [],
+    cardSizes: [],
     isSigned: null,
     hasAnyMarker: null,
     markerSlugs: [],
@@ -563,6 +566,15 @@ describe("filterCards", () => {
     const result = filterCards(printings, emptyFilters({ finishes: ["foil"] }));
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Ice Golem");
+  });
+
+  // -- Card size filter --
+
+  it("filters by card size", () => {
+    const standard = makePrinting({ id: "std", size: "standard" });
+    const oversized = makePrinting({ id: "ovr", size: "oversized" });
+    const result = filterCards([standard, oversized], emptyFilters({ cardSizes: ["oversized"] }));
+    expect(result.map((p) => p.id)).toEqual(["ovr"]);
   });
 
   // -- isSigned filter --
@@ -1345,6 +1357,14 @@ describe("getAvailableFilters", () => {
   it("sorts finishes in canonical order", () => {
     const result = getAvailableFilters(printings);
     expect(result.finishes).toEqual(["normal", "foil"]);
+  });
+
+  it("surfaces card sizes in canonical order", () => {
+    const result = getAvailableFilters([
+      makePrinting({ id: "ovr", size: "oversized" }),
+      makePrinting({ id: "std", size: "standard" }),
+    ]);
+    expect(result.cardSizes).toEqual(["standard", "oversized"]);
   });
 
   it("computes correct stat ranges", () => {

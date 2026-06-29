@@ -1,4 +1,13 @@
-import type { ArtVariant, CardFace, CardType, Domain, Finish, Rarity, SuperType } from "./enums.js";
+import type {
+  ArtVariant,
+  CardFace,
+  CardSize,
+  CardType,
+  Domain,
+  Finish,
+  Rarity,
+  SuperType,
+} from "./enums.js";
 
 export interface Marker {
   id: string;
@@ -116,6 +125,8 @@ export interface Printing {
   markers: Marker[];
   distributionChannels: PrintingDistributionChannel[];
   finish: Finish;
+  /** Physical card size. `standard` for the normal print, `oversized` for the larger variety. */
+  size: CardSize;
   images: PrintingImage[];
   artist: string;
   publicCode: string;

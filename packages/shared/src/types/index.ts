@@ -2,6 +2,7 @@ export type {
   ActivityAction,
   ArtVariant,
   CardFace,
+  CardSize,
   CardType,
   DeckFormat,
   DeckZone,

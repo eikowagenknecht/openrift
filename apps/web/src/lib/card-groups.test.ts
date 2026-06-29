@@ -19,6 +19,7 @@ const ORDERS: EnumOrders = {
   superTypes: [],
   artVariants: [],
   finishes: [],
+  cardSizes: ["standard", "oversized"],
 };
 
 const LABELS: EnumLabels = {
@@ -28,6 +29,7 @@ const LABELS: EnumLabels = {
   cardTypes: {},
   superTypes: {},
   artVariants: {},
+  cardSizes: { standard: "Standard", oversized: "Oversized" },
 };
 
 function item(setId: string): CardViewerItem {

@@ -249,6 +249,16 @@ export function FilterBadgeSections({
           counts={filterCounts?.finishes}
         />
       )}
+      {availableFilters.cardSizes.length > 1 && !hiddenSections?.has("cardSizes") && (
+        <FilterSection
+          label="Size"
+          options={availableFilters.cardSizes}
+          selected={filterState.cardSizes}
+          onToggle={(v) => toggleArrayFilter("cardSizes", v)}
+          displayLabel={(v) => labels.cardSizes[v] ?? v}
+          counts={filterCounts?.cardSizes}
+        />
+      )}
       <FilterMoreSection
         availableFilters={availableFilters}
         hiddenSections={hiddenSections}

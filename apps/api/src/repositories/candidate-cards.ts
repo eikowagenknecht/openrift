@@ -370,6 +370,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "isSigned",
           "markerSlugs",
           "finish",
+          "size",
           "artist",
           "publicCode",
           "printedRulesText",

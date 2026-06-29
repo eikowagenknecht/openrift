@@ -14,6 +14,7 @@ const baseDisplay: CardThumbnailDisplay = {
   coarsePointer: false,
   domainColors: {},
   finishLabels: {},
+  sizeLabels: {},
   prices: EMPTY_PRICE_LOOKUP,
   favoriteMarketplace: "cardtrader",
   compactFmt: String,

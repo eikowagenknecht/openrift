@@ -30,6 +30,10 @@ export type ArtVariant = string & Record<never, never>;
 // oxlint-disable-next-line typescript-eslint/ban-types -- open string type for DB-driven enum values
 export type Finish = string & Record<never, never>;
 
+/** Backed by `card_sizes` reference table. Physical card size (standard/oversized). */
+// oxlint-disable-next-line typescript-eslint/ban-types -- open string type for DB-driven enum values
+export type CardSize = string & Record<never, never>;
+
 // ── Enum orders ─────────────────────────────────────────────────────────────
 // Sort orders for reference-table enums. The /api/enums endpoint is the
 // authoritative source at runtime. Every sort path must read the live order
@@ -45,6 +49,7 @@ export interface EnumOrders {
   cardTypes: readonly string[];
   superTypes: readonly string[];
   artVariants: readonly string[];
+  cardSizes: readonly string[];
 }
 
 // ── Application-level enums ─────────────────────────────────────────────────

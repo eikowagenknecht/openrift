@@ -78,6 +78,7 @@ export function CreatePrintingPage({
     source?.artVariant ?? orders.artVariants[0] ?? "normal",
   );
   const [finish, setFinish] = useState<string>(source?.finish ?? orders.finishes[0] ?? "normal");
+  const [size, setSize] = useState<string>(orders.cardSizes[0] ?? WellKnown.cardSize.STANDARD);
   const [isSigned, setIsSigned] = useState(source?.isSigned ?? false);
   const [selectedMarkerSlugs, setSelectedMarkerSlugs] = useState<string[]>(
     source?.markerSlugs ?? [],
@@ -124,6 +125,7 @@ export function CreatePrintingPage({
       artVariant,
       isSigned,
       finish,
+      size,
       artist: artist.trim(),
       publicCode: publicCode.trim(),
       language,
@@ -271,6 +273,21 @@ export function CreatePrintingPage({
                     {orders.finishes.map((slug) => (
                       <SelectItem key={slug} value={slug}>
                         {labels.finishes[slug] ?? slug}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel>Size</FieldLabel>
+                <Select value={size} onValueChange={(value) => value && setSize(value)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue>{(value: string) => labels.cardSizes[value] ?? value}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {orders.cardSizes.map((slug) => (
+                      <SelectItem key={slug} value={slug}>
+                        {labels.cardSizes[slug] ?? slug}
                       </SelectItem>
                     ))}
                   </SelectContent>

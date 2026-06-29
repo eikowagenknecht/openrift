@@ -430,6 +430,21 @@ export function CompactFilterBar({
               />
             );
           })()}
+        {!hiddenSections?.has("cardSizes") && availableFilters.cardSizes.length > 1 && (
+          <MultiSelectCombobox
+            triggerStyle="button"
+            label="Size"
+            searchPlaceholder="Search sizes…"
+            emptyText="No sizes match."
+            options={availableFilters.cardSizes.map((value) => ({
+              value,
+              label: labels.cardSizes[value] ?? value,
+            }))}
+            selected={filterState.cardSizes}
+            onChange={(next) => setArrayFilter("cardSizes", next)}
+            counts={filterCounts?.cardSizes}
+          />
+        )}
         {showStats && (
           <FilterDropdownChip
             label="Stats"

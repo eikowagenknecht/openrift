@@ -10,6 +10,7 @@ import type {
   ActivityAction,
   ArtVariant,
   CardFace,
+  CardSize,
   CardType,
   ContactMethodType,
   DeckFormat,
@@ -133,6 +134,8 @@ export interface PrintingsTable {
   markerSlugs: Generated<string[]>;
   /** FK → finishes(slug) */
   finish: Finish;
+  /** FK → card_sizes(slug). Physical size; defaults to 'standard'. */
+  size: CardSize;
   /** CHECK: <> '' */
   artist: string;
   /** CHECK: <> '' */
@@ -1361,6 +1364,7 @@ export interface DomainsTable extends ReferenceTable {
 type SuperTypesTable = ReferenceTable;
 type FinishesTable = ReferenceTable;
 type ArtVariantsTable = ReferenceTable;
+type CardSizesTable = ReferenceTable;
 type DeckFormatsTable = ReferenceTable;
 type DeckZonesTable = ReferenceTable;
 
@@ -1577,6 +1581,7 @@ export interface Database {
   superTypes: SuperTypesTable;
   finishes: FinishesTable;
   artVariants: ArtVariantsTable;
+  cardSizes: CardSizesTable;
   deckFormats: DeckFormatsTable;
   deckZones: DeckZonesTable;
 

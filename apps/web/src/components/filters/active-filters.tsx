@@ -77,6 +77,7 @@ export function ActiveFilters({
     | "domains"
     | "artVariants"
     | "finishes"
+    | "cardSizes"
     | "markers"
     | "channels"
     | "owned";
@@ -150,6 +151,12 @@ export function ActiveFilters({
       label: "Finish",
       values: filterState.finishes,
       displayLabel: (v: string) => labels.finishes[v] ?? v,
+    },
+    {
+      key: "cardSizes",
+      label: "Size",
+      values: filterState.cardSizes,
+      displayLabel: (v: string) => labels.cardSizes[v] ?? v,
     },
     {
       key: "markers",

@@ -21,6 +21,7 @@ export interface EnumLabels {
   cardTypes: Record<string, string>;
   superTypes: Record<string, string>;
   artVariants: Record<string, string>;
+  cardSizes: Record<string, string>;
 }
 
 function sorted(rows: EnumRow[]): EnumRow[] {
@@ -176,6 +177,7 @@ export function useEnumOrders(): {
       cardTypes: slugs(d.cardTypes ?? []),
       superTypes: slugs(d.superTypes ?? []),
       artVariants: slugs(d.artVariants ?? []),
+      cardSizes: slugs(d.cardSizes ?? []),
     },
     labels: {
       finishes: labelMap(d.finishes ?? []),
@@ -184,6 +186,7 @@ export function useEnumOrders(): {
       cardTypes: labelMap(d.cardTypes ?? []),
       superTypes: labelMap(d.superTypes ?? []),
       artVariants: labelMap(d.artVariants ?? []),
+      cardSizes: labelMap(d.cardSizes ?? []),
     },
     domainColors: Object.fromEntries(
       domainRows

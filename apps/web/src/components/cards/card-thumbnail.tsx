@@ -35,6 +35,7 @@ export interface CardThumbnailDisplay {
   coarsePointer: boolean;
   domainColors: Record<string, string>;
   finishLabels: Record<string, string>;
+  sizeLabels: Record<string, string>;
   prices: PriceLookup;
   favoriteMarketplace: Marketplace;
   compactFmt: (n: number) => string;
@@ -76,6 +77,7 @@ export function useCardThumbnailDisplay(): CardThumbnailDisplay {
     coarsePointer,
     domainColors,
     finishLabels: labels.finishes,
+    sizeLabels: labels.cardSizes,
     prices,
     favoriteMarketplace,
     compactFmt: compactFormatterForMarketplace(favoriteMarketplace),
@@ -464,12 +466,15 @@ export const CardThumbnail = memo(function CardThumbnail({
     coarsePointer,
     domainColors,
     finishLabels,
+    sizeLabels,
     prices,
     favoriteMarketplace,
   } = display;
   const favoritePrice = prices.get(printing.id, favoriteMarketplace);
   const isFoilCard = printing.finish === WellKnown.finish.FOIL;
   const finishTitle = finishLabels[printing.finish] ?? printing.finish;
+  const isOversized = printing.size !== WellKnown.cardSize.STANDARD;
+  const sizeLabel = sizeLabels[printing.size] ?? printing.size;
   const tiltEnabled = cardTilt && !coarsePointer;
   // Pick a shell: TiltImageShell calls useCardTilt internally, PlainImageShell
   // skips the hook entirely. Toggling cardTilt remounts the shell (and all
@@ -645,6 +650,8 @@ export const CardThumbnail = memo(function CardThumbnail({
         rarity={printing.rarity}
         finish={printing.finish}
         finishTitle={finishTitle}
+        oversized={isOversized}
+        sizeLabel={sizeLabel}
         bans={showBanOverlay ? undefined : printing.card.bans}
         hasRulesDeviation={printing.card.errata !== null}
         printingComment={printing.comment}

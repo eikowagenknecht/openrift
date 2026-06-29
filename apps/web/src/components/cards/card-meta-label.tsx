@@ -17,6 +17,10 @@ interface CardMetaLabelProps {
   finish?: string;
   /** Tooltip title for the finish icon (usually the human-readable finish label). */
   finishTitle?: string;
+  /** True when the printing is an oversized variety; renders a small size chip. */
+  oversized?: boolean;
+  /** Human-readable size label shown in the chip (e.g. "Oversized"). */
+  sizeLabel?: string;
   /** Ban records to show as a warning icon with tooltip. */
   bans?: CardBan[];
   /** True when printed rules text differs from the card's current rules text. */
@@ -41,6 +45,8 @@ export function CardMetaLabel({
   rarity,
   finish,
   finishTitle,
+  oversized,
+  sizeLabel,
   bans,
   hasRulesDeviation,
   printingComment,
@@ -80,6 +86,14 @@ export function CardMetaLabel({
             />
           )}
           {finish && <FinishIcon finish={finish} title={finishTitle} />}
+          {oversized && (
+            <span
+              title={sizeLabel}
+              className="bg-muted text-muted-foreground text-2xs rounded px-1 leading-tight font-semibold tracking-wide uppercase"
+            >
+              {sizeLabel}
+            </span>
+          )}
           {bans && bans.length > 0 && (
             <span
               title={bans

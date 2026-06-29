@@ -92,6 +92,7 @@ function buildFixture(): Printing[] {
       markers: [],
       distributionChannels: [],
       finish: pick(FINISHES, r),
+      size: "standard",
       images: [],
       artist: "Synthetic",
       publicCode: `synth-${i}`,

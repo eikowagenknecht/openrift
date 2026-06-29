@@ -1,4 +1,4 @@
-import type { ArtVariant, CardType, Domain, Finish, Rarity, SuperType } from "./enums.js";
+import type { ArtVariant, CardSize, CardType, Domain, Finish, Rarity, SuperType } from "./enums.js";
 
 export type SearchField =
   | "name"
@@ -77,6 +77,8 @@ export interface CardFilters {
   price: FilterRange;
   artVariants: ArtVariant[];
   finishes: Finish[];
+  /** Filter to printings of these physical sizes (e.g. `standard`, `oversized`). */
+  cardSizes: CardSize[];
   isSigned: boolean | null;
   /**
    * Replaces the old `isPromo` boolean. `true` = printing has at least one

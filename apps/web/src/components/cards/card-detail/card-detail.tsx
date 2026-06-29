@@ -220,6 +220,11 @@ export function CardDetail({
                 {labels.finishes[printing.finish] ?? printing.finish}
               </span>
             )}
+            {printing.size !== WellKnown.cardSize.STANDARD && (
+              <span className="bg-muted inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold">
+                {labels.cardSizes[printing.size] ?? printing.size}
+              </span>
+            )}
           </div>
           {(onPrevCard || onNextCard) && (
             <Button

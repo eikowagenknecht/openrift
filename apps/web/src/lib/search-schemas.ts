@@ -34,6 +34,7 @@ export const filterSearchSchema = z.object({
   domains: stringArray(),
   artVariants: stringArray(),
   finishes: stringArray(),
+  cardSizes: stringArray(),
   markers: stringArray(),
   channels: stringArray(),
   customTags: stringArray(),

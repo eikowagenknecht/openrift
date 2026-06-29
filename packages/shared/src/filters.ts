@@ -320,6 +320,7 @@ export function filterCards(
       includes(filters.rarities, printing.rarity) &&
       includes(filters.artVariants, printing.artVariant || "normal") &&
       includes(filters.finishes, printing.finish) &&
+      includes(filters.cardSizes, printing.size) &&
       matchesFlag(filters.isSigned, printing.isSigned) &&
       matchesMarkers(
         filters.hasAnyMarker,
@@ -363,6 +364,7 @@ export interface AvailableFilters {
   rarities: string[];
   artVariants: string[];
   finishes: string[];
+  cardSizes: string[];
   hasSigned: boolean;
   hasAnyMarker: boolean;
   hasBanned: boolean;
@@ -458,6 +460,9 @@ export function getAvailableFilters(
   const finishes = unique(printings.map((p) => p.finish)).sort(
     (a, b) => orderIndex(orders.finishes, a) - orderIndex(orders.finishes, b),
   );
+  const cardSizes = unique(printings.map((p) => p.size)).sort(
+    (a, b) => orderIndex(orders.cardSizes, a) - orderIndex(orders.cardSizes, b),
+  );
 
   const energies = printings.flatMap((p) => p.card.energy ?? []);
   const mights = printings.flatMap((p) => p.card.might ?? []);
@@ -477,6 +482,7 @@ export function getAvailableFilters(
     rarities,
     artVariants,
     finishes,
+    cardSizes,
     hasSigned: printings.some((p) => p.isSigned),
     hasAnyMarker: printings.some((p) => p.markers.length > 0),
     hasBanned: printings.some((p) => p.card.bans.length > 0),
@@ -512,6 +518,7 @@ export interface FilterCounts {
   rarities: Map<string, number>;
   artVariants: Map<string, number>;
   finishes: Map<string, number>;
+  cardSizes: Map<string, number>;
   markers: Map<string, number>;
   channels: Map<string, number>;
   /**
@@ -563,6 +570,7 @@ const COUNTABLE_DIMENSIONS: readonly CountableDimension[] = [
   { key: "rarities", filterField: "rarities", values: (p) => [p.rarity] },
   { key: "artVariants", filterField: "artVariants", values: (p) => [p.artVariant || "normal"] },
   { key: "finishes", filterField: "finishes", values: (p) => [p.finish] },
+  { key: "cardSizes", filterField: "cardSizes", values: (p) => [p.size] },
   { key: "markers", filterField: "markerSlugs", values: (p) => p.markers.map((m) => m.slug) },
   {
     key: "channels",

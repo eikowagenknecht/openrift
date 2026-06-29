@@ -1,6 +1,7 @@
 import type {
   ArtVariant,
   AvailableFilters,
+  CardSize,
   CardType,
   CatalogResponse,
   Domain,
@@ -66,6 +67,7 @@ function ordersFromInit(init: InitResponse): EnumOrders {
     cardTypes: slugs(init.enums.cardTypes),
     superTypes: slugs(init.enums.superTypes),
     artVariants: slugs(init.enums.artVariants),
+    cardSizes: slugs(init.enums.cardSizes),
   };
 }
 
@@ -130,6 +132,7 @@ export function searchToFilters(search: FilterSearch) {
     domains: (search.domains ?? []) as Domain[],
     artVariants: (search.artVariants ?? []) as ArtVariant[],
     finishes: (search.finishes ?? []) as Finish[],
+    cardSizes: (search.cardSizes ?? []) as CardSize[],
     isSigned: search.signed ?? null,
     hasAnyMarker: search.promo ?? null,
     markerSlugs: [] as string[],
@@ -211,6 +214,7 @@ export interface FilterCountsWire {
   rarities: CountMapWire;
   artVariants: CountMapWire;
   finishes: CountMapWire;
+  cardSizes: CountMapWire;
   markers: CountMapWire;
   channels: CountMapWire;
   flags: {
@@ -235,6 +239,7 @@ function toWireFilterCounts(counts: FilterCounts): FilterCountsWire {
     rarities: Object.fromEntries(counts.rarities),
     artVariants: Object.fromEntries(counts.artVariants),
     finishes: Object.fromEntries(counts.finishes),
+    cardSizes: Object.fromEntries(counts.cardSizes),
     markers: Object.fromEntries(counts.markers),
     channels: Object.fromEntries(counts.channels),
     flags: {
@@ -257,6 +262,7 @@ export function fromWireFilterCounts(wire: FilterCountsWire): FilterCounts {
     rarities: new Map(Object.entries(wire.rarities)),
     artVariants: new Map(Object.entries(wire.artVariants)),
     finishes: new Map(Object.entries(wire.finishes)),
+    cardSizes: new Map(Object.entries(wire.cardSizes)),
     markers: new Map(Object.entries(wire.markers)),
     channels: new Map(Object.entries(wire.channels)),
     flags: { ...wire.flags },

@@ -1,5 +1,5 @@
 import { appendSetTotal, fixTypography, WellKnown, ERROR_CODES } from "@openrift/shared";
-import type { ArtVariant, Finish, Rarity } from "@openrift/shared/types";
+import type { ArtVariant, CardSize, Finish, Rarity } from "@openrift/shared/types";
 
 import type { Transact } from "../deps.js";
 import { AppError } from "../errors.js";
@@ -151,6 +151,7 @@ interface AcceptPrintingFields {
   markerSlugs?: string[];
   distributionChannelSlugs?: string[];
   finish?: string;
+  size?: string;
   artist: string;
   publicCode: string;
   printedRulesText?: string | null;
@@ -216,6 +217,7 @@ export async function acceptPrinting(
   }
 
   const finish = (printingFields.finish ?? "normal") as Finish;
+  const size = (printingFields.size ?? WellKnown.cardSize.STANDARD) as CardSize;
   const language = printingFields.language ?? "EN";
   const existing = await mut.getPrintingCardIdByComposite(
     printingFields.shortCode,
@@ -275,6 +277,7 @@ export async function acceptPrinting(
       isSigned: printingFields.isSigned ?? false,
       markerSlugs,
       finish,
+      size,
       artist: printingFields.artist,
       publicCode: appendSetTotal(printingFields.publicCode, setPrintedTotal),
       printedRulesText: fixTypography(printingFields.printedRulesText ?? null),

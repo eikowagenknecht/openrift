@@ -15,6 +15,7 @@ const emptyEnums = {
   superTypes: [],
   finishes: [],
   artVariants: [],
+  cardSizes: [],
   deckFormats: [],
   deckZones: [],
   languages: [],

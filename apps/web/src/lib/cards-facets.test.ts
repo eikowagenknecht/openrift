@@ -55,6 +55,7 @@ function makePrinting(
     markers: [],
     distributionChannels: [],
     finish: "normal",
+    size: "standard",
     images: [{ face: "front", imageId: "019d6c25-b081-74b3-a901-64da4ae0aaaa" }],
     artist: "Test Artist",
     publicCode: "ogn-001",
@@ -85,6 +86,7 @@ const ORDERS: EnumOrders = {
   cardTypes: ["unit", "spell", "battlefield"],
   superTypes: [],
   artVariants: ["normal", "alternate"],
+  cardSizes: ["standard", "oversized"],
 };
 
 const NO_PRICES: PricesResponse = { prices: {}, currencies: MARKETPLACE_CURRENCY };

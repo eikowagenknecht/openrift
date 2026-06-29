@@ -17,6 +17,7 @@ const ORDERS: Omit<EnumOrders, "finishes"> = {
   cardTypes: ["unit", "spell"],
   superTypes: ["champion", "signature"],
   artVariants: ["normal"],
+  cardSizes: ["standard", "oversized"],
 };
 
 const LABELS: EnumLabels = {
@@ -26,6 +27,7 @@ const LABELS: EnumLabels = {
   cardTypes: { unit: "Unit", spell: "Spell" },
   superTypes: { champion: "Champion", signature: "Signature" },
   artVariants: { normal: "Normal" },
+  cardSizes: { standard: "Standard", oversized: "Oversized" },
 };
 
 function item(printing: ReturnType<typeof stubPrinting>): CardViewerItem {

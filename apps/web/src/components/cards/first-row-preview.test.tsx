@@ -77,6 +77,7 @@ const EMPTY_FACETS: AvailableFiltersWire = {
   rarities: [],
   artVariants: [],
   finishes: [],
+  cardSizes: [],
   hasSigned: false,
   hasAnyMarker: false,
   hasBanned: false,

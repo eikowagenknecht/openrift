@@ -47,6 +47,7 @@ export const initResponseSchema = z
       superTypes: z.array(enumRowSchema),
       finishes: z.array(enumRowSchema),
       artVariants: z.array(enumRowSchema),
+      cardSizes: z.array(enumRowSchema),
       deckFormats: z.array(enumRowSchema),
       deckZones: z.array(enumRowSchema),
       languages: z.array(enumRowSchema),

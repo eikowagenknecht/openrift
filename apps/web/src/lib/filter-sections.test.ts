@@ -19,6 +19,7 @@ function makeAvailable(overrides: Partial<AvailableFilters> = {}): AvailableFilt
     rarities: [],
     artVariants: [],
     finishes: [],
+    cardSizes: [],
     hasSigned: false,
     hasAnyMarker: false,
     hasBanned: false,

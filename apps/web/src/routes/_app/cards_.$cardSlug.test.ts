@@ -32,6 +32,7 @@ function makePrinting(id: string, language: string, frontImageId: string): Catal
     markers: [],
     distributionChannels: [],
     finish: "normal",
+    size: "standard",
     images: [{ face: "front", imageId: frontImageId }],
     artist: "",
     publicCode: "OGN-202/298",

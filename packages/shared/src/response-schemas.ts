@@ -49,6 +49,7 @@ export const domainSchema = z.string().openapi({ example: "Chaos" });
 export const superTypeSchema = z.string().openapi({ example: "Champion" });
 export const artVariantSchema = z.string().openapi({ example: "normal" });
 export const finishSchema = z.string().openapi({ example: "foil" });
+export const cardSizeSchema = z.string().openapi({ example: "standard" });
 
 export const deckFormatSchema = z.string().openapi({ example: "constructed" });
 export const deckZoneSchema = z.enum([
@@ -164,6 +165,7 @@ export const catalogPrintingResponseSchema = z.object({
   markers: z.array(markerSchema).openapi({ example: [] }),
   distributionChannels: z.array(printingDistributionChannelSchema).openapi({ example: [] }),
   finish: finishSchema,
+  size: cardSizeSchema,
   images: z.array(printingImageSchema),
   artist: z.string().openapi({ example: "Kudos Productions" }),
   publicCode: z.string().openapi({ example: "OGN-202/298" }),

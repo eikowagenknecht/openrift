@@ -607,6 +607,18 @@ CREATE TABLE public.card_name_aliases (
 
 
 --
+-- Name: card_sizes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.card_sizes (
+    slug text NOT NULL,
+    label text NOT NULL,
+    sort_order smallint NOT NULL,
+    is_well_known boolean DEFAULT false NOT NULL
+);
+
+
+--
 -- Name: card_super_types; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1714,6 +1726,7 @@ CREATE TABLE public.printings (
     printed_name text,
     marker_slugs text[] DEFAULT '{}'::text[] NOT NULL,
     printed_year smallint,
+    size text DEFAULT 'standard'::text NOT NULL,
     CONSTRAINT chk_printings_artist_not_empty CHECK ((artist <> ''::text)),
     CONSTRAINT chk_printings_no_empty_comment CHECK ((comment <> ''::text)),
     CONSTRAINT chk_printings_no_empty_flavor_text CHECK ((flavor_text <> ''::text)),
@@ -1771,12 +1784,14 @@ CREATE VIEW public.printings_ordered AS
     p.printed_name,
     p.marker_slugs,
     p.printed_year,
+    p.size,
     (row_number() OVER (ORDER BY l.sort_order, s.sort_order, p.short_code, (array_length(p.marker_slugs, 1) IS NOT NULL), COALESCE(( SELECT min(m.sort_order) AS min
            FROM public.markers m
-          WHERE (m.slug = ANY (p.marker_slugs))), 0), f.sort_order))::integer AS canonical_rank
-   FROM (((public.printings p
+          WHERE (m.slug = ANY (p.marker_slugs))), 0), f.sort_order, cs.sort_order))::integer AS canonical_rank
+   FROM ((((public.printings p
      JOIN public.sets s ON ((s.id = p.set_id)))
      JOIN public.finishes f ON ((f.slug = p.finish)))
+     JOIN public.card_sizes cs ON ((cs.slug = p.size)))
      JOIN public.languages l ON ((l.code = p.language)));
 
 
@@ -2136,6 +2151,14 @@ ALTER TABLE ONLY public.card_errata
 
 ALTER TABLE ONLY public.card_name_aliases
     ADD CONSTRAINT card_name_aliases_pkey PRIMARY KEY (norm_name);
+
+
+--
+-- Name: card_sizes card_sizes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_sizes
+    ADD CONSTRAINT card_sizes_pkey PRIMARY KEY (slug);
 
 
 --
@@ -2943,7 +2966,7 @@ ALTER TABLE ONLY public.pods
 --
 
 ALTER TABLE ONLY public.printings
-    ADD CONSTRAINT uq_printings_identity UNIQUE NULLS NOT DISTINCT (card_id, short_code, finish, marker_slugs, language) DEFERRABLE INITIALLY DEFERRED;
+    ADD CONSTRAINT uq_printings_identity UNIQUE NULLS NOT DISTINCT (card_id, short_code, finish, marker_slugs, language, size) DEFERRABLE INITIALLY DEFERRED;
 
 
 --
@@ -2951,7 +2974,7 @@ ALTER TABLE ONLY public.printings
 --
 
 ALTER TABLE ONLY public.printings
-    ADD CONSTRAINT uq_printings_variant UNIQUE (short_code, art_variant, is_signed, marker_slugs, rarity, finish, language) DEFERRABLE INITIALLY DEFERRED;
+    ADD CONSTRAINT uq_printings_variant UNIQUE (short_code, art_variant, is_signed, marker_slugs, rarity, finish, language, size) DEFERRABLE INITIALLY DEFERRED;
 
 
 --
@@ -3721,6 +3744,13 @@ CREATE TRIGGER trg_art_variants_protect_well_known BEFORE DELETE OR UPDATE ON pu
 --
 
 CREATE TRIGGER trg_candidate_cards_norm_name BEFORE INSERT OR UPDATE OF name ON public.candidate_cards FOR EACH ROW EXECUTE FUNCTION public.candidate_cards_set_norm_name();
+
+
+--
+-- Name: card_sizes trg_card_sizes_protect_well_known; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_card_sizes_protect_well_known BEFORE DELETE OR UPDATE ON public.card_sizes FOR EACH ROW EXECUTE FUNCTION public.protect_well_known();
 
 
 --
@@ -4660,6 +4690,14 @@ ALTER TABLE ONLY public.printings
 
 ALTER TABLE ONLY public.printings
     ADD CONSTRAINT fk_printings_rarity FOREIGN KEY (rarity) REFERENCES public.rarities(slug);
+
+
+--
+-- Name: printings fk_printings_size; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.printings
+    ADD CONSTRAINT fk_printings_size FOREIGN KEY (size) REFERENCES public.card_sizes(slug);
 
 
 --

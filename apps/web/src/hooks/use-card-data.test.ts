@@ -50,6 +50,7 @@ function emptyFilters(): CardFilters {
     rarities: [] as Rarity[],
     artVariants: [] as ArtVariant[],
     finishes: [] as Finish[],
+    cardSizes: [],
     isSigned: null,
     hasAnyMarker: null,
     markerSlugs: [] as string[],

@@ -22,7 +22,13 @@ export function enumsRepo(db: Kysely<Database>) {
   function list(
     table: keyof Pick<
       Database,
-      "cardTypes" | "superTypes" | "finishes" | "artVariants" | "deckFormats" | "deckZones"
+      | "cardTypes"
+      | "superTypes"
+      | "finishes"
+      | "artVariants"
+      | "cardSizes"
+      | "deckFormats"
+      | "deckZones"
     >,
   ): Promise<EnumRow[]> {
     return db.selectFrom(table).selectAll().orderBy("sortOrder").execute();
@@ -38,6 +44,7 @@ export function enumsRepo(db: Kysely<Database>) {
         superTypes,
         finishes,
         artVariants,
+        cardSizes,
         deckFormats,
         deckZones,
         languageRows,
@@ -49,6 +56,7 @@ export function enumsRepo(db: Kysely<Database>) {
         list("superTypes"),
         list("finishes"),
         list("artVariants"),
+        list("cardSizes"),
         list("deckFormats"),
         list("deckZones"),
         db.selectFrom("languages").selectAll().orderBy("sortOrder").orderBy("name").execute(),
@@ -70,6 +78,7 @@ export function enumsRepo(db: Kysely<Database>) {
         superTypes,
         finishes,
         artVariants,
+        cardSizes,
         deckFormats,
         deckZones,
         languages,

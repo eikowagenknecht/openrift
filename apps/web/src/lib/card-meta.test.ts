@@ -37,6 +37,7 @@ function makePrinting(rulesText: string | null): CatalogPrintingResponse {
     markers: [],
     distributionChannels: [],
     finish: "normal",
+    size: "standard",
     images: [],
     artist: "",
     publicCode: "OGN-202/298",

@@ -60,6 +60,12 @@ export const WellKnown = {
     /** Rarest tier, appears in <0.1% of packs. Only exists in sets that have one (e.g. UNL Baron Nashor). */
     ULTIMATE: "ultimate",
   },
+  cardSize: {
+    /** Default physical size. Every printing is standard unless flagged oversized. */
+    STANDARD: "standard",
+    /** Physically larger print of an otherwise identical card. */
+    OVERSIZED: "oversized",
+  },
   rarity: {
     COMMON: "common",
     UNCOMMON: "uncommon",

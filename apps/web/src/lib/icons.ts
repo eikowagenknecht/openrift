@@ -7,7 +7,8 @@ type FilterCategory =
   | "superTypes"
   | "domains"
   | "artVariants"
-  | "finishes";
+  | "finishes"
+  | "cardSizes";
 
 const SUPERTYPE_ICONS = new Set<string>([WellKnown.superType.CHAMPION]);
 

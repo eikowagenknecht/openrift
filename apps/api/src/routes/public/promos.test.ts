@@ -69,6 +69,7 @@ const dbPrinting = {
   isSigned: false,
   markerSlugs: [],
   finish: "foil",
+  size: "standard",
   artist: "Kudos Productions",
   publicCode: "OGN-202/298",
   printedRulesText: null,

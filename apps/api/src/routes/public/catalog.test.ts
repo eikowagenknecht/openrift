@@ -84,6 +84,7 @@ const dbPrintingRow = {
   isSigned: false,
   markerSlugs: [],
   finish: "normal",
+  size: "standard",
   artist: "Alice",
   publicCode: "ABCD",
   printedRulesText: "A fiery beast",

@@ -86,6 +86,7 @@ export function stubPrinting(
     markers: [],
     distributionChannels: [],
     finish: "normal",
+    size: "standard",
     images: [],
     artist: "Test Artist",
     publicCode: card.slug.toLowerCase(),
