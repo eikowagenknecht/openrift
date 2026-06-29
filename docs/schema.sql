@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict nhHU8aFaGoLYZAhdWl1PoPCK3FnyZpY9DVkd1hwbsCJm58tlMgriopMW8ITtB9p
+\restrict vbww33m0nNBGwKUd9mhxCkw25fQXlw4cpYVufy0CAkuYFo9ScMGrcrVgrziULnf
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -18,20 +18,6 @@ SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
-
---
--- Name: public; Type: SCHEMA; Schema: -; Owner: -
---
-
--- *not* creating schema, since initdb creates it
-
-
---
--- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON SCHEMA public IS '';
-
 
 --
 -- Name: pg_stat_statements; Type: EXTENSION; Schema: -; Owner: -
@@ -468,26 +454,26 @@ CREATE TABLE public.art_variants (
 --
 
 CREATE TABLE public.candidate_cards (
-    id uuid DEFAULT uuidv7() CONSTRAINT card_sources_id_not_null NOT NULL,
-    provider text CONSTRAINT card_sources_source_not_null NOT NULL,
+    id uuid DEFAULT uuidv7() NOT NULL,
+    provider text NOT NULL,
     short_code text,
-    external_id text CONSTRAINT card_sources_source_entity_id_not_null NOT NULL,
-    name text CONSTRAINT card_sources_name_not_null NOT NULL,
+    external_id text NOT NULL,
+    name text NOT NULL,
     type text,
-    super_types text[] DEFAULT '{}'::text[] CONSTRAINT card_sources_super_types_not_null NOT NULL,
-    domains text[] CONSTRAINT card_sources_domains_not_null NOT NULL,
+    super_types text[] DEFAULT '{}'::text[] NOT NULL,
+    domains text[] NOT NULL,
     might integer,
     energy integer,
     power integer,
     might_bonus integer,
     rules_text text,
     effect_text text,
-    tags text[] DEFAULT '{}'::text[] CONSTRAINT card_sources_tags_not_null NOT NULL,
+    tags text[] DEFAULT '{}'::text[] NOT NULL,
     extra_data jsonb,
     checked_at timestamp with time zone,
-    created_at timestamp with time zone DEFAULT now() CONSTRAINT card_sources_created_at_not_null NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() CONSTRAINT card_sources_updated_at_not_null NOT NULL,
-    norm_name text CONSTRAINT card_sources_norm_name_not_null NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    norm_name text NOT NULL,
     CONSTRAINT chk_candidate_cards_energy_non_negative CHECK ((energy >= 0)),
     CONSTRAINT chk_candidate_cards_might_bonus_non_negative CHECK ((might_bonus >= 0)),
     CONSTRAINT chk_candidate_cards_might_non_negative CHECK ((might >= 0)),
@@ -508,9 +494,9 @@ CREATE TABLE public.candidate_cards (
 --
 
 CREATE TABLE public.candidate_printings (
-    id uuid DEFAULT uuidv7() CONSTRAINT printing_sources_id_not_null NOT NULL,
-    candidate_card_id uuid CONSTRAINT printing_sources_card_source_id_not_null NOT NULL,
-    short_code text CONSTRAINT printing_sources_source_id_not_null NOT NULL,
+    id uuid DEFAULT uuidv7() NOT NULL,
+    candidate_card_id uuid NOT NULL,
+    short_code text NOT NULL,
     set_id text,
     set_name text,
     rarity text,
@@ -525,10 +511,10 @@ CREATE TABLE public.candidate_printings (
     image_url text,
     extra_data jsonb,
     checked_at timestamp with time zone,
-    created_at timestamp with time zone DEFAULT now() CONSTRAINT printing_sources_created_at_not_null NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() CONSTRAINT printing_sources_updated_at_not_null NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
     printing_id uuid,
-    external_id text CONSTRAINT printing_sources_source_entity_id_not_null NOT NULL,
+    external_id text NOT NULL,
     language text,
     printed_name text,
     marker_slugs text[] DEFAULT '{}'::text[] NOT NULL,
@@ -566,8 +552,6 @@ CREATE TABLE public.card_bans (
     CONSTRAINT chk_card_bans_reason_not_empty CHECK ((reason <> ''::text))
 );
 
-ALTER TABLE ONLY public.card_bans REPLICA IDENTITY FULL;
-
 
 --
 -- Name: card_custom_tags; Type: TABLE; Schema: public; Owner: -
@@ -577,8 +561,6 @@ CREATE TABLE public.card_custom_tags (
     card_id uuid NOT NULL,
     custom_tag_id uuid NOT NULL
 );
-
-ALTER TABLE ONLY public.card_custom_tags REPLICA IDENTITY FULL;
 
 
 --
@@ -591,8 +573,6 @@ CREATE TABLE public.card_domains (
     ordinal smallint NOT NULL,
     CONSTRAINT card_domains_ordinal_check CHECK ((ordinal >= 0))
 );
-
-ALTER TABLE ONLY public.card_domains REPLICA IDENTITY FULL;
 
 
 --
@@ -615,15 +595,13 @@ CREATE TABLE public.card_errata (
     CONSTRAINT chk_card_errata_no_empty_source_url CHECK ((source_url <> ''::text))
 );
 
-ALTER TABLE ONLY public.card_errata REPLICA IDENTITY FULL;
-
 
 --
 -- Name: card_name_aliases; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.card_name_aliases (
-    card_id uuid CONSTRAINT card_name_aliases_new_card_id_not_null NOT NULL,
+    card_id uuid NOT NULL,
     norm_name text NOT NULL
 );
 
@@ -636,8 +614,6 @@ CREATE TABLE public.card_super_types (
     card_id uuid NOT NULL,
     super_type_slug text NOT NULL
 );
-
-ALTER TABLE ONLY public.card_super_types REPLICA IDENTITY FULL;
 
 
 --
@@ -712,7 +688,7 @@ CREATE TABLE public.cards (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     slug text NOT NULL,
-    id uuid DEFAULT uuidv7() CONSTRAINT cards_new_id_not_null NOT NULL,
+    id uuid DEFAULT uuidv7() NOT NULL,
     norm_name text NOT NULL,
     comment text,
     CONSTRAINT chk_cards_energy_non_negative CHECK ((energy >= 0)),
@@ -723,8 +699,6 @@ CREATE TABLE public.cards (
     CONSTRAINT chk_cards_power_non_negative CHECK ((power >= 0)),
     CONSTRAINT chk_cards_slug_not_empty CHECK ((slug <> ''::text))
 );
-
-ALTER TABLE ONLY public.cards REPLICA IDENTITY FULL;
 
 
 --
@@ -779,8 +753,6 @@ CREATE TABLE public.collections (
     CONSTRAINT chk_collections_ownership CHECK (((((user_id IS NOT NULL))::integer + ((group_id IS NOT NULL))::integer) = 1))
 );
 
-ALTER TABLE ONLY public.collections REPLICA IDENTITY FULL;
-
 
 --
 -- Name: copies; Type: TABLE; Schema: public; Owner: -
@@ -791,10 +763,8 @@ CREATE TABLE public.copies (
     collection_id uuid NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    printing_id uuid CONSTRAINT copies_new_printing_id_not_null NOT NULL
+    printing_id uuid NOT NULL
 );
-
-ALTER TABLE ONLY public.copies REPLICA IDENTITY FULL;
 
 
 --
@@ -833,8 +803,6 @@ CREATE TABLE public.custom_tags (
     CONSTRAINT custom_tags_slug_check CHECK ((slug <> ''::text))
 );
 
-ALTER TABLE ONLY public.custom_tags REPLICA IDENTITY FULL;
-
 
 --
 -- Name: deck_cards; Type: TABLE; Schema: public; Owner: -
@@ -845,7 +813,7 @@ CREATE TABLE public.deck_cards (
     deck_id uuid NOT NULL,
     zone text NOT NULL,
     quantity integer DEFAULT 1 NOT NULL,
-    card_id uuid CONSTRAINT deck_cards_new_card_id_not_null NOT NULL,
+    card_id uuid NOT NULL,
     preferred_printing_id uuid,
     CONSTRAINT chk_deck_cards_quantity CHECK ((quantity > 0))
 );
@@ -868,6 +836,8 @@ CREATE TABLE public.deck_check_entries (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     player_message text,
+    allow_name_sharing boolean DEFAULT true NOT NULL,
+    allow_riot_id_sharing boolean DEFAULT true NOT NULL,
     state text DEFAULT 'submitted'::text NOT NULL,
     review_outcome text,
     approved_by text,
@@ -877,8 +847,6 @@ CREATE TABLE public.deck_check_entries (
     allow_deck_publishing boolean DEFAULT true NOT NULL,
     tournament_id uuid NOT NULL,
     participant_id uuid,
-    allow_name_sharing boolean DEFAULT true NOT NULL,
-    allow_riot_id_sharing boolean DEFAULT true NOT NULL,
     CONSTRAINT chk_deck_check_entries_notes CHECK (((notes IS NULL) OR (length(notes) <= 4000))),
     CONSTRAINT chk_deck_check_entries_player_message CHECK (((player_message IS NULL) OR (length(player_message) <= 2000))),
     CONSTRAINT chk_deck_check_entries_review_outcome CHECK (((review_outcome IS NULL) OR (review_outcome = ANY (ARRAY['ok'::text, 'issue'::text])))),
@@ -1059,8 +1027,6 @@ CREATE TABLE public.distribution_channels (
     CONSTRAINT distribution_channels_slug_check CHECK ((slug <> ''::text))
 );
 
-ALTER TABLE ONLY public.distribution_channels REPLICA IDENTITY FULL;
-
 
 --
 -- Name: domains; Type: TABLE; Schema: public; Owner: -
@@ -1112,8 +1078,6 @@ CREATE TABLE public.formats (
     CONSTRAINT chk_formats_id_not_empty CHECK ((id <> ''::text)),
     CONSTRAINT chk_formats_name_not_empty CHECK ((name <> ''::text))
 );
-
-ALTER TABLE ONLY public.formats REPLICA IDENTITY FULL;
 
 
 --
@@ -1177,8 +1141,6 @@ CREATE TABLE public.friend_group_members (
     CONSTRAINT chk_friend_group_members_role CHECK ((role = ANY (ARRAY['owner'::text, 'admin'::text, 'member'::text])))
 );
 
-ALTER TABLE ONLY public.friend_group_members REPLICA IDENTITY FULL;
-
 
 --
 -- Name: friend_groups; Type: TABLE; Schema: public; Owner: -
@@ -1204,10 +1166,10 @@ CREATE TABLE public.friend_groups (
 --
 
 CREATE TABLE public.ignored_candidate_cards (
-    id uuid DEFAULT uuidv7() CONSTRAINT ignored_card_sources_id_not_null NOT NULL,
-    provider text CONSTRAINT ignored_card_sources_source_not_null NOT NULL,
-    external_id text CONSTRAINT ignored_card_sources_source_entity_id_not_null NOT NULL,
-    created_at timestamp with time zone DEFAULT now() CONSTRAINT ignored_card_sources_created_at_not_null NOT NULL,
+    id uuid DEFAULT uuidv7() NOT NULL,
+    provider text NOT NULL,
+    external_id text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT chk_ignored_candidate_cards_external_id_not_empty CHECK ((external_id <> ''::text)),
     CONSTRAINT chk_ignored_candidate_cards_provider_not_empty CHECK ((provider <> ''::text))
 );
@@ -1218,10 +1180,10 @@ CREATE TABLE public.ignored_candidate_cards (
 --
 
 CREATE TABLE public.ignored_candidate_printings (
-    id uuid DEFAULT uuidv7() CONSTRAINT ignored_printing_sources_id_not_null NOT NULL,
-    provider text CONSTRAINT ignored_printing_sources_source_not_null NOT NULL,
-    external_id text CONSTRAINT ignored_printing_sources_source_entity_id_not_null NOT NULL,
-    created_at timestamp with time zone DEFAULT now() CONSTRAINT ignored_printing_sources_created_at_not_null NOT NULL,
+    id uuid DEFAULT uuidv7() NOT NULL,
+    provider text NOT NULL,
+    external_id text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
     finish text,
     CONSTRAINT chk_ignored_candidate_printings_external_id_not_empty CHECK ((external_id <> ''::text)),
     CONSTRAINT chk_ignored_candidate_printings_no_empty_finish CHECK ((finish <> ''::text)),
@@ -1246,8 +1208,6 @@ CREATE TABLE public.image_files (
     CONSTRAINT chk_image_files_rehosted_url CHECK ((rehosted_url <> ''::text)),
     CONSTRAINT chk_image_files_rotation CHECK ((rotation = ANY (ARRAY[0, 90, 180, 270])))
 );
-
-ALTER TABLE ONLY public.image_files REPLICA IDENTITY FULL;
 
 
 --
@@ -1412,8 +1372,6 @@ CREATE TABLE public.markers (
     CONSTRAINT markers_slug_check CHECK ((slug <> ''::text))
 );
 
-ALTER TABLE ONLY public.markers REPLICA IDENTITY FULL;
-
 
 --
 -- Name: marketplace_groups; Type: TABLE; Schema: public; Owner: -
@@ -1426,7 +1384,7 @@ CREATE TABLE public.marketplace_groups (
     abbreviation text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    id uuid DEFAULT uuidv7() CONSTRAINT marketplace_groups_new_id_not_null NOT NULL,
+    id uuid DEFAULT uuidv7() NOT NULL,
     group_kind public.marketplace_group_kind DEFAULT 'basic'::public.marketplace_group_kind NOT NULL,
     set_id uuid
 );
@@ -1463,7 +1421,7 @@ CREATE TABLE public.marketplace_ignored_variants (
 
 CREATE TABLE public.marketplace_product_card_overrides (
     created_at timestamp with time zone DEFAULT now() CONSTRAINT marketplace_staging_card_overrides_created_at_not_null NOT NULL,
-    card_id uuid CONSTRAINT marketplace_staging_card_overrides_new_card_id_not_null NOT NULL,
+    card_id uuid CONSTRAINT marketplace_staging_card_overrides_card_id_not_null NOT NULL,
     marketplace_product_id uuid CONSTRAINT marketplace_staging_card_overri_marketplace_product_id_not_null NOT NULL
 );
 
@@ -1515,12 +1473,12 @@ CREATE TABLE public.marketplace_product_variants (
 --
 
 CREATE TABLE public.marketplace_products (
-    marketplace text CONSTRAINT marketplace_sources_marketplace_not_null NOT NULL,
-    external_id integer CONSTRAINT marketplace_sources_external_id_not_null NOT NULL,
-    group_id integer CONSTRAINT marketplace_sources_group_id_not_null NOT NULL,
-    product_name text CONSTRAINT marketplace_sources_product_name_not_null NOT NULL,
-    created_at timestamp with time zone DEFAULT now() CONSTRAINT marketplace_sources_created_at_not_null NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() CONSTRAINT marketplace_sources_updated_at_not_null NOT NULL,
+    marketplace text NOT NULL,
+    external_id integer NOT NULL,
+    group_id integer NOT NULL,
+    product_name text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
     id uuid DEFAULT uuidv7() NOT NULL,
     finish text NOT NULL,
     language text,
@@ -1673,8 +1631,6 @@ CREATE TABLE public.printing_distribution_channels (
     CONSTRAINT printing_distribution_channels_note_check CHECK ((distribution_note <> ''::text))
 );
 
-ALTER TABLE ONLY public.printing_distribution_channels REPLICA IDENTITY FULL;
-
 
 --
 -- Name: printing_events; Type: TABLE; Schema: public; Owner: -
@@ -1704,12 +1660,10 @@ CREATE TABLE public.printing_images (
     is_active boolean DEFAULT false NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    printing_id uuid CONSTRAINT printing_images_new_printing_id_not_null NOT NULL,
+    printing_id uuid NOT NULL,
     image_file_id uuid CONSTRAINT printing_images_card_image_id_not_null NOT NULL,
     CONSTRAINT chk_printing_images_face CHECK ((face = ANY (ARRAY['front'::text, 'back'::text])))
 );
-
-ALTER TABLE ONLY public.printing_images REPLICA IDENTITY FULL;
 
 
 --
@@ -1717,7 +1671,7 @@ ALTER TABLE ONLY public.printing_images REPLICA IDENTITY FULL;
 --
 
 CREATE TABLE public.printing_link_overrides (
-    external_id text CONSTRAINT printing_link_overrides_source_entity_id_not_null NOT NULL,
+    external_id text NOT NULL,
     finish text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     printing_id uuid NOT NULL,
@@ -1740,7 +1694,7 @@ CREATE TABLE public.printing_markers (
 --
 
 CREATE TABLE public.printings (
-    short_code text CONSTRAINT printings_source_id_not_null NOT NULL,
+    short_code text NOT NULL,
     rarity text NOT NULL,
     art_variant text NOT NULL,
     is_signed boolean DEFAULT false NOT NULL,
@@ -1752,9 +1706,9 @@ CREATE TABLE public.printings (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     flavor_text text,
-    id uuid DEFAULT uuidv7() CONSTRAINT printings_new_id_not_null NOT NULL,
-    card_id uuid CONSTRAINT printings_new_card_id_not_null NOT NULL,
-    set_id uuid CONSTRAINT printings_new_set_id_not_null NOT NULL,
+    id uuid DEFAULT uuidv7() NOT NULL,
+    card_id uuid NOT NULL,
+    set_id uuid NOT NULL,
     comment text,
     language text DEFAULT 'EN'::text NOT NULL,
     printed_name text,
@@ -1770,8 +1724,6 @@ CREATE TABLE public.printings (
     CONSTRAINT chk_printings_short_code_not_empty CHECK ((short_code <> ''::text))
 );
 
-ALTER TABLE ONLY public.printings REPLICA IDENTITY FULL;
-
 
 --
 -- Name: sets; Type: TABLE; Schema: public; Owner: -
@@ -1785,15 +1737,13 @@ CREATE TABLE public.sets (
     sort_order integer DEFAULT 0 NOT NULL,
     released_at date,
     slug text NOT NULL,
-    id uuid DEFAULT uuidv7() CONSTRAINT sets_new_id_not_null NOT NULL,
+    id uuid DEFAULT uuidv7() NOT NULL,
     set_type public.set_type DEFAULT 'main'::public.set_type NOT NULL,
     released boolean DEFAULT true NOT NULL,
     CONSTRAINT chk_sets_name_not_empty CHECK ((name <> ''::text)),
     CONSTRAINT chk_sets_printed_total_non_negative CHECK ((printed_total >= 0)),
     CONSTRAINT chk_sets_slug_not_empty CHECK ((slug <> ''::text))
 );
-
-ALTER TABLE ONLY public.sets REPLICA IDENTITY FULL;
 
 
 --
@@ -1835,11 +1785,11 @@ CREATE VIEW public.printings_ordered AS
 --
 
 CREATE TABLE public.provider_settings (
-    provider text CONSTRAINT source_settings_source_not_null NOT NULL,
-    sort_order integer DEFAULT 0 CONSTRAINT source_settings_sort_order_not_null NOT NULL,
-    is_hidden boolean DEFAULT false CONSTRAINT source_settings_is_hidden_not_null NOT NULL,
-    created_at timestamp with time zone DEFAULT now() CONSTRAINT source_settings_created_at_not_null NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() CONSTRAINT source_settings_updated_at_not_null NOT NULL,
+    provider text NOT NULL,
+    sort_order integer DEFAULT 0 NOT NULL,
+    is_hidden boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
     is_favorite boolean DEFAULT false NOT NULL,
     CONSTRAINT provider_settings_provider_check CHECK ((provider <> ''::text))
 );
@@ -1973,7 +1923,7 @@ CREATE TABLE public.tournament_staff (
     user_id text NOT NULL,
     role text NOT NULL,
     added_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT chk_tournament_staff_role CHECK ((role = ANY (ARRAY['organizer'::text, 'judge'::text, 'scorekeeper'::text])))
+    CONSTRAINT chk_tournament_staff_role CHECK ((role = ANY (ARRAY['organizer'::text, 'judge'::text])))
 );
 
 
@@ -5129,134 +5079,8 @@ ALTER TABLE ONLY public.user_preferences
 
 
 --
--- Name: electric_publication_default; Type: PUBLICATION; Schema: -; Owner: -
---
-
-CREATE PUBLICATION electric_publication_default WITH (publish = 'insert, update, delete, truncate', publish_generated_columns = stored);
-
-
---
--- Name: electric_publication_default card_bans; Type: PUBLICATION TABLE; Schema: public; Owner: -
---
-
-ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.card_bans;
-
-
---
--- Name: electric_publication_default card_custom_tags; Type: PUBLICATION TABLE; Schema: public; Owner: -
---
-
-ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.card_custom_tags;
-
-
---
--- Name: electric_publication_default card_domains; Type: PUBLICATION TABLE; Schema: public; Owner: -
---
-
-ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.card_domains;
-
-
---
--- Name: electric_publication_default card_errata; Type: PUBLICATION TABLE; Schema: public; Owner: -
---
-
-ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.card_errata;
-
-
---
--- Name: electric_publication_default card_super_types; Type: PUBLICATION TABLE; Schema: public; Owner: -
---
-
-ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.card_super_types;
-
-
---
--- Name: electric_publication_default cards; Type: PUBLICATION TABLE; Schema: public; Owner: -
---
-
-ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.cards;
-
-
---
--- Name: electric_publication_default collections; Type: PUBLICATION TABLE; Schema: public; Owner: -
---
-
-ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.collections;
-
-
---
--- Name: electric_publication_default copies; Type: PUBLICATION TABLE; Schema: public; Owner: -
---
-
-ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.copies;
-
-
---
--- Name: electric_publication_default custom_tags; Type: PUBLICATION TABLE; Schema: public; Owner: -
---
-
-ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.custom_tags;
-
-
---
--- Name: electric_publication_default distribution_channels; Type: PUBLICATION TABLE; Schema: public; Owner: -
---
-
-ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.distribution_channels;
-
-
---
--- Name: electric_publication_default formats; Type: PUBLICATION TABLE; Schema: public; Owner: -
---
-
-ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.formats;
-
-
---
--- Name: electric_publication_default friend_group_members; Type: PUBLICATION TABLE; Schema: public; Owner: -
---
-
-ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.friend_group_members;
-
-
---
--- Name: electric_publication_default image_files; Type: PUBLICATION TABLE; Schema: public; Owner: -
---
-
-ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.image_files;
-
-
---
--- Name: electric_publication_default markers; Type: PUBLICATION TABLE; Schema: public; Owner: -
---
-
-ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.markers;
-
-
---
--- Name: electric_publication_default printing_distribution_channels; Type: PUBLICATION TABLE; Schema: public; Owner: -
---
-
-ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.printing_distribution_channels;
-
-
---
--- Name: electric_publication_default printing_images; Type: PUBLICATION TABLE; Schema: public; Owner: -
---
-
-ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.printing_images;
-
-
---
--- Name: electric_publication_default sets; Type: PUBLICATION TABLE; Schema: public; Owner: -
---
-
-ALTER PUBLICATION electric_publication_default ADD TABLE ONLY public.sets;
-
-
---
 -- PostgreSQL database dump complete
 --
 
-\unrestrict nhHU8aFaGoLYZAhdWl1PoPCK3FnyZpY9DVkd1hwbsCJm58tlMgriopMW8ITtB9p
+\unrestrict vbww33m0nNBGwKUd9mhxCkw25fQXlw4cpYVufy0CAkuYFo9ScMGrcrVgrziULnf
 

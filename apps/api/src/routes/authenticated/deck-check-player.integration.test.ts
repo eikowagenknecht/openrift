@@ -245,7 +245,6 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
         hostUserId: OWNER_ID,
         groupId: null,
         name: "Solo-Hosted Cup",
-        format: "none",
         pairingStyle: "none",
         deckSubmission: "optional",
       });
@@ -870,6 +869,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
   describe("claim tokens (amendment)", () => {
     interface ClaimResult {
       status: string;
+      tournamentId: string | null;
       entryId: string | null;
     }
     const fury = { name: CARD_FURY_UNIT.name, quantity: 1, section: "main" };
@@ -945,6 +945,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       expect(first.status).toBe(200);
       expect((await first.json()) as ClaimResult).toEqual({
         status: "claimed",
+        tournamentId: eventId,
         entryId: entry?.id,
       });
       const linked = await repos.deckCheck.getEntryByExternalId(eventId, "claim-unclaimed");
@@ -954,6 +955,7 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       const again = await memberApp.fetch(req("POST", `/deck-check/claim/${entry?.claimToken}`));
       expect((await again.json()) as ClaimResult).toEqual({
         status: "already",
+        tournamentId: eventId,
         entryId: entry?.id,
       });
     });
@@ -961,7 +963,11 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
     it("refuses a claim for an entry linked to a different account", async () => {
       const entry = await repos.deckCheck.getEntryByExternalId(eventId, "claim-unclaimed");
       const res = await playerApp.fetch(req("POST", `/deck-check/claim/${entry?.claimToken}`));
-      expect((await res.json()) as ClaimResult).toEqual({ status: "conflict", entryId: null });
+      expect((await res.json()) as ClaimResult).toEqual({
+        status: "conflict",
+        tournamentId: null,
+        entryId: null,
+      });
       const still = await repos.deckCheck.getEntryByExternalId(eventId, "claim-unclaimed");
       expect(still?.claimedUserId).toBe(MEMBER_ID);
     });
@@ -978,7 +984,11 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
         .execute();
 
       const res = await strangerApp.fetch(req("POST", `/deck-check/claim/${entry?.claimToken}`));
-      expect((await res.json()) as ClaimResult).toEqual({ status: "blocked", entryId: null });
+      expect((await res.json()) as ClaimResult).toEqual({
+        status: "blocked",
+        tournamentId: null,
+        entryId: null,
+      });
       const still = await repos.deckCheck.getEntryByExternalId(eventId, "claim-blocked");
       expect(still?.claimedUserId).toBeNull();
     });
@@ -988,7 +998,11 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       const entry = await repos.deckCheck.getEntryByExternalId(eventId, "claim-unverified");
       const res = await unverifiedApp.fetch(req("POST", `/deck-check/claim/${entry?.claimToken}`));
       expect(res.status).toBe(200);
-      expect((await res.json()) as ClaimResult).toEqual({ status: "claimed", entryId: entry?.id });
+      expect((await res.json()) as ClaimResult).toEqual({
+        status: "claimed",
+        tournamentId: eventId,
+        entryId: entry?.id,
+      });
       const linked = await repos.deckCheck.getEntryByExternalId(eventId, "claim-unverified");
       expect(linked?.claimedUserId).toBe(UNVERIFIED_ID);
       expect(linked?.claimSource).toBe("claim_link");

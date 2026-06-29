@@ -583,7 +583,11 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       await host.db
         .insertInto("tournamentParticipants")
         .values({ tournamentId: id, userId: OTHER_ID, displayName: "Other", status: "active" })
-        .onConflict((oc) => oc.columns(["tournamentId", "userId"]).doNothing())
+        // uq_tournament_participants_user is a partial index (WHERE user_id IS NOT
+        // NULL), so the conflict target must carry the same predicate to be inferred.
+        .onConflict((oc) =>
+          oc.columns(["tournamentId", "userId"]).where("userId", "is not", null).doNothing(),
+        )
         .execute();
 
       const res = await host.app.fetch(req("GET", `/tournaments/${id}/staff/candidates`));

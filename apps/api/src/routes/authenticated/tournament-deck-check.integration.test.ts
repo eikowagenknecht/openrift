@@ -422,57 +422,46 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
       rpId = ((await created.json()) as { id: string }).id;
     });
 
-    it("creates a participant when nothing matches", async () => {
+    it("creates a fresh walk-in when no account is given", async () => {
       const created = await repos.tournaments.resolveOrCreateParticipant({
         tournamentId: rpId,
-        email: "fresh-walkin@test.com",
         displayName: "Fresh Walkin",
       });
       expect(created.displayName).toBe("Fresh Walkin");
       expect(created.userId).toBeNull();
-      // A second call with the same email returns the same row, not a duplicate.
+      // Walk-ins are not de-duped (ADR-033 matches by linked account only, never
+      // by name or email): a second account-less call is a distinct person.
       const again = await repos.tournaments.resolveOrCreateParticipant({
         tournamentId: rpId,
-        email: "FRESH-WALKIN@test.com",
-        displayName: "Fresh Walkin (dupe attempt)",
+        displayName: "Another Walkin",
       });
-      expect(again.id).toBe(created.id);
+      expect(again.id).not.toBe(created.id);
     });
 
-    it("matches by account before email", async () => {
+    it("matches an existing participant by linked account", async () => {
       const seeded = await repos.tournaments.createParticipant({
         tournamentId: rpId,
         displayName: "Account Holder",
-        email: "acct-holder@test.com",
         userId: MEMBER_ID,
         status: "active",
       });
       const resolved = await repos.tournaments.resolveOrCreateParticipant({
         tournamentId: rpId,
         userId: MEMBER_ID,
-        email: "different@test.com",
         displayName: "ignored",
       });
       expect(resolved.id).toBe(seeded.id);
     });
 
-    it("links an unclaimed walk-in to the submitting account on an email match", async () => {
-      const walkin = await repos.tournaments.createParticipant({
-        tournamentId: rpId,
-        displayName: "Email Walkin",
-        email: "email-walkin@test.com",
-        status: "active",
-      });
-      expect(walkin.userId).toBeNull();
+    it("creates a new linked participant when the account has no existing spot", async () => {
       const resolved = await repos.tournaments.resolveOrCreateParticipant({
         tournamentId: rpId,
         userId: STRANGER_ID,
-        email: "email-walkin@test.com",
-        displayName: "Email Walkin",
+        displayName: "New Linked",
         claimSource: "self_submit",
       });
-      expect(resolved.id).toBe(walkin.id);
       expect(resolved.userId).toBe(STRANGER_ID);
+      expect(resolved.displayName).toBe("New Linked");
     });
   });
 
