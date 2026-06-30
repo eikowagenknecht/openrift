@@ -150,6 +150,8 @@ export interface PodReportResponse {
   byePoints: number;
   standings: PodStandingRow[];
   rounds: PodRoundResponse[];
+  /** Whether this link may submit results (report token) or is follow-only. */
+  canSubmit: boolean;
 }
 
 export interface PodReportTokenResponse {

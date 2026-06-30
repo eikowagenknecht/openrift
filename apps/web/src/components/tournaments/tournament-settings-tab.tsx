@@ -33,6 +33,7 @@ import { useMyOrganizations } from "@/hooks/use-organizations";
 import {
   useCancelTournament,
   useDeleteTournament,
+  useSetTournamentFollowToken,
   useSetTournamentReportToken,
   useSetTournamentSubmissionToken,
   useUpdateTournament,
@@ -81,6 +82,7 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
   const updateTournament = useUpdateTournament();
   const setSubmissionToken = useSetTournamentSubmissionToken();
   const setReportToken = useSetTournamentReportToken();
+  const setFollowToken = useSetTournamentFollowToken();
   const cancelTournament = useCancelTournament();
   const deleteTournament = useDeleteTournament();
 
@@ -100,6 +102,7 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [confirmRotate, setConfirmRotate] = useState(false);
   const [confirmDisableReport, setConfirmDisableReport] = useState(false);
+  const [confirmDisableFollow, setConfirmDisableFollow] = useState(false);
 
   const id = detail.id;
   const isPod = detail.pairingStyle === "pod";
@@ -153,6 +156,9 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
   const reportUrl = detail.reportToken
     ? `${getSiteUrl()}/tournaments/report/${detail.reportToken}`
     : null;
+  const followUrl = detail.followToken
+    ? `${getSiteUrl()}/tournaments/report/${detail.followToken}`
+    : null;
 
   async function run(action: () => Promise<unknown>) {
     try {
@@ -160,6 +166,11 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong");
     }
+  }
+
+  async function copyLink(url: string) {
+    await navigator.clipboard.writeText(url);
+    toast.success("Link copied");
   }
 
   return (
@@ -524,43 +535,91 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
         {isPod ? (
           <Card id="follow-along" className="scroll-mt-16">
             <CardHeader>
-              <CardTitle>Participant follow-along link</CardTitle>
+              <CardTitle>Participant follow-along</CardTitle>
               <CardDescription>
-                Players can follow rounds and report their own pod result. Nothing counts until you
-                finalize the round.
+                Share a link so players can follow rounds and standings on their own device. The
+                reporting link also lets anyone holding it enter their pod result; nothing counts
+                until you finalize the round.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              {reportUrl ? (
-                <div className="flex gap-2">
-                  <Input readOnly value={reportUrl} aria-label="Follow-along link" />
+            <CardContent className="flex flex-col gap-6">
+              <div className="flex flex-col gap-2">
+                <Label>Result reporting link</Label>
+                <p className="text-muted-foreground text-sm">
+                  Anyone with this link can follow along and enter pod results.
+                </p>
+                {reportUrl ? (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-2">
+                      <Input readOnly value={reportUrl} aria-label="Result reporting link" />
+                      <Button variant="secondary" onClick={() => void copyLink(reportUrl)}>
+                        Copy
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="text-destructive"
+                        disabled={setReportToken.isPending}
+                        onClick={() => setConfirmDisableReport(true)}
+                      >
+                        Disable
+                      </Button>
+                    </div>
+                    {/* QR modules need a light background to scan in either theme. */}
+                    <div className="w-fit rounded-md bg-white p-3">
+                      <QRCodeSVG value={reportUrl} size={160} />
+                    </div>
+                  </div>
+                ) : (
                   <Button
-                    variant="secondary"
-                    onClick={async () => {
-                      await navigator.clipboard.writeText(reportUrl);
-                      toast.success("Link copied");
-                    }}
+                    className="w-fit"
+                    disabled={locked || setReportToken.isPending}
+                    onClick={() =>
+                      void run(() => setReportToken.mutateAsync({ id, enabled: true }))
+                    }
                   >
-                    Copy
+                    Enable reporting link
                   </Button>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label>Follow-only link</Label>
+                <p className="text-muted-foreground text-sm">
+                  Anyone with this link can follow along but cannot enter results.
+                </p>
+                {followUrl ? (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-2">
+                      <Input readOnly value={followUrl} aria-label="Follow-only link" />
+                      <Button variant="secondary" onClick={() => void copyLink(followUrl)}>
+                        Copy
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="text-destructive"
+                        disabled={setFollowToken.isPending}
+                        onClick={() => setConfirmDisableFollow(true)}
+                      >
+                        Disable
+                      </Button>
+                    </div>
+                    {/* QR modules need a light background to scan in either theme. */}
+                    <div className="w-fit rounded-md bg-white p-3">
+                      <QRCodeSVG value={followUrl} size={160} />
+                    </div>
+                  </div>
+                ) : (
                   <Button
-                    variant="ghost"
-                    className="text-destructive"
-                    disabled={setReportToken.isPending}
-                    onClick={() => setConfirmDisableReport(true)}
+                    className="w-fit"
+                    disabled={locked || setFollowToken.isPending}
+                    onClick={() =>
+                      void run(() => setFollowToken.mutateAsync({ id, enabled: true }))
+                    }
                   >
-                    Disable link
+                    Enable follow-only link
                   </Button>
-                </div>
-              ) : (
-                <Button
-                  className="w-fit"
-                  disabled={locked || setReportToken.isPending}
-                  onClick={() => void run(() => setReportToken.mutateAsync({ id, enabled: true }))}
-                >
-                  Enable follow-along link
-                </Button>
-              )}
+                )}
+              </div>
             </CardContent>
           </Card>
         ) : null}
@@ -619,7 +678,7 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
       <Dialog open={confirmDisableReport} onOpenChange={setConfirmDisableReport}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Disable the follow-along link?</DialogTitle>
+            <DialogTitle>Disable the result reporting link?</DialogTitle>
             <DialogDescription>
               The link stops working for everyone. You can enable a new one later, but it will be a
               different link.
@@ -635,6 +694,33 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
               onClick={async () => {
                 await run(() => setReportToken.mutateAsync({ id, enabled: false }));
                 setConfirmDisableReport(false);
+              }}
+            >
+              Disable link
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={confirmDisableFollow} onOpenChange={setConfirmDisableFollow}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Disable the follow-only link?</DialogTitle>
+            <DialogDescription>
+              The link stops working for everyone. You can enable a new one later, but it will be a
+              different link.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirmDisableFollow(false)}>
+              Keep it
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={setFollowToken.isPending}
+              onClick={async () => {
+                await run(() => setFollowToken.mutateAsync({ id, enabled: false }));
+                setConfirmDisableFollow(false);
               }}
             >
               Disable link

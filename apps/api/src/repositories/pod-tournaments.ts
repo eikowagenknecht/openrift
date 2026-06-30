@@ -361,12 +361,17 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       return db.selectFrom("tournaments").selectAll().where("id", "=", id).executeTakeFirst();
     },
 
-    /** @returns The tournament whose report token matches, or `undefined`. */
-    findByReportToken(token: string): Promise<PodTournament | undefined> {
+    /**
+     * Resolves a follow-along link by either the report (read+write) or the
+     * follow (read-only) token. The caller decides write permission by comparing
+     * the matched token against `reportToken`.
+     * @returns The tournament whose report or follow token matches, or `undefined`.
+     */
+    findByShareToken(token: string): Promise<PodTournament | undefined> {
       return db
         .selectFrom("tournaments")
         .selectAll()
-        .where("reportToken", "=", token)
+        .where((eb) => eb.or([eb("reportToken", "=", token), eb("followToken", "=", token)]))
         .executeTakeFirst();
     },
 
@@ -410,6 +415,19 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       return db
         .updateTable("tournaments")
         .set({ reportToken: token })
+        .where("id", "=", id)
+        .returningAll()
+        .executeTakeFirst();
+    },
+
+    /**
+     * Sets (enable) or clears (`null` disables) the read-only follow-along token.
+     * @returns The updated tournament, or `undefined` if it was not found.
+     */
+    setFollowToken(id: string, token: string | null): Promise<PodTournament | undefined> {
+      return db
+        .updateTable("tournaments")
+        .set({ followToken: token })
         .where("id", "=", id)
         .returningAll()
         .executeTakeFirst();

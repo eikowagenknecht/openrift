@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict vbww33m0nNBGwKUd9mhxCkw25fQXlw4cpYVufy0CAkuYFo9ScMGrcrVgrziULnf
+\restrict mu15TfgKOc5vyW6U9Xv9mocVTq8MNHygbOJXFSbtAtieElFcry2BTLhh2QmLtPZ
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1973,6 +1973,7 @@ CREATE TABLE public.tournaments (
     ends_at timestamp with time zone,
     organizer_invite_token text,
     judge_invite_token text,
+    follow_token text,
     CONSTRAINT chk_tournaments_bye_points CHECK ((bye_points >= 0)),
     CONSTRAINT chk_tournaments_deck_phase CHECK ((deck_phase = ANY (ARRAY['open'::text, 'closed'::text, 'locked'::text]))),
     CONSTRAINT chk_tournaments_deck_submission CHECK ((deck_submission = ANY (ARRAY['none'::text, 'optional'::text, 'required'::text]))),
@@ -3649,6 +3650,13 @@ CREATE UNIQUE INDEX uq_tournament_participants_user ON public.tournament_partici
 
 
 --
+-- Name: uq_tournaments_follow_token; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_tournaments_follow_token ON public.tournaments USING btree (follow_token) WHERE (follow_token IS NOT NULL);
+
+
+--
 -- Name: uq_tournaments_judge_invite_token; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5120,5 +5128,5 @@ ALTER TABLE ONLY public.user_preferences
 -- PostgreSQL database dump complete
 --
 
-\unrestrict vbww33m0nNBGwKUd9mhxCkw25fQXlw4cpYVufy0CAkuYFo9ScMGrcrVgrziULnf
+\unrestrict mu15TfgKOc5vyW6U9Xv9mocVTq8MNHygbOJXFSbtAtieElFcry2BTLhh2QmLtPZ
 

@@ -150,6 +150,7 @@ export interface TournamentDetailResponse extends TournamentSummaryResponse {
   allowedSets: string[] | null;
   selfRegistration: boolean;
   reportToken: string | null;
+  followToken: string | null;
   submissionToken: string | null;
   /** Reusable staff-invite link granting `organizer`, or null when not enabled. */
   organizerInviteToken: string | null;

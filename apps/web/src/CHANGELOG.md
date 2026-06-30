@@ -8,6 +8,7 @@
 
 ### Other
 
+- feat(Tournaments): **Follow-only tournament link** — share a view-only follow-along link that shows rounds and standings but cannot enter results, alongside the reporting link, and both now have a scannable QR code.
 - feat(Tournaments): **Change a tournament's group** — link, switch, or unlink an event's group right in settings, instead of being locked to the choice made at creation.
 - feat(App): **Link previews on WordPress** — deck, collection, list, and profile share links now unfurl to their preview image when posted on a WordPress site (via oEmbed).
 - fix(Tournaments): **Group open-tournaments count** — the group page counted a finished tournament left unmarked as still open, and now matches the events list by counting only upcoming and in-progress ones.

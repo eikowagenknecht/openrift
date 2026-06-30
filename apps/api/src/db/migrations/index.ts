@@ -126,6 +126,7 @@ import * as m177 from "./177-tournament-staff-invite-tokens.js";
 import * as m178 from "./178-tournament-collapse-format.js";
 import * as m179 from "./179-tournament-drop-deck-check-toggle.js";
 import * as m180 from "./180-card-size.js";
+import * as m181 from "./181-tournament-follow-token.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -311,4 +312,5 @@ export const migrations: Record<string, Migration> = {
   "178-tournament-collapse-format": m178,
   "179-tournament-drop-deck-check-toggle": m179,
   "180-card-size": m180,
+  "181-tournament-follow-token": m181,
 };

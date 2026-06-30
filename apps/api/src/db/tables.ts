@@ -694,6 +694,8 @@ export interface TournamentsTable {
   // Tokens (distinct capabilities).
   /** Pod follow-along + result entry (ADR-022). Unique where not null. */
   reportToken: string | null;
+  /** Read-only pod follow-along (no result entry). Unique where not null. */
+  followToken: string | null;
   /** Open self-submission / registration link. Unique where not null. */
   submissionToken: string | null;
   /** Reusable staff-invite link that grants `organizer`. Unique where not null. */

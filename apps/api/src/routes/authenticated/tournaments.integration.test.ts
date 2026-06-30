@@ -341,10 +341,10 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       expect(body.byePoints).toBe(2);
     });
 
-    // Regression: leaving the pod engine must revoke the follow-along report token.
-    // Otherwise the now-meaningless report link keeps resolving and renders a pod
-    // shell for a tournament that no longer has pairings or standings.
-    it("revokes the report token when the pairing engine leaves pod", async () => {
+    // Regression: leaving the pod engine must revoke both follow-along tokens.
+    // Otherwise a now-meaningless link keeps resolving and renders a pod shell for
+    // a tournament that no longer has pairings or standings.
+    it("revokes the report and follow tokens when the pairing engine leaves pod", async () => {
       const created = await host.app.fetch(
         req("POST", "/tournaments", {
           name: "Engine Switch Event",
@@ -360,13 +360,47 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       const enabledBody = (await enabled.json()) as { reportToken: string | null };
       expect(enabledBody.reportToken).not.toBeNull();
 
-      // Switching to no-pairings (allowed because no round exists yet) clears it.
+      const followEnabled = await host.app.fetch(
+        req("POST", `/tournaments/${switchId}/follow-token`),
+      );
+      const followEnabledBody = (await followEnabled.json()) as { followToken: string | null };
+      expect(followEnabledBody.followToken).not.toBeNull();
+
+      // Switching to no-pairings (allowed because no round exists yet) clears both.
       const switched = await host.app.fetch(
         req("PATCH", `/tournaments/${switchId}`, { pairingStyle: "none" }),
       );
       expect(switched.status).toBe(200);
-      const switchedBody = (await switched.json()) as { reportToken: string | null };
+      const switchedBody = (await switched.json()) as {
+        reportToken: string | null;
+        followToken: string | null;
+      };
       expect(switchedBody.reportToken).toBeNull();
+      expect(switchedBody.followToken).toBeNull();
+    });
+
+    // The read-only follow token is independently enable/disable-able and is
+    // gated to staff in the detail payload (mirrors the report token's gating).
+    it("enables and disables the read-only follow token", async () => {
+      const created = await host.app.fetch(
+        req("POST", "/tournaments", {
+          name: "Follow Link Event",
+          host: { type: "user" },
+          pairingStyle: "pod",
+          deckSubmission: "none",
+          startsAt: "2026-06-01T12:00:00Z",
+        }),
+      );
+      const followId = ((await created.json()) as { id: string }).id;
+
+      const enabled = await host.app.fetch(req("POST", `/tournaments/${followId}/follow-token`));
+      const enabledBody = (await enabled.json()) as { followToken: string | null };
+      expect(enabledBody.followToken).not.toBeNull();
+
+      const disabled = await host.app.fetch(req("DELETE", `/tournaments/${followId}/follow-token`));
+      expect(disabled.status).toBe(200);
+      const disabledBody = (await disabled.json()) as { followToken: string | null };
+      expect(disabledBody.followToken).toBeNull();
     });
 
     it("reassigns the host in any direction, host-only and gated on target membership", async () => {

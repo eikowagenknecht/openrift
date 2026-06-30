@@ -13,7 +13,11 @@ import { submitPodResult } from "../../services/pod-pairing.js";
  * pairings with the penalty / fairness internals stripped (organizer-only).
  * @returns The participant-facing report payload.
  */
-async function buildReport(repos: Repos, tournament: PodTournament): Promise<PodReportResponse> {
+async function buildReport(
+  repos: Repos,
+  tournament: PodTournament,
+  canSubmit: boolean,
+): Promise<PodReportResponse> {
   const [standings, rounds] = await Promise.all([
     repos.podTournaments.computeStandings(
       tournament.id,
@@ -34,6 +38,7 @@ async function buildReport(repos: Repos, tournament: PodTournament): Promise<Pod
       penaltyTotal: null,
       pods: round.pods.map((pod) => ({ ...pod, penalty: null })),
     })),
+    canSubmit,
   };
 }
 
@@ -48,29 +53,35 @@ const os = implement(publicPodTournamentsContract).$context<ApiContext>().use(re
 export const publicPodTournamentsRouter = {
   report: os.report.handler(async ({ input, context, errors }): Promise<PodReportResponse> => {
     const repos = context.repos;
-    const tournament = await repos.podTournaments.findByReportToken(input.token);
+    const tournament = await repos.podTournaments.findByShareToken(input.token);
     // The follow-along report is a pod-engine surface. A non-pod tournament has no
-    // pairings or standings to show, so even with a live report token it is treated
-    // as not found rather than rendering an empty pod shell.
+    // pairings or standings to show, so even with a live token it is treated as
+    // not found rather than rendering an empty pod shell.
     if (!tournament || tournament.pairingStyle !== "pod") {
       throw errors.NOT_FOUND({ message: "Not found" });
     }
-    return buildReport(repos, tournament);
+    // Only the report token grants result entry; the follow token is read-only.
+    const canSubmit = tournament.reportToken === input.token;
+    return buildReport(repos, tournament, canSubmit);
   }),
 
   submitResult: os.submitResult.handler(
     async ({ input, context, errors }): Promise<PodReportResponse> => {
       const repos = context.repos;
-      const tournament = await repos.podTournaments.findByReportToken(input.token);
+      const tournament = await repos.podTournaments.findByShareToken(input.token);
       if (!tournament || tournament.pairingStyle !== "pod") {
         throw errors.NOT_FOUND({ message: "Not found" });
+      }
+      // The read-only follow token resolves the report but cannot enter results.
+      if (tournament.reportToken !== input.token) {
+        throw errors.FORBIDDEN({ message: "This link is follow-only" });
       }
       // submitPodResult throws AppError on bad state (round not reporting,
       // conflict); the global error interceptor maps it to the typed response.
       await submitPodResult(repos, tournament.id, input.podId, input.results, {
         allowFinalized: false,
       });
-      return buildReport(repos, tournament);
+      return buildReport(repos, tournament, true);
     },
   ),
 };

@@ -266,6 +266,7 @@ async function buildDetail(
   // Operational share links (result reporting, deck submission) are usable by
   // any staff member but must not leak to plain participants or group members.
   const reportToken = isStaff ? tournament.reportToken : null;
+  const followToken = isStaff ? tournament.followToken : null;
   const submissionToken = isStaff ? tournament.submissionToken : null;
   // The staff roster (identities, names, org roles) is manage-gated on its own
   // `listStaff` route, so mirror that here: a plain participant or group member
@@ -302,6 +303,7 @@ async function buildDetail(
     allowedSets: parseAllowedSets(tournament.allowedSets),
     selfRegistration: tournament.selfRegistration,
     reportToken,
+    followToken,
     submissionToken,
     organizerInviteToken,
     judgeInviteToken,
@@ -794,8 +796,13 @@ export const tournamentsRouter = {
       // revokes its share token so the now-meaningless report link stops resolving
       // (the public report also gates on pairingStyle, but clearing the token keeps
       // the manage UI and any cached link honest).
-      if (pairingChanging && patch.pairingStyle !== "pod" && tournament.reportToken) {
-        await repos.podTournaments.setReportToken(id, null);
+      if (pairingChanging && patch.pairingStyle !== "pod") {
+        if (tournament.reportToken) {
+          await repos.podTournaments.setReportToken(id, null);
+        }
+        if (tournament.followToken) {
+          await repos.podTournaments.setFollowToken(id, null);
+        }
       }
       // Mint the share link the first time it's needed (self-registration opened
       // or decks now expected); turning self-registration off keeps the link.
@@ -1168,6 +1175,28 @@ export const tournamentsRouter = {
       const tournament = await loadTournament(repos, input.id);
       await requireManage(repos, tournament, userId);
       await repos.podTournaments.setReportToken(tournament.id, null);
+      return detailById(repos, input.id, userId);
+    },
+  ),
+
+  enableFollowToken: os.enableFollowToken.handler(
+    async ({ input, context }): Promise<TournamentDetailResponse> => {
+      const repos = context.repos;
+      const userId = context.userId;
+      const tournament = await loadTournament(repos, input.id);
+      await requireManage(repos, tournament, userId);
+      await repos.podTournaments.setFollowToken(tournament.id, generateShareToken());
+      return detailById(repos, input.id, userId);
+    },
+  ),
+
+  disableFollowToken: os.disableFollowToken.handler(
+    async ({ input, context }): Promise<TournamentDetailResponse> => {
+      const repos = context.repos;
+      const userId = context.userId;
+      const tournament = await loadTournament(repos, input.id);
+      await requireManage(repos, tournament, userId);
+      await repos.podTournaments.setFollowToken(tournament.id, null);
       return detailById(repos, input.id, userId);
     },
   ),

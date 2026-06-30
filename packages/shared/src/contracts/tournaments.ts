@@ -97,6 +97,7 @@ export const tournamentDetailResponseSchema = tournamentSummaryResponseSchema
     allowedSets: z.array(z.string()).nullable(),
     selfRegistration: z.boolean(),
     reportToken: z.string().nullable(),
+    followToken: z.string().nullable(),
     submissionToken: z.string().nullable(),
     organizerInviteToken: z.string().nullable(),
     judgeInviteToken: z.string().nullable(),
@@ -479,6 +480,16 @@ export const tournamentsContract = {
     .output(tournamentDetailResponseSchema),
   disableReportToken: authedRoute
     .route({ method: "DELETE", path: `${BASE}/{id}/report-token`, tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Tournament not found" } })
+    .input(idParamSchema)
+    .output(tournamentDetailResponseSchema),
+  enableFollowToken: authedRoute
+    .route({ method: "POST", path: `${BASE}/{id}/follow-token`, tags: [TAG] })
+    .errors({ NOT_FOUND: { message: "Tournament not found" } })
+    .input(idParamSchema)
+    .output(tournamentDetailResponseSchema),
+  disableFollowToken: authedRoute
+    .route({ method: "DELETE", path: `${BASE}/{id}/follow-token`, tags: [TAG] })
     .errors({ NOT_FOUND: { message: "Tournament not found" } })
     .input(idParamSchema)
     .output(tournamentDetailResponseSchema),

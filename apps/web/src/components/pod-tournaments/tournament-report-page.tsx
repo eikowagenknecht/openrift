@@ -11,6 +11,8 @@ export function ReportRoundsContent({ token, data }: { token: string; data: PodR
   const submitResult = useSubmitTournamentReportResult(token);
   const scoresByPlayer = new Map(data.standings.map((row) => [row.playerId, row.score]));
   const hasOpenRound = data.rounds.some((round) => round.status === "reporting");
+  // The follow-only link resolves the report but can't enter results.
+  const canSubmit = data.canSubmit;
 
   async function submit(podId: string, results: { playerId: string; gamePoints: number }[]) {
     try {
@@ -23,7 +25,7 @@ export function ReportRoundsContent({ token, data }: { token: string; data: PodR
 
   return (
     <div className="flex flex-col gap-4">
-      {hasOpenRound ? (
+      {hasOpenRound && canSubmit ? (
         <p className="text-muted-foreground text-sm">
           Find your pod in the current round and enter the game points for each player. Places and
           points are worked out automatically.
@@ -35,7 +37,7 @@ export function ReportRoundsContent({ token, data }: { token: string; data: PodR
         scheme={data.scoringScheme}
         byePoints={data.byePoints}
         showPenalty={false}
-        canEnterResult={(round) => round.status === "reporting"}
+        canEnterResult={(round) => canSubmit && round.status === "reporting"}
         onSubmitResult={submit}
         emptyMessage="No rounds yet."
       />

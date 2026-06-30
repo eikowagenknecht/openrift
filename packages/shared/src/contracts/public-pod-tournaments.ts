@@ -20,6 +20,8 @@ export const podReportResponseSchema = z
     byePoints: z.number().int().nonnegative(),
     standings: z.array(podStandingRowSchema),
     rounds: z.array(podRoundResponseSchema),
+    /** Whether this link may submit results (report token) or is follow-only. */
+    canSubmit: z.boolean(),
   })
   .openapi("PodReportResponse");
 
@@ -51,6 +53,7 @@ export const publicPodTournamentsContract = {
     .input(z.object({ token: z.string().min(1), podId: z.uuid() }).extend(podResultSchema.shape))
     .errors({
       NOT_FOUND: { message: "Not found" },
+      FORBIDDEN: { message: "This link is follow-only" },
       CONFLICT: { message: "Round already finalized" },
       BAD_REQUEST: { message: "Invalid result data" },
     })

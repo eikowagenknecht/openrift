@@ -634,6 +634,16 @@ const setReportTokenFn = createServerFn({ method: "POST" })
       : client.disableReportToken({ id: data.id });
   });
 
+const setFollowTokenFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string; enabled: boolean }) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }): Promise<TournamentDetailResponse> => {
+    const client = apiOrpcClient(tournamentsContract, context.cookie);
+    return data.enabled
+      ? client.enableFollowToken({ id: data.id })
+      : client.disableFollowToken({ id: data.id });
+  });
+
 const submitReportResultFn = createServerFn({ method: "POST" })
   .validator((input: { token: string; podId: string; results: PodResultEntry[] }) => input)
   .handler(
@@ -693,6 +703,13 @@ export function useSetTournamentReportToken() {
   // Returns the unified detail (reportToken lives there); invalidate list + detail.
   return useTournamentDetailMutation<{ id: string; enabled: boolean }, TournamentDetailResponse>(
     (data) => setReportTokenFn({ data }),
+  );
+}
+
+export function useSetTournamentFollowToken() {
+  // Returns the unified detail (followToken lives there); invalidate list + detail.
+  return useTournamentDetailMutation<{ id: string; enabled: boolean }, TournamentDetailResponse>(
+    (data) => setFollowTokenFn({ data }),
   );
 }
 
