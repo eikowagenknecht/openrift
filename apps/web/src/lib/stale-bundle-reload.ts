@@ -135,6 +135,54 @@ export function initVersionStaleNavigationReload(router: RouterSubscribe): void 
 export const CHUNK_LOAD_ERROR_PATTERN =
   /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|ChunkLoadError|Loading chunk \d+ failed/u;
 
+// A server function whose hashed ID isn't in the deployed server's manifest is
+// an unambiguous bundle mismatch: the running client was built against a
+// different deploy than the server now serving requests. TanStack Start throws
+// this in getServerFnById (server-side) and the message survives the seroval
+// server-function boundary, so it reaches the client as the rejected call's
+// `error.message` — the same way ApiError messages reach the mutation toast.
+// Both phrasings come from getServerFnById: the missing-manifest-entry throw
+// and the module-not-resolved throw right after it.
+export const STALE_SERVER_FN_ERROR_PATTERN =
+  /Server function (?:info not found|module not resolved)/u;
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  // A server-fn error loses its prototype crossing the boundary (see ApiError),
+  // arriving as a plain object that still carries `message`; also tolerate a
+  // bare string.
+  if (typeof error === "object" && error !== null) {
+    const { message } = error as { message?: unknown };
+    return typeof message === "string" ? message : "";
+  }
+  return typeof error === "string" ? error : "";
+}
+
+// Whether the error is the stale-bundle server-function signal. Exported so the
+// query layer can also skip retrying it — re-hammering a missing manifest entry
+// can't succeed and only multiplies the SSR error before the reload lands.
+// @returns Whether `error`'s message matches STALE_SERVER_FN_ERROR_PATTERN.
+export function isStaleServerFnError(error: unknown): boolean {
+  return STALE_SERVER_FN_ERROR_PATTERN.test(errorMessage(error));
+}
+
+// Treat a stale-server-function error like hard staleness: reload once to pick
+// up the matching bundle. A polling query (e.g. the 5s tournament deck-check
+// reconcile) never navigates, so the soft toast + reload-on-navigation path
+// can't recover it — without this the tab keeps firing the failing call every
+// interval, flooding SSR Sentry, until it's closed by hand. The loop guard in
+// reloadOnce keeps a still-stale edge cache from reloading forever.
+// @returns Whether the error was the stale-server-fn signal (and a reload fired).
+export function reloadIfStaleServerFnError(error: unknown): boolean {
+  if (!isStaleServerFnError(error)) {
+    return false;
+  }
+  reloadOnce("server function not found — client bundle mismatch");
+  return true;
+}
+
 // `throw undefined` (or null, or empty string) inside an event handler / async
 // callback escapes React error boundaries and produces a white page. We can't
 // reproduce reliably (cache- or state-related; F5 fixes it), so trade UX for

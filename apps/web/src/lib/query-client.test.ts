@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sessionQueryOptions } from "./auth-session";
 import { createQueryClient } from "./query-client";
+import { _resetReloadStateForTesting } from "./stale-bundle-reload";
 import { PERSISTENT_ERROR_TOAST } from "./toast";
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
@@ -16,6 +17,27 @@ const unauthorized = {
   status: 401,
   diagnostic: "GET /api/v1/decks/1 → 401 Unauthorized\nUnauthorized",
 } as unknown as Error;
+
+// A stale client bundle calling a server function ID the deployed server's
+// manifest no longer has — what getServerFnById throws, as it reaches the
+// client after the server-fn boundary (prototype dropped, message preserved).
+const staleServerFn = {
+  name: "Error",
+  message: "Server function info not found for deadbeefcafef00d",
+} as unknown as Error;
+
+// Stub location.reload so the stale-bundle reload path can be asserted without
+// tearing down the jsdom env, and reset the once-per-session loop guard so a
+// reload in one test doesn't suppress the next.
+const reloadSpy = vi.fn();
+beforeEach(() => {
+  reloadSpy.mockReset();
+  _resetReloadStateForTesting();
+  Object.defineProperty(globalThis, "location", {
+    configurable: true,
+    value: { ...globalThis.location, reload: reloadSpy },
+  });
+});
 
 describe("createQueryClient mutation onError", () => {
   function getOnError() {
@@ -61,6 +83,17 @@ describe("createQueryClient mutation onError", () => {
 
     expect(toast.error).toHaveBeenCalledWith("network down", PERSISTENT_ERROR_TOAST);
     expect(errorSpy).toHaveBeenCalledWith(err);
+    errorSpy.mockRestore();
+  });
+
+  it("reloads instead of toasting when a mutation hits a stale server function", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    getOnError()(staleServerFn, undefined, undefined);
+
+    // The user sees a reload, not a framework-internal error message.
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
+    expect(toast.error).not.toHaveBeenCalled();
     errorSpy.mockRestore();
   });
 
@@ -112,7 +145,22 @@ describe("createQueryClient session-expiry handling", () => {
     expect(invalidateSpy).not.toHaveBeenCalled();
   });
 
-  it("never retries a 401 but keeps the browser default of 3 retries otherwise", () => {
+  it("reloads when a query (e.g. a poll) hits a stale server function", async () => {
+    const client = createQueryClient();
+
+    await expect(
+      client.fetchQuery({
+        queryKey: ["deck-check", "entries"],
+        // oxlint-disable-next-line prefer-promise-reject-errors -- the post-boundary server-fn error shape
+        queryFn: () => Promise.reject(staleServerFn),
+        retry: false,
+      }),
+    ).rejects.toBe(staleServerFn);
+
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("never retries a 401 or a stale server function but keeps 3 browser retries otherwise", () => {
     const retry = createQueryClient().getDefaultOptions().queries?.retry as (
       failureCount: number,
       error: unknown,
@@ -121,6 +169,9 @@ describe("createQueryClient session-expiry handling", () => {
     // Retrying can't fix an invalid session cookie — fail fast so the session
     // refetch → /login redirect isn't delayed by retry backoff.
     expect(retry(0, unauthorized)).toBe(false);
+    // Nor can it fix a missing manifest entry — three more failing SSR calls
+    // before the reload is pure noise.
+    expect(retry(0, staleServerFn)).toBe(false);
     // jsdom has a window, so this exercises the browser branch.
     expect(retry(0, new Error("boom"))).toBe(true);
     expect(retry(2, new Error("boom"))).toBe(true);

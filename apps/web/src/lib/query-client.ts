@@ -3,6 +3,7 @@ import { toast } from "sonner";
 
 import { sessionQueryOptions } from "./auth-session";
 import { isApiError, isSessionExpiredError } from "./server-fns/api-error";
+import { isStaleServerFnError, reloadIfStaleServerFnError } from "./stale-bundle-reload";
 import { PERSISTENT_ERROR_TOAST } from "./toast";
 
 /**
@@ -23,6 +24,14 @@ export function createQueryClient() {
   const queryClient: QueryClient = new QueryClient({
     queryCache: new QueryCache({
       onError: (err) => {
+        // A stale client bundle calling a server function the deployed server
+        // no longer has reloads to reconcile. Critical for polling queries
+        // (tournament deck-check refetches every 5s): they never navigate, so
+        // the soft toast path can't recover them, and each failed tick is a
+        // fresh SSR Sentry event until the reload fires.
+        if (reloadIfStaleServerFnError(err)) {
+          return;
+        }
         if (isSessionExpiredError(err)) {
           invalidateSession();
         }
@@ -31,16 +40,27 @@ export function createQueryClient() {
     defaultOptions: {
       queries: {
         // Retrying a 401 can't succeed (the cookie stays invalid) and only
-        // delays the session refetch → /login redirect. Everything else keeps
-        // react-query's defaults: 3 retries in the browser, none during SSR.
+        // delays the session refetch → /login redirect. A stale-server-fn error
+        // can't succeed either — the manifest entry is gone until reload — so
+        // skip it too rather than fire three more failing SSR calls. Everything
+        // else keeps react-query's defaults: 3 retries in the browser, none
+        // during SSR.
         retry: (failureCount, error) =>
-          !isSessionExpiredError(error) && globalThis.window !== undefined && failureCount < 3,
+          !isSessionExpiredError(error) &&
+          !isStaleServerFnError(error) &&
+          globalThis.window !== undefined &&
+          failureCount < 3,
       },
       // Query errors are handled per-component via isError/error state.
       // Mutation errors show a global toast since the user expects feedback
       // on an action they triggered.
       mutations: {
         onError: (err) => {
+          // Reload instead of toasting a framework-internal message at the user
+          // when their bundle is stale (see the query cache onError above).
+          if (reloadIfStaleServerFnError(err)) {
+            return;
+          }
           if (isSessionExpiredError(err)) {
             invalidateSession();
           }

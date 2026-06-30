@@ -5,6 +5,7 @@
 ### Other
 
 - feat(App): **Link previews on WordPress** — deck, collection, list, and profile share links now unfurl to their preview image when posted on a WordPress site (via oEmbed).
+- fix(App): **Stale tab recovers after an update** — a tab left open across a new release could silently stop refreshing (e.g. a deck-check page mid-event), and now reloads itself to pick up the new version.
 
 ## 2026-06-29
 

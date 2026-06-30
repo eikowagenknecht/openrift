@@ -15,6 +15,9 @@ import {
   CHUNK_LOAD_ERROR_PATTERN,
   initChunkErrorReloader,
   initVersionStaleNavigationReload,
+  isStaleServerFnError,
+  reloadIfStaleServerFnError,
+  STALE_SERVER_FN_ERROR_PATTERN,
 } from "./stale-bundle-reload";
 
 vi.mock("sonner", () => ({ toast: vi.fn() }));
@@ -448,5 +451,67 @@ describe("CHUNK_LOAD_ERROR_PATTERN", () => {
 
   test("does not match unrelated TypeErrors", () => {
     expect(CHUNK_LOAD_ERROR_PATTERN.test("Cannot read property of undefined")).toBe(false);
+  });
+});
+
+// A long-lived tab whose bundle predates the live deploy calls a server
+// function by a hashed ID the new server's manifest no longer has, so
+// getServerFnById throws. Polling queries (5s tournament deck-check reconcile)
+// re-fire it every interval — each a fresh SSR error — until the tab reloads.
+describe("reloadIfStaleServerFnError", () => {
+  // The exact message from getServerFnById, as it reaches the client after the
+  // seroval server-function boundary (which drops the Error prototype).
+  const staleServerFnError = {
+    name: "Error",
+    message:
+      "Server function info not found for 2797c9278a55a67df69797542baaeb2f888fa18af118d45946919c284e3d5f73",
+  } as unknown as Error;
+
+  test("reloads once on the stale-server-fn message and reports it handled", () => {
+    expect(reloadIfStaleServerFnError(staleServerFnError)).toBe(true);
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test("matches a real Error instance too, not only the post-boundary plain object", () => {
+    expect(
+      reloadIfStaleServerFnError(new Error("Server function module not resolved for abc123")),
+    ).toBe(true);
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test("ignores unrelated errors — no reload, reports unhandled", () => {
+    expect(reloadIfStaleServerFnError(new Error("Collection not found"))).toBe(false);
+    expect(reloadSpy).not.toHaveBeenCalled();
+  });
+
+  test("respects the once-per-session loop guard on repeated stale calls", () => {
+    // A polling query keeps firing the same failing call; only the first should
+    // reload (the guard then falls back to the toast, deduped by id).
+    reloadIfStaleServerFnError(staleServerFnError);
+    reloadIfStaleServerFnError(staleServerFnError);
+    reloadIfStaleServerFnError(staleServerFnError);
+
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledTimes(1);
+  });
+
+  test("isStaleServerFnError narrows on message without reloading", () => {
+    expect(isStaleServerFnError(staleServerFnError)).toBe(true);
+    expect(isStaleServerFnError(new Error("network down"))).toBe(false);
+    expect(isStaleServerFnError(undefined)).toBe(false);
+    expect(reloadSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("STALE_SERVER_FN_ERROR_PATTERN", () => {
+  test.each([
+    ["missing manifest entry", "Server function info not found for deadbeefcafe"],
+    ["module not resolved", "Server function module not resolved for deadbeefcafe"],
+  ])("matches the %s phrasing", (_label, message) => {
+    expect(STALE_SERVER_FN_ERROR_PATTERN.test(message)).toBe(true);
+  });
+
+  test("does not match unrelated server errors", () => {
+    expect(STALE_SERVER_FN_ERROR_PATTERN.test("Internal server error")).toBe(false);
   });
 });
