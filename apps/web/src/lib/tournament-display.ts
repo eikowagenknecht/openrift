@@ -259,6 +259,18 @@ export function partitionTournaments(
   return { current, pastOrArchived };
 }
 
+// The "open" tournament count surfaced on the group dashboard tile: the date-aware
+// current bucket (upcoming + in-progress). Defined in terms of `partitionTournaments`
+// so the tile can never disagree with the events page, which sinks the rest into
+// "Past and archived". A tournament left in setup/running past its end date is
+// effectively completed and is not open.
+export function countOpenTournaments(
+  tournaments: readonly TournamentSummaryResponse[],
+  now: Date = new Date(),
+): number {
+  return partitionTournaments(tournaments, now).current.length;
+}
+
 // Roster ordering: things needing attention first (join requests, then pending
 // invites), then the active field, with dropped and no-shows sunk to the bottom.
 // Mirrors the old deck-check entrant list's "actionable first" intent.

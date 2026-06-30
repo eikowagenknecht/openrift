@@ -10,6 +10,7 @@ import { useMyTournamentDecks } from "@/hooks/use-deck-check-player";
 import { useFriendGroupMatches } from "@/hooks/use-friend-groups";
 import { useGroupTournaments } from "@/hooks/use-tournaments";
 import { useRequiredUserId } from "@/lib/auth-session";
+import { countOpenTournaments } from "@/lib/tournament-display";
 import { countTradeSuggestions, withoutLiveTradeMatches } from "@/lib/trade-derivation";
 import { cn } from "@/lib/utils";
 
@@ -182,9 +183,7 @@ function TradesActionBanner({
  */
 function GroupTournamentsTile({ slug, ownEntries }: { slug: string; ownEntries: number }) {
   const { data: tournaments } = useGroupTournaments(slug);
-  const open = tournaments.items.filter(
-    (tournament) => tournament.status === "setup" || tournament.status === "running",
-  ).length;
+  const open = countOpenTournaments(tournaments.items);
   const hint =
     ownEntries > 0
       ? `${ownEntries} of your ${ownEntries === 1 ? "entry" : "entries"}`

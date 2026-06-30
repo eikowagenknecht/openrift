@@ -5,6 +5,7 @@
 ### Other
 
 - feat(App): **Link previews on WordPress** — deck, collection, list, and profile share links now unfurl to their preview image when posted on a WordPress site (via oEmbed).
+- fix(Tournaments): **Group open-tournaments count** — the group page counted a finished tournament left unmarked as still open, and now matches the events list by counting only upcoming and in-progress ones.
 - fix(App): **Stale tab recovers after an update** — a tab left open across a new release could silently stop refreshing (e.g. a deck-check page mid-event), and now reloads itself to pick up the new version.
 
 ## 2026-06-29
