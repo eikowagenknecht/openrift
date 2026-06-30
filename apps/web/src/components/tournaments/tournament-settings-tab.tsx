@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { useFriendGroups } from "@/hooks/use-friend-groups";
 import { useMyOrganizations } from "@/hooks/use-organizations";
 import {
   useCancelTournament,
@@ -58,7 +59,12 @@ function buildTocItems({ isHost, isPod }: { isHost: boolean; isPod: boolean }): 
   return [
     { id: "general", label: "General" },
     { id: "name", label: "Name", level: 1 },
-    ...(isHost ? [{ id: "host", label: "Host", level: 1 }] : []),
+    ...(isHost
+      ? [
+          { id: "host", label: "Host", level: 1 },
+          { id: "group", label: "Group", level: 1 },
+        ]
+      : []),
     { id: "schedule", label: "Schedule", level: 1 },
     { id: "pairings-decks", label: "Pairings & decks" },
     { id: "pairings", label: "Pairings", level: 1 },
@@ -194,6 +200,7 @@ export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResp
         {isHost ? (
           <Suspense fallback={null}>
             <HostSection detail={detail} locked={locked} />
+            <GroupSection detail={detail} locked={locked} />
           </Suspense>
         ) : null}
 
@@ -747,6 +754,74 @@ function HostSection({ detail, locked }: { detail: TournamentDetailResponse; loc
           </SelectTrigger>
           <SelectContent>
             {hostItems.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * Friend-group link picker, shown to the host only. Lets them link the
+ * tournament to one of their groups, switch it to another, or unlink it
+ * entirely after creation. The viewer can only pick groups they belong to; the
+ * currently linked group is always offered so its name stays visible even if the
+ * viewer isn't a member of it.
+ * @returns The group-picker card.
+ */
+function GroupSection({ detail, locked }: { detail: TournamentDetailResponse; locked: boolean }) {
+  const { data } = useFriendGroups();
+  const updateTournament = useUpdateTournament();
+  const currentValue = detail.groupId ?? "none";
+  const groupItems = [
+    { value: "none", label: "Not linked to a group" },
+    ...data.items.map((group) => ({ value: group.id, label: group.name })),
+  ];
+  if (detail.groupId && !data.items.some((group) => group.id === detail.groupId)) {
+    groupItems.push({ value: detail.groupId, label: detail.groupName ?? "Linked group" });
+  }
+
+  async function changeGroup(value: string) {
+    try {
+      await updateTournament.mutateAsync({
+        id: detail.id,
+        groupId: value === "none" ? null : value,
+      });
+      toast.success(value === "none" ? "Group unlinked" : "Group updated");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Something went wrong");
+    }
+  }
+
+  return (
+    <Card id="group" className="scroll-mt-16">
+      <CardHeader>
+        <CardTitle>Group</CardTitle>
+        <CardDescription>
+          Link the tournament to one of your groups so its members can find and follow it, or unlink
+          it to keep it standalone. You can only pick groups you belong to.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Select
+          items={groupItems}
+          value={currentValue}
+          disabled={locked || updateTournament.isPending}
+          onValueChange={(value) => {
+            if (value && value !== currentValue) {
+              void changeGroup(value);
+            }
+          }}
+        >
+          <SelectTrigger className="max-w-sm" aria-label="Group">
+            <SelectValue placeholder="Not linked to a group" />
+          </SelectTrigger>
+          <SelectContent>
+            {groupItems.map((item) => (
               <SelectItem key={item.value} value={item.value}>
                 {item.label}
               </SelectItem>
