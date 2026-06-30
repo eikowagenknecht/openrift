@@ -82,6 +82,7 @@ interface MappingOverviewResult {
       isSigned: boolean;
       markerSlugs: string[];
       finish: string;
+      size: string;
       language: string;
       imageUrl: string | null;
       externalId: number | null;
@@ -160,6 +161,7 @@ function mergeOverviewsByCard(
         isSigned: p.isSigned,
         markerSlugs: p.markerSlugs,
         finish: p.finish,
+        size: p.size,
         language: p.language,
         imageUrl: p.imageUrl,
         tcgExternalId: p.externalId,
@@ -200,6 +202,7 @@ function mergeOverviewsByCard(
             isSigned: p.isSigned,
             markerSlugs: p.markerSlugs,
             finish: p.finish,
+            size: p.size,
             language: p.language,
             imageUrl: p.imageUrl,
             tcgExternalId: null,
@@ -234,6 +237,7 @@ function mergeOverviewsByCard(
           isSigned: p.isSigned,
           markerSlugs: p.markerSlugs,
           finish: p.finish,
+          size: p.size,
           language: p.language,
           imageUrl: p.imageUrl,
           tcgExternalId: null,
@@ -274,6 +278,7 @@ function mergeOverviewsByCard(
             isSigned: p.isSigned,
             markerSlugs: p.markerSlugs,
             finish: p.finish,
+            size: p.size,
             language: p.language,
             imageUrl: p.imageUrl,
             tcgExternalId: null,
@@ -308,6 +313,7 @@ function mergeOverviewsByCard(
           isSigned: p.isSigned,
           markerSlugs: p.markerSlugs,
           finish: p.finish,
+          size: p.size,
           language: p.language,
           imageUrl: p.imageUrl,
           tcgExternalId: null,

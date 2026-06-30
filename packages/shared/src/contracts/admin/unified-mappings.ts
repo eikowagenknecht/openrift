@@ -1,6 +1,7 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
   artVariantSchema,
+  cardSizeSchema,
   cardTypeSchema,
   domainSchema,
   finishSchema,
@@ -79,6 +80,7 @@ const unifiedMappingPrintingResponseSchema = z
     isSigned: z.boolean().openapi({ example: false }),
     markerSlugs: z.array(z.string()).openapi({ example: [] }),
     finish: finishSchema,
+    size: cardSizeSchema,
     language: z.string().openapi({ example: "EN" }),
     imageUrl: z.string().nullable().openapi({ example: null }),
     tcgExternalId: z.number().nullable().openapi({ example: 582_391 }),

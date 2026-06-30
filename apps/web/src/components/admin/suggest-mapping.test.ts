@@ -18,6 +18,7 @@ function printing(overrides: Partial<UnifiedMappingPrinting> = {}): UnifiedMappi
     isSigned: false,
     markerSlugs: [],
     finish: "normal",
+    size: "standard",
     language: "EN",
     imageUrl: null,
     tcgExternalId: null,

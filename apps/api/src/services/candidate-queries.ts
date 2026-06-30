@@ -421,7 +421,13 @@ async function buildDetailResponse(
     setName: setNameMap.get(setId) ?? null,
     setSlug: setSlugMap.get(setId) ?? setId,
     distributionChannelSlugs: channelSlugsByPrinting.get(p.id) ?? [],
-    expectedPrintingId: formatPrintingLabel(p.shortCode, p.markerSlugs, p.finish, p.language),
+    expectedPrintingId: formatPrintingLabel(
+      p.shortCode,
+      p.markerSlugs,
+      p.finish,
+      p.language,
+      p.size,
+    ),
   }));
 
   // Images for accepted printings — used to show thumbnails and manage rehosting

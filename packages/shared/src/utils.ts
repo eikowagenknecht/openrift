@@ -48,15 +48,22 @@ export function unique<T>(values: T[]): T[] {
  * including EN, so every labelled printing reads symmetrically. If language
  * is null/undefined the prefix is omitted. Marker slugs are joined with `+`
  * (e.g. `top-8+promo`) and the segment is empty for unmarked printings.
- * @returns Display label: "[LANG:]{short_code}:{marker_slugs|}:{finish}"
+ * A non-standard physical size (e.g. `oversized`) is appended as a trailing
+ * `:{size}` segment so an oversized print is distinguishable from its
+ * identical-art standard twin; standard printings keep the unchanged label.
+ * @returns Display label: "[LANG:]{short_code}:{marker_slugs|}:{finish}[:{size}]"
  */
 export function formatPrintingLabel(
   shortCode: string,
   markerSlugs: readonly string[],
   finish: string,
   language?: string | null,
+  size?: string | null,
 ): string {
-  const base = `${shortCode}:${markerSlugs.join("+")}:${finish}`;
+  let base = `${shortCode}:${markerSlugs.join("+")}:${finish}`;
+  if (size && size !== WellKnown.cardSize.STANDARD) {
+    base = `${base}:${size}`;
+  }
   if (language) {
     return `${language}:${base}`;
   }

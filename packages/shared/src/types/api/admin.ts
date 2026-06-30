@@ -161,6 +161,8 @@ export interface AdminPrintingResponse {
   /** Optional: only populated by endpoints that need to render the channel admin UI. */
   distributionChannels?: AdminPrintingDistributionChannelResponse[];
   finish: string;
+  /** Physical card size (`standard` / `oversized`); distinguishes same-art prints. */
+  size: string;
   artist: string;
   publicCode: string;
   printedRulesText: string | null;

@@ -1,4 +1,5 @@
 import type { AdminMarketplaceName } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { formatPrintingLabel, normalizeNameForMatching } from "@openrift/shared/utils";
 import {
   AlertTriangleIcon,
@@ -97,6 +98,7 @@ interface AssignedPrinting {
   shortCode: string;
   markerSlugs: string[];
   finish: string;
+  size: string;
   language: string;
 }
 
@@ -197,11 +199,18 @@ export function collectEntries(group: UnifiedMappingGroup): TableEntry[] {
           shortCode: p.shortCode,
           markerSlugs: p.markerSlugs,
           finish: p.finish,
+          size: p.size,
           language: p.language,
         }))
         .toSorted((a, b) =>
-          formatPrintingLabel(a.shortCode, a.markerSlugs, a.finish, a.language).localeCompare(
-            formatPrintingLabel(b.shortCode, b.markerSlugs, b.finish, b.language),
+          formatPrintingLabel(
+            a.shortCode,
+            a.markerSlugs,
+            a.finish,
+            a.language,
+            a.size,
+          ).localeCompare(
+            formatPrintingLabel(b.shortCode, b.markerSlugs, b.finish, b.language, b.size),
           ),
         );
       const assignedPrintingIds = new Set(matchingPrintings.map((p) => p.printingId));
@@ -639,7 +648,13 @@ function MarketplaceProductRow({
           ) : (
             <div className="flex flex-wrap gap-1">
               {assignedPrintings.map((p) => {
-                const label = formatPrintingLabel(p.shortCode, p.markerSlugs, p.finish, p.language);
+                const label = formatPrintingLabel(
+                  p.shortCode,
+                  p.markerSlugs,
+                  p.finish,
+                  p.language,
+                  p.size,
+                );
                 return (
                   <Badge key={p.printingId} variant="outline" className="gap-1 pr-1">
                     <PrintingLabel
@@ -813,7 +828,10 @@ function PrintingLabel({
   highlightLanguage,
   highlightMarkers,
 }: {
-  printing: Pick<UnifiedMappingPrinting, "shortCode" | "markerSlugs" | "finish" | "language">;
+  printing: Pick<
+    UnifiedMappingPrinting,
+    "shortCode" | "markerSlugs" | "finish" | "language" | "size"
+  >;
   highlightFinish?: string;
   highlightLanguage?: string;
   highlightMarkers?: boolean;
@@ -821,6 +839,7 @@ function PrintingLabel({
   const langMatches = highlightLanguage !== undefined && printing.language === highlightLanguage;
   const finishMatches = highlightFinish !== undefined && printing.finish === highlightFinish;
   const matchCls = "underline decoration-2 underline-offset-2";
+  const isOversized = printing.size !== WellKnown.cardSize.STANDARD;
   return (
     <span>
       {printing.language && (
@@ -833,6 +852,7 @@ function PrintingLabel({
         {printing.markerSlugs.join("+")}
       </span>
       :<span className={finishMatches ? matchCls : undefined}>{printing.finish}</span>
+      {isOversized && <span className="text-amber-600 dark:text-amber-400">:{printing.size}</span>}
     </span>
   );
 }

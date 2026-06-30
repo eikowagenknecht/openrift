@@ -25,6 +25,8 @@ interface PrintingRow {
   markerSlugs: string[];
   /** The printing's own finish (may be `metal` / `metal-deluxe` — the marketplace never sees those). */
   finish: string;
+  /** The printing's physical size (`standard` / `oversized`); marketplaces never expose this. */
+  size: string;
   language: string;
   imageUrl: string | null;
   externalId: number | null;
@@ -75,6 +77,7 @@ export function buildCardIndex(
     isSigned: boolean;
     markerSlugs: string[];
     finish: string;
+    size: string;
     language: string;
     imageUrl: string | null;
     externalId: number | null;
@@ -121,6 +124,7 @@ export function buildCardIndex(
       isSigned: row.isSigned,
       markerSlugs: [...(row.markerSlugs ?? [])],
       finish: row.finish,
+      size: row.size,
       language: row.language,
       imageUrl: row.imageUrl,
       externalId: row.externalId,

@@ -135,6 +135,11 @@ export function buildCandidatePrintingFields(
       label: "Art Variant",
       labeledOptions: toLabeledOptions(orders.artVariants, labels.artVariants),
     },
+    {
+      key: "size",
+      label: "Size",
+      labeledOptions: toLabeledOptions(orders.cardSizes, labels.cardSizes),
+    },
     { key: "isSigned", label: "Signed", type: "boolean" },
     {
       key: "markerSlugs",

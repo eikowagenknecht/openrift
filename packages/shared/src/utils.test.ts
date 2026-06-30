@@ -149,6 +149,22 @@ describe("formatPrintingLabel", () => {
   it("prepends language prefix with marker", () => {
     expect(formatPrintingLabel("OGN-001", ["promo"], "foil", "ZH")).toBe("ZH:OGN-001:promo:foil");
   });
+
+  it("appends a non-standard size segment", () => {
+    expect(formatPrintingLabel("OGN-279", [], "normal", "EN", "oversized")).toBe(
+      "EN:OGN-279::normal:oversized",
+    );
+  });
+
+  it("omits the size segment for standard printings", () => {
+    expect(formatPrintingLabel("OGN-279", [], "normal", "EN", "standard")).toBe(
+      "EN:OGN-279::normal",
+    );
+  });
+
+  it("omits the size segment when size is undefined", () => {
+    expect(formatPrintingLabel("OGN-279", [], "normal", "EN")).toBe("EN:OGN-279::normal");
+  });
 });
 
 describe("boundsOf", () => {
