@@ -27,7 +27,7 @@ export const Route = createFileRoute("/_app/collections_/share/$token")({
     // into the version to bust the immutably-cached og:image on add/remove.
     const version = `${shareImageVersion(collection.updatedAt)}-${collection.copyCount}`;
     const ogImage = collectionShareImageUrl(siteUrl, params.token, version);
-    return seoHead({ siteUrl, title, description, path, ogImage });
+    return seoHead({ siteUrl, title, description, path, ogImage, oembed: true });
   },
   loader: async ({ context, params }): Promise<PublicCollectionDetailResponse> => {
     try {

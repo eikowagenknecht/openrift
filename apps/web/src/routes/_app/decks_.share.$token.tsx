@@ -44,6 +44,7 @@ export const Route = createFileRoute("/_app/decks_/share/$token")({
       description,
       path,
       ogImage,
+      oembed: true,
     });
   },
   loader: async ({ context, params }): Promise<PublicDeckDetailResponse> => {

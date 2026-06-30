@@ -31,7 +31,7 @@ export const Route = createFileRoute("/_app/users_/share/$token")({
     // same removal argument ADR-024 makes for entries, one level up).
     const bundleVersion = `${shareImageVersion(latestUpdate)}-${data.lists.length}`;
     const ogImage = bundleShareImageUrl(siteUrl, params.token, bundleVersion);
-    return seoHead({ siteUrl, title, description, path, ogImage });
+    return seoHead({ siteUrl, title, description, path, ogImage, oembed: true });
   },
   loader: async ({ context, params }): Promise<PublicUserBundleResponse> => {
     try {

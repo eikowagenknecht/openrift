@@ -5,6 +5,7 @@ import {
   collectionPageJsonLd,
   organizationJsonLd,
   productJsonLd,
+  seoHead,
   toAbsoluteUrl,
 } from "./seo";
 
@@ -122,6 +123,38 @@ describe("productJsonLd", () => {
     const payload = parseProduct(productJsonLd({ ...baseOptions }));
     expect(payload.brand).toEqual({ "@type": "Brand", name: "Riftbound" });
     expect(payload.url).toBe("https://openrift.app/cards/test-card");
+  });
+});
+
+describe("seoHead", () => {
+  const siteUrl = "https://openrift.app";
+
+  it("emits an oEmbed discovery link pointing at the encoded page URL", () => {
+    const { links } = seoHead({
+      siteUrl,
+      title: "Best of Diana",
+      path: "/decks/share/tok-deck",
+      oembed: true,
+    });
+    const oembed = links.find((link) => link.type === "application/json+oembed");
+    expect(oembed).toEqual({
+      rel: "alternate",
+      type: "application/json+oembed",
+      href: `${siteUrl}/api/v1/oembed?url=${encodeURIComponent(
+        `${siteUrl}/decks/share/tok-deck`,
+      )}&format=json`,
+      title: "Best of Diana — OpenRift",
+    });
+  });
+
+  it("omits the oEmbed link when not requested", () => {
+    const { links } = seoHead({ siteUrl, title: "Cards", path: "/cards" });
+    expect(links.some((link) => link.type === "application/json+oembed")).toBe(false);
+  });
+
+  it("omits the oEmbed link when there is no canonical path", () => {
+    const { links } = seoHead({ siteUrl, title: "Cards", oembed: true });
+    expect(links.some((link) => link.type === "application/json+oembed")).toBe(false);
   });
 });
 

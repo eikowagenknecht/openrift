@@ -32,6 +32,7 @@ import { mountAdminSentryTest } from "./routes/admin/sentry-test.js";
 import { listImageRoute } from "./routes/authenticated/list-image.js";
 import { mountDeckCheckIngestMiddleware } from "./routes/public/deck-check-ingest.js";
 import { healthRoute } from "./routes/public/health.js";
+import { publicOembedRoute } from "./routes/public/oembed.js";
 import { sentryTunnelRoute } from "./routes/public/sentry-tunnel.js";
 import { publicShareImagesRoute } from "./routes/public/share-images.js";
 import { unsubscribeOneClickRoute } from "./routes/public/unsubscribe-one-click.js";
@@ -414,6 +415,7 @@ export function createApp(deps: AppDeps) {
   app
     .route("/api", healthRoute)
     .route("/api/v1", publicShareImagesRoute)
+    .route("/api/v1", publicOembedRoute)
     .route("/api/v1", sentryTunnelRoute)
     .route("/api/v1", unsubscribeOneClickRoute)
     .route("/api/v1", listImageRoute);

@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_app/lists_/share/$token")({
     const title = `${list.name} (${list.intent} list)`;
     const description = `A Riftbound ${list.intent} list shared by ${owner.displayName}.`;
     const ogImage = listShareImageUrl(siteUrl, params.token, shareImageVersion(list.updatedAt));
-    return seoHead({ siteUrl, title, description, path, ogImage });
+    return seoHead({ siteUrl, title, description, path, ogImage, oembed: true });
   },
   loader: async ({ context, params }): Promise<PublicListDetailResponse> => {
     try {

@@ -40,6 +40,14 @@ interface SeoOptions {
   ogImage?: string;
   /** Open Graph type. Defaults to "website". */
   ogType?: string;
+  /**
+   * Whether to advertise an oEmbed (https://oembed.com) provider endpoint for
+   * this page. When true (and `path` is set), emits a
+   * `<link rel="alternate" type="application/json+oembed">` discovery tag so
+   * WordPress and other oEmbed consumers can unfurl the page to its image.
+   * Only the public share pages, which have a real share image, set this.
+   */
+  oembed?: boolean;
   /** Whether to suppress OG/Twitter tags (e.g. for auth pages). */
   noIndex?: boolean;
 }
@@ -94,6 +102,14 @@ export function seoHead(options: SeoOptions) {
   const links: Record<string, string>[] = [];
   if (canonicalUrl) {
     links.push({ rel: "canonical", href: canonicalUrl });
+  }
+  if (options.oembed && canonicalUrl) {
+    links.push({
+      rel: "alternate",
+      type: "application/json+oembed",
+      href: `${siteUrl}/api/v1/oembed?url=${encodeURIComponent(canonicalUrl)}&format=json`,
+      title: fullTitle,
+    });
   }
 
   return { meta, links };
